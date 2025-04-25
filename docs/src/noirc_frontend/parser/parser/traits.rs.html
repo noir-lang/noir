@@ -786,7 +786,7 @@
             <span class="prelude-val">Some</span>(name) =&gt; name,
             <span class="prelude-val">None </span>=&gt; {
                 <span class="self">self</span>.expected_identifier();
-                Ident::default()
+                <span class="self">self</span>.unknown_ident_at_previous_token_end()
             }
         };
 
@@ -805,7 +805,7 @@
             <span class="prelude-val">Some</span>(name) =&gt; name,
             <span class="prelude-val">None </span>=&gt; {
                 <span class="self">self</span>.expected_identifier();
-                Ident::default()
+                <span class="self">self</span>.unknown_ident_at_previous_token_end()
             }
         };
 
@@ -881,7 +881,7 @@
     location: Location,
 ) -&gt; NoirTrait {
     NoirTrait {
-        name: Ident::default(),
+        name: Ident::new(String::new(), location),
         generics: Vec::new(),
         bounds: Vec::new(),
         where_clause: Vec::new(),

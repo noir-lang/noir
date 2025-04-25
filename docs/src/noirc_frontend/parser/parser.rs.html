@@ -646,7 +646,10 @@
 <a href="#645" id="645">645</a>
 <a href="#646" id="646">646</a>
 <a href="#647" id="647">647</a>
-<a href="#648" id="648">648</a></pre></div><pre class="rust"><code><span class="kw">use </span>acvm::FieldElement;
+<a href="#648" id="648">648</a>
+<a href="#649" id="649">649</a>
+<a href="#650" id="650">650</a>
+<a href="#651" id="651">651</a></pre></div><pre class="rust"><code><span class="kw">use </span>acvm::FieldElement;
 <span class="kw">use </span>fm::FileId;
 <span class="kw">use </span>modifiers::Modifiers;
 <span class="kw">use </span>noirc_errors::{Location, Span};
@@ -1178,11 +1181,14 @@
     }
 
     <span class="kw">fn </span>location_at_previous_token_end(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; Location {
-        Location::new(<span class="self">self</span>.span_at_previous_token_end(), <span class="self">self</span>.previous_token_location.file)
+        <span class="kw">let </span>span_at_previous_token_end = Span::from(
+            <span class="self">self</span>.previous_token_location.span.end()..<span class="self">self</span>.previous_token_location.span.end(),
+        );
+        Location::new(span_at_previous_token_end, <span class="self">self</span>.previous_token_location.file)
     }
 
-    <span class="kw">fn </span>span_at_previous_token_end(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; Span {
-        Span::from(<span class="self">self</span>.previous_token_location.span.end()..<span class="self">self</span>.previous_token_location.span.end())
+    <span class="kw">fn </span>unknown_ident_at_previous_token_end(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; Ident {
+        Ident::new(<span class="string">"(unknown)"</span>.to_string(), <span class="self">self</span>.location_at_previous_token_end())
     }
 
     <span class="kw">fn </span>expected_identifier(<span class="kw-2">&amp;mut </span><span class="self">self</span>) {

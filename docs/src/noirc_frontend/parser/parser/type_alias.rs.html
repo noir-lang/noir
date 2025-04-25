@@ -93,7 +93,7 @@
 <a href="#92" id="92">92</a></pre></div><pre class="rust"><code><span class="kw">use </span>noirc_errors::Location;
 
 <span class="kw">use crate</span>::{
-    ast::{Ident, ItemVisibility, NoirTypeAlias, UnresolvedType, UnresolvedTypeData},
+    ast::{ItemVisibility, NoirTypeAlias, UnresolvedType, UnresolvedTypeData},
     token::Token,
 };
 
@@ -111,7 +111,7 @@
             <span class="kw">let </span>location = <span class="self">self</span>.location_at_previous_token_end();
             <span class="kw">return </span>NoirTypeAlias {
                 visibility,
-                name: Ident::default(),
+                name: <span class="self">self</span>.unknown_ident_at_previous_token_end(),
                 generics: Vec::new(),
                 typ: UnresolvedType { typ: UnresolvedTypeData::Error, location },
                 location: start_location,

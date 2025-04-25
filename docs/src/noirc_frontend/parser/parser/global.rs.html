@@ -192,7 +192,9 @@
 <a href="#191" id="191">191</a>
 <a href="#192" id="192">192</a>
 <a href="#193" id="193">193</a>
-<a href="#194" id="194">194</a></pre></div><pre class="rust"><code><span class="kw">use </span>noirc_errors::Location;
+<a href="#194" id="194">194</a>
+<a href="#195" id="195">195</a>
+<a href="#196" id="196">196</a></pre></div><pre class="rust"><code><span class="kw">use </span>noirc_errors::Location;
 
 <span class="kw">use crate</span>::{
     ast::{
@@ -222,8 +224,9 @@
         <span class="kw">let </span><span class="prelude-val">Some</span>(ident) = <span class="self">self</span>.eat_ident() <span class="kw">else </span>{
             <span class="self">self</span>.eat_semicolon();
             <span class="kw">let </span>location = <span class="self">self</span>.location_at_previous_token_end();
+            <span class="kw">let </span>ident = <span class="self">self</span>.unknown_ident_at_previous_token_end();
             <span class="kw">return </span>LetStatement {
-                pattern: ident_to_pattern(Ident::default(), mutable),
+                pattern: ident_to_pattern(ident, mutable),
                 r#type: UnresolvedType { typ: UnresolvedTypeData::Unspecified, location },
                 expression: Expression { kind: ExpressionKind::Error, location },
                 attributes,
@@ -262,6 +265,7 @@
 <span class="attr">#[cfg(test)]
 </span><span class="kw">mod </span>tests {
     <span class="kw">use </span>acvm::FieldElement;
+    <span class="kw">use </span>insta::assert_snapshot;
 
     <span class="kw">use crate</span>::{
         ast::{
@@ -362,7 +366,7 @@
         <span class="kw">let </span>(src, span) = get_source_with_error_span(src);
         <span class="kw">let </span>(<span class="kw">_</span>, errors) = parse_program_with_dummy_file(<span class="kw-2">&amp;</span>src);
         <span class="kw">let </span>error = get_single_error(<span class="kw-2">&amp;</span>errors, span);
-        <span class="macro">assert_eq!</span>(error.to_string(), <span class="string">"Expected a ';' but found end of input"</span>);
+        <span class="macro">assert_snapshot!</span>(error.to_string(), @<span class="string">"Expected a ';' but found end of input"</span>);
     }
 
     <span class="attr">#[test]

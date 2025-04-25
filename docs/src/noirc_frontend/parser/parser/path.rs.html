@@ -355,7 +355,9 @@
 <a href="#354" id="354">354</a>
 <a href="#355" id="355">355</a>
 <a href="#356" id="356">356</a>
-<a href="#357" id="357">357</a></pre></div><pre class="rust"><code><span class="kw">use </span><span class="kw">crate</span>::ast::{AsTraitPath, Ident, Path, PathKind, PathSegment, UnresolvedType};
+<a href="#357" id="357">357</a>
+<a href="#358" id="358">358</a>
+<a href="#359" id="359">359</a></pre></div><pre class="rust"><code><span class="kw">use </span><span class="kw">crate</span>::ast::{AsTraitPath, Ident, Path, PathKind, PathSegment, UnresolvedType};
 <span class="kw">use </span><span class="kw">crate</span>::parser::ParserErrorReason;
 
 <span class="kw">use </span><span class="kw">crate</span>::token::{Keyword, Token};
@@ -576,6 +578,8 @@
 <span class="attr">#[cfg(test)]
 </span><span class="kw">mod </span>tests {
 
+    <span class="kw">use </span>insta::assert_snapshot;
+
     <span class="kw">use crate</span>::{
         ast::{Path, PathKind},
         parser::{
@@ -709,7 +713,7 @@
         <span class="macro">assert!</span>(path.is_none());
 
         <span class="kw">let </span>error = get_single_error(<span class="kw-2">&amp;</span>parser.errors, span);
-        <span class="macro">assert_eq!</span>(error.to_string(), <span class="string">"Expected an identifier but found end of input"</span>);
+        <span class="macro">assert_snapshot!</span>(error.to_string(), @<span class="string">"Expected an identifier but found end of input"</span>);
     }
 }
 </code></pre></div></section></main></body></html>

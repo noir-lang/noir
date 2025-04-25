@@ -866,7 +866,9 @@
 <a href="#865" id="865">865</a>
 <a href="#866" id="866">866</a>
 <a href="#867" id="867">867</a>
-<a href="#868" id="868">868</a></pre></div><pre class="rust"><code><span class="kw">use </span>noirc_errors::{Located, Location};
+<a href="#868" id="868">868</a>
+<a href="#869" id="869">869</a>
+<a href="#870" id="870">870</a></pre></div><pre class="rust"><code><span class="kw">use </span>noirc_errors::{Located, Location};
 
 <span class="kw">use crate</span>::{
     ast::{
@@ -1132,7 +1134,7 @@
 
         <span class="kw">let </span><span class="prelude-val">Some</span>(identifier) = <span class="self">self</span>.eat_ident() <span class="kw">else </span>{
             <span class="self">self</span>.expected_identifier();
-            <span class="kw">let </span>identifier = Ident::default();
+            <span class="kw">let </span>identifier = <span class="self">self</span>.unknown_ident_at_previous_token_end();
             <span class="kw">return </span><span class="prelude-val">Some</span>(<span class="self">self</span>.empty_for_loop(identifier, start_location));
         };
 
@@ -1334,6 +1336,8 @@
 
 <span class="attr">#[cfg(test)]
 </span><span class="kw">mod </span>tests {
+    <span class="kw">use </span>insta::assert_snapshot;
+
     <span class="kw">use crate</span>::{
         ast::{ExpressionKind, ForRange, LValue, Statement, StatementKind, UnresolvedTypeData},
         parser::{
@@ -1640,7 +1644,7 @@
         <span class="kw">let </span>statement = parser.parse_statement_or_error();
         <span class="macro">assert!</span>(<span class="macro">matches!</span>(statement.kind, StatementKind::Let(..)));
         <span class="kw">let </span>error = get_single_error(<span class="kw-2">&amp;</span>parser.errors, span);
-        <span class="macro">assert_eq!</span>(error.to_string(), <span class="string">"Expected a statement but found ']'"</span>);
+        <span class="macro">assert_snapshot!</span>(error.to_string(), @<span class="string">"Expected a statement but found ']'"</span>);
     }
 
     <span class="attr">#[test]

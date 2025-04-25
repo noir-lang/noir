@@ -275,7 +275,9 @@
 <a href="#274" id="274">274</a>
 <a href="#275" id="275">275</a>
 <a href="#276" id="276">276</a>
-<a href="#277" id="277">277</a></pre></div><pre class="rust"><code><span class="kw">use </span>noirc_errors::Location;
+<a href="#277" id="277">277</a>
+<a href="#278" id="278">278</a>
+<a href="#279" id="279">279</a></pre></div><pre class="rust"><code><span class="kw">use </span>noirc_errors::Location;
 
 <span class="kw">use crate</span>::{
     ast::{Documented, Ident, ItemVisibility, NoirStruct, StructField, UnresolvedGenerics},
@@ -300,7 +302,7 @@
         <span class="kw">let </span><span class="prelude-val">Some</span>(name) = <span class="self">self</span>.eat_ident() <span class="kw">else </span>{
             <span class="self">self</span>.expected_identifier();
             <span class="kw">return </span><span class="self">self</span>.empty_struct(
-                Ident::default(),
+                <span class="self">self</span>.unknown_ident_at_previous_token_end(),
                 attributes,
                 visibility,
                 Vec::new(),
@@ -405,6 +407,8 @@
 
 <span class="attr">#[cfg(test)]
 </span><span class="kw">mod </span>tests {
+    <span class="kw">use </span>insta::assert_snapshot;
+
     <span class="kw">use crate</span>::{
         ast::{IntegerBitSize, NoirStruct, UnresolvedGeneric, UnresolvedTypeData},
         parse_program_with_dummy_file,
@@ -549,7 +553,7 @@
         <span class="macro">assert_eq!</span>(noir_struct.fields.len(), <span class="number">1</span>);
 
         <span class="kw">let </span>error = get_single_error(<span class="kw-2">&amp;</span>errors, span);
-        <span class="macro">assert_eq!</span>(error.to_string(), <span class="string">"Expected an identifier but found '42'"</span>);
+        <span class="macro">assert_snapshot!</span>(error.to_string(), @<span class="string">"Expected an identifier but found '42'"</span>);
     }
 }
 </code></pre></div></section></main></body></html>

@@ -98,16 +98,7 @@
 <a href="#97" id="97">97</a>
 <a href="#98" id="98">98</a>
 <a href="#99" id="99">99</a>
-<a href="#100" id="100">100</a>
-<a href="#101" id="101">101</a>
-<a href="#102" id="102">102</a>
-<a href="#103" id="103">103</a>
-<a href="#104" id="104">104</a>
-<a href="#105" id="105">105</a>
-<a href="#106" id="106">106</a>
-<a href="#107" id="107">107</a>
-<a href="#108" id="108">108</a>
-<a href="#109" id="109">109</a></pre></div><pre class="rust"><code><span class="kw">use </span>noirc_errors::Location;
+<a href="#100" id="100">100</a></pre></div><pre class="rust"><code><span class="kw">use </span>noirc_errors::Location;
 
 <span class="kw">use crate</span>::{
     ast::{Ident, ItemVisibility, ModuleDeclaration},
@@ -122,21 +113,12 @@
     ///     = ( 'mod' | 'contract' ) identifier ( '{' Module '}' | ';' )
     </span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>parse_mod_or_contract(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
+        ident: Ident,
         attributes: Vec&lt;(Attribute, Location)&gt;,
         is_contract: bool,
         visibility: ItemVisibility,
     ) -&gt; ItemKind {
         <span class="kw">let </span>outer_attributes = <span class="self">self</span>.validate_secondary_attributes(attributes);
-
-        <span class="kw">let </span><span class="prelude-val">Some</span>(ident) = <span class="self">self</span>.eat_ident() <span class="kw">else </span>{
-            <span class="self">self</span>.expected_identifier();
-            <span class="kw">return </span>ItemKind::ModuleDecl(ModuleDeclaration {
-                visibility,
-                ident: Ident::default(),
-                outer_attributes,
-                has_semicolon: <span class="bool-val">false</span>,
-            });
-        };
 
         <span class="kw">if </span><span class="self">self</span>.eat_left_brace() {
             <span class="kw">let </span>contents = <span class="self">self</span>.parse_module(

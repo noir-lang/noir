@@ -112,7 +112,9 @@
 <a href="#111" id="111">111</a>
 <a href="#112" id="112">112</a>
 <a href="#113" id="113">113</a>
-<a href="#114" id="114">114</a></pre></div><pre class="rust"><code><span class="kw">use crate</span>::{
+<a href="#114" id="114">114</a>
+<a href="#115" id="115">115</a>
+<a href="#116" id="116">116</a></pre></div><pre class="rust"><code><span class="kw">use crate</span>::{
     ast::ItemVisibility,
     token::{Keyword, Token},
 };
@@ -150,6 +152,8 @@
 
 <span class="attr">#[cfg(test)]
 </span><span class="kw">mod </span>tests {
+    <span class="kw">use </span>insta::assert_snapshot;
+
     <span class="kw">use crate</span>::{
         ast::ItemVisibility,
         parser::{
@@ -187,7 +191,7 @@
         <span class="kw">let </span>visibility = parser.parse_item_visibility();
         <span class="macro">assert_eq!</span>(visibility, ItemVisibility::Public);
         <span class="kw">let </span>error = get_single_error(<span class="kw-2">&amp;</span>parser.errors, span);
-        <span class="macro">assert_eq!</span>(error.to_string(), <span class="string">"Expected a 'crate' but found end of input"</span>);
+        <span class="macro">assert_snapshot!</span>(error.to_string(), @<span class="string">"Expected a 'crate' but found end of input"</span>);
     }
 
     <span class="attr">#[test]
@@ -201,7 +205,7 @@
         <span class="kw">let </span>visibility = parser.parse_item_visibility();
         <span class="macro">assert_eq!</span>(visibility, ItemVisibility::Public);
         <span class="kw">let </span>error = get_single_error(<span class="kw-2">&amp;</span>parser.errors, span);
-        <span class="macro">assert_eq!</span>(error.to_string(), <span class="string">"Expected a 'crate' but found 'hello'"</span>);
+        <span class="macro">assert_snapshot!</span>(error.to_string(), @<span class="string">"Expected a 'crate' but found 'hello'"</span>);
     }
     <span class="attr">#[test]
     </span><span class="kw">fn </span>parses_public_visibility_missing_paren_after_pub_crate() {
@@ -214,7 +218,7 @@
         <span class="kw">let </span>visibility = parser.parse_item_visibility();
         <span class="macro">assert_eq!</span>(visibility, ItemVisibility::PublicCrate);
         <span class="kw">let </span>error = get_single_error(<span class="kw-2">&amp;</span>parser.errors, span);
-        <span class="macro">assert_eq!</span>(error.to_string(), <span class="string">"Expected a ')' but found end of input"</span>);
+        <span class="macro">assert_snapshot!</span>(error.to_string(), @<span class="string">"Expected a ')' but found end of input"</span>);
     }
 
     <span class="attr">#[test]

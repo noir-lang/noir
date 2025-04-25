@@ -261,7 +261,9 @@
 <a href="#260" id="260">260</a>
 <a href="#261" id="261">261</a>
 <a href="#262" id="262">262</a>
-<a href="#263" id="263">263</a></pre></div><pre class="rust"><code><span class="kw">use </span>noirc_errors::Location;
+<a href="#263" id="263">263</a>
+<a href="#264" id="264">264</a>
+<a href="#265" id="265">265</a></pre></div><pre class="rust"><code><span class="kw">use </span>noirc_errors::Location;
 
 <span class="kw">use crate</span>::{
     ast::{Documented, EnumVariant, Ident, ItemVisibility, NoirEnumeration, UnresolvedGenerics},
@@ -289,7 +291,7 @@
         <span class="kw">let </span><span class="prelude-val">Some</span>(name) = <span class="self">self</span>.eat_ident() <span class="kw">else </span>{
             <span class="self">self</span>.expected_identifier();
             <span class="kw">return </span><span class="self">self</span>.empty_enum(
-                Ident::default(),
+                <span class="self">self</span>.unknown_ident_at_previous_token_end(),
                 attributes,
                 visibility,
                 Vec::new(),
@@ -382,6 +384,8 @@
 
 <span class="attr">#[cfg(test)]
 </span><span class="kw">mod </span>tests {
+    <span class="kw">use </span>insta::assert_snapshot;
+
     <span class="kw">use crate</span>::{
         ast::{IntegerBitSize, NoirEnumeration, UnresolvedGeneric, UnresolvedTypeData},
         parse_program_with_dummy_file,
@@ -521,7 +525,7 @@
 
         <span class="macro">assert_eq!</span>(errors.len(), <span class="number">1</span>);
         <span class="kw">let </span>error = <span class="kw-2">&amp;</span>errors[<span class="number">0</span>];
-        <span class="macro">assert_eq!</span>(error.to_string(), <span class="string">"Expected an identifier but found '42'"</span>);
+        <span class="macro">assert_snapshot!</span>(error.to_string(), @<span class="string">"Expected an identifier but found '42'"</span>);
     }
 }
 </code></pre></div></section></main></body></html>

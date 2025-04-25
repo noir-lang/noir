@@ -832,7 +832,8 @@
 <a href="#831" id="831">831</a>
 <a href="#832" id="832">832</a>
 <a href="#833" id="833">833</a>
-<a href="#834" id="834">834</a></pre></div><pre class="rust"><code><span class="kw">use </span>acvm::{AcirField, FieldElement};
+<a href="#834" id="834">834</a>
+<a href="#835" id="835">835</a></pre></div><pre class="rust"><code><span class="kw">use </span>acvm::{AcirField, FieldElement};
 
 <span class="kw">use crate</span>::{
     QuotedType,
@@ -1306,6 +1307,7 @@
 </span><span class="kw">mod </span>tests {
     <span class="kw">use </span>std::collections::BTreeMap;
 
+    <span class="kw">use </span>insta::assert_snapshot;
     <span class="kw">use </span>proptest::prelude::<span class="kw-2">*</span>;
     <span class="kw">use </span>strum::IntoEnumIterator;
 
@@ -1541,7 +1543,7 @@
         <span class="kw">let </span><span class="kw-2">mut </span>parser = Parser::for_str_with_dummy_file(<span class="kw-2">&amp;</span>src);
         parser.parse_type();
         <span class="kw">let </span>error = get_single_error(<span class="kw-2">&amp;</span>parser.errors, span);
-        <span class="macro">assert_eq!</span>(error.to_string(), <span class="string">"Expected a ']' but found end of input"</span>);
+        <span class="macro">assert_snapshot!</span>(error.to_string(), @<span class="string">"Expected a ']' but found end of input"</span>);
     }
 
     <span class="attr">#[test]

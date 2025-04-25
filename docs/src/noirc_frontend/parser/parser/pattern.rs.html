@@ -400,7 +400,9 @@
 <a href="#399" id="399">399</a>
 <a href="#400" id="400">400</a>
 <a href="#401" id="401">401</a>
-<a href="#402" id="402">402</a></pre></div><pre class="rust"><code><span class="kw">use </span>noirc_errors::Location;
+<a href="#402" id="402">402</a>
+<a href="#403" id="403">403</a>
+<a href="#404" id="404">404</a></pre></div><pre class="rust"><code><span class="kw">use </span>noirc_errors::Location;
 
 <span class="kw">use crate</span>::{
     ast::{Ident, Path, Pattern},
@@ -651,6 +653,8 @@
 <span class="attr">#[cfg(test)]
 </span><span class="kw">mod </span>tests {
 
+    <span class="kw">use </span>insta::assert_snapshot;
+
     <span class="kw">use crate</span>::{
         ast::Pattern,
         parser::{
@@ -757,7 +761,7 @@
         <span class="kw">let </span>pattern = parser.parse_pattern_or_error();
 
         <span class="kw">let </span>error = get_single_error(<span class="kw-2">&amp;</span>parser.errors, span);
-        <span class="macro">assert_eq!</span>(error.to_string(), <span class="string">"Expected a ':' but found '='"</span>);
+        <span class="macro">assert_snapshot!</span>(error.to_string(), @<span class="string">"Expected a ':' but found '='"</span>);
 
         <span class="kw">let </span>Pattern::Struct(path, <span class="kw-2">mut </span>patterns, <span class="kw">_</span>) = pattern <span class="kw">else </span>{
             <span class="macro">panic!</span>(<span class="string">"Expected a struct pattern"</span>)

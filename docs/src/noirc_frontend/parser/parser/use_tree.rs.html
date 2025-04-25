@@ -406,7 +406,7 @@
             }
             UseTree {
                 prefix,
-                kind: UseTreeKind::Path(Ident::default(), <span class="prelude-val">None</span>),
+                kind: UseTreeKind::Path(<span class="self">self</span>.unknown_ident_at_previous_token_end(), <span class="prelude-val">None</span>),
                 location: <span class="self">self</span>.location_since(start_location),
             }
         } <span class="kw">else </span>{

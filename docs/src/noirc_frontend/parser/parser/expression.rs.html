@@ -2161,7 +2161,8 @@
 <a href="#2160" id="2160">2160</a>
 <a href="#2161" id="2161">2161</a>
 <a href="#2162" id="2162">2162</a>
-<a href="#2163" id="2163">2163</a></pre></div><pre class="rust"><code><span class="kw">use </span>iter_extended::vecmap;
+<a href="#2163" id="2163">2163</a>
+<a href="#2164" id="2164">2164</a></pre></div><pre class="rust"><code><span class="kw">use </span>iter_extended::vecmap;
 <span class="kw">use </span>noirc_errors::Location;
 
 <span class="kw">use crate</span>::{
@@ -3178,6 +3179,7 @@
 
 <span class="attr">#[cfg(test)]
 </span><span class="kw">mod </span>tests {
+    <span class="kw">use </span>insta::assert_snapshot;
     <span class="kw">use </span>strum::IntoEnumIterator;
 
     <span class="kw">use crate</span>::{
@@ -3444,7 +3446,7 @@
         <span class="kw">let </span><span class="kw-2">mut </span>parser = Parser::for_str_with_dummy_file(<span class="kw-2">&amp;</span>src);
         parser.parse_expression();
         <span class="kw">let </span>error = get_single_error(<span class="kw-2">&amp;</span>parser.errors, span);
-        <span class="macro">assert_eq!</span>(error.to_string(), <span class="string">"Expected an expression but found end of input"</span>);
+        <span class="macro">assert_snapshot!</span>(error.to_string(), @<span class="string">"Expected an expression but found end of input"</span>);
     }
 
     <span class="attr">#[test]
@@ -3816,7 +3818,7 @@
         <span class="kw">let </span>expr = parser.parse_expression_or_error();
 
         <span class="kw">let </span>error = get_single_error(<span class="kw-2">&amp;</span>parser.errors, span);
-        <span class="macro">assert_eq!</span>(error.to_string(), <span class="string">"Expected a ':' but found '='"</span>);
+        <span class="macro">assert_snapshot!</span>(error.to_string(), @<span class="string">"Expected a ':' but found '='"</span>);
 
         <span class="kw">let </span>ExpressionKind::Constructor(<span class="kw-2">mut </span>constructor) = expr.kind <span class="kw">else </span>{
             <span class="macro">panic!</span>(<span class="string">"Expected constructor"</span>);
@@ -3844,7 +3846,7 @@
         <span class="kw">let </span>expr = parser.parse_expression_or_error();
 
         <span class="kw">let </span>error = get_single_error(<span class="kw-2">&amp;</span>parser.errors, span);
-        <span class="macro">assert_eq!</span>(error.to_string(), <span class="string">"Expected a ':' but found '::'"</span>);
+        <span class="macro">assert_snapshot!</span>(error.to_string(), @<span class="string">"Expected a ':' but found '::'"</span>);
 
         <span class="kw">let </span>ExpressionKind::Constructor(<span class="kw-2">mut </span>constructor) = expr.kind <span class="kw">else </span>{
             <span class="macro">panic!</span>(<span class="string">"Expected constructor"</span>);
@@ -3882,7 +3884,7 @@
         <span class="macro">assert_eq!</span>(expr.to_string(), <span class="string">"1"</span>);
 
         <span class="kw">let </span>error = get_single_error(<span class="kw-2">&amp;</span>parser.errors, span);
-        <span class="macro">assert_eq!</span>(error.to_string(), <span class="string">"Expected an identifier but found '2'"</span>);
+        <span class="macro">assert_snapshot!</span>(error.to_string(), @<span class="string">"Expected an identifier but found '2'"</span>);
     }
 
     <span class="attr">#[test]
@@ -3910,7 +3912,7 @@
         <span class="macro">assert_eq!</span>(expr.to_string(), <span class="string">"2"</span>);
 
         <span class="kw">let </span>error = get_single_error(<span class="kw-2">&amp;</span>parser.errors, span);
-        <span class="macro">assert_eq!</span>(error.to_string(), <span class="string">"Expected an identifier but found '2'"</span>);
+        <span class="macro">assert_snapshot!</span>(error.to_string(), @<span class="string">"Expected an identifier but found '2'"</span>);
     }
 
     <span class="attr">#[test]
@@ -3984,7 +3986,7 @@
         <span class="kw">let </span><span class="kw-2">mut </span>parser = Parser::for_str_with_dummy_file(<span class="kw-2">&amp;</span>src);
         parser.parse_expression();
         <span class="kw">let </span>error = get_single_error(<span class="kw-2">&amp;</span>parser.errors, span);
-        <span class="macro">assert_eq!</span>(error.to_string(), <span class="string">"Expected a type but found end of input"</span>);
+        <span class="macro">assert_snapshot!</span>(error.to_string(), @<span class="string">"Expected a type but found end of input"</span>);
     }
 
     <span class="attr">#[test]

@@ -684,7 +684,30 @@
 <a href="#683" id="683">683</a>
 <a href="#684" id="684">684</a>
 <a href="#685" id="685">685</a>
-<a href="#686" id="686">686</a></pre></div><pre class="rust"><code><span class="kw">use </span><span class="kw">crate</span>::ast::{
+<a href="#686" id="686">686</a>
+<a href="#687" id="687">687</a>
+<a href="#688" id="688">688</a>
+<a href="#689" id="689">689</a>
+<a href="#690" id="690">690</a>
+<a href="#691" id="691">691</a>
+<a href="#692" id="692">692</a>
+<a href="#693" id="693">693</a>
+<a href="#694" id="694">694</a>
+<a href="#695" id="695">695</a>
+<a href="#696" id="696">696</a>
+<a href="#697" id="697">697</a>
+<a href="#698" id="698">698</a>
+<a href="#699" id="699">699</a>
+<a href="#700" id="700">700</a>
+<a href="#701" id="701">701</a>
+<a href="#702" id="702">702</a>
+<a href="#703" id="703">703</a>
+<a href="#704" id="704">704</a>
+<a href="#705" id="705">705</a>
+<a href="#706" id="706">706</a>
+<a href="#707" id="707">707</a>
+<a href="#708" id="708">708</a>
+<a href="#709" id="709">709</a></pre></div><pre class="rust"><code><span class="kw">use </span><span class="kw">crate</span>::ast::{
     BlockExpression, GenericTypeArgs, Ident, Path, Pattern, UnresolvedTraitConstraint,
     UnresolvedType,
 };
@@ -773,9 +796,17 @@
         allow_optional_body: bool,
         allow_self: bool,
     ) -&gt; FunctionDefinitionWithOptionalBody {
-        <span class="kw">let </span><span class="prelude-val">Some</span>(name) = <span class="self">self</span>.eat_ident() <span class="kw">else </span>{
+        <span class="kw">let </span>name = <span class="kw">if let </span><span class="prelude-val">Some</span>(name) = <span class="self">self</span>.eat_ident() {
+            name
+        } <span class="kw">else if </span><span class="self">self</span>.at(Token::LeftParen) || <span class="self">self</span>.at(Token::Less) {
+            <span class="comment">// If it's `fn (...` or `fn &lt;...` we assume the user missed the function name but a function
+            // definition follows. This can happen if the user is currently renaming a function by first
+            // erasing the name.
+            </span><span class="self">self</span>.expected_identifier();
+            <span class="self">self</span>.unknown_ident_at_previous_token_end()
+        } <span class="kw">else </span>{
             <span class="self">self</span>.expected_identifier();
-            <span class="kw">return </span>empty_function(<span class="self">self</span>.previous_token_location);
+            <span class="kw">return </span>empty_function(<span class="self">self</span>.location_at_previous_token_end());
         };
 
         <span class="kw">let </span>generics = <span class="self">self</span>.parse_generics_allowing_trait_bounds();
@@ -1006,15 +1037,14 @@
 }
 
 <span class="kw">fn </span>empty_function(location: Location) -&gt; FunctionDefinitionWithOptionalBody {
-    <span class="kw">let </span>span = Span::from(location.span.end()..location.span.end());
     FunctionDefinitionWithOptionalBody {
-        name: Ident::default(),
+        name: Ident::new(String::new(), location),
         generics: Vec::new(),
         parameters: Vec::new(),
         body: <span class="prelude-val">None</span>,
-        location: Location::new(span, location.file),
+        location,
         where_clause: Vec::new(),
-        return_type: FunctionReturnType::Default(Location::new(span, location.file)),
+        return_type: FunctionReturnType::Default(location),
         return_visibility: Visibility::Private,
     }
 }
@@ -1025,6 +1055,8 @@
 
 <span class="attr">#[cfg(test)]
 </span><span class="kw">mod </span>tests {
+    <span class="kw">use </span>insta::assert_snapshot;
+
     <span class="kw">use crate</span>::{
         ast::{
             ExpressionKind, IntegerBitSize, ItemVisibility, NoirFunction, StatementKind,
@@ -1185,7 +1217,7 @@
         <span class="macro">assert_eq!</span>(noir_function.parameters().len(), <span class="number">1</span>);
 
         <span class="kw">let </span>error = get_single_error(<span class="kw-2">&amp;</span>errors, span);
-        <span class="macro">assert_eq!</span>(error.to_string(), <span class="string">"Expected a pattern but found '1'"</span>);
+        <span class="macro">assert_snapshot!</span>(error.to_string(), @<span class="string">"Expected a pattern but found '1'"</span>);
     }
 
     <span class="attr">#[test]
@@ -1221,7 +1253,7 @@
         <span class="macro">assert_eq!</span>(noir_function.parameters().len(), <span class="number">2</span>);
 
         <span class="kw">let </span>error = get_single_error(<span class="kw-2">&amp;</span>errors, span);
-        <span class="macro">assert_eq!</span>(error.to_string(), <span class="string">"Expected a type but found ','"</span>);
+        <span class="macro">assert_snapshot!</span>(error.to_string(), @<span class="string">"Expected a type but found ','"</span>);
     }
 
     <span class="attr">#[test]
@@ -1254,7 +1286,7 @@
         <span class="kw">let </span>(src, span) = get_source_with_error_span(src);
         <span class="kw">let </span>(<span class="kw-2">mut </span>module, errors) = parse_program_with_dummy_file(<span class="kw-2">&amp;</span>src);
         <span class="kw">let </span>error = get_single_error(<span class="kw-2">&amp;</span>errors, span);
-        <span class="macro">assert_eq!</span>(error.to_string(), <span class="string">"Expected a type but found 'mut'"</span>);
+        <span class="macro">assert_snapshot!</span>(error.to_string(), @<span class="string">"Expected a type but found 'mut'"</span>);
 
         <span class="macro">assert_eq!</span>(module.items.len(), <span class="number">1</span>);
         <span class="kw">let </span>item = module.items.remove(<span class="number">0</span>);
@@ -1339,7 +1371,7 @@
         <span class="kw">let _ </span>= parser.parse_program();
 
         <span class="kw">let </span>error = get_single_error(<span class="kw-2">&amp;</span>parser.errors, span);
-        <span class="macro">assert_eq!</span>(error.to_string(), <span class="string">"Unexpected 'struct', expected one of 'where', '{', '-&gt;'"</span>);
+        <span class="macro">assert_snapshot!</span>(error.to_string(), @<span class="string">"Unexpected 'struct', expected one of 'where', '{', '-&gt;'"</span>);
     }
 
     <span class="attr">#[test]
@@ -1353,7 +1385,7 @@
         <span class="kw">let _ </span>= parser.parse_program();
 
         <span class="kw">let </span>error = get_single_error(<span class="kw-2">&amp;</span>parser.errors, span);
-        <span class="macro">assert_eq!</span>(error.to_string(), <span class="string">"Unexpected 'struct', expected one of 'where', '{'"</span>);
+        <span class="macro">assert_snapshot!</span>(error.to_string(), @<span class="string">"Unexpected 'struct', expected one of 'where', '{'"</span>);
     }
 
     <span class="attr">#[test]
@@ -1367,7 +1399,21 @@
         <span class="kw">let _ </span>= parser.parse_program();
 
         <span class="kw">let </span>error = get_single_error(<span class="kw-2">&amp;</span>parser.errors, span);
-        <span class="macro">assert_eq!</span>(error.to_string(), <span class="string">"Expected a '{' but found 'struct'"</span>);
+        <span class="macro">assert_snapshot!</span>(error.to_string(), @<span class="string">"Expected a '{' but found 'struct'"</span>);
+    }
+
+    <span class="attr">#[test]
+    </span><span class="kw">fn </span>errors_on_missing_function_name() {
+        <span class="kw">let </span>src = <span class="string">"
+          fn () {}
+             ^
+          "</span>;
+        <span class="kw">let </span>(src, span) = get_source_with_error_span(src);
+        <span class="kw">let </span><span class="kw-2">mut </span>parser = Parser::for_str_with_dummy_file(<span class="kw-2">&amp;</span>src);
+        <span class="kw">let _ </span>= parser.parse_program();
+
+        <span class="kw">let </span>error = get_single_error(<span class="kw-2">&amp;</span>parser.errors, span);
+        <span class="macro">assert_snapshot!</span>(error.to_string(), @<span class="string">"Expected an identifier but found '('"</span>);
     }
 }
 </code></pre></div></section></main></body></html>

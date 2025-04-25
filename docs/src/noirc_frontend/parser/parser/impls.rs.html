@@ -586,11 +586,12 @@
 <a href="#585" id="585">585</a>
 <a href="#586" id="586">586</a>
 <a href="#587" id="587">587</a>
-<a href="#588" id="588">588</a></pre></div><pre class="rust"><code><span class="kw">use </span>noirc_errors::Location;
+<a href="#588" id="588">588</a>
+<a href="#589" id="589">589</a></pre></div><pre class="rust"><code><span class="kw">use </span>noirc_errors::Location;
 
 <span class="kw">use crate</span>::{
     ast::{
-        Documented, Expression, ExpressionKind, Ident, ItemVisibility, NoirFunction, NoirTraitImpl,
+        Documented, Expression, ExpressionKind, ItemVisibility, NoirFunction, NoirTraitImpl,
         TraitImplItem, TraitImplItemKind, TypeImpl, UnresolvedGeneric, UnresolvedType,
         UnresolvedTypeData,
     },
@@ -744,10 +745,9 @@
             <span class="self">self</span>.expected_identifier();
             <span class="self">self</span>.eat_semicolons();
             <span class="kw">let </span>location = <span class="self">self</span>.location_at_previous_token_end();
-            <span class="kw">return </span><span class="prelude-val">Some</span>(TraitImplItemKind::Type {
-                name: Ident::default(),
-                alias: UnresolvedType { typ: UnresolvedTypeData::Error, location },
-            });
+            <span class="kw">let </span>name = <span class="self">self</span>.unknown_ident_at_previous_token_end();
+            <span class="kw">let </span>alias = UnresolvedType { typ: UnresolvedTypeData::Error, location };
+            <span class="kw">return </span><span class="prelude-val">Some</span>(TraitImplItemKind::Type { name, alias });
         };
 
         <span class="kw">let </span>alias = <span class="kw">if </span><span class="self">self</span>.eat_assign() {
@@ -772,7 +772,7 @@
             <span class="prelude-val">Some</span>(name) =&gt; name,
             <span class="prelude-val">None </span>=&gt; {
                 <span class="self">self</span>.expected_identifier();
-                Ident::default()
+                <span class="self">self</span>.unknown_ident_at_previous_token_end()
             }
         };
 
@@ -823,6 +823,8 @@
 
 <span class="attr">#[cfg(test)]
 </span><span class="kw">mod </span>tests {
+    <span class="kw">use </span>insta::assert_snapshot;
+
     <span class="kw">use crate</span>::{
         ast::{
             ItemVisibility, NoirTraitImpl, Pattern, TraitImplItemKind, TypeImpl, UnresolvedTypeData,
@@ -1137,7 +1139,7 @@
         <span class="macro">assert_eq!</span>(type_impl.methods.len(), <span class="number">1</span>);
 
         <span class="kw">let </span>error = get_single_error(<span class="kw-2">&amp;</span>errors, span);
-        <span class="macro">assert_eq!</span>(error.to_string(), <span class="string">"Expected a function but found 'hello'"</span>);
+        <span class="macro">assert_snapshot!</span>(error.to_string(), @<span class="string">"Expected a function but found 'hello'"</span>);
     }
 
     <span class="attr">#[test]
@@ -1157,7 +1159,7 @@
         <span class="macro">assert_eq!</span>(trait_imp.items.len(), <span class="number">1</span>);
 
         <span class="kw">let </span>error = get_single_error(<span class="kw-2">&amp;</span>errors, span);
-        <span class="macro">assert_eq!</span>(error.to_string(), <span class="string">"Expected a trait impl item but found 'hello'"</span>);
+        <span class="macro">assert_snapshot!</span>(error.to_string(), @<span class="string">"Expected a trait impl item but found 'hello'"</span>);
     }
 
     <span class="attr">#[test]
