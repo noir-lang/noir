@@ -30,7 +30,7 @@ pub struct FuzzExecutionConfig {
     pub num_threads: usize,
     /// Maximum time in seconds to spend fuzzing (default: no timeout)
     pub timeout: u64,
-    /// Whether to output metrics to stdout or not.
+    /// Whether to output progress to stdout or not.
     pub show_progress: bool,
 }
 
