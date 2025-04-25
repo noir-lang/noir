@@ -31,7 +31,7 @@ mod tests;
 pub fn arb_program(u: &mut Unstructured, config: Config) -> arbitrary::Result<Program> {
     let mut ctx = Context::new(config);
     ctx.gen_globals(u)?;
-    ctx.gen_function_decls(u, None)?;
+    ctx.gen_function_decls(u)?;
     ctx.gen_functions(u)?;
     ctx.rewrite_functions(u)?;
     let program = ctx.finalize();
@@ -44,9 +44,12 @@ pub fn arb_program_comptime(u: &mut Unstructured, config: Config) -> arbitrary::
     let mut config = config.clone();
     // Prevents using unconstrained/unsafe keywords
     config.include_brillig = false;
+    // Generate exactly one non-main function
+    config.min_functions = 1;
+    config.max_functions = 1;
 
     let mut ctx = Context::new(config);
-    ctx.gen_function_decls(u, Some(1))?;
+    ctx.gen_function_decls(u)?;
     ctx.gen_functions(u)?;
     ctx.rewrite_functions(u)?;
 
@@ -151,15 +154,9 @@ impl Context {
     }
 
     /// Generate random function names and signatures, optionally specifying their exact number.
-    fn gen_function_decls(
-        &mut self,
-        u: &mut Unstructured,
-        num: Option<usize>,
-    ) -> arbitrary::Result<()> {
-        let num_non_main_fns = match num {
-            Some(num) => num,
-            None => u.int_in_range(0..=self.config.max_functions)?,
-        };
+    fn gen_function_decls(&mut self, u: &mut Unstructured) -> arbitrary::Result<()> {
+        let num_non_main_fns =
+            u.int_in_range(self.config.min_functions..=self.config.max_functions)?;
 
         for i in 0..(1 + num_non_main_fns) {
             let d = self.gen_function_decl(u, i)?;

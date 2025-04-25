@@ -14,6 +14,8 @@ pub use program::{DisplayAstAsNoir, DisplayAstAsNoirComptime, arb_program, arb_p
 pub struct Config {
     /// Maximum number of global definitions.
     pub max_globals: usize,
+    /// Minimum number of functions (other than main) to generate.
+    pub min_functions: usize,
     /// Maximum number of functions (other than main) to generate.
     pub max_functions: usize,
     /// Maximum number of arguments a function can have.
@@ -77,6 +79,7 @@ impl Default for Config {
         ]);
         Self {
             max_globals: 3,
+            min_functions: 0,
             max_functions: 5,
             max_function_args: 3,
             max_function_size: 25,
