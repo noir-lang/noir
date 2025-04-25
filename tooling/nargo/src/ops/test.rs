@@ -9,7 +9,9 @@ use acvm::{
     pwg::ForeignCallWaitInfo,
 };
 use noirc_abi::Abi;
-use noirc_driver::{CompileError, CompileOptions, DEFAULT_EXPRESSION_WIDTH, compile_no_check};
+use noirc_driver::{
+    CompileError, CompileOptions, CompiledProgram, DEFAULT_EXPRESSION_WIDTH, compile_no_check,
+};
 use noirc_errors::{CustomDiagnostic, debug_info::DebugInfo};
 use noirc_frontend::hir::{Context, def_map::TestFunction};
 
@@ -58,118 +60,142 @@ where
             let compiled_program = crate::ops::transform_program(compiled_program, target_width);
 
             if !test_function.has_arguments {
-                let ignore_foreign_call_failures =
-                    std::env::var("NARGO_IGNORE_TEST_FAILURES_FROM_FOREIGN_CALLS")
-                        .is_ok_and(|var| &var == "true");
-
-                let writer: Box<dyn std::io::Write> =
-                    match std::env::var("NARGO_TEST_FOREIGN_CALL_LOG") {
-                        Err(_) => Box::new(std::io::empty()),
-                        Ok(s) if s == "stdout" => Box::new(std::io::stdout()),
-                        Ok(s) => Box::new(
-                            OpenOptions::new()
-                                .create(true)
-                                .truncate(true)
-                                .write(true)
-                                .open(PathBuf::from(s))
-                                .unwrap(),
-                        ),
-                    };
-
-                // Run the backend to ensure the PWG evaluates functions like std::hash::pedersen,
-                // otherwise constraints involving these expressions will not error.
-                // Use a base layer that doesn't handle anything, which we handle in the `execute` below.
-                let foreign_call_executor =
-                    build_foreign_call_executor(Box::new(output), layers::Unhandled);
-                let foreign_call_executor = TestForeignCallExecutor::new(foreign_call_executor);
-                let mut foreign_call_executor =
-                    LoggingForeignCallExecutor::new(foreign_call_executor, writer);
-
-                let circuit_execution = execute_program(
-                    &compiled_program.program,
-                    WitnessMap::new(),
+                run_test_without_arguments(
                     blackbox_solver,
-                    &mut foreign_call_executor,
-                );
-
-                let status = test_status_program_compile_pass(
+                    compiled_program,
                     test_function,
-                    &compiled_program.abi,
-                    &compiled_program.debug,
-                    &circuit_execution,
-                );
-
-                let foreign_call_executor = foreign_call_executor.executor;
-
-                if let TestStatus::Fail { .. } = status {
-                    if ignore_foreign_call_failures
-                        && foreign_call_executor.encountered_unknown_foreign_call
-                    {
-                        TestStatus::Skipped
-                    } else {
-                        status
-                    }
-                } else {
-                    status
-                }
+                    output,
+                    build_foreign_call_executor,
+                )
             } else {
-                use acvm::acir::circuit::Program;
-                use noir_fuzzer::FuzzedExecutor;
-                use proptest::test_runner::Config;
-                use proptest::test_runner::TestRunner;
-
-                let runner =
-                    TestRunner::new(Config { failure_persistence: None, ..Config::default() });
-
-                let abi = compiled_program.abi.clone();
-                let debug = compiled_program.debug.clone();
-
-                let executor = |program: &Program<FieldElement>,
-                                initial_witness: WitnessMap<FieldElement>|
-                 -> Result<WitnessStack<FieldElement>, String> {
-                    // Use a base layer that doesn't handle anything, which we handle in the `execute` below.
-                    let inner_executor =
-                        build_foreign_call_executor(Box::new(std::io::empty()), layers::Unhandled);
-
-                    let mut foreign_call_executor = TestForeignCallExecutor::new(inner_executor);
-
-                    let circuit_execution = execute_program(
-                        program,
-                        initial_witness,
-                        blackbox_solver,
-                        &mut foreign_call_executor,
-                    );
-
-                    // Check if a failure was actually expected.
-                    let status = test_status_program_compile_pass(
-                        test_function,
-                        &abi,
-                        &debug,
-                        &circuit_execution,
-                    );
-
-                    if let TestStatus::Fail { message, error_diagnostic: _ } = status {
-                        Err(message)
-                    } else {
-                        // The fuzzer doesn't care about the actual result.
-                        Ok(WitnessStack::default())
-                    }
-                };
-
-                let fuzzer = FuzzedExecutor::new(compiled_program.into(), executor, runner);
-
-                let result = fuzzer.fuzz();
-                if result.success {
-                    TestStatus::Pass
-                } else {
-                    TestStatus::Fail {
-                        message: result.reason.unwrap_or_default(),
-                        error_diagnostic: None,
-                    }
-                }
+                run_test_with_arguments(
+                    blackbox_solver,
+                    compiled_program,
+                    test_function,
+                    build_foreign_call_executor,
+                )
             }
         }
         Err(err) => test_status_program_compile_fail(err, test_function),
+    }
+}
+
+fn run_test_without_arguments<'a, W, B, F, E>(
+    blackbox_solver: &B,
+    compiled_program: CompiledProgram,
+    test_function: &TestFunction,
+    output: W,
+    build_foreign_call_executor: F,
+) -> TestStatus
+where
+    W: std::io::Write + 'a,
+    B: BlackBoxFunctionSolver<FieldElement>,
+    F: Fn(Box<dyn std::io::Write + 'a>, layers::Unhandled) -> E,
+    E: ForeignCallExecutor<FieldElement>,
+{
+    let ignore_foreign_call_failures =
+        std::env::var("NARGO_IGNORE_TEST_FAILURES_FROM_FOREIGN_CALLS")
+            .is_ok_and(|var| &var == "true");
+
+    let writer: Box<dyn std::io::Write> = match std::env::var("NARGO_TEST_FOREIGN_CALL_LOG") {
+        Err(_) => Box::new(std::io::empty()),
+        Ok(s) if s == "stdout" => Box::new(std::io::stdout()),
+        Ok(s) => Box::new(
+            OpenOptions::new()
+                .create(true)
+                .truncate(true)
+                .write(true)
+                .open(PathBuf::from(s))
+                .unwrap(),
+        ),
+    };
+
+    // Run the backend to ensure the PWG evaluates functions like std::hash::pedersen,
+    // otherwise constraints involving these expressions will not error.
+    // Use a base layer that doesn't handle anything, which we handle in the `execute` below.
+    let foreign_call_executor = build_foreign_call_executor(Box::new(output), layers::Unhandled);
+    let foreign_call_executor = TestForeignCallExecutor::new(foreign_call_executor);
+    let mut foreign_call_executor = LoggingForeignCallExecutor::new(foreign_call_executor, writer);
+
+    let circuit_execution = execute_program(
+        &compiled_program.program,
+        WitnessMap::new(),
+        blackbox_solver,
+        &mut foreign_call_executor,
+    );
+
+    let status = test_status_program_compile_pass(
+        test_function,
+        &compiled_program.abi,
+        &compiled_program.debug,
+        &circuit_execution,
+    );
+
+    let foreign_call_executor = foreign_call_executor.executor;
+
+    if let TestStatus::Fail { .. } = status {
+        if ignore_foreign_call_failures && foreign_call_executor.encountered_unknown_foreign_call {
+            TestStatus::Skipped
+        } else {
+            status
+        }
+    } else {
+        status
+    }
+}
+
+fn run_test_with_arguments<'a, B, F, E>(
+    blackbox_solver: &B,
+    compiled_program: CompiledProgram,
+    test_function: &TestFunction,
+    build_foreign_call_executor: F,
+) -> TestStatus
+where
+    B: BlackBoxFunctionSolver<FieldElement>,
+    F: Fn(Box<dyn std::io::Write + 'a>, layers::Unhandled) -> E,
+    E: ForeignCallExecutor<FieldElement>,
+{
+    use acvm::acir::circuit::Program;
+    use noir_fuzzer::FuzzedExecutor;
+    use proptest::test_runner::Config;
+    use proptest::test_runner::TestRunner;
+
+    let runner = TestRunner::new(Config { failure_persistence: None, ..Config::default() });
+
+    let abi = compiled_program.abi.clone();
+    let debug = compiled_program.debug.clone();
+
+    let executor = |program: &Program<FieldElement>,
+                    initial_witness: WitnessMap<FieldElement>|
+     -> Result<WitnessStack<FieldElement>, String> {
+        // Use a base layer that doesn't handle anything, which we handle in the `execute` below.
+        let inner_executor =
+            build_foreign_call_executor(Box::new(std::io::empty()), layers::Unhandled);
+
+        let mut foreign_call_executor = TestForeignCallExecutor::new(inner_executor);
+
+        let circuit_execution =
+            execute_program(program, initial_witness, blackbox_solver, &mut foreign_call_executor);
+
+        // Check if a failure was actually expected.
+        let status =
+            test_status_program_compile_pass(test_function, &abi, &debug, &circuit_execution);
+
+        if let TestStatus::Fail { message, error_diagnostic: _ } = status {
+            Err(message)
+        } else {
+            // The fuzzer doesn't care about the actual result.
+            Ok(WitnessStack::default())
+        }
+    };
+
+    let fuzzer = FuzzedExecutor::new(compiled_program.into(), executor, runner);
+
+    let result = fuzzer.fuzz();
+    if result.success {
+        TestStatus::Pass
+    } else {
+        TestStatus::Fail { message: result.reason.unwrap_or_default(), error_diagnostic: None }
     }
 }
 
