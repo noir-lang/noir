@@ -11,6 +11,8 @@ use noirc_evaluator::{
 };
 use noirc_frontend::monomorphization::ast::Program;
 
+pub mod targets;
+
 // TODO(#7876): Allow specifying options on the command line.
 fn show_ast() -> bool {
     std::env::var("NOIR_AST_FUZZER_SHOW_AST").map(|s| s == "1" || s == "true").unwrap_or_default()
