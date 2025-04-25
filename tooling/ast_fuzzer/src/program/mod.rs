@@ -413,7 +413,7 @@ impl std::fmt::Display for DisplayAstAsNoirComptime<'_> {
             if function.id == Program::main_id() {
                 fpo.comptime_wrap_body = true;
                 fpo.return_visibility = Some(Visibility::Public);
-            } 
+            }
             printer.print_function(function, f, fpo)?;
         }
         Ok(())
