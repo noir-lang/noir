@@ -151,7 +151,7 @@ impl Context {
         Ok((name, typ, val))
     }
 
-    /// Generate random function names and signatures, optionally specifying their exact number.
+    /// Generate random function names and signatures.
     fn gen_function_decls(&mut self, u: &mut Unstructured) -> arbitrary::Result<()> {
         let num_non_main_fns =
             u.int_in_range(self.config.min_functions..=self.config.max_functions)?;
