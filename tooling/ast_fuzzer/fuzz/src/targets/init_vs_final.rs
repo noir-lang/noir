@@ -13,10 +13,14 @@ use noirc_evaluator::ssa::minimal_passes;
 pub fn fuzz(u: &mut Unstructured) -> eyre::Result<()> {
     let options = default_ssa_options();
     let passes = minimal_passes();
+    let mut config = Config::default();
+
+    // Try to avoid using overflowing operations; see below for the reason.
+    config.avoid_overflow = true;
 
     let inputs = ComparePasses::arb(
         u,
-        Config::default(),
+        config,
         |mut program| {
             // We want to do the minimum possible amount of SSA passes. Brillig can get away with fewer than ACIR,
             // because ACIR needs unrolling of loops for example, so we treat everything as Brillig.

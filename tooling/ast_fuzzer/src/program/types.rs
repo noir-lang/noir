@@ -203,6 +203,12 @@ pub(crate) fn can_binary_op_return(op: &BinaryOp, typ: &Type) -> bool {
     }
 }
 
+/// Can the binary operation result in an over/underflow.
+pub(crate) fn can_binary_op_overflow(op: &BinaryOp) -> bool {
+    use BinaryOpKind::*;
+    matches!(op, Add | Subtract | Multiply | ShiftLeft | ShiftRight)
+}
+
 /// Check if a certain binary operation can take a type as input and produce the target output.
 pub(crate) fn can_binary_op_return_from_input(op: &BinaryOp, input: &Type, output: &Type) -> bool {
     match (input, output) {

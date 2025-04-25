@@ -44,6 +44,9 @@ pub struct Config {
     pub stmt_freqs_brillig: Freqs,
     /// Whether to force all functions to be unconstrained.
     pub force_brillig: bool,
+    /// Try to avoid overflowing operations. Useful when testing the minimal pipeline,
+    /// to avoid trivial failures due to multiplying or adding constants.
+    pub avoid_overflow: bool,
 }
 
 impl Default for Config {
@@ -94,6 +97,7 @@ impl Default for Config {
             stmt_freqs_acir,
             stmt_freqs_brillig,
             force_brillig: false,
+            avoid_overflow: false,
         }
     }
 }

@@ -541,8 +541,12 @@ impl<'a> FunctionContext<'a> {
         max_depth: usize,
     ) -> arbitrary::Result<Option<Expression>> {
         // Collect the operations can return the expected type.
-        let ops =
-            BinaryOp::iter().filter(|op| types::can_binary_op_return(op, typ)).collect::<Vec<_>>();
+        let ops = BinaryOp::iter()
+            .filter(|op| {
+                !(self.ctx.config.avoid_overflow && types::can_binary_op_overflow(op))
+                    && types::can_binary_op_return(op, typ)
+            })
+            .collect::<Vec<_>>();
 
         // Ideally we checked that the target type can be returned, but just in case.
         if ops.is_empty() {
