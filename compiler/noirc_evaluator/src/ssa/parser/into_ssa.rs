@@ -232,24 +232,10 @@ impl Translator {
                 self.define_variable(target, value_id)?;
             }
             ParsedInstruction::Call { targets, function, arguments, types } => {
-                let function_id = if let Some(id) = self.builder.import_intrinsic(&function.name) {
-                    id
-                } else if let Ok(func_id) = self.lookup_function(&function) {
-                    self.builder.import_function(func_id)
-                } else if let Ok(var_id) = self.lookup_variable(&function) {
-                    // e.g. `v2 = call v0(v1) -> u32`, a lambda passed as a parameter
-                    var_id
-                } else if &function.name == "print" {
-                    // We allow calls to the built-in print function
-                    self.builder.import_foreign_function(&function.name)
-                } else {
-                    return Err(SsaError::UnknownFunction(function.clone()));
-                };
-
+                let function_id = self.lookup_call_function(function)?;
                 let arguments = self.translate_values(arguments)?;
 
                 let value_ids = self.builder.insert_call(function_id, arguments, types).to_vec();
-
                 if value_ids.len() != targets.len() {
                     return Err(SsaError::MismatchedReturnValues {
                         returns: targets,
@@ -488,6 +474,28 @@ impl Translator {
         } else {
             Err(SsaError::UnknownFunction(identifier.clone()))
         }
+    }
+
+    fn lookup_call_function(&mut self, function: Identifier) -> Result<ValueId, SsaError> {
+        if let Some(id) = self.builder.import_intrinsic(&function.name) {
+            return Ok(id);
+        }
+
+        if let Ok(func_id) = self.lookup_function(&function) {
+            return Ok(self.builder.import_function(func_id));
+        }
+
+        // e.g. `v2 = call v0(v1) -> u32`, a lambda passed as a parameter
+        if let Ok(var_id) = self.lookup_variable(&function) {
+            return Ok(var_id);
+        }
+
+        // We allow calls to the built-in print function
+        if &function.name == "print" {
+            return Ok(self.builder.import_foreign_function(&function.name));
+        }
+
+        Err(SsaError::UnknownFunction(function))
     }
 
     fn finish(self) -> Ssa {
