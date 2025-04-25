@@ -387,7 +387,7 @@ jobs:
 
       - name: Process report data
         run: |
-          ./scripts/process_benchmark_data.sh > ${{ steps.compilation_report.outputs.report_path }}
+          ./scripts/process_benchmark_data.sh $INPUT_DIR > ${{ steps.compilation_report.outputs.report_path }}
         env:
           INPUT_DIR: ${{ github.workspace }}/output
           PROJECT_NAME: ${{ steps.compilation_report.outputs.report_name }}

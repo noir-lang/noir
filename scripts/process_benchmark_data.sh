@@ -2,11 +2,7 @@
 
 set -ue
 
-INPUT_DIR=$1
-
-OUTPUT_DIR=$(realpath "$(dirname "$0")/output-processed")
-mkdir -p $OUTPUT_DIR
-
+INPUT_DIR=$(realpath $1)
 
 average_times() {
   awk -v RS=" " '
@@ -41,7 +37,7 @@ average_times() {
 }
 
 compilation_time() {
-  TIMES=($(jq -r '. | select(.target == "nargo::cli" and .fields.message == "close") | .fields."time.busy"' "$PWD/$INPUT_DIR/compilation.jsonl"))
+  TIMES=($(jq -r '. | select(.target == "nargo::cli" and .fields.message == "close") | .fields."time.busy"' "$INPUT_DIR/compilation.jsonl"))
 
   AVG_TIME=$(average_times "${TIMES[@]}")
 
@@ -49,7 +45,7 @@ compilation_time() {
 }
 
 execution_time() {
-  TIMES=($(jq -r '. | select(.target == "nargo::ops::execute" and .fields.message == "close") | .fields."time.busy"' "$PWD/$INPUT_DIR/execution.jsonl"))
+  TIMES=($(jq -r '. | select(.target == "nargo::ops::execute" and .fields.message == "close") | .fields."time.busy"' "$INPUT_DIR/execution.jsonl"))
 
   AVG_TIME=$(average_times "${TIMES[@]}")
 
@@ -57,7 +53,7 @@ execution_time() {
 }
 
 artifact_size() {
-  ARTIFACT_SIZE=$(wc -c <"$PWD/$INPUT_DIR/artifact.json" | awk '{printf "%.1f\n", $1/1000}')
+  ARTIFACT_SIZE=$(wc -c <"$INPUT_DIR/artifact.json" | awk '{printf "%.1f\n", $1/1000}')
 
   jq -rc "{name: \"$PROJECT_NAME\", metric: \"artifact_size\", value: \""$ARTIFACT_SIZE"\" | tonumber, unit: \"KB\"}" --null-input
 }
