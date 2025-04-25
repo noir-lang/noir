@@ -85,6 +85,8 @@ impl Context {
         // Map each parameter, instruction, and terminator
         for old_block_id in reverse_post_order {
             let new_block_id = self.new_ids.blocks[&old_block_id];
+            let unused_params = old_function.dfg[old_block_id].unused_parameters().to_vec();
+            new_function.dfg[new_block_id].set_unused_parameters(unused_params);
 
             let old_block = &mut old_function.dfg[old_block_id];
             for old_instruction_id in old_block.take_instructions() {
