@@ -87,7 +87,15 @@ impl Parser<'_> {
         allow_optional_body: bool,
         allow_self: bool,
     ) -> FunctionDefinitionWithOptionalBody {
-        let Some(name) = self.eat_ident() else {
+        let name = if let Some(name) = self.eat_ident() {
+            name
+        } else if self.at(Token::LeftParen) || self.at(Token::Less) {
+            // If it's `fn (...` or `fn <...` we assume the user missed the function name but a function
+            // definition follows. This can happen if the user is currently renaming a function by first
+            // erasing the name.
+            self.expected_identifier();
+            self.empty_ident_at_previous_token_end()
+        } else {
             self.expected_identifier();
             return empty_function(self.location_at_previous_token_end());
         };
@@ -681,5 +689,19 @@ mod tests {
 
         let error = get_single_error(&parser.errors, span);
         assert_eq!(error.to_string(), "Expected a '{' but found 'struct'");
+    }
+
+    #[test]
+    fn errors_on_missing_function_name() {
+        let src = "
+          fn () {}
+             ^
+          ";
+        let (src, span) = get_source_with_error_span(src);
+        let mut parser = Parser::for_str_with_dummy_file(&src);
+        let _ = parser.parse_program();
+
+        let error = get_single_error(&parser.errors, span);
+        assert_eq!(error.to_string(), "Expected an identifier but found '('");
     }
 }
