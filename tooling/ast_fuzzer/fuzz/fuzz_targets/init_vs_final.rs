@@ -10,8 +10,8 @@
 use color_eyre::eyre;
 use libfuzzer_sys::arbitrary::Unstructured;
 use libfuzzer_sys::fuzz_target;
-use noir_ast_fuzzer::Config;
 use noir_ast_fuzzer::compare::ComparePasses;
+use noir_ast_fuzzer::{Config, compare::CompareResult};
 use noir_ast_fuzzer_fuzz::{
     compare_results, create_ssa_or_die, create_ssa_with_passes_or_die, default_ssa_options,
 };
@@ -41,5 +41,12 @@ fn fuzz(u: &mut Unstructured) -> eyre::Result<()> {
 
     let result = inputs.exec()?;
 
-    compare_results(&inputs, &result)
+    // Unfortunately the minimal pipeline can fail on assertions of instructions that get eliminated from the final pipeline,
+    // so if the minimal version fails and the final succeeds, it is most likely because of some overflow in a variable that
+    // was ultimately unused. Therefore we only compare results if both succeeded, or if only the final failed.
+    if matches!(result, CompareResult::BothFailed(_, _) | CompareResult::LeftFailed(_, _)) {
+        Ok(())
+    } else {
+        compare_results(&inputs, &result)
+    }
 }
