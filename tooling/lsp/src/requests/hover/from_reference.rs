@@ -1,5 +1,6 @@
+use async_lsp::lsp_types;
+use async_lsp::lsp_types::{Hover, HoverContents, MarkupContent, MarkupKind, Position};
 use fm::{FileId, FileMap};
-use lsp_types::{Hover, HoverContents, MarkupContent, MarkupKind, Position};
 use noirc_frontend::NamedGeneric;
 use noirc_frontend::hir::comptime::Value;
 use noirc_frontend::node_interner::GlobalValue;

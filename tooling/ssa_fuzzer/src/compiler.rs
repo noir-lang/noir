@@ -33,7 +33,7 @@ fn optimize_into_acir(
     options: SsaEvaluatorOptions,
 ) -> Result<ArtifactsAndWarnings, RuntimeError> {
     let ssa = builder.finish();
-    log::debug!("SSA: {}", format!("{}", ssa));
+    log::debug!("SSA: {}", ssa);
     // change to SsaLogging::All to see triage final ssa.
     let builder = SsaBuilder {
         ssa,

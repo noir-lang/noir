@@ -180,7 +180,7 @@ impl Context {
 
     /// Generate and add main (for testing)
     #[cfg(test)]
-    fn add_main_decl(&mut self, u: &mut Unstructured) {
+    fn gen_main_decl(&mut self, u: &mut Unstructured) {
         let d = self.gen_function_decl(u, 0).unwrap();
         self.function_declarations.insert(FuncId(0u32), d);
     }
@@ -208,7 +208,7 @@ impl Context {
 
     /// As a post-processing step, identify recursive functions and add a call depth parameter to them.
     fn rewrite_functions(&mut self, u: &mut Unstructured) -> arbitrary::Result<()> {
-        rewrite::add_recursion_depth(self, u)
+        rewrite::add_recursion_limit(self, u)
     }
 
     /// Return the generated [Program].
@@ -273,10 +273,16 @@ impl Context {
                 // 4 leaf types
                 0 => Type::Bool,
                 1 => Type::Field,
-                2 => Type::Integer(
-                    *u.choose(&[Signedness::Signed, Signedness::Unsigned])?,
-                    u.choose_iter(IntegerBitSize::iter())?,
-                ),
+                2 => {
+                    // i1 is deprecated, and i128 does not exist yet
+                    let sign = *u.choose(&[Signedness::Signed, Signedness::Unsigned])?;
+                    let sizes = IntegerBitSize::iter()
+                        .filter(|bs| {
+                            !(sign.is_signed() && (bs.bit_size() == 1 || bs.bit_size() == 128))
+                        })
+                        .collect::<Vec<_>>();
+                    Type::Integer(sign, u.choose_iter(sizes)?)
+                }
                 3 => Type::String(u.int_in_range(0..=self.config.max_array_size)? as u32),
                 // 2 composite types
                 4 | 5 => {

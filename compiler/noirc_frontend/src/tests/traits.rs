@@ -1544,3 +1544,39 @@ fn trait_impl_with_where_clause_with_trait_with_associated_type() {
     ";
     assert_no_errors!(src);
 }
+
+#[named]
+#[test]
+fn errors_if_constrained_trait_definition_has_unconstrained_impl() {
+    let src = r#"
+    pub trait Foo {
+        fn foo() -> Field;
+    }
+
+    impl Foo for Field {
+        unconstrained fn foo() -> Field {
+                         ^^^ foo is not expected to be unconstrained
+            42
+        }
+    }
+    "#;
+    check_errors!(src);
+}
+
+#[named]
+#[test]
+fn errors_if_unconstrained_trait_definition_has_constrained_impl() {
+    let src = r#"
+    pub trait Foo {
+        unconstrained fn foo() -> Field;
+    }
+
+    impl Foo for Field {
+        fn foo() -> Field {
+           ^^^ foo is expected to be unconstrained
+            42
+        }
+    }
+    "#;
+    check_errors!(src);
+}
