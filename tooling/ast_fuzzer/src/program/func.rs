@@ -197,7 +197,8 @@ impl<'a> FunctionContext<'a> {
     }
 
     /// Generate the function body, wrapping a function call with literal arguments.
-    pub fn gen_lit_call_wrapper_body(
+    /// This is used to test comptime functions, which can only take those.
+    pub fn gen_body_with_lit_call(
         mut self,
         u: &mut Unstructured,
         callee_id: FuncId,

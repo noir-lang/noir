@@ -4,9 +4,7 @@
 //! cargo run -p noir_ast_fuzzer --example sample_comptime
 //! ```
 use arbitrary::Unstructured;
-use noir_ast_fuzzer::{
-    Config, DisplayAstAsNoirComptime, arb_program_comptime,
-};
+use noir_ast_fuzzer::{Config, DisplayAstAsNoirComptime, arb_program_comptime};
 use rand::RngCore;
 
 fn main() {

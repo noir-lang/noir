@@ -46,7 +46,7 @@ pub fn arb_program_comptime(u: &mut Unstructured, config: Config) -> arbitrary::
     ctx.gen_functions(u)?;
     ctx.rewrite_functions(u)?;
 
-    let body = FunctionContext::new(&mut ctx, FuncId(0)).gen_lit_call_wrapper_body(u, FuncId(1))?;
+    let body = FunctionContext::new(&mut ctx, FuncId(0)).gen_body_with_lit_call(u, FuncId(1))?;
     let decl_inner = ctx.function_decl(FuncId(1));
     let decl_main = FunctionDeclaration {
         name: "main".into(),
@@ -393,7 +393,11 @@ impl std::fmt::Display for DisplayAstAsNoirComptime<'_> {
         printer.show_id = false;
         for function in &self.0.functions {
             if function.id == Program::main_id() {
-                printer.print_function_as_comptime_wrapper(function, Some(self.0.return_visibility), f)?;
+                printer.print_function_as_comptime_wrapper(
+                    function,
+                    Some(self.0.return_visibility),
+                    f,
+                )?;
             } else {
                 printer.print_function_as_comptime(function, None, f)?;
             }
