@@ -225,7 +225,7 @@ fn get_package_tests_in_crate(
     let package_tests: Vec<_> = tests
         .into_iter()
         .map(|(func_name, test_function)| {
-            let location = context.function_meta(&test_function.get_id()).name.location;
+            let location = context.function_meta(&test_function.id).name.location;
             let file_id = location.file;
             let file_path = fm.path(file_id).expect("file must exist to contain tests");
             let range =

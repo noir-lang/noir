@@ -58,12 +58,8 @@ pub fn get_test_function_for_debug(
         }
     };
 
-    let test_function_has_arguments = !context
-        .def_interner
-        .function_meta(&test_function.get_id())
-        .function_signature()
-        .0
-        .is_empty();
+    let test_function_has_arguments =
+        !context.def_interner.function_meta(&test_function.id).function_signature().0.is_empty();
 
     if test_function_has_arguments {
         return Err(String::from("Cannot debug tests with arguments"));
@@ -78,7 +74,7 @@ pub fn compile_test_fn_for_debugging(
     compile_options: CompileOptions,
 ) -> Result<CompiledProgram, noirc_driver::CompileError> {
     let compiled_program =
-        compile_no_check(context, &compile_options, test_def.function.get_id(), None, false)?;
+        compile_no_check(context, &compile_options, test_def.function.id, None, false)?;
     let expression_width =
         get_target_width(package.expression_width, compile_options.expression_width);
     let compiled_program = transform_program(compiled_program, expression_width);
