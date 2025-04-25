@@ -15,7 +15,7 @@ mod instructions;
 
 fn executes_with_no_errors(src: &str) {
     let ssa = Ssa::from_str(src).unwrap();
-    assert!(super::interpret(&ssa).is_ok())
+    assert!(ssa.interpret().is_ok())
 }
 
 fn expect_values(src: &str) -> Vec<Value> {
@@ -28,12 +28,12 @@ fn expect_value(src: &str) -> Value {
 
 fn expect_error(src: &str) -> RuntimeError {
     let ssa = Ssa::from_str(src).unwrap();
-    super::interpret(&ssa).unwrap_err()
+    ssa.interpret().unwrap_err()
 }
 
 fn expect_values_with_args(src: &str, args: Vec<Value>) -> Vec<Value> {
     let ssa = Ssa::from_str(src).unwrap();
-    super::interpret_function(&ssa, ssa.main_id, args).unwrap()
+    ssa.interpret_function(ssa.main_id, args).unwrap()
 }
 
 fn expect_value_with_args(src: &str, args: Vec<Value>) -> Value {

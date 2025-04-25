@@ -58,14 +58,16 @@ type IResult<T> = Result<T, RuntimeError>;
 type IResults = IResult<Vec<Value>>;
 
 #[allow(unused)]
-pub(crate) fn interpret(ssa: &Ssa) -> IResults {
-    interpret_function(ssa, ssa.main_id, Vec::new())
-}
+impl Ssa {
+    pub(crate) fn interpret(&self) -> IResults {
+        self.interpret_function(self.main_id, Vec::new())
+    }
 
-pub(crate) fn interpret_function(ssa: &Ssa, function: FunctionId, args: Vec<Value>) -> IResults {
-    let mut interpreter = Interpreter::new(ssa);
-    interpreter.interpret_globals()?;
-    interpreter.call_function(function, args)
+    pub(crate) fn interpret_function(&self, function: FunctionId, args: Vec<Value>) -> IResults {
+        let mut interpreter = Interpreter::new(self);
+        interpreter.interpret_globals()?;
+        interpreter.call_function(function, args)
+    }
 }
 
 impl<'ssa> Interpreter<'ssa> {
