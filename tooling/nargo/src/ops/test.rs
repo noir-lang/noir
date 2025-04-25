@@ -8,12 +8,18 @@ use acvm::{
     },
     pwg::ForeignCallWaitInfo,
 };
-use noirc_abi::Abi;
+use noirc_abi::{Abi, input_parser::json::serialize_to_json};
 use noirc_driver::{
     CompileError, CompileOptions, CompiledProgram, DEFAULT_EXPRESSION_WIDTH, compile_no_check,
 };
 use noirc_errors::{CustomDiagnostic, debug_info::DebugInfo};
-use noirc_frontend::hir::{Context, def_map::TestFunction};
+use noirc_frontend::{
+    hir::{
+        Context,
+        def_map::{FuzzingHarness, TestFunction},
+    },
+    token::{FuzzingScope, TestScope},
+};
 
 use crate::{
     NargoError,
@@ -23,7 +29,9 @@ use crate::{
     },
 };
 
-use super::execute_program;
+use super::{
+    FuzzExecutionConfig, FuzzFolderConfig, FuzzingRunStatus, execute_program, run_fuzzing_harness,
+};
 
 #[derive(Debug)]
 pub enum TestStatus {
@@ -39,6 +47,42 @@ impl TestStatus {
     }
 }
 
+pub fn run_or_fuzz_test<'a, W, B, F, E>(
+    blackbox_solver: &B,
+    context: &mut Context,
+    test_function: &TestFunction,
+    output: W,
+    package_name: String,
+    config: &CompileOptions,
+    build_foreign_call_executor: F,
+) -> TestStatus
+where
+    W: std::io::Write + 'a,
+    B: BlackBoxFunctionSolver<FieldElement> + Default,
+    F: Fn(Box<dyn std::io::Write + 'a>, layers::Unhandled) -> E + Sync,
+    E: ForeignCallExecutor<FieldElement>,
+{
+    if test_function.has_arguments {
+        fuzz_test::<B, F, E>(
+            context,
+            test_function,
+            package_name,
+            config,
+            build_foreign_call_executor,
+        )
+    } else {
+        run_test::<W, B, F, E>(
+            blackbox_solver,
+            context,
+            test_function,
+            output,
+            config,
+            build_foreign_call_executor,
+        )
+    }
+}
+
+/// Runs a test function. This assumes the function has no arguments.
 pub fn run_test<'a, W, B, F, E>(
     blackbox_solver: &B,
     context: &mut Context,
@@ -54,34 +98,24 @@ where
     E: ForeignCallExecutor<FieldElement>,
 {
     match compile_no_check(context, config, test_function.id, None, false) {
-        Ok(compiled_program) => {
-            // Do the same optimizations as `compile_cmd`.
-
-            if test_function.has_arguments {
-                // TODO: use greybox fuzzer
-                TestStatus::Pass
-            } else {
-                let target_width = config.expression_width.unwrap_or(DEFAULT_EXPRESSION_WIDTH);
-                let compiled_program =
-                    crate::ops::transform_program(compiled_program, target_width);
-                run_test_without_arguments(
-                    blackbox_solver,
-                    compiled_program,
-                    test_function,
-                    output,
-                    build_foreign_call_executor,
-                )
-            }
-        }
+        Ok(compiled_program) => run_test_impl(
+            blackbox_solver,
+            compiled_program,
+            test_function,
+            output,
+            config,
+            build_foreign_call_executor,
+        ),
         Err(err) => test_status_program_compile_fail(err, test_function),
     }
 }
 
-fn run_test_without_arguments<'a, W, B, F, E>(
+fn run_test_impl<'a, W, B, F, E>(
     blackbox_solver: &B,
     compiled_program: CompiledProgram,
     test_function: &TestFunction,
     output: W,
+    config: &CompileOptions,
     build_foreign_call_executor: F,
 ) -> TestStatus
 where
@@ -90,6 +124,10 @@ where
     F: Fn(Box<dyn std::io::Write + 'a>, layers::Unhandled) -> E,
     E: ForeignCallExecutor<FieldElement>,
 {
+    // Do the same optimizations as `compile_cmd`.
+    let target_width = config.expression_width.unwrap_or(DEFAULT_EXPRESSION_WIDTH);
+    let compiled_program = crate::ops::transform_program(compiled_program, target_width);
+
     let ignore_foreign_call_failures =
         std::env::var("NARGO_IGNORE_TEST_FAILURES_FROM_FOREIGN_CALLS")
             .is_ok_and(|var| &var == "true");
@@ -141,6 +179,105 @@ where
     }
 }
 
+/// Runs the fuzzer on a test function. This assumes the function has arguments.
+pub fn fuzz_test<'a, B, F, E>(
+    context: &mut Context,
+    test_function: &TestFunction,
+    package_name: String,
+    config: &CompileOptions,
+    build_foreign_call_executor: F,
+) -> TestStatus
+where
+    B: BlackBoxFunctionSolver<FieldElement> + Default,
+    F: Fn(Box<dyn std::io::Write + 'a>, layers::Unhandled) -> E + Sync,
+    E: ForeignCallExecutor<FieldElement>,
+{
+    match compile_no_check(context, config, test_function.id, None, false) {
+        Ok(_) => fuzz_test_impl::<B, F, E>(
+            context,
+            test_function,
+            package_name,
+            config,
+            build_foreign_call_executor,
+        ),
+        Err(err) => test_status_program_compile_fail(err, test_function),
+    }
+}
+
+fn fuzz_test_impl<'a, B, F, E>(
+    context: &mut Context,
+    test_function: &TestFunction,
+    package_name: String,
+    config: &CompileOptions,
+    build_foreign_call_executor: F,
+) -> TestStatus
+where
+    B: BlackBoxFunctionSolver<FieldElement> + Default,
+    F: Fn(Box<dyn std::io::Write + 'a>, layers::Unhandled) -> E + Sync,
+    E: ForeignCallExecutor<FieldElement>,
+{
+    let id = test_function.id;
+    let scope = match &test_function.scope {
+        TestScope::ShouldFailWith { reason } => {
+            FuzzingScope::ShouldFailWith { reason: reason.clone() }
+        }
+        TestScope::None => FuzzingScope::None,
+    };
+    let location = test_function.location;
+    let fuzzing_harness = FuzzingHarness { id, scope, location };
+
+    let fuzz_folder_config = FuzzFolderConfig {
+        corpus_dir: None,           // TODO
+        minimized_corpus_dir: None, // TODO
+        fuzzing_failure_dir: None,  // TODO
+    };
+    let fuzz_execution_config = FuzzExecutionConfig {
+        timeout: 1,     // TODO
+        num_threads: 1, // TODO
+    };
+
+    let show_output = false;
+    // TODO
+    let fuzz_result = run_fuzzing_harness::<B, _, _>(
+        context,
+        &fuzzing_harness,
+        show_output,
+        package_name,
+        config,
+        &fuzz_folder_config,
+        &fuzz_execution_config,
+        build_foreign_call_executor,
+    );
+    match fuzz_result {
+        FuzzingRunStatus::ExecutionPass | FuzzingRunStatus::MinimizationPass => TestStatus::Pass,
+        FuzzingRunStatus::CorpusFailure { message } => {
+            let message = format!("Corpus failure: {message}");
+            TestStatus::Fail { message, error_diagnostic: None }
+        }
+        FuzzingRunStatus::ExecutionFailure { message, counterexample, error_diagnostic } => {
+            let message = format!("Execution failed: {message}");
+            if let Some((input_map, abi)) = &counterexample {
+                let input =
+                    serialize_to_json(input_map, abi).expect("Couldn't serialize input to JSON");
+                let message = format!("{message}\nFailing input: {input}");
+                TestStatus::Fail { message, error_diagnostic }
+            } else {
+                TestStatus::Fail { message, error_diagnostic }
+            }
+        }
+        FuzzingRunStatus::MinimizationFailure { message } => {
+            let message = format!("Minimization failed: {message}");
+            TestStatus::Fail { message, error_diagnostic: None }
+        }
+        FuzzingRunStatus::ForeignCallFailure { message } => {
+            let message = format!("Foreign call failed: {message}");
+            TestStatus::Fail { message, error_diagnostic: None }
+        }
+        FuzzingRunStatus::CompileError(custom_diagnostic) => {
+            TestStatus::CompileError(custom_diagnostic)
+        }
+    }
+}
 /// Test function failed to compile
 ///
 /// Note: This could be because the compiler was able to deduce

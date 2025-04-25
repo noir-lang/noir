@@ -1,4 +1,4 @@
-use acvm::BlackBoxFunctionSolver;
+use acvm::{BlackBoxFunctionSolver, blackbox_solver::StubbedBlackBoxSolver};
 
 // This is a struct that wraps a dynamically dispatched `BlackBoxFunctionSolver`
 // where we proxy the unimplemented stuff to the wrapped backend, but it
@@ -43,5 +43,12 @@ impl BlackBoxFunctionSolver<acvm::FieldElement> for WrapperSolver {
         len: u32,
     ) -> Result<Vec<acvm::FieldElement>, acvm::BlackBoxResolutionError> {
         self.0.poseidon2_permutation(inputs, len)
+    }
+}
+
+// TODO: remove this
+impl Default for WrapperSolver {
+    fn default() -> Self {
+        Self(Box::new(StubbedBlackBoxSolver::default()))
     }
 }

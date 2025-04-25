@@ -9,7 +9,7 @@ use std::io::Write;
 use std::{collections::BTreeMap, path::PathBuf};
 
 use nargo::{
-    ops::{TestStatus, report_errors, run_test},
+    ops::{TestStatus, report_errors, run_or_fuzz_test},
     package::{Package, PackageType},
     parse_all, prepare_package,
 };
@@ -91,11 +91,12 @@ fn run_stdlib_tests(force_brillig: bool, inliner_aggressiveness: i64) {
                 Err(poisoned) => poisoned.into_inner(), // Ignore, it happened during execution.
             };
             let status = std::panic::catch_unwind(move || {
-                run_test(
+                run_or_fuzz_test(
                     &bn254_blackbox_solver::Bn254BlackBoxSolver(pedantic_solving),
                     &mut context,
                     &test_function,
                     std::io::stdout(),
+                    "stdlib".to_string(),
                     &CompileOptions { force_brillig, inliner_aggressiveness, ..Default::default() },
                     |output, base| {
                         DefaultForeignCallBuilder::default()
