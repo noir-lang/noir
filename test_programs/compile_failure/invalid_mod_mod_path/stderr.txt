@@ -6,17 +6,17 @@ error: Expected a 'fn' but found 'foo'
   │
 
 error: Module '' is already part of the crate
-  ┌─ src/main.nr:1:1
+  ┌─ src/main.nr:1:15
   │
 1 │ mod crate::mod;
-  │ -
+  │               -
   │
 
 error: Note:  was originally declared here
-  ┌─ src/main.nr:1:1
+  ┌─ src/main.nr:1:4
   │
 1 │ mod crate::mod;
-  │ -
+  │    -
   │
 
 error: Expected an identifier but found 'crate'
