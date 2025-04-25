@@ -15,6 +15,7 @@ use noir_ast_fuzzer::compare::ComparePasses;
 use noir_ast_fuzzer_fuzz::{
     compare_results, create_ssa_or_die, create_ssa_with_passes_or_die, default_ssa_options,
 };
+use noirc_evaluator::ssa::{SsaPass, ssa_gen::Ssa};
 
 fuzz_target!(|data: &[u8]| {
     fuzz(&mut Unstructured::new(data)).unwrap();
@@ -27,18 +28,27 @@ fn fuzz(u: &mut Unstructured) -> eyre::Result<()> {
         u,
         Config::default(),
         |mut program| {
-            // We won't do any SSA passes at all, but for that to have a chance to work,
-            // we have to execute everything as Brillig, because ACIR needs some minimal
-            // passes such as unrolling.
+            // We want to do the minimum possible amount of SSA passes. Brillig can get away with fewer than ACIR,
+            // because ACIR needs unrolling of loops for example, so we treat everything as Brillig.
             for f in program.functions.iter_mut() {
                 f.unconstrained = true;
             }
-            create_ssa_with_passes_or_die(program, &options, &[], |_| Vec::new(), Some("init"))
+            let minimal_pipeline = vec![
+                // We need a DIE pass to populate `used_globals`, otherwise it will panic later.
+                SsaPass::new(Ssa::dead_instruction_elimination, "Dead Instruction Elimination"),
+            ];
+            create_ssa_with_passes_or_die(
+                program,
+                &options,
+                &minimal_pipeline,
+                |_| Vec::new(),
+                Some("init"),
+            )
         },
         |program| create_ssa_or_die(program, &options, Some("final")),
     )?;
 
     let result = inputs.exec()?;
 
-    compare_results(&inputs, &result, |inputs| [&inputs.program])
+    compare_results(&inputs, &result)
 }

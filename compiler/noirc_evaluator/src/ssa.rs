@@ -103,14 +103,14 @@ pub struct SsaPass<'a> {
 }
 
 impl<'a> SsaPass<'a> {
-    pub(crate) fn new<F>(f: F, msg: &'static str) -> Self
+    pub fn new<F>(f: F, msg: &'static str) -> Self
     where
         F: Fn(Ssa) -> Ssa + 'a,
     {
         Self::new_try(move |ssa| Ok(f(ssa)), msg)
     }
 
-    pub(crate) fn new_try<F>(f: F, msg: &'static str) -> Self
+    pub fn new_try<F>(f: F, msg: &'static str) -> Self
     where
         F: Fn(Ssa) -> Result<Ssa, RuntimeError> + 'a,
     {
