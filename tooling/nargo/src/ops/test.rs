@@ -227,18 +227,17 @@ where
     let location = test_function.location;
     let fuzzing_harness = FuzzingHarness { id, scope, location };
 
+    // TODO: allow configuring this. See https://github.com/noir-lang/noir/issues/8214
     let fuzz_folder_config = FuzzFolderConfig {
-        corpus_dir: None,           // TODO
-        minimized_corpus_dir: None, // TODO
-        fuzzing_failure_dir: None,  // TODO
+        corpus_dir: None,
+        minimized_corpus_dir: None,
+        fuzzing_failure_dir: None,
     };
-    let fuzz_execution_config = FuzzExecutionConfig {
-        timeout: 1,     // TODO
-        num_threads: 1, // TODO
-    };
+    // TODO: allow configuring this. See https://github.com/noir-lang/noir/issues/8214
+    let fuzz_execution_config = FuzzExecutionConfig { timeout: 1, num_threads: 1 };
 
+    // TODO: show output?
     let show_output = false;
-    // TODO
     let fuzz_result = run_fuzzing_harness::<B, _, _>(
         context,
         &fuzzing_harness,
