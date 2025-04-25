@@ -487,7 +487,7 @@ impl<'a> TestRunner<'a> {
                     self.run_test::<S>(
                         package,
                         &test_name,
-                        test_function.has_arguments(),
+                        test_function.has_arguments,
                         foreign_call_resolver_url,
                         root_path,
                         package_name_clone.clone(),

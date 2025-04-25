@@ -123,12 +123,8 @@ pub fn run_fuzzing_harness<B>(
 where
     B: BlackBoxFunctionSolver<FieldElement> + Default,
 {
-    let fuzzing_harness_has_no_arguments = context
-        .def_interner
-        .function_meta(&fuzzing_harness.get_id())
-        .function_signature()
-        .0
-        .is_empty();
+    let fuzzing_harness_has_no_arguments =
+        context.def_interner.function_meta(&fuzzing_harness.id).function_signature().0.is_empty();
 
     if fuzzing_harness_has_no_arguments {
         return FuzzingRunStatus::ExecutionFailure {
@@ -141,8 +137,7 @@ where
     let acir_config = CompileOptions { force_brillig: false, ..compile_config.clone() };
     let brillig_config = CompileOptions { force_brillig: true, ..compile_config.clone() };
 
-    let acir_program =
-        compile_no_check(context, &acir_config, fuzzing_harness.get_id(), None, false);
+    let acir_program = compile_no_check(context, &acir_config, fuzzing_harness.id, None, false);
 
     // We need to clone the acir program because it will be moved into the fuzzer
     // and we need to keep the original program for the error message and callstack
@@ -152,7 +147,7 @@ where
         None
     };
     let brillig_program =
-        compile_no_check(context, &brillig_config, fuzzing_harness.get_id(), None, false);
+        compile_no_check(context, &brillig_config, fuzzing_harness.id, None, false);
     let brillig_program_copy = if let Ok(brillig_program_internal) = &brillig_program {
         Some(brillig_program_internal.clone())
     } else {
@@ -251,7 +246,7 @@ where
                 acir_executor,
                 brillig_executor,
                 &package_name.clone().unwrap(),
-                context.def_interner.function_name(&fuzzing_harness.get_id()),
+                context.def_interner.function_name(&fuzzing_harness.id),
                 FuzzedExecutorExecutionConfiguration {
                     num_threads: fuzz_execution_config.num_threads,
                     timeout: fuzz_execution_config.timeout,
