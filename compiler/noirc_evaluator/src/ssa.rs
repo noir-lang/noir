@@ -226,6 +226,8 @@ pub fn minimal_passes() -> Vec<SsaPass<'static>> {
     vec![
         // We need a DIE pass to populate `used_globals`, otherwise it will panic later.
         SsaPass::new(Ssa::dead_instruction_elimination, "Dead Instruction Elimination"),
+        // We need to add an offset to constant array indices in Brillig.
+        SsaPass::new(Ssa::brillig_array_gets, "Brillig Array Get Optimizations"),
     ]
 }
 
