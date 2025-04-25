@@ -1,6 +1,7 @@
 use nargo::workspace::Workspace;
 use nargo_toml::PackageSelection;
 use noirc_driver::CompileOptions;
+use crate::cli::LockType;
 
 use super::{CliError, PackageOptions, WorkspaceCommand};
 
@@ -26,5 +27,5 @@ impl WorkspaceCommand for InterpretSsaCommand {
 }
 
 pub(crate) fn run(args: InterpretSsaCommand, workspace: Workspace) -> Result<(), CliError> {
-    todo!()
+    todo!("Run interpreter")
 }
