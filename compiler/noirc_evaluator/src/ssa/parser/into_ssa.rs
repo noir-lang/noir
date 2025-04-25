@@ -234,14 +234,16 @@ impl Translator {
             ParsedInstruction::Call { targets, function, arguments, types } => {
                 let function_id = if let Some(id) = self.builder.import_intrinsic(&function.name) {
                     id
+                } else if let Ok(func_id) = self.lookup_function(&function) {
+                    self.builder.import_function(func_id)
+                } else if let Ok(var_id) = self.lookup_variable(&function) {
+                    // e.g. `v2 = call v0(v1) -> u32`, a lambda passed as a parameter
+                    var_id
+                } else if &function.name == "print" {
+                    // We allow calls to the built-in print function
+                    self.builder.import_foreign_function(&function.name)
                 } else {
-                    let maybe_func =
-                        self.lookup_function(&function).map(|f| self.builder.import_function(f));
-
-                    maybe_func.or_else(|e| {
-                        // e.g. `v2 = call v0(v1) -> u32`, a lambda passed as a parameter
-                        self.lookup_variable(&function).map_err(|_| e)
-                    })?
+                    return Err(SsaError::UnknownFunction(function.clone()));
                 };
 
                 let arguments = self.translate_values(arguments)?;
