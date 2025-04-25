@@ -47,7 +47,7 @@ if [ -z "${CI:-}" ]; then
     trap "rm -rf $TMP_DIR" EXIT
     
     setup_repo $REPO_SLUG $PROJECT_TAG $TMP_DIR
-if
+fi
 
 REPO_DIR=${REPO_DIR:-$TMP_DIR}
 cd "$REPO_DIR/$PROJECT_DIR"
