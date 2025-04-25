@@ -261,6 +261,8 @@ impl<'a> Parser<'a> {
 
 #[cfg(test)]
 mod tests {
+    use insta::assert_snapshot;
+
     use crate::{
         parse_program_with_dummy_file,
         parser::{
@@ -279,7 +281,7 @@ mod tests {
         let (module, errors) = parse_program_with_dummy_file(&src);
         assert_eq!(module.items.len(), 2);
         let error = get_single_error(&errors, span);
-        assert_eq!(error.to_string(), "Expected an item but found 'hello'");
+        assert_snapshot!(error.to_string(), @"Expected an item but found 'hello'");
     }
 
     #[test]
@@ -292,7 +294,7 @@ mod tests {
         let (module, errors) = parse_program_with_dummy_file(&src);
         assert_eq!(module.items.len(), 1);
         let error = get_single_error(&errors, span);
-        assert_eq!(error.to_string(), "Expected a '}' but found end of input");
+        assert_snapshot!(error.to_string(), @"Expected a '}' but found end of input");
     }
 
     #[test]

@@ -128,6 +128,8 @@ impl Parser<'_> {
 
 #[cfg(test)]
 mod tests {
+    use insta::assert_snapshot;
+
     use crate::{
         ast::{IntegerBitSize, NoirStruct, UnresolvedGeneric, UnresolvedTypeData},
         parse_program_with_dummy_file,
@@ -272,6 +274,6 @@ mod tests {
         assert_eq!(noir_struct.fields.len(), 1);
 
         let error = get_single_error(&errors, span);
-        assert_eq!(error.to_string(), "Expected an identifier but found '42'");
+        assert_snapshot!(error.to_string(), @"Expected an identifier but found '42'");
     }
 }

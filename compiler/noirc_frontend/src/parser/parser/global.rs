@@ -69,6 +69,7 @@ fn ident_to_pattern(ident: Ident, mutable: bool) -> Pattern {
 #[cfg(test)]
 mod tests {
     use acvm::FieldElement;
+    use insta::assert_snapshot;
 
     use crate::{
         ast::{
@@ -169,7 +170,7 @@ mod tests {
         let (src, span) = get_source_with_error_span(src);
         let (_, errors) = parse_program_with_dummy_file(&src);
         let error = get_single_error(&errors, span);
-        assert_eq!(error.to_string(), "Expected a ';' but found end of input");
+        assert_snapshot!(error.to_string(), @"Expected a ';' but found end of input");
     }
 
     #[test]
