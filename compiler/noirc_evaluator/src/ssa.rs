@@ -130,7 +130,7 @@ pub fn primary_passes(options: &SsaEvaluatorOptions) -> Vec<SsaPass> {
         SsaPass::new(Ssa::defunctionalize, "Defunctionalization"),
         SsaPass::new(
             Ssa::inline_functions_with_at_most_one_instruction,
-            "Inlining simple functions",
+            "Inlining functions with at most one instruction",
         ),
         // BUG: Enabling this mem2reg causes an integration test failure in aztec-package; see:
         // https://github.com/AztecProtocol/aztec-packages/pull/11294#issuecomment-2622809518
