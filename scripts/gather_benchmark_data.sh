@@ -42,9 +42,9 @@ save_artifact() {
     mv ./target/*.json $OUTPUT_DIR/artifact.json
 }
 
-if [ -z "${CI:-}" ]; then
+if [ -z "${REPO_DIR:-}" ]; then
     TMP_DIR=$(mktemp -d)
-    # trap "rm -rf $TMP_DIR" EXIT
+    trap "rm -rf $TMP_DIR" EXIT
     
     setup_repo $REPO_SLUG $PROJECT_TAG $TMP_DIR
 fi
@@ -52,10 +52,16 @@ fi
 REPO_DIR=${REPO_DIR:-$TMP_DIR}
 cd "$REPO_DIR/$PROJECT_DIR"
 
+[[ -f ./Prover.toml ]] && HAS_PROVER_INPUTS=true
+
 # We run `nargo check` to pre-fetch any dependencies so we don't measure the time to download these
 # when benchmarking.
 $NARGO check --silence-warnings
 
 compile_project
-execute_project
+if [ HAS_PROVER_INPUTS == "true" ]; then
+    execute_project
+fi
 save_artifact
+
+echo "Completed gathering benchmarks"
