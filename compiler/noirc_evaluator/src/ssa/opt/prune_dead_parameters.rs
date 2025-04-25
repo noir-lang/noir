@@ -1,6 +1,43 @@
-//! Prunes any dead block parameters from a block and correspondingly
-//! adjusts the terminators of predecessor blocks.
-
+//! This module implements the pruning of unused block parameters from SSA functions.
+//!
+//! Blocks can accept parameters that are passed via terminator instructions (e.g., `jmp`).
+//! During the compilation pipeline, it's common for some of these parameters to become unused.
+//! This module eliminates those unused parameters to reduce code size.
+//!
+//! ## How this pass works:
+//! - Iterates through all blocks in post-order (to ensure predecessors are visited after successors).
+//! - Detects and removes unused block parameters, except for those on the entry block.
+//! - Clears the list of unused block parameters after removing them from the block.
+//! - **Entry block parameters** are never removed. These often correspond to function inputs and
+//!   must remain to preserve the function's external interface, even if they're unused internally.
+//! - Updates the corresponding argument lists in predecessor terminator instructions to keep
+//!   them aligned with the new parameter lists.
+//!
+//! ## Preconditions:
+//! - This pass should be run *after* [Dead Instruction Elimination (DIE)][super::die] so that parameter
+//!   liveness is up-to-date.
+//!
+//! ## Panics
+//! Return blocks are not expected to have predecessors, so encountering one as a predecessor
+//! is treated as an internal compiler error (ICE).
+//!
+//! ## Example:
+//!
+//! Before pruning:
+//! ```text
+//! b0():
+//!   jmp b1(Field 1, Field 2, Field 3)
+//! b1(v0: Field, v1: Field, v2: Field):
+//!   return v1
+//! ```
+//!
+//! After pruning:
+//! ```text
+//! b0():
+//!   jmp b1(Field 2)
+//! b1(v0: Field):
+//!   return v0
+//! ```
 use fxhash::FxHashSet as HashSet;
 
 use crate::ssa::{
@@ -32,6 +69,7 @@ impl Function {
 
             let unused_params = self.dfg[block].unused_parameters().to_vec();
             if unused_params.is_empty() {
+                // Nothing to do if the block has no unused params
                 continue;
             }
 
@@ -45,6 +83,8 @@ impl Function {
 
             let old_params = self.dfg[block].take_parameters();
 
+            // Create the list of new params for updating the block with unused parameters
+            // as well as an indexed list of the removed parameters to update each predecessor's terminator argument list.
             let mut keep_list = Vec::with_capacity(old_params.len());
             let mut new_params = Vec::with_capacity(old_params.len());
             let unused_set = unused_params.iter().copied().collect::<HashSet<_>>();
@@ -58,8 +98,8 @@ impl Function {
 
             self.dfg[block].set_parameters(new_params);
 
+            // Update the predecessor argument list to match the new parameter list
             let predecessors = cfg.predecessors(block);
-
             for pred in predecessors {
                 let terminator = self.dfg[pred].unwrap_terminator_mut();
 
