@@ -1,5 +1,5 @@
 use crate::{
-    ResolvedGeneric,
+    NamedGeneric, ResolvedGeneric,
     ast::{Ident, UnresolvedType, UnresolvedTypeData, UnresolvedTypeExpression},
     graph::CrateId,
     hir::def_collector::{
@@ -161,7 +161,11 @@ impl Elaborator<'_> {
         ) in method.direct_generics.iter().zip(&override_meta.direct_generics)
         {
             let trait_fn_kind = trait_fn_generic.kind();
-            let arg = Type::NamedGeneric(impl_fn_generic.clone(), name.clone());
+            let arg = Type::NamedGeneric(NamedGeneric {
+                type_var: impl_fn_generic.clone(),
+                name: name.clone(),
+                implicit: false,
+            });
             bindings.insert(
                 trait_fn_generic.id(),
                 (trait_fn_generic.clone(), trait_fn_kind.clone(), arg),
@@ -193,10 +197,13 @@ impl Elaborator<'_> {
                 continue;
             }
 
+            let override_trait_generics =
+                override_trait_constraint.trait_bound.trait_generics.clone();
+
             if !substituted_method_ids.contains(&(
                 override_trait_constraint.typ.clone(),
                 override_trait_constraint.trait_bound.trait_id,
-                override_trait_constraint.trait_bound.trait_generics.clone(),
+                override_trait_generics,
             )) {
                 let the_trait =
                     self.interner.get_trait(override_trait_constraint.trait_bound.trait_id);

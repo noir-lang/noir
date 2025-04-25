@@ -201,11 +201,12 @@ impl CrateDefMap {
         self.modules.iter().flat_map(|(_, module)| {
             module.value_definitions().filter_map(|id| {
                 if let Some(func_id) = id.as_function() {
+                    let has_arguments = !interner.function_meta(&func_id).parameters.is_empty();
                     let attributes = interner.function_attributes(&func_id);
                     match attributes.function().map(|attr| &attr.kind) {
                         Some(FunctionAttributeKind::Test(scope)) => {
                             let location = interner.function_meta(&func_id).name.location;
-                            Some(TestFunction::new(func_id, scope.clone(), location))
+                            Some(TestFunction::new(func_id, scope.clone(), location, has_arguments))
                         }
                         _ => None,
                     }
@@ -375,11 +376,12 @@ pub struct TestFunction {
     id: FuncId,
     scope: TestScope,
     location: Location,
+    has_arguments: bool,
 }
 
 impl TestFunction {
-    fn new(id: FuncId, scope: TestScope, location: Location) -> Self {
-        TestFunction { id, scope, location }
+    fn new(id: FuncId, scope: TestScope, location: Location, has_arguments: bool) -> Self {
+        TestFunction { id, scope, location, has_arguments }
     }
 
     /// Returns the function id of the test function
@@ -389,6 +391,10 @@ impl TestFunction {
 
     pub fn file_id(&self) -> FileId {
         self.location.file
+    }
+
+    pub fn has_arguments(&self) -> bool {
+        self.has_arguments
     }
 
     /// Returns true if the test function has been specified to fail
