@@ -2,7 +2,7 @@ use noirc_errors::Location;
 
 use crate::{
     ast::{
-        Documented, Expression, ExpressionKind, Ident, ItemVisibility, NoirFunction, NoirTraitImpl,
+        Documented, Expression, ExpressionKind, ItemVisibility, NoirFunction, NoirTraitImpl,
         TraitImplItem, TraitImplItemKind, TypeImpl, UnresolvedGeneric, UnresolvedType,
         UnresolvedTypeData,
     },
@@ -156,10 +156,9 @@ impl Parser<'_> {
             self.expected_identifier();
             self.eat_semicolons();
             let location = self.location_at_previous_token_end();
-            return Some(TraitImplItemKind::Type {
-                name: Ident::default(),
-                alias: UnresolvedType { typ: UnresolvedTypeData::Error, location },
-            });
+            let name = self.unknown_ident_at_previous_token_end();
+            let alias = UnresolvedType { typ: UnresolvedTypeData::Error, location };
+            return Some(TraitImplItemKind::Type { name, alias });
         };
 
         let alias = if self.eat_assign() {
@@ -184,7 +183,7 @@ impl Parser<'_> {
             Some(name) => name,
             None => {
                 self.expected_identifier();
-                Ident::default()
+                self.unknown_ident_at_previous_token_end()
             }
         };
 
@@ -235,6 +234,8 @@ impl Parser<'_> {
 
 #[cfg(test)]
 mod tests {
+    use insta::assert_snapshot;
+
     use crate::{
         ast::{
             ItemVisibility, NoirTraitImpl, Pattern, TraitImplItemKind, TypeImpl, UnresolvedTypeData,
@@ -549,7 +550,7 @@ mod tests {
         assert_eq!(type_impl.methods.len(), 1);
 
         let error = get_single_error(&errors, span);
-        assert_eq!(error.to_string(), "Expected a function but found 'hello'");
+        assert_snapshot!(error.to_string(), @"Expected a function but found 'hello'");
     }
 
     #[test]
@@ -569,7 +570,7 @@ mod tests {
         assert_eq!(trait_imp.items.len(), 1);
 
         let error = get_single_error(&errors, span);
-        assert_eq!(error.to_string(), "Expected a trait impl item but found 'hello'");
+        assert_snapshot!(error.to_string(), @"Expected a trait impl item but found 'hello'");
     }
 
     #[test]
