@@ -150,10 +150,16 @@ impl<'a> Parser<'a> {
             return vec![ItemKind::Import(use_tree, modifiers.visibility)];
         }
 
-        if let Some(is_contract) = self.eat_mod_or_contract() {
-            self.comptime_mutable_and_unconstrained_not_applicable(modifiers);
+        if matches!(self.next_token.token(), Token::Ident(..)) {
+            if let Some(is_contract) = self.eat_mod_or_contract() {
+                self.comptime_mutable_and_unconstrained_not_applicable(modifiers);
 
-            return vec![self.parse_mod_or_contract(attributes, is_contract, modifiers.visibility)];
+                return vec![self.parse_mod_or_contract(
+                    attributes,
+                    is_contract,
+                    modifiers.visibility,
+                )];
+            }
         }
 
         if self.eat_keyword(Keyword::Struct) {

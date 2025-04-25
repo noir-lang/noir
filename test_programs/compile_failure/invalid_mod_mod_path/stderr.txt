@@ -1,22 +1,8 @@
-error: No module `(unknown)` at path `src/(unknown).nr` or `src/(unknown)/mod.nr`
-  ┌─ src/main.nr:1:4
+error: Expected an item but found 'mod'
+  ┌─ src/main.nr:1:1
   │
 1 │ mod crate::mod;
-  │    -
-  │
-
-error: No module `(unknown)` at path `src/(unknown).nr` or `src/(unknown)/mod.nr`
-  ┌─ src/main.nr:1:15
-  │
-1 │ mod crate::mod;
-  │               -
-  │
-
-error: Expected an identifier but found 'crate'
-  ┌─ src/main.nr:1:5
-  │
-1 │ mod crate::mod;
-  │     -----
+  │ ---
   │
 
 error: Expected an item but found 'crate'
@@ -33,11 +19,11 @@ error: Expected an item but found '::'
   │          --
   │
 
-error: Expected an identifier but found ';'
-  ┌─ src/main.nr:1:15
+error: Expected an item but found 'mod'
+  ┌─ src/main.nr:1:12
   │
 1 │ mod crate::mod;
-  │               -
+  │            ---
   │
 
 error: Expected an item but found ';'
@@ -47,4 +33,4 @@ error: Expected an item but found ';'
   │               -
   │
 
-Aborting due to 7 previous errors
+Aborting due to 5 previous errors
