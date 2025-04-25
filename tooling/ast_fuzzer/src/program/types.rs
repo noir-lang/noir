@@ -78,6 +78,14 @@ pub(crate) fn types_produced(typ: &Type) -> HashSet<Type> {
                 for size in IntegerBitSize::iter()
                     .filter(|size| size.bit_size() > integer_bit_size.bit_size())
                 {
+                    // We don't want to produce `i1` or `i128`
+                    if sign.is_signed()
+                        && (size == IntegerBitSize::One
+                            || size == IntegerBitSize::HundredTwentyEight)
+                    {
+                        continue;
+                    }
+
                     acc.insert(Type::Integer(*sign, size));
                 }
                 // There are `From<u*>` for Field
@@ -215,7 +223,7 @@ pub(crate) fn can_binary_op_return_from_input(op: &BinaryOp, input: &Type, outpu
             // i128 is not a type a user can define, and the truncation that gets added after binary operations to
             // limit it to 129 bits results in division by zero during compilation.
             (op.is_arithmetic() && size != 1 && size != 128 && size_in <= size_out)
-                || op.is_bitshift() && size != 128
+                || op.is_bitshift() && size != 128 && !(size == 1 && sign_in.is_signed())
                 || op.is_bitwise()
         }
         (Type::Reference(typ, _), _) => can_binary_op_return_from_input(op, typ, output),

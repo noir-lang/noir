@@ -1494,3 +1494,89 @@ fn returns_self_in_trait_method_3() {
     ";
     assert_no_errors!(src);
 }
+
+#[named]
+#[test]
+fn trait_impl_with_where_clause_with_trait_with_associated_numeric() {
+    let src = "
+    trait Bar {
+        let N: Field;
+    }
+
+    impl Bar for Field {
+        let N: Field = 42;
+    }
+
+    trait Foo {
+        fn foo<B>(b: B) where B: Bar; 
+    }
+
+    impl Foo for Field{
+        fn foo<B>(_: B) where B: Bar {} 
+    }
+
+    fn main() {}
+    ";
+    assert_no_errors!(src);
+}
+
+#[named]
+#[test]
+fn trait_impl_with_where_clause_with_trait_with_associated_type() {
+    let src = "
+    trait Bar {
+        type typ;
+    }
+
+    impl Bar for Field {
+        type typ = Field;
+    }
+
+    trait Foo {
+        fn foo<B>(b: B) where B: Bar; 
+    }
+
+    impl Foo for Field{
+        fn foo<B>(_: B) where B: Bar {} 
+    }
+
+    fn main() {}
+    ";
+    assert_no_errors!(src);
+}
+
+#[named]
+#[test]
+fn errors_if_constrained_trait_definition_has_unconstrained_impl() {
+    let src = r#"
+    pub trait Foo {
+        fn foo() -> Field;
+    }
+
+    impl Foo for Field {
+        unconstrained fn foo() -> Field {
+                         ^^^ foo is not expected to be unconstrained
+            42
+        }
+    }
+    "#;
+    check_errors!(src);
+}
+
+#[named]
+#[test]
+fn errors_if_unconstrained_trait_definition_has_constrained_impl() {
+    let src = r#"
+    pub trait Foo {
+        unconstrained fn foo() -> Field;
+    }
+
+    impl Foo for Field {
+        fn foo() -> Field {
+           ^^^ foo is expected to be unconstrained
+            42
+        }
+    }
+    "#;
+    check_errors!(src);
+}

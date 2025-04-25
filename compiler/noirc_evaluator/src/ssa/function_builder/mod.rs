@@ -171,6 +171,7 @@ impl FunctionBuilder {
         value: impl Into<FieldElement>,
         typ: NumericType,
     ) -> ValueId {
+        validate_numeric_type(&typ);
         self.current_function.dfg.make_constant(value.into(), typ)
     }
 
@@ -300,6 +301,7 @@ impl FunctionBuilder {
     /// Insert a cast instruction at the end of the current block.
     /// Returns the result of the cast instruction.
     pub fn insert_cast(&mut self, value: ValueId, typ: NumericType) -> ValueId {
+        validate_numeric_type(&typ);
         self.insert_instruction(Instruction::Cast(value, typ), None).first()
     }
 
@@ -541,6 +543,28 @@ impl std::ops::Index<BasicBlockId> for FunctionBuilder {
 
     fn index(&self, id: BasicBlockId) -> &Self::Output {
         &self.current_function.dfg[id]
+    }
+}
+
+fn validate_numeric_type(typ: &NumericType) {
+    match &typ {
+        NumericType::Signed { bit_size } => match bit_size {
+            8 | 16 | 32 | 64 => (),
+            _ => {
+                panic!(
+                    "Invalid bit size for signed numeric type: {bit_size}. Expected one of 8, 16, 32 or 64."
+                );
+            }
+        },
+        NumericType::Unsigned { bit_size } => match bit_size {
+            1 | 8 | 16 | 32 | 64 | 128 => (),
+            _ => {
+                panic!(
+                    "Invalid bit size for unsigned numeric type: {bit_size}. Expected one of 1, 8, 16, 32, 64, or 128."
+                );
+            }
+        },
+        _ => (),
     }
 }
 

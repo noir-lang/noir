@@ -408,8 +408,8 @@ impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>> VM<'a, F, B> {
     /// Execute a single opcode:
     /// 1. Retrieve the current opcode using the program counter
     /// 2. Execute the opcode.
-    ///     For instance a binary 'result = lhs+rhs' opcode will read the VM memory at the lhs and rhs addresses,
-    ///     compute the sum and write it to the 'result' memory address.
+    ///    - For instance a binary 'result = lhs+rhs' opcode will read the VM memory at the lhs and rhs addresses,
+    ///      compute the sum and write it to the 'result' memory address.
     /// 3. Update the program counter, usually by incrementing it.
     ///
     /// - Control flow opcodes jump around the bytecode by setting the program counter.

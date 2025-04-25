@@ -19,7 +19,7 @@ mod completion_tests {
         utils::get_cursor_line_and_column,
     };
 
-    use lsp_types::{
+    use async_lsp::lsp_types::{
         CompletionItem, CompletionItemKind, CompletionItemLabelDetails, CompletionParams,
         CompletionResponse, DidOpenTextDocumentParams, Documentation, PartialResultParams,
         Position, TextDocumentIdentifier, TextDocumentItem, TextDocumentPositionParams,
