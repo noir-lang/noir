@@ -387,4 +387,17 @@ mod tests {
         let reason = get_single_error(&parser.errors, span);
         assert_eq!(reason.to_string(), "Expected a 'fn' but found 'foo'");
     }
+
+    #[test]
+    fn errors_on_missing_mod_identifier() {
+        let src = "
+        mod ; fn foo() {}
+            ^
+        ";
+        let (src, span) = get_source_with_error_span(src);
+        let (module, errors) = parse_program_with_dummy_file(&src);
+        assert_eq!(module.items.len(), 1);
+        let error = get_single_error(&errors, span);
+        assert_snapshot!(error.to_string(), @"Expected an identifier but found ';'");
+    }
 }
