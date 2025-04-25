@@ -53,8 +53,8 @@ impl AstPrinter {
             self.print_global(id, global, f)?;
         }
         for function in &program.functions {
-            let mut fpo = FunctionPrintOptions::default();
-            fpo.return_visibility = (function.id == Program::main_id()).then_some(program.return_visibility);
+            let return_visibility = (function.id == Program::main_id()).then_some(program.return_visibility);
+            let fpo = FunctionPrintOptions { return_visibility, ..Default::default() };
             self.print_function(function, f, fpo)?;
         }
         Ok(())
