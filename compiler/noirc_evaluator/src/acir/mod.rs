@@ -827,12 +827,7 @@ impl<'a> Context<'a> {
             if let AcirValue::Array(_) = &output {
                 let array_id = *result_id;
                 let block_id = self.block_id(&array_id);
-                let array_typ = dfg.type_of_value(array_id);
-                let len = if matches!(array_typ, Type::Array(_, _)) {
-                    array_typ.flattened_size() as usize
-                } else {
-                    arrays::flattened_value_size(&output)
-                };
+                let len = self.flattened_size(array_id, dfg);
                 self.initialize_array(block_id, len, Some(output.clone()))?;
             }
             // Do nothing for AcirValue::DynamicArray and AcirValue::Var
@@ -1278,16 +1273,12 @@ impl<'a> Context<'a> {
                 let slice_typ = dfg.type_of_value(slice_contents);
                 assert!(!slice_typ.is_nested_slice(), "ICE: Nested slice used in ACIR generation");
 
-                let slice_length = if !slice_typ.contains_slice_element() {
-                    slice_typ.flattened_size() as usize
-                } else {
-                    self.flattened_slice_size(slice_contents, dfg)
-                };
+                let slice_length = self.flattened_size(slice_contents, dfg);
+                let slice_length = self.acir_context.add_constant(slice_length);
 
                 let acir_value = self.convert_value(slice_contents, dfg);
                 let result = self.read_array(acir_value)?;
 
-                let slice_length = self.acir_context.add_constant(slice_length);
                 Ok(vec![AcirValue::Var(slice_length, AcirType::field()), AcirValue::Array(result)])
             }
             Intrinsic::SlicePushBack => {

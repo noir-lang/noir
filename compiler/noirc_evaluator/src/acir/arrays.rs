@@ -508,11 +508,7 @@ impl Context<'_> {
         // and may contain data for which we want to restrict access. The true slice length is tracked in a
         // a separate SSA value and restrictions on slice indices should be generated elsewhere in the SSA.
         let array_typ = dfg.type_of_value(array);
-        let array_len = if !array_typ.contains_slice_element() {
-            array_typ.flattened_size() as usize
-        } else {
-            self.flattened_slice_size(array, dfg)
-        };
+        let array_len = self.flattened_size(array, dfg);
 
         // Since array_set creates a new array, we create a new block ID for this
         // array, unless map_array is true. In that case, we operate directly on block_id
@@ -710,12 +706,7 @@ impl Context<'_> {
         match original_array {
             AcirValue::Var(_, _) => unreachable!("ICE: attempting to copy a non-array value"),
             array @ AcirValue::Array(_) => {
-                let array_typ = dfg.type_of_value(source);
-                let array_len = if !array_typ.contains_slice_element() {
-                    array_typ.flattened_size() as usize
-                } else {
-                    self.flattened_slice_size(source, dfg)
-                };
+                let array_len = self.flattened_size(source, dfg);
                 Ok(self.initialize_array(destination, array_len, Some(array))?)
             }
             AcirValue::DynamicArray(source) => {
@@ -771,25 +762,30 @@ impl Context<'_> {
         }
     }
 
-    pub(super) fn flattened_slice_size(&mut self, array_id: ValueId, dfg: &DataFlowGraph) -> usize {
-        let mut size = 0;
-        match &dfg[array_id] {
-            Value::NumericConstant { .. } => {
-                size += 1;
+    pub(super) fn flattened_size(&mut self, array: ValueId, dfg: &DataFlowGraph) -> usize {
+        let array_typ = dfg.type_of_value(array);
+        if !array_typ.contains_slice_element() {
+            array_typ.flattened_size() as usize
+        } else {
+            let mut size = 0;
+            match &dfg[array] {
+                Value::NumericConstant { .. } => {
+                    size += 1;
+                }
+                Value::Instruction { .. } => {
+                    let array_acir_value = self.convert_value(array, dfg);
+                    size += flattened_value_size(&array_acir_value);
+                }
+                Value::Param { .. } => {
+                    let array_acir_value = self.convert_value(array, dfg);
+                    size += flattened_value_size(&array_acir_value);
+                }
+                _ => {
+                    unreachable!("ICE: Unexpected SSA value when computing the slice size");
+                }
             }
-            Value::Instruction { .. } => {
-                let array_acir_value = self.convert_value(array_id, dfg);
-                size += flattened_value_size(&array_acir_value);
-            }
-            Value::Param { .. } => {
-                let array_acir_value = self.convert_value(array_id, dfg);
-                size += flattened_value_size(&array_acir_value);
-            }
-            _ => {
-                unreachable!("ICE: Unexpected SSA value when computing the slice size");
-            }
+            size
         }
-        size
     }
 
     pub(super) fn ensure_array_is_initialized(
@@ -808,12 +804,7 @@ impl Context<'_> {
             match value {
                 Value::Instruction { .. } => {
                     let value = self.convert_value(array, dfg);
-                    let array_typ = dfg.type_of_value(array);
-                    let len = if !array_typ.contains_slice_element() {
-                        array_typ.flattened_size() as usize
-                    } else {
-                        self.flattened_slice_size(array, dfg)
-                    };
+                    let len = self.flattened_size(array, dfg);
                     self.initialize_array(block_id, len, Some(value))?;
                 }
                 _ => {
