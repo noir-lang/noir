@@ -24,6 +24,8 @@ mod scope;
 mod types;
 pub(crate) mod visitor;
 
+pub use rewrite::change_all_functions_into_unconstrained;
+
 #[cfg(test)]
 mod tests;
 
@@ -281,7 +283,7 @@ impl Context {
 
         let globals = self.globals.into_iter().collect();
 
-        Program {
+        let program = Program {
             functions,
             function_signatures,
             main_function_signature,
@@ -291,7 +293,15 @@ impl Context {
             debug_variables: Default::default(),
             debug_functions: Default::default(),
             debug_types: Default::default(),
-        }
+        };
+
+        // Carry out the "ownership analysis" here, so the returned program is ready to be turned into SSA.
+        // If we carry out changes that need that analysis to be performed again, we have to make sure
+        // we only run it on functions that haven't been through it before, or it might panic. We could
+        // instead delay the execution to the just before execution, but it's more consistent this way:
+        // for example `CompareSsa` can print the final version without more changes being done to it
+        // while the are being converted to SSA.
+        program.handle_ownership()
     }
 
     /// Generate a random [Type].

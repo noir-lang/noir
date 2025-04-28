@@ -7,7 +7,7 @@ use crate::{
 use arbitrary::Unstructured;
 use color_eyre::eyre;
 use noir_ast_fuzzer::compare::ComparePasses;
-use noir_ast_fuzzer::{Config, compare::CompareResult};
+use noir_ast_fuzzer::{Config, change_all_functions_into_unconstrained, compare::CompareResult};
 use noirc_evaluator::ssa::minimal_passes;
 
 pub fn fuzz(u: &mut Unstructured) -> eyre::Result<()> {
@@ -22,12 +22,10 @@ pub fn fuzz(u: &mut Unstructured) -> eyre::Result<()> {
     let inputs = ComparePasses::arb(
         u,
         config,
-        |mut program| {
+        |program| {
             // We want to do the minimum possible amount of SSA passes. Brillig can get away with fewer than ACIR,
             // because ACIR needs unrolling of loops for example, so we treat everything as Brillig.
-            for f in program.functions.iter_mut() {
-                f.unconstrained = true;
-            }
+            let program = change_all_functions_into_unconstrained(program);
             create_ssa_with_passes_or_die(program, &options, &passes, |_| vec![], Some("init"))
         },
         |program| create_ssa_or_die(program, &options, Some("final")),
