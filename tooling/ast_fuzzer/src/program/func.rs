@@ -710,10 +710,19 @@ impl<'a> FunctionContext<'a> {
         loop {
             let typ = self.ctx.gen_type(u, max_depth, false)?;
             let expr = self.gen_expr(u, &typ, max_depth, Flags::TOP)?;
-            if matches!(typ, Type::Array(0, _)) && matches!(expr, Expression::Literal(_)) {
-                // We ended up with something like `let x = [];` which, if we copy it as Noir,
-                // the frontend could not infer the type for, so let's just skip it.
-                continue;
+            if matches!(expr, Expression::Literal(_)) {
+                match typ {
+                    Type::Array(0, _) => {
+                        // We ended up with something like `let x = [];` which, if we copy it as Noir,
+                        // the frontend could not infer the type for, so let's just skip it.
+                        continue;
+                    }
+                    Type::Integer(sign, size) if sign.is_signed() || size.bit_size() > 32 => {
+                        // The frontend expects u32 literals, unless the type is declared to aid inference.
+                        continue;
+                    }
+                    _ => {}
+                }
             }
             let mutable = bool::arbitrary(u)?;
             return Ok(self.let_var(mutable, typ, expr, true));
