@@ -12,7 +12,7 @@ use crate::ssa::{
         basic_block::{BasicBlock, BasicBlockId},
         dfg::DataFlowGraph,
         function::{Function, FunctionId},
-        instruction::{BinaryOp, Instruction, InstructionId, Intrinsic},
+        instruction::{BinaryOp, Instruction, InstructionId, Intrinsic, TerminatorInstruction},
         post_order::PostOrder,
         types::Type,
         value::{Value, ValueId},
@@ -128,13 +128,20 @@ impl Function {
         for block in blocks.as_slice() {
             context.remove_unused_instructions_in_block(self, *block);
 
-            let unused_params = self.dfg[*block]
-                .parameters()
+            let parameters = self.dfg[*block].parameters();
+            let mut keep_list = Vec::with_capacity(parameters.len());
+            let unused_params = parameters
                 .iter()
-                .filter(|value| !context.used_values.contains(value))
+                .filter(|value| {
+                    let keep = context.used_values.contains(value);
+                    keep_list.push(keep);
+                    !keep
+                })
                 .copied()
                 .collect::<Vec<_>>();
             unused_params_per_block.insert(*block, unused_params);
+
+            context.parameter_keep_list.insert(*block, keep_list);
         }
 
         context.remove_rc_instructions(&mut self.dfg);
@@ -169,6 +176,9 @@ struct Context {
 
     /// Track IncrementRc instructions per block to determine whether they are useless.
     rc_tracker: RcTracker,
+
+    /// Used parameters
+    parameter_keep_list: HashMap<BasicBlockId, Vec<bool>>,
 }
 
 impl Context {
@@ -245,8 +255,24 @@ impl Context {
 
     /// Adds values referenced by the terminator to the set of used values.
     fn mark_terminator_values_as_used(&mut self, function: &Function, block: &BasicBlock) {
-        block.unwrap_terminator().for_each_value(|value| {
-            self.mark_used_instruction_results(&function.dfg, value);
+        let terminator = block.unwrap_terminator();
+        let jmp_destination = if let TerminatorInstruction::Jmp { destination, .. } = terminator {
+            Some(*destination)
+        } else {
+            None
+        };
+        block.unwrap_terminator().for_eachi_value(|index, value| {
+            if let Some(destination) = jmp_destination {
+                let keep_list = self
+                    .parameter_keep_list
+                    .get(&destination)
+                    .expect("Should have a list of used parameters");
+                if keep_list[index] {
+                    self.mark_used_instruction_results(&function.dfg, value);
+                }
+            } else {
+                self.mark_used_instruction_results(&function.dfg, value);
+            }
         });
     }
 
