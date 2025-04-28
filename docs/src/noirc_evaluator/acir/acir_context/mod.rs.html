@@ -1683,7 +1683,11 @@
 <a href="#1682" id="1682">1682</a>
 <a href="#1683" id="1683">1683</a>
 <a href="#1684" id="1684">1684</a>
-<a href="#1685" id="1685">1685</a></pre></div><pre class="rust"><code><span class="doccomment">//! The `acir_context` module acts as a high-level wrapper around [`generated_acir`], maintaining a small amount
+<a href="#1685" id="1685">1685</a>
+<a href="#1686" id="1686">1686</a>
+<a href="#1687" id="1687">1687</a>
+<a href="#1688" id="1688">1688</a>
+<a href="#1689" id="1689">1689</a></pre></div><pre class="rust"><code><span class="doccomment">//! The `acir_context` module acts as a high-level wrapper around [`generated_acir`], maintaining a small amount
 //! of type information from SSA in order to allow efficient ACIR-gen.
 //!
 //! The [`AcirContext`] struct defines how to translate SSA instructions into equivalent ACIR constructs. This
@@ -2666,7 +2670,10 @@
 
         <span class="comment">// Optimization when rhs is const and fits within a u128
         </span><span class="kw">let </span>rhs_expr = <span class="self">self</span>.var_to_expression(rhs)<span class="question-mark">?</span>;
-        <span class="kw">if </span>rhs_expr.is_const() &amp;&amp; rhs_expr.q_c.num_bits() &lt;= <span class="number">128 </span>{
+        <span class="comment">// Do not attempt this optimization when the q_c is zero as otherwise
+        // we will compute an rhs offset of zero and ultimately lay down a range constrain of zero bits
+        // which will always fail.
+        </span><span class="kw">if </span>rhs_expr.is_const() &amp;&amp; rhs_expr.q_c.num_bits() &lt;= <span class="number">128 </span>&amp;&amp; !rhs_expr.q_c.is_zero() {
             <span class="comment">// We try to move the offset to rhs
             </span><span class="kw">let </span>rhs_offset = <span class="kw">if </span><span class="self">self</span>.is_constant_one(<span class="kw-2">&amp;</span>offset) &amp;&amp; rhs_expr.q_c.to_u128() &gt;= <span class="number">1 </span>{
                 lhs_offset = lhs;
@@ -2686,6 +2693,7 @@
 
             </span><span class="kw">let </span>r_var = <span class="self">self</span>.add_constant(r);
             <span class="kw">let </span>aor = <span class="self">self</span>.add_var(lhs_offset, r_var)<span class="question-mark">?</span>;
+
             <span class="comment">// lhs_offset&lt;=rhs_offset &lt;=&gt; lhs_offset + r &lt; rhs_offset + r = 2^bit_size &lt;=&gt; witness &lt; 2^bit_size
             </span><span class="self">self</span>.range_constrain_var(aor, <span class="kw-2">&amp;</span>NumericType::Unsigned { bit_size }, <span class="prelude-val">None</span>)<span class="question-mark">?</span>;
             <span class="kw">return </span><span class="prelude-val">Ok</span>(());
