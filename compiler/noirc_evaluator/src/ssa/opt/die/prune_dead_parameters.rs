@@ -15,7 +15,7 @@
 //!   them aligned with the new parameter lists.
 //!
 //! ## Preconditions:
-//! - This pass should be run *after* [Dead Instruction Elimination (DIE)][super::die] so that parameter
+//! - This pass should be run *after* [Dead Instruction Elimination (DIE)][super] so that parameter
 //!   liveness is up-to-date.
 //!
 //! ## Panics
