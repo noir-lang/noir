@@ -39,43 +39,31 @@
 //! b1(v0: Field):
 //!   return v0
 //! ```
-use fxhash::FxHashSet as HashSet;
+use fxhash::{FxHashMap as HashMap, FxHashSet as HashSet};
 
-use crate::ssa::{
-    ir::{
-        cfg::ControlFlowGraph, function::Function, instruction::TerminatorInstruction,
-        post_order::PostOrder,
-    },
-    ssa_gen::Ssa,
+use crate::ssa::ir::{
+    basic_block::BasicBlockId, cfg::ControlFlowGraph, function::Function,
+    instruction::TerminatorInstruction, post_order::PostOrder, value::ValueId,
 };
-
-impl Ssa {
-    /// See [`prune_dead_parameters`][self] module for more information.
-    #[tracing::instrument(level = "trace", skip(self))]
-    pub(crate) fn prune_dead_parameters(mut self) -> Self {
-        for function in self.functions.values_mut() {
-            function.prune_dead_parameters();
-        }
-        self
-    }
-}
 
 impl Function {
     /// See [`prune_dead_parameters`][self] module for more information
-    pub(crate) fn prune_dead_parameters(&mut self) {
+    pub(crate) fn prune_dead_parameters(
+        &mut self,
+        unused_params: HashMap<BasicBlockId, Vec<ValueId>>,
+    ) {
         let cfg = ControlFlowGraph::with_function(self);
         let post_order = PostOrder::with_cfg(&cfg);
 
-        for block in post_order.as_slice() {
-            let block = *block;
-
-            let unused_params = self.dfg[block].unused_parameters().to_vec();
+        for &block in post_order.as_slice() {
+            let empty_params = Vec::new();
+            let unused_params = unused_params.get(&block).unwrap_or(&empty_params);
             if unused_params.is_empty() {
                 // Nothing to do if the block has no unused params
                 continue;
             }
 
-            self.dfg[block].clear_unused_parameters();
+            // self.dfg[block].clear_unused_parameters();
 
             // We do not support to removing function arguments. This is because function signatures,
             // which are used for setting up the program artifact inputs, are set by the frontend.
@@ -146,11 +134,9 @@ mod tests {
         }"#;
 
         let mut ssa = Ssa::from_str(src).unwrap();
+        // Pruning is run internally during DIE (this pass is a submodule of DIE).
         // DIE is necessary to fetch the block parameters liveness information
         ssa = ssa.dead_instruction_elimination();
-        ssa = ssa.prune_dead_parameters();
-
-        assert_all_unused_parameters_cleared(&ssa);
 
         assert_ssa_snapshot!(ssa, @r#"
         brillig(inline) fn test f0 {
@@ -185,11 +171,9 @@ mod tests {
         "#;
 
         let mut ssa = Ssa::from_str(src).unwrap();
+        // Pruning is run internally during DIE (this pass is a submodule of DIE).
         // DIE is necessary to fetch the block parameters liveness information
         ssa = ssa.dead_instruction_elimination();
-        ssa = ssa.prune_dead_parameters();
-
-        assert_all_unused_parameters_cleared(&ssa);
 
         // We expect b3 to have no parameters anymore and both predecessors (b1 and b2)
         // should no longer pass any arguments to their terminator (which jumps to b3).
@@ -224,10 +208,9 @@ mod tests {
         }"#;
 
         let mut ssa = Ssa::from_str(src).unwrap();
+        // Pruning is run internally during DIE (this pass is a submodule of DIE).
+        // DIE is necessary to fetch the block parameters liveness information
         ssa = ssa.dead_instruction_elimination();
-        ssa = ssa.prune_dead_parameters();
-
-        assert_all_unused_parameters_cleared(&ssa);
 
         // b0 still has both parameters even though v0 is unused
         assert_ssa_snapshot!(ssa, @r#"
@@ -237,14 +220,5 @@ mod tests {
           b1(v2: Field):
             return v2
         }"#);
-    }
-
-    fn assert_all_unused_parameters_cleared(ssa: &Ssa) {
-        for function in ssa.functions.values() {
-            for block in function.reachable_blocks() {
-                let unused_params = function.dfg[block].unused_parameters();
-                assert!(unused_params.is_empty());
-            }
-        }
     }
 }

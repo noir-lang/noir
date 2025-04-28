@@ -31,19 +31,13 @@ impl Ssa {
     /// This step should come after the flattening of the CFG and mem2reg.
     #[tracing::instrument(level = "trace", skip(self))]
     pub fn dead_instruction_elimination(self) -> Ssa {
-        let ssa = self.dead_instruction_elimination_inner(true, false);
-        // The liveness analysis for block parameters is handled during DIE,
-        // thus pruning parameters should always follow DIE.
-        ssa.prune_dead_parameters()
+        self.dead_instruction_elimination_inner(true, false)
     }
 
     /// Post the Brillig generation we do not need to run this pass on Brillig functions.
     #[tracing::instrument(level = "trace", skip(self))]
     pub(crate) fn dead_instruction_elimination_acir(self) -> Ssa {
-        let ssa = self.dead_instruction_elimination_inner(true, true);
-        // The liveness analysis for block parameters is handled during DIE,
-        // thus pruning parameters should always follow DIE.
-        ssa.prune_dead_parameters()
+        self.dead_instruction_elimination_inner(true, true)
     }
 
     fn dead_instruction_elimination_inner(mut self, flattened: bool, skip_brillig: bool) -> Ssa {
@@ -106,6 +100,7 @@ impl Function {
         }
 
         let blocks = PostOrder::with_function(self);
+        let mut unused_params_per_block = HashMap::default();
         for block in blocks.as_slice() {
             context.remove_unused_instructions_in_block(self, *block);
 
@@ -115,8 +110,10 @@ impl Function {
                 .filter(|value| !context.used_values.contains(value))
                 .copied()
                 .collect::<Vec<_>>();
-            self.dfg[*block].set_unused_parameters(unused_params);
+            unused_params_per_block.insert(*block, unused_params);
         }
+
+        self.prune_dead_parameters(unused_params_per_block);
 
         context.remove_rc_instructions(&mut self.dfg);
 
