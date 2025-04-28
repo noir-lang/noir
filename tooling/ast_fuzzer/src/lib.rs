@@ -7,7 +7,10 @@ pub use abi::program_abi;
 pub use input::arb_inputs;
 use program::freq::Freqs;
 pub use program::visitor::{visit_expr, visit_expr_mut};
-pub use program::{DisplayAstAsNoir, DisplayAstAsNoirComptime, arb_program, arb_program_comptime};
+pub use program::{
+    DisplayAstAsNoir, DisplayAstAsNoirComptime, arb_program, arb_program_comptime,
+    change_all_functions_into_unconstrained,
+};
 
 /// AST generation configuration.
 #[derive(Debug, Clone)]
@@ -61,7 +64,7 @@ impl Default for Config {
             ("call", 15),
         ]);
         let stmt_freqs_acir = Freqs::new(&[
-            ("drop", 3),
+            ("drop", 0), // The `ownership` module says it will insert `Drop` and `Clone`.
             ("assign", 30),
             ("if", 10),
             ("for", 18),
@@ -69,7 +72,7 @@ impl Default for Config {
             ("call", 5),
         ]);
         let stmt_freqs_brillig = Freqs::new(&[
-            ("drop", 5),
+            ("drop", 0),
             ("break", 20),
             ("continue", 20),
             ("assign", 30),

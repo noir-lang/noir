@@ -4,6 +4,7 @@ use crate::{compare_results, create_ssa_or_die, default_ssa_options};
 use arbitrary::Unstructured;
 use color_eyre::eyre;
 use noir_ast_fuzzer::Config;
+use noir_ast_fuzzer::change_all_functions_into_unconstrained;
 use noir_ast_fuzzer::compare::CompareMutants;
 
 pub fn fuzz(u: &mut Unstructured) -> eyre::Result<()> {
@@ -17,13 +18,7 @@ pub fn fuzz(u: &mut Unstructured) -> eyre::Result<()> {
     let inputs = CompareMutants::arb(
         u,
         config,
-        |_u, mut program| {
-            // Change every function to be unconstrained.
-            for f in program.functions.iter_mut() {
-                f.unconstrained = true;
-            }
-            Ok(program)
-        },
+        |_u, program| Ok(change_all_functions_into_unconstrained(program)),
         |program| create_ssa_or_die(program, &options, None),
     )?;
 
