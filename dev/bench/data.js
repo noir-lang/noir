@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1745875147053,
+  "lastUpdate": 1745875149850,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -3700,95 +3700,6 @@ window.BENCHMARK_DATA = {
       }
     ],
     "Compilation Time": [
-      {
-        "commit": {
-          "author": {
-            "email": "15848336+TomAFrench@users.noreply.github.com",
-            "name": "Tom French",
-            "username": "TomAFrench"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "3024dd35f7c6d1b2bee6d521ae44698339682012",
-          "message": "chore: migrate recursive proof test to ultrahonk (#8038)\n\nCo-authored-by: saleel <saleel@saleel.xyz>",
-          "timestamp": "2025-04-22T11:29:54Z",
-          "tree_id": "f92415b6ab459e966d6850c152c468a7fb40e645",
-          "url": "https://github.com/noir-lang/noir/commit/3024dd35f7c6d1b2bee6d521ae44698339682012"
-        },
-        "date": 1745322625469,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "regression_4709",
-            "value": 0.682,
-            "unit": "s"
-          },
-          {
-            "name": "ram_blowup_regression",
-            "value": 13.3,
-            "unit": "s"
-          },
-          {
-            "name": "global_var_regression_entry_points",
-            "value": 0.474,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-inner",
-            "value": 2.326,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 6.824,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 1.082,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 17.82,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 13.6,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root-empty",
-            "value": 0.865,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root-single-tx",
-            "value": 119,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 122,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 0.872,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-root",
-            "value": 1.394,
-            "unit": "s"
-          }
-        ]
-      },
       {
         "commit": {
           "author": {
@@ -8146,6 +8057,95 @@ window.BENCHMARK_DATA = {
           {
             "name": "rollup-root",
             "value": 1.49,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "mvezenov@gmail.com",
+            "name": "Maxim Vezenov",
+            "username": "vezenovm"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "96e8679f9a9a605797a342bfd5df2db4ef9e3fdc",
+          "message": "feat(ssa): Prune dead block parameters (#8239)\n\nCo-authored-by: jfecher <jfecher11@gmail.com>",
+          "timestamp": "2025-04-28T20:57:04Z",
+          "tree_id": "f8506cb2e786bae4c4d97d8df47b26ce69102436",
+          "url": "https://github.com/noir-lang/noir/commit/96e8679f9a9a605797a342bfd5df2db4ef9e3fdc"
+        },
+        "date": 1745875142653,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "regression_4709",
+            "value": 0.708,
+            "unit": "s"
+          },
+          {
+            "name": "ram_blowup_regression",
+            "value": 13.1,
+            "unit": "s"
+          },
+          {
+            "name": "global_var_regression_entry_points",
+            "value": 0.495,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-inner",
+            "value": 2.344,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 6.406,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 1.132,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 16.48,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 13.16,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-empty",
+            "value": 1.252,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-single-tx",
+            "value": 124,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 127,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 0.899,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-root",
+            "value": 1.558,
             "unit": "s"
           }
         ]
