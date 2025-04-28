@@ -341,16 +341,36 @@ mod tests {
         // DIE is necessary to fetch the block parameters liveness information
         let (ssa, die_result) = ssa.dead_instruction_elimination_inner(false, false);
 
+        assert!(die_result.unused_parameters.len() == 1);
+        let function = die_result
+            .unused_parameters
+            .get(&Id::test_new(0))
+            .expect("Should have unused parameters");
+        for (block_id, unused_params) in function {
+            if block_id.to_u32() == 9 {
+                assert!(unused_params.len() == 1);
+                assert_eq!(unused_params[0].to_u32(), 3);
+            } else if block_id.to_u32() == 5 {
+                assert!(unused_params.len() == 1);
+                assert_eq!(unused_params[0].to_u32(), 1);
+            } else if block_id.to_u32() == 6 {
+                assert!(unused_params.len() == 1);
+                assert_eq!(unused_params[0].to_u32(), 2);
+            } else {
+                assert!(unused_params.is_empty());
+            }
+        }
+
         let ssa = ssa.prune_dead_parameters(die_result.unused_parameters);
 
         assert_ssa_snapshot!(ssa, @r#"
         brillig(inline) predicate_pure fn main f0 {
           b0(v0: i16):
-            v5 = lt i16 3, v0
-            jmpif v5 then: b1, else: b2
+            v2 = lt i16 3, v0
+            jmpif v2 then: b1, else: b2
           b1():
-            v8 = lt i16 4, v0
-            jmpif v8 then: b3, else: b4
+            v4 = lt i16 4, v0
+            jmpif v4 then: b3, else: b4
           b2():
             jmp b5()
           b3():
@@ -358,8 +378,8 @@ mod tests {
           b4():
             jmp b6()
           b5():
-            v12 = lt i16 5, v0
-            jmpif v12 then: b7, else: b8
+            v6 = lt i16 5, v0
+            jmpif v6 then: b7, else: b8
           b6():
             jmp b5()
           b7():
