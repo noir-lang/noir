@@ -26,7 +26,7 @@ expression: artifact
     "error_types": {}
   },
   "bytecode": "H4sIAAAAAAAA/7VSWw7DIAwr0Gnb9+g9Eh4l/O0qQ6P3P8I0DSSUsq9SS8iIRMYxiOkHWdYXc2Ex7VF7noXhGLDVsrA6l4PJaPEFJiby4HxaCQk9+bchazM5CjHFABGdzbj5aLciJsb5AtGZ+ZTh5eAAZGN8pO7Mw/jzQXjtznhp6mpgllVfn6MP186MS7PXbM7eO8BBVD1V+DLtIVmt9t6YPzHeH3IvqnNXxaOwbs5qnh9zj6dBlQQAAA==",
-  "debug_symbols": "lY3LCsMgEEX/ZdYuaiFQ/JVSgo8xDIjKqIUi+feakEC2WZ57Zu7t4NC0ZaboUwH17hCS1ZVSHNThsUcl67hRqZorqNckAKMDJaVcBXgKCGp6rh8B8tb9AMMUAi3zdXXEX82kTcADfYv2Yusvn+b8z5wsusa4Ne1u1P8B",
+  "debug_symbols": "dY/RCoMwDEX/Jc99sIPB8FfGkFqjFEJaYjsY0n9fFN3cw16aJjfntneBAfsydYHHOEN7X6CXQBSmjqJ3OUTW6VINHG2XBVFHcNKVSk6QM7RciAw8HZVtaU6Ot5qdqNoYQB60quEYCNdbNV+6+Y/erjtrrf3Q10utD+2cD/LzYWh00YDVs66eElxPuEcZC/tTsvxKh3JkTxI9DkVwNd00feYN",
   "file_map": {
     "52": {
       "source": "mod foo;\n// An example of the module system\nfn main(x: Field, y: Field) {\n    assert(x != foo::bar::from_bar(y));\n}\n",

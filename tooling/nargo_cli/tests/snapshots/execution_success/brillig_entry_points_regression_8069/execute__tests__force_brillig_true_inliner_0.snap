@@ -1,0 +1,41 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: artifact
+---
+{
+  "noir_version": "[noir_version]",
+  "hash": "[hash]",
+  "abi": {
+    "parameters": [],
+    "return_type": {
+      "abi_type": {
+        "kind": "boolean"
+      },
+      "visibility": "public"
+    },
+    "error_types": {
+      "2920182694213909827": {
+        "error_kind": "string",
+        "string": "attempt to subtract with overflow"
+      },
+      "17843811134343075018": {
+        "error_kind": "string",
+        "string": "Stack too deep"
+      }
+    }
+  },
+  "bytecode": "H4sIAAAAAAAA/9VYXY6bQAz2hEBh22j7c4GeoBqSEKjUB6Sy7RWqqg+loTlDH3lfVeqRy6h2Y8zMLhEzq91PQgPY+eyxZ+whCs5QOK5hDAUzoO549wfHDMcVk0fDVeOzXoY8E3Z98ld6X2WW+Xn0f5chpwrDr4k/UPz1M+T53J/5+VzIbjpcL9j9K7zf3PH7kL4PuS0zxumbf0D+xuE/zc3gYz+etyfbmvgbxg8B+G/6ILH7z/8pDH/+HP6twy2415rHeOW2taYC8K8hSLwK4k/C8Jcb5KR6wkGylNleCVkm/OKyKybj8ZGIxDOfr7FdMV6pJ32NmYz8joXsHY7Gxlu8l+vEoMZRL0P+2HIo88RzKPPrK4ffGK/Uk77acqhgmp9I6BtQ3boGdw/YADj7pfFZO/QMqG/cp9egnql3FN91P/alxvd6AcpKa7IbIX8M03xw+7HQL/GZ55rG9QI/T2Wbn3btqS3artsf29eC34DiLvsCxZN8XcM533xuN2xOXP8LjiZPHwSnXBOSk/c+zpkwPdkfbT7UOJp5/cZ7aU+umwyme8BjrTjQWk1gCllHbHsmZfpNP5bZ6sjcWkHzvbRW8LVKfgc+X+7JbiLmJP0h+9cwzWnyML5elG+Dph/LeP2Nxe+W5JveXdrfbfkmGe9PpGfm/dWhZ9D0bj1ZBw1816lfzM/vDs65dSphXHPqFOl3OPI69VTOnQbUk21nFh5DCZ/nTr5/ye/HFkMlZHPP7ktieEkt5zUkFTK+t/lZ7Rbvbf/nmKvGZ70MB9t3qj/+QxH2O7U42s4V/vjzn7Y+o0Ru5LnCj21dKGEPRBxB2L+CoPsyVzDdlxFM4yNrWmrx9SW497ESMm4ntdixca08ckUeueRZg+9/3uduhZ6rZ/v+ttlW1eH99sfwb2Z3PHX73X3fNn8Br6P9SP0XAAA=",
+  "debug_symbols": "pZXLjuIwEEX/xessXC4/+ZUWQgFCK1IUUDoZaYTy71N2uRh6MdLIvck5IbnXxDH4qa7Defs8jfPt/qUOH091XsZpGj9P0/3Sr+N9pk+fSucDRHWATkEqMJoBDMNAhmU4hmcEBrcYbkHKGQIyLMMxPCMwIiMVWM0ABrUgAQscBWynPN3iCMAwDGTQQJ5AAwWCZwRGZKSCoBnAMAxkUEskOIZnUEsiREYqiJoBDMNAhmW4gpRnUBPzpNEEpVAZKxMTdJ5/kwVEjAiKWBEn4kWCSBTJzTR9AFoERIwIilgRJ+JFQpWyQmwWEDEiKGJFnIgXCSJRJFVBaUZpRmlGaUZpRmnG0rzvnZK1fVqXYchL+22x00/g0S/DvKrDvE1Tp37101Zu+nr0c+HaL3SVXtIwX4lUeBunIdve/U3rf0fpVdUwPdwr7v47b3SoeYPYkIcUX/mW8dGlmsfQMr41ruZt0/g2gOQjtOQ91rzTP83blryV+XPgG/Ie5P17bPn+PtmaDzo05IOR9RNcy/gBXnnfsn688/L87vv6OdJZfxmXb9vXnpuWsT9PQz29bfPl7er6+yFXZPt7LPfLcN2WITe97YF0/HC6c+6Y/+roBCx0YPG458H/AA==",
+  "file_map": {
+    "50": {
+      "source": "fn main() -> pub bool {\n    let ctx_depth = 5;\n    // Safety: testing context\n    let cond = unsafe { func_1(true, 1, ctx_depth) };\n    let _ = if !cond {\n        // Safety: testing context\n        unsafe { func_2(1, true, ctx_depth) }[0]\n    } else {\n        0\n    };\n    false\n}\nunconstrained fn func_1(a: bool, b: i8, mut ctx_depth: u32) -> bool {\n    if (ctx_depth == 0) {\n        false\n    } else {\n        ctx_depth = (ctx_depth - 1);\n        func_1(false, func_2((a as Field), false, ctx_depth)[3], ctx_depth)\n    }\n}\nunconstrained fn func_2(mut a: Field, mut b: bool, mut ctx_depth: u32) -> [i8; 4] {\n    if (ctx_depth == 0) {\n        [6, 101, 92, 30]\n    } else {\n        ctx_depth = (ctx_depth - 1);\n        func_2(a, func_1(b, 0, ctx_depth), ctx_depth)\n    }\n}\n",
+      "path": ""
+    }
+  },
+  "names": [
+    "main"
+  ],
+  "brillig_names": [
+    "main"
+  ]
+}

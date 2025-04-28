@@ -56,7 +56,7 @@ expression: artifact
     }
   },
   "bytecode": "H4sIAAAAAAAA/8VXW26DMBBcwISYJErU3iJSJRIg5DMf+WmlHoIm4hwcvUXylmVYWqnFrSVk8K53ZsdPAupL4Grj6hDasXD7xdXZ78phxlhZMMV9KhnN59XVVhEkmjFxC7hzxj9nRWmV/Gbkn1sR05c+XUzjJ36WuDjXdhifADcCP+zTFebqaSwLz1ocNjTMX8st9oN91BZtBG0SPyW/8y4APOaD+oSgT+KHT8bxl57ic75WyVfqn0C+K098eC6mgk8wUTNXbOOxSSGWr7myprF2qcJnwz5tz8eCzQjbGmyxsLH+3bzYi/ykTfKR65fn0o7GY5kKTG1Pk7ZQ4Fzbnk8puJ2AW6hw08bO5/nC56PP80Uba5wHph1iS5scayP03IM+Pu4nUh9P+2z2OMGf37uStPRZItBTasSaLaU/2KywmXaIk7pvI3BkLOYRg3/hvreuXog+3H+n4C8Af8BbacNLuVX8reK/+Hie3PvKPd0cunIf+r+zVNtXtjRekzHYZD/zN3lkmIeh8Z1AcgtpvOdKDWJou7i6G5sXiIdn3dR+uaOxduy3+UK7FfVnkGl7+1z6Vef+x4zXZEzDuxQBfgz+z+5bnuMyj8sPeTZVfWjyuqnL+n4vbvUDxO9KKHSaG7+u8vPtWNyqtzKv89O3+O/Mp9ysuQ8AAA==",
-  "debug_symbols": "lZJNCsMgEEbvMmsXJvEnzVVKCSYxQRANxhRKyN3rlEJDd7MRP/ExOvMOmOywL70Lc9ygux/g42iyi6Gk42QwJOe9W/rrMXBcpPzc31YTMG7ZpAxdxTkDGybcicLPzlvoJD8fDKQiE5pMtGTiRiUUJxMVmajJREMmBJkgzvws6WmSM4O3X6HmPYwXv/JrtX+qrSmOdtqTRel+vuH3RM1kXd5R4QRUy3SDAZurBdOq1Cs13w==",
+  "debug_symbols": "dZDRboQgEEX/ZZ7nAVzRrb9ijEEdNyQEDQtNGsO/d5Da3T70hcMw3DuTe8BCU3yMxq3bE7r+gMkba81jtNusg9kcvx4g8qEUdBJBNQVtwb3g40QjCmRBVXArqAuyS0oI14AxeKLs/zaR99i1Jxegc9FahE9t4/npuWt3MmjPXYFAbmGy4Wos5VvCl1r8L5XiEktR/8oV6weu9Gz8nwxSdvJGT5Z+yjW6+a0bvvarc2W4+22mJXrKTq8gOY++rlBVA4Lkl765Y3vLBefWtzW2zZDyGt8=",
   "file_map": {
     "50": {
       "source": "fn main(a: [[u32; 0]; 1], b: bool) -> pub [u32; 0] {\n    if (b) {\n        a[0]\n    } else {\n        a[0]\n    }\n}\n",

@@ -1,4 +1,4 @@
-import { BrilligFunctionId, DebugFileMap, DebugInfo, OpcodeLocation } from '@noir-lang/types';
+import { BrilligFunctionId, DebugFileMap, DebugInfo, LocationNodeDebugInfo, OpcodeLocation } from '@noir-lang/types';
 import { inflate } from 'pako';
 import { base64Decode } from './base64_decode';
 import { ExecutionError } from '@noir-lang/acvm_js';
@@ -66,11 +66,52 @@ function resolveOpcodeLocations(
   files: DebugFileMap,
   brilligFunctionId?: BrilligFunctionId,
 ): SourceCodeLocation[] {
-  return opcodeLocations.flatMap((opcodeLocation) =>
+  let locations = opcodeLocations.flatMap((opcodeLocation) =>
     getSourceCodeLocationsFromOpcodeLocation(opcodeLocation, debug, files, brilligFunctionId),
   );
+  // Adds the acir call stack if the last location is a brillig opcode
+  if (locations.length > 0) {
+    const runtimeLocations = opcodeLocations[opcodeLocations.length - 1].split('.');
+    if (runtimeLocations.length === 2) {
+      const acirCallstackId = debug.acir_locations[runtimeLocations[0]];
+      if (acirCallstackId !== undefined) {
+        const callStack = debug.location_tree.locations[acirCallstackId];
+        const acirCallstack = getCallStackFromLocationNode(callStack, debug.location_tree.locations, files);
+        locations = locations.concat(acirCallstack);
+      }
+    }
+  }
+  return locations;
 }
 
+function getCallStackFromLocationNode(
+  callStack: LocationNodeDebugInfo,
+  location_tree: LocationNodeDebugInfo[],
+  files: DebugFileMap,
+): SourceCodeLocation[] {
+  const result: SourceCodeLocation[] = [];
+  while (callStack.parent !== null) {
+    const { file: fileId, span } = callStack.value;
+    const { path, source } = files[fileId];
+
+    const locationText = source.substring(span.start, span.end);
+    const precedingText = source.substring(0, span.start);
+    const previousLines = precedingText.split('\n');
+    // Lines and columns in stacks are one indexed.
+    const line = previousLines.length;
+    const column = previousLines[previousLines.length - 1].length + 1;
+
+    result.push({
+      filePath: path,
+      line,
+      column,
+      locationText,
+    });
+
+    callStack = location_tree[callStack.parent];
+  }
+  return result;
+}
 /**
  * Extracts the call stack from the location of a failing opcode and the debug metadata.
  * One opcode can point to multiple calls due to inlining.
@@ -81,32 +122,20 @@ function getSourceCodeLocationsFromOpcodeLocation(
   files: DebugFileMap,
   brilligFunctionId?: BrilligFunctionId,
 ): SourceCodeLocation[] {
-  let callStack = debug.locations[opcodeLocation] || [];
-  if (callStack.length === 0) {
-    const brilligLocation = extractBrilligLocation(opcodeLocation);
-    if (brilligFunctionId !== undefined && brilligLocation !== undefined) {
-      callStack = debug.brillig_locations[brilligFunctionId][brilligLocation] || [];
+  let callstack_id = debug.acir_locations[opcodeLocation];
+  const brilligLocation = extractBrilligLocation(opcodeLocation);
+  if (brilligFunctionId !== undefined && brilligLocation !== undefined) {
+    callstack_id = debug.brillig_locations[brilligFunctionId][brilligLocation];
+    if (callstack_id === undefined) {
+      return [];
     }
   }
-  return callStack.map((call) => {
-    const { file: fileId, span } = call;
 
-    const { path, source } = files[fileId];
-
-    const locationText = source.substring(span.start, span.end);
-    const precedingText = source.substring(0, span.start);
-    const previousLines = precedingText.split('\n');
-    // Lines and columns in stacks are one indexed.
-    const line = previousLines.length;
-    const column = previousLines[previousLines.length - 1].length + 1;
-
-    return {
-      filePath: path,
-      line,
-      column,
-      locationText,
-    };
-  });
+  if (callstack_id === undefined) {
+    return [];
+  }
+  const callStack = debug.location_tree.locations[callstack_id];
+  return getCallStackFromLocationNode(callStack, debug.location_tree.locations, files);
 }
 
 /**

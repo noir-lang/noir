@@ -23,7 +23,7 @@ use nargo::{
 };
 use nargo_toml::PackageSelection;
 use noirc_driver::{CompileOptions, check_crate};
-use noirc_frontend::hir::{FunctionNameMatch, ParsedFiles};
+use noirc_frontend::hir::{FunctionNameMatch, ParsedFiles, def_map::TestFunction};
 
 use crate::errors::CliError;
 
@@ -71,6 +71,14 @@ pub(crate) struct TestCommand {
     /// Display one character per test instead of one line
     #[clap(short = 'q', long = "quiet")]
     quiet: bool,
+
+    /// Do not run fuzz tests (tests that have arguments)
+    #[clap(long, conflicts_with("only_fuzz"))]
+    no_fuzz: bool,
+
+    /// Only run fuzz tests (tests that have arguments)
+    #[clap(long, conflicts_with("no_fuzz"))]
+    only_fuzz: bool,
 }
 
 impl WorkspaceCommand for TestCommand {
@@ -119,12 +127,24 @@ struct Test<'a> {
     runner: Box<dyn FnOnce() -> (TestStatus, String) + Send + UnwindSafe + 'a>,
 }
 
-struct TestResult {
+pub(crate) struct TestResult {
     name: String,
     package_name: String,
     status: TestStatus,
     output: String,
     time_to_run: Duration,
+}
+
+impl TestResult {
+    pub(crate) fn new(
+        name: String,
+        package_name: String,
+        status: TestStatus,
+        output: String,
+        time_to_run: Duration,
+    ) -> Self {
+        TestResult { name, package_name, status, output, time_to_run }
+    }
 }
 
 const STACK_SIZE: usize = 4 * 1024 * 1024;
@@ -458,7 +478,7 @@ impl<'a> TestRunner<'a> {
 
         let tests: Vec<Test> = test_functions
             .into_iter()
-            .map(|test_name| {
+            .map(|(test_name, test_function)| {
                 let test_name_copy = test_name.clone();
                 let root_path = root_path.clone();
                 let package_name_clone = package_name.clone();
@@ -467,6 +487,7 @@ impl<'a> TestRunner<'a> {
                     self.run_test::<S>(
                         package,
                         &test_name,
+                        test_function.has_arguments,
                         foreign_call_resolver_url,
                         root_path,
                         package_name_clone.clone(),
@@ -480,16 +501,15 @@ impl<'a> TestRunner<'a> {
     }
 
     /// Compiles a single package and returns all of its test names
-    fn get_tests_in_package(&'a self, package: &'a Package) -> Result<Vec<String>, CliError> {
+    fn get_tests_in_package(
+        &'a self,
+        package: &'a Package,
+    ) -> Result<Vec<(String, TestFunction)>, CliError> {
         let (mut context, crate_id) =
             prepare_package(self.file_manager, self.parsed_files, package);
         check_crate_and_report_errors(&mut context, crate_id, &self.args.compile_options)?;
 
-        Ok(context
-            .get_all_test_functions_in_crate_matching(&crate_id, &self.pattern)
-            .into_iter()
-            .map(|(test_name, _)| test_name)
-            .collect())
+        Ok(context.get_all_test_functions_in_crate_matching(&crate_id, &self.pattern))
     }
 
     /// Runs a single test and returns its status together with whatever was printed to stdout
@@ -498,10 +518,15 @@ impl<'a> TestRunner<'a> {
         &'a self,
         package: &Package,
         fn_name: &str,
+        has_arguments: bool,
         foreign_call_resolver_url: Option<&str>,
         root_path: Option<PathBuf>,
         package_name: String,
     ) -> (TestStatus, String) {
+        if (self.args.no_fuzz && has_arguments) || (self.args.only_fuzz && !has_arguments) {
+            return (TestStatus::Skipped, String::new());
+        }
+
         // This is really hacky but we can't share `Context` or `S` across threads.
         // We then need to construct a separate copy for each test.
 
@@ -517,11 +542,12 @@ impl<'a> TestRunner<'a> {
         let blackbox_solver = S::default();
         let mut output_buffer = Vec::new();
 
-        let test_status = nargo::ops::run_test(
+        let test_status = nargo::ops::run_or_fuzz_test(
             &blackbox_solver,
             &mut context,
             test_function,
             &mut output_buffer,
+            package_name.clone(),
             &self.args.compile_options,
             |output, base| {
                 DefaultForeignCallBuilder {

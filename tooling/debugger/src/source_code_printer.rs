@@ -246,9 +246,10 @@ fn render_location<'a>(
 mod tests {
     use crate::source_code_printer::PrintedLine::Content;
     use crate::source_code_printer::render_location;
-    use acvm::acir::circuit::OpcodeLocation;
+    use acvm::acir::circuit::AcirOpcodeLocation;
     use fm::FileManager;
     use noirc_artifacts::debug::DebugArtifact;
+    use noirc_errors::call_stack::{CallStackId, LocationNodeDebugInfo, LocationTree};
     use noirc_errors::{Location, Span, debug_info::DebugInfo};
     use std::collections::BTreeMap;
     use std::ops::Range;
@@ -290,12 +291,20 @@ mod tests {
 
         // We don't care about opcodes in this context,
         // we just use a dummy to construct debug_symbols
-        let mut opcode_locations = BTreeMap::<OpcodeLocation, Vec<Location>>::new();
-        opcode_locations.insert(OpcodeLocation::Acir(42), vec![loc]);
+        let mut opcode_locations = BTreeMap::<AcirOpcodeLocation, CallStackId>::new();
+        opcode_locations.insert(AcirOpcodeLocation::new(42), CallStackId::new(1));
+        let mut location_tree = LocationTree::default();
+        location_tree
+            .locations
+            .push(LocationNodeDebugInfo { parent: None, value: Location::dummy() });
+        location_tree
+            .locations
+            .push(LocationNodeDebugInfo { parent: Some(CallStackId::root()), value: loc });
 
         let debug_symbols = vec![DebugInfo::new(
-            opcode_locations,
             BTreeMap::default(),
+            opcode_locations,
+            location_tree,
             BTreeMap::default(),
             BTreeMap::default(),
             BTreeMap::default(),

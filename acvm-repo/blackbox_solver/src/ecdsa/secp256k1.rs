@@ -5,7 +5,7 @@ use blake2::digest::generic_array::GenericArray;
 use k256::{
     AffinePoint, EncodedPoint, ProjectivePoint, PublicKey,
     elliptic_curve::{
-        IsHigh,
+        scalar::IsHigh,
         sec1::{Coordinates, ToEncodedPoint},
     },
 };
