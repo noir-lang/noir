@@ -10,8 +10,12 @@ use noir_ast_fuzzer::compare::CompareMutants;
 pub fn fuzz(u: &mut Unstructured) -> eyre::Result<()> {
     let options = default_ssa_options();
     let config = Config {
-        // We created enough bug tickets due to overflows.
+        // We created enough bug tickets due to overflows
         avoid_overflow: true,
+        // also with negative values
+        avoid_negative_int_literals: true,
+        // and it gets old to have to edit u128 to fit into u32 for the frontend to parse
+        avoid_large_int_literals: true,
         ..Default::default()
     };
 

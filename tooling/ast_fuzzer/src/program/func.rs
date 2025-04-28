@@ -851,17 +851,27 @@ impl<'a> FunctionContext<'a> {
 
     /// Generate a `for` loop.
     fn gen_for(&mut self, u: &mut Unstructured) -> arbitrary::Result<Expression> {
-        // The index can be signed or unsigned int, 8 to 128 bits, except i128.
-        let bit_size =
-            u.choose(&[8, 16, 32, 64, 128]).map(|s| IntegerBitSize::try_from(*s).unwrap())?;
-        let idx_type = Type::Integer(
-            if bit_size == IntegerBitSize::HundredTwentyEight || bool::arbitrary(u)? {
-                Signedness::Unsigned
+        // The index can be signed or unsigned int, 8 to 128 bits, except i128,
+        // but currently the frontend expects it to be u32 unless it's declared as a separate variable.
+        let idx_type = {
+            let bit_size = if self.ctx.config.avoid_large_int_literals {
+                IntegerBitSize::ThirtyTwo
             } else {
-                Signedness::Signed
-            },
-            bit_size,
-        );
+                u.choose(&[8, 16, 32, 64, 128]).map(|s| IntegerBitSize::try_from(*s).unwrap())?
+            };
+
+            Type::Integer(
+                if bit_size == IntegerBitSize::HundredTwentyEight
+                    || self.ctx.config.avoid_negative_int_literals
+                    || bool::arbitrary(u)?
+                {
+                    Signedness::Unsigned
+                } else {
+                    Signedness::Signed
+                },
+                bit_size,
+            )
+        };
 
         let (start_range, end_range) = if self.unconstrained() && bool::arbitrary(u)? {
             // Choosing a maximum range size because changing it immediately brought out some bug around modulo.
