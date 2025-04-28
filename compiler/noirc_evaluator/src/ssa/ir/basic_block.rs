@@ -162,21 +162,4 @@ impl BasicBlock {
             None => vec![].into_iter(),
         }
     }
-
-    /// Replace this block's unused parameters with that of the given Vec.
-    /// This does not perform any checks there are any other unused parameters.
-    /// or that these unused parameters exist in the main parameters list.
-    pub(crate) fn set_unused_parameters(&mut self, unused_parameters: Vec<ValueId>) {
-        self.unused_parameters = unused_parameters;
-    }
-
-    /// Returns the unused parameters of this block
-    pub(crate) fn unused_parameters(&self) -> &[ValueId] {
-        &self.unused_parameters
-    }
-
-    /// Clear the unused parameters of this block
-    pub(crate) fn clear_unused_parameters(&mut self) {
-        self.unused_parameters.clear();
-    }
 }

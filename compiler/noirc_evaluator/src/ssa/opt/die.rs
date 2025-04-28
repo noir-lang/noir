@@ -137,6 +137,8 @@ impl Function {
             unused_params_per_block.insert(*block, unused_params);
         }
 
+        self.prune_dead_parameters(unused_params_per_block);
+
         context.remove_rc_instructions(&mut self.dfg);
 
         (
