@@ -1,3 +1,4 @@
+use crate::block_context::BlockContext;
 use acvm::FieldElement;
 use acvm::acir::native_types::Witness;
 use libfuzzer_sys::arbitrary;
@@ -8,7 +9,8 @@ use noir_ssa_fuzzer::{
     typed_value::{TypedValue, ValueType},
 };
 use noirc_driver::CompiledProgram;
-use std::collections::HashMap;
+use noirc_evaluator::ssa::ir::basic_block::BasicBlockId;
+use std::{clone, collections::HashMap};
 #[derive(Arbitrary, Debug, Clone, Hash)]
 pub(crate) struct Argument {
     /// Index of the argument in the context of stored variables of this type
@@ -16,13 +18,13 @@ pub(crate) struct Argument {
     /// Argument(Index(0), ValueType::U64) -> id 0
     /// Argument(Index(0), ValueType::Field) -> id 5
     /// Argument(Index(1), ValueType::Field) -> id 8
-    index: usize,
+    pub(crate) index: usize,
     /// Type of the argument
-    value_type: ValueType,
+    pub(crate) value_type: ValueType,
 }
 
 #[derive(Arbitrary, Debug, Clone, Hash)]
-pub(crate) enum Instructions {
+pub(crate) enum Instruction {
     /// Addition of two values
     AddChecked { lhs: Argument, rhs: Argument },
     /// Subtraction of two values
@@ -51,6 +53,30 @@ pub(crate) enum Instructions {
     Xor { lhs: Argument, rhs: Argument },
 }
 
+#[derive(Arbitrary, Debug, Clone, Hash, Copy, PartialEq)]
+pub(crate) enum Terminator {
+    /// terminates ssa block with jmp
+    /// block_index take blocks from already terminated with return
+    Jmp { block_index: usize },
+    /// terminates ssa block with jmp_if_else
+    /// condition_index -- index of taken boolean
+    /// if, else blocks are blocks terminated with Jmp or Return
+    JmpIfElse { condition_index: usize, then_block_index: usize, else_block_index: usize },
+}
+
+#[derive(Arbitrary, Debug, Clone, Hash)]
+pub(crate) struct Block {
+    instructions: Vec<Instruction>,
+    terminator: Terminator,
+}
+
+#[derive(Clone)]
+pub(crate) struct StoredBlock {
+    context: BlockContext,
+    terminator: Terminator,
+    block_id: BasicBlockId,
+}
+
 /// Main context for the fuzzer containing both ACIR and Brillig builders and their state
 /// It works with indices of variables Ids, because it cannot handle Ids logic for ACIR and Brillig
 pub(crate) struct FuzzerContext {
@@ -65,32 +91,16 @@ pub(crate) struct FuzzerContext {
     /// ACIR and Brillig last changed value
     last_value_acir: Option<TypedValue>,
     last_value_brillig: Option<TypedValue>,
+    /// Context of the current SSA block
+    current_block_context: BlockContext,
+    /// If `b0` SSA block processed
+    first_block_processed: bool,
+    /// List of prepared, but not terminated blocks
+    stored_blocks: Vec<StoredBlock>,
+    /// List of terminated blocks,
+    terminated_blocks: Vec<BasicBlockId>,
     /// Whether the context is constant execution
     is_constant: bool,
-}
-
-/// Returns a typed value from the map
-/// Variables are stored in a map with type as key and vector of typed values as value
-/// We use modulo to wrap index around the length of the vector, because fuzzer can produce index that is greater than the length of the vector
-fn get_typed_value_from_map(
-    map: &HashMap<ValueType, Vec<TypedValue>>,
-    type_: ValueType,
-    idx: usize,
-) -> Option<TypedValue> {
-    let arr = map.get(&type_);
-    arr?;
-    let arr = arr.unwrap();
-    let value = arr.get(idx % arr.len());
-    value?;
-    Some(value.unwrap().clone())
-}
-
-fn append_typed_value_to_map(
-    map: &mut HashMap<ValueType, Vec<TypedValue>>,
-    type_: ValueType,
-    value: TypedValue,
-) {
-    map.entry(type_.clone()).or_default().push(value);
 }
 
 impl FuzzerContext {
@@ -110,6 +120,7 @@ impl FuzzerContext {
             acir_ids.entry(type_.clone()).or_insert(Vec::new()).push(acir_id);
             brillig_ids.entry(type_).or_insert(Vec::new()).push(brillig_id);
         }
+        let current_block_context = BlockContext::new(acir_ids.clone(), brillig_ids.clone());
 
         Self {
             acir_builder,
@@ -118,6 +129,10 @@ impl FuzzerContext {
             brillig_ids,
             last_value_acir: None,
             last_value_brillig: None,
+            current_block_context,
+            first_block_processed: false,
+            stored_blocks: vec![],
+            terminated_blocks: vec![],
             is_constant: false,
         }
     }
@@ -146,194 +161,157 @@ impl FuzzerContext {
                 .or_insert(Vec::new())
                 .push(brillig_builder.insert_constant(field_element, type_.clone()));
         }
+        let current_block_context = BlockContext::new(acir_ids.clone(), brillig_ids.clone());
 
         Self {
             acir_builder,
             brillig_builder,
             acir_ids,
             brillig_ids,
+            current_block_context,
             last_value_acir: None,
             last_value_brillig: None,
+            first_block_processed: false,
+            stored_blocks: vec![],
+            terminated_blocks: vec![],
             is_constant: true,
         }
     }
 
-    /// Inserts an instruction that takes a single argument
-    pub(crate) fn insert_instruction_with_single_arg(
-        &mut self,
-        arg: Argument,
-        instruction: InstructionWithOneArg,
-    ) {
-        let acir_arg = get_typed_value_from_map(&self.acir_ids, arg.value_type.clone(), arg.index);
-        let brillig_arg =
-            get_typed_value_from_map(&self.brillig_ids, arg.value_type.clone(), arg.index);
-        let (acir_arg, brillig_arg) = match (acir_arg, brillig_arg) {
-            (Some(acir_arg), Some(brillig_arg)) => (acir_arg, brillig_arg),
-            _ => return,
-        };
-        let acir_result = instruction(&mut self.acir_builder, acir_arg);
-        let brillig_result = instruction(&mut self.brillig_builder, brillig_arg);
-        self.last_value_acir = Some(acir_result.clone());
-        self.last_value_brillig = Some(brillig_result.clone());
-        append_typed_value_to_map(&mut self.acir_ids, acir_result.to_value_type(), acir_result);
-        append_typed_value_to_map(
-            &mut self.brillig_ids,
-            brillig_result.to_value_type(),
-            brillig_result,
+    /// Inserts an instruction into both ACIR and Brillig programs (in the current block)
+    fn insert_instruction(&mut self, instruction: Instruction) {
+        self.current_block_context.insert_instruction(
+            &mut self.acir_builder,
+            &mut self.brillig_builder,
+            instruction,
         );
     }
 
-    /// Inserts an instruction that takes two arguments
-    pub(crate) fn insert_instruction_with_double_args(
-        &mut self,
-        lhs: Argument,
-        rhs: Argument,
-        instruction: InstructionWithTwoArgs,
-    ) {
-        let acir_lhs = get_typed_value_from_map(&self.acir_ids, lhs.value_type.clone(), lhs.index);
-        let acir_rhs = get_typed_value_from_map(&self.acir_ids, rhs.value_type.clone(), rhs.index);
-        let (acir_lhs, acir_rhs) = match (acir_lhs, acir_rhs) {
-            (Some(acir_lhs), Some(acir_rhs)) => (acir_lhs, acir_rhs),
-            _ => return,
-        };
-        let acir_result = instruction(&mut self.acir_builder, acir_lhs, acir_rhs);
-        let brillig_lhs =
-            get_typed_value_from_map(&self.brillig_ids, lhs.value_type.clone(), lhs.index);
-        let brillig_rhs =
-            get_typed_value_from_map(&self.brillig_ids, rhs.value_type.clone(), rhs.index);
-        let (brillig_lhs, brillig_rhs) = match (brillig_lhs, brillig_rhs) {
-            (Some(brillig_lhs), Some(brillig_rhs)) => (brillig_lhs, brillig_rhs),
-            _ => return,
-        };
-        let brillig_result = instruction(&mut self.brillig_builder, brillig_lhs, brillig_rhs);
-        self.last_value_acir = Some(acir_result.clone());
-        self.last_value_brillig = Some(brillig_result.clone());
-        append_typed_value_to_map(&mut self.acir_ids, acir_result.to_value_type(), acir_result);
-        append_typed_value_to_map(
-            &mut self.brillig_ids,
-            brillig_result.to_value_type(),
-            brillig_result,
-        );
+    /// if it is the first block, other blocks can use variables from it
+    /// after inserting all instruction, adds new block and switch context to it
+    /// previous block stored to `stored_blocks`
+    pub(crate) fn process_block(&mut self, block: Block) {
+        for instruction in block.instructions {
+            self.insert_instruction(instruction);
+        }
+        if !self.first_block_processed {
+            self.acir_ids = self.current_block_context.acir_ids.clone();
+            self.brillig_ids = self.current_block_context.brillig_ids.clone();
+        }
+        self.stored_blocks.push(StoredBlock {
+            context: self.current_block_context.clone(),
+            terminator: block.terminator,
+            block_id: self.acir_builder.get_current_block(),
+        });
+
+        self.first_block_processed = true;
+        let acir_new_block = self.acir_builder.insert_block();
+        let brillig_new_block = self.brillig_builder.insert_block();
+        self.acir_builder.switch_to_block(acir_new_block);
+        self.brillig_builder.switch_to_block(brillig_new_block);
+        self.current_block_context =
+            BlockContext::new(self.acir_ids.clone(), self.brillig_ids.clone());
     }
 
-    /// Inserts an instruction into both ACIR and Brillig programs
-    pub(crate) fn insert_instruction(&mut self, instruction: Instructions) {
-        match instruction {
-            Instructions::AddChecked { lhs, rhs } => {
-                self.insert_instruction_with_double_args(lhs, rhs, |builder, lhs, rhs| {
-                    builder.insert_add_instruction_checked(lhs, rhs)
-                });
-            }
-            Instructions::SubChecked { lhs, rhs } => {
-                self.insert_instruction_with_double_args(lhs, rhs, |builder, lhs, rhs| {
-                    builder.insert_sub_instruction_checked(lhs, rhs)
-                });
-            }
-            Instructions::MulChecked { lhs, rhs } => {
-                self.insert_instruction_with_double_args(lhs, rhs, |builder, lhs, rhs| {
-                    builder.insert_mul_instruction_checked(lhs, rhs)
-                });
-            }
-            Instructions::Div { lhs, rhs } => {
-                self.insert_instruction_with_double_args(lhs, rhs, |builder, lhs, rhs| {
-                    builder.insert_div_instruction(lhs, rhs)
-                });
-            }
-            Instructions::Eq { lhs, rhs } => {
-                self.insert_instruction_with_double_args(lhs, rhs, |builder, lhs, rhs| {
-                    builder.insert_eq_instruction(lhs, rhs)
-                });
-            }
-            Instructions::Cast { lhs, type_ } => {
-                let acir_lhs =
-                    get_typed_value_from_map(&self.acir_ids, lhs.value_type.clone(), lhs.index);
-                let brillig_lhs =
-                    get_typed_value_from_map(&self.brillig_ids, lhs.value_type.clone(), lhs.index);
-                let (acir_lhs, brillig_lhs) = match (acir_lhs, brillig_lhs) {
-                    (Some(acir_lhs), Some(brillig_lhs)) => (acir_lhs, brillig_lhs),
-                    _ => return,
-                };
-                let acir_result = self.acir_builder.insert_cast(acir_lhs, type_.clone());
-                let brillig_result = self.brillig_builder.insert_cast(brillig_lhs, type_.clone());
-                self.last_value_acir = Some(acir_result.clone());
-                self.last_value_brillig = Some(brillig_result.clone());
-                append_typed_value_to_map(
-                    &mut self.acir_ids,
-                    acir_result.to_value_type(),
-                    acir_result,
-                );
-                append_typed_value_to_map(
-                    &mut self.brillig_ids,
-                    brillig_result.to_value_type(),
-                    brillig_result,
+    fn get_block_ids_for_if_then(
+        self,
+        then_block_index: usize,
+        else_block_index: usize,
+    ) -> (Option<BasicBlockId>, Option<BasicBlockId>) {
+        let then_destination =
+            self.terminated_blocks[then_block_index % self.terminated_blocks.len()];
+        let else_destination =
+            self.terminated_blocks[else_block_index % self.terminated_blocks.len()];
+        (Some(then_destination), Some(else_destination))
+    }
+
+    fn finalize_block(&mut self, stored_block: StoredBlock) {
+        self.acir_builder.switch_to_block(stored_block.block_id);
+        self.brillig_builder.switch_to_block(stored_block.block_id);
+        match stored_block.terminator {
+            Terminator::Jmp { block_index } => {
+                let jmp_destination =
+                    self.terminated_blocks[block_index % self.terminated_blocks.len()];
+                stored_block.context.finalize_block_with_jmp(
+                    &mut self.acir_builder,
+                    &mut self.brillig_builder,
+                    jmp_destination,
                 );
             }
-            Instructions::Mod { lhs, rhs } => {
-                self.insert_instruction_with_double_args(lhs, rhs, |builder, lhs, rhs| {
-                    builder.insert_mod_instruction(lhs, rhs)
-                });
+            Terminator::JmpIfElse { condition_index, then_block_index, else_block_index } => {
+                let then_destination =
+                    self.terminated_blocks[then_block_index % self.terminated_blocks.len()];
+                let else_destination =
+                    self.terminated_blocks[else_block_index % self.terminated_blocks.len()];
+                stored_block.context.finalize_block_with_jmp_if(
+                    &mut self.acir_builder,
+                    &mut self.brillig_builder,
+                    condition_index,
+                    then_destination,
+                    else_destination,
+                );
             }
-            Instructions::Not { lhs } => {
-                self.insert_instruction_with_single_arg(lhs, |builder, lhs| {
-                    builder.insert_not_instruction(lhs)
-                });
-            }
-            Instructions::Shl { lhs, rhs } => {
-                self.insert_instruction_with_double_args(lhs, rhs, |builder, lhs, rhs| {
-                    builder.insert_shl_instruction(lhs, rhs)
-                });
-            }
-            Instructions::Shr { lhs, rhs } => {
-                self.insert_instruction_with_double_args(lhs, rhs, |builder, lhs, rhs| {
-                    builder.insert_shr_instruction(lhs, rhs)
-                });
-            }
-            Instructions::And { lhs, rhs } => {
-                self.insert_instruction_with_double_args(lhs, rhs, |builder, lhs, rhs| {
-                    builder.insert_and_instruction(lhs, rhs)
-                });
-            }
-            Instructions::Or { lhs, rhs } => {
-                self.insert_instruction_with_double_args(lhs, rhs, |builder, lhs, rhs| {
-                    builder.insert_or_instruction(lhs, rhs)
-                });
-            }
-            Instructions::Xor { lhs, rhs } => {
-                self.insert_instruction_with_double_args(lhs, rhs, |builder, lhs, rhs| {
-                    builder.insert_xor_instruction(lhs, rhs)
-                });
+        }
+        // If current block is empty we don't override last set value
+        (self.last_value_acir, self.last_value_brillig) = match (
+            self.current_block_context.last_value_acir.clone(),
+            self.current_block_context.last_value_brillig.clone(),
+        ) {
+            (Some(acir_val), Some(brillig_val)) => (Some(acir_val), Some(brillig_val)),
+            _ => (self.last_value_acir.clone(), self.last_value_brillig.clone()),
+        };
+        self.terminated_blocks.push(self.acir_builder.get_current_block());
+    }
+
+    fn terminating_cycle(&mut self, terminator_matches: fn(Terminator) -> bool) {
+        for block in self.stored_blocks.clone() {
+            if terminator_matches(block.terminator) {
+                self.finalize_block(block);
             }
         }
     }
 
-    /// Finalizes the function by setting the return value
+    /// Finalizes the function by terminating all blocks
+    /// 1) Terminates blocks with Return;
+    /// 2) Terminates blocks with Jmp;
+    /// 3) Terminates blocks with JmpIf
+    ///
+    /// 1) Noir does not support early returns (only one block can be Return block), so we terminate with return only last block.
+    /// 2) Flattening does not support case if `then_destination` ends in the end of the branch.
+    /// The following program is invalid:
+    /// acir(inline) fn main f0 {
+    ///  b0(v0: Field, v1: Field, v2: Field, v3: Field, v4: Field, v5: Field, v6: u1):
+    ///    jmpif v6 then: b3, else: b1
+    ///  b1():
+    ///    v7 = div v3, v0
+    ///    jmp b3()
+    ///  b3():
+    ///    return v0
+    ///
+    /// because branch ends in b3 block
     pub(crate) fn finalize_function(&mut self) {
-        match (self.last_value_acir.clone(), self.last_value_brillig.clone()) {
-            (Some(acir_result), Some(brillig_result)) => {
-                self.acir_builder.finalize_function(acir_result);
-                self.brillig_builder.finalize_function(brillig_result);
-            }
-            _ => {
-                // If no last value was set, use the first value from the first type in each map
-                let first_type =
-                    self.acir_ids.keys().next().expect("Should have at least one type");
-
-                let acir_result = self
-                    .acir_ids
-                    .get(first_type)
-                    .and_then(|values| values.first().cloned())
-                    .expect("Should have at least one value");
-
-                let brillig_result = self
-                    .brillig_ids
-                    .get(first_type)
-                    .and_then(|values| values.first().cloned())
-                    .expect("Should have at least one value");
-
-                self.acir_builder.finalize_function(acir_result);
-                self.brillig_builder.finalize_function(brillig_result);
-            }
+        // we force last block to terminate with return
+        if self.terminated_blocks.is_empty() {
+            let last_block = self.stored_blocks.pop().unwrap();
+            self.acir_builder.switch_to_block(last_block.block_id);
+            self.brillig_builder.switch_to_block(last_block.block_id);
+            last_block
+                .context
+                .clone()
+                .finalize_block_with_return(&mut self.acir_builder, &mut self.brillig_builder);
+            (self.last_value_acir, self.last_value_brillig) =
+                last_block.context.get_last_variables();
+            self.terminated_blocks.push(last_block.block_id);
         }
+
+        self.terminating_cycle(|terminator| match terminator {
+            Terminator::Jmp { .. } => true,
+            _ => false,
+        });
+        self.terminating_cycle(|terminator| match terminator {
+            Terminator::JmpIfElse { .. } => true,
+            _ => false,
+        });
     }
 
     /// Returns witnesses for ACIR and Brillig

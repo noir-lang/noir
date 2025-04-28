@@ -71,7 +71,9 @@ impl FuzzerBuilder {
         match result {
             Ok(result) => match result {
                 Ok(result) => Ok(result),
-                Err(_) => Err(FuzzerBuilderError::RuntimeError("Compilation error".to_string())),
+                Err(e) => {
+                    Err(FuzzerBuilderError::RuntimeError(format!("Compilation error {:?}", e)))
+                }
             },
             Err(_) => Err(FuzzerBuilderError::RuntimeError("Compilation panicked".to_string())),
         }
@@ -205,9 +207,15 @@ impl FuzzerBuilder {
             _ => unreachable!("Trying to cast not to numeric type"),
         };
 
+        let mut value_id = value.value_id;
         // always truncate, optimizations will eliminate if we truncate to bigger bit_len
-        let value_id =
-            self.builder.insert_truncate(value.value_id, cast_type.bit_length(), init_bit_length);
+        if cast_type.bit_length() != 254 {
+            value_id = self.builder.insert_truncate(
+                value.value_id,
+                cast_type.bit_length(),
+                init_bit_length,
+            );
+        }
 
         let res = self.builder.insert_cast(value_id, cast_type.to_numeric_type());
         TypedValue::new(res, cast_type.to_ssa_type())
@@ -368,8 +376,8 @@ impl FuzzerBuilder {
     }
 
     /// Gets the index of the entry block
-    pub fn get_entry_block_index(&mut self) -> u32 {
-        id_to_int(self.builder.get_current_block_index())
+    pub fn get_current_block(&mut self) -> BasicBlockId {
+        self.builder.get_current_block_index()
     }
 
     /// Switches the current block to the given block
@@ -378,9 +386,8 @@ impl FuzzerBuilder {
     }
 
     /// Inserts a new basic block and returns its index
-    pub fn insert_block(&mut self) -> u32 {
-        let id = self.builder.insert_block();
-        id_to_int(id)
+    pub fn insert_block(&mut self) -> BasicBlockId {
+        self.builder.insert_block()
     }
 
     /// Inserts a return instruction with the given value
@@ -389,9 +396,9 @@ impl FuzzerBuilder {
     }
 
     /// Inserts an unconditional jump to the given block with parameters
-    pub fn insert_jmp_instruction(&mut self, destination: BasicBlockId, params: Vec<Id<Value>>) {
+    pub fn insert_jmp_instruction(&mut self, destination: BasicBlockId) {
         // we have no arguments to jump to the destination block, we work in single function
-        self.builder.terminate_with_jmp(destination, params);
+        self.builder.terminate_with_jmp(destination, vec![]);
     }
 
     /// Inserts a conditional jump based on the condition value

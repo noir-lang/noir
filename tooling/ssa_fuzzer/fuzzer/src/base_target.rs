@@ -7,14 +7,16 @@ use libfuzzer_sys::arbitrary::Arbitrary;
 use noir_ssa_fuzzer::config;
 use noir_ssa_fuzzer::typed_value::ValueType;
 mod base_context;
-use crate::base_context::Instructions;
+use crate::base_context::{Block, Terminator};
 mod fuzzer;
 use crate::fuzzer::Fuzzer;
 
+mod block_context;
+
 impl Fuzzer {
-    fn insert_instruction(&mut self, instruction: Instructions) {
-        self.context_non_constant.insert_instruction(instruction.clone());
-        self.context_constant.insert_instruction(instruction);
+    fn process_block(&mut self, block: Block) {
+        self.context_non_constant.process_block(block.clone());
+        self.context_constant.process_block(block);
     }
 }
 
@@ -38,6 +40,7 @@ impl From<&FieldRepresentation> for FieldElement {
 enum WitnessValue {
     Field(FieldRepresentation),
     U64(u64),
+    Boolean(bool),
 }
 
 /// Represents the data for the fuzzer
@@ -45,8 +48,8 @@ enum WitnessValue {
 /// `initial_witness` - initial witness values for the program as `FieldRepresentation`
 #[derive(Arbitrary, Debug, Clone, Hash)]
 struct FuzzerData {
-    methods: Vec<Instructions>,
-    initial_witness: [WitnessValue; config::NUMBER_OF_VARIABLES_INITIAL as usize],
+    blocks: Vec<Block>,
+    initial_witness: [WitnessValue; (config::NUMBER_OF_VARIABLES_INITIAL - 1) as usize],
 }
 
 // main fuzz loop
@@ -56,23 +59,31 @@ libfuzzer_sys::fuzz_target!(|data: FuzzerData| {
     let mut witness_map = WitnessMap::new();
     let mut values = vec![];
     let mut types = vec![];
+    if data.blocks.is_empty() {
+        return;
+    }
     for (i, witness_value) in data.initial_witness.iter().enumerate() {
         let (value, type_) = match witness_value {
             WitnessValue::Field(field) => (FieldElement::from(field), ValueType::Field),
             WitnessValue::U64(u64) => (FieldElement::from(*u64), ValueType::U64),
+            WitnessValue::Boolean(bool) => (FieldElement::from(*bool as u64), ValueType::Boolean),
         };
         witness_map.insert(Witness(i as u32), value);
         values.push(value);
         types.push(type_);
     }
+    witness_map.insert(Witness(6_u32), FieldElement::from(1_u32));
+    values.push(FieldElement::from(1_u32));
+    types.push(ValueType::Boolean);
+
     let initial_witness = witness_map;
-    log::debug!("instructions: {:?}", data.methods);
+    log::debug!("blocks: {:?}", data.blocks);
     log::debug!("initial_witness: {:?}", initial_witness);
     log::debug!("initial_witness_in_data: {:?}", data.initial_witness);
 
     let mut fuzzer = Fuzzer::new(types, values);
-    for method in data.methods {
-        fuzzer.insert_instruction(method);
+    for block in data.blocks {
+        fuzzer.process_block(block);
     }
     fuzzer.run(initial_witness, false);
 });
