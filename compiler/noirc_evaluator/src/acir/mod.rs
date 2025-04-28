@@ -827,7 +827,12 @@ impl<'a> Context<'a> {
             if let AcirValue::Array(_) = &output {
                 let array_id = *result_id;
                 let block_id = self.block_id(&array_id);
-                let len = self.flattened_size(array_id, dfg);
+                let array_typ = dfg.type_of_value(array_id);
+                let len = if matches!(array_typ, Type::Array(_, _)) {
+                    array_typ.flattened_size() as usize
+                } else {
+                    arrays::flattened_value_size(&output)
+                };
                 self.initialize_array(block_id, len, Some(output.clone()))?;
             }
             // Do nothing for AcirValue::DynamicArray and AcirValue::Var
