@@ -831,7 +831,7 @@ impl<'a> Context<'a> {
                 let len = if matches!(array_typ, Type::Array(_, _)) {
                     array_typ.flattened_size() as usize
                 } else {
-                    Self::flattened_value_size(&output)
+                    arrays::flattened_value_size(&output)
                 };
                 self.initialize_array(block_id, len, Some(output.clone()))?;
             }
@@ -1299,7 +1299,7 @@ impl<'a> Context<'a> {
                 assert!(!slice_typ.is_nested_slice(), "ICE: Nested slice used in ACIR generation");
 
                 let slice = self.convert_value(slice_contents, dfg);
-                let mut new_elem_size = Self::flattened_value_size(&slice);
+                let mut new_elem_size = arrays::flattened_value_size(&slice);
 
                 let mut new_slice = self.read_array(slice)?;
 
@@ -1308,7 +1308,7 @@ impl<'a> Context<'a> {
                 for elem in elements_to_push {
                     let element = self.convert_value(*elem, dfg);
 
-                    new_elem_size += Self::flattened_value_size(&element);
+                    new_elem_size += arrays::flattened_value_size(&element);
                     new_slice.push_back(element);
                 }
 
@@ -1365,7 +1365,7 @@ impl<'a> Context<'a> {
                 assert!(!slice_typ.is_nested_slice(), "ICE: Nested slice used in ACIR generation");
 
                 let slice: AcirValue = self.convert_value(slice_contents, dfg);
-                let mut new_slice_size = Self::flattened_value_size(&slice);
+                let mut new_slice_size = arrays::flattened_value_size(&slice);
 
                 // Increase the slice length by one to enable accessing more elements in the slice.
                 let one = self.acir_context.add_constant(FieldElement::one());
@@ -1379,7 +1379,7 @@ impl<'a> Context<'a> {
                 for elem in elements_to_push.iter().rev() {
                     let element = self.convert_value(*elem, dfg);
 
-                    elem_size += Self::flattened_value_size(&element);
+                    elem_size += arrays::flattened_value_size(&element);
                     new_slice.push_front(element);
                 }
                 new_slice_size += elem_size;
@@ -1482,7 +1482,7 @@ impl<'a> Context<'a> {
                 for res in &result_ids[..element_size] {
                     let element =
                         self.array_get_value(&dfg.type_of_value(*res), block_id, &mut var_index)?;
-                    let elem_size = Self::flattened_value_size(&element);
+                    let elem_size = arrays::flattened_value_size(&element);
                     popped_elements_size += elem_size;
                     popped_elements.push(element);
                 }
@@ -1512,7 +1512,7 @@ impl<'a> Context<'a> {
                 let one = self.acir_context.add_constant(FieldElement::one());
                 let new_slice_length = self.acir_context.add_var(slice_length, one)?;
 
-                let slice_size = Self::flattened_value_size(&slice);
+                let slice_size = arrays::flattened_value_size(&slice);
 
                 // Fetch the flattened index from the user provided index argument.
                 let element_size = slice_typ.element_size();
@@ -1529,7 +1529,7 @@ impl<'a> Context<'a> {
                 let mut flattened_elements = Vec::new();
                 for elem in elements_to_insert {
                     let element = self.convert_value(*elem, dfg);
-                    let elem_size = Self::flattened_value_size(&element);
+                    let elem_size = arrays::flattened_value_size(&element);
                     inner_elem_size_usize += elem_size;
                     let mut flat_elem = element.flatten().into_iter().map(|(var, _)| var).collect();
                     flattened_elements.append(&mut flat_elem);
@@ -1653,7 +1653,7 @@ impl<'a> Context<'a> {
                 let one = self.acir_context.add_constant(FieldElement::one());
                 let new_slice_length = self.acir_context.sub_var(slice_length, one)?;
 
-                let slice_size = Self::flattened_value_size(&slice);
+                let slice_size = arrays::flattened_value_size(&slice);
 
                 let new_slice = self.read_array(slice)?;
 
@@ -1683,7 +1683,7 @@ impl<'a> Context<'a> {
                 for res in &result_ids[2..(2 + element_size)] {
                     let element =
                         self.array_get_value(&dfg.type_of_value(*res), block_id, &mut temp_index)?;
-                    let elem_size = Self::flattened_value_size(&element);
+                    let elem_size = arrays::flattened_value_size(&element);
                     popped_elements_size += elem_size;
                     popped_elements.push(element);
                 }
