@@ -1278,30 +1278,17 @@ impl<'a> Context<'a> {
                 let slice_typ = dfg.type_of_value(slice_contents);
                 assert!(!slice_typ.is_nested_slice(), "ICE: Nested slice used in ACIR generation");
 
-                let acir_value = self.convert_value(slice_contents, dfg);
-                let (slice_length, result) = match acir_value {
-                    AcirValue::Var(_, _) => {
-                        unreachable!("ICE: cannot call `as_slice` on non-array type")
-                    }
-                    array @ AcirValue::Array(_) => {
-                        let array_len = if !slice_typ.contains_slice_element() {
-                            slice_typ.flattened_size() as usize
-                        } else {
-                            self.flattened_slice_size(slice_contents, dfg)
-                        };
-                        (array_len, array)
-                    }
-                    AcirValue::DynamicArray(source_array) => {
-                        let array =
-                            self.read_dynamic_array(source_array.block_id, source_array.len)?;
-                        let array = AcirValue::Array(array);
-
-                        (source_array.len, array)
-                    }
+                let slice_length = if !slice_typ.contains_slice_element() {
+                    slice_typ.flattened_size() as usize
+                } else {
+                    self.flattened_slice_size(slice_contents, dfg)
                 };
 
+                let acir_value = self.convert_value(slice_contents, dfg);
+                let result = self.read_array(acir_value)?;
+
                 let slice_length = self.acir_context.add_constant(slice_length);
-                Ok(vec![AcirValue::Var(slice_length, AcirType::field()), result])
+                Ok(vec![AcirValue::Var(slice_length, AcirType::field()), AcirValue::Array(result)])
             }
             Intrinsic::SlicePushBack => {
                 // arguments = [slice_length, slice_contents, ...elements_to_push]
@@ -1314,8 +1301,7 @@ impl<'a> Context<'a> {
                 let slice = self.convert_value(slice_contents, dfg);
                 let mut new_elem_size = Self::flattened_value_size(&slice);
 
-                let mut new_slice = im::Vector::new();
-                self.slice_intrinsic_input(&mut new_slice, slice)?;
+                let mut new_slice = self.read_array(slice)?;
 
                 let elements_to_push = &arguments[2..];
                 // We must directly push back elements for non-nested slices
@@ -1385,8 +1371,7 @@ impl<'a> Context<'a> {
                 let one = self.acir_context.add_constant(FieldElement::one());
                 let new_slice_length = self.acir_context.add_var(slice_length, one)?;
 
-                let mut new_slice = im::Vector::new();
-                self.slice_intrinsic_input(&mut new_slice, slice)?;
+                let mut new_slice = self.read_array(slice)?;
 
                 let elements_to_push = &arguments[2..];
                 let mut elem_size = 0;
@@ -1459,8 +1444,7 @@ impl<'a> Context<'a> {
                 }
 
                 let slice = self.convert_value(slice_contents, dfg);
-                let mut new_slice = im::Vector::new();
-                self.slice_intrinsic_input(&mut new_slice, slice)?;
+                let new_slice = self.read_array(slice)?;
 
                 let mut results = vec![
                     AcirValue::Var(new_slice_length, AcirType::field()),
@@ -1485,8 +1469,7 @@ impl<'a> Context<'a> {
 
                 let slice = self.convert_value(slice_contents, dfg);
 
-                let mut new_slice = im::Vector::new();
-                self.slice_intrinsic_input(&mut new_slice, slice)?;
+                let mut new_slice = self.read_array(slice)?;
 
                 let element_size = slice_typ.element_size();
 
@@ -1672,8 +1655,7 @@ impl<'a> Context<'a> {
 
                 let slice_size = Self::flattened_value_size(&slice);
 
-                let mut new_slice = im::Vector::new();
-                self.slice_intrinsic_input(&mut new_slice, slice)?;
+                let new_slice = self.read_array(slice)?;
 
                 // Compiler sanity check
                 assert_eq!(
@@ -1818,36 +1800,6 @@ impl<'a> Context<'a> {
                 )])
             }
         }
-    }
-
-    fn slice_intrinsic_input(
-        &mut self,
-        old_slice: &mut im::Vector<AcirValue>,
-        input: AcirValue,
-    ) -> Result<(), RuntimeError> {
-        match input {
-            AcirValue::Var(_, _) => {
-                old_slice.push_back(input);
-            }
-            AcirValue::Array(vars) => {
-                for var in vars {
-                    self.slice_intrinsic_input(old_slice, var)?;
-                }
-            }
-            AcirValue::DynamicArray(AcirDynamicArray { block_id, len, .. }) => {
-                for i in 0..len {
-                    // We generate witnesses corresponding to the array values
-                    let index_var = self.acir_context.add_constant(i);
-
-                    let value_read_var =
-                        self.acir_context.read_from_memory(block_id, &index_var)?;
-                    let value_read = AcirValue::Var(value_read_var, AcirType::field());
-
-                    old_slice.push_back(value_read);
-                }
-            }
-        }
-        Ok(())
     }
 
     /// Convert a `Vec<AcirVar>` into a `Vec<AcirValue>` using the given result ids.

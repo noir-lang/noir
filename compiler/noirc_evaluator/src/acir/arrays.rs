@@ -642,83 +642,76 @@ impl Context<'_> {
             return Ok(element_type_sizes);
         }
 
+        if !matches!(array_typ, Type::Array(_, _) | Type::Slice(_)) {
+            return Err(InternalError::Unexpected {
+                expected: "array or slice".to_owned(),
+                found: array_typ.to_string(),
+                call_stack: self.acir_context.get_call_stack(),
+            }
+            .into());
+        }
+
+        if !matches!(&dfg[array_id], Value::Instruction { .. } | Value::Param { .. }) {
+            return Err(InternalError::Unexpected {
+                expected: "array or instruction".to_owned(),
+                found: format!("{:?}", &dfg[array_id]),
+                call_stack: self.acir_context.get_call_stack(),
+            }
+            .into());
+        }
+
         let mut flat_elem_type_sizes = Vec::new();
         flat_elem_type_sizes.push(0);
-        match array_typ {
-            Type::Array(_, _) | Type::Slice(_) => {
-                match &dfg[array_id] {
-                    Value::Instruction { .. } | Value::Param { .. } => {
-                        // An instruction representing the slice means it has been processed previously during ACIR gen.
-                        // Use the previously defined result of an array operation to fetch the internal type information.
-                        let array_acir_value = &self.convert_value(array_id, dfg);
-                        let array_acir_value = supplied_acir_value.unwrap_or(array_acir_value);
-                        match array_acir_value {
-                            AcirValue::DynamicArray(AcirDynamicArray {
-                                element_type_sizes: inner_elem_type_sizes,
-                                ..
-                            }) => {
-                                if let Some(inner_elem_type_sizes) = inner_elem_type_sizes {
-                                    if self.initialized_arrays.contains(inner_elem_type_sizes) {
-                                        let type_sizes_array_len = *self.internal_mem_block_lengths.get(inner_elem_type_sizes).ok_or_else(||
+
+        // An instruction representing the slice means it has been processed previously during ACIR gen.
+        // Use the previously defined result of an array operation to fetch the internal type information.
+        let array_acir_value = &self.convert_value(array_id, dfg);
+        let array_acir_value = supplied_acir_value.unwrap_or(array_acir_value);
+        match array_acir_value {
+            AcirValue::DynamicArray(AcirDynamicArray {
+                element_type_sizes: inner_elem_type_sizes,
+                ..
+            }) => {
+                let Some(inner_elem_type_sizes) = inner_elem_type_sizes else {
+                    return Err(InternalError::General {
+                        message: format!("Array {array_id}'s inner element type sizes array should be initialized"),
+                        call_stack: self.acir_context.get_call_stack(),
+                    }
+                    .into());
+                };
+
+                if self.initialized_arrays.contains(inner_elem_type_sizes) {
+                    let type_sizes_array_len = *self.internal_mem_block_lengths.get(inner_elem_type_sizes).ok_or_else(||
                                             InternalError::General {
                                                 message: format!("Array {array_id}'s inner element type sizes array does not have a tracked length"),
                                                 call_stack: self.acir_context.get_call_stack(),
                                             }
                                         )?;
-                                        self.copy_dynamic_array(
-                                            *inner_elem_type_sizes,
-                                            element_type_sizes,
-                                            type_sizes_array_len,
-                                        )?;
-                                        self.internal_mem_block_lengths
-                                            .insert(element_type_sizes, type_sizes_array_len);
-                                        return Ok(element_type_sizes);
-                                    } else {
-                                        return Err(InternalError::General {
-                                            message: format!("Array {array_id}'s inner element type sizes array should be initialized"),
-                                            call_stack: self.acir_context.get_call_stack(),
-                                        }
-                                        .into());
-                                    }
-                                }
-                            }
-                            AcirValue::Array(values) => {
-                                for (i, value) in values.iter().enumerate() {
-                                    flat_elem_type_sizes.push(
-                                        Self::flattened_value_size(value) + flat_elem_type_sizes[i],
-                                    );
-                                }
-                            }
-                            _ => {
-                                return Err(InternalError::Unexpected {
-                                    expected: "AcirValue::DynamicArray or AcirValue::Array"
-                                        .to_owned(),
-                                    found: format!("{:?}", array_acir_value),
-                                    call_stack: self.acir_context.get_call_stack(),
-                                }
-                                .into());
-                            }
-                        }
-                    }
-                    _ => {
-                        return Err(InternalError::Unexpected {
-                            expected: "array or instruction".to_owned(),
-                            found: format!("{:?}", &dfg[array_id]),
-                            call_stack: self.acir_context.get_call_stack(),
-                        }
-                        .into());
-                    }
-                };
+                    self.copy_dynamic_array(
+                        *inner_elem_type_sizes,
+                        element_type_sizes,
+                        type_sizes_array_len,
+                    )?;
+                    self.internal_mem_block_lengths
+                        .insert(element_type_sizes, type_sizes_array_len);
+                    return Ok(element_type_sizes);
+                }
+            }
+            AcirValue::Array(values) => {
+                for (i, value) in values.iter().enumerate() {
+                    flat_elem_type_sizes
+                        .push(Self::flattened_value_size(value) + flat_elem_type_sizes[i]);
+                }
             }
             _ => {
                 return Err(InternalError::Unexpected {
-                    expected: "array or slice".to_owned(),
-                    found: array_typ.to_string(),
+                    expected: "AcirValue::DynamicArray or AcirValue::Array".to_owned(),
+                    found: format!("{:?}", array_acir_value),
                     call_stack: self.acir_context.get_call_stack(),
                 }
                 .into());
             }
-        }
+        };
 
         // The final array should will the flattened index at each outer array index
         let init_values = vecmap(flat_elem_type_sizes, |type_size| {
@@ -737,7 +730,45 @@ impl Context<'_> {
         Ok(element_type_sizes)
     }
 
-    pub(super) fn read_dynamic_array(
+    pub(super) fn read_array(
+        &mut self,
+        array: AcirValue,
+    ) -> Result<im::Vector<AcirValue>, RuntimeError> {
+        match array {
+            AcirValue::Var(_, _) => unreachable!("ICE: attempting to copy a non-array value"),
+            AcirValue::Array(vars) => Ok(vars),
+            AcirValue::DynamicArray(AcirDynamicArray { block_id, len, .. }) => {
+                self.read_dynamic_array(block_id, len)
+            }
+        }
+    }
+
+    pub(super) fn copy_array(
+        &mut self,
+        source: ValueId,
+        destination: BlockId,
+        dfg: &DataFlowGraph,
+    ) -> Result<(), RuntimeError> {
+        let original_array = self.convert_value(source, dfg);
+
+        match original_array {
+            AcirValue::Var(_, _) => unreachable!("ICE: attempting to copy a non-array value"),
+            array @ AcirValue::Array(_) => {
+                let array_typ = dfg.type_of_value(source);
+                let array_len = if !array_typ.contains_slice_element() {
+                    array_typ.flattened_size() as usize
+                } else {
+                    self.flattened_slice_size(source, dfg)
+                };
+                Ok(self.initialize_array(destination, array_len, Some(array))?)
+            }
+            AcirValue::DynamicArray(source) => {
+                self.copy_dynamic_array(source.block_id, destination, source.len)
+            }
+        }
+    }
+
+    fn read_dynamic_array(
         &mut self,
         source: BlockId,
         array_len: usize,
@@ -751,32 +782,7 @@ impl Context<'_> {
         Ok(init_values.into())
     }
 
-    pub(super) fn copy_array(
-        &mut self,
-        source: ValueId,
-        destination: BlockId,
-        dfg: &DataFlowGraph,
-    ) -> Result<(), RuntimeError> {
-        let original_array = self.convert_value(source, dfg);
-
-        let array_typ = dfg.type_of_value(source);
-        let array_len = if !array_typ.contains_slice_element() {
-            array_typ.flattened_size() as usize
-        } else {
-            self.flattened_slice_size(source, dfg)
-        };
-        match original_array {
-            AcirValue::Var(_, _) => unreachable!("ICE: attempting to copy a non-array value"),
-            source @ AcirValue::Array(_) => {
-                Ok(self.initialize_array(destination, array_len, Some(source))?)
-            }
-            AcirValue::DynamicArray(source) => {
-                self.copy_dynamic_array(source.block_id, destination, array_len)
-            }
-        }
-    }
-
-    pub(super) fn copy_dynamic_array(
+    fn copy_dynamic_array(
         &mut self,
         source: BlockId,
         destination: BlockId,
