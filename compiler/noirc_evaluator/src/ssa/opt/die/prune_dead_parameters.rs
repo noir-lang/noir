@@ -287,4 +287,106 @@ mod tests {
             return v2
         }"#);
     }
+
+    #[test]
+    fn prune_parameter_used_in_a_separate_block_terminator() {
+        // The following SSA comes this code:
+        // ```noir
+        // fn main(input: i16) {
+        //     let result = if input > 3 {
+        //         if input > 4 {
+        //             1
+        //         } else {
+        //             2
+        //         }
+        //     } else {
+        //         3
+        //     };
+        //     let result2 = if input > 5 {
+        //         result
+        //     } else {
+        //         result + 1
+        //     };
+        // }
+        // ```
+        let src = r#"
+        brillig(inline) predicate_pure fn main f0 {
+          b0(v0: i16):
+            v5 = lt i16 3, v0
+            jmpif v5 then: b1, else: b2
+          b1():
+            v8 = lt i16 4, v0
+            jmpif v8 then: b3, else: b4
+          b2():
+            jmp b5(Field 3)
+          b3():
+            jmp b6(Field 1)
+          b4():
+            jmp b6(Field 2)
+          b5(v1: Field):
+            v12 = lt i16 5, v0
+            jmpif v12 then: b7, else: b8
+          b6(v2: Field):
+            jmp b5(v2)
+          b7():
+            jmp b9(v1)
+          b8():
+            v13 = add v1, Field 1
+            jmp b9(v13)
+          b9(v3: Field):
+            return
+        }
+        "#;
+        let ssa = Ssa::from_str(src).unwrap();
+        // DIE is necessary to fetch the block parameters liveness information
+        let (ssa, die_result) = ssa.dead_instruction_elimination_inner(false, false);
+
+        assert!(die_result.unused_parameters.len() == 1);
+        let function = die_result
+            .unused_parameters
+            .get(&Id::test_new(0))
+            .expect("Should have unused parameters");
+        for (block_id, unused_params) in function {
+            if block_id.to_u32() == 9 {
+                assert!(unused_params.len() == 1);
+                assert_eq!(unused_params[0].to_u32(), 3);
+            } else {
+                assert!(unused_params.is_empty());
+            }
+        }
+
+        let ssa = ssa.prune_dead_parameters(die_result.unused_parameters);
+
+        // We only expect b9 to have v3 pruned.
+        // Only v1 in b5 is marked as used with a single DIE pass.
+        // Another DIE pass on the resulting SSA below would be necessary to now see v1 in b5 as unused.
+        assert_ssa_snapshot!(ssa, @r#"
+        brillig(inline) predicate_pure fn main f0 {
+          b0(v0: i16):
+            v4 = lt i16 3, v0
+            jmpif v4 then: b1, else: b2
+          b1():
+            v7 = lt i16 4, v0
+            jmpif v7 then: b3, else: b4
+          b2():
+            jmp b5(Field 3)
+          b3():
+            jmp b6(Field 1)
+          b4():
+            jmp b6(Field 2)
+          b5(v1: Field):
+            v11 = lt i16 5, v0
+            jmpif v11 then: b7, else: b8
+          b6(v2: Field):
+            jmp b5(v2)
+          b7():
+            jmp b9()
+          b8():
+            v12 = add v1, Field 1
+            jmp b9()
+          b9():
+            return
+        }
+        "#);
+    }
 }
