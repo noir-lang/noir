@@ -766,7 +766,7 @@ impl Context<'_> {
             self.flattened_slice_size(source, dfg)
         };
         match original_array {
-            AcirValue::Var(_, _) => unreachable!("uh oh"),
+            AcirValue::Var(_, _) => unreachable!("ICE: attempting to copy a non-array value"),
             source @ AcirValue::Array(_) => {
                 Ok(self.initialize_array(destination, array_len, Some(source))?)
             }
