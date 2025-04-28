@@ -19,7 +19,7 @@
 //!   liveness is up-to-date.
 //!
 //! ## Panics
-//! Return blocks are not expected to have predecessors, so encountering one as a predecessor
+//! Return blocks are not expected to have successors, so encountering one as a predecessor
 //! is treated as an internal compiler error (ICE).
 //!
 //! ## Example:
