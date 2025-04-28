@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1745875347794,
+  "lastUpdate": 1745875502692,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -11357,70 +11357,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "15848336+TomAFrench@users.noreply.github.com",
-            "name": "Tom French",
-            "username": "TomAFrench"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "3024dd35f7c6d1b2bee6d521ae44698339682012",
-          "message": "chore: migrate recursive proof test to ultrahonk (#8038)\n\nCo-authored-by: saleel <saleel@saleel.xyz>",
-          "timestamp": "2025-04-22T11:29:54Z",
-          "tree_id": "f92415b6ab459e966d6850c152c468a7fb40e645",
-          "url": "https://github.com/noir-lang/noir/commit/3024dd35f7c6d1b2bee6d521ae44698339682012"
-        },
-        "date": 1745322994653,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 209.58,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 246.67,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 183.72,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 488.55,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 464.53,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 1710,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 254.71,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-root",
-            "value": 261.28,
-            "unit": "MB"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "aghiglia@manas.tech",
             "name": "Ana Perez Ghiglia",
             "username": "anaPerezGhiglia"
@@ -14505,6 +14441,70 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/noir-lang/noir/commit/43bbaa59700621d0891125ab891fa10a8a63edc8"
         },
         "date": 1745865830349,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 231.63,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 255.24,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 209.65,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 464.87,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 457.06,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 1440,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 288.72,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-root",
+            "value": 294.65,
+            "unit": "MB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "mvezenov@gmail.com",
+            "name": "Maxim Vezenov",
+            "username": "vezenovm"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "96e8679f9a9a605797a342bfd5df2db4ef9e3fdc",
+          "message": "feat(ssa): Prune dead block parameters (#8239)\n\nCo-authored-by: jfecher <jfecher11@gmail.com>",
+          "timestamp": "2025-04-28T20:57:04Z",
+          "tree_id": "f8506cb2e786bae4c4d97d8df47b26ce69102436",
+          "url": "https://github.com/noir-lang/noir/commit/96e8679f9a9a605797a342bfd5df2db4ef9e3fdc"
+        },
+        "date": 1745875495771,
         "tool": "customSmallerIsBetter",
         "benches": [
           {
