@@ -180,9 +180,6 @@ pub fn primary_passes(options: &SsaEvaluatorOptions) -> Vec<SsaPass> {
         SsaPass::new(Ssa::make_constrain_not_equal_instructions, "Adding constrain not equal"),
         SsaPass::new(Ssa::check_u128_mul_overflow, "Check u128 mul overflow"),
         SsaPass::new(Ssa::dead_instruction_elimination, "Dead Instruction Elimination"),
-        // The liveness analysis for block parameters is handled during DIE,
-        // thus pruning parameters should always follow DIE.
-        SsaPass::new(Ssa::prune_dead_parameters, "Prune Dead Block Parameters"),
         SsaPass::new(Ssa::simplify_cfg, "Simplifying"),
         SsaPass::new(Ssa::mem2reg, "Mem2Reg"),
         SsaPass::new(Ssa::array_set_optimization, "Array Set Optimizations"),
@@ -200,9 +197,6 @@ pub fn primary_passes(options: &SsaEvaluatorOptions) -> Vec<SsaPass> {
         // end up using an existing constant from the globals space.
         SsaPass::new(Ssa::brillig_array_gets, "Brillig Array Get Optimizations"),
         SsaPass::new(Ssa::dead_instruction_elimination, "Dead Instruction Elimination"),
-        // The liveness analysis for block parameters is handled during DIE,
-        // thus pruning parameters should always follow DIE.
-        SsaPass::new(Ssa::prune_dead_parameters, "Prune Dead Block Parameters"),
         SsaPass::new(Ssa::checked_to_unchecked, "Checked to unchecked"),
     ]
 }
@@ -217,9 +211,6 @@ pub fn secondary_passes(brillig: &Brillig) -> Vec<SsaPass> {
         // In that case it's unused so we can remove it. This is what we check next.
         SsaPass::new(Ssa::remove_unreachable_functions, "Removing Unreachable Functions"),
         SsaPass::new(Ssa::dead_instruction_elimination_acir, "Dead Instruction Elimination"),
-        // We do not prune any dead parameters after DIE here as we should only have only block.
-        // If we were to prune any parameters here we would be changing the function signature
-        // which is currently not supported.
     ]
 }
 

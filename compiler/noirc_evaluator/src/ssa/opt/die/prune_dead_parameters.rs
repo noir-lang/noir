@@ -50,6 +50,7 @@ use crate::ssa::{
 };
 
 impl Ssa {
+    /// See [`prune_dead_parameters`][self] module for more information.
     #[tracing::instrument(level = "trace", skip(self))]
     pub(crate) fn prune_dead_parameters(mut self) -> Self {
         for function in self.functions.values_mut() {

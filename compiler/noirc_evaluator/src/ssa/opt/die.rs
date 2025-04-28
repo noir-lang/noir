@@ -1,5 +1,8 @@
 //! Dead Instruction Elimination (DIE) pass: Removes any instruction without side-effects for
 //! which the results are unused.
+//!
+//! DIE also tracks which block parameters are unused.
+//! Unused parameters are then pruned by the [prune_dead_parameters] pass.
 use acvm::{AcirField, FieldElement, acir::BlackBoxFunc};
 use fxhash::{FxHashMap as HashMap, FxHashSet as HashSet};
 use rayon::iter::{IntoParallelRefMutIterator, ParallelIterator};
@@ -19,6 +22,8 @@ use crate::ssa::{
 
 use super::rc::{RcInstruction, pop_rc_for};
 
+mod prune_dead_parameters;
+
 impl Ssa {
     /// Performs Dead Instruction Elimination (DIE) to remove any instructions with
     /// unused results.
@@ -26,13 +31,19 @@ impl Ssa {
     /// This step should come after the flattening of the CFG and mem2reg.
     #[tracing::instrument(level = "trace", skip(self))]
     pub fn dead_instruction_elimination(self) -> Ssa {
-        self.dead_instruction_elimination_inner(true, false)
+        let ssa = self.dead_instruction_elimination_inner(true, false);
+        // The liveness analysis for block parameters is handled during DIE,
+        // thus pruning parameters should always follow DIE.
+        ssa.prune_dead_parameters()
     }
 
     /// Post the Brillig generation we do not need to run this pass on Brillig functions.
     #[tracing::instrument(level = "trace", skip(self))]
     pub(crate) fn dead_instruction_elimination_acir(self) -> Ssa {
-        self.dead_instruction_elimination_inner(true, true)
+        let ssa = self.dead_instruction_elimination_inner(true, true);
+        // The liveness analysis for block parameters is handled during DIE,
+        // thus pruning parameters should always follow DIE.
+        ssa.prune_dead_parameters()
     }
 
     fn dead_instruction_elimination_inner(mut self, flattened: bool, skip_brillig: bool) -> Ssa {
