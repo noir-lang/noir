@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1745836315629,
+  "lastUpdate": 1745855144560,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -17966,48 +17966,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "saleel@saleel.xyz",
-            "name": "saleel",
-            "username": "saleel"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "283230ad9806787a2171fed9c93e8b649e32759a",
-          "message": "chore(docs): patch web app tutorial in 1.0.0-beta3 versioned docs (#8158)",
-          "timestamp": "2025-04-22T09:13:17Z",
-          "tree_id": "2eca2b554f0619e4b3b85d9242540c4e52aa3cea",
-          "url": "https://github.com/noir-lang/noir/commit/283230ad9806787a2171fed9c93e8b649e32759a"
-        },
-        "date": 1745314168407,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 265104,
-            "range": "± 2599",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 245609,
-            "range": "± 5839",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 3163270,
-            "range": "± 24773",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "163862677+noirwhal@users.noreply.github.com",
             "name": "noirwhal",
             "username": "noirwhal"
@@ -20059,6 +20017,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 3217137,
             "range": "± 7397",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "mvezenov@gmail.com",
+            "name": "Maxim Vezenov",
+            "username": "vezenovm"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "49a025ebed0b74795b6b1be190c04e4fb5e37d44",
+          "message": "fix(acir): Do not do the bound_constraint_with_offset optimization when the rhs is const and zero (#8243)",
+          "timestamp": "2025-04-28T15:24:40Z",
+          "tree_id": "f51b0e7b2b3215a6b7a8497078fab38cb1880041",
+          "url": "https://github.com/noir-lang/noir/commit/49a025ebed0b74795b6b1be190c04e4fb5e37d44"
+        },
+        "date": 1745855137623,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 254791,
+            "range": "± 417",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 229817,
+            "range": "± 1255",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 3574859,
+            "range": "± 28787",
             "unit": "ns/iter"
           }
         ]
