@@ -50,7 +50,7 @@ mod tests;
 impl Program {
     /// Perform "ownership analysis".
     ///
-    /// See [noirc_frontend::ownership] for details.
+    /// See [ownership](crate::ownership) for details.
     ///
     /// This should only be called once, before converting to SSA.
     pub fn handle_ownership(mut self) -> Self {
@@ -64,7 +64,7 @@ impl Program {
 impl Function {
     /// Perform "ownership analysis".
     ///
-    /// See [noirc_frontend::ownership] for details.
+    /// See [ownership](crate::ownership) for details.
     ///
     /// This should only be called on a function once.
     pub fn handle_ownership(&mut self) {
