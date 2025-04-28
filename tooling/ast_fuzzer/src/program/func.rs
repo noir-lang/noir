@@ -707,10 +707,17 @@ impl<'a> FunctionContext<'a> {
     fn gen_let(&mut self, u: &mut Unstructured) -> arbitrary::Result<Expression> {
         // Generate a type or choose an existing one.
         let max_depth = self.max_depth();
-        let typ = self.ctx.gen_type(u, max_depth, false)?;
-        let expr = self.gen_expr(u, &typ, max_depth, Flags::TOP)?;
-        let mutable = bool::arbitrary(u)?;
-        Ok(self.let_var(mutable, typ, expr, true))
+        loop {
+            let typ = self.ctx.gen_type(u, max_depth, false)?;
+            let expr = self.gen_expr(u, &typ, max_depth, Flags::TOP)?;
+            if matches!(typ, Type::Array(0, _)) && matches!(expr, Expression::Literal(_)) {
+                // We ended up with something like `let x = [];` which, if we copy it as Noir,
+                // the frontend could not infer the type for, so let's just skip it.
+                continue;
+            }
+            let mutable = bool::arbitrary(u)?;
+            return Ok(self.let_var(mutable, typ, expr, true));
+        }
     }
 
     /// Add a new local variable and return a `Let` expression.
