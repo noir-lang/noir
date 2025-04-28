@@ -71,12 +71,10 @@ impl Ssa {
 impl Function {
     /// See [`prune_dead_parameters`][self] module for more information
     fn prune_dead_parameters(&mut self, unused_params: HashMap<BasicBlockId, Vec<ValueId>>) {
-        dbg!(unused_params.clone());
         let cfg = ControlFlowGraph::with_function(self);
         let post_order = PostOrder::with_cfg(&cfg);
 
         for &block in post_order.as_slice() {
-            dbg!(block);
             // We do not support to removing function arguments. This is because function signatures,
             // which are used for setting up the program artifact inputs, are set by the frontend.
             if block == self.entry_block() {
