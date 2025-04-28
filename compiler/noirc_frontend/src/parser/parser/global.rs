@@ -28,8 +28,9 @@ impl Parser<'_> {
         let Some(ident) = self.eat_ident() else {
             self.eat_semicolon();
             let location = self.location_at_previous_token_end();
+            let ident = self.unknown_ident_at_previous_token_end();
             return LetStatement {
-                pattern: ident_to_pattern(Ident::default(), mutable),
+                pattern: ident_to_pattern(ident, mutable),
                 r#type: UnresolvedType { typ: UnresolvedTypeData::Unspecified, location },
                 expression: Expression { kind: ExpressionKind::Error, location },
                 attributes,
@@ -68,6 +69,7 @@ fn ident_to_pattern(ident: Ident, mutable: bool) -> Pattern {
 #[cfg(test)]
 mod tests {
     use acvm::FieldElement;
+    use insta::assert_snapshot;
 
     use crate::{
         ast::{
@@ -168,7 +170,7 @@ mod tests {
         let (src, span) = get_source_with_error_span(src);
         let (_, errors) = parse_program_with_dummy_file(&src);
         let error = get_single_error(&errors, span);
-        assert_eq!(error.to_string(), "Expected a ';' but found end of input");
+        assert_snapshot!(error.to_string(), @"Expected a ';' but found end of input");
     }
 
     #[test]
