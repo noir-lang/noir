@@ -770,8 +770,8 @@ impl Context<'_> {
             source @ AcirValue::Array(_) => {
                 Ok(self.initialize_array(destination, array_len, Some(source))?)
             }
-            AcirValue::DynamicArray(_) => {
-                self.copy_dynamic_array(destination, destination, array_len)
+            AcirValue::DynamicArray(source) => {
+                self.copy_dynamic_array(source.block_id, destination, array_len)
             }
         }
     }
