@@ -115,7 +115,7 @@ impl Context<'_> {
         // cf. https://github.com/noir-lang/noir/pull/4971
         // For simplicity we compute the offset only for simple arrays
         let is_simple_array = dfg.instruction_results(instruction).len() == 1
-            && can_omit_element_sizes_array(&array_typ);
+            && (array_has_constant_element_size(&array_typ) == Some(1));
         let offset = if is_simple_array {
             let result_type = dfg.type_of_value(dfg.instruction_results(instruction)[0]);
             match array_typ {
@@ -529,7 +529,7 @@ impl Context<'_> {
 
         self.array_set_value(&store_value, result_block_id, &mut var_index)?;
 
-        let element_type_sizes = if !can_omit_element_sizes_array(&array_typ) {
+        let element_type_sizes = if array_has_constant_element_size(&array_typ).is_none() {
             let acir_value = self.convert_value(array, dfg);
             Some(self.init_element_type_sizes_array(&array_typ, array, Some(&acir_value), dfg)?)
         } else {
@@ -747,7 +747,10 @@ impl Context<'_> {
         var_index: AcirVar,
         dfg: &DataFlowGraph,
     ) -> Result<AcirVar, RuntimeError> {
-        if !can_omit_element_sizes_array(array_typ) {
+        if let Some(step_size) = array_has_constant_element_size(array_typ) {
+            let step_size = self.acir_context.add_constant(step_size);
+            self.acir_context.mul_var(var_index, step_size)
+        } else {
             let element_type_sizes =
                 self.init_element_type_sizes_array(array_typ, array_id, None, dfg)?;
 
@@ -757,8 +760,6 @@ impl Context<'_> {
             self.acir_context
                 .read_from_memory(element_type_sizes, &predicate_index)
                 .map_err(RuntimeError::from)
-        } else {
-            Ok(var_index)
         }
     }
 
@@ -876,12 +877,23 @@ pub(super) fn flattened_value_size(value: &AcirValue) -> usize {
     size
 }
 
-// We can omit the element size array for arrays which don't contain arrays or slices.
-pub(super) fn can_omit_element_sizes_array(array_typ: &Type) -> bool {
+/// Returns whether the array's elements have a constant size.
+///
+/// This is useful as it then allows us to calculate the flattened index by multiplying by this constant
+/// size.
+///
+/// # Returns
+///
+/// If the array's element types are all the same size then `array_has_constant_element_size` will return
+/// `Some(element_size)` where `element_size` is the size of `array`'s elements. Otherwise returns `None`.
+pub(super) fn array_has_constant_element_size(array_typ: &Type) -> Option<u32> {
     let types = match array_typ {
         Type::Array(types, _) | Type::Slice(types) => types,
         _ => panic!("ICE: expected array or slice type"),
     };
 
-    !types.iter().any(|typ| typ.contains_an_array())
+    let mut element_sizes = types.iter().map(|typ| typ.flattened_size());
+    let element_size = element_sizes.next().expect("must have at least one element");
+
+    if element_sizes.all(|size| size == element_size) { Some(element_size) } else { None }
 }
