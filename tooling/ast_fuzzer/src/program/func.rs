@@ -735,6 +735,11 @@ impl<'a> FunctionContext<'a> {
     }
 
     /// Drop a local variable, if we have anything to drop.
+    ///
+    /// The `ownership` module has a comment saying it will be the only one inserting `Clone` and `Drop`,
+    /// so this shouldn't be needed unless a user can do it via a `drop`-like method.
+    ///
+    /// Leaving it here for reference, but its frequency is adjusted to be 0.
     fn gen_drop(&mut self, u: &mut Unstructured) -> arbitrary::Result<Option<Expression>> {
         if self.locals.current().is_empty() {
             return Ok(None);

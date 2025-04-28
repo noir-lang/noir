@@ -87,7 +87,8 @@ fn classify(expr: &Expression) -> Option<(&'static str, &'static str)> {
         | Expression::ExtractTupleField(_, _)
         | Expression::Index(_)
         | Expression::Semi(_)
-        | Expression::Clone(_) => {
+        | Expression::Clone(_)
+        | Expression::Drop(_) => {
             return None;
         }
         Expression::Literal(_) => ("expr", "literal"),
@@ -105,7 +106,6 @@ fn classify(expr: &Expression) -> Option<(&'static str, &'static str)> {
         Expression::Let(_) => ("stmt", "let"),
         Expression::Constrain(_, _, _) => ("stmt", "constrain"),
         Expression::Assign(_) => ("stmt", "assign"),
-        Expression::Drop(_) => ("stmt", "drop"),
         Expression::Break => ("stmt", "break"),
         Expression::Continue => ("stmt", "continue"),
     };
