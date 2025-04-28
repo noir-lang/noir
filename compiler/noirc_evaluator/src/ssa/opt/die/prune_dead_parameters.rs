@@ -41,33 +41,50 @@
 //! ```
 use fxhash::{FxHashMap as HashMap, FxHashSet as HashSet};
 
-use crate::ssa::ir::{
-    basic_block::BasicBlockId, cfg::ControlFlowGraph, function::Function,
-    instruction::TerminatorInstruction, post_order::PostOrder, value::ValueId,
+use crate::ssa::{
+    ir::{
+        basic_block::BasicBlockId,
+        cfg::ControlFlowGraph,
+        function::{Function, FunctionId},
+        instruction::TerminatorInstruction,
+        post_order::PostOrder,
+        value::ValueId,
+    },
+    ssa_gen::Ssa,
 };
+
+impl Ssa {
+    /// See [`prune_dead_parameters`][self] module for more information.
+    #[tracing::instrument(level = "trace", skip(self))]
+    pub(crate) fn prune_dead_parameters(
+        mut self,
+        unused_parameters: HashMap<FunctionId, HashMap<BasicBlockId, Vec<ValueId>>>,
+    ) -> Self {
+        for (func_id, unused_parameters) in unused_parameters {
+            let function = self.functions.get_mut(&func_id).expect("ICE: Function should exist");
+            function.prune_dead_parameters(unused_parameters);
+        }
+        self
+    }
+}
 
 impl Function {
     /// See [`prune_dead_parameters`][self] module for more information
-    pub(crate) fn prune_dead_parameters(
-        &mut self,
-        unused_params: HashMap<BasicBlockId, Vec<ValueId>>,
-    ) {
+    fn prune_dead_parameters(&mut self, unused_params: HashMap<BasicBlockId, Vec<ValueId>>) {
         let cfg = ControlFlowGraph::with_function(self);
         let post_order = PostOrder::with_cfg(&cfg);
 
         for &block in post_order.as_slice() {
+            // We do not support to removing function arguments. This is because function signatures,
+            // which are used for setting up the program artifact inputs, are set by the frontend.
+            if block == self.entry_block() {
+                continue;
+            }
+
             let empty_params = Vec::new();
             let unused_params = unused_params.get(&block).unwrap_or(&empty_params);
             if unused_params.is_empty() {
                 // Nothing to do if the block has no unused params
-                continue;
-            }
-
-            // self.dfg[block].clear_unused_parameters();
-
-            // We do not support to removing function arguments. This is because function signatures,
-            // which are used for setting up the program artifact inputs, are set by the frontend.
-            if block == self.entry_block() {
                 continue;
             }
 
@@ -122,6 +139,7 @@ mod tests {
     use crate::assert_ssa_snapshot;
 
     use crate::ssa::Ssa;
+    use crate::ssa::ir::map::Id;
 
     #[test]
     fn prune_unused_block_params() {
@@ -133,10 +151,25 @@ mod tests {
             return v1
         }"#;
 
-        let mut ssa = Ssa::from_str(src).unwrap();
-        // Pruning is run internally during DIE (this pass is a submodule of DIE).
+        let ssa = Ssa::from_str(src).unwrap();
         // DIE is necessary to fetch the block parameters liveness information
-        ssa = ssa.dead_instruction_elimination();
+        let (ssa, die_result) = ssa.dead_instruction_elimination_inner(false, false);
+
+        assert!(die_result.unused_parameters.len() == 1);
+        let function = die_result
+            .unused_parameters
+            .get(&Id::test_new(0))
+            .expect("Should have unused parameters");
+        let b0_unused = function.get(&Id::test_new(0)).expect("Should have unused parameters");
+        // b0 has no parameters
+        assert!(b0_unused.is_empty());
+        let b1_unused = function.get(&Id::test_new(1)).expect("Should have unused parameters");
+        // We expect v0 and v2 to be unused, not v1
+        assert_eq!(b1_unused.len(), 2);
+        assert_eq!(b1_unused[0].to_u32(), 0);
+        assert_eq!(b1_unused[1].to_u32(), 2);
+
+        let ssa = ssa.prune_dead_parameters(die_result.unused_parameters);
 
         assert_ssa_snapshot!(ssa, @r#"
         brillig(inline) fn test f0 {
@@ -170,10 +203,30 @@ mod tests {
         }
         "#;
 
-        let mut ssa = Ssa::from_str(src).unwrap();
-        // Pruning is run internally during DIE (this pass is a submodule of DIE).
+        let ssa = Ssa::from_str(src).unwrap();
         // DIE is necessary to fetch the block parameters liveness information
-        ssa = ssa.dead_instruction_elimination();
+        let (ssa, die_result) = ssa.dead_instruction_elimination_inner(false, false);
+
+        assert!(die_result.unused_parameters.len() == 1);
+        let function = die_result
+            .unused_parameters
+            .get(&Id::test_new(0))
+            .expect("Should have unused parameters");
+        let b0_unused = function.get(&Id::test_new(0)).expect("Should have unused parameters");
+        // b0 has one parameter but it is used
+        assert!(b0_unused.is_empty());
+        let b1_unused = function.get(&Id::test_new(1)).expect("Should have unused parameters");
+        // b1 has no parameters
+        assert!(b1_unused.is_empty());
+        // b2 has no parameters
+        let b2_unused = function.get(&Id::test_new(2)).expect("Should have unused parameters");
+        assert!(b2_unused.is_empty());
+        let b3_unused = function.get(&Id::test_new(3)).expect("Should have unused parameters");
+        // b3 has `v2: u64` but it is unused
+        assert_eq!(b3_unused.len(), 1);
+        assert_eq!(b3_unused[0].to_u32(), 2);
+
+        let ssa = ssa.prune_dead_parameters(die_result.unused_parameters);
 
         // We expect b3 to have no parameters anymore and both predecessors (b1 and b2)
         // should no longer pass any arguments to their terminator (which jumps to b3).
@@ -207,12 +260,25 @@ mod tests {
             return v2
         }"#;
 
-        let mut ssa = Ssa::from_str(src).unwrap();
-        // Pruning is run internally during DIE (this pass is a submodule of DIE).
+        let ssa = Ssa::from_str(src).unwrap();
         // DIE is necessary to fetch the block parameters liveness information
-        ssa = ssa.dead_instruction_elimination();
+        let (ssa, die_result) = ssa.dead_instruction_elimination_inner(false, false);
+
+        assert!(die_result.unused_parameters.len() == 1);
+        let function = die_result
+            .unused_parameters
+            .get(&Id::test_new(0))
+            .expect("Should have unused parameters");
+        let b0_unused = function.get(&Id::test_new(0)).expect("Should have unused parameters");
+        // b0 has two parameters but they are unused
+        assert!(b0_unused.len() == 2);
+        let b1_unused = function.get(&Id::test_new(1)).expect("Should have unused parameters");
+        assert!(b1_unused.is_empty());
+
+        let ssa = ssa.prune_dead_parameters(die_result.unused_parameters);
 
         // b0 still has both parameters even though v0 is unused
+        // as b0 is the entry block which would also change the function signature.
         assert_ssa_snapshot!(ssa, @r#"
         brillig(inline) fn test f0 {
           b0(v0: Field, v1: Field):
