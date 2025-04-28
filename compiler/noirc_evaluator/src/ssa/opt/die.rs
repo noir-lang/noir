@@ -137,8 +137,6 @@ impl Function {
             unused_params_per_block.insert(*block, unused_params);
         }
 
-        self.prune_dead_parameters(unused_params_per_block);
-
         context.remove_rc_instructions(&mut self.dfg);
 
         (
@@ -569,7 +567,7 @@ mod test {
                 store Field 1 at v8
                 v9 = load v8 -> Field
                 v10 = add v9, Field 1
-                v11 = add v1, Field 2
+                v11 = add v9, Field 2
                 v13 = add v9, Field 3
                 v14 = add v13, v13
                 call assert_constant(v10)
@@ -589,7 +587,7 @@ mod test {
             store Field 1 at v4
             v6 = load v4 -> Field
             v7 = add v6, Field 1
-            v8 = add v1, Field 2
+            v8 = add v6, Field 2
             call assert_constant(v7)
             return v8
         }

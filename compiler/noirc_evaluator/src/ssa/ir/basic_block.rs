@@ -25,10 +25,6 @@ pub struct BasicBlock {
     /// This will be a control flow instruction. This is only
     /// None if the block is still being constructed.
     terminator: Option<TerminatorInstruction>,
-
-    /// List of parameters that have been found to be unused after running
-    /// dead instruction elimination
-    unused_parameters: Vec<ValueId>,
 }
 
 /// An identifier for a Basic Block.
@@ -38,12 +34,7 @@ impl BasicBlock {
     /// Create a new BasicBlock with the given parameters.
     /// Parameters can also be added later via BasicBlock::add_parameter
     pub(crate) fn new() -> Self {
-        Self {
-            parameters: Vec::new(),
-            instructions: Vec::new(),
-            terminator: None,
-            unused_parameters: Vec::new(),
-        }
+        Self { parameters: Vec::new(), instructions: Vec::new(), terminator: None }
     }
 
     /// Returns the parameters of this block
