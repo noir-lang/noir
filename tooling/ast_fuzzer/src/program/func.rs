@@ -559,6 +559,7 @@ impl<'a> FunctionContext<'a> {
         // Find a type we can produce in the current scope which we can pass as input
         // to the operations we selected, and it returns the desired output.
         fn collect_input_types<'a, K: Ord>(
+            this: &FunctionContext,
             op: BinaryOp,
             type_out: &Type,
             scope: &'a Scope<K>,
@@ -566,15 +567,16 @@ impl<'a> FunctionContext<'a> {
             scope
                 .types_produced()
                 .filter(|type_in| types::can_binary_op_return_from_input(&op, type_in, type_out))
+                .filter(|type_in| !this.ctx.should_avoid_literals(type_in))
                 .collect::<Vec<_>>()
         }
 
         // Try local variables first.
-        let mut lhs_opts = collect_input_types(op, typ, self.locals.current());
+        let mut lhs_opts = collect_input_types(self, op, typ, self.locals.current());
 
         // If the locals don't have any type compatible with `op`, try the globals.
         if lhs_opts.is_empty() {
-            lhs_opts = collect_input_types(op, typ, &self.globals);
+            lhs_opts = collect_input_types(self, op, typ, &self.globals);
         }
 
         // We might not have any input that works for this operation.
@@ -707,26 +709,10 @@ impl<'a> FunctionContext<'a> {
     fn gen_let(&mut self, u: &mut Unstructured) -> arbitrary::Result<Expression> {
         // Generate a type or choose an existing one.
         let max_depth = self.max_depth();
-        loop {
-            let typ = self.ctx.gen_type(u, max_depth, false)?;
-            let expr = self.gen_expr(u, &typ, max_depth, Flags::TOP)?;
-            if matches!(expr, Expression::Literal(_)) {
-                match typ {
-                    Type::Array(0, _) => {
-                        // We ended up with something like `let x = [];` which, if we copy it as Noir,
-                        // the frontend could not infer the type for, so let's just skip it.
-                        continue;
-                    }
-                    Type::Integer(sign, size) if sign.is_signed() || size.bit_size() > 32 => {
-                        // The frontend expects u32 literals, unless the type is declared to aid inference.
-                        continue;
-                    }
-                    _ => {}
-                }
-            }
-            let mutable = bool::arbitrary(u)?;
-            return Ok(self.let_var(mutable, typ, expr, true));
-        }
+        let typ = self.ctx.gen_type(u, max_depth, false, true)?;
+        let expr = self.gen_expr(u, &typ, max_depth, Flags::TOP)?;
+        let mutable = bool::arbitrary(u)?;
+        Ok(self.let_var(mutable, typ, expr, true))
     }
 
     /// Add a new local variable and return a `Let` expression.

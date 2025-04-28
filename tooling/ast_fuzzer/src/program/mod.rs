@@ -141,7 +141,7 @@ impl Context {
         u: &mut Unstructured,
         i: usize,
     ) -> arbitrary::Result<(Name, Type, Expression)> {
-        let typ = self.gen_type(u, self.config.max_depth, true)?;
+        let typ = self.gen_type(u, self.config.max_depth, true, false)?;
         // By the time we get to the monomorphized AST the compiler will have already turned
         // complex global expressions into literals.
         let val = expr::gen_literal(u, &typ)?;
@@ -176,7 +176,7 @@ impl Context {
             let id = LocalId(p as u32);
             let name = make_name(p, false);
             let is_mutable = !is_main && bool::arbitrary(u)?;
-            let typ = self.gen_type(u, self.config.max_depth, false)?;
+            let typ = self.gen_type(u, self.config.max_depth, false, false)?;
             params.push((id, is_mutable, name, typ));
 
             param_visibilities.push(if is_main {
@@ -190,7 +190,7 @@ impl Context {
             });
         }
 
-        let return_type = self.gen_type(u, self.config.max_depth, false)?;
+        let return_type = self.gen_type(u, self.config.max_depth, false, false)?;
         let return_visibility = if is_main {
             if types::is_unit(&return_type) {
                 Visibility::Private
@@ -311,11 +311,15 @@ impl Context {
     /// functions.
     ///
     /// With a `max_depth` of 0 only leaf types are created.
+    ///
+    /// With `is_frontend_friendly` we try to only consider types which are less likely to result
+    /// in literals that the frontend does not like when it has to infer their types.
     fn gen_type(
         &mut self,
         u: &mut Unstructured,
         max_depth: usize,
         is_global: bool,
+        is_frontend_friendly: bool,
     ) -> arbitrary::Result<Type> {
         // See if we can reuse an existing type without going over the maximum depth.
         if u.ratio(5, 10)? {
@@ -324,6 +328,7 @@ impl Context {
                 .iter()
                 .filter(|typ| !is_global || types::can_be_global(typ))
                 .filter(|typ| types::type_depth(typ) <= max_depth)
+                .filter(|typ| !is_frontend_friendly || !self.should_avoid_literals(typ))
                 .collect::<Vec<_>>();
 
             if !existing_types.is_empty() {
@@ -342,10 +347,15 @@ impl Context {
                 1 => Type::Field,
                 2 => {
                     // i1 is deprecated, and i128 does not exist yet
-                    let sign = *u.choose(&[Signedness::Signed, Signedness::Unsigned])?;
+                    let sign = if is_frontend_friendly {
+                        Signedness::Unsigned
+                    } else {
+                        *u.choose(&[Signedness::Signed, Signedness::Unsigned])?
+                    };
                     let sizes = IntegerBitSize::iter()
                         .filter(|bs| {
                             !(sign.is_signed() && (bs.bit_size() == 1 || bs.bit_size() == 128))
+                                && (!is_frontend_friendly || bs.bit_size() <= 32)
                         })
                         .collect::<Vec<_>>();
                     Type::Integer(sign, u.choose_iter(sizes)?)
@@ -356,13 +366,14 @@ impl Context {
                     // 1-size tuples look strange, so let's make it minimum 2 fields.
                     let size = u.int_in_range(2..=self.config.max_tuple_size)?;
                     let types = (0..size)
-                        .map(|_| self.gen_type(u, max_depth - 1, is_global))
+                        .map(|_| self.gen_type(u, max_depth - 1, is_global, is_frontend_friendly))
                         .collect::<Result<Vec<_>, _>>()?;
                     Type::Tuple(types)
                 }
                 6 | 7 => {
-                    let size = u.int_in_range(0..=self.config.max_array_size)?;
-                    let typ = self.gen_type(u, max_depth - 1, is_global)?;
+                    let min_size = if is_frontend_friendly { 1 } else { 0 };
+                    let size = u.int_in_range(min_size..=self.config.max_array_size)?;
+                    let typ = self.gen_type(u, max_depth - 1, is_global, is_frontend_friendly)?;
                     Type::Array(size as u32, Box::new(typ))
                 }
                 _ => unreachable!("unexpected arbitrary type index"),
@@ -374,6 +385,23 @@ impl Context {
         self.types.insert(typ.clone());
 
         Ok(typ)
+    }
+
+    /// Is a type likely to cause type inference problems in the frontend when standing alone.
+    fn should_avoid_literals(&self, typ: &Type) -> bool {
+        match typ {
+            Type::Integer(sign, size) => {
+                // The frontend expects u32 literals.
+                sign.is_signed() && self.config.avoid_negative_int_literals
+                    || size.bit_size() > 32 && self.config.avoid_large_int_literals
+            }
+            Type::Array(0, _) => {
+                // With 0 length arrays we run the risk of ending up with `let x = [];`,
+                // or similar expressions returning `[]`, the type fo which the fronted could not infer.
+                true
+            }
+            _ => false,
+        }
     }
 }
 

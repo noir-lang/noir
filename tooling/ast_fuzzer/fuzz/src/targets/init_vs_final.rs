@@ -16,6 +16,9 @@ pub fn fuzz(u: &mut Unstructured) -> eyre::Result<()> {
     let config = Config {
         // Try to avoid using overflowing operations; see below for the reason.
         avoid_overflow: true,
+        // Avoid stuff that would be difficult to copy as Noir; we want to verify these failures with nargo.
+        avoid_large_int_literals: true,
+        avoid_negative_int_literals: true,
         ..Default::default()
     };
 
