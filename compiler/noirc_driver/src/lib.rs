@@ -174,6 +174,11 @@ pub struct CompileOptions {
     #[arg(long, default_value = "false")]
     pub pedantic_solving: bool,
 
+    /// Accept a single '.nr' file through STDIN instead of reading from the
+    /// root directory
+    #[arg(long, hide = true)]
+    pub debug_compile_stdin: bool,
+
     /// Unstable features to enable for this current build
     #[arg(value_parser = clap::value_parser!(UnstableFeature))]
     #[clap(long, short = 'Z', value_delimiter = ',')]

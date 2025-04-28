@@ -2,12 +2,15 @@ use clap::{Args, Parser, Subcommand};
 use const_format::formatcp;
 use nargo::workspace::Workspace;
 use nargo_toml::{
-    ManifestError, PackageSelection, get_package_manifest, resolve_workspace_from_toml,
+    ManifestError, NargoToml, PackageConfig, PackageMetadata, PackageSelection,
+    get_package_manifest, resolve_workspace_from_fixed_toml, resolve_workspace_from_toml,
 };
 use noirc_driver::{CrateName, NOIR_ARTIFACT_VERSION_STRING};
 use std::{
+    collections::BTreeMap,
     fs::File,
     path::{Path, PathBuf},
+    str::FromStr,
 };
 
 use color_eyre::eyre;
@@ -139,7 +142,7 @@ pub(crate) fn start_cli() -> eyre::Result<()> {
         NargoCommand::New(args) => new_cmd::run(args, config),
         NargoCommand::Init(args) => init_cmd::run(args, config),
         NargoCommand::Check(args) => with_workspace(args, config, check_cmd::run),
-        NargoCommand::Compile(args) => with_workspace(args, config, compile_cmd::run),
+        NargoCommand::Compile(args) => with_maybe_dummy_workspace(args, config, compile_cmd::run),
         NargoCommand::Debug(args) => with_workspace(args, config, debug_cmd::run),
         NargoCommand::Execute(args) => with_workspace(args, config, execute_cmd::run),
         NargoCommand::Export(args) => with_workspace(args, config, export_cmd::run),
@@ -176,6 +179,42 @@ fn read_workspace(
     )?;
 
     Ok(workspace)
+}
+
+/// "with_workspace", but use a dummy workspace when 'debug_compile_stdin' is enabled
+fn with_maybe_dummy_workspace<R>(
+    cmd: compile_cmd::CompileCommand,
+    config: NargoConfig,
+    run: R,
+) -> Result<(), CliError>
+where
+    R: FnOnce(compile_cmd::CompileCommand, Workspace) -> Result<(), CliError>,
+{
+    if cmd.compile_options.debug_compile_stdin {
+        let package_name = "debug_compile_stdin".to_string();
+
+        // dummy root dir
+        let root_dir = PathBuf::new();
+        let mut package = PackageMetadata::default();
+        package.name = Some(package_name.clone());
+        package.package_type = Some("bin".into());
+        let dependencies = BTreeMap::new();
+        let package_config = PackageConfig { package, dependencies };
+        let config = nargo_toml::Config::Package { package_config };
+        let nargo_toml = NargoToml { root_dir, config };
+        let package_name =
+            CrateName::from_str(&package_name).expect("package_name to be a valid CrateName");
+        let selection = PackageSelection::Selected(package_name);
+
+        let workspace = resolve_workspace_from_fixed_toml(
+            nargo_toml,
+            selection,
+            Some(NOIR_ARTIFACT_VERSION_STRING.to_owned()),
+        )?;
+        run(cmd, workspace)
+    } else {
+        with_workspace(cmd, config, run)
+    }
 }
 
 /// Find the root directory, parse the workspace, lock the packages, then execute the command.

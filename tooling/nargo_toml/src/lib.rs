@@ -146,10 +146,10 @@ pub fn get_package_manifest(current_path: &Path) -> Result<PathBuf, ManifestErro
 }
 
 #[derive(Debug, Deserialize, Clone)]
-struct PackageConfig {
-    package: PackageMetadata,
+pub struct PackageConfig {
+    pub package: PackageMetadata,
     #[serde(default)]
-    dependencies: BTreeMap<String, DependencyConfig>,
+    pub dependencies: BTreeMap<String, DependencyConfig>,
 }
 
 impl PackageConfig {
@@ -258,7 +258,7 @@ impl PackageConfig {
 /// Contains all the information about a package, as loaded from a `Nargo.toml`.
 #[derive(Debug, Deserialize, Clone)]
 #[serde(untagged)]
-enum Config {
+pub enum Config {
     /// Represents a `Nargo.toml` with package fields.
     Package {
         #[serde(flatten)]
@@ -288,14 +288,14 @@ impl TryFrom<&str> for Config {
 }
 
 /// Tracks the root_dir of a `Nargo.toml` and the contents inside the file.
-struct NargoToml {
-    root_dir: PathBuf,
-    config: Config,
+pub struct NargoToml {
+    pub root_dir: PathBuf,
+    pub config: Config,
 }
 
 #[derive(Default, Debug, Deserialize, Clone)]
 #[serde(rename_all = "kebab-case")]
-struct WorkspaceConfig {
+pub struct WorkspaceConfig {
     /// List of members in this workspace.
     members: Vec<PathBuf>,
     /// Specifies the default crate to interact with in the context (similarly to how we have nargo as the default crate in this repository).
@@ -304,11 +304,11 @@ struct WorkspaceConfig {
 
 #[allow(dead_code)]
 #[derive(Default, Debug, Deserialize, Clone)]
-struct PackageMetadata {
-    name: Option<String>,
+pub struct PackageMetadata {
+    pub name: Option<String>,
     version: Option<String>,
     #[serde(alias = "type")]
-    package_type: Option<String>,
+    pub package_type: Option<String>,
     entry: Option<PathBuf>,
     description: Option<String>,
     authors: Option<Vec<String>>,
@@ -326,7 +326,7 @@ struct PackageMetadata {
 #[serde(untagged)]
 /// Enum representing the different types of ways to
 /// supply a source for the dependency
-enum DependencyConfig {
+pub enum DependencyConfig {
     Github { git: String, tag: String, directory: Option<String> },
     Path { path: String },
 }
@@ -520,6 +520,17 @@ pub fn resolve_workspace_from_toml(
     current_compiler_version: Option<String>,
 ) -> Result<Workspace, ManifestError> {
     let nargo_toml = read_toml(toml_path)?;
+    resolve_workspace_from_fixed_toml(nargo_toml, package_selection, current_compiler_version)
+}
+
+/// Resolves a Nargo.toml _ into a `Workspace` struct as defined by our `nargo` core.
+///
+/// As a side effect it downloads project dependencies as well.
+pub fn resolve_workspace_from_fixed_toml(
+    nargo_toml: NargoToml,
+    package_selection: PackageSelection,
+    current_compiler_version: Option<String>,
+) -> Result<Workspace, ManifestError> {
     let workspace = toml_to_workspace(nargo_toml, package_selection)?;
     if let Some(current_compiler_version) = current_compiler_version {
         semver::semver_check_workspace(&workspace, current_compiler_version)?;
