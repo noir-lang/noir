@@ -677,7 +677,7 @@ impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>> ACVM<'a, F, B> {
     /// Defer execution of the ACIR call opcode to the caller, or finalize the execution.
     /// 1. It first handles the predicate and return zero values if the predicate is false.
     /// 2. If the results of the execution are not available, it issues a 'AcirCallWaitInfo'
-    ///     to notify the caller that it (the caller) needs to execute the ACIR function.
+    ///    to notify the caller that it (the caller) needs to execute the ACIR function.
     /// 3. If the results are available, it updates the witness map and indicates that the opcode is solved.
     pub fn solve_call_opcode(
         &mut self,

@@ -472,6 +472,7 @@ impl Parser<'_> {
 mod tests {
     use std::collections::BTreeMap;
 
+    use insta::assert_snapshot;
     use proptest::prelude::*;
     use strum::IntoEnumIterator;
 
@@ -707,7 +708,7 @@ mod tests {
         let mut parser = Parser::for_str_with_dummy_file(&src);
         parser.parse_type();
         let error = get_single_error(&parser.errors, span);
-        assert_eq!(error.to_string(), "Expected a ']' but found end of input");
+        assert_snapshot!(error.to_string(), @"Expected a ']' but found end of input");
     }
 
     #[test]

@@ -17,7 +17,7 @@ use fm::{FileId, FileMap, PathString};
 use kinds::{FunctionCompletionKind, FunctionKind, RequestedItems};
 use noirc_errors::{Location, Span};
 use noirc_frontend::{
-    DataType, ParsedModule, Type, TypeBinding,
+    DataType, NamedGeneric, ParsedModule, Type, TypeBinding,
     ast::{
         AsTraitPath, AttributeTarget, BlockExpression, CallExpression, ConstructorExpression,
         Expression, ExpressionKind, ForLoopStatement, GenericTypeArgs, Ident, IfExpression,
@@ -608,7 +608,7 @@ impl<'a> NodeFinder<'a> {
             Type::Tuple(types) => {
                 self.complete_tuple_fields(types, self_prefix);
             }
-            Type::TypeVariable(var) | Type::NamedGeneric(var, _) => {
+            Type::TypeVariable(var) | Type::NamedGeneric(NamedGeneric { type_var: var, .. }) => {
                 if let TypeBinding::Bound(typ) = &*var.borrow() {
                     return self.complete_type_fields_and_methods(
                         typ,
@@ -1911,10 +1911,12 @@ fn get_field_type(typ: &Type, name: &str) -> Option<Type> {
             }
         }
         Type::Alias(alias_type, generics) => Some(alias_type.borrow().get_type(generics)),
-        Type::TypeVariable(var) | Type::NamedGeneric(var, _) => match &*var.borrow() {
-            TypeBinding::Bound(typ) => get_field_type(typ, name),
-            _ => None,
-        },
+        Type::TypeVariable(var) | Type::NamedGeneric(NamedGeneric { type_var: var, .. }) => {
+            match &*var.borrow() {
+                TypeBinding::Bound(typ) => get_field_type(typ, name),
+                _ => None,
+            }
+        }
         _ => None,
     }
 }
@@ -1926,10 +1928,12 @@ fn get_array_element_type(typ: Type) -> Option<Type> {
             let typ = alias_type.borrow().get_type(&generics);
             get_array_element_type(typ)
         }
-        Type::TypeVariable(var) | Type::NamedGeneric(var, _) => match &*var.borrow() {
-            TypeBinding::Bound(typ) => get_array_element_type(typ.clone()),
-            _ => None,
-        },
+        Type::TypeVariable(var) | Type::NamedGeneric(NamedGeneric { type_var: var, .. }) => {
+            match &*var.borrow() {
+                TypeBinding::Bound(typ) => get_array_element_type(typ.clone()),
+                _ => None,
+            }
+        }
         _ => None,
     }
 }

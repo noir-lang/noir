@@ -487,7 +487,7 @@ impl<'a> TestRunner<'a> {
                     self.run_test::<S>(
                         package,
                         &test_name,
-                        test_function.has_arguments(),
+                        test_function.has_arguments,
                         foreign_call_resolver_url,
                         root_path,
                         package_name_clone.clone(),
@@ -542,11 +542,12 @@ impl<'a> TestRunner<'a> {
         let blackbox_solver = S::default();
         let mut output_buffer = Vec::new();
 
-        let test_status = nargo::ops::run_test(
+        let test_status = nargo::ops::run_or_fuzz_test(
             &blackbox_solver,
             &mut context,
             test_function,
             &mut output_buffer,
+            package_name.clone(),
             &self.args.compile_options,
             |output, base| {
                 DefaultForeignCallBuilder {

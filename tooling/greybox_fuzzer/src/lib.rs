@@ -271,6 +271,8 @@ pub struct FuzzedExecutorExecutionConfiguration {
     pub num_threads: usize,
     /// Maximum time in seconds to spend fuzzing (default: no timeout)
     pub timeout: u64,
+    /// Whether to output progress to stdout or not.
+    pub show_progress: bool,
 }
 
 pub enum FuzzedExecutorFailureConfiguration {
@@ -320,6 +322,9 @@ pub struct FuzzedExecutor<E, F> {
 
     /// Number of threads to use
     num_threads: usize,
+
+    /// Whether to output progress to stdout or not.
+    show_progress: bool,
 
     /// Determines what is considered a failure during execution
     failure_configuration: FuzzedExecutorFailureConfiguration,
@@ -391,6 +396,7 @@ impl<
             package_name: package_name.to_string(),
             function_name: function_name.to_string(),
             num_threads: fuzz_execution_config.num_threads,
+            show_progress: fuzz_execution_config.show_progress,
             failure_configuration,
             corpus_dir: PathBuf::from(
                 folder_configuration.corpus_dir.unwrap_or(DEFAULT_CORPUS_FOLDER.to_string()),
@@ -530,17 +536,19 @@ impl<
             minimized_corpus_path =
                 minimized_corpus.as_ref().unwrap().get_corpus_storage_path().to_path_buf();
         }
-        let _ = display_starting_info(
-            self.minimize_corpus,
-            seed,
-            starting_corpus_ids.len(),
-            self.num_threads,
-            &self.package_name,
-            &self.function_name,
-            corpus.get_corpus_storage_path(),
-            &minimized_corpus_path,
-            abi_change_detected,
-        );
+        if self.show_progress {
+            let _ = display_starting_info(
+                self.minimize_corpus,
+                seed,
+                starting_corpus_ids.len(),
+                self.num_threads,
+                &self.package_name,
+                &self.function_name,
+                corpus.get_corpus_storage_path(),
+                &minimized_corpus_path,
+                abi_change_detected,
+            );
+        }
 
         // Generate the default input (it is needed if the corpus is empty)
         let default_map = self.mutator.generate_default_input_map();
@@ -745,7 +753,9 @@ impl<
                 all_fuzzing_results.iter().find(|fast_result| fast_result.failed())
             {
                 self.metrics.set_active_corpus_size(corpus.get_testcase_count());
-                let _ = display_metrics(&self.metrics);
+                if self.show_progress {
+                    let _ = display_metrics(&self.metrics);
+                }
                 break individual_failing_result.outcome().clone();
             }
 
@@ -934,7 +944,9 @@ impl<
             // If we've found something, return
             if let Some(result) = failing_result {
                 self.metrics.set_active_corpus_size(corpus.get_testcase_count());
-                let _ = display_metrics(&self.metrics);
+                if self.show_progress {
+                    let _ = display_metrics(&self.metrics);
+                }
                 break result;
             }
             if time_tracker.elapsed() - last_metric_check
@@ -943,7 +955,9 @@ impl<
                 // Update and display metrics
                 self.metrics.set_active_corpus_size(corpus.get_testcase_count());
                 self.metrics.set_last_round_update_time(updating_time);
-                let _ = display_metrics(&self.metrics);
+                if self.show_progress {
+                    let _ = display_metrics(&self.metrics);
+                }
                 self.metrics.refresh_round();
                 last_metric_check = time_tracker.elapsed();
                 // Check if we've exceeded the timeout
