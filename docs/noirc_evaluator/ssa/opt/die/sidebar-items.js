@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"fn":["can_be_eliminated_if_unused"],"struct":["Context","RcTracker"]};
+window.SIDEBAR_ITEMS = {"fn":["can_be_eliminated_if_unused"],"mod":["prune_dead_parameters"],"struct":["Context","DIEResult","RcTracker"]};

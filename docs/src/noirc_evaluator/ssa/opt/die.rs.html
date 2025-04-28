@@ -889,8 +889,56 @@
 <a href="#888" id="888">888</a>
 <a href="#889" id="889">889</a>
 <a href="#890" id="890">890</a>
-<a href="#891" id="891">891</a></pre></div><pre class="rust"><code><span class="doccomment">//! Dead Instruction Elimination (DIE) pass: Removes any instruction without side-effects for
+<a href="#891" id="891">891</a>
+<a href="#892" id="892">892</a>
+<a href="#893" id="893">893</a>
+<a href="#894" id="894">894</a>
+<a href="#895" id="895">895</a>
+<a href="#896" id="896">896</a>
+<a href="#897" id="897">897</a>
+<a href="#898" id="898">898</a>
+<a href="#899" id="899">899</a>
+<a href="#900" id="900">900</a>
+<a href="#901" id="901">901</a>
+<a href="#902" id="902">902</a>
+<a href="#903" id="903">903</a>
+<a href="#904" id="904">904</a>
+<a href="#905" id="905">905</a>
+<a href="#906" id="906">906</a>
+<a href="#907" id="907">907</a>
+<a href="#908" id="908">908</a>
+<a href="#909" id="909">909</a>
+<a href="#910" id="910">910</a>
+<a href="#911" id="911">911</a>
+<a href="#912" id="912">912</a>
+<a href="#913" id="913">913</a>
+<a href="#914" id="914">914</a>
+<a href="#915" id="915">915</a>
+<a href="#916" id="916">916</a>
+<a href="#917" id="917">917</a>
+<a href="#918" id="918">918</a>
+<a href="#919" id="919">919</a>
+<a href="#920" id="920">920</a>
+<a href="#921" id="921">921</a>
+<a href="#922" id="922">922</a>
+<a href="#923" id="923">923</a>
+<a href="#924" id="924">924</a>
+<a href="#925" id="925">925</a>
+<a href="#926" id="926">926</a>
+<a href="#927" id="927">927</a>
+<a href="#928" id="928">928</a>
+<a href="#929" id="929">929</a>
+<a href="#930" id="930">930</a>
+<a href="#931" id="931">931</a>
+<a href="#932" id="932">932</a>
+<a href="#933" id="933">933</a>
+<a href="#934" id="934">934</a>
+<a href="#935" id="935">935</a>
+<a href="#936" id="936">936</a></pre></div><pre class="rust"><code><span class="doccomment">//! Dead Instruction Elimination (DIE) pass: Removes any instruction without side-effects for
 //! which the results are unused.
+//!
+//! DIE also tracks which block parameters are unused.
+//! Unused parameters are then pruned by the [prune_dead_parameters] pass.
 </span><span class="kw">use </span>acvm::{AcirField, FieldElement, acir::BlackBoxFunc};
 <span class="kw">use </span>fxhash::{FxHashMap <span class="kw">as </span>HashMap, FxHashSet <span class="kw">as </span>HashSet};
 <span class="kw">use </span>rayon::iter::{IntoParallelRefMutIterator, ParallelIterator};
@@ -899,7 +947,7 @@
     ir::{
         basic_block::{BasicBlock, BasicBlockId},
         dfg::DataFlowGraph,
-        function::Function,
+        function::{Function, FunctionId},
         instruction::{BinaryOp, Instruction, InstructionId, Intrinsic},
         post_order::PostOrder,
         types::Type,
@@ -910,6 +958,8 @@
 
 <span class="kw">use </span><span class="kw">super</span>::rc::{RcInstruction, pop_rc_for};
 
+<span class="kw">mod </span>prune_dead_parameters;
+
 <span class="kw">impl </span>Ssa {
     <span class="doccomment">/// Performs Dead Instruction Elimination (DIE) to remove any instructions with
     /// unused results.
@@ -917,27 +967,48 @@
     /// This step should come after the flattening of the CFG and mem2reg.
     </span><span class="attr">#[tracing::instrument(level = <span class="string">"trace"</span>, skip(<span class="self">self</span>))]
     </span><span class="kw">pub fn </span>dead_instruction_elimination(<span class="self">self</span>) -&gt; Ssa {
-        <span class="self">self</span>.dead_instruction_elimination_inner(<span class="bool-val">true</span>, <span class="bool-val">false</span>)
+        <span class="self">self</span>.dead_instruction_elimination_with_pruning(<span class="bool-val">true</span>, <span class="bool-val">false</span>)
     }
 
     <span class="doccomment">/// Post the Brillig generation we do not need to run this pass on Brillig functions.
     </span><span class="attr">#[tracing::instrument(level = <span class="string">"trace"</span>, skip(<span class="self">self</span>))]
     </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>dead_instruction_elimination_acir(<span class="self">self</span>) -&gt; Ssa {
-        <span class="self">self</span>.dead_instruction_elimination_inner(<span class="bool-val">true</span>, <span class="bool-val">true</span>)
+        <span class="self">self</span>.dead_instruction_elimination_with_pruning(<span class="bool-val">true</span>, <span class="bool-val">true</span>)
     }
 
-    <span class="kw">fn </span>dead_instruction_elimination_inner(<span class="kw-2">mut </span><span class="self">self</span>, flattened: bool, skip_brillig: bool) -&gt; Ssa {
-        <span class="kw">let </span><span class="kw-2">mut </span>used_globals_map: HashMap&lt;<span class="kw">_</span>, <span class="kw">_</span>&gt; = <span class="self">self
+    <span class="kw">fn </span>dead_instruction_elimination_with_pruning(<span class="self">self</span>, flattened: bool, skip_brillig: bool) -&gt; Ssa {
+        <span class="kw">let </span>(ssa, result) = <span class="self">self</span>.dead_instruction_elimination_inner(flattened, skip_brillig);
+        ssa.prune_dead_parameters(result.unused_parameters)
+    }
+
+    <span class="kw">fn </span>dead_instruction_elimination_inner(
+        <span class="kw-2">mut </span><span class="self">self</span>,
+        flattened: bool,
+        skip_brillig: bool,
+    ) -&gt; (Ssa, DIEResult) {
+        <span class="kw">let </span><span class="kw-2">mut </span>result = <span class="self">self
             </span>.functions
             .par_iter_mut()
-            .filter_map(|(id, func)| {
-                <span class="kw">let </span>set = func.dead_instruction_elimination(flattened, skip_brillig);
-                <span class="kw">if </span>func.runtime().is_brillig() { <span class="prelude-val">Some</span>((<span class="kw-2">*</span>id, set)) } <span class="kw">else </span>{ <span class="prelude-val">None </span>}
+            .map(|(id, func)| {
+                <span class="kw">let </span>(used_globals, unused_params) =
+                    func.dead_instruction_elimination(flattened, skip_brillig);
+                <span class="kw">let </span><span class="kw-2">mut </span>result = DIEResult::default();
+
+                <span class="kw">if </span>func.runtime().is_brillig() {
+                    result.used_globals.insert(<span class="kw-2">*</span>id, used_globals);
+                }
+                result.unused_parameters.insert(<span class="kw-2">*</span>id, unused_params);
+
+                result
             })
-            .collect();
+            .reduce(DIEResult::default, |<span class="kw-2">mut </span>a, b| {
+                a.used_globals.extend(b.used_globals);
+                a.unused_parameters.extend(b.unused_parameters);
+                a
+            });
 
         <span class="kw">let </span>globals = <span class="kw-2">&amp;</span><span class="self">self</span>.functions[<span class="kw-2">&amp;</span><span class="self">self</span>.main_id].dfg.globals;
-        <span class="kw">for </span>used_global_values <span class="kw">in </span>used_globals_map.values_mut() {
+        <span class="kw">for </span>used_global_values <span class="kw">in </span>result.used_globals.values_mut() {
             <span class="comment">// DIE only tracks used instruction results, however, globals include constants.
             // Back track globals for internal values which may be in use.
             </span><span class="kw">for </span>(id, value) <span class="kw">in </span>globals.values_iter().rev() {
@@ -952,10 +1023,10 @@
             }
         }
 
-        <span class="self">self</span>.used_globals = used_globals_map;
+        <span class="self">self</span>.used_globals = std::mem::take(<span class="kw-2">&amp;mut </span>result.used_globals);
 
-        <span class="self">self
-    </span>}
+        (<span class="self">self</span>, result)
+    }
 }
 
 <span class="kw">impl </span>Function {
@@ -966,15 +1037,18 @@
     /// If we did not iterate blocks in this order we could not safely say whether or not the results
     /// of its instructions are needed elsewhere.
     ///
-    /// Returns the set of globals that were used in this function.
-    /// After processing all functions, the union of these sets enables determining the unused globals.
+    /// # Returns
+    /// - The set of globals that were used in this function.
+    ///   After processing all functions, the union of these sets enables determining the unused globals.
+    /// - A mapping of (block id -&gt; unused parameters) for the given function.
+    ///   This can be used by follow-up passes to prune unused parameters from blocks.
     </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>dead_instruction_elimination(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
         flattened: bool,
         skip_brillig: bool,
-    ) -&gt; HashSet&lt;ValueId&gt; {
+    ) -&gt; (HashSet&lt;ValueId&gt;, HashMap&lt;BasicBlockId, Vec&lt;ValueId&gt;&gt;) {
         <span class="kw">if </span>skip_brillig &amp;&amp; <span class="self">self</span>.dfg.runtime().is_brillig() {
-            <span class="kw">return </span>HashSet::default();
+            <span class="kw">return </span>(HashSet::default(), HashMap::default());
         }
 
         <span class="kw">let </span><span class="kw-2">mut </span>context = Context { flattened, ..Default::default() };
@@ -986,16 +1060,33 @@
         }
 
         <span class="kw">let </span>blocks = PostOrder::with_function(<span class="self">self</span>);
+        <span class="kw">let </span><span class="kw-2">mut </span>unused_params_per_block = HashMap::default();
         <span class="kw">for </span>block <span class="kw">in </span>blocks.as_slice() {
             context.remove_unused_instructions_in_block(<span class="self">self</span>, <span class="kw-2">*</span>block);
+
+            <span class="kw">let </span>unused_params = <span class="self">self</span>.dfg[<span class="kw-2">*</span>block]
+                .parameters()
+                .iter()
+                .filter(|value| !context.used_values.contains(value))
+                .copied()
+                .collect::&lt;Vec&lt;<span class="kw">_</span>&gt;&gt;();
+            unused_params_per_block.insert(<span class="kw-2">*</span>block, unused_params);
         }
 
         context.remove_rc_instructions(<span class="kw-2">&amp;mut </span><span class="self">self</span>.dfg);
 
-        context.used_values.into_iter().filter(|value| <span class="self">self</span>.dfg.is_global(<span class="kw-2">*</span>value)).collect()
+        (
+            context.used_values.into_iter().filter(|value| <span class="self">self</span>.dfg.is_global(<span class="kw-2">*</span>value)).collect(),
+            unused_params_per_block,
+        )
     }
 }
 
+<span class="attr">#[derive(Default)]
+</span><span class="kw">struct </span>DIEResult {
+    used_globals: HashMap&lt;FunctionId, HashSet&lt;ValueId&gt;&gt;,
+    unused_parameters: HashMap&lt;FunctionId, HashMap&lt;BasicBlockId, Vec&lt;ValueId&gt;&gt;&gt;,
+}
 <span class="doccomment">/// Per function context for tracking unused values and which instructions to remove.
 </span><span class="attr">#[derive(Default)]
 </span><span class="kw">struct </span>Context {
@@ -1420,8 +1511,7 @@
             }
             "</span>;
         <span class="kw">let </span>ssa = Ssa::from_str(src).unwrap();
-        <span class="kw">let </span><span class="kw-2">mut </span>ssa = ssa.dead_instruction_elimination();
-        ssa.normalize_ids();
+        <span class="kw">let </span>(ssa, <span class="kw">_</span>) = ssa.dead_instruction_elimination_inner(<span class="bool-val">false</span>, <span class="bool-val">false</span>);
 
         <span class="macro">assert_ssa_snapshot!</span>(ssa, @<span class="string">r"
         acir(inline) fn main f0 {
@@ -1726,7 +1816,7 @@
         <span class="kw">let </span>ssa = Ssa::from_str(src).unwrap();
 
         <span class="comment">// Even though these ACIR functions only have 1 block, we have not inlined and flattened anything yet.
-        </span><span class="kw">let </span>ssa = ssa.dead_instruction_elimination_inner(<span class="bool-val">false</span>, <span class="bool-val">false</span>);
+        </span><span class="kw">let </span>(ssa, <span class="kw">_</span>) = ssa.dead_instruction_elimination_inner(<span class="bool-val">false</span>, <span class="bool-val">false</span>);
 
         <span class="macro">assert_ssa_snapshot!</span>(ssa, @<span class="string">r"
         acir(inline) fn main f0 {

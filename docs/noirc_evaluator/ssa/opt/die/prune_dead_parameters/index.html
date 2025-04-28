@@ -1,0 +1,34 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="This module implements the pruning of unused block parameters from functions."><title>noirc_evaluator::ssa::opt::die::prune_dead_parameters - Rust</title><script>if(window.location.protocol!=="file:")document.head.insertAdjacentHTML("beforeend","SourceSerif4-Regular-6b053e98.ttf.woff2,FiraSans-Regular-0fe48ade.woff2,FiraSans-Medium-e1aa3f0a.woff2,SourceCodePro-Regular-8badfe75.ttf.woff2,SourceCodePro-Semibold-aa29a496.ttf.woff2".split(",").map(f=>`<link rel="preload" as="font" type="font/woff2" crossorigin href="../../../../../static.files/${f}">`).join(""))</script><link rel="stylesheet" href="../../../../../static.files/normalize-9960930a.css"><link rel="stylesheet" href="../../../../../static.files/rustdoc-46132b98.css"><meta name="rustdoc-vars" data-root-path="../../../../../" data-static-root-path="../../../../../static.files/" data-current-crate="noirc_evaluator" data-themes="" data-resource-suffix="" data-rustdoc-version="1.85.0 (4d91de4e4 2025-02-17)" data-channel="1.85.0" data-search-js="search-75f5ac3e.js" data-settings-js="settings-0f613d39.js" ><script src="../../../../../static.files/storage-59e33391.js"></script><script defer src="../sidebar-items.js"></script><script defer src="../../../../../static.files/main-5f194d8c.js"></script><noscript><link rel="stylesheet" href="../../../../../static.files/noscript-893ab5e7.css"></noscript><link rel="alternate icon" type="image/png" href="../../../../../static.files/favicon-32x32-6580c154.png"><link rel="icon" type="image/svg+xml" href="../../../../../static.files/favicon-044be391.svg"></head><body class="rustdoc mod"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="mobile-topbar"><button class="sidebar-menu-toggle" title="show sidebar"></button></nav><nav class="sidebar"><div class="sidebar-crate"><h2><a href="../../../../../noirc_evaluator/index.html">noirc_<wbr>evaluator</a><span class="version">1.0.0-beta.4</span></h2></div><div class="sidebar-elems"><section id="rustdoc-toc"><h2 class="location"><a href="#">Module prune_<wbr>dead_<wbr>parameters</a></h2><h3><a href="#">Sections</a></h3><ul class="block top-toc"><li><a href="#how-this-pass-works" title="How this pass works:">How this pass works:</a></li><li><a href="#preconditions" title="Preconditions:">Preconditions:</a></li><li><a href="#panics" title="Panics">Panics</a></li><li><a href="#example" title="Example:">Example:</a></li></ul></section><div id="rustdoc-modnav"><h2><a href="../index.html">In noirc_<wbr>evaluator::<wbr>ssa::<wbr>opt::<wbr>die</a></h2></div></div></nav><div class="sidebar-resizer"></div><main><div class="width-limiter"><rustdoc-search></rustdoc-search><section id="main-content" class="content"><div class="main-heading"><span class="rustdoc-breadcrumbs"><a href="../../../../index.html">noirc_evaluator</a>::<wbr><a href="../../../index.html">ssa</a>::<wbr><a href="../../index.html">opt</a>::<wbr><a href="../index.html">die</a></span><h1>Module <span>prune_dead_parameters</span><button id="copy-path" title="Copy item path to clipboard">Copy item path</button></h1><rustdoc-toolbar></rustdoc-toolbar><span class="sub-heading"><a class="src" href="../../../../../src/noirc_evaluator/ssa/opt/die/prune_dead_parameters.rs.html#1-392">Source</a> </span></div><details class="toggle top-doc" open><summary class="hideme"><span>Expand description</span></summary><div class="docblock"><p>This module implements the pruning of unused block parameters from functions.</p>
+<p>Blocks can accept parameters that are passed via terminator instructions (e.g., <code>jmp</code>).
+During the compilation pipeline, it’s common for some of these parameters to become unused.
+This module eliminates those unused parameters and correspondingly
+adjusts the terminators of predecessor blocks. This work is ultimately done to reduce code size.</p>
+<h3 id="how-this-pass-works"><a class="doc-anchor" href="#how-this-pass-works">§</a>How this pass works:</h3>
+<ul>
+<li>Iterates through all blocks in post-order (to ensure predecessors are visited after successors).</li>
+<li>Detects and removes unused block parameters, except for those on the entry block.</li>
+<li>Clears the list of unused block parameters after removing them from the block.</li>
+<li><strong>Entry block parameters</strong> are never removed. These often correspond to function inputs and
+must remain to preserve the function’s external interface, even if they’re unused internally.</li>
+<li>Updates the corresponding argument lists in predecessor terminator instructions to keep
+them aligned with the new parameter lists.</li>
+</ul>
+<h3 id="preconditions"><a class="doc-anchor" href="#preconditions">§</a>Preconditions:</h3>
+<ul>
+<li>This pass should be run <em>after</em> <a href="../index.html" title="mod noirc_evaluator::ssa::opt::die">Dead Instruction Elimination (DIE)</a> so that parameter
+liveness is up-to-date.</li>
+</ul>
+<h3 id="panics"><a class="doc-anchor" href="#panics">§</a>Panics</h3>
+<p>Return blocks are not expected to have successors, so encountering one as a predecessor
+is treated as an internal compiler error (ICE).</p>
+<h3 id="example"><a class="doc-anchor" href="#example">§</a>Example:</h3>
+<p>Before pruning:</p>
+<div class="example-wrap"><pre class="language-text"><code>b0():
+  jmp b1(Field 1, Field 2, Field 3)
+b1(v0: Field, v1: Field, v2: Field):
+  return v1</code></pre></div>
+<p>After pruning:</p>
+<div class="example-wrap"><pre class="language-text"><code>b0():
+  jmp b1(Field 2)
+b1(v0: Field):
+  return v0</code></pre></div></div></details></section></div></main></body></html>
