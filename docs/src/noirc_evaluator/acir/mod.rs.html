@@ -2873,17 +2873,7 @@
 <a href="#2872" id="2872">2872</a>
 <a href="#2873" id="2873">2873</a>
 <a href="#2874" id="2874">2874</a>
-<a href="#2875" id="2875">2875</a>
-<a href="#2876" id="2876">2876</a>
-<a href="#2877" id="2877">2877</a>
-<a href="#2878" id="2878">2878</a>
-<a href="#2879" id="2879">2879</a>
-<a href="#2880" id="2880">2880</a>
-<a href="#2881" id="2881">2881</a>
-<a href="#2882" id="2882">2882</a>
-<a href="#2883" id="2883">2883</a>
-<a href="#2884" id="2884">2884</a>
-<a href="#2885" id="2885">2885</a></pre></div><pre class="rust"><code><span class="doccomment">//! The `acir` module contains all the logic necessary for noirc's ACIR-gen pass which
+<a href="#2875" id="2875">2875</a></pre></div><pre class="rust"><code><span class="doccomment">//! The `acir` module contains all the logic necessary for noirc's ACIR-gen pass which
 //! generates the output ACIR program.
 //!
 //! # Usage
@@ -4177,19 +4167,9 @@
                         (array_len, array)
                     }
                     AcirValue::DynamicArray(source_array) =&gt; {
-                        <span class="kw">let </span>result_block_id = <span class="self">self</span>.block_id(<span class="kw-2">&amp;</span>result_ids[<span class="number">1</span>]);
-                        <span class="self">self</span>.copy_dynamic_array(
-                            source_array.block_id,
-                            result_block_id,
-                            source_array.len,
-                        )<span class="question-mark">?</span>;
-
-                        <span class="kw">let </span>array = AcirValue::DynamicArray(AcirDynamicArray {
-                            block_id: result_block_id,
-                            len: source_array.len,
-                            value_types: source_array.value_types,
-                            element_type_sizes: source_array.element_type_sizes,
-                        });
+                        <span class="kw">let </span>array =
+                            <span class="self">self</span>.read_dynamic_array(source_array.block_id, source_array.len)<span class="question-mark">?</span>;
+                        <span class="kw">let </span>array = AcirValue::Array(array);
 
                         (source_array.len, array)
                     }
