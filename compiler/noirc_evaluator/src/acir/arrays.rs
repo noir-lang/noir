@@ -528,7 +528,7 @@ impl Context<'_> {
         } else {
             // Initialize the new array with the values from the old array
             result_block_id = self.block_id(result_id);
-            self.copy_dynamic_array(block_id, result_block_id, array_len)?;
+            self.copy_array(array, result_block_id, dfg)?;
         }
 
         self.array_set_value(&store_value, result_block_id, &mut var_index)?;
@@ -737,7 +737,7 @@ impl Context<'_> {
         Ok(element_type_sizes)
     }
 
-    fn read_dynamic_array(
+    pub(super) fn read_dynamic_array(
         &mut self,
         source: BlockId,
         array_len: usize,
@@ -749,6 +749,31 @@ impl Context<'_> {
             Ok::<AcirValue, RuntimeError>(AcirValue::Var(read, AcirType::field()))
         })?;
         Ok(init_values.into())
+    }
+
+    pub(super) fn copy_array(
+        &mut self,
+        source: ValueId,
+        destination: BlockId,
+        dfg: &DataFlowGraph,
+    ) -> Result<(), RuntimeError> {
+        let original_array = self.convert_value(source, dfg);
+
+        let array_typ = dfg.type_of_value(source);
+        let array_len = if !array_typ.contains_slice_element() {
+            array_typ.flattened_size() as usize
+        } else {
+            self.flattened_slice_size(source, dfg)
+        };
+        match original_array {
+            AcirValue::Var(_, _) => unreachable!("uh oh"),
+            source @ AcirValue::Array(_) => {
+                Ok(self.initialize_array(destination, array_len, Some(source))?)
+            }
+            AcirValue::DynamicArray(_) => {
+                self.copy_dynamic_array(destination, destination, array_len)
+            }
+        }
     }
 
     pub(super) fn copy_dynamic_array(
