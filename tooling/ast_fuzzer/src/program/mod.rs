@@ -405,6 +405,7 @@ impl std::fmt::Display for DisplayAstAsNoir<'_> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let mut printer = AstPrinter::default();
         printer.show_id = false;
+        printer.show_clone_and_drop = false;
         printer.print_program(self.0, f)
     }
 }
@@ -420,6 +421,7 @@ impl std::fmt::Display for DisplayAstAsNoirComptime<'_> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let mut printer = AstPrinter::default();
         printer.show_id = false;
+        printer.show_clone_and_drop = false;
         for function in &self.0.functions {
             let mut fpo = FunctionPrintOptions::default();
             if function.id == Program::main_id() {
