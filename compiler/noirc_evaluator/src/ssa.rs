@@ -224,6 +224,10 @@ pub fn secondary_passes(brillig: &Brillig) -> Vec<SsaPass> {
 /// In the future, we can potentially execute the actual initial version using the SSA interpreter.
 pub fn minimal_passes() -> Vec<SsaPass<'static>> {
     vec![
+        // Even the initial SSA generation can result in optimizations that leave a function
+        // which was called in the AST not being called in the SSA. Such functions would cause
+        // panics later, when we are looking for global allocations.
+        SsaPass::new(Ssa::remove_unreachable_functions, "Removing Unreachable Functions"),
         // We need a DIE pass to populate `used_globals`, otherwise it will panic later.
         SsaPass::new(Ssa::dead_instruction_elimination, "Dead Instruction Elimination"),
         // We need to add an offset to constant array indices in Brillig.
