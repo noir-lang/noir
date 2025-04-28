@@ -22,6 +22,7 @@ pub(crate) fn evaluate_binary_field_op<F: AcirField>(
     op: &BinaryFieldOp,
     lhs: MemoryValue<F>,
     rhs: MemoryValue<F>,
+    inverse_cache: &mut lru::LruCache<F, F>,
 ) -> Result<MemoryValue<F>, BrilligArithmeticError> {
     let a = lhs.expect_field().map_err(|err| {
         if let MemoryTypeError::MismatchedBitSize { value_bit_size, expected_bit_size } = err {
@@ -57,7 +58,8 @@ pub(crate) fn evaluate_binary_field_op<F: AcirField>(
             } else if b == -F::one() {
                 MemoryValue::new_field(-a)
             } else {
-                MemoryValue::new_field(a / b)
+                let inverse = inverse_cache.get_or_insert(b, || b.inverse());
+                MemoryValue::new_field(a * *inverse)
             }
         }
         BinaryFieldOp::IntegerDiv => {

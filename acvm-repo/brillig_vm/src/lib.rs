@@ -11,6 +11,8 @@
 //! [acvm]: https://crates.io/crates/acvm
 
 use std::collections::HashMap;
+use std::hash::Hash;
+use std::num::NonZeroUsize;
 
 use acir::AcirField;
 use acir::brillig::{
@@ -99,9 +101,9 @@ pub struct BrilligProfilingSample {
     pub call_stack: Vec<usize>,
 }
 
-#[derive(Debug, PartialEq, Eq, Clone)]
+#[derive(Debug, Clone)]
 /// VM encapsulates the state of the Brillig VM during execution.
-pub struct VM<'a, F, B: BlackBoxFunctionSolver<F>> {
+pub struct VM<'a, F: Hash + Eq + PartialEq, B: BlackBoxFunctionSolver<F>> {
     /// Calldata to the brillig function
     calldata: Vec<F>,
     /// Instruction pointer
@@ -136,6 +138,8 @@ pub struct VM<'a, F, B: BlackBoxFunctionSolver<F>> {
 
     // Branch to feature map for fuzzing
     branch_to_feature_map: BranchToFeatureMap,
+
+    inverse_cache: lru::LruCache<F, F>,
 }
 
 impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>> VM<'a, F, B> {
@@ -172,6 +176,7 @@ impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>> VM<'a, F, B> {
             fuzzing_active,
             fuzzer_trace,
             branch_to_feature_map,
+            inverse_cache: lru::LruCache::new(NonZeroUsize::new(20).unwrap()),
         }
     }
 
@@ -979,7 +984,8 @@ impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>> VM<'a, F, B> {
         let lhs_value = self.memory.read(lhs);
         let rhs_value = self.memory.read(rhs);
 
-        let result_value = evaluate_binary_field_op(&op, lhs_value, rhs_value)?;
+        let result_value =
+            evaluate_binary_field_op(&op, lhs_value, rhs_value, &mut self.inverse_cache)?;
 
         self.memory.write(result, result_value);
 

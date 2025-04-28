@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::{collections::HashMap, hash::Hash};
 
 use acir::{
     AcirField,
@@ -32,7 +32,7 @@ pub enum BrilligSolverStatus<F> {
 
 /// Specific solver for Brillig opcodes
 /// It maintains a Brillig VM that can execute the bytecode of the called brillig function
-pub struct BrilligSolver<'b, F, B: BlackBoxFunctionSolver<F>> {
+pub struct BrilligSolver<'b, F: Hash + Eq + PartialEq, B: BlackBoxFunctionSolver<F>> {
     vm: VM<'b, F, B>,
     acir_index: usize,
     /// This id references which Brillig function within the main ACIR program we are solving.

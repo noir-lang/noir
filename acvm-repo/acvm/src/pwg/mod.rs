@@ -74,8 +74,7 @@ impl<F> std::fmt::Display for ACVMStatus<F> {
     }
 }
 
-#[expect(clippy::large_enum_variant)]
-pub enum StepResult<'a, F, B: BlackBoxFunctionSolver<F>> {
+pub enum StepResult<'a, F: std::hash::Hash + Eq + PartialEq, B: BlackBoxFunctionSolver<F>> {
     Status(ACVMStatus<F>),
     IntoBrillig(BrilligSolver<'a, F, B>),
 }
