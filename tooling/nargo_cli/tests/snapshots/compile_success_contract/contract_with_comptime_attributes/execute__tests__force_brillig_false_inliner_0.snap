@@ -11,7 +11,7 @@ expression: artifact
       "hash": "[hash]",
       "is_unconstrained": false,
       "custom_attributes": [
-        "super::add_utility"
+        "add_utility"
       ],
       "abi": {
         "parameters": [],
@@ -30,7 +30,7 @@ expression: artifact
       "hash": "[hash]",
       "is_unconstrained": false,
       "custom_attributes": [
-        "(quoted)",
+        "utility",
         "custom"
       ],
       "abi": {

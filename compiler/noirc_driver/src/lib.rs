@@ -594,7 +594,9 @@ fn compile_contract_inner(
             .iter()
             .filter_map(|attr| match &attr.kind {
                 SecondaryAttributeKind::Tag(contents) => Some(contents.clone()),
-                SecondaryAttributeKind::Meta(attribute) => Some(attribute.to_string()),
+                SecondaryAttributeKind::Meta(meta_attribute) => {
+                    context.def_interner.get_meta_attribute_name(meta_attribute)
+                }
                 _ => None,
             })
             .collect();
