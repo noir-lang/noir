@@ -46,7 +46,7 @@ libraries:
     critical: true
   sparse_array:
     repo: noir-lang/sparse_array
-    timeout: 2
+    timeout: 3
     critical: true
   noir_rsa:
     repo: noir-lang/noir_rsa

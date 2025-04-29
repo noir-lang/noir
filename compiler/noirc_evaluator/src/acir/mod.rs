@@ -1292,19 +1292,9 @@ impl<'a> Context<'a> {
                         (array_len, array)
                     }
                     AcirValue::DynamicArray(source_array) => {
-                        let result_block_id = self.block_id(&result_ids[1]);
-                        self.copy_dynamic_array(
-                            source_array.block_id,
-                            result_block_id,
-                            source_array.len,
-                        )?;
-
-                        let array = AcirValue::DynamicArray(AcirDynamicArray {
-                            block_id: result_block_id,
-                            len: source_array.len,
-                            value_types: source_array.value_types,
-                            element_type_sizes: source_array.element_type_sizes,
-                        });
+                        let array =
+                            self.read_dynamic_array(source_array.block_id, source_array.len)?;
+                        let array = AcirValue::Array(array);
 
                         (source_array.len, array)
                     }
