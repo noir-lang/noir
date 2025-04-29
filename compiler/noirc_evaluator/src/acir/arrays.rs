@@ -845,13 +845,13 @@ impl Context<'_> {
         }
 
         self.acir_context.initialize_array(array, len, value, databus)?;
-        if !self.initialized_arrays.insert(array) {
+        if self.initialized_arrays.insert(array) {
+            Ok(())
+        } else {
             Err(InternalError::General {
                 message: "Attempted to initialize memory block twice".to_owned(),
                 call_stack: self.acir_context.get_call_stack(),
             })
-        } else {
-            Ok(())
         }
     }
 }
