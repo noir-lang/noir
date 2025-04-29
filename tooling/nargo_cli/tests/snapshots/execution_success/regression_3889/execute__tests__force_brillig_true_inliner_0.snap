@@ -70,7 +70,7 @@ expression: artifact
     }
   },
   "bytecode": "H4sIAAAAAAAA/9VVSQ7CMAzMhiAgBAIu8IpULWqPPbC8I6LqO/p0WuEoxqQXcA+MFGVxMh67TiPFC7pvEsYGrVGEPTX07jdkjFxuSp3yT3QqRp0S6dQfAxCvEsHoxNoJegu9QnbNmABL/HLyV66orHgHs/7cAqeZmH82Db+bA8+li/w4luB3DXNcZOFMsOHauhIbrrEb2BZ924g43iJfA+5d1BH8WuKLuV5KS/Ry1/t+RP+AFeThICLw96C5SN1nOXKW+gn3wnT8cZZV/Blp4J+J9ANlkB3vP8J8ifTjmOovdbalz9rct/7sm6Z4+B3hH6BQnp6hHBiwcQcAAA==",
-  "debug_symbols": "hY7NCsMgEITfZc8ekjQhIa8SSjBxDYKo+FMo4rt3LT3YXnoZdpaZ4csg8EjXroy0AdYtg7Ynj8oacrkwOLzSWl17+4auSj+/88FxU22I3EdYx7FngEbQNS3Ul0ojrFNX7gz65U9jvn01CrkH94ofGj84MpmzoYtPhz+gztsTRfJYkRta0m3o2DDRLE2/AA==",
+  "debug_symbols": "nZDBCoQgEIbfZc4esi0KXyUizKYQRMV0YQnffTVqtw572cuM4/zfP/BvMOEYlkHq2azAug1GJ5WSy6CM4F4anX43KHKhDTBKgLbAyhgJnIrBO8QsuCDJyHKH2gPTQSkCT67CLlot13v33KVtQQD1lHoynKXC/IrkSxe/0aqiB1zV7Qev/+Gbx43v08SFdLcQYnZyko8Kj3EOWly2/mXPzRmidUbgFBxmp0uSqXZlQcq6j/naGw==",
   "file_map": {
     "50": {
       "source": "mod Foo {\n    pub(crate) struct NewType {\n        pub(crate) a: Field,\n    }\n}\n\nmod Bar {\n    pub(crate) use crate::Foo::NewType;\n    pub(crate) use crate::Foo::NewType as BarStruct;\n}\n\nmod Baz {\n    pub(crate) struct Works {\n        pub(crate) a: Field,\n    }\n    pub(crate) use crate::Bar::BarStruct;\n    pub(crate) use crate::Bar::NewType;\n}\n\nfn main(works: Baz::Works, fails: Baz::BarStruct, also_fails: Bar::NewType) -> pub Field {\n    works.a + fails.a + also_fails.a\n}\n",
