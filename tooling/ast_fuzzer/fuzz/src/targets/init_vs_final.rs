@@ -4,14 +4,13 @@
 use crate::{
     compare_results, create_ssa_or_die, create_ssa_with_passes_or_die, default_ssa_options,
 };
-use arbitrary::Unstructured;
+use arbitrary::{Arbitrary, Unstructured};
 use color_eyre::eyre;
-use noir_ast_fuzzer::compare::ComparePasses;
+use noir_ast_fuzzer::compare::{CompareOptions, ComparePasses};
 use noir_ast_fuzzer::{Config, change_all_functions_into_unconstrained, compare::CompareResult};
 use noirc_evaluator::ssa::minimal_passes;
 
 pub fn fuzz(u: &mut Unstructured) -> eyre::Result<()> {
-    let options = default_ssa_options();
     let passes = minimal_passes();
     let config = Config {
         // Try to avoid using overflowing operations; see below for the reason.
@@ -25,13 +24,25 @@ pub fn fuzz(u: &mut Unstructured) -> eyre::Result<()> {
     let inputs = ComparePasses::arb(
         u,
         config,
-        |program| {
+        |_u, program| {
             // We want to do the minimum possible amount of SSA passes. Brillig can get away with fewer than ACIR,
             // because ACIR needs unrolling of loops for example, so we treat everything as Brillig.
-            let program = change_all_functions_into_unconstrained(program);
-            create_ssa_with_passes_or_die(program, &options, &passes, |_| vec![], Some("init"))
+            let options = CompareOptions::default();
+            let ssa = create_ssa_with_passes_or_die(
+                change_all_functions_into_unconstrained(program),
+                &options.onto(default_ssa_options()),
+                &passes,
+                |_| vec![],
+                Some("init"),
+            );
+            Ok((ssa, options))
         },
-        |program| create_ssa_or_die(program, &options, Some("final")),
+        |u, program| {
+            let options = CompareOptions::arbitrary(u)?;
+            let ssa =
+                create_ssa_or_die(program, &options.onto(default_ssa_options()), Some("final"));
+            Ok((ssa, options))
+        },
     )?;
 
     let result = inputs.exec()?;
