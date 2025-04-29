@@ -261,16 +261,11 @@ impl Context {
         } else {
             None
         };
+
         block.unwrap_terminator().for_eachi_value(|index, value| {
-            if let Some(destination) = jmp_destination {
-                let keep_list = self
-                    .parameter_keep_list
-                    .get(&destination)
-                    .expect("Should have a list of used parameters");
-                if keep_list[index] {
-                    self.mark_used_instruction_results(&function.dfg, value);
-                }
-            } else {
+            let keep_list = jmp_destination.and_then(|dest| self.parameter_keep_list.get(&dest));
+            let should_keep = keep_list.is_none_or(|list| list[index]);
+            if should_keep {
                 self.mark_used_instruction_results(&function.dfg, value);
             }
         });
