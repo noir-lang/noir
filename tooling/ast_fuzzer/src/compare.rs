@@ -21,15 +21,9 @@ type ExecResult = (Result<WitnessStack<FieldElement>, NargoError<FieldElement>>,
 /// Subset of [SsaEvaluatorOptions] that we want to vary.
 ///
 /// It exists to reduce noise in the printed results, compared to showing the full `SsaEvaluatorOptions`.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 pub struct CompareOptions {
     pub inliner_aggressiveness: i64,
-}
-
-impl Default for CompareOptions {
-    fn default() -> Self {
-        Self { inliner_aggressiveness: 0 }
-    }
 }
 
 impl Arbitrary<'_> for CompareOptions {
