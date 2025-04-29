@@ -4673,3 +4673,21 @@ fn attempt_to_divide_by_zero_at_comptime() {
         "#;
     check_errors!(src);
 }
+
+#[named]
+#[test]
+fn types_and_values_namespace() {
+    let src = "
+    struct foo {}
+
+    fn foo(x: foo) -> foo {
+        x
+    }
+
+    fn main() {
+        let x: foo = foo {};
+        let _ = foo(x);
+    }
+    ";
+    assert_no_errors!(src);
+}

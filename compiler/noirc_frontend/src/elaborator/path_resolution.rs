@@ -21,15 +21,79 @@ pub(crate) struct PathResolution {
     pub(crate) errors: Vec<PathResolutionError>,
 }
 
-/// All possible items that result from resolving a Path.
-/// Note that this item doesn't include the last turbofish in a Path,
-/// only intermediate ones, if any.
+#[derive(Debug)]
+pub(crate) enum PathResolutionItem {
+    Type(PathResolutionTypeItem),
+    Value(PathResolutionValueItem),
+    TypeAndValue(PathResolutionTypeItem, PathResolutionValueItem),
+}
+
+impl PathResolutionItem {
+    pub(crate) fn into_type(self) -> Option<PathResolutionTypeItem> {
+        match self {
+            Self::Type(typ) | Self::TypeAndValue(typ, _) => Some(typ),
+            _ => None,
+        }
+    }
+
+    pub(crate) fn as_type(&self) -> Option<&PathResolutionTypeItem> {
+        match self {
+            Self::Type(typ) | Self::TypeAndValue(typ, _) => Some(typ),
+            _ => None,
+        }
+    }
+
+    pub(crate) fn into_value(self) -> Option<PathResolutionValueItem> {
+        match self {
+            Self::Value(value) | Self::TypeAndValue(_, value) => Some(value),
+            _ => None,
+        }
+    }
+
+    pub(crate) fn as_value(&self) -> Option<&PathResolutionValueItem> {
+        match self {
+            Self::Value(value) | Self::TypeAndValue(_, value) => Some(value),
+            _ => None,
+        }
+    }
+
+    pub(crate) fn function_id(&self) -> Option<FuncId> {
+        self.as_value().and_then(|item| item.function_id())
+    }
+
+    pub(crate) fn description(&self) -> &'static str {
+        match self {
+            Self::Type(item) => item.description(),
+            Self::Value(item) => item.description(),
+            Self::TypeAndValue(item, _) => {
+                // Any of the two items can be used to describe the resolution.
+                item.description()
+            }
+        }
+    }
+}
+
 #[derive(Debug, Clone)]
-pub enum PathResolutionItem {
+pub(crate) enum PathResolutionTypeItem {
     Module(ModuleId),
     Type(TypeId),
     TypeAlias(TypeAliasId),
     Trait(TraitId),
+}
+
+impl PathResolutionTypeItem {
+    pub(crate) fn description(&self) -> &'static str {
+        match self {
+            Self::Module(..) => "module",
+            Self::Type(..) => "type",
+            Self::TypeAlias(..) => "type alias",
+            Self::Trait(..) => "trait",
+        }
+    }
+}
+
+#[derive(Debug, Clone)]
+pub(crate) enum PathResolutionValueItem {
     Global(GlobalId),
     ModuleFunction(FuncId),
     Method(TypeId, Option<Turbofish>, FuncId),
@@ -38,41 +102,26 @@ pub enum PathResolutionItem {
     TraitFunction(TraitId, Option<Turbofish>, FuncId),
 }
 
-impl PathResolutionItem {
-    pub fn function_id(&self) -> Option<FuncId> {
+impl PathResolutionValueItem {
+    pub(crate) fn function_id(&self) -> Option<FuncId> {
         match self {
-            PathResolutionItem::ModuleFunction(func_id)
-            | PathResolutionItem::Method(_, _, func_id)
-            | PathResolutionItem::SelfMethod(func_id)
-            | PathResolutionItem::TypeAliasFunction(_, _, func_id)
-            | PathResolutionItem::TraitFunction(_, _, func_id) => Some(*func_id),
-            PathResolutionItem::Module(..)
-            | PathResolutionItem::Type(..)
-            | PathResolutionItem::TypeAlias(..)
-            | PathResolutionItem::Trait(..)
-            | PathResolutionItem::Global(..) => None,
+            Self::ModuleFunction(func_id)
+            | Self::Method(_, _, func_id)
+            | Self::SelfMethod(func_id)
+            | Self::TypeAliasFunction(_, _, func_id)
+            | Self::TraitFunction(_, _, func_id) => Some(*func_id),
+            Self::Global(..) => None,
         }
     }
 
-    pub fn module_id(&self) -> Option<ModuleId> {
+    pub(crate) fn description(&self) -> &'static str {
         match self {
-            Self::Module(module_id) => Some(*module_id),
-            _ => None,
-        }
-    }
-
-    pub fn description(&self) -> &'static str {
-        match self {
-            PathResolutionItem::Module(..) => "module",
-            PathResolutionItem::Type(..) => "type",
-            PathResolutionItem::TypeAlias(..) => "type alias",
-            PathResolutionItem::Trait(..) => "trait",
-            PathResolutionItem::Global(..) => "global",
-            PathResolutionItem::ModuleFunction(..)
-            | PathResolutionItem::Method(..)
-            | PathResolutionItem::SelfMethod(..)
-            | PathResolutionItem::TypeAliasFunction(..)
-            | PathResolutionItem::TraitFunction(..) => "function",
+            Self::Global(..) => "global",
+            Self::ModuleFunction(..)
+            | Self::Method(..)
+            | Self::SelfMethod(..)
+            | Self::TypeAliasFunction(..)
+            | Self::TraitFunction(..) => "function",
         }
     }
 }
@@ -84,7 +133,7 @@ pub struct Turbofish {
 }
 
 /// Any item that can appear before the last segment in a path.
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 enum IntermediatePathResolutionItem {
     SelfType,
     Module,
@@ -196,7 +245,7 @@ impl Elaborator<'_> {
                 let datatype = datatype.borrow();
                 if path.segments.len() == 1 {
                     return Ok(PathResolution {
-                        item: PathResolutionItem::Type(datatype.id),
+                        item: PathResolutionItem::Type(PathResolutionTypeItem::Type(datatype.id)),
                         errors: Vec::new(),
                     });
                 }
@@ -242,7 +291,7 @@ impl Elaborator<'_> {
         // There is a possibility that the import path is empty. In that case, early return.
         if path.segments.is_empty() {
             return Ok(PathResolution {
-                item: PathResolutionItem::Module(starting_module),
+                item: PathResolutionItem::Type(PathResolutionTypeItem::Module(starting_module)),
                 errors: Vec::new(),
             });
         }
@@ -403,9 +452,65 @@ impl Elaborator<'_> {
             current_ns = found_ns;
         }
 
-        let (module_def_id, visibility, _) =
-            current_ns.values.or(current_ns.types).expect("Found empty namespace");
+        let type_item = current_ns.types.map(|(module_def_id, visibility, ..)| {
+            self.per_ns_item_to_path_resolution_item(
+                path.clone(),
+                importing_module,
+                intermediate_item.clone(),
+                current_module_id,
+                &mut errors,
+                module_def_id,
+                visibility,
+            )
+        });
 
+        let value_item = current_ns.values.map(|(module_def_id, visibility, ..)| {
+            self.per_ns_item_to_path_resolution_item(
+                path,
+                importing_module,
+                intermediate_item,
+                current_module_id,
+                &mut errors,
+                module_def_id,
+                visibility,
+            )
+        });
+
+        let type_item = type_item.map(|type_item| match type_item {
+            PathResolutionItem::Type(item) | PathResolutionItem::TypeAndValue(item, _) => item,
+            PathResolutionItem::Value(_) => {
+                unreachable!("A type should have been produced from the type namespace")
+            }
+        });
+        let value_item = value_item.map(|value_item| match value_item {
+            PathResolutionItem::Value(item) | PathResolutionItem::TypeAndValue(_, item) => item,
+            PathResolutionItem::Type(_) => {
+                unreachable!("A value should have been produced from the value namespace")
+            }
+        });
+        let item = match (type_item, value_item) {
+            (Some(type_item), None) => PathResolutionItem::Type(type_item),
+            (None, Some(value_item)) => PathResolutionItem::Value(value_item),
+            (Some(type_item), Some(value_item)) => {
+                PathResolutionItem::TypeAndValue(type_item, value_item)
+            }
+            (None, None) => unreachable!("Found an empty namespace"),
+        };
+
+        Ok(PathResolution { item, errors })
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    fn per_ns_item_to_path_resolution_item(
+        &mut self,
+        path: Path,
+        importing_module: ModuleId,
+        intermediate_item: IntermediatePathResolutionItem,
+        current_module_id: ModuleId,
+        errors: &mut Vec<PathResolutionError>,
+        module_def_id: ModuleDefId,
+        visibility: crate::ast::ItemVisibility,
+    ) -> PathResolutionItem {
         let name = path.last_ident();
         let is_self_type = name.is_self_type_name();
         let location = name.location();
@@ -426,8 +531,7 @@ impl Elaborator<'_> {
         {
             errors.push(PathResolutionError::Private(name.clone()));
         }
-
-        Ok(PathResolution { item, errors })
+        item
     }
 
     fn self_type_module_id(&self) -> Option<ModuleId> {
@@ -500,23 +604,39 @@ fn merge_intermediate_path_resolution_item_with_module_def_id(
     module_def_id: ModuleDefId,
 ) -> PathResolutionItem {
     match module_def_id {
-        ModuleDefId::ModuleId(module_id) => PathResolutionItem::Module(module_id),
-        ModuleDefId::TypeId(type_id) => PathResolutionItem::Type(type_id),
-        ModuleDefId::TypeAliasId(type_alias_id) => PathResolutionItem::TypeAlias(type_alias_id),
-        ModuleDefId::TraitId(trait_id) => PathResolutionItem::Trait(trait_id),
-        ModuleDefId::GlobalId(global_id) => PathResolutionItem::Global(global_id),
+        ModuleDefId::ModuleId(module_id) => {
+            PathResolutionItem::Type(PathResolutionTypeItem::Module(module_id))
+        }
+        ModuleDefId::TypeId(type_id) => {
+            PathResolutionItem::Type(PathResolutionTypeItem::Type(type_id))
+        }
+        ModuleDefId::TypeAliasId(type_alias_id) => {
+            PathResolutionItem::Type(PathResolutionTypeItem::TypeAlias(type_alias_id))
+        }
+        ModuleDefId::TraitId(trait_id) => {
+            PathResolutionItem::Type(PathResolutionTypeItem::Trait(trait_id))
+        }
+        ModuleDefId::GlobalId(global_id) => {
+            PathResolutionItem::Value(PathResolutionValueItem::Global(global_id))
+        }
         ModuleDefId::FunctionId(func_id) => match intermediate_item {
-            IntermediatePathResolutionItem::SelfType => PathResolutionItem::SelfMethod(func_id),
-            IntermediatePathResolutionItem::Module => PathResolutionItem::ModuleFunction(func_id),
-            IntermediatePathResolutionItem::Type(type_id, generics) => {
-                PathResolutionItem::Method(type_id, generics, func_id)
+            IntermediatePathResolutionItem::SelfType => {
+                PathResolutionItem::Value(PathResolutionValueItem::SelfMethod(func_id))
             }
+            IntermediatePathResolutionItem::Module => {
+                PathResolutionItem::Value(PathResolutionValueItem::ModuleFunction(func_id))
+            }
+            IntermediatePathResolutionItem::Type(type_id, generics) => PathResolutionItem::Value(
+                PathResolutionValueItem::Method(type_id, generics, func_id),
+            ),
             IntermediatePathResolutionItem::TypeAlias(alias_id, generics) => {
-                PathResolutionItem::TypeAliasFunction(alias_id, generics, func_id)
+                PathResolutionItem::Value(PathResolutionValueItem::TypeAliasFunction(
+                    alias_id, generics, func_id,
+                ))
             }
-            IntermediatePathResolutionItem::Trait(trait_id, generics) => {
-                PathResolutionItem::TraitFunction(trait_id, generics, func_id)
-            }
+            IntermediatePathResolutionItem::Trait(trait_id, generics) => PathResolutionItem::Value(
+                PathResolutionValueItem::TraitFunction(trait_id, generics, func_id),
+            ),
         },
     }
 }
