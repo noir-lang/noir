@@ -1,4 +1,4 @@
-use std::hash::poseidon2::Poseidon2;
+use poseidon::poseidon2::Poseidon2;
 
 global NUM_HASHES: u32 = 2;
 global HASH_LENGTH: u32 = 10;

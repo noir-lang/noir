@@ -1,15 +1,8 @@
-warning: MyStruct is private and not visible from the current module
-  ┌─ src/main.nr:4:17
-  │
-4 │ use crate::lib::MyStruct;
-  │                 -------- MyStruct is private
-  │
-
 warning: struct `MyStruct` is never constructed
-  ┌─ src/lib.nr:1:8
+  ┌─ src/lib.nr:1:19
   │
-1 │ struct MyStruct {
-  │        -------- struct is never constructed
+1 │ pub(crate) struct MyStruct {
+  │                   -------- struct is never constructed
   │
 
 error: Duplicate definitions of import with name lib found
