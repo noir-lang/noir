@@ -18,7 +18,7 @@ mod instructions;
 
 fn executes_with_no_errors(src: &str) {
     let ssa = Ssa::from_str(src).unwrap();
-    assert!(super::interpret(&ssa).is_ok())
+    assert!(ssa.interpret().is_ok())
 }
 
 fn expect_values(src: &str) -> Vec<Value> {
@@ -31,12 +31,12 @@ fn expect_value(src: &str) -> Value {
 
 fn expect_error(src: &str) -> RuntimeError {
     let ssa = Ssa::from_str(src).unwrap();
-    super::interpret(&ssa).unwrap_err()
+    ssa.interpret().unwrap_err()
 }
 
 fn expect_values_with_args(src: &str, args: Vec<Value>) -> Vec<Value> {
     let ssa = Ssa::from_str(src).unwrap();
-    super::interpret_function(&ssa, ssa.main_id, args).unwrap()
+    ssa.interpret_function(ssa.main_id, args).unwrap()
 }
 
 fn expect_value_with_args(src: &str, args: Vec<Value>) -> Value {
@@ -213,4 +213,39 @@ fn keep_repeat_loads_with_alias_store() {
 
     assert_eq!(values[0], Value::from_constant(FieldElement::zero(), NumericType::NativeField));
     assert_eq!(values[1], Value::from_constant(FieldElement::one(), NumericType::NativeField));
+}
+
+fn accepts_globals() {
+    let src = "
+        g0 = Field 1
+        g1 = Field 2
+        g2 = make_array [Field 1, Field 2] : [Field; 2]
+
+        brillig(inline) predicate_pure fn main f0 {
+        b0():
+            v0 = make_array [Field 1, Field 2] : [Field; 2]
+            constrain v0 == g2
+            return
+        }
+    ";
+    executes_with_no_errors(src);
+}
+
+#[test]
+fn accepts_print() {
+    // fn main(x: Field) {
+    //     print(x);
+    //     println(x);
+    // }
+    let src = r#"
+        brillig(inline) impure fn main f0 {
+        b0(v0: Field):
+            v12 = make_array b"{\"kind\":\"field\"}"
+            call print(u1 0, v0, v12, u1 0)
+            inc_rc v12
+            call print(u1 1, v0, v12, u1 0)
+            return
+        }
+    "#;
+    executes_with_no_errors(src);
 }

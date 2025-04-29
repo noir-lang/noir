@@ -36,7 +36,9 @@ struct Interpreter<'ssa> {
 }
 
 struct CallContext {
-    called_function: FunctionId,
+    /// The function that was called. This is `None` only for the top-level global
+    /// scope where global instructions are evaluated.
+    called_function: Option<FunctionId>,
 
     /// Contains each value currently defined and visible to the current function.
     scope: HashMap<ValueId, Value>,
@@ -44,7 +46,11 @@ struct CallContext {
 
 impl CallContext {
     fn new(called_function: FunctionId) -> Self {
-        Self { called_function, scope: Default::default() }
+        Self { called_function: Some(called_function), scope: Default::default() }
+    }
+
+    fn global_context() -> Self {
+        Self { called_function: None, scope: Default::default() }
     }
 }
 
@@ -52,30 +58,41 @@ type IResult<T> = Result<T, RuntimeError>;
 type IResults = IResult<Vec<Value>>;
 
 #[allow(unused)]
-pub(crate) fn interpret(ssa: &Ssa) -> IResults {
-    interpret_function(ssa, ssa.main_id, Vec::new())
-}
+impl Ssa {
+    pub(crate) fn interpret(&self) -> IResults {
+        self.interpret_function(self.main_id, Vec::new())
+    }
 
-pub(crate) fn interpret_function(ssa: &Ssa, function: FunctionId, args: Vec<Value>) -> IResults {
-    let mut interpreter = Interpreter::new(ssa);
-    interpreter.call_function(function, args)
+    pub(crate) fn interpret_function(&self, function: FunctionId, args: Vec<Value>) -> IResults {
+        let mut interpreter = Interpreter::new(self);
+        interpreter.interpret_globals()?;
+        interpreter.call_function(function, args)
+    }
 }
 
 impl<'ssa> Interpreter<'ssa> {
     fn new(ssa: &'ssa Ssa) -> Self {
-        Self { ssa, call_stack: Vec::new(), side_effects_enabled: true }
+        let call_stack = vec![CallContext::global_context()];
+        Self { ssa, call_stack, side_effects_enabled: true }
     }
 
     fn call_context(&self) -> &CallContext {
-        self.call_stack.last().expect("Expected SSA Interpreter to be executing a function")
+        self.call_stack.last().expect("call_stack should always be non-empty")
     }
 
     fn call_context_mut(&mut self) -> &mut CallContext {
-        self.call_stack.last_mut().expect("Expected SSA Interpreter to be executing a function")
+        self.call_stack.last_mut().expect("call_stack should always be non-empty")
+    }
+
+    fn global_scope(&self) -> &HashMap<ValueId, Value> {
+        &self.call_stack.first().expect("call_stack should always be non-empty").scope
     }
 
     fn current_function(&self) -> &'ssa Function {
         let current_function_id = self.call_context().called_function;
+        let current_function_id = current_function_id.expect(
+            "Tried calling `Interpreter::current_function` while evaluating global instructions",
+        );
         &self.ssa.functions[&current_function_id]
     }
 
@@ -93,6 +110,32 @@ impl<'ssa> Interpreter<'ssa> {
         self.call_context_mut().scope.insert(id, value);
     }
 
+    fn interpret_globals(&mut self) -> IResult<()> {
+        let globals = &self.ssa.main().dfg.globals;
+        for (global_id, global) in globals.values_iter() {
+            let value = match dbg!(global) {
+                super::ir::value::Value::Instruction { instruction, .. } => {
+                    let instruction = &globals[*instruction];
+                    self.interpret_instruction(instruction, &[global_id])?;
+                    continue;
+                }
+                super::ir::value::Value::NumericConstant { constant, typ } => {
+                    Value::from_constant(*constant, *typ)
+                }
+                super::ir::value::Value::Function(id) => Value::Function(*id),
+                super::ir::value::Value::Intrinsic(intrinsic) => Value::Intrinsic(*intrinsic),
+                super::ir::value::Value::ForeignFunction(name) => {
+                    Value::ForeignFunction(name.clone())
+                }
+                super::ir::value::Value::Global(_) | super::ir::value::Value::Param { .. } => {
+                    unreachable!()
+                }
+            };
+            self.define(global_id, value);
+        }
+        Ok(())
+    }
+
     fn call_function(&mut self, function_id: FunctionId, mut arguments: Vec<Value>) -> IResults {
         self.call_stack.push(CallContext::new(function_id));
 
@@ -108,7 +151,7 @@ impl<'ssa> Interpreter<'ssa> {
             let block = &dfg[block_id];
 
             if arguments.len() != block.parameters().len() {
-                todo!("Block argument count does not match the expected parameter count");
+                panic!("Block argument count does not match the expected parameter count");
             }
 
             for (parameter, argument) in block.parameters().iter().zip(arguments) {
@@ -121,7 +164,7 @@ impl<'ssa> Interpreter<'ssa> {
             }
 
             match block.terminator() {
-                None => todo!("No terminator"),
+                None => panic!("No block terminator in block {block_id}"),
                 Some(TerminatorInstruction::Jmp { destination, arguments: jump_args, .. }) => {
                     block_id = *destination;
                     arguments = self.lookup_all(jump_args);
@@ -150,16 +193,26 @@ impl<'ssa> Interpreter<'ssa> {
     }
 
     fn lookup(&self, id: ValueId) -> Value {
+        if let Some(value) = self.call_context().scope.get(&id) {
+            return value.clone();
+        }
+
+        if let Some(value) = self.global_scope().get(&id) {
+            return value.clone();
+        }
+
         match &self.dfg()[id] {
-            super::ir::value::Value::Instruction { .. } => self.call_context().scope[&id].clone(),
-            super::ir::value::Value::Param { .. } => self.call_context().scope[&id].clone(),
             super::ir::value::Value::NumericConstant { constant, typ } => {
                 Value::from_constant(*constant, *typ)
             }
             super::ir::value::Value::Function(id) => Value::Function(*id),
             super::ir::value::Value::Intrinsic(intrinsic) => Value::Intrinsic(*intrinsic),
             super::ir::value::Value::ForeignFunction(name) => Value::ForeignFunction(name.clone()),
-            super::ir::value::Value::Global(_) => todo!("ssa globals"),
+            super::ir::value::Value::Instruction { .. }
+            | super::ir::value::Value::Param { .. }
+            | super::ir::value::Value::Global(_) => {
+                unreachable!("`{id}` should already be in scope")
+            }
         }
     }
 
@@ -238,7 +291,7 @@ impl<'ssa> Interpreter<'ssa> {
                     results[0],
                 ),
             Instruction::MakeArray { elements, typ } => {
-                self.interpret_make_array(elements, results[0]);
+                self.interpret_make_array(elements, results[0], typ);
             }
             Instruction::Noop => (),
         }
@@ -406,6 +459,7 @@ impl<'ssa> Interpreter<'ssa> {
                 Value::Intrinsic(intrinsic) => {
                     self.call_intrinsic(intrinsic, arguments, argument_ids)?
                 }
+                Value::ForeignFunction(name) if name == "print" => self.call_print(arguments)?,
                 Value::ForeignFunction(name) => {
                     todo!("call: ForeignFunction({name}) is not yet implemented")
                 }
@@ -578,16 +632,19 @@ impl<'ssa> Interpreter<'ssa> {
         self.define(result, new_result);
     }
 
-    fn interpret_make_array(&mut self, elements: &im::Vector<ValueId>, result: ValueId) {
+    fn interpret_make_array(
+        &mut self,
+        elements: &im::Vector<ValueId>,
+        result: ValueId,
+        result_type: &Type,
+    ) {
         let elements = vecmap(elements, |element| self.lookup(*element));
-
-        let result_type = self.dfg().type_of_value(result);
         let is_slice = matches!(&result_type, Type::Slice(..));
 
         let array = Value::ArrayOrSlice(ArrayValue {
             elements: Shared::new(elements),
             rc: Shared::new(1),
-            element_types: result_type.element_types(),
+            element_types: result_type.clone().element_types(),
             is_slice,
         });
         self.define(result, array);
@@ -617,7 +674,7 @@ macro_rules! apply_int_binop {
 macro_rules! apply_int_binop_opt {
     ($lhs:expr, $rhs:expr, $f:expr) => {{
         use value::NumericValue::*;
-        // TODO: Error if None
+        // TODO: Error if None instead of unwrapping
         match ($lhs, $rhs) {
             (Field(_), Field(_)) => panic!("Expected only integer values, found field values"),
             (U1(_), U1(_)) => panic!("Expected only large integer values, found u1"),
@@ -717,8 +774,12 @@ impl Interpreter<'_> {
             BinaryOp::Xor => {
                 apply_int_binop!(lhs, rhs, std::ops::BitXor::bitxor)
             }
-            BinaryOp::Shl => todo!(),
-            BinaryOp::Shr => todo!(),
+            BinaryOp::Shl => {
+                apply_int_binop!(lhs, rhs, std::ops::Shl::shl)
+            }
+            BinaryOp::Shr => {
+                apply_int_binop!(lhs, rhs, std::ops::Shr::shr)
+            }
         };
         Ok(Value::Numeric(result))
     }
@@ -762,8 +823,8 @@ impl Interpreter<'_> {
             BinaryOp::Add { unchecked: _ } => panic!("Unsupported operator `+` for u1"),
             BinaryOp::Sub { unchecked: _ } => panic!("Unsupported operator `-` for u1"),
             BinaryOp::Mul { unchecked: _ } => lhs & rhs, // (*) = (&) for u1
-            BinaryOp::Div => todo!(),
-            BinaryOp::Mod => todo!(),
+            BinaryOp::Div => panic!("Unsupported operator `/` for u1"),
+            BinaryOp::Mod => panic!("Unsupported operator `%` for u1"),
             BinaryOp::Eq => lhs == rhs,
             // clippy complains when you do `lhs < rhs` and recommends this instead
             BinaryOp::Lt => !lhs & rhs,

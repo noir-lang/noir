@@ -15,9 +15,8 @@ use noirc_evaluator::{
     errors::{InternalError, RuntimeError},
     ssa::{
         ArtifactsAndWarnings, SsaBuilder, SsaCircuitArtifact, SsaEvaluatorOptions, SsaLogging,
-        SsaProgramArtifact, function_builder::FunctionBuilder, ir::call_stack::CallStack,
-        ir::instruction::ErrorType, optimize_ssa_builder_into_acir, primary_passes,
-        secondary_passes,
+        SsaProgramArtifact, build_optimized_ssa, function_builder::FunctionBuilder,
+        ir::call_stack::CallStack, ir::instruction::ErrorType, primary_passes, secondary_passes,
     },
 };
 
@@ -60,12 +59,7 @@ fn optimize_into_acir(
         }
     }));
     let result = std::panic::catch_unwind(AssertUnwindSafe(|| {
-        optimize_ssa_builder_into_acir(
-            builder,
-            &options,
-            &primary_passes(&options),
-            secondary_passes,
-        )
+        build_optimized_ssa(builder, &options, &primary_passes(&options), secondary_passes)
     }));
     std::panic::set_hook(previous_hook);
     match result {

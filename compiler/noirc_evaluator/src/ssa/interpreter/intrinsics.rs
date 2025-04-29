@@ -211,4 +211,10 @@ impl Interpreter<'_> {
         results.extend(removed);
         Ok(results)
     }
+
+    /// Print is not an intrinsic but it is treated like one.
+    pub(super) fn call_print(&mut self, _args: Vec<Value>) -> IResults {
+        // Stub the call for now
+        Ok(Vec::new())
+    }
 }
