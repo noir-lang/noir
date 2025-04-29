@@ -24,10 +24,10 @@ pub fn fuzz(u: &mut Unstructured) -> eyre::Result<()> {
     let inputs = ComparePasses::arb(
         u,
         config,
-        |u, program| {
-            let options = CompareOptions::arbitrary(u)?;
+        |_u, program| {
             // We want to do the minimum possible amount of SSA passes. Brillig can get away with fewer than ACIR,
             // because ACIR needs unrolling of loops for example, so we treat everything as Brillig.
+            let options = CompareOptions::default();
             let ssa = create_ssa_with_passes_or_die(
                 change_all_functions_into_unconstrained(program),
                 &options.onto(default_ssa_options()),

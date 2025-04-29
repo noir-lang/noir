@@ -26,6 +26,12 @@ pub struct CompareOptions {
     pub inliner_aggressiveness: i64,
 }
 
+impl Default for CompareOptions {
+    fn default() -> Self {
+        Self { inliner_aggressiveness: 0 }
+    }
+}
+
 impl Arbitrary<'_> for CompareOptions {
     fn arbitrary(u: &mut Unstructured<'_>) -> arbitrary::Result<Self> {
         Ok(Self { inliner_aggressiveness: *u.choose(&[i64::MIN, 0, i64::MAX])? })
