@@ -289,7 +289,7 @@ mod tests {
 
         // Enable enums as an unstable feature
         nargo.arg("-Zenums");
-        
+
         // Enable pedantic solving
         nargo.arg("--pedantic-solving");
 
@@ -304,7 +304,7 @@ mod tests {
 
         // Enable enums as an unstable feature
         nargo.arg("-Zenums");
-        
+
         // Enable pedantic solving
         nargo.arg("--pedantic-solving");
 
@@ -320,7 +320,7 @@ mod tests {
         // (because some depdendencies might be there and might be needed for the expanded code to work)
         copy_dir_all(test_program_dir.clone(), temp_dir.clone()).unwrap();
 
-        // Copy the main file
+        // Create a main file for the expanded code
         fs::write(temp_dir.join("src").join("main.nr"), expanded_code).unwrap();
 
         // Now we can run `nargo execute` on the expanded code
@@ -330,7 +330,7 @@ mod tests {
 
         // Enable enums as an unstable feature
         nargo.arg("-Zenums");
-        
+
         // Enable pedantic solving
         nargo.arg("--pedantic-solving");
 
@@ -352,7 +352,7 @@ mod tests {
 
         // Enable enums as an unstable feature
         nargo.arg("-Zenums");
-        
+
         // Enable pedantic solving
         nargo.arg("--pedantic-solving");
 
@@ -368,7 +368,7 @@ mod tests {
         // (because some depdendencies might be there and might be needed for the expanded code to work)
         copy_dir_all(test_program_dir.clone(), temp_dir.clone()).unwrap();
 
-        // Copy the main file
+        // Create a main file for the expanded code
         fs::write(temp_dir.join("src").join("main.nr"), expanded_code).unwrap();
 
         // Now we can run `nargo compile` on the expanded code
@@ -378,7 +378,7 @@ mod tests {
 
         // Enable enums as an unstable feature
         nargo.arg("-Zenums");
-        
+
         // Enable pedantic solving
         nargo.arg("--pedantic-solving");
 
