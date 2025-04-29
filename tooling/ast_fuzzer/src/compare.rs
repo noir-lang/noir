@@ -124,7 +124,6 @@ impl CompareResult {
         }
     }
 }
-
 /// Compare the execution of different SSA representations of equivalent program(s).
 pub struct CompareSsa<P> {
     pub program: P,
@@ -197,11 +196,11 @@ impl CompareMutants {
     pub fn arb(
         u: &mut Unstructured,
         c: Config,
-        f: impl Fn(&mut Unstructured, &Program) -> arbitrary::Result<Program>,
+        f: impl Fn(&mut Unstructured, Program) -> arbitrary::Result<Program>,
         g: impl Fn(Program) -> SsaProgramArtifact,
     ) -> arbitrary::Result<Self> {
         let program1 = arb_program(u, c)?;
-        let program2 = f(u, &program1)?;
+        let program2 = f(u, program1.clone())?;
         let abi = program_abi(&program1);
 
         let ssa1 = g(program1.clone());
@@ -210,5 +209,22 @@ impl CompareMutants {
         let input_map = arb_inputs(u, &ssa1.program, &abi)?;
 
         Ok(Self { program: (program1, program2), abi, input_map, ssa1, ssa2 })
+    }
+}
+
+/// Help iterate over the program(s) in the comparable artifact.
+pub trait HasPrograms {
+    fn programs(&self) -> Vec<&Program>;
+}
+
+impl HasPrograms for ComparePasses {
+    fn programs(&self) -> Vec<&Program> {
+        vec![&self.program]
+    }
+}
+
+impl HasPrograms for CompareMutants {
+    fn programs(&self) -> Vec<&Program> {
+        vec![&self.program.0, &self.program.1]
     }
 }

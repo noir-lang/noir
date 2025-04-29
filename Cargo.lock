@@ -3374,6 +3374,8 @@ name = "noir_ast_fuzzer_fuzz"
 version = "1.0.0-beta.4"
 dependencies = [
  "acir",
+ "arbitrary",
+ "arbtest",
  "color-eyre",
  "libfuzzer-sys",
  "noir_ast_fuzzer",

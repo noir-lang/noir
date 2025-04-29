@@ -23,11 +23,12 @@ pub struct AstPrinter {
     indent_level: u32,
     in_unconstrained: bool,
     pub show_id: bool,
+    pub show_clone_and_drop: bool,
 }
 
 impl Default for AstPrinter {
     fn default() -> Self {
-        Self { indent_level: 0, in_unconstrained: false, show_id: true }
+        Self { indent_level: 0, in_unconstrained: false, show_id: true, show_clone_and_drop: true }
     }
 }
 
@@ -177,11 +178,17 @@ impl AstPrinter {
             Expression::Continue => write!(f, "continue"),
             Expression::Clone(expr) => {
                 self.print_expr(expr, f)?;
-                write!(f, ".clone()")
+                if self.show_clone_and_drop {
+                    write!(f, ".clone()")?;
+                }
+                Ok(())
             }
             Expression::Drop(expr) => {
                 self.print_expr(expr, f)?;
-                write!(f, ".drop()")
+                if self.show_clone_and_drop {
+                    write!(f, ".drop()")?;
+                }
+                Ok(())
             }
         }
     }
