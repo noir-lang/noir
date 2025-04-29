@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1745941189813,
+  "lastUpdate": 1745942551612,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -17961,48 +17961,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "mvezenov@gmail.com",
-            "name": "Maxim Vezenov",
-            "username": "vezenovm"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "797aea96fca36eae58b85cbecb95f422e71f8cfe",
-          "message": "fix(ssa): Recursive shared Brillig entry points  (#8099)",
-          "timestamp": "2025-04-22T17:00:47Z",
-          "tree_id": "1258e2a0ae2c143a2fbfb86b059b7d5e62050310",
-          "url": "https://github.com/noir-lang/noir/commit/797aea96fca36eae58b85cbecb95f422e71f8cfe"
-        },
-        "date": 1745342337537,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 266790,
-            "range": "± 269",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 237606,
-            "range": "± 3256",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 3237793,
-            "range": "± 5277",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "aakoshh@gmail.com",
             "name": "Akosh Farkash",
             "username": "aakoshh"
@@ -20054,6 +20012,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 3236937,
             "range": "± 47274",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "asterite@gmail.com",
+            "name": "Ary Borenszweig",
+            "username": "asterite"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "a5ffd085158c02481e1e0e35ae601026a768c65c",
+          "message": "fix: use temporary dirs when fuzzing during `nargo test` (#8275)",
+          "timestamp": "2025-04-29T15:44:31Z",
+          "tree_id": "d3cfb19b53c995332ca8a65b471d8592eb4d018d",
+          "url": "https://github.com/noir-lang/noir/commit/a5ffd085158c02481e1e0e35ae601026a768c65c"
+        },
+        "date": 1745942544946,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 274343,
+            "range": "± 1169",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 250473,
+            "range": "± 2772",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 3595888,
+            "range": "± 17322",
             "unit": "ns/iter"
           }
         ]
