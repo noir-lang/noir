@@ -1,14 +1,17 @@
 use acir::circuit::ExpressionWidth;
 use color_eyre::eyre;
 use noir_ast_fuzzer::DisplayAstAsNoir;
-use noir_ast_fuzzer::compare::{CompareResult, CompareSsa};
+use noir_ast_fuzzer::compare::{CompareResult, CompareSsa, HasPrograms};
 use noirc_abi::input_parser::Format;
-use noirc_evaluator::ssa::{primary_passes, secondary_passes};
+use noirc_evaluator::brillig::Brillig;
+use noirc_evaluator::ssa::{SsaPass, primary_passes, secondary_passes};
 use noirc_evaluator::{
     brillig::BrilligOptions,
     ssa::{self, SsaEvaluatorOptions, SsaProgramArtifact},
 };
 use noirc_frontend::monomorphization::ast::Program;
+
+pub mod targets;
 
 // TODO(#7876): Allow specifying options on the command line.
 fn show_ast() -> bool {
@@ -42,40 +45,58 @@ pub fn create_ssa_or_die(
     options: &SsaEvaluatorOptions,
     msg: Option<&str>,
 ) -> SsaProgramArtifact {
+    create_ssa_with_passes_or_die(program, options, &primary_passes(options), secondary_passes, msg)
+}
+
+/// Compile a [Program] into SSA using the given primary and secondary passes, or panic.
+///
+/// Prints the AST if `NOIR_AST_FUZZER_SHOW_AST` is set.
+pub fn create_ssa_with_passes_or_die<S>(
+    program: Program,
+    options: &SsaEvaluatorOptions,
+    primary: &[SsaPass],
+    secondary: S,
+    msg: Option<&str>,
+) -> SsaProgramArtifact
+where
+    S: for<'b> Fn(&'b Brillig) -> Vec<SsaPass<'b>>,
+{
     // Unfortunately we can't use `std::panic::catch_unwind`
     // and `std::panic::resume_unwind` to catch any panic
     // and print the AST, then resume the panic, because
     // `Program` has a `RefCell` in it, which is not unwind safe.
     if show_ast() {
-        // Showing the AST as-is, in case we have problem with IDs.
-        eprintln!("---\n{}\n---", program);
+        eprintln!("---\n{}\n---", DisplayAstAsNoir(&program));
     }
 
-    ssa::create_program_with_passes(program, options, &primary_passes(options), secondary_passes)
-        .unwrap_or_else(|e| {
-            panic!(
-                "failed to compile program: {}{e}",
-                msg.map(|s| format!("{s}: ")).unwrap_or_default()
-            )
-        })
+    ssa::create_program_with_passes(program, options, primary, secondary).unwrap_or_else(|e| {
+        panic!(
+            "failed to compile program: {}{e}",
+            msg.map(|s| format!("{s}: ")).unwrap_or_default()
+        )
+    })
 }
 
 /// Compare the execution result and print the inputs if the result is a failure.
-pub fn compare_results<'a, P, F, I>(
-    inputs: &'a CompareSsa<P>,
-    result: &CompareResult,
-    asts: F,
-) -> eyre::Result<()>
+pub fn compare_results<P>(inputs: &CompareSsa<P>, result: &CompareResult) -> eyre::Result<()>
 where
-    F: Fn(&'a CompareSsa<P>) -> I,
-    I: IntoIterator<Item = &'a Program>,
+    CompareSsa<P>: HasPrograms,
 {
     let res = result.return_value_or_err();
 
-    if res.is_err() {
+    if let Err(report) = res {
+        eprintln!("---\nComparison failed:");
+        eprintln!("{report:#}");
+
         // Showing the AST as Noir so we can easily create integration tests.
-        for (i, ast) in asts(inputs).into_iter().enumerate() {
-            eprintln!("---\nAST {}:\n{}", i + 1, DisplayAstAsNoir(ast));
+        let asts = inputs.programs();
+        let has_many = asts.len() > 1;
+        for (i, ast) in asts.into_iter().enumerate() {
+            if has_many {
+                eprintln!("---\nAST {}:\n{}", i + 1, DisplayAstAsNoir(ast));
+            } else {
+                eprintln!("---\nAST:\n{}", DisplayAstAsNoir(ast));
+            }
         }
         // Showing the inputs as TOML so we can easily create a Prover.toml file.
         eprintln!(
@@ -86,7 +107,10 @@ where
         );
         eprintln!("---\nProgram 1:\n{}", inputs.ssa1.program);
         eprintln!("---\nProgram 2:\n{}", inputs.ssa2.program);
-    }
 
-    res.map(|_| ())
+        // Returning it as-is, so we can see the error message at the bottom as well.
+        Err(report)
+    } else {
+        Ok(())
+    }
 }
