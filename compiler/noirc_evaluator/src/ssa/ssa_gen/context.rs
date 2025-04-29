@@ -724,6 +724,16 @@ impl<'a> FunctionContext<'a> {
                 }
                 value
             }
+            (
+                Type::Numeric(NumericType::NativeField),
+                NumericType::Unsigned { bit_size: target_type_size },
+            )
+            | (
+                Type::Numeric(NumericType::NativeField),
+                NumericType::Signed { bit_size: target_type_size },
+            ) => {
+                self.builder.insert_truncate(value, target_type_size, FieldElement::max_num_bits())
+            }
             _ => unreachable!("Invalid cast from {} to {}", incoming_type, typ),
         };
         self.builder.insert_cast(result, typ)
