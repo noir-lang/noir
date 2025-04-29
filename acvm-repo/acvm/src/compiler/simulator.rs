@@ -41,7 +41,9 @@ impl CircuitSimulator {
             Opcode::AssertZero(expr) => {
                 for (_, w1, w2) in &expr.mul_terms {
                     if !self.solvable_witness.contains(w1) {
-                        if !self.solvable_witness.contains(w2) {}
+                        if !self.solvable_witness.contains(w2) {
+                            return false;
+                        }
                         unresolved.insert(*w1);
                     }
                     if !self.solvable_witness.contains(w2) && w1 != w2 {
