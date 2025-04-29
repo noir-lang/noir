@@ -19,6 +19,8 @@ pub(super) fn evaluate_infix(
         InterpreterError::InvalidValuesForBinary { lhs, rhs, location, operator }
     };
 
+    let math_error = |operator| InterpreterError::MathError { location, operator };
+
     /// Generate matches that can promote the type of one side to the other if they are compatible.
     macro_rules! match_values {
         (($lhs_value:ident as $lhs:ident $op:literal $rhs_value:ident as $rhs:ident) {
@@ -31,7 +33,7 @@ pub(super) fn evaluate_infix(
             match ($lhs_value, $rhs_value) {
                 $(
                 (Value::$lhs_var($lhs), Value::$rhs_var($rhs)) => {
-                    Ok(Value::$res_var(($expr).ok_or(error($op))?))
+                    Ok(Value::$res_var(($expr).ok_or(math_error($op))?))
                 },
                 )*
                 (_, _) => {

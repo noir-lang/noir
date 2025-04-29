@@ -16,10 +16,11 @@ use coverage::{
     AccumulatedFuzzerCoverage, BrilligCoverageRanges, FeatureToIndexMap, RawBrilligCoverage,
     SingleTestCaseCoverage, analyze_brillig_program_before_fuzzing,
 };
-use noir_fuzzer::dictionary::build_dictionary_from_program;
+pub use dictionary::build_dictionary_from_program;
 
 mod corpus;
 mod coverage;
+mod dictionary;
 mod mutation;
 mod types;
 
