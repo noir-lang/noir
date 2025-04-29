@@ -51,12 +51,12 @@ impl ItemPrinter<'_, '_, '_> {
 
     fn show_hir_expression_id_maybe_inside_curlies(&mut self, expr_id: ExprId) {
         let hir_expr = self.interner.expression(&expr_id);
-        let parens = hir_expression_needs_parentheses(&hir_expr);
-        if parens {
+        let curlies = hir_expression_needs_parentheses(&hir_expr);
+        if curlies {
             self.push('{');
         }
         self.show_hir_expression(hir_expr);
-        if parens {
+        if curlies {
             self.push('}');
         }
     }
