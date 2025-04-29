@@ -656,7 +656,8 @@ impl Context<'_> {
                 };
 
                 if !self.initialized_arrays.contains(inner_elem_type_sizes) {
-                    panic!("huh?");
+                    // We're copying the element type sizes array from another array so we expect it to be initialized.
+                    unreachable!("ICE: element type size arrays are expected to be initialized");
                 }
 
                 let type_sizes_array_len = *self.internal_mem_block_lengths.get(inner_elem_type_sizes).ok_or_else(||
