@@ -12,7 +12,7 @@ type BinarySearch = proptest::num::i128::BinarySearch;
 ///    param). Then generate a value for this bit size.
 /// 2. Generate a random value around the edges (+/- 3 around min, 0 and max possible value)
 #[derive(Debug)]
-pub struct IntStrategy {
+pub(super) struct IntStrategy {
     /// Bit size of int (e.g. 128)
     bits: usize,
     /// The weight for edge cases (+/- 3 around 0 and max possible value)
@@ -25,7 +25,7 @@ impl IntStrategy {
     /// Create a new strategy.
     /// # Arguments
     /// * `bits` - Size of int in bits
-    pub fn new(bits: usize) -> Self {
+    pub(super) fn new(bits: usize) -> Self {
         Self { bits, edge_weight: 10usize, random_weight: 50usize }
     }
 

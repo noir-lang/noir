@@ -15,7 +15,7 @@ type BinarySearch = proptest::num::u128::BinarySearch;
 ///    param). Then generate a value for this bit size.
 /// 2. Generate a random value around the edges (+/- 3 around 0 and max possible value)
 #[derive(Debug)]
-pub struct UintStrategy {
+pub(super) struct UintStrategy {
     /// Bit size of uint (e.g. 64)
     bits: usize,
     /// A set of fixtures to be generated
@@ -33,7 +33,7 @@ impl UintStrategy {
     /// # Arguments
     /// * `bits` - Size of uint in bits
     /// * `fixtures` - Set of `FieldElements` representing values which the fuzzer weight towards testing.
-    pub fn new(bits: usize, fixtures: &HashSet<FieldElement>) -> Self {
+    pub(super) fn new(bits: usize, fixtures: &HashSet<FieldElement>) -> Self {
         Self {
             bits,
             // We can only consider the fixtures which fit into the bit width.
