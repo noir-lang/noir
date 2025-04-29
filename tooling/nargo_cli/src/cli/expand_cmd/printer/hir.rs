@@ -140,14 +140,14 @@ impl ItemPrinter<'_, '_, '_> {
                 }
 
                 self.push_str(" { ");
-                for (index, (name, value)) in hir_constructor_expression.fields.iter().enumerate() {
-                    if index != 0 {
-                        self.push_str(", ");
-                    }
-                    self.push_str(&name.to_string());
-                    self.push_str(": ");
-                    self.show_hir_expression_id(*value);
-                }
+                self.show_separated_by_comma(
+                    &hir_constructor_expression.fields,
+                    |this, (name, value)| {
+                        this.push_str(&name.to_string());
+                        this.push_str(": ");
+                        this.show_hir_expression_id(*value);
+                    },
+                );
                 self.push('}');
             }
             HirExpression::EnumConstructor(constructor) => {
@@ -243,14 +243,11 @@ impl ItemPrinter<'_, '_, '_> {
 
     pub(super) fn show_hir_lambda(&mut self, hir_lambda: HirLambda) {
         self.push('|');
-        for (index, (parameter, typ)) in hir_lambda.parameters.into_iter().enumerate() {
-            if index != 0 {
-                self.push_str(", ");
-            }
-            self.show_hir_pattern(parameter);
-            self.push_str(": ");
-            self.show_type(&typ);
-        }
+        self.show_separated_by_comma(&hir_lambda.parameters, |this, (parameter, typ)| {
+            this.show_hir_pattern(parameter.clone());
+            this.push_str(": ");
+            this.show_type(typ);
+        });
         self.push_str("| ");
         if hir_lambda.return_type != Type::Unit {
             self.push_str("-> ");
@@ -290,25 +287,20 @@ impl ItemPrinter<'_, '_, '_> {
                     if !case.arguments.is_empty() {
                         if let Some(fields) = get_type_fields(&typ) {
                             self.push('{');
-                            for (index, (argument, (name, _))) in
-                                case.arguments.into_iter().zip(fields).enumerate()
-                            {
-                                if index != 0 {
-                                    self.push_str(", ");
-                                }
-                                self.push_str(&name);
-                                self.push_str(": ");
-                                self.show_definition_id(argument);
-                            }
+                            self.show_separated_by_comma(
+                                &case.arguments.into_iter().zip(fields).collect::<Vec<_>>(),
+                                |this, (argument, (name, _))| {
+                                    this.push_str(name);
+                                    this.push_str(": ");
+                                    this.show_definition_id(*argument);
+                                },
+                            );
                             self.push('}');
                         } else {
                             self.push('(');
-                            for (index, argument) in case.arguments.into_iter().enumerate() {
-                                if index != 0 {
-                                    self.push_str(", ");
-                                }
-                                self.show_definition_id(argument);
-                            }
+                            self.show_separated_by_comma(&case.arguments, |this, argument| {
+                                this.show_definition_id(*argument);
+                            });
                             self.push(')');
                         }
                     }
@@ -342,12 +334,7 @@ impl ItemPrinter<'_, '_, '_> {
             Constructor::Tuple(items) => {
                 let len = items.len();
                 self.push('(');
-                for (index, r#type) in items.iter().enumerate() {
-                    if index != 0 {
-                        self.push_str(", ");
-                    }
-                    self.show_type(r#type);
-                }
+                self.show_types_separated_by_comma(&items);
                 if len == 1 {
                     self.push(',');
                 }
@@ -487,12 +474,9 @@ impl ItemPrinter<'_, '_, '_> {
     }
 
     fn show_hir_expression_ids_separated_by_comma(&mut self, expr_ids: &[ExprId]) {
-        for (index, expr_id) in expr_ids.iter().enumerate() {
-            if index != 0 {
-                self.push_str(", ");
-            }
-            self.show_hir_expression_id(*expr_id);
-        }
+        self.show_separated_by_comma(expr_ids, |this, expr_id| {
+            this.show_hir_expression_id(*expr_id);
+        });
     }
 
     fn show_hir_statement_id(&mut self, stmt_id: StmtId) {
@@ -672,12 +656,9 @@ impl ItemPrinter<'_, '_, '_> {
             HirPattern::Tuple(hir_patterns, _location) => {
                 let len = hir_patterns.len();
                 self.push('(');
-                for (index, pattern) in hir_patterns.into_iter().enumerate() {
-                    if index != 0 {
-                        self.push_str(", ");
-                    }
-                    self.show_hir_pattern(pattern);
-                }
+                self.show_separated_by_comma(&hir_patterns, |this, pattern| {
+                    this.show_hir_pattern(pattern.clone());
+                });
                 if len == 1 {
                     self.push(',');
                 }
@@ -687,14 +668,11 @@ impl ItemPrinter<'_, '_, '_> {
                 self.show_type_name_as_data_type(&typ);
                 self.push_str(" {\n");
                 self.increase_indent();
-                for (index, (name, pattern)) in items.into_iter().enumerate() {
-                    if index != 0 {
-                        self.push_str(", ");
-                    }
-                    self.push_str(&name.to_string());
-                    self.push_str(": ");
-                    self.show_hir_pattern(pattern);
-                }
+                self.show_separated_by_comma(&items, |this, (name, pattern)| {
+                    this.push_str(&name.to_string());
+                    this.push_str(": ");
+                    this.show_hir_pattern(pattern.clone());
+                });
                 self.push('\n');
                 self.decrease_indent();
                 self.write_indent();

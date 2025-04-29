@@ -4,12 +4,9 @@ use super::ItemPrinter;
 
 impl ItemPrinter<'_, '_, '_> {
     pub(super) fn show_types_separated_by_comma(&mut self, types: &[Type]) {
-        for (index, typ) in types.iter().enumerate() {
-            if index != 0 {
-                self.push_str(", ");
-            }
-            self.show_type(typ);
-        }
+        self.show_separated_by_comma(types, |this, typ| {
+            this.show_type(typ);
+        });
     }
 
     pub(super) fn show_type(&mut self, typ: &Type) {
@@ -41,12 +38,7 @@ impl ItemPrinter<'_, '_, '_> {
             Type::Tuple(types) => {
                 let len = types.len();
                 self.push('(');
-                for (index, typ) in types.iter().enumerate() {
-                    if index != 0 {
-                        self.push_str(", ");
-                    }
-                    self.show_type(typ);
-                }
+                self.show_types_separated_by_comma(types);
                 if len == 1 {
                     self.push(',');
                 }
@@ -58,12 +50,7 @@ impl ItemPrinter<'_, '_, '_> {
                 self.show_reference_to_module_def_id(ModuleDefId::TypeId(data_type.id), use_import);
                 if !generics.is_empty() {
                     self.push_str("<");
-                    for (index, generic) in generics.iter().enumerate() {
-                        if index != 0 {
-                            self.push_str(", ");
-                        }
-                        self.show_type(generic);
-                    }
+                    self.show_types_separated_by_comma(generics);
                     self.push('>');
                 }
             }
@@ -76,12 +63,7 @@ impl ItemPrinter<'_, '_, '_> {
                 );
                 if !generics.is_empty() {
                     self.push_str("<");
-                    for (index, generic) in generics.iter().enumerate() {
-                        if index != 0 {
-                            self.push_str(", ");
-                        }
-                        self.show_type(generic);
-                    }
+                    self.show_types_separated_by_comma(generics);
                     self.push('>');
                 }
             }
@@ -116,12 +98,7 @@ impl ItemPrinter<'_, '_, '_> {
                     self.push(']');
                 }
                 self.push('(');
-                for (index, arg) in args.iter().enumerate() {
-                    if index != 0 {
-                        self.push_str(", ");
-                    }
-                    self.show_type(arg);
-                }
+                self.show_types_separated_by_comma(args);
                 self.push(')');
                 if **ret != Type::Unit {
                     self.push_str(" -> ");

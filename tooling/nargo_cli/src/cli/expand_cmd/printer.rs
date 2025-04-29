@@ -1075,6 +1075,18 @@ impl<'interner, 'def_map, 'string> ItemPrinter<'interner, 'def_map, 'string> {
         }
     }
 
+    fn show_separated_by_comma<Item, F>(&mut self, items: &[Item], f: F)
+    where
+        F: Fn(&mut Self, &Item),
+    {
+        for (index, item) in items.iter().enumerate() {
+            if index != 0 {
+                self.push_str(", ");
+            }
+            f(self, item);
+        }
+    }
+
     fn increase_indent(&mut self) {
         self.indent += 1;
     }
