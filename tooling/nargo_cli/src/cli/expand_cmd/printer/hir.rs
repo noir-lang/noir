@@ -237,7 +237,7 @@ impl ItemPrinter<'_, '_, '_> {
                 self.show_hir_block_expression(hir_block_expression);
             }
             HirExpression::Error => unreachable!("error nodes should not happen"),
-            HirExpression::Unquote(_) => todo!("unquote should not happen"),
+            HirExpression::Unquote(_) => unreachable!("unquote should not happen"),
         }
     }
 
@@ -551,7 +551,7 @@ impl ItemPrinter<'_, '_, '_> {
                 self.show_hir_expression_id(expr_id);
                 self.push(';');
             }
-            HirStatement::Comptime(_) => todo!("comptime should not happen"),
+            HirStatement::Comptime(_) => unreachable!("comptime should not happen"),
             HirStatement::Error => unreachable!("error should not happen"),
         }
     }
