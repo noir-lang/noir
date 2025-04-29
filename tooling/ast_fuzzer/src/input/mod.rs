@@ -32,7 +32,7 @@ pub fn arb_inputs(
     Ok(tree.current())
 }
 
-/// Given the [Abi] description of a [program artifact][noirc_artifacts::program::ProgramArtifact], generate random [InputValue]s for each circuit parameter.
+/// Given the [Abi] description of a Noir program, generate random [InputValue]s for each circuit parameter.
 ///
 /// Use the `dictionary` to draw values from for numeric types.
 fn arb_input_map(abi: &Abi, dictionary: &HashSet<FieldElement>) -> BoxedStrategy<InputMap> {
