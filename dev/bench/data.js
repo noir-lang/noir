@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1745942551612,
+  "lastUpdate": 1745942785604,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -8155,70 +8155,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "mvezenov@gmail.com",
-            "name": "Maxim Vezenov",
-            "username": "vezenovm"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "797aea96fca36eae58b85cbecb95f422e71f8cfe",
-          "message": "fix(ssa): Recursive shared Brillig entry points  (#8099)",
-          "timestamp": "2025-04-22T17:00:47Z",
-          "tree_id": "1258e2a0ae2c143a2fbfb86b059b7d5e62050310",
-          "url": "https://github.com/noir-lang/noir/commit/797aea96fca36eae58b85cbecb95f422e71f8cfe"
-        },
-        "date": 1745342592111,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 0.028,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 0.168,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 0.017,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 0.343,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 0.213,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 11.2,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 0.004,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-root",
-            "value": 0.013,
-            "unit": "s"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "aakoshh@gmail.com",
             "name": "Akosh Farkash",
             "username": "aakoshh"
@@ -11338,6 +11274,70 @@ window.BENCHMARK_DATA = {
           {
             "name": "rollup-block-root",
             "value": 11.4,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 0.004,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-root",
+            "value": 0.013,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "asterite@gmail.com",
+            "name": "Ary Borenszweig",
+            "username": "asterite"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "a5ffd085158c02481e1e0e35ae601026a768c65c",
+          "message": "fix: use temporary dirs when fuzzing during `nargo test` (#8275)",
+          "timestamp": "2025-04-29T15:44:31Z",
+          "tree_id": "d3cfb19b53c995332ca8a65b471d8592eb4d018d",
+          "url": "https://github.com/noir-lang/noir/commit/a5ffd085158c02481e1e0e35ae601026a768c65c"
+        },
+        "date": 1745942778732,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 0.03,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 0.161,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 0.016,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 0.332,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 0.211,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 11.2,
             "unit": "s"
           },
           {
