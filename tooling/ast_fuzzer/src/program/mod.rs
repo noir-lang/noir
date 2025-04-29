@@ -313,7 +313,11 @@ impl Context {
     /// With a `max_depth` of 0 only leaf types are created.
     ///
     /// With `is_frontend_friendly` we try to only consider types which are less likely to result
-    /// in literals that the frontend does not like when it has to infer their types.
+    /// in literals that the frontend does not like when it has to infer their types. For example
+    /// without further constraints on the type, the frontend expects integer literals to be `u32`.
+    /// It also cannot infer the type of empty array literals, e.g. `let x = [];` would not compile.
+    /// When we generate types for e.g. function parameters, where the type is going to be declared
+    /// along with the variable name, this is not a concern.
     fn gen_type(
         &mut self,
         u: &mut Unstructured,
