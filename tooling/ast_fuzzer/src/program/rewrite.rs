@@ -289,7 +289,7 @@ fn next_local_and_ident_id(func: &Function) -> (u32, u32) {
 
 /// Turn all ACIR functions into Brillig functions.
 ///
-/// This is more involved then flipping the `unconstrained` property because of the
+/// This is more involved than flipping the `unconstrained` property because of the
 /// "ownership analysis", which can only run on a function once.
 pub fn change_all_functions_into_unconstrained(mut program: Program) -> Program {
     for f in program.functions.iter_mut() {
