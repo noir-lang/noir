@@ -981,7 +981,10 @@ impl<F: AcirField, B: BlackBoxFunctionSolver<F>> AcirContext<F, B> {
 
         // Optimization when rhs is const and fits within a u128
         let rhs_expr = self.var_to_expression(rhs)?;
-        if rhs_expr.is_const() && rhs_expr.q_c.num_bits() <= 128 {
+        // Do not attempt this optimization when the q_c is zero as otherwise
+        // we will compute an rhs offset of zero and ultimately lay down a range constrain of zero bits
+        // which will always fail.
+        if rhs_expr.is_const() && rhs_expr.q_c.num_bits() <= 128 && !rhs_expr.q_c.is_zero() {
             // We try to move the offset to rhs
             let rhs_offset = if self.is_constant_one(&offset) && rhs_expr.q_c.to_u128() >= 1 {
                 lhs_offset = lhs;
@@ -1001,6 +1004,7 @@ impl<F: AcirField, B: BlackBoxFunctionSolver<F>> AcirContext<F, B> {
 
             let r_var = self.add_constant(r);
             let aor = self.add_var(lhs_offset, r_var)?;
+
             // lhs_offset<=rhs_offset <=> lhs_offset + r < rhs_offset + r = 2^bit_size <=> witness < 2^bit_size
             self.range_constrain_var(aor, &NumericType::Unsigned { bit_size }, None)?;
             return Ok(());
