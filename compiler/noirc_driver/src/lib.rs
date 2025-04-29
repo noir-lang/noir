@@ -11,12 +11,11 @@ use fm::{FileId, FileManager};
 use iter_extended::vecmap;
 use noirc_abi::{AbiParameter, AbiType, AbiValue};
 use noirc_errors::{CustomDiagnostic, DiagnosticKind};
-use noirc_evaluator::brillig::{Brillig, BrilligOptions};
+use noirc_evaluator::brillig::BrilligOptions;
 use noirc_evaluator::create_program;
-use noirc_evaluator::errors::{RuntimeError, SsaReport};
-use noirc_evaluator::ssa::ssa_gen::Ssa;
+use noirc_evaluator::errors::RuntimeError;
 use noirc_evaluator::ssa::{
-    create_program_with_minimal_passes, create_ssa, SsaEvaluatorOptions, SsaLogging, SsaProgramArtifact
+    SsaEvaluatorOptions, SsaLogging, SsaProgramArtifact, create_program_with_minimal_passes,
 };
 use noirc_frontend::debug::build_debug_crate_file;
 use noirc_frontend::elaborator::{FrontendOptions, UnstableFeature};
@@ -216,42 +215,6 @@ impl CompileOptions {
             debug_comptime_in_file: self.debug_comptime_in_file.as_deref(),
             pedantic_solving: self.pedantic_solving,
             enabled_unstable_features: &self.unstable_features,
-        }
-    }
-
-    pub fn evaluator_options(
-        &self,
-        package_build_path: &Path,
-    ) -> SsaEvaluatorOptions {
-        SsaEvaluatorOptions {
-            ssa_logging: match &self.show_ssa_pass {
-                Some(string) => SsaLogging::Contains(string.clone()),
-                None => {
-                    if self.show_ssa {
-                        SsaLogging::All
-                    } else {
-                        SsaLogging::None
-                    }
-                }
-            },
-            brillig_options: BrilligOptions {
-                enable_debug_trace: self.show_brillig,
-                enable_debug_assertions: self.enable_brillig_debug_assertions,
-                enable_array_copy_counter: self.count_array_copies,
-            },
-            print_codegen_timings: self.benchmark_codegen,
-            expression_width: if self.bounded_codegen {
-                self.expression_width.unwrap_or(DEFAULT_EXPRESSION_WIDTH)
-            } else {
-                ExpressionWidth::default()
-            },
-            emit_ssa: self.emit_ssa.then(|| package_build_path.to_path_buf()),
-            skip_underconstrained_check: self.skip_underconstrained_check,
-            enable_brillig_constraints_check_lookback: self
-                .enable_brillig_constraints_check_lookback,
-            skip_brillig_constraints_check: self.skip_brillig_constraints_check,
-            inliner_aggressiveness: self.inliner_aggressiveness,
-            max_bytecode_increase_percent: self.max_bytecode_increase_percent,
         }
     }
 }
@@ -823,63 +786,6 @@ pub fn compile_no_check(
         names,
         brillig_names,
     })
-}
-
-/// Compiles the given program to optimized SSA, stopping short of generating ACIR.
-pub fn compile_to_ssa(
-    context: &mut Context,
-    options: &CompileOptions,
-    main_function: FuncId,
-) -> Result<(Ssa, Brillig, Vec<SsaReport>), CompileError> {
-    let force_unconstrained = options.force_brillig;
-
-    let program = if options.instrument_debug {
-        monomorphize_debug(
-            main_function,
-            &mut context.def_interner,
-            &context.debug_instrumenter,
-            force_unconstrained,
-        )?
-    } else {
-        monomorphize(main_function, &mut context.def_interner, force_unconstrained)?
-    };
-
-    if options.show_monomorphized {
-        println!("{program}");
-    }
-
-    let ssa_evaluator_options = SsaEvaluatorOptions {
-        ssa_logging: match &options.show_ssa_pass {
-            Some(string) => SsaLogging::Contains(string.clone()),
-            None => {
-                if options.show_ssa {
-                    SsaLogging::All
-                } else {
-                    SsaLogging::None
-                }
-            }
-        },
-        brillig_options: BrilligOptions {
-            enable_debug_trace: options.show_brillig,
-            enable_debug_assertions: options.enable_brillig_debug_assertions,
-            enable_array_copy_counter: options.count_array_copies,
-        },
-        print_codegen_timings: options.benchmark_codegen,
-        expression_width: if options.bounded_codegen {
-            options.expression_width.unwrap_or(DEFAULT_EXPRESSION_WIDTH)
-        } else {
-            ExpressionWidth::default()
-        },
-        emit_ssa: if options.emit_ssa { Some(context.package_build_path.clone()) } else { None },
-        skip_underconstrained_check: options.skip_underconstrained_check,
-        enable_brillig_constraints_check_lookback: options
-            .enable_brillig_constraints_check_lookback,
-        skip_brillig_constraints_check: options.skip_brillig_constraints_check,
-        inliner_aggressiveness: options.inliner_aggressiveness,
-        max_bytecode_increase_percent: options.max_bytecode_increase_percent,
-    };
-
-    create_ssa(program, &ssa_evaluator_options).map_err(Into::into)
 }
 
 /// Specifies a contract function and extra metadata that

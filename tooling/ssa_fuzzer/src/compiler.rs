@@ -19,7 +19,7 @@ use noirc_evaluator::{
     ssa::{
         ArtifactsAndWarnings, SsaBuilder, SsaCircuitArtifact, SsaEvaluatorOptions, SsaLogging,
         SsaProgramArtifact, function_builder::FunctionBuilder, ir::instruction::ErrorType,
-        optimize_ssa_builder_to_acir, primary_passes, secondary_passes,
+        optimize_ssa_builder_into_acir, primary_passes, secondary_passes,
     },
 };
 
@@ -62,7 +62,12 @@ fn optimize_into_acir(
         }
     }));
     let result = std::panic::catch_unwind(AssertUnwindSafe(|| {
-        optimize_ssa_builder_to_acir(builder, &options, &primary_passes(&options), secondary_passes)
+        optimize_ssa_builder_into_acir(
+            builder,
+            &options,
+            &primary_passes(&options),
+            secondary_passes,
+        )
     }));
     std::panic::set_hook(previous_hook);
     match result {

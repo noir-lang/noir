@@ -252,12 +252,12 @@ pub fn minimal_passes() -> Vec<SsaPass<'static>> {
 ///
 /// See the [primary_passes] and [secondary_passes] for
 /// the default implementations.
-pub fn build_optimized_ssa<S>(
+pub fn optimize_ssa_builder_into_acir<S>(
     builder: SsaBuilder,
     options: &SsaEvaluatorOptions,
     primary: &[SsaPass],
     secondary: S,
-) -> Result<(Ssa, Brillig, Vec<SsaReport>), RuntimeError>
+) -> Result<ArtifactsAndWarnings, RuntimeError>
 where
     S: for<'b> Fn(&'b Brillig) -> Vec<SsaPass<'b>>,
 {
@@ -308,33 +308,11 @@ where
     };
 
     drop(ssa_gen_span_guard);
-    Ok((ssa, brillig, ssa_level_warnings))
-}
-
-pub fn convert_ssa_to_acir(
-    ssa: Ssa,
-    brillig: &Brillig,
-    options: &SsaEvaluatorOptions,
-) -> Result<Artifacts, RuntimeError> {
     let artifacts = time("SSA to ACIR", options.print_codegen_timings, || {
-        ssa.into_acir(brillig, &options.brillig_options, options.expression_width)
+        ssa.into_acir(&brillig, &options.brillig_options, options.expression_width)
     })?;
 
-    Ok(artifacts)
-}
-
-pub fn optimize_ssa_builder_to_acir<S>(
-    builder: SsaBuilder,
-    options: &SsaEvaluatorOptions,
-    primary: &[SsaPass],
-    secondary: S,
-) -> Result<ArtifactsAndWarnings, RuntimeError>
-where
-    S: for<'b> Fn(&'b Brillig) -> Vec<SsaPass<'b>>,
-{
-    let (ssa, brillig, warnings) = build_optimized_ssa(builder, options, primary, secondary)?;
-    let artifacts = convert_ssa_to_acir(ssa, &brillig, options)?;
-    Ok(ArtifactsAndWarnings(artifacts, warnings))
+    Ok(ArtifactsAndWarnings(artifacts, ssa_level_warnings))
 }
 
 /// Optimize the given program by converting it into SSA
@@ -359,20 +337,6 @@ pub fn optimize_into_acir<S>(
 where
     S: for<'b> Fn(&'b Brillig) -> Vec<SsaPass<'b>>,
 {
-    let (ssa, brillig, warnings) = optimize_into_ssa(program, options, primary, secondary)?;
-    let artifacts = convert_ssa_to_acir(ssa, &brillig, options)?;
-    Ok(ArtifactsAndWarnings(artifacts, warnings))
-}
-
-pub fn optimize_into_ssa<S>(
-    program: Program,
-    options: &SsaEvaluatorOptions,
-    primary: &[SsaPass],
-    secondary: S,
-) -> Result<(Ssa, Brillig, Vec<SsaReport>), RuntimeError>
-where
-    S: for<'b> Fn(&'b Brillig) -> Vec<SsaPass<'b>>,
-{
     let builder = SsaBuilder::new(
         program,
         options.ssa_logging.clone(),
@@ -380,7 +344,7 @@ where
         &options.emit_ssa,
     )?;
 
-    build_optimized_ssa(builder, options, primary, secondary)
+    optimize_ssa_builder_into_acir(builder, options, primary, secondary)
 }
 
 // Helper to time SSA passes
@@ -454,13 +418,6 @@ pub fn create_program(
     options: &SsaEvaluatorOptions,
 ) -> Result<SsaProgramArtifact, RuntimeError> {
     create_program_with_passes(program, options, &primary_passes(options), secondary_passes)
-}
-
-pub fn create_ssa(
-    program: Program,
-    options: &SsaEvaluatorOptions,
-) -> Result<(Ssa, Brillig, Vec<SsaReport>), RuntimeError> {
-    optimize_into_ssa(program, options, &primary_passes(options), secondary_passes)
 }
 
 /// Compiles the [`Program`] into [`ACIR`][acvm::acir::circuit::Program] using the minimum amount of SSA passes.
