@@ -3360,7 +3360,7 @@ dependencies = [
  "im",
  "insta",
  "nargo",
- "noir_fuzzer",
+ "noir_greybox_fuzzer",
  "noirc_abi",
  "noirc_evaluator",
  "noirc_frontend",
@@ -3410,24 +3410,12 @@ dependencies = [
 ]
 
 [[package]]
-name = "noir_fuzzer"
-version = "1.0.0-beta.4"
-dependencies = [
- "acvm",
- "noirc_abi",
- "noirc_artifacts",
- "proptest",
- "rand",
-]
-
-[[package]]
 name = "noir_greybox_fuzzer"
 version = "1.0.0-beta.4"
 dependencies = [
  "acvm",
  "build-data",
  "fm",
- "noir_fuzzer",
  "noirc_abi",
  "noirc_artifacts",
  "num-bigint",
