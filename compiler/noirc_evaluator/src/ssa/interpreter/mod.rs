@@ -708,9 +708,15 @@ impl Interpreter<'_> {
             }
             BinaryOp::Eq => apply_int_comparison_op!(lhs, rhs, |a, b| a == b),
             BinaryOp::Lt => apply_int_comparison_op!(lhs, rhs, |a, b| a < b),
-            BinaryOp::And => todo!(),
-            BinaryOp::Or => todo!(),
-            BinaryOp::Xor => todo!(),
+            BinaryOp::And => {
+                apply_int_binop!(lhs, rhs, std::ops::BitAnd::bitand)
+            }
+            BinaryOp::Or => {
+                apply_int_binop!(lhs, rhs, std::ops::BitOr::bitor)
+            }
+            BinaryOp::Xor => {
+                apply_int_binop!(lhs, rhs, std::ops::BitXor::bitxor)
+            }
             BinaryOp::Shl => todo!(),
             BinaryOp::Shr => todo!(),
         };

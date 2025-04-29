@@ -129,6 +129,8 @@ impl Value {
         Self::Numeric(NumericValue::from_constant(constant, typ))
     }
 
+    // This is used in tests but shouldn't be cfg(test) only
+    #[allow(unused)]
     pub(crate) fn bool(value: bool) -> Self {
         Self::Numeric(NumericValue::U1(value))
     }

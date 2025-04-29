@@ -6,7 +6,10 @@ use acvm::{AcirField, FieldElement};
 
 use crate::{
     errors::RuntimeError,
-    ssa::{interpreter::value::NumericValue, ir::types::Type},
+    ssa::{
+        interpreter::value::NumericValue,
+        ir::types::{NumericType, Type},
+    },
 };
 
 use super::{Ssa, Value};
@@ -133,4 +136,81 @@ fn run_flattened_function() {
 
     let result = expect_value_with_args(src, vec![Value::bool(false), v1]);
     assert_eq!(result.to_string(), "rc1 [u1 false, u1 true]");
+}
+
+#[test]
+fn loads_passed_to_a_call() {
+    let src = "
+    acir(inline) fn main f0 {
+      b0():
+        v1 = allocate -> &mut Field
+        store Field 0 at v1
+        v3 = allocate -> &mut &mut Field
+        store v1 at v3
+        jmp b1(Field 0)
+      b1(v0: Field):
+        v4 = eq v0, Field 0
+        jmpif v4 then: b3, else: b2
+      b2():
+        v9 = load v1 -> Field
+        v10 = eq v9, Field 2
+        constrain v9 == Field 2
+        v11 = load v3 -> &mut Field
+        call f1(v3)
+        v13 = load v3 -> &mut Field
+        v14 = load v13 -> Field
+        v15 = eq v14, Field 2
+        constrain v14 == Field 2
+        return v14
+      b3():
+        v5 = load v3 -> &mut Field
+        store Field 2 at v5
+        v8 = add v0, Field 1
+        jmp b1(v8)
+    }
+    acir(inline) fn foo f1 {
+      b0(v0: &mut Field):
+        return
+    }  
+    ";
+
+    let value = expect_value(src);
+    assert_eq!(value, Value::from_constant(2_u128.into(), NumericType::NativeField));
+}
+
+#[test]
+fn keep_repeat_loads_with_alias_store() {
+    let src = "
+    acir(inline) fn main f0 {
+      b0(v0: u1):
+        jmpif v0 then: b2, else: b1
+      b1():
+        v6 = allocate -> &mut Field
+        store Field 1 at v6
+        jmp b3(v6, v6, v6)
+      b2():
+        v4 = allocate -> &mut Field
+        store Field 0 at v4
+        jmp b3(v4, v4, v4)
+      b3(v1: &mut Field, v2: &mut Field, v3: &mut Field):
+        v8 = load v1 -> Field
+        store Field 2 at v2
+        v10 = load v1 -> Field
+        store Field 1 at v3
+        v11 = load v1 -> Field
+        store Field 3 at v3
+        v13 = load v1 -> Field
+        constrain v8 == Field 0
+        constrain v10 == Field 2
+        constrain v11 == Field 1
+        constrain v13 == Field 3
+        return v8, v11
+    }
+    ";
+
+    let values = expect_values_with_args(src, vec![Value::bool(true)]);
+    assert_eq!(values.len(), 2);
+
+    assert_eq!(values[0], Value::from_constant(FieldElement::zero(), NumericType::NativeField));
+    assert_eq!(values[1], Value::from_constant(FieldElement::one(), NumericType::NativeField));
 }
