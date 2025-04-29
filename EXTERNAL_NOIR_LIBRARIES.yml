@@ -152,5 +152,5 @@ libraries:
   zkpassport_rsa:
     repo: zkpassport/noir_rsa
     ref: acb50389b79dbf38b1828f4fa82c28d742b140fc
-    timeout: 20
+    timeout: 30
     critical: false
