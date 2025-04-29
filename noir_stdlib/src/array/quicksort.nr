@@ -1,8 +1,8 @@
-unconstrained fn partition<T, let N: u32>(
+unconstrained fn partition<T, let N: u32, Env>(
     arr: &mut [T; N],
     low: u32,
     high: u32,
-    sortfn: unconstrained fn(T, T) -> bool,
+    sortfn: unconstrained fn[Env](T, T) -> bool,
 ) -> u32 {
     let pivot = high;
     let mut i = low;
@@ -21,11 +21,11 @@ unconstrained fn partition<T, let N: u32>(
     i
 }
 
-unconstrained fn quicksort_loop<T, let N: u32>(
+unconstrained fn quicksort_loop<T, let N: u32, Env>(
     arr: &mut [T; N],
     low: u32,
     high: u32,
-    sortfn: unconstrained fn(T, T) -> bool,
+    sortfn: unconstrained fn[Env](T, T) -> bool,
 ) {
     let mut stack: [(u32, u32)] = &[(low, high)];
     // TODO(https://github.com/noir-lang/noir_sort/issues/22): use 'loop' once it's stabilized
@@ -49,9 +49,9 @@ unconstrained fn quicksort_loop<T, let N: u32>(
     }
 }
 
-pub unconstrained fn quicksort<T, let N: u32>(
+pub unconstrained fn quicksort<T, let N: u32, Env>(
     arr: [T; N],
-    sortfn: unconstrained fn(T, T) -> bool,
+    sortfn: unconstrained fn[Env](T, T) -> bool,
 ) -> [T; N] {
     let mut arr: [T; N] = arr;
     if arr.len() > 1 {
