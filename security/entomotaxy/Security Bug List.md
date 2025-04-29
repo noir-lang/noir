@@ -19,23 +19,23 @@ This list is a collection of bugs. Its goal is to help developers, auditors and 
 | NoirVD-011 | SSA brillig arrays | Overflow in indices | Completeness | Assertion failure for legitimate inputs | ssa_fuzzer | Yes | Yes | @defkit | https://github.com/noir-lang/noir/issues/7759 | https://github.com/noir-lang/noir/pull/7827  |  |
 | NoirVD-012 | SSA fields truncation | Improper fields truncation | Completeness | Assertion failure for legitimate inputs, example in the issue | ssa_fuzzer | Yes | Yes | @defkit | https://github.com/noir-lang/noir/issues/7962| https://github.com/noir-lang/noir/pull/8010  |  |
 | NoirVD-013 | SSA field modulo op | Possibility to take field mod field in Brillig | Soundness |  | ssa_fuzzer | Yes | Yes | @defkit | https://github.com/noir-lang/noir/issues/8083 | https://github.com/noir-lang/noir/pull/8105  |  |
-|  | SSA passes | Out of Bounds Check false failure | Completeness |  | ast_fuzzer | Yes | Yes | @aakoshh | #7975 #7952 #7965  | #7995  |  |
-|  | SSA passes | Incorrect flattening of CFG | Soundness |  | ast_fuzzer | Yes | Yes | @aakoshh | #7961  | #8040  |  |
-|  | SSA passes | Error in constant folding | Completeness |  | ast_fuzzer | Yes | Yes | @aakoshh | #7964  | #8019  |  |
-|  | SSA passes | Incorrect handling of `i1` | Soundness |  | ast_fuzzer | Yes | Yes | @aakoshh | #7973 #8198  | #8072 #8215  |  |
-|  | SSA passes | Negative loop bounds weren't handled | Completeness |  | ast_fuzzer | Yes | Yes | @aakoshh | #8009 #8011  | #8094 #8103  |  |
-|  | ACIR generation | Casting `Field` to `u128` failed | Completeness |  | ast_fuzzer | Yes | Yes | @aakoshh | #8024 #8175  | #8180    |  |
-|  | Frontend | Inconsistent handling of signed and negative numbers | Completeness |  | ast_fuzzer | Yes | Yes | @aakoshh | #8023 #8051  |    |  |
-|  | SSA passes | Shared Brillig entry points | Completeness |  | ast_fuzzer | Yes | Yes | @aakoshh | #8069  | #8099   |  |
-|  | SSA passes | Unrolling with `break` | Completeness |  | ast_fuzzer | Yes | Yes | @aakoshh | #8073  | #8090   |  |
-|  | SSA passes | Inlining with recursion | Completeness |  | ast_fuzzer | Yes | Yes | @aakoshh | #8078 #8081  | #8127   |  |
-|  | SSA passes | Global instructions | Completeness |  | ast_fuzzer | Yes | Yes | @aakoshh | #8174 #8199  | #8185 #8200   |  |
-|  | ACIR generation | Handling constant overflows | Completeness |  | ast_fuzzer | Yes | Yes | @aakoshh | #8195  | #8197   |  |
-|  | SSA passes | Handling unused parameters; constraint failure | Completeness |  | ast_fuzzer | Yes | Yes | @aakoshh | #8229 #8230 #8231 #8233  | #8239   |  |
-|  | SSA passes | Handling unused parameters; incorrect return value | Soundness |  | ast_fuzzer | Yes | Yes | @aakoshh | #8236  |   |  |
-|  | ACIR generation | Handling constant zero | Completeness |  | ast_fuzzer | Yes | Yes | @aakoshh | #8235  | #8243   |  |
-|  | SSA passes | Global array ownership | Soundness |  | ast_fuzzer | Yes | Yes | @aakoshh | #8259  |   |  |
-|  | SSA passes | Handling side effects; constraint failure | Completeness |  | ast_fuzzer | Yes | Yes | @aakoshh | #8259  |   |  |
-|  | SSA passes | Array offsets; incorrect return value | Soundness |  | ast_fuzzer | Yes | Yes | @aakoshh | #8262  |   |  |
-|  | ACIR generation | Handling negative constants; constraint failure | Completeness |  | ast_fuzzer | Yes | Yes | @aakoshh | #8272  |   |  |
-|  | ACIR generation | Handling constant overflows | Completeness |  | ast_fuzzer | Yes | Yes | @aakoshh | #8274  |   |  |
+|  | SSA passes | Out of Bounds Check false failure | Completeness |  | ast_fuzzer | Yes | Yes | @aakoshh | https://github.com/noir-lang/noir/issues/7975 https://github.com/noir-lang/noir/issues/7952 https://github.com/noir-lang/noir/issues/7965  | https://github.com/noir-lang/noir/issues/7995  |  |
+|  | SSA passes | Incorrect flattening of CFG | Soundness |  | ast_fuzzer | Yes | Yes | @aakoshh | https://github.com/noir-lang/noir/issues/7961  | https://github.com/noir-lang/noir/issues/8040  |  |
+|  | SSA passes | Error in constant folding | Completeness |  | ast_fuzzer | Yes | Yes | @aakoshh | https://github.com/noir-lang/noir/issues/7964  | https://github.com/noir-lang/noir/issues/8019  |  |
+|  | SSA passes | Incorrect handling of `i1` | Soundness |  | ast_fuzzer | Yes | Yes | @aakoshh | https://github.com/noir-lang/noir/issues/7973 https://github.com/noir-lang/noir/issues/8198  | https://github.com/noir-lang/noir/issues/8072 https://github.com/noir-lang/noir/issues/8215  |  |
+|  | SSA passes | Negative loop bounds weren't handled | Completeness |  | ast_fuzzer | Yes | Yes | @aakoshh | https://github.com/noir-lang/noir/issues/8009 https://github.com/noir-lang/noir/issues/8011  | https://github.com/noir-lang/noir/issues/8094 https://github.com/noir-lang/noir/issues/8103  |  |
+|  | ACIR generation | Casting `Field` to `u128` failed | Completeness |  | ast_fuzzer | Yes | Yes | @aakoshh | https://github.com/noir-lang/noir/issues/8024 https://github.com/noir-lang/noir/issues/8175  | https://github.com/noir-lang/noir/issues/8180    |  |
+|  | Frontend | Inconsistent handling of signed and negative numbers | Completeness |  | ast_fuzzer | Yes | Yes | @aakoshh | https://github.com/noir-lang/noir/issues/8023 https://github.com/noir-lang/noir/issues/8051  |    |  |
+|  | SSA passes | Shared Brillig entry points | Completeness |  | ast_fuzzer | Yes | Yes | @aakoshh | https://github.com/noir-lang/noir/issues/8069  | https://github.com/noir-lang/noir/issues/8099   |  |
+|  | SSA passes | Unrolling with `break` | Completeness |  | ast_fuzzer | Yes | Yes | @aakoshh | https://github.com/noir-lang/noir/issues/8073  | https://github.com/noir-lang/noir/issues/8090   |  |
+|  | SSA passes | Inlining with recursion | Completeness |  | ast_fuzzer | Yes | Yes | @aakoshh | https://github.com/noir-lang/noir/issues/8078 https://github.com/noir-lang/noir/issues/8081  | https://github.com/noir-lang/noir/issues/8127   |  |
+|  | SSA passes | Global instructions | Completeness |  | ast_fuzzer | Yes | Yes | @aakoshh | https://github.com/noir-lang/noir/issues/8174 https://github.com/noir-lang/noir/issues/8199  | https://github.com/noir-lang/noir/issues/8185 https://github.com/noir-lang/noir/issues/8200   |  |
+|  | ACIR generation | Handling constant overflows | Completeness |  | ast_fuzzer | Yes | Yes | @aakoshh | https://github.com/noir-lang/noir/issues/8195  | https://github.com/noir-lang/noir/issues/8197   |  |
+|  | SSA passes | Handling unused parameters; constraint failure | Completeness |  | ast_fuzzer | Yes | Yes | @aakoshh | https://github.com/noir-lang/noir/issues/8229 https://github.com/noir-lang/noir/issues/8230 https://github.com/noir-lang/noir/issues/8231 https://github.com/noir-lang/noir/issues/8233  | https://github.com/noir-lang/noir/issues/8239   |  |
+|  | SSA passes | Handling unused parameters; incorrect return value | Soundness |  | ast_fuzzer | Yes | Yes | @aakoshh | https://github.com/noir-lang/noir/issues/8236  |   |  |
+|  | ACIR generation | Handling constant zero | Completeness |  | ast_fuzzer | Yes | Yes | @aakoshh | https://github.com/noir-lang/noir/issues/8235  | https://github.com/noir-lang/noir/issues/8243   |  |
+|  | SSA passes | Global array ownership | Soundness |  | ast_fuzzer | Yes | Yes | @aakoshh | https://github.com/noir-lang/noir/issues/8259  |   |  |
+|  | SSA passes | Handling side effects; constraint failure | Completeness |  | ast_fuzzer | Yes | Yes | @aakoshh | https://github.com/noir-lang/noir/issues/8259  |   |  |
+|  | SSA passes | Array offsets; incorrect return value | Soundness |  | ast_fuzzer | Yes | Yes | @aakoshh | https://github.com/noir-lang/noir/issues/8262  |   |  |
+|  | ACIR generation | Handling negative constants; constraint failure | Completeness |  | ast_fuzzer | Yes | Yes | @aakoshh | https://github.com/noir-lang/noir/issues/8272  |   |  |
+|  | ACIR generation | Handling constant overflows | Completeness |  | ast_fuzzer | Yes | Yes | @aakoshh | https://github.com/noir-lang/noir/issues/8274  |   |  |
