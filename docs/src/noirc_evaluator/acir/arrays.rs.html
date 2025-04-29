@@ -886,7 +886,19 @@
 <a href="#885" id="885">885</a>
 <a href="#886" id="886">886</a>
 <a href="#887" id="887">887</a>
-<a href="#888" id="888">888</a></pre></div><pre class="rust"><code><span class="kw">use </span>acvm::acir::{circuit::opcodes::BlockType, native_types::Witness};
+<a href="#888" id="888">888</a>
+<a href="#889" id="889">889</a>
+<a href="#890" id="890">890</a>
+<a href="#891" id="891">891</a>
+<a href="#892" id="892">892</a>
+<a href="#893" id="893">893</a>
+<a href="#894" id="894">894</a>
+<a href="#895" id="895">895</a>
+<a href="#896" id="896">896</a>
+<a href="#897" id="897">897</a>
+<a href="#898" id="898">898</a>
+<a href="#899" id="899">899</a>
+<a href="#900" id="900">900</a></pre></div><pre class="rust"><code><span class="kw">use </span>acvm::acir::{circuit::opcodes::BlockType, native_types::Witness};
 <span class="kw">use </span>acvm::{FieldElement, acir::AcirField, acir::circuit::opcodes::BlockId};
 <span class="kw">use </span>iter_extended::{try_vecmap, vecmap};
 
@@ -1003,7 +1015,7 @@
         // cf. https://github.com/noir-lang/noir/pull/4971
         // For simplicity we compute the offset only for simple arrays
         </span><span class="kw">let </span>is_simple_array = dfg.instruction_results(instruction).len() == <span class="number">1
-            </span>&amp;&amp; can_omit_element_sizes_array(<span class="kw-2">&amp;</span>array_typ);
+            </span>&amp;&amp; (array_has_constant_element_size(<span class="kw-2">&amp;</span>array_typ) == <span class="prelude-val">Some</span>(<span class="number">1</span>));
         <span class="kw">let </span>offset = <span class="kw">if </span>is_simple_array {
             <span class="kw">let </span>result_type = dfg.type_of_value(dfg.instruction_results(instruction)[<span class="number">0</span>]);
             <span class="kw">match </span>array_typ {
@@ -1417,7 +1429,7 @@
 
         <span class="self">self</span>.array_set_value(<span class="kw-2">&amp;</span>store_value, result_block_id, <span class="kw-2">&amp;mut </span>var_index)<span class="question-mark">?</span>;
 
-        <span class="kw">let </span>element_type_sizes = <span class="kw">if </span>!can_omit_element_sizes_array(<span class="kw-2">&amp;</span>array_typ) {
+        <span class="kw">let </span>element_type_sizes = <span class="kw">if </span>array_has_constant_element_size(<span class="kw-2">&amp;</span>array_typ).is_none() {
             <span class="kw">let </span>acir_value = <span class="self">self</span>.convert_value(array, dfg);
             <span class="prelude-val">Some</span>(<span class="self">self</span>.init_element_type_sizes_array(<span class="kw-2">&amp;</span>array_typ, array, <span class="prelude-val">Some</span>(<span class="kw-2">&amp;</span>acir_value), dfg)<span class="question-mark">?</span>)
         } <span class="kw">else </span>{
@@ -1636,7 +1648,10 @@
         var_index: AcirVar,
         dfg: <span class="kw-2">&amp;</span>DataFlowGraph,
     ) -&gt; <span class="prelude-ty">Result</span>&lt;AcirVar, RuntimeError&gt; {
-        <span class="kw">if </span>!can_omit_element_sizes_array(array_typ) {
+        <span class="kw">if let </span><span class="prelude-val">Some</span>(step_size) = array_has_constant_element_size(array_typ) {
+            <span class="kw">let </span>step_size = <span class="self">self</span>.acir_context.add_constant(step_size);
+            <span class="self">self</span>.acir_context.mul_var(var_index, step_size)
+        } <span class="kw">else </span>{
             <span class="kw">let </span>element_type_sizes =
                 <span class="self">self</span>.init_element_type_sizes_array(array_typ, array_id, <span class="prelude-val">None</span>, dfg)<span class="question-mark">?</span>;
 
@@ -1646,8 +1661,6 @@
             <span class="self">self</span>.acir_context
                 .read_from_memory(element_type_sizes, <span class="kw-2">&amp;</span>predicate_index)
                 .map_err(RuntimeError::from)
-        } <span class="kw">else </span>{
-            <span class="prelude-val">Ok</span>(var_index)
         }
     }
 
@@ -1765,13 +1778,24 @@
     size
 }
 
-<span class="comment">// We can omit the element size array for arrays which don't contain arrays or slices.
-</span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>can_omit_element_sizes_array(array_typ: <span class="kw-2">&amp;</span>Type) -&gt; bool {
+<span class="doccomment">/// Returns whether the array's elements have a constant size.
+///
+/// This is useful as it then allows us to calculate the flattened index by multiplying by this constant
+/// size.
+///
+/// # Returns
+///
+/// If the array's element types are all the same size then `array_has_constant_element_size` will return
+/// `Some(element_size)` where `element_size` is the size of `array`'s elements. Otherwise returns `None`.
+</span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>array_has_constant_element_size(array_typ: <span class="kw-2">&amp;</span>Type) -&gt; <span class="prelude-ty">Option</span>&lt;u32&gt; {
     <span class="kw">let </span>types = <span class="kw">match </span>array_typ {
         Type::Array(types, <span class="kw">_</span>) | Type::Slice(types) =&gt; types,
         <span class="kw">_ </span>=&gt; <span class="macro">panic!</span>(<span class="string">"ICE: expected array or slice type"</span>),
     };
 
-    !types.iter().any(|typ| typ.contains_an_array())
+    <span class="kw">let </span><span class="kw-2">mut </span>element_sizes = types.iter().map(|typ| typ.flattened_size());
+    <span class="kw">let </span>element_size = element_sizes.next().expect(<span class="string">"must have at least one element"</span>);
+
+    <span class="kw">if </span>element_sizes.all(|size| size == element_size) { <span class="prelude-val">Some</span>(element_size) } <span class="kw">else </span>{ <span class="prelude-val">None </span>}
 }
 </code></pre></div></section></main></body></html>

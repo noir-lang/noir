@@ -2821,7 +2821,10 @@
 <a href="#2820" id="2820">2820</a>
 <a href="#2821" id="2821">2821</a>
 <a href="#2822" id="2822">2822</a>
-<a href="#2823" id="2823">2823</a></pre></div><pre class="rust"><code><span class="doccomment">//! The `acir` module contains all the logic necessary for noirc's ACIR-gen pass which
+<a href="#2823" id="2823">2823</a>
+<a href="#2824" id="2824">2824</a>
+<a href="#2825" id="2825">2825</a>
+<a href="#2826" id="2826">2826</a></pre></div><pre class="rust"><code><span class="doccomment">//! The `acir` module contains all the logic necessary for noirc's ACIR-gen pass which
 //! generates the output ACIR program.
 //!
 //! # Usage
@@ -2829,8 +2832,7 @@
 //! ACIR generation is performed by calling the [Ssa::into_acir] method, providing any necessary brillig bytecode.
 //! The compiled program will be returned as an [`Artifacts`] type.
 
-</span><span class="kw">use </span>arrays::can_omit_element_sizes_array;
-<span class="kw">use </span>fxhash::FxHashMap <span class="kw">as </span>HashMap;
+</span><span class="kw">use </span>fxhash::FxHashMap <span class="kw">as </span>HashMap;
 <span class="kw">use </span>noirc_errors::call_stack::CallStack;
 <span class="kw">use </span>std::collections::{BTreeMap, HashSet};
 <span class="kw">use </span>types::{AcirDynamicArray, AcirValue};
@@ -4150,16 +4152,17 @@
                     <span class="self">self</span>.array_set_value(<span class="kw-2">&amp;</span>element, result_block_id, <span class="kw-2">&amp;mut </span>var_index)<span class="question-mark">?</span>;
                 }
 
-                <span class="kw">let </span>element_type_sizes = <span class="kw">if </span>!can_omit_element_sizes_array(<span class="kw-2">&amp;</span>slice_typ) {
-                    <span class="prelude-val">Some</span>(<span class="self">self</span>.init_element_type_sizes_array(
-                        <span class="kw-2">&amp;</span>slice_typ,
-                        slice_contents,
-                        <span class="prelude-val">Some</span>(<span class="kw-2">&amp;</span>new_slice_val),
-                        dfg,
-                    )<span class="question-mark">?</span>)
-                } <span class="kw">else </span>{
-                    <span class="prelude-val">None
-                </span>};
+                <span class="kw">let </span>element_type_sizes =
+                    <span class="kw">if </span>arrays::array_has_constant_element_size(<span class="kw-2">&amp;</span>slice_typ).is_none() {
+                        <span class="prelude-val">Some</span>(<span class="self">self</span>.init_element_type_sizes_array(
+                            <span class="kw-2">&amp;</span>slice_typ,
+                            slice_contents,
+                            <span class="prelude-val">Some</span>(<span class="kw-2">&amp;</span>new_slice_val),
+                            dfg,
+                        )<span class="question-mark">?</span>)
+                    } <span class="kw">else </span>{
+                        <span class="prelude-val">None
+                    </span>};
 
                 <span class="kw">let </span>value_types = new_slice_val.flat_numeric_types();
                 <span class="macro">assert_eq!</span>(
@@ -4212,16 +4215,17 @@
                     <span class="prelude-val">Some</span>(new_slice_val.clone()),
                 )<span class="question-mark">?</span>;
 
-                <span class="kw">let </span>element_type_sizes = <span class="kw">if </span>!can_omit_element_sizes_array(<span class="kw-2">&amp;</span>slice_typ) {
-                    <span class="prelude-val">Some</span>(<span class="self">self</span>.init_element_type_sizes_array(
-                        <span class="kw-2">&amp;</span>slice_typ,
-                        slice_contents,
-                        <span class="prelude-val">Some</span>(<span class="kw-2">&amp;</span>new_slice_val),
-                        dfg,
-                    )<span class="question-mark">?</span>)
-                } <span class="kw">else </span>{
-                    <span class="prelude-val">None
-                </span>};
+                <span class="kw">let </span>element_type_sizes =
+                    <span class="kw">if </span>arrays::array_has_constant_element_size(<span class="kw-2">&amp;</span>slice_typ).is_none() {
+                        <span class="prelude-val">Some</span>(<span class="self">self</span>.init_element_type_sizes_array(
+                            <span class="kw-2">&amp;</span>slice_typ,
+                            slice_contents,
+                            <span class="prelude-val">Some</span>(<span class="kw-2">&amp;</span>new_slice_val),
+                            dfg,
+                        )<span class="question-mark">?</span>)
+                    } <span class="kw">else </span>{
+                        <span class="prelude-val">None
+                    </span>};
 
                 <span class="kw">let </span>value_types = new_slice_val.flat_numeric_types();
                 <span class="macro">assert_eq!</span>(
@@ -4429,16 +4433,17 @@
                     }
                 }
 
-                <span class="kw">let </span>element_type_sizes = <span class="kw">if </span>!can_omit_element_sizes_array(<span class="kw-2">&amp;</span>slice_typ) {
-                    <span class="prelude-val">Some</span>(<span class="self">self</span>.init_element_type_sizes_array(
-                        <span class="kw-2">&amp;</span>slice_typ,
-                        slice_contents,
-                        <span class="prelude-val">Some</span>(<span class="kw-2">&amp;</span>slice),
-                        dfg,
-                    )<span class="question-mark">?</span>)
-                } <span class="kw">else </span>{
-                    <span class="prelude-val">None
-                </span>};
+                <span class="kw">let </span>element_type_sizes =
+                    <span class="kw">if </span>arrays::array_has_constant_element_size(<span class="kw-2">&amp;</span>slice_typ).is_none() {
+                        <span class="prelude-val">Some</span>(<span class="self">self</span>.init_element_type_sizes_array(
+                            <span class="kw-2">&amp;</span>slice_typ,
+                            slice_contents,
+                            <span class="prelude-val">Some</span>(<span class="kw-2">&amp;</span>slice),
+                            dfg,
+                        )<span class="question-mark">?</span>)
+                    } <span class="kw">else </span>{
+                        <span class="prelude-val">None
+                    </span>};
 
                 <span class="kw">let </span>value_types = slice.flat_numeric_types();
                 <span class="macro">assert_eq!</span>(
@@ -4555,16 +4560,17 @@
                 }
 
                 <span class="kw">let </span>new_slice_val = AcirValue::Array(new_slice);
-                <span class="kw">let </span>element_type_sizes = <span class="kw">if </span>!can_omit_element_sizes_array(<span class="kw-2">&amp;</span>slice_typ) {
-                    <span class="prelude-val">Some</span>(<span class="self">self</span>.init_element_type_sizes_array(
-                        <span class="kw-2">&amp;</span>slice_typ,
-                        slice_contents,
-                        <span class="prelude-val">Some</span>(<span class="kw-2">&amp;</span>new_slice_val),
-                        dfg,
-                    )<span class="question-mark">?</span>)
-                } <span class="kw">else </span>{
-                    <span class="prelude-val">None
-                </span>};
+                <span class="kw">let </span>element_type_sizes =
+                    <span class="kw">if </span>arrays::array_has_constant_element_size(<span class="kw-2">&amp;</span>slice_typ).is_none() {
+                        <span class="prelude-val">Some</span>(<span class="self">self</span>.init_element_type_sizes_array(
+                            <span class="kw-2">&amp;</span>slice_typ,
+                            slice_contents,
+                            <span class="prelude-val">Some</span>(<span class="kw-2">&amp;</span>new_slice_val),
+                            dfg,
+                        )<span class="question-mark">?</span>)
+                    } <span class="kw">else </span>{
+                        <span class="prelude-val">None
+                    </span>};
 
                 <span class="kw">let </span>value_types = new_slice_val.flat_numeric_types();
                 <span class="macro">assert_eq!</span>(
