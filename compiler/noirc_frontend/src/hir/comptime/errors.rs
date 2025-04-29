@@ -126,6 +126,10 @@ pub enum InterpreterError {
         operator: &'static str,
         location: Location,
     },
+    MathError {
+        operator: &'static str,
+        location: Location,
+    },
     CastToNonNumericType {
         typ: Type,
         location: Location,
@@ -300,6 +304,7 @@ impl InterpreterError {
             | InterpreterError::TypeUnsupported { location, .. }
             | InterpreterError::InvalidValueForUnary { location, .. }
             | InterpreterError::InvalidValuesForBinary { location, .. }
+            | InterpreterError::MathError { location, .. }
             | InterpreterError::CastToNonNumericType { location, .. }
             | InterpreterError::QuoteInRuntimeCode { location, .. }
             | InterpreterError::NonStructInConstructor { location, .. }
@@ -493,7 +498,23 @@ impl<'a> From<&'a InterpreterError> for CustomDiagnostic {
                 CustomDiagnostic::simple_error(msg, String::new(), *location)
             }
             InterpreterError::InvalidValuesForBinary { lhs, rhs, operator, location } => {
-                let msg = format!("No implementation for `{lhs}` {operator} `{rhs}`",);
+                let msg = format!("No implementation for `{lhs}` {operator} `{rhs}`");
+                CustomDiagnostic::simple_error(msg, String::new(), *location)
+            }
+            InterpreterError::MathError { operator, location } => {
+                let msg = if *operator == "/" {
+                    "Attempt to divide by zero".to_string()
+                } else {
+                    let operator = match *operator {
+                        "+" => "add",
+                        "-" => "subtract",
+                        "*" => "multiply",
+                        ">>" => "shift right",
+                        "<<" => "shift left",
+                        _ => operator,
+                    };
+                    format!("Attempt to {operator} with overflow")
+                };
                 CustomDiagnostic::simple_error(msg, String::new(), *location)
             }
             InterpreterError::CastToNonNumericType { typ, location } => {
