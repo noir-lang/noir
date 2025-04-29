@@ -885,7 +885,8 @@
 <a href="#884" id="884">884</a>
 <a href="#885" id="885">885</a>
 <a href="#886" id="886">886</a>
-<a href="#887" id="887">887</a></pre></div><pre class="rust"><code><span class="kw">use </span>acvm::acir::{circuit::opcodes::BlockType, native_types::Witness};
+<a href="#887" id="887">887</a>
+<a href="#888" id="888">888</a></pre></div><pre class="rust"><code><span class="kw">use </span>acvm::acir::{circuit::opcodes::BlockType, native_types::Witness};
 <span class="kw">use </span>acvm::{FieldElement, acir::AcirField, acir::circuit::opcodes::BlockId};
 <span class="kw">use </span>iter_extended::{try_vecmap, vecmap};
 
@@ -1395,11 +1396,7 @@
         // and may contain data for which we want to restrict access. The true slice length is tracked in a
         // a separate SSA value and restrictions on slice indices should be generated elsewhere in the SSA.
         </span><span class="kw">let </span>array_typ = dfg.type_of_value(array);
-        <span class="kw">let </span>array_len = <span class="kw">if </span>!array_typ.contains_slice_element() {
-            array_typ.flattened_size() <span class="kw">as </span>usize
-        } <span class="kw">else </span>{
-            <span class="self">self</span>.flattened_slice_size(array, dfg)
-        };
+        <span class="kw">let </span>array_len = <span class="self">self</span>.flattened_size(array, dfg);
 
         <span class="comment">// Since array_set creates a new array, we create a new block ID for this
         // array, unless map_array is true. In that case, we operate directly on block_id
@@ -1477,43 +1474,6 @@
         <span class="prelude-val">Ok</span>(())
     }
 
-    <span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>ensure_array_is_initialized(
-        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
-        array: ValueId,
-        dfg: <span class="kw-2">&amp;</span>DataFlowGraph,
-    ) -&gt; <span class="prelude-ty">Result</span>&lt;BlockId, RuntimeError&gt; {
-        <span class="comment">// Use the SSA ID to get or create its block ID
-        </span><span class="kw">let </span>block_id = <span class="self">self</span>.block_id(<span class="kw-2">&amp;</span>array);
-
-        <span class="comment">// Check if the array has already been initialized in ACIR gen
-        // if not, we initialize it using the values from SSA
-        </span><span class="kw">let </span>already_initialized = <span class="self">self</span>.initialized_arrays.contains(<span class="kw-2">&amp;</span>block_id);
-        <span class="kw">if </span>!already_initialized {
-            <span class="kw">let </span>value = <span class="kw-2">&amp;</span>dfg[array];
-            <span class="kw">match </span>value {
-                Value::Instruction { .. } =&gt; {
-                    <span class="kw">let </span>value = <span class="self">self</span>.convert_value(array, dfg);
-                    <span class="kw">let </span>array_typ = dfg.type_of_value(array);
-                    <span class="kw">let </span>len = <span class="kw">if </span>!array_typ.contains_slice_element() {
-                        array_typ.flattened_size() <span class="kw">as </span>usize
-                    } <span class="kw">else </span>{
-                        <span class="self">self</span>.flattened_slice_size(array, dfg)
-                    };
-                    <span class="self">self</span>.initialize_array(block_id, len, <span class="prelude-val">Some</span>(value))<span class="question-mark">?</span>;
-                }
-                <span class="kw">_ </span>=&gt; {
-                    <span class="kw">return </span><span class="prelude-val">Err</span>(InternalError::General {
-                        message: <span class="macro">format!</span>(<span class="string">"Array {array} should be initialized"</span>),
-                        call_stack: <span class="self">self</span>.acir_context.get_call_stack(),
-                    }
-                    .into());
-                }
-            }
-        }
-
-        <span class="prelude-val">Ok</span>(block_id)
-    }
-
     <span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>init_element_type_sizes_array(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
         array_typ: <span class="kw-2">&amp;</span>Type,
@@ -1529,102 +1489,122 @@
             <span class="kw">return </span><span class="prelude-val">Ok</span>(element_type_sizes);
         }
 
-        <span class="kw">let </span><span class="kw-2">mut </span>flat_elem_type_sizes = Vec::new();
-        flat_elem_type_sizes.push(<span class="number">0</span>);
-        <span class="kw">match </span>array_typ {
-            Type::Array(<span class="kw">_</span>, <span class="kw">_</span>) | Type::Slice(<span class="kw">_</span>) =&gt; {
-                <span class="kw">match </span><span class="kw-2">&amp;</span>dfg[array_id] {
-                    Value::Instruction { .. } | Value::Param { .. } =&gt; {
-                        <span class="comment">// An instruction representing the slice means it has been processed previously during ACIR gen.
-                        // Use the previously defined result of an array operation to fetch the internal type information.
-                        </span><span class="kw">let </span>array_acir_value = <span class="kw-2">&amp;</span><span class="self">self</span>.convert_value(array_id, dfg);
-                        <span class="kw">let </span>array_acir_value = supplied_acir_value.unwrap_or(array_acir_value);
-                        <span class="kw">match </span>array_acir_value {
-                            AcirValue::DynamicArray(AcirDynamicArray {
-                                element_type_sizes: inner_elem_type_sizes,
-                                ..
-                            }) =&gt; {
-                                <span class="kw">if let </span><span class="prelude-val">Some</span>(inner_elem_type_sizes) = inner_elem_type_sizes {
-                                    <span class="kw">if </span><span class="self">self</span>.initialized_arrays.contains(inner_elem_type_sizes) {
-                                        <span class="kw">let </span>type_sizes_array_len = <span class="kw-2">*</span><span class="self">self</span>.internal_mem_block_lengths.get(inner_elem_type_sizes).ok_or_else(||
+        <span class="kw">if </span>!<span class="macro">matches!</span>(array_typ, Type::Array(<span class="kw">_</span>, <span class="kw">_</span>) | Type::Slice(<span class="kw">_</span>)) {
+            <span class="kw">return </span><span class="prelude-val">Err</span>(InternalError::Unexpected {
+                expected: <span class="string">"array or slice"</span>.to_owned(),
+                found: array_typ.to_string(),
+                call_stack: <span class="self">self</span>.acir_context.get_call_stack(),
+            }
+            .into());
+        }
+
+        <span class="kw">if </span>!<span class="macro">matches!</span>(<span class="kw-2">&amp;</span>dfg[array_id], Value::Instruction { .. } | Value::Param { .. }) {
+            <span class="kw">return </span><span class="prelude-val">Err</span>(InternalError::Unexpected {
+                expected: <span class="string">"array or instruction"</span>.to_owned(),
+                found: <span class="macro">format!</span>(<span class="string">"{:?}"</span>, <span class="kw-2">&amp;</span>dfg[array_id]),
+                call_stack: <span class="self">self</span>.acir_context.get_call_stack(),
+            }
+            .into());
+        }
+
+        <span class="comment">// An instruction representing the slice means it has been processed previously during ACIR gen.
+        // Use the previously defined result of an array operation to fetch the internal type information.
+        </span><span class="kw">let </span>array_acir_value = <span class="kw-2">&amp;</span><span class="self">self</span>.convert_value(array_id, dfg);
+        <span class="kw">let </span>array_acir_value = supplied_acir_value.unwrap_or(array_acir_value);
+        <span class="kw">match </span>array_acir_value {
+            AcirValue::Array(values) =&gt; {
+                <span class="kw">let </span>flat_elem_type_sizes = calculate_element_type_sizes_array(values);
+
+                <span class="comment">// The final array should will the flattened index at each outer array index
+                </span><span class="kw">let </span>init_values = vecmap(flat_elem_type_sizes, |type_size| {
+                    <span class="kw">let </span>var = <span class="self">self</span>.acir_context.add_constant(type_size);
+                    AcirValue::Var(var, AcirType::field())
+                });
+                <span class="kw">let </span>element_type_sizes_len = init_values.len();
+                <span class="self">self</span>.initialize_array(
+                    element_type_sizes,
+                    element_type_sizes_len,
+                    <span class="prelude-val">Some</span>(AcirValue::Array(init_values.into())),
+                )<span class="question-mark">?</span>;
+
+                <span class="self">self</span>.internal_mem_block_lengths.insert(element_type_sizes, element_type_sizes_len);
+                <span class="prelude-val">Ok</span>(element_type_sizes)
+            }
+
+            AcirValue::DynamicArray(AcirDynamicArray {
+                element_type_sizes: inner_elem_type_sizes,
+                ..
+            }) =&gt; {
+                <span class="kw">let </span><span class="prelude-val">Some</span>(inner_elem_type_sizes) = inner_elem_type_sizes <span class="kw">else </span>{
+                    <span class="kw">return </span><span class="prelude-val">Err</span>(InternalError::General {
+                        message: <span class="macro">format!</span>(<span class="string">"Array {array_id}'s inner element type sizes array should be initialized"</span>),
+                        call_stack: <span class="self">self</span>.acir_context.get_call_stack(),
+                    }
+                    .into());
+                };
+
+                <span class="kw">if </span>!<span class="self">self</span>.initialized_arrays.contains(inner_elem_type_sizes) {
+                    <span class="comment">// We're copying the element type sizes array from another array so we expect it to be initialized.
+                    </span><span class="macro">unreachable!</span>(<span class="string">"ICE: element type size arrays are expected to be initialized"</span>);
+                }
+
+                <span class="kw">let </span>type_sizes_array_len = <span class="kw-2">*</span><span class="self">self</span>.internal_mem_block_lengths.get(inner_elem_type_sizes).ok_or_else(||
                                             InternalError::General {
                                                 message: <span class="macro">format!</span>(<span class="string">"Array {array_id}'s inner element type sizes array does not have a tracked length"</span>),
                                                 call_stack: <span class="self">self</span>.acir_context.get_call_stack(),
                                             }
                                         )<span class="question-mark">?</span>;
-                                        <span class="self">self</span>.copy_dynamic_array(
-                                            <span class="kw-2">*</span>inner_elem_type_sizes,
-                                            element_type_sizes,
-                                            type_sizes_array_len,
-                                        )<span class="question-mark">?</span>;
-                                        <span class="self">self</span>.internal_mem_block_lengths
-                                            .insert(element_type_sizes, type_sizes_array_len);
-                                        <span class="kw">return </span><span class="prelude-val">Ok</span>(element_type_sizes);
-                                    } <span class="kw">else </span>{
-                                        <span class="kw">return </span><span class="prelude-val">Err</span>(InternalError::General {
-                                            message: <span class="macro">format!</span>(<span class="string">"Array {array_id}'s inner element type sizes array should be initialized"</span>),
-                                            call_stack: <span class="self">self</span>.acir_context.get_call_stack(),
-                                        }
-                                        .into());
-                                    }
-                                }
-                            }
-                            AcirValue::Array(values) =&gt; {
-                                <span class="kw">for </span>(i, value) <span class="kw">in </span>values.iter().enumerate() {
-                                    flat_elem_type_sizes.push(
-                                        <span class="self">Self</span>::flattened_value_size(value) + flat_elem_type_sizes[i],
-                                    );
-                                }
-                            }
-                            <span class="kw">_ </span>=&gt; {
-                                <span class="kw">return </span><span class="prelude-val">Err</span>(InternalError::Unexpected {
-                                    expected: <span class="string">"AcirValue::DynamicArray or AcirValue::Array"
-                                        </span>.to_owned(),
-                                    found: <span class="macro">format!</span>(<span class="string">"{:?}"</span>, array_acir_value),
-                                    call_stack: <span class="self">self</span>.acir_context.get_call_stack(),
-                                }
-                                .into());
-                            }
-                        }
-                    }
-                    <span class="kw">_ </span>=&gt; {
-                        <span class="kw">return </span><span class="prelude-val">Err</span>(InternalError::Unexpected {
-                            expected: <span class="string">"array or instruction"</span>.to_owned(),
-                            found: <span class="macro">format!</span>(<span class="string">"{:?}"</span>, <span class="kw-2">&amp;</span>dfg[array_id]),
-                            call_stack: <span class="self">self</span>.acir_context.get_call_stack(),
-                        }
-                        .into());
-                    }
-                };
+                <span class="self">self</span>.copy_dynamic_array(
+                    <span class="kw-2">*</span>inner_elem_type_sizes,
+                    element_type_sizes,
+                    type_sizes_array_len,
+                )<span class="question-mark">?</span>;
+                <span class="self">self</span>.internal_mem_block_lengths.insert(element_type_sizes, type_sizes_array_len);
+                <span class="prelude-val">Ok</span>(element_type_sizes)
             }
-            <span class="kw">_ </span>=&gt; {
-                <span class="kw">return </span><span class="prelude-val">Err</span>(InternalError::Unexpected {
-                    expected: <span class="string">"array or slice"</span>.to_owned(),
-                    found: array_typ.to_string(),
-                    call_stack: <span class="self">self</span>.acir_context.get_call_stack(),
-                }
-                .into());
+            <span class="kw">_ </span>=&gt; <span class="prelude-val">Err</span>(InternalError::Unexpected {
+                expected: <span class="string">"AcirValue::DynamicArray or AcirValue::Array"</span>.to_owned(),
+                found: <span class="macro">format!</span>(<span class="string">"{:?}"</span>, array_acir_value),
+                call_stack: <span class="self">self</span>.acir_context.get_call_stack(),
             }
+            .into()),
         }
-
-        <span class="comment">// The final array should will the flattened index at each outer array index
-        </span><span class="kw">let </span>init_values = vecmap(flat_elem_type_sizes, |type_size| {
-            <span class="kw">let </span>var = <span class="self">self</span>.acir_context.add_constant(type_size);
-            AcirValue::Var(var, AcirType::field())
-        });
-        <span class="kw">let </span>element_type_sizes_len = init_values.len();
-        <span class="self">self</span>.initialize_array(
-            element_type_sizes,
-            element_type_sizes_len,
-            <span class="prelude-val">Some</span>(AcirValue::Array(init_values.into())),
-        )<span class="question-mark">?</span>;
-
-        <span class="self">self</span>.internal_mem_block_lengths.insert(element_type_sizes, element_type_sizes_len);
-
-        <span class="prelude-val">Ok</span>(element_type_sizes)
     }
 
-    <span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>read_dynamic_array(
+    <span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>read_array(
+        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
+        array: AcirValue,
+    ) -&gt; <span class="prelude-ty">Result</span>&lt;im::Vector&lt;AcirValue&gt;, RuntimeError&gt; {
+        <span class="kw">match </span>array {
+            AcirValue::Var(<span class="kw">_</span>, <span class="kw">_</span>) =&gt; <span class="macro">unreachable!</span>(<span class="string">"ICE: attempting to copy a non-array value"</span>),
+            AcirValue::Array(vars) =&gt; <span class="prelude-val">Ok</span>(vars),
+            AcirValue::DynamicArray(AcirDynamicArray { block_id, len, .. }) =&gt; {
+                <span class="self">self</span>.read_dynamic_array(block_id, len)
+            }
+        }
+    }
+
+    <span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>copy_array(
+        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
+        source: ValueId,
+        destination: BlockId,
+        dfg: <span class="kw-2">&amp;</span>DataFlowGraph,
+    ) -&gt; <span class="prelude-ty">Result</span>&lt;(), RuntimeError&gt; {
+        <span class="kw">let </span>original_array = <span class="self">self</span>.convert_value(source, dfg);
+
+        <span class="kw">match </span>original_array {
+            AcirValue::Var(<span class="kw">_</span>, <span class="kw">_</span>) =&gt; <span class="macro">unreachable!</span>(<span class="string">"ICE: attempting to copy a non-array value"</span>),
+            array @ AcirValue::Array(<span class="kw">_</span>) =&gt; {
+                <span class="kw">let </span>array_len = <span class="self">self</span>.flattened_size(source, dfg);
+                <span class="prelude-val">Ok</span>(<span class="self">self</span>.initialize_array(destination, array_len, <span class="prelude-val">Some</span>(array))<span class="question-mark">?</span>)
+            }
+            AcirValue::DynamicArray(source) =&gt; {
+                <span class="self">self</span>.copy_dynamic_array(source.block_id, destination, source.len)
+            }
+        }
+    }
+
+    <span class="kw">fn </span>read_dynamic_array(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
         source: BlockId,
         array_len: usize,
@@ -1638,32 +1618,7 @@
         <span class="prelude-val">Ok</span>(init_values.into())
     }
 
-    <span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>copy_array(
-        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
-        source: ValueId,
-        destination: BlockId,
-        dfg: <span class="kw-2">&amp;</span>DataFlowGraph,
-    ) -&gt; <span class="prelude-ty">Result</span>&lt;(), RuntimeError&gt; {
-        <span class="kw">let </span>original_array = <span class="self">self</span>.convert_value(source, dfg);
-
-        <span class="kw">let </span>array_typ = dfg.type_of_value(source);
-        <span class="kw">let </span>array_len = <span class="kw">if </span>!array_typ.contains_slice_element() {
-            array_typ.flattened_size() <span class="kw">as </span>usize
-        } <span class="kw">else </span>{
-            <span class="self">self</span>.flattened_slice_size(source, dfg)
-        };
-        <span class="kw">match </span>original_array {
-            AcirValue::Var(<span class="kw">_</span>, <span class="kw">_</span>) =&gt; <span class="macro">unreachable!</span>(<span class="string">"ICE: attempting to copy a non-array value"</span>),
-            source @ AcirValue::Array(<span class="kw">_</span>) =&gt; {
-                <span class="prelude-val">Ok</span>(<span class="self">self</span>.initialize_array(destination, array_len, <span class="prelude-val">Some</span>(source))<span class="question-mark">?</span>)
-            }
-            AcirValue::DynamicArray(source) =&gt; {
-                <span class="self">self</span>.copy_dynamic_array(source.block_id, destination, array_len)
-            }
-        }
-    }
-
-    <span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>copy_dynamic_array(
+    <span class="kw">fn </span>copy_dynamic_array(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
         source: BlockId,
         destination: BlockId,
@@ -1696,43 +1651,62 @@
         }
     }
 
-    <span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>flattened_slice_size(<span class="kw-2">&amp;mut </span><span class="self">self</span>, array_id: ValueId, dfg: <span class="kw-2">&amp;</span>DataFlowGraph) -&gt; usize {
-        <span class="kw">let </span><span class="kw-2">mut </span>size = <span class="number">0</span>;
-        <span class="kw">match </span><span class="kw-2">&amp;</span>dfg[array_id] {
-            Value::NumericConstant { .. } =&gt; {
-                size += <span class="number">1</span>;
+    <span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>flattened_size(<span class="kw-2">&amp;mut </span><span class="self">self</span>, array: ValueId, dfg: <span class="kw-2">&amp;</span>DataFlowGraph) -&gt; usize {
+        <span class="kw">let </span>array_typ = dfg.type_of_value(array);
+        <span class="kw">if </span>!array_typ.contains_slice_element() {
+            array_typ.flattened_size() <span class="kw">as </span>usize
+        } <span class="kw">else </span>{
+            <span class="kw">let </span><span class="kw-2">mut </span>size = <span class="number">0</span>;
+            <span class="kw">match </span><span class="kw-2">&amp;</span>dfg[array] {
+                Value::NumericConstant { .. } =&gt; {
+                    size += <span class="number">1</span>;
+                }
+                Value::Instruction { .. } =&gt; {
+                    <span class="kw">let </span>array_acir_value = <span class="self">self</span>.convert_value(array, dfg);
+                    size += flattened_value_size(<span class="kw-2">&amp;</span>array_acir_value);
+                }
+                Value::Param { .. } =&gt; {
+                    <span class="kw">let </span>array_acir_value = <span class="self">self</span>.convert_value(array, dfg);
+                    size += flattened_value_size(<span class="kw-2">&amp;</span>array_acir_value);
+                }
+                <span class="kw">_ </span>=&gt; {
+                    <span class="macro">unreachable!</span>(<span class="string">"ICE: Unexpected SSA value when computing the slice size"</span>);
+                }
             }
-            Value::Instruction { .. } =&gt; {
-                <span class="kw">let </span>array_acir_value = <span class="self">self</span>.convert_value(array_id, dfg);
-                size += <span class="self">Self</span>::flattened_value_size(<span class="kw-2">&amp;</span>array_acir_value);
-            }
-            Value::Param { .. } =&gt; {
-                <span class="kw">let </span>array_acir_value = <span class="self">self</span>.convert_value(array_id, dfg);
-                size += <span class="self">Self</span>::flattened_value_size(<span class="kw-2">&amp;</span>array_acir_value);
-            }
-            <span class="kw">_ </span>=&gt; {
-                <span class="macro">unreachable!</span>(<span class="string">"ICE: Unexpected SSA value when computing the slice size"</span>);
-            }
+            size
         }
-        size
     }
 
-    <span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>flattened_value_size(value: <span class="kw-2">&amp;</span>AcirValue) -&gt; usize {
-        <span class="kw">let </span><span class="kw-2">mut </span>size = <span class="number">0</span>;
-        <span class="kw">match </span>value {
-            AcirValue::DynamicArray(AcirDynamicArray { len, .. }) =&gt; {
-                size += len;
-            }
-            AcirValue::Var(<span class="kw">_</span>, <span class="kw">_</span>) =&gt; {
-                size += <span class="number">1</span>;
-            }
-            AcirValue::Array(values) =&gt; {
-                <span class="kw">for </span>value <span class="kw">in </span>values {
-                    size += <span class="self">Self</span>::flattened_value_size(value);
+    <span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>ensure_array_is_initialized(
+        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
+        array: ValueId,
+        dfg: <span class="kw-2">&amp;</span>DataFlowGraph,
+    ) -&gt; <span class="prelude-ty">Result</span>&lt;BlockId, RuntimeError&gt; {
+        <span class="comment">// Use the SSA ID to get or create its block ID
+        </span><span class="kw">let </span>block_id = <span class="self">self</span>.block_id(<span class="kw-2">&amp;</span>array);
+
+        <span class="comment">// Check if the array has already been initialized in ACIR gen
+        // if not, we initialize it using the values from SSA
+        </span><span class="kw">let </span>already_initialized = <span class="self">self</span>.initialized_arrays.contains(<span class="kw-2">&amp;</span>block_id);
+        <span class="kw">if </span>!already_initialized {
+            <span class="kw">let </span>value = <span class="kw-2">&amp;</span>dfg[array];
+            <span class="kw">match </span>value {
+                Value::Instruction { .. } =&gt; {
+                    <span class="kw">let </span>value = <span class="self">self</span>.convert_value(array, dfg);
+                    <span class="kw">let </span>len = <span class="self">self</span>.flattened_size(array, dfg);
+                    <span class="self">self</span>.initialize_array(block_id, len, <span class="prelude-val">Some</span>(value))<span class="question-mark">?</span>;
+                }
+                <span class="kw">_ </span>=&gt; {
+                    <span class="kw">return </span><span class="prelude-val">Err</span>(InternalError::General {
+                        message: <span class="macro">format!</span>(<span class="string">"Array {array} should be initialized"</span>),
+                        call_stack: <span class="self">self</span>.acir_context.get_call_stack(),
+                    }
+                    .into());
                 }
             }
         }
-        size
+
+        <span class="prelude-val">Ok</span>(block_id)
     }
 
     <span class="doccomment">/// Initializes an array with the given values and caches the fact that we
@@ -1761,6 +1735,34 @@
         <span class="self">self</span>.initialized_arrays.insert(array);
         <span class="prelude-val">Ok</span>(())
     }
+}
+
+<span class="kw">fn </span>calculate_element_type_sizes_array(array: <span class="kw-2">&amp;</span>im::Vector&lt;AcirValue&gt;) -&gt; Vec&lt;usize&gt; {
+    <span class="kw">let </span><span class="kw-2">mut </span>flat_elem_type_sizes = Vec::new();
+    flat_elem_type_sizes.push(<span class="number">0</span>);
+    <span class="kw">for </span>(i, value) <span class="kw">in </span>array.iter().enumerate() {
+        flat_elem_type_sizes.push(flattened_value_size(value) + flat_elem_type_sizes[i]);
+    }
+
+    flat_elem_type_sizes
+}
+
+<span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>flattened_value_size(value: <span class="kw-2">&amp;</span>AcirValue) -&gt; usize {
+    <span class="kw">let </span><span class="kw-2">mut </span>size = <span class="number">0</span>;
+    <span class="kw">match </span>value {
+        AcirValue::DynamicArray(AcirDynamicArray { len, .. }) =&gt; {
+            size += len;
+        }
+        AcirValue::Var(<span class="kw">_</span>, <span class="kw">_</span>) =&gt; {
+            size += <span class="number">1</span>;
+        }
+        AcirValue::Array(values) =&gt; {
+            <span class="kw">for </span>value <span class="kw">in </span>values {
+                size += flattened_value_size(value);
+            }
+        }
+    }
+    size
 }
 
 <span class="comment">// We can omit the element size array for arrays which don't contain arrays or slices.
