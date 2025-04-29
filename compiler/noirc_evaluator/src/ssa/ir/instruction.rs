@@ -223,6 +223,11 @@ pub enum Instruction {
     Binary(Binary),
 
     /// Converts `Value` into the given NumericType
+    /// This operation only changes the type of the value, it does not change the value itself.
+    /// It is expected that the value can fit into the target type.
+    /// For instance a value of type `u32` casted to `u8` must already fit into 8 bits
+    /// A value of type `i8` cannot be casted to 'i16' since the value would need to include the sign bit (which is the MSB)
+    /// Ssa code-gen must ensure that the necessary truncation or sign extension is performed when emitting a Cast instruction.
     Cast(ValueId, NumericType),
 
     /// Computes a bit wise not
