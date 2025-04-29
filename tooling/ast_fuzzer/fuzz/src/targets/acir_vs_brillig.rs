@@ -5,7 +5,7 @@ use arbitrary::Unstructured;
 use color_eyre::eyre;
 use noir_ast_fuzzer::Config;
 use noir_ast_fuzzer::change_all_functions_into_unconstrained;
-use noir_ast_fuzzer::compare::CompareMutants;
+use noir_ast_fuzzer::compare::ComparePasses;
 
 pub fn fuzz(u: &mut Unstructured) -> eyre::Result<()> {
     let options = default_ssa_options();
@@ -19,11 +19,14 @@ pub fn fuzz(u: &mut Unstructured) -> eyre::Result<()> {
         ..Default::default()
     };
 
-    let inputs = CompareMutants::arb(
+    let inputs = ComparePasses::arb(
         u,
         config,
-        |_u, program| Ok(change_all_functions_into_unconstrained(program)),
-        |program| create_ssa_or_die(program, &options, None),
+        |program| create_ssa_or_die(program, &options, Some("acir")),
+        |program| {
+            let program = change_all_functions_into_unconstrained(program);
+            create_ssa_or_die(program, &options, Some("brillig"))
+        },
     )?;
 
     let result = inputs.exec()?;
