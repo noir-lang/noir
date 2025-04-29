@@ -6,7 +6,6 @@
 //! ACIR generation is performed by calling the [Ssa::into_acir] method, providing any necessary brillig bytecode.
 //! The compiled program will be returned as an [`Artifacts`] type.
 
-use arrays::can_omit_element_sizes_array;
 use fxhash::FxHashMap as HashMap;
 use noirc_errors::call_stack::CallStack;
 use std::collections::{BTreeMap, HashSet};
@@ -1327,16 +1326,17 @@ impl<'a> Context<'a> {
                     self.array_set_value(&element, result_block_id, &mut var_index)?;
                 }
 
-                let element_type_sizes = if !can_omit_element_sizes_array(&slice_typ) {
-                    Some(self.init_element_type_sizes_array(
-                        &slice_typ,
-                        slice_contents,
-                        Some(&new_slice_val),
-                        dfg,
-                    )?)
-                } else {
-                    None
-                };
+                let element_type_sizes =
+                    if arrays::array_has_constant_element_size(&slice_typ).is_none() {
+                        Some(self.init_element_type_sizes_array(
+                            &slice_typ,
+                            slice_contents,
+                            Some(&new_slice_val),
+                            dfg,
+                        )?)
+                    } else {
+                        None
+                    };
 
                 let value_types = new_slice_val.flat_numeric_types();
                 assert_eq!(
@@ -1389,16 +1389,17 @@ impl<'a> Context<'a> {
                     Some(new_slice_val.clone()),
                 )?;
 
-                let element_type_sizes = if !can_omit_element_sizes_array(&slice_typ) {
-                    Some(self.init_element_type_sizes_array(
-                        &slice_typ,
-                        slice_contents,
-                        Some(&new_slice_val),
-                        dfg,
-                    )?)
-                } else {
-                    None
-                };
+                let element_type_sizes =
+                    if arrays::array_has_constant_element_size(&slice_typ).is_none() {
+                        Some(self.init_element_type_sizes_array(
+                            &slice_typ,
+                            slice_contents,
+                            Some(&new_slice_val),
+                            dfg,
+                        )?)
+                    } else {
+                        None
+                    };
 
                 let value_types = new_slice_val.flat_numeric_types();
                 assert_eq!(
@@ -1606,16 +1607,17 @@ impl<'a> Context<'a> {
                     }
                 }
 
-                let element_type_sizes = if !can_omit_element_sizes_array(&slice_typ) {
-                    Some(self.init_element_type_sizes_array(
-                        &slice_typ,
-                        slice_contents,
-                        Some(&slice),
-                        dfg,
-                    )?)
-                } else {
-                    None
-                };
+                let element_type_sizes =
+                    if arrays::array_has_constant_element_size(&slice_typ).is_none() {
+                        Some(self.init_element_type_sizes_array(
+                            &slice_typ,
+                            slice_contents,
+                            Some(&slice),
+                            dfg,
+                        )?)
+                    } else {
+                        None
+                    };
 
                 let value_types = slice.flat_numeric_types();
                 assert_eq!(
@@ -1732,16 +1734,17 @@ impl<'a> Context<'a> {
                 }
 
                 let new_slice_val = AcirValue::Array(new_slice);
-                let element_type_sizes = if !can_omit_element_sizes_array(&slice_typ) {
-                    Some(self.init_element_type_sizes_array(
-                        &slice_typ,
-                        slice_contents,
-                        Some(&new_slice_val),
-                        dfg,
-                    )?)
-                } else {
-                    None
-                };
+                let element_type_sizes =
+                    if arrays::array_has_constant_element_size(&slice_typ).is_none() {
+                        Some(self.init_element_type_sizes_array(
+                            &slice_typ,
+                            slice_contents,
+                            Some(&new_slice_val),
+                            dfg,
+                        )?)
+                    } else {
+                        None
+                    };
 
                 let value_types = new_slice_val.flat_numeric_types();
                 assert_eq!(
