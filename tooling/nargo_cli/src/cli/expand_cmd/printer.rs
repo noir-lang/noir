@@ -1051,7 +1051,7 @@ impl<'interner, 'def_map, 'string> ItemPrinter<'interner, 'def_map, 'string> {
             ModuleDefId::ModuleId(module_id) => {
                 let attributes = self.interner.try_module_attributes(&module_id);
                 let name = attributes.map(|attributes| &attributes.name);
-                name.cloned().unwrap_or_else(String::new)
+                name.cloned().expect("All modules should have a name")
             }
             ModuleDefId::FunctionId(func_id) => self.interner.function_name(&func_id).to_string(),
             ModuleDefId::TypeId(type_id) => {
