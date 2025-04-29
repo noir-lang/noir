@@ -2,7 +2,7 @@ use std::collections::{HashMap, HashSet};
 
 use noirc_driver::CrateId;
 use noirc_frontend::{
-    DataType, Generics, Kind, Type,
+    DataType, Generics, Kind, NamedGeneric, Type,
     ast::{Ident, ItemVisibility},
     hir::{
         comptime::{Value, tokens_to_string_with_indent},
@@ -616,8 +616,8 @@ impl<'interner, 'def_map, 'string> ItemPrinter<'interner, 'def_map, 'string> {
             .named
             .iter()
             .filter(|named| {
-                if let Type::NamedGeneric(type_variable, _) = &named.typ {
-                    if type_variable.borrow().is_unbound() {
+                if let Type::NamedGeneric(NamedGeneric { type_var, .. }) = &named.typ {
+                    if type_var.borrow().is_unbound() {
                         return false;
                     }
                 }

@@ -1,4 +1,4 @@
-use noirc_frontend::{Type, TypeBinding, hir::def_map::ModuleDefId};
+use noirc_frontend::{NamedGeneric, Type, TypeBinding, hir::def_map::ModuleDefId};
 
 use super::ItemPrinter;
 
@@ -81,7 +81,7 @@ impl ItemPrinter<'_, '_, '_> {
                 self.push_str(trait_.name.as_str());
                 self.show_trait_generics(generics);
             }
-            Type::NamedGeneric(_type_variable, name) => {
+            Type::NamedGeneric(NamedGeneric { name, .. }) => {
                 self.push_str(name);
             }
             Type::CheckedCast { from: _, to } => {

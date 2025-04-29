@@ -1,5 +1,5 @@
 use noirc_frontend::{
-    Type, TypeBindings,
+    NamedGeneric, Type, TypeBindings,
     ast::UnaryOp,
     hir::def_map::ModuleDefId,
     hir_def::{
@@ -389,7 +389,8 @@ impl ItemPrinter<'_, '_, '_> {
         // Special case: assumed trait method
         if let ImplKind::TraitMethod(trait_method) = hir_ident.impl_kind {
             if trait_method.assumed {
-                if let Type::NamedGeneric(_, name) = &trait_method.constraint.typ {
+                if let Type::NamedGeneric(NamedGeneric { name, .. }) = &trait_method.constraint.typ
+                {
                     if name.to_string() == "Self" {
                         method_on_trait_self = true;
                     }

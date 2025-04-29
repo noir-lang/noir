@@ -5,7 +5,7 @@
 
 use noirc_errors::Location;
 use noirc_frontend::{
-    Kind, Type,
+    Kind, NamedGeneric, Type,
     ast::ItemVisibility,
     hir::def_map::ModuleId,
     modules::module_def_id_to_reference_id,
@@ -438,8 +438,8 @@ fn gather_named_type_vars(typ: &Type, type_vars: &mut HashSet<(String, Kind)>) {
                 gather_named_type_vars(&named_type.typ, type_vars);
             }
         }
-        Type::NamedGeneric(type_variable, name) => {
-            type_vars.insert((name.to_string(), type_variable.kind()));
+        Type::NamedGeneric(NamedGeneric { type_var, name, .. }) => {
+            type_vars.insert((name.to_string(), type_var.kind()));
         }
         Type::CheckedCast { from, to: _ } => {
             gather_named_type_vars(from, type_vars);
