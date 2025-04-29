@@ -354,8 +354,10 @@ impl Context {
                     };
                     let sizes = IntegerBitSize::iter()
                         .filter(|bs| {
-                            !(sign.is_signed() && (bs.bit_size() == 1 || bs.bit_size() == 128))
-                                && (!is_frontend_friendly || bs.bit_size() <= 32)
+                            // i1 and i128 are rejected by the frontend
+                            (!sign.is_signed() || (bs.bit_size() != 1 && bs.bit_size() != 128)) &&
+                            // The frontend doesn't like non-u32 literals
+                            (!is_frontend_friendly || bs.bit_size() <= 32)
                         })
                         .collect::<Vec<_>>();
                     Type::Integer(sign, u.choose_iter(sizes)?)
