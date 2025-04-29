@@ -105,8 +105,11 @@ where
                 .serialize(&inputs.input_map, &inputs.abi)
                 .unwrap_or_else(|e| format!("failed to serialize inputs: {e}"))
         );
-        eprintln!("---\nProgram 1:\n{}", inputs.ssa1.program);
-        eprintln!("---\nProgram 2:\n{}", inputs.ssa2.program);
+        eprintln!("---\nOptions 1:\n{:?}", inputs.ssa1.options);
+        eprintln!("---\nProgram 1:\n{}", inputs.ssa1.artifact.program);
+
+        eprintln!("---\nOptions 2:\n{:?}", inputs.ssa2.options);
+        eprintln!("---\nProgram 2:\n{}", inputs.ssa2.artifact.program);
 
         // Returning it as-is, so we can see the error message at the bottom as well.
         Err(report)
