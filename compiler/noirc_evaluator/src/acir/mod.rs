@@ -8,6 +8,7 @@
 
 use arrays::can_omit_element_sizes_array;
 use fxhash::FxHashMap as HashMap;
+use noirc_errors::call_stack::CallStack;
 use std::collections::{BTreeMap, HashSet};
 use types::{AcirDynamicArray, AcirValue};
 
@@ -41,7 +42,6 @@ use crate::ssa::ir::instruction::Hint;
 use crate::ssa::{
     function_builder::data_bus::DataBus,
     ir::{
-        call_stack::CallStack,
         dfg::DataFlowGraph,
         function::{Function, FunctionId, RuntimeType},
         instruction::{
@@ -252,10 +252,11 @@ impl<'a> Context<'a> {
     }
 
     fn convert_ssa_function(
-        self,
+        mut self,
         ssa: &Ssa,
         function: &Function,
     ) -> Result<Option<GeneratedAcir<FieldElement>>, RuntimeError> {
+        self.acir_context.set_call_stack_helper(self.brillig.call_stacks.to_owned());
         match function.runtime() {
             RuntimeType::Acir(inline_type) => {
                 match inline_type {
@@ -830,7 +831,7 @@ impl<'a> Context<'a> {
                 let len = if matches!(array_typ, Type::Array(_, _)) {
                     array_typ.flattened_size() as usize
                 } else {
-                    Self::flattened_value_size(&output)
+                    arrays::flattened_value_size(&output)
                 };
                 self.initialize_array(block_id, len, Some(output.clone()))?;
             }
@@ -1059,7 +1060,7 @@ impl<'a> Context<'a> {
 
         if let NumericType::Unsigned { bit_size } = &num_type {
             // Check for integer overflow
-            self.check_unsigned_overflow(result, *bit_size, binary, dfg, predicate)?;
+            self.check_unsigned_overflow(result, *bit_size, binary, predicate)?;
         }
 
         Ok(result)
@@ -1071,11 +1072,13 @@ impl<'a> Context<'a> {
         result: AcirVar,
         bit_size: u32,
         binary: &Binary,
-        dfg: &DataFlowGraph,
         predicate: AcirVar,
     ) -> Result<(), RuntimeError> {
-        let Some(msg) = binary.check_unsigned_overflow_msg(dfg, bit_size) else {
-            return Ok(());
+        let msg = match binary.operator {
+            BinaryOp::Add { unchecked: false } => "attempt to add with overflow",
+            BinaryOp::Sub { unchecked: false } => "attempt to subtract with overflow",
+            BinaryOp::Mul { unchecked: false } => "attempt to multiply with overflow",
+            _ => return Ok(()),
         };
 
         let with_pred = self.acir_context.mul_var(result, predicate)?;
@@ -1275,40 +1278,13 @@ impl<'a> Context<'a> {
                 let slice_typ = dfg.type_of_value(slice_contents);
                 assert!(!slice_typ.is_nested_slice(), "ICE: Nested slice used in ACIR generation");
 
-                let acir_value = self.convert_value(slice_contents, dfg);
-                let (slice_length, result) = match acir_value {
-                    AcirValue::Var(_, _) => {
-                        unreachable!("ICE: cannot call `as_slice` on non-array type")
-                    }
-                    array @ AcirValue::Array(_) => {
-                        let array_len = if !slice_typ.contains_slice_element() {
-                            slice_typ.flattened_size() as usize
-                        } else {
-                            self.flattened_slice_size(slice_contents, dfg)
-                        };
-                        (array_len, array)
-                    }
-                    AcirValue::DynamicArray(source_array) => {
-                        let result_block_id = self.block_id(&result_ids[1]);
-                        self.copy_dynamic_array(
-                            source_array.block_id,
-                            result_block_id,
-                            source_array.len,
-                        )?;
-
-                        let array = AcirValue::DynamicArray(AcirDynamicArray {
-                            block_id: result_block_id,
-                            len: source_array.len,
-                            value_types: source_array.value_types,
-                            element_type_sizes: source_array.element_type_sizes,
-                        });
-
-                        (source_array.len, array)
-                    }
-                };
-
+                let slice_length = self.flattened_size(slice_contents, dfg);
                 let slice_length = self.acir_context.add_constant(slice_length);
-                Ok(vec![AcirValue::Var(slice_length, AcirType::field()), result])
+
+                let acir_value = self.convert_value(slice_contents, dfg);
+                let result = self.read_array(acir_value)?;
+
+                Ok(vec![AcirValue::Var(slice_length, AcirType::field()), AcirValue::Array(result)])
             }
             Intrinsic::SlicePushBack => {
                 // arguments = [slice_length, slice_contents, ...elements_to_push]
@@ -1319,17 +1295,16 @@ impl<'a> Context<'a> {
                 assert!(!slice_typ.is_nested_slice(), "ICE: Nested slice used in ACIR generation");
 
                 let slice = self.convert_value(slice_contents, dfg);
-                let mut new_elem_size = Self::flattened_value_size(&slice);
+                let mut new_elem_size = arrays::flattened_value_size(&slice);
 
-                let mut new_slice = im::Vector::new();
-                self.slice_intrinsic_input(&mut new_slice, slice)?;
+                let mut new_slice = self.read_array(slice)?;
 
                 let elements_to_push = &arguments[2..];
                 // We must directly push back elements for non-nested slices
                 for elem in elements_to_push {
                     let element = self.convert_value(*elem, dfg);
 
-                    new_elem_size += Self::flattened_value_size(&element);
+                    new_elem_size += arrays::flattened_value_size(&element);
                     new_slice.push_back(element);
                 }
 
@@ -1386,14 +1361,13 @@ impl<'a> Context<'a> {
                 assert!(!slice_typ.is_nested_slice(), "ICE: Nested slice used in ACIR generation");
 
                 let slice: AcirValue = self.convert_value(slice_contents, dfg);
-                let mut new_slice_size = Self::flattened_value_size(&slice);
+                let mut new_slice_size = arrays::flattened_value_size(&slice);
 
                 // Increase the slice length by one to enable accessing more elements in the slice.
                 let one = self.acir_context.add_constant(FieldElement::one());
                 let new_slice_length = self.acir_context.add_var(slice_length, one)?;
 
-                let mut new_slice = im::Vector::new();
-                self.slice_intrinsic_input(&mut new_slice, slice)?;
+                let mut new_slice = self.read_array(slice)?;
 
                 let elements_to_push = &arguments[2..];
                 let mut elem_size = 0;
@@ -1401,7 +1375,7 @@ impl<'a> Context<'a> {
                 for elem in elements_to_push.iter().rev() {
                     let element = self.convert_value(*elem, dfg);
 
-                    elem_size += Self::flattened_value_size(&element);
+                    elem_size += arrays::flattened_value_size(&element);
                     new_slice.push_front(element);
                 }
                 new_slice_size += elem_size;
@@ -1466,8 +1440,7 @@ impl<'a> Context<'a> {
                 }
 
                 let slice = self.convert_value(slice_contents, dfg);
-                let mut new_slice = im::Vector::new();
-                self.slice_intrinsic_input(&mut new_slice, slice)?;
+                let new_slice = self.read_array(slice)?;
 
                 let mut results = vec![
                     AcirValue::Var(new_slice_length, AcirType::field()),
@@ -1492,8 +1465,7 @@ impl<'a> Context<'a> {
 
                 let slice = self.convert_value(slice_contents, dfg);
 
-                let mut new_slice = im::Vector::new();
-                self.slice_intrinsic_input(&mut new_slice, slice)?;
+                let mut new_slice = self.read_array(slice)?;
 
                 let element_size = slice_typ.element_size();
 
@@ -1506,7 +1478,7 @@ impl<'a> Context<'a> {
                 for res in &result_ids[..element_size] {
                     let element =
                         self.array_get_value(&dfg.type_of_value(*res), block_id, &mut var_index)?;
-                    let elem_size = Self::flattened_value_size(&element);
+                    let elem_size = arrays::flattened_value_size(&element);
                     popped_elements_size += elem_size;
                     popped_elements.push(element);
                 }
@@ -1536,7 +1508,7 @@ impl<'a> Context<'a> {
                 let one = self.acir_context.add_constant(FieldElement::one());
                 let new_slice_length = self.acir_context.add_var(slice_length, one)?;
 
-                let slice_size = Self::flattened_value_size(&slice);
+                let slice_size = arrays::flattened_value_size(&slice);
 
                 // Fetch the flattened index from the user provided index argument.
                 let element_size = slice_typ.element_size();
@@ -1553,7 +1525,7 @@ impl<'a> Context<'a> {
                 let mut flattened_elements = Vec::new();
                 for elem in elements_to_insert {
                     let element = self.convert_value(*elem, dfg);
-                    let elem_size = Self::flattened_value_size(&element);
+                    let elem_size = arrays::flattened_value_size(&element);
                     inner_elem_size_usize += elem_size;
                     let mut flat_elem = element.flatten().into_iter().map(|(var, _)| var).collect();
                     flattened_elements.append(&mut flat_elem);
@@ -1677,10 +1649,9 @@ impl<'a> Context<'a> {
                 let one = self.acir_context.add_constant(FieldElement::one());
                 let new_slice_length = self.acir_context.sub_var(slice_length, one)?;
 
-                let slice_size = Self::flattened_value_size(&slice);
+                let slice_size = arrays::flattened_value_size(&slice);
 
-                let mut new_slice = im::Vector::new();
-                self.slice_intrinsic_input(&mut new_slice, slice)?;
+                let new_slice = self.read_array(slice)?;
 
                 // Compiler sanity check
                 assert_eq!(
@@ -1708,7 +1679,7 @@ impl<'a> Context<'a> {
                 for res in &result_ids[2..(2 + element_size)] {
                     let element =
                         self.array_get_value(&dfg.type_of_value(*res), block_id, &mut temp_index)?;
-                    let elem_size = Self::flattened_value_size(&element);
+                    let elem_size = arrays::flattened_value_size(&element);
                     popped_elements_size += elem_size;
                     popped_elements.push(element);
                 }
@@ -1825,36 +1796,6 @@ impl<'a> Context<'a> {
                 )])
             }
         }
-    }
-
-    fn slice_intrinsic_input(
-        &mut self,
-        old_slice: &mut im::Vector<AcirValue>,
-        input: AcirValue,
-    ) -> Result<(), RuntimeError> {
-        match input {
-            AcirValue::Var(_, _) => {
-                old_slice.push_back(input);
-            }
-            AcirValue::Array(vars) => {
-                for var in vars {
-                    self.slice_intrinsic_input(old_slice, var)?;
-                }
-            }
-            AcirValue::DynamicArray(AcirDynamicArray { block_id, len, .. }) => {
-                for i in 0..len {
-                    // We generate witnesses corresponding to the array values
-                    let index_var = self.acir_context.add_constant(i);
-
-                    let value_read_var =
-                        self.acir_context.read_from_memory(block_id, &index_var)?;
-                    let value_read = AcirValue::Var(value_read_var, AcirType::field());
-
-                    old_slice.push_back(value_read);
-                }
-            }
-        }
-        Ok(())
     }
 
     /// Convert a `Vec<AcirVar>` into a `Vec<AcirValue>` using the given result ids.
@@ -1977,7 +1918,7 @@ mod test {
         // Set a call stack for testing whether `brillig_locations` in the `GeneratedAcir` was accurately set.
         let stack = vec![Location::dummy(), Location::dummy()];
         let call_stack =
-            builder.current_function.dfg.call_stack_data.get_or_insert_locations(stack);
+            builder.current_function.dfg.call_stack_data.get_or_insert_locations(&stack);
         builder.set_call_stack(call_stack);
 
         let foo_v0 = builder.add_parameter(Type::field());
@@ -2692,13 +2633,11 @@ mod test {
     }
 
     #[test]
-    fn multiply_with_bool_should_not_emit_range_check() {
+    fn unchecked_mul_should_not_have_range_check() {
         let src = "
             acir(inline) fn main f0 {
-            b0(v0: bool, v1: u32):
-                enable_side_effects v0
-                v2 = cast v0 as u32
-                v3 = mul v2, v1
+            b0(v0: u32, v1: u32):
+                v3 = unchecked_mul v0, v1
                 return v3
             }
         ";

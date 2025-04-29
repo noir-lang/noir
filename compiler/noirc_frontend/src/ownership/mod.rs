@@ -48,13 +48,28 @@ mod last_uses;
 mod tests;
 
 impl Program {
-    pub(crate) fn handle_ownership(mut self) -> Self {
-        let mut context = Context { variables_to_move: Default::default() };
-
+    /// Perform "ownership analysis".
+    ///
+    /// See [ownership](crate::ownership) for details.
+    ///
+    /// This should only be called once, before converting to SSA.
+    pub fn handle_ownership(mut self) -> Self {
         for function in self.functions.iter_mut() {
-            context.handle_ownership_in_function(function);
+            function.handle_ownership();
         }
         self
+    }
+}
+
+impl Function {
+    /// Perform "ownership analysis".
+    ///
+    /// See [ownership](crate::ownership) for details.
+    ///
+    /// This should only be called on a function once.
+    pub fn handle_ownership(&mut self) {
+        let mut context = Context { variables_to_move: Default::default() };
+        context.handle_ownership_in_function(self);
     }
 }
 

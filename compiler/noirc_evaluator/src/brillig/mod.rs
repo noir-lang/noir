@@ -2,16 +2,16 @@ pub(crate) mod brillig_gen;
 pub mod brillig_ir;
 
 use acvm::FieldElement;
-use brillig_gen::brillig_globals::BrilligGlobals;
+use brillig_gen::brillig_block::BrilligBlock;
 use brillig_gen::constant_allocation::ConstantAllocation;
+use brillig_gen::{brillig_fn::FunctionContext, brillig_globals::BrilligGlobals};
+use brillig_ir::BrilligContext;
 use brillig_ir::{artifact::LabelType, brillig_variable::BrilligVariable, registers::GlobalSpace};
+use noirc_errors::call_stack::CallStackHelper;
 
-use self::{
-    brillig_gen::convert_ssa_function,
-    brillig_ir::{
-        artifact::{BrilligArtifact, Label},
-        procedures::compile_procedure,
-    },
+use self::brillig_ir::{
+    artifact::{BrilligArtifact, Label},
+    procedures::compile_procedure,
 };
 
 use crate::ssa::{
@@ -42,6 +42,7 @@ pub struct BrilligOptions {
 pub struct Brillig {
     /// Maps SSA function labels to their brillig artifact
     ssa_function_to_brillig: HashMap<FunctionId, BrilligArtifact<FieldElement>>,
+    pub call_stacks: CallStackHelper,
     globals: HashMap<FunctionId, BrilligArtifact<FieldElement>>,
     globals_memory_size: HashMap<FunctionId, usize>,
 }
@@ -56,8 +57,13 @@ impl Brillig {
         hoisted_global_constants: &HashMap<(FieldElement, NumericType), BrilligVariable>,
         is_entry_point: bool,
     ) {
-        let obj =
-            convert_ssa_function(func, options, globals, hoisted_global_constants, is_entry_point);
+        let obj = self.convert_ssa_function(
+            func,
+            options,
+            globals,
+            hoisted_global_constants,
+            is_entry_point,
+        );
         self.ssa_function_to_brillig.insert(func.id(), obj);
     }
 
@@ -78,6 +84,40 @@ impl Brillig {
             LabelType::GlobalInit(function_id) => self.globals.get(&function_id).map(Cow::Borrowed),
             _ => unreachable!("ICE: Expected a function or procedure label"),
         }
+    }
+
+    /// Converting an SSA function into Brillig bytecode.
+    pub(crate) fn convert_ssa_function(
+        &mut self,
+        func: &Function,
+        options: &BrilligOptions,
+        globals: &HashMap<ValueId, BrilligVariable>,
+        hoisted_global_constants: &HashMap<(FieldElement, NumericType), BrilligVariable>,
+        is_entry_point: bool,
+    ) -> BrilligArtifact<FieldElement> {
+        let mut brillig_context = BrilligContext::new(options);
+
+        let mut function_context = FunctionContext::new(func, is_entry_point);
+
+        brillig_context.enter_context(Label::function(func.id()));
+
+        brillig_context.call_check_max_stack_depth_procedure();
+
+        for block in function_context.blocks.clone() {
+            BrilligBlock::compile(
+                &mut function_context,
+                &mut brillig_context,
+                block,
+                &func.dfg,
+                &mut self.call_stacks,
+                globals,
+                hoisted_global_constants,
+            );
+        }
+
+        let mut artifact = brillig_context.artifact();
+        artifact.name = func.name().to_string();
+        artifact
     }
 }
 

@@ -1,10 +1,10 @@
 use std::{borrow::Cow, sync::Arc};
 
 use acvm::{FieldElement, acir::AcirField};
+use noirc_errors::call_stack::CallStackId;
 
 use crate::ssa::{
     ir::{
-        call_stack::CallStackId,
         dfg::InsertInstructionResult,
         function::Function,
         instruction::{Binary, BinaryOp, Endian, Instruction, Intrinsic},
@@ -161,10 +161,21 @@ impl Context<'_, '_, '_> {
     ) -> ValueId {
         let lhs_typ = self.context.dfg.type_of_value(lhs).unwrap_numeric();
         let base = self.field_constant(FieldElement::from(2_u128));
+        let rhs_typ = self.context.dfg.type_of_value(rhs).unwrap_numeric();
+        //Check whether rhs is less than the bit_size: if it's not then it will overflow and we will return 0 instead.
+        let bit_size_value = self.numeric_constant(bit_size as u128, rhs_typ);
+        let rhs_is_less_than_bit_size = self.insert_binary(rhs, BinaryOp::Lt, bit_size_value);
+        let rhs_is_less_than_bit_size_with_rhs_typ =
+            self.insert_cast(rhs_is_less_than_bit_size, rhs_typ);
+        // Nullify rhs in case of overflow, to ensure that pow returns a value compatible with lhs
+        let rhs = self.insert_binary(
+            rhs_is_less_than_bit_size_with_rhs_typ,
+            BinaryOp::Mul { unchecked: true },
+            rhs,
+        );
         let pow = self.pow(base, rhs);
-        let pow = self.pow_or_max_for_bit_size(pow, rhs, bit_size, lhs_typ);
         let pow = self.insert_cast(pow, lhs_typ);
-        if lhs_typ.is_unsigned() {
+        let result = if lhs_typ.is_unsigned() {
             // unsigned right bit shift is just a normal division
             self.insert_binary(lhs, BinaryOp::Div, pow)
         } else {
@@ -198,53 +209,14 @@ impl Context<'_, '_, '_> {
                 lhs_sign_as_int,
             );
             self.insert_truncate(shifted, bit_size, bit_size + 1)
-        }
-    }
-
-    /// Returns `pow` or the maximum value allowed for `typ` if 2^rhs is guaranteed to exceed that maximum.
-    fn pow_or_max_for_bit_size(
-        &mut self,
-        pow: ValueId,
-        rhs: ValueId,
-        bit_size: u32,
-        typ: NumericType,
-    ) -> ValueId {
-        let max = if typ.is_unsigned() {
-            if bit_size == 128 { u128::MAX } else { (1_u128 << bit_size) - 1 }
-        } else {
-            1_u128 << (bit_size - 1)
         };
-        let max = self.field_constant(FieldElement::from(max));
-
-        // Here we check whether rhs is less than the bit_size: if it's not then it will overflow.
-        // Then we do:
-        //
-        // rhs_is_less_than_bit_size = lt rhs, bit_size
-        // rhs_is_not_less_than_bit_size = not rhs_is_less_than_bit_size
-        // pow_when_is_less_than_bit_size = rhs_is_less_than_bit_size * pow
-        // pow_when_is_not_less_than_bit_size = rhs_is_not_less_than_bit_size * max
-        // pow = add pow_when_is_less_than_bit_size, pow_when_is_not_less_than_bit_size
-        //
-        // All operations here are unchecked because they work on field types.
-        let rhs_typ = self.context.dfg.type_of_value(rhs).unwrap_numeric();
-        let bit_size = self.numeric_constant(bit_size as u128, rhs_typ);
-        let rhs_is_less_than_bit_size = self.insert_binary(rhs, BinaryOp::Lt, bit_size);
-        let rhs_is_not_less_than_bit_size = self.insert_not(rhs_is_less_than_bit_size);
-        let rhs_is_less_than_bit_size =
-            self.insert_cast(rhs_is_less_than_bit_size, NumericType::NativeField);
-        let rhs_is_not_less_than_bit_size =
-            self.insert_cast(rhs_is_not_less_than_bit_size, NumericType::NativeField);
-        let pow_when_is_less_than_bit_size =
-            self.insert_binary(rhs_is_less_than_bit_size, BinaryOp::Mul { unchecked: true }, pow);
-        let pow_when_is_not_less_than_bit_size = self.insert_binary(
-            rhs_is_not_less_than_bit_size,
-            BinaryOp::Mul { unchecked: true },
-            max,
-        );
+        // Returns 0 in case of overflow
+        let rhs_is_less_than_bit_size_with_lhs_typ =
+            self.insert_cast(rhs_is_less_than_bit_size, lhs_typ);
         self.insert_binary(
-            pow_when_is_less_than_bit_size,
-            BinaryOp::Add { unchecked: true },
-            pow_when_is_not_less_than_bit_size,
+            rhs_is_less_than_bit_size_with_lhs_typ,
+            BinaryOp::Mul { unchecked: true },
+            result,
         )
     }
 

@@ -30,7 +30,7 @@ expression: artifact
     }
   },
   "bytecode": "H4sIAAAAAAAA/+VYS07DMBB1nDT0A1IFYsEuS5Z2Pq2zK0KIc7SQ7LkEB+ASbDkHZ2DJNZBIii2GkQlS8yIVdSRrxnb9PH6esd1I8SVBU0JmB7aeNGVk665NEJu3b2VlteonWngmRGEHBCtTizyvlmmlM71WabkxhcqLzcJoowtT3KcmyyqTm2W5KZeq1HlW6boos6pu5W7dYkXMzy6ZN+W0g3CHJT1jOQ+7+l5bIgCcaqc97qKwFeXC2SEnUIrviAyJTphT4YAk7oiVWiwtgX6F4M0dIvikZz9UP9FILOR+REAsGuORJ8blgJz29X0ExqK30IjYMbHhwSvB5B5gcqXI5DoSqBu9rmlytbiJ+Cn7nFxjIA88ucbEnogDTi7JCEDhHuPWrYZadyzwh0oMxJoA1zsH74cT9At0CuQPGIMayR89lNv1Jhb3v1ycgRjmnNinGP/rrzD9bhCS9tjq64+325enx0s6ZtrRN7f6/P3q4uH1+YbPM7Z6wrDc/CvMulOHPxsGf/u44TIl9oz1uQdK5BkX/FKXTHf9tmtvTzx9DvPMauqvW8cnUBm5LZASAAA=",
-  "debug_symbols": "tdPRDkMwFAbgdznXLpSW8SqLSFHSpCkplizi3YcwZmLOxS5Pz/+1PWnaQSaStoilzssawnsHqkx5I0s9VB2QaamuuB6ruuGmgdAJLBA6g5CS3oJcKgEhs/vIAuc87n/EhyIxUilZxNszh+UHN5InSsxl3up0022e1dJZfGXKVGStEeNOU6+3rkwS3OarEZteGeUk7yLzFJlnR3lC34C5O+BhgX8I3BXsr3TDguAQeP4CfGcHiI0Wh+9M2Cr2YxMHLdwfg38LihYMLTyc+O/3i/oX",
+  "debug_symbols": "zZLRjoMgEEX/ZZ55EAWt/sqmMajYkBA0FDbZGP99R9TabrJpQvvQl3uF8QxwMxN0svGXWpl+uEL1NUFjldbqUuuhFU4NBnenmcC+rJ2VErfgro7UKKw0DirjtSbwLbQPP11HYYI7YbGaEJCmQ8eGvdJy+ZrJQSf/o2m5sYzeYB5BFw/0GVeiVfbhtUChogRSxOalpVWi0XLLofemvYvF/Yx7ZQ9utEMrO2/l0jTUlkt+aKzlaWNpwiJypezG8yyGzw4+6vy82PkijeH5wb94/z/8k8lCzYKyoBxnjUAetIAqI3AKWuLEEqDJakhztHQ15HM0thpfDVvkbxra8/wL",
   "file_map": {
     "50": {
       "source": "fn main(x: u32) {\n    assert(fibonacci(x) == 55);\n}\n\n#[fold]\nfn fibonacci(x: u32) -> u32 {\n    if x <= 1 {\n        x\n    } else {\n        fibonacci(x - 1) + fibonacci(x - 2)\n    }\n}\n",

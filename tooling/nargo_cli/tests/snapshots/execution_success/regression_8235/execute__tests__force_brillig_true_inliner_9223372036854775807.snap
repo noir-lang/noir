@@ -1,0 +1,45 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: artifact
+---
+{
+  "noir_version": "[noir_version]",
+  "hash": "[hash]",
+  "abi": {
+    "parameters": [
+      {
+        "name": "a",
+        "type": {
+          "kind": "boolean"
+        },
+        "visibility": "private"
+      }
+    ],
+    "return_type": {
+      "abi_type": {
+        "kind": "boolean"
+      },
+      "visibility": "public"
+    },
+    "error_types": {
+      "17843811134343075018": {
+        "error_kind": "string",
+        "string": "Stack too deep"
+      }
+    }
+  },
+  "bytecode": "H4sIAAAAAAAA/71VSw6CMBAtAmolaIJxZdzoBdoAwpKFHqRaOQdHF+I0HWslJrS+ZDL0My9vXtoSkBcCiAERmjOh5hrIbBq4Qy4WWHSONmErOEGmkGdoPXTYOLVoccVfs+JMyWfPDvXnFDh9+qM4PfCzBfBcOs1v9kJQVvvMmgEpeb9AeM+yjzXR3xtUM+CKuFS9T2/7s1F69pZvyXc/E/DhAOPY6H0Hed5HZvhh3tvGjV6WWvQGSMd+RIcL30pZy8dNVr7PvNKuHvgQwtbTH3znv/qeWnSomoTotzrq3PtW1frHEgJ/jDzCiNA63n+E8QrpVzmaoLOtBG9z0YpSSFncRWbwE8OnJ5LSnLbtBwAA",
+  "debug_symbols": "dZBNDoMgEIXvMmsWgm1tvYoxBnU0JAQJQpPGcPeCLf4s3MxjmPneJG+BHls3NkIN0wxltUBrhJRibOTUcSsmFX4XyGJhFEpGgLGf5EG8J5AWG2sQ496BDH6aG1QWSuWkJPDm0q1Ls+ZqVctNmGYEUPVBg+EgJMaXJzudXaOPxBbPDb6faXpN0w2nBT3xdeh4J8wpCR+djOCtxH87ONUdpvaj0yQlqc3UYe8MRqc9ThpqxV4kv9U+XvsC",
+  "file_map": {
+    "50": {
+      "source": "fn main(a: bool) -> pub bool {\n    if (a) {\n        let b = func_4(1569582039);\n        true\n    } else {\n        false\n    }\n}\nfn func_4(a: u32) -> u32 {\n    (a / (a % a))\n}\n",
+      "path": ""
+    }
+  },
+  "names": [
+    "main"
+  ],
+  "brillig_names": [
+    "main"
+  ]
+}

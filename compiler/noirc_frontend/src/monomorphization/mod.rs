@@ -15,7 +15,7 @@ use crate::node_interner::{ExprId, GlobalValue, ImplSearchErrorKind};
 use crate::shared::{Signedness, Visibility};
 use crate::signed_field::SignedField;
 use crate::token::FmtStrFragment;
-use crate::{DataType, Shared, TypeVariableId};
+use crate::{DataType, NamedGeneric, Shared, TypeVariableId};
 use crate::{
     Kind, Type, TypeBinding, TypeBindings,
     debug::DebugInstrumenter,
@@ -1215,15 +1215,15 @@ impl<'interner> Monomorphizer<'interner> {
             HirType::TraitAsType(..) => {
                 unreachable!("All TraitAsType should be replaced before calling convert_type");
             }
-            HirType::NamedGeneric(binding, _) => {
-                if let TypeBinding::Bound(binding) = &*binding.borrow() {
+            HirType::NamedGeneric(NamedGeneric { type_var, .. }) => {
+                if let TypeBinding::Bound(binding) = &*type_var.borrow() {
                     return Self::convert_type_helper(binding, location, seen_types);
                 }
 
                 // Default any remaining unbound type variables.
                 // This should only happen if the variable in question is unused
                 // and within a larger generic type.
-                binding.bind(HirType::default_int_or_field_type());
+                type_var.bind(HirType::default_int_or_field_type());
                 ast::Type::Field
             }
 
@@ -1467,8 +1467,8 @@ impl<'interner> Monomorphizer<'interner> {
             HirType::FmtString(_size, fields) => Self::check_type(fields.as_ref(), location),
             HirType::Array(_length, element) => Self::check_type(element.as_ref(), location),
             HirType::Slice(element) => Self::check_type(element.as_ref(), location),
-            HirType::NamedGeneric(binding, _) => {
-                if let TypeBinding::Bound(binding) = &*binding.borrow() {
+            HirType::NamedGeneric(NamedGeneric { type_var, .. }) => {
+                if let TypeBinding::Bound(binding) = &*type_var.borrow() {
                     return Self::check_type(binding, location);
                 }
 

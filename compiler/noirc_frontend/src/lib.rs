@@ -27,7 +27,7 @@ pub mod locations;
 pub mod modules;
 pub mod monomorphization;
 pub mod node_interner;
-pub(crate) mod ownership;
+pub mod ownership;
 pub mod parser;
 pub mod resolve_locations;
 pub mod shared;

@@ -936,7 +936,7 @@ impl<'elab, 'ctx> MatchCompiler<'elab, 'ctx> {
             | Type::TypeVariable(_)
             | Type::FmtString(_, _)
             | Type::TraitAsType(_, _, _)
-            | Type::NamedGeneric(_, _)
+            | Type::NamedGeneric(_)
             | Type::CheckedCast { .. }
             | Type::Function(_, _, _, _)
             | Type::Reference(..)

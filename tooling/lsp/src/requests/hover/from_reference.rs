@@ -1,5 +1,7 @@
+use async_lsp::lsp_types;
+use async_lsp::lsp_types::{Hover, HoverContents, MarkupContent, MarkupKind, Position};
 use fm::{FileId, FileMap};
-use lsp_types::{Hover, HoverContents, MarkupContent, MarkupKind, Position};
+use noirc_frontend::NamedGeneric;
 use noirc_frontend::hir::comptime::Value;
 use noirc_frontend::node_interner::GlobalValue;
 use noirc_frontend::shared::Visibility;
@@ -336,14 +338,17 @@ fn format_function(id: FuncId, args: &ProcessRequestCallbackArgs) -> String {
         let trait_impl = trait_impl.borrow();
         let trait_ = args.interner.get_trait(trait_impl.trait_id);
 
-        let generics: Vec<_> =
-            trait_impl
-                .trait_generics
-                .iter()
-                .filter_map(|generic| {
-                    if let Type::NamedGeneric(_, name) = generic { Some(name) } else { None }
-                })
-                .collect();
+        let generics = trait_impl
+            .trait_generics
+            .iter()
+            .filter_map(|generic| {
+                if let Type::NamedGeneric(generic) = generic {
+                    Some(generic.name.as_str())
+                } else {
+                    None
+                }
+            })
+            .collect::<Vec<_>>();
 
         string.push('\n');
         string.push_str("    impl");
@@ -750,8 +755,8 @@ impl TypeLinksGatherer<'_> {
                     self.gather_type_links(&named_type.typ);
                 }
             }
-            Type::NamedGeneric(var, _) => {
-                self.gather_type_variable_links(var);
+            Type::NamedGeneric(NamedGeneric { type_var, .. }) => {
+                self.gather_type_variable_links(type_var);
             }
             Type::Function(args, return_type, env, _) => {
                 for arg in args {

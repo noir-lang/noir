@@ -7,11 +7,11 @@ use crate::ssa::{
 
 use super::{
     basic_block::{BasicBlock, BasicBlockId},
-    call_stack::{CallStack, CallStackHelper, CallStackId},
     function::{FunctionId, RuntimeType},
     instruction::{
         Instruction, InstructionId, InstructionResultType, Intrinsic, TerminatorInstruction,
     },
+    integer::IntegerConstant,
     map::DenseMap,
     types::{NumericType, Type},
     value::{Value, ValueId, ValueMapping},
@@ -20,6 +20,7 @@ use super::{
 use acvm::{FieldElement, acir::AcirField};
 use fxhash::FxHashMap as HashMap;
 use iter_extended::vecmap;
+use noirc_errors::call_stack::{CallStack, CallStackHelper, CallStackId};
 use serde::{Deserialize, Serialize};
 use serde_with::DisplayFromStr;
 use serde_with::serde_as;
@@ -582,13 +583,22 @@ impl DataFlowGraph {
     }
 
     /// Returns the field element represented by this value if it is a numeric constant.
-    /// Returns None if the given value is not a numeric constant.
+    /// Returns `None` if the given value is not a numeric constant.
+    ///
+    /// Use `get_integer_constant` if the underlying values need to be compared as signed integers.
     pub(crate) fn get_numeric_constant(&self, value: ValueId) -> Option<FieldElement> {
         self.get_numeric_constant_with_type(value).map(|(value, _typ)| value)
     }
 
+    /// Similar to `get_numeric_constant` but returns the value as a signed or unsigned integer.
+    /// Returns `None` if the given value is not an integer constant.
+    pub(crate) fn get_integer_constant(&self, value: ValueId) -> Option<IntegerConstant> {
+        self.get_numeric_constant_with_type(value)
+            .and_then(|(f, t)| IntegerConstant::from_numeric_constant(f, t))
+    }
+
     /// Returns the field element and type represented by this value if it is a numeric constant.
-    /// Returns None if the given value is not a numeric constant.
+    /// Returns `None` if the given value is not a numeric constant.
     pub(crate) fn get_numeric_constant_with_type(
         &self,
         value: ValueId,

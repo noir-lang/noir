@@ -249,6 +249,8 @@ impl Parser<'_> {
 #[cfg(test)]
 mod tests {
 
+    use insta::assert_snapshot;
+
     use crate::{
         ast::Pattern,
         parser::{
@@ -355,7 +357,7 @@ mod tests {
         let pattern = parser.parse_pattern_or_error();
 
         let error = get_single_error(&parser.errors, span);
-        assert_eq!(error.to_string(), "Expected a ':' but found '='");
+        assert_snapshot!(error.to_string(), @"Expected a ':' but found '='");
 
         let Pattern::Struct(path, mut patterns, _) = pattern else {
             panic!("Expected a struct pattern")

@@ -33,6 +33,7 @@ fn main() {
 
     generate_execution_success_tests(&mut test_file, &test_dir);
     generate_execution_failure_tests(&mut test_file, &test_dir);
+    generate_execution_panic_tests(&mut test_file, &test_dir);
     generate_noir_test_success_tests(&mut test_file, &test_dir);
     generate_noir_test_failure_tests(&mut test_file, &test_dir);
     generate_compile_success_empty_tests(&mut test_file, &test_dir);
@@ -93,10 +94,11 @@ const INLINER_MIN_OVERRIDES: [(&str, i64); 1] = [
 const INLINER_MAX_OVERRIDES: [(&str, i64); 0] = [];
 
 /// These tests should only be run on exactly 1 inliner setting (the one given here)
-const INLINER_OVERRIDES: [(&str, i64); 3] = [
+const INLINER_OVERRIDES: [(&str, i64); 4] = [
     ("reference_counts_inliner_0", 0),
     ("reference_counts_inliner_min", i64::MIN),
     ("reference_counts_inliner_max", i64::MAX),
+    ("reference_counts_slices_inliner_0", 0),
 ];
 
 /// Some tests are expected to have warnings
@@ -422,6 +424,32 @@ fn generate_execution_failure_tests(test_file: &mut File, test_data_dir: &Path) 
             &test_dir,
             "execute",
             "execution_failure(nargo);",
+            &MatrixConfig::default(),
+        );
+    }
+    writeln!(test_file, "}}").unwrap();
+}
+
+fn generate_execution_panic_tests(test_file: &mut File, test_data_dir: &Path) {
+    let test_type = "execution_panic";
+    let test_cases = read_test_cases(test_data_dir, test_type);
+
+    writeln!(
+        test_file,
+        "mod {test_type} {{
+        use super::*;
+    "
+    )
+    .unwrap();
+    for (test_name, test_dir) in test_cases {
+        let test_dir = test_dir.display();
+
+        generate_test_cases(
+            test_file,
+            &test_name,
+            &test_dir,
+            "execute",
+            "execution_panic(nargo);",
             &MatrixConfig::default(),
         );
     }
