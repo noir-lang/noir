@@ -1951,6 +1951,14 @@ impl Type {
                     Err(UnificationError)
                 }
             }
+            (
+                Constant(_, kind),
+                Type::NamedGeneric(types::NamedGeneric { type_var, implicit: true, .. }),
+            )
+            | (
+                Type::NamedGeneric(types::NamedGeneric { type_var, implicit: true, .. }),
+                Constant(_, kind),
+            ) if type_var.borrow().is_unbound() => kind.unify(&type_var.kind()),
 
             (Constant(value, kind), other) | (other, Constant(value, kind)) => {
                 let dummy_location = Location::dummy();

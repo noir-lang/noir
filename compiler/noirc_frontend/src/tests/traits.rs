@@ -1,7 +1,7 @@
 use crate::elaborator::FrontendOptions;
 
-use crate::assert_no_errors;
 use crate::tests::Expect;
+use crate::{assert_no_errors, check_monomorphization_error};
 use crate::{check_errors, get_program_with_options};
 
 #[named]
@@ -1579,4 +1579,48 @@ fn errors_if_unconstrained_trait_definition_has_constrained_impl() {
     }
     "#;
     check_errors!(src);
+}
+
+#[named]
+#[test]
+fn implicit_generics_unification() {
+    let src = "
+    trait TraitWithAssociatedConstant {
+        let N: u32;
+
+        fn foo(_: Self) -> bool {
+            true
+        }
+    }
+
+    struct Foo {}
+
+    impl TraitWithAssociatedConstant for Foo {
+        let N: u32 = 42;
+    }
+
+    struct Wrapper<T> {
+        inner: T,
+    }
+
+    trait Eq2 {
+        fn eq(self, other: Self) -> bool;
+    }
+
+    impl<T> Eq2 for Wrapper<T>
+    where
+        T: TraitWithAssociatedConstant,
+    {
+
+        fn eq(self, _other: Self) -> bool {
+            self.inner.foo()
+        }
+    }
+
+    fn main() {
+        let wrapper = Wrapper { inner: Foo {} };
+        assert(wrapper.eq(wrapper));
+    }
+    ";
+    check_monomorphization_error!(src);
 }
