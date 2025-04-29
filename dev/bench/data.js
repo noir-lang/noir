@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1745944511919,
+  "lastUpdate": 1745945137936,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -17966,48 +17966,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "47281315+guipublic@users.noreply.github.com",
-            "name": "guipublic",
-            "username": "guipublic"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "ae008d31e289ddb086b4c69e3fd287c5167fc4dc",
-          "message": "feat: location tree for debug_info (#7034)\n\nCo-authored-by: Tom French <15848336+TomAFrench@users.noreply.github.com>\nCo-authored-by: Maxim Vezenov <mvezenov@gmail.com>\nCo-authored-by: Akosh Farkash <aakoshh@gmail.com>\nCo-authored-by: sirasistant <sirasistant@gmail.com>\nCo-authored-by: Tom French <tom@tomfren.ch>",
-          "timestamp": "2025-04-23T08:44:53Z",
-          "tree_id": "8944a0ac54be166da3ec0226bc801bb1a1fac9b1",
-          "url": "https://github.com/noir-lang/noir/commit/ae008d31e289ddb086b4c69e3fd287c5167fc4dc"
-        },
-        "date": 1745399004416,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 279986,
-            "range": "± 3452",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 249059,
-            "range": "± 1307",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 3236354,
-            "range": "± 9404",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "asterite@gmail.com",
             "name": "Ary Borenszweig",
             "username": "asterite"
@@ -20059,6 +20017,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 3247228,
             "range": "± 9774",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "15848336+TomAFrench@users.noreply.github.com",
+            "name": "Tom French",
+            "username": "TomAFrench"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "c7e56beaac4081c5b71c0717e122aaf9a7b075f2",
+          "message": "chore: refactor array handling in ACIRgen (#8256)\n\nCo-authored-by: AztecBot <tech@aztecprotocol.com>",
+          "timestamp": "2025-04-29T16:27:38Z",
+          "tree_id": "909c4525d1bf016b95be549a181c5689b18ef83b",
+          "url": "https://github.com/noir-lang/noir/commit/c7e56beaac4081c5b71c0717e122aaf9a7b075f2"
+        },
+        "date": 1745945131151,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 272158,
+            "range": "± 973",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 247605,
+            "range": "± 466",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 3231499,
+            "range": "± 2894",
             "unit": "ns/iter"
           }
         ]
