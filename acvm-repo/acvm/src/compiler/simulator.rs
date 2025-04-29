@@ -74,7 +74,7 @@ impl CircuitSimulator {
             }
             Opcode::MemoryOp { block_id, op, predicate } => {
                 if !self.initialized_blocks.contains(block_id) {
-                    // Writing after having used the block should not be allowed
+                    // Memory must be initialized before it can be used.
                     return false;
                 }
 
