@@ -1,5 +1,8 @@
 //! Dead Instruction Elimination (DIE) pass: Removes any instruction without side-effects for
 //! which the results are unused.
+//!
+//! DIE also tracks which block parameters are unused.
+//! Unused parameters are then pruned by the [prune_dead_parameters] pass.
 use acvm::{AcirField, FieldElement, acir::BlackBoxFunc};
 use fxhash::{FxHashMap as HashMap, FxHashSet as HashSet};
 use rayon::iter::{IntoParallelRefMutIterator, ParallelIterator};
@@ -8,7 +11,7 @@ use crate::ssa::{
     ir::{
         basic_block::{BasicBlock, BasicBlockId},
         dfg::DataFlowGraph,
-        function::Function,
+        function::{Function, FunctionId},
         instruction::{BinaryOp, Instruction, InstructionId, Intrinsic},
         post_order::PostOrder,
         types::Type,
@@ -19,6 +22,8 @@ use crate::ssa::{
 
 use super::rc::{RcInstruction, pop_rc_for};
 
+mod prune_dead_parameters;
+
 impl Ssa {
     /// Performs Dead Instruction Elimination (DIE) to remove any instructions with
     /// unused results.
@@ -26,27 +31,48 @@ impl Ssa {
     /// This step should come after the flattening of the CFG and mem2reg.
     #[tracing::instrument(level = "trace", skip(self))]
     pub fn dead_instruction_elimination(self) -> Ssa {
-        self.dead_instruction_elimination_inner(true, false)
+        self.dead_instruction_elimination_with_pruning(true, false)
     }
 
     /// Post the Brillig generation we do not need to run this pass on Brillig functions.
     #[tracing::instrument(level = "trace", skip(self))]
     pub(crate) fn dead_instruction_elimination_acir(self) -> Ssa {
-        self.dead_instruction_elimination_inner(true, true)
+        self.dead_instruction_elimination_with_pruning(true, true)
     }
 
-    fn dead_instruction_elimination_inner(mut self, flattened: bool, skip_brillig: bool) -> Ssa {
-        let mut used_globals_map: HashMap<_, _> = self
+    fn dead_instruction_elimination_with_pruning(self, flattened: bool, skip_brillig: bool) -> Ssa {
+        let (ssa, result) = self.dead_instruction_elimination_inner(flattened, skip_brillig);
+        ssa.prune_dead_parameters(result.unused_parameters)
+    }
+
+    fn dead_instruction_elimination_inner(
+        mut self,
+        flattened: bool,
+        skip_brillig: bool,
+    ) -> (Ssa, DIEResult) {
+        let mut result = self
             .functions
             .par_iter_mut()
-            .filter_map(|(id, func)| {
-                let set = func.dead_instruction_elimination(flattened, skip_brillig);
-                if func.runtime().is_brillig() { Some((*id, set)) } else { None }
+            .map(|(id, func)| {
+                let (used_globals, unused_params) =
+                    func.dead_instruction_elimination(flattened, skip_brillig);
+                let mut result = DIEResult::default();
+
+                if func.runtime().is_brillig() {
+                    result.used_globals.insert(*id, used_globals);
+                }
+                result.unused_parameters.insert(*id, unused_params);
+
+                result
             })
-            .collect();
+            .reduce(DIEResult::default, |mut a, b| {
+                a.used_globals.extend(b.used_globals);
+                a.unused_parameters.extend(b.unused_parameters);
+                a
+            });
 
         let globals = &self.functions[&self.main_id].dfg.globals;
-        for used_global_values in used_globals_map.values_mut() {
+        for used_global_values in result.used_globals.values_mut() {
             // DIE only tracks used instruction results, however, globals include constants.
             // Back track globals for internal values which may be in use.
             for (id, value) in globals.values_iter().rev() {
@@ -61,9 +87,9 @@ impl Ssa {
             }
         }
 
-        self.used_globals = used_globals_map;
+        self.used_globals = std::mem::take(&mut result.used_globals);
 
-        self
+        (self, result)
     }
 }
 
@@ -75,15 +101,18 @@ impl Function {
     /// If we did not iterate blocks in this order we could not safely say whether or not the results
     /// of its instructions are needed elsewhere.
     ///
-    /// Returns the set of globals that were used in this function.
-    /// After processing all functions, the union of these sets enables determining the unused globals.
+    /// # Returns
+    /// - The set of globals that were used in this function.
+    ///   After processing all functions, the union of these sets enables determining the unused globals.
+    /// - A mapping of (block id -> unused parameters) for the given function.
+    ///   This can be used by follow-up passes to prune unused parameters from blocks.
     pub(crate) fn dead_instruction_elimination(
         &mut self,
         flattened: bool,
         skip_brillig: bool,
-    ) -> HashSet<ValueId> {
+    ) -> (HashSet<ValueId>, HashMap<BasicBlockId, Vec<ValueId>>) {
         if skip_brillig && self.dfg.runtime().is_brillig() {
-            return HashSet::default();
+            return (HashSet::default(), HashMap::default());
         }
 
         let mut context = Context { flattened, ..Default::default() };
@@ -95,16 +124,33 @@ impl Function {
         }
 
         let blocks = PostOrder::with_function(self);
+        let mut unused_params_per_block = HashMap::default();
         for block in blocks.as_slice() {
             context.remove_unused_instructions_in_block(self, *block);
+
+            let unused_params = self.dfg[*block]
+                .parameters()
+                .iter()
+                .filter(|value| !context.used_values.contains(value))
+                .copied()
+                .collect::<Vec<_>>();
+            unused_params_per_block.insert(*block, unused_params);
         }
 
         context.remove_rc_instructions(&mut self.dfg);
 
-        context.used_values.into_iter().filter(|value| self.dfg.is_global(*value)).collect()
+        (
+            context.used_values.into_iter().filter(|value| self.dfg.is_global(*value)).collect(),
+            unused_params_per_block,
+        )
     }
 }
 
+#[derive(Default)]
+struct DIEResult {
+    used_globals: HashMap<FunctionId, HashSet<ValueId>>,
+    unused_parameters: HashMap<FunctionId, HashMap<BasicBlockId, Vec<ValueId>>>,
+}
 /// Per function context for tracking unused values and which instructions to remove.
 #[derive(Default)]
 struct Context {
@@ -529,8 +575,7 @@ mod test {
             }
             ";
         let ssa = Ssa::from_str(src).unwrap();
-        let mut ssa = ssa.dead_instruction_elimination();
-        ssa.normalize_ids();
+        let (ssa, _) = ssa.dead_instruction_elimination_inner(false, false);
 
         assert_ssa_snapshot!(ssa, @r"
         acir(inline) fn main f0 {
@@ -835,7 +880,7 @@ mod test {
         let ssa = Ssa::from_str(src).unwrap();
 
         // Even though these ACIR functions only have 1 block, we have not inlined and flattened anything yet.
-        let ssa = ssa.dead_instruction_elimination_inner(false, false);
+        let (ssa, _) = ssa.dead_instruction_elimination_inner(false, false);
 
         assert_ssa_snapshot!(ssa, @r"
         acir(inline) fn main f0 {

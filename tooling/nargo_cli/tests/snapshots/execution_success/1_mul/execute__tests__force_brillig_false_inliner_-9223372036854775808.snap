@@ -44,7 +44,7 @@ expression: artifact
     }
   },
   "bytecode": "H4sIAAAAAAAA/7WRUQ7CIAyGx2DEGA/hEegAV968ypaxs3gAD+FJfPHBK7nFmjTLshfLn5A2LfyUD1V9Zed1olzNS1NcdF7V1EatplrFzl0puv8EFbuX+3p3CSF3bQYPvWvTgNGFOFwQECLGsUXvMwbs0pA6lyD4DFNMfiJjLTej4yx0QRZ69TdSLEwhFqYgC0P+0iyaQiyagiwa8pdmYQuxsIzFT7Xw7LUgX2kOhrw0e79iDLjMRv66v5+PWz/yfXand9jpHXd6iz7RjeSjJAYAAA==",
-  "debug_symbols": "ldHNCoQgFAXgd7nrFmnTj73KMISVhSAaZgOD9O5jMQ4lbtx57uG7XNDCyPpt7ric1Art04JQAzVcSZcsFOdoXag80mqoNtCimmTA5OheTblnMHHBoC3z/ZXBIxWUUUCQB6QOQJUK6hjAuT8Jo/CkJhWQKMB/UIQA5ckCRUWFvaiam3Ch11wIPnfXD3XjN9Wc9oL94rTJ4dKaz+Ib7xetBjZumh2bzs6t/wI=",
+  "debug_symbols": "nZLNDoMgDMffpWcOgvPzVZbFoNaFhKBhsGQxvvsqG5selixeWuifX1vSztBj66+NMsN4g/o8Q2uV1ura6LGTTo2GovPCIF4bZxEpBBudqElaNA5q47VmcJfah0e3SZrgnbSkJgzQ9OQp4aA0rqeFfenkN8qL6g3zMvvg2f98xSNfFQd4kcT6gh+pL8SHTw/xuYh8Xu74C91kp+xuYpDSRxmcgs0IYpAHW0CdMiiDraA+MeDJy3FKt6wNWCVbje+5D950mzVwjykqcVEmO3bYe4trA0Gjlp4=",
   "file_map": {
     "50": {
       "source": "// Test unsafe integer multiplication with overflow: 12^8 = 429 981 696\n// The circuit should handle properly the growth of the bit size\nfn main(mut x: u32, y: u32, z: u32) {\n    x *= y;\n    x *= x; //144\n    x *= x; //20736\n    x *= x; //429 981 696\n    assert(x == z);\n}\n",

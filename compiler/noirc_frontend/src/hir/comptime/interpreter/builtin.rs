@@ -17,7 +17,7 @@ use num_bigint::BigUint;
 use rustc_hash::FxHashMap as HashMap;
 
 use crate::{
-    Kind, QuotedType, ResolvedGeneric, Shared, Type, TypeVariable,
+    Kind, NamedGeneric, QuotedType, ResolvedGeneric, Shared, Type, TypeVariable,
     ast::{
         ArrayLiteral, BlockExpression, ConstrainKind, Expression, ExpressionKind, ForRange,
         FunctionKind, FunctionReturnType, Ident, IntegerBitSize, ItemVisibility, LValue, Literal,
@@ -446,7 +446,11 @@ fn type_def_add_generic(
 
     let type_var_kind = Kind::Normal;
     let type_var = TypeVariable::unbound(interner.next_type_variable_id(), type_var_kind);
-    let typ = Type::NamedGeneric(type_var.clone(), name.clone());
+    let typ = Type::NamedGeneric(NamedGeneric {
+        type_var: type_var.clone(),
+        name: name.clone(),
+        implicit: false,
+    });
     let new_generic = ResolvedGeneric { name, type_var, location: generic_location };
     the_struct.generics.push(new_generic);
 
@@ -464,9 +468,7 @@ fn type_def_as_type(
     let type_def_rc = interner.get_type(struct_id);
     let type_def = type_def_rc.borrow();
 
-    let generics = vecmap(&type_def.generics, |generic| {
-        Type::NamedGeneric(generic.type_var.clone(), generic.name.clone())
-    });
+    let generics = vecmap(&type_def.generics, |generic| generic.clone().as_named_generic());
 
     drop(type_def);
     Ok(Value::Type(Type::DataType(type_def_rc, generics)))
@@ -1503,7 +1505,7 @@ fn zeroed(return_type: Type, location: Location) -> Value {
         | Type::Quoted(_)
         | Type::Error
         | Type::TraitAsType(..)
-        | Type::NamedGeneric(_, _) => Value::Zeroed(return_type),
+        | Type::NamedGeneric(_) => Value::Zeroed(return_type),
     }
 }
 

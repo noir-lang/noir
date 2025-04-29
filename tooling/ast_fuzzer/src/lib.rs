@@ -7,13 +7,15 @@ pub use abi::program_abi;
 pub use input::arb_inputs;
 use program::freq::Freqs;
 pub use program::visitor::{visit_expr, visit_expr_mut};
-pub use program::{DisplayAstAsNoir, arb_program};
+pub use program::{DisplayAstAsNoir, DisplayAstAsNoirComptime, arb_program, arb_program_comptime};
 
 /// AST generation configuration.
 #[derive(Debug, Clone)]
 pub struct Config {
     /// Maximum number of global definitions.
     pub max_globals: usize,
+    /// Minimum number of functions (other than main) to generate.
+    pub min_functions: usize,
     /// Maximum number of functions (other than main) to generate.
     pub max_functions: usize,
     /// Maximum number of arguments a function can have.
@@ -30,14 +32,18 @@ pub struct Config {
     pub max_array_size: usize,
     /// Maximum size of for loop ranges, which affects unrolling in ACIR.
     pub max_loop_size: usize,
-    /// Maximum call depth for recursive calls.
-    pub max_call_depth: usize,
+    /// Whether to choose the backstop for `loop` and `while` randomly.
+    pub vary_loop_size: bool,
+    /// Maximum number of recursive calls to make at runtime.
+    pub max_recursive_calls: usize,
     /// Frequency of expressions, which produce a value.
     pub expr_freqs: Freqs,
     /// Frequency of statements in ACIR functions.
     pub stmt_freqs_acir: Freqs,
     /// Frequency of statements in Brillig functions.
     pub stmt_freqs_brillig: Freqs,
+    /// Whether to force all functions to be unconstrained.
+    pub force_brillig: bool,
 }
 
 impl Default for Config {
@@ -73,6 +79,7 @@ impl Default for Config {
         ]);
         Self {
             max_globals: 3,
+            min_functions: 0,
             max_functions: 5,
             max_function_args: 3,
             max_function_size: 25,
@@ -81,10 +88,12 @@ impl Default for Config {
             max_tuple_size: 5,
             max_array_size: 4,
             max_loop_size: 10,
-            max_call_depth: 5,
+            vary_loop_size: true,
+            max_recursive_calls: 25,
             expr_freqs,
             stmt_freqs_acir,
             stmt_freqs_brillig,
+            force_brillig: false,
         }
     }
 }

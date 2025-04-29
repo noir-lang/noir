@@ -2,7 +2,7 @@ use acvm::{FieldElement, acir::AcirField};
 use num_traits::ToPrimitive as _;
 use serde::{Deserialize, Serialize};
 
-use super::{DataFlowGraph, InstructionResultType, NumericType, Type, ValueId};
+use super::{InstructionResultType, NumericType, Type, ValueId};
 
 /// Binary Operations allowed in the IR.
 /// Aside from the comparison operators (Eq and Lt), all operators
@@ -85,49 +85,6 @@ impl Binary {
             _ => InstructionResultType::Operand(self.lhs),
         }
     }
-
-    /// Check if unsigned overflow is possible, and if so return some message to be used if it fails.
-    pub(crate) fn check_unsigned_overflow_msg(
-        &self,
-        dfg: &DataFlowGraph,
-        bit_size: u32,
-    ) -> Option<&'static str> {
-        // We try to optimize away operations that are guaranteed not to overflow
-        let max_lhs_bits = dfg.get_value_max_num_bits(self.lhs);
-        let max_rhs_bits = dfg.get_value_max_num_bits(self.rhs);
-
-        let msg = match self.operator {
-            BinaryOp::Add { unchecked: false } => {
-                if std::cmp::max(max_lhs_bits, max_rhs_bits) < bit_size {
-                    // `lhs` and `rhs` have both been casted up from smaller types and so cannot overflow.
-                    return None;
-                }
-                "attempt to add with overflow"
-            }
-            BinaryOp::Sub { unchecked: false } => {
-                if dfg.is_constant(self.lhs) && max_lhs_bits > max_rhs_bits {
-                    // `lhs` is a fixed constant and `rhs` is restricted such that `lhs - rhs > 0`
-                    // Note strict inequality as `rhs > lhs` while `max_lhs_bits == max_rhs_bits` is possible.
-                    return None;
-                }
-                "attempt to subtract with overflow"
-            }
-            BinaryOp::Mul { unchecked: false } => {
-                if bit_size == 1
-                    || max_lhs_bits + max_rhs_bits <= bit_size
-                    || max_lhs_bits == 1
-                    || max_rhs_bits == 1
-                {
-                    // Either performing boolean multiplication (which cannot overflow),
-                    // or `lhs` and `rhs` have both been casted up from smaller types and so cannot overflow.
-                    return None;
-                }
-                "attempt to multiply with overflow"
-            }
-            _ => return None,
-        };
-        Some(msg)
-    }
 }
 
 /// Evaluate a binary operation with constant arguments.
@@ -202,7 +159,10 @@ pub(crate) fn eval_constant_binary_op(
 /// Values in the range `[0, 2^(bit_size-1))` are interpreted as positive integers
 ///
 /// Values in the range `[2^(bit_size-1), 2^bit_size)` are interpreted as negative integers.
-fn try_convert_field_element_to_signed_integer(field: FieldElement, bit_size: u32) -> Option<i128> {
+pub(crate) fn try_convert_field_element_to_signed_integer(
+    field: FieldElement,
+    bit_size: u32,
+) -> Option<i128> {
     let unsigned_int = truncate(field.try_into_u128()?, bit_size);
 
     let max_positive_value = 1 << (bit_size - 1);
@@ -219,7 +179,7 @@ fn try_convert_field_element_to_signed_integer(field: FieldElement, bit_size: u3
     Some(signed_int)
 }
 
-fn convert_signed_integer_to_field_element(int: i128, bit_size: u32) -> FieldElement {
+pub(crate) fn convert_signed_integer_to_field_element(int: i128, bit_size: u32) -> FieldElement {
     if int >= 0 {
         FieldElement::from(int)
     } else {
@@ -374,5 +334,15 @@ mod test {
     fn get_i128_function_shift_works_with_values_larger_than_127() {
         assert!(BinaryOp::Shr.get_i128_function()(1, 128).is_none());
         assert!(BinaryOp::Shl.get_i128_function()(1, 128).is_none());
+    }
+
+    #[test]
+    fn test_plus_minus_one_as_field() {
+        for (i, u) in [(-1i64, u64::MAX), (-2i64, u64::MAX - 1), (1i64, 1u64)] {
+            let i: i128 = i.into();
+            let f = convert_signed_integer_to_field_element(i, 64);
+            assert_eq!(f.to_u128(), u as u128);
+            assert_eq!(i, try_convert_field_element_to_signed_integer(f, 64).unwrap());
+        }
     }
 }

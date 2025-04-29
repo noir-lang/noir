@@ -201,11 +201,13 @@ impl CrateDefMap {
         self.modules.iter().flat_map(|(_, module)| {
             module.value_definitions().filter_map(|id| {
                 if let Some(func_id) = id.as_function() {
+                    let has_arguments = !interner.function_meta(&func_id).parameters.is_empty();
                     let attributes = interner.function_attributes(&func_id);
                     match attributes.function().map(|attr| &attr.kind) {
                         Some(FunctionAttributeKind::Test(scope)) => {
                             let location = interner.function_meta(&func_id).name.location;
-                            Some(TestFunction::new(func_id, scope.clone(), location))
+                            let scope = scope.clone();
+                            Some(TestFunction { id: func_id, scope, location, has_arguments })
                         }
                         _ => None,
                     }
@@ -229,7 +231,7 @@ impl CrateDefMap {
                     match attributes.function().map(|attr| &attr.kind) {
                         Some(FunctionAttributeKind::FuzzingHarness(scope)) => {
                             let location = interner.function_meta(&func_id).name.location;
-                            Some(FuzzingHarness::new(func_id, scope.clone(), location))
+                            Some(FuzzingHarness { id: func_id, scope: scope.clone(), location })
                         }
                         _ => None,
                     }
@@ -372,25 +374,13 @@ pub fn parse_file(fm: &FileManager, file_id: FileId) -> (ParsedModule, Vec<Parse
 }
 
 pub struct TestFunction {
-    id: FuncId,
-    scope: TestScope,
-    location: Location,
+    pub id: FuncId,
+    pub scope: TestScope,
+    pub location: Location,
+    pub has_arguments: bool,
 }
 
 impl TestFunction {
-    fn new(id: FuncId, scope: TestScope, location: Location) -> Self {
-        TestFunction { id, scope, location }
-    }
-
-    /// Returns the function id of the test function
-    pub fn get_id(&self) -> FuncId {
-        self.id
-    }
-
-    pub fn file_id(&self) -> FileId {
-        self.location.file
-    }
-
     /// Returns true if the test function has been specified to fail
     /// This is done by annotating the function with `#[test(should_fail)]`
     /// or `#[test(should_fail_with = "reason")]`
@@ -412,25 +402,12 @@ impl TestFunction {
 }
 
 pub struct FuzzingHarness {
-    id: FuncId,
-    scope: FuzzingScope,
-    location: Location,
+    pub id: FuncId,
+    pub scope: FuzzingScope,
+    pub location: Location,
 }
 
 impl FuzzingHarness {
-    fn new(id: FuncId, scope: FuzzingScope, location: Location) -> Self {
-        FuzzingHarness { id, scope, location }
-    }
-
-    /// Returns the function id of the test function
-    pub fn get_id(&self) -> FuncId {
-        self.id
-    }
-
-    pub fn file_id(&self) -> FileId {
-        self.location.file
-    }
-
     /// Returns true if the fuzzing harness has been specified to fail only under specific reason
     /// This is done by annotating the function with
     /// `#[fuzz(only_fail_with = "reason")]`
@@ -438,6 +415,17 @@ impl FuzzingHarness {
         match self.scope {
             FuzzingScope::OnlyFailWith { .. } => true,
             FuzzingScope::None => false,
+            FuzzingScope::ShouldFailWith { .. } => false,
+        }
+    }
+    /// Returns true if the fuzzing harness has been specified to fail
+    /// This is done by annotating the function with `#[fuzz(should_fail)]`
+    /// or `#[fuzz(should_fail_with = "reason")]`
+    pub fn should_fail_enabled(&self) -> bool {
+        match self.scope {
+            FuzzingScope::OnlyFailWith { .. } => false,
+            FuzzingScope::None => false,
+            FuzzingScope::ShouldFailWith { .. } => true,
         }
     }
 
@@ -447,6 +435,7 @@ impl FuzzingHarness {
         match &self.scope {
             FuzzingScope::None => None,
             FuzzingScope::OnlyFailWith { reason } => Some(reason.clone()),
+            FuzzingScope::ShouldFailWith { reason } => reason.clone(),
         }
     }
 }

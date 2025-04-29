@@ -30,7 +30,7 @@ expression: artifact
     }
   },
   "bytecode": "H4sIAAAAAAAA/8VVwU7DMAx1WTIo0wDBgQMSByRuICW0pePWAz8SbfQ7+ulQYavmKR2IJWCpciI7z+/ZaVvQZAV7A3uK5HTs3WHmE2K5KNF9JjnP7Ev2Ryq+SCi2hLop8TeubsqIvoT8q5Ixc/ZHMDPgu2PGeR0mfNRCyksenhnja17reyY5JxyX9RmvSziTY/4Z5+OuIvyl1oq1PvJ+DXGCc9oTfZ25mJy9iOgqoKe57ozUko+iYfzYHDUfm4ePt8Dnlv3y47mG/kgOzXC2kL9UWLF8wbOQf8N+nH8FmFbVXwCOxo/N2Co+9/+k7e4PtZ3T/PtVwP6n9xDftY69O9AKqGf2cCaa+ir5D8DTgIYuEc9L0K9rrWj655shff1289mn0RbD1AfpgTaj4jr/ifenMzq6X/Ls2+D7KvShCbtdvQ3Yp9H0tz11/boJ7Ta03r/U/q32zXf13wHJeQsiqQoAAA==",
-  "debug_symbols": "ldRNioQwEAXgu9TaRX4sx3iVYWiixiYQokQdGMS7T9IoSMimNkLJ9whW5B0wmn5/v6yf5hW67wPcPOjNzj5Ox1lBH6xz9v16vgaWHrz9+HXRPo3rpsMGnVAVGD9CJzGmJ+sMdMjOnwq4onkhS769vapzXxM9En1D9F9F395e5b6leclKHvnlsck9J3pB9JLoi/eF7PINzz0SPXH/srh/zu8AF/kNS0VN1Iyc4OSEICckLXHG6VcHq3tnrpqYdj88WmP7W0xWIEuYBzPuwaQqebRI2kiNFbJUEelj4x+DMp4Rz/kH",
+  "debug_symbols": "nZLBboQgEIbfZc4cBMSqr7IxBhU3JAQNq00a47t3cKR1D00aL3zi+I0D+TcYTLc+W+vH6QX1Y4MuWOfss3VTrxc7eXy7QRYXXkLNGfDqgJBQC0ROUISC8AG1RJQHJNo5ghMEQRJQVwhFIE+iVyCqA3lG4ARBQL3YdwZpzHYJxsQpL3PjaWYdjF+g9qtzDD61W4+PXrP2BxcdsJoxMH5AYsPROhOfdvZrZ3+rojpdqX5k9W+7THaV37HLZFc3bMVPWxV37HRnBb9hc55G5+L95A3udG/DW/722ClY3TlzbsfV95fq8jWnSsrvHKbeDGswsdMlxLg+csVU1mCUMVMPvAclmz3++hs=",
   "file_map": {
     "50": {
       "source": "fn main(mut x: u32) {\n    if x == 0 {\n        x = (x + 1) / x;\n    } else {\n        x = (x + 1) / x;\n    }\n    assert(x != 0);\n}\n",

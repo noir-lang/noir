@@ -14,19 +14,19 @@ use std::{
 };
 
 use acvm::{BlackBoxFunctionSolver, FieldElement};
-use async_lsp::{
-    AnyEvent, AnyNotification, AnyRequest, ClientSocket, Error, LspService, ResponseError,
-    router::Router,
-};
-use fm::{FileManager, codespan_files as files};
-use fxhash::FxHashSet;
-use lsp_types::{
+use async_lsp::lsp_types::{
     CodeLens,
     request::{
         CodeActionRequest, Completion, DocumentSymbolRequest, HoverRequest, InlayHintRequest,
         PrepareRenameRequest, References, Rename, SignatureHelpRequest, WorkspaceSymbolRequest,
     },
 };
+use async_lsp::{
+    AnyEvent, AnyNotification, AnyRequest, ClientSocket, Error, LspService, ResponseError,
+    router::Router,
+};
+use fm::{FileManager, codespan_files as files};
+use fxhash::FxHashSet;
 use nargo::{
     package::{Package, PackageType},
     parse_all,
@@ -225,7 +225,7 @@ fn get_package_tests_in_crate(
     let package_tests: Vec<_> = tests
         .into_iter()
         .map(|(func_name, test_function)| {
-            let location = context.function_meta(&test_function.get_id()).name.location;
+            let location = context.function_meta(&test_function.id).name.location;
             let file_id = location.file;
             let file_path = fm.path(file_id).expect("file must exist to contain tests");
             let range =
