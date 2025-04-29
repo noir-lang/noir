@@ -1290,7 +1290,6 @@ impl<'a> Context<'a> {
                 let slice_length = self.convert_value(arguments[0], dfg).into_var()?;
                 let slice_contents = arguments[1];
                 let elements_to_push = &arguments[2..];
-                let result_block_id = self.block_id(&result_ids[1]);
 
                 let slice_typ = dfg.type_of_value(slice_contents);
 
@@ -1311,8 +1310,6 @@ impl<'a> Context<'a> {
 
                 let new_slice_val = AcirValue::Array(new_slice);
                 let new_elem_size = arrays::flattened_value_size(&new_slice_val);
-                self.initialize_array(result_block_id, new_elem_size, Some(new_slice_val.clone()))?;
-
                 let value_types = new_slice_val.clone().flat_numeric_types();
                 assert_eq!(
                     value_types.len(),
@@ -1329,7 +1326,6 @@ impl<'a> Context<'a> {
                 let elements_to_push = &arguments[2..];
                 let slice_typ = dfg.type_of_value(slice_contents);
                 assert!(!slice_typ.is_nested_slice(), "ICE: Nested slice used in ACIR generation");
-                let result_block_id = self.block_id(&result_ids[1]);
 
                 // Increase the slice length by one to enable accessing more elements in the slice.
                 let one = self.acir_context.add_constant(FieldElement::one());
@@ -1346,11 +1342,6 @@ impl<'a> Context<'a> {
 
                 let new_slice_val = AcirValue::Array(new_slice);
                 let new_slice_size = arrays::flattened_value_size(&new_slice_val);
-                self.initialize_array(
-                    result_block_id,
-                    new_slice_size,
-                    Some(new_slice_val.clone()),
-                )?;
 
                 let value_types = new_slice_val.clone().flat_numeric_types();
                 assert_eq!(
