@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"enum":["BlockStatus"],"struct":["CircuitSimulator"]};
+window.SIDEBAR_ITEMS = {"struct":["CircuitSimulator"]};

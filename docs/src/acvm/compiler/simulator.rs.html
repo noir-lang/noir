@@ -290,7 +290,34 @@
 <a href="#289" id="289">289</a>
 <a href="#290" id="290">290</a>
 <a href="#291" id="291">291</a>
-<a href="#292" id="292">292</a></pre></div><pre class="rust"><code><span class="kw">use </span>acir::{
+<a href="#292" id="292">292</a>
+<a href="#293" id="293">293</a>
+<a href="#294" id="294">294</a>
+<a href="#295" id="295">295</a>
+<a href="#296" id="296">296</a>
+<a href="#297" id="297">297</a>
+<a href="#298" id="298">298</a>
+<a href="#299" id="299">299</a>
+<a href="#300" id="300">300</a>
+<a href="#301" id="301">301</a>
+<a href="#302" id="302">302</a>
+<a href="#303" id="303">303</a>
+<a href="#304" id="304">304</a>
+<a href="#305" id="305">305</a>
+<a href="#306" id="306">306</a>
+<a href="#307" id="307">307</a>
+<a href="#308" id="308">308</a>
+<a href="#309" id="309">309</a>
+<a href="#310" id="310">310</a>
+<a href="#311" id="311">311</a>
+<a href="#312" id="312">312</a>
+<a href="#313" id="313">313</a>
+<a href="#314" id="314">314</a>
+<a href="#315" id="315">315</a>
+<a href="#316" id="316">316</a>
+<a href="#317" id="317">317</a>
+<a href="#318" id="318">318</a>
+<a href="#319" id="319">319</a></pre></div><pre class="rust"><code><span class="kw">use </span>acir::{
     AcirField,
     circuit::{
         Circuit, Opcode,
@@ -299,13 +326,7 @@
     },
     native_types::{Expression, Witness},
 };
-<span class="kw">use </span>std::collections::{BTreeSet, HashMap, HashSet};
-
-<span class="attr">#[derive(PartialEq)]
-</span><span class="kw">enum </span>BlockStatus {
-    Initialized,
-    Used,
-}
+<span class="kw">use </span>std::collections::{BTreeSet, HashSet};
 
 <span class="doccomment">/// Simulate a symbolic solve for a circuit
 </span><span class="attr">#[derive(Default)]
@@ -313,11 +334,8 @@
     <span class="doccomment">/// Track the witnesses that can be solved
     </span>solvable_witness: HashSet&lt;Witness&gt;,
 
-    <span class="doccomment">/// Tells whether a Memory Block is:
-    /// - Not initialized if not in the map
-    /// - Initialized if its status is Initialized in the Map
-    /// - Used, indicating that the block cannot be written anymore.
-    </span>resolved_blocks: HashMap&lt;BlockId, BlockStatus&gt;,
+    <span class="doccomment">/// Track whether a [`BlockId`] has been initialized
+    </span>initialized_blocks: HashSet&lt;BlockId&gt;,
 }
 
 <span class="kw">impl </span>CircuitSimulator {
@@ -376,6 +394,11 @@
                 <span class="bool-val">true
             </span>}
             Opcode::MemoryOp { block_id, op, predicate } =&gt; {
+                <span class="kw">if </span>!<span class="self">self</span>.initialized_blocks.contains(block_id) {
+                    <span class="comment">// Memory must be initialized before it can be used.
+                    </span><span class="kw">return </span><span class="bool-val">false</span>;
+                }
+
                 <span class="kw">if </span>!<span class="self">self</span>.can_solve_expression(<span class="kw-2">&amp;</span>op.index) {
                     <span class="kw">return </span><span class="bool-val">false</span>;
                 }
@@ -385,14 +408,12 @@
                     }
                 }
                 <span class="kw">if </span>op.operation.is_zero() {
-                    <span class="kw">let </span>w = op.value.to_witness().unwrap();
+                    <span class="kw">let </span><span class="prelude-val">Some</span>(w) = op.value.to_witness() <span class="kw">else </span>{
+                        <span class="kw">return </span><span class="bool-val">false</span>;
+                    };
                     <span class="self">self</span>.mark_solvable(w);
                     <span class="bool-val">true
                 </span>} <span class="kw">else </span>{
-                    <span class="kw">if let </span><span class="prelude-val">Some</span>(BlockStatus::Used) = <span class="self">self</span>.resolved_blocks.get(block_id) {
-                        <span class="comment">// Writing after having used the block should not be allowed
-                        </span><span class="kw">return </span><span class="bool-val">false</span>;
-                    }
                     <span class="self">self</span>.try_solve(<span class="kw-2">&amp;</span>Opcode::AssertZero(op.value.clone()))
                 }
             }
@@ -402,7 +423,7 @@
                         <span class="kw">return </span><span class="bool-val">false</span>;
                     }
                 }
-                <span class="self">self</span>.resolved_blocks.insert(<span class="kw-2">*</span>block_id, BlockStatus::Initialized);
+                <span class="self">self</span>.initialized_blocks.insert(<span class="kw-2">*</span>block_id);
                 <span class="bool-val">true
             </span>}
             Opcode::BrilligCall { id: <span class="kw">_</span>, inputs, outputs, predicate } =&gt; {
@@ -478,18 +499,7 @@
                 <span class="bool-val">true
             </span>}
 
-            BrilligInputs::MemoryArray(block_id) =&gt; <span class="kw">match </span><span class="self">self</span>.resolved_blocks.entry(<span class="kw-2">*</span>block_id) {
-                std::collections::hash_map::Entry::Vacant(<span class="kw">_</span>) =&gt; <span class="bool-val">false</span>,
-                std::collections::hash_map::Entry::Occupied(entry)
-                    <span class="kw">if </span><span class="kw-2">*</span>entry.get() == BlockStatus::Used =&gt;
-                {
-                    <span class="bool-val">true
-                </span>}
-                std::collections::hash_map::Entry::Occupied(<span class="kw-2">mut </span>entry) =&gt; {
-                    entry.insert(BlockStatus::Used);
-                    <span class="bool-val">true
-                </span>}
-            },
+            BrilligInputs::MemoryArray(block_id) =&gt; <span class="self">self</span>.initialized_blocks.contains(block_id),
         }
     }
 
@@ -509,7 +519,11 @@
     <span class="kw">use </span>acir::{
         FieldElement,
         acir_field::AcirField,
-        circuit::{Circuit, ExpressionWidth, Opcode, PublicInputs},
+        circuit::{
+            Circuit, ExpressionWidth, Opcode, PublicInputs,
+            brillig::{BrilligFunctionId, BrilligInputs},
+            opcodes::{BlockId, BlockType, MemOp},
+        },
         native_types::{Expression, Witness},
     };
 
@@ -580,6 +594,46 @@
         );
 
         <span class="macro">assert!</span>(!CircuitSimulator::default().check_circuit(<span class="kw-2">&amp;</span>disconnected_circuit));
+    }
+
+    <span class="attr">#[test]
+    </span><span class="kw">fn </span>reports_true_when_memory_block_passed_to_brillig_and_then_written_to() {
+        <span class="kw">let </span>circuit = test_circuit(
+            <span class="macro">vec!</span>[
+                Opcode::AssertZero(Expression {
+                    mul_terms: Vec::new(),
+                    linear_combinations: <span class="macro">vec!</span>[(FieldElement::one(), Witness(<span class="number">1</span>))],
+                    q_c: FieldElement::zero(),
+                }),
+                Opcode::MemoryInit {
+                    block_id: BlockId(<span class="number">0</span>),
+                    init: <span class="macro">vec!</span>[Witness(<span class="number">0</span>)],
+                    block_type: BlockType::Memory,
+                },
+                Opcode::BrilligCall {
+                    id: BrilligFunctionId(<span class="number">0</span>),
+                    inputs: <span class="macro">vec!</span>[BrilligInputs::MemoryArray(BlockId(<span class="number">0</span>))],
+                    outputs: Vec::new(),
+                    predicate: <span class="prelude-val">None</span>,
+                },
+                Opcode::MemoryOp {
+                    block_id: BlockId(<span class="number">0</span>),
+                    op: MemOp::read_at_mem_index(
+                        Expression {
+                            mul_terms: Vec::new(),
+                            linear_combinations: Vec::new(),
+                            q_c: FieldElement::one(),
+                        },
+                        Witness(<span class="number">2</span>),
+                    ),
+                    predicate: <span class="prelude-val">None</span>,
+                },
+            ],
+            BTreeSet::from([Witness(<span class="number">1</span>)]),
+            PublicInputs::default(),
+        );
+
+        <span class="macro">assert!</span>(!CircuitSimulator::default().check_circuit(<span class="kw-2">&amp;</span>circuit));
     }
 }
 </code></pre></div></section></main></body></html>
