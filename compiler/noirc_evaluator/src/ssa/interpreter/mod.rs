@@ -1,3 +1,5 @@
+use std::cmp::Ordering;
+
 use super::{
     Ssa,
     ir::{
@@ -351,74 +353,44 @@ impl<'ssa> Interpreter<'ssa> {
         max_bit_size: u32,
         error_message: Option<&String>,
     ) {
+        if !self.side_effects_enabled() {
+            return;
+        }
+
         let value = self.lookup(value).as_numeric().unwrap();
         assert_ne!(max_bit_size, 0);
 
+        fn bit_count(x: impl Into<f64>) -> u32 {
+            let x = x.into();
+            if x <= 0.0001 { 0 } else { x.log2() as u32 + 1 }
+        }
+
         let bit_count = match value {
             NumericValue::Field(value) => value.num_bits(),
-            // u1 should always pass these checks
+            // max_bit_size > 0 so u1 should always pass these checks
             NumericValue::U1(_) => return,
-            NumericValue::U8(value) => {
-                if value == 0 {
-                    0
-                } else {
-                    value.ilog2()
-                }
-            }
-            NumericValue::U16(value) => {
-                if value == 0 {
-                    0
-                } else {
-                    value.ilog2()
-                }
-            }
-            NumericValue::U32(value) => {
-                if value == 0 {
-                    0
-                } else {
-                    value.ilog2()
-                }
-            }
+            NumericValue::U8(value) => bit_count(value),
+            NumericValue::U16(value) => bit_count(value),
+            NumericValue::U32(value) => bit_count(value),
             NumericValue::U64(value) => {
-                if value == 0 {
-                    0
-                } else {
-                    value.ilog2()
-                }
+                // u64, u128, and i64 don't impl Into<f64>
+                if value == 0 { 0 } else { value.ilog2() + 1 }
             }
             NumericValue::U128(value) => {
                 if value == 0 {
                     0
                 } else {
-                    value.ilog2()
+                    value.ilog2() + 1
                 }
             }
-            NumericValue::I8(value) => {
-                if value == 0 {
-                    0
-                } else {
-                    value.ilog2()
-                }
-            }
-            NumericValue::I16(value) => {
-                if value == 0 {
-                    0
-                } else {
-                    value.ilog2()
-                }
-            }
-            NumericValue::I32(value) => {
-                if value == 0 {
-                    0
-                } else {
-                    value.ilog2()
-                }
-            }
+            NumericValue::I8(value) => bit_count(value),
+            NumericValue::I16(value) => bit_count(value),
+            NumericValue::I32(value) => bit_count(value),
             NumericValue::I64(value) => {
                 if value == 0 {
                     0
                 } else {
-                    value.ilog2()
+                    value.ilog2() + 1
                 }
             }
         };
@@ -457,7 +429,7 @@ impl<'ssa> Interpreter<'ssa> {
                     self.call_function(id, arguments)?
                 }
                 Value::Intrinsic(intrinsic) => {
-                    self.call_intrinsic(intrinsic, arguments, argument_ids)?
+                    self.call_intrinsic(intrinsic, arguments, results)?
                 }
                 Value::ForeignFunction(name) if name == "print" => self.call_print(arguments)?,
                 Value::ForeignFunction(name) => {
@@ -721,7 +693,14 @@ impl Interpreter<'_> {
         if lhs.get_type() != rhs.get_type()
             && !matches!(binary.operator, BinaryOp::Shl | BinaryOp::Shr)
         {
-            todo!("Type error!")
+            panic!(
+                "Type error in ({}: {}) {} ({}: {})",
+                binary.lhs,
+                lhs.get_type(),
+                binary.operator,
+                binary.rhs,
+                rhs.get_type()
+            )
         }
 
         // Disable this instruction if it is side-effectful and side effects are disabled.
@@ -775,10 +754,40 @@ impl Interpreter<'_> {
                 apply_int_binop!(lhs, rhs, std::ops::BitXor::bitxor)
             }
             BinaryOp::Shl => {
-                apply_int_binop!(lhs, rhs, std::ops::Shl::shl)
+                let rhs = rhs.as_u32().expect("Expected rhs of shl to be a u32");
+                let overflow_msg = "Overflow when evaluating `shl`, `rhs` is too large";
+                use NumericValue::*;
+                match lhs {
+                    Field(_) => unreachable!("<< is not implemented for Field"),
+                    U1(_) => unreachable!("<< is not implemented for u1"),
+                    U8(value) => U8(value.checked_shl(rhs).expect(overflow_msg)),
+                    U16(value) => U16(value.checked_shl(rhs).expect(overflow_msg)),
+                    U32(value) => U32(value.checked_shl(rhs).expect(overflow_msg)),
+                    U64(value) => U64(value.checked_shl(rhs).expect(overflow_msg)),
+                    U128(value) => U128(value.checked_shl(rhs).expect(overflow_msg)),
+                    I8(value) => I8(value.checked_shl(rhs).expect(overflow_msg)),
+                    I16(value) => I16(value.checked_shl(rhs).expect(overflow_msg)),
+                    I32(value) => I32(value.checked_shl(rhs).expect(overflow_msg)),
+                    I64(value) => I64(value.checked_shl(rhs).expect(overflow_msg)),
+                }
             }
             BinaryOp::Shr => {
-                apply_int_binop!(lhs, rhs, std::ops::Shr::shr)
+                let rhs = rhs.as_u32().expect("Expected rhs of shr to be a u32");
+                let overflow_msg = "Overflow when evaluating `shr`, `rhs` is too large";
+                use NumericValue::*;
+                match lhs {
+                    Field(_) => unreachable!(">> is not implemented for Field"),
+                    U1(_) => unreachable!(">> is not implemented for u1"),
+                    U8(value) => U8(value.checked_shr(rhs).expect(overflow_msg)),
+                    U16(value) => U16(value.checked_shr(rhs).expect(overflow_msg)),
+                    U32(value) => U32(value.checked_shr(rhs).expect(overflow_msg)),
+                    U64(value) => U64(value.checked_shr(rhs).expect(overflow_msg)),
+                    U128(value) => U128(value.checked_shr(rhs).expect(overflow_msg)),
+                    I8(value) => I8(value.checked_shr(rhs).expect(overflow_msg)),
+                    I16(value) => I16(value.checked_shr(rhs).expect(overflow_msg)),
+                    I32(value) => I32(value.checked_shr(rhs).expect(overflow_msg)),
+                    I64(value) => I64(value.checked_shr(rhs).expect(overflow_msg)),
+                }
             }
         };
         Ok(Value::Numeric(result))
@@ -845,12 +854,10 @@ where
     <T as TryFrom<u128>>::Error: std::fmt::Debug,
 {
     let value_u128 = u128::from(value);
-    let bit_mask = if bit_size < 128 {
-        (1u128 << bit_size) - 1
-    } else if bit_size == 128 {
-        u128::max_value()
-    } else {
-        panic!("truncate: Invalid bit size: {bit_size}");
+    let bit_mask = match bit_size.cmp(&128) {
+        Ordering::Less => (1u128 << bit_size) - 1,
+        Ordering::Equal => u128::MAX,
+        Ordering::Greater => panic!("truncate: Invalid bit size: {bit_size}"),
     };
 
     let result = value_u128 & bit_mask;

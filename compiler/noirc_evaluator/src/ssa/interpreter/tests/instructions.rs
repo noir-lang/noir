@@ -230,7 +230,7 @@ fn lt() {
             v3 = lt i32 -3, i32 -2
             v4 = lt i32 -3, i32 -3
             v5 = lt i32 -3, i32 -4
-            return v0
+            return v0, v1, v2, v3, v4, v5
         }
     ",
     );
@@ -255,7 +255,7 @@ fn and() {
     ",
     );
     assert_eq!(values[0], Value::bool(false));
-    assert_eq!(values[1], Value::from_constant(1_u128.into(), NumericType::NativeField));
+    assert_eq!(values[1], Value::from_constant(1_u128.into(), NumericType::unsigned(8)));
 }
 
 #[test]
@@ -305,6 +305,8 @@ fn shl() {
 }
 
 #[test]
+#[should_panic]
+/// shl should overflow if the rhs is greater than the bit count
 fn shl_overflow() {
     let value = expect_value(
         "
@@ -337,19 +339,37 @@ fn shr() {
 }
 
 #[test]
+#[should_panic]
+/// shr should overflow if the rhs is greater than the bit count
+fn shr_overflow() {
+    let value = expect_value(
+        "
+        acir(inline) fn main f0 {
+          b0():
+            v0 = shr u8 3, u32 9
+            return v0
+        }
+    ",
+    );
+    assert_eq!(value, Value::from_constant(12_u128.into(), NumericType::unsigned(8)));
+}
+
+#[test]
 fn cast() {
     let values = expect_values(
         "
         acir(inline) fn main f0 {
           b0():
             v0 = cast u32 2 as Field
-            v1 = cast u32 256 as u8  // Ignore overflows
-            return v0, v1
+            v1 = cast u32 3 as u8
+            v2 = cast i8 -1 as i32
+            return v0, v1, v2
         }
     ",
     );
     assert_eq!(values[0], Value::from_constant(2_u128.into(), NumericType::NativeField));
-    assert_eq!(values[1], Value::from_constant(256_u128.into(), NumericType::unsigned(8)));
+    assert_eq!(values[1], Value::from_constant(3_u128.into(), NumericType::unsigned(8)));
+    assert_eq!(values[2], Value::from_constant((-1_i128).into(), NumericType::signed(32)));
 }
 
 #[test]
@@ -378,13 +398,13 @@ fn truncate() {
         "
         acir(inline) fn main f0 {
           b0():
-            v0 = truncate u8 257 to 8 bits, max_bit_size: 9
+            v0 = truncate u32 257 to 8 bits, max_bit_size: 9
             return v0
         }
     ",
     );
     let constant = 257_u16 as u8 as u128;
-    assert_eq!(value, Value::from_constant(constant.into(), NumericType::unsigned(8)));
+    assert_eq!(value, Value::from_constant(constant.into(), NumericType::unsigned(32)));
 }
 
 #[test]
@@ -395,7 +415,7 @@ fn constrain() {
           b0():
             v0 = eq u8 3, u8 4
             constrain v0 == v0
-            constrain v0 == u1 false
+            constrain v0 == u1 0
             return
         }
     ",
@@ -408,8 +428,8 @@ fn constrain_disabled_by_enable_side_effects() {
         "
         acir(inline) fn main f0 {
           b0():
-            enable_side_effects_if u1 0
-            constrain u1 true == u1 false
+            enable_side_effects u1 0
+            constrain u1 1 == u1 0
             return
         }
     ",
@@ -424,7 +444,7 @@ fn constrain_disabled_by_enable_side_effects() {
 //         acir(inline) fn main f0 {
 //           b0():
 //             v0 = eq u8 3, u8 4
-//             constrain v0 != u1 true
+//             constrain v0 != u1 1
 //             return
 //         }
 //     ",
@@ -437,8 +457,8 @@ fn constrain_disabled_by_enable_side_effects() {
 //         "
 //         acir(inline) fn main f0 {
 //           b0():
-//             enable_side_effects_if u1 0
-//             constrain u1 true != u1 true
+//             enable_side_effects u1 0
+//             constrain u1 1 != u1 1
 //             return
 //         }
 //     ",
@@ -452,7 +472,7 @@ fn range_check() {
         acir(inline) fn main f0 {
           b0():
             range_check u32 1000 to 16 bits
-            return v0
+            return
         }
     ",
     );
@@ -478,7 +498,7 @@ fn range_check_disabled_by_enable_side_effects() {
         "
         acir(inline) fn main f0 {
           b0():
-            enable_side_effects_if u1 0
+            enable_side_effects u1 0
             range_check u32 256 to 8 bits
             return
         }
@@ -492,7 +512,7 @@ fn call() {
         "
         acir(inline) fn main f0 {
           b0():
-            v0 = call f1(Field 4)
+            v0 = call f1(Field 4) -> Field
             return v0
         }
 
@@ -562,16 +582,16 @@ fn store() {
 }
 
 #[test]
-fn enable_side_effects_if() {
+fn enable_side_effects() {
     let values = expect_values(
         "
         acir(inline) fn main f0 {
           b0():
-            enable_side_effects_if u1 0
-            v0 = allocate -> &mut Field
-            store Field 0 at v0
-            v1 = call f1(v0)
-            return v0, v1
+            enable_side_effects u1 0
+            v1 = allocate -> &mut Field
+            store Field 0 at v1
+            v2 = call f1(v1) -> Field
+            return v1, v2
         }
 
         acir(inline) fn foo f1 {
@@ -583,7 +603,7 @@ fn enable_side_effects_if() {
     );
     let field_zero = Value::from_constant(0u128.into(), NumericType::NativeField);
     let expected = Value::Reference(ReferenceValue {
-        original_id: ValueId::test_new(0),
+        original_id: ValueId::test_new(1),
         element: Shared::new(Some(field_zero.clone())),
         element_type: Arc::new(Type::field()),
     });
@@ -612,7 +632,7 @@ fn array_get_disabled_by_enable_side_effects() {
         r#"
         acir(inline) fn main f0 {
           b0():
-            enable_side_effects_if u1 0
+            enable_side_effects u1 0
             v0 = make_array [Field 1, Field 2] : [Field; 2]
             v1 = array_get v0, index u32 1 -> Field
             return v1
@@ -665,7 +685,7 @@ fn array_set_disabled_by_enable_side_effects() {
         "
         acir(inline) fn main f0 {
           b0():
-            enable_side_effects_if u1 0
+            enable_side_effects u1 0
             v0 = make_array [Field 1, Field 2] : [Field; 2]
             v1 = array_set v0, index u32 1, value Field 5
             v2 = array_set mut v0, index u32 0, value Field 4
@@ -787,7 +807,7 @@ fn make_array() {
             v1 = make_array [Field 1, Field 2] : [Field]
             v2 = make_array b"Hello"
             v3 = make_array &b"Hello"
-            return v0
+            return v0, v1, v2, v3
         }
     "#,
     );
@@ -805,14 +825,14 @@ fn make_array() {
 }
 
 #[test]
-fn noop() {
+fn nop() {
     executes_with_no_errors(
         "
         acir(inline) fn main f0 {
           b0():
-            noop
-            noop
-            noop
+            nop
+            nop
+            nop
             return
         }
     ",

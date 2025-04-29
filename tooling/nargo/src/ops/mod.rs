@@ -20,7 +20,6 @@ mod compile;
 pub mod debug;
 mod execute;
 mod fuzz;
-mod interpret_ssa;
 mod optimize;
 mod test;
 mod transform;

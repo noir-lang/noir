@@ -35,7 +35,7 @@ pub(crate) fn run(args: InterpretSsaCommand, workspace: Workspace) -> Result<(),
 
     let binary_packages = workspace.into_iter().filter(|package| package.is_binary());
     for package in binary_packages {
-        let program_artifact_path = workspace.package_build_path(package);
+        let _program_artifact_path = workspace.package_build_path(package);
 
         let (file_manager, parsed_files) = parse_workspace(&workspace);
         let (mut context, crate_id) = prepare_package(&file_manager, &parsed_files, package);
@@ -49,7 +49,7 @@ pub(crate) fn run(args: InterpretSsaCommand, workspace: Workspace) -> Result<(),
         })?;
 
         match noirc_driver::compile_to_ssa(&mut context, &args.compile_options, main) {
-            Ok((ssa, _brillig, warnings)) => {
+            Ok((_ssa, _brillig, warnings)) => {
                 for warning in warnings {
                     eprintln!("{warning:?}");
                 }

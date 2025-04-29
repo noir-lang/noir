@@ -296,7 +296,7 @@ pub fn convert_ssa_to_acir(
     options: &SsaEvaluatorOptions,
 ) -> Result<Artifacts, RuntimeError> {
     let artifacts = time("SSA to ACIR", options.print_codegen_timings, || {
-        ssa.into_acir(&brillig, &options.brillig_options, options.expression_width)
+        ssa.into_acir(brillig, &options.brillig_options, options.expression_width)
     })?;
 
     Ok(artifacts)

@@ -1,8 +1,14 @@
+use acvm::FieldElement;
 use iter_extended::vecmap;
 
 use crate::ssa::{
     interpreter::NumericValue,
-    ir::{instruction::Intrinsic, value::ValueId},
+    ir::{
+        dfg,
+        instruction::{Endian, Intrinsic},
+        types::{NumericType, Type},
+        value::ValueId,
+    },
 };
 
 use super::{IResults, Interpreter, Value};
@@ -11,8 +17,8 @@ impl Interpreter<'_> {
     pub(super) fn call_intrinsic(
         &mut self,
         intrinsic: Intrinsic,
-        args: Vec<Value>,
-        original_args: &[ValueId],
+        mut args: Vec<Value>,
+        results: &[ValueId],
     ) -> IResults {
         match intrinsic {
             Intrinsic::ArrayLen => {
@@ -35,19 +41,12 @@ impl Interpreter<'_> {
                 Ok(vec![length, slice])
             }
             Intrinsic::AssertConstant => {
-                for arg in original_args {
-                    if !self.is_constant(*arg) {
-                        panic!("assert_constant: {arg} is not constant");
-                    }
-                }
+                // Nothing we can do here unfortunately if we want to allow code with
+                // assert_constant to still pass pre-inlining and other optimizations.
                 Ok(Vec::new())
             }
             Intrinsic::StaticAssert => {
                 assert_eq!(args.len(), 2);
-
-                if !self.is_constant(original_args[0]) {
-                    panic!("static_assert: {} is not constant", original_args[0]);
-                }
 
                 let condition = args[0].as_bool().unwrap();
                 if !condition {
@@ -63,31 +62,74 @@ impl Interpreter<'_> {
             Intrinsic::SlicePopFront => self.slice_pop_front(args),
             Intrinsic::SliceInsert => self.slice_insert(args),
             Intrinsic::SliceRemove => self.slice_remove(args),
-            Intrinsic::ApplyRangeConstraint => todo!(),
-            Intrinsic::StrAsBytes => todo!(),
-            Intrinsic::ToBits(_endian) => todo!(),
-            Intrinsic::ToRadix(_endian) => todo!(),
-            Intrinsic::BlackBox(_black_box_func) => todo!(),
-            Intrinsic::Hint(_hint) => todo!(),
-            Intrinsic::AsWitness => todo!(),
-            Intrinsic::IsUnconstrained => todo!(),
-            Intrinsic::DerivePedersenGenerators => todo!(),
-            Intrinsic::FieldLessThan => todo!(),
-            Intrinsic::ArrayRefCount => todo!(),
-            Intrinsic::SliceRefCount => todo!(),
+            Intrinsic::ApplyRangeConstraint => {
+                todo!("Intrinsic::ApplyRangeConstraint is currently unimplemented")
+            }
+            // Both of these are no-ops
+            Intrinsic::StrAsBytes | Intrinsic::AsWitness => {
+                assert_eq!(args.len(), 1);
+                let arg = args.pop().unwrap();
+                Ok(vec![arg])
+            }
+            Intrinsic::ToBits(endian) => {
+                assert_eq!(args.len(), 1);
+                assert_eq!(results.len(), 1);
+                let field = args[0].as_field().unwrap();
+                self.to_radix(endian, field, 2, results[0])
+            }
+            Intrinsic::ToRadix(endian) => {
+                assert_eq!(args.len(), 2);
+                assert_eq!(results.len(), 1);
+                let field = args[0].as_field().unwrap();
+                let radix = args[1].as_u32().unwrap();
+                self.to_radix(endian, field, radix, results[0])
+            }
+            Intrinsic::BlackBox(black_box_func) => {
+                todo!("Intrinsic::BlackBox({black_box_func}) is currently unimplemented")
+            }
+            Intrinsic::Hint(_) => todo!("Intrinsic::Hint is currently unimplemented"),
+            Intrinsic::IsUnconstrained => {
+                assert_eq!(args.len(), 0);
+                Ok(vec![Value::bool(self.in_unconstrained_context())])
+            }
+            Intrinsic::DerivePedersenGenerators => {
+                todo!("Intrinsic::DerivePedersenGenerators is currently unimplemented")
+            }
+            Intrinsic::FieldLessThan => {
+                assert!(
+                    self.in_unconstrained_context(),
+                    "FieldLessThan can only be called in unconstrained"
+                );
+                assert_eq!(args.len(), 2);
+                let lhs = args[0].as_field().unwrap();
+                let rhs = args[1].as_field().unwrap();
+                Ok(vec![Value::bool(lhs < rhs)])
+            }
+            Intrinsic::ArrayRefCount | Intrinsic::SliceRefCount => {
+                let array = args[0].as_array_or_slice().unwrap();
+                let rc = *array.rc.borrow();
+                Ok(vec![Value::from_constant(rc.into(), NumericType::unsigned(32))])
+            }
         }
     }
 
-    fn is_constant(&self, value_id: ValueId) -> bool {
-        match self.dfg()[value_id] {
-            crate::ssa::ir::value::Value::Instruction { .. }
-            | crate::ssa::ir::value::Value::Param { .. } => false,
-            crate::ssa::ir::value::Value::NumericConstant { .. }
-            | crate::ssa::ir::value::Value::Function(_)
-            | crate::ssa::ir::value::Value::Intrinsic(_)
-            | crate::ssa::ir::value::Value::ForeignFunction(_)
-            | crate::ssa::ir::value::Value::Global(_) => true,
-        }
+    fn to_radix(
+        &self,
+        endian: Endian,
+        field: FieldElement,
+        radix: u32,
+        result: ValueId,
+    ) -> IResults {
+        let Type::Array(_, limb_count) = self.dfg().type_of_value(result) else {
+            unreachable!("Expected result of to_radix/to_bytes to be an array")
+        };
+
+        let Some(limbs) = dfg::simplify::constant_to_radix(endian, field, radix, limb_count) else {
+            panic!("Unable to convert `{field}` to radix `{radix}`")
+        };
+
+        let elements = vecmap(limbs, |limb| Value::from_constant(limb, NumericType::unsigned(8)));
+        Ok(vec![Value::array(elements, vec![Type::unsigned(8)])])
     }
 
     /// (length, slice, elem...) -> (length, slice)

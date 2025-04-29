@@ -179,6 +179,10 @@ impl Value {
         let bytes = elements.iter().map(|element| element.as_u8()).collect::<Option<Vec<_>>>()?;
         Some(String::from_utf8_lossy(&bytes).into_owned())
     }
+
+    pub(crate) fn as_field(&self) -> Option<FieldElement> {
+        self.as_numeric()?.as_field()
+    }
 }
 
 impl NumericValue {
@@ -208,6 +212,13 @@ impl NumericValue {
     pub(crate) fn as_bool(&self) -> Option<bool> {
         match self {
             NumericValue::U1(value) => Some(*value),
+            _ => None,
+        }
+    }
+
+    pub(crate) fn as_u32(&self) -> Option<u32> {
+        match self {
+            NumericValue::U32(value) => Some(*value),
             _ => None,
         }
     }
