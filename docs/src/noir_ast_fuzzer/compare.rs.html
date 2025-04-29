@@ -212,7 +212,23 @@
 <a href="#211" id="211">211</a>
 <a href="#212" id="212">212</a>
 <a href="#213" id="213">213</a>
-<a href="#214" id="214">214</a></pre></div><pre class="rust"><code><span class="kw">use </span>acir::{FieldElement, native_types::WitnessStack};
+<a href="#214" id="214">214</a>
+<a href="#215" id="215">215</a>
+<a href="#216" id="216">216</a>
+<a href="#217" id="217">217</a>
+<a href="#218" id="218">218</a>
+<a href="#219" id="219">219</a>
+<a href="#220" id="220">220</a>
+<a href="#221" id="221">221</a>
+<a href="#222" id="222">222</a>
+<a href="#223" id="223">223</a>
+<a href="#224" id="224">224</a>
+<a href="#225" id="225">225</a>
+<a href="#226" id="226">226</a>
+<a href="#227" id="227">227</a>
+<a href="#228" id="228">228</a>
+<a href="#229" id="229">229</a>
+<a href="#230" id="230">230</a></pre></div><pre class="rust"><code><span class="kw">use </span>acir::{FieldElement, native_types::WitnessStack};
 <span class="kw">use </span>acvm::pwg::{OpcodeResolutionError, ResolvedAssertionPayload};
 <span class="kw">use </span>arbitrary::Unstructured;
 <span class="kw">use </span>bn254_blackbox_solver::Bn254BlackBoxSolver;
@@ -338,7 +354,6 @@
         }
     }
 }
-
 <span class="doccomment">/// Compare the execution of different SSA representations of equivalent program(s).
 </span><span class="kw">pub struct </span>CompareSsa&lt;P&gt; {
     <span class="kw">pub </span>program: P,
@@ -411,11 +426,11 @@
     </span><span class="kw">pub fn </span>arb(
         u: <span class="kw-2">&amp;mut </span>Unstructured,
         c: Config,
-        f: <span class="kw">impl </span>Fn(<span class="kw-2">&amp;mut </span>Unstructured, <span class="kw-2">&amp;</span>Program) -&gt; arbitrary::Result&lt;Program&gt;,
+        f: <span class="kw">impl </span>Fn(<span class="kw-2">&amp;mut </span>Unstructured, Program) -&gt; arbitrary::Result&lt;Program&gt;,
         g: <span class="kw">impl </span>Fn(Program) -&gt; SsaProgramArtifact,
     ) -&gt; arbitrary::Result&lt;<span class="self">Self</span>&gt; {
         <span class="kw">let </span>program1 = arb_program(u, c)<span class="question-mark">?</span>;
-        <span class="kw">let </span>program2 = f(u, <span class="kw-2">&amp;</span>program1)<span class="question-mark">?</span>;
+        <span class="kw">let </span>program2 = f(u, program1.clone())<span class="question-mark">?</span>;
         <span class="kw">let </span>abi = program_abi(<span class="kw-2">&amp;</span>program1);
 
         <span class="kw">let </span>ssa1 = g(program1.clone());
@@ -424,6 +439,23 @@
         <span class="kw">let </span>input_map = arb_inputs(u, <span class="kw-2">&amp;</span>ssa1.program, <span class="kw-2">&amp;</span>abi)<span class="question-mark">?</span>;
 
         <span class="prelude-val">Ok</span>(<span class="self">Self </span>{ program: (program1, program2), abi, input_map, ssa1, ssa2 })
+    }
+}
+
+<span class="doccomment">/// Help iterate over the program(s) in the comparable artifact.
+</span><span class="kw">pub trait </span>HasPrograms {
+    <span class="kw">fn </span>programs(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; Vec&lt;<span class="kw-2">&amp;</span>Program&gt;;
+}
+
+<span class="kw">impl </span>HasPrograms <span class="kw">for </span>ComparePasses {
+    <span class="kw">fn </span>programs(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; Vec&lt;<span class="kw-2">&amp;</span>Program&gt; {
+        <span class="macro">vec!</span>[<span class="kw-2">&amp;</span><span class="self">self</span>.program]
+    }
+}
+
+<span class="kw">impl </span>HasPrograms <span class="kw">for </span>CompareMutants {
+    <span class="kw">fn </span>programs(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; Vec&lt;<span class="kw-2">&amp;</span>Program&gt; {
+        <span class="macro">vec!</span>[<span class="kw-2">&amp;</span><span class="self">self</span>.program.<span class="number">0</span>, <span class="kw-2">&amp;</span><span class="self">self</span>.program.<span class="number">1</span>]
     }
 }
 </code></pre></div></section></main></body></html>

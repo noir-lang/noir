@@ -97,7 +97,23 @@
 <a href="#96" id="96">96</a>
 <a href="#97" id="97">97</a>
 <a href="#98" id="98">98</a>
-<a href="#99" id="99">99</a></pre></div><pre class="rust"><code><span class="kw">mod </span>abi;
+<a href="#99" id="99">99</a>
+<a href="#100" id="100">100</a>
+<a href="#101" id="101">101</a>
+<a href="#102" id="102">102</a>
+<a href="#103" id="103">103</a>
+<a href="#104" id="104">104</a>
+<a href="#105" id="105">105</a>
+<a href="#106" id="106">106</a>
+<a href="#107" id="107">107</a>
+<a href="#108" id="108">108</a>
+<a href="#109" id="109">109</a>
+<a href="#110" id="110">110</a>
+<a href="#111" id="111">111</a>
+<a href="#112" id="112">112</a>
+<a href="#113" id="113">113</a>
+<a href="#114" id="114">114</a>
+<a href="#115" id="115">115</a></pre></div><pre class="rust"><code><span class="kw">mod </span>abi;
 <span class="kw">pub mod </span>compare;
 <span class="kw">mod </span>input;
 <span class="kw">mod </span>program;
@@ -106,7 +122,10 @@
 <span class="kw">pub use </span>input::arb_inputs;
 <span class="kw">use </span>program::freq::Freqs;
 <span class="kw">pub use </span>program::visitor::{visit_expr, visit_expr_mut};
-<span class="kw">pub use </span>program::{DisplayAstAsNoir, DisplayAstAsNoirComptime, arb_program, arb_program_comptime};
+<span class="kw">pub use </span>program::{
+    DisplayAstAsNoir, DisplayAstAsNoirComptime, arb_program, arb_program_comptime,
+    change_all_functions_into_unconstrained,
+};
 
 <span class="doccomment">/// AST generation configuration.
 </span><span class="attr">#[derive(Debug, Clone)]
@@ -143,6 +162,15 @@
     </span><span class="kw">pub </span>stmt_freqs_brillig: Freqs,
     <span class="doccomment">/// Whether to force all functions to be unconstrained.
     </span><span class="kw">pub </span>force_brillig: bool,
+    <span class="doccomment">/// Try to avoid overflowing operations. Useful when testing the minimal pipeline,
+    /// to avoid trivial failures due to multiplying or adding constants.
+    </span><span class="kw">pub </span>avoid_overflow: bool,
+    <span class="doccomment">/// Try to avoid operations that can result in error when zero is on the RHS.
+    </span><span class="kw">pub </span>avoid_err_by_zero: bool,
+    <span class="doccomment">/// Avoid using negative integer literals where the frontend expects unsigned types.
+    </span><span class="kw">pub </span>avoid_negative_int_literals: bool,
+    <span class="doccomment">/// Avoid using large integer literals where the frontend expects 32 bits.
+    </span><span class="kw">pub </span>avoid_large_int_literals: bool,
 }
 
 <span class="kw">impl </span>Default <span class="kw">for </span>Config {
@@ -157,15 +185,15 @@
             (<span class="string">"call"</span>, <span class="number">15</span>),
         ]);
         <span class="kw">let </span>stmt_freqs_acir = Freqs::new(<span class="kw-2">&amp;</span>[
-            (<span class="string">"drop"</span>, <span class="number">3</span>),
-            (<span class="string">"assign"</span>, <span class="number">30</span>),
+            (<span class="string">"drop"</span>, <span class="number">0</span>), <span class="comment">// The `ownership` module says it will insert `Drop` and `Clone`.
+            </span>(<span class="string">"assign"</span>, <span class="number">30</span>),
             (<span class="string">"if"</span>, <span class="number">10</span>),
             (<span class="string">"for"</span>, <span class="number">18</span>),
             (<span class="string">"let"</span>, <span class="number">25</span>),
             (<span class="string">"call"</span>, <span class="number">5</span>),
         ]);
         <span class="kw">let </span>stmt_freqs_brillig = Freqs::new(<span class="kw-2">&amp;</span>[
-            (<span class="string">"drop"</span>, <span class="number">5</span>),
+            (<span class="string">"drop"</span>, <span class="number">0</span>),
             (<span class="string">"break"</span>, <span class="number">20</span>),
             (<span class="string">"continue"</span>, <span class="number">20</span>),
             (<span class="string">"assign"</span>, <span class="number">30</span>),
@@ -193,6 +221,10 @@
             stmt_freqs_acir,
             stmt_freqs_brillig,
             force_brillig: <span class="bool-val">false</span>,
+            avoid_overflow: <span class="bool-val">false</span>,
+            avoid_err_by_zero: <span class="bool-val">false</span>,
+            avoid_large_int_literals: <span class="bool-val">false</span>,
+            avoid_negative_int_literals: <span class="bool-val">false</span>,
         }
     }
 }

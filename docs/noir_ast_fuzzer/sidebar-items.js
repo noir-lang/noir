@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"fn":["arb_inputs","arb_program","arb_program_comptime","program_abi","visit_expr","visit_expr_mut"],"mod":["abi","compare","input","program"],"struct":["Config","DisplayAstAsNoir","DisplayAstAsNoirComptime"]};
+window.SIDEBAR_ITEMS = {"fn":["arb_inputs","arb_program","arb_program_comptime","change_all_functions_into_unconstrained","program_abi","visit_expr","visit_expr_mut"],"mod":["abi","compare","input","program"],"struct":["Config","DisplayAstAsNoir","DisplayAstAsNoirComptime"]};

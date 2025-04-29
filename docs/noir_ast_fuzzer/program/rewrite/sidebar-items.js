@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"fn":["add_recursion_limit","next_local_and_ident_id"]};
+window.SIDEBAR_ITEMS = {"fn":["add_recursion_limit","change_all_functions_into_unconstrained","next_local_and_ident_id"]};

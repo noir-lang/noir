@@ -381,7 +381,22 @@
 <a href="#380" id="380">380</a>
 <a href="#381" id="381">381</a>
 <a href="#382" id="382">382</a>
-<a href="#383" id="383">383</a></pre></div><pre class="rust"><code><span class="doccomment">//! This module implements the "ownership analysis" compiler pass on the
+<a href="#383" id="383">383</a>
+<a href="#384" id="384">384</a>
+<a href="#385" id="385">385</a>
+<a href="#386" id="386">386</a>
+<a href="#387" id="387">387</a>
+<a href="#388" id="388">388</a>
+<a href="#389" id="389">389</a>
+<a href="#390" id="390">390</a>
+<a href="#391" id="391">391</a>
+<a href="#392" id="392">392</a>
+<a href="#393" id="393">393</a>
+<a href="#394" id="394">394</a>
+<a href="#395" id="395">395</a>
+<a href="#396" id="396">396</a>
+<a href="#397" id="397">397</a>
+<a href="#398" id="398">398</a></pre></div><pre class="rust"><code><span class="doccomment">//! This module implements the "ownership analysis" compiler pass on the
 //! monomorphized AST. It is run after monomorphization and before SSA-gen.
 //! At this point the monomorphized AST has no polymorphic types and all functions
 //! are specialized into either constrained or unconstrained versions. This pass
@@ -431,14 +446,29 @@
 <span class="kw">mod </span>tests;
 
 <span class="kw">impl </span>Program {
-    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>handle_ownership(<span class="kw-2">mut </span><span class="self">self</span>) -&gt; <span class="self">Self </span>{
-        <span class="kw">let </span><span class="kw-2">mut </span>context = Context { variables_to_move: Default::default() };
-
+    <span class="doccomment">/// Perform "ownership analysis".
+    ///
+    /// See [ownership](crate::ownership) for details.
+    ///
+    /// This should only be called once, before converting to SSA.
+    </span><span class="kw">pub fn </span>handle_ownership(<span class="kw-2">mut </span><span class="self">self</span>) -&gt; <span class="self">Self </span>{
         <span class="kw">for </span>function <span class="kw">in </span><span class="self">self</span>.functions.iter_mut() {
-            context.handle_ownership_in_function(function);
+            function.handle_ownership();
         }
         <span class="self">self
     </span>}
+}
+
+<span class="kw">impl </span>Function {
+    <span class="doccomment">/// Perform "ownership analysis".
+    ///
+    /// See [ownership](crate::ownership) for details.
+    ///
+    /// This should only be called on a function once.
+    </span><span class="kw">pub fn </span>handle_ownership(<span class="kw-2">&amp;mut </span><span class="self">self</span>) {
+        <span class="kw">let </span><span class="kw-2">mut </span>context = Context { variables_to_move: Default::default() };
+        context.handle_ownership_in_function(<span class="self">self</span>);
+    }
 }
 
 <span class="kw">struct </span>Context {

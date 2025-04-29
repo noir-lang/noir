@@ -483,7 +483,14 @@
 <a href="#482" id="482">482</a>
 <a href="#483" id="483">483</a>
 <a href="#484" id="484">484</a>
-<a href="#485" id="485">485</a></pre></div><pre class="rust"><code><span class="doccomment">//! This module implements printing of the monomorphized AST, for debugging purposes.
+<a href="#485" id="485">485</a>
+<a href="#486" id="486">486</a>
+<a href="#487" id="487">487</a>
+<a href="#488" id="488">488</a>
+<a href="#489" id="489">489</a>
+<a href="#490" id="490">490</a>
+<a href="#491" id="491">491</a>
+<a href="#492" id="492">492</a></pre></div><pre class="rust"><code><span class="doccomment">//! This module implements printing of the monomorphized AST, for debugging purposes.
 
 </span><span class="kw">use crate</span>::{ast::UnaryOp, monomorphization::ast::Ident, shared::Visibility};
 
@@ -508,11 +515,12 @@
     indent_level: u32,
     in_unconstrained: bool,
     <span class="kw">pub </span>show_id: bool,
+    <span class="kw">pub </span>show_clone_and_drop: bool,
 }
 
 <span class="kw">impl </span>Default <span class="kw">for </span>AstPrinter {
     <span class="kw">fn </span>default() -&gt; <span class="self">Self </span>{
-        <span class="self">Self </span>{ indent_level: <span class="number">0</span>, in_unconstrained: <span class="bool-val">false</span>, show_id: <span class="bool-val">true </span>}
+        <span class="self">Self </span>{ indent_level: <span class="number">0</span>, in_unconstrained: <span class="bool-val">false</span>, show_id: <span class="bool-val">true</span>, show_clone_and_drop: <span class="bool-val">true </span>}
     }
 }
 
@@ -662,11 +670,17 @@
             Expression::Continue =&gt; <span class="macro">write!</span>(f, <span class="string">"continue"</span>),
             Expression::Clone(expr) =&gt; {
                 <span class="self">self</span>.print_expr(expr, f)<span class="question-mark">?</span>;
-                <span class="macro">write!</span>(f, <span class="string">".clone()"</span>)
+                <span class="kw">if </span><span class="self">self</span>.show_clone_and_drop {
+                    <span class="macro">write!</span>(f, <span class="string">".clone()"</span>)<span class="question-mark">?</span>;
+                }
+                <span class="prelude-val">Ok</span>(())
             }
             Expression::Drop(expr) =&gt; {
                 <span class="self">self</span>.print_expr(expr, f)<span class="question-mark">?</span>;
-                <span class="macro">write!</span>(f, <span class="string">".drop()"</span>)
+                <span class="kw">if </span><span class="self">self</span>.show_clone_and_drop {
+                    <span class="macro">write!</span>(f, <span class="string">".drop()"</span>)<span class="question-mark">?</span>;
+                }
+                <span class="prelude-val">Ok</span>(())
             }
         }
     }

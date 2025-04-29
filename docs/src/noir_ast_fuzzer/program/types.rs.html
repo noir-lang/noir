@@ -235,7 +235,23 @@
 <a href="#234" id="234">234</a>
 <a href="#235" id="235">235</a>
 <a href="#236" id="236">236</a>
-<a href="#237" id="237">237</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::collections::HashSet;
+<a href="#237" id="237">237</a>
+<a href="#238" id="238">238</a>
+<a href="#239" id="239">239</a>
+<a href="#240" id="240">240</a>
+<a href="#241" id="241">241</a>
+<a href="#242" id="242">242</a>
+<a href="#243" id="243">243</a>
+<a href="#244" id="244">244</a>
+<a href="#245" id="245">245</a>
+<a href="#246" id="246">246</a>
+<a href="#247" id="247">247</a>
+<a href="#248" id="248">248</a>
+<a href="#249" id="249">249</a>
+<a href="#250" id="250">250</a>
+<a href="#251" id="251">251</a>
+<a href="#252" id="252">252</a>
+<a href="#253" id="253">253</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::collections::HashSet;
 
 <span class="kw">use </span>acir::FieldElement;
 <span class="kw">use </span>noirc_frontend::{
@@ -438,6 +454,22 @@
         }
         <span class="kw">_ </span>=&gt; <span class="bool-val">false</span>,
     }
+}
+
+<span class="doccomment">/// Can the binary operation result in an overflow.
+/// These are operations that commonly fail with random constants.
+</span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>can_binary_op_overflow(op: <span class="kw-2">&amp;</span>BinaryOp) -&gt; bool {
+    <span class="kw">use </span>BinaryOpKind::<span class="kw-2">*</span>;
+    <span class="macro">matches!</span>(op, Add | Subtract | Multiply | ShiftLeft)
+}
+
+<span class="doccomment">/// Can the binary operation fail because the RHS is zero.
+/// These operations can fail because of an unfortunate combination of
+/// expressions, such as `a / (a % a)` or `a % (a % a)`, but it's less
+/// like to occur than the overflows.
+</span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>can_binary_op_err_by_zero(op: <span class="kw-2">&amp;</span>BinaryOp) -&gt; bool {
+    <span class="kw">use </span>BinaryOpKind::<span class="kw-2">*</span>;
+    <span class="macro">matches!</span>(op, Divide | Modulo)
 }
 
 <span class="doccomment">/// Check if a certain binary operation can take a type as input and produce the target output.

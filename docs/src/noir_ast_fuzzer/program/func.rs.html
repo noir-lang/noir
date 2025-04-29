@@ -1180,7 +1180,29 @@
 <a href="#1179" id="1179">1179</a>
 <a href="#1180" id="1180">1180</a>
 <a href="#1181" id="1181">1181</a>
-<a href="#1182" id="1182">1182</a></pre></div><pre class="rust"><code><span class="kw">use </span>nargo::errors::Location;
+<a href="#1182" id="1182">1182</a>
+<a href="#1183" id="1183">1183</a>
+<a href="#1184" id="1184">1184</a>
+<a href="#1185" id="1185">1185</a>
+<a href="#1186" id="1186">1186</a>
+<a href="#1187" id="1187">1187</a>
+<a href="#1188" id="1188">1188</a>
+<a href="#1189" id="1189">1189</a>
+<a href="#1190" id="1190">1190</a>
+<a href="#1191" id="1191">1191</a>
+<a href="#1192" id="1192">1192</a>
+<a href="#1193" id="1193">1193</a>
+<a href="#1194" id="1194">1194</a>
+<a href="#1195" id="1195">1195</a>
+<a href="#1196" id="1196">1196</a>
+<a href="#1197" id="1197">1197</a>
+<a href="#1198" id="1198">1198</a>
+<a href="#1199" id="1199">1199</a>
+<a href="#1200" id="1200">1200</a>
+<a href="#1201" id="1201">1201</a>
+<a href="#1202" id="1202">1202</a>
+<a href="#1203" id="1203">1203</a>
+<a href="#1204" id="1204">1204</a></pre></div><pre class="rust"><code><span class="kw">use </span>nargo::errors::Location;
 <span class="kw">use </span>std::{
     collections::{BTreeMap, BTreeSet, HashSet},
     fmt::Debug,
@@ -1723,8 +1745,13 @@
         max_depth: usize,
     ) -&gt; arbitrary::Result&lt;<span class="prelude-ty">Option</span>&lt;Expression&gt;&gt; {
         <span class="comment">// Collect the operations can return the expected type.
-        </span><span class="kw">let </span>ops =
-            BinaryOp::iter().filter(|op| types::can_binary_op_return(op, typ)).collect::&lt;Vec&lt;<span class="kw">_</span>&gt;&gt;();
+        </span><span class="kw">let </span>ops = BinaryOp::iter()
+            .filter(|op| {
+                types::can_binary_op_return(op, typ)
+                    &amp;&amp; (!<span class="self">self</span>.ctx.config.avoid_overflow || !types::can_binary_op_overflow(op))
+                    &amp;&amp; (!<span class="self">self</span>.ctx.config.avoid_err_by_zero || !types::can_binary_op_err_by_zero(op))
+            })
+            .collect::&lt;Vec&lt;<span class="kw">_</span>&gt;&gt;();
 
         <span class="comment">// Ideally we checked that the target type can be returned, but just in case.
         </span><span class="kw">if </span>ops.is_empty() {
@@ -1737,6 +1764,7 @@
         <span class="comment">// Find a type we can produce in the current scope which we can pass as input
         // to the operations we selected, and it returns the desired output.
         </span><span class="kw">fn </span>collect_input_types&lt;<span class="lifetime">'a</span>, K: Ord&gt;(
+            this: <span class="kw-2">&amp;</span>FunctionContext,
             op: BinaryOp,
             type_out: <span class="kw-2">&amp;</span>Type,
             scope: <span class="kw-2">&amp;</span><span class="lifetime">'a </span>Scope&lt;K&gt;,
@@ -1744,15 +1772,16 @@
             scope
                 .types_produced()
                 .filter(|type_in| types::can_binary_op_return_from_input(<span class="kw-2">&amp;</span>op, type_in, type_out))
+                .filter(|type_in| !this.ctx.should_avoid_literals(type_in))
                 .collect::&lt;Vec&lt;<span class="kw">_</span>&gt;&gt;()
         }
 
         <span class="comment">// Try local variables first.
-        </span><span class="kw">let </span><span class="kw-2">mut </span>lhs_opts = collect_input_types(op, typ, <span class="self">self</span>.locals.current());
+        </span><span class="kw">let </span><span class="kw-2">mut </span>lhs_opts = collect_input_types(<span class="self">self</span>, op, typ, <span class="self">self</span>.locals.current());
 
         <span class="comment">// If the locals don't have any type compatible with `op`, try the globals.
         </span><span class="kw">if </span>lhs_opts.is_empty() {
-            lhs_opts = collect_input_types(op, typ, <span class="kw-2">&amp;</span><span class="self">self</span>.globals);
+            lhs_opts = collect_input_types(<span class="self">self</span>, op, typ, <span class="kw-2">&amp;</span><span class="self">self</span>.globals);
         }
 
         <span class="comment">// We might not have any input that works for this operation.
@@ -1885,7 +1914,7 @@
     </span><span class="kw">fn </span>gen_let(<span class="kw-2">&amp;mut </span><span class="self">self</span>, u: <span class="kw-2">&amp;mut </span>Unstructured) -&gt; arbitrary::Result&lt;Expression&gt; {
         <span class="comment">// Generate a type or choose an existing one.
         </span><span class="kw">let </span>max_depth = <span class="self">self</span>.max_depth();
-        <span class="kw">let </span>typ = <span class="self">self</span>.ctx.gen_type(u, max_depth, <span class="bool-val">false</span>)<span class="question-mark">?</span>;
+        <span class="kw">let </span>typ = <span class="self">self</span>.ctx.gen_type(u, max_depth, <span class="bool-val">false</span>, <span class="bool-val">true</span>)<span class="question-mark">?</span>;
         <span class="kw">let </span>expr = <span class="self">self</span>.gen_expr(u, <span class="kw-2">&amp;</span>typ, max_depth, Flags::TOP)<span class="question-mark">?</span>;
         <span class="kw">let </span>mutable = bool::arbitrary(u)<span class="question-mark">?</span>;
         <span class="prelude-val">Ok</span>(<span class="self">self</span>.let_var(mutable, typ, expr, <span class="bool-val">true</span>))
@@ -1913,6 +1942,11 @@
     }
 
     <span class="doccomment">/// Drop a local variable, if we have anything to drop.
+    ///
+    /// The `ownership` module has a comment saying it will be the only one inserting `Clone` and `Drop`,
+    /// so this shouldn't be needed unless a user can do it via a `drop`-like method.
+    ///
+    /// Leaving it here for reference, but its frequency is adjusted to be 0.
     </span><span class="kw">fn </span>gen_drop(<span class="kw-2">&amp;mut </span><span class="self">self</span>, u: <span class="kw-2">&amp;mut </span>Unstructured) -&gt; arbitrary::Result&lt;<span class="prelude-ty">Option</span>&lt;Expression&gt;&gt; {
         <span class="kw">if </span><span class="self">self</span>.locals.current().is_empty() {
             <span class="kw">return </span><span class="prelude-val">Ok</span>(<span class="prelude-val">None</span>);
@@ -2017,17 +2051,27 @@
 
     <span class="doccomment">/// Generate a `for` loop.
     </span><span class="kw">fn </span>gen_for(<span class="kw-2">&amp;mut </span><span class="self">self</span>, u: <span class="kw-2">&amp;mut </span>Unstructured) -&gt; arbitrary::Result&lt;Expression&gt; {
-        <span class="comment">// The index can be signed or unsigned int, 8 to 128 bits, except i128.
-        </span><span class="kw">let </span>bit_size =
-            u.choose(<span class="kw-2">&amp;</span>[<span class="number">8</span>, <span class="number">16</span>, <span class="number">32</span>, <span class="number">64</span>, <span class="number">128</span>]).map(|s| IntegerBitSize::try_from(<span class="kw-2">*</span>s).unwrap())<span class="question-mark">?</span>;
-        <span class="kw">let </span>idx_type = Type::Integer(
-            <span class="kw">if </span>bit_size == IntegerBitSize::HundredTwentyEight || bool::arbitrary(u)<span class="question-mark">? </span>{
-                Signedness::Unsigned
+        <span class="comment">// The index can be signed or unsigned int, 8 to 128 bits, except i128,
+        // but currently the frontend expects it to be u32 unless it's declared as a separate variable.
+        </span><span class="kw">let </span>idx_type = {
+            <span class="kw">let </span>bit_size = <span class="kw">if </span><span class="self">self</span>.ctx.config.avoid_large_int_literals {
+                IntegerBitSize::ThirtyTwo
             } <span class="kw">else </span>{
-                Signedness::Signed
-            },
-            bit_size,
-        );
+                u.choose(<span class="kw-2">&amp;</span>[<span class="number">8</span>, <span class="number">16</span>, <span class="number">32</span>, <span class="number">64</span>, <span class="number">128</span>]).map(|s| IntegerBitSize::try_from(<span class="kw-2">*</span>s).unwrap())<span class="question-mark">?
+            </span>};
+
+            Type::Integer(
+                <span class="kw">if </span>bit_size == IntegerBitSize::HundredTwentyEight
+                    || <span class="self">self</span>.ctx.config.avoid_negative_int_literals
+                    || bool::arbitrary(u)<span class="question-mark">?
+                </span>{
+                    Signedness::Unsigned
+                } <span class="kw">else </span>{
+                    Signedness::Signed
+                },
+                bit_size,
+            )
+        };
 
         <span class="kw">let </span>(start_range, end_range) = <span class="kw">if </span><span class="self">self</span>.unconstrained() &amp;&amp; bool::arbitrary(u)<span class="question-mark">? </span>{
             <span class="comment">// Choosing a maximum range size because changing it immediately brought out some bug around modulo.
