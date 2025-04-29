@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1745936978389,
+  "lastUpdate": 1745939922413,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -17956,48 +17956,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "72797635+Savio-Sou@users.noreply.github.com",
-            "name": "Savio",
-            "username": "Savio-Sou"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "fca4a244896f0712882caf8784a50b85c6350b25",
-          "message": "chore(readme): Update `acvm-repo` READMEs (#8150)",
-          "timestamp": "2025-04-22T16:05:40Z",
-          "tree_id": "c08d37e082781a4786047236ea9c97a6645a061a",
-          "url": "https://github.com/noir-lang/noir/commit/fca4a244896f0712882caf8784a50b85c6350b25"
-        },
-        "date": 1745339047628,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 271750,
-            "range": "± 957",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 242049,
-            "range": "± 5390",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 3589549,
-            "range": "± 35130",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "michaeljklein@users.noreply.github.com",
             "name": "Michael J Klein",
             "username": "michaeljklein"
@@ -20049,6 +20007,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 3216603,
             "range": "± 5972",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "15848336+TomAFrench@users.noreply.github.com",
+            "name": "Tom French",
+            "username": "TomAFrench"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "5a9a5b474238a61413895c4e867a6cb47a8b8c1e",
+          "message": "chore: remove old fuzzer package (#8267)\n\nCo-authored-by: AztecBot <tech@aztecprotocol.com>",
+          "timestamp": "2025-04-29T15:01:29Z",
+          "tree_id": "f0876f5714a09b69b70ed57416f2fc8a33115470",
+          "url": "https://github.com/noir-lang/noir/commit/5a9a5b474238a61413895c4e867a6cb47a8b8c1e"
+        },
+        "date": 1745939915333,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 254444,
+            "range": "± 2299",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 229018,
+            "range": "± 5412",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 3220957,
+            "range": "± 25370",
             "unit": "ns/iter"
           }
         ]
