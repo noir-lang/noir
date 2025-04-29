@@ -413,7 +413,11 @@
 <a href="#412" id="412">412</a>
 <a href="#413" id="413">413</a>
 <a href="#414" id="414">414</a>
-<a href="#415" id="415">415</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::{fs::OpenOptions, path::PathBuf};
+<a href="#415" id="415">415</a>
+<a href="#416" id="416">416</a>
+<a href="#417" id="417">417</a>
+<a href="#418" id="418">418</a>
+<a href="#419" id="419">419</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::{fs::OpenOptions, path::PathBuf};
 
 <span class="kw">use </span>acvm::{
     AcirField, BlackBoxFunctionSolver, FieldElement,
@@ -642,11 +646,14 @@
     <span class="kw">let </span>location = test_function.location;
     <span class="kw">let </span>fuzzing_harness = FuzzingHarness { id, scope, location };
 
+    <span class="kw">let </span>corpus_dir = tempfile::tempdir().expect(<span class="string">"Couldn't create temporary directory"</span>);
+    <span class="kw">let </span>fuzzing_failure_dir = tempfile::tempdir().expect(<span class="string">"Couldn't create temporary directory"</span>);
+
     <span class="comment">// TODO: allow configuring this. See https://github.com/noir-lang/noir/issues/8214
     </span><span class="kw">let </span>fuzz_folder_config = FuzzFolderConfig {
-        corpus_dir: <span class="prelude-val">None</span>,
+        corpus_dir: <span class="prelude-val">Some</span>(corpus_dir.path().to_string_lossy().to_string()),
         minimized_corpus_dir: <span class="prelude-val">None</span>,
-        fuzzing_failure_dir: <span class="prelude-val">None</span>,
+        fuzzing_failure_dir: <span class="prelude-val">Some</span>(fuzzing_failure_dir.path().to_string_lossy().to_string()),
     };
     <span class="comment">// TODO: allow configuring this. See https://github.com/noir-lang/noir/issues/8214
     </span><span class="kw">let </span>fuzz_execution_config =
@@ -664,6 +671,7 @@
         <span class="kw-2">&amp;</span>fuzz_execution_config,
         build_foreign_call_executor,
     );
+
     <span class="kw">match </span>fuzz_result {
         FuzzingRunStatus::ExecutionPass | FuzzingRunStatus::MinimizationPass =&gt; TestStatus::Pass,
         FuzzingRunStatus::CorpusFailure { message } =&gt; {
