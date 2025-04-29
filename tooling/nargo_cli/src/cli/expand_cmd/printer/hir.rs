@@ -639,6 +639,8 @@ impl ItemPrinter<'_, '_, '_> {
                 if implicitly_added {
                     self.show_hir_lvalue(*lvalue);
                 } else {
+                    // Even though parentheses aren't always required, it's tricky to
+                    // figure out exactly when so we always include them.
                     self.push_str("*(");
                     self.show_hir_lvalue(*lvalue);
                     self.push(')');
