@@ -289,6 +289,9 @@ mod tests {
 
         // Enable enums as an unstable feature
         nargo.arg("-Zenums");
+        
+        // Enable pedantic solving
+        nargo.arg("--pedantic-solving");
 
         nargo.assert().success();
 
@@ -301,6 +304,9 @@ mod tests {
 
         // Enable enums as an unstable feature
         nargo.arg("-Zenums");
+        
+        // Enable pedantic solving
+        nargo.arg("--pedantic-solving");
 
         nargo.assert().success();
 
@@ -324,6 +330,9 @@ mod tests {
 
         // Enable enums as an unstable feature
         nargo.arg("-Zenums");
+        
+        // Enable pedantic solving
+        nargo.arg("--pedantic-solving");
 
         nargo.assert().success();
 
@@ -343,6 +352,9 @@ mod tests {
 
         // Enable enums as an unstable feature
         nargo.arg("-Zenums");
+        
+        // Enable pedantic solving
+        nargo.arg("--pedantic-solving");
 
         nargo.assert().success();
 
@@ -366,6 +378,9 @@ mod tests {
 
         // Enable enums as an unstable feature
         nargo.arg("-Zenums");
+        
+        // Enable pedantic solving
+        nargo.arg("--pedantic-solving");
 
         nargo.assert().success();
     }
