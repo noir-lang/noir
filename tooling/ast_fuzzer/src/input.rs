@@ -1,11 +1,13 @@
 use acir::FieldElement;
 use arbitrary::Unstructured;
-use noir_fuzzer::{dictionary::build_dictionary_from_program, strategies};
+use noir_greybox_fuzzer::build_dictionary_from_program;
 use noirc_abi::{Abi, InputMap};
 use proptest::{
     prelude::Strategy,
     test_runner::{Config, RngAlgorithm, TestRng, TestRunner},
 };
+
+mod strategies;
 
 /// Generate an arbitrary input according to the ABI.
 pub fn arb_inputs(
