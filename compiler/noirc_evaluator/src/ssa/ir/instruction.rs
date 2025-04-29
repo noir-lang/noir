@@ -223,6 +223,7 @@ pub enum Instruction {
     Binary(Binary),
 
     /// Converts `Value` into the given NumericType
+    ///
     /// This operation only changes the type of the value, it does not change the value itself.
     /// It is expected that the value can fit into the target type.
     /// For instance a value of type `u32` casted to `u8` must already fit into 8 bits
