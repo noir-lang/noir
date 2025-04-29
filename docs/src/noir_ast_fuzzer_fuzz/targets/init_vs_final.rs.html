@@ -82,20 +82,30 @@
 <a href="#81" id="81">81</a>
 <a href="#82" id="82">82</a>
 <a href="#83" id="83">83</a>
-<a href="#84" id="84">84</a></pre></div><pre class="rust"><code><span class="doccomment">//! Compare the execution of random ASTs between the initial SSA
+<a href="#84" id="84">84</a>
+<a href="#85" id="85">85</a>
+<a href="#86" id="86">86</a>
+<a href="#87" id="87">87</a>
+<a href="#88" id="88">88</a>
+<a href="#89" id="89">89</a>
+<a href="#90" id="90">90</a>
+<a href="#91" id="91">91</a>
+<a href="#92" id="92">92</a>
+<a href="#93" id="93">93</a>
+<a href="#94" id="94">94</a>
+<a href="#95" id="95">95</a></pre></div><pre class="rust"><code><span class="doccomment">//! Compare the execution of random ASTs between the initial SSA
 //! (or as close as we can stay to the initial state)
 //! and the fully optimized version.
 </span><span class="kw">use crate</span>::{
     compare_results, create_ssa_or_die, create_ssa_with_passes_or_die, default_ssa_options,
 };
-<span class="kw">use </span>arbitrary::Unstructured;
+<span class="kw">use </span>arbitrary::{Arbitrary, Unstructured};
 <span class="kw">use </span>color_eyre::eyre;
-<span class="kw">use </span>noir_ast_fuzzer::compare::ComparePasses;
+<span class="kw">use </span>noir_ast_fuzzer::compare::{CompareOptions, ComparePasses};
 <span class="kw">use </span>noir_ast_fuzzer::{Config, change_all_functions_into_unconstrained, compare::CompareResult};
 <span class="kw">use </span>noirc_evaluator::ssa::minimal_passes;
 
 <span class="kw">pub fn </span>fuzz(u: <span class="kw-2">&amp;mut </span>Unstructured) -&gt; eyre::Result&lt;()&gt; {
-    <span class="kw">let </span>options = default_ssa_options();
     <span class="kw">let </span>passes = minimal_passes();
     <span class="kw">let </span>config = Config {
         <span class="comment">// Try to avoid using overflowing operations; see below for the reason.
@@ -109,13 +119,25 @@
     <span class="kw">let </span>inputs = ComparePasses::arb(
         u,
         config,
-        |program| {
+        |_u, program| {
             <span class="comment">// We want to do the minimum possible amount of SSA passes. Brillig can get away with fewer than ACIR,
             // because ACIR needs unrolling of loops for example, so we treat everything as Brillig.
-            </span><span class="kw">let </span>program = change_all_functions_into_unconstrained(program);
-            create_ssa_with_passes_or_die(program, <span class="kw-2">&amp;</span>options, <span class="kw-2">&amp;</span>passes, |<span class="kw">_</span>| <span class="macro">vec!</span>[], <span class="prelude-val">Some</span>(<span class="string">"init"</span>))
+            </span><span class="kw">let </span>options = CompareOptions::default();
+            <span class="kw">let </span>ssa = create_ssa_with_passes_or_die(
+                change_all_functions_into_unconstrained(program),
+                <span class="kw-2">&amp;</span>options.onto(default_ssa_options()),
+                <span class="kw-2">&amp;</span>passes,
+                |<span class="kw">_</span>| <span class="macro">vec!</span>[],
+                <span class="prelude-val">Some</span>(<span class="string">"init"</span>),
+            );
+            <span class="prelude-val">Ok</span>((ssa, options))
         },
-        |program| create_ssa_or_die(program, <span class="kw-2">&amp;</span>options, <span class="prelude-val">Some</span>(<span class="string">"final"</span>)),
+        |u, program| {
+            <span class="kw">let </span>options = CompareOptions::arbitrary(u)<span class="question-mark">?</span>;
+            <span class="kw">let </span>ssa =
+                create_ssa_or_die(program, <span class="kw-2">&amp;</span>options.onto(default_ssa_options()), <span class="prelude-val">Some</span>(<span class="string">"final"</span>));
+            <span class="prelude-val">Ok</span>((ssa, options))
+        },
     )<span class="question-mark">?</span>;
 
     <span class="kw">let </span>result = inputs.exec()<span class="question-mark">?</span>;

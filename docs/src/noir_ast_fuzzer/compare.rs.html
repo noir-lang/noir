@@ -228,14 +228,68 @@
 <a href="#227" id="227">227</a>
 <a href="#228" id="228">228</a>
 <a href="#229" id="229">229</a>
-<a href="#230" id="230">230</a></pre></div><pre class="rust"><code><span class="kw">use </span>acir::{FieldElement, native_types::WitnessStack};
+<a href="#230" id="230">230</a>
+<a href="#231" id="231">231</a>
+<a href="#232" id="232">232</a>
+<a href="#233" id="233">233</a>
+<a href="#234" id="234">234</a>
+<a href="#235" id="235">235</a>
+<a href="#236" id="236">236</a>
+<a href="#237" id="237">237</a>
+<a href="#238" id="238">238</a>
+<a href="#239" id="239">239</a>
+<a href="#240" id="240">240</a>
+<a href="#241" id="241">241</a>
+<a href="#242" id="242">242</a>
+<a href="#243" id="243">243</a>
+<a href="#244" id="244">244</a>
+<a href="#245" id="245">245</a>
+<a href="#246" id="246">246</a>
+<a href="#247" id="247">247</a>
+<a href="#248" id="248">248</a>
+<a href="#249" id="249">249</a>
+<a href="#250" id="250">250</a>
+<a href="#251" id="251">251</a>
+<a href="#252" id="252">252</a>
+<a href="#253" id="253">253</a>
+<a href="#254" id="254">254</a>
+<a href="#255" id="255">255</a>
+<a href="#256" id="256">256</a>
+<a href="#257" id="257">257</a>
+<a href="#258" id="258">258</a>
+<a href="#259" id="259">259</a>
+<a href="#260" id="260">260</a>
+<a href="#261" id="261">261</a>
+<a href="#262" id="262">262</a>
+<a href="#263" id="263">263</a>
+<a href="#264" id="264">264</a>
+<a href="#265" id="265">265</a>
+<a href="#266" id="266">266</a>
+<a href="#267" id="267">267</a>
+<a href="#268" id="268">268</a>
+<a href="#269" id="269">269</a>
+<a href="#270" id="270">270</a>
+<a href="#271" id="271">271</a>
+<a href="#272" id="272">272</a>
+<a href="#273" id="273">273</a>
+<a href="#274" id="274">274</a>
+<a href="#275" id="275">275</a>
+<a href="#276" id="276">276</a>
+<a href="#277" id="277">277</a>
+<a href="#278" id="278">278</a>
+<a href="#279" id="279">279</a>
+<a href="#280" id="280">280</a>
+<a href="#281" id="281">281</a>
+<a href="#282" id="282">282</a>
+<a href="#283" id="283">283</a>
+<a href="#284" id="284">284</a></pre></div><pre class="rust"><code><span class="kw">use </span>acir::{FieldElement, native_types::WitnessStack};
 <span class="kw">use </span>acvm::pwg::{OpcodeResolutionError, ResolvedAssertionPayload};
-<span class="kw">use </span>arbitrary::Unstructured;
+<span class="kw">use </span>arbitrary::{Arbitrary, Unstructured};
 <span class="kw">use </span>bn254_blackbox_solver::Bn254BlackBoxSolver;
 <span class="kw">use </span>color_eyre::eyre::{<span class="self">self</span>, WrapErr, bail};
 <span class="kw">use </span>nargo::{NargoError, errors::ExecutionError, foreign_calls::DefaultForeignCallBuilder};
 <span class="kw">use </span>noirc_abi::{Abi, InputMap, input_parser::InputValue};
-<span class="kw">use </span>noirc_evaluator::ssa::SsaProgramArtifact;
+<span class="kw">use </span>noirc_evaluator::ssa::{SsaEvaluatorOptions, SsaProgramArtifact};
 <span class="kw">use </span>noirc_frontend::monomorphization::ast::Program;
 
 <span class="kw">use crate</span>::{Config, arb_inputs, arb_program, program_abi};
@@ -247,6 +301,28 @@
 }
 
 <span class="kw">type </span>ExecResult = (<span class="prelude-ty">Result</span>&lt;WitnessStack&lt;FieldElement&gt;, NargoError&lt;FieldElement&gt;&gt;, String);
+
+<span class="doccomment">/// Subset of [SsaEvaluatorOptions] that we want to vary.
+///
+/// It exists to reduce noise in the printed results, compared to showing the full `SsaEvaluatorOptions`.
+</span><span class="attr">#[derive(Debug, Clone, Default)]
+</span><span class="kw">pub struct </span>CompareOptions {
+    <span class="kw">pub </span>inliner_aggressiveness: i64,
+}
+
+<span class="kw">impl </span>Arbitrary&lt;<span class="lifetime">'_</span>&gt; <span class="kw">for </span>CompareOptions {
+    <span class="kw">fn </span>arbitrary(u: <span class="kw-2">&amp;mut </span>Unstructured&lt;<span class="lifetime">'_</span>&gt;) -&gt; arbitrary::Result&lt;<span class="self">Self</span>&gt; {
+        <span class="prelude-val">Ok</span>(<span class="self">Self </span>{ inliner_aggressiveness: <span class="kw-2">*</span>u.choose(<span class="kw-2">&amp;</span>[i64::MIN, <span class="number">0</span>, i64::MAX])<span class="question-mark">? </span>})
+    }
+}
+
+<span class="kw">impl </span>CompareOptions {
+    <span class="doccomment">/// Copy fields into an [SsaEvaluatorOptions] instance.
+    </span><span class="kw">pub fn </span>onto(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="kw-2">mut </span>options: SsaEvaluatorOptions) -&gt; SsaEvaluatorOptions {
+        options.inliner_aggressiveness = <span class="self">self</span>.inliner_aggressiveness;
+        options
+    }
+}
 
 <span class="doccomment">/// Possible outcomes of the differential execution of two equivalent programs.
 ///
@@ -354,13 +430,31 @@
         }
     }
 }
+
+<span class="kw">pub struct </span>CompareArtifact {
+    <span class="kw">pub </span>options: CompareOptions,
+    <span class="kw">pub </span>artifact: SsaProgramArtifact,
+}
+
+<span class="kw">impl </span>CompareArtifact {
+    <span class="kw">fn </span>new(artifact: SsaProgramArtifact, options: CompareOptions) -&gt; <span class="self">Self </span>{
+        <span class="self">Self </span>{ artifact, options }
+    }
+}
+
+<span class="kw">impl </span>From&lt;(SsaProgramArtifact, CompareOptions)&gt; <span class="kw">for </span>CompareArtifact {
+    <span class="kw">fn </span>from((artifact, options): (SsaProgramArtifact, CompareOptions)) -&gt; <span class="self">Self </span>{
+        <span class="self">Self</span>::new(artifact, options)
+    }
+}
+
 <span class="doccomment">/// Compare the execution of different SSA representations of equivalent program(s).
 </span><span class="kw">pub struct </span>CompareSsa&lt;P&gt; {
     <span class="kw">pub </span>program: P,
     <span class="kw">pub </span>abi: Abi,
     <span class="kw">pub </span>input_map: InputMap,
-    <span class="kw">pub </span>ssa1: SsaProgramArtifact,
-    <span class="kw">pub </span>ssa2: SsaProgramArtifact,
+    <span class="kw">pub </span>ssa1: CompareArtifact,
+    <span class="kw">pub </span>ssa2: CompareArtifact,
 }
 
 <span class="kw">impl</span>&lt;P&gt; CompareSsa&lt;P&gt; {
@@ -388,8 +482,8 @@
             (res, print)
         };
 
-        <span class="kw">let </span>(res1, print1) = do_exec(<span class="kw-2">&amp;</span><span class="self">self</span>.ssa1.program);
-        <span class="kw">let </span>(res2, print2) = do_exec(<span class="kw-2">&amp;</span><span class="self">self</span>.ssa2.program);
+        <span class="kw">let </span>(res1, print1) = do_exec(<span class="kw-2">&amp;</span><span class="self">self</span>.ssa1.artifact.program);
+        <span class="kw">let </span>(res2, print2) = do_exec(<span class="kw-2">&amp;</span><span class="self">self</span>.ssa2.artifact.program);
 
         CompareResult::new(<span class="kw-2">&amp;</span><span class="self">self</span>.abi, (res1, print1), (res2, print2))
     }
@@ -403,16 +497,23 @@
     </span><span class="kw">pub fn </span>arb(
         u: <span class="kw-2">&amp;mut </span>Unstructured,
         c: Config,
-        f: <span class="kw">impl </span>FnOnce(Program) -&gt; SsaProgramArtifact,
-        g: <span class="kw">impl </span>FnOnce(Program) -&gt; SsaProgramArtifact,
+        f: <span class="kw">impl </span>FnOnce(
+            <span class="kw-2">&amp;mut </span>Unstructured,
+            Program,
+        ) -&gt; arbitrary::Result&lt;(SsaProgramArtifact, CompareOptions)&gt;,
+        g: <span class="kw">impl </span>FnOnce(
+            <span class="kw-2">&amp;mut </span>Unstructured,
+            Program,
+        ) -&gt; arbitrary::Result&lt;(SsaProgramArtifact, CompareOptions)&gt;,
     ) -&gt; arbitrary::Result&lt;<span class="self">Self</span>&gt; {
         <span class="kw">let </span>program = arb_program(u, c)<span class="question-mark">?</span>;
         <span class="kw">let </span>abi = program_abi(<span class="kw-2">&amp;</span>program);
 
-        <span class="kw">let </span>ssa1 = f(program.clone());
-        <span class="kw">let </span>ssa2 = g(program.clone());
+        <span class="kw">let </span>ssa1 = CompareArtifact::from(f(u, program.clone())<span class="question-mark">?</span>);
+        <span class="kw">let </span>ssa2 = CompareArtifact::from(g(u, program.clone())<span class="question-mark">?</span>);
 
-        <span class="kw">let </span>input_map = arb_inputs(u, <span class="kw-2">&amp;</span>ssa1.program, <span class="kw-2">&amp;</span>abi)<span class="question-mark">?</span>;
+        <span class="kw">let </span>input_program = <span class="kw-2">&amp;</span>ssa1.artifact.program;
+        <span class="kw">let </span>input_map = arb_inputs(u, input_program, <span class="kw-2">&amp;</span>abi)<span class="question-mark">?</span>;
 
         <span class="prelude-val">Ok</span>(<span class="self">Self </span>{ program, abi, input_map, ssa1, ssa2 })
     }
@@ -422,23 +523,30 @@
 </span><span class="kw">pub type </span>CompareMutants = CompareSsa&lt;(Program, Program)&gt;;
 
 <span class="kw">impl </span>CompareMutants {
-    <span class="doccomment">/// Generate a random AST and compile it into SSA in two different ways.
+    <span class="doccomment">/// Generate a random AST, a random mutation of it, then compile both into SSA with the same options.
     </span><span class="kw">pub fn </span>arb(
         u: <span class="kw-2">&amp;mut </span>Unstructured,
         c: Config,
-        f: <span class="kw">impl </span>Fn(<span class="kw-2">&amp;mut </span>Unstructured, Program) -&gt; arbitrary::Result&lt;Program&gt;,
-        g: <span class="kw">impl </span>Fn(Program) -&gt; SsaProgramArtifact,
+        f: <span class="kw">impl </span>Fn(<span class="kw-2">&amp;mut </span>Unstructured, Program) -&gt; arbitrary::Result&lt;(Program, CompareOptions)&gt;,
+        g: <span class="kw">impl </span>Fn(Program, <span class="kw-2">&amp;</span>CompareOptions) -&gt; SsaProgramArtifact,
     ) -&gt; arbitrary::Result&lt;<span class="self">Self</span>&gt; {
         <span class="kw">let </span>program1 = arb_program(u, c)<span class="question-mark">?</span>;
-        <span class="kw">let </span>program2 = f(u, program1.clone())<span class="question-mark">?</span>;
+        <span class="kw">let </span>(program2, options) = f(u, program1.clone())<span class="question-mark">?</span>;
         <span class="kw">let </span>abi = program_abi(<span class="kw-2">&amp;</span>program1);
 
-        <span class="kw">let </span>ssa1 = g(program1.clone());
-        <span class="kw">let </span>ssa2 = g(program2.clone());
+        <span class="kw">let </span>ssa1 = g(program1.clone(), <span class="kw-2">&amp;</span>options);
+        <span class="kw">let </span>ssa2 = g(program2.clone(), <span class="kw-2">&amp;</span>options);
 
-        <span class="kw">let </span>input_map = arb_inputs(u, <span class="kw-2">&amp;</span>ssa1.program, <span class="kw-2">&amp;</span>abi)<span class="question-mark">?</span>;
+        <span class="kw">let </span>input_program = <span class="kw-2">&amp;</span>ssa1.program;
+        <span class="kw">let </span>input_map = arb_inputs(u, input_program, <span class="kw-2">&amp;</span>abi)<span class="question-mark">?</span>;
 
-        <span class="prelude-val">Ok</span>(<span class="self">Self </span>{ program: (program1, program2), abi, input_map, ssa1, ssa2 })
+        <span class="prelude-val">Ok</span>(<span class="self">Self </span>{
+            program: (program1, program2),
+            abi,
+            input_map,
+            ssa1: CompareArtifact::new(ssa1, options.clone()),
+            ssa2: CompareArtifact::new(ssa2, options),
+        })
     }
 }
 

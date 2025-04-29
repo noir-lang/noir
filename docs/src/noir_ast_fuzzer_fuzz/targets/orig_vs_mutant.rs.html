@@ -27,21 +27,21 @@
 //! execution result does not change.
 
 </span><span class="kw">use crate</span>::{compare_results, create_ssa_or_die, default_ssa_options};
-<span class="kw">use </span>arbitrary::Unstructured;
+<span class="kw">use </span>arbitrary::{Arbitrary, Unstructured};
 <span class="kw">use </span>color_eyre::eyre;
 <span class="kw">use </span>noir_ast_fuzzer::Config;
-<span class="kw">use </span>noir_ast_fuzzer::compare::CompareMutants;
+<span class="kw">use </span>noir_ast_fuzzer::compare::{CompareMutants, CompareOptions};
 
 <span class="kw">pub fn </span>fuzz(u: <span class="kw-2">&amp;mut </span>Unstructured) -&gt; eyre::Result&lt;()&gt; {
-    <span class="kw">let </span>options = default_ssa_options();
     <span class="kw">let </span>inputs = CompareMutants::arb(
         u,
         Config::default(),
-        |_u, program| {
+        |u, program| {
+            <span class="kw">let </span>options = CompareOptions::arbitrary(u)<span class="question-mark">?</span>;
             <span class="comment">// TODO(#7875): Perform random mutations
-            </span><span class="prelude-val">Ok</span>(program.clone())
+            </span><span class="prelude-val">Ok</span>((program, options))
         },
-        |program| create_ssa_or_die(program, <span class="kw-2">&amp;</span>options, <span class="prelude-val">None</span>),
+        |program, options| create_ssa_or_die(program, <span class="kw-2">&amp;</span>options.onto(default_ssa_options()), <span class="prelude-val">None</span>),
     )<span class="question-mark">?</span>;
 
     <span class="kw">let </span>result = inputs.exec()<span class="question-mark">?</span>;

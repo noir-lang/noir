@@ -114,7 +114,10 @@
 <a href="#113" id="113">113</a>
 <a href="#114" id="114">114</a>
 <a href="#115" id="115">115</a>
-<a href="#116" id="116">116</a></pre></div><pre class="rust"><code><span class="kw">use </span>acir::circuit::ExpressionWidth;
+<a href="#116" id="116">116</a>
+<a href="#117" id="117">117</a>
+<a href="#118" id="118">118</a>
+<a href="#119" id="119">119</a></pre></div><pre class="rust"><code><span class="kw">use </span>acir::circuit::ExpressionWidth;
 <span class="kw">use </span>color_eyre::eyre;
 <span class="kw">use </span>noir_ast_fuzzer::DisplayAstAsNoir;
 <span class="kw">use </span>noir_ast_fuzzer::compare::{CompareResult, CompareSsa, HasPrograms};
@@ -221,8 +224,11 @@
                 .serialize(<span class="kw-2">&amp;</span>inputs.input_map, <span class="kw-2">&amp;</span>inputs.abi)
                 .unwrap_or_else(|e| <span class="macro">format!</span>(<span class="string">"failed to serialize inputs: {e}"</span>))
         );
-        <span class="macro">eprintln!</span>(<span class="string">"---\nProgram 1:\n{}"</span>, inputs.ssa1.program);
-        <span class="macro">eprintln!</span>(<span class="string">"---\nProgram 2:\n{}"</span>, inputs.ssa2.program);
+        <span class="macro">eprintln!</span>(<span class="string">"---\nOptions 1:\n{:?}"</span>, inputs.ssa1.options);
+        <span class="macro">eprintln!</span>(<span class="string">"---\nProgram 1:\n{}"</span>, inputs.ssa1.artifact.program);
+
+        <span class="macro">eprintln!</span>(<span class="string">"---\nOptions 2:\n{:?}"</span>, inputs.ssa2.options);
+        <span class="macro">eprintln!</span>(<span class="string">"---\nProgram 2:\n{}"</span>, inputs.ssa2.artifact.program);
 
         <span class="comment">// Returning it as-is, so we can see the error message at the bottom as well.
         </span><span class="prelude-val">Err</span>(report)
