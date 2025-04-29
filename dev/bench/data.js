@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1745956635262,
+  "lastUpdate": 1745956639744,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -11357,70 +11357,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "isennovskiy@gmail.com",
-            "name": "Innokentii Sennovskii",
-            "username": "Rumata888"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "e1ec3d941c3803ec8bbd29ba71f6ced6653d998c",
-          "message": "chore: Push a bug list (#8186)",
-          "timestamp": "2025-04-23T16:21:06Z",
-          "tree_id": "c5e81e9bbc24230ebdcb90445a2c0933929aca57",
-          "url": "https://github.com/noir-lang/noir/commit/e1ec3d941c3803ec8bbd29ba71f6ced6653d998c"
-        },
-        "date": 1745426966234,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 203.28,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 227.03,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 181.3,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 433.5,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 425.68,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 1420,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 254.29,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-root",
-            "value": 260.03,
-            "unit": "MB"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "asterite@gmail.com",
             "name": "Ary Borenszweig",
             "username": "asterite"
@@ -14520,6 +14456,70 @@ window.BENCHMARK_DATA = {
           {
             "name": "private-kernel-tail",
             "value": 209.65,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 540.14,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 532.31,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 1440,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 361.22,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-root",
+            "value": 367.14,
+            "unit": "MB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "15848336+TomAFrench@users.noreply.github.com",
+            "name": "Tom French",
+            "username": "TomAFrench"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "4bc636a3f6b01c439333382980c2e4b7a4eb47e6",
+          "message": "fix: don't disallow writing to memory after passing it to brillig (#8276)\n\nCo-authored-by: AztecBot <tech@aztecprotocol.com>",
+          "timestamp": "2025-04-29T19:28:22Z",
+          "tree_id": "5da21caaa67476d5f3089692d46a16e9256ec9c8",
+          "url": "https://github.com/noir-lang/noir/commit/4bc636a3f6b01c439333382980c2e4b7a4eb47e6"
+        },
+        "date": 1745956631045,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 231.63,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 255.24,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 209.66,
             "unit": "MB"
           },
           {
