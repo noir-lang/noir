@@ -1,4 +1,4 @@
-<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `tooling/fuzzer/src/strategies/mod.rs`."><title>mod.rs - source</title><script>if(window.location.protocol!=="file:")document.head.insertAdjacentHTML("beforeend","SourceSerif4-Regular-6b053e98.ttf.woff2,FiraSans-Regular-0fe48ade.woff2,FiraSans-Medium-e1aa3f0a.woff2,SourceCodePro-Regular-8badfe75.ttf.woff2,SourceCodePro-Semibold-aa29a496.ttf.woff2".split(",").map(f=>`<link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/${f}">`).join(""))</script><link rel="stylesheet" href="../../../static.files/normalize-9960930a.css"><link rel="stylesheet" href="../../../static.files/rustdoc-46132b98.css"><meta name="rustdoc-vars" data-root-path="../../../" data-static-root-path="../../../static.files/" data-current-crate="noir_fuzzer" data-themes="" data-resource-suffix="" data-rustdoc-version="1.85.0 (4d91de4e4 2025-02-17)" data-channel="1.85.0" data-search-js="search-75f5ac3e.js" data-settings-js="settings-0f613d39.js" ><script src="../../../static.files/storage-59e33391.js"></script><script defer src="../../../static.files/src-script-56102188.js"></script><script defer src="../../../src-files.js"></script><script defer src="../../../static.files/main-5f194d8c.js"></script><noscript><link rel="stylesheet" href="../../../static.files/noscript-893ab5e7.css"></noscript><link rel="alternate icon" type="image/png" href="../../../static.files/favicon-32x32-6580c154.png"><link rel="icon" type="image/svg+xml" href="../../../static.files/favicon-044be391.svg"></head><body class="rustdoc src"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"><div class="src-sidebar-title"><h2>Files</h2></div></nav><div class="sidebar-resizer"></div><main><rustdoc-search></rustdoc-search><section id="main-content" class="content"><div class="main-heading"><h1><div class="sub-heading">noir_fuzzer/strategies/</div>mod.rs</h1><rustdoc-toolbar></rustdoc-toolbar></div><div class="example-wrap"><div data-nosnippet><pre class="src-line-numbers">
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `tooling/ast_fuzzer/src/input/mod.rs`."><title>mod.rs - source</title><script>if(window.location.protocol!=="file:")document.head.insertAdjacentHTML("beforeend","SourceSerif4-Regular-6b053e98.ttf.woff2,FiraSans-Regular-0fe48ade.woff2,FiraSans-Medium-e1aa3f0a.woff2,SourceCodePro-Regular-8badfe75.ttf.woff2,SourceCodePro-Semibold-aa29a496.ttf.woff2".split(",").map(f=>`<link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/${f}">`).join(""))</script><link rel="stylesheet" href="../../../static.files/normalize-9960930a.css"><link rel="stylesheet" href="../../../static.files/rustdoc-46132b98.css"><meta name="rustdoc-vars" data-root-path="../../../" data-static-root-path="../../../static.files/" data-current-crate="noir_ast_fuzzer" data-themes="" data-resource-suffix="" data-rustdoc-version="1.85.0 (4d91de4e4 2025-02-17)" data-channel="1.85.0" data-search-js="search-75f5ac3e.js" data-settings-js="settings-0f613d39.js" ><script src="../../../static.files/storage-59e33391.js"></script><script defer src="../../../static.files/src-script-56102188.js"></script><script defer src="../../../src-files.js"></script><script defer src="../../../static.files/main-5f194d8c.js"></script><noscript><link rel="stylesheet" href="../../../static.files/noscript-893ab5e7.css"></noscript><link rel="alternate icon" type="image/png" href="../../../static.files/favicon-32x32-6580c154.png"><link rel="icon" type="image/svg+xml" href="../../../static.files/favicon-044be391.svg"></head><body class="rustdoc src"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"><div class="src-sidebar-title"><h2>Files</h2></div></nav><div class="sidebar-resizer"></div><main><rustdoc-search></rustdoc-search><section id="main-content" class="content"><div class="main-heading"><h1><div class="sub-heading">noir_ast_fuzzer/input/</div>mod.rs</h1><rustdoc-toolbar></rustdoc-toolbar></div><div class="example-wrap"><div data-nosnippet><pre class="src-line-numbers">
 <a href="#1" id="1">1</a>
 <a href="#2" id="2">2</a>
 <a href="#3" id="3">3</a>
@@ -101,28 +101,91 @@
 <a href="#100" id="100">100</a>
 <a href="#101" id="101">101</a>
 <a href="#102" id="102">102</a>
-<a href="#103" id="103">103</a></pre></div><pre class="rust"><code><span class="kw">use </span>int::IntStrategy;
-<span class="kw">use </span>prop::collection::vec;
-<span class="kw">use </span>proptest::prelude::<span class="kw-2">*</span>;
+<a href="#103" id="103">103</a>
+<a href="#104" id="104">104</a>
+<a href="#105" id="105">105</a>
+<a href="#106" id="106">106</a>
+<a href="#107" id="107">107</a>
+<a href="#108" id="108">108</a>
+<a href="#109" id="109">109</a>
+<a href="#110" id="110">110</a>
+<a href="#111" id="111">111</a>
+<a href="#112" id="112">112</a>
+<a href="#113" id="113">113</a>
+<a href="#114" id="114">114</a>
+<a href="#115" id="115">115</a>
+<a href="#116" id="116">116</a>
+<a href="#117" id="117">117</a>
+<a href="#118" id="118">118</a>
+<a href="#119" id="119">119</a>
+<a href="#120" id="120">120</a>
+<a href="#121" id="121">121</a>
+<a href="#122" id="122">122</a>
+<a href="#123" id="123">123</a>
+<a href="#124" id="124">124</a>
+<a href="#125" id="125">125</a>
+<a href="#126" id="126">126</a>
+<a href="#127" id="127">127</a></pre></div><pre class="rust"><code><span class="kw">use </span>acvm::{AcirField, FieldElement};
 
-<span class="kw">use </span>acvm::{AcirField, FieldElement};
-
+<span class="kw">use </span>arbitrary::Unstructured;
+<span class="kw">use </span>noir_greybox_fuzzer::build_dictionary_from_program;
 <span class="kw">use </span>noirc_abi::{Abi, AbiType, InputMap, Sign, input_parser::InputValue};
+<span class="kw">use </span>proptest::{
+    prelude::<span class="kw-2">*</span>,
+    test_runner::{Config, RngAlgorithm, TestRng, TestRunner},
+};
 <span class="kw">use </span>std::collections::{BTreeMap, HashSet};
-<span class="kw">use </span>uint::UintStrategy;
 
 <span class="kw">mod </span>int;
 <span class="kw">mod </span>uint;
 
+<span class="kw">use </span>int::IntStrategy;
+<span class="kw">use </span>uint::UintStrategy;
+
+<span class="doccomment">/// Generate an arbitrary input according to the ABI.
+</span><span class="kw">pub fn </span>arb_inputs(
+    u: <span class="kw-2">&amp;mut </span>Unstructured,
+    program: <span class="kw-2">&amp;</span>acir::circuit::Program&lt;FieldElement&gt;,
+    abi: <span class="kw-2">&amp;</span>Abi,
+) -&gt; arbitrary::Result&lt;InputMap&gt; {
+    <span class="comment">// Reuse the proptest strategy in `noir_fuzzer` to generate random inputs.
+    </span><span class="kw">let </span>dictionary = build_dictionary_from_program(program);
+    <span class="kw">let </span>strategy = arb_input_map(abi, <span class="kw-2">&amp;</span>dictionary);
+    <span class="comment">// The strategy needs a runner, although all it really uses is the RNG from it.
+    </span><span class="kw">let </span>seed: [u8; <span class="number">16</span>] = u.arbitrary()<span class="question-mark">?</span>;
+    <span class="kw">let </span>rng = TestRng::from_seed(RngAlgorithm::XorShift, <span class="kw-2">&amp;</span>seed);
+    <span class="kw">let </span><span class="kw-2">mut </span>runner = TestRunner::new_with_rng(Config::default(), rng);
+    <span class="kw">let </span>tree = strategy.new_tree(<span class="kw-2">&amp;mut </span>runner).map_err(|<span class="kw">_</span>| arbitrary::Error::IncorrectFormat)<span class="question-mark">?</span>;
+    <span class="prelude-val">Ok</span>(tree.current())
+}
+
+<span class="doccomment">/// Given the [Abi] description of a Noir program, generate random [InputValue]s for each circuit parameter.
+///
+/// Use the `dictionary` to draw values from for numeric types.
+</span><span class="kw">fn </span>arb_input_map(abi: <span class="kw-2">&amp;</span>Abi, dictionary: <span class="kw-2">&amp;</span>HashSet&lt;FieldElement&gt;) -&gt; BoxedStrategy&lt;InputMap&gt; {
+    <span class="kw">let </span>values: Vec&lt;<span class="kw">_</span>&gt; = abi
+        .parameters
+        .iter()
+        .map(|param| (Just(param.name.clone()), arb_value_from_abi_type(<span class="kw-2">&amp;</span>param.typ, dictionary)))
+        .collect();
+
+    values
+        .prop_map(|values| {
+            <span class="kw">let </span>input_map: InputMap = values.into_iter().collect();
+            input_map
+        })
+        .boxed()
+}
+
 <span class="doccomment">/// Create a strategy for generating random values for an [AbiType].
 ///
 /// Uses the `dictionary` for unsigned integer types.
-</span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>arb_value_from_abi_type(
+</span><span class="kw">fn </span>arb_value_from_abi_type(
     abi_type: <span class="kw-2">&amp;</span>AbiType,
     dictionary: <span class="kw-2">&amp;</span>HashSet&lt;FieldElement&gt;,
 ) -&gt; SBoxedStrategy&lt;InputValue&gt; {
     <span class="kw">match </span>abi_type {
-        AbiType::Field =&gt; vec(any::&lt;u8&gt;(), <span class="number">32</span>)
+        AbiType::Field =&gt; proptest::collection::vec(any::&lt;u8&gt;(), <span class="number">32</span>)
             .prop_map(|bytes| InputValue::Field(FieldElement::from_be_bytes_reduce(<span class="kw-2">&amp;</span>bytes)))
             .sboxed(),
         AbiType::Integer { width, sign } <span class="kw">if </span>sign == <span class="kw-2">&amp;</span>Sign::Unsigned =&gt; {
@@ -160,7 +223,10 @@
         }
         AbiType::Array { length, typ } =&gt; {
             <span class="kw">let </span>length = <span class="kw-2">*</span>length <span class="kw">as </span>usize;
-            <span class="kw">let </span>elements = vec(arb_value_from_abi_type(typ, dictionary), length..=length);
+            <span class="kw">let </span>elements = proptest::collection::vec(
+                arb_value_from_abi_type(typ, dictionary),
+                length..=length,
+            );
 
             elements.prop_map(InputValue::Vec).sboxed()
         }
@@ -185,23 +251,5 @@
             fields.prop_map(InputValue::Vec).sboxed()
         }
     }
-}
-
-<span class="doccomment">/// Given the [Abi] description of a [program artifact][noirc_artifacts::program::ProgramArtifact], generate random [InputValue]s for each circuit parameter.
-///
-/// Use the `dictionary` to draw values from for numeric types.
-</span><span class="kw">pub fn </span>arb_input_map(abi: <span class="kw-2">&amp;</span>Abi, dictionary: <span class="kw-2">&amp;</span>HashSet&lt;FieldElement&gt;) -&gt; BoxedStrategy&lt;InputMap&gt; {
-    <span class="kw">let </span>values: Vec&lt;<span class="kw">_</span>&gt; = abi
-        .parameters
-        .iter()
-        .map(|param| (Just(param.name.clone()), arb_value_from_abi_type(<span class="kw-2">&amp;</span>param.typ, dictionary)))
-        .collect();
-
-    values
-        .prop_map(|values| {
-            <span class="kw">let </span>input_map: InputMap = values.into_iter().collect();
-            input_map
-        })
-        .boxed()
 }
 </code></pre></div></section></main></body></html>

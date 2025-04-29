@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"fn":["build_dictionary_from_circuit","build_dictionary_from_program","build_dictionary_from_unconstrained_function"]};

@@ -1,5 +1,5 @@
 (function() {
-    var implementors = Object.fromEntries([["noir_fuzzer",[["impl Strategy for <a class=\"struct\" href=\"noir_fuzzer/strategies/int/struct.IntStrategy.html\" title=\"struct noir_fuzzer::strategies::int::IntStrategy\">IntStrategy</a>"],["impl Strategy for <a class=\"struct\" href=\"noir_fuzzer/strategies/uint/struct.UintStrategy.html\" title=\"struct noir_fuzzer::strategies::uint::UintStrategy\">UintStrategy</a>"]]]]);
+    var implementors = Object.fromEntries([["noir_ast_fuzzer",[["impl Strategy for <a class=\"struct\" href=\"noir_ast_fuzzer/input/int/struct.IntStrategy.html\" title=\"struct noir_ast_fuzzer::input::int::IntStrategy\">IntStrategy</a>"],["impl Strategy for <a class=\"struct\" href=\"noir_ast_fuzzer/input/uint/struct.UintStrategy.html\" title=\"struct noir_ast_fuzzer::input::uint::UintStrategy\">UintStrategy</a>"]]]]);
     if (window.register_implementors) {
         window.register_implementors(implementors);
     } else {

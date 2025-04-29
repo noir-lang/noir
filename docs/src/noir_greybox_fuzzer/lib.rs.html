@@ -1466,7 +1466,8 @@
 <a href="#1465" id="1465">1465</a>
 <a href="#1466" id="1466">1466</a>
 <a href="#1467" id="1467">1467</a>
-<a href="#1468" id="1468">1468</a></pre></div><pre class="rust"><code><span class="kw">use </span>core::panic;
+<a href="#1468" id="1468">1468</a>
+<a href="#1469" id="1469">1469</a></pre></div><pre class="rust"><code><span class="kw">use </span>core::panic;
 <span class="kw">use </span>std::{
     cmp::max,
     path::{Path, PathBuf},
@@ -1484,10 +1485,11 @@
     AccumulatedFuzzerCoverage, BrilligCoverageRanges, FeatureToIndexMap, RawBrilligCoverage,
     SingleTestCaseCoverage, analyze_brillig_program_before_fuzzing,
 };
-<span class="kw">use </span>noir_fuzzer::dictionary::build_dictionary_from_program;
+<span class="kw">pub use </span>dictionary::build_dictionary_from_program;
 
 <span class="kw">mod </span>corpus;
 <span class="kw">mod </span>coverage;
+<span class="kw">mod </span>dictionary;
 <span class="kw">mod </span>mutation;
 <span class="kw">mod </span>types;
 
