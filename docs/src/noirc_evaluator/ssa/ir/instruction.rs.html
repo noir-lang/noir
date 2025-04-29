@@ -822,7 +822,13 @@
 <a href="#821" id="821">821</a>
 <a href="#822" id="822">822</a>
 <a href="#823" id="823">823</a>
-<a href="#824" id="824">824</a></pre></div><pre class="rust"><code><span class="kw">use </span>noirc_errors::call_stack::CallStackId;
+<a href="#824" id="824">824</a>
+<a href="#825" id="825">825</a>
+<a href="#826" id="826">826</a>
+<a href="#827" id="827">827</a>
+<a href="#828" id="828">828</a>
+<a href="#829" id="829">829</a>
+<a href="#830" id="830">830</a></pre></div><pre class="rust"><code><span class="kw">use </span>noirc_errors::call_stack::CallStackId;
 <span class="kw">use </span>serde::{Deserialize, Serialize};
 <span class="kw">use </span>std::hash::{Hash, Hasher};
 
@@ -1046,7 +1052,13 @@
     <span class="doccomment">/// Binary Operations like +, -, *, /, ==, !=
     </span>Binary(Binary),
 
-    <span class="doccomment">/// Converts `Value` into the given NumericType
+    <span class="doccomment">/// Converts `Value` into the given `NumericType`
+    ///
+    /// This operation only changes the type of the value, it does not change the value itself.
+    /// It is expected that the value can fit into the target type.
+    /// For instance a value of type `u32` casted to `u8` must already fit into 8 bits
+    /// A value of type `i8` cannot be casted to 'i16' since the value would need to include the sign bit (which is the MSB)
+    /// Ssa code-gen must ensure that the necessary truncation or sign extension is performed when emitting a Cast instruction.
     </span>Cast(ValueId, NumericType),
 
     <span class="doccomment">/// Computes a bit wise not
