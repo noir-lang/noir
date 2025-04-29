@@ -50,6 +50,8 @@ pub struct Config {
     /// Try to avoid overflowing operations. Useful when testing the minimal pipeline,
     /// to avoid trivial failures due to multiplying or adding constants.
     pub avoid_overflow: bool,
+    /// Try to avoid operations that can result in error when zero is on the RHS.
+    pub avoid_err_by_zero: bool,
     /// Avoid using negative integer literals where the frontend expects unsigned types.
     pub avoid_negative_int_literals: bool,
     /// Avoid using large integer literals where the frontend expects 32 bits.
@@ -105,6 +107,7 @@ impl Default for Config {
             stmt_freqs_brillig,
             force_brillig: false,
             avoid_overflow: false,
+            avoid_err_by_zero: false,
             avoid_large_int_literals: false,
             avoid_negative_int_literals: false,
         }

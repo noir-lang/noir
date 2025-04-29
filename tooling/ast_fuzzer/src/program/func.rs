@@ -543,8 +543,9 @@ impl<'a> FunctionContext<'a> {
         // Collect the operations can return the expected type.
         let ops = BinaryOp::iter()
             .filter(|op| {
-                !(self.ctx.config.avoid_overflow && types::can_binary_op_overflow(op))
-                    && types::can_binary_op_return(op, typ)
+                types::can_binary_op_return(op, typ)
+                    && (!self.ctx.config.avoid_overflow || !types::can_binary_op_overflow(op))
+                    && (!self.ctx.config.avoid_err_by_zero || !types::can_binary_op_err_by_zero(op))
             })
             .collect::<Vec<_>>();
 
