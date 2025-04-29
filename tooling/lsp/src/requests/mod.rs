@@ -25,6 +25,8 @@ use noirc_frontend::usage_tracker::UsageTracker;
 use noirc_frontend::{graph::Dependency, node_interner::NodeInterner};
 use serde::{Deserialize, Serialize};
 
+use async_lsp::lsp_types;
+
 use crate::{
     LspState,
     types::{InitializeResult, NargoCapability, NargoTestsOptions, ServerCapabilities},
@@ -192,6 +194,7 @@ impl Default for LspInitializationOptions {
     }
 }
 
+#[expect(deprecated)]
 pub(crate) fn on_initialize(
     state: &mut LspState,
     params: InitializeParams,
@@ -710,7 +713,7 @@ pub(crate) struct TraitReexport {
 mod initialization {
     use acvm::blackbox_solver::StubbedBlackBoxSolver;
     use async_lsp::ClientSocket;
-    use lsp_types::{
+    use async_lsp::lsp_types::{
         CodeLensOptions, InitializeParams, TextDocumentSyncCapability, TextDocumentSyncKind,
     };
     use tokio::test;

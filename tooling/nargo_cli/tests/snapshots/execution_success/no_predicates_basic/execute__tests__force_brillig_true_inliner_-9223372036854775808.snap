@@ -31,7 +31,7 @@ expression: artifact
     }
   },
   "bytecode": "H4sIAAAAAAAA/7VUSw6CMBCdSolWoguNbvQQRVBYstCDNBLOwdFNw1SGWlzo9CWkJTN98+b1I2CAwM9C4riAT7icBkf9H3JGLh1Tp4ik8y2UzgXMG3/GUcF0k2w8YWxYBTRx8de6vKlAf4z6C0U4I/BfHL+Mw6+XyHPvp/zg1d3A9PLSNS5GL/IDYyuMu/kW58rji7HvVBO3b/uAflcrw16PxA/qa/plbcgXYNQtvHoyoI/WT738g6cz1rncef3TWhmM75Ls+etX9eCTRdKPPjh/KCSJ0/wT/q9n+mh+1NlVJu8K05mradvyaXyfLOg5fAEWXxueeQcAAA==",
-  "debug_symbols": "tZLLCsMgEEX/ZdYuosEmza+UEkwyCYJo8FEo4r9XSxbSrt2Id7hzmMWJsOESjlnq3TiYHhGUWYWXRucUE4HFSqXkMddj6MpD+bfvTqFLdF5YD1M/EkC9wcR53t6lwvztEvkrUsavJu1pXX0SoLd26KEdemyHvjdDs64ROuX0ElaKReEl0x70Wrnl3yf+aHZas+IWLBbhKtfKkYwRNmRsRn8A",
+  "debug_symbols": "dZBNDoMgEIXvMmsWQkO1XsUYgzoaEoIEoUljuHvBn1YXbuYxzHxvkrdAj60fG6mHaYayWqC1Uik5NmrqhJOTjr8LZKlQDiUjQJ+b5JsUm7xWYXGRhUDgoBtnERN8sotHjLCoHZTaK0XgLZRfl2Yj9KpO2DjNCKDuo0bDQSpMr0D+dHaPPoqd5fwH8ytN72nK+I7TB73wdexEJ+0lnpCcrBStwr0dvO5OU/cxx+SI19ipw95bTE6njGOtGCMsr0O69gU=",
   "file_map": {
     "50": {
       "source": "fn main(x: Field, y: pub Field) {\n    basic_check(x, y);\n}\n\n#[no_predicates]\nfn basic_check(x: Field, y: Field) {\n    assert(x != y);\n}\n",

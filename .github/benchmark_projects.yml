@@ -1,4 +1,4 @@
-define: &AZ_COMMIT b855fcd2e3f7cd8eeac984de2b167dbc34254173
+define: &AZ_COMMIT d0dccf50800b33605b7525cc31b171ff434ab1d8
 projects:
   private-kernel-inner:
     repo: AztecProtocol/aztec-packages
@@ -48,7 +48,7 @@ projects:
     compilation-timeout: 20
     execution-timeout: 0.75
     compilation-memory-limit: 1500
-    execution-memory-limit: 500
+    execution-memory-limit: 550
   rollup-block-root-empty:
     repo: AztecProtocol/aztec-packages
     ref: *AZ_COMMIT

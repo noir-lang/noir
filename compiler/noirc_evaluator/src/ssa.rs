@@ -22,15 +22,18 @@ use acvm::{
     FieldElement,
     acir::{
         circuit::{
-            Circuit, ErrorSelector, ExpressionWidth, Program as AcirProgram, PublicInputs,
-            brillig::BrilligBytecode,
+            AcirOpcodeLocation, Circuit, ErrorSelector, ExpressionWidth, OpcodeLocation,
+            Program as AcirProgram, PublicInputs, brillig::BrilligBytecode,
         },
         native_types::Witness,
     },
 };
 
 use ir::instruction::ErrorType;
-use noirc_errors::debug_info::{DebugFunctions, DebugInfo, DebugTypes, DebugVariables};
+use noirc_errors::{
+    call_stack::CallStackId,
+    debug_info::{DebugFunctions, DebugInfo, DebugTypes, DebugVariables},
+};
 
 use noirc_frontend::shared::Visibility;
 use noirc_frontend::{hir_def::function::FunctionSignature, monomorphization::ast::Program};
@@ -126,7 +129,10 @@ pub fn primary_passes(options: &SsaEvaluatorOptions) -> Vec<SsaPass> {
     vec![
         SsaPass::new(Ssa::remove_unreachable_functions, "Removing Unreachable Functions"),
         SsaPass::new(Ssa::defunctionalize, "Defunctionalization"),
-        SsaPass::new(Ssa::inline_simple_functions, "Inlining simple functions"),
+        SsaPass::new(
+            Ssa::inline_functions_with_at_most_one_instruction,
+            "Inlining functions with at most one instruction",
+        ),
         // BUG: Enabling this mem2reg causes an integration test failure in aztec-package; see:
         // https://github.com/AztecProtocol/aztec-packages/pull/11294#issuecomment-2622809518
         //SsaPass::new(Ssa::mem2reg, "Mem2Reg (1st)"),
@@ -195,6 +201,7 @@ pub fn primary_passes(options: &SsaEvaluatorOptions) -> Vec<SsaPass> {
         // end up using an existing constant from the globals space.
         SsaPass::new(Ssa::brillig_array_gets, "Brillig Array Get Optimizations"),
         SsaPass::new(Ssa::dead_instruction_elimination, "Dead Instruction Elimination"),
+        SsaPass::new(Ssa::checked_to_unchecked, "Checked to unchecked"),
     ]
 }
 
@@ -513,7 +520,7 @@ pub fn convert_generated_acir_into_circuit(
     let current_witness_index = generated_acir.current_witness_index().0;
     let GeneratedAcir {
         return_witnesses,
-        locations,
+        location_map,
         brillig_locations,
         input_witnesses,
         assertion_payloads: assert_messages,
@@ -538,27 +545,18 @@ pub fn convert_generated_acir_into_circuit(
         return_values,
         assert_messages: assert_messages.into_iter().collect(),
     };
-
-    // This converts each im::Vector in the BTreeMap to a Vec
-    let locations = locations
-        .into_iter()
-        .map(|(index, locations)| (index, locations.into_iter().collect()))
-        .collect();
-
-    let brillig_locations = brillig_locations
-        .into_iter()
-        .map(|(function_index, locations)| {
-            let locations = locations
-                .into_iter()
-                .map(|(index, locations)| (index, locations.into_iter().collect()))
-                .collect();
-            (function_index, locations)
+    let acir_location_map: BTreeMap<AcirOpcodeLocation, CallStackId> = location_map
+        .iter()
+        .map(|(k, v)| match k {
+            OpcodeLocation::Acir(index) => (AcirOpcodeLocation::new(*index), *v),
+            OpcodeLocation::Brillig { .. } => unreachable!("Expected ACIR opcode"),
         })
         .collect();
-
+    let location_tree = generated_acir.call_stacks.to_location_tree();
     let mut debug_info = DebugInfo::new(
-        locations,
         brillig_locations,
+        acir_location_map,
+        location_tree,
         debug_variables,
         debug_functions,
         debug_types,

@@ -1,15 +1,15 @@
+use fxhash::FxHashMap as HashMap;
+use noirc_errors::call_stack::CallStackId;
 use std::{collections::VecDeque, sync::Arc};
 
 use acvm::{AcirField as _, FieldElement, acir::BlackBoxFunc};
 use bn254_blackbox_solver::derive_generators;
-use fxhash::FxHashMap as HashMap;
 use iter_extended::vecmap;
 use num_bigint::BigUint;
 
 use crate::ssa::{
     ir::{
         basic_block::BasicBlockId,
-        call_stack::CallStackId,
         dfg::DataFlowGraph,
         instruction::{Binary, BinaryOp, Endian, Hint, Instruction, Intrinsic},
         types::{NumericType, Type},
@@ -505,9 +505,7 @@ fn simplify_slice_push_back(
     slice_sizes.insert(set_last_slice_value, slice_size / element_size);
     slice_sizes.insert(new_slice, slice_size / element_size);
 
-    let unknown = &mut HashMap::default();
-    let mut value_merger =
-        ValueMerger::new(dfg, block, &mut slice_sizes, unknown, None, call_stack);
+    let mut value_merger = ValueMerger::new(dfg, block, &mut slice_sizes, call_stack);
 
     let new_slice = value_merger.merge_values(
         len_not_equals_capacity,

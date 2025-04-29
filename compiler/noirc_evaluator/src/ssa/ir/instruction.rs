@@ -1,16 +1,16 @@
+use noirc_errors::call_stack::CallStackId;
+use serde::{Deserialize, Serialize};
 use std::hash::{Hash, Hasher};
 
 use acvm::acir::{BlackBoxFunc, circuit::ErrorSelector};
 use fxhash::FxHasher64;
 use iter_extended::vecmap;
 use noirc_frontend::hir_def::types::Type as HirType;
-use serde::{Deserialize, Serialize};
 
 use crate::ssa::opt::pure::Purity;
 
 use super::{
     basic_block::BasicBlockId,
-    call_stack::CallStackId,
     dfg::DataFlowGraph,
     map::Id,
     types::{NumericType, Type},
