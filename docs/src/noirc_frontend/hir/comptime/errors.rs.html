@@ -739,7 +739,28 @@
 <a href="#738" id="738">738</a>
 <a href="#739" id="739">739</a>
 <a href="#740" id="740">740</a>
-<a href="#741" id="741">741</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::fmt::Display;
+<a href="#741" id="741">741</a>
+<a href="#742" id="742">742</a>
+<a href="#743" id="743">743</a>
+<a href="#744" id="744">744</a>
+<a href="#745" id="745">745</a>
+<a href="#746" id="746">746</a>
+<a href="#747" id="747">747</a>
+<a href="#748" id="748">748</a>
+<a href="#749" id="749">749</a>
+<a href="#750" id="750">750</a>
+<a href="#751" id="751">751</a>
+<a href="#752" id="752">752</a>
+<a href="#753" id="753">753</a>
+<a href="#754" id="754">754</a>
+<a href="#755" id="755">755</a>
+<a href="#756" id="756">756</a>
+<a href="#757" id="757">757</a>
+<a href="#758" id="758">758</a>
+<a href="#759" id="759">759</a>
+<a href="#760" id="760">760</a>
+<a href="#761" id="761">761</a>
+<a href="#762" id="762">762</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::fmt::Display;
 <span class="kw">use </span>std::rc::Rc;
 
 <span class="kw">use crate</span>::{
@@ -864,6 +885,10 @@
     InvalidValuesForBinary {
         lhs: Type,
         rhs: Type,
+        operator: <span class="kw-2">&amp;</span><span class="lifetime">'static </span>str,
+        location: Location,
+    },
+    MathError {
         operator: <span class="kw-2">&amp;</span><span class="lifetime">'static </span>str,
         location: Location,
     },
@@ -1041,6 +1066,7 @@
             | InterpreterError::TypeUnsupported { location, .. }
             | InterpreterError::InvalidValueForUnary { location, .. }
             | InterpreterError::InvalidValuesForBinary { location, .. }
+            | InterpreterError::MathError { location, .. }
             | InterpreterError::CastToNonNumericType { location, .. }
             | InterpreterError::QuoteInRuntimeCode { location, .. }
             | InterpreterError::NonStructInConstructor { location, .. }
@@ -1234,7 +1260,23 @@
                 CustomDiagnostic::simple_error(msg, String::new(), <span class="kw-2">*</span>location)
             }
             InterpreterError::InvalidValuesForBinary { lhs, rhs, operator, location } =&gt; {
-                <span class="kw">let </span>msg = <span class="macro">format!</span>(<span class="string">"No implementation for `{lhs}` {operator} `{rhs}`"</span>,);
+                <span class="kw">let </span>msg = <span class="macro">format!</span>(<span class="string">"No implementation for `{lhs}` {operator} `{rhs}`"</span>);
+                CustomDiagnostic::simple_error(msg, String::new(), <span class="kw-2">*</span>location)
+            }
+            InterpreterError::MathError { operator, location } =&gt; {
+                <span class="kw">let </span>msg = <span class="kw">if </span><span class="kw-2">*</span>operator == <span class="string">"/" </span>{
+                    <span class="string">"Attempt to divide by zero"</span>.to_string()
+                } <span class="kw">else </span>{
+                    <span class="kw">let </span>operator = <span class="kw">match </span><span class="kw-2">*</span>operator {
+                        <span class="string">"+" </span>=&gt; <span class="string">"add"</span>,
+                        <span class="string">"-" </span>=&gt; <span class="string">"subtract"</span>,
+                        <span class="string">"*" </span>=&gt; <span class="string">"multiply"</span>,
+                        <span class="string">"&gt;&gt;" </span>=&gt; <span class="string">"shift right"</span>,
+                        <span class="string">"&lt;&lt;" </span>=&gt; <span class="string">"shift left"</span>,
+                        <span class="kw">_ </span>=&gt; operator,
+                    };
+                    <span class="macro">format!</span>(<span class="string">"Attempt to {operator} with overflow"</span>)
+                };
                 CustomDiagnostic::simple_error(msg, String::new(), <span class="kw-2">*</span>location)
             }
             InterpreterError::CastToNonNumericType { typ, location } =&gt; {

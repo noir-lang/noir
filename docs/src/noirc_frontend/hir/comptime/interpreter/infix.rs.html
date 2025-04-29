@@ -199,7 +199,9 @@
 <a href="#198" id="198">198</a>
 <a href="#199" id="199">199</a>
 <a href="#200" id="200">200</a>
-<a href="#201" id="201">201</a></pre></div><pre class="rust"><code><span class="kw">use </span><span class="kw">crate</span>::ast::BinaryOpKind;
+<a href="#201" id="201">201</a>
+<a href="#202" id="202">202</a>
+<a href="#203" id="203">203</a></pre></div><pre class="rust"><code><span class="kw">use </span><span class="kw">crate</span>::ast::BinaryOpKind;
 <span class="kw">use </span><span class="kw">crate</span>::hir::Location;
 <span class="kw">use </span><span class="kw">crate</span>::hir_def::expr::HirBinaryOp;
 
@@ -220,6 +222,8 @@
         InterpreterError::InvalidValuesForBinary { lhs, rhs, location, operator }
     };
 
+    <span class="kw">let </span>math_error = |operator| InterpreterError::MathError { location, operator };
+
     <span class="doccomment">/// Generate matches that can promote the type of one side to the other if they are compatible.
     </span><span class="macro">macro_rules!</span> match_values {
         ((<span class="macro-nonterminal">$lhs_value</span>:ident <span class="kw">as </span><span class="macro-nonterminal">$lhs</span>:ident <span class="macro-nonterminal">$op</span>:literal <span class="macro-nonterminal">$rhs_value</span>:ident <span class="kw">as </span><span class="macro-nonterminal">$rhs</span>:ident) {
@@ -232,7 +236,7 @@
             <span class="kw">match </span>(<span class="macro-nonterminal">$lhs_value</span>, <span class="macro-nonterminal">$rhs_value</span>) {
                 $(
                 (Value::<span class="macro-nonterminal">$lhs_var</span>(<span class="macro-nonterminal">$lhs</span>), Value::<span class="macro-nonterminal">$rhs_var</span>(<span class="macro-nonterminal">$rhs</span>)) =&gt; {
-                    <span class="prelude-val">Ok</span>(Value::<span class="macro-nonterminal">$res_var</span>((<span class="macro-nonterminal">$expr</span>).ok_or(error(<span class="macro-nonterminal">$op</span>))<span class="question-mark">?</span>))
+                    <span class="prelude-val">Ok</span>(Value::<span class="macro-nonterminal">$res_var</span>((<span class="macro-nonterminal">$expr</span>).ok_or(math_error(<span class="macro-nonterminal">$op</span>))<span class="question-mark">?</span>))
                 },
                 )*
                 (<span class="kw">_</span>, <span class="kw">_</span>) =&gt; {
