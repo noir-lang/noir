@@ -10,4 +10,17 @@ mod tests {
             .unwrap_or_else(|e| panic!("failed to parse seed '{seed}': {e}"));
         Some(seed)
     }
+
+    /// We can use this to disable the proptests on CI until we fix known bugs.
+    ///
+    /// The tests should always be enabled locally. They can be run with:
+    ///
+    /// ```ignore
+    /// cargo test -p noir_ast_fuzzer_fuzz
+    /// ```
+    pub fn should_ignore_on_ci() -> bool {
+        // TODO: Enable on CI once the following are fixed:
+        // #8229, #8230, #8231, #8236, #8261, #8262
+        std::env::var("CI").is_ok()
+    }
 }

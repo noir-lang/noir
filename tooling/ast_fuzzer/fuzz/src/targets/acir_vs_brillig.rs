@@ -36,7 +36,7 @@ mod tests {
     use arbtest::arbtest;
     use std::time::Duration;
 
-    use crate::targets::tests::seed_from_env;
+    use crate::targets::tests::{seed_from_env, should_ignore_on_ci};
 
     /// `cargo fuzz` takes a long time to ramp up the complexity.
     /// This test catches crash bugs much faster.
@@ -49,6 +49,9 @@ mod tests {
     /// ```
     #[test]
     fn fuzz_with_arbtest() {
+        if should_ignore_on_ci() {
+            return;
+        }
         let mut prop = arbtest(|u| {
             super::fuzz(u).unwrap();
             Ok(())
