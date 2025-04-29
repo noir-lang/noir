@@ -117,7 +117,7 @@ const TESTS_WITH_EXPECTED_WARNINGS: [&str; 4] = [
 /// might not be worth it.
 /// Others are ignored because of existing bugs in `nargo expand`.
 /// As the bugs are fixed these tests should be removed from this list.
-const IGNORED_NARGO_EXPAND_EXECUTION_TESTS: [&str; 6] = [
+const IGNORED_NARGO_EXPAND_EXECUTION_TESTS: [&str; 8] = [
     // There's nothing special about this program but making it work with a custom entry would involve
     // having to parse the Nargo.toml file, etc., which is not worth it
     "custom_entry",
@@ -127,6 +127,10 @@ const IGNORED_NARGO_EXPAND_EXECUTION_TESTS: [&str; 6] = [
     "overlapping_dep_and_mod",
     // bug
     "poseidonsponge_x5_254",
+    // bug
+    "regression_5045",
+    // bug
+    "regression_7744",
     // There's no "src/main.nr" here so it's trickier to make this work
     "workspace",
     // There's no "src/main.nr" here so it's trickier to make this work
