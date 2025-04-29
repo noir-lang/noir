@@ -323,6 +323,9 @@ mod tests {
         // Create a main file for the expanded code
         fs::write(temp_dir.join("src").join("main.nr"), expanded_code).unwrap();
 
+        // First check if `nargo fmt` works on the expanded code. If not, it means the code is not valid.
+        run_nargo_fmt(temp_dir.clone());
+
         // Now we can run `nargo execute` on the expanded code
         let mut nargo = Command::cargo_bin("nargo").unwrap();
         nargo.arg("--program-dir").arg(temp_dir);
@@ -371,6 +374,9 @@ mod tests {
         // Create a main file for the expanded code
         fs::write(temp_dir.join("src").join("main.nr"), expanded_code).unwrap();
 
+        // First check if `nargo fmt` works on the expanded code. If not, it means the code is not valid.
+        run_nargo_fmt(temp_dir.clone());
+
         // Now we can run `nargo compile` on the expanded code
         let mut nargo = Command::cargo_bin("nargo").unwrap();
         nargo.arg("--program-dir").arg(temp_dir);
@@ -382,6 +388,13 @@ mod tests {
         // Enable pedantic solving
         nargo.arg("--pedantic-solving");
 
+        nargo.assert().success();
+    }
+
+    fn run_nargo_fmt(target_dir: PathBuf) {
+        let mut nargo = Command::cargo_bin("nargo").unwrap();
+        nargo.arg("--program-dir").arg(target_dir);
+        nargo.arg("fmt");
         nargo.assert().success();
     }
 
