@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1745942785604,
+  "lastUpdate": 1745942787760,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -3700,95 +3700,6 @@ window.BENCHMARK_DATA = {
       }
     ],
     "Compilation Time": [
-      {
-        "commit": {
-          "author": {
-            "email": "mvezenov@gmail.com",
-            "name": "Maxim Vezenov",
-            "username": "vezenovm"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "797aea96fca36eae58b85cbecb95f422e71f8cfe",
-          "message": "fix(ssa): Recursive shared Brillig entry points  (#8099)",
-          "timestamp": "2025-04-22T17:00:47Z",
-          "tree_id": "1258e2a0ae2c143a2fbfb86b059b7d5e62050310",
-          "url": "https://github.com/noir-lang/noir/commit/797aea96fca36eae58b85cbecb95f422e71f8cfe"
-        },
-        "date": 1745342590516,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "regression_4709",
-            "value": 0.736,
-            "unit": "s"
-          },
-          {
-            "name": "ram_blowup_regression",
-            "value": 13.8,
-            "unit": "s"
-          },
-          {
-            "name": "global_var_regression_entry_points",
-            "value": 0.504,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-inner",
-            "value": 2.192,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 6.78,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 1.076,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 18.54,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 13.26,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root-empty",
-            "value": 0.91,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root-single-tx",
-            "value": 119,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 121,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 0.868,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-root",
-            "value": 1.35,
-            "unit": "s"
-          }
-        ]
-      },
       {
         "commit": {
           "author": {
@@ -8146,6 +8057,95 @@ window.BENCHMARK_DATA = {
           {
             "name": "rollup-root",
             "value": 1.604,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "asterite@gmail.com",
+            "name": "Ary Borenszweig",
+            "username": "asterite"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "a5ffd085158c02481e1e0e35ae601026a768c65c",
+          "message": "fix: use temporary dirs when fuzzing during `nargo test` (#8275)",
+          "timestamp": "2025-04-29T15:44:31Z",
+          "tree_id": "d3cfb19b53c995332ca8a65b471d8592eb4d018d",
+          "url": "https://github.com/noir-lang/noir/commit/a5ffd085158c02481e1e0e35ae601026a768c65c"
+        },
+        "date": 1745942779077,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "regression_4709",
+            "value": 0.714,
+            "unit": "s"
+          },
+          {
+            "name": "ram_blowup_regression",
+            "value": 13.3,
+            "unit": "s"
+          },
+          {
+            "name": "global_var_regression_entry_points",
+            "value": 0.492,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-inner",
+            "value": 2.43,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 6.316,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 1.108,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 17.22,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 13.14,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-empty",
+            "value": 1.288,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-single-tx",
+            "value": 132,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 126,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 1.003,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-root",
+            "value": 1.606,
             "unit": "s"
           }
         ]
