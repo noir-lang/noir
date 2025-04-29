@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1745945815779,
+  "lastUpdate": 1745945818711,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -11357,70 +11357,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "47281315+guipublic@users.noreply.github.com",
-            "name": "guipublic",
-            "username": "guipublic"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "ae008d31e289ddb086b4c69e3fd287c5167fc4dc",
-          "message": "feat: location tree for debug_info (#7034)\n\nCo-authored-by: Tom French <15848336+TomAFrench@users.noreply.github.com>\nCo-authored-by: Maxim Vezenov <mvezenov@gmail.com>\nCo-authored-by: Akosh Farkash <aakoshh@gmail.com>\nCo-authored-by: sirasistant <sirasistant@gmail.com>\nCo-authored-by: Tom French <tom@tomfren.ch>",
-          "timestamp": "2025-04-23T08:44:53Z",
-          "tree_id": "8944a0ac54be166da3ec0226bc801bb1a1fac9b1",
-          "url": "https://github.com/noir-lang/noir/commit/ae008d31e289ddb086b4c69e3fd287c5167fc4dc"
-        },
-        "date": 1745399591178,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 203.28,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 227.03,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 181.3,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 433.5,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 425.68,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 1420,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 254.29,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-root",
-            "value": 260.03,
-            "unit": "MB"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "asterite@gmail.com",
             "name": "Ary Borenszweig",
             "username": "asterite"
@@ -14505,6 +14441,70 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/noir-lang/noir/commit/d8c43708bb6a85c8b2026ac458bc99d44cd83884"
         },
         "date": 1745944503842,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 231.63,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 255.24,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 209.65,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 540.14,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 532.32,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 1440,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 361.22,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-root",
+            "value": 367.16,
+            "unit": "MB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "15848336+TomAFrench@users.noreply.github.com",
+            "name": "Tom French",
+            "username": "TomAFrench"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "c7e56beaac4081c5b71c0717e122aaf9a7b075f2",
+          "message": "chore: refactor array handling in ACIRgen (#8256)\n\nCo-authored-by: AztecBot <tech@aztecprotocol.com>",
+          "timestamp": "2025-04-29T16:27:38Z",
+          "tree_id": "909c4525d1bf016b95be549a181c5689b18ef83b",
+          "url": "https://github.com/noir-lang/noir/commit/c7e56beaac4081c5b71c0717e122aaf9a7b075f2"
+        },
+        "date": 1745945811276,
         "tool": "customSmallerIsBetter",
         "benches": [
           {
