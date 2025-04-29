@@ -497,16 +497,19 @@ pub fn compile_contract(
 fn read_contract(context: &Context, module_id: ModuleId, name: String) -> Contract {
     let module = context.module(module_id);
 
-    let functions = module
+    let mut functions: Vec<(ContractFunctionMeta, &str)> = module
         .value_definitions()
         .filter_map(|id| {
             id.as_function().map(|function_id| {
+                let name = context.def_interner.function_name(&function_id);
                 let attrs = context.def_interner.function_attributes(&function_id);
                 let is_entry_point = attrs.is_contract_entry_point();
-                ContractFunctionMeta { function_id, is_entry_point }
+                (ContractFunctionMeta { function_id, is_entry_point }, name)
             })
         })
         .collect();
+    functions.sort_by_key(|(_, name)| *name);
+    let functions = vecmap(functions, |(function, _)| function);
 
     let mut outputs = ContractOutputs { structs: HashMap::new(), globals: HashMap::new() };
 
