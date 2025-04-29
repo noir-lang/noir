@@ -183,8 +183,14 @@ pub struct CompileOptions {
     #[arg(long, default_value = "false")]
     pub pedantic_solving: bool,
 
-    /// Accept a single '.nr' file through STDIN instead of reading from the
-    /// root directory
+    /// Skip reading files/folders from the root directory and instead accept the
+    /// contents of `main.nr` through STDIN.
+    ///
+    /// The implicit package structure is:
+    /// ```
+    /// src/main.nr // STDIN
+    /// Nargo.toml // fixed "bin" Nargo.toml
+    /// ```
     #[arg(long, hide = true)]
     pub debug_compile_stdin: bool,
 

@@ -142,7 +142,7 @@ pub(crate) fn start_cli() -> eyre::Result<()> {
         NargoCommand::New(args) => new_cmd::run(args, config),
         NargoCommand::Init(args) => init_cmd::run(args, config),
         NargoCommand::Check(args) => with_workspace(args, config, check_cmd::run),
-        NargoCommand::Compile(args) => with_maybe_dummy_workspace(args, config, compile_cmd::run),
+        NargoCommand::Compile(args) => compile_with_maybe_dummy_workspace(args, config),
         NargoCommand::Debug(args) => with_workspace(args, config, debug_cmd::run),
         NargoCommand::Execute(args) => with_workspace(args, config, execute_cmd::run),
         NargoCommand::Export(args) => with_workspace(args, config, export_cmd::run),
@@ -182,13 +182,11 @@ fn read_workspace(
 }
 
 /// "with_workspace", but use a dummy workspace when 'debug_compile_stdin' is enabled
-fn with_maybe_dummy_workspace<R>(
+fn compile_with_maybe_dummy_workspace(
     cmd: compile_cmd::CompileCommand,
     config: NargoConfig,
-    run: R,
 ) -> Result<(), CliError>
 where
-    R: FnOnce(compile_cmd::CompileCommand, Workspace) -> Result<(), CliError>,
 {
     if cmd.compile_options.debug_compile_stdin {
         let package_name = "debug_compile_stdin".to_string();
@@ -211,9 +209,9 @@ where
             selection,
             Some(NOIR_ARTIFACT_VERSION_STRING.to_owned()),
         )?;
-        run(cmd, workspace)
+        compile_cmd::run(cmd, workspace)
     } else {
-        with_workspace(cmd, config, run)
+        with_workspace(cmd, config, compile_cmd::run)
     }
 }
 
