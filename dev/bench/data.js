@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1746037013913,
+  "lastUpdate": 1746037016923,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -3700,95 +3700,6 @@ window.BENCHMARK_DATA = {
       }
     ],
     "Compilation Time": [
-      {
-        "commit": {
-          "author": {
-            "email": "asterite@gmail.com",
-            "name": "Ary Borenszweig",
-            "username": "asterite"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "76cc8b458882f1a38944e89aec4eefda6cb1bcfb",
-          "message": "fix(debugger): send idle at loop end + fix test (#8187)\n\nCo-authored-by: Maxim Vezenov <mvezenov@gmail.com>",
-          "timestamp": "2025-04-23T18:19:45Z",
-          "tree_id": "efeca90a9f4e7e92f960f7a834a4c90c2286060c",
-          "url": "https://github.com/noir-lang/noir/commit/76cc8b458882f1a38944e89aec4eefda6cb1bcfb"
-        },
-        "date": 1745433863575,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "regression_4709",
-            "value": 0.665,
-            "unit": "s"
-          },
-          {
-            "name": "ram_blowup_regression",
-            "value": 12.8,
-            "unit": "s"
-          },
-          {
-            "name": "global_var_regression_entry_points",
-            "value": 0.464,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-inner",
-            "value": 2.21,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 6.604,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 1.032,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 18.08,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 13.56,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root-empty",
-            "value": 0.853,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root-single-tx",
-            "value": 122,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 117,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 0.888,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-root",
-            "value": 1.35,
-            "unit": "s"
-          }
-        ]
-      },
       {
         "commit": {
           "author": {
@@ -8146,6 +8057,95 @@ window.BENCHMARK_DATA = {
           {
             "name": "rollup-root",
             "value": 1.614,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "asterite@gmail.com",
+            "name": "Ary Borenszweig",
+            "username": "asterite"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "abb4ae154980b24393fdae4c4459fe1ace3e9c7c",
+          "message": "feat: allow specifying fuzz-related dirs when invoking `nargo test` (#8293)",
+          "timestamp": "2025-04-30T17:49:05Z",
+          "tree_id": "524bc82b0504a80b2480161a36b661bcfffdc0f0",
+          "url": "https://github.com/noir-lang/noir/commit/abb4ae154980b24393fdae4c4459fe1ace3e9c7c"
+        },
+        "date": 1746037008931,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "regression_4709",
+            "value": 0.704,
+            "unit": "s"
+          },
+          {
+            "name": "ram_blowup_regression",
+            "value": 13,
+            "unit": "s"
+          },
+          {
+            "name": "global_var_regression_entry_points",
+            "value": 0.485,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-inner",
+            "value": 2.178,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 7.274,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 1.116,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 17.34,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 13.42,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-empty",
+            "value": 1.25,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-single-tx",
+            "value": 124,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 124,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 1.07,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-root",
+            "value": 1.624,
             "unit": "s"
           }
         ]
