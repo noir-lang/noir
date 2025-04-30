@@ -1630,7 +1630,32 @@
 <a href="#1629" id="1629">1629</a>
 <a href="#1630" id="1630">1630</a>
 <a href="#1631" id="1631">1631</a>
-<a href="#1632" id="1632">1632</a></pre></div><pre class="rust"><code><span class="kw">use </span><span class="kw">crate</span>::token::DocStyle;
+<a href="#1632" id="1632">1632</a>
+<a href="#1633" id="1633">1633</a>
+<a href="#1634" id="1634">1634</a>
+<a href="#1635" id="1635">1635</a>
+<a href="#1636" id="1636">1636</a>
+<a href="#1637" id="1637">1637</a>
+<a href="#1638" id="1638">1638</a>
+<a href="#1639" id="1639">1639</a>
+<a href="#1640" id="1640">1640</a>
+<a href="#1641" id="1641">1641</a>
+<a href="#1642" id="1642">1642</a>
+<a href="#1643" id="1643">1643</a>
+<a href="#1644" id="1644">1644</a>
+<a href="#1645" id="1645">1645</a>
+<a href="#1646" id="1646">1646</a>
+<a href="#1647" id="1647">1647</a>
+<a href="#1648" id="1648">1648</a>
+<a href="#1649" id="1649">1649</a>
+<a href="#1650" id="1650">1650</a>
+<a href="#1651" id="1651">1651</a>
+<a href="#1652" id="1652">1652</a>
+<a href="#1653" id="1653">1653</a>
+<a href="#1654" id="1654">1654</a>
+<a href="#1655" id="1655">1655</a>
+<a href="#1656" id="1656">1656</a>
+<a href="#1657" id="1657">1657</a></pre></div><pre class="rust"><code><span class="kw">use </span><span class="kw">crate</span>::token::DocStyle;
 
 <span class="kw">use super</span>::{
     errors::LexerErrorKind,
@@ -1806,6 +1831,21 @@
             <span class="prelude-val">Some</span>(<span class="string">'r'</span>) =&gt; <span class="self">self</span>.eat_raw_string_or_alpha_numeric(),
             <span class="prelude-val">Some</span>(<span class="string">'q'</span>) =&gt; <span class="self">self</span>.eat_quote_or_alpha_numeric(),
             <span class="prelude-val">Some</span>(<span class="string">'#'</span>) =&gt; <span class="self">self</span>.eat_attribute_start(),
+            <span class="prelude-val">Some</span>(ch)
+                <span class="kw">if </span>ch.is_whitespace()
+                    <span class="comment">// These aren't unicode whitespace but look like '' so they are also misleading
+                    </span>|| ch == <span class="string">'\u{180E}'
+                    </span>|| ch == <span class="string">'\u{200B}'
+                    </span>|| ch == <span class="string">'\u{200C}'
+                    </span>|| ch == <span class="string">'\u{200D}'
+                    </span>|| ch == <span class="string">'\u{2060}'
+                    </span>|| ch == <span class="string">'\u{FEFF}' </span>=&gt;
+            {
+                <span class="kw">let </span>span = Span::from(<span class="self">self</span>.position..<span class="self">self</span>.position + <span class="number">1</span>);
+                <span class="kw">let </span>location = Location::new(span, <span class="self">self</span>.file_id);
+                <span class="self">self</span>.next_char();
+                <span class="prelude-val">Err</span>(LexerErrorKind::UnicodeCharacterLooksLikeSpaceButIsItNot { char: ch, location })
+            }
             <span class="prelude-val">Some</span>(ch) <span class="kw">if </span>ch.is_ascii_alphanumeric() || ch == <span class="string">'_' </span>=&gt; <span class="self">self</span>.eat_alpha_numeric(ch),
             <span class="prelude-val">Some</span>(ch) =&gt; {
                 <span class="comment">// We don't report invalid tokens in the source as errors until parsing to
@@ -3260,6 +3300,16 @@
                 <span class="string">"Expected NonAsciiComment error"
             </span>);
         }
+    }
+
+    <span class="attr">#[test]
+    </span><span class="kw">fn </span>errors_on_non_unicode_whitespace() {
+        <span class="kw">let </span>str = <span class="string">"\u{0085}"</span>;
+        <span class="kw">let </span><span class="kw-2">mut </span>lexer = Lexer::new_with_dummy_file(str);
+        <span class="macro">assert!</span>(<span class="macro">matches!</span>(
+            lexer.next_token(),
+            <span class="prelude-val">Err</span>(LexerErrorKind::UnicodeCharacterLooksLikeSpaceButIsItNot { .. })
+        ));
     }
 }
 </code></pre></div></section></main></body></html>

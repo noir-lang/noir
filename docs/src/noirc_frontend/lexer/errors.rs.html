@@ -183,7 +183,52 @@
 <a href="#182" id="182">182</a>
 <a href="#183" id="183">183</a>
 <a href="#184" id="184">184</a>
-<a href="#185" id="185">185</a></pre></div><pre class="rust"><code><span class="kw">use </span><span class="kw">crate</span>::hir::def_collector::dc_crate::CompilationError;
+<a href="#185" id="185">185</a>
+<a href="#186" id="186">186</a>
+<a href="#187" id="187">187</a>
+<a href="#188" id="188">188</a>
+<a href="#189" id="189">189</a>
+<a href="#190" id="190">190</a>
+<a href="#191" id="191">191</a>
+<a href="#192" id="192">192</a>
+<a href="#193" id="193">193</a>
+<a href="#194" id="194">194</a>
+<a href="#195" id="195">195</a>
+<a href="#196" id="196">196</a>
+<a href="#197" id="197">197</a>
+<a href="#198" id="198">198</a>
+<a href="#199" id="199">199</a>
+<a href="#200" id="200">200</a>
+<a href="#201" id="201">201</a>
+<a href="#202" id="202">202</a>
+<a href="#203" id="203">203</a>
+<a href="#204" id="204">204</a>
+<a href="#205" id="205">205</a>
+<a href="#206" id="206">206</a>
+<a href="#207" id="207">207</a>
+<a href="#208" id="208">208</a>
+<a href="#209" id="209">209</a>
+<a href="#210" id="210">210</a>
+<a href="#211" id="211">211</a>
+<a href="#212" id="212">212</a>
+<a href="#213" id="213">213</a>
+<a href="#214" id="214">214</a>
+<a href="#215" id="215">215</a>
+<a href="#216" id="216">216</a>
+<a href="#217" id="217">217</a>
+<a href="#218" id="218">218</a>
+<a href="#219" id="219">219</a>
+<a href="#220" id="220">220</a>
+<a href="#221" id="221">221</a>
+<a href="#222" id="222">222</a>
+<a href="#223" id="223">223</a>
+<a href="#224" id="224">224</a>
+<a href="#225" id="225">225</a>
+<a href="#226" id="226">226</a>
+<a href="#227" id="227">227</a>
+<a href="#228" id="228">228</a>
+<a href="#229" id="229">229</a>
+<a href="#230" id="230">230</a></pre></div><pre class="rust"><code><span class="kw">use </span><span class="kw">crate</span>::hir::def_collector::dc_crate::CompilationError;
 <span class="kw">use </span><span class="kw">crate</span>::parser::ParserError;
 <span class="kw">use </span><span class="kw">crate</span>::parser::ParserErrorReason;
 
@@ -229,6 +274,8 @@
     </span>NonAsciiComment { location: Location },
     <span class="attr">#[error(<span class="string">"Expected `{end_delim}` to close this {start_delim}"</span>)]
     </span>UnclosedQuote { start_delim: LocatedToken, end_delim: Token },
+    <span class="attr">#[error(<span class="string">"Unicode character '{}' looks like space, but is it not"</span>, char)]
+    </span>UnicodeCharacterLooksLikeSpaceButIsItNot { char: char, location: Location },
 }
 
 <span class="kw">impl </span>From&lt;LexerErrorKind&gt; <span class="kw">for </span>ParserError {
@@ -261,7 +308,10 @@
             LexerErrorKind::EmptyFormatStringInterpolation { location, .. } =&gt; <span class="kw-2">*</span>location,
             LexerErrorKind::InvalidEscape { location, .. } =&gt; <span class="kw-2">*</span>location,
             LexerErrorKind::InvalidQuoteDelimiter { delimiter } =&gt; delimiter.location(),
-            LexerErrorKind::NonAsciiComment { location, .. } =&gt; <span class="kw-2">*</span>location,
+            LexerErrorKind::NonAsciiComment { location, .. }
+            | LexerErrorKind::UnicodeCharacterLooksLikeSpaceButIsItNot { location, .. } =&gt; {
+                <span class="kw-2">*</span>location
+            }
             LexerErrorKind::UnclosedQuote { start_delim, .. } =&gt; start_delim.location(),
         }
     }
@@ -357,6 +407,46 @@
             }
             LexerErrorKind::UnclosedQuote { start_delim, end_delim } =&gt; {
                 (<span class="string">"Unclosed `quote` expression"</span>.to_string(), <span class="macro">format!</span>(<span class="string">"Expected a `{end_delim}` to close this `{start_delim}`"</span>), start_delim.location())
+            }
+            LexerErrorKind::UnicodeCharacterLooksLikeSpaceButIsItNot { char, location } =&gt; {
+                <span class="comment">// List taken from https://en.wikipedia.org/wiki/Whitespace_character
+                </span><span class="kw">let </span>char_name = <span class="kw">match </span>char {
+                    <span class="string">'\u{0085}' </span>=&gt; <span class="prelude-val">Some</span>(<span class="string">"Next Line"</span>),
+                    <span class="string">'\u{00A0}' </span>=&gt; <span class="prelude-val">Some</span>(<span class="string">"No-Break Space"</span>),
+                    <span class="string">'\u{1680}' </span>=&gt; <span class="prelude-val">Some</span>(<span class="string">"Ogham Space Mark"</span>),
+                    <span class="string">'\u{2000}' </span>=&gt; <span class="prelude-val">Some</span>(<span class="string">"En Quad"</span>),
+                    <span class="string">'\u{2001}' </span>=&gt; <span class="prelude-val">Some</span>(<span class="string">"Em Quad"</span>),
+                    <span class="string">'\u{2002}' </span>=&gt; <span class="prelude-val">Some</span>(<span class="string">"En Space"</span>),
+                    <span class="string">'\u{2003}' </span>=&gt; <span class="prelude-val">Some</span>(<span class="string">"Em Space"</span>),
+                    <span class="string">'\u{2004}' </span>=&gt; <span class="prelude-val">Some</span>(<span class="string">"Three-Per-Em Space"</span>),
+                    <span class="string">'\u{2005}' </span>=&gt; <span class="prelude-val">Some</span>(<span class="string">"Four-Per-Em Space"</span>),
+                    <span class="string">'\u{2006}' </span>=&gt; <span class="prelude-val">Some</span>(<span class="string">"Six-Per-Em Space"</span>),
+                    <span class="string">'\u{2007}' </span>=&gt; <span class="prelude-val">Some</span>(<span class="string">"Figure Space"</span>),
+                    <span class="string">'\u{2008}' </span>=&gt; <span class="prelude-val">Some</span>(<span class="string">"Punctuation Space"</span>),
+                    <span class="string">'\u{2009}' </span>=&gt; <span class="prelude-val">Some</span>(<span class="string">"Thin Space"</span>),
+                    <span class="string">'\u{200A}' </span>=&gt; <span class="prelude-val">Some</span>(<span class="string">"Hair Space"</span>),
+                    <span class="string">'\u{2028}' </span>=&gt; <span class="prelude-val">Some</span>(<span class="string">"Line Separator"</span>),
+                    <span class="string">'\u{2029}' </span>=&gt; <span class="prelude-val">Some</span>(<span class="string">"Paragraph Separator"</span>),
+                    <span class="string">'\u{202F}' </span>=&gt; <span class="prelude-val">Some</span>(<span class="string">"Narrow No-Break Space"</span>),
+                    <span class="string">'\u{205F}' </span>=&gt; <span class="prelude-val">Some</span>(<span class="string">"Medium Mathematical Space"</span>),
+                    <span class="string">'\u{3000}' </span>=&gt; <span class="prelude-val">Some</span>(<span class="string">"Ideographic Space"</span>),
+                    <span class="string">'\u{180E}' </span>=&gt; <span class="prelude-val">Some</span>(<span class="string">"Mongolian Vowel Separator"</span>),
+                    <span class="string">'\u{200B}' </span>=&gt; <span class="prelude-val">Some</span>(<span class="string">"Zero Width Space"</span>),
+                    <span class="string">'\u{200C}' </span>=&gt; <span class="prelude-val">Some</span>(<span class="string">"Zero Width Non-Joiner"</span>),
+                    <span class="string">'\u{200D}' </span>=&gt; <span class="prelude-val">Some</span>(<span class="string">"Zero Width Joiner"</span>),
+                    <span class="string">'\u{2060}' </span>=&gt; <span class="prelude-val">Some</span>(<span class="string">"Word Joiner"</span>),
+                    <span class="string">'\u{FEFF}' </span>=&gt; <span class="prelude-val">Some</span>(<span class="string">"Zero Width No-Break Space"</span>),
+                    <span class="kw">_ </span>=&gt; <span class="prelude-val">None</span>,
+                };
+
+                <span class="kw">let </span>primary = <span class="macro">format!</span>(<span class="string">"Unknown start of token: \\u{{{:x}}}"</span>, (<span class="kw-2">*</span>char <span class="kw">as </span>u32));
+                <span class="kw">let </span>secondary = <span class="kw">match </span>char_name {
+                    <span class="prelude-val">Some</span>(name) =&gt; <span class="macro">format!</span>(<span class="string">"Unicode character '{char}' ({name}) looks like ' ' (Space), but is it not"</span>),
+                    <span class="prelude-val">None </span>=&gt; {
+                        <span class="macro">format!</span>(<span class="string">"Unicode character '{char}' looks like ' ' (Space), but is it not"</span>)
+                    }
+                };
+                (primary, secondary, <span class="kw-2">*</span>location)
             }
         }
     }

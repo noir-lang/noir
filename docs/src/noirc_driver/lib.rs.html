@@ -813,7 +813,9 @@
 <a href="#812" id="812">812</a>
 <a href="#813" id="813">813</a>
 <a href="#814" id="814">814</a>
-<a href="#815" id="815">815</a></pre></div><pre class="rust"><code><span class="attr">#![forbid(unsafe_code)]
+<a href="#815" id="815">815</a>
+<a href="#816" id="816">816</a>
+<a href="#817" id="817">817</a></pre></div><pre class="rust"><code><span class="attr">#![forbid(unsafe_code)]
 #![warn(unused_crate_dependencies, unused_extern_crates)]
 #![warn(unreachable_pub)]
 #![warn(clippy::semicolon_if_nothing_returned)]
@@ -1312,7 +1314,7 @@
 </span><span class="kw">fn </span>read_contract(context: <span class="kw-2">&amp;</span>Context, module_id: ModuleId, name: String) -&gt; Contract {
     <span class="kw">let </span>module = context.module(module_id);
 
-    <span class="kw">let </span>functions = module
+    <span class="kw">let </span>functions: Vec&lt;ContractFunctionMeta&gt; = module
         .value_definitions()
         .filter_map(|id| {
             id.as_function().map(|function_id| {
@@ -1406,7 +1408,9 @@
             .iter()
             .filter_map(|attr| <span class="kw">match </span><span class="kw-2">&amp;</span>attr.kind {
                 SecondaryAttributeKind::Tag(contents) =&gt; <span class="prelude-val">Some</span>(contents.clone()),
-                SecondaryAttributeKind::Meta(attribute) =&gt; <span class="prelude-val">Some</span>(attribute.to_string()),
+                SecondaryAttributeKind::Meta(meta_attribute) =&gt; {
+                    context.def_interner.get_meta_attribute_name(meta_attribute)
+                }
                 <span class="kw">_ </span>=&gt; <span class="prelude-val">None</span>,
             })
             .collect();

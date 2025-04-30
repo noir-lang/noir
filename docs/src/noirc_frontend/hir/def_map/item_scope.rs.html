@@ -169,18 +169,20 @@
 <a href="#168" id="168">168</a>
 <a href="#169" id="169">169</a>
 <a href="#170" id="170">170</a>
-<a href="#171" id="171">171</a></pre></div><pre class="rust"><code><span class="kw">use super</span>::{ModuleDefId, ModuleId, namespace::PerNs};
+<a href="#171" id="171">171</a>
+<a href="#172" id="172">172</a></pre></div><pre class="rust"><code><span class="kw">use super</span>::{ModuleDefId, ModuleId, namespace::PerNs};
 <span class="kw">use </span><span class="kw">crate</span>::ast::{Ident, ItemVisibility};
 <span class="kw">use </span><span class="kw">crate</span>::node_interner::{FuncId, TraitId};
 
-<span class="kw">use </span>std::collections::{HashMap, hash_map::Entry};
+<span class="kw">use </span>std::collections::{BTreeMap, btree_map};
+<span class="kw">use </span>std::collections::{HashMap, hash_map};
 
 <span class="kw">type </span>Scope = HashMap&lt;<span class="prelude-ty">Option</span>&lt;TraitId&gt;, (ModuleDefId, ItemVisibility, bool <span class="comment">/*is_prelude*/</span>)&gt;;
 
 <span class="attr">#[derive(Default, Debug, PartialEq, Eq)]
 </span><span class="kw">pub struct </span>ItemScope {
-    types: HashMap&lt;Ident, Scope&gt;,
-    values: HashMap&lt;Ident, Scope&gt;,
+    types: BTreeMap&lt;Ident, Scope&gt;,
+    values: BTreeMap&lt;Ident, Scope&gt;,
 
     defs: Vec&lt;ModuleDefId&gt;,
 }
@@ -209,10 +211,10 @@
         trait_id: <span class="prelude-ty">Option</span>&lt;TraitId&gt;,
         is_prelude: bool,
     ) -&gt; <span class="prelude-ty">Result</span>&lt;(), (Ident, Ident)&gt; {
-        <span class="kw">let </span>add_item = |map: <span class="kw-2">&amp;mut </span>HashMap&lt;Ident, Scope&gt;| {
-            <span class="kw">if let </span>Entry::Occupied(<span class="kw-2">mut </span>o) = map.entry(name.clone()) {
+        <span class="kw">let </span>add_item = |map: <span class="kw-2">&amp;mut </span>BTreeMap&lt;Ident, Scope&gt;| {
+            <span class="kw">if let </span>btree_map::Entry::Occupied(<span class="kw-2">mut </span>o) = map.entry(name.clone()) {
                 <span class="kw">let </span>trait_hashmap = o.get_mut();
-                <span class="kw">if let </span>Entry::Occupied(<span class="kw-2">mut </span>n) = trait_hashmap.entry(trait_id) {
+                <span class="kw">if let </span>hash_map::Entry::Occupied(<span class="kw-2">mut </span>n) = trait_hashmap.entry(trait_id) {
                     <span class="comment">// Generally we want to reject having two of the same ident in the same namespace.
                     // The exception to this is when we're explicitly importing something
                     // which exists in the Noir stdlib prelude.
@@ -291,7 +293,7 @@
     <span class="kw">pub fn </span>find_name(<span class="kw-2">&amp;</span><span class="self">self</span>, name: <span class="kw-2">&amp;</span>Ident) -&gt; PerNs {
         <span class="comment">// Names, not associated with traits are searched first. If not found, we search for name, coming from a trait.
         // If we find only one name from trait, we return it. If there are multiple traits, providing the same name, we return None.
-        </span><span class="kw">let </span>find_name_in = |a: <span class="kw-2">&amp;</span>HashMap&lt;Ident, Scope&gt;| {
+        </span><span class="kw">let </span>find_name_in = |a: <span class="kw-2">&amp;</span>BTreeMap&lt;Ident, Scope&gt;| {
             <span class="kw">if let </span><span class="prelude-val">Some</span>(t) = a.get(name) {
                 <span class="kw">if let </span><span class="prelude-val">Some</span>(tt) = t.get(<span class="kw-2">&amp;</span><span class="prelude-val">None</span>) {
                     <span class="prelude-val">Some</span>(<span class="kw-2">*</span>tt)
@@ -327,11 +329,11 @@
         <span class="self">self</span>.defs.clone()
     }
 
-    <span class="kw">pub fn </span>types(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="kw-2">&amp;</span>HashMap&lt;Ident, Scope&gt; {
+    <span class="kw">pub fn </span>types(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="kw-2">&amp;</span>BTreeMap&lt;Ident, Scope&gt; {
         <span class="kw-2">&amp;</span><span class="self">self</span>.types
     }
 
-    <span class="kw">pub fn </span>values(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="kw-2">&amp;</span>HashMap&lt;Ident, Scope&gt; {
+    <span class="kw">pub fn </span>values(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="kw-2">&amp;</span>BTreeMap&lt;Ident, Scope&gt; {
         <span class="kw-2">&amp;</span><span class="self">self</span>.values
     }
 
