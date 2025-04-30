@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1746040308797,
+  "lastUpdate": 1746040460862,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -11357,70 +11357,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "aakoshh@gmail.com",
-            "name": "Akosh Farkash",
-            "username": "aakoshh"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "3fb324ebc2ac0a67ef7d2595028fa3cc05c2b601",
-          "message": "chore: Change AST fuzzer recursion limit (#8173)",
-          "timestamp": "2025-04-23T22:17:11Z",
-          "tree_id": "791201425d8f9f7ebbab7d74a4eb806844a5b179",
-          "url": "https://github.com/noir-lang/noir/commit/3fb324ebc2ac0a67ef7d2595028fa3cc05c2b601"
-        },
-        "date": 1745448315680,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 203.28,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 227.03,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 181.3,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 433.5,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 425.68,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 1420,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 254.29,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-root",
-            "value": 260.03,
-            "unit": "MB"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "mvezenov@gmail.com",
             "name": "Maxim Vezenov",
             "username": "vezenovm"
@@ -14505,6 +14441,70 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/noir-lang/noir/commit/981256c8e7c241cf42f2ed40a8cb64ec329c1593"
         },
         "date": 1746038735538,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 232.94,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 256.56,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 210.97,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 541.49,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 533.67,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 1440,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 362.57,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-root",
+            "value": 368.5,
+            "unit": "MB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "asterite@gmail.com",
+            "name": "Ary Borenszweig",
+            "username": "asterite"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "09d55f62373572e88017c986f1cf657697dc99d2",
+          "message": "feat: better error message on unicode whitespace that isn't ascii whitespace (#8295)\n\nCo-authored-by: Tom French <15848336+TomAFrench@users.noreply.github.com>",
+          "timestamp": "2025-04-30T18:40:15Z",
+          "tree_id": "3b9ab86613ce9783e5aed7bf2e715266367e05c4",
+          "url": "https://github.com/noir-lang/noir/commit/09d55f62373572e88017c986f1cf657697dc99d2"
+        },
+        "date": 1746040453827,
         "tool": "customSmallerIsBetter",
         "benches": [
           {
