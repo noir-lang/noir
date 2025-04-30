@@ -189,7 +189,6 @@ fn compile_with_maybe_dummy_workspace(
     cmd: compile_cmd::CompileCommand,
     config: NargoConfig,
 ) -> Result<(), CliError>
-where
 {
     if cmd.compile_options.debug_compile_stdin {
         let package_name = "debug_compile_stdin".to_string();
