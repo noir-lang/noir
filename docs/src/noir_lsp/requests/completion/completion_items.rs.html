@@ -701,9 +701,7 @@
 <a href="#700" id="700">700</a>
 <a href="#701" id="701">701</a>
 <a href="#702" id="702">702</a>
-<a href="#703" id="703">703</a>
-<a href="#704" id="704">704</a>
-<a href="#705" id="705">705</a></pre></div><pre class="rust"><code><span class="kw">use </span>async_lsp::lsp_types::{
+<a href="#703" id="703">703</a></pre></div><pre class="rust"><code><span class="kw">use </span>async_lsp::lsp_types::{
     Command, CompletionItem, CompletionItemKind, CompletionItemLabelDetails, Documentation,
     InsertTextFormat, MarkupContent, MarkupKind,
 };
@@ -712,14 +710,12 @@
     ast::AttributeTarget,
     hir::def_map::{ModuleDefId, ModuleId},
     hir_def::{function::FuncMeta, stmt::HirPattern},
+    modules::{relative_module_full_path, relative_module_id_path},
     node_interner::{FuncId, GlobalId, ReferenceId, TraitId, TypeAliasId, TypeId},
 };
 
-<span class="kw">use crate</span>::{
-    modules::{relative_module_full_path, relative_module_id_path},
-    use_segment_positions::{
-        UseCompletionItemAdditionTextEditsRequest, use_completion_item_additional_text_edits,
-    },
+<span class="kw">use </span><span class="kw">crate</span>::use_segment_positions::{
+    UseCompletionItemAdditionTextEditsRequest, use_completion_item_additional_text_edits,
 };
 
 <span class="kw">use super</span>::{

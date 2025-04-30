@@ -2301,7 +2301,9 @@
 <a href="#2300" id="2300">2300</a>
 <a href="#2301" id="2301">2301</a>
 <a href="#2302" id="2302">2302</a>
-<a href="#2303" id="2303">2303</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::{
+<a href="#2303" id="2303">2303</a>
+<a href="#2304" id="2304">2304</a>
+<a href="#2305" id="2305">2305</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::{
     collections::{BTreeMap, BTreeSet},
     rc::Rc,
 };
@@ -3876,10 +3878,12 @@
 
             <span class="kw">let </span>resolved_trait_impl = Shared::new(TraitImpl {
                 ident,
+                location,
                 typ: self_type.clone(),
                 trait_id,
                 trait_generics,
                 file: trait_impl.file_id,
+                crate_id: <span class="self">self</span>.crate_id,
                 where_clause,
                 methods,
             });

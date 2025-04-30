@@ -609,7 +609,20 @@
 <a href="#608" id="608">608</a>
 <a href="#609" id="609">609</a>
 <a href="#610" id="610">610</a>
-<a href="#611" id="611">611</a></pre></div><pre class="rust"><code><span class="kw">use </span>noirc_errors::Location;
+<a href="#611" id="611">611</a>
+<a href="#612" id="612">612</a>
+<a href="#613" id="613">613</a>
+<a href="#614" id="614">614</a>
+<a href="#615" id="615">615</a>
+<a href="#616" id="616">616</a>
+<a href="#617" id="617">617</a>
+<a href="#618" id="618">618</a>
+<a href="#619" id="619">619</a>
+<a href="#620" id="620">620</a>
+<a href="#621" id="621">621</a>
+<a href="#622" id="622">622</a>
+<a href="#623" id="623">623</a>
+<a href="#624" id="624">624</a></pre></div><pre class="rust"><code><span class="kw">use </span>noirc_errors::Location;
 
 <span class="kw">use crate</span>::{
     DataType, Type,
@@ -1013,8 +1026,12 @@
                     <span class="kw">let </span>tmp_value = HirLValue::Ident(ident, Type::Error);
 
                     <span class="kw">let </span>lvalue = std::mem::replace(object_ref, Box::new(tmp_value));
-                    <span class="kw-2">*</span>object_ref =
-                        Box::new(HirLValue::Dereference { lvalue, element_type, location });
+                    <span class="kw-2">*</span>object_ref = Box::new(HirLValue::Dereference {
+                        lvalue,
+                        element_type,
+                        location,
+                        implicitly_added: <span class="bool-val">true</span>,
+                    });
                     <span class="kw-2">*</span>mutable_ref = <span class="bool-val">true</span>;
                 };
 
@@ -1053,8 +1070,12 @@
                 // as needed to unwrap any `&amp;` or `&amp;mut` wrappers.
                 </span><span class="kw">while let </span>Type::Reference(element, <span class="kw">_</span>) = lvalue_type.follow_bindings() {
                     <span class="kw">let </span>element_type = element.as_ref().clone();
-                    lvalue =
-                        HirLValue::Dereference { lvalue: Box::new(lvalue), element_type, location };
+                    lvalue = HirLValue::Dereference {
+                        lvalue: Box::new(lvalue),
+                        element_type,
+                        location,
+                        implicitly_added: <span class="bool-val">true</span>,
+                    };
                     lvalue_type = <span class="kw-2">*</span>element;
                     <span class="comment">// We know this value to be mutable now since we found an `&amp;mut`
                     </span>mutable = <span class="bool-val">true</span>;
@@ -1107,7 +1128,12 @@
 
                 <span class="comment">// Dereferences are always mutable since we already type checked against a &amp;mut T
                 </span><span class="kw">let </span>typ = element_type.clone();
-                <span class="kw">let </span>lvalue = HirLValue::Dereference { lvalue, element_type, location };
+                <span class="kw">let </span>lvalue = HirLValue::Dereference {
+                    lvalue,
+                    element_type,
+                    location,
+                    implicitly_added: <span class="bool-val">false</span>,
+                };
                 (lvalue, typ, <span class="bool-val">true</span>)
             }
             LValue::Interned(id, location) =&gt; {

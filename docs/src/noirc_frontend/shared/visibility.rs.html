@@ -47,8 +47,8 @@
         <span class="kw">match </span><span class="self">self </span>{
             <span class="self">Self</span>::Public =&gt; <span class="macro">write!</span>(f, <span class="string">"pub"</span>),
             <span class="self">Self</span>::Private =&gt; <span class="macro">write!</span>(f, <span class="string">"priv"</span>),
-            <span class="self">Self</span>::CallData(id) =&gt; <span class="macro">write!</span>(f, <span class="string">"calldata{id}"</span>),
-            <span class="self">Self</span>::ReturnData =&gt; <span class="macro">write!</span>(f, <span class="string">"returndata"</span>),
+            <span class="self">Self</span>::CallData(id) =&gt; <span class="macro">write!</span>(f, <span class="string">"call_data({id})"</span>),
+            <span class="self">Self</span>::ReturnData =&gt; <span class="macro">write!</span>(f, <span class="string">"return_data"</span>),
         }
     }
 }

@@ -61,8 +61,7 @@
 <a href="#60" id="60">60</a>
 <a href="#61" id="61">61</a>
 <a href="#62" id="62">62</a>
-<a href="#63" id="63">63</a>
-<a href="#64" id="64">64</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::collections::BTreeMap;
+<a href="#63" id="63">63</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::collections::BTreeMap;
 
 <span class="kw">use </span>noirc_frontend::{
     ast::ItemVisibility,
@@ -71,10 +70,9 @@
         def_map::{CrateDefMap, ModuleDefId, ModuleId},
         resolution::visibility::item_in_module_is_visible,
     },
+    modules::get_parent_module,
     node_interner::NodeInterner,
 };
-
-<span class="kw">use </span><span class="kw">crate</span>::modules::get_parent_module;
 
 <span class="doccomment">/// Returns true if the given ModuleDefId is visible from the current module, given its visibility.
 /// This will in turn check if the ModuleDefId parent modules are visible from the current module.

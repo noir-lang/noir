@@ -243,7 +243,9 @@
 <a href="#242" id="242">242</a>
 <a href="#243" id="243">243</a>
 <a href="#244" id="244">244</a>
-<a href="#245" id="245">245</a></pre></div><pre class="rust"><code><span class="kw">use </span>iter_extended::vecmap;
+<a href="#245" id="245">245</a>
+<a href="#246" id="246">246</a>
+<a href="#247" id="247">247</a></pre></div><pre class="rust"><code><span class="kw">use </span>iter_extended::vecmap;
 <span class="kw">use </span>rustc_hash::FxHashMap <span class="kw">as </span>HashMap;
 
 <span class="kw">use </span><span class="kw">crate</span>::ResolvedGeneric;
@@ -328,6 +330,7 @@
 <span class="attr">#[derive(Debug)]
 </span><span class="kw">pub struct </span>TraitImpl {
     <span class="kw">pub </span>ident: Ident,
+    <span class="kw">pub </span>location: Location,
     <span class="kw">pub </span>typ: Type,
     <span class="kw">pub </span>trait_id: TraitId,
 
@@ -340,6 +343,7 @@
     </span><span class="kw">pub </span>trait_generics: Vec&lt;Type&gt;,
 
     <span class="kw">pub </span>file: FileId,
+    <span class="kw">pub </span>crate_id: CrateId,
     <span class="kw">pub </span>methods: Vec&lt;FuncId&gt;, <span class="comment">// methods[i] is the implementation of trait.methods[i] for Type typ
 
     </span><span class="doccomment">/// The where clause, if present, contains each trait requirement which must

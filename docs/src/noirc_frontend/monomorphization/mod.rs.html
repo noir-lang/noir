@@ -4493,7 +4493,7 @@
                 <span class="kw">let </span>element_type = <span class="self">Self</span>::convert_type(<span class="kw-2">&amp;</span>typ, location)<span class="question-mark">?</span>;
                 ast::LValue::Index { array, index, element_type, location }
             }
-            HirLValue::Dereference { lvalue, element_type, location } =&gt; {
+            HirLValue::Dereference { lvalue, element_type, location, implicitly_added: <span class="kw">_ </span>} =&gt; {
                 <span class="kw">let </span>reference = Box::new(<span class="self">self</span>.lvalue(<span class="kw-2">*</span>lvalue)<span class="question-mark">?</span>);
                 <span class="kw">let </span>element_type = <span class="self">Self</span>::convert_type(<span class="kw-2">&amp;</span>element_type, location)<span class="question-mark">?</span>;
                 ast::LValue::Dereference { reference, element_type }

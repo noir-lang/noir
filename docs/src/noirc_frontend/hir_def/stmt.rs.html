@@ -153,7 +153,8 @@
 <a href="#152" id="152">152</a>
 <a href="#153" id="153">153</a>
 <a href="#154" id="154">154</a>
-<a href="#155" id="155">155</a></pre></div><pre class="rust"><code><span class="kw">use </span><span class="kw">super</span>::expr::HirIdent;
+<a href="#155" id="155">155</a>
+<a href="#156" id="156">156</a></pre></div><pre class="rust"><code><span class="kw">use </span><span class="kw">super</span>::expr::HirIdent;
 <span class="kw">use </span><span class="kw">crate</span>::Type;
 <span class="kw">use </span><span class="kw">crate</span>::ast::Ident;
 <span class="kw">use </span><span class="kw">crate</span>::node_interner::{ExprId, StmtId};
@@ -305,6 +306,7 @@
     Dereference {
         lvalue: Box&lt;HirLValue&gt;,
         element_type: Type,
+        implicitly_added: bool,
         location: Location,
     },
 }

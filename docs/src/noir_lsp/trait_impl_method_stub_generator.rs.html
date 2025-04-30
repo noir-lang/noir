@@ -455,8 +455,7 @@
 <a href="#454" id="454">454</a>
 <a href="#455" id="455">455</a>
 <a href="#456" id="456">456</a>
-<a href="#457" id="457">457</a>
-<a href="#458" id="458">458</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::collections::BTreeMap;
+<a href="#457" id="457">457</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::collections::BTreeMap;
 
 <span class="kw">use </span>noirc_frontend::{
     Kind, NamedGeneric, ResolvedGeneric, Type,
@@ -467,10 +466,9 @@
         type_check::generics::TraitGenerics,
     },
     hir_def::{function::FuncMeta, stmt::HirPattern, traits::Trait},
+    modules::relative_module_id_path,
     node_interner::{FunctionModifiers, NodeInterner, ReferenceId},
 };
-
-<span class="kw">use </span><span class="kw">crate</span>::modules::relative_module_id_path;
 
 <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">struct </span>TraitImplMethodStubGenerator&lt;<span class="lifetime">'a</span>&gt; {
     name: <span class="kw-2">&amp;</span><span class="lifetime">'a </span>str,

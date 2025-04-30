@@ -2724,7 +2724,7 @@
     <span class="kw">fn </span>store_lvalue(<span class="kw-2">&amp;mut </span><span class="self">self</span>, lvalue: HirLValue, rhs: Value) -&gt; IResult&lt;()&gt; {
         <span class="kw">match </span>lvalue {
             HirLValue::Ident(ident, typ) =&gt; <span class="self">self</span>.mutate(ident.id, rhs, ident.location),
-            HirLValue::Dereference { lvalue, element_type: <span class="kw">_</span>, location } =&gt; {
+            HirLValue::Dereference { lvalue, element_type: <span class="kw">_</span>, location, implicitly_added: <span class="kw">_ </span>} =&gt; {
                 <span class="kw">match </span><span class="self">self</span>.evaluate_lvalue(<span class="kw-2">&amp;</span>lvalue)<span class="question-mark">? </span>{
                     Value::Pointer(value, <span class="kw">_</span>, <span class="kw">_</span>) =&gt; {
                         <span class="kw-2">*</span>value.borrow_mut() = rhs;
@@ -2785,7 +2785,7 @@
                 Value::Pointer(elem, <span class="bool-val">true</span>, <span class="kw">_</span>) =&gt; <span class="prelude-val">Ok</span>(elem.borrow().clone()),
                 other =&gt; <span class="prelude-val">Ok</span>(other),
             },
-            HirLValue::Dereference { lvalue, element_type, location } =&gt; {
+            HirLValue::Dereference { lvalue, element_type, location, implicitly_added: <span class="kw">_ </span>} =&gt; {
                 <span class="kw">match </span><span class="self">self</span>.evaluate_lvalue(lvalue)<span class="question-mark">? </span>{
                     Value::Pointer(value, <span class="kw">_</span>, <span class="kw">_</span>) =&gt; <span class="prelude-val">Ok</span>(value.borrow().clone()),
                     value =&gt; {

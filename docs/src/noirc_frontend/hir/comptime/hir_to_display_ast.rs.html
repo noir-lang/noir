@@ -1051,7 +1051,7 @@
                 <span class="kw">let </span>index = index.to_display_ast(interner);
                 LValue::Index { array, index, location: <span class="kw-2">*</span>location }
             }
-            HirLValue::Dereference { lvalue, element_type: <span class="kw">_</span>, location } =&gt; {
+            HirLValue::Dereference { lvalue, element_type: <span class="kw">_</span>, location, implicitly_added: <span class="kw">_ </span>} =&gt; {
                 <span class="kw">let </span>lvalue = Box::new(lvalue.to_display_ast(interner));
                 LValue::Dereference(lvalue, <span class="kw-2">*</span>location)
             }

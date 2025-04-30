@@ -118,10 +118,16 @@
 <a href="#117" id="117">117</a>
 <a href="#118" id="118">118</a>
 <a href="#119" id="119">119</a>
-<a href="#120" id="120">120</a></pre></div><pre class="rust"><code><span class="kw">use </span>noirc_frontend::{ast::ItemVisibility, hir::def_map::ModuleDefId, node_interner::Reexport};
+<a href="#120" id="120">120</a>
+<a href="#121" id="121">121</a>
+<a href="#122" id="122">122</a>
+<a href="#123" id="123">123</a></pre></div><pre class="rust"><code><span class="kw">use </span>noirc_frontend::{
+    ast::ItemVisibility, hir::def_map::ModuleDefId, modules::module_def_id_relative_path,
+    node_interner::Reexport,
+};
 
 <span class="kw">use crate</span>::{
-    modules::{get_ancestor_module_reexport, module_def_id_relative_path},
+    modules::get_ancestor_module_reexport,
     use_segment_positions::{
         UseCompletionItemAdditionTextEditsRequest, use_completion_item_additional_text_edits,
     },

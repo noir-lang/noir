@@ -962,7 +962,15 @@
 <a href="#961" id="961">961</a>
 <a href="#962" id="962">962</a>
 <a href="#963" id="963">963</a>
-<a href="#964" id="964">964</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::fmt::Display;
+<a href="#964" id="964">964</a>
+<a href="#965" id="965">965</a>
+<a href="#966" id="966">966</a>
+<a href="#967" id="967">967</a>
+<a href="#968" id="968">968</a>
+<a href="#969" id="969">969</a>
+<a href="#970" id="970">970</a>
+<a href="#971" id="971">971</a>
+<a href="#972" id="972">972</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::fmt::Display;
 
 <span class="kw">use </span>iter_extended::vecmap;
 <span class="kw">use </span>noirc_errors::Location;
@@ -1027,8 +1035,16 @@
     }
 }
 
-<span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>tokens_to_string(tokens: <span class="kw-2">&amp;</span>[LocatedToken], interner: <span class="kw-2">&amp;</span>NodeInterner) -&gt; String {
-    TokensPrettyPrinter { tokens, interner, indent: <span class="number">0 </span>}.to_string()
+<span class="kw">pub fn </span>tokens_to_string(tokens: <span class="kw-2">&amp;</span>[LocatedToken], interner: <span class="kw-2">&amp;</span>NodeInterner) -&gt; String {
+    tokens_to_string_with_indent(tokens, <span class="number">0</span>, interner)
+}
+
+<span class="kw">pub fn </span>tokens_to_string_with_indent(
+    tokens: <span class="kw-2">&amp;</span>[LocatedToken],
+    indent: usize,
+    interner: <span class="kw-2">&amp;</span>NodeInterner,
+) -&gt; String {
+    TokensPrettyPrinter { tokens, interner, indent }.to_string()
 }
 
 <span class="doccomment">/// Tries to print tokens in a way that it'll be easier for the user to understand a

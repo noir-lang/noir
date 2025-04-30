@@ -2518,7 +2518,17 @@
 <a href="#2517" id="2517">2517</a>
 <a href="#2518" id="2518">2518</a>
 <a href="#2519" id="2519">2519</a>
-<a href="#2520" id="2520">2520</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::borrow::Cow;
+<a href="#2520" id="2520">2520</a>
+<a href="#2521" id="2521">2521</a>
+<a href="#2522" id="2522">2522</a>
+<a href="#2523" id="2523">2523</a>
+<a href="#2524" id="2524">2524</a>
+<a href="#2525" id="2525">2525</a>
+<a href="#2526" id="2526">2526</a>
+<a href="#2527" id="2527">2527</a>
+<a href="#2528" id="2528">2528</a>
+<a href="#2529" id="2529">2529</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::borrow::Cow;
+<span class="kw">use </span>std::collections::HashSet;
 <span class="kw">use </span>std::fmt;
 <span class="kw">use </span>std::hash::Hash;
 <span class="kw">use </span>std::marker::Copy;
@@ -3979,6 +3989,14 @@
 
     <span class="kw">pub fn </span>get_trait_implementation(<span class="kw-2">&amp;</span><span class="self">self</span>, id: TraitImplId) -&gt; Shared&lt;TraitImpl&gt; {
         <span class="self">self</span>.trait_implementations[<span class="kw-2">&amp;</span>id].clone()
+    }
+
+    <span class="kw">pub fn </span>get_trait_implementations_in_crate(<span class="kw-2">&amp;</span><span class="self">self</span>, crate_id: CrateId) -&gt; HashSet&lt;TraitImplId&gt; {
+        <span class="kw">let </span>trait_impls = <span class="self">self</span>.trait_implementations.iter();
+        <span class="kw">let </span>trait_impls = trait_impls.filter_map(|(id, trait_impl)| {
+            <span class="kw">if </span>trait_impl.borrow().crate_id == crate_id { <span class="prelude-val">Some</span>(<span class="kw-2">*</span>id) } <span class="kw">else </span>{ <span class="prelude-val">None </span>}
+        });
+        trait_impls.collect()
     }
 
     <span class="doccomment">/// If the given function belongs to a trait impl, return its trait method id.
