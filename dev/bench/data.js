@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1746038428569,
+  "lastUpdate": 1746038555838,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -11357,70 +11357,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "isennovskiy@gmail.com",
-            "name": "Innokentii Sennovskii",
-            "username": "Rumata888"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "3e3e30297d1319e785f4bc04f8d807d4301d2fa1",
-          "message": "fix: Detect ABI change of fuzzing harnesses (#8193)",
-          "timestamp": "2025-04-23T20:20:27Z",
-          "tree_id": "b5521c1df7fcd37bcc2ee7e24d0805f329c608bc",
-          "url": "https://github.com/noir-lang/noir/commit/3e3e30297d1319e785f4bc04f8d807d4301d2fa1"
-        },
-        "date": 1745441340098,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 203.28,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 227.03,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 181.3,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 433.5,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 425.68,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 1420,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 254.29,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-root",
-            "value": 260.03,
-            "unit": "MB"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "mvezenov@gmail.com",
             "name": "Maxim Vezenov",
             "username": "vezenovm"
@@ -14545,6 +14481,70 @@ window.BENCHMARK_DATA = {
           {
             "name": "rollup-root",
             "value": 367.18,
+            "unit": "MB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "asterite@gmail.com",
+            "name": "Ary Borenszweig",
+            "username": "asterite"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "84a7d3eb64336faad8b9e8371b12bfd32223ae5f",
+          "message": "fix: use correct meta attribute names in contract custom attributes (#8273)",
+          "timestamp": "2025-04-30T18:03:30Z",
+          "tree_id": "d41b75893c2a62c8e59dc7d8d4a69c82a5735c0c",
+          "url": "https://github.com/noir-lang/noir/commit/84a7d3eb64336faad8b9e8371b12bfd32223ae5f"
+        },
+        "date": 1746038548852,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 232.15,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 255.77,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 210.18,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 540.71,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 532.88,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 1440,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 361.79,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-root",
+            "value": 367.71,
             "unit": "MB"
           }
         ]
