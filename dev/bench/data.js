@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1746037558013,
+  "lastUpdate": 1746037863256,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -17991,48 +17991,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "isennovskiy@gmail.com",
-            "name": "Innokentii Sennovskii",
-            "username": "Rumata888"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "3e3e30297d1319e785f4bc04f8d807d4301d2fa1",
-          "message": "fix: Detect ABI change of fuzzing harnesses (#8193)",
-          "timestamp": "2025-04-23T20:20:27Z",
-          "tree_id": "b5521c1df7fcd37bcc2ee7e24d0805f329c608bc",
-          "url": "https://github.com/noir-lang/noir/commit/3e3e30297d1319e785f4bc04f8d807d4301d2fa1"
-        },
-        "date": 1745440766463,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 270451,
-            "range": "± 511",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 239621,
-            "range": "± 1203",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 3234976,
-            "range": "± 12087",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "mvezenov@gmail.com",
             "name": "Maxim Vezenov",
             "username": "vezenovm"
@@ -20084,6 +20042,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 3570418,
             "range": "± 9904",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "asterite@gmail.com",
+            "name": "Ary Borenszweig",
+            "username": "asterite"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "84a7d3eb64336faad8b9e8371b12bfd32223ae5f",
+          "message": "fix: use correct meta attribute names in contract custom attributes (#8273)",
+          "timestamp": "2025-04-30T18:03:30Z",
+          "tree_id": "d41b75893c2a62c8e59dc7d8d4a69c82a5735c0c",
+          "url": "https://github.com/noir-lang/noir/commit/84a7d3eb64336faad8b9e8371b12bfd32223ae5f"
+        },
+        "date": 1746037856245,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 275667,
+            "range": "± 785",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 250145,
+            "range": "± 2616",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 3243190,
+            "range": "± 6388",
             "unit": "ns/iter"
           }
         ]
