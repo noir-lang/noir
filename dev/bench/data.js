@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1746026006125,
+  "lastUpdate": 1746026234319,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -17981,48 +17981,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "aakoshh@gmail.com",
-            "name": "Akosh Farkash",
-            "username": "aakoshh"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "78c7e373d6d40e9082740242a9cb1d8c5657392b",
-          "message": "fix: Use `get_local_or_global_instruction` when simplifying `IfElse` (#8185)",
-          "timestamp": "2025-04-23T17:00:01Z",
-          "tree_id": "aaeb8e4400347545017d835ee4bd77d77c56af5b",
-          "url": "https://github.com/noir-lang/noir/commit/78c7e373d6d40e9082740242a9cb1d8c5657392b"
-        },
-        "date": 1745428803869,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 260956,
-            "range": "± 1426",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 232519,
-            "range": "± 4448",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 3222304,
-            "range": "± 3994",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "asterite@gmail.com",
             "name": "Ary Borenszweig",
             "username": "asterite"
@@ -20074,6 +20032,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 3594314,
             "range": "± 17480",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "aakoshh@gmail.com",
+            "name": "Akosh Farkash",
+            "username": "aakoshh"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "888f3a9e0969eee05273bde58d14bb7b2e5163f5",
+          "message": "chore: redo typo PR by ciaranightingale (#8292)",
+          "timestamp": "2025-04-30T14:59:11Z",
+          "tree_id": "4ca83d995738f317f006ff41f934ea3ab90a33c6",
+          "url": "https://github.com/noir-lang/noir/commit/888f3a9e0969eee05273bde58d14bb7b2e5163f5"
+        },
+        "date": 1746026221709,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 253361,
+            "range": "± 4025",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 226645,
+            "range": "± 2100",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 3216630,
+            "range": "± 3626",
             "unit": "ns/iter"
           }
         ]
