@@ -840,6 +840,13 @@ impl<F: AcirField, B: BlackBoxFunctionSolver<F>> AcirContext<F, B> {
             } else {
                 bit_size - max_rhs_bits + 1
             };
+
+            // If the RHS is a result of an underflow, it could be a negative number which is represented by
+            // a very large positive Field, which could fail to compile to ACIR in `range_constrain_var` below,
+            // because it can use all 254 bits. To avoid that, ignore even what we know about the RHS and trust
+            // that a previous range constraint will fail at runtime before it comes to executing this instruction.
+            let max_rhs_bits = max_rhs_bits.min(bit_size);
+
             (max_q_bits, max_rhs_bits)
         } else {
             (bit_size, bit_size)
