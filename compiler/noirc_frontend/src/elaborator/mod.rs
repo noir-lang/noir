@@ -788,7 +788,7 @@ impl<'context> Elaborator<'context> {
     }
 
     pub fn resolve_module_by_path(&mut self, path: Path) -> Option<ModuleId> {
-        match self.resolve_path(path.clone(), PathResolutionTarget::Type) {
+        match self.resolve_path_as_type(path.clone()) {
             Ok(resolution) if resolution.errors.is_empty() => {
                 if let Some(PathResolutionTypeItem::Module(module_id)) = resolution.item.as_type() {
                     Some(*module_id)
@@ -801,7 +801,7 @@ impl<'context> Elaborator<'context> {
     }
 
     fn resolve_trait_by_path(&mut self, path: Path) -> Option<TraitId> {
-        let error = match self.resolve_path(path.clone(), PathResolutionTarget::Type) {
+        let error = match self.resolve_path_as_type(path.clone()) {
             Ok(resolution) => {
                 if let Some(PathResolutionTypeItem::Trait(trait_id)) = resolution.item.as_type() {
                     for error in resolution.errors {

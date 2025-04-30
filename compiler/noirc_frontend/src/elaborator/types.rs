@@ -724,7 +724,7 @@ impl Elaborator<'_> {
     // Returns the trait method, trait constraint, and whether the impl is assumed to exist by a where clause or not
     // E.g. `t.method()` with `where T: Foo<Bar>` in scope will return `(Foo::method, T, vec![Bar])`
     fn resolve_trait_static_method(&mut self, path: &Path) -> Option<TraitPathResolution> {
-        let path_resolution = self.use_path(path.clone(), PathResolutionTarget::Type).ok()?;
+        let path_resolution = self.use_path_as_type(path.clone()).ok()?;
         let func_id = path_resolution.item.function_id()?;
         let meta = self.interner.try_function_meta(&func_id)?;
         let the_trait = self.interner.get_trait(meta.trait_id?);
@@ -781,7 +781,7 @@ impl Elaborator<'_> {
         let last_segment = path.pop();
         let before_last_segment = path.last_segment();
 
-        let path_resolution = self.use_path(path, PathResolutionTarget::Type).ok()?;
+        let path_resolution = self.use_path_as_type(path).ok()?;
         let Some(PathResolutionTypeItem::Type(type_id)) = path_resolution.item.as_type() else {
             return None;
         };

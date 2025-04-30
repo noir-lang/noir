@@ -233,20 +233,16 @@ impl Elaborator<'_> {
         Ok(path_resolution.item)
     }
 
-    pub(super) fn resolve_path(
-        &mut self,
-        path: Path,
-        target: PathResolutionTarget,
-    ) -> PathResolutionResult {
-        self.resolve_path_inner(path, target, PathResolutionMode::MarkAsReferenced)
+    pub(super) fn resolve_path_as_type(&mut self, path: Path) -> PathResolutionResult {
+        self.resolve_path_inner(
+            path,
+            PathResolutionTarget::Type,
+            PathResolutionMode::MarkAsReferenced,
+        )
     }
 
-    pub(super) fn use_path(
-        &mut self,
-        path: Path,
-        target: PathResolutionTarget,
-    ) -> PathResolutionResult {
-        self.resolve_path_inner(path, target, PathResolutionMode::MarkAsUsed)
+    pub(super) fn use_path_as_type(&mut self, path: Path) -> PathResolutionResult {
+        self.resolve_path_inner(path, PathResolutionTarget::Type, PathResolutionMode::MarkAsUsed)
     }
 
     /// Resolves a path in the current module.
