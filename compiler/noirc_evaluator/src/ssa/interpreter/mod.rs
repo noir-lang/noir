@@ -61,8 +61,8 @@ type IResults = IResult<Vec<Value>>;
 
 #[allow(unused)]
 impl Ssa {
-    pub(crate) fn interpret(&self) -> IResults {
-        self.interpret_function(self.main_id, Vec::new())
+    pub(crate) fn interpret(&self, args: Vec<Value>) -> IResults {
+        self.interpret_function(self.main_id, args)
     }
 
     pub(crate) fn interpret_function(&self, function: FunctionId, args: Vec<Value>) -> IResults {

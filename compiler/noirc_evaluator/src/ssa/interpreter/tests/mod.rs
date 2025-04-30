@@ -19,7 +19,7 @@ mod instructions;
 #[track_caller]
 fn executes_with_no_errors(src: &str) {
     let ssa = Ssa::from_str(src).unwrap();
-    assert!(ssa.interpret().is_ok());
+    assert!(ssa.interpret(Vec::new()).is_ok());
 }
 
 #[track_caller]
@@ -35,13 +35,13 @@ fn expect_value(src: &str) -> Value {
 #[track_caller]
 fn expect_error(src: &str) -> RuntimeError {
     let ssa = Ssa::from_str(src).unwrap();
-    ssa.interpret().unwrap_err()
+    ssa.interpret(Vec::new()).unwrap_err()
 }
 
 #[track_caller]
 fn expect_values_with_args(src: &str, args: Vec<Value>) -> Vec<Value> {
     let ssa = Ssa::from_str(src).unwrap();
-    ssa.interpret_function(ssa.main_id, args).unwrap()
+    ssa.interpret(args).unwrap()
 }
 
 #[track_caller]

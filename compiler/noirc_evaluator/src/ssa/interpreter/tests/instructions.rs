@@ -308,7 +308,9 @@ fn shl() {
 #[should_panic]
 /// shl should overflow if the rhs is greater than the bit count
 fn shl_overflow() {
-    let value = expect_value(
+    // Misnomer, test should panic with an error.
+    // Should update to expect_error when the interpreter uses error variants
+    executes_with_no_errors(
         "
         acir(inline) fn main f0 {
           b0():
@@ -317,7 +319,6 @@ fn shl_overflow() {
         }
     ",
     );
-    assert_eq!(value, Value::from_constant(12_u128.into(), NumericType::unsigned(8)));
 }
 
 #[test]
@@ -342,7 +343,9 @@ fn shr() {
 #[should_panic]
 /// shr should overflow if the rhs is greater than the bit count
 fn shr_overflow() {
-    let value = expect_value(
+    // Misnomer, test should panic with an error.
+    // Should update to expect_error when the interpreter uses error variants
+    executes_with_no_errors(
         "
         acir(inline) fn main f0 {
           b0():
@@ -351,7 +354,6 @@ fn shr_overflow() {
         }
     ",
     );
-    assert_eq!(value, Value::from_constant(12_u128.into(), NumericType::unsigned(8)));
 }
 
 #[test]
