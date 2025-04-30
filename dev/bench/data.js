@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1746037863256,
+  "lastUpdate": 1746038033453,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -17991,48 +17991,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "mvezenov@gmail.com",
-            "name": "Maxim Vezenov",
-            "username": "vezenovm"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "6c4dd0c3dfe83203024fcf2684f8e5f3555ffc61",
-          "message": "chore(acir): Unify how we display witness indices (#8192)",
-          "timestamp": "2025-04-23T20:42:20Z",
-          "tree_id": "8d1e47c2ae8a0411c9a773a3834853f110d361e0",
-          "url": "https://github.com/noir-lang/noir/commit/6c4dd0c3dfe83203024fcf2684f8e5f3555ffc61"
-        },
-        "date": 1745442019829,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 266574,
-            "range": "± 973",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 236500,
-            "range": "± 2840",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 3224992,
-            "range": "± 48718",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "aakoshh@gmail.com",
             "name": "Akosh Farkash",
             "username": "aakoshh"
@@ -20084,6 +20042,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 3243190,
             "range": "± 6388",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "michaeljklein@users.noreply.github.com",
+            "name": "Michael J Klein",
+            "username": "michaeljklein"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "981256c8e7c241cf42f2ed40a8cb64ec329c1593",
+          "message": "chore: update `quicksort` from iterative `noir_sort` version (#7348)\n\nCo-authored-by: Tom French <tom@tomfren.ch>",
+          "timestamp": "2025-04-30T18:06:56Z",
+          "tree_id": "b45facd19b034d00d8ec995f19ebc465b50595a2",
+          "url": "https://github.com/noir-lang/noir/commit/981256c8e7c241cf42f2ed40a8cb64ec329c1593"
+        },
+        "date": 1746038026466,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 252311,
+            "range": "± 404",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 226283,
+            "range": "± 3007",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 3233457,
+            "range": "± 3458",
             "unit": "ns/iter"
           }
         ]
