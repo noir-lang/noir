@@ -211,9 +211,9 @@ impl LexerErrorKind {
 
                 let primary = format!("Unknown start of token: \\u{{{:x}}}", (*char as u32));
                 let secondary = match char_name {
-                    Some(name) => format!("Unicode character '{char}' ({name}) looks like space, but is it not"),
+                    Some(name) => format!("Unicode character '{char}' ({name}) looks like ' ' (Space), but is it not"),
                     None => {
-                        format!("Unicode character '{char}' looks like space ' ' (Space), but is it not")
+                        format!("Unicode character '{char}' looks like ' ' (Space), but is it not")
                     }
                 };
                 (primary, secondary, *location)
