@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1746043339859,
+  "lastUpdate": 1746043656837,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -3700,95 +3700,6 @@ window.BENCHMARK_DATA = {
       }
     ],
     "Compilation Time": [
-      {
-        "commit": {
-          "author": {
-            "email": "mvezenov@gmail.com",
-            "name": "Maxim Vezenov",
-            "username": "vezenovm"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "d8d02646f70411f9df0f57af32f52f184f1f0f80",
-          "message": "chore(docs): remove_unreachable SSA pass  (#8196)",
-          "timestamp": "2025-04-24T10:01:52Z",
-          "tree_id": "7e3cb33f6fc1a9581507068e9a327a07644c487a",
-          "url": "https://github.com/noir-lang/noir/commit/d8d02646f70411f9df0f57af32f52f184f1f0f80"
-        },
-        "date": 1745490368368,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "regression_4709",
-            "value": 0.646,
-            "unit": "s"
-          },
-          {
-            "name": "ram_blowup_regression",
-            "value": 12.5,
-            "unit": "s"
-          },
-          {
-            "name": "global_var_regression_entry_points",
-            "value": 0.458,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-inner",
-            "value": 2.448,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 6.93,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 1.009,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 17.96,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 13.72,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root-empty",
-            "value": 0.877,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root-single-tx",
-            "value": 120,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 128,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 0.845,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-root",
-            "value": 1.34,
-            "unit": "s"
-          }
-        ]
-      },
       {
         "commit": {
           "author": {
@@ -8146,6 +8057,95 @@ window.BENCHMARK_DATA = {
           {
             "name": "rollup-root",
             "value": 1.6,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "michaeljklein@users.noreply.github.com",
+            "name": "Michael J Klein",
+            "username": "michaeljklein"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "77b2261d837f4779d61f868486e00a1345f8bf0a",
+          "message": "feat: add `--debug-compile-stdin` to read `main.nr` from `STDIN` for testing (#8253)\n\nCo-authored-by: Maxim Vezenov <mvezenov@gmail.com>",
+          "timestamp": "2025-04-30T19:44:01Z",
+          "tree_id": "6efee070838c6a0d9da5294a67a8fbbefe48e7af",
+          "url": "https://github.com/noir-lang/noir/commit/77b2261d837f4779d61f868486e00a1345f8bf0a"
+        },
+        "date": 1746043649742,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "regression_4709",
+            "value": 0.676,
+            "unit": "s"
+          },
+          {
+            "name": "ram_blowup_regression",
+            "value": 12.8,
+            "unit": "s"
+          },
+          {
+            "name": "global_var_regression_entry_points",
+            "value": 0.487,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-inner",
+            "value": 2.272,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 6.67,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 1.088,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 16.86,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 12.94,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-empty",
+            "value": 1.242,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-single-tx",
+            "value": 129,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 132,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 1.066,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-root",
+            "value": 1.564,
             "unit": "s"
           }
         ]
