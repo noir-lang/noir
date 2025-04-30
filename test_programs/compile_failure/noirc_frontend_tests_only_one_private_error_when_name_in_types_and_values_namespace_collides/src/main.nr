@@ -7,5 +7,6 @@
 
     fn main() {
         let _ = moo::foo {};
+        x
     }
     

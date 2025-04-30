@@ -4706,6 +4706,9 @@ fn only_one_private_error_when_name_in_types_and_values_namespace_collides() {
         let _ = moo::foo {};
                      ^^^ foo is private and not visible from the current module
                      ~~~ foo is private
+        x
+        ^ cannot find `x` in this scope
+        ~ not found in this scope
     }
     ";
     check_errors!(src);
