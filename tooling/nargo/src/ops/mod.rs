@@ -11,7 +11,7 @@ pub use self::fuzz::{
     FuzzExecutionConfig, FuzzFolderConfig, FuzzingRunStatus, run_fuzzing_harness,
 };
 pub use self::test::{
-    TestStatus, check_expected_failure_message, fuzz_test, run_or_fuzz_test, run_test,
+    FuzzConfig, TestStatus, check_expected_failure_message, fuzz_test, run_or_fuzz_test, run_test,
     test_status_program_compile_fail, test_status_program_compile_pass,
 };
 
