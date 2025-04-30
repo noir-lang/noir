@@ -77,7 +77,7 @@ fn sub() {
 #[test]
 #[should_panic(expected = "called `Option::unwrap()` on a `None` value")]
 fn sub_underflow() {
-    executes_with_no_errors(
+    expect_error(
         "
         acir(inline) fn main f0 {
           b0():
@@ -120,7 +120,7 @@ fn mul() {
 #[test]
 #[should_panic(expected = "called `Option::unwrap()` on a `None` value")]
 fn mul_overflow() {
-    executes_with_no_errors(
+    expect_error(
         "
         acir(inline) fn main f0 {
           b0():
@@ -163,7 +163,7 @@ fn div() {
 #[test]
 #[should_panic(expected = "Field division by zero")]
 fn div_zero() {
-    executes_with_no_errors(
+    expect_error(
         "
         acir(inline) fn main f0 {
           b0():
@@ -192,7 +192,7 @@ fn r#mod() {
 #[test]
 #[should_panic(expected = "called `Option::unwrap()` on a `None` value")]
 fn mod_zero() {
-    executes_with_no_errors(
+    expect_error(
         "
         acir(inline) fn main f0 {
           b0():
@@ -308,9 +308,7 @@ fn shl() {
 #[should_panic]
 /// shl should overflow if the rhs is greater than the bit count
 fn shl_overflow() {
-    // Misnomer, test should panic with an error.
-    // Should update to expect_error when the interpreter uses error variants
-    executes_with_no_errors(
+    expect_error(
         "
         acir(inline) fn main f0 {
           b0():
@@ -481,7 +479,7 @@ fn range_check() {
 #[test]
 #[should_panic]
 fn range_check_fail() {
-    executes_with_no_errors(
+    expect_error(
         "
         acir(inline) fn main f0 {
           b0():
