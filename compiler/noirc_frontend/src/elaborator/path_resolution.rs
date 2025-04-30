@@ -39,10 +39,6 @@ pub(crate) enum PathResolutionItem {
     SelfMethod(FuncId),
     TypeAliasFunction(TypeAliasId, Option<Turbofish>, FuncId),
     TraitFunction(TraitId, Option<Turbofish>, FuncId),
-
-    /// This is returned when the path points to something but it's
-    /// not in the namespace we were looking for.
-    UnexpectedTarget(&'static str),
 }
 
 impl PathResolutionItem {
@@ -57,8 +53,7 @@ impl PathResolutionItem {
             | Self::Type(_)
             | Self::TypeAlias(_)
             | Self::Trait(_)
-            | Self::Global(..)
-            | Self::UnexpectedTarget(_) => None,
+            | Self::Global(..) => None,
         }
     }
 
@@ -74,7 +69,6 @@ impl PathResolutionItem {
             | Self::SelfMethod(..)
             | Self::TypeAliasFunction(..)
             | Self::TraitFunction(..) => "function",
-            Self::UnexpectedTarget(description) => description,
         }
     }
 }
@@ -86,7 +80,7 @@ pub struct Turbofish {
 }
 
 /// Any item that can appear before the last segment in a path.
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 enum IntermediatePathResolutionItem {
     SelfType,
     Module,
@@ -149,9 +143,8 @@ pub(super) enum PathResolutionMode {
 /// types, never values. On the other hand, in `Foo::Bar()` `Foo::Bar` should resolve to a value,
 /// typically a function.
 ///
-/// When using any of the `resolve` methods in this module, if a target wasn't find but instead
-/// something with that name was found on the other namespace, [`PathResolutionItem::UnexpectedTarget`]
-/// will be returned.
+/// When using any of the `resolve` methods in this module, items in the target namespace
+/// will be returned first if another one exists in the other namespace.
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub(super) enum PathResolutionTarget {
     Type,
@@ -446,16 +439,26 @@ impl Elaborator<'_> {
                 self.per_ns_item_to_path_resolution_item(
                     path.clone(),
                     importing_module,
+                    intermediate_item.clone(),
+                    current_module_id,
+                    &mut errors,
+                    module_def_id,
+                    visibility,
+                    true,
+                )
+            })
+            .unwrap_or_else(|| {
+                let (module_def_id, visibility, ..) =
+                    fallback_ns.expect("A namespace should never be empty");
+                self.per_ns_item_to_path_resolution_item(
+                    path.clone(),
+                    importing_module,
                     intermediate_item,
                     current_module_id,
                     &mut errors,
                     module_def_id,
                     visibility,
-                )
-            })
-            .unwrap_or_else(|| {
-                PathResolutionItem::UnexpectedTarget(
-                    fallback_ns.expect("A namespace should never be empty").0.as_str(),
+                    false,
                 )
             });
 
@@ -472,6 +475,7 @@ impl Elaborator<'_> {
         errors: &mut Vec<PathResolutionError>,
         module_def_id: ModuleDefId,
         visibility: crate::ast::ItemVisibility,
+        error_on_private: bool,
     ) -> PathResolutionItem {
         let name = path.last_ident();
         let is_self_type = name.is_self_type_name();
@@ -483,13 +487,14 @@ impl Elaborator<'_> {
             module_def_id,
         );
 
-        if !(self.self_type_module_id() == Some(current_module_id)
-            || item_in_module_is_visible(
-                self.def_maps,
-                importing_module,
-                current_module_id,
-                visibility,
-            ))
+        if error_on_private
+            && (!(self.self_type_module_id() == Some(current_module_id)
+                || item_in_module_is_visible(
+                    self.def_maps,
+                    importing_module,
+                    current_module_id,
+                    visibility,
+                )))
         {
             errors.push(PathResolutionError::Private(name.clone()));
         }

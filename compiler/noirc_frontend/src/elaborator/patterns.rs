@@ -685,8 +685,7 @@ impl Elaborator<'_> {
             | PathResolutionItem::TypeAlias(_)
             | PathResolutionItem::Trait(_)
             | PathResolutionItem::Global(..)
-            | PathResolutionItem::ModuleFunction(..)
-            | PathResolutionItem::UnexpectedTarget(_) => Vec::new(),
+            | PathResolutionItem::ModuleFunction(..) => Vec::new(),
         }
     }
 
