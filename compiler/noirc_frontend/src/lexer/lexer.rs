@@ -190,8 +190,6 @@ impl<'a> Lexer<'a> {
             }
             Some(ch) if ch.is_ascii_alphanumeric() || ch == '_' => self.eat_alpha_numeric(ch),
             Some(ch) => {
-                dbg!(ch);
-
                 // We don't report invalid tokens in the source as errors until parsing to
                 // avoid reporting the error twice. See the note on Token::Invalid's documentation for details.
                 Ok(Token::Invalid(ch).into_single_span(self.position))
