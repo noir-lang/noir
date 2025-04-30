@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1746025927655,
+  "lastUpdate": 1746025992236,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -11357,70 +11357,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "asterite@gmail.com",
-            "name": "Ary Borenszweig",
-            "username": "asterite"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "9845edc4a14d0d9647cf57219ef8adac0e0eb8af",
-          "message": "fix(parser): avoid using `Location::dummy()` (#8178)",
-          "timestamp": "2025-04-23T16:32:20Z",
-          "tree_id": "7dd96a60ec8b4f4e3141f8bcad9ac1a324f538f2",
-          "url": "https://github.com/noir-lang/noir/commit/9845edc4a14d0d9647cf57219ef8adac0e0eb8af"
-        },
-        "date": 1745427543459,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 203.28,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 227.03,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 181.3,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 433.5,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 425.68,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 1420,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 254.29,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-root",
-            "value": 260.03,
-            "unit": "MB"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "aakoshh@gmail.com",
             "name": "Akosh Farkash",
             "username": "aakoshh"
@@ -14520,6 +14456,70 @@ window.BENCHMARK_DATA = {
           {
             "name": "private-kernel-tail",
             "value": 209.66,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 540.14,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 532.31,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 1440,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 361.22,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-root",
+            "value": 367.14,
+            "unit": "MB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "aakoshh@gmail.com",
+            "name": "Akosh Farkash",
+            "username": "aakoshh"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "5909d24024e78944d7fd9ff274b551d7deb13d37",
+          "message": "chore: Extend the bug list with issues found by the AST fuzzer (#8285)\n\nCo-authored-by: Rumata888 <isennovskiy@gmail.com>",
+          "timestamp": "2025-04-30T14:42:19Z",
+          "tree_id": "3db23b326f809455b5615108751069cfb35bee96",
+          "url": "https://github.com/noir-lang/noir/commit/5909d24024e78944d7fd9ff274b551d7deb13d37"
+        },
+        "date": 1746025985398,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 231.63,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 255.24,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 209.65,
             "unit": "MB"
           },
           {
