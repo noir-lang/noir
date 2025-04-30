@@ -589,7 +589,7 @@ fn generate_compile_success_contract_tests(test_file: &mut File, test_data_dir: 
             &test_name,
             &test_dir,
             "compile",
-            "compile_success_contract(nargo);",
+            "compile_success_contract(nargo, test_program_dir, force_brillig, inliner_aggressiveness);",
             &MatrixConfig::default(),
         );
     }

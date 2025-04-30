@@ -3,6 +3,8 @@
 mod tests {
     // Some of these imports are consumed by the injected tests
     use assert_cmd::prelude::*;
+    use insta::internals::Redaction;
+    use noirc_artifacts::contract::ContractArtifact;
     use noirc_artifacts::program::ProgramArtifact;
     use predicates::prelude::*;
     use serde::Deserialize;
@@ -259,8 +261,25 @@ mod tests {
         );
     }
 
-    fn compile_success_contract(mut nargo: Command) {
+    fn compile_success_contract(
+        mut nargo: Command,
+        test_program_dir: PathBuf,
+        force_brillig: ForceBrillig,
+        inliner: Inliner,
+    ) {
+        let target_dir = test_program_dir
+            .join(format!("target_force_brillig_{}_inliner_{}", force_brillig.0, inliner.0));
+        nargo.arg(format!("--target-dir={}", target_dir.to_string_lossy()));
+
         nargo.assert().success().stderr(predicate::str::contains("warning:").not());
+
+        check_contract_artifact(
+            "compile_success_contract",
+            &test_program_dir,
+            &target_dir,
+            force_brillig,
+            inliner,
+        );
     }
 
     fn compile_success_no_bug(mut nargo: Command) {
@@ -458,16 +477,47 @@ mod tests {
             insta::assert_json_snapshot!(snapshot_name, artifact, {
                 ".noir_version" => "[noir_version]",
                 ".hash" => "[hash]",
-                ".file_map.**.path" => insta::dynamic_redaction(|value, _path| {
-                    // Some paths are absolute: clear those out.
-                    let value = value.as_str().expect("Expected a string value in a path entry");
-                    if value.starts_with("/") {
-                        String::new()
-                    } else {
-                        value.to_string()
-                    }
-                }),
+                ".file_map.**.path" => file_map_path_redaction(),
             })
+        })
+    }
+
+    fn check_contract_artifact(
+        prefix: &'static str,
+        test_program_dir: &Path,
+        target_dir: &PathBuf,
+        force_brillig: ForceBrillig,
+        inliner: Inliner,
+    ) {
+        let artifact_filename =
+            find_program_artifact_in_dir(target_dir).expect("Expected an artifact to exist");
+
+        let artifact_file = fs::File::open(&artifact_filename).unwrap();
+        let artifact: ContractArtifact = serde_json::from_reader(artifact_file).unwrap();
+
+        fs::remove_dir_all(target_dir).expect("Could not remove target dir");
+
+        let test_name = test_program_dir.file_name().unwrap().to_string_lossy().to_string();
+
+        let snapshot_name = format!("force_brillig_{}_inliner_{}", force_brillig.0, inliner.0);
+        insta::with_settings!(
+            {
+                snapshot_path => format!("./snapshots/{prefix}/{test_name}")
+            },
+            {
+            insta::assert_json_snapshot!(snapshot_name, artifact, {
+                ".noir_version" => "[noir_version]",
+                ".functions[].hash" => "[hash]",
+                ".file_map.**.path" => file_map_path_redaction(),
+            })
+        })
+    }
+
+    fn file_map_path_redaction() -> Redaction {
+        insta::dynamic_redaction(|value, _path| {
+            // Some paths are absolute: clear those out.
+            let value = value.as_str().expect("Expected a string value in a path entry");
+            if value.starts_with("/") { String::new() } else { value.to_string() }
         })
     }
 
