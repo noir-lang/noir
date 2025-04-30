@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"enum":["TestStatus"],"fn":["check_expected_failure_message","fuzz_test","fuzz_test_impl","run_or_fuzz_test","run_test","run_test_impl","test_status_program_compile_fail","test_status_program_compile_pass"],"struct":["TestForeignCallExecutor"]};
+window.SIDEBAR_ITEMS = {"enum":["TestStatus"],"fn":["check_expected_failure_message","fuzz_test","fuzz_test_impl","run_or_fuzz_test","run_test","run_test_impl","test_status_program_compile_fail","test_status_program_compile_pass"],"struct":["FuzzConfig","TestForeignCallExecutor"]};

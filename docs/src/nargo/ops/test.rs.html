@@ -417,7 +417,34 @@
 <a href="#416" id="416">416</a>
 <a href="#417" id="417">417</a>
 <a href="#418" id="418">418</a>
-<a href="#419" id="419">419</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::{fs::OpenOptions, path::PathBuf};
+<a href="#419" id="419">419</a>
+<a href="#420" id="420">420</a>
+<a href="#421" id="421">421</a>
+<a href="#422" id="422">422</a>
+<a href="#423" id="423">423</a>
+<a href="#424" id="424">424</a>
+<a href="#425" id="425">425</a>
+<a href="#426" id="426">426</a>
+<a href="#427" id="427">427</a>
+<a href="#428" id="428">428</a>
+<a href="#429" id="429">429</a>
+<a href="#430" id="430">430</a>
+<a href="#431" id="431">431</a>
+<a href="#432" id="432">432</a>
+<a href="#433" id="433">433</a>
+<a href="#434" id="434">434</a>
+<a href="#435" id="435">435</a>
+<a href="#436" id="436">436</a>
+<a href="#437" id="437">437</a>
+<a href="#438" id="438">438</a>
+<a href="#439" id="439">439</a>
+<a href="#440" id="440">440</a>
+<a href="#441" id="441">441</a>
+<a href="#442" id="442">442</a>
+<a href="#443" id="443">443</a>
+<a href="#444" id="444">444</a>
+<a href="#445" id="445">445</a>
+<a href="#446" id="446">446</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::{fs::OpenOptions, path::PathBuf};
 
 <span class="kw">use </span>acvm::{
     AcirField, BlackBoxFunctionSolver, FieldElement,
@@ -466,7 +493,12 @@
     }
 }
 
+<span class="kw">pub struct </span>FuzzConfig {
+    <span class="kw">pub </span>folder_config: FuzzFolderConfig,
+}
+
 <span class="doccomment">/// Runs a test function. This will either run the test or fuzz it, depending on whether the function has arguments.
+</span><span class="attr">#[allow(clippy::too_many_arguments)]
 </span><span class="kw">pub fn </span>run_or_fuzz_test&lt;<span class="lifetime">'a</span>, W, B, F, E&gt;(
     blackbox_solver: <span class="kw-2">&amp;</span>B,
     context: <span class="kw-2">&amp;mut </span>Context,
@@ -474,6 +506,7 @@
     output: W,
     package_name: String,
     config: <span class="kw-2">&amp;</span>CompileOptions,
+    fuzz_config: FuzzConfig,
     build_foreign_call_executor: F,
 ) -&gt; TestStatus
 <span class="kw">where
@@ -488,6 +521,7 @@
             test_function,
             package_name,
             config,
+            fuzz_config,
             build_foreign_call_executor,
         )
     } <span class="kw">else </span>{
@@ -605,6 +639,7 @@
     test_function: <span class="kw-2">&amp;</span>TestFunction,
     package_name: String,
     config: <span class="kw-2">&amp;</span>CompileOptions,
+    fuzz_config: FuzzConfig,
     build_foreign_call_executor: F,
 ) -&gt; TestStatus
 <span class="kw">where
@@ -618,6 +653,7 @@
             test_function,
             package_name,
             config,
+            fuzz_config,
             build_foreign_call_executor,
         ),
         <span class="prelude-val">Err</span>(err) =&gt; test_status_program_compile_fail(err, test_function),
@@ -629,6 +665,7 @@
     test_function: <span class="kw-2">&amp;</span>TestFunction,
     package_name: String,
     config: <span class="kw-2">&amp;</span>CompileOptions,
+    fuzz_config: FuzzConfig,
     build_foreign_call_executor: F,
 ) -&gt; TestStatus
 <span class="kw">where
@@ -646,14 +683,26 @@
     <span class="kw">let </span>location = test_function.location;
     <span class="kw">let </span>fuzzing_harness = FuzzingHarness { id, scope, location };
 
-    <span class="kw">let </span>corpus_dir = tempfile::tempdir().expect(<span class="string">"Couldn't create temporary directory"</span>);
-    <span class="kw">let </span>fuzzing_failure_dir = tempfile::tempdir().expect(<span class="string">"Couldn't create temporary directory"</span>);
+    <span class="kw">let </span><span class="kw-2">mut </span>temporary_dirs_to_delete = Vec::new();
 
-    <span class="comment">// TODO: allow configuring this. See https://github.com/noir-lang/noir/issues/8214
-    </span><span class="kw">let </span>fuzz_folder_config = FuzzFolderConfig {
-        corpus_dir: <span class="prelude-val">Some</span>(corpus_dir.path().to_string_lossy().to_string()),
-        minimized_corpus_dir: <span class="prelude-val">None</span>,
-        fuzzing_failure_dir: <span class="prelude-val">Some</span>(fuzzing_failure_dir.path().to_string_lossy().to_string()),
+    <span class="kw">let </span><span class="kw-2">mut </span>config_or_temporary_dir = |dir: <span class="prelude-ty">Option</span>&lt;String&gt;| <span class="kw">match </span>dir {
+        <span class="prelude-val">Some</span>(<span class="kw-2">ref </span>dir) =&gt; PathBuf::from(dir),
+        <span class="prelude-val">None </span>=&gt; {
+            <span class="kw">let </span>corpus_dir = tempfile::tempdir().expect(<span class="string">"Couldn't create temporary directory"</span>);
+            <span class="kw">let </span>corpus_dir = corpus_dir.into_path();
+            temporary_dirs_to_delete.push(corpus_dir.clone());
+            corpus_dir
+        }
+    };
+
+    <span class="kw">let </span>corpus_dir = config_or_temporary_dir(fuzz_config.folder_config.corpus_dir);
+    <span class="kw">let </span>fuzzing_failure_dir =
+        config_or_temporary_dir(fuzz_config.folder_config.fuzzing_failure_dir);
+
+    <span class="kw">let </span>fuzz_folder_config = FuzzFolderConfig {
+        corpus_dir: <span class="prelude-val">Some</span>(corpus_dir.to_string_lossy().to_string()),
+        fuzzing_failure_dir: <span class="prelude-val">Some</span>(fuzzing_failure_dir.to_string_lossy().to_string()),
+        minimized_corpus_dir: fuzz_config.folder_config.minimized_corpus_dir,
     };
     <span class="comment">// TODO: allow configuring this. See https://github.com/noir-lang/noir/issues/8214
     </span><span class="kw">let </span>fuzz_execution_config =
@@ -671,6 +720,11 @@
         <span class="kw-2">&amp;</span>fuzz_execution_config,
         build_foreign_call_executor,
     );
+
+    <span class="kw">for </span>temporary_dir_to_delete <span class="kw">in </span>temporary_dirs_to_delete {
+        <span class="comment">// Not a big deal if we can't delete a temporary directory
+        </span><span class="kw">let _ </span>= std::fs::remove_dir_all(temporary_dir_to_delete);
+    }
 
     <span class="kw">match </span>fuzz_result {
         FuzzingRunStatus::ExecutionPass | FuzzingRunStatus::MinimizationPass =&gt; TestStatus::Pass,
