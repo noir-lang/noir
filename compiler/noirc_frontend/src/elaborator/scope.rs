@@ -196,26 +196,24 @@ impl Elaborator<'_> {
 
         let location = path.location;
         match self.use_path_or_error(path, PathResolutionTarget::Type) {
-            Ok(item) => match item {
-                PathResolutionItem::Type(struct_id) => {
-                    let struct_type = self.get_type(struct_id);
-                    let generics = struct_type.borrow().instantiate(self.interner);
-                    Some(Type::DataType(struct_type, generics))
-                }
-                PathResolutionItem::TypeAlias(alias_id) => {
-                    let alias = self.interner.get_type_alias(alias_id);
-                    let alias = alias.borrow();
-                    Some(alias.instantiate(self.interner))
-                }
-                _ => {
-                    self.push_err(ResolverError::Expected {
-                        expected: "type",
-                        got: item.description(),
-                        location,
-                    });
-                    None
-                }
-            },
+            Ok(PathResolutionItem::Type(struct_id)) => {
+                let struct_type = self.get_type(struct_id);
+                let generics = struct_type.borrow().instantiate(self.interner);
+                Some(Type::DataType(struct_type, generics))
+            }
+            Ok(PathResolutionItem::TypeAlias(alias_id)) => {
+                let alias = self.interner.get_type_alias(alias_id);
+                let alias = alias.borrow();
+                Some(alias.instantiate(self.interner))
+            }
+            Ok(other) => {
+                self.push_err(ResolverError::Expected {
+                    expected: "type",
+                    got: other.description(),
+                    location,
+                });
+                None
+            }
             Err(error) => {
                 self.push_err(error);
                 None
