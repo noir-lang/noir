@@ -25,13 +25,6 @@
   ], "type_id": 2 } } },
   { "Value": { "variable_id": 0, "value": { "kind": "Int", "i": 5, "type_id": 1 } } },
   { "Value": { "variable_id": 1, "value": { "kind": "Int", "i": 10, "type_id": 1 } } },
-  { "Step": { "path_id": 0, "line": 12 } },
-  { "Value": { "variable_id": 2, "value": { "kind": "Struct", "field_values": [
-    { "kind": "Int", "i": 5, "type_id": 3 },
-    { "kind": "Int", "i": 10, "type_id": 3 }
-  ], "type_id": 2 } } },
-  { "Value": { "variable_id": 0, "value": { "kind": "Int", "i": 5, "type_id": 1 } } },
-  { "Value": { "variable_id": 1, "value": { "kind": "Int", "i": 10, "type_id": 1 } } },
   { "Function": { "path_id": 0, "line": 6, "name": "testfunc" } },
   { "Type": { "kind": 14, "lang_type": "&", "specific_info": { "kind": "None" } } },
   { "VariableName": "s" },

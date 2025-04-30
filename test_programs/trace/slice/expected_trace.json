@@ -25,7 +25,7 @@
     { "kind": "Int", "i": 3, "type_id": 2 },
     { "kind": "Int", "i": 2, "type_id": 2 },
     { "kind": "Int", "i": 1, "type_id": 2 }
-  ], "type_id": 3, "is_slice": false } } },
+  ], "is_slice": false, "type_id": 3 } } },
   { "Value": { "variable_id": 0, "value": { "kind": "Int", "i": 5, "type_id": 1 } } },
   { "Value": { "variable_id": 1, "value": { "kind": "Int", "i": 10, "type_id": 1 } } },
   { "Step": { "path_id": 0, "line": 10 } },
@@ -35,7 +35,7 @@
     { "kind": "Int", "i": 3, "type_id": 2 },
     { "kind": "Int", "i": 2, "type_id": 2 },
     { "kind": "Int", "i": 1, "type_id": 2 }
-  ], "type_id": 3, "is_slice": false } } },
+  ], "is_slice": false, "type_id": 3 } } },
   { "Value": { "variable_id": 0, "value": { "kind": "Int", "i": 5, "type_id": 1 } } },
   { "Value": { "variable_id": 1, "value": { "kind": "Int", "i": 10, "type_id": 1 } } },
   { "Function": { "path_id": 0, "line": 1, "name": "my_func" } },
@@ -47,7 +47,7 @@
     { "kind": "Int", "i": 3, "type_id": 2 },
     { "kind": "Int", "i": 2, "type_id": 2 },
     { "kind": "Int", "i": 1, "type_id": 2 }
-  ], "type_id": 4, "is_slice": true } } },
+  ], "is_slice": true, "type_id": 4 } } },
   { "Step": { "path_id": 0, "line": 1 } },
   { "Call": { "function_id": 1, "args": [
     { "variable_id": 3, "value": { "kind": "Sequence", "elements": [
@@ -56,7 +56,7 @@
       { "kind": "Int", "i": 3, "type_id": 2 },
       { "kind": "Int", "i": 2, "type_id": 2 },
       { "kind": "Int", "i": 1, "type_id": 2 }
-    ], "type_id": 4, "is_slice": true } }
+    ], "is_slice": true, "type_id": 4 } }
   ] } },
   { "Step": { "path_id": 0, "line": 2 } },
   { "Value": { "variable_id": 3, "value": { "kind": "Sequence", "elements": [
@@ -65,7 +65,7 @@
     { "kind": "Int", "i": 3, "type_id": 2 },
     { "kind": "Int", "i": 2, "type_id": 2 },
     { "kind": "Int", "i": 1, "type_id": 2 }
-  ], "type_id": 4, "is_slice": true } } },
+  ], "is_slice": true, "type_id": 4 } } },
   { "Step": { "path_id": 0, "line": 3 } },
   { "Value": { "variable_id": 3, "value": { "kind": "Sequence", "elements": [
     { "kind": "Int", "i": 5, "type_id": 2 },
@@ -73,46 +73,10 @@
     { "kind": "Int", "i": 3, "type_id": 2 },
     { "kind": "Int", "i": 2, "type_id": 2 },
     { "kind": "Int", "i": 1, "type_id": 2 }
-  ], "type_id": 4, "is_slice": true } } },
+  ], "is_slice": true, "type_id": 4 } } },
   { "VariableName": "q" },
   { "Value": { "variable_id": 4, "value": { "kind": "Int", "i": 5, "type_id": 2 } } },
-  { "Step": { "path_id": 0, "line": 3 } },
-  { "Value": { "variable_id": 3, "value": { "kind": "Sequence", "elements": [
-    { "kind": "Int", "i": 5, "type_id": 2 },
-    { "kind": "Int", "i": 4, "type_id": 2 },
-    { "kind": "Int", "i": 3, "type_id": 2 },
-    { "kind": "Int", "i": 2, "type_id": 2 },
-    { "kind": "Int", "i": 1, "type_id": 2 }
-  ], "type_id": 4, "is_slice": true } } },
-  { "Value": { "variable_id": 4, "value": { "kind": "Int", "i": 5, "type_id": 2 } } },
-  { "Step": { "path_id": 0, "line": 3 } },
-  { "Value": { "variable_id": 3, "value": { "kind": "Sequence", "elements": [
-    { "kind": "Int", "i": 5, "type_id": 2 },
-    { "kind": "Int", "i": 4, "type_id": 2 },
-    { "kind": "Int", "i": 3, "type_id": 2 },
-    { "kind": "Int", "i": 2, "type_id": 2 },
-    { "kind": "Int", "i": 1, "type_id": 2 }
-  ], "type_id": 4, "is_slice": true } } },
-  { "Value": { "variable_id": 4, "value": { "kind": "Int", "i": 5, "type_id": 2 } } },
   { "Event": { "kind": 0, "content": "5\n" } },
-  { "Step": { "path_id": 0, "line": 3 } },
-  { "Value": { "variable_id": 3, "value": { "kind": "Sequence", "elements": [
-    { "kind": "Int", "i": 5, "type_id": 2 },
-    { "kind": "Int", "i": 4, "type_id": 2 },
-    { "kind": "Int", "i": 3, "type_id": 2 },
-    { "kind": "Int", "i": 2, "type_id": 2 },
-    { "kind": "Int", "i": 1, "type_id": 2 }
-  ], "type_id": 4, "is_slice": true } } },
-  { "Value": { "variable_id": 4, "value": { "kind": "Int", "i": 5, "type_id": 2 } } },
-  { "Step": { "path_id": 0, "line": 3 } },
-  { "Value": { "variable_id": 3, "value": { "kind": "Sequence", "elements": [
-    { "kind": "Int", "i": 5, "type_id": 2 },
-    { "kind": "Int", "i": 4, "type_id": 2 },
-    { "kind": "Int", "i": 3, "type_id": 2 },
-    { "kind": "Int", "i": 2, "type_id": 2 },
-    { "kind": "Int", "i": 1, "type_id": 2 }
-  ], "type_id": 4, "is_slice": true } } },
-  { "Value": { "variable_id": 4, "value": { "kind": "Int", "i": 5, "type_id": 2 } } },
   { "Step": { "path_id": 0, "line": 4 } },
   { "Value": { "variable_id": 3, "value": { "kind": "Sequence", "elements": [
     { "kind": "Int", "i": 5, "type_id": 2 },
@@ -120,7 +84,7 @@
     { "kind": "Int", "i": 3, "type_id": 2 },
     { "kind": "Int", "i": 2, "type_id": 2 },
     { "kind": "Int", "i": 1, "type_id": 2 }
-  ], "type_id": 4, "is_slice": true } } },
+  ], "is_slice": true, "type_id": 4 } } },
   { "Value": { "variable_id": 4, "value": { "kind": "Int", "i": 5, "type_id": 2 } } },
   { "Step": { "path_id": 0, "line": 2 } },
   { "Value": { "variable_id": 3, "value": { "kind": "Sequence", "elements": [
@@ -129,7 +93,7 @@
     { "kind": "Int", "i": 3, "type_id": 2 },
     { "kind": "Int", "i": 2, "type_id": 2 },
     { "kind": "Int", "i": 1, "type_id": 2 }
-  ], "type_id": 4, "is_slice": true } } },
+  ], "is_slice": true, "type_id": 4 } } },
   { "Step": { "path_id": 0, "line": 3 } },
   { "Value": { "variable_id": 3, "value": { "kind": "Sequence", "elements": [
     { "kind": "Int", "i": 5, "type_id": 2 },
@@ -137,45 +101,9 @@
     { "kind": "Int", "i": 3, "type_id": 2 },
     { "kind": "Int", "i": 2, "type_id": 2 },
     { "kind": "Int", "i": 1, "type_id": 2 }
-  ], "type_id": 4, "is_slice": true } } },
-  { "Value": { "variable_id": 4, "value": { "kind": "Int", "i": 4, "type_id": 2 } } },
-  { "Step": { "path_id": 0, "line": 3 } },
-  { "Value": { "variable_id": 3, "value": { "kind": "Sequence", "elements": [
-    { "kind": "Int", "i": 5, "type_id": 2 },
-    { "kind": "Int", "i": 4, "type_id": 2 },
-    { "kind": "Int", "i": 3, "type_id": 2 },
-    { "kind": "Int", "i": 2, "type_id": 2 },
-    { "kind": "Int", "i": 1, "type_id": 2 }
-  ], "type_id": 4, "is_slice": true } } },
-  { "Value": { "variable_id": 4, "value": { "kind": "Int", "i": 4, "type_id": 2 } } },
-  { "Step": { "path_id": 0, "line": 3 } },
-  { "Value": { "variable_id": 3, "value": { "kind": "Sequence", "elements": [
-    { "kind": "Int", "i": 5, "type_id": 2 },
-    { "kind": "Int", "i": 4, "type_id": 2 },
-    { "kind": "Int", "i": 3, "type_id": 2 },
-    { "kind": "Int", "i": 2, "type_id": 2 },
-    { "kind": "Int", "i": 1, "type_id": 2 }
-  ], "type_id": 4, "is_slice": true } } },
+  ], "is_slice": true, "type_id": 4 } } },
   { "Value": { "variable_id": 4, "value": { "kind": "Int", "i": 4, "type_id": 2 } } },
   { "Event": { "kind": 0, "content": "4\n" } },
-  { "Step": { "path_id": 0, "line": 3 } },
-  { "Value": { "variable_id": 3, "value": { "kind": "Sequence", "elements": [
-    { "kind": "Int", "i": 5, "type_id": 2 },
-    { "kind": "Int", "i": 4, "type_id": 2 },
-    { "kind": "Int", "i": 3, "type_id": 2 },
-    { "kind": "Int", "i": 2, "type_id": 2 },
-    { "kind": "Int", "i": 1, "type_id": 2 }
-  ], "type_id": 4, "is_slice": true } } },
-  { "Value": { "variable_id": 4, "value": { "kind": "Int", "i": 4, "type_id": 2 } } },
-  { "Step": { "path_id": 0, "line": 3 } },
-  { "Value": { "variable_id": 3, "value": { "kind": "Sequence", "elements": [
-    { "kind": "Int", "i": 5, "type_id": 2 },
-    { "kind": "Int", "i": 4, "type_id": 2 },
-    { "kind": "Int", "i": 3, "type_id": 2 },
-    { "kind": "Int", "i": 2, "type_id": 2 },
-    { "kind": "Int", "i": 1, "type_id": 2 }
-  ], "type_id": 4, "is_slice": true } } },
-  { "Value": { "variable_id": 4, "value": { "kind": "Int", "i": 4, "type_id": 2 } } },
   { "Step": { "path_id": 0, "line": 4 } },
   { "Value": { "variable_id": 3, "value": { "kind": "Sequence", "elements": [
     { "kind": "Int", "i": 5, "type_id": 2 },
@@ -183,7 +111,7 @@
     { "kind": "Int", "i": 3, "type_id": 2 },
     { "kind": "Int", "i": 2, "type_id": 2 },
     { "kind": "Int", "i": 1, "type_id": 2 }
-  ], "type_id": 4, "is_slice": true } } },
+  ], "is_slice": true, "type_id": 4 } } },
   { "Value": { "variable_id": 4, "value": { "kind": "Int", "i": 4, "type_id": 2 } } },
   { "Step": { "path_id": 0, "line": 2 } },
   { "Value": { "variable_id": 3, "value": { "kind": "Sequence", "elements": [
@@ -192,7 +120,7 @@
     { "kind": "Int", "i": 3, "type_id": 2 },
     { "kind": "Int", "i": 2, "type_id": 2 },
     { "kind": "Int", "i": 1, "type_id": 2 }
-  ], "type_id": 4, "is_slice": true } } },
+  ], "is_slice": true, "type_id": 4 } } },
   { "Step": { "path_id": 0, "line": 3 } },
   { "Value": { "variable_id": 3, "value": { "kind": "Sequence", "elements": [
     { "kind": "Int", "i": 5, "type_id": 2 },
@@ -200,45 +128,9 @@
     { "kind": "Int", "i": 3, "type_id": 2 },
     { "kind": "Int", "i": 2, "type_id": 2 },
     { "kind": "Int", "i": 1, "type_id": 2 }
-  ], "type_id": 4, "is_slice": true } } },
-  { "Value": { "variable_id": 4, "value": { "kind": "Int", "i": 3, "type_id": 2 } } },
-  { "Step": { "path_id": 0, "line": 3 } },
-  { "Value": { "variable_id": 3, "value": { "kind": "Sequence", "elements": [
-    { "kind": "Int", "i": 5, "type_id": 2 },
-    { "kind": "Int", "i": 4, "type_id": 2 },
-    { "kind": "Int", "i": 3, "type_id": 2 },
-    { "kind": "Int", "i": 2, "type_id": 2 },
-    { "kind": "Int", "i": 1, "type_id": 2 }
-  ], "type_id": 4, "is_slice": true } } },
-  { "Value": { "variable_id": 4, "value": { "kind": "Int", "i": 3, "type_id": 2 } } },
-  { "Step": { "path_id": 0, "line": 3 } },
-  { "Value": { "variable_id": 3, "value": { "kind": "Sequence", "elements": [
-    { "kind": "Int", "i": 5, "type_id": 2 },
-    { "kind": "Int", "i": 4, "type_id": 2 },
-    { "kind": "Int", "i": 3, "type_id": 2 },
-    { "kind": "Int", "i": 2, "type_id": 2 },
-    { "kind": "Int", "i": 1, "type_id": 2 }
-  ], "type_id": 4, "is_slice": true } } },
+  ], "is_slice": true, "type_id": 4 } } },
   { "Value": { "variable_id": 4, "value": { "kind": "Int", "i": 3, "type_id": 2 } } },
   { "Event": { "kind": 0, "content": "3\n" } },
-  { "Step": { "path_id": 0, "line": 3 } },
-  { "Value": { "variable_id": 3, "value": { "kind": "Sequence", "elements": [
-    { "kind": "Int", "i": 5, "type_id": 2 },
-    { "kind": "Int", "i": 4, "type_id": 2 },
-    { "kind": "Int", "i": 3, "type_id": 2 },
-    { "kind": "Int", "i": 2, "type_id": 2 },
-    { "kind": "Int", "i": 1, "type_id": 2 }
-  ], "type_id": 4, "is_slice": true } } },
-  { "Value": { "variable_id": 4, "value": { "kind": "Int", "i": 3, "type_id": 2 } } },
-  { "Step": { "path_id": 0, "line": 3 } },
-  { "Value": { "variable_id": 3, "value": { "kind": "Sequence", "elements": [
-    { "kind": "Int", "i": 5, "type_id": 2 },
-    { "kind": "Int", "i": 4, "type_id": 2 },
-    { "kind": "Int", "i": 3, "type_id": 2 },
-    { "kind": "Int", "i": 2, "type_id": 2 },
-    { "kind": "Int", "i": 1, "type_id": 2 }
-  ], "type_id": 4, "is_slice": true } } },
-  { "Value": { "variable_id": 4, "value": { "kind": "Int", "i": 3, "type_id": 2 } } },
   { "Step": { "path_id": 0, "line": 4 } },
   { "Value": { "variable_id": 3, "value": { "kind": "Sequence", "elements": [
     { "kind": "Int", "i": 5, "type_id": 2 },
@@ -246,7 +138,7 @@
     { "kind": "Int", "i": 3, "type_id": 2 },
     { "kind": "Int", "i": 2, "type_id": 2 },
     { "kind": "Int", "i": 1, "type_id": 2 }
-  ], "type_id": 4, "is_slice": true } } },
+  ], "is_slice": true, "type_id": 4 } } },
   { "Value": { "variable_id": 4, "value": { "kind": "Int", "i": 3, "type_id": 2 } } },
   { "Step": { "path_id": 0, "line": 2 } },
   { "Value": { "variable_id": 3, "value": { "kind": "Sequence", "elements": [
@@ -255,7 +147,7 @@
     { "kind": "Int", "i": 3, "type_id": 2 },
     { "kind": "Int", "i": 2, "type_id": 2 },
     { "kind": "Int", "i": 1, "type_id": 2 }
-  ], "type_id": 4, "is_slice": true } } },
+  ], "is_slice": true, "type_id": 4 } } },
   { "Step": { "path_id": 0, "line": 3 } },
   { "Value": { "variable_id": 3, "value": { "kind": "Sequence", "elements": [
     { "kind": "Int", "i": 5, "type_id": 2 },
@@ -263,45 +155,9 @@
     { "kind": "Int", "i": 3, "type_id": 2 },
     { "kind": "Int", "i": 2, "type_id": 2 },
     { "kind": "Int", "i": 1, "type_id": 2 }
-  ], "type_id": 4, "is_slice": true } } },
-  { "Value": { "variable_id": 4, "value": { "kind": "Int", "i": 2, "type_id": 2 } } },
-  { "Step": { "path_id": 0, "line": 3 } },
-  { "Value": { "variable_id": 3, "value": { "kind": "Sequence", "elements": [
-    { "kind": "Int", "i": 5, "type_id": 2 },
-    { "kind": "Int", "i": 4, "type_id": 2 },
-    { "kind": "Int", "i": 3, "type_id": 2 },
-    { "kind": "Int", "i": 2, "type_id": 2 },
-    { "kind": "Int", "i": 1, "type_id": 2 }
-  ], "type_id": 4, "is_slice": true } } },
-  { "Value": { "variable_id": 4, "value": { "kind": "Int", "i": 2, "type_id": 2 } } },
-  { "Step": { "path_id": 0, "line": 3 } },
-  { "Value": { "variable_id": 3, "value": { "kind": "Sequence", "elements": [
-    { "kind": "Int", "i": 5, "type_id": 2 },
-    { "kind": "Int", "i": 4, "type_id": 2 },
-    { "kind": "Int", "i": 3, "type_id": 2 },
-    { "kind": "Int", "i": 2, "type_id": 2 },
-    { "kind": "Int", "i": 1, "type_id": 2 }
-  ], "type_id": 4, "is_slice": true } } },
+  ], "is_slice": true, "type_id": 4 } } },
   { "Value": { "variable_id": 4, "value": { "kind": "Int", "i": 2, "type_id": 2 } } },
   { "Event": { "kind": 0, "content": "2\n" } },
-  { "Step": { "path_id": 0, "line": 3 } },
-  { "Value": { "variable_id": 3, "value": { "kind": "Sequence", "elements": [
-    { "kind": "Int", "i": 5, "type_id": 2 },
-    { "kind": "Int", "i": 4, "type_id": 2 },
-    { "kind": "Int", "i": 3, "type_id": 2 },
-    { "kind": "Int", "i": 2, "type_id": 2 },
-    { "kind": "Int", "i": 1, "type_id": 2 }
-  ], "type_id": 4, "is_slice": true } } },
-  { "Value": { "variable_id": 4, "value": { "kind": "Int", "i": 2, "type_id": 2 } } },
-  { "Step": { "path_id": 0, "line": 3 } },
-  { "Value": { "variable_id": 3, "value": { "kind": "Sequence", "elements": [
-    { "kind": "Int", "i": 5, "type_id": 2 },
-    { "kind": "Int", "i": 4, "type_id": 2 },
-    { "kind": "Int", "i": 3, "type_id": 2 },
-    { "kind": "Int", "i": 2, "type_id": 2 },
-    { "kind": "Int", "i": 1, "type_id": 2 }
-  ], "type_id": 4, "is_slice": true } } },
-  { "Value": { "variable_id": 4, "value": { "kind": "Int", "i": 2, "type_id": 2 } } },
   { "Step": { "path_id": 0, "line": 4 } },
   { "Value": { "variable_id": 3, "value": { "kind": "Sequence", "elements": [
     { "kind": "Int", "i": 5, "type_id": 2 },
@@ -309,7 +165,7 @@
     { "kind": "Int", "i": 3, "type_id": 2 },
     { "kind": "Int", "i": 2, "type_id": 2 },
     { "kind": "Int", "i": 1, "type_id": 2 }
-  ], "type_id": 4, "is_slice": true } } },
+  ], "is_slice": true, "type_id": 4 } } },
   { "Value": { "variable_id": 4, "value": { "kind": "Int", "i": 2, "type_id": 2 } } },
   { "Step": { "path_id": 0, "line": 2 } },
   { "Value": { "variable_id": 3, "value": { "kind": "Sequence", "elements": [
@@ -318,7 +174,7 @@
     { "kind": "Int", "i": 3, "type_id": 2 },
     { "kind": "Int", "i": 2, "type_id": 2 },
     { "kind": "Int", "i": 1, "type_id": 2 }
-  ], "type_id": 4, "is_slice": true } } },
+  ], "is_slice": true, "type_id": 4 } } },
   { "Step": { "path_id": 0, "line": 3 } },
   { "Value": { "variable_id": 3, "value": { "kind": "Sequence", "elements": [
     { "kind": "Int", "i": 5, "type_id": 2 },
@@ -326,45 +182,9 @@
     { "kind": "Int", "i": 3, "type_id": 2 },
     { "kind": "Int", "i": 2, "type_id": 2 },
     { "kind": "Int", "i": 1, "type_id": 2 }
-  ], "type_id": 4, "is_slice": true } } },
-  { "Value": { "variable_id": 4, "value": { "kind": "Int", "i": 1, "type_id": 2 } } },
-  { "Step": { "path_id": 0, "line": 3 } },
-  { "Value": { "variable_id": 3, "value": { "kind": "Sequence", "elements": [
-    { "kind": "Int", "i": 5, "type_id": 2 },
-    { "kind": "Int", "i": 4, "type_id": 2 },
-    { "kind": "Int", "i": 3, "type_id": 2 },
-    { "kind": "Int", "i": 2, "type_id": 2 },
-    { "kind": "Int", "i": 1, "type_id": 2 }
-  ], "type_id": 4, "is_slice": true } } },
-  { "Value": { "variable_id": 4, "value": { "kind": "Int", "i": 1, "type_id": 2 } } },
-  { "Step": { "path_id": 0, "line": 3 } },
-  { "Value": { "variable_id": 3, "value": { "kind": "Sequence", "elements": [
-    { "kind": "Int", "i": 5, "type_id": 2 },
-    { "kind": "Int", "i": 4, "type_id": 2 },
-    { "kind": "Int", "i": 3, "type_id": 2 },
-    { "kind": "Int", "i": 2, "type_id": 2 },
-    { "kind": "Int", "i": 1, "type_id": 2 }
-  ], "type_id": 4, "is_slice": true } } },
+  ], "is_slice": true, "type_id": 4 } } },
   { "Value": { "variable_id": 4, "value": { "kind": "Int", "i": 1, "type_id": 2 } } },
   { "Event": { "kind": 0, "content": "1\n" } },
-  { "Step": { "path_id": 0, "line": 3 } },
-  { "Value": { "variable_id": 3, "value": { "kind": "Sequence", "elements": [
-    { "kind": "Int", "i": 5, "type_id": 2 },
-    { "kind": "Int", "i": 4, "type_id": 2 },
-    { "kind": "Int", "i": 3, "type_id": 2 },
-    { "kind": "Int", "i": 2, "type_id": 2 },
-    { "kind": "Int", "i": 1, "type_id": 2 }
-  ], "type_id": 4, "is_slice": true } } },
-  { "Value": { "variable_id": 4, "value": { "kind": "Int", "i": 1, "type_id": 2 } } },
-  { "Step": { "path_id": 0, "line": 3 } },
-  { "Value": { "variable_id": 3, "value": { "kind": "Sequence", "elements": [
-    { "kind": "Int", "i": 5, "type_id": 2 },
-    { "kind": "Int", "i": 4, "type_id": 2 },
-    { "kind": "Int", "i": 3, "type_id": 2 },
-    { "kind": "Int", "i": 2, "type_id": 2 },
-    { "kind": "Int", "i": 1, "type_id": 2 }
-  ], "type_id": 4, "is_slice": true } } },
-  { "Value": { "variable_id": 4, "value": { "kind": "Int", "i": 1, "type_id": 2 } } },
   { "Step": { "path_id": 0, "line": 4 } },
   { "Value": { "variable_id": 3, "value": { "kind": "Sequence", "elements": [
     { "kind": "Int", "i": 5, "type_id": 2 },
@@ -372,7 +192,7 @@
     { "kind": "Int", "i": 3, "type_id": 2 },
     { "kind": "Int", "i": 2, "type_id": 2 },
     { "kind": "Int", "i": 1, "type_id": 2 }
-  ], "type_id": 4, "is_slice": true } } },
+  ], "is_slice": true, "type_id": 4 } } },
   { "Value": { "variable_id": 4, "value": { "kind": "Int", "i": 1, "type_id": 2 } } },
   { "Step": { "path_id": 0, "line": 2 } },
   { "Value": { "variable_id": 3, "value": { "kind": "Sequence", "elements": [
@@ -381,7 +201,7 @@
     { "kind": "Int", "i": 3, "type_id": 2 },
     { "kind": "Int", "i": 2, "type_id": 2 },
     { "kind": "Int", "i": 1, "type_id": 2 }
-  ], "type_id": 4, "is_slice": true } } },
+  ], "is_slice": true, "type_id": 4 } } },
   { "Step": { "path_id": 0, "line": 5 } },
   { "Value": { "variable_id": 3, "value": { "kind": "Sequence", "elements": [
     { "kind": "Int", "i": 5, "type_id": 2 },
@@ -389,7 +209,7 @@
     { "kind": "Int", "i": 3, "type_id": 2 },
     { "kind": "Int", "i": 2, "type_id": 2 },
     { "kind": "Int", "i": 1, "type_id": 2 }
-  ], "type_id": 4, "is_slice": true } } },
+  ], "is_slice": true, "type_id": 4 } } },
   { "Type": { "kind": 30, "lang_type": "()", "specific_info": { "kind": "None" } } },
   { "Return": { "return_value": { "kind": "None", "type_id": 5 } } },
   { "Step": { "path_id": 0, "line": 10 } },
@@ -399,7 +219,7 @@
     { "kind": "Int", "i": 3, "type_id": 2 },
     { "kind": "Int", "i": 2, "type_id": 2 },
     { "kind": "Int", "i": 1, "type_id": 2 }
-  ], "type_id": 3, "is_slice": false } } },
+  ], "is_slice": false, "type_id": 3 } } },
   { "Value": { "variable_id": 0, "value": { "kind": "Int", "i": 5, "type_id": 1 } } },
   { "Value": { "variable_id": 1, "value": { "kind": "Int", "i": 10, "type_id": 1 } } },
   { "Step": { "path_id": 0, "line": 11 } },
@@ -409,7 +229,7 @@
     { "kind": "Int", "i": 3, "type_id": 2 },
     { "kind": "Int", "i": 2, "type_id": 2 },
     { "kind": "Int", "i": 1, "type_id": 2 }
-  ], "type_id": 3, "is_slice": false } } },
+  ], "is_slice": false, "type_id": 3 } } },
   { "Value": { "variable_id": 0, "value": { "kind": "Int", "i": 5, "type_id": 1 } } },
   { "Value": { "variable_id": 1, "value": { "kind": "Int", "i": 10, "type_id": 1 } } }
 ]
