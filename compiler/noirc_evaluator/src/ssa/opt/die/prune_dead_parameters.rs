@@ -130,8 +130,6 @@ impl Function {
                     }
                 }
             }
-
-            // parameter_keep_list.insert(block, keep_list);
         }
     }
 }
