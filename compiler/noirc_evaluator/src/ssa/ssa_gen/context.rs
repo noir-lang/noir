@@ -641,7 +641,11 @@ impl<'a> FunctionContext<'a> {
                     }
                     std::cmp::Ordering::Equal => value,
                     std::cmp::Ordering::Greater => {
-                        // If target size is bigger, we do a sign extension
+                        // If target size is bigger, we do a sign extension:
+                        // When the value is negative, it is represented in 2-complement form; `2^s-v`, where `s` is the incoming bit size and `v` is the absolute value
+                        // Sign extension in this case will give `2^t-v`, where `t` is the target bit size
+                        // So we simply convert `2^s-v` into `2^t-v` by adding `2^t-2^s` to the value
+                        // This is done only if the value is negative.
                         let value_as_unsigned = self.insert_safe_cast(
                             value,
                             NumericType::unsigned(*incoming_type_size),
@@ -651,6 +655,7 @@ impl<'a> FunctionContext<'a> {
                             FieldElement::from(2_i128.pow(incoming_type_size - 1)),
                             NumericType::unsigned(*incoming_type_size),
                         );
+                        // value_sign is 1 if the value is positive, 0 otherwise
                         let value_sign =
                             self.builder.insert_binary(value_as_unsigned, BinaryOp::Lt, half_width);
                         let patch = self.builder.numeric_constant(
@@ -659,9 +664,9 @@ impl<'a> FunctionContext<'a> {
                             ),
                             NumericType::unsigned(target_type_size),
                         );
-                        let mut sign_not = self.builder.insert_not(value_sign);
-                        sign_not = self.insert_safe_cast(
-                            sign_not,
+                        let mut is_negative_predicate = self.builder.insert_not(value_sign);
+                        is_negative_predicate = self.insert_safe_cast(
+                            is_negative_predicate,
                             NumericType::unsigned(target_type_size),
                             location,
                         );
@@ -669,7 +674,7 @@ impl<'a> FunctionContext<'a> {
                         let patch_with_sign_predicate = self.builder.insert_binary(
                             patch,
                             BinaryOp::Mul { unchecked: true },
-                            sign_not,
+                            is_negative_predicate,
                         );
                         let value_as_unsigned = self.builder.insert_cast(
                             value_as_unsigned,
