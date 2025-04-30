@@ -25,7 +25,7 @@ use std::panic::AssertUnwindSafe;
 
 /// Optimizes the given FunctionBuilder into ACIR
 /// its taken from noirc_evaluator::ssa::optimize_all, but modified to accept FunctionBuilder
-/// and to catch panics... It cannot be catched with just catch_unwind.
+/// and to catch panics... It cannot be caught with just catch_unwind.
 fn optimize_into_acir(
     builder: FunctionBuilder,
     options: SsaEvaluatorOptions,

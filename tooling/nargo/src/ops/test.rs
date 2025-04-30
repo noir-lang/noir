@@ -227,11 +227,14 @@ where
     let location = test_function.location;
     let fuzzing_harness = FuzzingHarness { id, scope, location };
 
+    let corpus_dir = tempfile::tempdir().expect("Couldn't create temporary directory");
+    let fuzzing_failure_dir = tempfile::tempdir().expect("Couldn't create temporary directory");
+
     // TODO: allow configuring this. See https://github.com/noir-lang/noir/issues/8214
     let fuzz_folder_config = FuzzFolderConfig {
-        corpus_dir: None,
+        corpus_dir: Some(corpus_dir.path().to_string_lossy().to_string()),
         minimized_corpus_dir: None,
-        fuzzing_failure_dir: None,
+        fuzzing_failure_dir: Some(fuzzing_failure_dir.path().to_string_lossy().to_string()),
     };
     // TODO: allow configuring this. See https://github.com/noir-lang/noir/issues/8214
     let fuzz_execution_config =
@@ -249,6 +252,7 @@ where
         &fuzz_execution_config,
         build_foreign_call_executor,
     );
+
     match fuzz_result {
         FuzzingRunStatus::ExecutionPass | FuzzingRunStatus::MinimizationPass => TestStatus::Pass,
         FuzzingRunStatus::CorpusFailure { message } => {

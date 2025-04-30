@@ -15,7 +15,7 @@ use noirc_evaluator::brillig::BrilligOptions;
 use noirc_evaluator::create_program;
 use noirc_evaluator::errors::RuntimeError;
 use noirc_evaluator::ssa::{
-    OptimizationLevel, SsaEvaluatorOptions, SsaLogging, SsaProgramArtifact,
+    OptimizationLevel, SsaEvaluatorOptions, SsaLogging, SsaProgramArtifact, create_program_with_minimal_passes,
 };
 use noirc_frontend::debug::build_debug_crate_file;
 use noirc_frontend::elaborator::{FrontendOptions, UnstableFeature};
@@ -89,6 +89,13 @@ pub struct CompileOptions {
     /// under `[compiled-package].ssa.json`.
     #[arg(long, hide = true)]
     pub emit_ssa: bool,
+
+    /// Only perform the minimum number of SSA passes.
+    ///
+    /// The purpose of this is to be able to debug fuzzing failures.
+    /// It implies `--force-brillig`.
+    #[arg(long, hide = true)]
+    pub minimal_ssa: bool,
 
     #[arg(long, hide = true)]
     pub show_brillig: bool,
@@ -689,7 +696,7 @@ pub fn compile_no_check(
     force_compile: bool,
 ) -> Result<CompiledProgram, CompileError> {
     let compiling_for_debug = options.instrument_debug;
-    let force_unconstrained = options.force_brillig;
+    let force_unconstrained = options.force_brillig || options.minimal_ssa;
 
     let program = if compiling_for_debug {
         monomorphize_debug(
@@ -714,7 +721,8 @@ pub fn compile_no_check(
         || options.force_brillig
         || options.show_ssa
         || options.show_ssa_pass.is_some()
-        || options.emit_ssa;
+        || options.emit_ssa
+        || options.minimal_ssa;
 
     // Hash the AST program, which is going to be used to fingerprint the compilation artifact.
     let hash = fxhash::hash64(&program);
@@ -764,7 +772,11 @@ pub fn compile_no_check(
     };
 
     let SsaProgramArtifact { program, debug, warnings, names, brillig_names, error_types, .. } =
-        create_program(program, &ssa_evaluator_options)?;
+        if options.minimal_ssa {
+            create_program_with_minimal_passes(program, &ssa_evaluator_options)?
+        } else {
+            create_program(program, &ssa_evaluator_options)?
+        };
 
     let abi = abi_gen::gen_abi(context, &main_function, return_visibility, error_types);
     let file_map = filter_relevant_files(&debug, &context.file_manager);
