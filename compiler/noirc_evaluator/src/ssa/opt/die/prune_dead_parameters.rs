@@ -371,7 +371,7 @@ mod tests {
             .unused_parameters
             .get(&Id::test_new(0))
             .expect("Should have unused parameters");
-        for (_, unused_params) in function {
+        for unused_params in function.values() {
             assert!(unused_params.is_empty());
         }
 
