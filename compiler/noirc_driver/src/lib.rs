@@ -183,6 +183,17 @@ pub struct CompileOptions {
     #[arg(long, default_value = "false")]
     pub pedantic_solving: bool,
 
+    /// Skip reading files/folders from the root directory and instead accept the
+    /// contents of `main.nr` through STDIN.
+    ///
+    /// The implicit package structure is:
+    /// ```
+    /// src/main.nr // STDIN
+    /// Nargo.toml // fixed "bin" Nargo.toml
+    /// ```
+    #[arg(long, hide = true)]
+    pub debug_compile_stdin: bool,
+
     /// Unstable features to enable for this current build
     #[arg(value_parser = clap::value_parser!(UnstableFeature))]
     #[clap(long, short = 'Z', value_delimiter = ',')]
