@@ -44,31 +44,31 @@ pub(crate) enum PathResolutionItem {
 impl PathResolutionItem {
     pub(crate) fn function_id(&self) -> Option<FuncId> {
         match self {
-            Self::ModuleFunction(func_id)
-            | Self::Method(_, _, func_id)
-            | Self::SelfMethod(func_id)
-            | Self::TypeAliasFunction(_, _, func_id)
-            | Self::TraitFunction(_, _, func_id) => Some(*func_id),
-            Self::Module(_)
-            | Self::Type(_)
-            | Self::TypeAlias(_)
-            | Self::Trait(_)
-            | Self::Global(..) => None,
+            PathResolutionItem::ModuleFunction(func_id)
+            | PathResolutionItem::Method(_, _, func_id)
+            | PathResolutionItem::SelfMethod(func_id)
+            | PathResolutionItem::TypeAliasFunction(_, _, func_id)
+            | PathResolutionItem::TraitFunction(_, _, func_id) => Some(*func_id),
+            PathResolutionItem::Module(..)
+            | PathResolutionItem::Type(..)
+            | PathResolutionItem::TypeAlias(..)
+            | PathResolutionItem::Trait(..)
+            | PathResolutionItem::Global(..) => None,
         }
     }
 
     pub(crate) fn description(&self) -> &'static str {
         match self {
-            Self::Module(..) => "module",
-            Self::Type(..) => "type",
-            Self::TypeAlias(..) => "type alias",
-            Self::Trait(..) => "trait",
-            Self::Global(..) => "global",
-            Self::ModuleFunction(..)
-            | Self::Method(..)
-            | Self::SelfMethod(..)
-            | Self::TypeAliasFunction(..)
-            | Self::TraitFunction(..) => "function",
+            PathResolutionItem::Module(..) => "module",
+            PathResolutionItem::Type(..) => "type",
+            PathResolutionItem::TypeAlias(..) => "type alias",
+            PathResolutionItem::Trait(..) => "trait",
+            PathResolutionItem::Global(..) => "global",
+            PathResolutionItem::ModuleFunction(..)
+            | PathResolutionItem::Method(..)
+            | PathResolutionItem::SelfMethod(..)
+            | PathResolutionItem::TypeAliasFunction(..)
+            | PathResolutionItem::TraitFunction(..) => "function",
         }
     }
 }
