@@ -1,6 +1,6 @@
 use acir::{
     AcirField,
-    circuit::opcodes::{BlackBoxFuncCall, ConstantOrWitnessEnum, FunctionInput},
+    circuit::opcodes::{BlackBoxFuncCall, ConstantOrWitnessEnum},
     native_types::{Witness, WitnessMap},
 };
 use acvm_blackbox_solver::{blake2s, blake3, keccakf1600};
@@ -34,10 +34,10 @@ use signature::ecdsa::{secp256k1_prehashed, secp256r1_prehashed};
 /// Returns the first missing assignment if any are missing
 fn first_missing_assignment<F>(
     witness_assignments: &WitnessMap<F>,
-    inputs: &[FunctionInput<F>],
+    inputs: &[ConstantOrWitnessEnum<F>],
 ) -> Option<Witness> {
     inputs.iter().find_map(|input| {
-        if let ConstantOrWitnessEnum::Witness(witness) = input.input_ref() {
+        if let ConstantOrWitnessEnum::Witness(witness) = input {
             if witness_assignments.contains_key(witness) { None } else { Some(*witness) }
         } else {
             None
@@ -48,7 +48,7 @@ fn first_missing_assignment<F>(
 /// Check if all of the inputs to the function have assignments
 fn contains_all_inputs<F>(
     witness_assignments: &WitnessMap<F>,
-    inputs: &[FunctionInput<F>],
+    inputs: &[ConstantOrWitnessEnum<F>],
 ) -> bool {
     first_missing_assignment(witness_assignments, inputs).is_none()
 }
@@ -81,18 +81,21 @@ pub(crate) fn solve<F: AcirField>(
         BlackBoxFuncCall::RANGE { input } => {
             solve_range_opcode(initial_witness, input, backend.pedantic_solving())
         }
-        BlackBoxFuncCall::Blake2s { inputs, outputs } => {
-            solve_generic_256_hash_opcode(initial_witness, inputs, None, outputs, blake2s)
+        BlackBoxFuncCall::Blake2s { outputs, .. } => {
+            let inputs = bb_func.get_inputs_vec();
+            solve_generic_256_hash_opcode(initial_witness, &inputs, None, outputs, blake2s)
         }
         BlackBoxFuncCall::Blake3 { inputs, outputs } => {
-            solve_generic_256_hash_opcode(initial_witness, inputs, None, outputs, blake3)
+            for input in inputs.iter() {
+                assert!(input.num_bits() == 8);
+            }
+            let inputs = bb_func.get_inputs_vec();
+            solve_generic_256_hash_opcode(initial_witness, &inputs, None, outputs, blake3)
         }
         BlackBoxFuncCall::Keccakf1600 { inputs, outputs } => {
             let mut state = [0; 25];
             for (it, input) in state.iter_mut().zip(inputs.as_ref()) {
-                let num_bits = input.num_bits() as usize;
-                assert_eq!(num_bits, 64);
-                let witness_assignment = input_to_value(initial_witness, *input, false)?;
+                let witness_assignment = input_to_value(initial_witness, *input)?;
                 let lane = witness_assignment.try_to_u64();
                 *it = lane.unwrap();
             }

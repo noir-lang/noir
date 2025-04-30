@@ -6,7 +6,7 @@ use crate::{
         UnresolvedTypeData,
     },
     parser::ParserErrorReason,
-    token::{Attribute, Token},
+    token::Attribute,
 };
 
 use super::Parser;
@@ -26,7 +26,7 @@ impl Parser<'_> {
         let is_global_let = true;
 
         let Some(ident) = self.eat_ident() else {
-            self.eat_semicolons();
+            self.eat_semicolon();
             return LetStatement {
                 pattern: ident_to_pattern(Ident::default(), mutable),
                 r#type: UnresolvedType {
@@ -51,9 +51,7 @@ impl Parser<'_> {
             Expression { kind: ExpressionKind::Error, location: Location::dummy() }
         };
 
-        if !self.eat_semicolons() {
-            self.expected_token(Token::Semicolon);
-        }
+        self.eat_semicolon_or_error();
 
         LetStatement { pattern, r#type: typ, expression, attributes, comptime, is_global_let }
     }

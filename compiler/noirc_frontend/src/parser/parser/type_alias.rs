@@ -44,9 +44,7 @@ impl Parser<'_> {
 
         let typ = self.parse_type_or_error();
         let location = self.location_since(start_location);
-        if !self.eat_semicolons() {
-            self.expected_token(Token::Semicolon);
-        }
+        self.eat_semicolon_or_error();
 
         NoirTypeAlias { visibility, name, generics, typ, location }
     }

@@ -3,7 +3,7 @@ use acir::{
     circuit::{
         Circuit, Opcode,
         brillig::{BrilligInputs, BrilligOutputs},
-        opcodes::{BlockId, FunctionInput},
+        opcodes::{BlockId, ConstantOrWitnessEnum},
     },
     native_types::{Expression, Witness},
 };
@@ -83,14 +83,9 @@ impl CircuitSimulator {
                 }
                 true
             }
-            Opcode::MemoryOp { block_id, op, predicate } => {
+            Opcode::MemoryOp { block_id, op } => {
                 if !self.can_solve_expression(&op.index) {
                     return false;
-                }
-                if let Some(predicate) = predicate {
-                    if !self.can_solve_expression(predicate) {
-                        return false;
-                    }
                 }
                 if op.operation.is_zero() {
                     let w = op.value.to_witness().unwrap();
@@ -160,9 +155,9 @@ impl CircuitSimulator {
         self.solvable_witness.insert(witness);
     }
 
-    pub fn can_solve_function_input<F: AcirField>(&self, input: &FunctionInput<F>) -> bool {
-        if !input.is_constant() {
-            return self.solvable_witness.contains(&input.to_witness());
+    pub fn can_solve_function_input<F: AcirField>(&self, input: &ConstantOrWitnessEnum<F>) -> bool {
+        if let ConstantOrWitnessEnum::Witness(w) = input {
+            return self.solvable_witness.contains(w);
         }
         true
     }
