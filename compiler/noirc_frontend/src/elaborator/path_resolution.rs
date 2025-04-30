@@ -444,7 +444,6 @@ impl Elaborator<'_> {
                     &mut errors,
                     module_def_id,
                     visibility,
-                    true,
                 )
             })
             .unwrap_or_else(|| {
@@ -458,7 +457,6 @@ impl Elaborator<'_> {
                     &mut errors,
                     module_def_id,
                     visibility,
-                    false,
                 )
             });
 
@@ -475,7 +473,6 @@ impl Elaborator<'_> {
         errors: &mut Vec<PathResolutionError>,
         module_def_id: ModuleDefId,
         visibility: crate::ast::ItemVisibility,
-        error_on_private: bool,
     ) -> PathResolutionItem {
         let name = path.last_ident();
         let is_self_type = name.is_self_type_name();
@@ -487,14 +484,13 @@ impl Elaborator<'_> {
             module_def_id,
         );
 
-        if error_on_private
-            && (!(self.self_type_module_id() == Some(current_module_id)
-                || item_in_module_is_visible(
-                    self.def_maps,
-                    importing_module,
-                    current_module_id,
-                    visibility,
-                )))
+        if !(self.self_type_module_id() == Some(current_module_id)
+            || item_in_module_is_visible(
+                self.def_maps,
+                importing_module,
+                current_module_id,
+                visibility,
+            ))
         {
             errors.push(PathResolutionError::Private(name.clone()));
         }
