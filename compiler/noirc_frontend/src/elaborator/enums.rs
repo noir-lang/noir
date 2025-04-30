@@ -686,13 +686,13 @@ impl Elaborator<'_> {
 
                 (actual_type, expected_arg_types, variant_index)
             }
-            PathResolutionItem::ModuleFunction(_)
-            | PathResolutionItem::TypeAliasFunction(_, _, _)
-            | PathResolutionItem::TraitFunction(_, _, _)
-            | PathResolutionItem::Module(_)
+            PathResolutionItem::Module(_)
             | PathResolutionItem::Type(_)
             | PathResolutionItem::TypeAlias(_)
             | PathResolutionItem::Trait(_)
+            | PathResolutionItem::ModuleFunction(_)
+            | PathResolutionItem::TypeAliasFunction(_, _, _)
+            | PathResolutionItem::TraitFunction(_, _, _)
             | PathResolutionItem::UnexpectedTarget(_) => {
                 // This variable refers to an existing item
                 if let Some(name) = name {
