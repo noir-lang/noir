@@ -384,7 +384,11 @@ fn toml_to_workspace(
     let _lock = lock_git_deps().expect("Failed to lock git dependencies cache");
     let workspace = match nargo_toml.config {
         Config::Package { package_config } => {
-            let member = package_config.resolve_to_package(&nargo_toml.root_dir, &mut resolved, assume_default_entry)?;
+            let member = package_config.resolve_to_package(
+                &nargo_toml.root_dir,
+                &mut resolved,
+                assume_default_entry,
+            )?;
             match &package_selection {
                 PackageSelection::Selected(selected_name) if selected_name != &member.name => {
                     return Err(ManifestError::MissingSelectedPackage(member.name));
