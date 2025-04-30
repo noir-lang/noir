@@ -58,10 +58,10 @@ impl Ssa {
     #[tracing::instrument(level = "trace", skip(self))]
     pub(crate) fn prune_dead_parameters(
         mut self,
-        unused_parameters: HashMap<FunctionId, HashMap<BasicBlockId, Vec<ValueId>>>,
+        unused_parameters: &HashMap<FunctionId, HashMap<BasicBlockId, Vec<ValueId>>>,
     ) -> Self {
         for (func_id, unused_parameters) in unused_parameters {
-            let function = self.functions.get_mut(&func_id).expect("ICE: Function should exist");
+            let function = self.functions.get_mut(func_id).expect("ICE: Function should exist");
             function.prune_dead_parameters(unused_parameters);
         }
         self
@@ -70,7 +70,7 @@ impl Ssa {
 
 impl Function {
     /// See [`prune_dead_parameters`][self] module for more information
-    fn prune_dead_parameters(&mut self, unused_params: HashMap<BasicBlockId, Vec<ValueId>>) {
+    fn prune_dead_parameters(&mut self, unused_params: &HashMap<BasicBlockId, Vec<ValueId>>) {
         let cfg = ControlFlowGraph::with_function(self);
         let post_order = PostOrder::with_cfg(&cfg);
 
@@ -171,7 +171,7 @@ mod tests {
         assert_eq!(b1_unused[0].to_u32(), 0);
         assert_eq!(b1_unused[1].to_u32(), 2);
 
-        let ssa = ssa.prune_dead_parameters(die_result.unused_parameters);
+        let ssa = ssa.prune_dead_parameters(&die_result.unused_parameters);
 
         assert_ssa_snapshot!(ssa, @r#"
         brillig(inline) fn test f0 {
@@ -228,7 +228,7 @@ mod tests {
         assert_eq!(b3_unused.len(), 1);
         assert_eq!(b3_unused[0].to_u32(), 2);
 
-        let ssa = ssa.prune_dead_parameters(die_result.unused_parameters);
+        let ssa = ssa.prune_dead_parameters(&die_result.unused_parameters);
 
         // We expect b3 to have no parameters anymore and both predecessors (b1 and b2)
         // should no longer pass any arguments to their terminator (which jumps to b3).
@@ -275,7 +275,7 @@ mod tests {
         let b1_unused = function.get(&Id::test_new(1)).expect("Should have unused parameters");
         assert!(b1_unused.is_empty());
 
-        let ssa = ssa.prune_dead_parameters(die_result.unused_parameters);
+        let ssa = ssa.prune_dead_parameters(&die_result.unused_parameters);
 
         // b0 still has both parameters even though v0 is unused
         // as b0 is the entry block which would also change the function signature.
@@ -362,7 +362,7 @@ mod tests {
             }
         }
 
-        let ssa = ssa.prune_dead_parameters(die_result.unused_parameters);
+        let ssa = ssa.prune_dead_parameters(&die_result.unused_parameters);
 
         let (ssa, die_result) = ssa.dead_instruction_elimination_inner(false, false);
 

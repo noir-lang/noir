@@ -50,6 +50,16 @@ impl Ssa {
             let (new_ssa, result) =
                 self.dead_instruction_elimination_inner(flattened, skip_brillig);
 
+            // Determine whether we have any unused variables
+            let has_unused = result
+                .unused_parameters
+                .values()
+                .any(|block_map| block_map.values().any(|params| !params.is_empty()));
+            // If there are no unused parameters, return early
+            if !has_unused {
+                return new_ssa;
+            }
+
             if let Some(previous) = &previous_unused_params {
                 // If no changes to dead parameters occurred, return early
                 if previous == &result.unused_parameters {
@@ -57,21 +67,9 @@ impl Ssa {
                 }
             }
 
-            previous_unused_params = Some(result.unused_parameters.clone());
-
-            // Determine whether we have any unused variables
-            let has_unused = result
-                .unused_parameters
-                .values()
-                .any(|block_map| block_map.values().any(|params| !params.is_empty()));
-
-            // If there are no unused parameters, return early
-            if !has_unused {
-                return new_ssa;
-            }
-
             // Prune unused parameters and repeat
-            self = new_ssa.prune_dead_parameters(result.unused_parameters);
+            self = new_ssa.prune_dead_parameters(&result.unused_parameters);
+            previous_unused_params = Some(result.unused_parameters);
         }
     }
 
