@@ -4704,7 +4704,7 @@ fn only_one_private_error_when_name_in_types_and_values_namespace_collides() {
 
     fn main() {
         let _ = moo::foo {};
-                     ^^^ foo is private and not currently visibile from the current module
+                     ^^^ foo is private and not visible from the current module
                      ~~~ foo is private
     }
     ";

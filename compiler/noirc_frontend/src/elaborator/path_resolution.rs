@@ -191,27 +191,40 @@ pub(super) enum PathResolutionMode {
     MarkAsUsed,
 }
 
+/// Depenending on where a path appears in the source code it should either resolve to a type
+/// or a value. For example, in `let x: Foo::Bar = Foo::Bar {}` both `Foo::Bar` should resolve to
+/// types, never values. On the other hand, in `Foo::Bar()` `Foo::Bar` should resolve to a value,
+/// typically a function.
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
+pub(super) enum PathResolutionTarget {
+    Type,
+    Value,
+}
+
 impl Elaborator<'_> {
     pub(super) fn resolve_path_or_error(
         &mut self,
         path: Path,
+        target: PathResolutionTarget,
     ) -> Result<PathResolutionItem, ResolverError> {
-        self.resolve_path_or_error_inner(path, PathResolutionMode::MarkAsReferenced)
+        self.resolve_path_or_error_inner(path, target, PathResolutionMode::MarkAsReferenced)
     }
 
     pub(super) fn use_path_or_error(
         &mut self,
         path: Path,
+        target: PathResolutionTarget,
     ) -> Result<PathResolutionItem, ResolverError> {
-        self.resolve_path_or_error_inner(path, PathResolutionMode::MarkAsUsed)
+        self.resolve_path_or_error_inner(path, target, PathResolutionMode::MarkAsUsed)
     }
 
     pub(super) fn resolve_path_or_error_inner(
         &mut self,
         path: Path,
+        target: PathResolutionTarget,
         mode: PathResolutionMode,
     ) -> Result<PathResolutionItem, ResolverError> {
-        let path_resolution = self.resolve_path_inner(path, mode)?;
+        let path_resolution = self.resolve_path_inner(path, target, mode)?;
 
         for error in path_resolution.errors {
             self.push_err(error);
@@ -220,12 +233,20 @@ impl Elaborator<'_> {
         Ok(path_resolution.item)
     }
 
-    pub(super) fn resolve_path(&mut self, path: Path) -> PathResolutionResult {
-        self.resolve_path_inner(path, PathResolutionMode::MarkAsReferenced)
+    pub(super) fn resolve_path(
+        &mut self,
+        path: Path,
+        target: PathResolutionTarget,
+    ) -> PathResolutionResult {
+        self.resolve_path_inner(path, target, PathResolutionMode::MarkAsReferenced)
     }
 
-    pub(super) fn use_path(&mut self, path: Path) -> PathResolutionResult {
-        self.resolve_path_inner(path, PathResolutionMode::MarkAsUsed)
+    pub(super) fn use_path(
+        &mut self,
+        path: Path,
+        target: PathResolutionTarget,
+    ) -> PathResolutionResult {
+        self.resolve_path_inner(path, target, PathResolutionMode::MarkAsUsed)
     }
 
     /// Resolves a path in the current module.
@@ -235,6 +256,7 @@ impl Elaborator<'_> {
     pub(super) fn resolve_path_inner(
         &mut self,
         mut path: Path,
+        target: PathResolutionTarget,
         mode: PathResolutionMode,
     ) -> PathResolutionResult {
         let mut module_id = self.module_id();
@@ -256,7 +278,7 @@ impl Elaborator<'_> {
             }
         }
 
-        self.resolve_path_in_module(path, module_id, intermediate_item, mode)
+        self.resolve_path_in_module(path, module_id, intermediate_item, target, mode)
     }
 
     /// Resolves a path in `current_module`.
@@ -266,6 +288,7 @@ impl Elaborator<'_> {
         path: Path,
         importing_module: ModuleId,
         intermediate_item: IntermediatePathResolutionItem,
+        target: PathResolutionTarget,
         mode: PathResolutionMode,
     ) -> PathResolutionResult {
         let references_tracker = if self.interner.is_in_lsp_mode() {
@@ -275,7 +298,14 @@ impl Elaborator<'_> {
         };
         let (path, module_id, _) =
             resolve_path_kind(path, importing_module, self.def_maps, references_tracker)?;
-        self.resolve_name_in_module(path, module_id, importing_module, intermediate_item, mode)
+        self.resolve_name_in_module(
+            path,
+            module_id,
+            importing_module,
+            intermediate_item,
+            target,
+            mode,
+        )
     }
 
     /// Resolves a Path assuming we are inside `starting_module`.
@@ -286,6 +316,7 @@ impl Elaborator<'_> {
         starting_module: ModuleId,
         importing_module: ModuleId,
         mut intermediate_item: IntermediatePathResolutionItem,
+        target: PathResolutionTarget,
         mode: PathResolutionMode,
     ) -> PathResolutionResult {
         // There is a possibility that the import path is empty. In that case, early return.
@@ -461,6 +492,7 @@ impl Elaborator<'_> {
                 &mut errors,
                 module_def_id,
                 visibility,
+                target == PathResolutionTarget::Type,
             )
         });
 
@@ -473,6 +505,7 @@ impl Elaborator<'_> {
                 &mut errors,
                 module_def_id,
                 visibility,
+                target == PathResolutionTarget::Value,
             )
         });
 
@@ -510,6 +543,7 @@ impl Elaborator<'_> {
         errors: &mut Vec<PathResolutionError>,
         module_def_id: ModuleDefId,
         visibility: crate::ast::ItemVisibility,
+        error_on_private: bool,
     ) -> PathResolutionItem {
         let name = path.last_ident();
         let is_self_type = name.is_self_type_name();
@@ -521,13 +555,14 @@ impl Elaborator<'_> {
             module_def_id,
         );
 
-        if !(self.self_type_module_id() == Some(current_module_id)
-            || item_in_module_is_visible(
-                self.def_maps,
-                importing_module,
-                current_module_id,
-                visibility,
-            ))
+        if error_on_private
+            && (!(self.self_type_module_id() == Some(current_module_id)
+                || item_in_module_is_visible(
+                    self.def_maps,
+                    importing_module,
+                    current_module_id,
+                    visibility,
+                )))
         {
             errors.push(PathResolutionError::Private(name.clone()));
         }

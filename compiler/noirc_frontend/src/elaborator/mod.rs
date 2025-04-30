@@ -70,7 +70,7 @@ use noirc_errors::{Located, Location};
 pub(crate) use options::ElaboratorOptions;
 pub use options::{FrontendOptions, UnstableFeature};
 pub use path_resolution::Turbofish;
-use path_resolution::{PathResolutionMode, PathResolutionTypeItem};
+use path_resolution::{PathResolutionMode, PathResolutionTarget, PathResolutionTypeItem};
 use types::bind_ordered_generics;
 
 use self::traits::check_trait_impl_method_matches_declaration;
@@ -788,7 +788,7 @@ impl<'context> Elaborator<'context> {
     }
 
     pub fn resolve_module_by_path(&mut self, path: Path) -> Option<ModuleId> {
-        match self.resolve_path(path.clone()) {
+        match self.resolve_path(path.clone(), PathResolutionTarget::Type) {
             Ok(resolution) if resolution.errors.is_empty() => {
                 if let Some(PathResolutionTypeItem::Module(module_id)) = resolution.item.as_type() {
                     Some(*module_id)
@@ -801,7 +801,7 @@ impl<'context> Elaborator<'context> {
     }
 
     fn resolve_trait_by_path(&mut self, path: Path) -> Option<TraitId> {
-        let error = match self.resolve_path(path.clone()) {
+        let error = match self.resolve_path(path.clone(), PathResolutionTarget::Type) {
             Ok(resolution) => {
                 if let Some(PathResolutionTypeItem::Trait(trait_id)) = resolution.item.as_type() {
                     for error in resolution.errors {
@@ -870,7 +870,9 @@ impl<'context> Elaborator<'context> {
     ) -> Vec<ResolvedGeneric> {
         let mut added_generics = Vec::new();
 
-        let Ok(item) = self.resolve_path_or_error(bound.trait_path.clone()) else {
+        let Ok(item) =
+            self.resolve_path_or_error(bound.trait_path.clone(), PathResolutionTarget::Type)
+        else {
             return Vec::new();
         };
 
