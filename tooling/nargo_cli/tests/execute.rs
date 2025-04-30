@@ -311,6 +311,123 @@ mod tests {
         }
     }
 
+    fn nargo_expand_execute(test_program_dir: PathBuf) {
+        // First run `nargo execute` on the original code to get the output
+        let mut nargo = Command::cargo_bin("nargo").unwrap();
+        nargo.arg("--program-dir").arg(test_program_dir.clone());
+        nargo.arg("execute").arg("--force").arg("--disable-comptime-printing");
+
+        // Enable enums as an unstable feature
+        nargo.arg("-Zenums");
+
+        // Enable pedantic solving
+        nargo.arg("--pedantic-solving");
+
+        nargo.assert().success();
+
+        let original_output = nargo.output().unwrap();
+        let original_output: String = String::from_utf8(original_output.stdout).unwrap();
+
+        let mut nargo = Command::cargo_bin("nargo").unwrap();
+        nargo.arg("--program-dir").arg(test_program_dir.clone());
+        nargo.arg("expand").arg("--force").arg("--disable-comptime-printing");
+
+        // Enable enums as an unstable feature
+        nargo.arg("-Zenums");
+
+        // Enable pedantic solving
+        nargo.arg("--pedantic-solving");
+
+        nargo.assert().success();
+
+        let expanded_code = nargo.output().unwrap();
+        let expanded_code: String = String::from_utf8(expanded_code.stdout).unwrap();
+
+        // Create a new directory where we'll put the expanded code
+        let temp_dir = tempfile::tempdir().unwrap().into_path();
+
+        // Copy everything from the original directory to the new directory
+        // (because some depdendencies might be there and might be needed for the expanded code to work)
+        copy_dir_all(test_program_dir.clone(), temp_dir.clone()).unwrap();
+
+        // Create a main file for the expanded code
+        fs::write(temp_dir.join("src").join("main.nr"), expanded_code).unwrap();
+
+        // First check if `nargo fmt` works on the expanded code. If not, it means the code is not valid.
+        run_nargo_fmt(temp_dir.clone());
+
+        // Now we can run `nargo execute` on the expanded code
+        let mut nargo = Command::cargo_bin("nargo").unwrap();
+        nargo.arg("--program-dir").arg(temp_dir);
+        nargo.arg("execute").arg("--force").arg("--disable-comptime-printing");
+
+        // Enable enums as an unstable feature
+        nargo.arg("-Zenums");
+
+        // Enable pedantic solving
+        nargo.arg("--pedantic-solving");
+
+        nargo.assert().success();
+
+        let expanded_output = nargo.output().unwrap();
+        let expanded_output: String = String::from_utf8(expanded_output.stdout).unwrap();
+
+        let original_output = remove_noise_lines(original_output);
+        let expanded_output = remove_noise_lines(expanded_output);
+
+        assert_eq!(original_output, expanded_output);
+    }
+
+    fn nargo_expand_compile(test_program_dir: PathBuf) {
+        let mut nargo = Command::cargo_bin("nargo").unwrap();
+        nargo.arg("--program-dir").arg(test_program_dir.clone());
+        nargo.arg("expand").arg("--force").arg("--disable-comptime-printing");
+
+        // Enable enums as an unstable feature
+        nargo.arg("-Zenums");
+
+        // Enable pedantic solving
+        nargo.arg("--pedantic-solving");
+
+        nargo.assert().success();
+
+        let expanded_code = nargo.output().unwrap();
+        let expanded_code: String = String::from_utf8(expanded_code.stdout).unwrap();
+
+        // Create a new directory where we'll put the expanded code
+        let temp_dir = tempfile::tempdir().unwrap().into_path();
+
+        // Copy everything from the original directory to the new directory
+        // (because some depdendencies might be there and might be needed for the expanded code to work)
+        copy_dir_all(test_program_dir.clone(), temp_dir.clone()).unwrap();
+
+        // Create a main file for the expanded code
+        fs::write(temp_dir.join("src").join("main.nr"), expanded_code).unwrap();
+
+        // First check if `nargo fmt` works on the expanded code. If not, it means the code is not valid.
+        run_nargo_fmt(temp_dir.clone());
+
+        // Now we can run `nargo compile` on the expanded code
+        let mut nargo = Command::cargo_bin("nargo").unwrap();
+        nargo.arg("--program-dir").arg(temp_dir);
+        nargo.arg("compile").arg("--force");
+
+        // Enable enums as an unstable feature
+        nargo.arg("-Zenums");
+
+        // Enable pedantic solving
+        nargo.arg("--pedantic-solving");
+
+        nargo.assert().success();
+    }
+
+    fn run_nargo_fmt(target_dir: PathBuf) {
+        let mut nargo = Command::cargo_bin("nargo").unwrap();
+        nargo.arg("--program-dir").arg(target_dir);
+        nargo.arg("fmt");
+        nargo.assert().success();
+    }
+
     fn check_program_artifact(
         prefix: &'static str,
         test_program_dir: &Path,
@@ -373,6 +490,22 @@ mod tests {
         }
 
         None
+    }
+
+    fn copy_dir_all(src: impl AsRef<Path>, dst: impl AsRef<Path>) -> std::io::Result<()> {
+        {
+            fs::create_dir_all(&dst)?;
+            for entry in fs::read_dir(src)? {
+                let entry = entry?;
+                let ty = entry.file_type()?;
+                if ty.is_dir() {
+                    copy_dir_all(entry.path(), dst.as_ref().join(entry.file_name()))?;
+                } else {
+                    fs::copy(entry.path(), dst.as_ref().join(entry.file_name()))?;
+                }
+            }
+            Ok(())
+        }
     }
 
     // include tests generated by `build.rs`
