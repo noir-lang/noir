@@ -86,7 +86,7 @@ pub struct Turbofish {
 }
 
 /// Any item that can appear before the last segment in a path.
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 enum IntermediatePathResolutionItem {
     SelfType,
     Module,
@@ -446,7 +446,7 @@ impl Elaborator<'_> {
                 self.per_ns_item_to_path_resolution_item(
                     path.clone(),
                     importing_module,
-                    intermediate_item.clone(),
+                    intermediate_item,
                     current_module_id,
                     &mut errors,
                     module_def_id,
