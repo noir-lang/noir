@@ -30,14 +30,9 @@ expression: artifact
       }
     }
   },
-  "bytecode": "H4sIAAAAAAAA/+1XUU7DMAx1ugYoEx/AQci2ju0LKjHGCfiDj4rRc/ToqMJm7ms6VVsikIollAYnz8/PddIZ+jbDf42lPCbUNVlT8OhOs1lALBeTp4nE84eofjbUL3zFY0btIjX+ScCEMw+nUPhrl68zT34B+S8yhRkBfy74aRx8d84427qNTxD3itrNq/eITzfyC/su2C/P1/ycAV6MumtOoXW79fBPVG6NPdV7PQLFnQv2Jjz2QrCfw2PPplz/O6h/pL7J5Z1MqWvisyq2Ad8ZdevqOy8nMNc5NfkuFS6uo5Fp8ahwcd3YtHhVuLhubFq8K1xcJzal/bma1m2cgv/vTrDV2jmJN2F8S13uOr6F9TnPL4G/aFwcybNalbNqUVblstzt8o/yBvAbS5RO+pzVOul5372Fd3xxJOe23ecYy1L33TY9PAJ/ZDsDsVOPFjo+cn0AnrG+zbDOOtaQOjcmdznWFfsea5H0+Kxnr3znoE5bHkUnC3gFz92J5tPJQuz/++TvaZEc0MJ4+A/VYuh9MqR/5N329Y/p2evrHzz39N5N3fbJ2jceI9fN2z8Sa6hOksOxOuHvNQqXX45xsQaH7qVP4PdbZ/0X7GBLOEETAAA=",
-  "debug_symbols": "pdXdjqpADAfwd5lrLqbz2foqm41BxQ0JQcPKSU4M7346tHjcC5PNeMPPEf8tDDXczak7zF/7fjxfvs3u424OUz8M/dd+uBzbW38Z+du7seUAaHbQGKAVZwUQnOCFIESz80wSsoACrXgrgMBVAuOFIEQhCVlAgavExgQrgOAELwQhrkReJYZXmUlCFlCglWQFEModccPEQeA6iZPAhVJWUSUxl93hXAbVqV4NalSTWuohiyqJaFVQnepVzhc4TkxJW5ZEsiqopTs/ICrdHVu68/5TVlElEWwp4JelMdtY7G9T15WpeJoTnp5rO3XjzezGeRga86cd5vVH39d2XL21E5/lS+jGE8sFz/3QlU9L8z9tX0chooYB4yMef5+nqHnn4VXevc5HyppPYCv6uwBb/0Q1+Uya9+Aq8v5x/8HaN/O5Ih9w279A4c08VuQjbPsfoeb6AdJjACG/XQGhqgKFrYKreoo5Oy2QM72XR1+Tp6R5tDVTjHb7F6CvegY2bmMAFn/O4Sev2mM//XgDLqXW1LeHodPleR6PT2dvf6/bme0Nep0ux+40T12p9PQa5eNHyE10n0vp9g8=",
-  "file_map": {
-    "50": {
-      "source": "global ONE: Field = 1;\nglobal TWO: Field = 2;\nglobal THREE: Field = 3;\n\nfn main(x: Field, y: pub Field) {\n    // Safety: testing context\n    unsafe {\n        entry_point_no_global(x, y);\n        entry_point_inner_func_globals(x, y);\n        entry_point_one_global(x, y);\n        entry_point_one_diff_global(x, y);\n    }\n}\n\nunconstrained fn entry_point_no_global(x: Field, y: Field) {\n    assert(x + y != 100);\n}\n\nunconstrained fn entry_point_one_global(x: Field, y: Field) {\n    let z = TWO + x + y;\n    assert(z == 3);\n}\n\nunconstrained fn entry_point_inner_func_globals(x: Field, y: Field) {\n    wrapper(x, y);\n}\n\n// Test that we duplicate Brillig entry points called within\n// another entry point's inner calls\nunconstrained fn wrapper(x: Field, y: Field) {\n    let z = ONE + x + y;\n    assert(z == 2);\n    entry_point_one_global(x, y);\n    // Test that we handle repeated entry point calls\n    // `entry_point_one_diff_global` should be duplicated and the duplicated function\n    // should use the globals from `entry_point_inner_func_globals`\n    entry_point_one_diff_global(y, x);\n}\n\nunconstrained fn entry_point_one_diff_global(x: Field, y: Field) {\n    let z = THREE + x + y;\n    assert(z == 4);\n}\n",
-      "path": ""
-    }
-  },
+  "bytecode": "H4sIAAAAAAAA/7WTUQ6CMAyGO5nRaTRGo+cogsKjD3qQRcI5OLohttrN+UTXhLRLx7e/7WbgbYa+0Sz5Gfwa77mRx2lWKrIwp06TSedHqIwN/G/8ibyDcEhjvlAs2CU0afFbrK8uUZ+i/soJZgb+mfk2Dx8XxLkPIR+iczcQPl75D+fkQ35Qbkl5jrcUu4iXY+5Sk3bfDgn9fNaaat2JNd9DO+jraVpE1lEQfw7fOUqzIi/3H2m9EvWwtxN09o0v+8r3/uK7rn76fcSHqG8v9KPWMikGAAA=",
+  "debug_symbols": "XY7BCoRACIbfxfMcag976FUiwiaLAXEGmwmW6N3XiQ1iL+rvp/4eMNNU1jHIEjfo+gMmDcxhHTl6zCGKdY/TwS3HrETWgge3rYRKkqGTwuxgRy7X0JZQrpxRjTYOSGbLdnAJTLU6BxPog/477qgBJ6afXIr4B82fdJP746TR01yU6qXKoKmhtdi3b/dqh7O6fQE=",
+  "file_map": {},
   "names": [
     "main"
   ],

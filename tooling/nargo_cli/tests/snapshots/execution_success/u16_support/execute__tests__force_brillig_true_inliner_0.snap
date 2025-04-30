@@ -19,24 +19,15 @@ expression: artifact
     ],
     "return_type": null,
     "error_types": {
-      "14514982005979867414": {
-        "error_kind": "string",
-        "string": "attempt to bit-shift with overflow"
-      },
       "17843811134343075018": {
         "error_kind": "string",
         "string": "Stack too deep"
       }
     }
   },
-  "bytecode": "H4sIAAAAAAAA/71Vu27DMAykX22VIB1aoEs7d+kiQ0lso4uH/ogb19+RTy8MkAhzYRwgkcNFskQd70RSTuhgCY85fJPh0/Lob7MyIpY3iU6Z+Hzz6HhM1X4WUayDuDHxa7/eOENfRP7BMeac9yOYM+D7R8b52R/wUQupUfysMyue6zoTnyfel/kzzx2cmSP/M+bHvxr8JdaStb6B1pm4hBUd50yb7OmHTHNGQwzNe9T0oXDRj5R+6b98H19zVXsv8TLGL8jWn6t97f/O3wvgL3fVXslzqLpyCN3Qbbq+X++6F8Af7VydZHTa8wnMxcfqVVnPzqxrnATWFzy3enI0R3YdtVfe07GVXvAkTwVoJohv8SGK9/4WwOeTxzFf9QSHNB6HGu8kVzlKjTtBzl/A80GdifkWYo1jLHwbU+PesOazC5oT0Cz+HjQXd9RcQGzs3Uixh6netd55i0/EOvW35qwCnvkdcyaxlhT/X7BrtkMTwm8Zmv6vKbeX/gX/i+BE2IEMAAA=",
-  "debug_symbols": "pdPdjkQwGAbge+lxD/qjilsRkaImTZqSDptsxL3vx8esOdhkY048qt4XjS6ks838qF3ohycpyoU00XnvHrUfWjO5IcDVhbDtwBUpOCU8RTSSIfmOYAiMBCWSIRwRpJCARBJEISmiEehMgHwnYQhHBAItCoCWFFBIimgEWjSQ7yhoyQCOCEQi0JKtKyXnN9dTtHb75MsiwNKMJtowkSLM3lPyZfy83/QcTdidTIRZRokNHQiFvfN2O1vpb5r9HRXiyEr5Cqt/p2X+iuf5nbzOjnzC2I18wuWZF3feP5H6zCv1WT7NbuQVP9dP3Xr/a/79+RWMTOvi26Zat6boTOPtMezn0F5mp+/xnDk35RiH1nZztFvTZWfCsYSfR+gKtiL84qVKqcqqdXv0Dw==",
-  "file_map": {
-    "50": {
-      "source": "fn main(x: u16) {\n    test_u16(x);\n    // Safety: testing context\n    unsafe {\n        test_u16_unconstrained(x);\n    }\n}\n\nunconstrained fn test_u16_unconstrained(x: u16) {\n    test_u16(x)\n}\n\nfn test_u16(x: u16) {\n    let t1: u16 = 1234;\n    let t2: u16 = 4321;\n    let t = t1 + t2;\n\n    let t4 = t - t2;\n    assert(t4 == t1);\n\n    let mut small_int = x as u16;\n    let shift = small_int << (x as u8);\n    assert(shift == 8);\n    assert(shift >> (x as u8) == small_int);\n    assert(shift >> 15 == 0);\n    assert(shift << 15 == 0);\n}\n",
-      "path": ""
-    }
-  },
+  "bytecode": "H4sIAAAAAAAA/7VSMQ7CMAxMaRAEBEIgeIertmpHBj4SUeUdfTrLWbGsiKWOl7Nl53IXp3E5GqBXtSvMvIG0LTpDLioK/Rc88wIG4E70W0OzQd1ryT/TMIaCP0P9fQBnzfdhzgr8dADPZ8382osTyHOlMxfk8p/xzBF9zq/IgzpTY/8V90OPgn6+6wyvN1Hzf/SrvZ5pJmIdLfj3Lu9Ohhd9Of9EfRJ+GP0GnWmKXepjimNcluEb74rfqXf7AUEPQpyFBQAA",
+  "debug_symbols": "XY7BCoRACIbfxfMcag976FUiwiaLAXEGmwmW6N3XiQ1iL+rvp/4eMNNU1jHIEjfo+gMmDcxhHTl6zCGKdY/TwS3HrETWgge3rYRKkqGTwuxgRy7X0JZQrpxRjTYOSGbLdnAJTLU6BxPog/477qgBJ6afXIr4B82fdJP746TR01yU6qXKoKmhtdi3b/dqh7O6fQE=",
+  "file_map": {},
   "names": [
     "main"
   ],

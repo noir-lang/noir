@@ -25,8 +25,8 @@ expression: artifact
     "return_type": null,
     "error_types": {}
   },
-  "bytecode": "H4sIAAAAAAAA/8VUUQ6DIAytoNn2Pb0HFVD48yoz0/sfYVsGs6lmPyvZSwgNJY/XR0HDG+o5qhQ3KVawoSJ5uveDKc3mN+CLuCaHAot3B6f9+mBdCWujXNYMzi1jv6DFm+njHLxxfh4CBvTB3/tg7RJcGOMcRxPR2QVXH+2ayLScrr5JteZ6NbuwGgpeWEnDlaDhtZwuQ5uUvxIe07yGrVGPmryUjyDoYwWyPlJvihWvhQ2gv40UL3xpAAluKT8V/P8h5bULmzuSF/xhMfO3ZfjNCfboSNyyOqkXk5CGzJd7u4E9FMvlvWemr5LXh1yLPjgr45rmlqxlPx9fZ/Pf8wgAAA==",
-  "debug_symbols": "3ZLBCoMwDIbfJeceqtPJfJUhUjVKoVSp7WCI775YrNPDwMMOY5e2yd8vJD+ZoMHKdaXUbT9Cfp+gMlIp2ZWqr4WVvabsNDMIYWkNIqVgpxM1CIPaQq6dUgweQjn/aRyE9rcVhlTOAHVDNxVspcLlNbM3zT+jyXVls2yDU6ILikQtzaFf4JBH81LMSFEpXGdona53I9nnEJQw9GD6GhtncCnntaW9H7UkjtMVji/8YMpZPtr45JypMYOIzv+39hasvfDo5L55a761dcX8Ag==",
+  "bytecode": "H4sIAAAAAAAA/8WUUQ6DIAyGK2i2PU/vQQUU3rzKzPT+R1jMaGzQ7WUl+19KWvLbfqloeKuCXdu5/pDPc6Ttvj7JqxSnFM1vQu5lzeDcMvYLWnyYPs7BG+fnIWBAH/yzD9YuwYUxznE0EZ1dcPXRrslMy/XVN2lWmlcnThXjc+AmCaUUcCUIvJbry/AlVWz+s4XldQ37op4teSmOIMixAlmOnE2x4bUwAP7aSPnClwWQ8JbiqeD/PxLlblnsWF3whUXyb8v4mwsc1bFzm83JWUxCPZAf7XYDR6msRnevWX+VfH+Y96JPvkW6p9iyHPF8ATbLKzF2CAAA",
+  "debug_symbols": "3ZDBCoMwDIbfJecerJuH+SpDpGqUQqlSW2FI332x2OnGBhsMBrs0Tf58afPP0GDlulLqth8hP89QGamU7ErV18LKXlN19gxiWlqDSCXY6UQNwqC2kGunFINJKBeaxkHoEK0wpCYMUDcUaWArFS43X1AiamkeX5yEkaJSuKat0/VOtZchKvHHg+lrbJzBZVLQPPvBPmyjk9dommYrnB42PPuA5zf+eMc/9RMSamTA6fx/a0/R2kPC37OGB2v4l6wp/BU=",
   "file_map": {
     "50": {
       "source": "fn main(x: Field, y: pub Field) {\n    let z = func_with_nested_foo_call(x, y);\n    let z2 = func_with_nested_foo_call(x, y);\n    assert(z == z2);\n}\n\n#[fold]\nfn func_with_nested_foo_call(x: Field, y: Field) -> Field {\n    foo(x + 2, y)\n}\n\n#[fold]\nfn foo(x: Field, y: Field) -> Field {\n    assert(x != y);\n    x\n}\n",

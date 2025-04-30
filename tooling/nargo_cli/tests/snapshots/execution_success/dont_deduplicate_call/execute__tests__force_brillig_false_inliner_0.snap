@@ -30,8 +30,8 @@ expression: artifact
       }
     }
   },
-  "bytecode": "H4sIAAAAAAAA/91UwW7DIAx1mkRbVm2H7rB9BgQIcMth+xCyhO/op6/VjLCsrocWLrWEgBA/Pz+DG/iz9jR6XDe4b8joyBm39G3GWdxnsiCWoHx3lH9p0k1h0qkAuwcqQFubeEuwlJi03uy4SSWDGP3ijNBmmZx00jizjk6pzWln/eKt8FKrTUbjVSTEO3JzOGe4UohPnAfmnwo7F8p3YHFL4juhp+FCfgX5qwHyJa+lT8KsgC+eEOfrmPF5Lmd7hdxJgfk843lavxGfs30T7ORfU7dT3U1l3eQ7/K/VHnU4XMkVCnLhtaGx9pDfcHcsr4V1uUG2iN/DhUZJ4vfs/w/cvzB9Uv+ab+QZbZBRhRhMWFf9Ew4MH5hOv5DurWdKCAAA",
-  "debug_symbols": "nZFLCoQwDIbvknUX1qqIVxGRqlEKpUptBwbx7hOLRV0MDLNJmseXvyQbDNj5qVVmnFeo6g06q7RWU6vnXjo1G8puO4MYts4iUgpudaIWadE4qIzXmsFLah+a1kWa4J20VE0YoBnI08BRaTxeO7vo5DvK0+yEubjw/He+iOK8KP7hSxH5Mn/wDUWyV/axMeDUyCANVkCVMsigEvshYJXsNJ57Hb3pb2t27yVW4iEWO/c4eIuHQJidBAGyNS9ZKpr9+MQH",
+  "bytecode": "H4sIAAAAAAAA/7VUQW7EIAwk2VRtumoP20P7DBwgmFsO7UNIE96xT++uahTLSnvYhZEQJMbDeCxo1C/ayzjQuqF1w0bHYhL530Szvg9QkEtzvW1t4S3jMnq0dvXDCgaiHsKMTls3jwgIDt0yoDErWvRhDl4HsGaF5IJJTHi3I3yvATL2QXMv8nNjp0L19uLckvyo7djv1FdQv+mJs6Y/mbMCv34kns/zxi9rueJFbRdZiZwniuf1K8u54otx5/yavl367ir7Bm/qb6+O5MPpn1pVQS2yN/yso9rucHcu74XH7YE8EP8D84KjY3G+/52+n4U/+f2abtSZfIRkYoouLov9jifBr4RPP6kcaFrJBgAA",
+  "debug_symbols": "jZDdCoQgEIXfZa696IciepWIsJpCEBXThSV89x1l3a2Lhb1xnDnzHfGcsOLs90moTR/QDyfMVkgp9knqhTuhFU3PwCC3k7OINIKLTpThFpWDXnkpGTy49GnpMFyl6rgltWCAaqVKhpuQGG+BfeniN1q2GS7b9oM3//NdnfmuufEjdXwR9vZjKGmRQQV9FaKpFXyW+M5i82q5ROOeJis5PGP1gqu3GE2TX5FM6RzKjlX1GOLDLw==",
   "file_map": {
     "50": {
       "source": "fn main(x: Field, active: bool) {\n    let mut x1 = false;\n    // Safety:)\n    unsafe {\n        if active {\n            x1 = foo(x);\n        }\n\n        let x2 = foo(x);\n        assert(x2);\n    }\n}\n\nunconstrained fn foo(_x: Field) -> bool {\n    true\n}\n",

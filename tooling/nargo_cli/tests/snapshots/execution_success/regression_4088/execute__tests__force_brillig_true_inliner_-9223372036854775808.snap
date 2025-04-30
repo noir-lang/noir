@@ -32,14 +32,9 @@ expression: artifact
       }
     }
   },
-  "bytecode": "H4sIAAAAAAAA/71UzU7DMAx2m0wQoAKBuMAbcPJop+3YAy8SMfU59ugQyabGdTmMeJaqNIrz5fv818BsDa1R7cHwGWnF/9m2IhaaRP8y9hloTbS24jxUFJvUuzXxDzjskqGvIv8+EaZnfBjTAR+vCOfjNONrLcU62ssa4jvX398dzP8d/Sd1xyO3jrHHJ4M/v3VLWp+VVicufQe/8yGNz+SQkpy1aQzJu2h6FbjaD4R+7q14qq95f0Dk9wLhb8DWH8W59H+h/Y3iz7Eaz+Q57fN26vOUd/l4HD7zo8IvtlYnnKtW+PI9515/t2oiGLEJIm6es62BZU0HWManVbGLBtcHWO8BzzmEZ/SmjKc2qzfZr9TRm8DVfmwXnk0/eYxKx9rsvIdlnUfFVeoZ6/BEzWNj8GjUGfv2il/0iSXqWSLfKnn9Ao3o9y+dCgAA",
-  "debug_symbols": "pdLbaoQwEAbgd8m1FzEHNb7KskjUuARClKwWivjunWS0awtC2d7kM8Z/xoGspDft8misH8YnqW8raYN1zj4aN3Z6tqOHtyuhcckFqfOM5BIpkBKpEJVgsOOASnCK5AhDOCIQqCmAAimRClEJQRHISUAgEoFcAZRIhaiEhFyxbRk5BmrmYEyc5zQhzD3pYPxMar84l5EP7Zb00XPSPjnrAKc0I8b3IBQcrDPxacteaXodFYrvYUnld1z+PU/FnhfsMs+u86ws9zyn9J3+nB39pXgj/+rPlPxX/vf/32GnOxt+3NktVgpWt87s22Hx3el0/pyOk+POT2HsTL8EEyudLj6sN5ZnrLhvsdsX",
-  "file_map": {
-    "50": {
-      "source": "trait Serialize<let N: u32> {\n    fn serialize(self) -> [Field; N];\n}\n\nstruct ValueNote {\n    value: Field,\n}\n\nimpl Serialize<1> for ValueNote {\n    fn serialize(self) -> [Field; 1] {\n        [self.value]\n    }\n}\n\nfn check<let N: u32>(serialized_note: [Field; N]) {\n    assert(serialized_note[0] == 0);\n}\n\nfn oopsie<Note, let N: u32>(note: Note)\nwhere\n    Note: Serialize<N>,\n{\n    let serialized_note = Note::serialize(note);\n\n    check(serialized_note)\n}\n\nfn main(mut note: ValueNote) {\n    oopsie(note);\n}\n",
-      "path": ""
-    }
-  },
+  "bytecode": "H4sIAAAAAAAA/7VS7QrCMAzsXEWrDsGP98jYxvbTH75IcfQ59ugqXGgIZX/WBso1NL3epalMjApoVW4SNS8gbYs2Ixclha4F1zyBDrgT53VGs069m5N/on5wCX8Z9XcOnCX7w5wF+OkAnvcS+bWXfzTI5QzxneNvXUzcN9g7dafE3xbsPd0T+vmtM7xeRc6zZpf8esaJiHXU4N+b+D8yrDiX9Q/kJ+GH0W7QGUbfhs4HP/h57j/+pviN6tsXcii9b2EFAAA=",
+  "debug_symbols": "XY7BCoRACIbfxfMcamEvvUpE2GQxIM5gM8ESvfs6sUHsRf391N8DZprKOgZZ4gZdf8CkgTmsI0ePOUSx7nE6uOWYlcha8OC2lVBJMnRSmB3syOUa2hLKlTOq0cYByWzZDi6BqVbnYAJ90H/HHTXgxPSTSxH/oPmTbnJ/nDR6motSvVQZNDW0Fvv27V7NcFa3Lw==",
+  "file_map": {},
   "names": [
     "main"
   ],

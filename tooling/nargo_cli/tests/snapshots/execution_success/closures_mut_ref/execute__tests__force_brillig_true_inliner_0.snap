@@ -23,8 +23,8 @@ expression: artifact
       }
     }
   },
-  "bytecode": "H4sIAAAAAAAA/7VUzQ6CMAyu/EQnclFPXjQ+wRAIHDn4IouE5+DRZUmbLaV60O1LyNasfP2+drABhw2uGYtByBlw1f+hCsilRaHfQDl3XBWuiXeeBjSrWN2Q/L1uWiX4C6i/VsgZsz/EGYFfb5HnOTt+7sWixNi/Q/TObnkO4PYl7hV7J8ZsI/ZenwT9VKtArxfmNfH6E0hH5XsDT4uki5/lsL4/CTuj3DPzkkXq69HjBVYr5p1Z8CiFfgHT4yMVcijPzv+G+1LIIxTg/qPZHN5X12tN9VLkz2Gt3a+fs/wrxnumn2Yz/Khz6kw11WYyrRnH5mX47C0+fVM2fgPNhPc6jQcAAA==",
-  "debug_symbols": "nZJNjoQgEEbvUmsW8qPOeJVOx6Bih4SgoWGSieHuU4j26MJe9IYnFu8rCCwwqC48Wm3H6QnNbYHOaWP0ozVTL72eLP5doEgDFdAwArTMqKDhiDrjK+N7BcP1AkEzWAbPwBQRI4G9QeudUin/0BH3MUunrIfGBmMI/EgT1kXPWdqVXjqsFgSUHZAYOGqj0lck/3ZxrVLBNpmW4qWXZ59e+1W96XV5Zb/r/tJpzT/wGduPzjg7+XecyV670w3GlOS07IzapmOw/aHqf+e9sr+A2U29GoJTKenwDHC8sYpweo+p2x8=",
+  "bytecode": "H4sIAAAAAAAA/7VUSQ7CMAx0N0EovbBc4BOu2qo99sBHIqq8I0+HSo5imcCBJpYqJ4oznplaycBHRrkUewjUzJRxW7QRsTBI9Fe4mjtlRTln50VEsUr0jYk/YT+ogL6I/DtFmCn9cZgJ8HFHOA/r8aWWNRra8xlyd/bv7wh+3dBaiTsp/m1C7/Ec4O961aT1KrTmzJ9IPFquDRiXEC95VsHn/OTizNVehJYyka8nhguiVw3+zSlt/P7jhOj6Ftb7wL0F0b8S9TfaH77omP/kaUbdmk4bPehl6Z9a+rQGn78XYLsV6KkGAAA=",
+  "debug_symbols": "fZHLDoMgEEX/ZdYsxPpo/ZWmMaijISFoEJo0hn/v4Ku6sJu5DMO5N2EmaLByXSl1249QPCeojFRKdqXqa2Flr+l2gigUnkARM+DpIhkUN5J8kfsiDxLvGWx0aQ1igA92FDIIg9pCoZ1SDN5CufnROAg9qxWGphED1A0pGbZSYTh59qOja5Qn8QrzNNnx9Mzzaz7LVzxPr+h/6TvO89uJf1EnamlO3+uDk5GiUri2rdP1YWo/wzbZ1jOYvsbGGQxOhx1RfcacxdnLh7Qv",
   "file_map": {
     "50": {
       "source": "fn main(mut x: Field) {\n    let one = 1;\n    let add1 = |z| { *z = *z + one; };\n\n    let two = 2;\n    let add2 = |z| { *z = *z + two; };\n\n    add1(&mut x);\n    assert(x == 1);\n\n    add2(&mut x);\n    assert(x == 3);\n\n    issue_2120();\n}\n// https://github.com/noir-lang/noir/issues/2120\nfn issue_2120() {\n    let x1 = &mut 42;\n    let set_x1 = |y| { *x1 = y; };\n\n    assert(*x1 == 42);\n    set_x1(44);\n    assert(*x1 == 44);\n    set_x1(*x1);\n    assert(*x1 == 44);\n}\n",
