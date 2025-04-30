@@ -176,6 +176,7 @@ impl<'a> Lexer<'a> {
             Some('#') => self.eat_attribute_start(),
             Some(ch)
                 if ch.is_whitespace()
+                    // These aren't unicode whitespace but look like '' so they are also misleading
                     || ch == '\u{180E}'
                     || ch == '\u{200B}'
                     || ch == '\u{200C}'
