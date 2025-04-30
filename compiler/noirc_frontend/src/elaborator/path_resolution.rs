@@ -21,6 +21,9 @@ pub(crate) struct PathResolution {
     pub(crate) errors: Vec<PathResolutionError>,
 }
 
+/// All possible items that result from resolving a Path.
+/// Note that this item doesn't include the last turbofish in a Path,
+/// only intermediate ones, if any.
 #[derive(Debug)]
 pub(crate) enum PathResolutionItem {
     // These are types
