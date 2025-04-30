@@ -40,9 +40,39 @@ impl Ssa {
         self.dead_instruction_elimination_with_pruning(true, true)
     }
 
-    fn dead_instruction_elimination_with_pruning(self, flattened: bool, skip_brillig: bool) -> Ssa {
-        let (ssa, result) = self.dead_instruction_elimination_inner(flattened, skip_brillig);
-        ssa.prune_dead_parameters(result.unused_parameters)
+    fn dead_instruction_elimination_with_pruning(
+        mut self,
+        flattened: bool,
+        skip_brillig: bool,
+    ) -> Ssa {
+        let mut previous_unused_params = None;
+        loop {
+            let (new_ssa, result) =
+                self.dead_instruction_elimination_inner(flattened, skip_brillig);
+
+            if let Some(previous) = &previous_unused_params {
+                // If no changes to dead parameters occurred, return early
+                if previous == &result.unused_parameters {
+                    return new_ssa;
+                }
+            }
+
+            previous_unused_params = Some(result.unused_parameters.clone());
+
+            // Determine whether we have any unused variables
+            let has_unused = result
+                .unused_parameters
+                .values()
+                .any(|block_map| block_map.values().any(|params| !params.is_empty()));
+
+            // If there are no unused parameters, return early
+            if !has_unused {
+                return new_ssa;
+            }
+
+            // Prune unused parameters and repeat
+            self = new_ssa.prune_dead_parameters(result.unused_parameters);
+        }
     }
 
     fn dead_instruction_elimination_inner(
@@ -268,6 +298,7 @@ impl Context {
             if should_keep {
                 self.mark_used_instruction_results(&function.dfg, value);
             }
+            // self.mark_used_instruction_results(&function.dfg, value);
         });
     }
 
@@ -588,7 +619,7 @@ mod test {
                 store Field 1 at v8
                 v9 = load v8 -> Field
                 v10 = add v9, Field 1
-                v11 = add v9, Field 2
+                v11 = add v1, Field 2
                 v13 = add v9, Field 3
                 v14 = add v13, v13
                 call assert_constant(v10)
@@ -608,7 +639,7 @@ mod test {
             store Field 1 at v4
             v6 = load v4 -> Field
             v7 = add v6, Field 1
-            v8 = add v6, Field 2
+            v8 = add v1, Field 2
             call assert_constant(v7)
             return v8
         }

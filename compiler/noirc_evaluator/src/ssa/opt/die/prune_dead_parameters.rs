@@ -130,6 +130,8 @@ impl Function {
                     }
                 }
             }
+
+            // parameter_keep_list.insert(block, keep_list);
         }
     }
 }
@@ -239,8 +241,6 @@ mod tests {
             v5 = array_get v3, index u32 3 -> u1
             jmpif v5 then: b1, else: b2
           b1():
-            v7 = mul u32 601072115, u32 2825334515
-            v8 = cast v7 as u64
             jmp b3()
           b2():
             jmp b3()
@@ -338,6 +338,7 @@ mod tests {
         }
         "#;
         let ssa = Ssa::from_str(src).unwrap();
+
         // DIE is necessary to fetch the block parameters liveness information
         let (ssa, die_result) = ssa.dead_instruction_elimination_inner(false, false);
 
@@ -363,6 +364,48 @@ mod tests {
 
         let ssa = ssa.prune_dead_parameters(die_result.unused_parameters);
 
+        let (ssa, die_result) = ssa.dead_instruction_elimination_inner(false, false);
+
+        assert!(die_result.unused_parameters.len() == 1);
+        let function = die_result
+            .unused_parameters
+            .get(&Id::test_new(0))
+            .expect("Should have unused parameters");
+        for (_, unused_params) in function {
+            assert!(unused_params.is_empty());
+        }
+
+        assert_ssa_snapshot!(ssa, @r#"
+        brillig(inline) predicate_pure fn main f0 {
+          b0(v0: i16):
+            v2 = lt i16 3, v0
+            jmpif v2 then: b1, else: b2
+          b1():
+            v4 = lt i16 4, v0
+            jmpif v4 then: b3, else: b4
+          b2():
+            jmp b5()
+          b3():
+            jmp b6()
+          b4():
+            jmp b6()
+          b5():
+            v6 = lt i16 5, v0
+            jmpif v6 then: b7, else: b8
+          b6():
+            jmp b5()
+          b7():
+            jmp b9()
+          b8():
+            jmp b9()
+          b9():
+            return
+        }
+        "#);
+
+        // Now check that calling the DIE -> parameter pruning feedback loop produces the same result
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.dead_instruction_elimination_with_pruning(false, false);
         assert_ssa_snapshot!(ssa, @r#"
         brillig(inline) predicate_pure fn main f0 {
           b0(v0: i16):
