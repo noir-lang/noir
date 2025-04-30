@@ -4676,7 +4676,7 @@ fn attempt_to_divide_by_zero_at_comptime() {
 
 #[named]
 #[test]
-fn types_and_values_namespace() {
+fn same_name_in_types_and_values_namespace_works() {
     let src = "
     struct foo {}
 
@@ -4690,4 +4690,23 @@ fn types_and_values_namespace() {
     }
     ";
     assert_no_errors!(src);
+}
+
+#[named]
+#[test]
+fn only_one_private_error_when_name_in_types_and_values_namespace_collides() {
+    let src = "
+    mod moo {
+        struct foo {}
+
+        fn foo() {}
+    }
+
+    fn main() {
+        let _ = moo::foo {};
+                     ^^^ foo is private and not currently visibile from the current module
+                     ~~~ foo is private
+    }
+    ";
+    check_errors!(src);
 }
