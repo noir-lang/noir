@@ -165,14 +165,17 @@ impl Elaborator<'_> {
     ) -> Option<Shared<DataType>> {
         let location = path.location;
         match self.resolve_path_or_error_inner(path, PathResolutionTarget::Type, mode) {
-            Ok(PathResolutionItem::Type(struct_id)) => Some(self.get_type(struct_id)),
-            Ok(other) => {
-                self.push_err(ResolverError::Expected {
-                    expected: "type",
-                    got: other.description(),
-                    location,
-                });
-                None
+            Ok(item) => {
+                if let PathResolutionItem::Type(struct_id) = item {
+                    Some(self.get_type(struct_id))
+                } else {
+                    self.push_err(ResolverError::Expected {
+                        expected: "type",
+                        got: item.description(),
+                        location,
+                    });
+                    None
+                }
             }
             Err(err) => {
                 self.push_err(err);

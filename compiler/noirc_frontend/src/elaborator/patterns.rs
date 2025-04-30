@@ -680,12 +680,12 @@ impl Elaborator<'_> {
             }
             PathResolutionItem::Method(_, None, _)
             | PathResolutionItem::TraitFunction(_, None, _)
-            | PathResolutionItem::ModuleFunction(..)
-            | PathResolutionItem::Global(..)
             | PathResolutionItem::Module(_)
             | PathResolutionItem::Type(_)
             | PathResolutionItem::TypeAlias(_)
             | PathResolutionItem::Trait(_)
+            | PathResolutionItem::Global(..)
+            | PathResolutionItem::ModuleFunction(..)
             | PathResolutionItem::UnexpectedTarget(_) => Vec::new(),
         }
     }
