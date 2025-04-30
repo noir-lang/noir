@@ -159,7 +159,7 @@ impl Value {
     /// side-effects are disabled.
     pub(crate) fn uninitialized(typ: &Type, id: ValueId) -> Value {
         match typ {
-            Type::Numeric(typ) => Self::from_constant(FieldElement::zero(), *typ),
+            Type::Numeric(typ) => Value::Numeric(NumericValue::zero(*typ)),
             Type::Reference(element_type) => Self::reference(id, element_type.clone()),
             Type::Array(element_types, length) => {
                 let first_elements =
@@ -169,7 +169,7 @@ impl Value {
                 Self::array(elements, element_types.to_vec())
             }
             Type::Slice(element_types) => Self::slice(Vec::new(), element_types.clone()),
-            Type::Function => todo!(),
+            Type::Function => Value::ForeignFunction("uninitialized!".to_string()),
         }
     }
 
@@ -200,6 +200,10 @@ impl NumericValue {
             NumericValue::I32(_) => NumericType::signed(32),
             NumericValue::I64(_) => NumericType::signed(64),
         }
+    }
+
+    pub(crate) fn zero(typ: NumericType) -> Self {
+        Self::from_constant(FieldElement::zero(), typ)
     }
 
     pub(crate) fn as_field(&self) -> Option<FieldElement> {

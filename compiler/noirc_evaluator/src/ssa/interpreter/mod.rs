@@ -772,21 +772,22 @@ impl Interpreter<'_> {
                 }
             }
             BinaryOp::Shr => {
+                let zero = || NumericValue::zero(rhs.get_type());
                 let rhs = rhs.as_u32().expect("Expected rhs of shr to be a u32");
-                let overflow_msg = "Overflow when evaluating `shr`, `rhs` is too large";
+
                 use NumericValue::*;
                 match lhs {
                     Field(_) => unreachable!(">> is not implemented for Field"),
                     U1(_) => unreachable!(">> is not implemented for u1"),
-                    U8(value) => U8(value.checked_shr(rhs).expect(overflow_msg)),
-                    U16(value) => U16(value.checked_shr(rhs).expect(overflow_msg)),
-                    U32(value) => U32(value.checked_shr(rhs).expect(overflow_msg)),
-                    U64(value) => U64(value.checked_shr(rhs).expect(overflow_msg)),
-                    U128(value) => U128(value.checked_shr(rhs).expect(overflow_msg)),
-                    I8(value) => I8(value.checked_shr(rhs).expect(overflow_msg)),
-                    I16(value) => I16(value.checked_shr(rhs).expect(overflow_msg)),
-                    I32(value) => I32(value.checked_shr(rhs).expect(overflow_msg)),
-                    I64(value) => I64(value.checked_shr(rhs).expect(overflow_msg)),
+                    U8(value) => value.checked_shr(rhs).map(U8).unwrap_or_else(zero),
+                    U16(value) => value.checked_shr(rhs).map(U16).unwrap_or_else(zero),
+                    U32(value) => value.checked_shr(rhs).map(U32).unwrap_or_else(zero),
+                    U64(value) => value.checked_shr(rhs).map(U64).unwrap_or_else(zero),
+                    U128(value) => value.checked_shr(rhs).map(U128).unwrap_or_else(zero),
+                    I8(value) => value.checked_shr(rhs).map(I8).unwrap_or_else(zero),
+                    I16(value) => value.checked_shr(rhs).map(I16).unwrap_or_else(zero),
+                    I32(value) => value.checked_shr(rhs).map(I32).unwrap_or_else(zero),
+                    I64(value) => value.checked_shr(rhs).map(I64).unwrap_or_else(zero),
                 }
             }
         };
