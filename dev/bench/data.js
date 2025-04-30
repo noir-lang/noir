@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1746038089283,
+  "lastUpdate": 1746038266655,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -3700,95 +3700,6 @@ window.BENCHMARK_DATA = {
       }
     ],
     "Compilation Time": [
-      {
-        "commit": {
-          "author": {
-            "email": "isennovskiy@gmail.com",
-            "name": "Innokentii Sennovskii",
-            "username": "Rumata888"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "3e3e30297d1319e785f4bc04f8d807d4301d2fa1",
-          "message": "fix: Detect ABI change of fuzzing harnesses (#8193)",
-          "timestamp": "2025-04-23T20:20:27Z",
-          "tree_id": "b5521c1df7fcd37bcc2ee7e24d0805f329c608bc",
-          "url": "https://github.com/noir-lang/noir/commit/3e3e30297d1319e785f4bc04f8d807d4301d2fa1"
-        },
-        "date": 1745441044889,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "regression_4709",
-            "value": 0.659,
-            "unit": "s"
-          },
-          {
-            "name": "ram_blowup_regression",
-            "value": 12.9,
-            "unit": "s"
-          },
-          {
-            "name": "global_var_regression_entry_points",
-            "value": 0.463,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-inner",
-            "value": 2.29,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 6.588,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 1.114,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 17.58,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 13.46,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root-empty",
-            "value": 0.877,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root-single-tx",
-            "value": 122,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 123,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 0.872,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-root",
-            "value": 1.418,
-            "unit": "s"
-          }
-        ]
-      },
       {
         "commit": {
           "author": {
@@ -8146,6 +8057,95 @@ window.BENCHMARK_DATA = {
           {
             "name": "rollup-root",
             "value": 1.6,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "asterite@gmail.com",
+            "name": "Ary Borenszweig",
+            "username": "asterite"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "84a7d3eb64336faad8b9e8371b12bfd32223ae5f",
+          "message": "fix: use correct meta attribute names in contract custom attributes (#8273)",
+          "timestamp": "2025-04-30T18:03:30Z",
+          "tree_id": "d41b75893c2a62c8e59dc7d8d4a69c82a5735c0c",
+          "url": "https://github.com/noir-lang/noir/commit/84a7d3eb64336faad8b9e8371b12bfd32223ae5f"
+        },
+        "date": 1746038259662,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "regression_4709",
+            "value": 0.657,
+            "unit": "s"
+          },
+          {
+            "name": "ram_blowup_regression",
+            "value": 12.6,
+            "unit": "s"
+          },
+          {
+            "name": "global_var_regression_entry_points",
+            "value": 0.468,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-inner",
+            "value": 2.27,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 6.958,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 1.106,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 17.36,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 14.46,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-empty",
+            "value": 1.246,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-single-tx",
+            "value": 117,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 127,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 1.06,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-root",
+            "value": 1.62,
             "unit": "s"
           }
         ]
