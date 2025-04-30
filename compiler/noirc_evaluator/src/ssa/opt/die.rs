@@ -205,7 +205,15 @@ struct Context {
     /// Track IncrementRc instructions per block to determine whether they are useless.
     rc_tracker: RcTracker,
 
-    /// Used parameters
+    /// A per-block list indicating which block parameters are still considered alive.
+    ///
+    /// Each entry maps a [BasicBlockId] to a `Vec<bool>`, where the `i`th boolean corresponds to
+    /// the `i`th parameter of that block. A value of `true` means the parameter is used and should
+    /// be preserved. A value of `false` means it is unused and can be pruned.
+    ///
+    /// This keep list is used during terminator analysis to avoid incorrectly marking values as used
+    /// simply because they appear as terminator arguments. Only parameters marked as live here
+    /// should result in values being marked as used in terminator arguments.
     parameter_keep_list: HashMap<BasicBlockId, Vec<bool>>,
 }
 
@@ -296,7 +304,6 @@ impl Context {
             if should_keep {
                 self.mark_used_instruction_results(&function.dfg, value);
             }
-            // self.mark_used_instruction_results(&function.dfg, value);
         });
     }
 
