@@ -378,7 +378,7 @@ mod tests {
         let artifact_file = fs::File::open(&artifact_filename).unwrap();
         let artifact: ContractArtifact = serde_json::from_reader(artifact_file).unwrap();
 
-        let _ = fs::remove_dir_all(target_dir);
+        fs::remove_dir_all(target_dir).expect("Could not remove target dir");
 
         let test_name = test_program_dir.file_name().unwrap().to_string_lossy().to_string();
 
