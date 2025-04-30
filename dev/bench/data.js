@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1746038266655,
+  "lastUpdate": 1746038270183,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -8155,70 +8155,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "isennovskiy@gmail.com",
-            "name": "Innokentii Sennovskii",
-            "username": "Rumata888"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "3e3e30297d1319e785f4bc04f8d807d4301d2fa1",
-          "message": "fix: Detect ABI change of fuzzing harnesses (#8193)",
-          "timestamp": "2025-04-23T20:20:27Z",
-          "tree_id": "b5521c1df7fcd37bcc2ee7e24d0805f329c608bc",
-          "url": "https://github.com/noir-lang/noir/commit/3e3e30297d1319e785f4bc04f8d807d4301d2fa1"
-        },
-        "date": 1745441051261,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 0.029,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 0.162,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 0.017,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 0.331,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 0.213,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 11.2,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 0.004,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-root",
-            "value": 0.013,
-            "unit": "s"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "mvezenov@gmail.com",
             "name": "Maxim Vezenov",
             "username": "vezenovm"
@@ -11348,6 +11284,70 @@ window.BENCHMARK_DATA = {
           {
             "name": "rollup-root",
             "value": 0.014,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "asterite@gmail.com",
+            "name": "Ary Borenszweig",
+            "username": "asterite"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "84a7d3eb64336faad8b9e8371b12bfd32223ae5f",
+          "message": "fix: use correct meta attribute names in contract custom attributes (#8273)",
+          "timestamp": "2025-04-30T18:03:30Z",
+          "tree_id": "d41b75893c2a62c8e59dc7d8d4a69c82a5735c0c",
+          "url": "https://github.com/noir-lang/noir/commit/84a7d3eb64336faad8b9e8371b12bfd32223ae5f"
+        },
+        "date": 1746038262648,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 0.028,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 0.163,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 0.016,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 0.333,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 0.217,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 11.8,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 0.004,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-root",
+            "value": 0.013,
             "unit": "s"
           }
         ]
