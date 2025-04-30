@@ -23,86 +23,26 @@ pub(crate) struct PathResolution {
 
 #[derive(Debug)]
 pub(crate) enum PathResolutionItem {
-    Type(PathResolutionTypeItem),
-    Value(PathResolutionValueItem),
-    TypeAndValue(PathResolutionTypeItem, PathResolutionValueItem),
-}
-
-impl PathResolutionItem {
-    pub(crate) fn into_type(self) -> Option<PathResolutionTypeItem> {
-        match self {
-            Self::Type(typ) | Self::TypeAndValue(typ, _) => Some(typ),
-            _ => None,
-        }
-    }
-
-    pub(crate) fn as_type(&self) -> Option<&PathResolutionTypeItem> {
-        match self {
-            Self::Type(typ) | Self::TypeAndValue(typ, _) => Some(typ),
-            _ => None,
-        }
-    }
-
-    pub(crate) fn into_value(self) -> Option<PathResolutionValueItem> {
-        match self {
-            Self::Value(value) | Self::TypeAndValue(_, value) => Some(value),
-            _ => None,
-        }
-    }
-
-    pub(crate) fn as_value(&self) -> Option<&PathResolutionValueItem> {
-        match self {
-            Self::Value(value) | Self::TypeAndValue(_, value) => Some(value),
-            _ => None,
-        }
-    }
-
-    pub(crate) fn function_id(&self) -> Option<FuncId> {
-        self.as_value().and_then(|item| item.function_id())
-    }
-
-    pub(crate) fn description(&self) -> &'static str {
-        match self {
-            Self::Type(item) => item.description(),
-            Self::Value(item) => item.description(),
-            Self::TypeAndValue(item, _) => {
-                // Any of the two items can be used to describe the resolution.
-                item.description()
-            }
-        }
-    }
-}
-
-#[derive(Debug, Clone)]
-pub(crate) enum PathResolutionTypeItem {
+    // These are types
     Module(ModuleId),
     Type(TypeId),
     TypeAlias(TypeAliasId),
     Trait(TraitId),
-}
 
-impl PathResolutionTypeItem {
-    pub(crate) fn description(&self) -> &'static str {
-        match self {
-            Self::Module(..) => "module",
-            Self::Type(..) => "type",
-            Self::TypeAlias(..) => "type alias",
-            Self::Trait(..) => "trait",
-        }
-    }
-}
-
-#[derive(Debug, Clone)]
-pub(crate) enum PathResolutionValueItem {
+    // These are values
     Global(GlobalId),
     ModuleFunction(FuncId),
     Method(TypeId, Option<Turbofish>, FuncId),
     SelfMethod(FuncId),
     TypeAliasFunction(TypeAliasId, Option<Turbofish>, FuncId),
     TraitFunction(TraitId, Option<Turbofish>, FuncId),
+
+    /// This is returned when the path points to something but it's
+    /// not in the namespace we were looking for.
+    UnexpectedTarget(&'static str),
 }
 
-impl PathResolutionValueItem {
+impl PathResolutionItem {
     pub(crate) fn function_id(&self) -> Option<FuncId> {
         match self {
             Self::ModuleFunction(func_id)
@@ -110,18 +50,28 @@ impl PathResolutionValueItem {
             | Self::SelfMethod(func_id)
             | Self::TypeAliasFunction(_, _, func_id)
             | Self::TraitFunction(_, _, func_id) => Some(*func_id),
-            Self::Global(..) => None,
+            Self::Module(_)
+            | Self::Type(_)
+            | Self::TypeAlias(_)
+            | Self::Trait(_)
+            | Self::Global(..)
+            | Self::UnexpectedTarget(_) => None,
         }
     }
 
     pub(crate) fn description(&self) -> &'static str {
         match self {
+            Self::Module(..) => "module",
+            Self::Type(..) => "type",
+            Self::TypeAlias(..) => "type alias",
+            Self::Trait(..) => "trait",
             Self::Global(..) => "global",
             Self::ModuleFunction(..)
             | Self::Method(..)
             | Self::SelfMethod(..)
             | Self::TypeAliasFunction(..)
             | Self::TraitFunction(..) => "function",
+            Self::UnexpectedTarget(description) => description,
         }
     }
 }
@@ -195,6 +145,10 @@ pub(super) enum PathResolutionMode {
 /// or a value. For example, in `let x: Foo::Bar = Foo::Bar {}` both `Foo::Bar` should resolve to
 /// types, never values. On the other hand, in `Foo::Bar()` `Foo::Bar` should resolve to a value,
 /// typically a function.
+///
+/// When using any of the `resolve` methods in this module, if a target wasn't find but instead
+/// something with that name was found on the other namespace, [`PathResolutionItem::UnexpectedTarget`]
+/// will be returned.
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub(super) enum PathResolutionTarget {
     Type,
@@ -263,7 +217,7 @@ impl Elaborator<'_> {
                 let datatype = datatype.borrow();
                 if path.segments.len() == 1 {
                     return Ok(PathResolution {
-                        item: PathResolutionItem::Type(PathResolutionTypeItem::Type(datatype.id)),
+                        item: PathResolutionItem::Type(datatype.id),
                         errors: Vec::new(),
                     });
                 }
@@ -318,7 +272,7 @@ impl Elaborator<'_> {
         // There is a possibility that the import path is empty. In that case, early return.
         if path.segments.is_empty() {
             return Ok(PathResolution {
-                item: PathResolutionItem::Type(PathResolutionTypeItem::Module(starting_module)),
+                item: PathResolutionItem::Module(starting_module),
                 errors: Vec::new(),
             });
         }
@@ -479,52 +433,28 @@ impl Elaborator<'_> {
             current_ns = found_ns;
         }
 
-        let type_item = current_ns.types.map(|(module_def_id, visibility, ..)| {
-            self.per_ns_item_to_path_resolution_item(
-                path.clone(),
-                importing_module,
-                intermediate_item.clone(),
-                current_module_id,
-                &mut errors,
-                module_def_id,
-                visibility,
-                target == PathResolutionTarget::Type,
-            )
-        });
-
-        let value_item = current_ns.values.map(|(module_def_id, visibility, ..)| {
-            self.per_ns_item_to_path_resolution_item(
-                path,
-                importing_module,
-                intermediate_item,
-                current_module_id,
-                &mut errors,
-                module_def_id,
-                visibility,
-                target == PathResolutionTarget::Value,
-            )
-        });
-
-        let type_item = type_item.map(|type_item| match type_item {
-            PathResolutionItem::Type(item) | PathResolutionItem::TypeAndValue(item, _) => item,
-            PathResolutionItem::Value(_) => {
-                unreachable!("A type should have been produced from the type namespace")
-            }
-        });
-        let value_item = value_item.map(|value_item| match value_item {
-            PathResolutionItem::Value(item) | PathResolutionItem::TypeAndValue(_, item) => item,
-            PathResolutionItem::Type(_) => {
-                unreachable!("A value should have been produced from the value namespace")
-            }
-        });
-        let item = match (type_item, value_item) {
-            (Some(type_item), None) => PathResolutionItem::Type(type_item),
-            (None, Some(value_item)) => PathResolutionItem::Value(value_item),
-            (Some(type_item), Some(value_item)) => {
-                PathResolutionItem::TypeAndValue(type_item, value_item)
-            }
-            (None, None) => unreachable!("Found an empty namespace"),
+        let (target_ns, fallback_ns) = match target {
+            PathResolutionTarget::Type => (current_ns.types, current_ns.values),
+            PathResolutionTarget::Value => (current_ns.values, current_ns.types),
         };
+
+        let item = target_ns
+            .map(|(module_def_id, visibility, ..)| {
+                self.per_ns_item_to_path_resolution_item(
+                    path.clone(),
+                    importing_module,
+                    intermediate_item.clone(),
+                    current_module_id,
+                    &mut errors,
+                    module_def_id,
+                    visibility,
+                )
+            })
+            .unwrap_or_else(|| {
+                PathResolutionItem::UnexpectedTarget(
+                    fallback_ns.expect("A namespace should never be empty").0.as_str(),
+                )
+            });
 
         Ok(PathResolution { item, errors })
     }
@@ -539,7 +469,6 @@ impl Elaborator<'_> {
         errors: &mut Vec<PathResolutionError>,
         module_def_id: ModuleDefId,
         visibility: crate::ast::ItemVisibility,
-        error_on_private: bool,
     ) -> PathResolutionItem {
         let name = path.last_ident();
         let is_self_type = name.is_self_type_name();
@@ -551,17 +480,17 @@ impl Elaborator<'_> {
             module_def_id,
         );
 
-        if error_on_private
-            && (!(self.self_type_module_id() == Some(current_module_id)
-                || item_in_module_is_visible(
-                    self.def_maps,
-                    importing_module,
-                    current_module_id,
-                    visibility,
-                )))
+        if !(self.self_type_module_id() == Some(current_module_id)
+            || item_in_module_is_visible(
+                self.def_maps,
+                importing_module,
+                current_module_id,
+                visibility,
+            ))
         {
             errors.push(PathResolutionError::Private(name.clone()));
         }
+
         item
     }
 
@@ -635,39 +564,23 @@ fn merge_intermediate_path_resolution_item_with_module_def_id(
     module_def_id: ModuleDefId,
 ) -> PathResolutionItem {
     match module_def_id {
-        ModuleDefId::ModuleId(module_id) => {
-            PathResolutionItem::Type(PathResolutionTypeItem::Module(module_id))
-        }
-        ModuleDefId::TypeId(type_id) => {
-            PathResolutionItem::Type(PathResolutionTypeItem::Type(type_id))
-        }
-        ModuleDefId::TypeAliasId(type_alias_id) => {
-            PathResolutionItem::Type(PathResolutionTypeItem::TypeAlias(type_alias_id))
-        }
-        ModuleDefId::TraitId(trait_id) => {
-            PathResolutionItem::Type(PathResolutionTypeItem::Trait(trait_id))
-        }
-        ModuleDefId::GlobalId(global_id) => {
-            PathResolutionItem::Value(PathResolutionValueItem::Global(global_id))
-        }
+        ModuleDefId::ModuleId(module_id) => PathResolutionItem::Module(module_id),
+        ModuleDefId::TypeId(type_id) => PathResolutionItem::Type(type_id),
+        ModuleDefId::TypeAliasId(type_alias_id) => PathResolutionItem::TypeAlias(type_alias_id),
+        ModuleDefId::TraitId(trait_id) => PathResolutionItem::Trait(trait_id),
+        ModuleDefId::GlobalId(global_id) => PathResolutionItem::Global(global_id),
         ModuleDefId::FunctionId(func_id) => match intermediate_item {
-            IntermediatePathResolutionItem::SelfType => {
-                PathResolutionItem::Value(PathResolutionValueItem::SelfMethod(func_id))
+            IntermediatePathResolutionItem::SelfType => PathResolutionItem::SelfMethod(func_id),
+            IntermediatePathResolutionItem::Module => PathResolutionItem::ModuleFunction(func_id),
+            IntermediatePathResolutionItem::Type(type_id, generics) => {
+                PathResolutionItem::Method(type_id, generics, func_id)
             }
-            IntermediatePathResolutionItem::Module => {
-                PathResolutionItem::Value(PathResolutionValueItem::ModuleFunction(func_id))
-            }
-            IntermediatePathResolutionItem::Type(type_id, generics) => PathResolutionItem::Value(
-                PathResolutionValueItem::Method(type_id, generics, func_id),
-            ),
             IntermediatePathResolutionItem::TypeAlias(alias_id, generics) => {
-                PathResolutionItem::Value(PathResolutionValueItem::TypeAliasFunction(
-                    alias_id, generics, func_id,
-                ))
+                PathResolutionItem::TypeAliasFunction(alias_id, generics, func_id)
             }
-            IntermediatePathResolutionItem::Trait(trait_id, generics) => PathResolutionItem::Value(
-                PathResolutionValueItem::TraitFunction(trait_id, generics, func_id),
-            ),
+            IntermediatePathResolutionItem::Trait(trait_id, generics) => {
+                PathResolutionItem::TraitFunction(trait_id, generics, func_id)
+            }
         },
     }
 }

@@ -27,10 +27,7 @@ use crate::{
     token::Attributes,
 };
 
-use super::{
-    Elaborator,
-    path_resolution::{PathResolutionTarget, PathResolutionValueItem},
-};
+use super::{Elaborator, path_resolution::PathResolutionTarget};
 
 const WILDCARD_PATTERN: &str = "_";
 
@@ -647,8 +644,8 @@ impl Elaborator<'_> {
         location: Location,
         variables_defined: &mut Vec<Ident>,
     ) -> Pattern {
-        let (actual_type, expected_arg_types, variant_index) = match resolution.as_value() {
-            Some(PathResolutionValueItem::Global(id)) => {
+        let (actual_type, expected_arg_types, variant_index) = match &resolution {
+            PathResolutionItem::Global(id) => {
                 // variant constant
                 self.elaborate_global_if_unresolved(id);
                 let global = self.interner.get_global(*id);
@@ -672,8 +669,7 @@ impl Elaborator<'_> {
                 let actual_type = global_type.instantiate(self.interner).0;
                 (actual_type, Vec::new(), variant_index)
             }
-            Some(PathResolutionValueItem::Method(_, _, func_id))
-            | Some(PathResolutionValueItem::SelfMethod(func_id)) => {
+            PathResolutionItem::Method(_, _, func_id) | PathResolutionItem::SelfMethod(func_id) => {
                 // TODO(#7430): Take type_turbofish into account when instantiating the function's type
                 let meta = self.interner.function_meta(func_id);
                 let Some(variant_index) = meta.enum_variant_index else {
@@ -690,10 +686,14 @@ impl Elaborator<'_> {
 
                 (actual_type, expected_arg_types, variant_index)
             }
-            Some(PathResolutionValueItem::ModuleFunction(_))
-            | Some(PathResolutionValueItem::TypeAliasFunction(_, _, _))
-            | Some(PathResolutionValueItem::TraitFunction(_, _, _))
-            | None => {
+            PathResolutionItem::ModuleFunction(_)
+            | PathResolutionItem::TypeAliasFunction(_, _, _)
+            | PathResolutionItem::TraitFunction(_, _, _)
+            | PathResolutionItem::Module(_)
+            | PathResolutionItem::Type(_)
+            | PathResolutionItem::TypeAlias(_)
+            | PathResolutionItem::Trait(_)
+            | PathResolutionItem::UnexpectedTarget(_) => {
                 // This variable refers to an existing item
                 if let Some(name) = name {
                     // If name is set, shadow the existing item

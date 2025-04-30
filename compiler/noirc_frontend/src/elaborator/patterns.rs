@@ -22,10 +22,7 @@ use crate::{
     },
 };
 
-use super::{
-    Elaborator, ResolverMeta,
-    path_resolution::{PathResolutionItem, PathResolutionValueItem},
-};
+use super::{Elaborator, ResolverMeta, path_resolution::PathResolutionItem};
 
 impl Elaborator<'_> {
     pub(super) fn elaborate_pattern(
@@ -623,8 +620,8 @@ impl Elaborator<'_> {
     /// ```
     /// Solve `<i32>` above
     fn resolve_item_turbofish(&mut self, item: PathResolutionItem) -> Vec<Type> {
-        match item.into_value() {
-            Some(PathResolutionValueItem::Method(struct_id, Some(generics), _func_id)) => {
+        match item {
+            PathResolutionItem::Method(struct_id, Some(generics), _func_id) => {
                 let struct_type = self.interner.get_type(struct_id);
                 let struct_type = struct_type.borrow();
                 let struct_generics = struct_type.instantiate(self.interner);
@@ -635,14 +632,14 @@ impl Elaborator<'_> {
                     generics.location,
                 )
             }
-            Some(PathResolutionValueItem::SelfMethod(_)) => {
+            PathResolutionItem::SelfMethod(_) => {
                 if let Some(Type::DataType(_, generics)) = &self.self_type {
                     generics.clone()
                 } else {
                     Vec::new()
                 }
             }
-            Some(PathResolutionValueItem::TypeAliasFunction(type_alias_id, generics, _func_id)) => {
+            PathResolutionItem::TypeAliasFunction(type_alias_id, generics, _func_id) => {
                 let type_alias = self.interner.get_type_alias(type_alias_id);
                 let type_alias = type_alias.borrow();
                 let alias_generics = vecmap(&type_alias.generics, |generic| {
@@ -667,7 +664,7 @@ impl Elaborator<'_> {
                 // type Alias<T> = Struct<T, i32>;
                 get_type_alias_generics(&type_alias, &generics)
             }
-            Some(PathResolutionValueItem::TraitFunction(trait_id, Some(generics), _func_id)) => {
+            PathResolutionItem::TraitFunction(trait_id, Some(generics), _func_id) => {
                 let trait_ = self.interner.get_trait(trait_id);
                 let kinds = vecmap(&trait_.generics, |generic| generic.kind());
                 let trait_generics =
@@ -681,11 +678,15 @@ impl Elaborator<'_> {
                     generics.location,
                 )
             }
-            Some(PathResolutionValueItem::Method(_, None, _))
-            | Some(PathResolutionValueItem::TraitFunction(_, None, _))
-            | Some(PathResolutionValueItem::ModuleFunction(..))
-            | Some(PathResolutionValueItem::Global(..))
-            | None => Vec::new(),
+            PathResolutionItem::Method(_, None, _)
+            | PathResolutionItem::TraitFunction(_, None, _)
+            | PathResolutionItem::ModuleFunction(..)
+            | PathResolutionItem::Global(..)
+            | PathResolutionItem::Module(_)
+            | PathResolutionItem::Type(_)
+            | PathResolutionItem::TypeAlias(_)
+            | PathResolutionItem::Trait(_)
+            | PathResolutionItem::UnexpectedTarget(_) => Vec::new(),
         }
     }
 

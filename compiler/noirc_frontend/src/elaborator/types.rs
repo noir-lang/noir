@@ -43,9 +43,7 @@ use crate::{
 
 use super::{
     Elaborator, FunctionContext, PathResolutionTarget, UnsafeBlockStatus, lints,
-    path_resolution::{
-        PathResolutionItem, PathResolutionMode, PathResolutionTypeItem, PathResolutionValueItem,
-    },
+    path_resolution::{PathResolutionItem, PathResolutionMode},
 };
 
 pub const SELF_TYPE_NAME: &str = "Self";
@@ -508,12 +506,8 @@ impl Elaborator<'_> {
         }
 
         // If we cannot find a local generic of the same name, try to look up a global
-        match self
-            .resolve_path_or_error_inner(path.clone(), PathResolutionTarget::Value, mode)
-            .ok()
-            .and_then(|item| item.into_value())
-        {
-            Some(PathResolutionValueItem::Global(id)) => {
+        match self.resolve_path_or_error_inner(path.clone(), PathResolutionTarget::Value, mode) {
+            Ok(PathResolutionItem::Global(id)) => {
                 if let Some(current_item) = self.current_item {
                     self.interner.add_global_dependency(current_item, id);
                 }
@@ -782,11 +776,11 @@ impl Elaborator<'_> {
         let before_last_segment = path.last_segment();
 
         let path_resolution = self.use_path_as_type(path).ok()?;
-        let Some(PathResolutionTypeItem::Type(type_id)) = path_resolution.item.as_type() else {
+        let PathResolutionItem::Type(type_id) = path_resolution.item else {
             return None;
         };
 
-        let datatype = self.get_type(*type_id);
+        let datatype = self.get_type(type_id);
         let generics = datatype.borrow().instantiate(self.interner);
         let typ = Type::DataType(datatype, generics);
         let method_name = last_segment.ident.as_str();
@@ -816,9 +810,7 @@ impl Elaborator<'_> {
 
         let method = TraitMethod { method_id: trait_method_id, constraint, assumed: false };
         let turbofish = before_last_segment.turbofish();
-        let item = PathResolutionItem::Value(PathResolutionValueItem::TraitFunction(
-            trait_id, turbofish, func_id,
-        ));
+        let item = PathResolutionItem::TraitFunction(trait_id, turbofish, func_id);
         let mut errors = path_resolution.errors;
         if let Some(error) = error {
             errors.push(error);

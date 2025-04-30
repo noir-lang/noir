@@ -70,7 +70,9 @@ use noirc_errors::{Located, Location};
 pub(crate) use options::ElaboratorOptions;
 pub use options::{FrontendOptions, UnstableFeature};
 pub use path_resolution::Turbofish;
-use path_resolution::{PathResolutionMode, PathResolutionTarget, PathResolutionTypeItem};
+use path_resolution::{
+    PathResolution, PathResolutionItem, PathResolutionMode, PathResolutionTarget,
+};
 use types::bind_ordered_generics;
 
 use self::traits::check_trait_impl_method_matches_declaration;
@@ -789,12 +791,10 @@ impl<'context> Elaborator<'context> {
 
     pub fn resolve_module_by_path(&mut self, path: Path) -> Option<ModuleId> {
         match self.resolve_path_as_type(path.clone()) {
-            Ok(resolution) if resolution.errors.is_empty() => {
-                if let Some(PathResolutionTypeItem::Module(module_id)) = resolution.item.as_type() {
-                    Some(*module_id)
-                } else {
-                    None
-                }
+            Ok(PathResolution { item: PathResolutionItem::Module(module_id), errors })
+                if errors.is_empty() =>
+            {
+                Some(module_id)
             }
             _ => None,
         }
@@ -802,16 +802,13 @@ impl<'context> Elaborator<'context> {
 
     fn resolve_trait_by_path(&mut self, path: Path) -> Option<TraitId> {
         let error = match self.resolve_path_as_type(path.clone()) {
-            Ok(resolution) => {
-                if let Some(PathResolutionTypeItem::Trait(trait_id)) = resolution.item.as_type() {
-                    for error in resolution.errors {
-                        self.push_err(error);
-                    }
-                    return Some(*trait_id);
-                } else {
-                    DefCollectorErrorKind::NotATrait { not_a_trait_name: path }
+            Ok(PathResolution { item: PathResolutionItem::Trait(trait_id), errors }) => {
+                for error in errors {
+                    self.push_err(error);
                 }
+                return Some(trait_id);
             }
+            Ok(_) => DefCollectorErrorKind::NotATrait { not_a_trait_name: path },
             Err(_) => DefCollectorErrorKind::TraitNotFound { trait_path: path },
         };
         self.push_err(error);
@@ -876,11 +873,11 @@ impl<'context> Elaborator<'context> {
             return Vec::new();
         };
 
-        let Some(PathResolutionTypeItem::Trait(trait_id)) = item.as_type() else {
+        let PathResolutionItem::Trait(trait_id) = item else {
             return Vec::new();
         };
 
-        let the_trait = self.get_trait_mut(*trait_id);
+        let the_trait = self.get_trait_mut(trait_id);
 
         if the_trait.associated_types.len() > bound.trait_generics.named_args.len() {
             let trait_name = the_trait.name.to_string();

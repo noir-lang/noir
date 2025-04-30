@@ -13,9 +13,7 @@ use crate::{
 };
 use crate::{Type, TypeAlias};
 
-use super::path_resolution::{
-    PathResolutionItem, PathResolutionMode, PathResolutionTypeItem, PathResolutionValueItem,
-};
+use super::path_resolution::{PathResolutionItem, PathResolutionMode};
 use super::types::SELF_TYPE_NAME;
 use super::{Elaborator, PathResolutionTarget, ResolverMeta};
 
@@ -90,8 +88,8 @@ impl Elaborator<'_> {
             return Ok((self.interner.function_definition_id(function), item));
         }
 
-        if let Some(PathResolutionValueItem::Global(global)) = item.as_value() {
-            let global = self.interner.get_global(*global);
+        if let PathResolutionItem::Global(global) = item {
+            let global = self.interner.get_global(global);
             return Ok((global.definition_id, item));
         }
 
@@ -141,8 +139,8 @@ impl Elaborator<'_> {
         let location = path.location;
         match self.resolve_path_or_error(path, PathResolutionTarget::Type) {
             Ok(item) => {
-                if let Some(PathResolutionTypeItem::Trait(trait_id)) = item.as_type() {
-                    Some(self.get_trait_mut(*trait_id))
+                if let PathResolutionItem::Trait(trait_id) = item {
+                    Some(self.get_trait_mut(trait_id))
                 } else {
                     self.push_err(ResolverError::Expected {
                         expected: "trait",
@@ -167,17 +165,14 @@ impl Elaborator<'_> {
     ) -> Option<Shared<DataType>> {
         let location = path.location;
         match self.resolve_path_or_error_inner(path, PathResolutionTarget::Type, mode) {
-            Ok(item) => {
-                if let Some(PathResolutionTypeItem::Type(struct_id)) = item.as_type() {
-                    Some(self.get_type(*struct_id))
-                } else {
-                    self.push_err(ResolverError::Expected {
-                        expected: "type",
-                        got: item.description(),
-                        location,
-                    });
-                    None
-                }
+            Ok(PathResolutionItem::Type(struct_id)) => Some(self.get_type(struct_id)),
+            Ok(other) => {
+                self.push_err(ResolverError::Expected {
+                    expected: "type",
+                    got: other.description(),
+                    location,
+                });
+                None
             }
             Err(err) => {
                 self.push_err(err);
@@ -198,14 +193,14 @@ impl Elaborator<'_> {
 
         let location = path.location;
         match self.use_path_or_error(path, PathResolutionTarget::Type) {
-            Ok(item) => match item.as_type() {
-                Some(PathResolutionTypeItem::Type(struct_id)) => {
-                    let struct_type = self.get_type(*struct_id);
+            Ok(item) => match item {
+                PathResolutionItem::Type(struct_id) => {
+                    let struct_type = self.get_type(struct_id);
                     let generics = struct_type.borrow().instantiate(self.interner);
                     Some(Type::DataType(struct_type, generics))
                 }
-                Some(PathResolutionTypeItem::TypeAlias(alias_id)) => {
-                    let alias = self.interner.get_type_alias(*alias_id);
+                PathResolutionItem::TypeAlias(alias_id) => {
+                    let alias = self.interner.get_type_alias(alias_id);
                     let alias = alias.borrow();
                     Some(alias.instantiate(self.interner))
                 }
@@ -231,12 +226,8 @@ impl Elaborator<'_> {
         mode: PathResolutionMode,
     ) -> Option<Shared<TypeAlias>> {
         match self.resolve_path_or_error_inner(path, PathResolutionTarget::Type, mode) {
-            Ok(item) => {
-                if let Some(PathResolutionTypeItem::TypeAlias(type_alias_id)) = item.into_type() {
-                    Some(self.interner.get_type_alias(type_alias_id))
-                } else {
-                    None
-                }
+            Ok(PathResolutionItem::TypeAlias(type_alias_id)) => {
+                Some(self.interner.get_type_alias(type_alias_id))
             }
             _ => None,
         }
