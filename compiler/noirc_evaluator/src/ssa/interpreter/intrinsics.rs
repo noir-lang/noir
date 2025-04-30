@@ -33,7 +33,7 @@ impl Interpreter<'_> {
             Intrinsic::AsSlice => {
                 assert_eq!(args.len(), 1);
                 let array = args[0].as_array_or_slice().unwrap();
-                let length = args[0].as_array_or_slice().unwrap().elements.borrow().len();
+                let length = array.elements.borrow().len();
                 let length = Value::Numeric(NumericValue::U32(length as u32));
 
                 let elements = array.elements.borrow().to_vec();

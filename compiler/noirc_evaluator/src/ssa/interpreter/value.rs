@@ -302,7 +302,7 @@ impl std::fmt::Display for NumericValue {
             NumericValue::I8(value) => write!(f, "i8 {value}"),
             NumericValue::I16(value) => write!(f, "i16 {value}"),
             NumericValue::I32(value) => write!(f, "i32 {value}"),
-            NumericValue::I64(value) => write!(f, "i64{value}"),
+            NumericValue::I64(value) => write!(f, "i64 {value}"),
         }
     }
 }
