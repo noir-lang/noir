@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1746038427012,
+  "lastUpdate": 1746038428569,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -3700,95 +3700,6 @@ window.BENCHMARK_DATA = {
       }
     ],
     "Compilation Time": [
-      {
-        "commit": {
-          "author": {
-            "email": "mvezenov@gmail.com",
-            "name": "Maxim Vezenov",
-            "username": "vezenovm"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "6c4dd0c3dfe83203024fcf2684f8e5f3555ffc61",
-          "message": "chore(acir): Unify how we display witness indices (#8192)",
-          "timestamp": "2025-04-23T20:42:20Z",
-          "tree_id": "8d1e47c2ae8a0411c9a773a3834853f110d361e0",
-          "url": "https://github.com/noir-lang/noir/commit/6c4dd0c3dfe83203024fcf2684f8e5f3555ffc61"
-        },
-        "date": 1745442254667,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "regression_4709",
-            "value": 0.662,
-            "unit": "s"
-          },
-          {
-            "name": "ram_blowup_regression",
-            "value": 12.7,
-            "unit": "s"
-          },
-          {
-            "name": "global_var_regression_entry_points",
-            "value": 0.469,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-inner",
-            "value": 2.204,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 6.394,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 1.044,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 18.12,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 13.44,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root-empty",
-            "value": 0.869,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root-single-tx",
-            "value": 120,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 129,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 0.893,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-root",
-            "value": 1.346,
-            "unit": "s"
-          }
-        ]
-      },
       {
         "commit": {
           "author": {
@@ -8146,6 +8057,95 @@ window.BENCHMARK_DATA = {
           {
             "name": "rollup-root",
             "value": 1.62,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "michaeljklein@users.noreply.github.com",
+            "name": "Michael J Klein",
+            "username": "michaeljklein"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "981256c8e7c241cf42f2ed40a8cb64ec329c1593",
+          "message": "chore: update `quicksort` from iterative `noir_sort` version (#7348)\n\nCo-authored-by: Tom French <tom@tomfren.ch>",
+          "timestamp": "2025-04-30T18:06:56Z",
+          "tree_id": "b45facd19b034d00d8ec995f19ebc465b50595a2",
+          "url": "https://github.com/noir-lang/noir/commit/981256c8e7c241cf42f2ed40a8cb64ec329c1593"
+        },
+        "date": 1746038420256,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "regression_4709",
+            "value": 0.686,
+            "unit": "s"
+          },
+          {
+            "name": "ram_blowup_regression",
+            "value": 12.9,
+            "unit": "s"
+          },
+          {
+            "name": "global_var_regression_entry_points",
+            "value": 0.491,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-inner",
+            "value": 2.458,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 6.468,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 1.094,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 16.88,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 13.18,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-empty",
+            "value": 1.228,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-single-tx",
+            "value": 124,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 124,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 1.06,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-root",
+            "value": 1.612,
             "unit": "s"
           }
         ]
