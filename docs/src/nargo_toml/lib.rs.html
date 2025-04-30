@@ -726,7 +726,26 @@
 <a href="#725" id="725">725</a>
 <a href="#726" id="726">726</a>
 <a href="#727" id="727">727</a>
-<a href="#728" id="728">728</a></pre></div><pre class="rust"><code><span class="attr">#![forbid(unsafe_code)]
+<a href="#728" id="728">728</a>
+<a href="#729" id="729">729</a>
+<a href="#730" id="730">730</a>
+<a href="#731" id="731">731</a>
+<a href="#732" id="732">732</a>
+<a href="#733" id="733">733</a>
+<a href="#734" id="734">734</a>
+<a href="#735" id="735">735</a>
+<a href="#736" id="736">736</a>
+<a href="#737" id="737">737</a>
+<a href="#738" id="738">738</a>
+<a href="#739" id="739">739</a>
+<a href="#740" id="740">740</a>
+<a href="#741" id="741">741</a>
+<a href="#742" id="742">742</a>
+<a href="#743" id="743">743</a>
+<a href="#744" id="744">744</a>
+<a href="#745" id="745">745</a>
+<a href="#746" id="746">746</a>
+<a href="#747" id="747">747</a></pre></div><pre class="rust"><code><span class="attr">#![forbid(unsafe_code)]
 #![warn(unreachable_pub)]
 #![warn(clippy::semicolon_if_nothing_returned)]
 #![cfg_attr(not(test), warn(unused_crate_dependencies, unused_extern_crates))]
@@ -874,10 +893,10 @@
 }
 
 <span class="attr">#[derive(Debug, Deserialize, Clone)]
-</span><span class="kw">struct </span>PackageConfig {
-    package: PackageMetadata,
+</span><span class="kw">pub struct </span>PackageConfig {
+    <span class="kw">pub </span>package: PackageMetadata,
     <span class="attr">#[serde(default)]
-    </span>dependencies: BTreeMap&lt;String, DependencyConfig&gt;,
+    </span><span class="kw">pub </span>dependencies: BTreeMap&lt;String, DependencyConfig&gt;,
 }
 
 <span class="kw">impl </span>PackageConfig {
@@ -885,7 +904,8 @@
         <span class="kw-2">&amp;</span><span class="self">self</span>,
         root_dir: <span class="kw-2">&amp;</span>Path,
         processed: <span class="kw-2">&amp;mut </span>Vec&lt;String&gt;,
-    ) -&gt; <span class="prelude-ty">Result</span>&lt;Package, ManifestError&gt; {
+        assume_default_entry: bool, <span class="comment">// assume that the 'default_entry_path' exists, e.g. src/main.nr
+    </span>) -&gt; <span class="prelude-ty">Result</span>&lt;Package, ManifestError&gt; {
         <span class="kw">let </span>name: CrateName = <span class="kw">if let </span><span class="prelude-val">Some</span>(name) = <span class="kw-2">&amp;</span><span class="self">self</span>.package.name {
             name.parse().map_err(|<span class="kw">_</span>| ManifestError::InvalidPackageName {
                 toml: root_dir.join(<span class="string">"Nargo.toml"</span>),
@@ -939,7 +959,7 @@
                 }
             };
 
-            <span class="kw">if </span>default_entry_path.exists() {
+            <span class="kw">if </span>default_entry_path.exists() || assume_default_entry {
                 default_entry_path
             } <span class="kw">else </span>{
                 <span class="kw">return </span><span class="prelude-val">Err</span>(ManifestError::MissingDefaultEntryFile {
@@ -986,7 +1006,7 @@
 <span class="doccomment">/// Contains all the information about a package, as loaded from a `Nargo.toml`.
 </span><span class="attr">#[derive(Debug, Deserialize, Clone)]
 #[serde(untagged)]
-</span><span class="kw">enum </span>Config {
+</span><span class="kw">pub enum </span>Config {
     <span class="doccomment">/// Represents a `Nargo.toml` with package fields.
     </span>Package {
         <span class="attr">#[serde(flatten)]
@@ -1016,14 +1036,14 @@
 }
 
 <span class="doccomment">/// Tracks the root_dir of a `Nargo.toml` and the contents inside the file.
-</span><span class="kw">struct </span>NargoToml {
-    root_dir: PathBuf,
-    config: Config,
+</span><span class="kw">pub struct </span>NargoToml {
+    <span class="kw">pub </span>root_dir: PathBuf,
+    <span class="kw">pub </span>config: Config,
 }
 
 <span class="attr">#[derive(Default, Debug, Deserialize, Clone)]
 #[serde(rename_all = <span class="string">"kebab-case"</span>)]
-</span><span class="kw">struct </span>WorkspaceConfig {
+</span><span class="kw">pub struct </span>WorkspaceConfig {
     <span class="doccomment">/// List of members in this workspace.
     </span>members: Vec&lt;PathBuf&gt;,
     <span class="doccomment">/// Specifies the default crate to interact with in the context (similarly to how we have nargo as the default crate in this repository).
@@ -1032,11 +1052,11 @@
 
 <span class="attr">#[allow(dead_code)]
 #[derive(Default, Debug, Deserialize, Clone)]
-</span><span class="kw">struct </span>PackageMetadata {
-    name: <span class="prelude-ty">Option</span>&lt;String&gt;,
+</span><span class="kw">pub struct </span>PackageMetadata {
+    <span class="kw">pub </span>name: <span class="prelude-ty">Option</span>&lt;String&gt;,
     version: <span class="prelude-ty">Option</span>&lt;String&gt;,
     <span class="attr">#[serde(alias = <span class="string">"type"</span>)]
-    </span>package_type: <span class="prelude-ty">Option</span>&lt;String&gt;,
+    </span><span class="kw">pub </span>package_type: <span class="prelude-ty">Option</span>&lt;String&gt;,
     entry: <span class="prelude-ty">Option</span>&lt;PathBuf&gt;,
     description: <span class="prelude-ty">Option</span>&lt;String&gt;,
     authors: <span class="prelude-ty">Option</span>&lt;Vec&lt;String&gt;&gt;,
@@ -1054,7 +1074,7 @@
 #[serde(untagged)]
 </span><span class="doccomment">/// Enum representing the different types of ways to
 /// supply a source for the dependency
-</span><span class="kw">enum </span>DependencyConfig {
+</span><span class="kw">pub enum </span>DependencyConfig {
     Github { git: String, tag: String, directory: <span class="prelude-ty">Option</span>&lt;String&gt; },
     Path { path: String },
 }
@@ -1105,12 +1125,17 @@
 <span class="kw">fn </span>toml_to_workspace(
     nargo_toml: NargoToml,
     package_selection: PackageSelection,
-) -&gt; <span class="prelude-ty">Result</span>&lt;Workspace, ManifestError&gt; {
+    assume_default_entry: bool, <span class="comment">// assume that the 'default_entry_path' exists, e.g. src/main.nr
+</span>) -&gt; <span class="prelude-ty">Result</span>&lt;Workspace, ManifestError&gt; {
     <span class="kw">let </span><span class="kw-2">mut </span>resolved = Vec::new();
     <span class="kw">let </span>_lock = lock_git_deps().expect(<span class="string">"Failed to lock git dependencies cache"</span>);
     <span class="kw">let </span>workspace = <span class="kw">match </span>nargo_toml.config {
         Config::Package { package_config } =&gt; {
-            <span class="kw">let </span>member = package_config.resolve_to_package(<span class="kw-2">&amp;</span>nargo_toml.root_dir, <span class="kw-2">&amp;mut </span>resolved)<span class="question-mark">?</span>;
+            <span class="kw">let </span>member = package_config.resolve_to_package(
+                <span class="kw-2">&amp;</span>nargo_toml.root_dir,
+                <span class="kw-2">&amp;mut </span>resolved,
+                assume_default_entry,
+            )<span class="question-mark">?</span>;
             <span class="kw">match </span><span class="kw-2">&amp;</span>package_selection {
                 PackageSelection::Selected(selected_name) <span class="kw">if </span>selected_name != <span class="kw-2">&amp;</span>member.name =&gt; {
                     <span class="kw">return </span><span class="prelude-val">Err</span>(ManifestError::MissingSelectedPackage(member.name));
@@ -1220,7 +1245,8 @@
 
     <span class="kw">let </span>result = <span class="kw">match </span>nargo_toml.config {
         Config::Package { package_config } =&gt; {
-            package_config.resolve_to_package(<span class="kw-2">&amp;</span>nargo_toml.root_dir, processed)
+            <span class="kw">let </span>assume_default_entry = <span class="bool-val">false</span>;
+            package_config.resolve_to_package(<span class="kw-2">&amp;</span>nargo_toml.root_dir, processed, assume_default_entry)
         }
         Config::Workspace { .. } =&gt; {
             <span class="prelude-val">Err</span>(ManifestError::UnexpectedWorkspace(toml_path.to_path_buf()))
@@ -1248,7 +1274,19 @@
     current_compiler_version: <span class="prelude-ty">Option</span>&lt;String&gt;,
 ) -&gt; <span class="prelude-ty">Result</span>&lt;Workspace, ManifestError&gt; {
     <span class="kw">let </span>nargo_toml = read_toml(toml_path)<span class="question-mark">?</span>;
-    <span class="kw">let </span>workspace = toml_to_workspace(nargo_toml, package_selection)<span class="question-mark">?</span>;
+    resolve_workspace_from_fixed_toml(nargo_toml, package_selection, current_compiler_version)
+}
+
+<span class="doccomment">/// Resolves a Nargo.toml _ into a `Workspace` struct as defined by our `nargo` core.
+///
+/// As a side effect it downloads project dependencies as well.
+</span><span class="kw">pub fn </span>resolve_workspace_from_fixed_toml(
+    nargo_toml: NargoToml,
+    package_selection: PackageSelection,
+    current_compiler_version: <span class="prelude-ty">Option</span>&lt;String&gt;,
+) -&gt; <span class="prelude-ty">Result</span>&lt;Workspace, ManifestError&gt; {
+    <span class="kw">let </span>assume_default_entry = <span class="bool-val">true</span>;
+    <span class="kw">let </span>workspace = toml_to_workspace(nargo_toml, package_selection, assume_default_entry)<span class="question-mark">?</span>;
     <span class="kw">if let </span><span class="prelude-val">Some</span>(current_compiler_version) = current_compiler_version {
         semver::semver_check_workspace(<span class="kw-2">&amp;</span>workspace, current_compiler_version)<span class="question-mark">?</span>;
     }

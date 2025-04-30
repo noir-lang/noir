@@ -815,7 +815,18 @@
 <a href="#814" id="814">814</a>
 <a href="#815" id="815">815</a>
 <a href="#816" id="816">816</a>
-<a href="#817" id="817">817</a></pre></div><pre class="rust"><code><span class="attr">#![forbid(unsafe_code)]
+<a href="#817" id="817">817</a>
+<a href="#818" id="818">818</a>
+<a href="#819" id="819">819</a>
+<a href="#820" id="820">820</a>
+<a href="#821" id="821">821</a>
+<a href="#822" id="822">822</a>
+<a href="#823" id="823">823</a>
+<a href="#824" id="824">824</a>
+<a href="#825" id="825">825</a>
+<a href="#826" id="826">826</a>
+<a href="#827" id="827">827</a>
+<a href="#828" id="828">828</a></pre></div><pre class="rust"><code><span class="attr">#![forbid(unsafe_code)]
 #![warn(unused_crate_dependencies, unused_extern_crates)]
 #![warn(unreachable_pub)]
 #![warn(clippy::semicolon_if_nothing_returned)]
@@ -999,6 +1010,17 @@
     /// This is disabled by default.
     </span><span class="attr">#[arg(long, default_value = <span class="string">"false"</span>)]
     </span><span class="kw">pub </span>pedantic_solving: bool,
+
+    <span class="doccomment">/// Skip reading files/folders from the root directory and instead accept the
+    /// contents of `main.nr` through STDIN.
+    ///
+    /// The implicit package structure is:
+    /// ```
+    /// src/main.nr // STDIN
+    /// Nargo.toml // fixed "bin" Nargo.toml
+    /// ```
+    </span><span class="attr">#[arg(long, hide = <span class="bool-val">true</span>)]
+    </span><span class="kw">pub </span>debug_compile_stdin: bool,
 
     <span class="doccomment">/// Unstable features to enable for this current build
     </span><span class="attr">#[arg(value_parser = <span class="macro">clap::value_parser!</span>(UnstableFeature))]
