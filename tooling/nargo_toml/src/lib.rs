@@ -157,6 +157,7 @@ impl PackageConfig {
         &self,
         root_dir: &Path,
         processed: &mut Vec<String>,
+        assume_default_entry: bool, // assume that the 'default_entry_path' exists, e.g. src/main.nr
     ) -> Result<Package, ManifestError> {
         let name: CrateName = if let Some(name) = &self.package.name {
             name.parse().map_err(|_| ManifestError::InvalidPackageName {
@@ -211,7 +212,7 @@ impl PackageConfig {
                 }
             };
 
-            if default_entry_path.exists() {
+            if default_entry_path.exists() || assume_default_entry {
                 default_entry_path
             } else {
                 return Err(ManifestError::MissingDefaultEntryFile {
@@ -377,12 +378,13 @@ impl DependencyConfig {
 fn toml_to_workspace(
     nargo_toml: NargoToml,
     package_selection: PackageSelection,
+    assume_default_entry: bool, // assume that the 'default_entry_path' exists, e.g. src/main.nr
 ) -> Result<Workspace, ManifestError> {
     let mut resolved = Vec::new();
     let _lock = lock_git_deps().expect("Failed to lock git dependencies cache");
     let workspace = match nargo_toml.config {
         Config::Package { package_config } => {
-            let member = package_config.resolve_to_package(&nargo_toml.root_dir, &mut resolved)?;
+            let member = package_config.resolve_to_package(&nargo_toml.root_dir, &mut resolved, assume_default_entry)?;
             match &package_selection {
                 PackageSelection::Selected(selected_name) if selected_name != &member.name => {
                     return Err(ManifestError::MissingSelectedPackage(member.name));
@@ -492,7 +494,8 @@ fn resolve_package_from_toml(
 
     let result = match nargo_toml.config {
         Config::Package { package_config } => {
-            package_config.resolve_to_package(&nargo_toml.root_dir, processed)
+            let assume_default_entry = false;
+            package_config.resolve_to_package(&nargo_toml.root_dir, processed, assume_default_entry)
         }
         Config::Workspace { .. } => {
             Err(ManifestError::UnexpectedWorkspace(toml_path.to_path_buf()))
@@ -531,7 +534,8 @@ pub fn resolve_workspace_from_fixed_toml(
     package_selection: PackageSelection,
     current_compiler_version: Option<String>,
 ) -> Result<Workspace, ManifestError> {
-    let workspace = toml_to_workspace(nargo_toml, package_selection)?;
+    let assume_default_entry = true;
+    let workspace = toml_to_workspace(nargo_toml, package_selection, assume_default_entry)?;
     if let Some(current_compiler_version) = current_compiler_version {
         semver::semver_check_workspace(&workspace, current_compiler_version)?;
     }
