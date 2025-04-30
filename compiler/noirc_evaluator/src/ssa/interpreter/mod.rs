@@ -772,7 +772,7 @@ impl Interpreter<'_> {
                 }
             }
             BinaryOp::Shr => {
-                let zero = || NumericValue::zero(rhs.get_type());
+                let zero = || NumericValue::zero(lhs.get_type());
                 let rhs = rhs.as_u32().expect("Expected rhs of shr to be a u32");
 
                 use NumericValue::*;

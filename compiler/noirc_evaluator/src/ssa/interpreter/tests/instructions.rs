@@ -349,7 +349,7 @@ fn shr_overflow() {
         }
     ",
     );
-    assert_eq!(value, Value::from_constant(0_u128.into(), NumericType::NativeField));
+    assert_eq!(value, Value::from_constant(0_u128.into(), NumericType::unsigned(8)));
 }
 
 #[test]
