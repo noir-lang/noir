@@ -867,13 +867,9 @@ impl<'context> Elaborator<'context> {
     ) -> Vec<ResolvedGeneric> {
         let mut added_generics = Vec::new();
 
-        let Ok(item) =
+        let Ok(PathResolutionItem::Trait(trait_id)) =
             self.resolve_path_or_error(bound.trait_path.clone(), PathResolutionTarget::Type)
         else {
-            return Vec::new();
-        };
-
-        let PathResolutionItem::Trait(trait_id) = item else {
             return Vec::new();
         };
 
