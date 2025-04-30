@@ -59,7 +59,7 @@ cd "$REPO_DIR/$PROJECT_DIR"
 $NARGO check --silence-warnings
 
 compile_project
-if [ "$HAS_PROVER_INPUTS" == "true" ]; then
+if [ -z "${HAS_PROVER_INPUTS:-}" ]; then
     execute_project
 fi
 save_artifact
