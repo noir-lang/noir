@@ -175,12 +175,12 @@ fn from_foo() {}
 Filename : `src/foo/bar.nr`
 
 ```rust
-// Same as bar::from_foo
+// Same as foo::from_foo
 use super::from_foo; 
 
 fn from_bar() {
-    from_foo();        // invokes super::from_foo(), which is bar::from_foo()
-    super::from_foo(); // also invokes bar::from_foo()
+    from_foo();        // invokes super::from_foo(), which is foo::from_foo()
+    super::from_foo(); // also invokes foo::from_foo()
 }
 ```
 
