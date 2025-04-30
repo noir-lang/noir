@@ -44,6 +44,8 @@ pub enum LexerErrorKind {
     NonAsciiComment { location: Location },
     #[error("Expected `{end_delim}` to close this {start_delim}")]
     UnclosedQuote { start_delim: LocatedToken, end_delim: Token },
+    #[error("Unicode character '{}' looks like space, but is it not", char)]
+    UnicodeCharacterLooksLikeSpaceButIsItNot { char: char, location: Location },
 }
 
 impl From<LexerErrorKind> for ParserError {
@@ -76,7 +78,10 @@ impl LexerErrorKind {
             LexerErrorKind::EmptyFormatStringInterpolation { location, .. } => *location,
             LexerErrorKind::InvalidEscape { location, .. } => *location,
             LexerErrorKind::InvalidQuoteDelimiter { delimiter } => delimiter.location(),
-            LexerErrorKind::NonAsciiComment { location, .. } => *location,
+            LexerErrorKind::NonAsciiComment { location, .. }
+            | LexerErrorKind::UnicodeCharacterLooksLikeSpaceButIsItNot { location, .. } => {
+                *location
+            }
             LexerErrorKind::UnclosedQuote { start_delim, .. } => start_delim.location(),
         }
     }
@@ -172,6 +177,46 @@ impl LexerErrorKind {
             }
             LexerErrorKind::UnclosedQuote { start_delim, end_delim } => {
                 ("Unclosed `quote` expression".to_string(), format!("Expected a `{end_delim}` to close this `{start_delim}`"), start_delim.location())
+            }
+            LexerErrorKind::UnicodeCharacterLooksLikeSpaceButIsItNot { char, location } => {
+                // List taken from https://en.wikipedia.org/wiki/Whitespace_character
+                let char_name = match char {
+                    '\u{0085}' => Some("Next Line"),
+                    '\u{00A0}' => Some("No-Break Space"),
+                    '\u{1680}' => Some("Ogham Space Mark"),
+                    '\u{2000}' => Some("En Quad"),
+                    '\u{2001}' => Some("Em Quad"),
+                    '\u{2002}' => Some("En Space"),
+                    '\u{2003}' => Some("Em Space"),
+                    '\u{2004}' => Some("Three-Per-Em Space"),
+                    '\u{2005}' => Some("Four-Per-Em Space"),
+                    '\u{2006}' => Some("Six-Per-Em Space"),
+                    '\u{2007}' => Some("Figure Space"),
+                    '\u{2008}' => Some("Punctuation Space"),
+                    '\u{2009}' => Some("Thin Space"),
+                    '\u{200A}' => Some("Hair Space"),
+                    '\u{2028}' => Some("Line Separator"),
+                    '\u{2029}' => Some("Paragraph Separator"),
+                    '\u{202F}' => Some("Narrow No-Break Space"),
+                    '\u{205F}' => Some("Medium Mathematical Space"),
+                    '\u{3000}' => Some("Ideographic Space"),
+                    '\u{180E}' => Some("Mongolian Vowel Separator"),
+                    '\u{200B}' => Some("Zero Width Space"),
+                    '\u{200C}' => Some("Zero Width Non-Joiner"),
+                    '\u{200D}' => Some("Zero Width Joiner"),
+                    '\u{2060}' => Some("Word Joiner"),
+                    '\u{FEFF}' => Some("Zero Width No-Break Space"),
+                    _ => None,
+                };
+
+                let primary = format!("Unknown start of token: \\u{{{:x}}}", (*char as u32));
+                let secondary = match char_name {
+                    Some(name) => format!("Unicode character '{char}' ({name}) looks like space, but is it not"),
+                    None => {
+                        format!("Unicode character '{char}' looks like space ' ' (Space), but is it not")
+                    }
+                };
+                (primary, secondary, *location)
             }
         }
     }

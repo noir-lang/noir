@@ -174,8 +174,24 @@ impl<'a> Lexer<'a> {
             Some('r') => self.eat_raw_string_or_alpha_numeric(),
             Some('q') => self.eat_quote_or_alpha_numeric(),
             Some('#') => self.eat_attribute_start(),
+            Some(ch)
+                if ch.is_whitespace()
+                    || ch == '\u{180E}'
+                    || ch == '\u{200B}'
+                    || ch == '\u{200C}'
+                    || ch == '\u{200D}'
+                    || ch == '\u{2060}'
+                    || ch == '\u{FEFF}' =>
+            {
+                let span = Span::from(self.position..self.position + 1);
+                let location = Location::new(span, self.file_id);
+                self.next_char();
+                Err(LexerErrorKind::UnicodeCharacterLooksLikeSpaceButIsItNot { char: ch, location })
+            }
             Some(ch) if ch.is_ascii_alphanumeric() || ch == '_' => self.eat_alpha_numeric(ch),
             Some(ch) => {
+                dbg!(ch);
+
                 // We don't report invalid tokens in the source as errors until parsing to
                 // avoid reporting the error twice. See the note on Token::Invalid's documentation for details.
                 Ok(Token::Invalid(ch).into_single_span(self.position))
@@ -1628,5 +1644,15 @@ mod tests {
                 "Expected NonAsciiComment error"
             );
         }
+    }
+
+    #[test]
+    fn errors_on_non_unicode_whitespace() {
+        let str = "\u{0085}";
+        let mut lexer = Lexer::new_with_dummy_file(str);
+        assert!(matches!(
+            lexer.next_token(),
+            Err(LexerErrorKind::UnicodeCharacterLooksLikeSpaceButIsItNot { .. })
+        ));
     }
 }
