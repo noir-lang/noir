@@ -396,14 +396,15 @@ impl<'ssa> Interpreter<'ssa> {
 
     fn interpret_truncate(
         &mut self,
-        value: ValueId,
+        value_id: ValueId,
         bit_size: u32,
-        _max_bit_size: u32,
+        max_bit_size: u32,
         result: ValueId,
     ) -> IResult<()> {
-        let value = self.lookup_numeric(value, "truncate")?;
-        let bit_mask = (1u128 << bit_size) - 1;
-        assert_ne!(bit_mask, 0);
+        let value = self.lookup_numeric(value_id, "truncate")?;
+        if bit_size == 0 {
+            return Err(InterpreterError::TruncateToZeroBits { value_id, max_bit_size });
+        }
 
         let truncated = match value {
             NumericValue::Field(value) => NumericValue::Field(truncate_field(value, bit_size)),
@@ -433,8 +434,11 @@ impl<'ssa> Interpreter<'ssa> {
             return Ok(());
         }
 
+        if max_bit_size == 0 {
+            return Err(InterpreterError::RangeCheckToZeroBits { value_id });
+        }
+
         let value = self.lookup_numeric(value_id, "range check")?;
-        assert_ne!(max_bit_size, 0);
 
         fn bit_count(x: impl Into<f64>) -> u32 {
             let x = x.into();
@@ -688,7 +692,6 @@ impl<'ssa> Interpreter<'ssa> {
                 let value = array.to_string();
                 return Err(InterpreterError::IncRcRevive { value_id, value });
             }
-            assert_ne!(*rc, 0, "inc_rc: increment from 0 back to 1 detected");
             *rc += 1;
         }
         Ok(())
@@ -709,14 +712,14 @@ impl<'ssa> Interpreter<'ssa> {
 
     fn interpret_if_else(
         &mut self,
-        then_condition: ValueId,
+        then_condition_id: ValueId,
         then_value: ValueId,
-        else_condition: ValueId,
+        else_condition_id: ValueId,
         else_value: ValueId,
         result: ValueId,
     ) -> IResult<()> {
-        let then_condition = self.lookup_bool(then_condition, "then condition")?;
-        let else_condition = self.lookup_bool(else_condition, "else condition")?;
+        let then_condition = self.lookup_bool(then_condition_id, "then condition")?;
+        let else_condition = self.lookup_bool(else_condition_id, "else condition")?;
         let then_value = self.lookup(then_value);
         let else_value = self.lookup(else_value);
 
@@ -725,7 +728,12 @@ impl<'ssa> Interpreter<'ssa> {
         //   then_condition = outer_condition & a
         //   else_condition = outer_condition & !a
         // If `outer_condition` is false, both will be false.
-        assert!(!then_condition || !else_condition);
+        if then_condition && else_condition {
+            return Err(InterpreterError::DoubleTrueIfElse {
+                then_condition_id,
+                else_condition_id,
+            });
+        }
 
         let new_result = if !then_condition && !else_condition {
             // Returning uninitialized/zero if both conditions are false to match

@@ -90,4 +90,16 @@ pub(crate) enum InterpreterError {
         expected: usize,
         actual: usize,
     },
+    #[error(
+        "if-else instruction with then condition `{then_condition_id}` and else condition `{else_condition_id}` has both branches as true. This should be impossible except for malformed SSA code"
+    )]
+    DoubleTrueIfElse { then_condition_id: ValueId, else_condition_id: ValueId },
+    #[error(
+        "`truncate {value_id} to 0 bits, max_bit_size: {max_bit_size}` has invalid bit size 0. This should only be possible in malformed SSA."
+    )]
+    TruncateToZeroBits { value_id: ValueId, max_bit_size: u32 },
+    #[error(
+        "`range_check {value_id} to 0 bits` has invalid bit size 0. This should only be possible in malformed SSA."
+    )]
+    RangeCheckToZeroBits { value_id: ValueId },
 }
