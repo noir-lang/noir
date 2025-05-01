@@ -343,7 +343,8 @@ fn can_be_eliminated_if_unused(
                     false
                 }
             } else {
-                true
+                // Checked binary operations can have different behavior depending on the predicate.
+                !instruction.requires_acir_gen_predicate(&function.dfg)
             }
         }
 
