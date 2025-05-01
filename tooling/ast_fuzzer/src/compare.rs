@@ -134,7 +134,7 @@ impl CompareResult {
 
         match (ee1, ee2) {
             (AssertionFailed(p1, _, _), AssertionFailed(p2, _, _)) => p1 == p2,
-            (SolvingError(s1, _), SolvingError(s2, _)) => s1 == s2,
+            (SolvingError(s1, _), SolvingError(s2, _)) => format!("{s1}") == format!("{s2}"),
             (SolvingError(s, _), AssertionFailed(p, _, _))
             | (AssertionFailed(p, _, _), SolvingError(s, _)) => match (s, p) {
                 (
