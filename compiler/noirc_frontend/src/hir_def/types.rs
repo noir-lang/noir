@@ -855,6 +855,10 @@ impl TypeVariable {
             TypeBinding::Unbound(id, _) => *id,
         };
 
+        if id.0 == 22007 {
+            panic!("Binding 22007 to {typ}");
+        }
+
         assert!(!typ.occurs(id), "{self:?} occurs within {typ:?}");
         *self.1.borrow_mut() = TypeBinding::Bound(typ);
     }
@@ -879,6 +883,10 @@ impl TypeVariable {
             }
             TypeBinding::Unbound(id, _) => *id,
         };
+
+        if id.0 == 22007 {
+            panic!("Binding 22007 to {binding}");
+        }
 
         if binding.occurs(id) {
             Err(TypeCheckError::CyclicType { location, typ: binding })
@@ -1908,7 +1916,6 @@ impl Type {
                     Err(UnificationError)
                 }
             }
-
             (
                 Function(params_a, ret_a, env_a, unconstrained_a),
                 Function(params_b, ret_b, env_b, unconstrained_b),
@@ -1951,15 +1958,6 @@ impl Type {
                     Err(UnificationError)
                 }
             }
-            (
-                Constant(_, kind),
-                Type::NamedGeneric(types::NamedGeneric { type_var, implicit: true, .. }),
-            )
-            | (
-                Type::NamedGeneric(types::NamedGeneric { type_var, implicit: true, .. }),
-                Constant(_, kind),
-            ) if type_var.borrow().is_unbound() => kind.unify(&type_var.kind()),
-
             (Constant(value, kind), other) | (other, Constant(value, kind)) => {
                 let dummy_location = Location::dummy();
                 if let Ok(other_value) = other.evaluate_to_field_element(kind, dummy_location) {

@@ -160,6 +160,12 @@ pub fn monomorphize_debug(
 
         monomorphizer.in_unconstrained_function = is_unconstrained;
 
+        let name = monomorphizer.interner.function_name(&next_fn_id);
+        eprintln!("Monomorphizing {name} with bindings:");
+        for (id, (var, kind, t)) in &bindings {
+            eprintln!("  {} -> {:?}", id.0, t);
+        }
+
         perform_instantiation_bindings(&bindings);
         let interner = &monomorphizer.interner;
         let impl_bindings = perform_impl_bindings(interner, trait_method, next_fn_id, location)
@@ -2534,6 +2540,9 @@ pub fn resolve_trait_method(
         TraitImplKind::Normal(impl_id) => impl_id,
         TraitImplKind::Assumed { object_type, trait_generics } => {
             let location = interner.expr_location(&expr_id);
+
+            let named = vecmap(&trait_generics.named, |t| t.to_string()).join(", ");
+            eprintln!("Looking up trait impl with named generics {named}");
 
             match interner.lookup_trait_implementation(
                 &object_type,

@@ -1556,6 +1556,7 @@ impl NodeInterner {
         }
 
         let object_type = object_type.substitute(type_bindings);
+        eprintln!("  obj type = {object_type:?}");
 
         // If the object type isn't known, just return an error saying type annotations are needed.
         if object_type.is_bindable() {
@@ -1580,7 +1581,11 @@ impl NodeInterner {
                         |(trait_generic, impl_generic)| {
                             let impl_generic =
                                 impl_generic.force_substitute(&instantiation_bindings);
-                            trait_generic.try_unify(&impl_generic, &mut fresh_bindings).is_ok()
+
+                            eprint!("  generic {trait_generic:?} =? {impl_generic:?}");
+                            let r = trait_generic.try_unify(&impl_generic, &mut fresh_bindings).is_ok();
+                            eprintln!("  {}", if r { "success" } else { "fail" });
+                            r
                         },
                     );
 
@@ -1590,7 +1595,11 @@ impl NodeInterner {
                         .all(|(trait_generic, impl_generic)| {
                             let impl_generic2 =
                                 impl_generic.typ.force_substitute(&instantiation_bindings);
-                            trait_generic.typ.try_unify(&impl_generic2, &mut fresh_bindings).is_ok()
+
+                            eprint!("  assoc type {:?} =? {impl_generic2:?}", trait_generic.typ);
+                            let r = trait_generic.typ.try_unify(&impl_generic2, &mut fresh_bindings).is_ok();
+                            eprintln!("  {}", if r { "success" } else { "fail" });
+                            r
                         });
 
                     generics_unify && associated_types_unify
@@ -1607,6 +1616,7 @@ impl NodeInterner {
                 TraitImplKind::Assumed { trait_generics, .. } => trait_generics.clone(),
             };
 
+            eprintln!("\n  candidate obj type {:?}", existing_object_type);
             if !check_trait_generics(&trait_generics.ordered, &trait_generics.named) {
                 continue;
             }
