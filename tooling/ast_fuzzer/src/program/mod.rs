@@ -22,7 +22,7 @@ mod func;
 pub mod rewrite;
 mod scope;
 mod types;
-pub(crate) mod visitor;
+pub mod visitor;
 
 #[cfg(test)]
 mod tests;

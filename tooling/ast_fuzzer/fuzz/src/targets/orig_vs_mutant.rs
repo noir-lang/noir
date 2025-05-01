@@ -5,7 +5,7 @@ use crate::{compare_results, create_ssa_or_die, default_ssa_options};
 use arbitrary::{Arbitrary, Unstructured};
 use color_eyre::eyre;
 use noir_ast_fuzzer::compare::{CompareMutants, CompareOptions};
-use noir_ast_fuzzer::{Config, visit_expr_mut};
+use noir_ast_fuzzer::{Config, visitor::visit_expr_mut};
 use noirc_frontend::monomorphization::ast::{Expression, Program};
 
 pub fn fuzz(u: &mut Unstructured) -> eyre::Result<()> {
