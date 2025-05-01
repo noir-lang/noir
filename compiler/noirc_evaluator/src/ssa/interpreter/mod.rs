@@ -627,7 +627,16 @@ impl<'ssa> Interpreter<'ssa> {
         // If `outer_condition` is false, both will be false.
         assert!(!then_condition || !else_condition);
 
-        let new_result = if then_condition { then_value } else { else_value };
+        let new_result = if !then_condition && !else_condition {
+            // Returning uninitialized/zero if both conditions are false to match
+            // the decomposition of `cond * then_value + !cond * else_value` for numeric values.
+            let typ = self.dfg().type_of_value(result);
+            Value::uninitialized(&typ, result)
+        } else if then_condition {
+            then_value
+        } else {
+            else_value
+        };
 
         self.define(result, new_result);
     }
