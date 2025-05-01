@@ -108,7 +108,7 @@ The proof is now generated in the `target` folder. To verify it we first need to
 
 ```sh
 # Generate the verification key and save to ./target/vk
-bb write_vk -b ./target/hello_world.json -o ./target
+bb write_vk -b ./target/hello_world.json -o ./target/vk
 
 # Verify the proof
 bb verify -k ./target/vk -p ./target/proof -i ./target/public_inputs
