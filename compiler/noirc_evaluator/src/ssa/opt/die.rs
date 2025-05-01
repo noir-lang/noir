@@ -125,11 +125,11 @@ impl Function {
     /// Removes any unused instructions in the reachable blocks of the given function.
     ///
     /// This method is designed to be run within the context of the full SSA, not in isolation.
-    /// Running DIE on a single function may cause inconsistencies, such as leaving dangling unused parameters. 
-    /// The pruning of block parameters depends on the full SSA context. 
+    /// Running DIE on a single function may cause inconsistencies, such as leaving dangling unused parameters.
+    /// The pruning of block parameters depends on the full SSA context.
     /// Therefore, this method must remain private, and DIE should run over the entire SSA,
     /// ensuring proper tracking of unused parameters across all blocks.
-    /// 
+    ///
     /// The blocks of the function are iterated in post order, such that any blocks containing
     /// instructions that reference results from an instruction in another block are evaluated first.
     /// If we did not iterate blocks in this order we could not safely say whether or not the results
