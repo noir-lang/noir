@@ -111,16 +111,16 @@ impl Value {
         }
     }
 
-    pub(crate) fn as_reference(&self) -> Option<&ReferenceValue> {
+    pub(crate) fn as_reference(&self) -> Option<ReferenceValue> {
         match self {
-            Value::Reference(value) => Some(value),
+            Value::Reference(value) => Some(value.clone()),
             _ => None,
         }
     }
 
-    pub(crate) fn as_array_or_slice(&self) -> Option<&ArrayValue> {
+    pub(crate) fn as_array_or_slice(&self) -> Option<ArrayValue> {
         match self {
-            Value::ArrayOrSlice(value) => Some(value),
+            Value::ArrayOrSlice(value) => Some(value.clone()),
             _ => None,
         }
     }

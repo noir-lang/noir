@@ -13,7 +13,7 @@ use noirc_errors::{CustomDiagnostic, Location, call_stack::CallStack};
 use noirc_frontend::signed_field::SignedField;
 use thiserror::Error;
 
-use crate::ssa::ir::{basic_block::BasicBlockId, types::NumericType, value::ValueId};
+use crate::ssa::ir::types::NumericType;
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, PartialEq, Eq, Clone, Error)]
@@ -66,15 +66,6 @@ pub enum RuntimeError {
         "Could not resolve some references to the array. All references must be resolved at compile time"
     )]
     UnknownReference { call_stack: CallStack },
-    #[error("Argument count {arguments} to block {block} does not match the expected parameter count {parameters}")]
-    BlockArgumentCountMismatch { block: BasicBlockId, arguments: usize, parameters: usize },
-    #[error("Block {block} is missing the terminator instruction")]
-    BlockMissingTerminator { block: BasicBlockId },
-    #[error("constrain {lhs_id} == {rhs_id} failed:\n    {lhs} != {rhs}")]
-    ConstrainEqFailed { lhs: String, lhs_id: ValueId, rhs: String, rhs_id: ValueId },
-    #[error("constrain {lhs_id} != {rhs_id} failed:\n    {lhs} == {rhs}")]
-    ConstrainNeFailed { lhs: String, lhs_id: ValueId, rhs: String, rhs_id: ValueId },
-    FailedRangeConstraint 
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Hash)]
