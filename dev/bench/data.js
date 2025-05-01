@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1746115476886,
+  "lastUpdate": 1746115757051,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -18031,48 +18031,6 @@ window.BENCHMARK_DATA = {
             "username": "web-flow"
           },
           "distinct": true,
-          "id": "c9721fb6e69a78d74e1ae3742ed63103cad86b8d",
-          "message": "fix: Use `get_local_or_global_instruction` in `try_optimize_array_set_from_previous_get` (#8200)",
-          "timestamp": "2025-04-24T12:34:55Z",
-          "tree_id": "d3352448efa982cbe5304ebb50e24287f920336a",
-          "url": "https://github.com/noir-lang/noir/commit/c9721fb6e69a78d74e1ae3742ed63103cad86b8d"
-        },
-        "date": 1745499123071,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 267305,
-            "range": "± 5403",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 237839,
-            "range": "± 4977",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 3580874,
-            "range": "± 14005",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
-            "email": "aakoshh@gmail.com",
-            "name": "Akosh Farkash",
-            "username": "aakoshh"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
           "id": "730529aabdf1fac3a0207decb65040cfe44369c2",
           "message": "chore(fuzz): Make sure `main` makes at least one call (#8202)",
           "timestamp": "2025-04-24T13:05:11Z",
@@ -20114,6 +20072,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 3221921,
             "range": "± 7024",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "mvezenov@gmail.com",
+            "name": "Maxim Vezenov",
+            "username": "vezenovm"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "bf93f861e9d6482a8841a8d3b74c39f13d36144e",
+          "message": "fix(ssa): Remove unused calls to pure functions (#8298)\n\nCo-authored-by: Tom French <15848336+TomAFrench@users.noreply.github.com>",
+          "timestamp": "2025-05-01T15:49:07Z",
+          "tree_id": "0bd897be7d24ef032d52aaabcff2d3df5657f1b5",
+          "url": "https://github.com/noir-lang/noir/commit/bf93f861e9d6482a8841a8d3b74c39f13d36144e"
+        },
+        "date": 1746115749645,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 255078,
+            "range": "± 1071",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 227029,
+            "range": "± 2143",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 3236540,
+            "range": "± 16777",
             "unit": "ns/iter"
           }
         ]
