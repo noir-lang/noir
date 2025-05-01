@@ -18,13 +18,33 @@ expression: artifact
       }
     ],
     "return_type": null,
-    "error_types": {}
+    "error_types": {
+      "2920182694213909827": {
+        "error_kind": "string",
+        "string": "attempt to subtract with overflow"
+      },
+      "5019202896831570965": {
+        "error_kind": "string",
+        "string": "attempt to add with overflow"
+      },
+      "7233212735005103307": {
+        "error_kind": "string",
+        "string": "attempt to multiply with overflow"
+      }
+    }
   },
-  "bytecode": "H4sIAAAAAAAA/42KMQoAAAgCkxr6/4tbAsXJW/TgUASyLb7/x7qEA78lNFZgAAAA",
-  "debug_symbols": "dY/RCoMwDEX/Jc99cIw9zF8ZQ2KNUghpia0wxH9fFEUZ7Cm9OT2XdoaO2jI0Qfo4Qv2aodXAHIaGo8ccoth2XhwcsclKZCu4cLMSKkmGWgqzgwm5bJfGhLLNjGq0ckDS2bTCPjCtp8WddvVffd5391ad9sP0tyX0QX8fPKEGbJn22BfxF5o/6SDHh5NGT11RWps2Zt1f",
-  "file_map": {},
+  "bytecode": "H4sIAAAAAAAA/9VWMU7EMBB0nIRzaEAiKfgBpR0nF7s7hBDvSHRJzycQNeIPUPIKCij4ACXfQCIGGy0muiZrKTeStVbWGs96o9FG5AfZuI7tPhpXbKMBG1cCcj7ct42NfB4E5JJ8XVV9U/ZCipaXulM1r+purYQStaq3pZKyV5VqdKcbrkUlezHUWvbDN5poQmcQwYaTerwY4rE0UgRdgyUL9YZ0gnfuG1I8jUHrpqi8w4DZ7xjxDaG5mLi/5qIE1JuEFJwQbHNRIkHUmJLlm0tKsM1F/ambz0SAuiV23a5HBySMIRjePZ42Wqh3FVKwIUeeNtoVokZGlm8IjKBPGy0jy582GP6/ozH7nZEw5pKBnu8yGIcY7FMbi4/z0+uXh0t47tDG1/u358fbdgtzRzZefL5fPd3dnBHv3syLBcgjTl3C8edh+Pmv2QEUYJ97dVKQ2yBpcHyubyn5D+rl3Fnm6Yvw9QlfSzxxl8OJjTn45t7zC9KIVyazDwAA",
+  "debug_symbols": "nZLBioMwEIbfZc45OLFq46ssi0QdSyBESZPCIn33HWOzbQ8Lxcv/J5l8wwwzK4zUx0tn3DRfof1aoffGWnPp7DzoYGbHr+tdQL52wRPxE7zEmVq0JxegddFaATdtY/p0XbRLHrTnaCGA3MjOCSdjaTvdxZMu/kdV+WCxeNLVxzgiZh7PR/jmj2/UEV7l3lFVB3iJmZdYH+Flk/lSvvHffNOD8W8DB+RCBcikZdITowKqpDW0PI4m6TmpgvYkAIvdmK7Y5G7lbpygZuMMWwM37Y3uLT3Wa4pueNm28LPkSN7Hxc8DjdHTVmiKcem/",
+  "file_map": {
+    "50": {
+      "source": "// Regression test for https://github.com/noir-lang/noir/issues/3493\nfn main(x: u8) {\n    if x == 10 {\n        x + 255;\n    }\n    if x == 9 {\n        x << 7;\n    }\n    if x == 128 {\n        x * 3;\n    }\n    if x == 7 {\n        x - 8;\n    }\n}\n",
+      "path": ""
+    }
+  },
   "names": [
     "main"
   ],
-  "brillig_names": []
+  "brillig_names": [
+    "directive_invert"
+  ]
 }
