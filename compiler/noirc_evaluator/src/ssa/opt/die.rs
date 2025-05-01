@@ -960,6 +960,7 @@ mod test {
         let ssa = ssa.purity_analysis();
         let (ssa, _) = ssa.dead_instruction_elimination_inner(false, false);
 
+        // We expect the call to f1 in f0 to be removed
         assert_ssa_snapshot!(ssa, @r#"
         acir(inline) pure fn main f0 {
           b0():
@@ -993,6 +994,7 @@ mod test {
         let ssa = ssa.purity_analysis();
         let (ssa, _) = ssa.dead_instruction_elimination_inner(false, false);
 
+        // We expect the program to be unchanged except that functions are labeled with purities now
         assert_ssa_snapshot!(ssa, @r#"
         acir(inline) impure fn main f0 {
           b0():
@@ -1026,6 +1028,7 @@ mod test {
         let ssa = ssa.purity_analysis();
         let (ssa, _) = ssa.dead_instruction_elimination_inner(false, false);
 
+        // We expect the program to be unchanged except that functions are labeled with purities now
         assert_ssa_snapshot!(ssa, @r#"
         acir(inline) predicate_pure fn main f0 {
           b0():
