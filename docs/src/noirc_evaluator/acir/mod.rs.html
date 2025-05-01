@@ -2759,72 +2759,7 @@
 <a href="#2758" id="2758">2758</a>
 <a href="#2759" id="2759">2759</a>
 <a href="#2760" id="2760">2760</a>
-<a href="#2761" id="2761">2761</a>
-<a href="#2762" id="2762">2762</a>
-<a href="#2763" id="2763">2763</a>
-<a href="#2764" id="2764">2764</a>
-<a href="#2765" id="2765">2765</a>
-<a href="#2766" id="2766">2766</a>
-<a href="#2767" id="2767">2767</a>
-<a href="#2768" id="2768">2768</a>
-<a href="#2769" id="2769">2769</a>
-<a href="#2770" id="2770">2770</a>
-<a href="#2771" id="2771">2771</a>
-<a href="#2772" id="2772">2772</a>
-<a href="#2773" id="2773">2773</a>
-<a href="#2774" id="2774">2774</a>
-<a href="#2775" id="2775">2775</a>
-<a href="#2776" id="2776">2776</a>
-<a href="#2777" id="2777">2777</a>
-<a href="#2778" id="2778">2778</a>
-<a href="#2779" id="2779">2779</a>
-<a href="#2780" id="2780">2780</a>
-<a href="#2781" id="2781">2781</a>
-<a href="#2782" id="2782">2782</a>
-<a href="#2783" id="2783">2783</a>
-<a href="#2784" id="2784">2784</a>
-<a href="#2785" id="2785">2785</a>
-<a href="#2786" id="2786">2786</a>
-<a href="#2787" id="2787">2787</a>
-<a href="#2788" id="2788">2788</a>
-<a href="#2789" id="2789">2789</a>
-<a href="#2790" id="2790">2790</a>
-<a href="#2791" id="2791">2791</a>
-<a href="#2792" id="2792">2792</a>
-<a href="#2793" id="2793">2793</a>
-<a href="#2794" id="2794">2794</a>
-<a href="#2795" id="2795">2795</a>
-<a href="#2796" id="2796">2796</a>
-<a href="#2797" id="2797">2797</a>
-<a href="#2798" id="2798">2798</a>
-<a href="#2799" id="2799">2799</a>
-<a href="#2800" id="2800">2800</a>
-<a href="#2801" id="2801">2801</a>
-<a href="#2802" id="2802">2802</a>
-<a href="#2803" id="2803">2803</a>
-<a href="#2804" id="2804">2804</a>
-<a href="#2805" id="2805">2805</a>
-<a href="#2806" id="2806">2806</a>
-<a href="#2807" id="2807">2807</a>
-<a href="#2808" id="2808">2808</a>
-<a href="#2809" id="2809">2809</a>
-<a href="#2810" id="2810">2810</a>
-<a href="#2811" id="2811">2811</a>
-<a href="#2812" id="2812">2812</a>
-<a href="#2813" id="2813">2813</a>
-<a href="#2814" id="2814">2814</a>
-<a href="#2815" id="2815">2815</a>
-<a href="#2816" id="2816">2816</a>
-<a href="#2817" id="2817">2817</a>
-<a href="#2818" id="2818">2818</a>
-<a href="#2819" id="2819">2819</a>
-<a href="#2820" id="2820">2820</a>
-<a href="#2821" id="2821">2821</a>
-<a href="#2822" id="2822">2822</a>
-<a href="#2823" id="2823">2823</a>
-<a href="#2824" id="2824">2824</a>
-<a href="#2825" id="2825">2825</a>
-<a href="#2826" id="2826">2826</a></pre></div><pre class="rust"><code><span class="doccomment">//! The `acir` module contains all the logic necessary for noirc's ACIR-gen pass which
+<a href="#2761" id="2761">2761</a></pre></div><pre class="rust"><code><span class="doccomment">//! The `acir` module contains all the logic necessary for noirc's ACIR-gen pass which
 //! generates the output ACIR program.
 //!
 //! # Usage
@@ -4115,133 +4050,68 @@
                 <span class="comment">// arguments = [slice_length, slice_contents, ...elements_to_push]
                 </span><span class="kw">let </span>slice_length = <span class="self">self</span>.convert_value(arguments[<span class="number">0</span>], dfg).into_var()<span class="question-mark">?</span>;
                 <span class="kw">let </span>slice_contents = arguments[<span class="number">1</span>];
+                <span class="kw">let </span>elements_to_push = <span class="kw-2">&amp;</span>arguments[<span class="number">2</span>..];
+
                 <span class="kw">let </span>slice_typ = dfg.type_of_value(slice_contents);
 
                 <span class="macro">assert!</span>(!slice_typ.is_nested_slice(), <span class="string">"ICE: Nested slice used in ACIR generation"</span>);
-
-                <span class="kw">let </span>slice = <span class="self">self</span>.convert_value(slice_contents, dfg);
-                <span class="kw">let </span><span class="kw-2">mut </span>new_elem_size = arrays::flattened_value_size(<span class="kw-2">&amp;</span>slice);
-
-                <span class="kw">let </span><span class="kw-2">mut </span>new_slice = <span class="self">self</span>.read_array(slice)<span class="question-mark">?</span>;
-
-                <span class="kw">let </span>elements_to_push = <span class="kw-2">&amp;</span>arguments[<span class="number">2</span>..];
-                <span class="comment">// We must directly push back elements for non-nested slices
-                </span><span class="kw">for </span>elem <span class="kw">in </span>elements_to_push {
-                    <span class="kw">let </span>element = <span class="self">self</span>.convert_value(<span class="kw-2">*</span>elem, dfg);
-
-                    new_elem_size += arrays::flattened_value_size(<span class="kw-2">&amp;</span>element);
-                    new_slice.push_back(element);
-                }
 
                 <span class="comment">// Increase the slice length by one to enable accessing more elements in the slice.
                 </span><span class="kw">let </span>one = <span class="self">self</span>.acir_context.add_constant(FieldElement::one());
                 <span class="kw">let </span>new_slice_length = <span class="self">self</span>.acir_context.add_var(slice_length, one)<span class="question-mark">?</span>;
 
-                <span class="kw">let </span>new_slice_val = AcirValue::Array(new_slice);
-                <span class="kw">let </span>result_block_id = <span class="self">self</span>.block_id(<span class="kw-2">&amp;</span>result_ids[<span class="number">1</span>]);
-                <span class="self">self</span>.initialize_array(result_block_id, new_elem_size, <span class="prelude-val">Some</span>(new_slice_val.clone()))<span class="question-mark">?</span>;
-                <span class="comment">// The previous slice length represents the index we want to write into.
-                </span><span class="kw">let </span><span class="kw-2">mut </span>var_index = slice_length;
-                <span class="comment">// Write the elements we wish to push back directly.
-                // The slice's underlying array value should already be filled with dummy data
-                // to enable this write to be within bounds.
-                // The dummy data is either attached during SSA gen or in this match case for non-nested slices.
-                // These values can then be accessed due to the increased dynamic slice length.
+                <span class="kw">let </span>slice = <span class="self">self</span>.convert_value(slice_contents, dfg);
+                <span class="kw">let </span><span class="kw-2">mut </span>new_slice = <span class="self">self</span>.read_array(slice)<span class="question-mark">?</span>;
+
+                <span class="comment">// We must directly push back elements for non-nested slices
                 </span><span class="kw">for </span>elem <span class="kw">in </span>elements_to_push {
                     <span class="kw">let </span>element = <span class="self">self</span>.convert_value(<span class="kw-2">*</span>elem, dfg);
-                    <span class="self">self</span>.array_set_value(<span class="kw-2">&amp;</span>element, result_block_id, <span class="kw-2">&amp;mut </span>var_index)<span class="question-mark">?</span>;
+                    new_slice.push_back(element);
                 }
 
-                <span class="kw">let </span>element_type_sizes =
-                    <span class="kw">if </span>arrays::array_has_constant_element_size(<span class="kw-2">&amp;</span>slice_typ).is_none() {
-                        <span class="prelude-val">Some</span>(<span class="self">self</span>.init_element_type_sizes_array(
-                            <span class="kw-2">&amp;</span>slice_typ,
-                            slice_contents,
-                            <span class="prelude-val">Some</span>(<span class="kw-2">&amp;</span>new_slice_val),
-                            dfg,
-                        )<span class="question-mark">?</span>)
-                    } <span class="kw">else </span>{
-                        <span class="prelude-val">None
-                    </span>};
-
-                <span class="kw">let </span>value_types = new_slice_val.flat_numeric_types();
+                <span class="kw">let </span>new_slice_val = AcirValue::Array(new_slice);
+                <span class="kw">let </span>new_elem_size = arrays::flattened_value_size(<span class="kw-2">&amp;</span>new_slice_val);
+                <span class="kw">let </span>value_types = new_slice_val.clone().flat_numeric_types();
                 <span class="macro">assert_eq!</span>(
                     value_types.len(),
                     new_elem_size,
                     <span class="string">"ICE: Value types array must match new slice size"
                 </span>);
 
-                <span class="kw">let </span>result = AcirValue::DynamicArray(AcirDynamicArray {
-                    block_id: result_block_id,
-                    len: new_elem_size,
-                    value_types,
-                    element_type_sizes,
-                });
-                <span class="prelude-val">Ok</span>(<span class="macro">vec!</span>[AcirValue::Var(new_slice_length, AcirType::field()), result])
+                <span class="prelude-val">Ok</span>(<span class="macro">vec!</span>[AcirValue::Var(new_slice_length, AcirType::field()), new_slice_val])
             }
             Intrinsic::SlicePushFront =&gt; {
                 <span class="comment">// arguments = [slice_length, slice_contents, ...elements_to_push]
                 </span><span class="kw">let </span>slice_length = <span class="self">self</span>.convert_value(arguments[<span class="number">0</span>], dfg).into_var()<span class="question-mark">?</span>;
                 <span class="kw">let </span>slice_contents = arguments[<span class="number">1</span>];
+                <span class="kw">let </span>elements_to_push = <span class="kw-2">&amp;</span>arguments[<span class="number">2</span>..];
                 <span class="kw">let </span>slice_typ = dfg.type_of_value(slice_contents);
                 <span class="macro">assert!</span>(!slice_typ.is_nested_slice(), <span class="string">"ICE: Nested slice used in ACIR generation"</span>);
-
-                <span class="kw">let </span>slice: AcirValue = <span class="self">self</span>.convert_value(slice_contents, dfg);
-                <span class="kw">let </span><span class="kw-2">mut </span>new_slice_size = arrays::flattened_value_size(<span class="kw-2">&amp;</span>slice);
 
                 <span class="comment">// Increase the slice length by one to enable accessing more elements in the slice.
                 </span><span class="kw">let </span>one = <span class="self">self</span>.acir_context.add_constant(FieldElement::one());
                 <span class="kw">let </span>new_slice_length = <span class="self">self</span>.acir_context.add_var(slice_length, one)<span class="question-mark">?</span>;
 
+                <span class="kw">let </span>slice = <span class="self">self</span>.convert_value(slice_contents, dfg);
                 <span class="kw">let </span><span class="kw-2">mut </span>new_slice = <span class="self">self</span>.read_array(slice)<span class="question-mark">?</span>;
 
-                <span class="kw">let </span>elements_to_push = <span class="kw-2">&amp;</span>arguments[<span class="number">2</span>..];
-                <span class="kw">let </span><span class="kw-2">mut </span>elem_size = <span class="number">0</span>;
                 <span class="comment">// We must directly push front elements for non-nested slices
                 </span><span class="kw">for </span>elem <span class="kw">in </span>elements_to_push.iter().rev() {
                     <span class="kw">let </span>element = <span class="self">self</span>.convert_value(<span class="kw-2">*</span>elem, dfg);
-
-                    elem_size += arrays::flattened_value_size(<span class="kw-2">&amp;</span>element);
                     new_slice.push_front(element);
                 }
-                new_slice_size += elem_size;
 
-                <span class="kw">let </span>new_slice_val = AcirValue::Array(new_slice.clone());
+                <span class="kw">let </span>new_slice_val = AcirValue::Array(new_slice);
+                <span class="kw">let </span>new_slice_size = arrays::flattened_value_size(<span class="kw-2">&amp;</span>new_slice_val);
 
-                <span class="kw">let </span>result_block_id = <span class="self">self</span>.block_id(<span class="kw-2">&amp;</span>result_ids[<span class="number">1</span>]);
-                <span class="self">self</span>.initialize_array(
-                    result_block_id,
-                    new_slice_size,
-                    <span class="prelude-val">Some</span>(new_slice_val.clone()),
-                )<span class="question-mark">?</span>;
-
-                <span class="kw">let </span>element_type_sizes =
-                    <span class="kw">if </span>arrays::array_has_constant_element_size(<span class="kw-2">&amp;</span>slice_typ).is_none() {
-                        <span class="prelude-val">Some</span>(<span class="self">self</span>.init_element_type_sizes_array(
-                            <span class="kw-2">&amp;</span>slice_typ,
-                            slice_contents,
-                            <span class="prelude-val">Some</span>(<span class="kw-2">&amp;</span>new_slice_val),
-                            dfg,
-                        )<span class="question-mark">?</span>)
-                    } <span class="kw">else </span>{
-                        <span class="prelude-val">None
-                    </span>};
-
-                <span class="kw">let </span>value_types = new_slice_val.flat_numeric_types();
+                <span class="kw">let </span>value_types = new_slice_val.clone().flat_numeric_types();
                 <span class="macro">assert_eq!</span>(
                     value_types.len(),
                     new_slice_size,
                     <span class="string">"ICE: Value types array must match new slice size"
                 </span>);
 
-                <span class="kw">let </span>result = AcirValue::DynamicArray(AcirDynamicArray {
-                    block_id: result_block_id,
-                    len: new_slice_size,
-                    value_types,
-                    element_type_sizes,
-                });
-
-                <span class="prelude-val">Ok</span>(<span class="macro">vec!</span>[AcirValue::Var(new_slice_length, AcirType::field()), result])
+                <span class="prelude-val">Ok</span>(<span class="macro">vec!</span>[AcirValue::Var(new_slice_length, AcirType::field()), new_slice_val])
             }
             Intrinsic::SlicePopBack =&gt; {
                 <span class="comment">// arguments = [slice_length, slice_contents]

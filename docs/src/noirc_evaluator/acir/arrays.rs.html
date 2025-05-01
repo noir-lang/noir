@@ -898,7 +898,13 @@
 <a href="#897" id="897">897</a>
 <a href="#898" id="898">898</a>
 <a href="#899" id="899">899</a>
-<a href="#900" id="900">900</a></pre></div><pre class="rust"><code><span class="kw">use </span>acvm::acir::{circuit::opcodes::BlockType, native_types::Witness};
+<a href="#900" id="900">900</a>
+<a href="#901" id="901">901</a>
+<a href="#902" id="902">902</a>
+<a href="#903" id="903">903</a>
+<a href="#904" id="904">904</a>
+<a href="#905" id="905">905</a>
+<a href="#906" id="906">906</a></pre></div><pre class="rust"><code><span class="kw">use </span>acvm::acir::{circuit::opcodes::BlockType, native_types::Witness};
 <span class="kw">use </span>acvm::{FieldElement, acir::AcirField, acir::circuit::opcodes::BlockId};
 <span class="kw">use </span>iter_extended::{try_vecmap, vecmap};
 
@@ -1745,8 +1751,14 @@
         }
 
         <span class="self">self</span>.acir_context.initialize_array(array, len, value, databus)<span class="question-mark">?</span>;
-        <span class="self">self</span>.initialized_arrays.insert(array);
-        <span class="prelude-val">Ok</span>(())
+        <span class="kw">if </span><span class="self">self</span>.initialized_arrays.insert(array) {
+            <span class="prelude-val">Ok</span>(())
+        } <span class="kw">else </span>{
+            <span class="prelude-val">Err</span>(InternalError::General {
+                message: <span class="string">"Attempted to initialize memory block twice"</span>.to_owned(),
+                call_stack: <span class="self">self</span>.acir_context.get_call_stack(),
+            })
+        }
     }
 }
 
