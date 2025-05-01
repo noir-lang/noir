@@ -209,7 +209,7 @@ pub fn primary_passes(options: &SsaEvaluatorOptions) -> Vec<SsaPass> {
     ssa_pass_builder.add_pass(
         move |ssa| ssa.inline_functions(options.inliner_aggressiveness),
         "Inlining",
-        vec![All],
+        vec![All, Debug],
     );
     ssa_pass_builder.add_pass(Ssa::mem2reg, "Mem2Reg", vec![All, Debug]);
     ssa_pass_builder.add_pass(Ssa::simplify_cfg, "Simplifying", vec![All]);
