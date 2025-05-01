@@ -940,4 +940,37 @@ mod test {
         }
         ");
     }
+
+    #[test]
+    fn remove_dead_pure_function_call() {
+        let src = r#"
+        acir(inline) fn main f0 {
+          b0():
+            call f1()
+            return
+        }
+        acir(inline) fn pure_basic f1 {
+          b0():
+            v2 = allocate -> &mut Field
+            store Field 0 at v2
+            return
+        }
+        "#;
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.purity_analysis();
+        let (ssa, _) = ssa.dead_instruction_elimination_inner(false, false);
+
+        assert_ssa_snapshot!(ssa, @r#"
+        acir(inline) pure fn main f0 {
+          b0():
+            return
+        }
+        acir(inline) pure fn pure_basic f1 {
+          b0():
+            v0 = allocate -> &mut Field
+            store Field 0 at v0
+            return
+        }  
+        "#);
+    }
 }
