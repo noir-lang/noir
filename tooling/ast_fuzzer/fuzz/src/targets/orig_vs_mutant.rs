@@ -6,7 +6,8 @@ use arbitrary::{Arbitrary, Unstructured};
 use color_eyre::eyre;
 use noir_ast_fuzzer::compare::{CompareMutants, CompareOptions};
 use noir_ast_fuzzer::{Config, visitor::visit_expr_mut};
-use noirc_frontend::monomorphization::ast::{Expression, Function, Program};
+use noirc_frontend::ast::UnaryOp;
+use noirc_frontend::monomorphization::ast::{Expression, Function, Program, Unary};
 
 pub fn fuzz(u: &mut Unstructured) -> eyre::Result<()> {
     let rules = rules::all();
@@ -57,6 +58,13 @@ fn rewrite_expr(
                 rewrite_expr(&range_ctx, u, &mut for_.end_range, rules);
                 rewrite_expr(&ctx, u, &mut for_.block, rules);
                 // No need to visit children, we just visited them.
+                false
+            }
+            Expression::Unary(
+                unary @ Unary { operator: UnaryOp::Reference { mutable: true }, .. },
+            ) => {
+                let ctx = rules::Context { is_in_ref_mut: true, ..*ctx };
+                rewrite_expr(&ctx, u, &mut unary.rhs, rules);
                 false
             }
             _ => {
@@ -117,6 +125,8 @@ mod rules {
         pub unconstrained: bool,
         /// Are we rewriting an expression which is a range of a `for` loop?
         pub is_in_range: bool,
+        /// Are we in an expression that we're just taking a mutable reference to?
+        pub is_in_ref_mut: bool,
     }
 
     /// Check if the rule can be applied on an expression.
@@ -164,6 +174,10 @@ mod rules {
             |ctx, expr| {
                 // Because of #8305 we can't reliably use expressions in ranges in ACIR.
                 if ctx.is_in_range && !ctx.unconstrained {
+                    return false;
+                }
+                // If we rewrite `&mut x` into `&mut (x - 0)` we will alter the semantics.
+                if ctx.is_in_ref_mut {
                     return false;
                 }
                 match expr {
