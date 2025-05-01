@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1746110271743,
+  "lastUpdate": 1746111734320,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -18021,48 +18021,6 @@ window.BENCHMARK_DATA = {
             "username": "web-flow"
           },
           "distinct": false,
-          "id": "b41112159d86863fc4d582ffd461a018639e2de5",
-          "message": "feat: optimize `checked_to_unchecked` to take into account multiplications (#8188)",
-          "timestamp": "2025-04-24T10:45:22Z",
-          "tree_id": "d3ad35d3bae4b51f8d889b9beac2f40ba87564d3",
-          "url": "https://github.com/noir-lang/noir/commit/b41112159d86863fc4d582ffd461a018639e2de5"
-        },
-        "date": 1745492476183,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 268194,
-            "range": "± 1126",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 239140,
-            "range": "± 6124",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 3579542,
-            "range": "± 18839",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
-            "email": "asterite@gmail.com",
-            "name": "Ary Borenszweig",
-            "username": "asterite"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
           "id": "f4910ca5df08d787361e36038ff257ecec4042e0",
           "message": "feat: avoid overflow check when subtracting from a value that is the maximum for its bitsize (#8190)",
           "timestamp": "2025-04-24T11:32:00Z",
@@ -20104,6 +20062,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 3590021,
             "range": "± 13820",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "15848336+TomAFrench@users.noreply.github.com",
+            "name": "Tom French",
+            "username": "TomAFrench"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "9e69d4cd6235b9183cefa84c7f1bca6ea7057c4e",
+          "message": "feat: remove unnecessary dynamic arrays when pushing onto slices (#8287)\n\nCo-authored-by: AztecBot <tech@aztecprotocol.com>\nCo-authored-by: Maxim Vezenov <mvezenov@gmail.com>",
+          "timestamp": "2025-05-01T14:44:14Z",
+          "tree_id": "86954196383c0a5e5c425a986776b19792ff0d15",
+          "url": "https://github.com/noir-lang/noir/commit/9e69d4cd6235b9183cefa84c7f1bca6ea7057c4e"
+        },
+        "date": 1746111726958,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 254454,
+            "range": "± 1530",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 229620,
+            "range": "± 4845",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 3576795,
+            "range": "± 15622",
             "unit": "ns/iter"
           }
         ]
