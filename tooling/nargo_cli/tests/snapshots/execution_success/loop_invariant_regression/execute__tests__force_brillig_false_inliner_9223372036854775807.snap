@@ -31,11 +31,15 @@ expression: artifact
       "7233212735005103307": {
         "error_kind": "string",
         "string": "attempt to multiply with overflow"
+      },
+      "17843811134343075018": {
+        "error_kind": "string",
+        "string": "Stack too deep"
       }
     }
   },
-  "bytecode": "H4sIAAAAAAAA/7WVQXLDIAxFZWyn6XRZZ58jIAMx7HqVuMFn6QF6iJ6kmy56pcQJmmiIs7L4M4wYw4inbwtXcNPmMt7SvLqMOsV57NnzWR8p6nVCYGfwvEYfrI1DH9HgUfdh9E5bNx48enTenXpvTPTWD2EMgw5oTcTJBTOlxEqOUXMvVGEvFNy11os4XeWajJerRA1C3J+ctykJ3DDjpeAbQcYW5BqjlIctyDUxedjKMYrWPSVVwnXTO9pAmctrzrsX7qNSXtDlJf0NwJP6JfpKiLOf2ejCUwvMXGph/vf9//vzdTzxfdsna5TzNYs7tl7L1YaUvyuTX7/Ao3Zs3mV1Lv1w9UpRvjrFFh6lsjXau834Knk+zFnqhbNI7yl27Bn5eQbPvaelOQoAAA==",
-  "debug_symbols": "nZPNjoMgEMffZc4cRAHBV9lsDCo2JAQN1SYb03ffkUhbD/TgZfgYfjD/YWaDwXTrrbV+nO7Q/GzQBeucvbVu6vViJ4+725NAWrZLMAa34MOP1KyD8Qs0fnWOwEO7NR66z9rHcdEBvQUB4wcc8cLROrPPnuRNF3mUSnrAZUFfOD/zNM8zxQ6eKXWB57Q6eE7lFb6SiWdVjv+ivyzqpL/iOZ7necH5wQtBr/AyxS/y+fvC12XKX13KK/rZ6/9FmeNVnlcs5U9xceJ/caV7G04VDxQfIlBGW2HREGAonQCPVkRboxgCMloFDSaIFlgEe3U/dLC6c+bonnH1/UczLX9z8qR2m8PUm2ENZg8j+jCwfw==",
+  "bytecode": "H4sIAAAAAAAA/7VYzY7TMBCe/HU3WzjAdk9IqEcOSNiJkzicKkH3PdI0eY4eeQAegifhwoFXYrPrIdPBAbQdjxTZiSfffPN57LiN4MlWD9cL148ersS107UlzyfbuVZdZhpIDIpbqtqYoSkGXepOFe3BVspUh9pqqytbHQtbloM1tmkPbaNabcpBj1Vbjg44luOoqBZxYC1imO1SLYbx0aqUaUwtRA5CvHvKNw1JOCXCS5FPBTlmILcwQmmYgdwiRg0zOY6ieY/OIuG8cY5WEGbzmnC3wusolBa4eUnXACzkL7GuhHgWuNklsGxCsczfNFGXmY4gzNwJa1CcCYDixx5hqMWe/o+vP79/+9Idqd/1whi+89G1OXuOC3cnk6TOCa40vlWmyeHchPmXOZzPTyj8LAy+unI4n08zPs0F4ybMj7+TEJ898dkv+NwTn3vm8xL+PBliLByjdb5nY3SDQuyp3l/B3L91/ZzFClF/lK/0/N16+Mckt8k+nWRj48d17bTUTMtAtVpiniuHl8L5LyBg8UNrHzjfHvGvwuBrXC+pp3Ymjd+Q53QsI7qnzAfHqf9bgqmYD87lB+KzXYgbw7y2eU1PhnrlYfRSyAe/nbT+eEyaI/q/Y3mt3X0C/jpOmP+NJy5iUE0y5o9xJx4Nw/Tl4ltLPJf3rg2t+WuCC55Y/Fvgq0tcP/9b77RO1yReepLPsbFPdfXI/TRr7Ttkp2Sc+tfu/obkBSTX3TN5jk2nx7Ibu6o7Hk3f8bkAot86QPza1NrazvZ1P7amP/wrPs4TtnfEP8SZdRMG//eZjNod6W9Ynr5/59SFhnh0L+MWszH0vWb8Inl+mnNJPLHQ8Ky3Ic9Qz1+b3qLuZhYAAA==",
+  "debug_symbols": "nZTdjoMgEIXfhWsuHP6EvkrTNNSyjQlRQ7XJpvHdd5BitxdsstzwqXgOMwzMk1zdZbmd++FrvJPD8Ukuofe+v5392Nm5Hwf8+iRNHBiOQAmDhJYcGCWckQNH8ASRIBNUQpugE8wGgWYCAQksgSegi1hXSnIM5zk4F0P4FRSGOtnghpkchsV7Sh7WL9tP98kOG2cbcLahxA1XJBp+9d7Fp5W+1U1ZCiDVSw2g2G4g/+HAYXcQVQ4MRHZgTFY5CLk7yKbGQeckWAMlvSzrhckpCGMq9BL4Sy9B1+i5znrBK/JnTZvz58UKmLJeyVwApaBGr3P8qrx/f+hblvevZbomf7HXv3wLYo1KBkbkDTRSVQTABXvpuf4M4IRvtuvDZ7/CroIXl20j9hTcPWwpgAvIBJXQxltJiU4w8X5QArHN4XmF2OditR829PbiXXSOay9DlxfC1/l7yjO5dU5h7Nx1CS4G9e6f0fgoDJXilNyPeCxke1pjFj8=",
   "file_map": {
     "50": {
       "source": "// Tests a simple loop where we expect loop invariant instructions\n// to be hoisted to the loop's pre-header block.\nglobal U32_MAX: u32 = 4294967295;\n\nfn main(x: u32, y: u32) {\n    simple_loop(4, x, y);\n    loop_with_predicate(4, x, y);\n    array_read_loop(4, x);\n    //Safety: testing for failing assert under condition\n    unsafe {\n        loop_with_break_under_predicate(4, y, x);\n    }\n}\n\nfn simple_loop(upper_bound: u32, x: u32, y: u32) {\n    for _ in 0..upper_bound {\n        let mut z = x * y;\n        z = z * x;\n        assert_eq(z, 12);\n    }\n}\n\nfn loop_with_predicate(upper_bound: u32, x: u32, y: u32) {\n    for _ in 0..upper_bound {\n        if x == 5 {\n            let mut z = U32_MAX * y;\n            assert_eq(z, 12);\n        }\n    }\n}\n\nfn array_read_loop(upper_bound: u32, x: u32) {\n    let arr = [2; 5];\n    for i in 0..upper_bound {\n        for j in 0..upper_bound {\n            for _ in 0..upper_bound {\n                assert_eq(arr[i], x);\n                assert_eq(arr[j], x);\n            }\n        }\n    }\n}\n\nunconstrained fn loop_with_break_under_predicate(upper_bound: u32, x: u32, y: u32) {\n    for _ in 0..upper_bound {\n        if x == 3 {\n            break;\n        }\n        let mut z = U32_MAX * y;\n        assert_eq(z, 12);\n    }\n}\n",
@@ -46,6 +50,7 @@ expression: artifact
     "main"
   ],
   "brillig_names": [
+    "loop_with_break_under_predicate",
     "directive_invert"
   ]
 }

@@ -25,8 +25,8 @@ expression: artifact
     "return_type": null,
     "error_types": {}
   },
-  "bytecode": "H4sIAAAAAAAA/7VT2w6DIAzl4rLtefofVEDLm78yM/z/T1jMaEaq7mX1JKSkhcPpSTHqA62+WPfNQZ7nCLYsdXCXYEqcSnT/AWou74YQ8thn8PB0fZoxuhDnAQEhYnz16H3GgGOa0+gSBJ9hickvhUzL6XKaeXNa81bYAFsJl+JVPwZAglvKT6NkB6BhPa/Y+1B79TuLXVW3gj0Tf3sOv7uqLbpq37I+ay8mIQ3ER7N9UVsYVqOzN6ZPy+sDrsXuvEV4lNhWOfLzDeRa2tPNBQAA",
-  "debug_symbols": "xZDBCoMwDIbfJecedGwwfJUhUmuUQmhLbIUhffdF0U0G3ga7NP3z90uTzNBhm4bGut6PUD1maNkS2aEhb3S03kl2zgp22URGlBQcfKGCZnQRKpeIFEya0vpoDNqtMWoWt1CArpMoBXtLuNxyLUIby98/Tpqtbgk32SdnDm58ht3ZOw7sDXaJcam0eln9YR71oYtz9FLcN/hSXt/47WwfUEBVKijl/NFq6vwC",
+  "bytecode": "H4sIAAAAAAAA/7VTUQ6CMAztNon6LdxjZRtsf1xFItz/CELctCnoj+UlSxs6Xl9fOg0v6OWonFc51/CBInV6940hR/sfcCU+kabA8k3jBSYf+PIvEOGSWimXs533U99O6PBu2zTGYH0Yu4gRQwyPNjo3RR/7NKbeJvRuwjkkN2cyJafLKubNYcMbYQMMES7FCz8WQIJbyk8NsgtwYjOv2HtQe/Uriw2pG8GZC399DL89wxYNyWs2J/ViENJQ+MpuV7CFZrVy98L0KXl9yLWYnV4Ftxxr8q34+QS3m9IaSgYAAA==",
+  "debug_symbols": "zZDBCoMwDIbfJecedOgYvsoQqTVKobQltoMhffelops7DHbYYac0+fuF/P8CA/Zx6rQd3QzNdYGetDF66oxTMmhnebokAXvbBULkERx0prwktAEaG40RcJMmrp9mL+1agyRWCwFoB668cNQG8yuJF118Rqvzxtb1E66ZbrmTStPbvVBAU6a8jLTsDW4exmjVwVK4+13ZTXtyCodImNetWj7vTyM5FZcNPpXVl6EIKH8XTZse",
   "file_map": {
     "50": {
       "source": "fn main(x: Field, y: pub Field) {\n    let z = foo(x, y);\n    let z2 = foo(x, y);\n    let z3 = foo(x, y);\n    assert(z == z2);\n    assert(z2 == z3);\n}\n\n#[fold]\nfn foo(x: Field, y: Field) -> Field {\n    assert(x != y);\n    x\n}\n",

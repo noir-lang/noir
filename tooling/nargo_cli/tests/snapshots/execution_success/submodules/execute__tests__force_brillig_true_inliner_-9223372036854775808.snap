@@ -34,9 +34,14 @@ expression: artifact
       }
     }
   },
-  "bytecode": "H4sIAAAAAAAA/7VUUQ7CIAwtDqNojGZ+6DGYm26ffriDEBfOsaPrYutKnV+DJqSQPl5fS4OCjylcg2n0C/g1wtzR23lWROSyKXWqRDqDJiv4bxQ7ozfi/hDPIhZsRN6Y/I2tbmaivoj6S8M4E/BfiF+n4bcr5Hn0IT+IvJnAyTsc0zJMKzA7CD8BzkMxPqt0f/1eexj3B9wbwZdifrim2P0/TuinXFusNWdnmmfdx9dTN9Z+3xL5lzC+KzfN4hx/wvOG1UNez9Dpa1f40nl3dV1XPV0u+EH07QXmbqMVcQYAAA==",
-  "debug_symbols": "XY7BCoMwDIbfJece5nYZvoqIxBqlENISW2GI775UJsguSf58Sf7sMNFYliHIHFdoux1GDcxhGTh6zCGKdffDwSWHrETWghu3rYRKkqGVwuxgQy7n0JpQzpxRjT4ckEyW7eAcmGp19CbQB/133FADjkw/ORfxN5o/6SLXx0mjp6ko1UuVwaOGxmLXvN3z1R/V7Qs=",
-  "file_map": {},
+  "bytecode": "H4sIAAAAAAAA/7VUOw7CMAx1aAsEhEAwscAEc4DyGTvQg0RUPUePDhU2dd10ocmTovyc52fHiYIvFLYaMfYj6IJsMuzNMJw8cpmQOlUgna0kK+gH7R2x1+J8vR95DFgLvz75Hya9aUd8HvVfNOMMwH8m/jgMv5kgz7Nq84PwGwk7eYbb5MwmFzYLaH8CnIf2eK3S+emnLaEZr3CsBV+I+uGafOd/49BPvuYY61bEGqjWUso/3TkH7SXMt7zTsSMG118TiTmPqY53z3ilHWEOzd8UV22eDNfNANwfxvzqGvkT6Grn/hNhv8P5TOinHGd/6izv9lRebGmvtijSl10L/hp9NaSgm2++TmM673pfAP7+/0ToOQi/od7d2nEnPGdvbxTJibEIAAA=",
+  "debug_symbols": "pZHRisMgEEX/ZZ59ULNu0vxKKcEkkyKICVYXluC/7xibbfpQKPRljtfxzhVmhRH7eO2Mm+YbtOcVem+sNdfOzoMOZnZ0uwLPRdTQCgaiKThtkLxAFMiCakNFShJIVYSvAlXwTUiJwZ7TBY+YYw7B9J1Fe3QBWhetZfCjbdwe3RbtNgbtqcsZoBuJNHAyFvMpsYebv7bW6u4VXP271dt20cjd39Sf+U/yyX8hpQfjnzaR8iRvdG/xLqfohkM3/C57Z9/k4ucBx+gxTzqsk+pZKlbxS8ppfw==",
+  "file_map": {
+    "50": {
+      "source": "use my_submodule::my_helper;\n\nfn main(x: u1, y: u1) {\n    my_helper();\n    my_submodule::my_bool_or(x, y);\n}\n\nmod my_submodule {\n    pub fn my_bool_or(x: u1, y: u1) {\n        assert(x | y == 1);\n    }\n\n    pub fn my_helper() {}\n}\n",
+      "path": ""
+    }
+  },
   "names": [
     "main"
   ],

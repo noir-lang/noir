@@ -31,9 +31,14 @@ expression: artifact
       }
     }
   },
-  "bytecode": "H4sIAAAAAAAA/9VWwW7CMAxN2hQICA1th0m7bbtNmlRIoRx32I9kRf2OfPpasFf3UdiB5oClyGni+r3nOlG1OlnSDE1zQ14Ln6q+8d4X+fw2W4+YK4/FUd8BxyQCx6Ol8PETddlY1I68JZ+I/XRE0RZwx8y/z4vSDugbkb+zUNNY+dM4+fMp5fkOXX7Uwn2gVbTvVETW6ZbqvPc1aDNxsAsNeAp0KsCfq6g9tdaAx3ywPjxfckzo+GjYM+FcB+9loa+jtVkznkUc9lYi4t7E/J3mkfuxjHyu86crmnltGtSfcd1SscZ15TrPZDzsWbFnQh9nTs9G4MhczCOD+Fd6fiA/Ee/w+6sB/Ang93gPrGFd7EC8HYifNOOF5gsabQ99Ct5Yd7wTYt27eAa59oiZCE14R8nzm8HaB/lWrwN98oxfO/crdblHF6r7NzBh/BqV+1ONjhxDpxF/ZiV+BvEbep4L/uzNDTzr0q9r52u/9YdDUflHyK+gTmPj+9Ltq01RlT9b593uX/xfPw11DSkMAAA=",
-  "debug_symbols": "XY5NCoQwDIXvknUXOp1uvIqI1BqlENoSW2EQ7z6pjCCzafrel593wIxTWUcflrhB1x8wsSfy60jR2exjEPc4FdxyzIwoFjy4TCXLGDJ0oRAp2C2Vq2lLNlw1WxbaKMAwS5WFiyesv3MQYZ3n/4u7ZW8nwp9cSnAPmj/pJnfixNHhXBjrpsqgqY+WgC+ttB4UtOL0b6NMU0UrwrTK6OGsMb4=",
-  "file_map": {},
+  "bytecode": "H4sIAAAAAAAA/+VYMa/TMBA+J3HbtFStYEBiA4mNIX1JaSWWIsoEG78g9KkjExOTGRALGxL8Xeo+H718ueYhiIUKJ0VO7C93353P58SGbiQ5XCbcZ6E1ok2pKTy2CW3xZ7LoUVcRi6O5AI5JBI5HSWHyEzov7NT30OahTcR42qPTOdjtU/+6qNa54l+P/MscYhpLfxpHfzEMel66k370hfPAULR5Wkb2s5xSO/cN+JbFsV0ZsEfgJ4H9MUXNqYUBe8wH48P3U8a4Ex8DY5lr+8Fj1jX98DI6XPcFDnMrEbhH4v5xuI+cj+vI67q41+Ez9w0d/RSOWyr6OK4c55HEw1guxjLXtDMOz5mwI3UxDwv4h+F5FtqBeIffnyv2B2C/wVvpw7jkCj5X8IPD9SDcT+i0l71wJ30x9rKt4NKXbs/f5/+zoG9G7ZzBehZrz8D6wXmDNhMxH1hfZe2x0PcktN7f5+CfrE9dNWtO59dX5LVdTRUfWXjMgl9Ezf1B+igFa+NW6EUc/YP+vhZ6Ecci13rm+vd5tb5ZA0e+Qb+lNndp3wJ+E57HwJ/j+Ls896t6sS/rfb2sr6+rXX0X9HtJRJz6tl+vyvXuqtqt3i7Lunx6q31Z0zg3ZBxTauaMF67fWg3Efx1+z1K7Vmxdc4yxr0Ibu45ibKSt/6nevwnthdb7Av8fqD/dy65v75g17iCVn4+PQRfWcS8WOA3EWKrgMXeHCn4gMDi3QzGWiRhEnNurX/FN2p9RO/cHwFXq2vTEkyBGtoOHBewe+I3ixFKtdyOwHekfvDRgj0ifR7Y/o3bOIVeZ25ueeKItq/CwMMbYd8AvjxNLdR6lrXNxNqIP93AtzrfFwsvW6bF4fyGx0GpHVyySM7HQ1jdjP0As/sb67qqj+O0pY5Eo/hF1f9tpa4SxDmIRqd6osWBbE9LPTOQe74XPXeS5jMTLXJD4T4w9XJ/DPZ7FSXse960DZ860Rx1KX+aafdp5jTzHYjzbHrs2Rx6biDH5/eHlTniW8ZK6mIcF/NfwzHMiz574/blifwT2G7yVPjzHmij4iYL38/OF9YVW+t732fDRJuiXfciNc8fn9Q8fhQNplRwAAA==",
+  "debug_symbols": "pZXfiqswEIffJde5yOR/+iqlFNvaRRBbXD1wKL77mXEyZ7sXC4ve+P1S+81oDMlL3drL/HHuhvvjUx2OL3UZu77vPs7949pM3WPAX1/K0MVHdQCtfGJkRlkRDAMYVh0swjE8IzAiI62IqDutkmGg7hGW4RiewULKjLIiGwYwuG3mtpnbZmwbEJGRGJlRVhTDAIZlOAZWiYjAiAyskhCZUVaAMZVQiYUy0VX6SqxViLEyVebKwgSaU0MBJGBFAApOgpcQJNBXshSSBPpSjkKpwRoJIIEqewpOAlUOFIKEKIEqh2XRShbJeRrbltbI26rBtfRsxnaY1GGY+16rP00/r3/6fDbDyqkZ8S6+WTvckFjw3vUtpUV/2eZnFWKuMmT4r4ff+wWqb8Fs8G1K4m/q/+7HDb4HeX9v7RY/OvFj2uenTf1zFL+YnX7Y4AeQxRfA7/TLFt/J/AWX9vl+y/yHIPMXotnpf5//E46aazd+O0cWqjR2zaVv6/A+D9e3u9Pfp9yRc+g5Pq7tbR5bqvR1GOHlCLZoCOakFW5aR+u0cyfaP3EQio6eBrjBHWPQMZ0Weqh/",
+  "file_map": {
+    "50": {
+      "source": "// Tests a very simple program.\n//\n// The features being tested are array reads and writes\nfn main(x: [Field; 3]) {\n    // Safety: testing context\n    unsafe {\n        read_array(x);\n        read_write_array(x);\n    }\n}\n\nunconstrained fn read_array(x: [Field; 3]) {\n    assert(x[0] == 1);\n    let y = [1, 5, 27];\n\n    assert(y[x[0]] == 5);\n}\n\nunconstrained fn read_write_array(x: [Field; 3]) {\n    let mut y = x;\n\n    y[0] = 5;\n\n    assert(y[0] == 5);\n    assert(y[1] == 2);\n    assert(y[2] == 3);\n\n    assert(x[0] == 1);\n    assert(x[1] == 2);\n    assert(x[2] == 3);\n}\n",
+      "path": ""
+    }
+  },
   "names": [
     "main"
   ],

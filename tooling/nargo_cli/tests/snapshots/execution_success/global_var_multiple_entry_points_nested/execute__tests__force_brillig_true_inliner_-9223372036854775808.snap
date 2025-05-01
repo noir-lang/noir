@@ -30,9 +30,14 @@ expression: artifact
       }
     }
   },
-  "bytecode": "H4sIAAAAAAAA/7WTUQ6CMAyGO5nRaTRGo+cogsKjD3qQRcI5OLohttrN+UTXhLRLx7e/7WbgbYa+0Sz5Gfwa77mRx2lWKrIwp06TSedHqIwN/G/8ibyDcEhjvlAs2CU0afFbrK8uUZ+i/soJZgb+mfk2Dx8XxLkPIR+iczcQPl75D+fkQ35Qbkl5jrcUu4iXY+5Sk3bfDgn9fNaaat2JNd9DO+jraVpE1lEQfw7fOUqzIi/3H2m9EvWwtxN09o0v+8r3/uK7rn76fcSHqG8v9KPWMikGAAA=",
-  "debug_symbols": "XY7BCoRACIbfxfMcag976FUiwiaLAXEGmwmW6N3XiQ1iL+rvp/4eMNNU1jHIEjfo+gMmDcxhHTl6zCGKdY/TwS3HrETWgge3rYRKkqGTwuxgRy7X0JZQrpxRjTYOSGbLdnAJTLU6BxPog/477qgBJ6afXIr4B82fdJP746TR01yU6qXKoKmhtdi3b/dqh7O6fQE=",
-  "file_map": {},
+  "bytecode": "H4sIAAAAAAAA/+1XsU7DMBB10gQIFRKCH2CBDcltUqUDQyQCCyMjLBFVvsOfjqzekfOLIyFiD6h5UuW4d3n3fH622kQdkdDHIqMxVWNwTkOjnodNQC4dU2cSSeePUPmcqOnGf9JYKHeTbHwVcMGFR1Mo/r2u6sKzvoD6y0JwRuDfMn8Wh1+fE8+LcfkV1L1S7uGV73BMHuRXil1QnJ+v6bkAvhj7LjWF7tutR38q1mbxbIZ+BKq7Ze42PHe5pj26gz2K5O2KfZOpMTiWi9oJxM48vffdaSuYyzXZ9T4IXsxTJ9aLneDFPMZaDR7PjMvT0Pd6Buq91lxvRfy5GmuX9XPIv6f5JejnHjd/1NnX3aYvu77bdYdD9dXdAL9FKvokz5PskwTfE3i/oh/Qf+lELPe82xo3xrmPNLK/c+BraK5nAvska53K2WoFL+Yx/oNnnmhcPDPUXjxzRGvcGOe+0bh4ZqgdyzPvghfzGL/1TGvGeqfmPs/g73CLhkY9DxXWzUGXrIt+/AB9sf5f+fzItewefAPuCZ/iGREAAA==",
+  "debug_symbols": "pdXdboIwFMDxd+k1F/0+ra+yGINaDQlBg7BkMbz7TjmnG14sWeqNvzH8Fw6N4SnO6ThfD91wuT3E7uMpjmPX99310N9O7dTdBvzvU8j8oUDsVCNUIOKKloQiNGEIK3YacYQngAhEXDGSwCPTCItHFsE1HaIJQ1gC1/SIJ4AIRFxxklAEdoBgFxDsIgJEIOKKzxNJVLGaNaxlHevZ/EBwasg9DgO5x2lAs4a1bO5xTPAssIGNZJCsYnOPjyDkHicLucfRArCBjWTMPSxLI8qWHqYxpbyjmz3Gnb+3YxomsRvmvm/EZ9vP65ce93ZYndoRz+KkaTijuOCl61P+a2l+a/l3qozjWDn/k7v/996XPkBFr325vgb9Zl9z/zrE0kdX0RupuTcqVPRWW+6tUW/2NfdvbSi9szW9V6WHmv13tty/c+rNvmZ+58v8Dmrmd6HM72VN76Fc31f9fjZ9rHl+IMvzAyVf+j0etadufHnrLHmlsWuPfeLDyzycNmenr3s5U95a9/F2Sud5THmlzasLPz+Mbgzsl3y1bw==",
+  "file_map": {
+    "50": {
+      "source": "global TWO: Field = 2;\nglobal THREE: Field = 3;\n\nfn main(x: Field, y: pub Field) {\n    // Safety: testing context\n    unsafe {\n        entry_point_one(x, y);\n        entry_point_two(x, y);\n    }\n}\n\nunconstrained fn entry_point_one(x: Field, y: Field) {\n    let z = TWO + x + y;\n    assert(z == 3);\n    inner_func(x, y);\n}\n\n// Identical to `entry_point_one`\nunconstrained fn entry_point_two(x: Field, y: Field) {\n    let z = TWO + x + y;\n    assert(z == 3);\n    inner_func(x, y);\n}\n\nunconstrained fn inner_func(x: Field, y: Field) {\n    let z = TWO + x + y;\n    assert(z == 3);\n    nested_inner_func(x, y);\n}\n\nunconstrained fn nested_inner_func(x: Field, y: Field) {\n    let z = THREE + x + y;\n    assert(z == 4);\n}\n",
+      "path": ""
+    }
+  },
   "names": [
     "main"
   ],

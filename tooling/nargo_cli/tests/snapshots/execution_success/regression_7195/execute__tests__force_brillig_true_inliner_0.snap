@@ -30,8 +30,8 @@ expression: artifact
       }
     }
   },
-  "bytecode": "H4sIAAAAAAAA/7VUSw6CMBCdSolWoguNbvQQRVBYstCDNBLOwdFNw1SGWlzo9CWkJTN98+b1I2CAwM9C4riAT7icBkf9H3JGLh1Tp4ik8y2UzgXMG3/GUcF0k2w8YWxYBTRx8de6vKlAf4z6C0U4I/BfHL+Mw6+XyHPvp/zg1d3A9PLSNS5GL/IDYyuMu/kW58rji7HvVBO3b/uAflcrw16PxA/qa/plbcgXYNQtvHoyoI/WT738g6cz1rncef3TWhmM75Ls+etX9eCTRdKPPjh/KCSJ0/wT/q9n+mh+1NlVJu8K05mradvyaXyfLOg5fAEWXxueeQcAAA==",
-  "debug_symbols": "dZDbDoMgDIbfpddcKJvz8CrGGNRqSAgShCWL4d1XPGzuYjf9Ke33N+0KA3Z+aqUe5wWqeoXOSqXk1Kq5F07Omn5XSGJIM6hSBuljl3yXYpdyE06NaQgMTrp1FjHCFzsaYoRF7aDSXikGT6H81rQYoTd1wlI1YYB6ICXDUSqMr8C+dPIf5WVxwLfk/sEz4hvKRC/tz4IhOlkpOoVHOnrdX6ruZc7KeSBj5x4HbzE6Xa5Eseac8bwJcdob",
+  "bytecode": "H4sIAAAAAAAA/81V2wrCMAxNd0GriKBfoC/6ZtV5eRTUDynKvmOfLsXEZbHzwbViYLQl7ck5SdopeJrCz1mGYwLvRntOOJputg6IZWLyVJF4vojyuYL2xNNpDc0iOX8aULD2cAqFfzTFXnv0BeS/1QwzAv6G8LM4+KaHOJeqiQ8i7gial5efIR+/yFf09dFP8zHOtcCLUXfOKXTeph7+CdPm7FzVPggYe4i5nItcRurBgupLvcCNfDmL/el9ScWa83aalgxX7oM/1Zt4OIbUK8/l0N57Cvw/WX7eGfWmxJrhGPv+TBiu1DCE+g5lVfj4h6MxFDdleZC14vFzsX+B64FHR9aBZ3mw63JrS7uz93txszJPIPLkewf4O/wtD2m8BpSPWD24atHz6x58ALy7OGm1CgAA",
+  "debug_symbols": "nZLLqoMwEIbfJesscvX2KqVI1FgCIUqqBw7iu5+Jo6d2IZRu8jmO328SZiGdbeZH7UI/PEl1W0gTnffuUfuhNZMbArxdCEsLz0jFKeE5okCUGwRDcIQglQBIhEJoRIbIEZAiAeUGyRAcITYoqDRAICRCITQCMvW6UnJsup6itWnPp1PA2UYTbZhIFWbvKfkxft4+eo4mbJxMhC6jxIYOCIG98zY9rfRls2tVZPkui1z+6/pzPy8Pv9Df+GWx+5KpL3zOs93nQlz56tqXx93J7M2+Q2VaF9+mak050ZnG273s59CeutPveHSOqRzj0NpujjYlnUYT1ptUVJb3Nf3tDw==",
   "file_map": {
     "50": {
       "source": "fn bar(y: Field) {\n    assert(y != 0);\n}\n\nfn foo(x: Field) {\n    // Safety: test\n    let y = unsafe { baz(x) };\n    bar(y);\n}\n\nunconstrained fn baz(x: Field) -> Field {\n    x\n}\n\nfn main(x: Field, y: pub Field) {\n    // Safety: test\n    let x = unsafe { baz(x) };\n    foo(x);\n    foo(y);\n    assert(x != y);\n}\n",
