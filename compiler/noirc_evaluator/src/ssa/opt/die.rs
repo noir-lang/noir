@@ -40,6 +40,14 @@ impl Ssa {
         self.dead_instruction_elimination_with_pruning(true, true)
     }
 
+    /// The elimination of certain unused instructions assumes that the DIE pass runs after
+    /// the flattening of the CFG, but if that's not the case then we should not eliminate
+    /// them just yet.
+    #[tracing::instrument(level = "trace", skip(self))]
+    pub(crate) fn dead_instruction_elimination_pre_flattening(self) -> Ssa {
+        self.dead_instruction_elimination_with_pruning(false, false)
+    }
+
     fn dead_instruction_elimination_with_pruning(
         mut self,
         flattened: bool,
