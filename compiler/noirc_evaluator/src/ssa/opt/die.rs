@@ -390,7 +390,6 @@ fn can_be_eliminated_if_unused(
             // from the ACVM to the external world during execution.
             Value::ForeignFunction(_) => false,
 
-            // We must assume that functions contain a side effect as we cannot inspect more deeply.
             // We use purity to determine whether functions contain side effects.
             // If we have an impure function, we cannot remove it even if it is unused.
             Value::Function(function_id) => match function.dfg.purity_of(function_id) {
