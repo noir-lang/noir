@@ -1331,7 +1331,7 @@ impl<'a> Context<'a> {
                 let one = self.acir_context.add_constant(FieldElement::one());
                 let new_slice_length = self.acir_context.add_var(slice_length, one)?;
 
-                let slice: AcirValue = self.convert_value(slice_contents, dfg);
+                let slice = self.convert_value(slice_contents, dfg);
                 let mut new_slice = self.read_array(slice)?;
 
                 // We must directly push front elements for non-nested slices
