@@ -149,3 +149,16 @@ mod rules {
         )
     }
 }
+
+#[cfg(test)]
+mod tests {
+    /// ```ignore
+    /// NOIR_ARBTEST_SEED=0xb2fb5f0b00100000 \
+    /// NOIR_AST_FUZZER_SHOW_AST=1 \
+    /// cargo test -p noir_ast_fuzzer_fuzz orig_vs_mutant
+    /// ```
+    #[test]
+    fn fuzz_with_arbtest() {
+        crate::targets::tests::fuzz_with_arbtest(super::fuzz);
+    }
+}

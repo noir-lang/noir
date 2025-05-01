@@ -46,15 +46,7 @@ pub fn fuzz(u: &mut Unstructured) -> eyre::Result<()> {
 
 #[cfg(test)]
 mod tests {
-    use arbtest::arbtest;
-    use std::time::Duration;
 
-    use crate::targets::tests::{seed_from_env, should_ignore_on_ci};
-
-    /// `cargo fuzz` takes a long time to ramp up the complexity.
-    /// This test catches crash bugs much faster.
-    ///
-    /// Run it with for example:
     /// ```ignore
     /// NOIR_ARBTEST_SEED=0x6819c61400001000 \
     /// NOIR_AST_FUZZER_SHOW_AST=1 \
@@ -62,21 +54,6 @@ mod tests {
     /// ```
     #[test]
     fn fuzz_with_arbtest() {
-        if should_ignore_on_ci() {
-            return;
-        }
-        let mut prop = arbtest(|u| {
-            super::fuzz(u).unwrap();
-            Ok(())
-        })
-        .budget(Duration::from_secs(10))
-        .size_min(1 << 12)
-        .size_max(1 << 20);
-
-        if let Some(seed) = seed_from_env() {
-            prop = prop.seed(seed);
-        }
-
-        prop.run();
+        crate::targets::tests::fuzz_with_arbtest(super::fuzz);
     }
 }
