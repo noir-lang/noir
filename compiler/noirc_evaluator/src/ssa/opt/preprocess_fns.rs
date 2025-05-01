@@ -73,8 +73,6 @@ impl Ssa {
 
 #[cfg(test)]
 mod tests {
-    use std::i64;
-
     use crate::{assert_ssa_snapshot, ssa::ssa_gen::Ssa};
 
     #[test]
@@ -87,44 +85,44 @@ mod tests {
         //
         // We need to call f0 from an entry point as inline targets are not preprocessed.
         let src = r#"
-      acir(inline) fn main f0 {
-        b0():
-          call f0()
-          return
-      }
-      acir(inline) fn foo f0 {
-        b0(v0: u32, v1: Field):
-          jmpif v0 then: b1, else: b2
-        b1():
-          v6 = add v0, u32 1
-          jmp b3(v6, v1)
-        b2():
-          v5 = sub v0, u32 1
-          jmp b3(v5, v1)
-        b3(v2: u32, v3: Field):
-          return
-      }
-      "#;
+        acir(inline) fn main f0 {
+          b0():
+            call f0()
+            return
+        }
+        acir(inline) fn foo f0 {
+          b0(v0: u32, v1: Field):
+            jmpif v0 then: b1, else: b2
+          b1():
+            v6 = add v0, u32 1
+            jmp b3(v6, v1)
+          b2():
+            v5 = sub v0, u32 1
+            jmp b3(v5, v1)
+          b3(v2: u32, v3: Field):
+            return
+        }
+        "#;
 
         let ssa = Ssa::from_str(src).unwrap();
         let ssa = ssa.preprocess_functions(i64::MAX);
 
         assert_ssa_snapshot!(ssa, @r#"
-      acir(inline) fn main f0 {
-        b0():
-          call f1()
-          return
-      }
-      acir(inline) fn foo f1 {
-        b0(v0: u32, v1: Field):
-          jmpif v0 then: b1, else: b2
-        b1():
-          jmp b3()
-        b2():
-          jmp b3()
-        b3():
-          return
-      }
-      "#);
+        acir(inline) fn main f0 {
+          b0():
+            call f1()
+            return
+        }
+        acir(inline) fn foo f1 {
+          b0(v0: u32, v1: Field):
+            jmpif v0 then: b1, else: b2
+          b1():
+            jmp b3()
+          b2():
+            jmp b3()
+          b3():
+            return
+        }
+        "#);
     }
 }
