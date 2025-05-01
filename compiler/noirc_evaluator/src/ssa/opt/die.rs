@@ -973,4 +973,70 @@ mod test {
         }  
         "#);
     }
+
+    #[test]
+    fn do_not_remove_impure_function_call() {
+        let src = r#"
+        acir(inline) fn main f0 {
+          b0():
+            v0 = allocate -> &mut Field
+            call f1(v0)
+            return
+        }
+        acir(inline) fn impure_take_ref f1 {
+          b0(v0: &mut Field):
+            return
+        }
+        "#;
+
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.purity_analysis();
+        let (ssa, _) = ssa.dead_instruction_elimination_inner(false, false);
+
+        assert_ssa_snapshot!(ssa, @r#"
+        acir(inline) impure fn main f0 {
+          b0():
+            v0 = allocate -> &mut Field
+            call f1(v0)
+            return
+        }
+        acir(inline) impure fn impure_take_ref f1 {
+          b0(v0: &mut Field):
+            return
+        }
+        "#);
+    }
+
+    #[test]
+    fn do_not_remove_pure_with_predicates_function_call() {
+        let src = r#"
+        acir(inline) fn main f0 {
+          b0():
+            call f1(Field 0)
+            return
+        }
+        acir(inline) fn predicate_constrain f1 {
+          b0(v0: Field):
+            constrain v0 == Field 0
+            return
+        }
+        "#;
+
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.purity_analysis();
+        let (ssa, _) = ssa.dead_instruction_elimination_inner(false, false);
+
+        assert_ssa_snapshot!(ssa, @r#"
+        acir(inline) predicate_pure fn main f0 {
+          b0():
+            call f1(Field 0)
+            return
+        }
+        acir(inline) predicate_pure fn predicate_constrain f1 {
+          b0(v0: Field):
+            constrain v0 == Field 0
+            return
+        }
+        "#);
+    }
 }
