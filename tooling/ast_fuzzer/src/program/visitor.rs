@@ -10,7 +10,7 @@ pub fn visit_expr_mut<V>(expr: &mut Expression, v: &mut V)
 where
     V: FnMut(&mut Expression) -> bool,
 {
-    visit_expr_be_mut(expr, v, &mut |_| {});
+    visit_expr_be_mut(expr, &mut |e| (v(e), ()), &mut |_, _| {});
 }
 
 /// Visit for the contents of an [Expression] representing the AST,
@@ -21,16 +21,16 @@ where
 ///
 /// Gets mutable references so it can manipulate the expressions if needed.
 ///
-/// Compared to [visit_expr_mut], this version allows the caller to
-/// maintain scopes and context.
-pub fn visit_expr_be_mut<B, E>(expr: &mut Expression, b: &mut B, e: &mut E)
+/// Compared to [visit_expr_mut], this version allows the caller to maintain
+/// scopes and context, facilitated by a _token_ passed between _begin_ and _end_.
+pub fn visit_expr_be_mut<B, E, T>(expr: &mut Expression, b: &mut B, e: &mut E)
 where
-    B: FnMut(&mut Expression) -> bool,
-    E: FnMut(&Expression),
+    B: FnMut(&mut Expression) -> (bool, T),
+    E: FnMut(&Expression, T),
 {
-    if !b(expr) {
-        e(expr);
-        return;
+    let (go, token) = b(expr);
+    if !go {
+        return e(expr, token);
     }
     match expr {
         Expression::Ident(_) => {}
@@ -133,13 +133,13 @@ where
         Expression::Continue => {}
     }
 
-    e(expr);
+    e(expr, token);
 }
 
-fn visit_lvalue_mut<B, E>(lvalue: &mut LValue, b: &mut B, e: &mut E)
+fn visit_lvalue_mut<B, E, T>(lvalue: &mut LValue, b: &mut B, e: &mut E)
 where
-    B: FnMut(&mut Expression) -> bool,
-    E: FnMut(&Expression),
+    B: FnMut(&mut Expression) -> (bool, T),
+    E: FnMut(&Expression, T),
 {
     match lvalue {
         LValue::Ident(_) => {}
@@ -167,7 +167,7 @@ pub fn visit_expr<V>(expr: &Expression, v: &mut V)
 where
     V: FnMut(&Expression) -> bool,
 {
-    visit_expr_be(expr, v, &mut |_| {});
+    visit_expr_be(expr, &mut |e| (v(e), ()), &mut |_, _| {})
 }
 
 /// Visit the contents of an [Expression] representing the AST,
@@ -179,16 +179,17 @@ where
 /// This is a read-only version [visit_expr_be_mut], for cases where
 /// we don't have/need a mutable reference to the AST.
 ///
-/// Compared to [visit_expr], this version allows the caller to
-/// maintain scopes and context.
-pub fn visit_expr_be<B, E>(expr: &Expression, b: &mut B, e: &mut E)
+/// Compared to [visit_expr], this version allows the caller to maintain
+/// scopes and context, facilitated by a _token_ passed between _begin_ and _end_.
+pub fn visit_expr_be<B, E, T>(expr: &Expression, b: &mut B, e: &mut E)
 where
-    B: FnMut(&Expression) -> bool,
-    E: FnMut(&Expression),
+    B: FnMut(&Expression) -> (bool, T),
+    E: FnMut(&Expression, T),
 {
-    if !b(expr) {
-        e(expr);
-        return;
+    let (go, token) = b(expr);
+
+    if !go {
+        return e(expr, token);
     }
 
     match expr {
@@ -292,13 +293,13 @@ where
         Expression::Continue => {}
     }
 
-    e(expr);
+    e(expr, token)
 }
 
-fn visit_lvalue<B, E>(lvalue: &LValue, b: &mut B, e: &mut E)
+fn visit_lvalue<B, E, T>(lvalue: &LValue, b: &mut B, e: &mut E)
 where
-    B: FnMut(&Expression) -> bool,
-    E: FnMut(&Expression),
+    B: FnMut(&Expression) -> (bool, T),
+    E: FnMut(&Expression, T),
 {
     match lvalue {
         LValue::Ident(_) => {}
