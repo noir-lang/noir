@@ -1,0 +1,44 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: artifact
+---
+{
+  "noir_version": "[noir_version]",
+  "hash": "[hash]",
+  "abi": {
+    "parameters": [
+      {
+        "name": "x",
+        "type": {
+          "kind": "field"
+        },
+        "visibility": "private"
+      },
+      {
+        "name": "y",
+        "type": {
+          "kind": "field"
+        },
+        "visibility": "public"
+      }
+    ],
+    "return_type": null,
+    "error_types": {}
+  },
+  "bytecode": "H4sIAAAAAAAA/8VUUQ6DIAytoNn2Pb0HFVD48yoz0/sfYVsGs6lmPyvZSwgNJY/XR0HDG+o5qhQ3KVawoSJ5uveDKc3mN+CLuCaHAot3B6f9+mBdCWujXNYMzi1jv6DFm+njHLxxfh4CBvTB3/tg7RJcGOMcRxPR2QVXH+2ayLScrr5JteZ6NbuwGgpeWEnDlaDhtZwuQ5uUvxIe07yGrVGPmryUjyDoYwWyPlJvihWvhQ2gv40UL3xpAAluKT8V/P8h5bULmzuSF/xhMfO3ZfjNCfboSNyyOqkXk5CGzJd7u4E9FMvlvWemr5LXh1yLPjgr45rmlqxlPx9fZ/Pf8wgAAA==",
+  "debug_symbols": "3ZLBCoMwDIbfJeceqtPJfJUhUjVKoVSp7WCI775YrNPDwMMOY5e2yd8vJD+ZoMHKdaXUbT9Cfp+gMlIp2ZWqr4WVvabsNDMIYWkNIqVgpxM1CIPaQq6dUgweQjn/aRyE9rcVhlTOAHVDNxVspcLlNbM3zT+jyXVls2yDU6ILikQtzaFf4JBH81LMSFEpXGdona53I9nnEJQw9GD6GhtncCnntaW9H7UkjtMVji/8YMpZPtr45JypMYOIzv+39hasvfDo5L55a761dcX8Ag==",
+  "file_map": {
+    "50": {
+      "source": "fn main(x: Field, y: pub Field) {\n    let z = func_with_nested_foo_call(x, y);\n    let z2 = func_with_nested_foo_call(x, y);\n    assert(z == z2);\n}\n\n#[fold]\nfn func_with_nested_foo_call(x: Field, y: Field) -> Field {\n    foo(x + 2, y)\n}\n\n#[fold]\nfn foo(x: Field, y: Field) -> Field {\n    assert(x != y);\n    x\n}\n",
+      "path": ""
+    }
+  },
+  "names": [
+    "main",
+    "func_with_nested_foo_call",
+    "foo"
+  ],
+  "brillig_names": [
+    "directive_invert"
+  ]
+}

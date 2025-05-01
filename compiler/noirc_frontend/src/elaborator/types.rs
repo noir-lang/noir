@@ -6,7 +6,8 @@ use noirc_errors::Location;
 use rustc_hash::FxHashMap as HashMap;
 
 use crate::{
-    Generics, Kind, ResolvedGeneric, Type, TypeBinding, TypeBindings, UnificationError,
+    Generics, Kind, NamedGeneric, ResolvedGeneric, Type, TypeBinding, TypeBindings,
+    UnificationError,
     ast::{
         AsTraitPath, BinaryOpKind, GenericTypeArgs, Ident, IntegerBitSize, Path, PathKind, UnaryOp,
         UnresolvedGeneric, UnresolvedGenerics, UnresolvedType, UnresolvedTypeData,
@@ -37,7 +38,7 @@ use crate::{
     },
     shared::Signedness,
     signed_field::SignedField,
-    token::SecondaryAttribute,
+    token::SecondaryAttributeKind,
 };
 
 use super::{
@@ -155,7 +156,7 @@ impl Elaborator<'_> {
                 let env = Box::new(self.resolve_type_with_kind_inner(*env, kind, mode));
 
                 match *env {
-                    Type::Unit | Type::Tuple(_) | Type::NamedGeneric(_, _) => {
+                    Type::Unit | Type::Tuple(_) | Type::NamedGeneric(_) => {
                         Type::Function(args, ret, env, unconstrained)
                     }
                     _ => {
@@ -318,7 +319,7 @@ impl Elaborator<'_> {
                         .interner
                         .type_attributes(&data_type.borrow().id)
                         .iter()
-                        .any(|attr| matches!(attr, SecondaryAttribute::Abi(_)))
+                        .any(|attr| matches!(attr.kind, SecondaryAttributeKind::Abi(_)))
                 {
                     self.push_err(ResolverError::AbiAttributeOutsideContract {
                         location: data_type.borrow().name.location(),
@@ -498,7 +499,7 @@ impl Elaborator<'_> {
             let name = path.last_name();
             if let Some(generic) = self.find_generic(name) {
                 let generic = generic.clone();
-                return Some(Type::NamedGeneric(generic.type_var, generic.name));
+                return Some(generic.as_named_generic());
             }
         } else if let Some(typ) = self.lookup_associated_type_on_self(path) {
             return Some(typ);
@@ -744,7 +745,7 @@ impl Elaborator<'_> {
         }
 
         for constraint in self.trait_bounds.clone() {
-            if let Type::NamedGeneric(_, name) = &constraint.typ {
+            if let Type::NamedGeneric(NamedGeneric { name, .. }) = &constraint.typ {
                 // if `path` is `T::method_name`, we're looking for constraint of the form `T: SomeTrait`
                 if path.segments[0].ident.as_str() != name.as_str() {
                     continue;
@@ -1515,7 +1516,7 @@ impl Elaborator<'_> {
                 });
                 None
             }
-            Type::NamedGeneric(_, _) => self.lookup_method_in_trait_constraints(
+            Type::NamedGeneric(_) => self.lookup_method_in_trait_constraints(
                 object_type,
                 method_name,
                 location,

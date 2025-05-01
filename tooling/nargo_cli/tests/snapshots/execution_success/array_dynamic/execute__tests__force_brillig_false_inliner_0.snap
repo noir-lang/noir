@@ -1,0 +1,109 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: artifact
+---
+{
+  "noir_version": "[noir_version]",
+  "hash": "[hash]",
+  "abi": {
+    "parameters": [
+      {
+        "name": "x",
+        "type": {
+          "kind": "array",
+          "length": 5,
+          "type": {
+            "kind": "integer",
+            "sign": "unsigned",
+            "width": 32
+          }
+        },
+        "visibility": "private"
+      },
+      {
+        "name": "z",
+        "type": {
+          "kind": "integer",
+          "sign": "unsigned",
+          "width": 32
+        },
+        "visibility": "private"
+      },
+      {
+        "name": "t",
+        "type": {
+          "kind": "integer",
+          "sign": "unsigned",
+          "width": 32
+        },
+        "visibility": "private"
+      },
+      {
+        "name": "index",
+        "type": {
+          "kind": "array",
+          "length": 5,
+          "type": {
+            "kind": "field"
+          }
+        },
+        "visibility": "private"
+      },
+      {
+        "name": "index2",
+        "type": {
+          "kind": "array",
+          "length": 5,
+          "type": {
+            "kind": "field"
+          }
+        },
+        "visibility": "private"
+      },
+      {
+        "name": "offset",
+        "type": {
+          "kind": "field"
+        },
+        "visibility": "private"
+      },
+      {
+        "name": "sublen",
+        "type": {
+          "kind": "field"
+        },
+        "visibility": "private"
+      }
+    ],
+    "return_type": null,
+    "error_types": {
+      "2920182694213909827": {
+        "error_kind": "string",
+        "string": "attempt to subtract with overflow"
+      },
+      "7233212735005103307": {
+        "error_kind": "string",
+        "string": "attempt to multiply with overflow"
+      },
+      "14225679739041873922": {
+        "error_kind": "string",
+        "string": "Index out of bounds"
+      }
+    }
+  },
+  "bytecode": "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",
+  "debug_symbols": "rZfNbtswEITfRWcfyCW5JPMqRREojlIYEGxDsQMUQd69u+asmh6cFlRP3+hnRhTFJan34Xl6uv54PBxfTq/Dw7f34Wk5zPPhx+N82o+Xw+koZ98/doMdPl6WaZJTw6fr4jqPy3S8DA/H6zzvhrdxvt5uej2Pxxsv4yJX3W6Yjs9CCXw5zJOqj91vt7tv9Uwwe86rPf27P5X/5c++y5/NX3r8FKzzKPS0nzyt/nLPz/f9MTL8MXOHPyUPf0ppm5+px5+t/am4jf7c46/R/LWn/9kn+NnXbX7q+X4cbfxxjBv9Xe1P1fyct/lzz/jhura/xo3+ru9fgvm7xl8mm78y1S6/X/099Zvj+vxUO+avQFY/4f7zv/Lz6r///b/0+9UfevyJt/mrzd/h/vj5wh+9vX+knvUjurr6u56frP2Re/r/0/rDPf0XOf99/XI96993ORr3h+WPHdNQZaHfDd41eFl2BdQQ5CMKotSCIDVwQ24ow4PUi5cU6XZyDb6BGkKDpHhpNyVQcrw8kiRIl3wqoDZInhq0RTIUgtc9iZDAoDsjoeZJC0ICGcxgAWtjdKAHCQwg8qLmyStFBjNYQM2T90kO1C6T90kEBt3DCCOYQAYzWMDayA70IIHIY+Qx8hh5jDzWPOk3ro3ZgR4kMIAR1Dzp56x50q85gwWsjUXzpH+KBwkMYAQTyCDyCvIK8qoDkVcJxwGMYAKRV5FXkVeR550zgUTvyM4EE9FEMsF2s+ZWFcWEJOtm1mtxNOFNkIlgIppIJthENlFMWLIWTNC605JpgkwEE5p8K8pkgk1kE8WEJmvNavk0ocm6EL2Ny2F8mif8J71cj/tPv02Xn2e7Yj9W5+W0n56vy6QTxu2aTCG/AA==",
+  "file_map": {
+    "50": {
+      "source": "fn main(\n    x: [u32; 5],\n    mut z: u32,\n    t: u32,\n    index: [Field; 5],\n    index2: [Field; 5],\n    offset: Field,\n    sublen: Field,\n) {\n    let idx = (z - 5 * t - 5) as Field;\n    //dynamic array test\n    dyn_array(x, idx, idx - 3);\n    //regression for issue 1283\n    let mut s = 0;\n    let x3 = [246, 159, 32, 176, 8];\n    for i in 0..5 {\n        s += x3[index[i]];\n    }\n    assert(s != 0);\n\n    if 3 < (sublen as u32) {\n        assert(index[offset + 3] == index2[3]);\n    }\n}\n\nfn dyn_array(mut x: [u32; 5], y: Field, z: Field) {\n    assert(x[y] == 111);\n    assert(x[z] == 101);\n    x[z] = 0;\n    assert(x[y] == 111);\n    assert(x[1] == 0);\n    if y as u32 < 10 {\n        x[y] = x[y] - 2;\n    } else {\n        x[y] = 0;\n    }\n    assert(x[4] == 109);\n}\n",
+      "path": ""
+    }
+  },
+  "names": [
+    "main"
+  ],
+  "brillig_names": [
+    "directive_integer_quotient",
+    "directive_invert"
+  ]
+}

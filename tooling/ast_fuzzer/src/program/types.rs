@@ -78,6 +78,14 @@ pub(crate) fn types_produced(typ: &Type) -> HashSet<Type> {
                 for size in IntegerBitSize::iter()
                     .filter(|size| size.bit_size() > integer_bit_size.bit_size())
                 {
+                    // We don't want to produce `i1` or `i128`
+                    if sign.is_signed()
+                        && (size == IntegerBitSize::One
+                            || size == IntegerBitSize::HundredTwentyEight)
+                    {
+                        continue;
+                    }
+
                     acc.insert(Type::Integer(*sign, size));
                 }
                 // There are `From<u*>` for Field
@@ -195,13 +203,34 @@ pub(crate) fn can_binary_op_return(op: &BinaryOp, typ: &Type) -> bool {
     }
 }
 
+/// Can the binary operation result in an overflow.
+/// These are operations that commonly fail with random constants.
+pub(crate) fn can_binary_op_overflow(op: &BinaryOp) -> bool {
+    use BinaryOpKind::*;
+    matches!(op, Add | Subtract | Multiply | ShiftLeft)
+}
+
+/// Can the binary operation fail because the RHS is zero.
+/// These operations can fail because of an unfortunate combination of
+/// expressions, such as `a / (a % a)` or `a % (a % a)`, but it's less
+/// like to occur than the overflows.
+pub(crate) fn can_binary_op_err_by_zero(op: &BinaryOp) -> bool {
+    use BinaryOpKind::*;
+    matches!(op, Divide | Modulo)
+}
+
 /// Check if a certain binary operation can take a type as input and produce the target output.
 pub(crate) fn can_binary_op_return_from_input(op: &BinaryOp, input: &Type, output: &Type) -> bool {
     match (input, output) {
         (Type::Field, Type::Field) => op.is_valid_for_field_type() && !op.is_equality(),
         (Type::Field, Type::Bool) => op.is_equality(),
         (Type::Bool, Type::Bool) => op.is_comparator() || op.is_bitwise(),
-        (Type::Integer(_, _), Type::Bool) => op.is_comparator(),
+        (Type::Integer(sign, size), Type::Bool) => {
+            // Avoid comparing 128 bit numbers:
+            // `AcirContext::less_than_signed` would cause overflow with i128
+            // `AcirContext::euclidean_division_var` would divide by zero with u128
+            op.is_comparator() && (op.is_equality() || size.bit_size() != 128 || !sign.is_signed())
+        }
         (Type::Integer(sign_in, size_in), Type::Integer(sign_out, size_out))
             if sign_in == sign_out =>
         {
@@ -210,10 +239,15 @@ pub(crate) fn can_binary_op_return_from_input(op: &BinaryOp, input: &Type, outpu
             // i128 is not a type a user can define, and the truncation that gets added after binary operations to
             // limit it to 129 bits results in division by zero during compilation.
             (op.is_arithmetic() && size != 1 && size != 128 && size_in <= size_out)
-                || op.is_bitshift()
+                || op.is_bitshift() && size != 128 && !(size == 1 && sign_in.is_signed())
                 || op.is_bitwise()
         }
         (Type::Reference(typ, _), _) => can_binary_op_return_from_input(op, typ, output),
         _ => false,
     }
+}
+
+/// Reference an expression into a target type
+pub(crate) fn ref_mut(typ: Type) -> Type {
+    Type::Reference(Box::new(typ), true)
 }

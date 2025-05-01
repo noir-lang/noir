@@ -9,7 +9,7 @@
 //! The instructions are low level operations that are printed via debug_show.
 //! They should emit few opcodes. Codegens on the other hand orchestrate the
 //! low level instructions to emit the desired high level operation.
-pub(crate) mod artifact;
+pub mod artifact;
 pub(crate) mod brillig_variable;
 pub(crate) mod debug_show;
 pub(crate) mod procedures;
@@ -27,10 +27,10 @@ mod instructions;
 use artifact::Label;
 use brillig_variable::SingleAddrVariable;
 pub(crate) use instructions::BrilligBinaryOp;
+use noirc_errors::call_stack::CallStackId;
 use registers::{RegisterAllocator, ScratchSpace};
 
 use self::{artifact::BrilligArtifact, debug_show::DebugToString, registers::Stack};
-use crate::ssa::ir::call_stack::CallStack;
 use acvm::{
     AcirField,
     acir::brillig::{MemoryAddress, Opcode as BrilligOpcode},
@@ -300,7 +300,7 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
     }
 
     /// Sets a current call stack that the next pushed opcodes will be associated with.
-    pub(crate) fn set_call_stack(&mut self, call_stack: CallStack) {
+    pub(crate) fn set_call_stack(&mut self, call_stack: CallStackId) {
         self.obj.set_call_stack(call_stack);
     }
 }

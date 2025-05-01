@@ -1,10 +1,10 @@
 use iter_extended::vecmap;
+use noirc_errors::call_stack::CallStackId;
 
 use crate::ssa::ir::types::Type;
 
 use super::{
     basic_block::BasicBlockId,
-    call_stack::CallStackId,
     dfg::InsertInstructionResult,
     function::Function,
     instruction::{Instruction, InstructionId},
@@ -44,8 +44,7 @@ impl<'f> FunctionInserter<'f> {
     /// Resolves a ValueId to its new, updated value.
     /// If there is no updated value for this id, this returns the same
     /// ValueId that was passed in.
-    pub(crate) fn resolve(&mut self, mut value: ValueId) -> ValueId {
-        value = self.function.dfg.resolve(value);
+    pub(crate) fn resolve(&mut self, value: ValueId) -> ValueId {
         match self.values.get(&value) {
             Some(value) => self.resolve(*value),
             None => value,
@@ -124,8 +123,7 @@ impl<'f> FunctionInserter<'f> {
         mut block: BasicBlockId,
         call_stack: CallStackId,
     ) -> InsertInstructionResult {
-        let results = self.function.dfg.instruction_results(id);
-        let results = vecmap(results, |id| self.function.dfg.resolve(*id));
+        let results = self.function.dfg.instruction_results(id).to_vec();
 
         let ctrl_typevars = instruction
             .requires_ctrl_typevars()

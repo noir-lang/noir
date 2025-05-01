@@ -3,7 +3,7 @@
 //! any `Store` instructions within a block that are no longer needed because no more loads occur in
 //! between the Store in question and the next Store.
 //!
-//! The pass works as follows:
+//! ## How the pass works:
 //! - Each block in each function is iterated in forward-order.
 //! - The starting value of each reference in the block is the unification of the same references
 //!   at the end of each direct predecessor block to the current block.
@@ -411,7 +411,7 @@ impl<'f> PerFunctionContext<'f> {
 
         match &self.inserter.function.dfg[instruction] {
             Instruction::Load { address } => {
-                let address = self.inserter.function.dfg.resolve(*address);
+                let address = *address;
 
                 let result = self.inserter.function.dfg.instruction_results(instruction)[0];
                 references.remember_dereference(self.inserter.function, address, result);
@@ -450,8 +450,8 @@ impl<'f> PerFunctionContext<'f> {
                 references.set_last_load(address, instruction);
             }
             Instruction::Store { address, value } => {
-                let address = self.inserter.function.dfg.resolve(*address);
-                let value = self.inserter.function.dfg.resolve(*value);
+                let address = *address;
+                let value = *value;
 
                 // If there was another store to this instruction without any (unremoved) loads or
                 // function calls in-between, we can remove the previous store.
@@ -474,7 +474,7 @@ impl<'f> PerFunctionContext<'f> {
 
                 references.set_known_value(address, value);
                 // If we see a store to an address, the last load to that address needs to remain.
-                references.keep_last_load_for(address, self.inserter.function);
+                references.keep_last_load_for(address);
                 references.last_stores.insert(address, instruction);
             }
             Instruction::Allocate => {
@@ -488,7 +488,7 @@ impl<'f> PerFunctionContext<'f> {
                 references.mark_value_used(*array, self.inserter.function);
 
                 if self.inserter.function.dfg.value_is_reference(result) {
-                    let array = self.inserter.function.dfg.resolve(*array);
+                    let array = *array;
                     let expression = Expression::ArrayElement(Box::new(Expression::Other(array)));
 
                     if let Some(aliases) = references.aliases.get_mut(&expression) {
@@ -502,7 +502,7 @@ impl<'f> PerFunctionContext<'f> {
 
                 if Self::contains_references(&element_type) {
                     let result = self.inserter.function.dfg.instruction_results(instruction)[0];
-                    let array = self.inserter.function.dfg.resolve(*array);
+                    let array = *array;
 
                     let expression = Expression::ArrayElement(Box::new(Expression::Other(array)));
 
@@ -579,12 +579,12 @@ impl<'f> PerFunctionContext<'f> {
     fn mark_all_unknown(&self, values: &[ValueId], references: &mut Block) {
         for value in values {
             if self.inserter.function.dfg.value_is_reference(*value) {
-                let value = self.inserter.function.dfg.resolve(*value);
+                let value = *value;
                 references.set_unknown(value);
                 references.mark_value_used(value, self.inserter.function);
 
                 // If a reference is an argument to a call, the last load to that address and its aliases needs to remain.
-                references.keep_last_load_for(value, self.inserter.function);
+                references.keep_last_load_for(value);
             }
         }
     }
@@ -625,7 +625,7 @@ impl<'f> PerFunctionContext<'f> {
                 // Add an alias for each reference parameter
                 for (parameter, argument) in destination_parameters.iter().zip(arguments) {
                     if self.inserter.function.dfg.value_is_reference(*parameter) {
-                        let argument = self.inserter.function.dfg.resolve(*argument);
+                        let argument = *argument;
 
                         if let Some(expression) = references.expressions.get(&argument) {
                             if let Some(aliases) = references.aliases.get_mut(expression) {
@@ -671,17 +671,20 @@ mod tests {
     use acvm::{FieldElement, acir::AcirField};
     use im::vector;
 
-    use crate::ssa::{
-        Ssa,
-        function_builder::FunctionBuilder,
-        ir::{
-            basic_block::BasicBlockId,
-            dfg::DataFlowGraph,
-            instruction::{BinaryOp, Instruction, Intrinsic, TerminatorInstruction},
-            map::Id,
-            types::Type,
+    use crate::{
+        assert_ssa_snapshot,
+        ssa::{
+            Ssa,
+            function_builder::FunctionBuilder,
+            ir::{
+                basic_block::BasicBlockId,
+                dfg::DataFlowGraph,
+                instruction::{BinaryOp, Instruction, Intrinsic, TerminatorInstruction},
+                map::Id,
+                types::Type,
+            },
+            opt::assert_normalized_ssa_equals,
         },
-        opt::assert_normalized_ssa_equals,
     };
 
     #[test]
@@ -1014,9 +1017,8 @@ mod tests {
         builder.insert_constrain(v9, two, None);
         let v11 = builder.insert_load(v2, v2_type);
         let v12 = builder.insert_load(v11, Type::field());
-        let _ = builder.insert_binary(v12, BinaryOp::Eq, two);
 
-        builder.insert_constrain(v11, two, None);
+        builder.insert_constrain(v12, two, None);
         builder.terminate_with_return(vec![]);
 
         let ssa = builder.finish();
@@ -1111,11 +1113,13 @@ mod tests {
 
         let ssa = Ssa::from_str(src).unwrap();
 
+        let ssa = ssa.mem2reg();
+
         // The repeated load from v3 should be removed
         // b3 should only have three loads now rather than four previously
         //
         // All stores are expected to remain.
-        let expected = "
+        assert_ssa_snapshot!(ssa, @r"
         acir(inline) fn main f0 {
           b0():
             v1 = allocate -> &mut Field
@@ -1141,10 +1145,7 @@ mod tests {
             constrain v9 == Field 2
             return
         }
-        ";
-
-        let ssa = ssa.mem2reg();
-        assert_normalized_ssa_equals(ssa, expected);
+        ");
     }
 
     #[test]

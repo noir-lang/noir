@@ -1,0 +1,112 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: artifact
+---
+{
+  "noir_version": "[noir_version]",
+  "hash": "[hash]",
+  "abi": {
+    "parameters": [
+      {
+        "name": "x",
+        "type": {
+          "kind": "array",
+          "length": 5,
+          "type": {
+            "kind": "integer",
+            "sign": "unsigned",
+            "width": 32
+          }
+        },
+        "visibility": "private"
+      },
+      {
+        "name": "z",
+        "type": {
+          "kind": "integer",
+          "sign": "unsigned",
+          "width": 32
+        },
+        "visibility": "private"
+      },
+      {
+        "name": "t",
+        "type": {
+          "kind": "integer",
+          "sign": "unsigned",
+          "width": 32
+        },
+        "visibility": "private"
+      },
+      {
+        "name": "index",
+        "type": {
+          "kind": "array",
+          "length": 5,
+          "type": {
+            "kind": "field"
+          }
+        },
+        "visibility": "private"
+      },
+      {
+        "name": "index2",
+        "type": {
+          "kind": "array",
+          "length": 5,
+          "type": {
+            "kind": "field"
+          }
+        },
+        "visibility": "private"
+      },
+      {
+        "name": "offset",
+        "type": {
+          "kind": "field"
+        },
+        "visibility": "private"
+      },
+      {
+        "name": "sublen",
+        "type": {
+          "kind": "field"
+        },
+        "visibility": "private"
+      }
+    ],
+    "return_type": null,
+    "error_types": {
+      "2920182694213909827": {
+        "error_kind": "string",
+        "string": "attempt to subtract with overflow"
+      },
+      "7233212735005103307": {
+        "error_kind": "string",
+        "string": "attempt to multiply with overflow"
+      },
+      "14225679739041873922": {
+        "error_kind": "string",
+        "string": "Index out of bounds"
+      },
+      "17843811134343075018": {
+        "error_kind": "string",
+        "string": "Stack too deep"
+      }
+    }
+  },
+  "bytecode": "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",
+  "debug_symbols": "rZfNbtswEITfRWcfxCWXP3mVIAicRCkMGE7g2gWKwO/eHXHHSQ4FCroXzyfLM6KWS1r6mF6Wp/OPx93h9e3ndHf/MT0dd/v97sfj/u15e9q9Hezbj2nGR0nTXdhMRbvkLqVL7dJWqXOX0EWmOzGJXVIX7WIp0aR0qV3aKs1SkomlqIl0sZRskrpol9yldKld2iphnl0tp0DFNbomV8uq0OxaXKtr6xpm1+AqrtE1uXpe8LzgecHzgueJ54nnieeJ54nnifmaaURVZ4D9MARAJCSCEjKhEDBTAmgOaSYgOQKEgJwEyIRCqITmoMhRQCAIASPEJGgiKAHJqL8WQiU0hyz91jNiUIucCErIhEKohOZQMEDklEAQQvSirk2+gjqg/9ZRoAM7REIiKIF3g16U1V4JrYOgISUAAkEIkZAISsiEQqgEJNsEClqzQyAgOQIiIRGUkAlIToBKaA5o0g6BIIRISAQkKyATCgHJGdAc4kwIBCQXQCQkApIrIBMKoRKQbHMq6OsOgWDJEVOQIgEbD2qIdu7QHNDOHQJBCJGQCNjHUHB0cYdKaA55JgSCECJBPRD9HDEp6OcOCER50c8roJ87IDBdLpuJu/bj6bgs2LS/bOO2ub9vj8vhNN0dzvv9Zvq13Z/XH/183x5WPW2PdtYKsxxeTC3wdbdfQJfNp3v+u9WWqpttIV7t+u9+rf/LX8KQv9BfR/wSWTzrzBF/kKu/jvgr719qG/BHLODVH0VH/OnqT0N+zfSXOOJvrF9sI/VLgeNPMjJ/aW5X/9D1leNPWUb8KV/9I/VLmf2fSr7t+kP+mK/9U2TIH27qH1X6VfU2/9D8aWH9tM43+kf6Vxvrr0PrJ+Nxb/Xn0G7zy0j/5MT9N6d0o39o/Mr1n4f+v774h/q/CPuvDO3fuUZef6h/SuL/T1G50f+9/g92tH3eHb+9mF6QdNxtn/aLH76eD89fzp5+v/MMX2zfj2/Py8v5uCDp8+3WPu7FVo+08rCZ7Hns3h4lcn3Am58dhFI3oUYcBhzWYoft4YKB/QE=",
+  "file_map": {
+    "50": {
+      "source": "fn main(\n    x: [u32; 5],\n    mut z: u32,\n    t: u32,\n    index: [Field; 5],\n    index2: [Field; 5],\n    offset: Field,\n    sublen: Field,\n) {\n    let idx = (z - 5 * t - 5) as Field;\n    //dynamic array test\n    dyn_array(x, idx, idx - 3);\n    //regression for issue 1283\n    let mut s = 0;\n    let x3 = [246, 159, 32, 176, 8];\n    for i in 0..5 {\n        s += x3[index[i]];\n    }\n    assert(s != 0);\n\n    if 3 < (sublen as u32) {\n        assert(index[offset + 3] == index2[3]);\n    }\n}\n\nfn dyn_array(mut x: [u32; 5], y: Field, z: Field) {\n    assert(x[y] == 111);\n    assert(x[z] == 101);\n    x[z] = 0;\n    assert(x[y] == 111);\n    assert(x[1] == 0);\n    if y as u32 < 10 {\n        x[y] = x[y] - 2;\n    } else {\n        x[y] = 0;\n    }\n    assert(x[4] == 109);\n}\n",
+      "path": ""
+    }
+  },
+  "names": [
+    "main"
+  ],
+  "brillig_names": [
+    "main"
+  ]
+}

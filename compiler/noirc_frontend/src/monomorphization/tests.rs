@@ -7,7 +7,7 @@ use crate::{
 #[macro_export]
 macro_rules! get_monomorphized {
     ($src:expr, $expect:expr) => {
-        $crate::test_utils::get_monomorphized($src, $crate::function_path!(), $expect)
+        $crate::test_utils::get_monomorphized($src, Some($crate::function_path!()), $expect)
     };
 }
 

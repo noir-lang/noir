@@ -403,14 +403,7 @@ impl Parser<'_> {
 
     /// ResolvedExpression = unquote_marker
     fn parse_resolved_expr(&mut self) -> Option<ExpressionKind> {
-        if let Some(token) = self.eat_kind(TokenKind::UnquoteMarker) {
-            match token.into_token() {
-                Token::UnquoteMarker(expr_id) => return Some(ExpressionKind::Resolved(expr_id)),
-                _ => unreachable!(""),
-            }
-        }
-
-        None
+        Some(ExpressionKind::Resolved(self.eat_unquote_marker()?))
     }
 
     /// InternedExpression = interned_expr
@@ -1022,6 +1015,7 @@ impl Parser<'_> {
 
 #[cfg(test)]
 mod tests {
+    use insta::assert_snapshot;
     use strum::IntoEnumIterator;
 
     use crate::{
@@ -1288,7 +1282,7 @@ mod tests {
         let mut parser = Parser::for_str_with_dummy_file(&src);
         parser.parse_expression();
         let error = get_single_error(&parser.errors, span);
-        assert_eq!(error.to_string(), "Expected an expression but found end of input");
+        assert_snapshot!(error.to_string(), @"Expected an expression but found end of input");
     }
 
     #[test]
@@ -1660,7 +1654,7 @@ mod tests {
         let expr = parser.parse_expression_or_error();
 
         let error = get_single_error(&parser.errors, span);
-        assert_eq!(error.to_string(), "Expected a ':' but found '='");
+        assert_snapshot!(error.to_string(), @"Expected a ':' but found '='");
 
         let ExpressionKind::Constructor(mut constructor) = expr.kind else {
             panic!("Expected constructor");
@@ -1688,7 +1682,7 @@ mod tests {
         let expr = parser.parse_expression_or_error();
 
         let error = get_single_error(&parser.errors, span);
-        assert_eq!(error.to_string(), "Expected a ':' but found '::'");
+        assert_snapshot!(error.to_string(), @"Expected a ':' but found '::'");
 
         let ExpressionKind::Constructor(mut constructor) = expr.kind else {
             panic!("Expected constructor");
@@ -1726,7 +1720,7 @@ mod tests {
         assert_eq!(expr.to_string(), "1");
 
         let error = get_single_error(&parser.errors, span);
-        assert_eq!(error.to_string(), "Expected an identifier but found '2'");
+        assert_snapshot!(error.to_string(), @"Expected an identifier but found '2'");
     }
 
     #[test]
@@ -1754,7 +1748,7 @@ mod tests {
         assert_eq!(expr.to_string(), "2");
 
         let error = get_single_error(&parser.errors, span);
-        assert_eq!(error.to_string(), "Expected an identifier but found '2'");
+        assert_snapshot!(error.to_string(), @"Expected an identifier but found '2'");
     }
 
     #[test]
@@ -1828,7 +1822,7 @@ mod tests {
         let mut parser = Parser::for_str_with_dummy_file(&src);
         parser.parse_expression();
         let error = get_single_error(&parser.errors, span);
-        assert_eq!(error.to_string(), "Expected a type but found end of input");
+        assert_snapshot!(error.to_string(), @"Expected a type but found end of input");
     }
 
     #[test]

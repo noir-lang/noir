@@ -1,4 +1,4 @@
-define: &AZ_COMMIT c199f2c4ebd3e1045ebab317e1e5f76a0d9a2627
+define: &AZ_COMMIT d0dccf50800b33605b7525cc31b171ff434ab1d8
 projects:
   private-kernel-inner:
     repo: AztecProtocol/aztec-packages
@@ -37,7 +37,7 @@ projects:
     timeout: 15
     compilation-timeout: 20
     execution-timeout: 1
-    compilation-memory-limit: 1500
+    compilation-memory-limit: 1600
     execution-memory-limit: 650
   rollup-base-public:
     repo: AztecProtocol/aztec-packages
@@ -45,10 +45,10 @@ projects:
     path: noir-projects/noir-protocol-circuits/crates/rollup-base-public
     num_runs: 5
     timeout: 15
-    compilation-timeout: 15
+    compilation-timeout: 20
     execution-timeout: 0.75
     compilation-memory-limit: 1500
-    execution-memory-limit: 500
+    execution-memory-limit: 550
   rollup-block-root-empty:
     repo: AztecProtocol/aztec-packages
     ref: *AZ_COMMIT
@@ -65,7 +65,7 @@ projects:
     cannot_execute: true
     num_runs: 1
     timeout: 60
-    compilation-timeout: 150
+    compilation-timeout: 180
     compilation-memory-limit: 8000
   rollup-block-root:
     repo: AztecProtocol/aztec-packages
@@ -76,7 +76,7 @@ projects:
     compilation-timeout: 150
     execution-timeout: 40
     compilation-memory-limit: 8000
-    execution-memory-limit: 1500
+    execution-memory-limit: 1900
   rollup-merge:
     repo: AztecProtocol/aztec-packages
     ref: *AZ_COMMIT

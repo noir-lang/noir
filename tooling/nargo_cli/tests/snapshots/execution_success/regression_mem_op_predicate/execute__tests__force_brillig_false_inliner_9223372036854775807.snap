@@ -1,0 +1,54 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: artifact
+---
+{
+  "noir_version": "[noir_version]",
+  "hash": "[hash]",
+  "abi": {
+    "parameters": [
+      {
+        "name": "x",
+        "type": {
+          "kind": "array",
+          "length": 5,
+          "type": {
+            "kind": "integer",
+            "sign": "unsigned",
+            "width": 32
+          }
+        },
+        "visibility": "private"
+      },
+      {
+        "name": "idx",
+        "type": {
+          "kind": "field"
+        },
+        "visibility": "private"
+      }
+    ],
+    "return_type": null,
+    "error_types": {
+      "14225679739041873922": {
+        "error_kind": "string",
+        "string": "Index out of bounds"
+      }
+    }
+  },
+  "bytecode": "H4sIAAAAAAAA/9VZS3LiQAyVbQhgwPngLGbHzAnc/gR7l3PMLlTMZq45c405S9JBAlWnQyrx61RQFSW73fX89FqW7CaiveXPv198HD3/EvbW1s5Y5BmLPWOJZ2zEYwljj+logpPwPFI+ptcm/O7ZF8PMjHFYhYfuUGwjB1qLC/YTcoS2F/47YxMWX1sSUMSquKvrflP2pjIPRdlt26aom+1da1rTtM1j2VZV39btptt2m6IzddWbXdOVO8a6GI5VMVYxoTCLGzv6DeWJjHnqifmzmDqPppxbIzoWBNeigLogYhGbhSQ88yTIUPIzwj2sKTDeUBqm9Hal/yx+SthigI57wnG/lTsfNcFFrvccqKEuLhb3J31t50c0h93eHj10g3T+BfulCCICLuhYlWXMTlo7pNCdX4s4tPMvCJeoS+DintvrKPPeeugGScqM/aUIIgmY0euktJPWDqnv/DqaES4pL8GLi06+hVozAsad0ffuvDZfbOyozsuGyMMDxyughr5CBoz78KmEzk+kBqE4XiM5StF8b8MkRCD2gbgm3Lduvy9cG2SXv8HF+xCT/5sWpWeodTqHh+ImAEcv0aEJtcIRrQMnVLDFWp0BxxzNEd36bWVGVjqLlQcWclhl70rZ6rcmW9Sy+Lpj6W6m54j9YB/TVfb7759/dDjf25S97OKlCiPBaVMK/jwM/suGj2upOp471yT+EZ3WT5/Hjj8199SO7tJzTTBX7DVfiWPm+FuFC9TSCH4eBt+7VrfqOHfi1HrfgzgInu9vNHLuO3bmus9MhOdnXC6J515ikjO5GhM9nwBLggWQnxwAAA==",
+  "debug_symbols": "nZLBjoMgEIbfhbMHQCjSV9lsDCo2JAQNhU02xnffkSnd9tCLl/mE8ftNxtnIZId8612Ylzu5fm1kiM57d+v9MprklgC3296QeuxTtBauyEsfrNVEGxK5hux9Q36Mz+Wl+2pCYTIRurQhNkxACJydt8fT3vzb9LPKRPuQmWyfujzlqzO+UtVX+ox/6Z6+OOPr6nP6/v1vOJnRxbc/Ri6gNESV2pWqS2UUwRAc0SIEQiIwgkEGB3QIXcApAlJgrJwjWoRASASkCIBCdAhd0FIEQ3AEpMj9GER0ZvD2sX9zDuPLOqbftXbqwq5xGe2Uoz0GUXowmj8=",
+  "file_map": {
+    "50": {
+      "source": "fn main(mut x: [u32; 5], idx: Field) {\n    // We should not hit out of bounds here as we have a predicate\n    // that should not be hit\n    if idx as u32 < 3 {\n        x[idx] = 10;\n    }\n    assert(x[4] == 111);\n}\n",
+      "path": ""
+    }
+  },
+  "names": [
+    "main"
+  ],
+  "brillig_names": [
+    "directive_integer_quotient",
+    "directive_invert"
+  ]
+}

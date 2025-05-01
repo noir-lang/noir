@@ -1,0 +1,46 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: artifact
+---
+{
+  "noir_version": "[noir_version]",
+  "hash": "[hash]",
+  "abi": {
+    "parameters": [
+      {
+        "name": "x",
+        "type": {
+          "kind": "integer",
+          "sign": "unsigned",
+          "width": 32
+        },
+        "visibility": "private"
+      },
+      {
+        "name": "y",
+        "type": {
+          "kind": "integer",
+          "sign": "unsigned",
+          "width": 32
+        },
+        "visibility": "public"
+      }
+    ],
+    "return_type": null,
+    "error_types": {}
+  },
+  "bytecode": "H4sIAAAAAAAA/7VSSQ7DIAwM0Krtucm9T8ABgrnlK41K/v+EbliyXHoKGQkZZtAwGFT3hXmNY5mrslZlfROcYpyu7CP9rR2YpwRxc6l2G0AzL2cn73McMzi42zEtGKwPy4SAEDA8RnQuo8eYlhRtAu8yrCG5vH4QeV6zZ2BT8d0a3jTwWktI9ecRVYWT2kXUgemmYR/Jv9/H354qdxzYvBf31EybG2UgP/qMx+4XWmi09yzyqfb5oBMwlbMI11J7xlE/n6ajQk+RBAAA",
+  "debug_symbols": "jZDBCoMwDIbfJWcPzjk3+ipjSK1RCqEtsR0M8d0XRTc9DHZpmvz5EvKP0GKT+tq6zg+g7iM0bIlsX5M3OlrvpDpOGWxpHRlRSrDThQqa0UVQLhFl8NSUlqYhaLfEqFnUPAN0rUQZ2FnC+TdlXzr/jZbFypbXD3z5m65OK13dDvRDMm0sH66FApT0n0HJzlLeaR7MVjeEqxtdcmZnTnyFTdnsC+wNtolxHr1osuwN",
+  "file_map": {
+    "50": {
+      "source": "fn main(x: u32, y: pub u32) {\n    let m = x ^ y;\n\n    assert(m != 10);\n}\n",
+      "path": ""
+    }
+  },
+  "names": [
+    "main"
+  ],
+  "brillig_names": [
+    "directive_invert"
+  ]
+}

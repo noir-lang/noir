@@ -1,0 +1,57 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: artifact
+---
+{
+  "noir_version": "[noir_version]",
+  "hash": "[hash]",
+  "abi": {
+    "parameters": [
+      {
+        "name": "value",
+        "type": {
+          "kind": "field"
+        },
+        "visibility": "private"
+      },
+      {
+        "name": "index",
+        "type": {
+          "kind": "integer",
+          "sign": "unsigned",
+          "width": 32
+        },
+        "visibility": "private"
+      }
+    ],
+    "return_type": null,
+    "error_types": {
+      "12049594436772143978": {
+        "error_kind": "string",
+        "string": "array ref-count underflow detected"
+      },
+      "14225679739041873922": {
+        "error_kind": "string",
+        "string": "Index out of bounds"
+      },
+      "17843811134343075018": {
+        "error_kind": "string",
+        "string": "Stack too deep"
+      }
+    }
+  },
+  "bytecode": "H4sIAAAAAAAA/8VXy27bMBCkbNKy7Lo22o/oVbLkx7FAk0ML9FD03IMi1wX6Ffr0hgi3Go0oJUHIhIBAkVzOzC5XJJWoh5K4xxbt6pkaFrH57Or8ZaUIiJXH1JlE0tkLcqLGi4z9dXVG8+34PKDDGfGGxD/n1THz+BdQf5kBZgT8veDrOPh56nBu2j6+Il7pu227WN7SnI3qf+CIK2OYhzJ/ef+8V9371r1nhBcjN1BT6Nh+9OgXrrXz9YZ8nUN8QungHAqIXQj2Ik4M/+f/Mg5+KeuTQmzmHp+EX/LYgH0yUgsWjwnXirBC761TvqF+yckd2XMMxrDSZ2JlnrEYa7qY8Bv5NxNadyNaQ8VEU0wi7fN7jokBrbMn6lHh9BSG9Hxytf3Ovrn3jcS07TQYsPsOdry/6bbvx1vkGsYO+Z+y30zljKzFVg3PF16/WGeb8Mp6aOXPJ9E2U8PvD/cgQ32Vq+06/yG8RA1jh30cO+3RE/Nu8Zy84LXE+CxeR2s1lZNTWjFfcS6vx5hfijjMiJ9jMVAqfD4Ln/boQ35D9l9IZ6QzPf9A/iPXWnX/a7oNz386P8TJFtmTjerfWRXxG7L/6torjx/6BTqvp7q4lvW1PtSXS9XUHCdb8O4dmr85HO+a6lDnvwvb3D/GL/84pu3G8ZyzZeHasreyveAZsv8h7fvnp3uXs1S3Qz5rd3V9kj9L0BL6HmJLijpID/JvPfbyHllrOaU19Wj1xTgZqREL+9K235e1Q3uMU0rcK7SnsTWMaeJ559qYa4glOgzZX1xb1mkJc2T+zsOPa8ZcPn68UzDW3NMn9ja3fwmeq3XbYYX838LvKMYeU5/Kc7OvmtPdoazL46N73D8aXvLgdRUAAA==",
+  "debug_symbols": "pZPNjoMgFIXfhbUL4AravoppGmtpQ0LQUJ1k0vjuc/HU/iwmadqNn3A9nwS4V3F0h+m89/HUX8S2uYpD8iH48z70XTv6PvLsVcj8UFZsVSFUBdTAZoGWgAI0QEAJGAAWDYuGRcNCsBAsBAvBQrAQLAQLwUKwEFt0IUoJKEADBJSAASxQATUAi4HFwGJgMbAYthDDABZgS8mogc0CyxbDYItlaICAEjAAW+w8F2Ld+P2YnMv7/nQSfD5Dm1wcxTZOIRTipw3T8tFlaOPCsU1clYVw8chk4ckHl9/m4pGW/0ftmrXqHjbvp+tbutp8kNZS3eJa1p/k1T2v6u/+/21e00t+x6O28+mlr+ZsSr49BHcbnqbYPVXH32GtrH05pL5zxym5bHo0J9+spqoKJfWOm5KnGj6JivKA716jJHHN7Oa8kj8=",
+  "file_map": {
+    "50": {
+      "source": "fn main(value: Field, index: u32) {\n    let mut args = &[0, 1];\n    args[index] = value;\n    // Safety: n/a\n    unsafe { store(args) };\n    // Dummy test to remove the 'underconstraint bug'\n    assert(args[0] + args[1] != 0);\n}\n\npub unconstrained fn store(_: [Field]) {}\n",
+      "path": ""
+    }
+  },
+  "names": [
+    "main"
+  ],
+  "brillig_names": [
+    "main"
+  ]
+}
