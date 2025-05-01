@@ -934,7 +934,117 @@
 <a href="#933" id="933">933</a>
 <a href="#934" id="934">934</a>
 <a href="#935" id="935">935</a>
-<a href="#936" id="936">936</a></pre></div><pre class="rust"><code><span class="doccomment">//! Dead Instruction Elimination (DIE) pass: Removes any instruction without side-effects for
+<a href="#936" id="936">936</a>
+<a href="#937" id="937">937</a>
+<a href="#938" id="938">938</a>
+<a href="#939" id="939">939</a>
+<a href="#940" id="940">940</a>
+<a href="#941" id="941">941</a>
+<a href="#942" id="942">942</a>
+<a href="#943" id="943">943</a>
+<a href="#944" id="944">944</a>
+<a href="#945" id="945">945</a>
+<a href="#946" id="946">946</a>
+<a href="#947" id="947">947</a>
+<a href="#948" id="948">948</a>
+<a href="#949" id="949">949</a>
+<a href="#950" id="950">950</a>
+<a href="#951" id="951">951</a>
+<a href="#952" id="952">952</a>
+<a href="#953" id="953">953</a>
+<a href="#954" id="954">954</a>
+<a href="#955" id="955">955</a>
+<a href="#956" id="956">956</a>
+<a href="#957" id="957">957</a>
+<a href="#958" id="958">958</a>
+<a href="#959" id="959">959</a>
+<a href="#960" id="960">960</a>
+<a href="#961" id="961">961</a>
+<a href="#962" id="962">962</a>
+<a href="#963" id="963">963</a>
+<a href="#964" id="964">964</a>
+<a href="#965" id="965">965</a>
+<a href="#966" id="966">966</a>
+<a href="#967" id="967">967</a>
+<a href="#968" id="968">968</a>
+<a href="#969" id="969">969</a>
+<a href="#970" id="970">970</a>
+<a href="#971" id="971">971</a>
+<a href="#972" id="972">972</a>
+<a href="#973" id="973">973</a>
+<a href="#974" id="974">974</a>
+<a href="#975" id="975">975</a>
+<a href="#976" id="976">976</a>
+<a href="#977" id="977">977</a>
+<a href="#978" id="978">978</a>
+<a href="#979" id="979">979</a>
+<a href="#980" id="980">980</a>
+<a href="#981" id="981">981</a>
+<a href="#982" id="982">982</a>
+<a href="#983" id="983">983</a>
+<a href="#984" id="984">984</a>
+<a href="#985" id="985">985</a>
+<a href="#986" id="986">986</a>
+<a href="#987" id="987">987</a>
+<a href="#988" id="988">988</a>
+<a href="#989" id="989">989</a>
+<a href="#990" id="990">990</a>
+<a href="#991" id="991">991</a>
+<a href="#992" id="992">992</a>
+<a href="#993" id="993">993</a>
+<a href="#994" id="994">994</a>
+<a href="#995" id="995">995</a>
+<a href="#996" id="996">996</a>
+<a href="#997" id="997">997</a>
+<a href="#998" id="998">998</a>
+<a href="#999" id="999">999</a>
+<a href="#1000" id="1000">1000</a>
+<a href="#1001" id="1001">1001</a>
+<a href="#1002" id="1002">1002</a>
+<a href="#1003" id="1003">1003</a>
+<a href="#1004" id="1004">1004</a>
+<a href="#1005" id="1005">1005</a>
+<a href="#1006" id="1006">1006</a>
+<a href="#1007" id="1007">1007</a>
+<a href="#1008" id="1008">1008</a>
+<a href="#1009" id="1009">1009</a>
+<a href="#1010" id="1010">1010</a>
+<a href="#1011" id="1011">1011</a>
+<a href="#1012" id="1012">1012</a>
+<a href="#1013" id="1013">1013</a>
+<a href="#1014" id="1014">1014</a>
+<a href="#1015" id="1015">1015</a>
+<a href="#1016" id="1016">1016</a>
+<a href="#1017" id="1017">1017</a>
+<a href="#1018" id="1018">1018</a>
+<a href="#1019" id="1019">1019</a>
+<a href="#1020" id="1020">1020</a>
+<a href="#1021" id="1021">1021</a>
+<a href="#1022" id="1022">1022</a>
+<a href="#1023" id="1023">1023</a>
+<a href="#1024" id="1024">1024</a>
+<a href="#1025" id="1025">1025</a>
+<a href="#1026" id="1026">1026</a>
+<a href="#1027" id="1027">1027</a>
+<a href="#1028" id="1028">1028</a>
+<a href="#1029" id="1029">1029</a>
+<a href="#1030" id="1030">1030</a>
+<a href="#1031" id="1031">1031</a>
+<a href="#1032" id="1032">1032</a>
+<a href="#1033" id="1033">1033</a>
+<a href="#1034" id="1034">1034</a>
+<a href="#1035" id="1035">1035</a>
+<a href="#1036" id="1036">1036</a>
+<a href="#1037" id="1037">1037</a>
+<a href="#1038" id="1038">1038</a>
+<a href="#1039" id="1039">1039</a>
+<a href="#1040" id="1040">1040</a>
+<a href="#1041" id="1041">1041</a>
+<a href="#1042" id="1042">1042</a>
+<a href="#1043" id="1043">1043</a>
+<a href="#1044" id="1044">1044</a>
+<a href="#1045" id="1045">1045</a>
+<a href="#1046" id="1046">1046</a></pre></div><pre class="rust"><code><span class="doccomment">//! Dead Instruction Elimination (DIE) pass: Removes any instruction without side-effects for
 //! which the results are unused.
 //!
 //! DIE also tracks which block parameters are unused.
@@ -953,6 +1063,7 @@
         types::Type,
         value::{Value, ValueId},
     },
+    opt::pure::Purity,
     ssa_gen::Ssa,
 };
 
@@ -1279,8 +1390,9 @@
                     <span class="bool-val">false
                 </span>}
             } <span class="kw">else </span>{
-                <span class="bool-val">true
-            </span>}
+                <span class="comment">// Checked binary operations can have different behavior depending on the predicate.
+                </span>!instruction.requires_acir_gen_predicate(<span class="kw-2">&amp;</span>function.dfg)
+            }
         }
 
         Cast(<span class="kw">_</span>, <span class="kw">_</span>)
@@ -1325,8 +1437,14 @@
             // from the ACVM to the external world during execution.
             </span>Value::ForeignFunction(<span class="kw">_</span>) =&gt; <span class="bool-val">false</span>,
 
-            <span class="comment">// We must assume that functions contain a side effect as we cannot inspect more deeply.
-            </span>Value::Function(<span class="kw">_</span>) =&gt; <span class="bool-val">false</span>,
+            <span class="comment">// We use purity to determine whether functions contain side effects.
+            // If we have an impure function, we cannot remove it even if it is unused.
+            </span>Value::Function(function_id) =&gt; <span class="kw">match </span>function.dfg.purity_of(function_id) {
+                <span class="prelude-val">Some</span>(Purity::Pure) =&gt; <span class="bool-val">true</span>,
+                <span class="prelude-val">Some</span>(Purity::PureWithPredicate) =&gt; <span class="bool-val">false</span>,
+                <span class="prelude-val">Some</span>(Purity::Impure) =&gt; <span class="bool-val">false</span>,
+                <span class="prelude-val">None </span>=&gt; <span class="bool-val">false</span>,
+            },
 
             <span class="kw">_ </span>=&gt; <span class="bool-val">false</span>,
         },
@@ -1868,6 +1986,108 @@
             return
         }
         "</span>);
+    }
+
+    <span class="attr">#[test]
+    </span><span class="kw">fn </span>remove_dead_pure_function_call() {
+        <span class="kw">let </span>src = <span class="string">r#"
+        acir(inline) fn main f0 {
+          b0():
+            call f1()
+            return
+        }
+        acir(inline) fn pure_basic f1 {
+          b0():
+            v2 = allocate -&gt; &amp;mut Field
+            store Field 0 at v2
+            return
+        }
+        "#</span>;
+        <span class="kw">let </span>ssa = Ssa::from_str(src).unwrap();
+        <span class="kw">let </span>ssa = ssa.purity_analysis();
+        <span class="kw">let </span>(ssa, <span class="kw">_</span>) = ssa.dead_instruction_elimination_inner(<span class="bool-val">false</span>, <span class="bool-val">false</span>);
+
+        <span class="comment">// We expect the call to f1 in f0 to be removed
+        </span><span class="macro">assert_ssa_snapshot!</span>(ssa, @<span class="string">r#"
+        acir(inline) pure fn main f0 {
+          b0():
+            return
+        }
+        acir(inline) pure fn pure_basic f1 {
+          b0():
+            v0 = allocate -&gt; &amp;mut Field
+            store Field 0 at v0
+            return
+        }  
+        "#</span>);
+    }
+
+    <span class="attr">#[test]
+    </span><span class="kw">fn </span>do_not_remove_impure_function_call() {
+        <span class="kw">let </span>src = <span class="string">r#"
+        acir(inline) fn main f0 {
+          b0():
+            v0 = allocate -&gt; &amp;mut Field
+            call f1(v0)
+            return
+        }
+        acir(inline) fn impure_take_ref f1 {
+          b0(v0: &amp;mut Field):
+            return
+        }
+        "#</span>;
+
+        <span class="kw">let </span>ssa = Ssa::from_str(src).unwrap();
+        <span class="kw">let </span>ssa = ssa.purity_analysis();
+        <span class="kw">let </span>(ssa, <span class="kw">_</span>) = ssa.dead_instruction_elimination_inner(<span class="bool-val">false</span>, <span class="bool-val">false</span>);
+
+        <span class="comment">// We expect the program to be unchanged except that functions are labeled with purities now
+        </span><span class="macro">assert_ssa_snapshot!</span>(ssa, @<span class="string">r#"
+        acir(inline) impure fn main f0 {
+          b0():
+            v0 = allocate -&gt; &amp;mut Field
+            call f1(v0)
+            return
+        }
+        acir(inline) impure fn impure_take_ref f1 {
+          b0(v0: &amp;mut Field):
+            return
+        }
+        "#</span>);
+    }
+
+    <span class="attr">#[test]
+    </span><span class="kw">fn </span>do_not_remove_pure_with_predicates_function_call() {
+        <span class="kw">let </span>src = <span class="string">r#"
+        acir(inline) fn main f0 {
+          b0():
+            call f1(Field 0)
+            return
+        }
+        acir(inline) fn predicate_constrain f1 {
+          b0(v0: Field):
+            constrain v0 == Field 0
+            return
+        }
+        "#</span>;
+
+        <span class="kw">let </span>ssa = Ssa::from_str(src).unwrap();
+        <span class="kw">let </span>ssa = ssa.purity_analysis();
+        <span class="kw">let </span>(ssa, <span class="kw">_</span>) = ssa.dead_instruction_elimination_inner(<span class="bool-val">false</span>, <span class="bool-val">false</span>);
+
+        <span class="comment">// We expect the program to be unchanged except that functions are labeled with purities now
+        </span><span class="macro">assert_ssa_snapshot!</span>(ssa, @<span class="string">r#"
+        acir(inline) predicate_pure fn main f0 {
+          b0():
+            call f1(Field 0)
+            return
+        }
+        acir(inline) predicate_pure fn predicate_constrain f1 {
+          b0(v0: Field):
+            constrain v0 == Field 0
+            return
+        }
+        "#</span>);
     }
 }
 </code></pre></div></section></main></body></html>

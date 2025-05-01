@@ -718,7 +718,9 @@
 <a href="#717" id="717">717</a>
 <a href="#718" id="718">718</a>
 <a href="#719" id="719">719</a>
-<a href="#720" id="720">720</a></pre></div><pre class="rust"><code><span class="doccomment">//! SSA stands for Single Static Assignment
+<a href="#720" id="720">720</a>
+<a href="#721" id="721">721</a>
+<a href="#722" id="722">722</a></pre></div><pre class="rust"><code><span class="doccomment">//! SSA stands for Single Static Assignment
 //! The IR presented in this module will already
 //! be in SSA form and will be used to apply
 //! conventional optimizations like Common Subexpression
@@ -921,6 +923,8 @@
         // end up using an existing constant from the globals space.
         </span>SsaPass::new(Ssa::brillig_array_gets, <span class="string">"Brillig Array Get Optimizations"</span>),
         SsaPass::new(Ssa::dead_instruction_elimination, <span class="string">"Dead Instruction Elimination"</span>),
+        <span class="comment">// A function can be potentially unreachable post-DIE if all calls to that function were removed.
+        </span>SsaPass::new(Ssa::remove_unreachable_functions, <span class="string">"Removing Unreachable Functions"</span>),
         SsaPass::new(Ssa::checked_to_unchecked, <span class="string">"Checked to unchecked"</span>),
     ]
 }
