@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1746111734320,
+  "lastUpdate": 1746112073497,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -3700,95 +3700,6 @@ window.BENCHMARK_DATA = {
       }
     ],
     "Compilation Time": [
-      {
-        "commit": {
-          "author": {
-            "email": "asterite@gmail.com",
-            "name": "Ary Borenszweig",
-            "username": "asterite"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "b41112159d86863fc4d582ffd461a018639e2de5",
-          "message": "feat: optimize `checked_to_unchecked` to take into account multiplications (#8188)",
-          "timestamp": "2025-04-24T10:45:22Z",
-          "tree_id": "d3ad35d3bae4b51f8d889b9beac2f40ba87564d3",
-          "url": "https://github.com/noir-lang/noir/commit/b41112159d86863fc4d582ffd461a018639e2de5"
-        },
-        "date": 1745492827985,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "regression_4709",
-            "value": 0.646,
-            "unit": "s"
-          },
-          {
-            "name": "ram_blowup_regression",
-            "value": 12.6,
-            "unit": "s"
-          },
-          {
-            "name": "global_var_regression_entry_points",
-            "value": 0.468,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-inner",
-            "value": 2.148,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 6.808,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 1.022,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 17.94,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 13.72,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root-empty",
-            "value": 0.879,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root-single-tx",
-            "value": 121,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 119,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 0.847,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-root",
-            "value": 1.406,
-            "unit": "s"
-          }
-        ]
-      },
       {
         "commit": {
           "author": {
@@ -8146,6 +8057,95 @@ window.BENCHMARK_DATA = {
           {
             "name": "rollup-root",
             "value": 1.572,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "15848336+TomAFrench@users.noreply.github.com",
+            "name": "Tom French",
+            "username": "TomAFrench"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "9e69d4cd6235b9183cefa84c7f1bca6ea7057c4e",
+          "message": "feat: remove unnecessary dynamic arrays when pushing onto slices (#8287)\n\nCo-authored-by: AztecBot <tech@aztecprotocol.com>\nCo-authored-by: Maxim Vezenov <mvezenov@gmail.com>",
+          "timestamp": "2025-05-01T14:44:14Z",
+          "tree_id": "86954196383c0a5e5c425a986776b19792ff0d15",
+          "url": "https://github.com/noir-lang/noir/commit/9e69d4cd6235b9183cefa84c7f1bca6ea7057c4e"
+        },
+        "date": 1746112066451,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "regression_4709",
+            "value": 0.677,
+            "unit": "s"
+          },
+          {
+            "name": "ram_blowup_regression",
+            "value": 12.9,
+            "unit": "s"
+          },
+          {
+            "name": "global_var_regression_entry_points",
+            "value": 0.485,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-inner",
+            "value": 2.286,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 6.548,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 1.09,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 17.1,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 12.84,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-empty",
+            "value": 1.248,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-single-tx",
+            "value": 123,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 125,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 1.034,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-root",
+            "value": 1.608,
             "unit": "s"
           }
         ]
