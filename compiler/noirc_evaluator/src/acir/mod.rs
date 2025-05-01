@@ -1289,133 +1289,68 @@ impl<'a> Context<'a> {
                 // arguments = [slice_length, slice_contents, ...elements_to_push]
                 let slice_length = self.convert_value(arguments[0], dfg).into_var()?;
                 let slice_contents = arguments[1];
+                let elements_to_push = &arguments[2..];
+
                 let slice_typ = dfg.type_of_value(slice_contents);
 
                 assert!(!slice_typ.is_nested_slice(), "ICE: Nested slice used in ACIR generation");
-
-                let slice = self.convert_value(slice_contents, dfg);
-                let mut new_elem_size = arrays::flattened_value_size(&slice);
-
-                let mut new_slice = self.read_array(slice)?;
-
-                let elements_to_push = &arguments[2..];
-                // We must directly push back elements for non-nested slices
-                for elem in elements_to_push {
-                    let element = self.convert_value(*elem, dfg);
-
-                    new_elem_size += arrays::flattened_value_size(&element);
-                    new_slice.push_back(element);
-                }
 
                 // Increase the slice length by one to enable accessing more elements in the slice.
                 let one = self.acir_context.add_constant(FieldElement::one());
                 let new_slice_length = self.acir_context.add_var(slice_length, one)?;
 
-                let new_slice_val = AcirValue::Array(new_slice);
-                let result_block_id = self.block_id(&result_ids[1]);
-                self.initialize_array(result_block_id, new_elem_size, Some(new_slice_val.clone()))?;
-                // The previous slice length represents the index we want to write into.
-                let mut var_index = slice_length;
-                // Write the elements we wish to push back directly.
-                // The slice's underlying array value should already be filled with dummy data
-                // to enable this write to be within bounds.
-                // The dummy data is either attached during SSA gen or in this match case for non-nested slices.
-                // These values can then be accessed due to the increased dynamic slice length.
+                let slice = self.convert_value(slice_contents, dfg);
+                let mut new_slice = self.read_array(slice)?;
+
+                // We must directly push back elements for non-nested slices
                 for elem in elements_to_push {
                     let element = self.convert_value(*elem, dfg);
-                    self.array_set_value(&element, result_block_id, &mut var_index)?;
+                    new_slice.push_back(element);
                 }
 
-                let element_type_sizes =
-                    if arrays::array_has_constant_element_size(&slice_typ).is_none() {
-                        Some(self.init_element_type_sizes_array(
-                            &slice_typ,
-                            slice_contents,
-                            Some(&new_slice_val),
-                            dfg,
-                        )?)
-                    } else {
-                        None
-                    };
-
-                let value_types = new_slice_val.flat_numeric_types();
+                let new_slice_val = AcirValue::Array(new_slice);
+                let new_elem_size = arrays::flattened_value_size(&new_slice_val);
+                let value_types = new_slice_val.clone().flat_numeric_types();
                 assert_eq!(
                     value_types.len(),
                     new_elem_size,
                     "ICE: Value types array must match new slice size"
                 );
 
-                let result = AcirValue::DynamicArray(AcirDynamicArray {
-                    block_id: result_block_id,
-                    len: new_elem_size,
-                    value_types,
-                    element_type_sizes,
-                });
-                Ok(vec![AcirValue::Var(new_slice_length, AcirType::field()), result])
+                Ok(vec![AcirValue::Var(new_slice_length, AcirType::field()), new_slice_val])
             }
             Intrinsic::SlicePushFront => {
                 // arguments = [slice_length, slice_contents, ...elements_to_push]
                 let slice_length = self.convert_value(arguments[0], dfg).into_var()?;
                 let slice_contents = arguments[1];
+                let elements_to_push = &arguments[2..];
                 let slice_typ = dfg.type_of_value(slice_contents);
                 assert!(!slice_typ.is_nested_slice(), "ICE: Nested slice used in ACIR generation");
-
-                let slice: AcirValue = self.convert_value(slice_contents, dfg);
-                let mut new_slice_size = arrays::flattened_value_size(&slice);
 
                 // Increase the slice length by one to enable accessing more elements in the slice.
                 let one = self.acir_context.add_constant(FieldElement::one());
                 let new_slice_length = self.acir_context.add_var(slice_length, one)?;
 
+                let slice = self.convert_value(slice_contents, dfg);
                 let mut new_slice = self.read_array(slice)?;
 
-                let elements_to_push = &arguments[2..];
-                let mut elem_size = 0;
                 // We must directly push front elements for non-nested slices
                 for elem in elements_to_push.iter().rev() {
                     let element = self.convert_value(*elem, dfg);
-
-                    elem_size += arrays::flattened_value_size(&element);
                     new_slice.push_front(element);
                 }
-                new_slice_size += elem_size;
 
-                let new_slice_val = AcirValue::Array(new_slice.clone());
+                let new_slice_val = AcirValue::Array(new_slice);
+                let new_slice_size = arrays::flattened_value_size(&new_slice_val);
 
-                let result_block_id = self.block_id(&result_ids[1]);
-                self.initialize_array(
-                    result_block_id,
-                    new_slice_size,
-                    Some(new_slice_val.clone()),
-                )?;
-
-                let element_type_sizes =
-                    if arrays::array_has_constant_element_size(&slice_typ).is_none() {
-                        Some(self.init_element_type_sizes_array(
-                            &slice_typ,
-                            slice_contents,
-                            Some(&new_slice_val),
-                            dfg,
-                        )?)
-                    } else {
-                        None
-                    };
-
-                let value_types = new_slice_val.flat_numeric_types();
+                let value_types = new_slice_val.clone().flat_numeric_types();
                 assert_eq!(
                     value_types.len(),
                     new_slice_size,
                     "ICE: Value types array must match new slice size"
                 );
 
-                let result = AcirValue::DynamicArray(AcirDynamicArray {
-                    block_id: result_block_id,
-                    len: new_slice_size,
-                    value_types,
-                    element_type_sizes,
-                });
-
-                Ok(vec![AcirValue::Var(new_slice_length, AcirType::field()), result])
+                Ok(vec![AcirValue::Var(new_slice_length, AcirType::field()), new_slice_val])
             }
             Intrinsic::SlicePopBack => {
                 // arguments = [slice_length, slice_contents]
