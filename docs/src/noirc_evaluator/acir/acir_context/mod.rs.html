@@ -1687,7 +1687,16 @@
 <a href="#1686" id="1686">1686</a>
 <a href="#1687" id="1687">1687</a>
 <a href="#1688" id="1688">1688</a>
-<a href="#1689" id="1689">1689</a></pre></div><pre class="rust"><code><span class="doccomment">//! The `acir_context` module acts as a high-level wrapper around [`generated_acir`], maintaining a small amount
+<a href="#1689" id="1689">1689</a>
+<a href="#1690" id="1690">1690</a>
+<a href="#1691" id="1691">1691</a>
+<a href="#1692" id="1692">1692</a>
+<a href="#1693" id="1693">1693</a>
+<a href="#1694" id="1694">1694</a>
+<a href="#1695" id="1695">1695</a>
+<a href="#1696" id="1696">1696</a>
+<a href="#1697" id="1697">1697</a>
+<a href="#1698" id="1698">1698</a></pre></div><pre class="rust"><code><span class="doccomment">//! The `acir_context` module acts as a high-level wrapper around [`generated_acir`], maintaining a small amount
 //! of type information from SSA in order to allow efficient ACIR-gen.
 //!
 //! The [`AcirContext`] struct defines how to translate SSA instructions into equivalent ACIR constructs. This
@@ -2523,13 +2532,22 @@
             <span class="comment">// It is possible that we have an AcirVar which is a result of a multiplication of constants
             // which resulted in an overflow, but that check will only happen at runtime, and here we
             // can't assume that the RHS will never have more bits than the operand.
-            </span><span class="kw">let </span>max_q_bits = <span class="kw">if </span>max_rhs_bits &gt; bit_size {
-                <span class="comment">// Ignore what we know about the constant and let the runtime handle it.
-                </span>bit_size
-            } <span class="kw">else </span>{
-                bit_size - max_rhs_bits + <span class="number">1
-            </span>};
-            (max_q_bits, max_rhs_bits)
+            // Alternatively if the RHS is a result of an underflow, it could be a negative number which
+            // is represented by a very large positive Field, which could fail to compile to ACIR in
+            // `range_constrain_var` below, because it can use all 254 bits.
+
+            // To avoid any uncertainty about how the rest of the calls would behave if we pretended that we
+            // didn't know that the RHS has more bits than the operation assumes, we return zero and add an
+            // assertion which will fail at runtime.
+            </span><span class="kw">if </span>max_rhs_bits &gt; bit_size {
+                <span class="kw">let </span>msg = <span class="macro">format!</span>(
+                    <span class="string">"attempted to divide by constant larger than operand type: {max_rhs_bits} &gt; {bit_size}"
+                </span>);
+                <span class="kw">let </span>msg = <span class="self">self</span>.generate_assertion_message_payload(msg);
+                <span class="self">self</span>.assert_eq_var(zero, one, <span class="prelude-val">Some</span>(msg))<span class="question-mark">?</span>;
+                <span class="kw">return </span><span class="prelude-val">Ok</span>((zero, zero));
+            }
+            (bit_size - max_rhs_bits + <span class="number">1</span>, max_rhs_bits)
         } <span class="kw">else </span>{
             (bit_size, bit_size)
         };
