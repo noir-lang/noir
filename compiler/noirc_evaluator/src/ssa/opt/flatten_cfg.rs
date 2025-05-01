@@ -744,9 +744,23 @@ impl<'f> Context<'f> {
 
                         Instruction::Call { func, arguments }
                     }
-                    //Issue #5045: We set curve points to infinity if condition is false
                     Value::Intrinsic(Intrinsic::BlackBox(BlackBoxFunc::EmbeddedCurveAdd)) => {
+                        let casted_condition =
+                            self.cast_condition_to_value_type(condition, arguments[0], call_stack);
+
+                        // x, y of LHS
+                        arguments[0] =
+                            self.mul_by_condition(arguments[0], casted_condition, call_stack);
+                        arguments[1] =
+                            self.mul_by_condition(arguments[1], casted_condition, call_stack);
+                        // is_infinity of LHS
                         arguments[2] = self.var_or_one(arguments[2], condition, call_stack);
+                        // x, y of RHS
+                        arguments[3] =
+                            self.mul_by_condition(arguments[3], casted_condition, call_stack);
+                        arguments[4] =
+                            self.mul_by_condition(arguments[4], casted_condition, call_stack);
+                        // is_infinity of RHS
                         arguments[5] = self.var_or_one(arguments[5], condition, call_stack);
 
                         Instruction::Call { func, arguments }
@@ -820,10 +834,18 @@ impl<'f> Context<'f> {
         if let Some((array, typ)) = &self.inserter.function.dfg.get_array_constant(argument) {
             array_typ = typ.clone();
             for (i, value) in array.clone().iter().enumerate() {
-                if i % 3 == 2 {
-                    array_with_predicate.push_back(self.var_or_one(*value, predicate, call_stack));
+                if i % 3 != 2 {
+                    let casted_predicate =
+                        self.cast_condition_to_value_type(predicate, *value, call_stack);
+                    // set x, y to zero
+                    array_with_predicate.push_back(self.mul_by_condition(
+                        *value,
+                        casted_predicate,
+                        call_stack,
+                    ));
                 } else {
-                    array_with_predicate.push_back(*value);
+                    // set is_infinity to true
+                    array_with_predicate.push_back(self.var_or_one(*value, predicate, call_stack));
                 }
             }
         } else {
