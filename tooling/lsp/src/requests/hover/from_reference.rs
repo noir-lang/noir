@@ -11,6 +11,7 @@ use noirc_frontend::{
     ast::ItemVisibility,
     hir::def_map::ModuleId,
     hir_def::{function::FuncMeta, stmt::HirPattern, traits::Trait},
+    modules::module_full_path,
     node_interner::{
         DefinitionId, DefinitionKind, FuncId, GlobalId, NodeInterner, ReferenceId, TraitId,
         TraitImplKind, TypeAliasId, TypeId,
@@ -19,7 +20,6 @@ use noirc_frontend::{
 
 use crate::{
     attribute_reference_finder::AttributeReferenceFinder,
-    modules::module_full_path,
     requests::{ProcessRequestCallbackArgs, to_lsp_location},
     utils,
 };
