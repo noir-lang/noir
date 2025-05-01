@@ -7,7 +7,9 @@ use crate::{
 use arbitrary::{Arbitrary, Unstructured};
 use color_eyre::eyre;
 use noir_ast_fuzzer::compare::{CompareOptions, ComparePasses};
-use noir_ast_fuzzer::{Config, change_all_functions_into_unconstrained, compare::CompareResult};
+use noir_ast_fuzzer::{
+    Config, compare::CompareResult, rewrite::change_all_functions_into_unconstrained,
+};
 use noirc_evaluator::ssa::minimal_passes;
 
 pub fn fuzz(u: &mut Unstructured) -> eyre::Result<()> {

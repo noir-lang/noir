@@ -14,7 +14,7 @@ use noirc_frontend::{
 use super::{Name, VariableId, types, visitor::visit_expr};
 
 /// Generate a literal expression according to a type.
-pub(crate) fn gen_literal(u: &mut Unstructured, typ: &Type) -> arbitrary::Result<Expression> {
+pub fn gen_literal(u: &mut Unstructured, typ: &Type) -> arbitrary::Result<Expression> {
     use FieldElement as Field;
     use IntegerBitSize::*;
 
@@ -98,7 +98,7 @@ pub(crate) fn gen_literal(u: &mut Unstructured, typ: &Type) -> arbitrary::Result
 /// Generate a literals for loop ranges with signed/unsigned integers with bits 8, 16, 32 or 64 bits,
 /// in a way that start is not higher than the end, and the maximum difference between them is limited,
 /// so that we don't get huge unrolled loops.
-pub(crate) fn gen_range(
+pub fn gen_range(
     u: &mut Unstructured,
     typ: &Type,
     max_size: usize,
@@ -230,7 +230,7 @@ pub(crate) fn ident_inner(
 }
 
 /// Integer literal, can be positive or negative depending on type.
-pub(crate) fn int_literal<V>(value: V, is_negative: bool, typ: Type) -> Expression
+pub fn int_literal<V>(value: V, is_negative: bool, typ: Type) -> Expression
 where
     FieldElement: From<V>,
 {
@@ -242,17 +242,17 @@ where
 }
 
 /// 32-bit unsigned int literal, used in indexing arrays.
-pub(crate) fn u32_literal(value: u32) -> Expression {
+pub fn u32_literal(value: u32) -> Expression {
     int_literal(value, false, types::U32)
 }
 
 /// Create a variable.
-pub(crate) fn let_var(id: LocalId, mutable: bool, name: String, expr: Expression) -> Expression {
+pub fn let_var(id: LocalId, mutable: bool, name: String, expr: Expression) -> Expression {
     Expression::Let(Let { id, mutable, name, expression: Box::new(expr) })
 }
 
 /// Create an `if` expression, with an optional `else`.
-pub(crate) fn if_then(
+pub fn if_then(
     condition: Expression,
     consequence: Expression,
     alternative: Option<Expression>,
@@ -267,7 +267,7 @@ pub(crate) fn if_then(
 }
 
 /// Make an if/else expression.
-pub(crate) fn if_else(
+pub fn if_else(
     condition: Expression,
     consequence: Expression,
     alternative: Expression,
@@ -277,12 +277,12 @@ pub(crate) fn if_else(
 }
 
 /// Assign a value to an identifier.
-pub(crate) fn assign_ident(ident: Ident, expr: Expression) -> Expression {
+pub fn assign_ident(ident: Ident, expr: Expression) -> Expression {
     Expression::Assign(Assign { lvalue: LValue::Ident(ident), expression: Box::new(expr) })
 }
 
 /// Assign a value to a mutable reference.
-pub(crate) fn assign_ref(ident: Ident, expr: Expression) -> Expression {
+pub fn assign_ref(ident: Ident, expr: Expression) -> Expression {
     let typ = ident.typ.clone();
     let lvalue = LValue::Ident(ident);
     let lvalue = LValue::Dereference { reference: Box::new(lvalue), element_type: typ };
@@ -290,43 +290,43 @@ pub(crate) fn assign_ref(ident: Ident, expr: Expression) -> Expression {
 }
 
 /// Cast an expression to a target type.
-pub(crate) fn cast(lhs: Expression, tgt_type: Type) -> Expression {
+pub fn cast(lhs: Expression, tgt_type: Type) -> Expression {
     Expression::Cast(Cast { lhs: Box::new(lhs), r#type: tgt_type, location: Location::dummy() })
 }
 
 /// Take an integer expression and make sure it fits in an expected `len`
 /// by taking a modulo.
-pub(crate) fn index_modulo(idx: Expression, len: u32) -> Expression {
+pub fn index_modulo(idx: Expression, len: u32) -> Expression {
     modulo(idx, u32_literal(len))
 }
 
 /// Take an integer expression and make sure it's no larger than `max_size`.
-pub(crate) fn range_modulo(lhs: Expression, typ: Type, max_size: usize) -> Expression {
+pub fn range_modulo(lhs: Expression, typ: Type, max_size: usize) -> Expression {
     modulo(lhs, int_literal(max_size as u64, false, typ))
 }
 
 /// Make a modulo expression.
-pub(crate) fn modulo(lhs: Expression, rhs: Expression) -> Expression {
+pub fn modulo(lhs: Expression, rhs: Expression) -> Expression {
     binary(lhs, BinaryOpKind::Modulo, rhs)
 }
 
 /// Make an `==` expression.
-pub(crate) fn equal(lhs: Expression, rhs: Expression) -> Expression {
+pub fn equal(lhs: Expression, rhs: Expression) -> Expression {
     binary(lhs, BinaryOpKind::Equal, rhs)
 }
 
 /// Dereference an expression into a target type
-pub(crate) fn deref(rhs: Expression, tgt_type: Type) -> Expression {
+pub fn deref(rhs: Expression, tgt_type: Type) -> Expression {
     unary(UnaryOp::Dereference { implicitly_added: false }, rhs, tgt_type)
 }
 
 /// Reference an expression as a target type
-pub(crate) fn ref_mut(rhs: Expression, tgt_type: Type) -> Expression {
+pub fn ref_mut(rhs: Expression, tgt_type: Type) -> Expression {
     unary(UnaryOp::Reference { mutable: true }, rhs, tgt_type)
 }
 
 /// Make a unary expression.
-pub(crate) fn unary(op: UnaryOp, rhs: Expression, tgt_type: Type) -> Expression {
+pub fn unary(op: UnaryOp, rhs: Expression, tgt_type: Type) -> Expression {
     Expression::Unary(Unary {
         operator: op,
         rhs: Box::new(rhs),
@@ -336,7 +336,7 @@ pub(crate) fn unary(op: UnaryOp, rhs: Expression, tgt_type: Type) -> Expression 
 }
 
 /// Make a binary expression.
-pub(crate) fn binary(lhs: Expression, op: BinaryOp, rhs: Expression) -> Expression {
+pub fn binary(lhs: Expression, op: BinaryOp, rhs: Expression) -> Expression {
     Expression::Binary(Binary {
         lhs: Box::new(lhs),
         operator: op,
@@ -346,7 +346,7 @@ pub(crate) fn binary(lhs: Expression, op: BinaryOp, rhs: Expression) -> Expressi
 }
 
 /// Check if an `Expression` contains any `Call` in any of its descendants.
-pub(crate) fn has_call(expr: &Expression) -> bool {
+pub fn has_call(expr: &Expression) -> bool {
     let mut has_call = false;
     visit_expr(expr, &mut |expr| {
         has_call |= matches!(expr, Expression::Call(_));
@@ -360,7 +360,7 @@ pub(crate) fn has_call(expr: &Expression) -> bool {
 ///
 /// If the destination is a `Block`, it gets prepended with a new statement,
 /// otherwise it's turned into a `Block` first.
-pub(crate) fn prepend(dst: &mut Expression, expr: Expression) {
+pub fn prepend(dst: &mut Expression, expr: Expression) {
     if !matches!(dst, Expression::Block(_)) {
         let mut tmp = Expression::Block(vec![]);
         std::mem::swap(dst, &mut tmp);
@@ -378,7 +378,7 @@ pub(crate) fn prepend(dst: &mut Expression, expr: Expression) {
 }
 
 /// Replace an expression with another one, passing its current value to a function.
-pub(crate) fn replace(dst: &mut Expression, f: impl FnOnce(Expression) -> Expression) {
+pub fn replace(dst: &mut Expression, f: impl FnOnce(Expression) -> Expression) {
     let mut tmp = Expression::Break;
     std::mem::swap(dst, &mut tmp);
     *dst = f(tmp);
@@ -388,7 +388,7 @@ pub(crate) fn replace(dst: &mut Expression, f: impl FnOnce(Expression) -> Expres
 ///
 /// Panics if `block` is not `Expression::Block`.
 #[allow(dead_code)]
-pub(crate) fn extend_block(block: Expression, statements: Vec<Expression>) -> Expression {
+pub fn extend_block(block: Expression, statements: Vec<Expression>) -> Expression {
     let Expression::Block(mut block_stmts) = block else {
         unreachable!("attempted to append statements to a non-block expression: {}", block)
     };
@@ -402,7 +402,7 @@ pub(crate) fn extend_block(block: Expression, statements: Vec<Expression>) -> Ex
 ///
 /// Panics if `block` is not `Expression::Block`. Consider [prepend] which doesn't.
 #[allow(dead_code)]
-pub(crate) fn prepend_block(block: Expression, statements: Vec<Expression>) -> Expression {
+pub fn prepend_block(block: Expression, statements: Vec<Expression>) -> Expression {
     let Expression::Block(block_stmts) = block else {
         unreachable!("attempted to prepend statements to a non-block expression: {}", block)
     };

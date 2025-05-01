@@ -8,8 +8,7 @@ pub use input::arb_inputs;
 use program::freq::Freqs;
 pub use program::visitor::{visit_expr, visit_expr_mut};
 pub use program::{
-    DisplayAstAsNoir, DisplayAstAsNoirComptime, arb_program, arb_program_comptime,
-    change_all_functions_into_unconstrained,
+    DisplayAstAsNoir, DisplayAstAsNoirComptime, arb_program, arb_program_comptime, expr, rewrite,
 };
 
 /// AST generation configuration.
