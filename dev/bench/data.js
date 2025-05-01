@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1746125216134,
+  "lastUpdate": 1746125255478,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -11357,70 +11357,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "aakoshh@gmail.com",
-            "name": "Akosh Farkash",
-            "username": "aakoshh"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "730529aabdf1fac3a0207decb65040cfe44369c2",
-          "message": "chore(fuzz): Make sure `main` makes at least one call (#8202)",
-          "timestamp": "2025-04-24T13:05:11Z",
-          "tree_id": "c2d73c801b8b1dca77fc7493924e865674e7064a",
-          "url": "https://github.com/noir-lang/noir/commit/730529aabdf1fac3a0207decb65040cfe44369c2"
-        },
-        "date": 1745501750449,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 203.28,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 227.03,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 181.3,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 433.5,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 425.68,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 1420,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 254.29,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-root",
-            "value": 260.03,
-            "unit": "MB"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "15848336+TomAFrench@users.noreply.github.com",
             "name": "Tom French",
             "username": "TomAFrench"
@@ -14505,6 +14441,70 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/noir-lang/noir/commit/bf93f861e9d6482a8841a8d3b74c39f13d36144e"
         },
         "date": 1746116324245,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 232.94,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 256.56,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 210.97,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 541.49,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 533.67,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 1440,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 362.57,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-root",
+            "value": 368.5,
+            "unit": "MB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "15848336+TomAFrench@users.noreply.github.com",
+            "name": "Tom French",
+            "username": "TomAFrench"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "3261a6b5876cd9920653f05e0ccee402b8389a59",
+          "message": "feat: disallow emitting multiple `MemoryInit` opcodes for the same block (#8291)\n\nCo-authored-by: AztecBot <tech@aztecprotocol.com>",
+          "timestamp": "2025-05-01T18:16:19Z",
+          "tree_id": "810ad4642955fb635ee3b8fc9661b8479ea60496",
+          "url": "https://github.com/noir-lang/noir/commit/3261a6b5876cd9920653f05e0ccee402b8389a59"
+        },
+        "date": 1746125248090,
         "tool": "customSmallerIsBetter",
         "benches": [
           {
