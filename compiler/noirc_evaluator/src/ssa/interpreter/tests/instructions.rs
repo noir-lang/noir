@@ -786,13 +786,15 @@ fn if_else() {
         acir(inline) fn main f0 {
           b0():
             v0 = if u1 1 then u8 2 else (if u1 0) u8 3
-            v1 = if u1 0 then u8 2 else (if u1 0) u8 3
-            return v0, v1
+            v1 = if u1 0 then u8 2 else (if u1 1) u8 3
+            v2 = if u1 0 then u8 2 else (if u1 0) u8 3
+            return v0, v1, v2
         }
     ",
     );
     assert_eq!(values[0], Value::from_constant(2_u32.into(), NumericType::unsigned(8)));
     assert_eq!(values[1], Value::from_constant(3_u32.into(), NumericType::unsigned(8)));
+    assert_eq!(values[2], Value::from_constant(0_u32.into(), NumericType::unsigned(8)));
 }
 
 #[test]
