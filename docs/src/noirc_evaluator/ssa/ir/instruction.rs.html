@@ -828,7 +828,11 @@
 <a href="#827" id="827">827</a>
 <a href="#828" id="828">828</a>
 <a href="#829" id="829">829</a>
-<a href="#830" id="830">830</a></pre></div><pre class="rust"><code><span class="kw">use </span>noirc_errors::call_stack::CallStackId;
+<a href="#830" id="830">830</a>
+<a href="#831" id="831">831</a>
+<a href="#832" id="832">832</a>
+<a href="#833" id="833">833</a>
+<a href="#834" id="834">834</a></pre></div><pre class="rust"><code><span class="kw">use </span>noirc_errors::call_stack::CallStackId;
 <span class="kw">use </span>serde::{Deserialize, Serialize};
 <span class="kw">use </span>std::hash::{Hash, Hasher};
 
@@ -1204,28 +1208,7 @@
     <span class="doccomment">/// If true the instruction will depend on `enable_side_effects` context during acir-gen.
     </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>requires_acir_gen_predicate(<span class="kw-2">&amp;</span><span class="self">self</span>, dfg: <span class="kw-2">&amp;</span>DataFlowGraph) -&gt; bool {
         <span class="kw">match </span><span class="self">self </span>{
-            Instruction::Binary(binary) =&gt; {
-                <span class="kw">match </span>binary.operator {
-                    BinaryOp::Add { unchecked: <span class="bool-val">false </span>}
-                    | BinaryOp::Sub { unchecked: <span class="bool-val">false </span>}
-                    | BinaryOp::Mul { unchecked: <span class="bool-val">false </span>} =&gt; {
-                        <span class="comment">// Some binary math can overflow or underflow, but this is only the case
-                        // for unsigned types (here we assume the type of binary.lhs is the same)
-                        </span>dfg.type_of_value(binary.rhs).is_unsigned()
-                    }
-                    BinaryOp::Div | BinaryOp::Mod =&gt; <span class="bool-val">true</span>,
-                    BinaryOp::Add { unchecked: <span class="bool-val">true </span>}
-                    | BinaryOp::Sub { unchecked: <span class="bool-val">true </span>}
-                    | BinaryOp::Mul { unchecked: <span class="bool-val">true </span>}
-                    | BinaryOp::Eq
-                    | BinaryOp::Lt
-                    | BinaryOp::And
-                    | BinaryOp::Or
-                    | BinaryOp::Xor
-                    | BinaryOp::Shl
-                    | BinaryOp::Shr =&gt; <span class="bool-val">false</span>,
-                }
-            }
+            Instruction::Binary(binary) =&gt; binary.requires_acir_gen_predicate(dfg),
 
             Instruction::ArrayGet { array, index } =&gt; {
                 <span class="comment">// `ArrayGet`s which read from "known good" indices from an array should not need a predicate.
@@ -1492,6 +1475,31 @@
                 }
             }
             Instruction::Noop =&gt; (),
+        }
+    }
+}
+
+<span class="kw">impl </span>Binary {
+    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>requires_acir_gen_predicate(<span class="kw-2">&amp;</span><span class="self">self</span>, dfg: <span class="kw-2">&amp;</span>DataFlowGraph) -&gt; bool {
+        <span class="kw">match </span><span class="self">self</span>.operator {
+            BinaryOp::Add { unchecked: <span class="bool-val">false </span>}
+            | BinaryOp::Sub { unchecked: <span class="bool-val">false </span>}
+            | BinaryOp::Mul { unchecked: <span class="bool-val">false </span>} =&gt; {
+                <span class="comment">// Some binary math can overflow or underflow, but this is only the case
+                // for unsigned types (here we assume the type of binary.lhs is the same)
+                </span>dfg.type_of_value(<span class="self">self</span>.rhs).is_unsigned()
+            }
+            BinaryOp::Div | BinaryOp::Mod =&gt; <span class="bool-val">true</span>,
+            BinaryOp::Add { unchecked: <span class="bool-val">true </span>}
+            | BinaryOp::Sub { unchecked: <span class="bool-val">true </span>}
+            | BinaryOp::Mul { unchecked: <span class="bool-val">true </span>}
+            | BinaryOp::Eq
+            | BinaryOp::Lt
+            | BinaryOp::And
+            | BinaryOp::Or
+            | BinaryOp::Xor
+            | BinaryOp::Shl
+            | BinaryOp::Shr =&gt; <span class="bool-val">false</span>,
         }
     }
 }

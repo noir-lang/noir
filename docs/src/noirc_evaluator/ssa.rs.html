@@ -717,7 +717,8 @@
 <a href="#716" id="716">716</a>
 <a href="#717" id="717">717</a>
 <a href="#718" id="718">718</a>
-<a href="#719" id="719">719</a></pre></div><pre class="rust"><code><span class="doccomment">//! SSA stands for Single Static Assignment
+<a href="#719" id="719">719</a>
+<a href="#720" id="720">720</a></pre></div><pre class="rust"><code><span class="doccomment">//! SSA stands for Single Static Assignment
 //! The IR presented in this module will already
 //! be in SSA form and will be used to apply
 //! conventional optimizations like Common Subexpression
@@ -763,6 +764,7 @@
 
 <span class="kw">mod </span>checks;
 <span class="kw">pub mod </span>function_builder;
+<span class="kw">pub mod </span>interpreter;
 <span class="kw">pub mod </span>ir;
 <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">mod </span>opt;
 <span class="attr">#[cfg(test)]

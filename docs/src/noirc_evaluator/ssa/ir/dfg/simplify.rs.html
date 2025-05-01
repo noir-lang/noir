@@ -489,7 +489,9 @@
 <a href="#488" id="488">488</a>
 <a href="#489" id="489">489</a>
 <a href="#490" id="490">490</a>
-<a href="#491" id="491">491</a></pre></div><pre class="rust"><code><span class="kw">use </span><span class="kw">crate</span>::ssa::{
+<a href="#491" id="491">491</a>
+<a href="#492" id="492">492</a>
+<a href="#493" id="493">493</a></pre></div><pre class="rust"><code><span class="kw">use </span><span class="kw">crate</span>::ssa::{
     ir::{
         basic_block::BasicBlockId,
         instruction::{
@@ -514,6 +516,8 @@
 <span class="kw">mod </span>call;
 <span class="kw">mod </span>cast;
 <span class="kw">mod </span>constrain;
+
+<span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">use </span>call::constant_to_radix;
 
 <span class="doccomment">/// Contains the result to Instruction::simplify, specifying how the instruction
 /// should be simplified.
