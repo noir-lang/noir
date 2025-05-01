@@ -124,6 +124,12 @@ impl Ssa {
 impl Function {
     /// Removes any unused instructions in the reachable blocks of the given function.
     ///
+    /// This method is designed to be run within the context of the full SSA, not in isolation.
+    /// Running DIE on a single function may cause inconsistencies, such as leaving dangling unused parameters. 
+    /// The pruning of block parameters depends on the full SSA context. 
+    /// Therefore, this method must remain private, and DIE should run over the entire SSA,
+    /// ensuring proper tracking of unused parameters across all blocks.
+    /// 
     /// The blocks of the function are iterated in post order, such that any blocks containing
     /// instructions that reference results from an instruction in another block are evaluated first.
     /// If we did not iterate blocks in this order we could not safely say whether or not the results
@@ -134,7 +140,7 @@ impl Function {
     ///   After processing all functions, the union of these sets enables determining the unused globals.
     /// - A mapping of (block id -> unused parameters) for the given function.
     ///   This can be used by follow-up passes to prune unused parameters from blocks.
-    pub(crate) fn dead_instruction_elimination(
+    fn dead_instruction_elimination(
         &mut self,
         flattened: bool,
         skip_brillig: bool,
@@ -167,8 +173,8 @@ impl Function {
                 })
                 .copied()
                 .collect::<Vec<_>>();
-            unused_params_per_block.insert(*block, unused_params);
 
+            unused_params_per_block.insert(*block, unused_params);
             context.parameter_keep_list.insert(*block, keep_list);
         }
 
