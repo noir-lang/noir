@@ -17,6 +17,7 @@ use crate::ssa::{
         types::Type,
         value::{Value, ValueId},
     },
+    opt::pure::Purity,
     ssa_gen::Ssa,
 };
 
@@ -390,8 +391,14 @@ fn can_be_eliminated_if_unused(
             // from the ACVM to the external world during execution.
             Value::ForeignFunction(_) => false,
 
-            // We must assume that functions contain a side effect as we cannot inspect more deeply.
-            Value::Function(_) => false,
+            // We use purity to determine whether functions contain side effects.
+            // If we have an impure function, we cannot remove it even if it is unused.
+            Value::Function(function_id) => match function.dfg.purity_of(function_id) {
+                Some(Purity::Pure) => true,
+                Some(Purity::PureWithPredicate) => false,
+                Some(Purity::Impure) => false,
+                None => false,
+            },
 
             _ => false,
         },
@@ -933,5 +940,107 @@ mod test {
             return
         }
         ");
+    }
+
+    #[test]
+    fn remove_dead_pure_function_call() {
+        let src = r#"
+        acir(inline) fn main f0 {
+          b0():
+            call f1()
+            return
+        }
+        acir(inline) fn pure_basic f1 {
+          b0():
+            v2 = allocate -> &mut Field
+            store Field 0 at v2
+            return
+        }
+        "#;
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.purity_analysis();
+        let (ssa, _) = ssa.dead_instruction_elimination_inner(false, false);
+
+        // We expect the call to f1 in f0 to be removed
+        assert_ssa_snapshot!(ssa, @r#"
+        acir(inline) pure fn main f0 {
+          b0():
+            return
+        }
+        acir(inline) pure fn pure_basic f1 {
+          b0():
+            v0 = allocate -> &mut Field
+            store Field 0 at v0
+            return
+        }  
+        "#);
+    }
+
+    #[test]
+    fn do_not_remove_impure_function_call() {
+        let src = r#"
+        acir(inline) fn main f0 {
+          b0():
+            v0 = allocate -> &mut Field
+            call f1(v0)
+            return
+        }
+        acir(inline) fn impure_take_ref f1 {
+          b0(v0: &mut Field):
+            return
+        }
+        "#;
+
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.purity_analysis();
+        let (ssa, _) = ssa.dead_instruction_elimination_inner(false, false);
+
+        // We expect the program to be unchanged except that functions are labeled with purities now
+        assert_ssa_snapshot!(ssa, @r#"
+        acir(inline) impure fn main f0 {
+          b0():
+            v0 = allocate -> &mut Field
+            call f1(v0)
+            return
+        }
+        acir(inline) impure fn impure_take_ref f1 {
+          b0(v0: &mut Field):
+            return
+        }
+        "#);
+    }
+
+    #[test]
+    fn do_not_remove_pure_with_predicates_function_call() {
+        let src = r#"
+        acir(inline) fn main f0 {
+          b0():
+            call f1(Field 0)
+            return
+        }
+        acir(inline) fn predicate_constrain f1 {
+          b0(v0: Field):
+            constrain v0 == Field 0
+            return
+        }
+        "#;
+
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.purity_analysis();
+        let (ssa, _) = ssa.dead_instruction_elimination_inner(false, false);
+
+        // We expect the program to be unchanged except that functions are labeled with purities now
+        assert_ssa_snapshot!(ssa, @r#"
+        acir(inline) predicate_pure fn main f0 {
+          b0():
+            call f1(Field 0)
+            return
+        }
+        acir(inline) predicate_pure fn predicate_constrain f1 {
+          b0(v0: Field):
+            constrain v0 == Field 0
+            return
+        }
+        "#);
     }
 }
