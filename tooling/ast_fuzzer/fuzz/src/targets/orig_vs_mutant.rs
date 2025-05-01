@@ -7,6 +7,7 @@ use color_eyre::eyre;
 use noir_ast_fuzzer::compare::{CompareMutants, CompareOptions};
 use noir_ast_fuzzer::{Config, visitor::visit_expr_mut};
 use noirc_frontend::monomorphization::ast::{Expression, Program};
+use rules::Rule;
 
 pub fn fuzz(u: &mut Unstructured) -> eyre::Result<()> {
     let rules = rules::all();
@@ -35,29 +36,18 @@ fn apply_rules(u: &mut Unstructured, mut program: Program, rules: &[rules::Rule]
         //       and pick a ratio based on the limit and the number of options?
         visit_expr_mut(&mut func.body, &mut |expr: &mut Expression| {
             for rule in rules {
-                if !rule.matches(expr) {
-                    // We can't apply this rule, try the next one.
-                    continue;
-                }
-                // TODO: Make the ratio dynamic.
-                match u.ratio(1, 10) {
+                match try_apply_rule(u, expr, rule) {
                     Err(_) => {
-                        // We ran out of randomness, no point visiting the AST any further.
+                        // We ran out of randomness; stop visiting the AST.
                         return false;
                     }
                     Ok(false) => {
-                        // We didn't pick this rule, try the next one.
+                        // We couldn't, or decided not to apply this rule; try the next one.
                         continue;
                     }
                     Ok(true) => {
-                        // Apply this rule.
-                        if rule.rewrite(u, expr).is_err() {
-                            // We ran out of randomness.
-                            return false;
-                        } else {
-                            // We applied the rule; let's go visit the next node in the AST.
-                            break;
-                        }
+                        // We applied a rule on this expression; go to the next expression.
+                        break;
                     }
                 }
             }
@@ -68,6 +58,22 @@ fn apply_rules(u: &mut Unstructured, mut program: Program, rules: &[rules::Rule]
         });
     }
     program
+}
+
+/// Check if a rule can be applied on an expression. If it can, apply it based on some arbitrary
+/// criteria, returning a flag showing whether it was applied.
+fn try_apply_rule(
+    u: &mut Unstructured,
+    expr: &mut Expression,
+    rule: &Rule,
+) -> arbitrary::Result<bool> {
+    // TODO: Make the ratio dynamic.
+    if rule.matches(expr) && u.ratio(1, 10)? {
+        rule.rewrite(u, expr)?;
+        Ok(true)
+    } else {
+        Ok(false)
+    }
 }
 
 /// Metamorphic transformation rules.
