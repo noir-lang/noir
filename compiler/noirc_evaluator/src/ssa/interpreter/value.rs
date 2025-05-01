@@ -129,6 +129,8 @@ impl Value {
         Self::Numeric(NumericValue::from_constant(constant, typ))
     }
 
+    // This is used in tests but shouldn't be cfg(test) only
+    #[allow(unused)]
     pub(crate) fn bool(value: bool) -> Self {
         Self::Numeric(NumericValue::U1(value))
     }
@@ -157,7 +159,7 @@ impl Value {
     /// side-effects are disabled.
     pub(crate) fn uninitialized(typ: &Type, id: ValueId) -> Value {
         match typ {
-            Type::Numeric(typ) => Self::from_constant(FieldElement::zero(), *typ),
+            Type::Numeric(typ) => Value::Numeric(NumericValue::zero(*typ)),
             Type::Reference(element_type) => Self::reference(id, element_type.clone()),
             Type::Array(element_types, length) => {
                 let first_elements =
@@ -167,7 +169,7 @@ impl Value {
                 Self::array(elements, element_types.to_vec())
             }
             Type::Slice(element_types) => Self::slice(Vec::new(), element_types.clone()),
-            Type::Function => todo!(),
+            Type::Function => Value::ForeignFunction("uninitialized!".to_string()),
         }
     }
 
@@ -176,6 +178,10 @@ impl Value {
         let elements = array.elements.borrow();
         let bytes = elements.iter().map(|element| element.as_u8()).collect::<Option<Vec<_>>>()?;
         Some(String::from_utf8_lossy(&bytes).into_owned())
+    }
+
+    pub(crate) fn as_field(&self) -> Option<FieldElement> {
+        self.as_numeric()?.as_field()
     }
 }
 
@@ -196,6 +202,10 @@ impl NumericValue {
         }
     }
 
+    pub(crate) fn zero(typ: NumericType) -> Self {
+        Self::from_constant(FieldElement::zero(), typ)
+    }
+
     pub(crate) fn as_field(&self) -> Option<FieldElement> {
         match self {
             NumericValue::Field(value) => Some(*value),
@@ -206,6 +216,13 @@ impl NumericValue {
     pub(crate) fn as_bool(&self) -> Option<bool> {
         match self {
             NumericValue::U1(value) => Some(*value),
+            _ => None,
+        }
+    }
+
+    pub(crate) fn as_u32(&self) -> Option<u32> {
+        match self {
+            NumericValue::U32(value) => Some(*value),
             _ => None,
         }
     }
@@ -289,7 +306,7 @@ impl std::fmt::Display for NumericValue {
             NumericValue::I8(value) => write!(f, "i8 {value}"),
             NumericValue::I16(value) => write!(f, "i16 {value}"),
             NumericValue::I32(value) => write!(f, "i32 {value}"),
-            NumericValue::I64(value) => write!(f, "i64{value}"),
+            NumericValue::I64(value) => write!(f, "i64 {value}"),
         }
     }
 }

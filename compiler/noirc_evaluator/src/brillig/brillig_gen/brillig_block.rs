@@ -7,7 +7,6 @@ use crate::brillig::brillig_ir::registers::RegisterAllocator;
 use crate::brillig::brillig_ir::{
     BRILLIG_MEMORY_ADDRESSING_BIT_SIZE, BrilligBinaryOp, BrilligContext, ReservedRegisters,
 };
-use crate::ssa::ir::call_stack::CallStack;
 use crate::ssa::ir::instruction::{ConstrainError, Hint};
 use crate::ssa::ir::{
     basic_block::BasicBlockId,
@@ -23,6 +22,7 @@ use acvm::acir::brillig::{MemoryAddress, ValueOrArray};
 use acvm::{FieldElement, acir::AcirField};
 use fxhash::{FxHashMap as HashMap, FxHashSet as HashSet};
 use iter_extended::vecmap;
+use noirc_errors::call_stack::{CallStackHelper, CallStackId};
 use num_bigint::BigUint;
 use std::collections::BTreeSet;
 use std::sync::Arc;
@@ -58,6 +58,7 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
         brillig_context: &'block mut BrilligContext<FieldElement, Registers>,
         block_id: BasicBlockId,
         dfg: &DataFlowGraph,
+        call_stacks: &mut CallStackHelper,
         globals: &'block HashMap<ValueId, BrilligVariable>,
         hoisted_global_constants: &'block HoistedConstantsToBrilligGlobals,
     ) {
@@ -97,13 +98,14 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
             building_globals: false,
         };
 
-        brillig_block.convert_block(dfg);
+        brillig_block.convert_block(dfg, call_stacks);
     }
 
     pub(crate) fn compile_globals(
         &mut self,
         globals: &DataFlowGraph,
         used_globals: &HashSet<ValueId>,
+        call_stacks: &mut CallStackHelper,
         hoisted_global_constants: &BTreeSet<(FieldElement, NumericType)>,
     ) -> HashMap<(FieldElement, NumericType), BrilligVariable> {
         // Using the end of the global memory space adds more complexity as we
@@ -126,7 +128,7 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
                     self.convert_ssa_value(id, globals);
                 }
                 Value::Instruction { instruction, .. } => {
-                    self.convert_ssa_instruction(*instruction, globals);
+                    self.convert_ssa_instruction(*instruction, globals, call_stacks);
                 }
                 _ => {
                     panic!(
@@ -148,7 +150,7 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
         new_hoisted_constants
     }
 
-    fn convert_block(&mut self, dfg: &DataFlowGraph) {
+    fn convert_block(&mut self, dfg: &DataFlowGraph, call_stacks: &mut CallStackHelper) {
         // Add a label for this block
         let block_label = self.create_block_label_for_current_function(self.block_id);
         self.brillig_context.enter_context(block_label);
@@ -159,7 +161,7 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
 
         // Convert all of the instructions into the block
         for instruction_id in block.instructions() {
-            self.convert_ssa_instruction(*instruction_id, dfg);
+            self.convert_ssa_instruction(*instruction_id, dfg, call_stacks);
         }
 
         // Process the block's terminator instruction
@@ -283,13 +285,16 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
     }
 
     /// Converts an SSA instruction into a sequence of Brillig opcodes.
-    pub(crate) fn convert_ssa_instruction(
+    fn convert_ssa_instruction(
         &mut self,
         instruction_id: InstructionId,
         dfg: &DataFlowGraph,
+        call_stacks: &mut CallStackHelper,
     ) {
         let instruction = &dfg[instruction_id];
-        self.brillig_context.set_call_stack(dfg.get_instruction_call_stack(instruction_id));
+        let call_stack = dfg.get_instruction_call_stack(instruction_id);
+        let call_stack_new_id = call_stacks.get_or_insert_locations(&call_stack);
+        self.brillig_context.set_call_stack(call_stack_new_id);
 
         self.initialize_constants(
             &self.function_context.constant_allocation.allocated_at_location(
@@ -715,8 +720,22 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
                                 BrilligBinaryOp::LessThan,
                             );
                         }
-                        Intrinsic::ArrayRefCount | Intrinsic::SliceRefCount => {
+                        Intrinsic::ArrayRefCount => {
                             let array = self.convert_ssa_value(arguments[0], dfg);
+                            let result = dfg.instruction_results(instruction_id)[0];
+
+                            let destination = self.variables.define_variable(
+                                self.function_context,
+                                self.brillig_context,
+                                result,
+                                dfg,
+                            );
+                            let destination = destination.extract_register();
+                            let array = array.extract_register();
+                            self.brillig_context.load_instruction(destination, array);
+                        }
+                        Intrinsic::SliceRefCount => {
+                            let array = self.convert_ssa_value(arguments[1], dfg);
                             let result = dfg.instruction_results(instruction_id)[0];
 
                             let destination = self.variables.define_variable(
@@ -1023,8 +1042,7 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
                 }
             }
         }
-
-        self.brillig_context.set_call_stack(CallStack::new());
+        self.brillig_context.set_call_stack(CallStackId::root());
     }
 
     fn assert_rc_neq_zero(&mut self, rc_register: MemoryAddress) {
@@ -1516,15 +1534,7 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
 
         self.brillig_context.binary_instruction(left, right, result_variable, brillig_binary_op);
 
-        self.add_overflow_check(
-            brillig_binary_op,
-            left,
-            right,
-            result_variable,
-            binary,
-            dfg,
-            is_signed,
-        );
+        self.add_overflow_check(left, right, result_variable, binary, dfg, is_signed);
     }
 
     fn convert_signed_modulo(
@@ -1606,28 +1616,47 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
 
         self.brillig_context.codegen_branch(left_is_negative.address, |ctx, is_negative| {
             if is_negative {
-                let one = ctx.make_constant_instruction(1_u128.into(), left.bit_size);
+                // If right value is greater than the left bit size, return 0
+                let rhs_does_not_overflow = SingleAddrVariable::new(ctx.allocate_register(), 1);
+                let lhs_bit_size =
+                    ctx.make_constant_instruction(left.bit_size.into(), right.bit_size);
+                ctx.binary_instruction(
+                    right,
+                    lhs_bit_size,
+                    rhs_does_not_overflow,
+                    BrilligBinaryOp::LessThan,
+                );
 
-                // computes 2^right
-                let two = ctx.make_constant_instruction(2_u128.into(), left.bit_size);
-                let two_pow = ctx.make_constant_instruction(1_u128.into(), left.bit_size);
-                let right_u32 = SingleAddrVariable::new(ctx.allocate_register(), 32);
-                ctx.cast(right_u32, right);
-                let pow_body = |ctx: &mut BrilligContext<_, _>, _: SingleAddrVariable| {
-                    ctx.binary_instruction(two_pow, two, two_pow, BrilligBinaryOp::Mul);
-                };
-                ctx.codegen_for_loop(None, right_u32.address, None, pow_body);
+                ctx.codegen_branch(rhs_does_not_overflow.address, |ctx, no_overflow| {
+                    if no_overflow {
+                        let one = ctx.make_constant_instruction(1_u128.into(), left.bit_size);
 
-                // Right shift using division on 1-complement
-                ctx.binary_instruction(left, one, result, BrilligBinaryOp::Add);
-                ctx.convert_signed_division(result, two_pow, result);
-                ctx.binary_instruction(result, one, result, BrilligBinaryOp::Sub);
+                        // computes 2^right
+                        let two = ctx.make_constant_instruction(2_u128.into(), left.bit_size);
+                        let two_pow = ctx.make_constant_instruction(1_u128.into(), left.bit_size);
+                        let right_u32 = SingleAddrVariable::new(ctx.allocate_register(), 32);
+                        ctx.cast(right_u32, right);
+                        let pow_body = |ctx: &mut BrilligContext<_, _>, _: SingleAddrVariable| {
+                            ctx.binary_instruction(two_pow, two, two_pow, BrilligBinaryOp::Mul);
+                        };
+                        ctx.codegen_for_loop(None, right_u32.address, None, pow_body);
 
-                // Clean-up
-                ctx.deallocate_single_addr(one);
-                ctx.deallocate_single_addr(two);
-                ctx.deallocate_single_addr(two_pow);
-                ctx.deallocate_single_addr(right_u32);
+                        // Right shift using division on 1-complement
+                        ctx.binary_instruction(left, one, result, BrilligBinaryOp::Add);
+                        ctx.convert_signed_division(result, two_pow, result);
+                        ctx.binary_instruction(result, one, result, BrilligBinaryOp::Sub);
+
+                        // Clean-up
+                        ctx.deallocate_single_addr(one);
+                        ctx.deallocate_single_addr(two);
+                        ctx.deallocate_single_addr(two_pow);
+                        ctx.deallocate_single_addr(right_u32);
+                    } else {
+                        ctx.const_instruction(result, 0_u128.into());
+                    }
+                });
+
+                ctx.deallocate_single_addr(rhs_does_not_overflow);
             } else {
                 ctx.binary_instruction(left, right, result, BrilligBinaryOp::Shr);
             }
@@ -1639,7 +1668,6 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
     #[allow(clippy::too_many_arguments)]
     fn add_overflow_check(
         &mut self,
-        binary_operation: BrilligBinaryOp,
         left: SingleAddrVariable,
         right: SingleAddrVariable,
         result: SingleAddrVariable,
@@ -1653,35 +1681,54 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
             return;
         }
 
-        if let Some(msg) = binary.check_unsigned_overflow_msg(dfg, bit_size) {
-            match binary_operation {
-                BrilligBinaryOp::Add => {
-                    let condition =
-                        SingleAddrVariable::new(self.brillig_context.allocate_register(), 1);
-                    // Check that lhs <= result
-                    self.brillig_context.binary_instruction(
-                        left,
-                        result,
-                        condition,
-                        BrilligBinaryOp::LessThanEquals,
-                    );
-                    self.brillig_context.codegen_constrain(condition, Some(msg.to_string()));
-                    self.brillig_context.deallocate_single_addr(condition);
-                }
-                BrilligBinaryOp::Sub => {
-                    let condition =
-                        SingleAddrVariable::new(self.brillig_context.allocate_register(), 1);
-                    // Check that rhs <= lhs
-                    self.brillig_context.binary_instruction(
-                        right,
-                        left,
-                        condition,
-                        BrilligBinaryOp::LessThanEquals,
-                    );
-                    self.brillig_context.codegen_constrain(condition, Some(msg.to_string()));
-                    self.brillig_context.deallocate_single_addr(condition);
-                }
-                BrilligBinaryOp::Mul => {
+        match binary.operator {
+            BinaryOp::Add { unchecked: false } => {
+                let condition =
+                    SingleAddrVariable::new(self.brillig_context.allocate_register(), 1);
+                // Check that lhs <= result
+                self.brillig_context.binary_instruction(
+                    left,
+                    result,
+                    condition,
+                    BrilligBinaryOp::LessThanEquals,
+                );
+                let msg = "attempt to add with overflow".to_string();
+                self.brillig_context.codegen_constrain(condition, Some(msg));
+                self.brillig_context.deallocate_single_addr(condition);
+            }
+            BinaryOp::Sub { unchecked: false } => {
+                let condition =
+                    SingleAddrVariable::new(self.brillig_context.allocate_register(), 1);
+                // Check that rhs <= lhs
+                self.brillig_context.binary_instruction(
+                    right,
+                    left,
+                    condition,
+                    BrilligBinaryOp::LessThanEquals,
+                );
+                let msg = "attempt to subtract with overflow".to_string();
+                self.brillig_context.codegen_constrain(condition, Some(msg));
+                self.brillig_context.deallocate_single_addr(condition);
+            }
+            BinaryOp::Mul { unchecked: false } => {
+                let division_by_rhs_gives_lhs = |ctx: &mut BrilligContext<
+                    FieldElement,
+                    Registers,
+                >| {
+                    let condition = SingleAddrVariable::new(ctx.allocate_register(), 1);
+                    let division = SingleAddrVariable::new(ctx.allocate_register(), bit_size);
+                    // Check that result / rhs == lhs
+                    ctx.binary_instruction(result, right, division, BrilligBinaryOp::UnsignedDiv);
+                    ctx.binary_instruction(division, left, condition, BrilligBinaryOp::Equals);
+                    let msg = "attempt to multiply with overflow".to_string();
+                    ctx.codegen_constrain(condition, Some(msg));
+                    ctx.deallocate_single_addr(condition);
+                    ctx.deallocate_single_addr(division);
+                };
+
+                let rhs_may_be_zero =
+                    dfg.get_numeric_constant(binary.rhs).is_none_or(|rhs| rhs.is_zero());
+                if rhs_may_be_zero {
                     let is_right_zero =
                         SingleAddrVariable::new(self.brillig_context.allocate_register(), 1);
                     let zero =
@@ -1692,26 +1739,15 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
                         is_right_zero,
                         BrilligBinaryOp::Equals,
                     );
-                    self.brillig_context.codegen_if_not(is_right_zero.address, |ctx| {
-                        let condition = SingleAddrVariable::new(ctx.allocate_register(), 1);
-                        let division = SingleAddrVariable::new(ctx.allocate_register(), bit_size);
-                        // Check that result / rhs == lhs
-                        ctx.binary_instruction(
-                            result,
-                            right,
-                            division,
-                            BrilligBinaryOp::UnsignedDiv,
-                        );
-                        ctx.binary_instruction(division, left, condition, BrilligBinaryOp::Equals);
-                        ctx.codegen_constrain(condition, Some(msg.to_string()));
-                        ctx.deallocate_single_addr(condition);
-                        ctx.deallocate_single_addr(division);
-                    });
+                    self.brillig_context
+                        .codegen_if_not(is_right_zero.address, division_by_rhs_gives_lhs);
                     self.brillig_context.deallocate_single_addr(is_right_zero);
                     self.brillig_context.deallocate_single_addr(zero);
+                } else {
+                    division_by_rhs_gives_lhs(self.brillig_context);
                 }
-                _ => {}
             }
+            _ => {}
         }
     }
 

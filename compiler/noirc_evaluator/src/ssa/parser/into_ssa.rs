@@ -1,12 +1,12 @@
 use std::{collections::HashMap, sync::Arc};
 
 use acvm::acir::circuit::ErrorSelector;
+use noirc_errors::call_stack::CallStackId;
 
 use crate::ssa::{
     function_builder::FunctionBuilder,
     ir::{
         basic_block::BasicBlockId,
-        call_stack::CallStackId,
         dfg::GlobalsGraph,
         function::{Function, FunctionId},
         instruction::{ConstrainError, Instruction},
@@ -232,22 +232,10 @@ impl Translator {
                 self.define_variable(target, value_id)?;
             }
             ParsedInstruction::Call { targets, function, arguments, types } => {
-                let function_id = if let Some(id) = self.builder.import_intrinsic(&function.name) {
-                    id
-                } else {
-                    let maybe_func =
-                        self.lookup_function(&function).map(|f| self.builder.import_function(f));
-
-                    maybe_func.or_else(|e| {
-                        // e.g. `v2 = call v0(v1) -> u32`, a lambda passed as a parameter
-                        self.lookup_variable(&function).map_err(|_| e)
-                    })?
-                };
-
+                let function_id = self.lookup_call_function(function)?;
                 let arguments = self.translate_values(arguments)?;
 
                 let value_ids = self.builder.insert_call(function_id, arguments, types).to_vec();
-
                 if value_ids.len() != targets.len() {
                     return Err(SsaError::MismatchedReturnValues {
                         returns: targets,
@@ -329,6 +317,9 @@ impl Translator {
                 let value = self.translate_value(value)?;
                 let value_id = self.builder.insert_load(value, typ);
                 self.define_variable(target, value_id)?;
+            }
+            ParsedInstruction::Nop => {
+                self.builder.insert_instruction(Instruction::Noop, None);
             }
             ParsedInstruction::Not { target, value } => {
                 let value = self.translate_value(value)?;
@@ -483,6 +474,28 @@ impl Translator {
         } else {
             Err(SsaError::UnknownFunction(identifier.clone()))
         }
+    }
+
+    fn lookup_call_function(&mut self, function: Identifier) -> Result<ValueId, SsaError> {
+        if let Some(id) = self.builder.import_intrinsic(&function.name) {
+            return Ok(id);
+        }
+
+        if let Ok(func_id) = self.lookup_function(&function) {
+            return Ok(self.builder.import_function(func_id));
+        }
+
+        // e.g. `v2 = call v0(v1) -> u32`, a lambda passed as a parameter
+        if let Ok(var_id) = self.lookup_variable(&function) {
+            return Ok(var_id);
+        }
+
+        // We allow calls to the built-in print function
+        if &function.name == "print" {
+            return Ok(self.builder.import_foreign_function(&function.name));
+        }
+
+        Err(SsaError::UnknownFunction(function))
     }
 
     fn finish(self) -> Ssa {

@@ -22,15 +22,18 @@ use acvm::{
     FieldElement,
     acir::{
         circuit::{
-            Circuit, ErrorSelector, ExpressionWidth, Program as AcirProgram, PublicInputs,
-            brillig::BrilligBytecode,
+            AcirOpcodeLocation, Circuit, ErrorSelector, ExpressionWidth, OpcodeLocation,
+            Program as AcirProgram, PublicInputs, brillig::BrilligBytecode,
         },
         native_types::Witness,
     },
 };
 
 use ir::instruction::ErrorType;
-use noirc_errors::debug_info::{DebugFunctions, DebugInfo, DebugTypes, DebugVariables};
+use noirc_errors::{
+    call_stack::CallStackId,
+    debug_info::{DebugFunctions, DebugInfo, DebugTypes, DebugVariables},
+};
 
 use noirc_frontend::shared::Visibility;
 use noirc_frontend::{hir_def::function::FunctionSignature, monomorphization::ast::Program};
@@ -101,14 +104,14 @@ pub struct SsaPass<'a> {
 }
 
 impl<'a> SsaPass<'a> {
-    pub(crate) fn new<F>(f: F, msg: &'static str) -> Self
+    pub fn new<F>(f: F, msg: &'static str) -> Self
     where
         F: Fn(Ssa) -> Ssa + 'a,
     {
         Self::new_try(move |ssa| Ok(f(ssa)), msg)
     }
 
-    pub(crate) fn new_try<F>(f: F, msg: &'static str) -> Self
+    pub fn new_try<F>(f: F, msg: &'static str) -> Self
     where
         F: Fn(Ssa) -> Result<Ssa, RuntimeError> + 'a,
     {
@@ -126,7 +129,10 @@ pub fn primary_passes(options: &SsaEvaluatorOptions) -> Vec<SsaPass> {
     vec![
         SsaPass::new(Ssa::remove_unreachable_functions, "Removing Unreachable Functions"),
         SsaPass::new(Ssa::defunctionalize, "Defunctionalization"),
-        SsaPass::new(Ssa::inline_simple_functions, "Inlining simple functions"),
+        SsaPass::new(
+            Ssa::inline_functions_with_at_most_one_instruction,
+            "Inlining functions with at most one instruction",
+        ),
         // BUG: Enabling this mem2reg causes an integration test failure in aztec-package; see:
         // https://github.com/AztecProtocol/aztec-packages/pull/11294#issuecomment-2622809518
         //SsaPass::new(Ssa::mem2reg, "Mem2Reg (1st)"),
@@ -195,6 +201,7 @@ pub fn primary_passes(options: &SsaEvaluatorOptions) -> Vec<SsaPass> {
         // end up using an existing constant from the globals space.
         SsaPass::new(Ssa::brillig_array_gets, "Brillig Array Get Optimizations"),
         SsaPass::new(Ssa::dead_instruction_elimination, "Dead Instruction Elimination"),
+        SsaPass::new(Ssa::checked_to_unchecked, "Checked to unchecked"),
     ]
 }
 
@@ -211,6 +218,27 @@ pub fn secondary_passes(brillig: &Brillig) -> Vec<SsaPass> {
     ]
 }
 
+/// For testing purposes we want a list of the minimum number of SSA passes that should
+/// return the same result as the full pipeline.
+///
+/// Due to it being minimal, it can only be executed with the Brillig VM; the ACIR runtime
+/// would for example require unrolling loops, which we want to avoid to keep the SSA as
+/// close to the initial state as possible.
+///
+/// In the future, we can potentially execute the actual initial version using the SSA interpreter.
+pub fn minimal_passes() -> Vec<SsaPass<'static>> {
+    vec![
+        // Even the initial SSA generation can result in optimizations that leave a function
+        // which was called in the AST not being called in the SSA. Such functions would cause
+        // panics later, when we are looking for global allocations.
+        SsaPass::new(Ssa::remove_unreachable_functions, "Removing Unreachable Functions"),
+        // We need a DIE pass to populate `used_globals`, otherwise it will panic later.
+        SsaPass::new(Ssa::dead_instruction_elimination, "Dead Instruction Elimination"),
+        // We need to add an offset to constant array indices in Brillig.
+        SsaPass::new(Ssa::brillig_array_gets, "Brillig Array Get Optimizations"),
+    ]
+}
+
 /// Optimize the given SsaBuilder by converting it into SSA
 /// form and performing optimizations there. When finished,
 /// convert the final SSA into an ACIR program and return it.
@@ -224,12 +252,12 @@ pub fn secondary_passes(brillig: &Brillig) -> Vec<SsaPass> {
 ///
 /// See the [primary_passes] and [secondary_passes] for
 /// the default implementations.
-pub fn build_optimized_ssa<S>(
+pub fn optimize_ssa_builder_into_acir<S>(
     builder: SsaBuilder,
     options: &SsaEvaluatorOptions,
     primary: &[SsaPass],
     secondary: S,
-) -> Result<(Ssa, Brillig, Vec<SsaReport>), RuntimeError>
+) -> Result<ArtifactsAndWarnings, RuntimeError>
 where
     S: for<'b> Fn(&'b Brillig) -> Vec<SsaPass<'b>>,
 {
@@ -280,33 +308,11 @@ where
     };
 
     drop(ssa_gen_span_guard);
-    Ok((ssa, brillig, ssa_level_warnings))
-}
-
-pub fn convert_ssa_to_acir(
-    ssa: Ssa,
-    brillig: &Brillig,
-    options: &SsaEvaluatorOptions,
-) -> Result<Artifacts, RuntimeError> {
     let artifacts = time("SSA to ACIR", options.print_codegen_timings, || {
         ssa.into_acir(&brillig, &options.brillig_options, options.expression_width)
     })?;
 
-    Ok(artifacts)
-}
-
-pub fn optimize_ssa_builder_to_acir<S>(
-    builder: SsaBuilder,
-    options: &SsaEvaluatorOptions,
-    primary: &[SsaPass],
-    secondary: S,
-) -> Result<ArtifactsAndWarnings, RuntimeError>
-where
-    S: for<'b> Fn(&'b Brillig) -> Vec<SsaPass<'b>>,
-{
-    let (ssa, brillig, warnings) = build_optimized_ssa(builder, options, primary, secondary)?;
-    let artifacts = convert_ssa_to_acir(ssa, &brillig, options)?;
-    Ok(ArtifactsAndWarnings(artifacts, warnings))
+    Ok(ArtifactsAndWarnings(artifacts, ssa_level_warnings))
 }
 
 /// Optimize the given program by converting it into SSA
@@ -331,20 +337,6 @@ pub fn optimize_into_acir<S>(
 where
     S: for<'b> Fn(&'b Brillig) -> Vec<SsaPass<'b>>,
 {
-    let (ssa, brillig, warnings) = optimize_into_ssa(program, options, primary, secondary)?;
-    let artifacts = convert_ssa_to_acir(ssa, &brillig, options)?;
-    Ok(ArtifactsAndWarnings(artifacts, warnings))
-}
-
-pub fn optimize_into_ssa<S>(
-    program: Program,
-    options: &SsaEvaluatorOptions,
-    primary: &[SsaPass],
-    secondary: S,
-) -> Result<(Ssa, Brillig, Vec<SsaReport>), RuntimeError>
-where
-    S: for<'b> Fn(&'b Brillig) -> Vec<SsaPass<'b>>,
-{
     let builder = SsaBuilder::new(
         program,
         options.ssa_logging.clone(),
@@ -352,7 +344,7 @@ where
         &options.emit_ssa,
     )?;
 
-    build_optimized_ssa(builder, options, primary, secondary)
+    optimize_ssa_builder_into_acir(builder, options, primary, secondary)
 }
 
 // Helper to time SSA passes
@@ -428,11 +420,23 @@ pub fn create_program(
     create_program_with_passes(program, options, &primary_passes(options), secondary_passes)
 }
 
-pub fn create_ssa(
+/// Compiles the [`Program`] into [`ACIR`][acvm::acir::circuit::Program] using the minimum amount of SSA passes.
+///
+/// This is intended for testing purposes, and currently requires the program to be compiled for Brillig.
+/// It is not added to the `SsaEvaluatorOptions` to avoid ambiguity when calling `create_program_with_passes` directly.
+#[tracing::instrument(level = "trace", skip_all)]
+pub fn create_program_with_minimal_passes(
     program: Program,
     options: &SsaEvaluatorOptions,
-) -> Result<(Ssa, Brillig, Vec<SsaReport>), RuntimeError> {
-    optimize_into_ssa(program, options, &primary_passes(options), secondary_passes)
+) -> Result<SsaProgramArtifact, RuntimeError> {
+    for func in &program.functions {
+        assert!(
+            func.unconstrained,
+            "The minimum SSA pipeline only works with Brillig: '{}' needs to be unconstrained",
+            func.name
+        );
+    }
+    create_program_with_passes(program, options, &minimal_passes(), |_| vec![])
 }
 
 /// Compiles the [`Program`] into [`ACIR`][acvm::acir::circuit::Program] by running it through
@@ -513,7 +517,7 @@ pub fn convert_generated_acir_into_circuit(
     let current_witness_index = generated_acir.current_witness_index().0;
     let GeneratedAcir {
         return_witnesses,
-        locations,
+        location_map,
         brillig_locations,
         input_witnesses,
         assertion_payloads: assert_messages,
@@ -538,27 +542,18 @@ pub fn convert_generated_acir_into_circuit(
         return_values,
         assert_messages: assert_messages.into_iter().collect(),
     };
-
-    // This converts each im::Vector in the BTreeMap to a Vec
-    let locations = locations
-        .into_iter()
-        .map(|(index, locations)| (index, locations.into_iter().collect()))
-        .collect();
-
-    let brillig_locations = brillig_locations
-        .into_iter()
-        .map(|(function_index, locations)| {
-            let locations = locations
-                .into_iter()
-                .map(|(index, locations)| (index, locations.into_iter().collect()))
-                .collect();
-            (function_index, locations)
+    let acir_location_map: BTreeMap<AcirOpcodeLocation, CallStackId> = location_map
+        .iter()
+        .map(|(k, v)| match k {
+            OpcodeLocation::Acir(index) => (AcirOpcodeLocation::new(*index), *v),
+            OpcodeLocation::Brillig { .. } => unreachable!("Expected ACIR opcode"),
         })
         .collect();
-
+    let location_tree = generated_acir.call_stacks.to_location_tree();
     let mut debug_info = DebugInfo::new(
-        locations,
         brillig_locations,
+        acir_location_map,
+        location_tree,
         debug_variables,
         debug_functions,
         debug_types,

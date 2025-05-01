@@ -42,7 +42,7 @@ expression: artifact
     "error_types": {}
   },
   "bytecode": "H4sIAAAAAAAA/7VU2w6DIAzlMrPtefofVEDhzV+Zmf7/J8xlNGkq24v1JKTF1tpzLBj1RbOtS/H1tmyxptiG7BXJ0+R9TQMfTMW6YwAjV8vV+vNuCGEZ+wU8PF2f5xRdiPOQIEFM8dUn75cU0pjnPLoMwS+wxuzXUtMwAaR4W2HeCCPMX7BPuAhy1mSoDeOvyaxizJJ83Nvi08PBwfV0xwCS/0YrWT2pNqeRt8ICWNK4VF31ZwAkakvpKXl5/jpQuuLX4ndmOxKXvESwfntOfXdVe3TEbxlPqsUk1APWw9lu1B6GxTD3xvrT8v0B78VWvoV4FNuSZ6jnG3XLAdqiCAAA",
-  "debug_symbols": "tY/LCsMgFET/5a5dJDUtxV8pIfgMgqj4KBTx32tCAmlJl93ducMMZwoIyfI8aatcBPIoYBynSTvbVIF+fUVP7aJioiEBufR3BNKKduFbRaC0kUCuXR2bYEEbo+fpWNPeTxo0ZUZuUmXLD256+d3Z8z44LkUOcmlavYq+4LozOIyHDQ4P3QccOl/zO/DfNWN9Aw==",
+  "debug_symbols": "zZBNCsMgEEbvMmsX5peSq5QQTDIJgqgYLZTg3ashtsmikEUXXY0zn2/Qt8KIvZs7Lie1QHNfoTdcCD53Qg3MciXDdPUEUttZgxhGcMgDpZlBaaGRTggCDybcdmnRTG7VMhNSSgDlGGpYOHGB8eTJh6bf0Ty77XBe1G+8us7TOvFZdeLb0LGBm9OPIYMm83Gd4awXuFuYnBwOUuxTpyRp00YNODqDcd2WxQf+qdSiKHe4KOkFKTRIIb9U0/oX",
   "file_map": {
     "50": {
       "source": "global NUM_RESULTS: u32 = 2;\nfn main(x: Field, y: pub Field, enable: bool) -> pub [Field; NUM_RESULTS] {\n    let mut result = [0; NUM_RESULTS];\n    for i in 0..NUM_RESULTS {\n        if enable {\n            result[i] = return_value(x, y);\n        }\n    }\n    result\n}\n\n#[fold]\nfn return_value(x: Field, y: Field) -> Field {\n    assert(x != y);\n    x\n}\n",

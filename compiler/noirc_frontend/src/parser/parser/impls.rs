@@ -2,7 +2,7 @@ use noirc_errors::Location;
 
 use crate::{
     ast::{
-        Documented, Expression, ExpressionKind, Ident, ItemVisibility, NoirFunction, NoirTraitImpl,
+        Documented, Expression, ExpressionKind, ItemVisibility, NoirFunction, NoirTraitImpl,
         TraitImplItem, TraitImplItemKind, TypeImpl, UnresolvedGeneric, UnresolvedType,
         UnresolvedTypeData,
     },
@@ -155,19 +155,17 @@ impl Parser<'_> {
         let Some(name) = self.eat_ident() else {
             self.expected_identifier();
             self.eat_semicolons();
-            return Some(TraitImplItemKind::Type {
-                name: Ident::default(),
-                alias: UnresolvedType {
-                    typ: UnresolvedTypeData::Error,
-                    location: Location::dummy(),
-                },
-            });
+            let location = self.location_at_previous_token_end();
+            let name = self.unknown_ident_at_previous_token_end();
+            let alias = UnresolvedType { typ: UnresolvedTypeData::Error, location };
+            return Some(TraitImplItemKind::Type { name, alias });
         };
 
         let alias = if self.eat_assign() {
             self.parse_type_or_error()
         } else {
-            UnresolvedType { typ: UnresolvedTypeData::Error, location: Location::dummy() }
+            let location = self.location_at_previous_token_end();
+            UnresolvedType { typ: UnresolvedTypeData::Error, location }
         };
 
         self.eat_semicolon_or_error();
@@ -185,7 +183,7 @@ impl Parser<'_> {
             Some(name) => name,
             None => {
                 self.expected_identifier();
-                Ident::default()
+                self.unknown_ident_at_previous_token_end()
             }
         };
 
@@ -195,7 +193,8 @@ impl Parser<'_> {
             self.parse_expression_or_error()
         } else {
             self.expected_token(Token::Assign);
-            Expression { kind: ExpressionKind::Error, location: Location::dummy() }
+            let location = self.location_at_previous_token_end();
+            Expression { kind: ExpressionKind::Error, location }
         };
 
         self.eat_semicolon_or_error();
@@ -235,6 +234,8 @@ impl Parser<'_> {
 
 #[cfg(test)]
 mod tests {
+    use insta::assert_snapshot;
+
     use crate::{
         ast::{
             ItemVisibility, NoirTraitImpl, Pattern, TraitImplItemKind, TypeImpl, UnresolvedTypeData,
@@ -549,7 +550,7 @@ mod tests {
         assert_eq!(type_impl.methods.len(), 1);
 
         let error = get_single_error(&errors, span);
-        assert_eq!(error.to_string(), "Expected a function but found 'hello'");
+        assert_snapshot!(error.to_string(), @"Expected a function but found 'hello'");
     }
 
     #[test]
@@ -569,7 +570,7 @@ mod tests {
         assert_eq!(trait_imp.items.len(), 1);
 
         let error = get_single_error(&errors, span);
-        assert_eq!(error.to_string(), "Expected a trait impl item but found 'hello'");
+        assert_snapshot!(error.to_string(), @"Expected a trait impl item but found 'hello'");
     }
 
     #[test]

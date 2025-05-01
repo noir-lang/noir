@@ -52,7 +52,7 @@ expression: artifact
     }
   },
   "bytecode": "H4sIAAAAAAAA/9VWvW6DMBC2sUniRh2ajh07dGgHSAhxtgwl70FAPAePXlDuxPUwdMCulJPQ2fHHfd/9QJDiblF3SVhr8EqMDTEX8MkySz3GSkLqlA+iMwqk89cwSBiYKcOkLHgDPiLnymPShvH6jG+T7GQc+XnUfzAQUweOH4eJn6whznc7xKe5IK9iOH6PIpiCYIoJzJVgrgzzDGspxlx4Rme4YGd03jH2prtexLDewdowrhDzR/X67t+rQz9ybSHXL3LGe6pm7sffV7CPCD6ewfNngcdfedKjJ/Rg/2OGfwOPPVmzey6wTxbajsQVDi6ql9ZUOXIOrXWupmuHHl7Td5YXvm9pL+dmZePgNSxXyrthvP1+z2LyZ43PU8zwyLGa0CyZBsR/EA1HhpeOvLSjDjHDf4I3YjwToWcUubZi6IFu/fOf7H3uelPtUAfXR6sm5xSfwv7JkYdeoLM5lWlzKJvyWNZ1VpW8Tr3R96tv/jzLU2tLW+VVc86q23/z763Nz/tb989VV02dHf7i/wHBC6uAhQwAAA==",
-  "debug_symbols": "ldRLCoMwEAbgu8w6izyr8SqllKixBEKUqIUi3r1JaUFEKbMJTJiPTBj4F2htPT/uLnT9CNV1Ad83ZnJ9SNWyEqij89497ttroPlg+tM/DibkcpxMnKAqCwI2tFBpnnTnvIVK0fVGgFNkP0P286N+RtUXMEb3QvwTai8kWii0uKBFcShE+RNS7EWJFhorBEULhhYcLQRaSLQ43rmQ5+KCFgValGhxvHOuT4WkaMHQguPEmqqnic7U3n5DrZtDs8m46TXYXdwNsW9sO0ebg2+Tefl/UhKp0yAsj64EUSq9kd55Aw==",
+  "debug_symbols": "pdLBioMwEAbgd5lzDolJrPoqIhI1lkCIkurCIr77jo7uuodCaS/5jOM/JjALdLaZ77UL/fCAolygic57d6/90JrJDQHfLsC3ReRQCAYJJwSRQJEgEgqJKEITKXGDQiEZke9ITggiISShCOyikZS4ERmBXVIGihOCwC7pujI4z15P0drt6JfL4BVHE22YoAiz9wy+jJ/3jx6jCbuTiVjlDGzoUGzYO2+3p5X9pfnzaHY7snnyG9YvpwXXR1wI/mFev5OX2ZlX8q28+iyf5E/yFe5M6+K/4Vy3TtGZxttj28+hvVSn7/GsnMM9xqG13Rzt1uky4biWSjGVVwwEDlWpJdO6Wrdf/wA=",
   "file_map": {
     "50": {
       "source": "// Testing integer division: 7/3 = 2\nfn main(mut x: u32, y: u32, z: u32) {\n    let a = x % y;\n    assert(x / y == z);\n    assert(a == x - z * y);\n    assert((50 as u64) % (9 as u64) == 5);\n}\n",

@@ -16,7 +16,7 @@ expression: artifact
     }
   },
   "bytecode": "H4sIAAAAAAAA/7WSwQ7CIAyGwWEUZzw4H6TLMNvRgy/SuPAce3R3+BsaYrwATUhpSr72L7UmmYV3psAE8oD38AeV7/bzQkxlNvqsbk3+QiH4H/oq9j95MG0bPgm/0fzpBM57S3ytReqe99Or+9Wk/WilX/6vpf7hj+YeWm8qln1yW/1+5oVI+ujAP4Kfm1N5/X5AfFF6xLuCPuPMY5w48pPXNXz4nvFNNrcvgErvAJkEAAA=",
-  "debug_symbols": "XYzBCoAgEET/Zc8dErrUr0SE2iYLomIahOy/p9AhvAy8ecwUOFBls5M7/QXLWsB6LRN5V6nwACqStWT2rr5lJKksfnhmp382PQG7fYhe45EjtqfmYGwhaq5iGsS8MfPGLw==",
+  "debug_symbols": "XY7BCoRACIbfxfMcCvayvUpE2GQxIM5gM8ESvfs6sUHsRf391N8DZprKOgZZ4gZdf8CkgTmsI0ePOUSx7nE6uOWYlcha8OC2lVBJMnRSmB3syOUa2hLKlTOq0cYByWzZDi6BqVbnYAJ90H/HHTXgxPSTSxH/oPmTbnJ/nDR6motSvVQZNDW0Fvv25dr3cFa3Lw==",
   "file_map": {},
   "names": [
     "main"

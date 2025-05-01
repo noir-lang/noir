@@ -12,6 +12,7 @@ publish = false
 cargo-fuzz = true
 
 [dependencies]
+arbitrary.workspace = true
 color-eyre.workspace = true
 libfuzzer-sys.workspace = true
 
@@ -21,6 +22,9 @@ noirc_evaluator.workspace = true
 noirc_frontend.workspace = true
 
 noir_ast_fuzzer = { path = ".." }
+
+[dev-dependencies]
+arbtest.workspace = true
 
 [[bin]]
 name = "init_vs_final"
