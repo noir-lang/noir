@@ -16,7 +16,6 @@ members = [
     "tooling/ast_fuzzer",
     "tooling/ast_fuzzer/fuzz",
     "tooling/greybox_fuzzer",
-    "tooling/fuzzer",
     "tooling/nargo",
     "tooling/nargo_fmt",
     "tooling/nargo_cli",
@@ -92,7 +91,6 @@ noirc_printable_type = { path = "compiler/noirc_printable_type" }
 
 # Noir tooling workspace dependencies
 noir_greybox_fuzzer = { path = "tooling/greybox_fuzzer" }
-noir_fuzzer = { path = "tooling/fuzzer" }
 nargo = { path = "tooling/nargo" }
 nargo_fmt = { path = "tooling/nargo_fmt" }
 nargo_toml = { path = "tooling/nargo_toml" }

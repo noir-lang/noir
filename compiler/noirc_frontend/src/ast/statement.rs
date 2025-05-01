@@ -179,7 +179,7 @@ impl StatementKind {
     }
 }
 
-#[derive(Eq, Debug, Clone, Default)]
+#[derive(Eq, Debug, Clone)]
 pub struct Ident(Located<String>);
 
 impl PartialEq<Ident> for Ident {

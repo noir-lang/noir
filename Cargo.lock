@@ -3161,18 +3161,17 @@ dependencies = [
  "fm",
  "iter-extended",
  "jsonrpsee",
- "noir_fuzzer",
  "noir_greybox_fuzzer",
  "noirc_abi",
  "noirc_driver",
  "noirc_errors",
  "noirc_frontend",
  "noirc_printable_type",
- "proptest",
  "rand",
  "rayon",
  "serde",
  "serde_json",
+ "tempfile",
  "thiserror 1.0.69",
  "tokio",
  "tracing",
@@ -3362,7 +3361,7 @@ dependencies = [
  "im",
  "insta",
  "nargo",
- "noir_fuzzer",
+ "noir_greybox_fuzzer",
  "noirc_abi",
  "noirc_evaluator",
  "noirc_frontend",
@@ -3376,6 +3375,8 @@ name = "noir_ast_fuzzer_fuzz"
 version = "1.0.0-beta.4"
 dependencies = [
  "acir",
+ "arbitrary",
+ "arbtest",
  "color-eyre",
  "libfuzzer-sys",
  "noir_ast_fuzzer",
@@ -3410,24 +3411,12 @@ dependencies = [
 ]
 
 [[package]]
-name = "noir_fuzzer"
-version = "1.0.0-beta.4"
-dependencies = [
- "acvm",
- "noirc_abi",
- "noirc_artifacts",
- "proptest",
- "rand",
-]
-
-[[package]]
 name = "noir_greybox_fuzzer"
 version = "1.0.0-beta.4"
 dependencies = [
  "acvm",
  "build-data",
  "fm",
- "noir_fuzzer",
  "noirc_abi",
  "noirc_artifacts",
  "num-bigint",

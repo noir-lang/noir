@@ -55,8 +55,8 @@ expression: artifact
       }
     }
   },
-  "bytecode": "H4sIAAAAAAAA/9VYS27CMBCdfCiEJFWlwp4j2E4Czq7n6K6IsOk123uVKB46mMAmzxI8KRr/Mnnz8S8RDShPz8qVo9OTONk/G68tdjIV431w24eTldrWdbczna70lzLt3jaqbvZbq61ubHMwtqo6W9tdu293qtV11elj01ZHNSAWutQ0aMk3CUk4cc4iIPkEqCsF2hvKh+mIXjUNF3ariaAA/G7Z/UCTSJEAmufsSXi+AGMekuccx9PwJsALZx+r3g/zO/zVNBieDwnIL91xQAz0MXItXRB2LRnboEH6VaCY68UTcMyQHPmwENPlRIq8OmICyKTNCH9IyYAcl0An+/4lrN3BEg3pg1AccyRHPv34kwGd/PmDOsJtUAfCJ6vmgvRt4WTJjuZtvqD/VYjb+kGbwEFJMMaejc6nczSOoy6A9pbgZAlxVSoCxLnAcVTyX8T5Pk/XC4hsZ8ycjOnt9fPn+5fO9QGZJ9dCB/IqzvpXYfQreTwnzxb53cyznwi/88irg4/Y6+OxC49fhOenfS7JyLcY706uRNv6Btel0AOMqWH9eRj9ozmzFOXc6+PYpSPvRTfqsSfvjb33n7Ec6WOdHCvJl+34A0zPwscAFQAA",
-  "debug_symbols": "pZLLCoMwEEX/ZdZZGN/6K6VI1LEEQpQ0KRTx3zsm2tZFobSbe0zGM+Q1Q4+tuzRSD+MV6tMMrZFKyUujxk5YOWqanRcG+7CxBpGm4K1O1iQMagu1dkoxuAnl/E/XSWhPKwxVIwaoeyI1HKTC9WthLzv6rPKs2mSeV089+96vks2Po/gXvyyefvKfz7ODf6aR6KQ5nDjEpDBIfKY+M1IZ5FDTRgqfpc/KJ48CeEAckASkAdQhJeQBRUAZQF3SZV2+kaJVuN364HT39gjsfdor+zOZzNhh7wyuy/c12tAD",
+  "bytecode": "H4sIAAAAAAAA/9VXS26DMBA1NhSaqFGlwj5H8AeC2eUc3RUFNr1me68G4UmnrkmlMpaSJ1njH4/nGY8xCZtRnMvO1ZNzEc5OZe/1cWdTNN8H9B2dNfJQ10OrB2XUm9RdbxtZN/3BKqsa25y0NWawtW27vmtlp2ozqLHpzChncMQl10FhvSKmYOGcxQjFC0KulHC9sXyYBnjlOvxYt1wJFkHf0rpvKIkkPgxwDiVem9AvGvzCifwyjDM4oY8z4n0QOlyJ+GWkOKnsDjQ+UGqEZOWBYN2icLfvT4x+cymoYF/kzhbgEDg9cvZ9akDfNGnviRIRnfjPjNcu41XO6E6Pgji4Mb6cOaP/MuV0GiW+ml6ud+zvBJ2QOcvZ8+714/2TXdozHj1bIQ7Kmxnwl3H4Zc5+o0L10lsn9tuRSAPwCc/3GNwbg7mFpy+h16eYBxF4F+DF2RL1VQtaN4iHMKYa+Ldx+IN7ZoPqW28MYpcGnksW2tyz1+Ze++18CowBJ8QK64V1fAGzG09xDw8AAA==",
+  "debug_symbols": "pZHLDoMgEEX/ZdYsxEer/krTGNTRkBA0CE0a4793xEd10aRpN/fCXA4ZmBFqLF1bSN10A+S3EUojlZJtobpKWNlpqo4Tg21bWINIJTjkRPXCoLaQa6cUg4dQzh8aeqG9W2EoDRigrsnpwkYqnFcTe9PBZ5Qn2QrzS7bjyfd8Fq18GIS/8Ol156P/eJ6c+DvtRCXN6cchJIRB5DX2mhDK4AI5PeTqNfWaQR4z4MFifLFwMeLjaW7KSFEqXGfZOF0dRmuf/ZZsw+9NV2HtDM5N+YzafAE=",
   "file_map": {
     "50": {
       "source": "pub struct Data {\n    fields: [Field; 1],\n    counter: u32,\n}\n\nfn main(array: call_data(0) [Data; 1], x: bool) {\n    let index = if x { 0 } else { 1 };\n    if index != 0 {\n        assert(array[index - 1].counter < 3);\n    }\n}\n",
