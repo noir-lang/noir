@@ -133,7 +133,7 @@ impl Display for TypeImpl {
     }
 }
 
-// TODO(https://github.com/noir-lang/noir/issues/8306): display where clauses (follow-up issue)
+// TODO(https://github.com/noir-lang/noir/issues/8306): display where clauses
 impl Display for NoirTrait {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let generics = vecmap(&self.generics, |generic| generic.to_string());
