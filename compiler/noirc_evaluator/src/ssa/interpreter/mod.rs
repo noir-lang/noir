@@ -153,7 +153,11 @@ impl<'ssa> Interpreter<'ssa> {
             let block = &dfg[block_id];
 
             if arguments.len() != block.parameters().len() {
-                panic!("Block argument count does not match the expected parameter count");
+                return Err(RuntimeError::BlockArgumentCountMismatch {
+                    block: block_id,
+                    arguments: arguments.len(),
+                    parameters: block.parameters().len(),
+                });
             }
 
             for (parameter, argument) in block.parameters().iter().zip(arguments) {
@@ -166,7 +170,9 @@ impl<'ssa> Interpreter<'ssa> {
             }
 
             match block.terminator() {
-                None => panic!("No block terminator in block {block_id}"),
+                None => {
+                    return Err(RuntimeError::BlockMissingTerminator { block: block_id });
+                },
                 Some(TerminatorInstruction::Jmp { destination, arguments: jump_args, .. }) => {
                     block_id = *destination;
                     arguments = self.lookup_all(jump_args);
@@ -250,18 +256,26 @@ impl<'ssa> Interpreter<'ssa> {
             Instruction::Truncate { value, bit_size, max_bit_size } => {
                 self.interpret_truncate(*value, *bit_size, *max_bit_size, results[0]);
             }
-            Instruction::Constrain(lhs, rhs, constrain_error) => {
-                let lhs = self.lookup(*lhs);
-                let rhs = self.lookup(*rhs);
+            Instruction::Constrain(lhs_id, rhs_id, constrain_error) => {
+                let lhs = self.lookup(*lhs_id);
+                let rhs = self.lookup(*rhs_id);
                 if self.side_effects_enabled() && lhs != rhs {
-                    panic!("Constrain {lhs} == {rhs} failed!");
+                    let lhs = lhs.to_string();
+                    let rhs = rhs.to_string();
+                    let lhs_id = *lhs_id;
+                    let rhs_id = *rhs_id;
+                    return Err(RuntimeError::ConstrainEqFailed { lhs, lhs_id, rhs, rhs_id })
                 }
             }
-            Instruction::ConstrainNotEqual(lhs, rhs, constrain_error) => {
-                let lhs = self.lookup(*lhs);
-                let rhs = self.lookup(*rhs);
+            Instruction::ConstrainNotEqual(lhs_id, rhs_id, constrain_error) => {
+                let lhs = self.lookup(*lhs_id);
+                let rhs = self.lookup(*rhs_id);
                 if self.side_effects_enabled() && lhs == rhs {
-                    panic!("Constrain {lhs} != {rhs} failed!");
+                    let lhs = lhs.to_string();
+                    let rhs = rhs.to_string();
+                    let lhs_id = *lhs_id;
+                    let rhs_id = *rhs_id;
+                    return Err(RuntimeError::ConstrainNeFailed { lhs, lhs_id, rhs, rhs_id })
                 }
             }
             Instruction::RangeCheck { value, max_bit_size, assert_message } => {
