@@ -394,7 +394,7 @@ fn can_be_eliminated_if_unused(
             // If we have an impure function, we cannot remove it even if it is unused.
             Value::Function(function_id) => match function.dfg.purity_of(function_id) {
                 Some(Purity::Pure) => true,
-                Some(Purity::PureWithPredicate) => true,
+                Some(Purity::PureWithPredicate) => false,
                 Some(Purity::Impure) => false,
                 None => false,
             },
