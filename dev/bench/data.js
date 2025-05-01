@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1746112334574,
+  "lastUpdate": 1746114452313,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -18016,48 +18016,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "asterite@gmail.com",
-            "name": "Ary Borenszweig",
-            "username": "asterite"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "f4910ca5df08d787361e36038ff257ecec4042e0",
-          "message": "feat: avoid overflow check when subtracting from a value that is the maximum for its bitsize (#8190)",
-          "timestamp": "2025-04-24T11:32:00Z",
-          "tree_id": "97ee70e7e84cc5c34a193821cccf55536354a04a",
-          "url": "https://github.com/noir-lang/noir/commit/f4910ca5df08d787361e36038ff257ecec4042e0"
-        },
-        "date": 1745495405923,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 270628,
-            "range": "± 316",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 243404,
-            "range": "± 1185",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 3227135,
-            "range": "± 11114",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "47281315+guipublic@users.noreply.github.com",
             "name": "guipublic",
             "username": "guipublic"
@@ -20109,6 +20067,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 3576795,
             "range": "± 15622",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "aakoshh@gmail.com",
+            "name": "Akosh Farkash",
+            "username": "aakoshh"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "f31449818b82b5c478d784bacf1429570a837e5c",
+          "message": "fix: Return zero and insert an assertion if RHS bit size is over the limit in euclidian division (#8294)",
+          "timestamp": "2025-05-01T15:27:07Z",
+          "tree_id": "741560dc3a0a04a04cb6006f4f4ad9af11238d73",
+          "url": "https://github.com/noir-lang/noir/commit/f31449818b82b5c478d784bacf1429570a837e5c"
+        },
+        "date": 1746114445032,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 278185,
+            "range": "± 1643",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 254023,
+            "range": "± 5673",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 3598623,
+            "range": "± 14688",
             "unit": "ns/iter"
           }
         ]
