@@ -10,7 +10,12 @@ use noir_ssa_fuzzer::{
 };
 use noirc_driver::CompiledProgram;
 use noirc_evaluator::ssa::ir::basic_block::BasicBlockId;
-use std::{clone, collections::HashMap};
+use std::{
+    clone,
+    cmp::max,
+    collections::{HashMap, VecDeque},
+};
+
 #[derive(Arbitrary, Debug, Clone, Hash)]
 pub(crate) struct Argument {
     /// Index of the argument in the context of stored variables of this type
@@ -53,27 +58,36 @@ pub(crate) enum Instruction {
     Xor { lhs: Argument, rhs: Argument },
 }
 
-#[derive(Arbitrary, Debug, Clone, Hash, Copy, PartialEq)]
-pub(crate) enum Terminator {
-    /// terminates ssa block with jmp
-    /// block_index take blocks from already terminated with return
-    Jmp { block_index: usize },
-    /// terminates ssa block with jmp_if_else
-    /// condition_index -- index of taken boolean
-    /// if, else blocks are blocks terminated with Jmp or Return
-    JmpIfElse { condition_index: usize, then_block_index: usize, else_block_index: usize },
+/// Represents set of instructions
+/// NOT EQUAL TO SSA BLOCK
+#[derive(Arbitrary, Debug, Clone, Hash)]
+pub(crate) struct InstructionBlock {
+    instructions: Vec<Instruction>,
 }
 
+/// Represents set of commands for the fuzzer
+///
+/// After executing all commands, terminates all blocks from current_block_queue with return
 #[derive(Arbitrary, Debug, Clone, Hash)]
-pub(crate) struct Block {
-    instructions: Vec<Instruction>,
-    terminator: Terminator,
+pub(crate) enum FuzzerCommand {
+    /// Adds instructions to current_block_context from stored instruction_blocks
+    InsertSimpleInstructionBlock { instruction_block_idx: usize },
+    /// Merges two instruction blocks, stores result in instruction_blocks
+    MergeBlocks { first_block_idx: usize, second_block_idx: usize },
+    /// terminates current SSA block with jmp_if_else. Creates two new SSA blocks from chosen InstructionBlocks.
+    /// Switches current_block_context to then_branch.
+    /// Adds else_branch to the next_block_queue. If current SSA block is already terminated, skip.
+    InsertJmpIfBlock { block_then_idx: usize, block_else_idx: usize },
+    /// Terminates current SSA block with jmp. Creates new SSA block from chosen InstructionBlock.
+    /// Switches current_block_context to jmp_destination.
+    InsertJmpBlock { block_idx: usize },
+    /// Adds current SSA block to the next_block_queue. Switches context to stored in next_block_queue.
+    SwitchToNextBlock,
 }
 
 #[derive(Clone)]
 pub(crate) struct StoredBlock {
     context: BlockContext,
-    terminator: Terminator,
     block_id: BasicBlockId,
 }
 
@@ -91,25 +105,20 @@ pub(crate) struct FuzzerContext {
     /// ACIR and Brillig last changed value
     last_value_acir: Option<TypedValue>,
     last_value_brillig: Option<TypedValue>,
-    /// Context of the current SSA block
-    current_block_context: BlockContext,
-    /// If `b0` SSA block processed
-    first_block_processed: bool,
-    /// List of prepared, but not terminated blocks
-    stored_blocks: Vec<StoredBlock>,
-    /// List of terminated blocks,
-    terminated_blocks: Vec<BasicBlockId>,
-    /// Whether the context is constant execution
+    /// Current ACIR and Brillig blocks
+    current_block: StoredBlock,
+    /// Stack of ACIR and Brillig blocks
+    next_block_queue: VecDeque<StoredBlock>,
+    /// Instruction blocks
+    instruction_blocks: Vec<InstructionBlock>,
+    /// Whether the program is executed in constants
     is_constant: bool,
 }
 
 impl FuzzerContext {
     /// Creates a new fuzzer context with the given types
     /// It creates a new variable for each type and stores it in the map
-    ///
-    /// For example, if we have types [u64, u64, field], it will create 3 variables
-    /// and store them in the map as {u64: [0, 1], field: [2]} for both ACIR and Brillig
-    pub(crate) fn new(types: Vec<ValueType>) -> Self {
+    pub(crate) fn new(types: Vec<ValueType>, instruction_blocks: Vec<InstructionBlock>) -> Self {
         let mut acir_builder = FuzzerBuilder::new_acir();
         let mut brillig_builder = FuzzerBuilder::new_brillig();
         let mut acir_ids = HashMap::new();
@@ -120,7 +129,12 @@ impl FuzzerContext {
             acir_ids.entry(type_.clone()).or_insert(Vec::new()).push(acir_id);
             brillig_ids.entry(type_).or_insert(Vec::new()).push(brillig_id);
         }
-        let current_block_context = BlockContext::new(acir_ids.clone(), brillig_ids.clone());
+
+        let main_block = acir_builder.get_current_block();
+        let current_block = StoredBlock {
+            context: BlockContext::new(acir_ids.clone(), brillig_ids.clone(), VecDeque::new()),
+            block_id: main_block,
+        };
 
         Self {
             acir_builder,
@@ -129,21 +143,18 @@ impl FuzzerContext {
             brillig_ids,
             last_value_acir: None,
             last_value_brillig: None,
-            current_block_context,
-            first_block_processed: false,
-            stored_blocks: vec![],
-            terminated_blocks: vec![],
+            current_block,
+            next_block_queue: VecDeque::new(),
+            instruction_blocks,
             is_constant: false,
         }
     }
 
-    /// Creates a new fuzzer context with the given values for a constant folding checking
-    ///
-    /// For example, if we have values [1, 2, 3] and types [u64, u64, field], it will create 3 constants
-    /// and store them in the map as {u64: [0, 1], field: [2]} for both ACIR and Brillig
+    /// Creates a new fuzzer context with the given values and inserts them as constants
     pub(crate) fn new_constant_context(
         values: Vec<impl Into<FieldElement>>,
         types: Vec<ValueType>,
+        instruction_blocks: Vec<InstructionBlock>,
     ) -> Self {
         let mut acir_builder = FuzzerBuilder::new_acir();
         let mut brillig_builder = FuzzerBuilder::new_brillig();
@@ -161,157 +172,319 @@ impl FuzzerContext {
                 .or_insert(Vec::new())
                 .push(brillig_builder.insert_constant(field_element, type_.clone()));
         }
-        let current_block_context = BlockContext::new(acir_ids.clone(), brillig_ids.clone());
+
+        let main_block = acir_builder.get_current_block();
+        let current_block = StoredBlock {
+            context: BlockContext::new(acir_ids.clone(), brillig_ids.clone(), VecDeque::new()),
+            block_id: main_block,
+        };
 
         Self {
             acir_builder,
             brillig_builder,
             acir_ids,
             brillig_ids,
-            current_block_context,
             last_value_acir: None,
             last_value_brillig: None,
-            first_block_processed: false,
-            stored_blocks: vec![],
-            terminated_blocks: vec![],
+            current_block,
+            next_block_queue: VecDeque::new(),
+            instruction_blocks,
             is_constant: true,
         }
     }
 
-    /// Inserts an instruction into both ACIR and Brillig programs (in the current block)
-    fn insert_instruction(&mut self, instruction: Instruction) {
-        self.current_block_context.insert_instruction(
+    fn switch_to_block(&mut self, block_id: BasicBlockId) {
+        self.acir_builder.switch_to_block(block_id);
+        self.brillig_builder.switch_to_block(block_id);
+    }
+
+    fn process_jmp_if_command(&mut self, block_then_idx: usize, block_else_idx: usize) {
+        // find instruction block to be inserted
+        let block_then =
+            self.instruction_blocks[block_then_idx % self.instruction_blocks.len()].clone();
+        let block_else =
+            self.instruction_blocks[block_else_idx % self.instruction_blocks.len()].clone();
+
+        // creates new blocks
+        let block_then_id = self.acir_builder.insert_block();
+        assert_eq!(block_then_id, self.brillig_builder.insert_block());
+
+        let block_else_id = self.acir_builder.insert_block();
+        assert_eq!(block_else_id, self.brillig_builder.insert_block());
+
+        // creates new contexts of created blocks
+        let mut parent_blocks_history = self.current_block.context.parent_blocks_history.clone();
+        parent_blocks_history.push_front(self.current_block.block_id);
+        let mut block_then_context = BlockContext::new(
+            self.current_block.context.acir_ids.clone(),
+            self.current_block.context.brillig_ids.clone(),
+            parent_blocks_history.clone(),
+        );
+        let mut block_else_context = BlockContext::new(
+            self.current_block.context.acir_ids.clone(),
+            self.current_block.context.brillig_ids.clone(),
+            parent_blocks_history,
+        );
+
+        // inserts instructions into created blocks
+        self.switch_to_block(block_then_id);
+        block_then_context.insert_instructions(
             &mut self.acir_builder,
             &mut self.brillig_builder,
-            instruction,
+            block_then.instructions,
         );
+
+        self.switch_to_block(block_else_id);
+        block_else_context.insert_instructions(
+            &mut self.acir_builder,
+            &mut self.brillig_builder,
+            block_else.instructions,
+        );
+
+        // terminates current block with jmp_if
+        self.switch_to_block(self.current_block.block_id);
+        self.current_block.context.clone().finalize_block_with_jmp_if(
+            &mut self.acir_builder,
+            &mut self.brillig_builder,
+            block_then_id,
+            block_else_id,
+        );
+
+        // switch context to then block and push else block to the queue
+        let then_stored_block =
+            StoredBlock { context: block_then_context, block_id: block_then_id };
+        let else_stored_block =
+            StoredBlock { context: block_else_context, block_id: block_else_id };
+        self.next_block_queue.push_back(else_stored_block);
+        self.switch_to_block(then_stored_block.block_id);
+        self.current_block = then_stored_block;
     }
 
-    /// if it is the first block, other blocks can use variables from it
-    /// after inserting all instruction, adds new block and switch context to it
-    /// previous block stored to `stored_blocks`
-    pub(crate) fn process_block(&mut self, block: Block) {
-        for instruction in block.instructions {
-            self.insert_instruction(instruction);
-        }
-        if !self.first_block_processed {
-            self.acir_ids = self.current_block_context.acir_ids.clone();
-            self.brillig_ids = self.current_block_context.brillig_ids.clone();
-        }
-        self.stored_blocks.push(StoredBlock {
-            context: self.current_block_context.clone(),
-            terminator: block.terminator,
-            block_id: self.acir_builder.get_current_block(),
-        });
+    fn process_jmp_block(&mut self, block_idx: usize) {
+        // find instruction block to be inserted
+        let block = self.instruction_blocks[block_idx % self.instruction_blocks.len()].clone();
 
-        self.first_block_processed = true;
-        let acir_new_block = self.acir_builder.insert_block();
-        let brillig_new_block = self.brillig_builder.insert_block();
-        self.acir_builder.switch_to_block(acir_new_block);
-        self.brillig_builder.switch_to_block(brillig_new_block);
-        self.current_block_context =
-            BlockContext::new(self.acir_ids.clone(), self.brillig_ids.clone());
+        // creates new block
+        let destination_block_id = self.acir_builder.insert_block();
+        assert_eq!(destination_block_id, self.brillig_builder.insert_block());
+
+        // creates new context for the new block
+        let mut parent_blocks_history = self.current_block.context.parent_blocks_history.clone();
+        parent_blocks_history.push_front(self.current_block.block_id);
+        self.switch_to_block(destination_block_id);
+        let mut destination_block_context = BlockContext::new(
+            self.current_block.context.acir_ids.clone(),
+            self.current_block.context.brillig_ids.clone(),
+            parent_blocks_history,
+        );
+
+        // inserts instructions into the new block
+        destination_block_context.insert_instructions(
+            &mut self.acir_builder,
+            &mut self.brillig_builder,
+            block.instructions,
+        );
+
+        // switches to the current block and terminates it with jmp
+        self.switch_to_block(self.current_block.block_id);
+        self.current_block.context.clone().finalize_block_with_jmp(
+            &mut self.acir_builder,
+            &mut self.brillig_builder,
+            destination_block_id,
+        );
+
+        // switches to the new block and updates current block
+        self.switch_to_block(destination_block_id);
+        self.current_block =
+            StoredBlock { context: destination_block_context, block_id: destination_block_id };
     }
 
-    fn get_block_ids_for_if_then(
-        self,
-        then_block_index: usize,
-        else_block_index: usize,
-    ) -> (Option<BasicBlockId>, Option<BasicBlockId>) {
-        let then_destination =
-            self.terminated_blocks[then_block_index % self.terminated_blocks.len()];
-        let else_destination =
-            self.terminated_blocks[else_block_index % self.terminated_blocks.len()];
-        (Some(then_destination), Some(else_destination))
-    }
-
-    fn finalize_block(&mut self, stored_block: StoredBlock) {
-        self.acir_builder.switch_to_block(stored_block.block_id);
-        self.brillig_builder.switch_to_block(stored_block.block_id);
-        match stored_block.terminator {
-            Terminator::Jmp { block_index } => {
-                let jmp_destination =
-                    self.terminated_blocks[block_index % self.terminated_blocks.len()];
-                stored_block.context.finalize_block_with_jmp(
+    pub(crate) fn process_fuzzer_command(&mut self, command: FuzzerCommand) {
+        match command {
+            FuzzerCommand::InsertSimpleInstructionBlock { instruction_block_idx } => {
+                let instruction_block = self.instruction_blocks
+                    [instruction_block_idx % self.instruction_blocks.len()]
+                .clone();
+                self.current_block.context.insert_instructions(
                     &mut self.acir_builder,
                     &mut self.brillig_builder,
-                    jmp_destination,
+                    instruction_block.instructions,
                 );
             }
-            Terminator::JmpIfElse { condition_index, then_block_index, else_block_index } => {
-                let then_destination =
-                    self.terminated_blocks[then_block_index % self.terminated_blocks.len()];
-                let else_destination =
-                    self.terminated_blocks[else_block_index % self.terminated_blocks.len()];
-                stored_block.context.finalize_block_with_jmp_if(
-                    &mut self.acir_builder,
-                    &mut self.brillig_builder,
-                    condition_index,
-                    then_destination,
-                    else_destination,
-                );
+            FuzzerCommand::MergeBlocks { first_block_idx, second_block_idx } => {
+                let first_block = self.instruction_blocks
+                    [first_block_idx % self.instruction_blocks.len()]
+                .clone();
+                let second_block = self.instruction_blocks
+                    [second_block_idx % self.instruction_blocks.len()]
+                .clone();
+                let combined_instructions =
+                    first_block.instructions.into_iter().chain(second_block.instructions).collect();
+                self.instruction_blocks
+                    .push(InstructionBlock { instructions: combined_instructions });
             }
-        }
-        // If current block is empty we don't override last set value
-        (self.last_value_acir, self.last_value_brillig) = match (
-            self.current_block_context.last_value_acir.clone(),
-            self.current_block_context.last_value_brillig.clone(),
-        ) {
-            (Some(acir_val), Some(brillig_val)) => (Some(acir_val), Some(brillig_val)),
-            _ => (self.last_value_acir.clone(), self.last_value_brillig.clone()),
-        };
-        self.terminated_blocks.push(self.acir_builder.get_current_block());
-    }
-
-    fn terminating_cycle(&mut self, terminator_matches: fn(Terminator) -> bool) {
-        for block in self.stored_blocks.clone() {
-            if terminator_matches(block.terminator) {
-                self.finalize_block(block);
+            FuzzerCommand::InsertJmpIfBlock { block_then_idx, block_else_idx } => {
+                self.process_jmp_if_command(block_then_idx, block_else_idx);
+            }
+            FuzzerCommand::InsertJmpBlock { block_idx } => {
+                self.process_jmp_block(block_idx);
+            }
+            FuzzerCommand::SwitchToNextBlock => {
+                self.next_block_queue.push_back(self.current_block.clone());
+                self.current_block = self.next_block_queue.pop_front().unwrap();
+                self.switch_to_block(self.current_block.block_id);
             }
         }
     }
 
-    /// Finalizes the function by terminating all blocks
-    /// 1) Terminates blocks with Return;
-    /// 2) Terminates blocks with Jmp;
-    /// 3) Terminates blocks with JmpIf
+    /// Merges two blocks into one
+    /// Create empty merged_block. Terminates first_block and second_block with jmp to merged_block
+    fn merge_blocks(&mut self, first_block_idx: StoredBlock, second_block_idx: StoredBlock) {
+        let merged_block_id = self.acir_builder.insert_block();
+        assert_eq!(merged_block_id, self.brillig_builder.insert_block());
+
+        let mut parent_blocks_history = first_block_idx.context.parent_blocks_history.clone();
+        parent_blocks_history.push_front(first_block_idx.block_id);
+        parent_blocks_history.push_front(second_block_idx.block_id);
+        let merged_block_context = BlockContext::new(
+            first_block_idx.context.acir_ids.clone(),
+            first_block_idx.context.brillig_ids.clone(),
+            parent_blocks_history,
+        );
+
+        self.switch_to_block(first_block_idx.block_id);
+        first_block_idx.context.finalize_block_with_jmp(
+            &mut self.acir_builder,
+            &mut self.brillig_builder,
+            merged_block_id,
+        );
+
+        self.switch_to_block(second_block_idx.block_id);
+        second_block_idx.context.finalize_block_with_jmp(
+            &mut self.acir_builder,
+            &mut self.brillig_builder,
+            merged_block_id,
+        );
+        self.next_block_queue
+            .push_back(StoredBlock { context: merged_block_context, block_id: merged_block_id });
+    }
+
+    /// Finds maximal distance to closest parent for lhs and rhs
     ///
-    /// 1) Noir does not support early returns (only one block can be Return block), so we terminate with return only last block.
-    /// 2) Flattening does not support case if `then_destination` ends in the end of the branch.
-    /// The following program is invalid:
-    /// acir(inline) fn main f0 {
-    ///  b0(v0: Field, v1: Field, v2: Field, v3: Field, v4: Field, v5: Field, v6: u1):
-    ///    jmpif v6 then: b3, else: b1
-    ///  b1():
-    ///    v7 = div v3, v0
-    ///    jmp b3()
-    ///  b3():
-    ///    return v0
-    ///
-    /// because branch ends in b3 block
-    pub(crate) fn finalize_function(&mut self) {
-        // we force last block to terminate with return
-        if self.terminated_blocks.is_empty() {
-            let last_block = self.stored_blocks.pop().unwrap();
-            self.acir_builder.switch_to_block(last_block.block_id);
-            self.brillig_builder.switch_to_block(last_block.block_id);
-            last_block
-                .context
-                .clone()
-                .finalize_block_with_return(&mut self.acir_builder, &mut self.brillig_builder);
-            (self.last_value_acir, self.last_value_brillig) =
-                last_block.context.get_last_variables();
-            self.terminated_blocks.push(last_block.block_id);
+    ///    b0
+    ///    ↓
+    ///    b1
+    ///   ↙   ↘
+    /// b2    b3
+    /// ↓      |
+    /// b4     |
+    /// ↙  ↘   |
+    ///b5  b6  |
+    /// ↘  ↙   ↓
+    ///  b7    b8
+    ///   ↘   ↙
+    ///    b9
+    /// distance between b5 and b6. They both have parents history [b4, b3, b2, b1] and distance 0
+    /// distance between b7 and b8. b7 has history [b5, b6, b4, b2, b1, b0], b8 has history [b3, b1, b0], distance 4
+    fn find_distance_to_closest_parent(&mut self, lhs: StoredBlock, rhs: StoredBlock) -> u32 {
+        let mut distance = 0;
+        let mut max_distance = 0;
+        for block in lhs.context.parent_blocks_history.clone() {
+            if rhs.context.parent_blocks_history.contains(&block) {
+                max_distance = distance;
+                break;
+            }
+            distance += 1;
+        }
+        distance = 0;
+        for block in rhs.context.parent_blocks_history {
+            if lhs.context.parent_blocks_history.contains(&block) {
+                return max(distance, max_distance);
+            }
+            distance += 1;
         }
 
-        self.terminating_cycle(|terminator| match terminator {
-            Terminator::Jmp { .. } => true,
-            _ => false,
-        });
-        self.terminating_cycle(|terminator| match terminator {
-            Terminator::JmpIfElse { .. } => true,
-            _ => false,
-        });
+        unreachable!("Blocks are not in the same CFG");
+    }
+
+    /// Returns indices of blocks with closest parents
+    fn find_blocks_idx_with_closest_parents(&mut self) -> (usize, usize) {
+        let len = self.next_block_queue.len();
+        let mut min_distance = u32::MAX;
+        let mut min_distance_blocks = (0, 0);
+        for i in 0..len {
+            for j in i + 1..len {
+                let distance = self.find_distance_to_closest_parent(
+                    self.next_block_queue[i].clone(),
+                    self.next_block_queue[j].clone(),
+                );
+                if distance == 0 {
+                    return (i, j);
+                }
+                if distance < min_distance {
+                    min_distance = distance;
+                    min_distance_blocks = (i, j);
+                }
+            }
+        }
+        if min_distance == u32::MAX {
+            unreachable!("No blocks with closest parents found");
+        }
+        min_distance_blocks
+    }
+
+    fn merge_closest_blocks(&mut self) {
+        let (first_block_idx, second_block_idx) = self.find_blocks_idx_with_closest_parents();
+        self.merge_blocks(
+            self.next_block_queue[first_block_idx].clone(),
+            self.next_block_queue[second_block_idx].clone(),
+        );
+        self.next_block_queue.remove(first_block_idx);
+        if second_block_idx > first_block_idx {
+            self.next_block_queue.remove(second_block_idx - 1);
+        } else {
+            self.next_block_queue.remove(second_block_idx);
+        }
+    }
+
+    /// Creates return block and terminates all blocks from current_block_queue with return
+    pub(crate) fn finalize(&mut self, return_instruction_block_idx: usize) {
+        // Every block must have 0, 1 or 2 successors(blocks that jumped to it)
+        // so we need to merge all not terminated blocks into one
+        // and then terminate merged block with return
+        self.next_block_queue.push_back(self.current_block.clone());
+        while self.next_block_queue.len() > 1 {
+            self.merge_closest_blocks();
+        }
+
+        let return_instruction_block = self.instruction_blocks
+            [return_instruction_block_idx % self.instruction_blocks.len()]
+        .clone();
+        let return_block_id = self.acir_builder.insert_block();
+        assert_eq!(return_block_id, self.brillig_builder.insert_block());
+
+        self.switch_to_block(return_block_id);
+        let mut return_block_context = BlockContext::new(
+            self.current_block.context.acir_ids.clone(),
+            self.current_block.context.brillig_ids.clone(),
+            VecDeque::new(),
+        );
+        return_block_context.insert_instructions(
+            &mut self.acir_builder,
+            &mut self.brillig_builder,
+            return_instruction_block.instructions,
+        );
+
+        return_block_context
+            .finalize_block_with_return(&mut self.acir_builder, &mut self.brillig_builder);
+
+        let last_block = self.next_block_queue.pop_front().unwrap();
+        self.switch_to_block(last_block.block_id);
+        last_block.context.clone().finalize_block_with_jmp(
+            &mut self.acir_builder,
+            &mut self.brillig_builder,
+            return_block_id,
+        );
     }
 
     /// Returns witnesses for ACIR and Brillig
@@ -321,13 +494,9 @@ impl FuzzerContext {
     /// If we are checking constant folding, the witness stack will only contain the return value, so we return Witness(0)
     pub(crate) fn get_return_witnesses(&self) -> (Witness, Witness) {
         if self.is_constant {
-            return (Witness(0), Witness(0));
-        }
-        match (self.last_value_acir.clone(), self.last_value_brillig.clone()) {
-            (Some(_acir_result), Some(_brillig_result)) => {
-                (Witness(NUMBER_OF_VARIABLES_INITIAL - 1), Witness(NUMBER_OF_VARIABLES_INITIAL - 1))
-            }
-            _ => (Witness(NUMBER_OF_VARIABLES_INITIAL), Witness(NUMBER_OF_VARIABLES_INITIAL)),
+            (Witness(0), Witness(0))
+        } else {
+            (Witness(NUMBER_OF_VARIABLES_INITIAL), Witness(NUMBER_OF_VARIABLES_INITIAL))
         }
     }
 

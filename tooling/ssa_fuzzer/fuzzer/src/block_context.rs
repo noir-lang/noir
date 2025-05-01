@@ -10,7 +10,7 @@ use noir_ssa_fuzzer::{
 };
 use noirc_driver::CompiledProgram;
 use noirc_evaluator::ssa::ir::{basic_block::BasicBlockId, types::Type};
-use std::collections::HashMap;
+use std::collections::{HashMap, VecDeque};
 
 /// Main context for the ssa block containing both ACIR and Brillig builders and their state
 /// It works with indices of variables Ids, because it cannot handle Ids logic for ACIR and Brillig
@@ -23,6 +23,8 @@ pub(crate) struct BlockContext {
     /// ACIR and Brillig last changed value
     pub(crate) last_value_acir: Option<TypedValue>,
     pub(crate) last_value_brillig: Option<TypedValue>,
+
+    pub(crate) parent_blocks_history: VecDeque<BasicBlockId>,
 }
 
 /// Returns a typed value from the map
@@ -53,12 +55,19 @@ impl BlockContext {
     pub(crate) fn new(
         acir_ids: HashMap<ValueType, Vec<TypedValue>>,
         brillig_ids: HashMap<ValueType, Vec<TypedValue>>,
+        parent_blocks_history: VecDeque<BasicBlockId>,
     ) -> Self {
-        Self { acir_ids, brillig_ids, last_value_acir: None, last_value_brillig: None }
+        Self {
+            acir_ids,
+            brillig_ids,
+            last_value_acir: None,
+            last_value_brillig: None,
+            parent_blocks_history,
+        }
     }
 
     /// Inserts an instruction that takes a single argument
-    pub(crate) fn insert_instruction_with_single_arg(
+    fn insert_instruction_with_single_arg(
         &mut self,
         acir_builder: &mut FuzzerBuilder,
         brillig_builder: &mut FuzzerBuilder,
@@ -85,7 +94,7 @@ impl BlockContext {
     }
 
     /// Inserts an instruction that takes two arguments
-    pub(crate) fn insert_instruction_with_double_args(
+    fn insert_instruction_with_double_args(
         &mut self,
         acir_builder: &mut FuzzerBuilder,
         brillig_builder: &mut FuzzerBuilder,
@@ -120,7 +129,7 @@ impl BlockContext {
     }
 
     /// Inserts an instruction into both ACIR and Brillig programs
-    pub(crate) fn insert_instruction(
+    fn insert_instruction(
         &mut self,
         acir_builder: &mut FuzzerBuilder,
         brillig_builder: &mut FuzzerBuilder,
@@ -261,6 +270,17 @@ impl BlockContext {
         }
     }
 
+    pub(crate) fn insert_instructions(
+        &mut self,
+        acir_builder: &mut FuzzerBuilder,
+        brillig_builder: &mut FuzzerBuilder,
+        instructions: Vec<Instruction>,
+    ) {
+        for instruction in instructions {
+            self.insert_instruction(acir_builder, brillig_builder, instruction);
+        }
+    }
+
     /// Finalizes the function by setting the return value
     pub(crate) fn finalize_block_with_return(
         self,
@@ -309,18 +329,22 @@ impl BlockContext {
         self,
         acir_builder: &mut FuzzerBuilder,
         brillig_builder: &mut FuzzerBuilder,
-        condition_index: usize,
         then_destination: BasicBlockId,
         else_destination: BasicBlockId,
     ) {
-        let acir_condition =
-            get_typed_value_from_map(&self.acir_ids, ValueType::Boolean, condition_index)
-                .unwrap()
-                .value_id;
-        let brillig_condition =
-            get_typed_value_from_map(&self.brillig_ids, ValueType::Boolean, condition_index)
-                .unwrap()
-                .value_id;
+        // takes last boolean variable as condition
+        let acir_condition = self
+            .acir_ids
+            .get(&ValueType::Boolean)
+            .and_then(|values| values.last().cloned())
+            .expect("Should have at least one boolean")
+            .value_id;
+        let brillig_condition = self
+            .brillig_ids
+            .get(&ValueType::Boolean)
+            .and_then(|values| values.last().cloned())
+            .expect("Should have at least one boolean")
+            .value_id;
 
         acir_builder.insert_jmpif_instruction(acir_condition, then_destination, else_destination);
         brillig_builder.insert_jmpif_instruction(

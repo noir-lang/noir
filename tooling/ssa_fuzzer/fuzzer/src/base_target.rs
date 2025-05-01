@@ -7,16 +7,16 @@ use libfuzzer_sys::arbitrary::Arbitrary;
 use noir_ssa_fuzzer::config;
 use noir_ssa_fuzzer::typed_value::ValueType;
 mod base_context;
-use crate::base_context::{Block, Terminator};
+use crate::base_context::{FuzzerCommand, InstructionBlock};
 mod fuzzer;
 use crate::fuzzer::Fuzzer;
 
 mod block_context;
 
 impl Fuzzer {
-    fn process_block(&mut self, block: Block) {
-        self.context_non_constant.process_block(block.clone());
-        self.context_constant.process_block(block);
+    fn process_fuzzer_command(&mut self, command: FuzzerCommand) {
+        self.context_non_constant.process_fuzzer_command(command.clone());
+        self.context_constant.process_fuzzer_command(command);
     }
 }
 
@@ -48,8 +48,10 @@ enum WitnessValue {
 /// `initial_witness` - initial witness values for the program as `FieldRepresentation`
 #[derive(Arbitrary, Debug, Clone, Hash)]
 struct FuzzerData {
-    blocks: Vec<Block>,
+    blocks: Vec<InstructionBlock>,
+    commands: Vec<FuzzerCommand>,
     initial_witness: [WitnessValue; (config::NUMBER_OF_VARIABLES_INITIAL - 1) as usize],
+    return_instruction_block_idx: usize,
 }
 
 // main fuzz loop
@@ -80,10 +82,11 @@ libfuzzer_sys::fuzz_target!(|data: FuzzerData| {
     log::debug!("blocks: {:?}", data.blocks);
     log::debug!("initial_witness: {:?}", initial_witness);
     log::debug!("initial_witness_in_data: {:?}", data.initial_witness);
+    log::debug!("commands: {:?}", data.commands);
 
-    let mut fuzzer = Fuzzer::new(types, values);
-    for block in data.blocks {
-        fuzzer.process_block(block);
+    let mut fuzzer = Fuzzer::new(types, values, data.blocks);
+    for command in data.commands {
+        fuzzer.process_fuzzer_command(command);
     }
-    fuzzer.run(initial_witness, false);
+    fuzzer.run(initial_witness, false, data.return_instruction_block_idx);
 });

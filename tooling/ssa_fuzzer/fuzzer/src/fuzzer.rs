@@ -13,7 +13,7 @@
 //!    - If programs return different results
 //!    - If one program fails to compile but the other executes successfully
 
-use crate::base_context::FuzzerContext;
+use crate::base_context::{FuzzerContext, InstructionBlock};
 use acvm::FieldElement;
 use acvm::acir::native_types::{Witness, WitnessMap};
 use noir_ssa_fuzzer::runner::{CompareResults, execute_single, run_and_compare};
@@ -28,10 +28,15 @@ impl Fuzzer {
     pub(crate) fn new(
         types: Vec<ValueType>,
         initial_witness_vector: Vec<impl Into<FieldElement>>,
+        instruction_blocks: Vec<InstructionBlock>,
     ) -> Self {
         Self {
-            context_non_constant: FuzzerContext::new(types.clone()),
-            context_constant: FuzzerContext::new_constant_context(initial_witness_vector, types),
+            context_non_constant: FuzzerContext::new(types.clone(), instruction_blocks.clone()),
+            context_constant: FuzzerContext::new_constant_context(
+                initial_witness_vector,
+                types,
+                instruction_blocks,
+            ),
         }
     }
 
@@ -40,9 +45,10 @@ impl Fuzzer {
         mut self,
         initial_witness: WitnessMap<FieldElement>,
         constant_checking_enabled: bool,
+        return_instruction_block_idx: usize,
     ) {
-        self.context_non_constant.finalize_function();
-        self.context_constant.finalize_function();
+        self.context_non_constant.finalize(return_instruction_block_idx);
+        self.context_constant.finalize(return_instruction_block_idx);
 
         let (acir_return_witness, brillig_return_witness) =
             self.context_non_constant.get_return_witnesses();
