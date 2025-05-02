@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1746125261184,
+  "lastUpdate": 1746180759642,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -18031,48 +18031,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "15848336+TomAFrench@users.noreply.github.com",
-            "name": "Tom French",
-            "username": "TomAFrench"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "d207ae178013b0ce180892ab81231492c908608d",
-          "message": "fix!: disallow the `i1` type (#8172)",
-          "timestamp": "2025-04-24T13:31:44Z",
-          "tree_id": "ad77e0754a20ef7709c0ac07dd7961feed14ae36",
-          "url": "https://github.com/noir-lang/noir/commit/d207ae178013b0ce180892ab81231492c908608d"
-        },
-        "date": 1745503227848,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 268775,
-            "range": "± 259",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 239416,
-            "range": "± 2313",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 3578558,
-            "range": "± 4067",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "aakoshh@gmail.com",
             "name": "Akosh Farkash",
             "username": "aakoshh"
@@ -20124,6 +20082,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 3246302,
             "range": "± 11176",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "47281315+guipublic@users.noreply.github.com",
+            "name": "guipublic",
+            "username": "guipublic"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "9f88f1920dd8cbde95d4ffecbc6d936218bea39b",
+          "message": "fix: uses non-zero points with ec-add-unsafe (#8248)",
+          "timestamp": "2025-05-02T09:50:14Z",
+          "tree_id": "e5df424381e411d5f18592d595f617d90c94fa49",
+          "url": "https://github.com/noir-lang/noir/commit/9f88f1920dd8cbde95d4ffecbc6d936218bea39b"
+        },
+        "date": 1746180751704,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 252776,
+            "range": "± 659",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 226589,
+            "range": "± 7486",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 3228477,
+            "range": "± 7918",
             "unit": "ns/iter"
           }
         ]
