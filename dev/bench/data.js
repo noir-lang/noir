@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1746201425332,
+  "lastUpdate": 1746201432253,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -11366,70 +11366,6 @@ window.BENCHMARK_DATA = {
             "name": "GitHub",
             "username": "web-flow"
           },
-          "distinct": false,
-          "id": "bddf22d2f0e2b26c81a6856a41c245137f7dfc1c",
-          "message": "fix: Do not panic if RHS constant in division has more bits than the operand (#8197)",
-          "timestamp": "2025-04-24T14:45:29Z",
-          "tree_id": "5d1b8ba1590df0ce332a5325d7053c0fc490b136",
-          "url": "https://github.com/noir-lang/noir/commit/bddf22d2f0e2b26c81a6856a41c245137f7dfc1c"
-        },
-        "date": 1745507745375,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 203.28,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 227.03,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 181.3,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 433.5,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 425.68,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 1420,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 254.29,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-root",
-            "value": 260.03,
-            "unit": "MB"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
-            "email": "aakoshh@gmail.com",
-            "name": "Akosh Farkash",
-            "username": "aakoshh"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
           "distinct": true,
           "id": "7976865a58cff5cd5abe70bec41dfbf967909dae",
           "message": "chore: Don't use `i1` in the AST fuzzer (#8204)",
@@ -14505,6 +14441,70 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/noir-lang/noir/commit/af202d7a635beaa57efa7f044623fb68be737c38"
         },
         "date": 1746198761027,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 232.94,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 256.56,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 210.97,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 541.5,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 533.67,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 1440,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 362.58,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-root",
+            "value": 368.5,
+            "unit": "MB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "aakoshh@gmail.com",
+            "name": "Akosh Farkash",
+            "username": "aakoshh"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "86e61f0290a99015c7987eec77b3ebadf0bd5aaf",
+          "message": "feat: Metamorphic AST fuzzing (#8299)",
+          "timestamp": "2025-05-02T15:27:36Z",
+          "tree_id": "e0d598859a2300eb3ff09aad1b37fd2add9de9a5",
+          "url": "https://github.com/noir-lang/noir/commit/86e61f0290a99015c7987eec77b3ebadf0bd5aaf"
+        },
+        "date": 1746201424618,
         "tool": "customSmallerIsBetter",
         "benches": [
           {
