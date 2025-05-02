@@ -264,30 +264,25 @@ mod rules {
                 if ctx.is_in_ref_mut {
                     return false;
                 }
-                // We could apply this rule on anything that returns a number.
-                match expr {
-                    Expression::Ident(ident) => {
-                        matches!(ident.typ, Type::Field | Type::Integer(_, _))
-                    }
-                    Expression::Literal(literal) => {
-                        matches!(literal, Literal::Integer(_, _, _))
-                    }
-                    Exp
-                    _ => false,
+                // Appending 0 to a block would look odd.
+                if matches!(expr, Expression::Block(_)) {
+                    return false;
+                }
+                // We can apply this rule on anything that returns a number.
+                if let Some(typ) = expr::return_type(expr) {
+                    matches!(typ, Type::Field | Type::Integer(_, _))
+                } else {
+                    false
                 }
             },
             |u, expr| {
-                let typ = match expr {
-                    Expression::Ident(ident) => ident.typ.clone(),
-                    Expression::Literal(Literal::Integer(_, typ, _)) => typ.clone(),
-                    _ => unreachable!(),
-                };
+                let typ = expr::return_type(expr).cloned().expect("only called on matching type");
 
                 let op =
                     if bool::arbitrary(u)? { BinaryOpKind::Add } else { BinaryOpKind::Subtract };
 
                 expr::replace(expr, |expr| {
-                    expr::binary(expr.clone(), op, expr::int_literal(0u32, false, typ))
+                    expr::binary(expr, op, expr::int_literal(0u32, false, typ))
                 });
 
                 Ok(())
