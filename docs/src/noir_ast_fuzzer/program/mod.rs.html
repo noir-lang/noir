@@ -465,9 +465,7 @@
 <a href="#464" id="464">464</a>
 <a href="#465" id="465">465</a>
 <a href="#466" id="466">466</a>
-<a href="#467" id="467">467</a>
-<a href="#468" id="468">468</a>
-<a href="#469" id="469">469</a></pre></div><pre class="rust"><code><span class="doccomment">//! Module responsible for generating arbitrary [Program] ASTs.
+<a href="#467" id="467">467</a></pre></div><pre class="rust"><code><span class="doccomment">//! Module responsible for generating arbitrary [Program] ASTs.
 </span><span class="kw">use </span>std::collections::{BTreeMap, BTreeSet}; <span class="comment">// Using BTree for deterministic enumeration, for repeatability.
 
 </span><span class="kw">use </span>func::{FunctionContext, FunctionDeclaration};
@@ -485,15 +483,13 @@
 
 <span class="kw">use </span><span class="kw">crate</span>::Config;
 
-<span class="kw">mod </span>expr;
+<span class="kw">pub mod </span>expr;
 <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">mod </span>freq;
 <span class="kw">mod </span>func;
-<span class="kw">mod </span>rewrite;
+<span class="kw">pub mod </span>rewrite;
 <span class="kw">mod </span>scope;
 <span class="kw">mod </span>types;
-<span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">mod </span>visitor;
-
-<span class="kw">pub use </span>rewrite::change_all_functions_into_unconstrained;
+<span class="kw">pub mod </span>visitor;
 
 <span class="attr">#[cfg(test)]
 </span><span class="kw">mod </span>tests;
@@ -544,7 +540,7 @@
 
 <span class="doccomment">/// ID of variables in scope.
 </span><span class="attr">#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
-</span><span class="kw">enum </span>VariableId {
+</span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">enum </span>VariableId {
     Local(LocalId),
     Global(GlobalId),
 }
@@ -554,7 +550,7 @@
 
 <span class="attr">#[derive(Default)]
 </span><span class="doccomment">/// Context to accumulate top level generated item, so we know what we can choose from.
-</span><span class="kw">struct </span>Context {
+</span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">struct </span>Context {
     config: Config,
     <span class="doccomment">/// Global variables.
     </span>globals: BTreeMap&lt;GlobalId, (Name, Type, Expression)&gt;,

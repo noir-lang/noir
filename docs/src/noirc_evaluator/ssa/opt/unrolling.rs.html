@@ -1585,7 +1585,8 @@
 <a href="#1584" id="1584">1584</a>
 <a href="#1585" id="1585">1585</a>
 <a href="#1586" id="1586">1586</a>
-<a href="#1587" id="1587">1587</a></pre></div><pre class="rust"><code><span class="doccomment">//! This file contains the loop unrolling pass for the new SSA IR.
+<a href="#1587" id="1587">1587</a>
+<a href="#1588" id="1588">1588</a></pre></div><pre class="rust"><code><span class="doccomment">//! This file contains the loop unrolling pass for the new SSA IR.
 //!
 //! This pass is divided into a few steps:
 //! 1. Find all loops in the program (`find_all_loops`)
@@ -1715,7 +1716,8 @@
     }
 }
 
-<span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">struct </span>Loop {
+<span class="attr">#[derive(Debug)]
+</span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">struct </span>Loop {
     <span class="doccomment">/// The header block of a loop is the block which dominates all the
     /// other blocks in the loop.
     </span><span class="kw">pub</span>(<span class="kw">super</span>) header: BasicBlockId,

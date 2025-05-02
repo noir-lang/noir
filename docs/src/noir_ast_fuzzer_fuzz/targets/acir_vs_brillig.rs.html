@@ -57,40 +57,15 @@
 <a href="#56" id="56">56</a>
 <a href="#57" id="57">57</a>
 <a href="#58" id="58">58</a>
-<a href="#59" id="59">59</a>
-<a href="#60" id="60">60</a>
-<a href="#61" id="61">61</a>
-<a href="#62" id="62">62</a>
-<a href="#63" id="63">63</a>
-<a href="#64" id="64">64</a>
-<a href="#65" id="65">65</a>
-<a href="#66" id="66">66</a>
-<a href="#67" id="67">67</a>
-<a href="#68" id="68">68</a>
-<a href="#69" id="69">69</a>
-<a href="#70" id="70">70</a>
-<a href="#71" id="71">71</a>
-<a href="#72" id="72">72</a>
-<a href="#73" id="73">73</a>
-<a href="#74" id="74">74</a>
-<a href="#75" id="75">75</a>
-<a href="#76" id="76">76</a>
-<a href="#77" id="77">77</a>
-<a href="#78" id="78">78</a>
-<a href="#79" id="79">79</a>
-<a href="#80" id="80">80</a>
-<a href="#81" id="81">81</a>
-<a href="#82" id="82">82</a>
-<a href="#83" id="83">83</a></pre></div><pre class="rust"><code><span class="doccomment">//! Compare the execution of random ASTs between the normal execution
+<a href="#59" id="59">59</a></pre></div><pre class="rust"><code><span class="doccomment">//! Compare the execution of random ASTs between the normal execution
 //! vs when everything is forced to be Brillig.
 </span><span class="kw">use crate</span>::{compare_results, create_ssa_or_die, default_ssa_options};
 <span class="kw">use </span>arbitrary::Arbitrary;
 <span class="kw">use </span>arbitrary::Unstructured;
 <span class="kw">use </span>color_eyre::eyre;
 <span class="kw">use </span>noir_ast_fuzzer::Config;
-<span class="kw">use </span>noir_ast_fuzzer::change_all_functions_into_unconstrained;
-<span class="kw">use </span>noir_ast_fuzzer::compare::CompareOptions;
-<span class="kw">use </span>noir_ast_fuzzer::compare::ComparePasses;
+<span class="kw">use </span>noir_ast_fuzzer::compare::{CompareOptions, ComparePasses};
+<span class="kw">use </span>noir_ast_fuzzer::rewrite::change_all_functions_into_unconstrained;
 
 <span class="kw">pub fn </span>fuzz(u: <span class="kw-2">&amp;mut </span>Unstructured) -&gt; eyre::Result&lt;()&gt; {
     <span class="kw">let </span>config = Config {
@@ -130,38 +105,15 @@
 
 <span class="attr">#[cfg(test)]
 </span><span class="kw">mod </span>tests {
-    <span class="kw">use </span>arbtest::arbtest;
-    <span class="kw">use </span>std::time::Duration;
 
-    <span class="kw">use </span><span class="kw">crate</span>::targets::tests::{seed_from_env, should_ignore_on_ci};
-
-    <span class="doccomment">/// `cargo fuzz` takes a long time to ramp up the complexity.
-    /// This test catches crash bugs much faster.
-    ///
-    /// Run it with for example:
-    /// ```ignore
+    <span class="doccomment">/// ```ignore
     /// NOIR_ARBTEST_SEED=0x6819c61400001000 \
     /// NOIR_AST_FUZZER_SHOW_AST=1 \
     /// cargo test -p noir_ast_fuzzer_fuzz acir_vs_brillig
     /// ```
     </span><span class="attr">#[test]
     </span><span class="kw">fn </span>fuzz_with_arbtest() {
-        <span class="kw">if </span>should_ignore_on_ci() {
-            <span class="kw">return</span>;
-        }
-        <span class="kw">let </span><span class="kw-2">mut </span>prop = arbtest(|u| {
-            <span class="kw">super</span>::fuzz(u).unwrap();
-            <span class="prelude-val">Ok</span>(())
-        })
-        .budget(Duration::from_secs(<span class="number">10</span>))
-        .size_min(<span class="number">1 </span>&lt;&lt; <span class="number">12</span>)
-        .size_max(<span class="number">1 </span>&lt;&lt; <span class="number">20</span>);
-
-        <span class="kw">if let </span><span class="prelude-val">Some</span>(seed) = seed_from_env() {
-            prop = prop.seed(seed);
-        }
-
-        prop.run();
+        <span class="kw">crate</span>::targets::tests::fuzz_with_arbtest(<span class="kw">super</span>::fuzz);
     }
 }
 </code></pre></div></section></main></body></html>

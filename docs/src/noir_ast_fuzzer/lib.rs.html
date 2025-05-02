@@ -110,10 +110,7 @@
 <a href="#109" id="109">109</a>
 <a href="#110" id="110">110</a>
 <a href="#111" id="111">111</a>
-<a href="#112" id="112">112</a>
-<a href="#113" id="113">113</a>
-<a href="#114" id="114">114</a>
-<a href="#115" id="115">115</a></pre></div><pre class="rust"><code><span class="kw">mod </span>abi;
+<a href="#112" id="112">112</a></pre></div><pre class="rust"><code><span class="kw">mod </span>abi;
 <span class="kw">pub mod </span>compare;
 <span class="kw">mod </span>input;
 <span class="kw">mod </span>program;
@@ -121,11 +118,8 @@
 <span class="kw">pub use </span>abi::program_abi;
 <span class="kw">pub use </span>input::arb_inputs;
 <span class="kw">use </span>program::freq::Freqs;
-<span class="kw">pub use </span>program::visitor::{visit_expr, visit_expr_mut};
-<span class="kw">pub use </span>program::{
-    DisplayAstAsNoir, DisplayAstAsNoirComptime, arb_program, arb_program_comptime,
-    change_all_functions_into_unconstrained,
-};
+<span class="kw">pub use </span>program::{DisplayAstAsNoir, DisplayAstAsNoirComptime, arb_program, arb_program_comptime};
+<span class="kw">pub use </span>program::{expr, rewrite, visitor};
 
 <span class="doccomment">/// AST generation configuration.
 </span><span class="attr">#[derive(Debug, Clone)]

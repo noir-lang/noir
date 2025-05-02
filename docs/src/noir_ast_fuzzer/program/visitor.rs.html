@@ -268,273 +268,367 @@
 <a href="#267" id="267">267</a>
 <a href="#268" id="268">268</a>
 <a href="#269" id="269">269</a>
-<a href="#270" id="270">270</a></pre></div><pre class="rust"><code><span class="kw">use </span>noirc_frontend::monomorphization::ast::{Expression, LValue, Literal};
+<a href="#270" id="270">270</a>
+<a href="#271" id="271">271</a>
+<a href="#272" id="272">272</a>
+<a href="#273" id="273">273</a>
+<a href="#274" id="274">274</a>
+<a href="#275" id="275">275</a>
+<a href="#276" id="276">276</a>
+<a href="#277" id="277">277</a>
+<a href="#278" id="278">278</a>
+<a href="#279" id="279">279</a>
+<a href="#280" id="280">280</a>
+<a href="#281" id="281">281</a>
+<a href="#282" id="282">282</a>
+<a href="#283" id="283">283</a>
+<a href="#284" id="284">284</a>
+<a href="#285" id="285">285</a>
+<a href="#286" id="286">286</a>
+<a href="#287" id="287">287</a>
+<a href="#288" id="288">288</a>
+<a href="#289" id="289">289</a>
+<a href="#290" id="290">290</a>
+<a href="#291" id="291">291</a>
+<a href="#292" id="292">292</a>
+<a href="#293" id="293">293</a>
+<a href="#294" id="294">294</a>
+<a href="#295" id="295">295</a>
+<a href="#296" id="296">296</a>
+<a href="#297" id="297">297</a>
+<a href="#298" id="298">298</a>
+<a href="#299" id="299">299</a>
+<a href="#300" id="300">300</a>
+<a href="#301" id="301">301</a>
+<a href="#302" id="302">302</a>
+<a href="#303" id="303">303</a>
+<a href="#304" id="304">304</a>
+<a href="#305" id="305">305</a>
+<a href="#306" id="306">306</a>
+<a href="#307" id="307">307</a>
+<a href="#308" id="308">308</a>
+<a href="#309" id="309">309</a>
+<a href="#310" id="310">310</a>
+<a href="#311" id="311">311</a>
+<a href="#312" id="312">312</a>
+<a href="#313" id="313">313</a>
+<a href="#314" id="314">314</a>
+<a href="#315" id="315">315</a>
+<a href="#316" id="316">316</a>
+<a href="#317" id="317">317</a></pre></div><pre class="rust"><code><span class="kw">use </span>noirc_frontend::monomorphization::ast::{Expression, LValue, Literal};
 
-<span class="doccomment">/// Visit for the contents of an [Expression] representing the AST.
+<span class="doccomment">/// Visit the contents of an [Expression] representing the AST.
 ///
 /// The `bool` returned indicates whether we want to visit the children
 /// of the visited expression.
 ///
 /// Gets mutable references so it can manipulate the expressions if needed.
-</span><span class="kw">pub fn </span>visit_expr_mut&lt;V&gt;(expr: <span class="kw-2">&amp;mut </span>Expression, visit: <span class="kw-2">&amp;mut </span>V)
+</span><span class="kw">pub fn </span>visit_expr_mut&lt;V&gt;(expr: <span class="kw-2">&amp;mut </span>Expression, v: <span class="kw-2">&amp;mut </span>V)
 <span class="kw">where
     </span>V: FnMut(<span class="kw-2">&amp;mut </span>Expression) -&gt; bool,
 {
-    <span class="kw">if </span>!visit(expr) {
-        <span class="kw">return</span>;
+    visit_expr_be_mut(expr, <span class="kw-2">&amp;mut </span>|e| (v(e), ()), <span class="kw-2">&amp;mut </span>|<span class="kw">_</span>, <span class="kw">_</span>| {});
+}
+
+<span class="doccomment">/// Visit for the contents of an [Expression] representing the AST,
+/// passing each to a _begin_ and _end_ function.
+///
+/// The `bool` returned from _begin_ indicates whether we want to
+/// visit the children of the visited expression.
+///
+/// Gets mutable references so it can manipulate the expressions if needed.
+///
+/// Compared to [visit_expr_mut], this version allows the caller to maintain
+/// scopes and context, facilitated by a _token_ passed between _begin_ and _end_.
+</span><span class="kw">pub fn </span>visit_expr_be_mut&lt;B, E, T&gt;(expr: <span class="kw-2">&amp;mut </span>Expression, b: <span class="kw-2">&amp;mut </span>B, e: <span class="kw-2">&amp;mut </span>E)
+<span class="kw">where
+    </span>B: FnMut(<span class="kw-2">&amp;mut </span>Expression) -&gt; (bool, T),
+    E: FnMut(<span class="kw-2">&amp;</span>Expression, T),
+{
+    <span class="kw">let </span>(go, token) = b(expr);
+    <span class="kw">if </span>!go {
+        <span class="kw">return </span>e(expr, token);
     }
     <span class="kw">match </span>expr {
         Expression::Ident(<span class="kw">_</span>) =&gt; {}
         Expression::Literal(literal) =&gt; <span class="kw">match </span>literal {
             Literal::Array(array_literal) =&gt; {
                 <span class="kw">for </span>expr <span class="kw">in </span>array_literal.contents.iter_mut() {
-                    visit_expr_mut(expr, visit);
+                    visit_expr_be_mut(expr, b, e);
                 }
             }
             Literal::Slice(array_literal) =&gt; {
                 <span class="kw">for </span>expr <span class="kw">in </span>array_literal.contents.iter_mut() {
-                    visit_expr_mut(expr, visit);
+                    visit_expr_be_mut(expr, b, e);
                 }
             }
             Literal::Integer(<span class="kw">_</span>, <span class="kw">_</span>, <span class="kw">_</span>) | Literal::Bool(<span class="kw">_</span>) | Literal::Unit | Literal::Str(<span class="kw">_</span>) =&gt; {}
             Literal::FmtStr(<span class="kw">_</span>, <span class="kw">_</span>, expr) =&gt; {
-                visit_expr_mut(expr, visit);
+                visit_expr_be_mut(expr, b, e);
             }
         },
         Expression::Block(exprs) =&gt; {
             <span class="kw">for </span>expr <span class="kw">in </span>exprs.iter_mut() {
-                visit_expr_mut(expr, visit);
+                visit_expr_be_mut(expr, b, e);
             }
         }
         Expression::Unary(unary) =&gt; {
-            visit_expr_mut(<span class="kw-2">&amp;mut </span>unary.rhs, visit);
+            visit_expr_be_mut(<span class="kw-2">&amp;mut </span>unary.rhs, b, e);
         }
         Expression::Binary(binary) =&gt; {
-            visit_expr_mut(<span class="kw-2">&amp;mut </span>binary.lhs, visit);
-            visit_expr_mut(<span class="kw-2">&amp;mut </span>binary.rhs, visit);
+            visit_expr_be_mut(<span class="kw-2">&amp;mut </span>binary.lhs, b, e);
+            visit_expr_be_mut(<span class="kw-2">&amp;mut </span>binary.rhs, b, e);
         }
         Expression::Index(index) =&gt; {
-            visit_expr_mut(<span class="kw-2">&amp;mut </span>index.collection, visit);
-            visit_expr_mut(<span class="kw-2">&amp;mut </span>index.index, visit);
+            visit_expr_be_mut(<span class="kw-2">&amp;mut </span>index.collection, b, e);
+            visit_expr_be_mut(<span class="kw-2">&amp;mut </span>index.index, b, e);
         }
         Expression::Cast(cast) =&gt; {
-            visit_expr_mut(<span class="kw-2">&amp;mut </span>cast.lhs, visit);
+            visit_expr_be_mut(<span class="kw-2">&amp;mut </span>cast.lhs, b, e);
         }
         Expression::For(for_) =&gt; {
-            visit_expr_mut(<span class="kw-2">&amp;mut </span>for_.start_range, visit);
-            visit_expr_mut(<span class="kw-2">&amp;mut </span>for_.end_range, visit);
-            visit_expr_mut(<span class="kw-2">&amp;mut </span>for_.block, visit);
+            visit_expr_be_mut(<span class="kw-2">&amp;mut </span>for_.start_range, b, e);
+            visit_expr_be_mut(<span class="kw-2">&amp;mut </span>for_.end_range, b, e);
+            visit_expr_be_mut(<span class="kw-2">&amp;mut </span>for_.block, b, e);
         }
         Expression::Loop(expr) =&gt; {
-            visit_expr_mut(expr, visit);
+            visit_expr_be_mut(expr, b, e);
         }
         Expression::While(while_) =&gt; {
-            visit_expr_mut(<span class="kw-2">&amp;mut </span>while_.condition, visit);
-            visit_expr_mut(<span class="kw-2">&amp;mut </span>while_.body, visit);
+            visit_expr_be_mut(<span class="kw-2">&amp;mut </span>while_.condition, b, e);
+            visit_expr_be_mut(<span class="kw-2">&amp;mut </span>while_.body, b, e);
         }
         Expression::If(if_) =&gt; {
-            visit_expr_mut(<span class="kw-2">&amp;mut </span>if_.condition, visit);
-            visit_expr_mut(<span class="kw-2">&amp;mut </span>if_.consequence, visit);
+            visit_expr_be_mut(<span class="kw-2">&amp;mut </span>if_.condition, b, e);
+            visit_expr_be_mut(<span class="kw-2">&amp;mut </span>if_.consequence, b, e);
             <span class="kw">if let </span><span class="prelude-val">Some</span>(<span class="kw-2">ref mut </span>alternative) = if_.alternative {
-                visit_expr_mut(alternative, visit);
+                visit_expr_be_mut(alternative, b, e);
             }
         }
         Expression::Match(match_) =&gt; {
             <span class="kw">for </span>case <span class="kw">in </span>match_.cases.iter_mut() {
-                visit_expr_mut(<span class="kw-2">&amp;mut </span>case.branch, visit);
+                visit_expr_be_mut(<span class="kw-2">&amp;mut </span>case.branch, b, e);
             }
             <span class="kw">if let </span><span class="prelude-val">Some</span>(<span class="kw-2">ref mut </span>case) = match_.default_case {
-                visit_expr_mut(case, visit);
+                visit_expr_be_mut(case, b, e);
             }
         }
         Expression::Tuple(exprs) =&gt; {
             <span class="kw">for </span>expr <span class="kw">in </span>exprs.iter_mut() {
-                visit_expr_mut(expr, visit);
+                visit_expr_be_mut(expr, b, e);
             }
         }
         Expression::ExtractTupleField(expr, <span class="kw">_</span>) =&gt; {
-            visit_expr_mut(expr, visit);
+            visit_expr_be_mut(expr, b, e);
         }
         Expression::Call(call) =&gt; {
-            visit_expr_mut(<span class="kw-2">&amp;mut </span>call.func, visit);
+            visit_expr_be_mut(<span class="kw-2">&amp;mut </span>call.func, b, e);
             <span class="kw">for </span>arg <span class="kw">in </span>call.arguments.iter_mut() {
-                visit_expr_mut(arg, visit);
+                visit_expr_be_mut(arg, b, e);
             }
         }
         Expression::Let(let_) =&gt; {
-            visit_expr_mut(<span class="kw-2">&amp;mut </span>let_.expression, visit);
+            visit_expr_be_mut(<span class="kw-2">&amp;mut </span>let_.expression, b, e);
         }
         Expression::Constrain(expr, <span class="kw">_</span>, <span class="kw">_</span>) =&gt; {
-            visit_expr_mut(expr, visit);
+            visit_expr_be_mut(expr, b, e);
         }
         Expression::Assign(assign) =&gt; {
-            visit_lvalue_mut(<span class="kw-2">&amp;mut </span>assign.lvalue, visit);
-            visit_expr_mut(<span class="kw-2">&amp;mut </span>assign.expression, visit);
+            visit_lvalue_mut(<span class="kw-2">&amp;mut </span>assign.lvalue, b, e);
+            visit_expr_be_mut(<span class="kw-2">&amp;mut </span>assign.expression, b, e);
         }
         Expression::Semi(expr) =&gt; {
-            visit_expr_mut(expr, visit);
+            visit_expr_be_mut(expr, b, e);
         }
         Expression::Clone(expr) =&gt; {
-            visit_expr_mut(expr, visit);
+            visit_expr_be_mut(expr, b, e);
         }
         Expression::Drop(expr) =&gt; {
-            visit_expr_mut(expr, visit);
+            visit_expr_be_mut(expr, b, e);
         }
         Expression::Break =&gt; {}
         Expression::Continue =&gt; {}
     }
+
+    e(expr, token);
 }
 
-<span class="kw">fn </span>visit_lvalue_mut&lt;V&gt;(lvalue: <span class="kw-2">&amp;mut </span>LValue, visit: <span class="kw-2">&amp;mut </span>V)
+<span class="kw">fn </span>visit_lvalue_mut&lt;B, E, T&gt;(lvalue: <span class="kw-2">&amp;mut </span>LValue, b: <span class="kw-2">&amp;mut </span>B, e: <span class="kw-2">&amp;mut </span>E)
 <span class="kw">where
-    </span>V: FnMut(<span class="kw-2">&amp;mut </span>Expression) -&gt; bool,
+    </span>B: FnMut(<span class="kw-2">&amp;mut </span>Expression) -&gt; (bool, T),
+    E: FnMut(<span class="kw-2">&amp;</span>Expression, T),
 {
     <span class="kw">match </span>lvalue {
         LValue::Ident(<span class="kw">_</span>) =&gt; {}
         LValue::Index { array, index, .. } =&gt; {
-            visit_lvalue_mut(array.as_mut(), visit);
-            visit_expr_mut(index.as_mut(), visit);
+            visit_lvalue_mut(array.as_mut(), b, e);
+            visit_expr_be_mut(index.as_mut(), b, e);
         }
         LValue::MemberAccess { object, .. } =&gt; {
-            visit_lvalue_mut(object.as_mut(), visit);
+            visit_lvalue_mut(object.as_mut(), b, e);
         }
         LValue::Dereference { reference, .. } =&gt; {
-            visit_lvalue_mut(reference.as_mut(), visit);
+            visit_lvalue_mut(reference.as_mut(), b, e);
         }
     }
 }
 
-<span class="doccomment">/// Visit for the contents of an [Expression] representing the AST.
+<span class="doccomment">/// Visit the contents of an [Expression] representing the AST.
 ///
 /// The `bool` returned indicates whether we want to visit the children
 /// of the visited expression.
 ///
-/// This is a read-only version, for cases where we don't have/need
-/// a mutable reference to the AST.
-</span><span class="kw">pub fn </span>visit_expr&lt;V&gt;(expr: <span class="kw-2">&amp;</span>Expression, visit: <span class="kw-2">&amp;mut </span>V)
+/// This is a read-only version of [visit_expr_mut], for cases where
+/// we don't have/need a mutable reference to the AST.
+</span><span class="kw">pub fn </span>visit_expr&lt;V&gt;(expr: <span class="kw-2">&amp;</span>Expression, v: <span class="kw-2">&amp;mut </span>V)
 <span class="kw">where
     </span>V: FnMut(<span class="kw-2">&amp;</span>Expression) -&gt; bool,
 {
-    <span class="kw">if </span>!visit(expr) {
-        <span class="kw">return</span>;
+    visit_expr_be(expr, <span class="kw-2">&amp;mut </span>|e| (v(e), ()), <span class="kw-2">&amp;mut </span>|<span class="kw">_</span>, <span class="kw">_</span>| {})
+}
+
+<span class="doccomment">/// Visit the contents of an [Expression] representing the AST,
+/// passing them to a _begin_ and _end_ function.
+///
+/// The `bool` returned by _begin_ indicates whether we want to
+/// visit the children of the visited expression.
+///
+/// This is a read-only version [visit_expr_be_mut], for cases where
+/// we don't have/need a mutable reference to the AST.
+///
+/// Compared to [visit_expr], this version allows the caller to maintain
+/// scopes and context, facilitated by a _token_ passed between _begin_ and _end_.
+</span><span class="kw">pub fn </span>visit_expr_be&lt;B, E, T&gt;(expr: <span class="kw-2">&amp;</span>Expression, b: <span class="kw-2">&amp;mut </span>B, e: <span class="kw-2">&amp;mut </span>E)
+<span class="kw">where
+    </span>B: FnMut(<span class="kw-2">&amp;</span>Expression) -&gt; (bool, T),
+    E: FnMut(<span class="kw-2">&amp;</span>Expression, T),
+{
+    <span class="kw">let </span>(go, token) = b(expr);
+
+    <span class="kw">if </span>!go {
+        <span class="kw">return </span>e(expr, token);
     }
+
     <span class="kw">match </span>expr {
         Expression::Ident(<span class="kw">_</span>) =&gt; {}
         Expression::Literal(literal) =&gt; <span class="kw">match </span>literal {
             Literal::Array(array_literal) =&gt; {
                 <span class="kw">for </span>expr <span class="kw">in </span><span class="kw-2">&amp;</span>array_literal.contents {
-                    visit_expr(expr, visit);
+                    visit_expr_be(expr, b, e);
                 }
             }
             Literal::Slice(array_literal) =&gt; {
                 <span class="kw">for </span>expr <span class="kw">in </span><span class="kw-2">&amp;</span>array_literal.contents {
-                    visit_expr(expr, visit);
+                    visit_expr_be(expr, b, e);
                 }
             }
             Literal::Integer(<span class="kw">_</span>, <span class="kw">_</span>, <span class="kw">_</span>) | Literal::Bool(<span class="kw">_</span>) | Literal::Unit | Literal::Str(<span class="kw">_</span>) =&gt; {}
             Literal::FmtStr(<span class="kw">_</span>, <span class="kw">_</span>, expr) =&gt; {
-                visit_expr(expr, visit);
+                visit_expr_be(expr, b, e);
             }
         },
         Expression::Block(exprs) =&gt; {
             <span class="kw">for </span>expr <span class="kw">in </span>exprs {
-                visit_expr(expr, visit);
+                visit_expr_be(expr, b, e);
             }
         }
         Expression::Unary(unary) =&gt; {
-            visit_expr(<span class="kw-2">&amp;</span>unary.rhs, visit);
+            visit_expr_be(<span class="kw-2">&amp;</span>unary.rhs, b, e);
         }
         Expression::Binary(binary) =&gt; {
-            visit_expr(<span class="kw-2">&amp;</span>binary.lhs, visit);
-            visit_expr(<span class="kw-2">&amp;</span>binary.rhs, visit);
+            visit_expr_be(<span class="kw-2">&amp;</span>binary.lhs, b, e);
+            visit_expr_be(<span class="kw-2">&amp;</span>binary.rhs, b, e);
         }
         Expression::Index(index) =&gt; {
-            visit_expr(<span class="kw-2">&amp;</span>index.collection, visit);
-            visit_expr(<span class="kw-2">&amp;</span>index.index, visit);
+            visit_expr_be(<span class="kw-2">&amp;</span>index.collection, b, e);
+            visit_expr_be(<span class="kw-2">&amp;</span>index.index, b, e);
         }
         Expression::Cast(cast) =&gt; {
-            visit_expr(<span class="kw-2">&amp;</span>cast.lhs, visit);
+            visit_expr_be(<span class="kw-2">&amp;</span>cast.lhs, b, e);
         }
         Expression::For(for_) =&gt; {
-            visit_expr(<span class="kw-2">&amp;</span>for_.start_range, visit);
-            visit_expr(<span class="kw-2">&amp;</span>for_.end_range, visit);
-            visit_expr(<span class="kw-2">&amp;</span>for_.block, visit);
+            visit_expr_be(<span class="kw-2">&amp;</span>for_.start_range, b, e);
+            visit_expr_be(<span class="kw-2">&amp;</span>for_.end_range, b, e);
+            visit_expr_be(<span class="kw-2">&amp;</span>for_.block, b, e);
         }
         Expression::Loop(expr) =&gt; {
-            visit_expr(expr, visit);
+            visit_expr_be(expr, b, e);
         }
         Expression::While(while_) =&gt; {
-            visit_expr(<span class="kw-2">&amp;</span>while_.condition, visit);
-            visit_expr(<span class="kw-2">&amp;</span>while_.body, visit);
+            visit_expr_be(<span class="kw-2">&amp;</span>while_.condition, b, e);
+            visit_expr_be(<span class="kw-2">&amp;</span>while_.body, b, e);
         }
         Expression::If(if_) =&gt; {
-            visit_expr(<span class="kw-2">&amp;</span>if_.condition, visit);
-            visit_expr(<span class="kw-2">&amp;</span>if_.consequence, visit);
+            visit_expr_be(<span class="kw-2">&amp;</span>if_.condition, b, e);
+            visit_expr_be(<span class="kw-2">&amp;</span>if_.consequence, b, e);
             <span class="kw">if let </span><span class="prelude-val">Some</span>(<span class="kw-2">ref </span>alternative) = if_.alternative {
-                visit_expr(alternative, visit);
+                visit_expr_be(alternative, b, e);
             }
         }
         Expression::Match(match_) =&gt; {
             <span class="kw">for </span>case <span class="kw">in </span><span class="kw-2">&amp;</span>match_.cases {
-                visit_expr(<span class="kw-2">&amp;</span>case.branch, visit);
+                visit_expr_be(<span class="kw-2">&amp;</span>case.branch, b, e);
             }
             <span class="kw">if let </span><span class="prelude-val">Some</span>(<span class="kw-2">ref </span>case) = match_.default_case {
-                visit_expr(case, visit);
+                visit_expr_be(case, b, e);
             }
         }
         Expression::Tuple(exprs) =&gt; {
             <span class="kw">for </span>expr <span class="kw">in </span>exprs {
-                visit_expr(expr, visit);
+                visit_expr_be(expr, b, e);
             }
         }
         Expression::ExtractTupleField(expr, <span class="kw">_</span>) =&gt; {
-            visit_expr(expr, visit);
+            visit_expr_be(expr, b, e);
         }
         Expression::Call(call) =&gt; {
-            visit_expr(<span class="kw-2">&amp;</span>call.func, visit);
+            visit_expr_be(<span class="kw-2">&amp;</span>call.func, b, e);
             <span class="kw">for </span>arg <span class="kw">in </span><span class="kw-2">&amp;</span>call.arguments {
-                visit_expr(arg, visit);
+                visit_expr_be(arg, b, e);
             }
         }
         Expression::Let(let_) =&gt; {
-            visit_expr(<span class="kw-2">&amp;</span>let_.expression, visit);
+            visit_expr_be(<span class="kw-2">&amp;</span>let_.expression, b, e);
         }
         Expression::Constrain(expr, <span class="kw">_</span>, <span class="kw">_</span>) =&gt; {
-            visit_expr(expr, visit);
+            visit_expr_be(expr, b, e);
         }
         Expression::Assign(assign) =&gt; {
-            visit_lvalue(<span class="kw-2">&amp;</span>assign.lvalue, visit);
-            visit_expr(<span class="kw-2">&amp;</span>assign.expression, visit);
+            visit_lvalue(<span class="kw-2">&amp;</span>assign.lvalue, b, e);
+            visit_expr_be(<span class="kw-2">&amp;</span>assign.expression, b, e);
         }
         Expression::Semi(expr) =&gt; {
-            visit_expr(expr, visit);
+            visit_expr_be(expr, b, e);
         }
         Expression::Clone(expr) =&gt; {
-            visit_expr(expr, visit);
+            visit_expr_be(expr, b, e);
         }
         Expression::Drop(expr) =&gt; {
-            visit_expr(expr, visit);
+            visit_expr_be(expr, b, e);
         }
         Expression::Break =&gt; {}
         Expression::Continue =&gt; {}
     }
+
+    e(expr, token)
 }
 
-<span class="kw">fn </span>visit_lvalue&lt;V&gt;(lvalue: <span class="kw-2">&amp;</span>LValue, visit: <span class="kw-2">&amp;mut </span>V)
+<span class="kw">fn </span>visit_lvalue&lt;B, E, T&gt;(lvalue: <span class="kw-2">&amp;</span>LValue, b: <span class="kw-2">&amp;mut </span>B, e: <span class="kw-2">&amp;mut </span>E)
 <span class="kw">where
-    </span>V: FnMut(<span class="kw-2">&amp;</span>Expression) -&gt; bool,
+    </span>B: FnMut(<span class="kw-2">&amp;</span>Expression) -&gt; (bool, T),
+    E: FnMut(<span class="kw-2">&amp;</span>Expression, T),
 {
     <span class="kw">match </span>lvalue {
         LValue::Ident(<span class="kw">_</span>) =&gt; {}
         LValue::Index { array, index, .. } =&gt; {
-            visit_lvalue(array.as_ref(), visit);
-            visit_expr(index.as_ref(), visit);
+            visit_lvalue(array.as_ref(), b, e);
+            visit_expr_be(index.as_ref(), b, e);
         }
         LValue::MemberAccess { object, .. } =&gt; {
-            visit_lvalue(object.as_ref(), visit);
+            visit_lvalue(object.as_ref(), b, e);
         }
         LValue::Dereference { reference, .. } =&gt; {
-            visit_lvalue(reference.as_ref(), visit);
+            visit_lvalue(reference.as_ref(), b, e);
         }
     }
 }

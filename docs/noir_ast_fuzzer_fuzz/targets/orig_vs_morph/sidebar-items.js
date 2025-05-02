@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"fn":["estimate_applicable_rules","fuzz","reachable_functions","rewrite_function","rewrite_program"],"mod":["rules"],"struct":["MorphContext"]};

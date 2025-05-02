@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"enum":["CompareResult"],"struct":["CompareArtifact","CompareOptions","CompareSsa","ExecOutput"],"trait":["HasPrograms"],"type":["CompareMutants","ComparePasses","ExecResult"]};
+window.SIDEBAR_ITEMS = {"enum":["CompareResult"],"struct":["CompareArtifact","CompareOptions","CompareSsa","ExecOutput"],"trait":["HasPrograms"],"type":["CompareMorph","ComparePasses","ExecResult"]};

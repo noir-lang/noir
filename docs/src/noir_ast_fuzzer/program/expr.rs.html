@@ -413,15 +413,88 @@
 <a href="#412" id="412">412</a>
 <a href="#413" id="413">413</a>
 <a href="#414" id="414">414</a>
-<a href="#415" id="415">415</a></pre></div><pre class="rust"><code><span class="kw">use </span>acir::FieldElement;
+<a href="#415" id="415">415</a>
+<a href="#416" id="416">416</a>
+<a href="#417" id="417">417</a>
+<a href="#418" id="418">418</a>
+<a href="#419" id="419">419</a>
+<a href="#420" id="420">420</a>
+<a href="#421" id="421">421</a>
+<a href="#422" id="422">422</a>
+<a href="#423" id="423">423</a>
+<a href="#424" id="424">424</a>
+<a href="#425" id="425">425</a>
+<a href="#426" id="426">426</a>
+<a href="#427" id="427">427</a>
+<a href="#428" id="428">428</a>
+<a href="#429" id="429">429</a>
+<a href="#430" id="430">430</a>
+<a href="#431" id="431">431</a>
+<a href="#432" id="432">432</a>
+<a href="#433" id="433">433</a>
+<a href="#434" id="434">434</a>
+<a href="#435" id="435">435</a>
+<a href="#436" id="436">436</a>
+<a href="#437" id="437">437</a>
+<a href="#438" id="438">438</a>
+<a href="#439" id="439">439</a>
+<a href="#440" id="440">440</a>
+<a href="#441" id="441">441</a>
+<a href="#442" id="442">442</a>
+<a href="#443" id="443">443</a>
+<a href="#444" id="444">444</a>
+<a href="#445" id="445">445</a>
+<a href="#446" id="446">446</a>
+<a href="#447" id="447">447</a>
+<a href="#448" id="448">448</a>
+<a href="#449" id="449">449</a>
+<a href="#450" id="450">450</a>
+<a href="#451" id="451">451</a>
+<a href="#452" id="452">452</a>
+<a href="#453" id="453">453</a>
+<a href="#454" id="454">454</a>
+<a href="#455" id="455">455</a>
+<a href="#456" id="456">456</a>
+<a href="#457" id="457">457</a>
+<a href="#458" id="458">458</a>
+<a href="#459" id="459">459</a>
+<a href="#460" id="460">460</a>
+<a href="#461" id="461">461</a>
+<a href="#462" id="462">462</a>
+<a href="#463" id="463">463</a>
+<a href="#464" id="464">464</a>
+<a href="#465" id="465">465</a>
+<a href="#466" id="466">466</a>
+<a href="#467" id="467">467</a>
+<a href="#468" id="468">468</a>
+<a href="#469" id="469">469</a>
+<a href="#470" id="470">470</a>
+<a href="#471" id="471">471</a>
+<a href="#472" id="472">472</a>
+<a href="#473" id="473">473</a>
+<a href="#474" id="474">474</a>
+<a href="#475" id="475">475</a>
+<a href="#476" id="476">476</a>
+<a href="#477" id="477">477</a>
+<a href="#478" id="478">478</a>
+<a href="#479" id="479">479</a>
+<a href="#480" id="480">480</a>
+<a href="#481" id="481">481</a>
+<a href="#482" id="482">482</a>
+<a href="#483" id="483">483</a>
+<a href="#484" id="484">484</a>
+<a href="#485" id="485">485</a>
+<a href="#486" id="486">486</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::collections::HashSet;
+
+<span class="kw">use </span>acir::FieldElement;
 <span class="kw">use </span>nargo::errors::Location;
 
 <span class="kw">use </span>arbitrary::{Arbitrary, Unstructured};
 <span class="kw">use </span>noirc_frontend::{
     ast::{BinaryOpKind, IntegerBitSize, UnaryOp},
     monomorphization::ast::{
-        ArrayLiteral, Assign, Binary, BinaryOp, Cast, Definition, Expression, Ident, IdentId, If,
-        LValue, Let, Literal, LocalId, Type, Unary,
+        ArrayLiteral, Assign, Binary, BinaryOp, Cast, Definition, Expression, FuncId, Ident,
+        IdentId, If, LValue, Let, Literal, LocalId, Type, Unary,
     },
     signed_field::SignedField,
 };
@@ -429,7 +502,7 @@
 <span class="kw">use super</span>::{Name, VariableId, types, visitor::visit_expr};
 
 <span class="doccomment">/// Generate a literal expression according to a type.
-</span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>gen_literal(u: <span class="kw-2">&amp;mut </span>Unstructured, typ: <span class="kw-2">&amp;</span>Type) -&gt; arbitrary::Result&lt;Expression&gt; {
+</span><span class="kw">pub fn </span>gen_literal(u: <span class="kw-2">&amp;mut </span>Unstructured, typ: <span class="kw-2">&amp;</span>Type) -&gt; arbitrary::Result&lt;Expression&gt; {
     <span class="kw">use </span>FieldElement <span class="kw">as </span>Field;
     <span class="kw">use </span>IntegerBitSize::<span class="kw-2">*</span>;
 
@@ -513,7 +586,7 @@
 <span class="doccomment">/// Generate a literals for loop ranges with signed/unsigned integers with bits 8, 16, 32 or 64 bits,
 /// in a way that start is not higher than the end, and the maximum difference between them is limited,
 /// so that we don't get huge unrolled loops.
-</span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>gen_range(
+</span><span class="kw">pub fn </span>gen_range(
     u: <span class="kw-2">&amp;mut </span>Unstructured,
     typ: <span class="kw-2">&amp;</span>Type,
     max_size: usize,
@@ -645,7 +718,7 @@
 }
 
 <span class="doccomment">/// Integer literal, can be positive or negative depending on type.
-</span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>int_literal&lt;V&gt;(value: V, is_negative: bool, typ: Type) -&gt; Expression
+</span><span class="kw">pub fn </span>int_literal&lt;V&gt;(value: V, is_negative: bool, typ: Type) -&gt; Expression
 <span class="kw">where
     </span>FieldElement: From&lt;V&gt;,
 {
@@ -657,17 +730,17 @@
 }
 
 <span class="doccomment">/// 32-bit unsigned int literal, used in indexing arrays.
-</span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>u32_literal(value: u32) -&gt; Expression {
+</span><span class="kw">pub fn </span>u32_literal(value: u32) -&gt; Expression {
     int_literal(value, <span class="bool-val">false</span>, types::U32)
 }
 
 <span class="doccomment">/// Create a variable.
-</span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>let_var(id: LocalId, mutable: bool, name: String, expr: Expression) -&gt; Expression {
+</span><span class="kw">pub fn </span>let_var(id: LocalId, mutable: bool, name: String, expr: Expression) -&gt; Expression {
     Expression::Let(Let { id, mutable, name, expression: Box::new(expr) })
 }
 
 <span class="doccomment">/// Create an `if` expression, with an optional `else`.
-</span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>if_then(
+</span><span class="kw">pub fn </span>if_then(
     condition: Expression,
     consequence: Expression,
     alternative: <span class="prelude-ty">Option</span>&lt;Expression&gt;,
@@ -682,7 +755,7 @@
 }
 
 <span class="doccomment">/// Make an if/else expression.
-</span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>if_else(
+</span><span class="kw">pub fn </span>if_else(
     condition: Expression,
     consequence: Expression,
     alternative: Expression,
@@ -692,12 +765,12 @@
 }
 
 <span class="doccomment">/// Assign a value to an identifier.
-</span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>assign_ident(ident: Ident, expr: Expression) -&gt; Expression {
+</span><span class="kw">pub fn </span>assign_ident(ident: Ident, expr: Expression) -&gt; Expression {
     Expression::Assign(Assign { lvalue: LValue::Ident(ident), expression: Box::new(expr) })
 }
 
 <span class="doccomment">/// Assign a value to a mutable reference.
-</span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>assign_ref(ident: Ident, expr: Expression) -&gt; Expression {
+</span><span class="kw">pub fn </span>assign_ref(ident: Ident, expr: Expression) -&gt; Expression {
     <span class="kw">let </span>typ = ident.typ.clone();
     <span class="kw">let </span>lvalue = LValue::Ident(ident);
     <span class="kw">let </span>lvalue = LValue::Dereference { reference: Box::new(lvalue), element_type: typ };
@@ -705,43 +778,43 @@
 }
 
 <span class="doccomment">/// Cast an expression to a target type.
-</span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>cast(lhs: Expression, tgt_type: Type) -&gt; Expression {
+</span><span class="kw">pub fn </span>cast(lhs: Expression, tgt_type: Type) -&gt; Expression {
     Expression::Cast(Cast { lhs: Box::new(lhs), r#type: tgt_type, location: Location::dummy() })
 }
 
 <span class="doccomment">/// Take an integer expression and make sure it fits in an expected `len`
 /// by taking a modulo.
-</span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>index_modulo(idx: Expression, len: u32) -&gt; Expression {
+</span><span class="kw">pub fn </span>index_modulo(idx: Expression, len: u32) -&gt; Expression {
     modulo(idx, u32_literal(len))
 }
 
 <span class="doccomment">/// Take an integer expression and make sure it's no larger than `max_size`.
-</span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>range_modulo(lhs: Expression, typ: Type, max_size: usize) -&gt; Expression {
+</span><span class="kw">pub fn </span>range_modulo(lhs: Expression, typ: Type, max_size: usize) -&gt; Expression {
     modulo(lhs, int_literal(max_size <span class="kw">as </span>u64, <span class="bool-val">false</span>, typ))
 }
 
 <span class="doccomment">/// Make a modulo expression.
-</span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>modulo(lhs: Expression, rhs: Expression) -&gt; Expression {
+</span><span class="kw">pub fn </span>modulo(lhs: Expression, rhs: Expression) -&gt; Expression {
     binary(lhs, BinaryOpKind::Modulo, rhs)
 }
 
 <span class="doccomment">/// Make an `==` expression.
-</span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>equal(lhs: Expression, rhs: Expression) -&gt; Expression {
+</span><span class="kw">pub fn </span>equal(lhs: Expression, rhs: Expression) -&gt; Expression {
     binary(lhs, BinaryOpKind::Equal, rhs)
 }
 
 <span class="doccomment">/// Dereference an expression into a target type
-</span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>deref(rhs: Expression, tgt_type: Type) -&gt; Expression {
+</span><span class="kw">pub fn </span>deref(rhs: Expression, tgt_type: Type) -&gt; Expression {
     unary(UnaryOp::Dereference { implicitly_added: <span class="bool-val">false </span>}, rhs, tgt_type)
 }
 
 <span class="doccomment">/// Reference an expression as a target type
-</span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>ref_mut(rhs: Expression, tgt_type: Type) -&gt; Expression {
+</span><span class="kw">pub fn </span>ref_mut(rhs: Expression, tgt_type: Type) -&gt; Expression {
     unary(UnaryOp::Reference { mutable: <span class="bool-val">true </span>}, rhs, tgt_type)
 }
 
 <span class="doccomment">/// Make a unary expression.
-</span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>unary(op: UnaryOp, rhs: Expression, tgt_type: Type) -&gt; Expression {
+</span><span class="kw">pub fn </span>unary(op: UnaryOp, rhs: Expression, tgt_type: Type) -&gt; Expression {
     Expression::Unary(Unary {
         operator: op,
         rhs: Box::new(rhs),
@@ -751,7 +824,7 @@
 }
 
 <span class="doccomment">/// Make a binary expression.
-</span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>binary(lhs: Expression, op: BinaryOp, rhs: Expression) -&gt; Expression {
+</span><span class="kw">pub fn </span>binary(lhs: Expression, op: BinaryOp, rhs: Expression) -&gt; Expression {
     Expression::Binary(Binary {
         lhs: Box::new(lhs),
         operator: op,
@@ -761,21 +834,42 @@
 }
 
 <span class="doccomment">/// Check if an `Expression` contains any `Call` in any of its descendants.
-</span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>has_call(expr: <span class="kw-2">&amp;</span>Expression) -&gt; bool {
-    <span class="kw">let </span><span class="kw-2">mut </span>has_call = <span class="bool-val">false</span>;
+</span><span class="kw">pub fn </span>has_call(expr: <span class="kw-2">&amp;</span>Expression) -&gt; bool {
+    exists(expr, |expr| <span class="macro">matches!</span>(expr, Expression::Call(<span class="kw">_</span>)))
+}
+
+<span class="doccomment">/// Check if an `Expression` or any of its descendants match a predicate.
+</span><span class="kw">pub fn </span>exists(expr: <span class="kw-2">&amp;</span>Expression, pred: <span class="kw">impl </span>Fn(<span class="kw-2">&amp;</span>Expression) -&gt; bool) -&gt; bool {
+    <span class="kw">let </span><span class="kw-2">mut </span>exists = <span class="bool-val">false</span>;
     visit_expr(expr, <span class="kw-2">&amp;mut </span>|expr| {
-        has_call |= <span class="macro">matches!</span>(expr, Expression::Call(<span class="kw">_</span>));
-        <span class="comment">// Once we know there is a call, we can stop visiting more nodes.
-        </span>!has_call
+        exists |= pred(expr);
+        <span class="comment">// Once we know there is a match, we can stop visiting more nodes.
+        </span>!exists
     });
-    has_call
+    exists
+}
+
+<span class="doccomment">/// Collect all the functions called in the expression and its descendants.
+</span><span class="kw">pub fn </span>callees(expr: <span class="kw-2">&amp;</span>Expression) -&gt; HashSet&lt;FuncId&gt; {
+    <span class="kw">let </span><span class="kw-2">mut </span>callees = HashSet::default();
+    visit_expr(expr, <span class="kw-2">&amp;mut </span>|expr| {
+        <span class="kw">if let </span>Expression::Call(call) = expr {
+            <span class="kw">if let </span>Expression::Ident(ident) = call.func.as_ref() {
+                <span class="kw">if let </span>Definition::Function(func_id) = ident.definition {
+                    callees.insert(func_id);
+                }
+            }
+        }
+        <span class="bool-val">true
+    </span>});
+    callees
 }
 
 <span class="doccomment">/// Prepend an expression to a destination.
 ///
 /// If the destination is a `Block`, it gets prepended with a new statement,
 /// otherwise it's turned into a `Block` first.
-</span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>prepend(dst: <span class="kw-2">&amp;mut </span>Expression, expr: Expression) {
+</span><span class="kw">pub fn </span>prepend(dst: <span class="kw-2">&amp;mut </span>Expression, expr: Expression) {
     <span class="kw">if </span>!<span class="macro">matches!</span>(dst, Expression::Block(<span class="kw">_</span>)) {
         <span class="kw">let </span><span class="kw-2">mut </span>tmp = Expression::Block(<span class="macro">vec!</span>[]);
         std::mem::swap(dst, <span class="kw-2">&amp;mut </span>tmp);
@@ -793,7 +887,7 @@
 }
 
 <span class="doccomment">/// Replace an expression with another one, passing its current value to a function.
-</span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>replace(dst: <span class="kw-2">&amp;mut </span>Expression, f: <span class="kw">impl </span>FnOnce(Expression) -&gt; Expression) {
+</span><span class="kw">pub fn </span>replace(dst: <span class="kw-2">&amp;mut </span>Expression, f: <span class="kw">impl </span>FnOnce(Expression) -&gt; Expression) {
     <span class="kw">let </span><span class="kw-2">mut </span>tmp = Expression::Break;
     std::mem::swap(dst, <span class="kw-2">&amp;mut </span>tmp);
     <span class="kw-2">*</span>dst = f(tmp);
@@ -803,7 +897,7 @@
 ///
 /// Panics if `block` is not `Expression::Block`.
 </span><span class="attr">#[allow(dead_code)]
-</span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>extend_block(block: Expression, statements: Vec&lt;Expression&gt;) -&gt; Expression {
+</span><span class="kw">pub fn </span>extend_block(block: Expression, statements: Vec&lt;Expression&gt;) -&gt; Expression {
     <span class="kw">let </span>Expression::Block(<span class="kw-2">mut </span>block_stmts) = block <span class="kw">else </span>{
         <span class="macro">unreachable!</span>(<span class="string">"attempted to append statements to a non-block expression: {}"</span>, block)
     };
@@ -817,7 +911,7 @@
 ///
 /// Panics if `block` is not `Expression::Block`. Consider [prepend] which doesn't.
 </span><span class="attr">#[allow(dead_code)]
-</span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>prepend_block(block: Expression, statements: Vec&lt;Expression&gt;) -&gt; Expression {
+</span><span class="kw">pub fn </span>prepend_block(block: Expression, statements: Vec&lt;Expression&gt;) -&gt; Expression {
     <span class="kw">let </span>Expression::Block(block_stmts) = block <span class="kw">else </span>{
         <span class="macro">unreachable!</span>(<span class="string">"attempted to prepend statements to a non-block expression: {}"</span>, block)
     };
@@ -827,5 +921,53 @@
     result_statements.extend(block_stmts);
 
     Expression::Block(result_statements)
+}
+
+<span class="doccomment">/// The return type of an expression, if it has an obvious one.
+</span><span class="kw">pub fn </span>return_type(expr: <span class="kw-2">&amp;</span>Expression) -&gt; <span class="prelude-ty">Option</span>&lt;<span class="kw-2">&amp;</span>Type&gt; {
+    <span class="kw">match </span>expr {
+        Expression::Ident(ident) =&gt; <span class="prelude-val">Some</span>(<span class="kw-2">&amp;</span>ident.typ),
+        Expression::Literal(literal) =&gt; <span class="kw">match </span>literal {
+            Literal::Array(literal) | Literal::Slice(literal) =&gt; <span class="prelude-val">Some</span>(<span class="kw-2">&amp;</span>literal.typ),
+            Literal::Integer(<span class="kw">_</span>, typ, <span class="kw">_</span>) =&gt; <span class="prelude-val">Some</span>(typ),
+            Literal::Bool(<span class="kw">_</span>) =&gt; <span class="prelude-val">Some</span>(<span class="kw-2">&amp;</span>Type::Bool),
+            Literal::Unit =&gt; <span class="prelude-val">Some</span>(<span class="kw-2">&amp;</span>Type::Unit),
+            Literal::Str(<span class="kw">_</span>) =&gt; <span class="prelude-val">None</span>, <span class="comment">// Need to return owned type for this.
+            </span>Literal::FmtStr(<span class="kw">_</span>, <span class="kw">_</span>, <span class="kw">_</span>) =&gt; <span class="prelude-val">None</span>,
+        },
+        Expression::Block(xs) =&gt; xs.last().and_then(return_type),
+        Expression::Unary(unary) =&gt; <span class="prelude-val">Some</span>(<span class="kw-2">&amp;</span>unary.result_type),
+        Expression::Binary(binary) =&gt; {
+            <span class="kw">if </span>binary.operator.is_comparator() {
+                <span class="prelude-val">Some</span>(<span class="kw-2">&amp;</span>Type::Bool)
+            } <span class="kw">else </span>{
+                return_type(<span class="kw-2">&amp;</span>binary.lhs)
+            }
+        }
+        Expression::Index(index) =&gt; <span class="prelude-val">Some</span>(<span class="kw-2">&amp;</span>index.element_type),
+        Expression::Cast(cast) =&gt; <span class="prelude-val">Some</span>(<span class="kw-2">&amp;</span>cast.r#type),
+        Expression::If(if_) =&gt; <span class="prelude-val">Some</span>(<span class="kw-2">&amp;</span>if_.typ),
+        Expression::ExtractTupleField(x, idx) =&gt; <span class="kw">match </span>x.as_ref() {
+            Expression::Tuple(xs) <span class="kw">if </span>xs.len() &gt; <span class="kw-2">*</span>idx =&gt; return_type(<span class="kw-2">&amp;</span>xs[<span class="kw-2">*</span>idx]),
+            <span class="kw">_ </span>=&gt; <span class="prelude-val">None</span>, <span class="comment">// Maybe something else that returns a tuple.
+        </span>},
+        Expression::Clone(x) =&gt; return_type(x),
+        Expression::Call(call) =&gt; <span class="prelude-val">Some</span>(<span class="kw-2">&amp;</span>call.return_type),
+
+        Expression::Tuple(<span class="kw">_</span>) =&gt; <span class="prelude-val">None</span>, <span class="comment">// Need to return an owned types for this.
+
+        </span>Expression::Match(<span class="kw">_</span>) =&gt; <span class="prelude-val">None</span>, <span class="comment">// TODO #7926
+
+        </span>Expression::For(<span class="kw">_</span>)
+        | Expression::Loop(<span class="kw">_</span>)
+        | Expression::While(<span class="kw">_</span>)
+        | Expression::Let(<span class="kw">_</span>)
+        | Expression::Constrain(<span class="kw">_</span>, <span class="kw">_</span>, <span class="kw">_</span>)
+        | Expression::Assign(<span class="kw">_</span>)
+        | Expression::Semi(<span class="kw">_</span>)
+        | Expression::Drop(<span class="kw">_</span>)
+        | Expression::Break
+        | Expression::Continue =&gt; <span class="prelude-val">None</span>,
+    }
 }
 </code></pre></div></section></main></body></html>

@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"fn":["change_all_functions_into_unconstrained"]};

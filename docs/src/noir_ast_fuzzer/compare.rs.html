@@ -387,7 +387,7 @@
             CompareResult::BothPassed(o1, o2) =&gt; {
                 <span class="kw">if </span>o1.return_value != o2.return_value {
                     <span class="macro">bail!</span>(
-                        <span class="string">"programs disagree on return value: {:?} != {:?}"</span>,
+                        <span class="string">"programs disagree on return value:\n{:?}\n!=\n{:?}"</span>,
                         o1.return_value,
                         o2.return_value
                     )
@@ -418,7 +418,7 @@
 
         <span class="kw">match </span>(ee1, ee2) {
             (AssertionFailed(p1, <span class="kw">_</span>, <span class="kw">_</span>), AssertionFailed(p2, <span class="kw">_</span>, <span class="kw">_</span>)) =&gt; p1 == p2,
-            (SolvingError(s1, <span class="kw">_</span>), SolvingError(s2, <span class="kw">_</span>)) =&gt; s1 == s2,
+            (SolvingError(s1, <span class="kw">_</span>), SolvingError(s2, <span class="kw">_</span>)) =&gt; <span class="macro">format!</span>(<span class="string">"{s1}"</span>) == <span class="macro">format!</span>(<span class="string">"{s2}"</span>),
             (SolvingError(s, <span class="kw">_</span>), AssertionFailed(p, <span class="kw">_</span>, <span class="kw">_</span>))
             | (AssertionFailed(p, <span class="kw">_</span>, <span class="kw">_</span>), SolvingError(s, <span class="kw">_</span>)) =&gt; <span class="kw">match </span>(s, p) {
                 (
@@ -520,10 +520,10 @@
 }
 
 <span class="doccomment">/// Compare two equivalent variants of the same program, compiled the same way.
-</span><span class="kw">pub type </span>CompareMutants = CompareSsa&lt;(Program, Program)&gt;;
+</span><span class="kw">pub type </span>CompareMorph = CompareSsa&lt;(Program, Program)&gt;;
 
-<span class="kw">impl </span>CompareMutants {
-    <span class="doccomment">/// Generate a random AST, a random mutation of it, then compile both into SSA with the same options.
+<span class="kw">impl </span>CompareMorph {
+    <span class="doccomment">/// Generate a random AST, a random metamorph of it, then compile both into SSA with the same options.
     </span><span class="kw">pub fn </span>arb(
         u: <span class="kw-2">&amp;mut </span>Unstructured,
         c: Config,
@@ -561,7 +561,7 @@
     }
 }
 
-<span class="kw">impl </span>HasPrograms <span class="kw">for </span>CompareMutants {
+<span class="kw">impl </span>HasPrograms <span class="kw">for </span>CompareMorph {
     <span class="kw">fn </span>programs(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; Vec&lt;<span class="kw-2">&amp;</span>Program&gt; {
         <span class="macro">vec!</span>[<span class="kw-2">&amp;</span><span class="self">self</span>.program.<span class="number">0</span>, <span class="kw-2">&amp;</span><span class="self">self</span>.program.<span class="number">1</span>]
     }

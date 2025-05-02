@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"fn":["all","bool_or_self","bool_rule_matches","bool_xor_rand","bool_xor_self","num_plus_minus_zero"],"struct":["Context","Rule"],"type":["MatchFn","RewriteFn"]};
