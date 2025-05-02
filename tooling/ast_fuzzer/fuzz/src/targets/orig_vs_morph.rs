@@ -25,7 +25,7 @@ pub fn fuzz(u: &mut Unstructured) -> eyre::Result<()> {
         config,
         |u, mut program| {
             let options = CompareOptions::arbitrary(u)?;
-            rewrite_program(u, &mut program, &rules.as_slice(), max_rewrites);
+            rewrite_program(u, &mut program, &rules, max_rewrites);
             Ok((program, options))
         },
         |program, options| create_ssa_or_die(program, &options.onto(default_ssa_options()), None),
