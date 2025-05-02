@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1746201432253,
+  "lastUpdate": 1746211165700,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -18051,48 +18051,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "aakoshh@gmail.com",
-            "name": "Akosh Farkash",
-            "username": "aakoshh"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "7976865a58cff5cd5abe70bec41dfbf967909dae",
-          "message": "chore: Don't use `i1` in the AST fuzzer (#8204)",
-          "timestamp": "2025-04-24T14:46:35Z",
-          "tree_id": "b95a782cef93b13d6e9c94b9e43b530cffeced7f",
-          "url": "https://github.com/noir-lang/noir/commit/7976865a58cff5cd5abe70bec41dfbf967909dae"
-        },
-        "date": 1745507271773,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 267667,
-            "range": "± 1270",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 237768,
-            "range": "± 2778",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 3216897,
-            "range": "± 6436",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "15848336+TomAFrench@users.noreply.github.com",
             "name": "Tom French",
             "username": "TomAFrench"
@@ -20144,6 +20102,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 3595521,
             "range": "± 10215",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "jfecher11@gmail.com",
+            "name": "jfecher",
+            "username": "jfecher"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "b2d3a42c638536ad982ebdea0dbe2ac63e5f6e8b",
+          "message": "chore: Replace all SSA interpreter panics with error variants (#8311)\n\nCo-authored-by: Jake Fecher <jake@aztecprotocol.com>",
+          "timestamp": "2025-05-02T18:21:00Z",
+          "tree_id": "f197b26281030251f2b3157e75ba4b5933c976dd",
+          "url": "https://github.com/noir-lang/noir/commit/b2d3a42c638536ad982ebdea0dbe2ac63e5f6e8b"
+        },
+        "date": 1746211158421,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 253193,
+            "range": "± 974",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 225564,
+            "range": "± 3796",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 3571807,
+            "range": "± 10305",
             "unit": "ns/iter"
           }
         ]
