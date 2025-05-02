@@ -3,6 +3,7 @@
 mod tests {
     // Some of these imports are consumed by the injected tests
     use assert_cmd::prelude::*;
+    use insta::assert_snapshot;
     use insta::internals::Redaction;
     use noirc_artifacts::contract::ContractArtifact;
     use noirc_artifacts::program::ProgramArtifact;
@@ -362,6 +363,15 @@ mod tests {
         let expanded_code = nargo.output().unwrap();
         let expanded_code: String = String::from_utf8(expanded_code.stdout).unwrap();
 
+        let test_name = test_program_dir.file_name().unwrap().to_string_lossy().to_string();
+        insta::with_settings!(
+        {
+            snapshot_path => format!("./snapshots/expand/execution_success/{test_name}")
+        },
+        {
+            insta::assert_snapshot!(expanded_code)
+        });
+
         // Create a new directory where we'll put the expanded code
         let temp_dir = tempfile::tempdir().unwrap().into_path();
 
@@ -397,7 +407,7 @@ mod tests {
         assert_eq!(original_output, expanded_output);
     }
 
-    fn nargo_expand_compile(test_program_dir: PathBuf) {
+    fn nargo_expand_compile(test_program_dir: PathBuf, prefix: &'static str) {
         let mut nargo = Command::cargo_bin("nargo").unwrap();
         nargo.arg("--program-dir").arg(test_program_dir.clone());
         nargo.arg("expand").arg("--force").arg("--disable-comptime-printing");
@@ -412,6 +422,15 @@ mod tests {
 
         let expanded_code = nargo.output().unwrap();
         let expanded_code: String = String::from_utf8(expanded_code.stdout).unwrap();
+
+        let test_name = test_program_dir.file_name().unwrap().to_string_lossy().to_string();
+        insta::with_settings!(
+        {
+            snapshot_path => format!("./snapshots/expand/{prefix}/{test_name}")
+        },
+        {
+            insta::assert_snapshot!(expanded_code)
+        });
 
         // Create a new directory where we'll put the expanded code
         let temp_dir = tempfile::tempdir().unwrap().into_path();
