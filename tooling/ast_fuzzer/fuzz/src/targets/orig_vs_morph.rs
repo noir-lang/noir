@@ -20,7 +20,7 @@ pub fn fuzz(u: &mut Unstructured) -> eyre::Result<()> {
         Config::default(),
         |u, mut program| {
             let options = CompareOptions::arbitrary(u)?;
-            rewrite_program(u, &mut program, &rules.as_slice()[1..], max_rewrites);
+            rewrite_program(u, &mut program, &rules.as_slice(), max_rewrites);
             Ok((program, options))
         },
         |program, options| create_ssa_or_die(program, &options.onto(default_ssa_options()), None),
@@ -249,7 +249,7 @@ mod rules {
 
     /// Construct all rules that we can apply on a program.
     pub fn all() -> Vec<Rule> {
-        vec![num_plus_minus_zero(), bool_or_self()]
+        vec![num_plus_minus_zero(), bool_or_self(), bool_xor_self(), bool_xor_rand()]
     }
 
     /// Transform any numeric value `x` into `x +/- 0`.
@@ -264,6 +264,7 @@ mod rules {
                 if ctx.is_in_ref_mut {
                     return false;
                 }
+                // We could apply this rule on anything that returns a number.
                 match expr {
                     Expression::Ident(ident) => {
                         matches!(ident.typ, Type::Field | Type::Integer(_, _))
@@ -271,6 +272,7 @@ mod rules {
                     Expression::Literal(literal) => {
                         matches!(literal, Literal::Integer(_, _, _))
                     }
+                    Exp
                     _ => false,
                 }
             },
@@ -301,6 +303,35 @@ mod rules {
                 if ctx.is_in_ref_mut {
                     return false;
                 }
+                // We could apply this rule on anything that returns a bool,
+                // unless it calls a function, which could have side effects.
+                match expr {
+                    Expression::Ident(ident) => {
+                        matches!(ident.typ, Type::Bool)
+                    }
+                    Expression::Literal(literal) => {
+                        matches!(literal, Literal::Bool(_))
+                    }
+                    _ => false,
+                }
+            },
+            |_u, expr| {
+                expr::replace(expr, |expr| expr::binary(expr.clone(), BinaryOpKind::Or, expr));
+                Ok(())
+            },
+        )
+    }
+
+    /// Transform boolean value `x` into `x ^ x ^ x`.
+    pub fn bool_xor_self() -> Rule {
+        Rule::new(
+            |ctx, expr| {
+                // If we rewrite `&mut x` into `&mut (x | x)` we will alter the semantics.
+                if ctx.is_in_ref_mut {
+                    return false;
+                }
+                // We could apply this rule on anything that returns a bool,
+                // unless it calls a function, which could have side effects.
                 match expr {
                     Expression::Ident(ident) => {
                         matches!(ident.typ, Type::Bool)
@@ -313,7 +344,40 @@ mod rules {
             },
             |_u, expr| {
                 expr::replace(expr, |expr| {
-                    expr::binary(expr.clone(), BinaryOpKind::Or, expr.clone())
+                    let rhs = expr::binary(expr.clone(), BinaryOpKind::Xor, expr.clone());
+                    expr::binary(expr, BinaryOpKind::Xor, rhs)
+                });
+                Ok(())
+            },
+        )
+    }
+
+    /// Transform boolean value `x` into `rnd ^ x ^ rnd`.
+    pub fn bool_xor_rand() -> Rule {
+        Rule::new(
+            |ctx, expr| {
+                // If we rewrite `&mut x` into `&mut (x | x)` we will alter the semantics.
+                if ctx.is_in_ref_mut {
+                    return false;
+                }
+                // We could apply this rule on anything that returns a bool,
+                // unless it calls a function, which could have side effects.
+                match expr {
+                    Expression::Ident(ident) => {
+                        matches!(ident.typ, Type::Bool)
+                    }
+                    Expression::Literal(literal) => {
+                        matches!(literal, Literal::Bool(_))
+                    }
+                    _ => false,
+                }
+            },
+            |u, expr| {
+                // This is where we could access the scope to look for a random bool variable.
+                let rnd = expr::gen_literal(u, &Type::Bool)?;
+                expr::replace(expr, |expr| {
+                    let rhs = expr::binary(expr, BinaryOpKind::Xor, rnd.clone());
+                    expr::binary(rnd, BinaryOpKind::Xor, rhs)
                 });
                 Ok(())
             },
