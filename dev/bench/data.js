@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1746211766474,
+  "lastUpdate": 1746219444248,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -18056,48 +18056,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "15848336+TomAFrench@users.noreply.github.com",
-            "name": "Tom French",
-            "username": "TomAFrench"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "de5e2150ee9572e996a59c80a7ddfe35af715b1e",
-          "message": "chore: bump more dependencies (#8208)",
-          "timestamp": "2025-04-24T15:28:02Z",
-          "tree_id": "f6097ceff9930ca7c4a244e30ff0d7e742bd1ee7",
-          "url": "https://github.com/noir-lang/noir/commit/de5e2150ee9572e996a59c80a7ddfe35af715b1e"
-        },
-        "date": 1745509638917,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 275709,
-            "range": "± 832",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 245725,
-            "range": "± 9097",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 3257360,
-            "range": "± 18014",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "aakoshh@gmail.com",
             "name": "Akosh Farkash",
             "username": "aakoshh"
@@ -20149,6 +20107,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 3571807,
             "range": "± 10305",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "mvezenov@gmail.com",
+            "name": "Maxim Vezenov",
+            "username": "vezenovm"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "b8d04d6f1c5dd0bd304df970bf433f5fa60d826a",
+          "message": "fix(ownership): Clone global arrays  (#8328)",
+          "timestamp": "2025-05-02T20:38:57Z",
+          "tree_id": "b5dd1c3082af4cc48d0d466e2db4cadbbaaa18c5",
+          "url": "https://github.com/noir-lang/noir/commit/b8d04d6f1c5dd0bd304df970bf433f5fa60d826a"
+        },
+        "date": 1746219436508,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 252735,
+            "range": "± 1142",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 226364,
+            "range": "± 1423",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 3589027,
+            "range": "± 16557",
             "unit": "ns/iter"
           }
         ]
