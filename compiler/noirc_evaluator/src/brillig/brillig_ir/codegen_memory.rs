@@ -406,16 +406,6 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
         self.initialize_rc(array.pointer, 1);
     }
 
-    /// Initializes a constant array, allocating memory to store its representation and initializing the reference counter.
-    /// Brillig array's are copy on write (CoW), but we use reference counters to optimize CoW.
-    /// A reference count of one indicates to array set instructions that we can mutate the array directly.
-    /// However, some arrays such as globals should always be constant and their pointer should never be mutated.
-    /// Thus, we can if we know an array should never be mutated we can initialize it with a reference count greater than one.
-    pub(crate) fn codegen_initialize_constant_array(&mut self, array: BrilligArray) {
-        self.codegen_allocate_immediate_mem(array.pointer, array.size + 1);
-        self.initialize_rc(array.pointer, 2);
-    }
-
     /// Initialize the reference counter for an array or vector.
     /// This should only be used internally in the array and vector initialization methods
     fn initialize_rc(&mut self, pointer: MemoryAddress, rc_value: usize) {
@@ -426,42 +416,12 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
         );
     }
 
-    /// Initializes a vector, allocating memory to store its representation and initializing the reference counter, size and capacity.
-    /// It sets the reference counter to `1` to indicate it is mutable.
-    ///
-    /// This is the standard initialization used for most local or temporary vectors.
-    /// If the vector should be treated as constant (e.g., a global), use
-    /// [BrilligContext::codegen_initialize_constant_vector] instead.
+    /// Initializes a vector, allocating memory to store its representation and initializing the reference counter
     pub(crate) fn codegen_initialize_vector(
         &mut self,
         vector: BrilligVector,
         size: SingleAddrVariable,
-        capacity: Option<SingleAddrVariable>,
-    ) {
-        self.codegen_initialize_vector_with_rc(vector, size, capacity, 1);
-    }
-
-    /// Initializes a constant vector, allocating memory to store its representation and initializing the reference counter, size and capacity.
-    /// The only difference between this method and [BrilligContext::codegen_initialize_vector] is that the reference counter here
-    /// will be initialized to `2`. See [BrilligContext::codegen_initialize_constant_array] for more information.
-    pub(crate) fn codegen_initialize_constant_vector(
-        &mut self,
-        vector: BrilligVector,
-        size: SingleAddrVariable,
-        capacity: Option<SingleAddrVariable>,
-    ) {
-        self.codegen_initialize_vector_with_rc(vector, size, capacity, 2);
-    }
-
-    /// Internal helper that generalizes vector initialization by accepting a reference
-    /// counter value (`rc_value`). Used by both [mutable][BrilligContext::codegen_initialize_vector] and
-    /// [constant][BrilligContext::codegen_initialize_constant_vector] vector initializers.
-    fn codegen_initialize_vector_with_rc(
-        &mut self,
-        vector: BrilligVector,
-        size: SingleAddrVariable,
         capacity: Option<SingleAddrVariable>, // Defaults to size if None
-        rc_value: usize,
     ) {
         let allocation_size = self.allocate_register();
         // Allocation size = capacity + 3 (rc, size, capacity)
@@ -474,19 +434,18 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
         self.codegen_allocate_mem(vector.pointer, allocation_size);
         self.deallocate_register(allocation_size);
 
-        self.codegen_initialize_vector_metadata_with_rc(vector, size, capacity, rc_value);
+        self.codegen_initialize_vector_metadata(vector, size, capacity);
     }
 
     /// Writes vector metadata (reference count, size, and capacity) into the allocated memory
-    pub(super) fn codegen_initialize_vector_metadata_with_rc(
+    pub(super) fn codegen_initialize_vector_metadata(
         &mut self,
         vector: BrilligVector,
         size: SingleAddrVariable,
         capacity: Option<SingleAddrVariable>,
-        rc_value: usize,
     ) {
         // Write RC
-        self.initialize_rc(vector.pointer, rc_value);
+        self.initialize_rc(vector.pointer, 1);
 
         // Write size
         let write_pointer = self.allocate_register();

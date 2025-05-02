@@ -91,11 +91,10 @@ pub(super) fn compile_vector_pop_front_procedure<F: AcirField + DebugToString>(
                 source_capacity.address,
                 BrilligBinaryOp::Sub,
             );
-            brillig_context.codegen_initialize_vector_metadata_with_rc(
+            brillig_context.codegen_initialize_vector_metadata(
                 target_vector,
                 target_size,
                 Some(source_capacity),
-                1,
             );
         } else {
             brillig_context.codegen_initialize_vector(target_vector, target_size, None);

@@ -997,23 +997,13 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
                     // Initialize the variable
                     match new_variable {
                         BrilligVariable::BrilligArray(brillig_array) => {
-                            if self.building_globals {
-                                self.brillig_context
-                                    .codegen_initialize_constant_array(brillig_array);
-                            } else {
-                                self.brillig_context.codegen_initialize_array(brillig_array);
-                            }
+                            self.brillig_context.codegen_initialize_array(brillig_array);
                         }
                         BrilligVariable::BrilligVector(vector) => {
                             let size = self
                                 .brillig_context
                                 .make_usize_constant_instruction(array.len().into());
-                            if self.building_globals {
-                                self.brillig_context
-                                    .codegen_initialize_constant_vector(vector, size, None);
-                            } else {
-                                self.brillig_context.codegen_initialize_vector(vector, size, None);
-                            }
+                            self.brillig_context.codegen_initialize_vector(vector, size, None);
                             self.brillig_context.deallocate_single_addr(size);
                         }
                         _ => unreachable!(
