@@ -15,9 +15,14 @@ use noirc_frontend::monomorphization::ast::{Expression, FuncId, Function, Progra
 pub fn fuzz(u: &mut Unstructured) -> eyre::Result<()> {
     let rules = rules::all();
     let max_rewrites = 10;
+    let config = Config {
+        avoid_negative_int_literals: true,
+        avoid_large_int_literals: true,
+        ..Default::default()
+    };
     let inputs = CompareMorph::arb(
         u,
-        Config::default(),
+        config,
         |u, mut program| {
             let options = CompareOptions::arbitrary(u)?;
             rewrite_program(u, &mut program, &rules.as_slice(), max_rewrites);
