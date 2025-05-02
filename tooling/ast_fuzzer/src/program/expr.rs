@@ -349,13 +349,18 @@ pub fn binary(lhs: Expression, op: BinaryOp, rhs: Expression) -> Expression {
 
 /// Check if an `Expression` contains any `Call` in any of its descendants.
 pub fn has_call(expr: &Expression) -> bool {
-    let mut has_call = false;
+    exists(expr, |expr| matches!(expr, Expression::Call(_)))
+}
+
+/// Check if an `Expression` or any of its descendants match a predicate.
+pub fn exists(expr: &Expression, pred: impl Fn(&Expression) -> bool) -> bool {
+    let mut exists = false;
     visit_expr(expr, &mut |expr| {
-        has_call |= matches!(expr, Expression::Call(_));
-        // Once we know there is a call, we can stop visiting more nodes.
-        !has_call
+        exists |= pred(expr);
+        // Once we know there is a match, we can stop visiting more nodes.
+        !exists
     });
-    has_call
+    exists
 }
 
 /// Collect all the functions called in the expression and its descendants.

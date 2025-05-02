@@ -200,7 +200,7 @@ mod rules {
     use noir_ast_fuzzer::expr;
     use noirc_frontend::{
         ast::BinaryOpKind,
-        monomorphization::ast::{Expression, Literal, Type},
+        monomorphization::ast::{Expression, Type},
     };
 
     #[derive(Clone, Debug, Default)]
@@ -290,93 +290,60 @@ mod rules {
         )
     }
 
+    /// Common match condition for boolean rules.
+    fn bool_rule_matches(ctx: &Context, expr: &Expression) -> bool {
+        // If we rewrite `&mut x` into `&mut (x | x)` we will alter the semantics.
+        if ctx.is_in_ref_mut {
+            return false;
+        }
+        // We can apply boolean rule on anything that returns a bool,
+        // unless the expression can have a side effect, which we don't want to duplicate.
+        if let Some(typ) = expr::return_type(expr) {
+            matches!(typ, Type::Bool)
+                && !expr::exists(expr, |expr| {
+                    matches!(
+                        expr,
+                        Expression::Call(_) // Functions can have side effects, maybe mutating some reference
+                            | Expression::Assign(_) // Assignment to a mutable variable could double up effects
+                            | Expression::Let(_) // Creating a variable needs a new ID
+                            | Expression::Block(_) // Applying logical operations on blocks would look odd
+                    )
+                })
+        } else {
+            false
+        }
+    }
+
     /// Transform boolean value `x` into `x | x`.
     pub fn bool_or_self() -> Rule {
-        Rule::new(
-            |ctx, expr| {
-                // If we rewrite `&mut x` into `&mut (x | x)` we will alter the semantics.
-                if ctx.is_in_ref_mut {
-                    return false;
-                }
-                // We could apply this rule on anything that returns a bool,
-                // unless it calls a function, which could have side effects.
-                match expr {
-                    Expression::Ident(ident) => {
-                        matches!(ident.typ, Type::Bool)
-                    }
-                    Expression::Literal(literal) => {
-                        matches!(literal, Literal::Bool(_))
-                    }
-                    _ => false,
-                }
-            },
-            |_u, expr| {
-                expr::replace(expr, |expr| expr::binary(expr.clone(), BinaryOpKind::Or, expr));
-                Ok(())
-            },
-        )
+        Rule::new(bool_rule_matches, |_u, expr| {
+            expr::replace(expr, |expr| expr::binary(expr.clone(), BinaryOpKind::Or, expr));
+            Ok(())
+        })
     }
 
     /// Transform boolean value `x` into `x ^ x ^ x`.
     pub fn bool_xor_self() -> Rule {
-        Rule::new(
-            |ctx, expr| {
-                // If we rewrite `&mut x` into `&mut (x | x)` we will alter the semantics.
-                if ctx.is_in_ref_mut {
-                    return false;
-                }
-                // We could apply this rule on anything that returns a bool,
-                // unless it calls a function, which could have side effects.
-                match expr {
-                    Expression::Ident(ident) => {
-                        matches!(ident.typ, Type::Bool)
-                    }
-                    Expression::Literal(literal) => {
-                        matches!(literal, Literal::Bool(_))
-                    }
-                    _ => false,
-                }
-            },
-            |_u, expr| {
-                expr::replace(expr, |expr| {
-                    let rhs = expr::binary(expr.clone(), BinaryOpKind::Xor, expr.clone());
-                    expr::binary(expr, BinaryOpKind::Xor, rhs)
-                });
-                Ok(())
-            },
-        )
+        Rule::new(bool_rule_matches, |_u, expr| {
+            expr::replace(expr, |expr| {
+                let rhs = expr::binary(expr.clone(), BinaryOpKind::Xor, expr.clone());
+                expr::binary(expr, BinaryOpKind::Xor, rhs)
+            });
+            Ok(())
+        })
     }
 
     /// Transform boolean value `x` into `rnd ^ x ^ rnd`.
     pub fn bool_xor_rand() -> Rule {
-        Rule::new(
-            |ctx, expr| {
-                // If we rewrite `&mut x` into `&mut (x | x)` we will alter the semantics.
-                if ctx.is_in_ref_mut {
-                    return false;
-                }
-                // We could apply this rule on anything that returns a bool,
-                // unless it calls a function, which could have side effects.
-                match expr {
-                    Expression::Ident(ident) => {
-                        matches!(ident.typ, Type::Bool)
-                    }
-                    Expression::Literal(literal) => {
-                        matches!(literal, Literal::Bool(_))
-                    }
-                    _ => false,
-                }
-            },
-            |u, expr| {
-                // This is where we could access the scope to look for a random bool variable.
-                let rnd = expr::gen_literal(u, &Type::Bool)?;
-                expr::replace(expr, |expr| {
-                    let rhs = expr::binary(expr, BinaryOpKind::Xor, rnd.clone());
-                    expr::binary(rnd, BinaryOpKind::Xor, rhs)
-                });
-                Ok(())
-            },
-        )
+        Rule::new(bool_rule_matches, |u, expr| {
+            // This is where we could access the scope to look for a random bool variable.
+            let rnd = expr::gen_literal(u, &Type::Bool)?;
+            expr::replace(expr, |expr| {
+                let rhs = expr::binary(expr, BinaryOpKind::Xor, rnd.clone());
+                expr::binary(rnd, BinaryOpKind::Xor, rhs)
+            });
+            Ok(())
+        })
     }
 }
 
