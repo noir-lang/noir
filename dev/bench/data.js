@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1746198154282,
+  "lastUpdate": 1746198451893,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -8155,70 +8155,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "15848336+TomAFrench@users.noreply.github.com",
-            "name": "Tom French",
-            "username": "TomAFrench"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "cd6b6f450ebeea965800e082dcffab2a627c03f7",
-          "message": "chore: bump cargo deps (#8205)",
-          "timestamp": "2025-04-24T14:26:27Z",
-          "tree_id": "274803034ac0cc4bea40ec5dfff4bdbc840fb89d",
-          "url": "https://github.com/noir-lang/noir/commit/cd6b6f450ebeea965800e082dcffab2a627c03f7"
-        },
-        "date": 1745506975590,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 0.028,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 0.162,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 0.017,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 0.336,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 0.216,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 11,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 0.004,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-root",
-            "value": 0.013,
-            "unit": "s"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "aakoshh@gmail.com",
             "name": "Akosh Farkash",
             "username": "aakoshh"
@@ -11333,6 +11269,70 @@ window.BENCHMARK_DATA = {
           {
             "name": "rollup-base-public",
             "value": 0.211,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 11.5,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 0.004,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-root",
+            "value": 0.013,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "asterite@gmail.com",
+            "name": "Ary Borenszweig",
+            "username": "asterite"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "af202d7a635beaa57efa7f044623fb68be737c38",
+          "message": "fix: fix some Display implementations for AST nodes (#8316)",
+          "timestamp": "2025-05-02T14:43:14Z",
+          "tree_id": "3c228959851adebfe0d7402424d5091aa413a00c",
+          "url": "https://github.com/noir-lang/noir/commit/af202d7a635beaa57efa7f044623fb68be737c38"
+        },
+        "date": 1746198444693,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 0.028,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 0.161,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 0.017,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 0.332,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 0.216,
             "unit": "s"
           },
           {
