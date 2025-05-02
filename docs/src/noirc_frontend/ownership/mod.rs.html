@@ -396,7 +396,9 @@
 <a href="#395" id="395">395</a>
 <a href="#396" id="396">396</a>
 <a href="#397" id="397">397</a>
-<a href="#398" id="398">398</a></pre></div><pre class="rust"><code><span class="doccomment">//! This module implements the "ownership analysis" compiler pass on the
+<a href="#398" id="398">398</a>
+<a href="#399" id="399">399</a>
+<a href="#400" id="400">400</a></pre></div><pre class="rust"><code><span class="doccomment">//! This module implements the "ownership analysis" compiler pass on the
 //! monomorphized AST. It is run after monomorphization and before SSA-gen.
 //! At this point the monomorphized AST has no polymorphic types and all functions
 //! are specialized into either constrained or unconstrained versions. This pass
@@ -602,13 +604,15 @@
 
     <span class="doccomment">/// Whenever an ident is used it is always cloned unless it is the last use of the ident (not in a loop).
     </span><span class="kw">fn </span>should_clone_ident(<span class="kw-2">&amp;</span><span class="self">self</span>, ident: <span class="kw-2">&amp;</span>Ident) -&gt; bool {
-        <span class="kw">if let </span>Definition::Local(local_id) = <span class="kw-2">&amp;</span>ident.definition {
-            <span class="kw">if </span>contains_array_or_str_type(<span class="kw-2">&amp;</span>ident.typ) &amp;&amp; !<span class="self">self</span>.should_move(<span class="kw-2">*</span>local_id, ident.id) {
-                <span class="kw">return </span><span class="bool-val">true</span>;
+        <span class="kw">match </span><span class="kw-2">&amp;</span>ident.definition {
+            Definition::Local(local_id) =&gt; {
+                contains_array_or_str_type(<span class="kw-2">&amp;</span>ident.typ) &amp;&amp; !<span class="self">self</span>.should_move(<span class="kw-2">*</span>local_id, ident.id)
             }
+            <span class="comment">// Globals are always cloned if they contain arrays
+            </span>Definition::Global(<span class="kw">_</span>) =&gt; contains_array_or_str_type(<span class="kw-2">&amp;</span>ident.typ),
+            <span class="kw">_ </span>=&gt; <span class="bool-val">false</span>,
         }
-        <span class="bool-val">false
-    </span>}
+    }
 
     <span class="kw">fn </span>handle_ident(<span class="kw-2">&amp;</span><span class="self">self</span>, expr: <span class="kw-2">&amp;mut </span>Expression) {
         <span class="kw">let </span>ident = <span class="kw">match </span>expr {

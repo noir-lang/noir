@@ -495,7 +495,10 @@
 <a href="#494" id="494">494</a>
 <a href="#495" id="495">495</a>
 <a href="#496" id="496">496</a>
-<a href="#497" id="497">497</a></pre></div><pre class="rust"><code><span class="kw">use </span>acvm::{
+<a href="#497" id="497">497</a>
+<a href="#498" id="498">498</a>
+<a href="#499" id="499">499</a>
+<a href="#500" id="500">500</a></pre></div><pre class="rust"><code><span class="kw">use </span>acvm::{
     AcirField,
     acir::brillig::{HeapArray, HeapVector, MemoryAddress, ValueOrArray},
 };
@@ -900,36 +903,17 @@
     <span class="doccomment">/// Initializes an array, allocating memory to store its representation and initializing the reference counter.
     </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>codegen_initialize_array(<span class="kw-2">&amp;mut </span><span class="self">self</span>, array: BrilligArray) {
         <span class="self">self</span>.codegen_allocate_immediate_mem(array.pointer, array.size + <span class="number">1</span>);
-        <span class="self">self</span>.indirect_const_instruction(
-            array.pointer,
-            BRILLIG_MEMORY_ADDRESSING_BIT_SIZE,
-            <span class="number">1_usize</span>.into(),
-        );
+        <span class="self">self</span>.initialize_rc(array.pointer, <span class="number">1</span>);
     }
 
-    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>codegen_initialize_vector_metadata(
-        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
-        vector: BrilligVector,
-        size: SingleAddrVariable,
-        capacity: <span class="prelude-ty">Option</span>&lt;SingleAddrVariable&gt;,
-    ) {
-        <span class="comment">// Write RC
-        </span><span class="self">self</span>.indirect_const_instruction(
-            vector.pointer,
+    <span class="doccomment">/// Initialize the reference counter for an array or vector.
+    /// This should only be used internally in the array and vector initialization methods
+    </span><span class="kw">fn </span>initialize_rc(<span class="kw-2">&amp;mut </span><span class="self">self</span>, pointer: MemoryAddress, rc_value: usize) {
+        <span class="self">self</span>.indirect_const_instruction(
+            pointer,
             BRILLIG_MEMORY_ADDRESSING_BIT_SIZE,
-            <span class="number">1_usize</span>.into(),
+            rc_value.into(),
         );
-
-        <span class="comment">// Write size
-        </span><span class="kw">let </span>write_pointer = <span class="self">self</span>.allocate_register();
-        <span class="self">self</span>.codegen_usize_op(vector.pointer, write_pointer, BrilligBinaryOp::Add, <span class="number">1</span>);
-        <span class="self">self</span>.store_instruction(write_pointer, size.address);
-
-        <span class="comment">// Write capacity
-        </span><span class="self">self</span>.codegen_usize_op_in_place(write_pointer, BrilligBinaryOp::Add, <span class="number">1</span>);
-        <span class="self">self</span>.store_instruction(write_pointer, capacity.unwrap_or(size).address);
-
-        <span class="self">self</span>.deallocate_register(write_pointer);
     }
 
     <span class="doccomment">/// Initializes a vector, allocating memory to store its representation and initializing the reference counter, size and capacity
@@ -951,6 +935,28 @@
         <span class="self">self</span>.deallocate_register(allocation_size);
 
         <span class="self">self</span>.codegen_initialize_vector_metadata(vector, size, capacity);
+    }
+
+    <span class="doccomment">/// Writes vector metadata (reference count, size, and capacity) into the allocated memory
+    </span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>codegen_initialize_vector_metadata(
+        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
+        vector: BrilligVector,
+        size: SingleAddrVariable,
+        capacity: <span class="prelude-ty">Option</span>&lt;SingleAddrVariable&gt;,
+    ) {
+        <span class="comment">// Write RC
+        </span><span class="self">self</span>.initialize_rc(vector.pointer, <span class="number">1</span>);
+
+        <span class="comment">// Write size
+        </span><span class="kw">let </span>write_pointer = <span class="self">self</span>.allocate_register();
+        <span class="self">self</span>.codegen_usize_op(vector.pointer, write_pointer, BrilligBinaryOp::Add, <span class="number">1</span>);
+        <span class="self">self</span>.store_instruction(write_pointer, size.address);
+
+        <span class="comment">// Write capacity
+        </span><span class="self">self</span>.codegen_usize_op_in_place(write_pointer, BrilligBinaryOp::Add, <span class="number">1</span>);
+        <span class="self">self</span>.store_instruction(write_pointer, capacity.unwrap_or(size).address);
+
+        <span class="self">self</span>.deallocate_register(write_pointer);
     }
 
     <span class="doccomment">/// We don't know the length of a vector returned externally before the call
