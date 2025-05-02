@@ -44,6 +44,7 @@ use crate::acir::GeneratedAcir;
 
 mod checks;
 pub mod function_builder;
+pub mod interpreter;
 pub mod ir;
 pub(crate) mod opt;
 #[cfg(test)]
@@ -328,6 +329,12 @@ pub fn primary_passes(options: &SsaEvaluatorOptions) -> Vec<SsaPass> {
     ssa_pass_builder.add_pass(
         Ssa::dead_instruction_elimination,
         "Dead Instruction Elimination",
+        vec![All, Debug],
+    );
+    // A function can be potentially unreachable post-DIE if all calls to that function were removed.
+    ssa_pass_builder.add_pass(
+        Ssa::remove_unreachable_functions,
+        "Removing Unreachable Functions",
         vec![All, Debug],
     );
     ssa_pass_builder.add_pass(Ssa::checked_to_unchecked, "Checked to unchecked", vec![All, Debug]);

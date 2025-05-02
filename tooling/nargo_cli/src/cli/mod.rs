@@ -2,12 +2,15 @@ use clap::{Args, Parser, Subcommand};
 use const_format::formatcp;
 use nargo::workspace::Workspace;
 use nargo_toml::{
-    ManifestError, PackageSelection, get_package_manifest, resolve_workspace_from_toml,
+    ManifestError, NargoToml, PackageConfig, PackageMetadata, PackageSelection,
+    get_package_manifest, resolve_workspace_from_fixed_toml, resolve_workspace_from_toml,
 };
 use noirc_driver::{CrateName, NOIR_ARTIFACT_VERSION_STRING};
 use std::{
+    collections::BTreeMap,
     fs::File,
     path::{Path, PathBuf},
+    str::FromStr,
 };
 
 use color_eyre::eyre;
@@ -19,6 +22,7 @@ mod compile_cmd;
 mod dap_cmd;
 mod debug_cmd;
 mod execute_cmd;
+mod expand_cmd;
 mod export_cmd;
 mod fmt_cmd;
 mod fmt_trace_cmd;
@@ -112,6 +116,7 @@ enum NargoCommand {
     Lsp(lsp_cmd::LspCommand),
     #[command(hide = true)]
     Dap(dap_cmd::DapCommand),
+    Expand(expand_cmd::ExpandCommand),
     GenerateCompletionScript(generate_completion_script_cmd::GenerateCompletionScriptCommand),
 }
 
@@ -146,7 +151,7 @@ pub(crate) fn start_cli() -> eyre::Result<()> {
         NargoCommand::Trace(args) => trace_cmd::run(args, config),
         NargoCommand::FormatTrace(args) => fmt_trace_cmd::run(args),
         NargoCommand::Check(args) => with_workspace(args, config, check_cmd::run),
-        NargoCommand::Compile(args) => with_workspace(args, config, compile_cmd::run),
+        NargoCommand::Compile(args) => compile_with_maybe_dummy_workspace(args, config),
         NargoCommand::Debug(args) => with_workspace(args, config, debug_cmd::run),
         NargoCommand::Execute(args) => with_workspace(args, config, execute_cmd::run),
         NargoCommand::Export(args) => with_workspace(args, config, export_cmd::run),
@@ -156,6 +161,7 @@ pub(crate) fn start_cli() -> eyre::Result<()> {
         NargoCommand::Lsp(_) => lsp_cmd::run(),
         NargoCommand::Dap(args) => dap_cmd::run(args),
         NargoCommand::Fmt(args) => with_workspace(args, config, fmt_cmd::run),
+        NargoCommand::Expand(args) => with_workspace(args, config, expand_cmd::run),
         NargoCommand::GenerateCompletionScript(args) => generate_completion_script_cmd::run(args),
     }?;
 
@@ -183,6 +189,38 @@ fn read_workspace(
     )?;
 
     Ok(workspace)
+}
+
+/// "with_workspace", but use a dummy workspace when 'debug_compile_stdin' is enabled
+fn compile_with_maybe_dummy_workspace(
+    cmd: compile_cmd::CompileCommand,
+    config: NargoConfig,
+) -> Result<(), CliError> {
+    if cmd.compile_options.debug_compile_stdin {
+        let package_name = "debug_compile_stdin".to_string();
+
+        // dummy root dir
+        let root_dir = PathBuf::new();
+        let mut package = PackageMetadata::default();
+        package.name = Some(package_name.clone());
+        package.package_type = Some("bin".into());
+        let dependencies = BTreeMap::new();
+        let package_config = PackageConfig { package, dependencies };
+        let config = nargo_toml::Config::Package { package_config };
+        let nargo_toml = NargoToml { root_dir, config };
+        let package_name =
+            CrateName::from_str(&package_name).expect("package_name to be a valid CrateName");
+        let selection = PackageSelection::Selected(package_name);
+
+        let workspace = resolve_workspace_from_fixed_toml(
+            nargo_toml,
+            selection,
+            Some(NOIR_ARTIFACT_VERSION_STRING.to_owned()),
+        )?;
+        compile_cmd::run(cmd, workspace)
+    } else {
+        with_workspace(cmd, config, compile_cmd::run)
+    }
 }
 
 /// Find the root directory, parse the workspace, lock the packages, then execute the command.
