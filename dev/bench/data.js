@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1746198777409,
+  "lastUpdate": 1746200810666,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -18055,48 +18055,6 @@ window.BENCHMARK_DATA = {
             "name": "GitHub",
             "username": "web-flow"
           },
-          "distinct": false,
-          "id": "bddf22d2f0e2b26c81a6856a41c245137f7dfc1c",
-          "message": "fix: Do not panic if RHS constant in division has more bits than the operand (#8197)",
-          "timestamp": "2025-04-24T14:45:29Z",
-          "tree_id": "5d1b8ba1590df0ce332a5325d7053c0fc490b136",
-          "url": "https://github.com/noir-lang/noir/commit/bddf22d2f0e2b26c81a6856a41c245137f7dfc1c"
-        },
-        "date": 1745507184861,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 267139,
-            "range": "± 847",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 236494,
-            "range": "± 3587",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 3577094,
-            "range": "± 10335",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
-            "email": "aakoshh@gmail.com",
-            "name": "Akosh Farkash",
-            "username": "aakoshh"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
           "distinct": true,
           "id": "7976865a58cff5cd5abe70bec41dfbf967909dae",
           "message": "chore: Don't use `i1` in the AST fuzzer (#8204)",
@@ -20139,6 +20097,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 3230913,
             "range": "± 9847",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "aakoshh@gmail.com",
+            "name": "Akosh Farkash",
+            "username": "aakoshh"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "86e61f0290a99015c7987eec77b3ebadf0bd5aaf",
+          "message": "feat: Metamorphic AST fuzzing (#8299)",
+          "timestamp": "2025-05-02T15:27:36Z",
+          "tree_id": "e0d598859a2300eb3ff09aad1b37fd2add9de9a5",
+          "url": "https://github.com/noir-lang/noir/commit/86e61f0290a99015c7987eec77b3ebadf0bd5aaf"
+        },
+        "date": 1746200803354,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 255269,
+            "range": "± 1017",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 229943,
+            "range": "± 4829",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 3595521,
+            "range": "± 10215",
             "unit": "ns/iter"
           }
         ]
