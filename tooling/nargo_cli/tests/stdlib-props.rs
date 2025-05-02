@@ -141,10 +141,10 @@ fn field_vec_strategy(len: usize) -> impl Strategy<Value = Vec<FieldElement>> {
 
 /// The tests fuzz_zero_extent(), fuzz_signed_unsigned_same_size(), fuzz_sign_extent() and fuzz_truncate()
 /// ensure that casting between integer types is correct, assuming casting to Field is correct.
-/// Indeed, casting to Field is validated with fuzz_field_cast() test.
+/// Casting to Field is validated with the fuzz_field_cast() test.
 /// Any casting between integer types will use a combination of: no-op, zero extension, sign extension, or truncation.
 /// Testing these 4 primitives should be enough to guarantee that casting between any integer types is correct.
-
+///
 /// Check that casting to Field is a no-op
 #[test]
 fn fuzz_field_cast() {
