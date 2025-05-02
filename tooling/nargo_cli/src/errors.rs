@@ -17,6 +17,9 @@ pub(crate) enum CliError {
     #[error("Invalid package name {0}. Did you mean to use `--name`?")]
     InvalidPackageName(String),
 
+    #[error("`--debug-compile-stdin` is incompatible with `--watch`")]
+    CantWatchStdin,
+
     /// Artifact CLI error
     #[error(transparent)]
     ArtifactError(#[from] noir_artifact_cli::errors::CliError),

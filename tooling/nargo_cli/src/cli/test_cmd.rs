@@ -14,9 +14,10 @@ use clap::Args;
 use fm::FileManager;
 use formatters::{Formatter, JsonFormatter, PrettyFormatter, TerseFormatter};
 use nargo::{
+    FuzzFolderConfig,
     foreign_calls::DefaultForeignCallBuilder,
     insert_all_files_for_workspace_into_file_manager,
-    ops::{TestStatus, check_crate_and_report_errors},
+    ops::{FuzzConfig, TestStatus, check_crate_and_report_errors},
     package::Package,
     parse_all, prepare_package,
     workspace::Workspace,
@@ -79,6 +80,18 @@ pub(crate) struct TestCommand {
     /// Only run fuzz tests (tests that have arguments)
     #[clap(long, conflicts_with("no_fuzz"))]
     only_fuzz: bool,
+
+    /// If given, load/store fuzzer corpus from this folder
+    #[arg(long)]
+    corpus_dir: Option<String>,
+
+    /// If given, perform corpus minimization instead of fuzzing and store results in the given folder
+    #[arg(long)]
+    minimized_corpus_dir: Option<String>,
+
+    /// If given, store the failing input in the given folder
+    #[arg(long)]
+    fuzzing_failure_dir: Option<String>,
 }
 
 impl WorkspaceCommand for TestCommand {
@@ -542,6 +555,14 @@ impl<'a> TestRunner<'a> {
         let blackbox_solver = S::default();
         let mut output_buffer = Vec::new();
 
+        let fuzz_config = FuzzConfig {
+            folder_config: FuzzFolderConfig {
+                corpus_dir: self.args.corpus_dir.clone(),
+                minimized_corpus_dir: self.args.minimized_corpus_dir.clone(),
+                fuzzing_failure_dir: self.args.fuzzing_failure_dir.clone(),
+            },
+        };
+
         let test_status = nargo::ops::run_or_fuzz_test(
             &blackbox_solver,
             &mut context,
@@ -549,6 +570,7 @@ impl<'a> TestRunner<'a> {
             &mut output_buffer,
             package_name.clone(),
             &self.args.compile_options,
+            fuzz_config,
             |output, base| {
                 DefaultForeignCallBuilder {
                     output,
