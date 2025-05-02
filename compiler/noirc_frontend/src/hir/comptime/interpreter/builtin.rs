@@ -331,7 +331,7 @@ fn slice_push_back(
     Ok(Value::Slice(values, typ))
 }
 
-// static_assert<let N: u32>(predicate: bool, message: str<N>)
+// static_assert<let N: u32>(predicate: bool, message: T)
 fn static_assert(
     interner: &NodeInterner,
     arguments: Vec<(Value, Location)>,
@@ -340,7 +340,7 @@ fn static_assert(
 ) -> IResult<Value> {
     let (predicate, message) = check_two_arguments(arguments, location)?;
     let predicate = get_bool(predicate)?;
-    let message = get_str(interner, message)?;
+    let message = message.0.display(interner).to_string();
 
     if predicate {
         Ok(Value::Unit)
