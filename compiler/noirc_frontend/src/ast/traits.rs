@@ -133,7 +133,6 @@ impl Display for TypeImpl {
     }
 }
 
-// TODO: display where clauses (follow-up issue)
 impl Display for NoirTrait {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let generics = vecmap(&self.generics, |generic| generic.to_string());
