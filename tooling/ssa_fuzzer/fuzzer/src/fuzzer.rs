@@ -48,8 +48,6 @@ impl Fuzzer {
         return_instruction_block_idx: usize,
     ) {
         self.context_non_constant.finalize(return_instruction_block_idx);
-        self.context_constant.finalize(return_instruction_block_idx);
-
         let (acir_return_witness, brillig_return_witness) =
             self.context_non_constant.get_return_witnesses();
         let non_constant_result = Self::execute_and_compare(
@@ -60,13 +58,14 @@ impl Fuzzer {
         );
         log::debug!("Non-constant result: {:?}", non_constant_result);
 
-        let (acir_return_witness, brillig_return_witness) =
-            self.context_constant.get_return_witnesses();
-
         if !constant_checking_enabled {
             return;
         }
 
+        self.context_constant.finalize(return_instruction_block_idx);
+
+        let (acir_return_witness, brillig_return_witness) =
+            self.context_constant.get_return_witnesses();
         let constant_result = Self::execute_and_compare(
             self.context_constant,
             WitnessMap::new(),

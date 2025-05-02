@@ -16,7 +16,7 @@ mod block_context;
 impl Fuzzer {
     fn process_fuzzer_command(&mut self, command: FuzzerCommand) {
         self.context_non_constant.process_fuzzer_command(command.clone());
-        self.context_constant.process_fuzzer_command(command);
+        //self.context_constant.process_fuzzer_command(command);
     }
 }
 

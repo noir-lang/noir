@@ -3,7 +3,7 @@ use libfuzzer_sys::arbitrary::Arbitrary;
 use noirc_evaluator::ssa::ir::types::{NumericType, Type};
 use noirc_evaluator::ssa::ir::{map::Id, value::Value};
 
-#[derive(Arbitrary, Debug, Clone, PartialEq, Eq, Hash)]
+#[derive(Arbitrary, Debug, Clone, PartialEq, Eq, Hash, Copy)]
 pub enum ValueType {
     Field,
     Boolean,

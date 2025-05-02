@@ -273,6 +273,8 @@ impl FuzzerBuilder {
 
     /// Inserts a bitwise AND instruction between two values
     pub fn insert_and_instruction(&mut self, lhs: TypedValue, rhs: TypedValue) -> TypedValue {
+        // TODO
+        return lhs;
         let (lhs, rhs) = self.balance_types_for_bitwise_op(lhs, rhs);
         let res = self.builder.insert_binary(lhs.value_id, BinaryOp::And, rhs.value_id);
         TypedValue::new(res, lhs.type_of_variable)
@@ -280,6 +282,8 @@ impl FuzzerBuilder {
 
     /// Inserts a bitwise OR instruction between two values
     pub fn insert_or_instruction(&mut self, lhs: TypedValue, rhs: TypedValue) -> TypedValue {
+        // TODO
+        return lhs;
         let (lhs, rhs) = self.balance_types_for_bitwise_op(lhs, rhs);
         let res = self.builder.insert_binary(lhs.value_id, BinaryOp::Or, rhs.value_id);
         TypedValue::new(res, lhs.type_of_variable)
@@ -287,6 +291,8 @@ impl FuzzerBuilder {
 
     /// Inserts a bitwise XOR instruction between two values    
     pub fn insert_xor_instruction(&mut self, lhs: TypedValue, rhs: TypedValue) -> TypedValue {
+        // TODO
+        return lhs;
         let (lhs, rhs) = self.balance_types_for_bitwise_op(lhs, rhs);
         let res = self.builder.insert_binary(lhs.value_id, BinaryOp::Xor, rhs.value_id);
         TypedValue::new(res, lhs.type_of_variable)

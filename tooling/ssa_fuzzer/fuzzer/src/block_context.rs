@@ -23,8 +23,12 @@ pub(crate) struct BlockContext {
     /// ACIR and Brillig last changed value
     pub(crate) last_value_acir: Option<TypedValue>,
     pub(crate) last_value_brillig: Option<TypedValue>,
-
+    /// Depth of the block in the CFG
+    pub(crate) depth: usize,
+    /// Parent blocks history
     pub(crate) parent_blocks_history: VecDeque<BasicBlockId>,
+    /// Children blocks
+    pub(crate) children_blocks: Vec<BasicBlockId>,
 }
 
 /// Returns a typed value from the map
@@ -56,6 +60,7 @@ impl BlockContext {
         acir_ids: HashMap<ValueType, Vec<TypedValue>>,
         brillig_ids: HashMap<ValueType, Vec<TypedValue>>,
         parent_blocks_history: VecDeque<BasicBlockId>,
+        depth: usize,
     ) -> Self {
         Self {
             acir_ids,
@@ -63,6 +68,8 @@ impl BlockContext {
             last_value_acir: None,
             last_value_brillig: None,
             parent_blocks_history,
+            children_blocks: Vec::new(),
+            depth,
         }
     }
 
@@ -316,17 +323,18 @@ impl BlockContext {
     }
 
     pub(crate) fn finalize_block_with_jmp(
-        self,
+        &mut self,
         acir_builder: &mut FuzzerBuilder,
         brillig_builder: &mut FuzzerBuilder,
         jmp_destination: BasicBlockId,
     ) {
         acir_builder.insert_jmp_instruction(jmp_destination);
         brillig_builder.insert_jmp_instruction(jmp_destination);
+        self.children_blocks.push(jmp_destination);
     }
 
     pub(crate) fn finalize_block_with_jmp_if(
-        self,
+        &mut self,
         acir_builder: &mut FuzzerBuilder,
         brillig_builder: &mut FuzzerBuilder,
         then_destination: BasicBlockId,
@@ -352,6 +360,8 @@ impl BlockContext {
             then_destination,
             else_destination,
         );
+        self.children_blocks.push(then_destination);
+        self.children_blocks.push(else_destination);
     }
 
     pub(crate) fn get_last_variables(self) -> (Option<TypedValue>, Option<TypedValue>) {
