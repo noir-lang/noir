@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1746181345504,
+  "lastUpdate": 1746192677344,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -18036,48 +18036,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "aakoshh@gmail.com",
-            "name": "Akosh Farkash",
-            "username": "aakoshh"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "6a6b910eb20503f6c4236e43f1def644e99ce656",
-          "message": "fix: Handle truncating constants to 128 bits (#8180)",
-          "timestamp": "2025-04-24T13:48:13Z",
-          "tree_id": "b209ca54aa559e3043bed7bebf448cfd95eec8c5",
-          "url": "https://github.com/noir-lang/noir/commit/6a6b910eb20503f6c4236e43f1def644e99ce656"
-        },
-        "date": 1745504289073,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 266585,
-            "range": "± 354",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 237268,
-            "range": "± 1137",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 3603649,
-            "range": "± 16048",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "15848336+TomAFrench@users.noreply.github.com",
             "name": "Tom French",
             "username": "TomAFrench"
@@ -20129,6 +20087,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 3228477,
             "range": "± 7918",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "15848336+TomAFrench@users.noreply.github.com",
+            "name": "Tom French",
+            "username": "TomAFrench"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "35ce83eb3cde99f61574495e23282852b66f41da",
+          "message": "chore: remove leftover file (#8313)\n\nCo-authored-by: AztecBot <tech@aztecprotocol.com>",
+          "timestamp": "2025-05-02T13:13:07Z",
+          "tree_id": "583e39359b7bf42a25056f463507b6c2f94e9cf5",
+          "url": "https://github.com/noir-lang/noir/commit/35ce83eb3cde99f61574495e23282852b66f41da"
+        },
+        "date": 1746192669829,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 268722,
+            "range": "± 2728",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 241277,
+            "range": "± 10632",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 3596490,
+            "range": "± 34912",
             "unit": "ns/iter"
           }
         ]
