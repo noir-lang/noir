@@ -6,6 +6,10 @@ fn main(x: u32, y: u32) {
     simple_loop(4, x, y);
     loop_with_predicate(4, x, y);
     array_read_loop(4, x);
+    //Safety: testing for failing assert under condition
+    unsafe {
+        loop_with_break_under_predicate(4, y, x);
+    }
 }
 
 fn simple_loop(upper_bound: u32, x: u32, y: u32) {
@@ -34,5 +38,15 @@ fn array_read_loop(upper_bound: u32, x: u32) {
                 assert_eq(arr[j], x);
             }
         }
+    }
+}
+
+unconstrained fn loop_with_break_under_predicate(upper_bound: u32, x: u32, y: u32) {
+    for _ in 0..upper_bound {
+        if x == 3 {
+            break;
+        }
+        let mut z = U32_MAX * y;
+        assert_eq(z, 12);
     }
 }

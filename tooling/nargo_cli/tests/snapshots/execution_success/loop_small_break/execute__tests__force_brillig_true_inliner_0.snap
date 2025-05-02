@@ -1,0 +1,40 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: artifact
+---
+{
+  "noir_version": "[noir_version]",
+  "hash": "[hash]",
+  "abi": {
+    "parameters": [
+      {
+        "name": "x",
+        "type": {
+          "kind": "field"
+        },
+        "visibility": "private"
+      }
+    ],
+    "return_type": null,
+    "error_types": {
+      "17843811134343075018": {
+        "error_kind": "string",
+        "string": "Stack too deep"
+      }
+    }
+  },
+  "bytecode": "H4sIAAAAAAAA/7VVwYrCMBCdtsnuZl3ZZT0IIogXvSikaNGjB38kKP2OfroWZsg4Tr2YDJRJ2sl7b15CWkCMArMRc1BqTpj9e1EnxPKq0FdBNVvMDnPJvlcJm3WCNyX+0e8bp/SXUP/OIWZOfwgzA77/RJxzF/FlL32Mcc7PEK35uj8/EMdjHDuxJsfeZvTeTxT9xDXCXtfCn4r5UwxkgMf9pCiFbyZTX3/wfKaM4LZMVyLehrg+EM/Cs79W6Mhxdu5R036Vige9vil7z3UZ1DG01or6GcNcihryYcFq5gO8MMBL/mj9WKUfbe9LReMv6P5zXlrHPeH10hOqX2HOfbf9M1zZwwjiv8106fkPR++Jt+qiD/x+AMFvRf0G599KH+YNne0h1O0utKEJ1+v+EqRPffB77gYXk/5IEQkAAA==",
+  "debug_symbols": "nZLRisMgEEX/ZZ59iBqzqb9SSjCJKYKYYHVhCf77jjHppg8LpS8edbz3DjgrjLqP9864aX6AvK7Qe2OtuXd2HlQws8PbFaq80BokJUBFQVPwVdCCZIjLBsZBckS55LSAF6BLjRAFTQG61CkROFK74LXOoac2sLlFee0CSBetJfCtbNwePRblNgblsVoR0G5EouFkrM67RP7U1f9SRsUuZrR5ysX7enGEM/GRnj/z+Sd6ztpdz3n7or/hSQ3Gv3xsyk7eqN7q/ThFN5yq4Wc5KsdgLH4e9Bi9zk6n6cD1yi+krm8pp/0C",
+  "file_map": {
+    "50": {
+      "source": "// Regression for issue #7359 (https://github.com/noir-lang/noir/issues/7359)\n// We want the loop to be small enough that the compiler may attempt to unroll it.\nunconstrained fn main(x: Field) {\n    let mut count = 0;\n\n    for i in 0..1 {\n        if x == 5 {\n            count = i;\n            break;\n        }\n    }\n    assert(count == 0);\n}\n",
+      "path": ""
+    }
+  },
+  "names": [
+    "main"
+  ],
+  "brillig_names": [
+    "main"
+  ]
+}

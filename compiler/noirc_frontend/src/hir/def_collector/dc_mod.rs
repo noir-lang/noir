@@ -14,7 +14,7 @@ use crate::ast::{
     Documented, Expression, FunctionDefinition, Ident, ItemVisibility, LetStatement,
     ModuleDeclaration, NoirEnumeration, NoirFunction, NoirStruct, NoirTrait, NoirTraitImpl,
     NoirTypeAlias, Pattern, TraitImplItemKind, TraitItem, TypeImpl, UnresolvedType,
-    UnresolvedTypeData,
+    UnresolvedTypeData, desugar_generic_trait_bounds,
 };
 use crate::hir::resolution::errors::ResolverError;
 use crate::node_interner::{ModuleAttributes, NodeInterner, ReferenceId, TypeId};
@@ -175,7 +175,9 @@ impl ModCollector<'_> {
         let mut errors = Vec::new();
         let module_id = ModuleId { krate, local_id: self.module_id };
 
-        for r#impl in impls {
+        for mut r#impl in impls {
+            desugar_generic_trait_bounds(&mut r#impl.generics, &mut r#impl.where_clause);
+
             collect_impl(
                 &mut context.def_interner,
                 &mut self.def_collector.items,
@@ -198,6 +200,11 @@ impl ModCollector<'_> {
         let mut errors = Vec::new();
 
         for mut trait_impl in impls {
+            desugar_generic_trait_bounds(
+                &mut trait_impl.impl_generics,
+                &mut trait_impl.where_clause,
+            );
+
             let (mut unresolved_functions, associated_types, associated_constants) =
                 collect_trait_impl_items(
                     &mut context.def_interner,
@@ -288,7 +295,13 @@ impl ModCollector<'_> {
             // and replace it
             // With this method we iterate each function in the Crate and not each module
             // This may not be great because we have to pull the module_data for each function
-            unresolved_functions.push_fn(self.module_id, func_id, function.item);
+            let mut noir_function = function.item;
+            desugar_generic_trait_bounds(
+                &mut noir_function.def.generics,
+                &mut noir_function.def.where_clause,
+            );
+
+            unresolved_functions.push_fn(self.module_id, func_id, noir_function);
         }
 
         self.def_collector.items.functions.push(unresolved_functions);
@@ -434,9 +447,11 @@ impl ModCollector<'_> {
         let mut errors: Vec<CompilationError> = vec![];
         for trait_definition in traits {
             let doc_comments = trait_definition.doc_comments;
-            let trait_definition = trait_definition.item;
+            let mut trait_definition = trait_definition.item;
             let name = trait_definition.name.clone();
             let location = trait_definition.location;
+            let has_allow_dead_code =
+                trait_definition.attributes.iter().any(|attr| attr.kind.is_allow("dead_code"));
 
             // Create the corresponding module for the trait namespace
             let trait_id = match self.push_child_module(
@@ -468,12 +483,14 @@ impl ModCollector<'_> {
             );
 
             let parent_module_id = ModuleId { krate, local_id: self.module_id };
-            context.usage_tracker.add_unused_item(
-                parent_module_id,
-                name.clone(),
-                UnusedItem::Trait(trait_id),
-                visibility,
-            );
+            if !has_allow_dead_code {
+                context.usage_tracker.add_unused_item(
+                    parent_module_id,
+                    name.clone(),
+                    UnusedItem::Trait(trait_id),
+                    visibility,
+                );
+            }
 
             if let Err((first_def, second_def)) = result {
                 let error = DefCollectorErrorKind::Duplicate {
@@ -494,6 +511,12 @@ impl ModCollector<'_> {
 
             let mut method_ids = HashMap::default();
             let mut associated_types = Generics::new();
+
+            for item in &mut trait_definition.items {
+                if let TraitItem::Function { generics, where_clause, .. } = &mut item.item {
+                    desugar_generic_trait_bounds(generics, where_clause);
+                }
+            }
 
             for trait_item in &trait_definition.items {
                 match &trait_item.item {
@@ -994,6 +1017,7 @@ pub fn collect_function(
         function.name() == MAIN_FUNCTION
     };
     let has_export = function.def.attributes.has_export();
+    let has_allow_dead_code = function.def.attributes.has_allow("dead_code");
 
     let name = function.name_ident().clone();
     let func_id = interner.push_empty_fn();
@@ -1004,7 +1028,12 @@ pub fn collect_function(
         interner.register_function(func_id, &function.def);
     }
 
-    if !is_test && !is_fuzzing_harness && !is_entry_point_function && !has_export {
+    if !is_test
+        && !is_fuzzing_harness
+        && !is_entry_point_function
+        && !has_export
+        && !has_allow_dead_code
+    {
         let item = UnusedItem::Function(func_id);
         usage_tracker.add_unused_item(module, name.clone(), item, visibility);
     }
@@ -1090,7 +1119,10 @@ pub fn collect_struct(
 
     let parent_module_id = ModuleId { krate, local_id: module_id };
 
-    if !unresolved.struct_def.is_abi() {
+    let has_allow_dead_code =
+        unresolved.struct_def.attributes.iter().any(|attr| attr.kind.is_allow("dead_code"));
+
+    if !unresolved.struct_def.is_abi() && !has_allow_dead_code {
         usage_tracker.add_unused_item(
             parent_module_id,
             name.clone(),
@@ -1181,7 +1213,10 @@ pub fn collect_enum(
 
     let parent_module_id = ModuleId { krate, local_id: module_id };
 
-    if !unresolved.enum_def.is_abi() {
+    let has_allow_dead_code =
+        unresolved.enum_def.attributes.iter().any(|attr| attr.kind.is_allow("dead_code"));
+
+    if !unresolved.enum_def.is_abi() && !has_allow_dead_code {
         usage_tracker.add_unused_item(
             parent_module_id,
             name.clone(),
@@ -1237,6 +1272,7 @@ pub fn collect_impl(
 
         let func_id = interner.push_empty_fn();
         method.def.where_clause.extend(r#impl.where_clause.clone());
+        desugar_generic_trait_bounds(&mut method.def.generics, &mut method.def.where_clause);
         let location = Location::new(method.span(), file_id);
         interner.push_function(func_id, &method.def, module_id, location);
         unresolved_functions.push_fn(module_id.local_id, func_id, method);
@@ -1361,6 +1397,10 @@ pub(crate) fn collect_trait_impl_items(
                 let location = Location::new(impl_method.span(), file_id);
                 interner.push_function(func_id, &impl_method.def, module, location);
                 interner.set_doc_comments(ReferenceId::Function(func_id), item.doc_comments);
+                desugar_generic_trait_bounds(
+                    &mut impl_method.def.generics,
+                    &mut impl_method.def.where_clause,
+                );
                 unresolved_functions.push_fn(local_id, func_id, impl_method);
             }
             TraitImplItemKind::Constant(name, typ, expr) => {
@@ -1390,7 +1430,7 @@ pub(crate) fn collect_global(
     let global = global.item;
 
     let name = global.pattern.name_ident().clone();
-    let is_abi = global.attributes.iter().any(|attribute| attribute.is_abi());
+    let is_abi = global.attributes.iter().any(|attribute| attribute.kind.is_abi());
 
     let global_id = interner.push_empty_global(
         name.clone(),

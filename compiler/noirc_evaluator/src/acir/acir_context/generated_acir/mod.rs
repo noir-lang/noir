@@ -22,117 +22,103 @@ use crate::{
     ErrorType,
     brillig::brillig_ir::artifact::GeneratedBrillig,
     errors::{InternalError, RuntimeError, SsaReport},
-    ssa::ir::call_stack::CallStack,
 };
 
 use iter_extended::vecmap;
-use noirc_errors::debug_info::ProcedureDebugId;
+use noirc_errors::{
+    call_stack::{CallStack, CallStackHelper, CallStackId},
+    debug_info::ProcedureDebugId,
+};
 use num_bigint::BigUint;
 
 mod brillig_directive;
 
-/// Brillig calls such as for the Brillig std lib are resolved only after code generation is finished.
-/// This index should be used when adding a Brillig call during code generation.
-/// Code generation should then keep track of that unresolved call opcode which will be resolved with the
-/// correct function index after code generation.
-pub(super) const PLACEHOLDER_BRILLIG_INDEX: BrilligFunctionId = BrilligFunctionId(0);
+pub(crate) use brillig_directive::{BrilligStdLib, BrilligStdlibFunc, PLACEHOLDER_BRILLIG_INDEX};
 
 #[derive(Debug, Default)]
 /// The output of the Acir-gen pass, which should only be produced for entry point Acir functions
-pub(crate) struct GeneratedAcir<F: AcirField> {
+pub struct GeneratedAcir<F: AcirField> {
     /// The next witness index that may be declared.
     /// If witness index is `None` then we have not yet created a witness
     /// and thus next witness index that be declared is zero.
     /// This field is private should only ever be accessed through its getter and setter.
     ///
     /// Equivalent to acvm::acir::circuit::Circuit's field of the same name.
-    current_witness_index: Option<u32>,
+    pub current_witness_index: Option<u32>,
 
     /// The opcodes of which the compiled ACIR will comprise.
-    opcodes: Vec<AcirOpcode<F>>,
+    pub opcodes: Vec<AcirOpcode<F>>,
+
+    pub call_stacks: CallStackHelper,
+    pub location_map: OpcodeToLocationsMap,
 
     /// All witness indices that comprise the final return value of the program
-    pub(crate) return_witnesses: Vec<Witness>,
+    pub return_witnesses: Vec<Witness>,
 
     /// All witness indices which are inputs to the main function
-    pub(crate) input_witnesses: Vec<Witness>,
-
-    pub(crate) locations: OpcodeToLocationsMap,
+    pub input_witnesses: Vec<Witness>,
 
     /// Brillig function id -> Opcodes locations map
     /// This map is used to prevent redundant locations being stored for the same Brillig entry point.
-    pub(crate) brillig_locations: BTreeMap<BrilligFunctionId, BrilligOpcodeToLocationsMap>,
+    pub brillig_locations: BTreeMap<BrilligFunctionId, BrilligOpcodeToLocationsMap>,
 
     /// Source code location of the current instruction being processed
     /// None if we do not know the location
-    pub(crate) call_stack: CallStack,
+    pub(crate) call_stack_id: CallStackId,
 
     /// Correspondence between an opcode index and the error message associated with it.
-    pub(crate) assertion_payloads: BTreeMap<OpcodeLocation, AssertionPayload<F>>,
+    pub assertion_payloads: BTreeMap<OpcodeLocation, AssertionPayload<F>>,
 
     /// Correspondence between error selectors and types associated with them.
-    pub(crate) error_types: BTreeMap<ErrorSelector, ErrorType>,
+    pub error_types: BTreeMap<ErrorSelector, ErrorType>,
 
-    pub(crate) warnings: Vec<SsaReport>,
+    pub warnings: Vec<SsaReport>,
 
     /// Name for the corresponding entry point represented by this Acir-gen output.
     /// Only used for debugging and benchmarking purposes
-    pub(crate) name: String,
+    pub name: String,
 
     /// Maps the opcode index to a Brillig std library function call.
     /// As to avoid passing the ACIR gen shared context into each individual ACIR
     /// we can instead keep this map and resolve the Brillig calls at the end of code generation.
-    pub(crate) brillig_stdlib_func_locations: BTreeMap<OpcodeLocation, BrilligStdlibFunc>,
+    pub brillig_stdlib_func_locations: BTreeMap<OpcodeLocation, BrilligStdlibFunc>,
 
     /// Brillig function id -> Brillig procedure locations map
     /// This maps allows a profiler to determine which Brillig opcodes
     /// originated from a reusable procedure.
-    pub(crate) brillig_procedure_locs: BTreeMap<BrilligFunctionId, BrilligProcedureRangeMap>,
+    pub brillig_procedure_locs: BTreeMap<BrilligFunctionId, BrilligProcedureRangeMap>,
 }
 
 /// Correspondence between an opcode index (in opcodes) and the source code call stack which generated it
-pub(crate) type OpcodeToLocationsMap = BTreeMap<OpcodeLocation, CallStack>;
+pub(crate) type OpcodeToLocationsMap = BTreeMap<OpcodeLocation, CallStackId>;
 
-pub(crate) type BrilligOpcodeToLocationsMap = BTreeMap<BrilligOpcodeLocation, CallStack>;
+pub(crate) type BrilligOpcodeToLocationsMap = BTreeMap<BrilligOpcodeLocation, CallStackId>;
 
 pub(crate) type BrilligProcedureRangeMap = BTreeMap<ProcedureDebugId, (usize, usize)>;
 
-#[derive(Debug, Clone, Copy, Hash, PartialEq, Eq)]
-pub(crate) enum BrilligStdlibFunc {
-    Inverse,
-    Quotient,
-    ToLeBytes,
-}
-
-impl BrilligStdlibFunc {
-    pub(crate) fn get_generated_brillig<F: AcirField>(&self) -> GeneratedBrillig<F> {
-        match self {
-            BrilligStdlibFunc::Inverse => brillig_directive::directive_invert(),
-            BrilligStdlibFunc::Quotient => brillig_directive::directive_quotient(),
-            BrilligStdlibFunc::ToLeBytes => brillig_directive::directive_to_radix(),
-        }
-    }
-}
-
 impl<F: AcirField> GeneratedAcir<F> {
     /// Returns the current witness index.
-    pub(crate) fn current_witness_index(&self) -> Witness {
+    pub fn current_witness_index(&self) -> Witness {
         Witness(self.current_witness_index.unwrap_or(0))
     }
 
     /// Adds a new opcode into ACIR.
     pub(crate) fn push_opcode(&mut self, opcode: AcirOpcode<F>) {
         self.opcodes.push(opcode);
-        if !self.call_stack.is_empty() {
-            self.locations.insert(self.last_acir_opcode_location(), self.call_stack.clone());
+        if !self.call_stack_id.is_root() {
+            self.location_map.insert(self.last_acir_opcode_location(), self.call_stack_id);
         }
+    }
+
+    pub(crate) fn get_call_stack(&self) -> CallStack {
+        self.call_stacks.get_call_stack(self.call_stack_id)
     }
 
     pub(crate) fn opcodes(&self) -> &[AcirOpcode<F>] {
         &self.opcodes
     }
 
-    pub(crate) fn take_opcodes(&mut self) -> Vec<AcirOpcode<F>> {
+    pub fn take_opcodes(&mut self) -> Vec<AcirOpcode<F>> {
         std::mem::take(&mut self.opcodes)
     }
 
@@ -584,7 +570,7 @@ impl<F: AcirField> GeneratedAcir<F> {
         if num_bits >= F::max_num_bits() {
             return Err(RuntimeError::InvalidRangeConstraint {
                 num_bits: F::max_num_bits(),
-                call_stack: self.call_stack.clone(),
+                call_stack: self.get_call_stack(),
             });
         };
 
@@ -642,7 +628,7 @@ impl<F: AcirField> GeneratedAcir<F> {
             self.brillig_locations
                 .entry(brillig_function_index)
                 .or_default()
-                .insert(BrilligOpcodeLocation(*brillig_index), call_stack.clone());
+                .insert(BrilligOpcodeLocation(*brillig_index), *call_stack);
         }
     }
 

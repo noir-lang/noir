@@ -6,6 +6,7 @@ use noirc_errors::{Location, Span};
 use crate::{
     ast::{Ident, ItemVisibility},
     lexer::{Lexer, lexer::LocatedTokenResult},
+    node_interner::ExprId,
     token::{FmtStrFragment, IntType, Keyword, LocatedToken, Token, TokenKind, Tokens},
 };
 
@@ -348,6 +349,19 @@ impl<'a> Parser<'a> {
         }
     }
 
+    fn eat_unquote_marker(&mut self) -> Option<ExprId> {
+        if let Some(token) = self.eat_kind(TokenKind::UnquoteMarker) {
+            match token.into_token() {
+                Token::UnquoteMarker(expr_id) => return Some(expr_id),
+                _ => {
+                    unreachable!("Expected only `UnquoteMarker` to have `TokenKind::UnquoteMarker`")
+                }
+            }
+        }
+
+        None
+    }
+
     fn eat_attribute_start(&mut self) -> Option<bool> {
         if matches!(self.token.token(), Token::AttributeStart { is_inner: false, .. }) {
             let token = self.bump();
@@ -402,6 +416,12 @@ impl<'a> Parser<'a> {
             true
         } else {
             false
+        }
+    }
+
+    fn eat_semicolon_or_error(&mut self) {
+        if !self.eat_semicolons() {
+            self.expected_token(Token::Semicolon);
         }
     }
 
@@ -510,11 +530,14 @@ impl<'a> Parser<'a> {
     }
 
     fn location_at_previous_token_end(&self) -> Location {
-        Location::new(self.span_at_previous_token_end(), self.previous_token_location.file)
+        let span_at_previous_token_end = Span::from(
+            self.previous_token_location.span.end()..self.previous_token_location.span.end(),
+        );
+        Location::new(span_at_previous_token_end, self.previous_token_location.file)
     }
 
-    fn span_at_previous_token_end(&self) -> Span {
-        Span::from(self.previous_token_location.span.end()..self.previous_token_location.span.end())
+    fn unknown_ident_at_previous_token_end(&self) -> Ident {
+        Ident::new("(unknown)".to_string(), self.location_at_previous_token_end())
     }
 
     fn expected_identifier(&mut self) {

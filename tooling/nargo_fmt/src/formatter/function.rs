@@ -354,8 +354,8 @@ mod tests {
 
     #[test]
     fn format_function_generics() {
-        let src = "fn  foo < A, B, >( ) {  }";
-        let expected = "fn foo<A, B>() {}\n";
+        let src = "fn  foo < A, B:  X  +  Y , >( ) {  }";
+        let expected = "fn foo<A, B: X + Y>() {}\n";
         assert_format(src, expected);
     }
 

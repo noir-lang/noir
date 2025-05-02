@@ -1,25 +1,25 @@
+use noirc_errors::call_stack::CallStackId;
+use serde::{Deserialize, Serialize};
 use std::hash::{Hash, Hasher};
 
 use acvm::acir::{BlackBoxFunc, circuit::ErrorSelector};
 use fxhash::FxHasher64;
 use iter_extended::vecmap;
 use noirc_frontend::hir_def::types::Type as HirType;
-use serde::{Deserialize, Serialize};
 
 use crate::ssa::opt::pure::Purity;
 
 use super::{
     basic_block::BasicBlockId,
-    call_stack::CallStackId,
     dfg::DataFlowGraph,
     map::Id,
     types::{NumericType, Type},
-    value::{Value, ValueId},
+    value::{Value, ValueId, ValueMapping},
 };
 
-pub(crate) mod binary;
+pub mod binary;
 
-pub(crate) use binary::{Binary, BinaryOp};
+pub use binary::{Binary, BinaryOp};
 
 /// Reference to an instruction
 ///
@@ -36,7 +36,7 @@ pub(crate) type InstructionId = Id<Instruction>;
 /// - Opcodes which have no function definition in the
 ///   source code and must be processed by the IR.
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
-pub(crate) enum Intrinsic {
+pub enum Intrinsic {
     ArrayLen,
     ArrayAsStrUnchecked,
     AsSlice,
@@ -200,14 +200,14 @@ impl Intrinsic {
 
 /// The endian-ness of bits when encoding values as bits in e.g. ToBits or ToRadix
 #[derive(Clone, Copy, Debug, Hash, PartialEq, Eq, Serialize, Deserialize)]
-pub(crate) enum Endian {
+pub enum Endian {
     Big,
     Little,
 }
 
 /// Compiler hints.
 #[derive(Clone, Copy, Debug, Hash, PartialEq, Eq, Serialize, Deserialize)]
-pub(crate) enum Hint {
+pub enum Hint {
     /// Hint to the compiler to treat the call as having potential side effects,
     /// so that the value passed to it can survive SSA passes without being
     /// simplified out completely. This facilitates testing and reproducing
@@ -218,11 +218,17 @@ pub(crate) enum Hint {
 #[derive(Debug, PartialEq, Eq, Hash, Clone, Serialize, Deserialize)]
 /// Instructions are used to perform tasks.
 /// The instructions that the IR is able to specify are listed below.
-pub(crate) enum Instruction {
+pub enum Instruction {
     /// Binary Operations like +, -, *, /, ==, !=
     Binary(Binary),
 
-    /// Converts `Value` into the given NumericType
+    /// Converts `Value` into the given `NumericType`
+    ///
+    /// This operation only changes the type of the value, it does not change the value itself.
+    /// It is expected that the value can fit into the target type.
+    /// For instance a value of type `u32` casted to `u8` must already fit into 8 bits
+    /// A value of type `i8` cannot be casted to 'i16' since the value would need to include the sign bit (which is the MSB)
+    /// Ssa code-gen must ensure that the necessary truncation or sign extension is performed when emitting a Cast instruction.
     Cast(ValueId, NumericType),
 
     /// Computes a bit wise not
@@ -352,7 +358,7 @@ impl Instruction {
             | Instruction::RangeCheck { .. }
             | Instruction::Noop
             | Instruction::EnableSideEffectsIf { .. } => InstructionResultType::None,
-            Instruction::Allocate { .. }
+            Instruction::Allocate
             | Instruction::Load { .. }
             | Instruction::ArrayGet { .. }
             | Instruction::Call { .. } => InstructionResultType::Unknown,
@@ -368,28 +374,7 @@ impl Instruction {
     /// If true the instruction will depend on `enable_side_effects` context during acir-gen.
     pub(crate) fn requires_acir_gen_predicate(&self, dfg: &DataFlowGraph) -> bool {
         match self {
-            Instruction::Binary(binary) => {
-                match binary.operator {
-                    BinaryOp::Add { unchecked: false }
-                    | BinaryOp::Sub { unchecked: false }
-                    | BinaryOp::Mul { unchecked: false } => {
-                        // Some binary math can overflow or underflow, but this is only the case
-                        // for unsigned types (here we assume the type of binary.lhs is the same)
-                        dfg.type_of_value(binary.rhs).is_unsigned()
-                    }
-                    BinaryOp::Div | BinaryOp::Mod => true,
-                    BinaryOp::Add { unchecked: true }
-                    | BinaryOp::Sub { unchecked: true }
-                    | BinaryOp::Mul { unchecked: true }
-                    | BinaryOp::Eq
-                    | BinaryOp::Lt
-                    | BinaryOp::And
-                    | BinaryOp::Or
-                    | BinaryOp::Xor
-                    | BinaryOp::Shl
-                    | BinaryOp::Shr => false,
-                }
-            }
+            Instruction::Binary(binary) => binary.requires_acir_gen_predicate(dfg),
 
             Instruction::ArrayGet { array, index } => {
                 // `ArrayGet`s which read from "known good" indices from an array should not need a predicate.
@@ -419,6 +404,13 @@ impl Instruction {
             | Instruction::DecrementRc { .. }
             | Instruction::Noop
             | Instruction::MakeArray { .. } => false,
+        }
+    }
+
+    /// Replaces values present in this instruction with other values according to the given mapping.
+    pub(crate) fn replace_values(&mut self, mapping: &ValueMapping) {
+        if !mapping.is_empty() {
+            self.map_values_mut(|value_id| mapping.get(value_id));
         }
     }
 
@@ -619,7 +611,7 @@ impl Instruction {
                 f(*address);
                 f(*value);
             }
-            Instruction::Allocate { .. } => (),
+            Instruction::Allocate => (),
             Instruction::ArrayGet { array, index } => {
                 f(*array);
                 f(*index);
@@ -653,6 +645,31 @@ impl Instruction {
     }
 }
 
+impl Binary {
+    pub(crate) fn requires_acir_gen_predicate(&self, dfg: &DataFlowGraph) -> bool {
+        match self.operator {
+            BinaryOp::Add { unchecked: false }
+            | BinaryOp::Sub { unchecked: false }
+            | BinaryOp::Mul { unchecked: false } => {
+                // Some binary math can overflow or underflow, but this is only the case
+                // for unsigned types (here we assume the type of binary.lhs is the same)
+                dfg.type_of_value(self.rhs).is_unsigned()
+            }
+            BinaryOp::Div | BinaryOp::Mod => true,
+            BinaryOp::Add { unchecked: true }
+            | BinaryOp::Sub { unchecked: true }
+            | BinaryOp::Mul { unchecked: true }
+            | BinaryOp::Eq
+            | BinaryOp::Lt
+            | BinaryOp::And
+            | BinaryOp::Or
+            | BinaryOp::Xor
+            | BinaryOp::Shl
+            | BinaryOp::Shr => false,
+        }
+    }
+}
+
 #[derive(Debug, PartialEq, Eq, Hash, Clone)]
 pub enum ErrorType {
     String(String),
@@ -669,7 +686,7 @@ impl ErrorType {
 }
 
 #[derive(Debug, PartialEq, Eq, Hash, Clone, Serialize, Deserialize)]
-pub(crate) enum ConstrainError {
+pub enum ConstrainError {
     // Static string errors are not handled inside the program as data for efficiency reasons.
     StaticString(String),
     // These errors are handled by the program as data.

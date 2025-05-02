@@ -4,9 +4,9 @@ use acvm::{AcirField, acir::circuit::opcodes::BlockId};
 
 use crate::{
     errors::InternalError,
-    ssa::ir::{call_stack::CallStack, types::NumericType, types::Type as SsaType},
+    ssa::ir::{types::NumericType, types::Type as SsaType},
 };
-
+use noirc_errors::call_stack::CallStack;
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 /// High level Type descriptor for Variables.
 ///

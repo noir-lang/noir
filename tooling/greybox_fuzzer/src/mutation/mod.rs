@@ -31,6 +31,7 @@ pub struct InputMutator {
     full_dictionary: FullDictionary,
 }
 
+pub use dictionary::add_elements_from_input_map_to_vector_without_abi;
 const MUTATION_LOG_MIN: u32 = 0;
 const MUTATION_LOG_MAX: u32 = 5;
 /// NodeWeight determines the probability of mutating a particular object
@@ -76,6 +77,11 @@ impl InputMutator {
     /// Fill the dictionary with values from an interesting input
     pub fn update_dictionary(&mut self, testcase: &InputMap) {
         self.full_dictionary.update(&self.abi, testcase);
+    }
+
+    /// Update the dictionary with values from a vector of field elements
+    pub fn update_dictionary_from_vector(&mut self, elements: &[FieldElement]) {
+        self.full_dictionary.update_from_vector(elements);
     }
 
     /// Count weights of each element recursively (complex structures return a vector of weights of their most basic elements)

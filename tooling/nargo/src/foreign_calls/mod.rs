@@ -32,6 +32,7 @@ pub enum ForeignCall {
     SetMockReturns,
     SetMockTimes,
     ClearMock,
+    GetTimesCalled,
 }
 
 impl std::fmt::Display for ForeignCall {
@@ -50,6 +51,7 @@ impl ForeignCall {
             ForeignCall::SetMockReturns => "set_mock_returns",
             ForeignCall::SetMockTimes => "set_mock_times",
             ForeignCall::ClearMock => "clear_mock",
+            ForeignCall::GetTimesCalled => "get_times_called",
         }
     }
 
@@ -62,6 +64,7 @@ impl ForeignCall {
             "set_mock_returns" => Some(ForeignCall::SetMockReturns),
             "set_mock_times" => Some(ForeignCall::SetMockTimes),
             "clear_mock" => Some(ForeignCall::ClearMock),
+            "get_times_called" => Some(ForeignCall::GetTimesCalled),
             _ => None,
         }
     }

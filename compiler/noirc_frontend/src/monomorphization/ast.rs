@@ -6,15 +6,15 @@ use noirc_errors::{
     debug_info::{DebugFunctions, DebugTypes, DebugVariables},
 };
 
-use crate::shared::Visibility;
 use crate::{
     ast::{BinaryOpKind, IntegerBitSize},
     hir_def::expr::Constructor,
     shared::Signedness,
     signed_field::SignedField,
-    token::{Attributes, FunctionAttribute},
+    token::Attributes,
 };
 use crate::{hir_def::function::FunctionSignature, token::FmtStrFragment};
+use crate::{shared::Visibility, token::FunctionAttributeKind};
 use serde::{Deserialize, Serialize};
 
 use super::HirType;
@@ -88,6 +88,12 @@ pub struct GlobalId(pub u32);
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub struct FuncId(pub u32);
 
+/// Each identifier is given a unique ID to distinguish different uses of identifiers.
+/// This is used, for example, in last use analysis to determine which identifiers represent
+/// the last use of their definition and can thus be moved instead of cloned.
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
+pub struct IdentId(pub u32);
+
 impl Display for FuncId {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         write!(f, "{}", self.0)
@@ -101,6 +107,7 @@ pub struct Ident {
     pub mutable: bool,
     pub name: String,
     pub typ: Type,
+    pub id: IdentId,
 }
 
 #[derive(Debug, Clone, Hash)]
@@ -273,10 +280,12 @@ pub enum InlineType {
 
 impl From<&Attributes> for InlineType {
     fn from(attributes: &Attributes) -> Self {
-        attributes.function().map_or(InlineType::default(), |func_attribute| match func_attribute {
-            FunctionAttribute::Fold => InlineType::Fold,
-            FunctionAttribute::NoPredicates => InlineType::NoPredicates,
-            FunctionAttribute::InlineAlways => InlineType::InlineAlways,
+        attributes.function().map_or(InlineType::default(), |func_attribute| match &func_attribute
+            .kind
+        {
+            FunctionAttributeKind::Fold => InlineType::Fold,
+            FunctionAttributeKind::NoPredicates => InlineType::NoPredicates,
+            FunctionAttributeKind::InlineAlways => InlineType::InlineAlways,
             _ => InlineType::default(),
         })
     }
@@ -367,7 +376,7 @@ pub struct Program {
     pub main_function_signature: FunctionSignature,
     pub return_location: Option<Location>,
     pub return_visibility: Visibility,
-    pub globals: BTreeMap<GlobalId, Expression>,
+    pub globals: BTreeMap<GlobalId, (String, Type, Expression)>,
     pub debug_variables: DebugVariables,
     pub debug_functions: DebugFunctions,
     pub debug_types: DebugTypes,
@@ -381,7 +390,7 @@ impl Program {
         main_function_signature: FunctionSignature,
         return_location: Option<Location>,
         return_visibility: Visibility,
-        globals: BTreeMap<GlobalId, Expression>,
+        globals: BTreeMap<GlobalId, (String, Type, Expression)>,
         debug_variables: DebugVariables,
         debug_functions: DebugFunctions,
         debug_types: DebugTypes,
@@ -443,20 +452,17 @@ impl std::ops::IndexMut<FuncId> for Program {
 
 impl std::fmt::Display for Program {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let mut printer = super::printer::AstPrinter::default();
-        for (id, expr) in &self.globals {
-            printer.print_global(id, expr, f)?;
-        }
-        for function in &self.functions {
-            printer.print_function(function, f)?;
-        }
-        Ok(())
+        super::printer::AstPrinter::default().print_program(self, f)
     }
 }
 
 impl std::fmt::Display for Function {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        super::printer::AstPrinter::default().print_function(self, f)
+        super::printer::AstPrinter::default().print_function(
+            self,
+            f,
+            super::printer::FunctionPrintOptions::default(),
+        )
     }
 }
 

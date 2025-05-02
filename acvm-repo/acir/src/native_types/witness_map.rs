@@ -8,11 +8,10 @@ use acir_field::AcirField;
 use flate2::Compression;
 use flate2::bufread::GzDecoder;
 use flate2::bufread::GzEncoder;
-use noir_protobuf::ProtoCodec as _;
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
-use crate::{native_types::Witness, proto::convert::ProtoSchema};
+use crate::native_types::Witness;
 
 #[derive(Debug, Error)]
 enum SerializationError {
@@ -93,18 +92,6 @@ impl<F: Serialize> WitnessMap<F> {
 impl<F: for<'a> Deserialize<'a>> WitnessMap<F> {
     pub(crate) fn bincode_deserialize(buf: &[u8]) -> Result<Self, WitnessMapError> {
         bincode::deserialize(buf).map_err(|e| SerializationError::Deserialize(e.to_string()).into())
-    }
-}
-
-#[allow(dead_code)]
-impl<F: AcirField> WitnessMap<F> {
-    pub(crate) fn proto_serialize(&self) -> Vec<u8> {
-        ProtoSchema::<F>::serialize_to_vec(self)
-    }
-
-    pub(crate) fn proto_deserialize(buf: &[u8]) -> Result<Self, WitnessMapError> {
-        ProtoSchema::<F>::deserialize_from_vec(buf)
-            .map_err(|e| SerializationError::Deserialize(e.to_string()).into())
     }
 }
 

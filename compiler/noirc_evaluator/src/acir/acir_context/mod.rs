@@ -21,11 +21,13 @@ use acvm::{
 };
 use fxhash::FxHashMap as HashMap;
 use iter_extended::{try_vecmap, vecmap};
+use noirc_errors::call_stack::{CallStack, CallStackHelper};
 use num_bigint::BigUint;
+use num_integer::Integer;
 use std::{borrow::Cow, cmp::Ordering};
 
 use crate::errors::{InternalBug, InternalError, RuntimeError, SsaReport};
-use crate::ssa::ir::{call_stack::CallStack, instruction::Endian, types::NumericType};
+use crate::ssa::ir::{instruction::Endian, types::NumericType};
 
 mod big_int;
 mod black_box;
@@ -37,9 +39,9 @@ use super::{
     types::{AcirType, AcirVar},
 };
 use big_int::BigIntContext;
-use generated_acir::PLACEHOLDER_BRILLIG_INDEX;
 
-pub(crate) use generated_acir::{BrilligStdlibFunc, GeneratedAcir};
+pub use generated_acir::GeneratedAcir;
+pub(crate) use generated_acir::{BrilligStdLib, BrilligStdlibFunc};
 
 #[derive(Debug, Default)]
 /// Context object which holds the relationship between
@@ -47,6 +49,7 @@ pub(crate) use generated_acir::{BrilligStdlibFunc, GeneratedAcir};
 /// which are placed into ACIR.
 pub(crate) struct AcirContext<F: AcirField, B: BlackBoxFunctionSolver<F>> {
     pub(super) blackbox_solver: B,
+    brillig_stdlib: BrilligStdLib<F>,
 
     vars: HashMap<AcirVar, AcirVarData<F>>,
 
@@ -70,6 +73,19 @@ pub(crate) struct AcirContext<F: AcirField, B: BlackBoxFunctionSolver<F>> {
 }
 
 impl<F: AcirField, B: BlackBoxFunctionSolver<F>> AcirContext<F, B> {
+    pub(super) fn new(brillig_stdlib: BrilligStdLib<F>, blackbox_solver: B) -> Self {
+        AcirContext {
+            brillig_stdlib,
+            blackbox_solver,
+            vars: Default::default(),
+            constant_witnesses: Default::default(),
+            acir_ir: Default::default(),
+            big_int_ctx: Default::default(),
+            expression_width: Default::default(),
+            warnings: Default::default(),
+        }
+    }
+
     pub(crate) fn set_expression_width(&mut self, expression_width: ExpressionWidth) {
         self.expression_width = expression_width;
     }
@@ -176,11 +192,15 @@ impl<F: AcirField, B: BlackBoxFunctionSolver<F>> AcirContext<F, B> {
     }
 
     pub(crate) fn get_call_stack(&self) -> CallStack {
-        self.acir_ir.call_stack.clone()
+        self.acir_ir.call_stacks.get_call_stack(self.acir_ir.call_stack_id)
     }
 
     pub(crate) fn set_call_stack(&mut self, call_stack: CallStack) {
-        self.acir_ir.call_stack = call_stack;
+        self.acir_ir.call_stack_id = self.acir_ir.call_stacks.get_or_insert_locations(&call_stack);
+    }
+
+    pub(crate) fn set_call_stack_helper(&mut self, call_stack: CallStackHelper) {
+        self.acir_ir.call_stacks = call_stack;
     }
 
     pub(crate) fn get_or_create_witness_var(
@@ -273,18 +293,13 @@ impl<F: AcirField, B: BlackBoxFunctionSolver<F>> AcirContext<F, B> {
             return Ok(inverted_var);
         }
 
-        // Compute the inverse with brillig code
-        let inverse_code = BrilligStdlibFunc::Inverse.get_generated_brillig();
-
-        let results = self.brillig_call(
+        let results = self.stdlib_brillig_call(
             predicate,
-            &inverse_code,
+            BrilligStdlibFunc::Inverse,
+            &self.brillig_stdlib.get_code(BrilligStdlibFunc::Inverse).clone(),
             vec![AcirValue::Var(var, AcirType::field())],
             vec![AcirType::field()],
             true,
-            false,
-            PLACEHOLDER_BRILLIG_INDEX,
-            Some(BrilligStdlibFunc::Inverse),
         )?;
         let inverted_var = Self::expect_one_var(results);
 
@@ -490,8 +505,20 @@ impl<F: AcirField, B: BlackBoxFunctionSolver<F>> AcirContext<F, B> {
     ) -> Result<(), RuntimeError> {
         let diff_var = self.sub_var(lhs, rhs)?;
 
+        let old_opcodes_len = self.acir_ir.opcodes().len();
         let _ = self.inv_var(diff_var, predicate)?;
         if let Some(payload) = assert_message {
+            // Non-equality can potentially be a no-op if we have all constant
+            // inputs that we know satisfy the non-equality check.
+            // If a no-op non-equality check were to then add an assertion payload
+            // opcode location based upon `GeneratedAcir::last_acir_opcode_location`,
+            // it would be pointing at the previous opcode location.
+            // This at best leads to a mismatch in assertion payload opcode locations
+            // and at worst an attempt to subtract with overflow if the non-equality
+            // check is the first opcode.
+            if self.acir_ir.opcodes().len() - old_opcodes_len == 0 {
+                return Ok(());
+            }
             self.acir_ir
                 .assertion_payloads
                 .insert(self.acir_ir.last_acir_opcode_location(), payload);
@@ -748,12 +775,28 @@ impl<F: AcirField, B: BlackBoxFunctionSolver<F>> AcirContext<F, B> {
             // If `lhs` and `rhs` are known constants then we can calculate the result at compile time.
             // `rhs` must be non-zero.
             (Some(lhs_const), Some(rhs_const), _) if !rhs_const.is_zero() => {
-                let quotient = lhs_const.to_u128() / rhs_const.to_u128();
-                let remainder = lhs_const.to_u128() - quotient * rhs_const.to_u128();
+                if lhs_const.num_bits() <= 128 && rhs_const.num_bits() <= 128 {
+                    let lhs_const = lhs_const.to_u128();
+                    let rhs_const = rhs_const.to_u128();
+                    let quotient = lhs_const / rhs_const;
+                    let remainder = lhs_const - quotient * rhs_const;
 
-                let quotient_var = self.add_constant(quotient);
-                let remainder_var = self.add_constant(remainder);
-                return Ok((quotient_var, remainder_var));
+                    let quotient_var = self.add_constant(quotient);
+                    let remainder_var = self.add_constant(remainder);
+                    return Ok((quotient_var, remainder_var));
+                } else {
+                    // If we're truncating to 128 bits, the RHS will be 2**128, which is 1 followed by 128 zeros;
+                    // when converted to u128, it becomes all zero.
+                    let lhs_const = BigUint::from_bytes_be(&lhs_const.to_be_bytes());
+                    let rhs_const = BigUint::from_bytes_be(&rhs_const.to_be_bytes());
+                    let (quotient, remainder) = lhs_const.div_rem(&rhs_const);
+                    let quotient = F::from_be_bytes_reduce(&quotient.to_bytes_be());
+                    let remainder = F::from_be_bytes_reduce(&remainder.to_bytes_be());
+
+                    let quotient_var = self.add_constant(quotient);
+                    let remainder_var = self.add_constant(remainder);
+                    return Ok((quotient_var, remainder_var));
+                };
             }
 
             // If `rhs` is one then the division is a noop.
@@ -787,30 +830,41 @@ impl<F: AcirField, B: BlackBoxFunctionSolver<F>> AcirContext<F, B> {
         let (max_q_bits, max_rhs_bits) = if let Some(rhs_const) = rhs_expr.to_const() {
             // when rhs is constant, we can better estimate the maximum bit sizes
             let max_rhs_bits = rhs_const.num_bits();
-            assert!(
-                max_rhs_bits <= bit_size,
-                "attempted to divide by constant larger than operand type"
-            );
 
-            let max_q_bits = bit_size - max_rhs_bits + 1;
-            (max_q_bits, max_rhs_bits)
+            // It is possible that we have an AcirVar which is a result of a multiplication of constants
+            // which resulted in an overflow, but that check will only happen at runtime, and here we
+            // can't assume that the RHS will never have more bits than the operand.
+            // Alternatively if the RHS is a result of an underflow, it could be a negative number which
+            // is represented by a very large positive Field, which could fail to compile to ACIR in
+            // `range_constrain_var` below, because it can use all 254 bits.
+
+            // To avoid any uncertainty about how the rest of the calls would behave if we pretended that we
+            // didn't know that the RHS has more bits than the operation assumes, we return zero and add an
+            // assertion which will fail at runtime.
+            if max_rhs_bits > bit_size {
+                let msg = format!(
+                    "attempted to divide by constant larger than operand type: {max_rhs_bits} > {bit_size}"
+                );
+                let msg = self.generate_assertion_message_payload(msg);
+                self.assert_eq_var(zero, one, Some(msg))?;
+                return Ok((zero, zero));
+            }
+            (bit_size - max_rhs_bits + 1, max_rhs_bits)
         } else {
             (bit_size, bit_size)
         };
 
         let [q_value, r_value]: [AcirValue; 2] = self
-            .brillig_call(
+            .stdlib_brillig_call(
                 predicate,
-                &BrilligStdlibFunc::Quotient.get_generated_brillig(),
+                BrilligStdlibFunc::Quotient,
+                &self.brillig_stdlib.get_code(BrilligStdlibFunc::Quotient).clone(),
                 vec![
                     AcirValue::Var(lhs, AcirType::unsigned(bit_size)),
                     AcirValue::Var(rhs, AcirType::unsigned(bit_size)),
                 ],
                 vec![AcirType::unsigned(max_q_bits), AcirType::unsigned(max_rhs_bits)],
                 true,
-                false,
-                PLACEHOLDER_BRILLIG_INDEX,
-                Some(BrilligStdlibFunc::Quotient),
             )?
             .try_into()
             .expect("quotient only returns two values");
@@ -936,7 +990,10 @@ impl<F: AcirField, B: BlackBoxFunctionSolver<F>> AcirContext<F, B> {
 
         // Optimization when rhs is const and fits within a u128
         let rhs_expr = self.var_to_expression(rhs)?;
-        if rhs_expr.is_const() && rhs_expr.q_c.num_bits() <= 128 {
+        // Do not attempt this optimization when the q_c is zero as otherwise
+        // we will compute an rhs offset of zero and ultimately lay down a range constrain of zero bits
+        // which will always fail.
+        if rhs_expr.is_const() && rhs_expr.q_c.num_bits() <= 128 && !rhs_expr.q_c.is_zero() {
             // We try to move the offset to rhs
             let rhs_offset = if self.is_constant_one(&offset) && rhs_expr.q_c.to_u128() >= 1 {
                 lhs_offset = lhs;
@@ -956,6 +1013,7 @@ impl<F: AcirField, B: BlackBoxFunctionSolver<F>> AcirContext<F, B> {
 
             let r_var = self.add_constant(r);
             let aor = self.add_var(lhs_offset, r_var)?;
+
             // lhs_offset<=rhs_offset <=> lhs_offset + r < rhs_offset + r = 2^bit_size <=> witness < 2^bit_size
             self.range_constrain_var(aor, &NumericType::Unsigned { bit_size }, None)?;
             return Ok(());
@@ -1540,7 +1598,7 @@ pub(super) fn power_of_two<F: AcirField>(power: u32) -> F {
     };
 
     let bytes_be: Vec<u8> = std::iter::once(most_significant_byte)
-        .chain(std::iter::repeat(0).take(full_bytes as usize))
+        .chain(std::iter::repeat_n(0, full_bytes as usize))
         .collect();
 
     F::from_be_bytes_reduce(&bytes_be)

@@ -1,0 +1,35 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: artifact
+---
+{
+  "noir_version": "[noir_version]",
+  "hash": "[hash]",
+  "abi": {
+    "parameters": [
+      {
+        "name": "x",
+        "type": {
+          "kind": "field"
+        },
+        "visibility": "private"
+      }
+    ],
+    "return_type": null,
+    "error_types": {}
+  },
+  "bytecode": "H4sIAAAAAAAA/7WTTQ6DIBCFAdu0XVfvwQjIsPMqNYX7H6E/MglB4sbxJeYRhjw/BpBilfp+lzwml2Irmpuz62OCMsvoydroxwgGXnoMCzpt3TIhIDh07xGNiWjRhyV4HcCaCMkFE9NfXjY4TwGWuWHc8FyMioEr5bCzeqgauUd7qPgYtdi59Ac5Eyfnj23vwdaiNY/Kh6LeMZ415ffn5OtbY49DMe6rfaqiNjMxUF6X/Sq2UlWN1t4rPsnPBzVL1/gX6Zm9L+aonx+mx5swLQYAAA==",
+  "debug_symbols": "nZHBCoMwDIbfJece6py4+SpjSK1RCqUttR0M8d0XS930MBi7JE3+fAn8naHHLo6tMoOdoLnN0HmltRpbbaUIyhrqzguDrWyDR6QW7HSinPBoAjQmas3gIXRMQ5MTJuUgPKmcAZqeMi0clMb1tbAPzb+jVZHZ6vKGq5/pusx0ff6Dvp4zXXB+wO9UCan8wSzgNMigSPGUYglNuaz7vRKdxmzpEI3cORyeblO2P3DeSuyjx/VA0ujkCw==",
+  "file_map": {
+    "50": {
+      "source": "fn main(mut x: Field) {\n    let mut q = 0;\n\n    if x != 10 {\n        q = 2;\n    }\n\n    assert(q == 2);\n}\n",
+      "path": ""
+    }
+  },
+  "names": [
+    "main"
+  ],
+  "brillig_names": [
+    "directive_invert"
+  ]
+}

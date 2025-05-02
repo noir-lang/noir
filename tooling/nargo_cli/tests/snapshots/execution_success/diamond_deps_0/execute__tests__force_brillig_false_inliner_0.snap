@@ -1,0 +1,40 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: artifact
+---
+{
+  "noir_version": "[noir_version]",
+  "hash": "[hash]",
+  "abi": {
+    "parameters": [
+      {
+        "name": "x",
+        "type": {
+          "kind": "field"
+        },
+        "visibility": "private"
+      },
+      {
+        "name": "y",
+        "type": {
+          "kind": "field"
+        },
+        "visibility": "public"
+      }
+    ],
+    "return_type": {
+      "abi_type": {
+        "kind": "field"
+      },
+      "visibility": "public"
+    },
+    "error_types": {}
+  },
+  "bytecode": "H4sIAAAAAAAA/62QQQ6AMAgERX0QFLBw8ys24v+foMYeGj3aSTZ7m2wWhofxCgxfptprbcZFJHIKYtoweTFF0bIYGanpnow5TCx78YxOwkGHOsfx0NMFjQv/QWO/XXHvmqur/RSahub3NyeCJfyblAEAAA==",
+  "debug_symbols": "ndHhCoMgEAfwd/FzH2abW/UqY4TZFYKomAYjevddkasGjbFPev79HQc3kBqq0JZSN6YjxX0glZNKybZURnAvjcbXYUxILEvvAPCJbHJUljvQnhQ6KJWQnqswf+os1/PpucP0lBDQNZ7YsJEKptuYrPp0TGmaLZiy85uzvafHPrssPM9XTXc6/aJZ1OvoLP1j9hs9mv03n113/oEVF9J9bqvnTvJKwVI2QYtN6p82JnHb1hkBdXAwdZoz7P0C",
+  "file_map": {},
+  "names": [
+    "main"
+  ],
+  "brillig_names": []
+}

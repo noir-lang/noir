@@ -1,0 +1,77 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: artifact
+---
+{
+  "noir_version": "[noir_version]",
+  "hash": "[hash]",
+  "abi": {
+    "parameters": [
+      {
+        "name": "x",
+        "type": {
+          "kind": "integer",
+          "sign": "unsigned",
+          "width": 64
+        },
+        "visibility": "private"
+      },
+      {
+        "name": "y",
+        "type": {
+          "kind": "integer",
+          "sign": "unsigned",
+          "width": 8
+        },
+        "visibility": "private"
+      },
+      {
+        "name": "z",
+        "type": {
+          "kind": "integer",
+          "sign": "signed",
+          "width": 16
+        },
+        "visibility": "private"
+      },
+      {
+        "name": "u",
+        "type": {
+          "kind": "integer",
+          "sign": "signed",
+          "width": 64
+        },
+        "visibility": "private"
+      }
+    ],
+    "return_type": null,
+    "error_types": {
+      "2920182694213909827": {
+        "error_kind": "string",
+        "string": "attempt to subtract with overflow"
+      },
+      "14514982005979867414": {
+        "error_kind": "string",
+        "string": "attempt to bit-shift with overflow"
+      },
+      "17843811134343075018": {
+        "error_kind": "string",
+        "string": "Stack too deep"
+      }
+    }
+  },
+  "bytecode": "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",
+  "debug_symbols": "pdjNblpJEEDhd2HN4vZPVVf7VaLIwjaOkBC2iD3SyPK7T9ftOo6zmM1lkzqE1GcFaHzhY/d0fHj/dX+6PL/83t39+Ng9XE/n8+nX/fnl8fB2ermMv/3YLf5HTru7tN/lPEeZo84hc+gcbQ7b3eUx+jrKMkeaI88xlDLGUOoYMofO0eawOYYi+11d5khz5DnKHEPRMWQOnaPNYXMMpe13MhQbI82R5yhz1DmG0sfQOdocQ0nLmH1OXWKmmDlmiVljSkyN2WKGp+G18Fp4LbwWXguvhdfCa+G18Fp4Fp6FZ+FZeBaehWfhWXgWnoXXw+vh9fB6eD28Hl4Pr4fXw+vhpWUhEpGJQlRCCCUaYQRyQk4uJ49MFKISQricPRphRI/IC5GITBSiEkIgZ+SMnJELckEuyAW5IBfkglyQC3JBrsgVuSJX5IpckStyRa7IFVmQBVmQBVmQBVmQBVmQBVmRFVmRFVmRFVmRFVmR11M23m3SeszWSEQmCuFy9XBZPFxWj0YY4fJ4X0nrgVsjEZkohMvmIYQSjTCiR6xHb41EZKIQyB25I3fkjtxDzstCJCIThaiEEEo0wgjkhJyQE3JCTsgJOSEn5ISckDNyRs7IGTkjZ+SMnJEzckYuyAW5IBfkglyQC3JBXs9g9+gR6xlcIxGZGHJePCohhBKNMKJH+BmckYhMIAuyIAuyIAuyICuyIiuyIiuyIiuyIiuyIjfkhtyQG3JDbsgNuSE35IZsyIZsyIZsyIZsyIZsyIbckTtyR+7IHbkj+xnMfjnkZ3CGEX1G8TM4w+X1aikThaiEEEo0woge4WdwBnJC9jOY/erLz+AMIVz2qy4/gzOM6BF+BrN4JCIThaiEEC6rRyOM6BHrpeIaLjcPl82jEJUQQgmXu4cRPcLP4IxEZKIQlRBCCeSKXJEFWZAFWZAFWZAFWZAFWZAVWZEVWZEVWZEVWZEVWZEbckNuyA25ITfkhtyQG3JDNmRDNmRDNmRDNmRDNmRD7sh+BsvikYlCVEI8Pj/3Oz7O3L9dj0f/NPPt88341PN6uB4vb7u7y/v5vN/9czi/r//o9+vhss63w3XcO8jj5WnMAT6fzkevz/2f7eX/V8flbCyPK9Ovddm037bsl8R+sdv2a92y3y32x7XEbfspbdjP/uYz98ut+1se//HmH/tl0/9//Mr52pfb9je9/oq/5c/9Ta+fb/u1bNivC49/TXnLfuHn17rl+a/yta/LjftbHr9qmX27cb9vef3JwvmTdON+3vL4ydf7j5Qtrx+pyr7k2/Y3Pf/SeP7Fbt3XDfu68Phpktv2Nz1/Wnj+ddPvj+/7/a/9n+PW4fF0/esby0+XrqfDw/kYN5/fL4/f7n3795V7+Mbz9fryeHx6vx5d+vO1p19A/yjj7bsu+ad/DzRu1kXHTfv56T/+Pw==",
+  "file_map": {
+    "50": {
+      "source": "fn main(x: u64, y: u8, z: i16, u: i64) {\n    // runtime shifts on compile-time known values\n    assert(64 << y == 128);\n    assert(64 >> y == 32);\n    // runtime shifts on runtime values\n    assert(x << y == 128);\n    assert(x >> y == 32);\n    // regression tests for issue #8176\n    assert(u >> (x as u8) == 0);\n    assert(z >> (x as u8) == 0);\n\n    // Bit-shift with signed integers\n    let mut a: i8 = y as i8;\n    let mut b: i8 = x as i8;\n    assert(b << 1 == -128);\n    assert(b >> 2 == 16);\n    assert(b >> y == 32);\n    a = -a;\n    assert(a << 7 == -128);\n    assert(a << y == -2);\n\n    assert(x >> (x as u8) == 0);\n\n    assert_eq(z >> 3, -97);\n}\n",
+      "path": ""
+    }
+  },
+  "names": [
+    "main"
+  ],
+  "brillig_names": [
+    "main"
+  ]
+}

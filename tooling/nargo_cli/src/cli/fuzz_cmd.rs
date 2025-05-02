@@ -5,8 +5,10 @@ use bn254_blackbox_solver::Bn254BlackBoxSolver;
 use clap::Args;
 use fm::FileManager;
 use nargo::{
-    FuzzExecutionConfig, FuzzFolderConfig, insert_all_files_for_workspace_into_file_manager,
-    ops::FuzzingRunStatus,
+    FuzzExecutionConfig, FuzzFolderConfig,
+    foreign_calls::DefaultForeignCallBuilder,
+    insert_all_files_for_workspace_into_file_manager,
+    ops::{FuzzingRunStatus, check_crate_and_report_errors},
     package::{CrateName, Package},
     parse_all, prepare_package,
     workspace::Workspace,
@@ -18,7 +20,7 @@ use noirc_frontend::hir::{FunctionNameMatch, ParsedFiles};
 use rayon::prelude::{ParallelBridge, ParallelIterator};
 use termcolor::{Color, ColorChoice, ColorSpec, StandardStream, WriteColor};
 
-use crate::{cli::check_cmd::check_crate_and_report_errors, errors::CliError};
+use crate::errors::CliError;
 
 use super::{LockType, PackageOptions, WorkspaceCommand};
 use noir_artifact_cli::fs::inputs::write_inputs_to_file;
@@ -150,8 +152,11 @@ pub(crate) fn run(args: FuzzCommand, workspace: Workspace) -> Result<(), CliErro
         minimized_corpus_dir: args.minimized_corpus_dir,
         fuzzing_failure_dir: args.fuzzing_failure_dir,
     };
-    let fuzz_execution_config =
-        FuzzExecutionConfig { timeout: args.timeout.unwrap_or(0), num_threads: args.num_threads };
+    let fuzz_execution_config = FuzzExecutionConfig {
+        timeout: args.timeout.unwrap_or(0),
+        num_threads: args.num_threads,
+        show_progress: true,
+    };
 
     let fuzzing_reports: Vec<Vec<(String, FuzzingRunStatus)>> = workspace
         .into_iter()
@@ -164,7 +169,7 @@ pub(crate) fn run(args: FuzzCommand, workspace: Workspace) -> Result<(), CliErro
                 args.show_output,
                 args.oracle_resolver.as_deref(),
                 Some(workspace.root_dir.clone()),
-                Some(package.name.to_string()),
+                package.name.to_string(),
                 &args.compile_options,
                 &fuzz_folder_config,
                 &fuzz_execution_config,
@@ -232,7 +237,7 @@ fn run_fuzzers<S: BlackBoxFunctionSolver<FieldElement> + Default>(
     show_output: bool,
     foreign_call_resolver_url: Option<&str>,
     root_path: Option<PathBuf>,
-    package_name: Option<String>,
+    package_name: String,
     compile_options: &CompileOptions,
     fuzz_folder_config: &FuzzFolderConfig,
     fuzz_execution_config: &FuzzExecutionConfig,
@@ -284,7 +289,7 @@ fn run_fuzzing_harness<S: BlackBoxFunctionSolver<FieldElement> + Default>(
     show_output: bool,
     foreign_call_resolver_url: Option<&str>,
     root_path: Option<PathBuf>,
-    package_name: Option<String>,
+    package_name: String,
     compile_options: &CompileOptions,
     fuzz_folder_config: &FuzzFolderConfig,
     fuzz_execution_config: &FuzzExecutionConfig,
@@ -301,16 +306,24 @@ fn run_fuzzing_harness<S: BlackBoxFunctionSolver<FieldElement> + Default>(
         context.get_all_fuzzing_harnesses_in_crate_matching(&crate_id, &pattern);
     let (_, fuzzing_harness) = fuzzing_harnesses.first().expect("Fuzzing harness should exist");
 
-    nargo::ops::run_fuzzing_harness::<S>(
+    nargo::ops::run_fuzzing_harness::<S, _, _>(
         &mut context,
         fuzzing_harness,
         show_output,
-        foreign_call_resolver_url,
-        root_path,
-        package_name,
+        package_name.clone(),
         compile_options,
         fuzz_folder_config,
         fuzz_execution_config,
+        |output, base| {
+            DefaultForeignCallBuilder {
+                output,
+                enable_mocks: true,
+                resolver_url: foreign_call_resolver_url.map(|s| s.to_string()),
+                root_path: root_path.clone(),
+                package_name: Some(package_name.clone()),
+            }
+            .build_with_base(base)
+        },
     )
 }
 
@@ -362,13 +375,13 @@ fn display_fuzzing_report_and_store(
     writer.flush().expect("Failed to flush writer");
 
     match &status {
-        FuzzingRunStatus::ExecutionPass { .. } => {
+        FuzzingRunStatus::ExecutionPass => {
             writer
                 .set_color(ColorSpec::new().set_fg(Some(Color::Green)))
                 .expect("Failed to set color");
             writeln!(writer, "ok").expect("Failed to write to stderr");
         }
-        FuzzingRunStatus::MinimizationPass { .. } => {
+        FuzzingRunStatus::MinimizationPass => {
             writer
                 .set_color(ColorSpec::new().set_fg(Some(Color::Green)))
                 .expect("Failed to set color");

@@ -13,6 +13,7 @@ use acvm::{AcirField, FieldElement};
 use crate::{
     ast::{IntegerBitSize, ItemVisibility},
     hir::type_check::{TypeCheckError, generics::TraitGenerics},
+    hir_def::types,
     node_interner::{ExprId, NodeInterner, TraitId, TypeAliasId},
     signed_field::{AbsU128, SignedField},
 };
@@ -91,7 +92,7 @@ pub enum Type {
 
     /// NamedGenerics are the 'T' or 'U' in a user-defined generic function
     /// like `fn foo<T, U>(...) {}`. Unlike TypeVariables, they cannot be bound over.
-    NamedGeneric(TypeVariable, Rc<String>),
+    NamedGeneric(NamedGeneric),
 
     /// A cast (to, from) that's checked at monomorphization.
     ///
@@ -121,7 +122,7 @@ pub enum Type {
 
     /// A type-level integer. Included to let
     /// 1. an Array's size type variable
-    ///     bind to an integer without special checks to bind it to a non-type.
+    ///    bind to an integer without special checks to bind it to a non-type.
     /// 2. values to be used at the type level
     Constant(FieldElement, Kind),
 
@@ -141,6 +142,14 @@ pub enum Type {
     /// an invalid type would otherwise issue a new error each time it is called
     /// if not for this variant.
     Error,
+}
+
+#[derive(PartialEq, Eq, Clone, Ord, PartialOrd, Debug)]
+pub struct NamedGeneric {
+    pub type_var: TypeVariable,
+    pub name: Rc<String>,
+    /// Was this named generic implicitly added?
+    pub implicit: bool,
 }
 
 /// A Kind is the type of a Type. These are used since only certain kinds of types are allowed in
@@ -394,7 +403,11 @@ pub struct ResolvedGeneric {
 
 impl ResolvedGeneric {
     pub fn as_named_generic(self) -> Type {
-        Type::NamedGeneric(self.type_var, self.name)
+        Type::NamedGeneric(NamedGeneric {
+            type_var: self.type_var,
+            name: self.name,
+            implicit: false,
+        })
     }
 
     pub fn kind(&self) -> Kind {
@@ -491,9 +504,7 @@ impl DataType {
 
     /// Return the generics on this type as a vector of types
     pub fn generic_types(&self) -> Vec<Type> {
-        vecmap(&self.generics, |generic| {
-            Type::NamedGeneric(generic.type_var.clone(), generic.name.clone())
-        })
+        vecmap(&self.generics, |generic| generic.clone().as_named_generic())
     }
 
     /// Returns the field matching the given field name, as well as its visibility and field index.
@@ -1019,8 +1030,8 @@ impl std::fmt::Display for Type {
             }
             Type::Unit => write!(f, "()"),
             Type::Error => write!(f, "error"),
-            Type::NamedGeneric(binding, name) => match &*binding.borrow() {
-                TypeBinding::Bound(binding) => binding.fmt(f),
+            Type::NamedGeneric(NamedGeneric { type_var, name, .. }) => match &*type_var.borrow() {
+                TypeBinding::Bound(type_var) => type_var.fmt(f),
                 TypeBinding::Unbound(_, _) if name.is_empty() => write!(f, "_"),
                 TypeBinding::Unbound(_, _) => write!(f, "{name}"),
             },
@@ -1266,7 +1277,7 @@ impl Type {
 
             Type::FmtString(_, _)
             | Type::TypeVariable(_)
-            | Type::NamedGeneric(_, _)
+            | Type::NamedGeneric(_)
             | Type::Function(_, _, _, _)
             | Type::Reference(..)
             | Type::Forall(_, _)
@@ -1317,7 +1328,7 @@ impl Type {
             | Type::Unit
             | Type::Constant(_, _)
             | Type::TypeVariable(_)
-            | Type::NamedGeneric(_, _)
+            | Type::NamedGeneric(_)
             | Type::InfixExpr(..)
             | Type::Error => true,
 
@@ -1370,7 +1381,7 @@ impl Type {
             | Type::InfixExpr(..)
             | Type::Error => true,
 
-            Type::TypeVariable(type_var) | Type::NamedGeneric(type_var, _) => {
+            Type::TypeVariable(type_var) | Type::NamedGeneric(NamedGeneric { type_var, .. }) => {
                 if let TypeBinding::Bound(typ) = &*type_var.borrow() {
                     typ.is_valid_for_unconstrained_boundary()
                 } else {
@@ -1415,7 +1426,8 @@ impl Type {
         match self {
             Type::Forall(generics, _) => generics.len(),
             Type::CheckedCast { to, .. } => to.generic_count(),
-            Type::TypeVariable(type_variable) | Type::NamedGeneric(type_variable, _) => {
+            Type::TypeVariable(type_variable)
+            | Type::NamedGeneric(NamedGeneric { type_var: type_variable, .. }) => {
                 match &*type_variable.borrow() {
                     TypeBinding::Bound(binding) => binding.generic_count(),
                     TypeBinding::Unbound(_, _) => 0,
@@ -1455,7 +1467,7 @@ impl Type {
     pub(crate) fn kind(&self) -> Kind {
         match self {
             Type::CheckedCast { to, .. } => to.kind(),
-            Type::NamedGeneric(var, _) => var.kind(),
+            Type::NamedGeneric(NamedGeneric { type_var, .. }) => type_var.kind(),
             Type::Constant(_, kind) => kind.clone(),
             Type::TypeVariable(var) => match &*var.borrow() {
                 TypeBinding::Bound(typ) => typ.kind(),
@@ -1571,7 +1583,7 @@ impl Type {
             | Type::Unit
             | Type::TypeVariable(_)
             | Type::TraitAsType(..)
-            | Type::NamedGeneric(_, _)
+            | Type::NamedGeneric(_)
             | Type::Function(_, _, _, _)
             | Type::Reference(..)
             | Type::Forall(_, _)
@@ -1739,7 +1751,9 @@ impl Type {
     fn get_inner_type_variable(&self) -> Option<(Shared<TypeBinding>, Kind)> {
         match self {
             Type::TypeVariable(var) => Some((var.1.clone(), var.kind())),
-            Type::NamedGeneric(var, _) => Some((var.1.clone(), var.kind())),
+            Type::NamedGeneric(NamedGeneric { type_var, .. }) => {
+                Some((type_var.1.clone(), type_var.kind()))
+            }
             Type::CheckedCast { to, .. } => to.get_inner_type_variable(),
             _ => None,
         }
@@ -1869,17 +1883,21 @@ impl Type {
                 to.try_unify(other, bindings)
             }
 
-            (NamedGeneric(binding, _), other) | (other, NamedGeneric(binding, _))
-                if !binding.borrow().is_unbound() =>
+            (NamedGeneric(types::NamedGeneric { type_var, .. }), other)
+            | (other, NamedGeneric(types::NamedGeneric { type_var, .. }))
+                if !type_var.borrow().is_unbound() =>
             {
-                if let TypeBinding::Bound(link) = &*binding.borrow() {
+                if let TypeBinding::Bound(link) = &*type_var.borrow() {
                     link.try_unify(other, bindings)
                 } else {
                     unreachable!("If guard ensures binding is bound")
                 }
             }
 
-            (NamedGeneric(binding_a, name_a), NamedGeneric(binding_b, name_b)) => {
+            (
+                NamedGeneric(types::NamedGeneric { type_var: binding_a, name: name_a, .. }),
+                NamedGeneric(types::NamedGeneric { type_var: binding_b, name: name_b, .. }),
+            ) => {
                 // Bound NamedGenerics are caught by the check above
                 assert!(binding_a.borrow().is_unbound());
                 assert!(binding_b.borrow().is_unbound());
@@ -2337,7 +2355,9 @@ impl Type {
 
     fn type_variable_id(&self) -> Option<TypeVariableId> {
         match self {
-            Type::TypeVariable(variable) | Type::NamedGeneric(variable, _) => Some(variable.0),
+            Type::TypeVariable(type_var) | Type::NamedGeneric(NamedGeneric { type_var, .. }) => {
+                Some(type_var.0)
+            }
             _ => None,
         }
     }
@@ -2438,8 +2458,8 @@ impl Type {
                 let to = to.substitute_helper(type_bindings, substitute_bound_typevars);
                 Type::CheckedCast { from: Box::new(from), to: Box::new(to) }
             }
-            Type::NamedGeneric(binding, _) | Type::TypeVariable(binding) => {
-                substitute_binding(binding)
+            Type::NamedGeneric(NamedGeneric { type_var, .. }) | Type::TypeVariable(type_var) => {
+                substitute_binding(type_var)
             }
 
             // Do not substitute_helper fields, it can lead to infinite recursion
@@ -2530,7 +2550,7 @@ impl Type {
             }
             Type::Tuple(fields) => fields.iter().any(|field| field.occurs(target_id)),
             Type::CheckedCast { from, to } => from.occurs(target_id) || to.occurs(target_id),
-            Type::NamedGeneric(type_var, _) | Type::TypeVariable(type_var) => {
+            Type::NamedGeneric(NamedGeneric { type_var, .. }) | Type::TypeVariable(type_var) => {
                 match &*type_var.borrow() {
                     TypeBinding::Bound(binding) => {
                         type_var.id() == target_id || binding.occurs(target_id)
@@ -2593,7 +2613,7 @@ impl Type {
                 let to = Box::new(to.follow_bindings());
                 CheckedCast { from, to }
             }
-            TypeVariable(var) | NamedGeneric(var, _) => {
+            TypeVariable(var) | NamedGeneric(types::NamedGeneric { type_var: var, .. }) => {
                 if let TypeBinding::Bound(typ) = &*var.borrow() {
                     return typ.follow_bindings();
                 }
@@ -2635,7 +2655,7 @@ impl Type {
     /// fields or arguments of this type.
     pub fn follow_bindings_shallow(&self) -> Cow<Type> {
         match self {
-            Type::TypeVariable(var) | Type::NamedGeneric(var, _) => {
+            Type::TypeVariable(var) | Type::NamedGeneric(NamedGeneric { type_var: var, .. }) => {
                 if let TypeBinding::Bound(typ) = &*var.borrow() {
                     return Cow::Owned(typ.follow_bindings_shallow().into_owned());
                 }
@@ -2712,8 +2732,8 @@ impl Type {
                 from.replace_named_generics_with_type_variables();
                 to.replace_named_generics_with_type_variables();
             }
-            Type::NamedGeneric(var, _) => {
-                let type_binding = var.borrow();
+            Type::NamedGeneric(NamedGeneric { type_var, .. }) => {
+                let type_binding = type_var.borrow();
                 if let TypeBinding::Bound(binding) = &*type_binding {
                     let mut binding = binding.clone();
                     drop(type_binding);
@@ -2721,7 +2741,7 @@ impl Type {
                     *self = binding;
                 } else {
                     drop(type_binding);
-                    *self = Type::TypeVariable(var.clone());
+                    *self = Type::TypeVariable(type_var.clone());
                 }
             }
             Type::Function(args, ret, env, _unconstrained) => {
@@ -2771,7 +2791,7 @@ impl Type {
             }
             Type::Alias(alias, args) => alias.borrow().get_type(args).integral_maximum_size(),
             Type::CheckedCast { to, .. } => to.integral_maximum_size(),
-            Type::NamedGeneric(binding, _name) => match &*binding.borrow() {
+            Type::NamedGeneric(NamedGeneric { type_var, .. }) => match &*type_var.borrow() {
                 TypeBinding::Bound(typ) => typ.integral_maximum_size(),
                 TypeBinding::Unbound(_, kind) => kind.integral_maximum_size(),
             },
@@ -3069,12 +3089,12 @@ impl std::fmt::Debug for Type {
             Type::Unit => write!(f, "()"),
             Type::Error => write!(f, "error"),
             Type::CheckedCast { to, .. } => write!(f, "{:?}", to),
-            Type::NamedGeneric(binding, name) => match binding.kind() {
+            Type::NamedGeneric(NamedGeneric { type_var, name, .. }) => match type_var.kind() {
                 Kind::Any | Kind::Normal | Kind::Integer | Kind::IntegerOrField => {
-                    write!(f, "{}{:?}", name, binding)
+                    write!(f, "{}{:?}", name, type_var)
                 }
                 Kind::Numeric(typ) => {
-                    write!(f, "({} : {}){:?}", name, typ, binding)
+                    write!(f, "({} : {}){:?}", name, typ, type_var)
                 }
             },
             Type::Constant(x, kind) => write!(f, "({}: {})", x, kind),
@@ -3170,7 +3190,16 @@ impl std::hash::Hash for Type {
                 alias.hash(state);
                 args.hash(state);
             }
-            Type::TypeVariable(var) | Type::NamedGeneric(var, ..) => var.hash(state),
+            Type::NamedGeneric(NamedGeneric { type_var, implicit: true, .. }) => {
+                // An implicitly added unbound named generic's hash must be the same as any other
+                // implicitly added unbound named generic's hash.
+                if !type_var.borrow().is_unbound() {
+                    type_var.hash(state);
+                }
+            }
+            Type::TypeVariable(var) | Type::NamedGeneric(NamedGeneric { type_var: var, .. }) => {
+                var.hash(state);
+            }
             Type::TraitAsType(trait_id, _, args) => {
                 trait_id.hash(state);
                 args.hash(state);
@@ -3266,14 +3295,22 @@ impl PartialEq for Type {
             (InfixExpr(l_lhs, l_op, l_rhs, _), InfixExpr(r_lhs, r_op, r_rhs, _)) => {
                 l_lhs == r_lhs && l_op == r_op && l_rhs == r_rhs
             }
+            // Two implicitly added unbound named generics are equal
+            (
+                NamedGeneric(types::NamedGeneric { type_var: lhs_var, implicit: true, .. }),
+                NamedGeneric(types::NamedGeneric { type_var: rhs_var, implicit: true, .. }),
+            ) => {
+                lhs_var.borrow().is_unbound() && rhs_var.borrow().is_unbound()
+                    || lhs_var.id() == rhs_var.id()
+            }
             // Special case: we consider unbound named generics and type variables to be equal to each
             // other if their type variable ids match. This is important for some corner cases in
             // monomorphization where we call `replace_named_generics_with_type_variables` but
             // still want them to be equal for canonicalization checks in arithmetic generics.
             // Without this we'd fail the `serialize` test.
             (
-                NamedGeneric(lhs_var, _) | TypeVariable(lhs_var),
-                NamedGeneric(rhs_var, _) | TypeVariable(rhs_var),
+                NamedGeneric(types::NamedGeneric { type_var: lhs_var, .. }) | TypeVariable(lhs_var),
+                NamedGeneric(types::NamedGeneric { type_var: rhs_var, .. }) | TypeVariable(rhs_var),
             ) => lhs_var.id() == rhs_var.id(),
             _ => false,
         }

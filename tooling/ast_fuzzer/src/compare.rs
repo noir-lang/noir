@@ -1,10 +1,11 @@
 use acir::{FieldElement, native_types::WitnessStack};
-use arbitrary::Unstructured;
+use acvm::pwg::{OpcodeResolutionError, ResolvedAssertionPayload};
+use arbitrary::{Arbitrary, Unstructured};
 use bn254_blackbox_solver::Bn254BlackBoxSolver;
 use color_eyre::eyre::{self, WrapErr, bail};
-use nargo::{NargoError, PrintOutput, foreign_calls::DefaultForeignCallBuilder};
+use nargo::{NargoError, errors::ExecutionError, foreign_calls::DefaultForeignCallBuilder};
 use noirc_abi::{Abi, InputMap, input_parser::InputValue};
-use noirc_evaluator::ssa::SsaProgramArtifact;
+use noirc_evaluator::ssa::{SsaEvaluatorOptions, SsaProgramArtifact};
 use noirc_frontend::monomorphization::ast::Program;
 
 use crate::{Config, arb_inputs, arb_program, program_abi};
@@ -16,6 +17,28 @@ pub struct ExecOutput {
 }
 
 type ExecResult = (Result<WitnessStack<FieldElement>, NargoError<FieldElement>>, String);
+
+/// Subset of [SsaEvaluatorOptions] that we want to vary.
+///
+/// It exists to reduce noise in the printed results, compared to showing the full `SsaEvaluatorOptions`.
+#[derive(Debug, Clone, Default)]
+pub struct CompareOptions {
+    pub inliner_aggressiveness: i64,
+}
+
+impl Arbitrary<'_> for CompareOptions {
+    fn arbitrary(u: &mut Unstructured<'_>) -> arbitrary::Result<Self> {
+        Ok(Self { inliner_aggressiveness: *u.choose(&[i64::MIN, 0, i64::MAX])? })
+    }
+}
+
+impl CompareOptions {
+    /// Copy fields into an [SsaEvaluatorOptions] instance.
+    pub fn onto(&self, mut options: SsaEvaluatorOptions) -> SsaEvaluatorOptions {
+        options.inliner_aggressiveness = self.inliner_aggressiveness;
+        options
+    }
+}
 
 /// Possible outcomes of the differential execution of two equivalent programs.
 ///
@@ -64,15 +87,18 @@ impl CompareResult {
     pub fn return_value_or_err(&self) -> eyre::Result<Option<&InputValue>> {
         match self {
             CompareResult::BothFailed(e1, e2) => {
-                // For now raise an error to catch anything unexpected, but in the future if
-                // both fail the same way (e.g. assertion failure) then it should be okay.
-                bail!("both programs failed: {e1}; {e2}")
+                if Self::errors_match(e1, e2) {
+                    // Both programs failed the same way.
+                    Ok(None)
+                } else {
+                    bail!("both programs failed: {e1} vs {e2}\n{e1:?}\n{e2:?}")
+                }
             }
             CompareResult::LeftFailed(e, _) => {
-                bail!("first program failed: {e}")
+                bail!("first program failed: {e}\n{e:?}")
             }
             CompareResult::RightFailed(_, e) => {
-                bail!("second program failed: {e}")
+                bail!("second program failed: {e}\n{e:?}")
             }
             CompareResult::BothPassed(o1, o2) => {
                 if o1.return_value != o2.return_value {
@@ -93,6 +119,49 @@ impl CompareResult {
             }
         }
     }
+
+    /// Check whether two errors can be considered equivalent.
+    fn errors_match(e1: &NargoError<FieldElement>, e2: &NargoError<FieldElement>) -> bool {
+        use ExecutionError::*;
+
+        // For now consider non-execution errors as failures we need to investigate.
+        let NargoError::ExecutionError(ee1) = e1 else {
+            return false;
+        };
+        let NargoError::ExecutionError(ee2) = e2 else {
+            return false;
+        };
+
+        match (ee1, ee2) {
+            (AssertionFailed(p1, _, _), AssertionFailed(p2, _, _)) => p1 == p2,
+            (SolvingError(s1, _), SolvingError(s2, _)) => s1 == s2,
+            (SolvingError(s, _), AssertionFailed(p, _, _))
+            | (AssertionFailed(p, _, _), SolvingError(s, _)) => match (s, p) {
+                (
+                    OpcodeResolutionError::UnsatisfiedConstrain { .. },
+                    ResolvedAssertionPayload::String(s),
+                ) => s == "Attempted to divide by zero",
+                _ => false,
+            },
+        }
+    }
+}
+
+pub struct CompareArtifact {
+    pub options: CompareOptions,
+    pub artifact: SsaProgramArtifact,
+}
+
+impl CompareArtifact {
+    fn new(artifact: SsaProgramArtifact, options: CompareOptions) -> Self {
+        Self { artifact, options }
+    }
+}
+
+impl From<(SsaProgramArtifact, CompareOptions)> for CompareArtifact {
+    fn from((artifact, options): (SsaProgramArtifact, CompareOptions)) -> Self {
+        Self::new(artifact, options)
+    }
 }
 
 /// Compare the execution of different SSA representations of equivalent program(s).
@@ -100,8 +169,8 @@ pub struct CompareSsa<P> {
     pub program: P,
     pub abi: Abi,
     pub input_map: InputMap,
-    pub ssa1: SsaProgramArtifact,
-    pub ssa2: SsaProgramArtifact,
+    pub ssa1: CompareArtifact,
+    pub ssa2: CompareArtifact,
 }
 
 impl<P> CompareSsa<P> {
@@ -111,11 +180,11 @@ impl<P> CompareSsa<P> {
         let initial_witness = self.abi.encode(&self.input_map, None).wrap_err("abi::encode")?;
 
         let do_exec = |program| {
-            let mut print = String::new();
+            let mut print = Vec::new();
 
             let mut foreign_call_executor = DefaultForeignCallBuilder::default()
                 .with_mocks(false)
-                .with_output(PrintOutput::String(&mut print))
+                .with_output(&mut print)
                 .build();
 
             let res = nargo::ops::execute_program(
@@ -125,11 +194,12 @@ impl<P> CompareSsa<P> {
                 &mut foreign_call_executor,
             );
 
+            let print = String::from_utf8(print).expect("should be valid utf8 string");
             (res, print)
         };
 
-        let (res1, print1) = do_exec(&self.ssa1.program);
-        let (res2, print2) = do_exec(&self.ssa2.program);
+        let (res1, print1) = do_exec(&self.ssa1.artifact.program);
+        let (res2, print2) = do_exec(&self.ssa2.artifact.program);
 
         CompareResult::new(&self.abi, (res1, print1), (res2, print2))
     }
@@ -143,16 +213,23 @@ impl CompareSsa<Program> {
     pub fn arb(
         u: &mut Unstructured,
         c: Config,
-        f: impl FnOnce(Program) -> SsaProgramArtifact,
-        g: impl FnOnce(Program) -> SsaProgramArtifact,
+        f: impl FnOnce(
+            &mut Unstructured,
+            Program,
+        ) -> arbitrary::Result<(SsaProgramArtifact, CompareOptions)>,
+        g: impl FnOnce(
+            &mut Unstructured,
+            Program,
+        ) -> arbitrary::Result<(SsaProgramArtifact, CompareOptions)>,
     ) -> arbitrary::Result<Self> {
         let program = arb_program(u, c)?;
         let abi = program_abi(&program);
 
-        let ssa1 = f(program.clone());
-        let ssa2 = g(program.clone());
+        let ssa1 = CompareArtifact::from(f(u, program.clone())?);
+        let ssa2 = CompareArtifact::from(g(u, program.clone())?);
 
-        let input_map = arb_inputs(u, &ssa1.program, &abi)?;
+        let input_program = &ssa1.artifact.program;
+        let input_map = arb_inputs(u, input_program, &abi)?;
 
         Ok(Self { program, abi, input_map, ssa1, ssa2 })
     }
@@ -162,22 +239,46 @@ impl CompareSsa<Program> {
 pub type CompareMutants = CompareSsa<(Program, Program)>;
 
 impl CompareMutants {
-    /// Generate a random AST and compile it into SSA in two different ways.
+    /// Generate a random AST, a random mutation of it, then compile both into SSA with the same options.
     pub fn arb(
         u: &mut Unstructured,
         c: Config,
-        f: impl Fn(&mut Unstructured, &Program) -> arbitrary::Result<Program>,
-        g: impl Fn(Program) -> SsaProgramArtifact,
+        f: impl Fn(&mut Unstructured, Program) -> arbitrary::Result<(Program, CompareOptions)>,
+        g: impl Fn(Program, &CompareOptions) -> SsaProgramArtifact,
     ) -> arbitrary::Result<Self> {
         let program1 = arb_program(u, c)?;
-        let program2 = f(u, &program1)?;
+        let (program2, options) = f(u, program1.clone())?;
         let abi = program_abi(&program1);
 
-        let ssa1 = g(program1.clone());
-        let ssa2 = g(program2.clone());
+        let ssa1 = g(program1.clone(), &options);
+        let ssa2 = g(program2.clone(), &options);
 
-        let input_map = arb_inputs(u, &ssa1.program, &abi)?;
+        let input_program = &ssa1.program;
+        let input_map = arb_inputs(u, input_program, &abi)?;
 
-        Ok(Self { program: (program1, program2), abi, input_map, ssa1, ssa2 })
+        Ok(Self {
+            program: (program1, program2),
+            abi,
+            input_map,
+            ssa1: CompareArtifact::new(ssa1, options.clone()),
+            ssa2: CompareArtifact::new(ssa2, options),
+        })
+    }
+}
+
+/// Help iterate over the program(s) in the comparable artifact.
+pub trait HasPrograms {
+    fn programs(&self) -> Vec<&Program>;
+}
+
+impl HasPrograms for ComparePasses {
+    fn programs(&self) -> Vec<&Program> {
+        vec![&self.program]
+    }
+}
+
+impl HasPrograms for CompareMutants {
+    fn programs(&self) -> Vec<&Program> {
+        vec![&self.program.0, &self.program.1]
     }
 }

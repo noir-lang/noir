@@ -11,7 +11,7 @@ use crate::hir::comptime::value::unwrap_rc;
 use crate::hir::def_collector::dc_crate::CompilationError;
 use crate::lexer::Lexer;
 use crate::parser::{Parser, ParserError};
-use crate::token::LocatedToken;
+use crate::token::{LocatedToken, SecondaryAttributeKind};
 use crate::{DataType, Kind, Shared};
 use crate::{
     QuotedType, Type,
@@ -575,9 +575,13 @@ pub(super) fn block_expression_to_value(block_expr: BlockExpression) -> Value {
     Value::Slice(statements, typ)
 }
 
-pub(super) fn has_named_attribute(name: &str, attributes: &[SecondaryAttribute]) -> bool {
+pub(super) fn has_named_attribute(
+    name: &str,
+    attributes: &[SecondaryAttribute],
+    interner: &NodeInterner,
+) -> bool {
     for attribute in attributes {
-        if let Some(attribute_name) = attribute.name() {
+        if let Some(attribute_name) = secondary_attribute_name(attribute, interner) {
             if name == attribute_name {
                 return true;
             }
@@ -585,6 +589,30 @@ pub(super) fn has_named_attribute(name: &str, attributes: &[SecondaryAttribute])
     }
 
     false
+}
+
+fn secondary_attribute_name(
+    attribute: &SecondaryAttribute,
+    interner: &NodeInterner,
+) -> Option<String> {
+    match &attribute.kind {
+        SecondaryAttributeKind::Deprecated(_) => Some("deprecated".to_string()),
+        SecondaryAttributeKind::ContractLibraryMethod => {
+            Some("contract_library_method".to_string())
+        }
+        SecondaryAttributeKind::Export => Some("export".to_string()),
+        SecondaryAttributeKind::Field(_) => Some("field".to_string()),
+        SecondaryAttributeKind::Tag(contents) => {
+            let mut lexer = Lexer::new_with_dummy_file(contents);
+            let token = lexer.next()?.ok()?;
+            if let Token::Ident(ident) = token.into_token() { Some(ident) } else { None }
+        }
+        SecondaryAttributeKind::Meta(meta) => interner.get_meta_attribute_name(meta),
+        SecondaryAttributeKind::Abi(_) => Some("abi".to_string()),
+        SecondaryAttributeKind::Varargs => Some("varargs".to_string()),
+        SecondaryAttributeKind::UseCallersScope => Some("use_callers_scope".to_string()),
+        SecondaryAttributeKind::Allow(_) => Some("allow".to_string()),
+    }
 }
 
 pub(super) fn quote_ident(ident: &Ident, location: Location) -> Value {

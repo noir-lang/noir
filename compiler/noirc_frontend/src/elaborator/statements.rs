@@ -130,7 +130,7 @@ impl Elaborator<'_> {
         }
 
         let warn_if_unused =
-            !let_stmt.attributes.iter().any(|attr| attr.is_allow_unused_variables());
+            !let_stmt.attributes.iter().any(|attr| attr.kind.is_allow("unused_variables"));
 
         let r#type = annotated_type;
         let pattern = self.elaborate_pattern_and_store_ids(
@@ -402,8 +402,12 @@ impl Elaborator<'_> {
                     let tmp_value = HirLValue::Ident(ident, Type::Error);
 
                     let lvalue = std::mem::replace(object_ref, Box::new(tmp_value));
-                    *object_ref =
-                        Box::new(HirLValue::Dereference { lvalue, element_type, location });
+                    *object_ref = Box::new(HirLValue::Dereference {
+                        lvalue,
+                        element_type,
+                        location,
+                        implicitly_added: true,
+                    });
                     *mutable_ref = true;
                 };
 
@@ -442,8 +446,12 @@ impl Elaborator<'_> {
                 // as needed to unwrap any `&` or `&mut` wrappers.
                 while let Type::Reference(element, _) = lvalue_type.follow_bindings() {
                     let element_type = element.as_ref().clone();
-                    lvalue =
-                        HirLValue::Dereference { lvalue: Box::new(lvalue), element_type, location };
+                    lvalue = HirLValue::Dereference {
+                        lvalue: Box::new(lvalue),
+                        element_type,
+                        location,
+                        implicitly_added: true,
+                    };
                     lvalue_type = *element;
                     // We know this value to be mutable now since we found an `&mut`
                     mutable = true;
@@ -496,7 +504,12 @@ impl Elaborator<'_> {
 
                 // Dereferences are always mutable since we already type checked against a &mut T
                 let typ = element_type.clone();
-                let lvalue = HirLValue::Dereference { lvalue, element_type, location };
+                let lvalue = HirLValue::Dereference {
+                    lvalue,
+                    element_type,
+                    location,
+                    implicitly_added: false,
+                };
                 (lvalue, typ, true)
             }
             LValue::Interned(id, location) => {

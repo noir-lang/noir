@@ -23,7 +23,7 @@ impl Parser<'_> {
         let Some(name) = self.eat_ident() else {
             self.expected_identifier();
             return self.empty_struct(
-                Ident::default(),
+                self.unknown_ident_at_previous_token_end(),
                 attributes,
                 visibility,
                 Vec::new(),
@@ -31,7 +31,7 @@ impl Parser<'_> {
             );
         };
 
-        let generics = self.parse_generics();
+        let generics = self.parse_generics_disallowing_trait_bounds();
 
         if self.eat_semicolons() {
             return self.empty_struct(name, attributes, visibility, generics, start_location);
@@ -128,6 +128,8 @@ impl Parser<'_> {
 
 #[cfg(test)]
 mod tests {
+    use insta::assert_snapshot;
+
     use crate::{
         ast::{IntegerBitSize, NoirStruct, UnresolvedGeneric, UnresolvedTypeData},
         parse_program_with_dummy_file,
@@ -179,10 +181,11 @@ mod tests {
         assert_eq!(noir_struct.generics.len(), 2);
 
         let generic = noir_struct.generics.remove(0);
-        let UnresolvedGeneric::Variable(ident) = generic else {
+        let UnresolvedGeneric::Variable(ident, trait_bounds) = generic else {
             panic!("Expected generic variable");
         };
         assert_eq!("A", ident.to_string());
+        assert!(trait_bounds.is_empty());
 
         let generic = noir_struct.generics.remove(0);
         let UnresolvedGeneric::Numeric { ident, typ } = generic else {
@@ -271,6 +274,6 @@ mod tests {
         assert_eq!(noir_struct.fields.len(), 1);
 
         let error = get_single_error(&errors, span);
-        assert_eq!(error.to_string(), "Expected an identifier but found '42'");
+        assert_snapshot!(error.to_string(), @"Expected an identifier but found '42'");
     }
 }

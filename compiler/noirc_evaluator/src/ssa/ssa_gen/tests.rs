@@ -10,7 +10,7 @@ use noirc_frontend::function_path;
 use noirc_frontend::test_utils::{Expect, get_monomorphized};
 
 fn get_initial_ssa(src: &str, test_path: &str) -> Result<Ssa, RuntimeError> {
-    let program = match get_monomorphized(src, test_path, Expect::Success) {
+    let program = match get_monomorphized(src, Some(test_path), Expect::Success) {
         Ok(program) => program,
         Err(errors) => {
             panic!(

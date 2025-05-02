@@ -1,4 +1,4 @@
-use std::io::Write;
+use std::io::{Read, Write};
 use std::path::Path;
 use std::time::Duration;
 
@@ -33,7 +33,7 @@ pub(crate) struct CompileCommand {
     pub(super) package_options: PackageOptions,
 
     #[clap(flatten)]
-    compile_options: CompileOptions,
+    pub(super) compile_options: CompileOptions,
 
     /// Watch workspace and recompile on changes.
     #[clap(long, hide = true)]
@@ -52,6 +52,9 @@ impl WorkspaceCommand for CompileCommand {
 
 pub(crate) fn run(args: CompileCommand, workspace: Workspace) -> Result<(), CliError> {
     if args.watch {
+        if args.compile_options.debug_compile_stdin {
+            return Err(CliError::CantWatchStdin);
+        }
         watch_workspace(&workspace, &args.compile_options)
             .map_err(|err| CliError::Generic(err.to_string()))?;
     } else {
@@ -105,9 +108,19 @@ fn watch_workspace(workspace: &Workspace, compile_options: &CompileOptions) -> n
 }
 
 /// Parse all files in the workspace.
-fn parse_workspace(workspace: &Workspace) -> (FileManager, ParsedFiles) {
+fn parse_workspace(workspace: &Workspace, debug_compile_stdin: bool) -> (FileManager, ParsedFiles) {
     let mut file_manager = workspace.new_file_manager();
-    insert_all_files_for_workspace_into_file_manager(workspace, &mut file_manager);
+
+    if debug_compile_stdin {
+        let mut main_nr = String::new();
+        let stdin = std::io::stdin();
+        let mut stdin_handle = stdin.lock();
+        stdin_handle.read_to_string(&mut main_nr).expect("reading from stdin to succeed");
+        file_manager.add_file_with_source(Path::new("src/main.nr"), main_nr);
+    } else {
+        insert_all_files_for_workspace_into_file_manager(workspace, &mut file_manager);
+    }
+
     let parsed_files = parse_all(&file_manager);
     (file_manager, parsed_files)
 }
@@ -118,7 +131,8 @@ pub(super) fn compile_workspace_full(
     workspace: &Workspace,
     compile_options: &CompileOptions,
 ) -> Result<(), CliError> {
-    let (workspace_file_manager, parsed_files) = parse_workspace(workspace);
+    let (workspace_file_manager, parsed_files) =
+        parse_workspace(workspace, compile_options.debug_compile_stdin);
 
     let compiled_workspace =
         compile_workspace(&workspace_file_manager, &parsed_files, workspace, compile_options);
@@ -205,23 +219,6 @@ fn compile_programs(
             compile_options,
             cached_program,
         )?;
-
-        if compile_options.check_non_determinism {
-            // As we compile the program again, disable comptime printing so we don't get duplicate output
-            let compile_options =
-                CompileOptions { disable_comptime_printing: true, ..compile_options.clone() };
-            let (program_two, _) = compile_program(
-                file_manager,
-                parsed_files,
-                workspace,
-                package,
-                &compile_options,
-                load_cached_program(package),
-            )?;
-            if fxhash::hash64(&program) != fxhash::hash64(&program_two) {
-                panic!("Non deterministic result compiling {}", package.name);
-            }
-        }
 
         // Choose the target width for the final, backend specific transformation.
         let target_width =
@@ -403,7 +400,8 @@ mod tests {
 
         // This could be `.par_iter()` but then error messages are no longer reported
         test_workspaces.iter().for_each(|workspace| {
-            let (file_manager, parsed_files) = parse_workspace(workspace);
+            let debug_compile_stdin = false;
+            let (file_manager, parsed_files) = parse_workspace(workspace, debug_compile_stdin);
             let binary_packages = workspace.into_iter().filter(|package| package.is_binary());
 
             for package in binary_packages {
