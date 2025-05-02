@@ -314,7 +314,13 @@
 <a href="#313" id="313">313</a>
 <a href="#314" id="314">314</a>
 <a href="#315" id="315">315</a>
-<a href="#316" id="316">316</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::fmt::Display;
+<a href="#316" id="316">316</a>
+<a href="#317" id="317">317</a>
+<a href="#318" id="318">318</a>
+<a href="#319" id="319">319</a>
+<a href="#320" id="320">320</a>
+<a href="#321" id="321">321</a>
+<a href="#322" id="322">322</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::fmt::Display;
 
 <span class="kw">use </span>iter_extended::vecmap;
 <span class="kw">use </span>noirc_errors::Location;
@@ -449,11 +455,11 @@
     }
 }
 
-<span class="comment">// TODO: display where clauses (follow-up issue)
-</span><span class="kw">impl </span>Display <span class="kw">for </span>NoirTrait {
+<span class="kw">impl </span>Display <span class="kw">for </span>NoirTrait {
     <span class="kw">fn </span>fmt(<span class="kw-2">&amp;</span><span class="self">self</span>, f: <span class="kw-2">&amp;mut </span>std::fmt::Formatter&lt;<span class="lifetime">'_</span>&gt;) -&gt; std::fmt::Result {
         <span class="kw">let </span>generics = vecmap(<span class="kw-2">&amp;</span><span class="self">self</span>.generics, |generic| generic.to_string());
-        <span class="kw">let </span>generics = <span class="kw">if </span>generics.is_empty() { <span class="string">""</span>.into() } <span class="kw">else </span>{ generics.join(<span class="string">", "</span>) };
+        <span class="kw">let </span>generics =
+            <span class="kw">if </span>generics.is_empty() { <span class="string">""</span>.into() } <span class="kw">else </span>{ <span class="macro">format!</span>(<span class="string">"&lt;{}&gt;"</span>, generics.join(<span class="string">", "</span>)) };
 
         <span class="macro">write!</span>(f, <span class="string">"trait {}{}"</span>, <span class="self">self</span>.name, generics)<span class="question-mark">?</span>;
 
@@ -466,6 +472,12 @@
             <span class="kw">let </span>bounds = vecmap(<span class="kw-2">&amp;</span><span class="self">self</span>.bounds, |bound| bound.to_string()).join(<span class="string">" + "</span>);
             <span class="macro">write!</span>(f, <span class="string">": {}"</span>, bounds)<span class="question-mark">?</span>;
         }
+
+        <span class="kw">let </span>where_clause = vecmap(<span class="kw-2">&amp;</span><span class="self">self</span>.where_clause, ToString::to_string);
+        <span class="kw">if </span>!where_clause.is_empty() {
+            <span class="macro">write!</span>(f, <span class="string">" where {}"</span>, where_clause.join(<span class="string">", "</span>))<span class="question-mark">?</span>;
+        };
+
         <span class="macro">writeln!</span>(f, <span class="string">" {{"</span>)<span class="question-mark">?</span>;
 
         <span class="kw">for </span>item <span class="kw">in </span><span class="self">self</span>.items.iter() {

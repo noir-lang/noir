@@ -286,7 +286,22 @@
 <a href="#285" id="285">285</a>
 <a href="#286" id="286">286</a>
 <a href="#287" id="287">287</a>
-<a href="#288" id="288">288</a></pre></div><pre class="rust"><code><span class="doccomment">//! The parser is the second pass of the noir compiler.
+<a href="#288" id="288">288</a>
+<a href="#289" id="289">289</a>
+<a href="#290" id="290">290</a>
+<a href="#291" id="291">291</a>
+<a href="#292" id="292">292</a>
+<a href="#293" id="293">293</a>
+<a href="#294" id="294">294</a>
+<a href="#295" id="295">295</a>
+<a href="#296" id="296">296</a>
+<a href="#297" id="297">297</a>
+<a href="#298" id="298">298</a>
+<a href="#299" id="299">299</a>
+<a href="#300" id="300">300</a>
+<a href="#301" id="301">301</a>
+<a href="#302" id="302">302</a>
+<a href="#303" id="303">303</a></pre></div><pre class="rust"><code><span class="doccomment">//! The parser is the second pass of the noir compiler.
 //! The parser's job is to take the output of the lexer (a stream of tokens)
 //! and parse it into a valid Abstract Syntax Tree (Ast). During this, the parser
 //! validates the grammar of the program and returns parsing errors for any syntactically
@@ -337,6 +352,10 @@
 
 <span class="kw">impl </span>std::fmt::Display <span class="kw">for </span>SortedModule {
     <span class="kw">fn </span>fmt(<span class="kw-2">&amp;</span><span class="self">self</span>, f: <span class="kw-2">&amp;mut </span>std::fmt::Formatter&lt;<span class="lifetime">'_</span>&gt;) -&gt; std::fmt::Result {
+        <span class="kw">for </span>inner_attribute <span class="kw">in </span><span class="kw-2">&amp;</span><span class="self">self</span>.inner_attributes {
+            <span class="macro">write!</span>(f, <span class="string">"#![{}]"</span>, inner_attribute.kind.contents())<span class="question-mark">?</span>;
+        }
+
         <span class="kw">for </span>decl <span class="kw">in </span><span class="kw-2">&amp;</span><span class="self">self</span>.module_decls {
             <span class="macro">writeln!</span>(f, <span class="string">"{decl};"</span>)<span class="question-mark">?</span>;
         }
@@ -352,13 +371,24 @@
         <span class="kw">for </span>type_ <span class="kw">in </span><span class="kw-2">&amp;</span><span class="self">self</span>.structs {
             <span class="macro">write!</span>(f, <span class="string">"{type_}"</span>)<span class="question-mark">?</span>;
         }
+        <span class="kw">for </span>type_ <span class="kw">in </span><span class="kw-2">&amp;</span><span class="self">self</span>.enums {
+            <span class="macro">write!</span>(f, <span class="string">"{type_}"</span>)<span class="question-mark">?</span>;
+        }
 
         <span class="kw">for </span>function <span class="kw">in </span><span class="kw-2">&amp;</span><span class="self">self</span>.functions {
             <span class="macro">write!</span>(f, <span class="string">"{function}"</span>)<span class="question-mark">?</span>;
         }
 
+        <span class="kw">for </span>trait_ <span class="kw">in </span><span class="kw-2">&amp;</span><span class="self">self</span>.traits {
+            <span class="macro">write!</span>(f, <span class="string">"{trait_}"</span>)<span class="question-mark">?</span>;
+        }
+
         <span class="kw">for </span>impl_ <span class="kw">in </span><span class="kw-2">&amp;</span><span class="self">self</span>.impls {
             <span class="macro">write!</span>(f, <span class="string">"{impl_}"</span>)<span class="question-mark">?</span>;
+        }
+
+        <span class="kw">for </span>trait_impl <span class="kw">in </span><span class="kw-2">&amp;</span><span class="self">self</span>.trait_impls {
+            <span class="macro">write!</span>(f, <span class="string">"{trait_impl}"</span>)<span class="question-mark">?</span>;
         }
 
         <span class="kw">for </span>type_alias <span class="kw">in </span><span class="kw-2">&amp;</span><span class="self">self</span>.type_aliases {
