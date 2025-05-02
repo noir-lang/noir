@@ -644,8 +644,15 @@ impl<'a> FunctionContext<'a> {
                         // If target size is bigger, we do a sign extension:
                         // When the value is negative, it is represented in 2-complement form; `2^s-v`, where `s` is the incoming bit size and `v` is the absolute value
                         // Sign extension in this case will give `2^t-v`, where `t` is the target bit size
-                        // So we simply convert `2^s-v` into `2^t-v` by adding `2^t-2^s` to the value
-                        // This is done only if the value is negative.
+                        // So we simply convert `2^s-v` into `2^t-v` by adding `2^t-2^s` to the value when the value is negative.
+                        // Casting s-bits signed v0 to t-bits will add the following instructions:
+                        // v1 = cast v0 to 's-bits unsigned'
+                        // v2 = lt v1, 2**(s-1)
+                        // v3 = not(v1)
+                        // v4 = cast v3 to 't-bits unsigned'
+                        // v5 = v3 * (2**t - 2**s)
+                        // v6 = cast v1 to 't-bits unsigned'
+                        // return v6 + v5
                         let value_as_unsigned = self.insert_safe_cast(
                             value,
                             NumericType::unsigned(*incoming_type_size),
