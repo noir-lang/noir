@@ -44,6 +44,7 @@ use crate::acir::GeneratedAcir;
 
 mod checks;
 pub mod function_builder;
+pub mod interpreter;
 pub mod ir;
 pub(crate) mod opt;
 #[cfg(test)]
@@ -200,6 +201,8 @@ pub fn primary_passes(options: &SsaEvaluatorOptions) -> Vec<SsaPass> {
         // end up using an existing constant from the globals space.
         SsaPass::new(Ssa::brillig_array_gets, "Brillig Array Get Optimizations"),
         SsaPass::new(Ssa::dead_instruction_elimination, "Dead Instruction Elimination"),
+        // A function can be potentially unreachable post-DIE if all calls to that function were removed.
+        SsaPass::new(Ssa::remove_unreachable_functions, "Removing Unreachable Functions"),
         SsaPass::new(Ssa::checked_to_unchecked, "Checked to unchecked"),
     ]
 }

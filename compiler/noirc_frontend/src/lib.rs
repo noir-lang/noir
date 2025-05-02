@@ -24,6 +24,7 @@ pub mod elaborator;
 pub mod graph;
 pub mod lexer;
 pub mod locations;
+pub mod modules;
 pub mod monomorphization;
 pub mod node_interner;
 pub mod ownership;
