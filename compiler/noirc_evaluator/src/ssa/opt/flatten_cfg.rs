@@ -135,11 +135,11 @@ use fxhash::{FxHashMap as HashMap, FxHashSet as HashSet};
 
 use acvm::{FieldElement, acir::AcirField, acir::BlackBoxFunc};
 use iter_extended::vecmap;
+use noirc_errors::call_stack::CallStackId;
 
 use crate::ssa::{
     ir::{
         basic_block::BasicBlockId,
-        call_stack::CallStackId,
         cfg::ControlFlowGraph,
         dfg::InsertInstructionResult,
         function::{Function, FunctionId, RuntimeType},
@@ -920,7 +920,7 @@ mod test {
         acir(inline) fn main f0 {
           b0(v0: u1, v1: u1):
             enable_side_effects v0
-            v2 = mul v1, v0
+            v2 = unchecked_mul v1, v0
             constrain v2 == v0
             v3 = not v0
             enable_side_effects u1 1
@@ -1111,7 +1111,7 @@ mod test {
             v5 = cast v3 as Field
             v7 = mul v4, Field 2
             v8 = add v7, v5
-            v9 = mul v0, v1
+            v9 = unchecked_mul v0, v1
             enable_side_effects v9
             v10 = not v9
             v11 = cast v9 as Field
@@ -1120,7 +1120,7 @@ mod test {
             v15 = mul v12, v8
             v16 = add v14, v15
             v17 = not v1
-            v18 = mul v0, v17
+            v18 = unchecked_mul v0, v17
             enable_side_effects v18
             v19 = not v18
             v20 = cast v18 as Field

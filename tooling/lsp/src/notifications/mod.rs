@@ -5,10 +5,11 @@ use std::path::PathBuf;
 use crate::{
     PackageCacheData, WorkspaceCacheData, insert_all_files_for_workspace_into_file_manager,
 };
+use async_lsp::lsp_types;
+use async_lsp::lsp_types::{DiagnosticRelatedInformation, DiagnosticTag, Url};
 use async_lsp::{ErrorCode, LanguageClient, ResponseError};
 use fm::{FileManager, FileMap};
 use fxhash::FxHashMap as HashMap;
-use lsp_types::{DiagnosticRelatedInformation, DiagnosticTag, Url};
 use noirc_driver::check_crate;
 use noirc_errors::reporter::CustomLabel;
 use noirc_errors::{CustomDiagnostic, DiagnosticKind, Location};
@@ -329,7 +330,7 @@ mod notification_tests {
     use crate::test_utils;
 
     use super::*;
-    use lsp_types::{
+    use async_lsp::lsp_types::{
         InlayHintLabel, InlayHintParams, Position, Range, TextDocumentContentChangeEvent,
         TextDocumentIdentifier, TextDocumentItem, VersionedTextDocumentIdentifier,
         WorkDoneProgressParams,

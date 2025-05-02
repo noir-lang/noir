@@ -1,6 +1,6 @@
 use acvm::{
     FieldElement,
-    acir::circuit::{Circuit, ExpressionWidth},
+    acir::circuit::{AcirOpcodeLocation, Circuit, ExpressionWidth, OpcodeLocation},
 };
 use std::collections::{BTreeMap, BTreeSet, HashMap};
 
@@ -8,16 +8,18 @@ use crate::config::NUMBER_OF_VARIABLES_INITIAL;
 use acvm::acir::circuit::PublicInputs;
 use noirc_abi::{Abi, AbiParameter, AbiReturnType, AbiType, AbiVisibility};
 use noirc_driver::{CompileError, CompileOptions, CompiledProgram, NOIR_ARTIFACT_VERSION_STRING};
-use noirc_errors::debug_info::{DebugFunctions, DebugInfo, DebugTypes, DebugVariables};
+use noirc_errors::{
+    call_stack::{CallStack, CallStackId},
+    debug_info::{DebugFunctions, DebugInfo, DebugTypes, DebugVariables},
+};
 use noirc_evaluator::{
     acir::GeneratedAcir,
     brillig::BrilligOptions,
     errors::{InternalError, RuntimeError},
     ssa::{
         ArtifactsAndWarnings, SsaBuilder, SsaCircuitArtifact, SsaEvaluatorOptions, SsaLogging,
-        SsaProgramArtifact, function_builder::FunctionBuilder, ir::call_stack::CallStack,
-        ir::instruction::ErrorType, optimize_ssa_builder_into_acir, primary_passes,
-        secondary_passes,
+        SsaProgramArtifact, function_builder::FunctionBuilder, ir::instruction::ErrorType,
+        optimize_ssa_builder_into_acir, primary_passes, secondary_passes,
     },
 };
 
@@ -25,7 +27,7 @@ use std::panic::AssertUnwindSafe;
 
 /// Optimizes the given FunctionBuilder into ACIR
 /// its taken from noirc_evaluator::ssa::optimize_all, but modified to accept FunctionBuilder
-/// and to catch panics... It cannot be catched with just catch_unwind.
+/// and to catch panics... It cannot be caught with just catch_unwind.
 fn optimize_into_acir(
     builder: FunctionBuilder,
     options: SsaEvaluatorOptions,
@@ -96,7 +98,8 @@ fn convert_generated_acir_into_circuit_without_signature(
     let current_witness_index = generated_acir.current_witness_index().0;
     let GeneratedAcir {
         return_witnesses,
-        locations,
+        call_stacks,
+        location_map,
         brillig_locations,
         input_witnesses,
         assertion_payloads: assert_messages,
@@ -120,25 +123,18 @@ fn convert_generated_acir_into_circuit_without_signature(
         assert_messages: assert_messages.into_iter().collect(),
     };
 
-    let locations = locations
-        .into_iter()
-        .map(|(index, locations)| (index, locations.into_iter().collect()))
-        .collect();
-
-    let brillig_locations = brillig_locations
-        .into_iter()
-        .map(|(function_index, locations)| {
-            let locations = locations
-                .into_iter()
-                .map(|(index, locations)| (index, locations.into_iter().collect()))
-                .collect();
-            (function_index, locations)
+    let acir_location_map: BTreeMap<AcirOpcodeLocation, CallStackId> = location_map
+        .iter()
+        .map(|(k, v)| match k {
+            OpcodeLocation::Acir(index) => (AcirOpcodeLocation::new(*index), *v),
+            OpcodeLocation::Brillig { .. } => unreachable!("Expected ACIR opcode"),
         })
         .collect();
-
+    let location_tree = call_stacks.to_location_tree();
     let mut debug_info = DebugInfo::new(
-        locations,
         brillig_locations,
+        acir_location_map,
+        location_tree,
         debug_variables,
         debug_functions,
         debug_types,

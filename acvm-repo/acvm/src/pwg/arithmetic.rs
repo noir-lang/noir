@@ -26,14 +26,14 @@ impl ExpressionSolver {
     /// Derives the rest of the witness in the provided expression based on the known witness values
     /// 1. Fist we simplify the expression based on the known values and try to reduce the multiplication and linear terms
     /// 2. If we end up with only the constant term;
-    /// - if it is 0 then the opcode is solved, if not,
-    /// - the assert_zero opcode is not satisfied and we return an error
+    ///     - if it is 0 then the opcode is solved, if not,
+    ///     - the assert_zero opcode is not satisfied and we return an error
     /// 3. If we end up with only linear terms on the same witness 'w',
-    ///     we can regroup them and solve 'a*w+c = 0':
-    ///     If 'a' is zero in the above expression;
-    ///         - if c is also 0 then the opcode is solved
-    ///         - if not that means the assert_zero opcode is not satisfied and we return an error
-    ///     If 'a' is not zero, we can solve it by setting the value of w: 'w = -c/a'
+    ///    we can regroup them and solve 'a*w+c = 0':
+    ///    - If 'a' is zero in the above expression;
+    ///      - if c is also 0 then the opcode is solved
+    ///      - if not that means the assert_zero opcode is not satisfied and we return an error
+    ///    - If 'a' is not zero, we can solve it by setting the value of w: 'w = -c/a'
     pub(crate) fn solve<F: AcirField>(
         initial_witness: &mut WitnessMap<F>,
         opcode: &Expression<F>,

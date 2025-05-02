@@ -7,6 +7,7 @@ use acvm::pwg::{
 };
 use acvm::{AcirField, BlackBoxFunctionSolver};
 type NargoErrorAndCoverage<F> = (NargoError<F>, Option<Vec<u32>>);
+type NargoErrorAndWitnessStack<F> = (NargoError<F>, WitnessStack<F>);
 type WitnessAndCoverage<F> = (WitnessStack<F>, Option<Vec<u32>>);
 use acvm::{acir::circuit::Circuit, acir::native_types::WitnessMap};
 
@@ -47,6 +48,12 @@ struct ProgramExecutor<'a, F: AcirField, B: BlackBoxFunctionSolver<F>, E: Foreig
 
     // Last recorded fuzzing trace
     last_fuzzing_trace: Option<Vec<u32>>,
+
+    // Flag that states whether we want to return the witness on failure (useful for fuzzing)
+    return_witness_on_failure: bool,
+
+    // Partial witness on failure
+    failing_partial_witness: Option<WitnessMap<F>>,
 }
 
 impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>, E: ForeignCallExecutor<F>>
@@ -71,6 +78,8 @@ impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>, E: ForeignCallExecutor<F>>
             brillig_fuzzing_active: false,
             brillig_branch_to_feature_map: None,
             last_fuzzing_trace: None,
+            return_witness_on_failure: false,
+            failing_partial_witness: None,
         }
     }
 
@@ -80,6 +89,10 @@ impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>, E: ForeignCallExecutor<F>>
     ) {
         self.brillig_fuzzing_active = brillig_branch_to_feature_map.is_some();
         self.brillig_branch_to_feature_map = brillig_branch_to_feature_map;
+    }
+
+    fn with_partial_witness_on_failure(&mut self, return_witness_on_failure: bool) {
+        self.return_witness_on_failure = return_witness_on_failure;
     }
 
     fn finalize(self) -> WitnessStack<F> {
@@ -112,6 +125,9 @@ impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>, E: ForeignCallExecutor<F>>
                 }
                 ACVMStatus::Failure(error) => {
                     self.last_fuzzing_trace = acvm.get_brillig_fuzzing_trace();
+                    if self.return_witness_on_failure {
+                        self.failing_partial_witness = Some(acvm.witness_map().clone());
+                    }
                     match &error {
                         OpcodeResolutionError::UnsatisfiedConstrain {
                             opcode_location: ErrorLocation::Resolved(opcode_location),
@@ -268,7 +284,46 @@ pub(crate) fn execute_program_with_brillig_fuzzing<
         Err(err) => Err((err, executor.last_fuzzing_trace)),
     }
 }
+
+/// Execute the program with ACIR fuzzing enabled (returns the witness on failure, so that the fuzzer can detect boolean states)
+pub(crate) fn execute_program_with_acir_fuzzing<
+    F: AcirField,
+    B: BlackBoxFunctionSolver<F>,
+    E: ForeignCallExecutor<F>,
+>(
+    program: &Program<F>,
+    initial_witness: WitnessMap<F>,
+    blackbox_solver: &B,
+    foreign_call_executor: &mut E,
+) -> Result<WitnessStack<F>, NargoErrorAndWitnessStack<F>> {
+    let mut executor = ProgramExecutor::new(
+        &program.functions,
+        &program.unconstrained_functions,
+        blackbox_solver,
+        foreign_call_executor,
+        false,
+    );
+    executor.with_partial_witness_on_failure(true);
+    match executor.execute_circuit(initial_witness) {
+        Ok((main_witness, _)) => {
+            executor.witness_stack.push(0, main_witness);
+            Ok(executor.finalize())
+        }
+        Err(err) => {
+            executor.witness_stack.push(
+                0,
+                executor
+                    .failing_partial_witness
+                    .as_ref()
+                    .expect("No partial witness on failure")
+                    .clone(),
+            );
+            Err((err, executor.finalize()))
+        }
+    }
+}
 #[tracing::instrument(level = "trace", skip_all)]
+
 fn execute_program_inner<F: AcirField, B: BlackBoxFunctionSolver<F>, E: ForeignCallExecutor<F>>(
     program: &Program<F>,
     initial_witness: WitnessMap<F>,

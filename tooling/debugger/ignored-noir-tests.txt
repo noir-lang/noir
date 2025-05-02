@@ -1,0 +1,14 @@
+test_assert_message_preserved_during_optimization
+test_vec_new_bad
+test_identity
+test_identity_and_show
+test_logic
+test_logic_and_show
+test_numeric
+test_numeric_and_show
+test_pow
+test_pow_and_show
+test_add
+test_add_and_show
+test_sort
+test_sort_comptime

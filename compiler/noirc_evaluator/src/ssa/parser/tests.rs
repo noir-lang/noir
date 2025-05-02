@@ -40,7 +40,7 @@ fn test_empty_brillig_function() {
 
 #[test]
 fn test_return_integer() {
-    for typ in ["u1", "u8", "u16", "u32", "u64", "i1", "i8", "i16", "i32", "i64", "Field"] {
+    for typ in ["u1", "u8", "u16", "u32", "u64", "i8", "i16", "i32", "i64", "Field"] {
         let src = format!(
             "
             acir(inline) fn main f0 {{
@@ -656,6 +656,18 @@ fn test_parses_nop() {
         acir(inline) fn add f0 {
           b0():
             nop
+            return
+        }
+        ";
+    assert_ssa_roundtrip(src);
+}
+
+#[test]
+fn test_parses_print() {
+    let src = "
+        brillig(inline) impure fn main f0 {
+          b0():
+            call print()
             return
         }
         ";
