@@ -155,7 +155,7 @@ fn evaluate_static_assert(
                 TryFromParamsError::MissingForeignCallInputs => {
                     "ICE: missing foreign call inputs".to_string()
                 }
-                TryFromParamsError::CouldNotDecodePrintableType(error) => {
+                TryFromParamsError::ParseError(error) => {
                     format!("ICE: could not decode printable type {:?}", error)
                 }
             };

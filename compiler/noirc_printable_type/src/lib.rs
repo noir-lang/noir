@@ -368,7 +368,7 @@ pub fn decode_string_value<F: AcirField>(field_elements: &[F]) -> String {
 
 pub enum TryFromParamsError {
     MissingForeignCallInputs,
-    CouldNotDecodePrintableType(serde_json::Error),
+    ParseError(serde_json::Error),
 }
 
 impl<F: AcirField> PrintableValueDisplay<F> {
@@ -442,7 +442,7 @@ fn fetch_printable_type<F: AcirField>(
         serde_json::from_str(&printable_type_as_string);
     match printable_type {
         Ok(printable_type) => Ok(printable_type),
-        Err(err) => Err(TryFromParamsError::CouldNotDecodePrintableType(err)),
+        Err(err) => Err(TryFromParamsError::ParseError(err)),
     }
 }
 

@@ -101,9 +101,7 @@ impl From<TryFromParamsError> for ForeignCallError {
             TryFromParamsError::MissingForeignCallInputs => {
                 ForeignCallError::MissingForeignCallInputs
             }
-            TryFromParamsError::CouldNotDecodePrintableType(error) => {
-                ForeignCallError::ParsingError(error)
-            }
+            TryFromParamsError::ParseError(error) => ForeignCallError::ParsingError(error),
         }
     }
 }
