@@ -209,6 +209,11 @@ impl Context {
                 return true;
             }
         }
+        if let Definition::Global(_) = ident.definition {
+            if contains_array_or_str_type(&ident.typ) {
+                return true;
+            }
+        }
         false
     }
 

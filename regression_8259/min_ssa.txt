@@ -1,0 +1,949 @@
+After Initial SSA (1):
+g0 = u1 1
+g1 = u1 0
+g2 = make_array [u1 1, u1 0, u1 1] : [u1; 3]
+
+brillig(inline) fn main f0 {
+  b0(v3: u1):
+    v6 = call f1(v3, g2) -> [u1; 3]
+    jmpif v3 then: b1, else: b2
+  b1():
+    jmp b3(g2)
+  b2():
+    jmp b3(v6)
+  b3(v4: [u1; 3]):
+    return v4
+}
+brillig(inline) fn func_1 f1 {
+  b0(v3: u1, v4: [u1; 3]):
+    v5 = allocate -> &mut [u1; 3]
+    store v4 at v5
+    v6 = load v5 -> [u1; 3]
+    v8 = array_set v6, index u32 1, value v3
+    store v8 at v5
+    v9 = load v5 -> [u1; 3]
+    return v9
+}
+
+After Removing Unreachable Functions (1):
+g0 = u1 1
+g1 = u1 0
+g2 = make_array [u1 1, u1 0, u1 1] : [u1; 3]
+
+brillig(inline) fn main f0 {
+  b0(v3: u1):
+    v6 = call f1(v3, g2) -> [u1; 3]
+    jmpif v3 then: b1, else: b2
+  b1():
+    jmp b3(g2)
+  b2():
+    jmp b3(v6)
+  b3(v4: [u1; 3]):
+    return v4
+}
+brillig(inline) fn func_1 f1 {
+  b0(v3: u1, v4: [u1; 3]):
+    v5 = allocate -> &mut [u1; 3]
+    store v4 at v5
+    v6 = load v5 -> [u1; 3]
+    v8 = array_set v6, index u32 1, value v3
+    store v8 at v5
+    v9 = load v5 -> [u1; 3]
+    return v9
+}
+
+After Defunctionalization (1):
+g0 = u1 1
+g1 = u1 0
+g2 = make_array [u1 1, u1 0, u1 1] : [u1; 3]
+
+brillig(inline) fn main f0 {
+  b0(v3: u1):
+    v6 = call f1(v3, g2) -> [u1; 3]
+    jmpif v3 then: b1, else: b2
+  b1():
+    jmp b3(g2)
+  b2():
+    jmp b3(v6)
+  b3(v4: [u1; 3]):
+    return v4
+}
+brillig(inline) fn func_1 f1 {
+  b0(v3: u1, v4: [u1; 3]):
+    v5 = allocate -> &mut [u1; 3]
+    store v4 at v5
+    v6 = load v5 -> [u1; 3]
+    v8 = array_set v6, index u32 1, value v3
+    store v8 at v5
+    v9 = load v5 -> [u1; 3]
+    return v9
+}
+
+After Inlining functions with at most one instruction (1):
+g0 = u1 1
+g1 = u1 0
+g2 = make_array [u1 1, u1 0, u1 1] : [u1; 3]
+
+brillig(inline) fn main f0 {
+  b0(v3: u1):
+    v6 = call f1(v3, g2) -> [u1; 3]
+    jmpif v3 then: b1, else: b2
+  b1():
+    jmp b3(g2)
+  b2():
+    jmp b3(v6)
+  b3(v4: [u1; 3]):
+    return v4
+}
+brillig(inline) fn func_1 f1 {
+  b0(v3: u1, v4: [u1; 3]):
+    v5 = allocate -> &mut [u1; 3]
+    store v4 at v5
+    v6 = load v5 -> [u1; 3]
+    v8 = array_set v6, index u32 1, value v3
+    store v8 at v5
+    v9 = load v5 -> [u1; 3]
+    return v9
+}
+
+After Removing Paired rc_inc & rc_decs (1):
+g0 = u1 1
+g1 = u1 0
+g2 = make_array [u1 1, u1 0, u1 1] : [u1; 3]
+
+brillig(inline) fn main f0 {
+  b0(v3: u1):
+    v6 = call f1(v3, g2) -> [u1; 3]
+    jmpif v3 then: b1, else: b2
+  b1():
+    jmp b3(g2)
+  b2():
+    jmp b3(v6)
+  b3(v4: [u1; 3]):
+    return v4
+}
+brillig(inline) fn func_1 f1 {
+  b0(v3: u1, v4: [u1; 3]):
+    v5 = allocate -> &mut [u1; 3]
+    store v4 at v5
+    v6 = load v5 -> [u1; 3]
+    v8 = array_set v6, index u32 1, value v3
+    store v8 at v5
+    v9 = load v5 -> [u1; 3]
+    return v9
+}
+
+After Preprocessing Functions (1):
+g0 = u1 1
+g1 = u1 0
+g2 = make_array [u1 1, u1 0, u1 1] : [u1; 3]
+
+brillig(inline) fn main f0 {
+  b0(v3: u1):
+    v6 = call f1(v3, g2) -> [u1; 3]
+    jmpif v3 then: b1, else: b2
+  b1():
+    jmp b3(g2)
+  b2():
+    jmp b3(v6)
+  b3(v4: [u1; 3]):
+    return v4
+}
+brillig(inline) fn func_1 f1 {
+  b0(v3: u1, v4: [u1; 3]):
+    v5 = allocate -> &mut [u1; 3]
+    store v4 at v5
+    v6 = load v5 -> [u1; 3]
+    v8 = array_set v6, index u32 1, value v3
+    store v8 at v5
+    v9 = load v5 -> [u1; 3]
+    return v9
+}
+
+After Inlining (1):
+g0 = u1 1
+g1 = u1 0
+g2 = make_array [u1 1, u1 0, u1 1] : [u1; 3]
+
+brillig(inline) fn main f0 {
+  b0(v3: u1):
+    v6 = call f1(v3, g2) -> [u1; 3]
+    jmpif v3 then: b1, else: b2
+  b1():
+    jmp b3(g2)
+  b2():
+    jmp b3(v6)
+  b3(v4: [u1; 3]):
+    return v4
+}
+brillig(inline) fn func_1 f1 {
+  b0(v3: u1, v4: [u1; 3]):
+    v5 = allocate -> &mut [u1; 3]
+    store v4 at v5
+    v6 = load v5 -> [u1; 3]
+    v8 = array_set v6, index u32 1, value v3
+    store v8 at v5
+    v9 = load v5 -> [u1; 3]
+    return v9
+}
+
+After Mem2Reg (1):
+g0 = u1 1
+g1 = u1 0
+g2 = make_array [u1 1, u1 0, u1 1] : [u1; 3]
+
+brillig(inline) fn main f0 {
+  b0(v3: u1):
+    v6 = call f1(v3, g2) -> [u1; 3]
+    jmpif v3 then: b1, else: b2
+  b1():
+    jmp b3(g2)
+  b2():
+    jmp b3(v6)
+  b3(v4: [u1; 3]):
+    return v4
+}
+brillig(inline) fn func_1 f1 {
+  b0(v3: u1, v4: [u1; 3]):
+    v5 = allocate -> &mut [u1; 3]
+    v7 = array_set v4, index u32 1, value v3
+    return v7
+}
+
+After Simplifying (1):
+g0 = u1 1
+g1 = u1 0
+g2 = make_array [u1 1, u1 0, u1 1] : [u1; 3]
+
+brillig(inline) fn main f0 {
+  b0(v3: u1):
+    v6 = call f1(v3, g2) -> [u1; 3]
+    jmpif v3 then: b1, else: b2
+  b1():
+    jmp b3(g2)
+  b2():
+    jmp b3(v6)
+  b3(v4: [u1; 3]):
+    return v4
+}
+brillig(inline) fn func_1 f1 {
+  b0(v3: u1, v4: [u1; 3]):
+    v5 = allocate -> &mut [u1; 3]
+    v7 = array_set v4, index u32 1, value v3
+    return v7
+}
+
+After `as_slice` optimization (1):
+g0 = u1 1
+g1 = u1 0
+g2 = make_array [u1 1, u1 0, u1 1] : [u1; 3]
+
+brillig(inline) fn main f0 {
+  b0(v3: u1):
+    v6 = call f1(v3, g2) -> [u1; 3]
+    jmpif v3 then: b1, else: b2
+  b1():
+    jmp b3(g2)
+  b2():
+    jmp b3(v6)
+  b3(v4: [u1; 3]):
+    return v4
+}
+brillig(inline) fn func_1 f1 {
+  b0(v3: u1, v4: [u1; 3]):
+    v5 = allocate -> &mut [u1; 3]
+    v7 = array_set v4, index u32 1, value v3
+    return v7
+}
+
+After Removing Unreachable Functions (2):
+g0 = u1 1
+g1 = u1 0
+g2 = make_array [u1 1, u1 0, u1 1] : [u1; 3]
+
+brillig(inline) fn main f0 {
+  b0(v3: u1):
+    v6 = call f1(v3, g2) -> [u1; 3]
+    jmpif v3 then: b1, else: b2
+  b1():
+    jmp b3(g2)
+  b2():
+    jmp b3(v6)
+  b3(v4: [u1; 3]):
+    return v4
+}
+brillig(inline) fn func_1 f1 {
+  b0(v3: u1, v4: [u1; 3]):
+    v5 = allocate -> &mut [u1; 3]
+    v7 = array_set v4, index u32 1, value v3
+    return v7
+}
+
+After `static_assert` and `assert_constant` (1):
+g0 = u1 1
+g1 = u1 0
+g2 = make_array [u1 1, u1 0, u1 1] : [u1; 3]
+
+brillig(inline) fn main f0 {
+  b0(v3: u1):
+    v6 = call f1(v3, g2) -> [u1; 3]
+    jmpif v3 then: b1, else: b2
+  b1():
+    jmp b3(g2)
+  b2():
+    jmp b3(v6)
+  b3(v4: [u1; 3]):
+    return v4
+}
+brillig(inline) fn func_1 f1 {
+  b0(v3: u1, v4: [u1; 3]):
+    v5 = allocate -> &mut [u1; 3]
+    v7 = array_set v4, index u32 1, value v3
+    return v7
+}
+
+After Purity Analysis (1):
+g0 = u1 1
+g1 = u1 0
+g2 = make_array [u1 1, u1 0, u1 1] : [u1; 3]
+
+brillig(inline) predicate_pure fn main f0 {
+  b0(v3: u1):
+    v6 = call f1(v3, g2) -> [u1; 3]
+    jmpif v3 then: b1, else: b2
+  b1():
+    jmp b3(g2)
+  b2():
+    jmp b3(v6)
+  b3(v4: [u1; 3]):
+    return v4
+}
+brillig(inline) predicate_pure fn func_1 f1 {
+  b0(v3: u1, v4: [u1; 3]):
+    v5 = allocate -> &mut [u1; 3]
+    v7 = array_set v4, index u32 1, value v3
+    return v7
+}
+
+After Loop Invariant Code Motion (1):
+g0 = u1 1
+g1 = u1 0
+g2 = make_array [u1 1, u1 0, u1 1] : [u1; 3]
+
+brillig(inline) predicate_pure fn main f0 {
+  b0(v3: u1):
+    v6 = call f1(v3, g2) -> [u1; 3]
+    jmpif v3 then: b1, else: b2
+  b1():
+    jmp b3(g2)
+  b2():
+    jmp b3(v6)
+  b3(v4: [u1; 3]):
+    return v4
+}
+brillig(inline) predicate_pure fn func_1 f1 {
+  b0(v3: u1, v4: [u1; 3]):
+    v5 = allocate -> &mut [u1; 3]
+    v7 = array_set v4, index u32 1, value v3
+    return v7
+}
+
+After Unrolling (1):
+g0 = u1 1
+g1 = u1 0
+g2 = make_array [u1 1, u1 0, u1 1] : [u1; 3]
+
+brillig(inline) predicate_pure fn main f0 {
+  b0(v3: u1):
+    v6 = call f1(v3, g2) -> [u1; 3]
+    jmpif v3 then: b1, else: b2
+  b1():
+    jmp b3(g2)
+  b2():
+    jmp b3(v6)
+  b3(v4: [u1; 3]):
+    return v4
+}
+brillig(inline) predicate_pure fn func_1 f1 {
+  b0(v3: u1, v4: [u1; 3]):
+    v5 = allocate -> &mut [u1; 3]
+    v7 = array_set v4, index u32 1, value v3
+    return v7
+}
+
+After Simplifying (2):
+g0 = u1 1
+g1 = u1 0
+g2 = make_array [u1 1, u1 0, u1 1] : [u1; 3]
+
+brillig(inline) predicate_pure fn main f0 {
+  b0(v3: u1):
+    v6 = call f1(v3, g2) -> [u1; 3]
+    jmpif v3 then: b1, else: b2
+  b1():
+    jmp b3(g2)
+  b2():
+    jmp b3(v6)
+  b3(v4: [u1; 3]):
+    return v4
+}
+brillig(inline) predicate_pure fn func_1 f1 {
+  b0(v3: u1, v4: [u1; 3]):
+    v5 = allocate -> &mut [u1; 3]
+    v7 = array_set v4, index u32 1, value v3
+    return v7
+}
+
+After Mem2Reg (2):
+g0 = u1 1
+g1 = u1 0
+g2 = make_array [u1 1, u1 0, u1 1] : [u1; 3]
+
+brillig(inline) predicate_pure fn main f0 {
+  b0(v3: u1):
+    v6 = call f1(v3, g2) -> [u1; 3]
+    jmpif v3 then: b1, else: b2
+  b1():
+    jmp b3(g2)
+  b2():
+    jmp b3(v6)
+  b3(v4: [u1; 3]):
+    return v4
+}
+brillig(inline) predicate_pure fn func_1 f1 {
+  b0(v3: u1, v4: [u1; 3]):
+    v5 = allocate -> &mut [u1; 3]
+    v7 = array_set v4, index u32 1, value v3
+    return v7
+}
+
+After Flattening (1):
+g0 = u1 1
+g1 = u1 0
+g2 = make_array [u1 1, u1 0, u1 1] : [u1; 3]
+
+brillig(inline) predicate_pure fn main f0 {
+  b0(v3: u1):
+    v6 = call f1(v3, g2) -> [u1; 3]
+    jmpif v3 then: b1, else: b2
+  b1():
+    jmp b3(g2)
+  b2():
+    jmp b3(v6)
+  b3(v4: [u1; 3]):
+    return v4
+}
+brillig(inline) predicate_pure fn func_1 f1 {
+  b0(v3: u1, v4: [u1; 3]):
+    v5 = allocate -> &mut [u1; 3]
+    v7 = array_set v4, index u32 1, value v3
+    return v7
+}
+
+After Removing Bit Shifts (1):
+g0 = u1 1
+g1 = u1 0
+g2 = make_array [u1 1, u1 0, u1 1] : [u1; 3]
+
+brillig(inline) predicate_pure fn main f0 {
+  b0(v3: u1):
+    v6 = call f1(v3, g2) -> [u1; 3]
+    jmpif v3 then: b1, else: b2
+  b1():
+    jmp b3(g2)
+  b2():
+    jmp b3(v6)
+  b3(v4: [u1; 3]):
+    return v4
+}
+brillig(inline) predicate_pure fn func_1 f1 {
+  b0(v3: u1, v4: [u1; 3]):
+    v5 = allocate -> &mut [u1; 3]
+    v7 = array_set v4, index u32 1, value v3
+    return v7
+}
+
+After Mem2Reg (3):
+g0 = u1 1
+g1 = u1 0
+g2 = make_array [u1 1, u1 0, u1 1] : [u1; 3]
+
+brillig(inline) predicate_pure fn main f0 {
+  b0(v3: u1):
+    v6 = call f1(v3, g2) -> [u1; 3]
+    jmpif v3 then: b1, else: b2
+  b1():
+    jmp b3(g2)
+  b2():
+    jmp b3(v6)
+  b3(v4: [u1; 3]):
+    return v4
+}
+brillig(inline) predicate_pure fn func_1 f1 {
+  b0(v3: u1, v4: [u1; 3]):
+    v5 = allocate -> &mut [u1; 3]
+    v7 = array_set v4, index u32 1, value v3
+    return v7
+}
+
+After Inlining (2):
+g0 = u1 1
+g1 = u1 0
+g2 = make_array [u1 1, u1 0, u1 1] : [u1; 3]
+
+brillig(inline) predicate_pure fn main f0 {
+  b0(v3: u1):
+    v6 = call f1(v3, g2) -> [u1; 3]
+    jmpif v3 then: b1, else: b2
+  b1():
+    jmp b3(g2)
+  b2():
+    jmp b3(v6)
+  b3(v4: [u1; 3]):
+    return v4
+}
+brillig(inline) predicate_pure fn func_1 f1 {
+  b0(v3: u1, v4: [u1; 3]):
+    v5 = allocate -> &mut [u1; 3]
+    v7 = array_set v4, index u32 1, value v3
+    return v7
+}
+
+After Remove IfElse (1):
+g0 = u1 1
+g1 = u1 0
+g2 = make_array [u1 1, u1 0, u1 1] : [u1; 3]
+
+brillig(inline) predicate_pure fn main f0 {
+  b0(v3: u1):
+    v6 = call f1(v3, g2) -> [u1; 3]
+    jmpif v3 then: b1, else: b2
+  b1():
+    jmp b3(g2)
+  b2():
+    jmp b3(v6)
+  b3(v4: [u1; 3]):
+    return v4
+}
+brillig(inline) predicate_pure fn func_1 f1 {
+  b0(v3: u1, v4: [u1; 3]):
+    v5 = allocate -> &mut [u1; 3]
+    v7 = array_set v4, index u32 1, value v3
+    return v7
+}
+
+After Purity Analysis (2):
+g0 = u1 1
+g1 = u1 0
+g2 = make_array [u1 1, u1 0, u1 1] : [u1; 3]
+
+brillig(inline) predicate_pure fn main f0 {
+  b0(v3: u1):
+    v6 = call f1(v3, g2) -> [u1; 3]
+    jmpif v3 then: b1, else: b2
+  b1():
+    jmp b3(g2)
+  b2():
+    jmp b3(v6)
+  b3(v4: [u1; 3]):
+    return v4
+}
+brillig(inline) predicate_pure fn func_1 f1 {
+  b0(v3: u1, v4: [u1; 3]):
+    v5 = allocate -> &mut [u1; 3]
+    v7 = array_set v4, index u32 1, value v3
+    return v7
+}
+
+After Constant Folding (1):
+g0 = u1 1
+g1 = u1 0
+g2 = make_array [u1 1, u1 0, u1 1] : [u1; 3]
+
+brillig(inline) predicate_pure fn main f0 {
+  b0(v3: u1):
+    v6 = call f1(v3, g2) -> [u1; 3]
+    jmpif v3 then: b1, else: b2
+  b1():
+    jmp b3(g2)
+  b2():
+    jmp b3(v6)
+  b3(v4: [u1; 3]):
+    return v4
+}
+brillig(inline) predicate_pure fn func_1 f1 {
+  b0(v3: u1, v4: [u1; 3]):
+    v5 = allocate -> &mut [u1; 3]
+    v7 = array_set v4, index u32 1, value v3
+    return v7
+}
+
+After Simplify conditionals for unconstrained (1):
+g0 = u1 1
+g1 = u1 0
+g2 = make_array [u1 1, u1 0, u1 1] : [u1; 3]
+
+brillig(inline) predicate_pure fn main f0 {
+  b0(v3: u1):
+    v5 = call f1(v3, g2) -> [u1; 3]
+    v6 = not v3
+    v7 = if v3 then g2 else (if v6) v5
+    return v7
+}
+brillig(inline) predicate_pure fn func_1 f1 {
+  b0(v3: u1, v4: [u1; 3]):
+    v5 = allocate -> &mut [u1; 3]
+    v7 = array_set v4, index u32 1, value v3
+    return v7
+}
+
+After EnableSideEffectsIf removal (1):
+g0 = u1 1
+g1 = u1 0
+g2 = make_array [u1 1, u1 0, u1 1] : [u1; 3]
+
+brillig(inline) predicate_pure fn main f0 {
+  b0(v3: u1):
+    v5 = call f1(v3, g2) -> [u1; 3]
+    v6 = not v3
+    v7 = if v3 then g2 else (if v6) v5
+    return v7
+}
+brillig(inline) predicate_pure fn func_1 f1 {
+  b0(v3: u1, v4: [u1; 3]):
+    v5 = allocate -> &mut [u1; 3]
+    v7 = array_set v4, index u32 1, value v3
+    return v7
+}
+
+After Constraint Folding (1):
+g0 = u1 1
+g1 = u1 0
+g2 = make_array [u1 1, u1 0, u1 1] : [u1; 3]
+
+brillig(inline) predicate_pure fn main f0 {
+  b0(v3: u1):
+    v5 = call f1(v3, g2) -> [u1; 3]
+    v6 = not v3
+    v7 = if v3 then g2 else (if v6) v5
+    return v7
+}
+brillig(inline) predicate_pure fn func_1 f1 {
+  b0(v3: u1, v4: [u1; 3]):
+    v5 = allocate -> &mut [u1; 3]
+    v7 = array_set v4, index u32 1, value v3
+    return v7
+}
+
+After Unrolling (2):
+g0 = u1 1
+g1 = u1 0
+g2 = make_array [u1 1, u1 0, u1 1] : [u1; 3]
+
+brillig(inline) predicate_pure fn main f0 {
+  b0(v3: u1):
+    v5 = call f1(v3, g2) -> [u1; 3]
+    v6 = not v3
+    v7 = if v3 then g2 else (if v6) v5
+    return v7
+}
+brillig(inline) predicate_pure fn func_1 f1 {
+  b0(v3: u1, v4: [u1; 3]):
+    v5 = allocate -> &mut [u1; 3]
+    v7 = array_set v4, index u32 1, value v3
+    return v7
+}
+
+After Adding constrain not equal (1):
+g0 = u1 1
+g1 = u1 0
+g2 = make_array [u1 1, u1 0, u1 1] : [u1; 3]
+
+brillig(inline) predicate_pure fn main f0 {
+  b0(v3: u1):
+    v5 = call f1(v3, g2) -> [u1; 3]
+    v6 = not v3
+    v7 = if v3 then g2 else (if v6) v5
+    return v7
+}
+brillig(inline) predicate_pure fn func_1 f1 {
+  b0(v3: u1, v4: [u1; 3]):
+    v5 = allocate -> &mut [u1; 3]
+    v7 = array_set v4, index u32 1, value v3
+    return v7
+}
+
+After Check u128 mul overflow (1):
+g0 = u1 1
+g1 = u1 0
+g2 = make_array [u1 1, u1 0, u1 1] : [u1; 3]
+
+brillig(inline) predicate_pure fn main f0 {
+  b0(v3: u1):
+    v5 = call f1(v3, g2) -> [u1; 3]
+    v6 = not v3
+    v7 = if v3 then g2 else (if v6) v5
+    return v7
+}
+brillig(inline) predicate_pure fn func_1 f1 {
+  b0(v3: u1, v4: [u1; 3]):
+    v5 = allocate -> &mut [u1; 3]
+    v7 = array_set v4, index u32 1, value v3
+    return v7
+}
+
+After Dead Instruction Elimination (1):
+g0 = u1 1
+g1 = u1 0
+g2 = make_array [u1 1, u1 0, u1 1] : [u1; 3]
+
+brillig(inline) predicate_pure fn main f0 {
+  b0(v3: u1):
+    v5 = call f1(v3, g2) -> [u1; 3]
+    v6 = not v3
+    v7 = if v3 then g2 else (if v6) v5
+    return v7
+}
+brillig(inline) predicate_pure fn func_1 f1 {
+  b0(v3: u1, v4: [u1; 3]):
+    v6 = array_set v4, index u32 1, value v3
+    return v6
+}
+
+After Simplifying (3):
+g0 = u1 1
+g1 = u1 0
+g2 = make_array [u1 1, u1 0, u1 1] : [u1; 3]
+
+brillig(inline) predicate_pure fn main f0 {
+  b0(v3: u1):
+    v5 = call f1(v3, g2) -> [u1; 3]
+    v6 = not v3
+    v7 = if v3 then g2 else (if v6) v5
+    return v7
+}
+brillig(inline) predicate_pure fn func_1 f1 {
+  b0(v3: u1, v4: [u1; 3]):
+    v6 = array_set v4, index u32 1, value v3
+    return v6
+}
+
+After Mem2Reg (4):
+g0 = u1 1
+g1 = u1 0
+g2 = make_array [u1 1, u1 0, u1 1] : [u1; 3]
+
+brillig(inline) predicate_pure fn main f0 {
+  b0(v3: u1):
+    v5 = call f1(v3, g2) -> [u1; 3]
+    v6 = not v3
+    v7 = if v3 then g2 else (if v6) v5
+    return v7
+}
+brillig(inline) predicate_pure fn func_1 f1 {
+  b0(v3: u1, v4: [u1; 3]):
+    v6 = array_set v4, index u32 1, value v3
+    return v6
+}
+
+After Array Set Optimizations (1):
+g0 = u1 1
+g1 = u1 0
+g2 = make_array [u1 1, u1 0, u1 1] : [u1; 3]
+
+brillig(inline) predicate_pure fn main f0 {
+  b0(v3: u1):
+    v5 = call f1(v3, g2) -> [u1; 3]
+    v6 = not v3
+    v7 = if v3 then g2 else (if v6) v5
+    return v7
+}
+brillig(inline) predicate_pure fn func_1 f1 {
+  b0(v3: u1, v4: [u1; 3]):
+    v6 = array_set v4, index u32 1, value v3
+    return v6
+}
+
+After Brillig Entry Point Analysis (1):
+g0 = u1 1
+g1 = u1 0
+g2 = make_array [u1 1, u1 0, u1 1] : [u1; 3]
+
+brillig(inline) predicate_pure fn main f0 {
+  b0(v3: u1):
+    v5 = call f1(v3, g2) -> [u1; 3]
+    v6 = not v3
+    v7 = if v3 then g2 else (if v6) v5
+    return v7
+}
+brillig(inline) predicate_pure fn func_1 f1 {
+  b0(v3: u1, v4: [u1; 3]):
+    v6 = array_set v4, index u32 1, value v3
+    return v6
+}
+
+After Removing Unreachable Functions (3):
+g0 = u1 1
+g1 = u1 0
+g2 = make_array [u1 1, u1 0, u1 1] : [u1; 3]
+
+brillig(inline) predicate_pure fn main f0 {
+  b0(v3: u1):
+    v5 = call f1(v3, g2) -> [u1; 3]
+    v6 = not v3
+    v7 = if v3 then g2 else (if v6) v5
+    return v7
+}
+brillig(inline) predicate_pure fn func_1 f1 {
+  b0(v3: u1, v4: [u1; 3]):
+    v6 = array_set v4, index u32 1, value v3
+    return v6
+}
+
+After Removing Truncate after RangeCheck (1):
+g0 = u1 1
+g1 = u1 0
+g2 = make_array [u1 1, u1 0, u1 1] : [u1; 3]
+
+brillig(inline) predicate_pure fn main f0 {
+  b0(v3: u1):
+    v5 = call f1(v3, g2) -> [u1; 3]
+    v6 = not v3
+    v7 = if v3 then g2 else (if v6) v5
+    return v7
+}
+brillig(inline) predicate_pure fn func_1 f1 {
+  b0(v3: u1, v4: [u1; 3]):
+    v6 = array_set v4, index u32 1, value v3
+    return v6
+}
+
+After Brillig Array Get Optimizations (1):
+g0 = u1 1
+g1 = u1 0
+g2 = make_array [u1 1, u1 0, u1 1] : [u1; 3]
+
+brillig(inline) predicate_pure fn main f0 {
+  b0(v3: u1):
+    v5 = call f1(v3, g2) -> [u1; 3]
+    v6 = not v3
+    v7 = if v3 then g2 else (if v6) v5
+    return v7
+}
+brillig(inline) predicate_pure fn func_1 f1 {
+  b0(v3: u1, v4: [u1; 3]):
+    v6 = array_set v4, index u32 1, value v3
+    return v6
+}
+
+After Dead Instruction Elimination (2):
+g0 = u1 1
+g1 = u1 0
+g2 = make_array [u1 1, u1 0, u1 1] : [u1; 3]
+
+brillig(inline) predicate_pure fn main f0 {
+  b0(v3: u1):
+    v5 = call f1(v3, g2) -> [u1; 3]
+    v6 = not v3
+    v7 = if v3 then g2 else (if v6) v5
+    return v7
+}
+brillig(inline) predicate_pure fn func_1 f1 {
+  b0(v3: u1, v4: [u1; 3]):
+    v6 = array_set v4, index u32 1, value v3
+    return v6
+}
+
+After Removing Unreachable Functions (4):
+g0 = u1 1
+g1 = u1 0
+g2 = make_array [u1 1, u1 0, u1 1] : [u1; 3]
+
+brillig(inline) predicate_pure fn main f0 {
+  b0(v3: u1):
+    v5 = call f1(v3, g2) -> [u1; 3]
+    v6 = not v3
+    v7 = if v3 then g2 else (if v6) v5
+    return v7
+}
+brillig(inline) predicate_pure fn func_1 f1 {
+  b0(v3: u1, v4: [u1; 3]):
+    v6 = array_set v4, index u32 1, value v3
+    return v6
+}
+
+After Checked to unchecked (1):
+g0 = u1 1
+g1 = u1 0
+g2 = make_array [u1 1, u1 0, u1 1] : [u1; 3]
+
+brillig(inline) predicate_pure fn main f0 {
+  b0(v3: u1):
+    v5 = call f1(v3, g2) -> [u1; 3]
+    v6 = not v3
+    v7 = if v3 then g2 else (if v6) v5
+    return v7
+}
+brillig(inline) predicate_pure fn func_1 f1 {
+  b0(v3: u1, v4: [u1; 3]):
+    v6 = array_set v4, index u32 1, value v3
+    return v6
+}
+
+After Inlining Brillig Calls (1):
+g0 = u1 1
+g1 = u1 0
+g2 = make_array [u1 1, u1 0, u1 1] : [u1; 3]
+
+brillig(inline) predicate_pure fn main f0 {
+  b0(v3: u1):
+    v5 = call f1(v3, g2) -> [u1; 3]
+    v6 = not v3
+    v7 = if v3 then g2 else (if v6) v5
+    return v7
+}
+brillig(inline) predicate_pure fn func_1 f1 {
+  b0(v3: u1, v4: [u1; 3]):
+    v6 = array_set v4, index u32 1, value v3
+    return v6
+}
+
+After Removing Unreachable Functions (5):
+g0 = u1 1
+g1 = u1 0
+g2 = make_array [u1 1, u1 0, u1 1] : [u1; 3]
+
+brillig(inline) predicate_pure fn main f0 {
+  b0(v3: u1):
+    v5 = call f1(v3, g2) -> [u1; 3]
+    v6 = not v3
+    v7 = if v3 then g2 else (if v6) v5
+    return v7
+}
+brillig(inline) predicate_pure fn func_1 f1 {
+  b0(v3: u1, v4: [u1; 3]):
+    v6 = array_set v4, index u32 1, value v3
+    return v6
+}
+
+After Dead Instruction Elimination (3):
+g0 = u1 1
+g1 = u1 0
+g2 = make_array [u1 1, u1 0, u1 1] : [u1; 3]
+
+brillig(inline) predicate_pure fn main f0 {
+  b0(v3: u1):
+    v5 = call f1(v3, g2) -> [u1; 3]
+    v6 = not v3
+    v7 = if v3 then g2 else (if v6) v5
+    return v7
+}
+brillig(inline) predicate_pure fn func_1 f1 {
+  b0(v3: u1, v4: [u1; 3]):
+    v6 = array_set v4, index u32 1, value v3
+    return v6
+}
+
+[regression_8259] Circuit witness successfully solved
+[regression_8259] Witness saved to target/regression_8259.gz
+[regression_8259] Circuit output: Vec([Field(1), Field(1), Field(1)])
