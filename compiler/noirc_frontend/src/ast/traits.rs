@@ -137,7 +137,8 @@ impl Display for TypeImpl {
 impl Display for NoirTrait {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let generics = vecmap(&self.generics, |generic| generic.to_string());
-        let generics = if generics.is_empty() { "".into() } else { generics.join(", ") };
+        let generics =
+            if generics.is_empty() { "".into() } else { format!("<{}>", generics.join(", ")) };
 
         write!(f, "trait {}{}", self.name, generics)?;
 
@@ -150,6 +151,12 @@ impl Display for NoirTrait {
             let bounds = vecmap(&self.bounds, |bound| bound.to_string()).join(" + ");
             write!(f, ": {}", bounds)?;
         }
+
+        let where_clause = vecmap(&self.where_clause, ToString::to_string);
+        if !where_clause.is_empty() {
+            write!(f, " where {}", where_clause.join(", "))?;
+        };
+
         writeln!(f, " {{")?;
 
         for item in self.items.iter() {
