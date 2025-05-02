@@ -227,6 +227,7 @@ mod tests {
         assert_eq!(b3_unused[0].to_u32(), 2);
 
         let ssa = ssa.prune_dead_parameters(&die_result.unused_parameters);
+        let (ssa, _) = ssa.dead_instruction_elimination_inner(false, false);
 
         // We expect b3 to have no parameters anymore and both predecessors (b1 and b2)
         // should no longer pass any arguments to their terminator (which jumps to b3).
@@ -239,6 +240,7 @@ mod tests {
             v5 = array_get v3, index u32 3 -> u1
             jmpif v5 then: b1, else: b2
           b1():
+            v7 = mul u32 601072115, u32 2825334515
             jmp b3()
           b2():
             jmp b3()
