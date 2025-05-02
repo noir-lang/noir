@@ -1,4 +1,9 @@
-use crate::ssa::ir::{basic_block::BasicBlockId, instruction::BinaryOp, value::ValueId};
+use crate::ssa::ir::{
+    basic_block::BasicBlockId,
+    instruction::{BinaryOp, Intrinsic},
+    value::ValueId,
+};
+use acvm::FieldElement;
 use thiserror::Error;
 
 pub(super) const MAX_SIGNED_BIT_SIZE: u32 = 64;
@@ -13,6 +18,8 @@ pub(crate) enum InterpreterError {
     ConstrainEqFailed { lhs: String, lhs_id: ValueId, rhs: String, rhs_id: ValueId },
     #[error("constrain {lhs_id} != {rhs_id} failed:\n    {lhs} == {rhs}")]
     ConstrainNeFailed { lhs: String, lhs_id: ValueId, rhs: String, rhs_id: ValueId },
+    #[error("static_assert `{condition}` failed: {message}")]
+    StaticAssertFailed { condition: ValueId, message: String },
     #[error(
         "Range check of {value_id} = {value} failed.\n  Max bits allowed by range check = {max_bits}\n  Actual bit count = {actual_bits}"
     )]
@@ -45,6 +52,10 @@ pub(crate) enum InterpreterError {
         "if-else instruction with then condition `{then_condition_id}` and else condition `{else_condition_id}` has both branches as true. This should be impossible except for malformed SSA code"
     )]
     DoubleTrueIfElse { then_condition_id: ValueId, else_condition_id: ValueId },
+    #[error("Tried to pop from empty slice `{slice}` in `{instruction}`")]
+    PoppedFromEmptySlice { slice: ValueId, instruction: &'static str },
+    #[error("Unable to convert `{field_id} = {field}` to radix {radix}")]
+    ToRadixFailed { field_id: ValueId, field: FieldElement, radix: u32 },
 }
 
 /// These errors can only result from interpreting malformed SSA
@@ -54,6 +65,10 @@ pub(crate) enum InternalError {
         "Argument count {arguments} to block {block} does not match the expected parameter count {parameters}"
     )]
     BlockArgumentCountMismatch { block: BasicBlockId, arguments: usize, parameters: usize },
+    #[error(
+        "Argument count {arguments} to `{intrinsic}` does not match the expected parameter count {parameters}"
+    )]
+    IntrinsicArgumentCountMismatch { intrinsic: Intrinsic, arguments: usize, parameters: usize },
     #[error("Block {block} is missing the terminator instruction")]
     BlockMissingTerminator { block: BasicBlockId },
     #[error("Cannot call non-function value {value_id} = {value}")]
@@ -112,4 +127,13 @@ pub(crate) enum InternalError {
         "`range_check {value_id} to 0 bits` has invalid bit size 0. This should only be possible in malformed SSA."
     )]
     RangeCheckToZeroBits { value_id: ValueId },
+    #[error("`field_less_than` can only be called in unconstrained contexts")]
+    FieldLessThanCalledInConstrainedContext,
+    #[error("Slice `{slice_id} = {slice}` contains struct/tuple elements of types `({})` and thus needs a minimum length of {} to pop 1 struct/tuple, but it is only of length {actual_length}", element_types.join(", "), element_types.len())]
+    NotEnoughElementsToPopSliceOfStructs {
+        slice_id: ValueId,
+        slice: String,
+        actual_length: usize,
+        element_types: Vec<String>,
+    },
 }

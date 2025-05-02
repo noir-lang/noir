@@ -258,6 +258,10 @@ impl<'ssa> Interpreter<'ssa> {
         self.lookup_helper(value_id, instruction, "u32", Value::as_u32)
     }
 
+    fn lookup_field(&self, value_id: ValueId, instruction: &'static str) -> IResult<FieldElement> {
+        self.lookup_helper(value_id, instruction, "Field", Value::as_field)
+    }
+
     fn lookup_numeric(
         &self,
         value_id: ValueId,
@@ -272,6 +276,10 @@ impl<'ssa> Interpreter<'ssa> {
         instruction: &'static str,
     ) -> IResult<ArrayValue> {
         self.lookup_helper(value_id, instruction, "array or slice", Value::as_array_or_slice)
+    }
+
+    fn lookup_string(&self, value_id: ValueId, instruction: &'static str) -> IResult<String> {
+        self.lookup_helper(value_id, instruction, "string", Value::as_string)
     }
 
     fn lookup_reference(
@@ -528,7 +536,7 @@ impl<'ssa> Interpreter<'ssa> {
                     self.call_function(id, arguments)?
                 }
                 Value::Intrinsic(intrinsic) => {
-                    self.call_intrinsic(intrinsic, arguments, results)?
+                    self.call_intrinsic(intrinsic, argument_ids, results)?
                 }
                 Value::ForeignFunction(name) if name == "print" => self.call_print(arguments)?,
                 Value::ForeignFunction(name) => {
