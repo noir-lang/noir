@@ -6,12 +6,9 @@ pub(super) const MAX_UNSIGNED_BIT_SIZE: u32 = 128;
 
 #[derive(Debug, Error)]
 pub(crate) enum InterpreterError {
-    #[error(
-        "Argument count {arguments} to block {block} does not match the expected parameter count {parameters}"
-    )]
-    BlockArgumentCountMismatch { block: BasicBlockId, arguments: usize, parameters: usize },
-    #[error("Block {block} is missing the terminator instruction")]
-    BlockMissingTerminator { block: BasicBlockId },
+    /// These errors are all the result from malformed input SSA
+    #[error("{0}")]
+    Internal(InternalError),
     #[error("constrain {lhs_id} == {rhs_id} failed:\n    {lhs} != {rhs}")]
     ConstrainEqFailed { lhs: String, lhs_id: ValueId, rhs: String, rhs_id: ValueId },
     #[error("constrain {lhs_id} != {rhs_id} failed:\n    {lhs} == {rhs}")]
@@ -30,8 +27,35 @@ pub(crate) enum InterpreterError {
         max_bits: u32,
         message: String,
     },
+    /// This is not an internal error since the SSA is still valid. We're just not able to
+    /// interpret it since we lack the context of what the external function is.
     #[error("Call to unknown foreign function {name}")]
     UnknownForeignFunctionCall { name: String },
+    #[error("Division by zero: `div {lhs_id}, {rhs_id}`  ({lhs} / {rhs})")]
+    DivisionByZero { lhs_id: ValueId, lhs: String, rhs_id: ValueId, rhs: String },
+    #[error("Underflow in dec_rc when decrementing reference count of `{value_id} = {value}`")]
+    DecRcUnderflow { value_id: ValueId, value: String },
+    #[error(
+        "Erroneously incremented reference count of value `{value_id} = {value}` from 0 back to 1"
+    )]
+    IncRcRevive { value_id: ValueId, value: String },
+    #[error("An overflow occurred while evaluating {instruction}")]
+    Overflow { instruction: String },
+    #[error(
+        "if-else instruction with then condition `{then_condition_id}` and else condition `{else_condition_id}` has both branches as true. This should be impossible except for malformed SSA code"
+    )]
+    DoubleTrueIfElse { then_condition_id: ValueId, else_condition_id: ValueId },
+}
+
+/// These errors can only result from interpreting malformed SSA
+#[derive(Debug, Error)]
+pub(crate) enum InternalError {
+    #[error(
+        "Argument count {arguments} to block {block} does not match the expected parameter count {parameters}"
+    )]
+    BlockArgumentCountMismatch { block: BasicBlockId, arguments: usize, parameters: usize },
+    #[error("Block {block} is missing the terminator instruction")]
+    BlockMissingTerminator { block: BasicBlockId },
     #[error("Cannot call non-function value {value_id} = {value}")]
     CalledNonFunction { value: String, value_id: ValueId },
     // Note that we don't need to display the value_id because displaying a reference
@@ -50,8 +74,6 @@ pub(crate) enum InterpreterError {
         rhs_id: ValueId,
         rhs: String,
     },
-    #[error("Division by zero: `div {lhs_id}, {rhs_id}`  ({lhs} / {rhs})")]
-    DivisionByZero { lhs_id: ValueId, lhs: String, rhs_id: ValueId, rhs: String },
     #[error("Unsupported operator `{operator}` for type `{typ}`")]
     UnsupportedOperatorForType { operator: &'static str, typ: &'static str },
     #[error(
@@ -62,8 +84,8 @@ pub(crate) enum InterpreterError {
         "Invalid bit size of `{bit_size}` given to truncate, maximum size allowed for signed values is {MAX_SIGNED_BIT_SIZE}"
     )]
     InvalidSignedTruncateBitSize { bit_size: u32 },
-    #[error("Rhs of `{operator}` should be a u32 but found `{rhs_id} = {rhs}`")]
-    RhsOfBitShiftShouldBeU32 { operator: &'static str, rhs_id: ValueId, rhs: String },
+    #[error("Rhs of `{operator}` should be a u8 but found `{rhs_id} = {rhs}`")]
+    RhsOfBitShiftShouldBeU8 { operator: &'static str, rhs_id: ValueId, rhs: String },
     #[error(
         "Expected {expected_type} value in {instruction} but instead found `{value_id} = {value}`"
     )]
@@ -73,14 +95,6 @@ pub(crate) enum InterpreterError {
         expected_type: &'static str,
         instruction: &'static str,
     },
-    #[error("Underflow in dec_rc when decrementing reference count of `{value_id} = {value}`")]
-    DecRcUnderflow { value_id: ValueId, value: String },
-    #[error(
-        "Erroneously incremented reference count of value `{value_id} = {value}` from 0 back to 1"
-    )]
-    IncRcRevive { value_id: ValueId, value: String },
-    #[error("An overflow occurred while evaluating {instruction}")]
-    Overflow { instruction: String },
     #[error(
         "Function {function} ({function_name}) returned {actual} argument(s) but it was expected to return {expected}"
     )]
@@ -90,10 +104,6 @@ pub(crate) enum InterpreterError {
         expected: usize,
         actual: usize,
     },
-    #[error(
-        "if-else instruction with then condition `{then_condition_id}` and else condition `{else_condition_id}` has both branches as true. This should be impossible except for malformed SSA code"
-    )]
-    DoubleTrueIfElse { then_condition_id: ValueId, else_condition_id: ValueId },
     #[error(
         "`truncate {value_id} to 0 bits, max_bit_size: {max_bit_size}` has invalid bit size 0. This should only be possible in malformed SSA."
     )]

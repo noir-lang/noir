@@ -220,9 +220,9 @@ impl NumericValue {
         }
     }
 
-    pub(crate) fn as_u32(&self) -> Option<u32> {
+    pub(crate) fn as_u8(&self) -> Option<u8> {
         match self {
-            NumericValue::U32(value) => Some(*value),
+            NumericValue::U8(value) => Some(*value),
             _ => None,
         }
     }

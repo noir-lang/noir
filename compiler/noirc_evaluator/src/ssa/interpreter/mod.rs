@@ -12,7 +12,7 @@ use super::{
 };
 use crate::ssa::ir::{instruction::binary::truncate_field, printer::display_binary};
 use acvm::{AcirField, FieldElement};
-use errors::{InterpreterError, MAX_SIGNED_BIT_SIZE, MAX_UNSIGNED_BIT_SIZE};
+use errors::{InternalError, InterpreterError, MAX_SIGNED_BIT_SIZE, MAX_UNSIGNED_BIT_SIZE};
 use fxhash::FxHashMap as HashMap;
 use iter_extended::vecmap;
 use noirc_frontend::Shared;
@@ -155,11 +155,11 @@ impl<'ssa> Interpreter<'ssa> {
             let block = &dfg[block_id];
 
             if arguments.len() != block.parameters().len() {
-                return Err(InterpreterError::BlockArgumentCountMismatch {
+                return Err(internal(InternalError::BlockArgumentCountMismatch {
                     block: block_id,
                     arguments: arguments.len(),
                     parameters: block.parameters().len(),
-                });
+                }));
             }
 
             for (parameter, argument) in block.parameters().iter().zip(arguments) {
@@ -173,7 +173,9 @@ impl<'ssa> Interpreter<'ssa> {
 
             match block.terminator() {
                 None => {
-                    return Err(InterpreterError::BlockMissingTerminator { block: block_id });
+                    return Err(internal(InternalError::BlockMissingTerminator {
+                        block: block_id,
+                    }));
                 }
                 Some(TerminatorInstruction::Jmp { destination, arguments: jump_args, .. }) => {
                     block_id = *destination;
@@ -238,7 +240,12 @@ impl<'ssa> Interpreter<'ssa> {
             Some(value) => Ok(value),
             None => {
                 let value = value.to_string();
-                Err(InterpreterError::TypeError { value_id, value, expected_type, instruction })
+                Err(internal(InternalError::TypeError {
+                    value_id,
+                    value,
+                    expected_type,
+                    instruction,
+                }))
             }
         }
     }
@@ -374,10 +381,10 @@ impl<'ssa> Interpreter<'ssa> {
     fn interpret_not(&mut self, id: ValueId, result: ValueId) -> IResult<()> {
         let new_result = match self.lookup_numeric(id, "not instruction")? {
             NumericValue::Field(_) => {
-                return Err(InterpreterError::UnsupportedOperatorForType {
+                return Err(internal(InternalError::UnsupportedOperatorForType {
                     operator: "!",
                     typ: "Field",
-                });
+                }));
             }
             NumericValue::U1(value) => NumericValue::U1(!value),
             NumericValue::U8(value) => NumericValue::U8(!value),
@@ -403,7 +410,7 @@ impl<'ssa> Interpreter<'ssa> {
     ) -> IResult<()> {
         let value = self.lookup_numeric(value_id, "truncate")?;
         if bit_size == 0 {
-            return Err(InterpreterError::TruncateToZeroBits { value_id, max_bit_size });
+            return Err(internal(InternalError::TruncateToZeroBits { value_id, max_bit_size }));
         }
 
         let truncated = match value {
@@ -435,7 +442,7 @@ impl<'ssa> Interpreter<'ssa> {
         }
 
         if max_bit_size == 0 {
-            return Err(InterpreterError::RangeCheckToZeroBits { value_id });
+            return Err(internal(InternalError::RangeCheckToZeroBits { value_id }));
         }
 
         let value = self.lookup_numeric(value_id, "range check")?;
@@ -528,10 +535,10 @@ impl<'ssa> Interpreter<'ssa> {
                     return Err(InterpreterError::UnknownForeignFunctionCall { name });
                 }
                 other => {
-                    return Err(InterpreterError::CalledNonFunction {
+                    return Err(internal(InternalError::CalledNonFunction {
                         value: other.to_string(),
                         value_id: function_id,
-                    });
+                    }));
                 }
             }
         } else {
@@ -543,12 +550,12 @@ impl<'ssa> Interpreter<'ssa> {
 
         if new_results.len() != results.len() {
             let function_name = self.try_get_function_name(function_id);
-            return Err(InterpreterError::FunctionReturnedIncorrectArgCount {
+            return Err(internal(InternalError::FunctionReturnedIncorrectArgCount {
                 function: function_id,
                 function_name,
                 expected: results.len(),
                 actual: new_results.len(),
-            });
+            }));
         }
 
         for (result, new_result) in results.iter().zip(new_results) {
@@ -583,7 +590,7 @@ impl<'ssa> Interpreter<'ssa> {
 
             Value::Reference(value) => {
                 let value = value.to_string();
-                Err(InterpreterError::ReferenceValueCrossedUnconstrainedBoundary { value })
+                Err(internal(InternalError::ReferenceValueCrossedUnconstrainedBoundary { value }))
             }
 
             Value::ArrayOrSlice(array_value) => {
@@ -615,7 +622,7 @@ impl<'ssa> Interpreter<'ssa> {
         let element = address.element.borrow();
         let Some(value) = &*element else {
             let value = address.to_string();
-            return Err(InterpreterError::UninitializedReferenceValueLoaded { value });
+            return Err(internal(InternalError::UninitializedReferenceValueLoaded { value }));
         };
 
         self.define(result, value.clone());
@@ -788,13 +795,13 @@ macro_rules! apply_int_binop {
             (I64(lhs), I64(rhs)) => I64($f(&lhs, &rhs)),
             (lhs, rhs) => {
                 let binary = $binary;
-                return Err(InterpreterError::MismatchedTypesInBinaryOperator {
+                return Err(internal(InternalError::MismatchedTypesInBinaryOperator {
                     lhs: lhs.to_string(),
                     rhs: rhs.to_string(),
                     operator: binary.operator,
                     lhs_id: binary.lhs,
                     rhs_id: binary.rhs,
-                });
+                }));
             }
         }
     }};
@@ -838,13 +845,13 @@ macro_rules! apply_int_binop_opt {
             (I32(lhs), I32(rhs)) => I32($f(&lhs, &rhs).ok_or_else(overflow)?),
             (I64(lhs), I64(rhs)) => I64($f(&lhs, &rhs).ok_or_else(overflow)?),
             (lhs, rhs) => {
-                return Err(InterpreterError::MismatchedTypesInBinaryOperator {
+                return Err(internal(InternalError::MismatchedTypesInBinaryOperator {
                     lhs: lhs.to_string(),
                     rhs: rhs.to_string(),
                     operator,
                     lhs_id: binary.lhs,
                     rhs_id: binary.rhs,
-                });
+                }));
             }
         }
     }};
@@ -869,13 +876,13 @@ macro_rules! apply_int_comparison_op {
             (I64(lhs), I64(rhs)) => U1($f(&lhs, &rhs)),
             (lhs, rhs) => {
                 let binary = $binary;
-                return Err(InterpreterError::MismatchedTypesInBinaryOperator {
+                return Err(internal(InternalError::MismatchedTypesInBinaryOperator {
                     lhs: lhs.to_string(),
                     rhs: rhs.to_string(),
                     operator: binary.operator,
                     lhs_id: binary.lhs,
                     rhs_id: binary.rhs,
-                });
+                }));
             }
         }
     }};
@@ -891,13 +898,13 @@ impl Interpreter<'_> {
         if lhs.get_type() != rhs.get_type()
             && !matches!(binary.operator, BinaryOp::Shl | BinaryOp::Shr)
         {
-            return Err(InterpreterError::MismatchedTypesInBinaryOperator {
+            return Err(internal(InternalError::MismatchedTypesInBinaryOperator {
                 lhs_id,
                 lhs: lhs.to_string(),
                 operator: binary.operator,
                 rhs_id,
                 rhs: rhs.to_string(),
-            });
+            }));
         }
 
         // Disable this instruction if it is side-effectful and side effects are disabled.
@@ -952,13 +959,13 @@ impl Interpreter<'_> {
                 apply_int_binop!(lhs, rhs, binary, std::ops::BitXor::bitxor)
             }
             BinaryOp::Shl => {
-                let Some(rhs) = rhs.as_u32() else {
+                let Some(rhs) = rhs.as_u8() else {
                     let rhs = rhs.to_string();
-                    return Err(InterpreterError::RhsOfBitShiftShouldBeU32 {
+                    return Err(internal(InternalError::RhsOfBitShiftShouldBeU8 {
                         operator: "<<",
                         rhs_id,
                         rhs,
-                    });
+                    }));
                 };
 
                 let overflow = || {
@@ -967,19 +974,20 @@ impl Interpreter<'_> {
                     InterpreterError::Overflow { instruction }
                 };
 
+                let rhs = rhs as u32;
                 use NumericValue::*;
                 match lhs {
                     Field(_) => {
-                        return Err(InterpreterError::UnsupportedOperatorForType {
+                        return Err(internal(InternalError::UnsupportedOperatorForType {
                             operator: "<<",
                             typ: "Field",
-                        });
+                        }));
                     }
                     U1(_) => {
-                        return Err(InterpreterError::UnsupportedOperatorForType {
+                        return Err(internal(InternalError::UnsupportedOperatorForType {
                             operator: "<<",
                             typ: "u1",
-                        });
+                        }));
                     }
                     U8(value) => U8(value.checked_shl(rhs).ok_or_else(overflow)?),
                     U16(value) => U16(value.checked_shl(rhs).ok_or_else(overflow)?),
@@ -994,28 +1002,29 @@ impl Interpreter<'_> {
             }
             BinaryOp::Shr => {
                 let zero = || NumericValue::zero(lhs.get_type());
-                let Some(rhs) = rhs.as_u32() else {
+                let Some(rhs) = rhs.as_u8() else {
                     let rhs = rhs.to_string();
-                    return Err(InterpreterError::RhsOfBitShiftShouldBeU32 {
+                    return Err(internal(InternalError::RhsOfBitShiftShouldBeU8 {
                         operator: ">>",
                         rhs_id,
                         rhs,
-                    });
+                    }));
                 };
 
+                let rhs = rhs as u32;
                 use NumericValue::*;
                 match lhs {
                     Field(_) => {
-                        return Err(InterpreterError::UnsupportedOperatorForType {
+                        return Err(internal(InternalError::UnsupportedOperatorForType {
                             operator: ">>",
                             typ: "Field",
-                        });
+                        }));
                     }
                     U1(_) => {
-                        return Err(InterpreterError::UnsupportedOperatorForType {
+                        return Err(internal(InternalError::UnsupportedOperatorForType {
                             operator: ">>",
                             typ: "u1",
-                        });
+                        }));
                     }
                     U8(value) => value.checked_shr(rhs).map(U8).unwrap_or_else(zero),
                     U16(value) => value.checked_shr(rhs).map(U16).unwrap_or_else(zero),
@@ -1040,6 +1049,11 @@ impl Interpreter<'_> {
         lhs_id: ValueId,
         rhs_id: ValueId,
     ) -> IResult<Value> {
+        let unsupported_operator = |operator| -> IResult<Value> {
+            let typ = "Field";
+            Err(internal(InternalError::UnsupportedOperatorForType { operator, typ }))
+        };
+
         let result = match operator {
             BinaryOp::Add { unchecked: _ } => NumericValue::Field(lhs + rhs),
             BinaryOp::Sub { unchecked: _ } => NumericValue::Field(lhs - rhs),
@@ -1052,44 +1066,14 @@ impl Interpreter<'_> {
                 }
                 NumericValue::Field(lhs / rhs)
             }
-            BinaryOp::Mod => {
-                return Err(InterpreterError::UnsupportedOperatorForType {
-                    operator: "%",
-                    typ: "Field",
-                });
-            }
+            BinaryOp::Mod => return unsupported_operator("%"),
             BinaryOp::Eq => NumericValue::U1(lhs == rhs),
             BinaryOp::Lt => NumericValue::U1(lhs < rhs),
-            BinaryOp::And => {
-                return Err(InterpreterError::UnsupportedOperatorForType {
-                    operator: "&",
-                    typ: "Field",
-                });
-            }
-            BinaryOp::Or => {
-                return Err(InterpreterError::UnsupportedOperatorForType {
-                    operator: "|",
-                    typ: "Field",
-                });
-            }
-            BinaryOp::Xor => {
-                return Err(InterpreterError::UnsupportedOperatorForType {
-                    operator: "^",
-                    typ: "Field",
-                });
-            }
-            BinaryOp::Shl => {
-                return Err(InterpreterError::UnsupportedOperatorForType {
-                    operator: "<<",
-                    typ: "Field",
-                });
-            }
-            BinaryOp::Shr => {
-                return Err(InterpreterError::UnsupportedOperatorForType {
-                    operator: ">>",
-                    typ: "Field",
-                });
-            }
+            BinaryOp::And => return unsupported_operator("&"),
+            BinaryOp::Or => return unsupported_operator("|"),
+            BinaryOp::Xor => return unsupported_operator("^"),
+            BinaryOp::Shl => return unsupported_operator("<<"),
+            BinaryOp::Shr => return unsupported_operator(">>"),
         };
         Ok(Value::Numeric(result))
     }
@@ -1100,50 +1084,25 @@ impl Interpreter<'_> {
         operator: BinaryOp,
         rhs: bool,
     ) -> IResult<Value> {
+        let unsupported_operator = |operator| -> IResult<Value> {
+            let typ = "u1";
+            Err(internal(InternalError::UnsupportedOperatorForType { operator, typ }))
+        };
+
         let result = match operator {
-            BinaryOp::Add { unchecked: _ } => {
-                return Err(InterpreterError::UnsupportedOperatorForType {
-                    operator: "+",
-                    typ: "u1",
-                });
-            }
-            BinaryOp::Sub { unchecked: _ } => {
-                return Err(InterpreterError::UnsupportedOperatorForType {
-                    operator: "-",
-                    typ: "u1",
-                });
-            }
+            BinaryOp::Add { unchecked: _ } => return unsupported_operator("+"),
+            BinaryOp::Sub { unchecked: _ } => return unsupported_operator("-"),
             BinaryOp::Mul { unchecked: _ } => lhs & rhs, // (*) = (&) for u1
-            BinaryOp::Div => {
-                return Err(InterpreterError::UnsupportedOperatorForType {
-                    operator: "/",
-                    typ: "u1",
-                });
-            }
-            BinaryOp::Mod => {
-                return Err(InterpreterError::UnsupportedOperatorForType {
-                    operator: "%",
-                    typ: "u1",
-                });
-            }
+            BinaryOp::Div => return unsupported_operator("/"),
+            BinaryOp::Mod => return unsupported_operator("%"),
             BinaryOp::Eq => lhs == rhs,
             // clippy complains when you do `lhs < rhs` and recommends this instead
             BinaryOp::Lt => !lhs & rhs,
             BinaryOp::And => lhs & rhs,
             BinaryOp::Or => lhs | rhs,
             BinaryOp::Xor => lhs ^ rhs,
-            BinaryOp::Shl => {
-                return Err(InterpreterError::UnsupportedOperatorForType {
-                    operator: "<<",
-                    typ: "u1",
-                });
-            }
-            BinaryOp::Shr => {
-                return Err(InterpreterError::UnsupportedOperatorForType {
-                    operator: ">>",
-                    typ: "u1",
-                });
-            }
+            BinaryOp::Shl => return unsupported_operator("<<"),
+            BinaryOp::Shr => return unsupported_operator(">>"),
         };
         Ok(Value::Numeric(NumericValue::U1(result)))
     }
@@ -1160,7 +1119,7 @@ where
         Ordering::Less => (1u128 << bit_size) - 1,
         Ordering::Equal => u128::MAX,
         Ordering::Greater => {
-            return Err(InterpreterError::InvalidUnsignedTruncateBitSize { bit_size });
+            return Err(internal(InternalError::InvalidUnsignedTruncateBitSize { bit_size }));
         }
     };
 
@@ -1181,7 +1140,7 @@ where
         let max = 1i128 << (bit_size - 1);
         value_i128 += max;
         if bit_size > MAX_SIGNED_BIT_SIZE {
-            return Err(InterpreterError::InvalidSignedTruncateBitSize { bit_size });
+            return Err(internal(InternalError::InvalidSignedTruncateBitSize { bit_size }));
         }
 
         let mask = (1i128 << bit_size) - 1;
@@ -1196,6 +1155,10 @@ where
             "The truncated result should always be smaller than or equal to the original `value`",
         ))
     }
+}
+
+fn internal(error: InternalError) -> InterpreterError {
+    InterpreterError::Internal(error)
 }
 
 #[cfg(test)]

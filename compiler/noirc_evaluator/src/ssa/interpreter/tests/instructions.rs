@@ -292,12 +292,12 @@ fn shl() {
         "
         acir(inline) fn main f0 {
           b0():
-            v0 = shl u8 3, u32 2
+            v0 = shl i8 3, u8 2
             return v0
         }
     ",
     );
-    assert_eq!(value, Value::from_constant(12_u128.into(), NumericType::unsigned(8)));
+    assert_eq!(value, Value::from_constant(12_u128.into(), NumericType::signed(8)));
 }
 
 /// shl should overflow if the rhs is greater than the bit count
@@ -307,7 +307,7 @@ fn shl_overflow() {
         "
         acir(inline) fn main f0 {
           b0():
-            v0 = shl u8 3, u32 9
+            v0 = shl u8 3, u8 9
             return v0
         }
     ",
@@ -321,16 +321,16 @@ fn shr() {
         "
         acir(inline) fn main f0 {
           b0():
-            v0 = shr u8 12, u32 2
-            v1 = shr u8 5, u32 1
-            v2 = shr u8 5, u32 4
+            v0 = shr u16 12, u8 2
+            v1 = shr u16 5, u8 1
+            v2 = shr u16 5, u8 4
             return v0, v1, v2
         }
     ",
     );
-    assert_eq!(values[0], Value::from_constant(3_u128.into(), NumericType::unsigned(8)));
-    assert_eq!(values[1], Value::from_constant(2_u128.into(), NumericType::unsigned(8)));
-    assert_eq!(values[2], Value::from_constant(0_u128.into(), NumericType::unsigned(8)));
+    assert_eq!(values[0], Value::from_constant(3_u128.into(), NumericType::unsigned(16)));
+    assert_eq!(values[1], Value::from_constant(2_u128.into(), NumericType::unsigned(16)));
+    assert_eq!(values[2], Value::from_constant(0_u128.into(), NumericType::unsigned(16)));
 }
 
 #[test]
@@ -340,7 +340,7 @@ fn shr_overflow() {
         "
         acir(inline) fn main f0 {
           b0():
-            v0 = shr u8 3, u32 9
+            v0 = shr u8 3, u8 9
             return v0
         }
     ",
