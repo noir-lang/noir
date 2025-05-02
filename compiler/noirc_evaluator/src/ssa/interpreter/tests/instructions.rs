@@ -167,7 +167,7 @@ fn div_zero() {
         }
     ",
     );
-    assert!(matches!(error, InterpreterError::DivisionByZero { .. }))
+    assert!(matches!(error, InterpreterError::DivisionByZero { .. }));
 }
 
 #[test]
@@ -195,8 +195,7 @@ fn mod_zero() {
         }
     ",
     );
-    dbg!(&error);
-    assert!(matches!(error, InterpreterError::DivisionByZero { .. }))
+    assert!(matches!(error, InterpreterError::DivisionByZero { .. }));
 }
 
 #[test]
