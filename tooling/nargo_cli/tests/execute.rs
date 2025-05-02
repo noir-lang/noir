@@ -364,12 +364,13 @@ mod tests {
         let expanded_code: String = String::from_utf8(expanded_code.stdout).unwrap();
 
         let test_name = test_program_dir.file_name().unwrap().to_string_lossy().to_string();
+        let snapshot_name = "expanded";
         insta::with_settings!(
         {
             snapshot_path => format!("./snapshots/expand/execution_success/{test_name}")
         },
         {
-            insta::assert_snapshot!(expanded_code)
+            insta::assert_snapshot!(snapshot_name, expanded_code)
         });
 
         // Create a new directory where we'll put the expanded code
@@ -424,12 +425,13 @@ mod tests {
         let expanded_code: String = String::from_utf8(expanded_code.stdout).unwrap();
 
         let test_name = test_program_dir.file_name().unwrap().to_string_lossy().to_string();
+        let snapshot_name = "expanded";
         insta::with_settings!(
         {
             snapshot_path => format!("./snapshots/expand/{prefix}/{test_name}")
         },
         {
-            insta::assert_snapshot!(expanded_code)
+            insta::assert_snapshot!(snapshot_name, expanded_code)
         });
 
         // Create a new directory where we'll put the expanded code
