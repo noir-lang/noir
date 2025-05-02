@@ -20,7 +20,7 @@ pub fn fuzz(u: &mut Unstructured) -> eyre::Result<()> {
         Config::default(),
         |u, mut program| {
             let options = CompareOptions::arbitrary(u)?;
-            rewrite_program(u, &mut program, &rules, max_rewrites);
+            rewrite_program(u, &mut program, &rules.as_slice()[1..], max_rewrites);
             Ok((program, options))
         },
         |program, options| create_ssa_or_die(program, &options.onto(default_ssa_options()), None),
@@ -249,7 +249,7 @@ mod rules {
 
     /// Construct all rules that we can apply on a program.
     pub fn all() -> Vec<Rule> {
-        vec![num_plus_minus_zero()]
+        vec![num_plus_minus_zero(), bool_or_self()]
     }
 
     /// Transform any numeric value `x` into `x +/- 0`.
@@ -288,6 +288,33 @@ mod rules {
                     expr::binary(expr.clone(), op, expr::int_literal(0u32, false, typ))
                 });
 
+                Ok(())
+            },
+        )
+    }
+
+    /// Transform boolean value `x` into `x | x`.
+    pub fn bool_or_self() -> Rule {
+        Rule::new(
+            |ctx, expr| {
+                // If we rewrite `&mut x` into `&mut (x | x)` we will alter the semantics.
+                if ctx.is_in_ref_mut {
+                    return false;
+                }
+                match expr {
+                    Expression::Ident(ident) => {
+                        matches!(ident.typ, Type::Bool)
+                    }
+                    Expression::Literal(literal) => {
+                        matches!(literal, Literal::Bool(_))
+                    }
+                    _ => false,
+                }
+            },
+            |_u, expr| {
+                expr::replace(expr, |expr| {
+                    expr::binary(expr.clone(), BinaryOpKind::Or, expr.clone())
+                });
                 Ok(())
             },
         )
