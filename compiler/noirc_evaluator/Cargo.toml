@@ -12,6 +12,7 @@ workspace = true
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
+noirc_abi.workspace = true
 noirc_frontend.workspace = true
 noirc_errors.workspace = true
 acvm.workspace = true
@@ -19,6 +20,7 @@ bn254_blackbox_solver.workspace = true
 fxhash.workspace = true
 iter-extended.workspace = true
 thiserror.workspace = true
+noirc_printable_type.workspace = true
 num-bigint.workspace = true
 num-integer.workspace = true
 num-traits.workspace = true

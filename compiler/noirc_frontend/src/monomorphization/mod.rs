@@ -1644,6 +1644,14 @@ impl<'interner> Monomorphizer<'interner> {
                     self.append_printable_type_info(&hir_arguments[1], &mut arguments);
                 }
             }
+            if let Definition::Builtin(name) = &ident.definition {
+                if name.as_str() == "static_assert" {
+                    // static_assert can take any type for the `message` argument.
+                    // Here we append printable type info so we can know how to turn that argument
+                    // into a human-readable string.
+                    self.append_printable_type_info(&hir_arguments[1], &mut arguments);
+                }
+            }
         }
 
         let mut block_expressions = vec![];
