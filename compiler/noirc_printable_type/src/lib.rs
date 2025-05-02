@@ -275,7 +275,7 @@ fn format_field_string<F: AcirField>(field: F) -> String {
 }
 
 /// Assumes that `field_iterator` contains enough field elements in order to decode the [PrintableType]
-pub fn decode_value<F: AcirField>(
+pub fn decode_printable_value<F: AcirField>(
     field_iterator: &mut impl Iterator<Item = F>,
     typ: &PrintableType,
 ) -> PrintableValue<F> {
@@ -292,7 +292,7 @@ pub fn decode_value<F: AcirField>(
             let length = *length as usize;
             let mut array_elements = Vec::with_capacity(length);
             for _ in 0..length {
-                array_elements.push(decode_value(field_iterator, typ));
+                array_elements.push(decode_printable_value(field_iterator, typ));
             }
 
             PrintableValue::Vec { array_elements, is_slice: false }
@@ -304,13 +304,13 @@ pub fn decode_value<F: AcirField>(
                 .to_u128() as usize;
             let mut array_elements = Vec::with_capacity(length);
             for _ in 0..length {
-                array_elements.push(decode_value(field_iterator, typ));
+                array_elements.push(decode_printable_value(field_iterator, typ));
             }
 
             PrintableValue::Vec { array_elements, is_slice: true }
         }
         PrintableType::Tuple { types } => PrintableValue::Vec {
-            array_elements: vecmap(types, |typ| decode_value(field_iterator, typ)),
+            array_elements: vecmap(types, |typ| decode_printable_value(field_iterator, typ)),
             is_slice: false,
         },
         PrintableType::String { length } => {
@@ -322,7 +322,7 @@ pub fn decode_value<F: AcirField>(
             let mut struct_map = BTreeMap::new();
 
             for (field_key, param_type) in fields {
-                let field_value = decode_value(field_iterator, param_type);
+                let field_value = decode_printable_value(field_iterator, param_type);
 
                 struct_map.insert(field_key.to_owned(), field_value);
             }
@@ -333,12 +333,12 @@ pub fn decode_value<F: AcirField>(
             let field_element = field_iterator.next().unwrap();
             let func_ref = PrintableValue::Field(field_element);
             // we want to consume the fields from the environment, but for now they are not actually printed
-            decode_value(field_iterator, env);
+            decode_printable_value(field_iterator, env);
             func_ref
         }
         PrintableType::Reference { typ, .. } => {
             // we decode the reference, but it's not really used for printing
-            decode_value(field_iterator, typ)
+            decode_printable_value(field_iterator, typ)
         }
         PrintableType::Unit => PrintableValue::Field(F::zero()),
         PrintableType::Enum { name: _, variants } => {
@@ -347,7 +347,9 @@ pub fn decode_value<F: AcirField>(
 
             let (_name, variant_types) = &variants[tag_value];
             PrintableValue::Vec {
-                array_elements: vecmap(variant_types, |typ| decode_value(field_iterator, typ)),
+                array_elements: vecmap(variant_types, |typ| {
+                    decode_printable_value(field_iterator, typ)
+                }),
                 is_slice: false,
             }
         }
@@ -398,7 +400,7 @@ fn convert_string_inputs<F: AcirField>(
     // We must use a flat map here as each value in a struct will be in a separate input value
     let mut input_values_as_fields = input_values.iter().flat_map(|param| param.fields());
 
-    let value = decode_value(&mut input_values_as_fields, &printable_type);
+    let value = decode_printable_value(&mut input_values_as_fields, &printable_type);
 
     Ok(PrintableValueDisplay::Plain(value, printable_type))
 }
@@ -425,7 +427,7 @@ fn convert_fmt_string_inputs<F: AcirField>(
         input_and_printable_types[0..types_start_at].iter().flat_map(|param| param.fields());
     for printable_type in input_and_printable_types.iter().skip(types_start_at) {
         let printable_type = fetch_printable_type(printable_type)?;
-        let value = decode_value(&mut input_iter, &printable_type);
+        let value = decode_printable_value(&mut input_iter, &printable_type);
 
         output.push((value, printable_type));
     }

@@ -3,7 +3,7 @@ use acvm::{
     acir::brillig::{ForeignCallParam, ForeignCallResult},
     pwg::ForeignCallWaitInfo,
 };
-use noirc_abi::decode_string_value;
+use noirc_printable_type::decode_string_value;
 
 use super::{ForeignCall, ForeignCallError, ForeignCallExecutor};
 

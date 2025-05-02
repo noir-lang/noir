@@ -13,7 +13,10 @@ use acvm::{
 use errors::AbiError;
 use input_parser::InputValue;
 use iter_extended::{try_btree_map, try_vecmap};
-use noirc_printable_type::{PrintableType, PrintableValue, PrintableValueDisplay};
+use noirc_printable_type::{
+    PrintableType, PrintableValue, PrintableValueDisplay, decode_printable_value,
+    decode_string_value,
+};
 use serde::{Deserialize, Serialize};
 use std::borrow::Borrow;
 use std::{collections::BTreeMap, str};
@@ -28,8 +31,6 @@ mod arbitrary;
 pub mod errors;
 pub mod input_parser;
 mod serialization;
-
-pub use noirc_printable_type::{decode_string_value, decode_value as decode_printable_value};
 
 /// A map from the fields in an TOML/JSON file which correspond to some ABI to their values
 pub type InputMap = BTreeMap<String, InputValue>;
