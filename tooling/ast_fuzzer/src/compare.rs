@@ -103,7 +103,7 @@ impl CompareResult {
             CompareResult::BothPassed(o1, o2) => {
                 if o1.return_value != o2.return_value {
                     bail!(
-                        "programs disagree on return value: {:?} != {:?}",
+                        "programs disagree on return value:\n{:?}\n!=\n{:?}",
                         o1.return_value,
                         o2.return_value
                     )
@@ -134,7 +134,7 @@ impl CompareResult {
 
         match (ee1, ee2) {
             (AssertionFailed(p1, _, _), AssertionFailed(p2, _, _)) => p1 == p2,
-            (SolvingError(s1, _), SolvingError(s2, _)) => s1 == s2,
+            (SolvingError(s1, _), SolvingError(s2, _)) => format!("{s1}") == format!("{s2}"),
             (SolvingError(s, _), AssertionFailed(p, _, _))
             | (AssertionFailed(p, _, _), SolvingError(s, _)) => match (s, p) {
                 (
@@ -236,10 +236,10 @@ impl CompareSsa<Program> {
 }
 
 /// Compare two equivalent variants of the same program, compiled the same way.
-pub type CompareMutants = CompareSsa<(Program, Program)>;
+pub type CompareMorph = CompareSsa<(Program, Program)>;
 
-impl CompareMutants {
-    /// Generate a random AST, a random mutation of it, then compile both into SSA with the same options.
+impl CompareMorph {
+    /// Generate a random AST, a random metamorph of it, then compile both into SSA with the same options.
     pub fn arb(
         u: &mut Unstructured,
         c: Config,
@@ -277,7 +277,7 @@ impl HasPrograms for ComparePasses {
     }
 }
 
-impl HasPrograms for CompareMutants {
+impl HasPrograms for CompareMorph {
     fn programs(&self) -> Vec<&Program> {
         vec![&self.program.0, &self.program.1]
     }
