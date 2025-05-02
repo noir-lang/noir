@@ -42,7 +42,7 @@ fn add_overflow() {
         }
     ",
     );
-    assert!(matches!(error, InterpreterError::Overflow { .. }))
+    assert!(matches!(error, InterpreterError::Overflow { .. }));
 }
 
 #[test]
@@ -83,7 +83,7 @@ fn sub_underflow() {
         }
     ",
     );
-    assert!(matches!(error, InterpreterError::Overflow { .. }))
+    assert!(matches!(error, InterpreterError::Overflow { .. }));
 }
 
 #[test]
@@ -125,7 +125,7 @@ fn mul_overflow() {
         }
     ",
     );
-    assert!(matches!(error, InterpreterError::Overflow { .. }))
+    assert!(matches!(error, InterpreterError::Overflow { .. }));
 }
 
 #[test]
