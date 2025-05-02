@@ -1,7 +1,10 @@
-use acvm::{AcirField as _, FieldElement, acir::brillig::ForeignCallParam};
+use std::str;
+
+use acvm::{AcirField, FieldElement, acir::brillig::ForeignCallParam};
 use iter_extended::vecmap;
-use noirc_abi::{decode_printable_value, decode_string_value};
-use noirc_printable_type::{PrintableType, PrintableValueDisplay};
+use noirc_printable_type::{
+    PrintableType, PrintableValueDisplay, decode_value as decode_printable_value,
+};
 
 use crate::{
     errors::RuntimeError,
@@ -237,4 +240,16 @@ fn fetch_printable_type(printable_type: &ForeignCallParam<FieldElement>) -> Prin
         serde_json::from_str(&printable_type_as_string).expect("Could not decode printable type");
 
     printable_type
+}
+
+fn decode_string_value<F: AcirField>(field_elements: &[F]) -> String {
+    let string_as_slice = vecmap(field_elements, |e| {
+        let mut field_as_bytes = e.to_be_bytes();
+        let char_byte = field_as_bytes.pop().unwrap(); // A character in a string is represented by a u8, thus we just want the last byte of the element
+        assert!(field_as_bytes.into_iter().all(|b| b == 0)); // Assert that the rest of the field element's bytes are empty
+        char_byte
+    });
+
+    let final_string = str::from_utf8(&string_as_slice).unwrap();
+    final_string.to_owned()
 }

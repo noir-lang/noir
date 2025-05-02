@@ -3690,7 +3690,6 @@ dependencies = [
  "im",
  "insta",
  "iter-extended",
- "noirc_abi",
  "noirc_errors",
  "noirc_frontend",
  "noirc_printable_type",
@@ -3751,6 +3750,7 @@ name = "noirc_printable_type"
 version = "1.0.0-beta.4"
 dependencies = [
  "acvm",
+ "iter-extended",
  "proptest",
  "serde",
 ]

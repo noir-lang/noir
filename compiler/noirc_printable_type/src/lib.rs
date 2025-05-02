@@ -7,6 +7,7 @@ use std::{collections::BTreeMap, str};
 
 use acvm::AcirField;
 
+use iter_extended::vecmap;
 use serde::{Deserialize, Serialize};
 
 #[derive(Clone, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
@@ -271,6 +272,98 @@ fn format_field_string<F: AcirField>(field: F) -> String {
         trimmed_field = "0".to_owned() + &trimmed_field;
     }
     "0x".to_owned() + &trimmed_field
+}
+
+/// Assumes that `field_iterator` contains enough field elements in order to decode the [PrintableType]
+pub fn decode_value<F: AcirField>(
+    field_iterator: &mut impl Iterator<Item = F>,
+    typ: &PrintableType,
+) -> PrintableValue<F> {
+    match typ {
+        PrintableType::Field
+        | PrintableType::SignedInteger { .. }
+        | PrintableType::UnsignedInteger { .. }
+        | PrintableType::Boolean => {
+            let field_element = field_iterator.next().unwrap();
+
+            PrintableValue::Field(field_element)
+        }
+        PrintableType::Array { length, typ } => {
+            let length = *length as usize;
+            let mut array_elements = Vec::with_capacity(length);
+            for _ in 0..length {
+                array_elements.push(decode_value(field_iterator, typ));
+            }
+
+            PrintableValue::Vec { array_elements, is_slice: false }
+        }
+        PrintableType::Slice { typ } => {
+            let length = field_iterator
+                .next()
+                .expect("not enough data to decode variable array length")
+                .to_u128() as usize;
+            let mut array_elements = Vec::with_capacity(length);
+            for _ in 0..length {
+                array_elements.push(decode_value(field_iterator, typ));
+            }
+
+            PrintableValue::Vec { array_elements, is_slice: true }
+        }
+        PrintableType::Tuple { types } => PrintableValue::Vec {
+            array_elements: vecmap(types, |typ| decode_value(field_iterator, typ)),
+            is_slice: false,
+        },
+        PrintableType::String { length } => {
+            let field_elements: Vec<F> = field_iterator.take(*length as usize).collect();
+
+            PrintableValue::String(decode_string_value(&field_elements))
+        }
+        PrintableType::Struct { fields, .. } => {
+            let mut struct_map = BTreeMap::new();
+
+            for (field_key, param_type) in fields {
+                let field_value = decode_value(field_iterator, param_type);
+
+                struct_map.insert(field_key.to_owned(), field_value);
+            }
+
+            PrintableValue::Struct(struct_map)
+        }
+        PrintableType::Function { env, .. } => {
+            let field_element = field_iterator.next().unwrap();
+            let func_ref = PrintableValue::Field(field_element);
+            // we want to consume the fields from the environment, but for now they are not actually printed
+            decode_value(field_iterator, env);
+            func_ref
+        }
+        PrintableType::Reference { typ, .. } => {
+            // we decode the reference, but it's not really used for printing
+            decode_value(field_iterator, typ)
+        }
+        PrintableType::Unit => PrintableValue::Field(F::zero()),
+        PrintableType::Enum { name: _, variants } => {
+            let tag = field_iterator.next().unwrap();
+            let tag_value = tag.to_u128() as usize;
+
+            let (_name, variant_types) = &variants[tag_value];
+            PrintableValue::Vec {
+                array_elements: vecmap(variant_types, |typ| decode_value(field_iterator, typ)),
+                is_slice: false,
+            }
+        }
+    }
+}
+
+pub fn decode_string_value<F: AcirField>(field_elements: &[F]) -> String {
+    let string_as_slice = vecmap(field_elements, |e| {
+        let mut field_as_bytes = e.to_be_bytes();
+        let char_byte = field_as_bytes.pop().unwrap(); // A character in a string is represented by a u8, thus we just want the last byte of the element
+        assert!(field_as_bytes.into_iter().all(|b| b == 0)); // Assert that the rest of the field element's bytes are empty
+        char_byte
+    });
+
+    let final_string = str::from_utf8(&string_as_slice).unwrap();
+    final_string.to_owned()
 }
 
 #[cfg(test)]
