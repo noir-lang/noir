@@ -1,82 +1,8 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1746201353967,
+  "lastUpdate": 1746201425332,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
-      {
-        "commit": {
-          "author": {
-            "email": "aakoshh@gmail.com",
-            "name": "Akosh Farkash",
-            "username": "aakoshh"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "bddf22d2f0e2b26c81a6856a41c245137f7dfc1c",
-          "message": "fix: Do not panic if RHS constant in division has more bits than the operand (#8197)",
-          "timestamp": "2025-04-24T14:45:29Z",
-          "tree_id": "5d1b8ba1590df0ce332a5325d7053c0fc490b136",
-          "url": "https://github.com/noir-lang/noir/commit/bddf22d2f0e2b26c81a6856a41c245137f7dfc1c"
-        },
-        "date": 1745507735426,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 270.79,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 535.37,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 200.13,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 1330,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 1350,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-root-empty",
-            "value": 270.77,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-root-single-tx",
-            "value": 7770,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 7780,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 271.93,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-root",
-            "value": 322.44,
-            "unit": "MB"
-          }
-        ]
-      },
       {
         "commit": {
           "author": {
@@ -3694,6 +3620,80 @@ window.BENCHMARK_DATA = {
           {
             "name": "rollup-root",
             "value": 437.85,
+            "unit": "MB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "aakoshh@gmail.com",
+            "name": "Akosh Farkash",
+            "username": "aakoshh"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "86e61f0290a99015c7987eec77b3ebadf0bd5aaf",
+          "message": "feat: Metamorphic AST fuzzing (#8299)",
+          "timestamp": "2025-05-02T15:27:36Z",
+          "tree_id": "e0d598859a2300eb3ff09aad1b37fd2add9de9a5",
+          "url": "https://github.com/noir-lang/noir/commit/86e61f0290a99015c7987eec77b3ebadf0bd5aaf"
+        },
+        "date": 1746201418279,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 297.73,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 564.82,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 227.05,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 1440,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 1460,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root-empty",
+            "value": 394.87,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root-single-tx",
+            "value": 7880,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 7890,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 376.92,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-root",
+            "value": 437.82,
             "unit": "MB"
           }
         ]
