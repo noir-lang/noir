@@ -303,7 +303,7 @@ impl<'interner, 'def_map> ItemBuilder<'interner, 'def_map> {
         trait_impls.into_iter().map(|(trait_impl, _)| self.build_trait_impl(trait_impl)).collect()
     }
 
-    fn sort_trait_impls(&mut self, trait_impls: &mut Vec<(TraitImplId, Location)>) {
+    fn sort_trait_impls(&mut self, trait_impls: &mut [(TraitImplId, Location)]) {
         trait_impls.sort_by_key(|(trait_impl_id, location)| {
             let trait_impl = self.interner.get_trait_implementation(*trait_impl_id);
             let trait_impl = trait_impl.borrow();
