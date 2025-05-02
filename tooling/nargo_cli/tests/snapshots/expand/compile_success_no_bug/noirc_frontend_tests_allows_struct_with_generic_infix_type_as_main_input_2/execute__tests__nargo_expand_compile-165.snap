@@ -1,9 +1,0 @@
----
-source: tooling/nargo_cli/tests/execute.rs
-expression: expanded_code
----
-struct Foo<let N: u32> {
-    x: [u64; N * 2],
-}
-
-fn main(_x: Foo<18>) {}
