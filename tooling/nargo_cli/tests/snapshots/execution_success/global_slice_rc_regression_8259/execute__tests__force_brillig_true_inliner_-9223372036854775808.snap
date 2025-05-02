@@ -1,0 +1,48 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: artifact
+---
+{
+  "noir_version": "[noir_version]",
+  "hash": "[hash]",
+  "abi": {
+    "parameters": [
+      {
+        "name": "a",
+        "type": {
+          "kind": "boolean"
+        },
+        "visibility": "private"
+      }
+    ],
+    "return_type": null,
+    "error_types": {
+      "14225679739041873922": {
+        "error_kind": "string",
+        "string": "Index out of bounds"
+      },
+      "17843811134343075018": {
+        "error_kind": "string",
+        "string": "Stack too deep"
+      }
+    }
+  },
+  "bytecode": "H4sIAAAAAAAA/+2aS2/TQBDHN7ETx3k06ZP2zI2T82rLiUqktPTMF3DSRuKCEOID+OMhcUCcuSH4HtSwY/87mbQNnUFB6krVer3j3zx29hG7FVeWiq9D1naCzImvk4eVviIrEQ29rZDMT1/Hvq5Cf6DobMz0avKPk9E0FvxTtH8Ye6ZlfIhpwE8iz7nISj73xUFNcvyZvHT8NeYZyTR8P10/9dcxe8Zi/A3HJ9kW7K+Cb3l5mZV9zunPnYkNPyH+aWYSuyHxz4z5r434FO9zz3eunCdncI/0U/6/gr7KkhpZeI90NRlL2bfBbb6h/ZTrPUEex3UZ63xFVsz6rMb07A6/SX+HtfFZyQ++FjwkJhNFFtnVcn/W5xf+Pq2feABSjPeY9oyaWyzUVwfdfK+JQJ7WKeprQB/OE14C1kZ/c8Yp6ORy3FbcZ+qsD+cz2W25/12XUYf54wSbMfaUB1Lsq+y5iNlM17xI8SW5PL5vgMvlqBjHacDHDwsfv7zwOGF8eR5ifFfNw1XjlM9fWiPDrOzXitXRcZKQvsDza27RdtRfY/IT324y+ymOJ39p5/wo7c+H6Twdp5eXo1m6xfh5qUKc/uE616expFhQzLjOKvSj/IWvc5s/+esOiyvmaC73GeR4HobZTb8jG7+H5HcddAfMHq6fr+uBW1yLKGa9Jc+j39LZXFqvyZ775EZFLUZHxW+Umgl/MIidvI/q8A+n8ZIxUOI/J37Dhn9F/NiGPyJ+04Q/TInfssnP4h1H2yY+M+J3bPiF/Rs2/DHxuyb8QRGfns34Fvm5acMv5u+WDT8h/rbN+Bbr544Nf078XRt+8Q5xzyb+l7SXPnFloT2XdO/Dfb3zxWBaYfqcW/wtgvqbzFarc94+s4fHh59DDgRbe0IfP4McCHoOBD0Sq6bIqiuyIkVWQ5EVK7I0Y99cU7taiqy2IkszvzqKrA1FluY4dtfUrp4ia1ORtaXIWtec0FxzHve0xz3tf9nTthVZO2vK0txrNdevXUWW5hzSzK89Q5b0DjYQWF3BL3rW+H3xgGwNBVtxPY7u4Zv0e6sNfr3/8PbdR8cKviQnOLarAERDpUQgo54xHZNM1oXXAejgMpJdFaaH+vNDuPaHltn4cDobjdPkqv970O760EIHyFpW9uNHi7zUfTt0ZVKiPH4YQfkv1L7+++qv6VAeZov6crkf/h5tfg2wxeKfKCK0g9mD+ruCPF0b2zq8zdZIsFWKcWVJjSy8F2U378XZojzGKWK6myjP+lrQFzI9bd/GXEMW2VFj8t99m8apAc/Q8z1BP44Z1yXpx49SnBUI90g+z+1vxPN1mJUszRddOI/yOf4LD1CwQjYrAAA=",
+  "debug_symbols": "tdXdaupAFEDhd8l1LmbP//RVSilRYwmEKKkeOIjvfibZS9teCKWH3nQ1jfuLSPd4aXb95vz2Okz7w3vz9HxpNvMwjsPb63jYdqfhMNW/Xhqz/HCxeZK2cUmTNWWNNxrRWI3TeE3QVMXVJE3WlDXBaERjNU5TlVATNFGTNFlT1kSjkTWpXsUa0ViN01Qz1QRN1CRN1pQ12WjqK3NN1CRN1pQ1xWhEYzVO4zWqFFWKKkWVoooYQ4Va6qingUaaaKZ4gid4gid4gid4gid4gid4Fs/iWTyLZ/EsnsWzeBbP4jk8h+fwHJ7Dc3gOz+E5PIfn8Tyex/N4Hs/jeTyP5/E8XsALeAEv4AW8gBfwAl7AC3gRL+JFvIgX8SJexIt4ES/iJbyEl/ASXsJLeAkv4SW8hJfxMl7Gy3gZj40QVkLYCWEphK0Q1kLYC2ExZNmMstTTQCNNtHrlem2b27n0epr7fjmWPh1U9fg6dnM/nZqn6TyObfOnG8/ri96P3bT21M31rmmbftrVVnA/jP3y27X9mDaPR5NnNuf7cPj2dIy36fJo2j6ezkUYL9bd56397tNLYLweE48e73/v8fWf+/b86H/w4dVluc+HH8z/7/tPPjGfsvky/1Kvuu0wf/nWvC7SPHSbsedyf562n+6e/h5vd27fusf5sO1357lfpI+v3rosz9a41tr8shzq9bJ+lnG9kPWeaa2xL9flrfwD",
+  "file_map": {
+    "22": {
+      "source": "pub mod hash;\npub mod aes128;\npub mod array;\npub mod slice;\npub mod ecdsa_secp256k1;\npub mod ecdsa_secp256r1;\npub mod embedded_curve_ops;\npub mod field;\npub mod collections;\npub mod compat;\npub mod convert;\npub mod option;\npub mod string;\npub mod test;\npub mod cmp;\npub mod ops;\npub mod default;\npub mod prelude;\npub mod runtime;\npub mod meta;\npub mod append;\npub mod mem;\npub mod panic;\npub mod hint;\n\nuse convert::AsPrimitive;\n\n// Oracle calls are required to be wrapped in an unconstrained function\n// Thus, the only argument to the `println` oracle is expected to always be an ident\n#[oracle(print)]\nunconstrained fn print_oracle<T>(with_newline: bool, input: T) {}\n\nunconstrained fn print_unconstrained<T>(with_newline: bool, input: T) {\n    print_oracle(with_newline, input);\n}\n\npub fn println<T>(input: T) {\n    // Safety: a print statement cannot be constrained\n    unsafe {\n        print_unconstrained(true, input);\n    }\n}\n\npub fn print<T>(input: T) {\n    // Safety: a print statement cannot be constrained\n    unsafe {\n        print_unconstrained(false, input);\n    }\n}\n\npub fn verify_proof<let N: u32, let M: u32, let K: u32>(\n    verification_key: [Field; N],\n    proof: [Field; M],\n    public_inputs: [Field; K],\n    key_hash: Field,\n) {\n    verify_proof_internal(verification_key, proof, public_inputs, key_hash, 0);\n}\n\npub fn verify_proof_with_type<let N: u32, let M: u32, let K: u32>(\n    verification_key: [Field; N],\n    proof: [Field; M],\n    public_inputs: [Field; K],\n    key_hash: Field,\n    proof_type: u32,\n) {\n    if !crate::runtime::is_unconstrained() {\n        crate::assert_constant(proof_type);\n    }\n    verify_proof_internal(verification_key, proof, public_inputs, key_hash, proof_type);\n}\n\n#[foreign(recursive_aggregation)]\nfn verify_proof_internal<let N: u32, let M: u32, let K: u32>(\n    verification_key: [Field; N],\n    proof: [Field; M],\n    public_inputs: [Field; K],\n    key_hash: Field,\n    proof_type: u32,\n) {}\n\n// Asserts that the given value is known at compile-time.\n// Useful for debugging for-loop bounds.\n#[builtin(assert_constant)]\npub fn assert_constant<T>(x: T) {}\n\n// Asserts that the given value is both true and known at compile-time\n#[builtin(static_assert)]\npub fn static_assert<let N: u32>(predicate: bool, message: str<N>) {}\n\n#[deprecated(\"wrapping operations should be done with the Wrapping traits. E.g: x.wrapping_add(y)\")]\npub fn wrapping_add<T>(x: T, y: T) -> T\nwhere\n    T: AsPrimitive<Field>,\n    Field: AsPrimitive<T>,\n{\n    AsPrimitive::as_(x.as_() + y.as_())\n}\n#[deprecated(\"wrapping operations should be done with the Wrapping traits. E.g: x.wrapping_sub(y)\")]\npub fn wrapping_sub<T>(x: T, y: T) -> T\nwhere\n    T: AsPrimitive<Field>,\n    Field: AsPrimitive<T>,\n{\n    //340282366920938463463374607431768211456 is 2^128, it is used to avoid underflow\n    AsPrimitive::as_(x.as_() + 340282366920938463463374607431768211456 - y.as_())\n}\n#[deprecated(\"wrapping operations should be done with the Wrapping traits. E.g: x.wrapping_mul(y)\")]\npub fn wrapping_mul<T>(x: T, y: T) -> T\nwhere\n    T: AsPrimitive<Field>,\n    Field: AsPrimitive<T>,\n{\n    AsPrimitive::as_(x.as_() * y.as_())\n}\n\n#[builtin(as_witness)]\npub fn as_witness(x: Field) {}\n\nmod tests {\n    use super::ops::arith::WrappingMul;\n\n    #[test(should_fail_with = \"custom message\")]\n    fn test_static_assert_custom_message() {\n        super::static_assert(1 == 2, \"custom message\");\n    }\n\n    #[test]\n    fn test_wrapping_mul() {\n        let zero: u128 = 0;\n        let one: u128 = 1;\n        let two_pow_64: u128 = 0x10000000000000000;\n        let u128_max: u128 = 0xffffffffffffffffffffffffffffffff;\n\n        // 1*0==0\n        assert_eq(zero, zero.wrapping_mul(one));\n\n        // 0*1==0\n        assert_eq(zero, one.wrapping_mul(zero));\n\n        // 1*1==1\n        assert_eq(one, one.wrapping_mul(one));\n\n        // 0 * ( 1 << 64 ) ==  0\n        assert_eq(zero, zero.wrapping_mul(two_pow_64));\n\n        // ( 1 << 64 ) * 0 == 0\n        assert_eq(zero, two_pow_64.wrapping_mul(zero));\n\n        // 1 * ( 1 << 64 ) == 1 << 64\n        assert_eq(two_pow_64, two_pow_64.wrapping_mul(one));\n\n        // ( 1 << 64 ) * 1 == 1 << 64\n        assert_eq(two_pow_64, one.wrapping_mul(two_pow_64));\n\n        // ( 1 << 64 ) * ( 1 << 64 ) == 1 << 64\n        assert_eq(zero, two_pow_64.wrapping_mul(two_pow_64));\n        // -1 * -1 == 1\n        assert_eq(one, u128_max.wrapping_mul(u128_max));\n    }\n}\n",
+      "path": "std/lib.nr"
+    },
+    "50": {
+      "source": "global G_C: [bool] = &[true, false, true];\nfn main(a: bool) {\n    println(func_1(a, G_C));\n    println(G_C);\n}\nfn func_1(a: bool, mut b: [bool]) -> [bool] {\n    b[1] = a;\n    b\n}",
+      "path": ""
+    }
+  },
+  "names": [
+    "main"
+  ],
+  "brillig_names": [
+    "main"
+  ]
+}

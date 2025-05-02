@@ -1,6 +1,5 @@
 global G_C: [bool; 3] = [true, false, true];
 fn main(a: bool) -> pub [bool; 3] {
-    // let G_C = [true, false, true];
     let b = func_1(a, G_C);
     if a {
         G_C
