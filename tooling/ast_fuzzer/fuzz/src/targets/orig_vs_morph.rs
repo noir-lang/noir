@@ -5,18 +5,20 @@ use crate::{compare_results, create_ssa_or_die, default_ssa_options};
 use arbitrary::{Arbitrary, Unstructured};
 use color_eyre::eyre;
 use noir_ast_fuzzer::compare::{CompareMorph, CompareOptions};
+use noir_ast_fuzzer::visitor;
 use noir_ast_fuzzer::{Config, visitor::visit_expr_mut};
 use noirc_frontend::ast::UnaryOp;
 use noirc_frontend::monomorphization::ast::{Expression, Function, Program, Unary};
 
 pub fn fuzz(u: &mut Unstructured) -> eyre::Result<()> {
     let rules = rules::all();
+    let max_rewrites = 10;
     let inputs = CompareMorph::arb(
         u,
         Config::default(),
         |u, mut program| {
             let options = CompareOptions::arbitrary(u)?;
-            rewrite_program(u, &mut program, &rules);
+            rewrite_program(u, &mut program, &rules, max_rewrites);
             Ok((program, options))
         },
         |program, options| create_ssa_or_die(program, &options.onto(default_ssa_options()), None),
@@ -27,87 +29,141 @@ pub fn fuzz(u: &mut Unstructured) -> eyre::Result<()> {
     compare_results(&inputs, &result)
 }
 
-fn rewrite_program(u: &mut Unstructured, program: &mut Program, rules: &[rules::Rule]) {
+fn rewrite_program(
+    u: &mut Unstructured,
+    program: &mut Program,
+    rules: &[rules::Rule],
+    max_rewrites: usize,
+) {
     for func in program.functions.iter_mut() {
-        rewrite_function(u, func, rules);
+        if func.name.ends_with("_proxy") {
+            continue;
+        }
+        rewrite_function(u, func, rules, max_rewrites);
     }
 }
 
-fn rewrite_function(u: &mut Unstructured, func: &mut Function, rules: &[rules::Rule]) {
-    // TODO: Call `rewrite::next_local_and_ident_id`) and pass the results to the rewrite rules,
-    // so they can coordinate adding new variables.
-    // TODO: Limit the number of rewrites.
-    // TODO: Should we visit the AST once to get a sense of how many rules we can apply,
-    //       and pick a ratio based on the limit and the number of options?
+fn rewrite_function(
+    u: &mut Unstructured,
+    func: &mut Function,
+    rules: &[rules::Rule],
+    max_rewrites: usize,
+) {
+    // We can call `rewrite::next_local_and_ident_id`) and pass the results to the rewrite rules,
+    // if they want to add new variables with new local IDs.
     let ctx = rules::Context { unconstrained: func.unconstrained, ..Default::default() };
 
-    rewrite_expr(&ctx, u, &mut func.body, rules);
+    let estimate = estimate_applicable_rules(&ctx, &func.body, rules);
+    let mut morph = MorphContext { target: max_rewrites.min(estimate), estimate, count: 0, rules };
+
+    morph.rewrite_expr(&ctx, u, &mut func.body);
 }
 
-fn rewrite_expr(
-    ctx: &rules::Context,
-    u: &mut Unstructured,
-    expr: &mut Expression,
-    rules: &[rules::Rule],
-) {
-    visit_expr_mut(expr, &mut |expr: &mut Expression| {
-        match expr {
-            Expression::For(for_) => {
-                let range_ctx = rules::Context { is_in_range: true, ..*ctx };
-                rewrite_expr(&range_ctx, u, &mut for_.start_range, rules);
-                rewrite_expr(&range_ctx, u, &mut for_.end_range, rules);
-                rewrite_expr(ctx, u, &mut for_.block, rules);
-                // No need to visit children, we just visited them.
-                false
+/// Recursively apply rules while keeping a tally on how many we have done.
+struct MorphContext<'a> {
+    /// Number of rewrites we want to achieve.
+    target: usize,
+    /// (Over)estimate of the maximum number we could hope to apply.
+    estimate: usize,
+    /// Number of rewrites applied so far, up to the `target`.
+    count: usize,
+    /// Rules to apply.
+    rules: &'a [rules::Rule],
+}
+
+impl MorphContext<'_> {
+    /// Check if we have reached the target.
+    fn limit_reached(&self) -> bool {
+        self.target == 0 || self.estimate == 0 || self.count == self.target
+    }
+
+    fn rewrite_expr(&mut self, ctx: &rules::Context, u: &mut Unstructured, expr: &mut Expression) {
+        visit_expr_mut(expr, &mut |expr: &mut Expression| {
+            if self.limit_reached() {
+                return false;
             }
-            Expression::Unary(
-                unary @ Unary { operator: UnaryOp::Reference { mutable: true }, .. },
-            ) => {
-                let ctx = rules::Context { is_in_ref_mut: true, ..*ctx };
-                rewrite_expr(&ctx, u, &mut unary.rhs, rules);
-                false
-            }
-            _ => {
-                for rule in rules {
-                    match try_apply_rule(ctx, u, expr, rule) {
-                        Err(_) => {
-                            // We ran out of randomness; stop visiting the AST.
-                            return false;
-                        }
-                        Ok(false) => {
-                            // We couldn't, or decided not to apply this rule; try the next one.
-                            continue;
-                        }
-                        Ok(true) => {
-                            // We applied a rule on this expression; go to the next expression.
-                            break;
+            match expr {
+                Expression::For(for_) => {
+                    let range_ctx = rules::Context { is_in_range: true, ..*ctx };
+                    self.rewrite_expr(&range_ctx, u, &mut for_.start_range);
+                    self.rewrite_expr(&range_ctx, u, &mut for_.end_range);
+                    self.rewrite_expr(ctx, u, &mut for_.block);
+                    // No need to visit children, we just visited them.
+                    false
+                }
+                Expression::Unary(
+                    unary @ Unary { operator: UnaryOp::Reference { mutable: true }, .. },
+                ) => {
+                    let ctx = rules::Context { is_in_ref_mut: true, ..*ctx };
+                    self.rewrite_expr(&ctx, u, &mut unary.rhs);
+                    false
+                }
+                _ => {
+                    for rule in self.rules {
+                        match self.try_apply_rule(ctx, u, expr, rule) {
+                            Ok(false) => {
+                                // We couldn't, or decided not to apply this rule; try the next one.
+                                continue;
+                            }
+                            Err(_) => {
+                                // We ran out of randomness; stop visiting the AST.
+                                return false;
+                            }
+
+                            Ok(true) => {
+                                // We applied a rule on this expression.
+                                self.count += 1;
+                                // We could visit the children of this morphed expression, which could result in repeatedly applying
+                                // the same rule over and over again. When we have 100% application rate (e.g. a small function),
+                                // it would be wasting all the potential on the first rule that matched, e.g. `(x - (0 + (0 - 0)))`.
+                                // It would also throw off the estimate if we introduce new items on which we can apply rules.
+                                return false;
+                            }
                         }
                     }
+                    // If we made it this far, we did not apply any rule, so look deeper in the AST.
+                    true
                 }
-                // Visit the children of the (modified) expression.
-                // For example if `1` is turned into `1 - 0`, then it could be visited again when we visit the children of `-`.
-                // Alternatively we could move on to the next sibling by returning `false` if we made a modification.
-                true
             }
+        });
+    }
+
+    /// Check if a rule can be applied on an expression. If it can, apply it based on some arbitrary
+    /// criteria, returning a flag showing whether it was applied.
+    fn try_apply_rule(
+        &self,
+        ctx: &rules::Context,
+        u: &mut Unstructured,
+        expr: &mut Expression,
+        rule: &rules::Rule,
+    ) -> arbitrary::Result<bool> {
+        if rule.matches(ctx, expr) && u.ratio(self.target, self.estimate)? {
+            rule.rewrite(u, expr)?;
+            Ok(true)
+        } else {
+            Ok(false)
         }
-    });
+    }
 }
 
-/// Check if a rule can be applied on an expression. If it can, apply it based on some arbitrary
-/// criteria, returning a flag showing whether it was applied.
-fn try_apply_rule(
+/// Provide a rough estimate for how many rules can be applied.
+///
+/// It will overestimate, because it ignores the finer points of when a rule can match.
+fn estimate_applicable_rules(
     ctx: &rules::Context,
-    u: &mut Unstructured,
-    expr: &mut Expression,
-    rule: &rules::Rule,
-) -> arbitrary::Result<bool> {
-    // TODO: Make the ratio dynamic.
-    if rule.matches(ctx, expr) && u.ratio(1, 10)? {
-        rule.rewrite(u, expr)?;
-        Ok(true)
-    } else {
-        Ok(false)
-    }
+    expr: &Expression,
+    rules: &[rules::Rule],
+) -> usize {
+    let mut count = 0;
+    visitor::visit_expr(expr, &mut |expr| {
+        for rule in rules {
+            if rule.matches(ctx, expr) {
+                count += 1;
+            }
+        }
+        true
+    });
+    count
 }
 
 /// Metamorphic transformation rules.
