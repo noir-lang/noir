@@ -1,6 +1,6 @@
 use acvm::{FieldElement, acir::brillig::ForeignCallParam};
 use iter_extended::vecmap;
-use noirc_printable_type::{TryFromParamsError, try_from_params};
+use noirc_printable_type::{PrintableValueDisplay, TryFromParamsError};
 
 use crate::{
     errors::{InternalError, RuntimeError},
@@ -145,7 +145,7 @@ fn evaluate_static_assert(
         append_foreign_call_param(*arg, &function.dfg, &mut foreign_call_params);
     }
 
-    match try_from_params(&foreign_call_params) {
+    match PrintableValueDisplay::<FieldElement>::try_from_params(&foreign_call_params) {
         Ok(display_values) => {
             let message = display_values.to_string();
             Err(RuntimeError::StaticAssertFailed { message, call_stack })

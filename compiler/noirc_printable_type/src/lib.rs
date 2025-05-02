@@ -371,16 +371,18 @@ pub enum TryFromParamsError {
     CouldNotDecodePrintableType(serde_json::Error),
 }
 
-pub fn try_from_params<F: AcirField>(
-    foreign_call_inputs: &[ForeignCallParam<F>],
-) -> Result<PrintableValueDisplay<F>, TryFromParamsError> {
-    let (is_fmt_str, foreign_call_inputs) =
-        foreign_call_inputs.split_last().ok_or(TryFromParamsError::MissingForeignCallInputs)?;
+impl<F: AcirField> PrintableValueDisplay<F> {
+    pub fn try_from_params(
+        foreign_call_inputs: &[ForeignCallParam<F>],
+    ) -> Result<PrintableValueDisplay<F>, TryFromParamsError> {
+        let (is_fmt_str, foreign_call_inputs) =
+            foreign_call_inputs.split_last().ok_or(TryFromParamsError::MissingForeignCallInputs)?;
 
-    if is_fmt_str.unwrap_field().is_one() {
-        convert_fmt_string_inputs(foreign_call_inputs)
-    } else {
-        convert_string_inputs(foreign_call_inputs)
+        if is_fmt_str.unwrap_field().is_one() {
+            convert_fmt_string_inputs(foreign_call_inputs)
+        } else {
+            convert_string_inputs(foreign_call_inputs)
+        }
     }
 }
 

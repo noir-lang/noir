@@ -1,5 +1,5 @@
 use acvm::{AcirField, acir::brillig::ForeignCallResult, pwg::ForeignCallWaitInfo};
-use noirc_printable_type::{PrintableValueDisplay, try_from_params};
+use noirc_printable_type::PrintableValueDisplay;
 
 use super::{ForeignCall, ForeignCallError, ForeignCallExecutor};
 
@@ -47,8 +47,8 @@ impl<F: AcirField, W: std::io::Write> ForeignCallExecutor<F> for PrintForeignCal
                     .ok_or(ForeignCallError::MissingForeignCallInputs)?
                     .1;
 
-                let display_values: PrintableValueDisplay<F> =
-                    try_from_params(foreign_call_inputs)?;
+                let display_values =
+                    PrintableValueDisplay::<F>::try_from_params(foreign_call_inputs)?;
 
                 if skip_newline {
                     write!(self.output, "{display_values}").expect("write should succeed");
