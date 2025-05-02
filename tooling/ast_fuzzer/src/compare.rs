@@ -236,10 +236,10 @@ impl CompareSsa<Program> {
 }
 
 /// Compare two equivalent variants of the same program, compiled the same way.
-pub type CompareMutants = CompareSsa<(Program, Program)>;
+pub type CompareMorph = CompareSsa<(Program, Program)>;
 
-impl CompareMutants {
-    /// Generate a random AST, a random mutation of it, then compile both into SSA with the same options.
+impl CompareMorph {
+    /// Generate a random AST, a random metamorph of it, then compile both into SSA with the same options.
     pub fn arb(
         u: &mut Unstructured,
         c: Config,
@@ -277,7 +277,7 @@ impl HasPrograms for ComparePasses {
     }
 }
 
-impl HasPrograms for CompareMutants {
+impl HasPrograms for CompareMorph {
     fn programs(&self) -> Vec<&Program> {
         vec![&self.program.0, &self.program.1]
     }

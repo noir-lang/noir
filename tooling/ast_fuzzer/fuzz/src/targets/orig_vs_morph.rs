@@ -4,14 +4,14 @@
 use crate::{compare_results, create_ssa_or_die, default_ssa_options};
 use arbitrary::{Arbitrary, Unstructured};
 use color_eyre::eyre;
-use noir_ast_fuzzer::compare::{CompareMutants, CompareOptions};
+use noir_ast_fuzzer::compare::{CompareMorph, CompareOptions};
 use noir_ast_fuzzer::{Config, visitor::visit_expr_mut};
 use noirc_frontend::ast::UnaryOp;
 use noirc_frontend::monomorphization::ast::{Expression, Function, Program, Unary};
 
 pub fn fuzz(u: &mut Unstructured) -> eyre::Result<()> {
     let rules = rules::all();
-    let inputs = CompareMutants::arb(
+    let inputs = CompareMorph::arb(
         u,
         Config::default(),
         |u, mut program| {
@@ -215,7 +215,7 @@ mod tests {
     /// ```ignore
     /// NOIR_ARBTEST_SEED=0xb2fb5f0b00100000 \
     /// NOIR_AST_FUZZER_SHOW_AST=1 \
-    /// cargo test -p noir_ast_fuzzer_fuzz orig_vs_mutant
+    /// cargo test -p noir_ast_fuzzer_fuzz orig_vs_morph
     /// ```
     #[test]
     fn fuzz_with_arbtest() {
