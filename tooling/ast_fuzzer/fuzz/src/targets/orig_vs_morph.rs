@@ -1,14 +1,16 @@
 //! Perform random equivalence mutations on the AST and check that the
 //! execution result does not change, a.k.a. metamorphic testing.
 
+use std::collections::{HashSet, VecDeque};
+
 use crate::{compare_results, create_ssa_or_die, default_ssa_options};
 use arbitrary::{Arbitrary, Unstructured};
 use color_eyre::eyre;
 use noir_ast_fuzzer::compare::{CompareMorph, CompareOptions};
-use noir_ast_fuzzer::visitor;
 use noir_ast_fuzzer::{Config, visitor::visit_expr_mut};
+use noir_ast_fuzzer::{expr, visitor};
 use noirc_frontend::ast::UnaryOp;
-use noirc_frontend::monomorphization::ast::{Expression, Function, Program, Unary};
+use noirc_frontend::monomorphization::ast::{Expression, FuncId, Function, Program, Unary};
 
 pub fn fuzz(u: &mut Unstructured) -> eyre::Result<()> {
     let rules = rules::all();
@@ -35,8 +37,9 @@ fn rewrite_program(
     rules: &[rules::Rule],
     max_rewrites: usize,
 ) {
+    let reachable = reachable_functions(program);
     for func in program.functions.iter_mut() {
-        if func.name.ends_with("_proxy") {
+        if func.name.ends_with("_proxy") || !reachable.contains(&func.id) {
             continue;
         }
         rewrite_function(u, func, rules, max_rewrites);
@@ -164,6 +167,31 @@ fn estimate_applicable_rules(
         true
     });
     count
+}
+
+/// Collect the functions reachable from `main`.
+///
+/// We don't want to waste our time morphing functions that won't be called.
+///
+/// It would be nice if they were removed during AST generation, but if we
+/// remove an item from `Programs::functions`, the calls made to them would
+/// need to be updated according to their new position in the vector.
+fn reachable_functions(program: &Program) -> HashSet<FuncId> {
+    let mut reachable = HashSet::new();
+    let mut queue = VecDeque::new();
+
+    queue.push_back(Program::main_id());
+
+    while let Some(func_id) = queue.pop_front() {
+        if !reachable.insert(func_id) {
+            continue;
+        }
+        let func = &program.functions[func_id.0 as usize];
+        let callees = expr::callees(&func.body);
+        queue.extend(callees);
+    }
+
+    reachable
 }
 
 /// Metamorphic transformation rules.

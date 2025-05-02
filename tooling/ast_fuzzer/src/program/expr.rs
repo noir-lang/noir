@@ -1,3 +1,5 @@
+use std::collections::HashSet;
+
 use acir::FieldElement;
 use nargo::errors::Location;
 
@@ -5,8 +7,8 @@ use arbitrary::{Arbitrary, Unstructured};
 use noirc_frontend::{
     ast::{BinaryOpKind, IntegerBitSize, UnaryOp},
     monomorphization::ast::{
-        ArrayLiteral, Assign, Binary, BinaryOp, Cast, Definition, Expression, Ident, IdentId, If,
-        LValue, Let, Literal, LocalId, Type, Unary,
+        ArrayLiteral, Assign, Binary, BinaryOp, Cast, Definition, Expression, FuncId, Ident,
+        IdentId, If, LValue, Let, Literal, LocalId, Type, Unary,
     },
     signed_field::SignedField,
 };
@@ -354,6 +356,22 @@ pub fn has_call(expr: &Expression) -> bool {
         !has_call
     });
     has_call
+}
+
+/// Collect all the functions called in the expression and its descendants.
+pub fn callees(expr: &Expression) -> HashSet<FuncId> {
+    let mut callees = HashSet::default();
+    visit_expr(expr, &mut |expr| {
+        if let Expression::Call(call) = expr {
+            if let Expression::Ident(ident) = call.func.as_ref() {
+                if let Definition::Function(func_id) = ident.definition {
+                    callees.insert(func_id);
+                }
+            }
+        }
+        true
+    });
+    callees
 }
 
 /// Prepend an expression to a destination.
