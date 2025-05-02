@@ -443,16 +443,16 @@
         }
     }
 
-    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>as_reference(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="prelude-ty">Option</span>&lt;<span class="kw-2">&amp;</span>ReferenceValue&gt; {
+    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>as_reference(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="prelude-ty">Option</span>&lt;ReferenceValue&gt; {
         <span class="kw">match </span><span class="self">self </span>{
-            Value::Reference(value) =&gt; <span class="prelude-val">Some</span>(value),
+            Value::Reference(value) =&gt; <span class="prelude-val">Some</span>(value.clone()),
             <span class="kw">_ </span>=&gt; <span class="prelude-val">None</span>,
         }
     }
 
-    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>as_array_or_slice(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="prelude-ty">Option</span>&lt;<span class="kw-2">&amp;</span>ArrayValue&gt; {
+    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>as_array_or_slice(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="prelude-ty">Option</span>&lt;ArrayValue&gt; {
         <span class="kw">match </span><span class="self">self </span>{
-            Value::ArrayOrSlice(value) =&gt; <span class="prelude-val">Some</span>(value),
+            Value::ArrayOrSlice(value) =&gt; <span class="prelude-val">Some</span>(value.clone()),
             <span class="kw">_ </span>=&gt; <span class="prelude-val">None</span>,
         }
     }
@@ -552,9 +552,9 @@
         }
     }
 
-    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>as_u32(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="prelude-ty">Option</span>&lt;u32&gt; {
+    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>as_u8(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="prelude-ty">Option</span>&lt;u8&gt; {
         <span class="kw">match </span><span class="self">self </span>{
-            NumericValue::U32(value) =&gt; <span class="prelude-val">Some</span>(<span class="kw-2">*</span>value),
+            NumericValue::U8(value) =&gt; <span class="prelude-val">Some</span>(<span class="kw-2">*</span>value),
             <span class="kw">_ </span>=&gt; <span class="prelude-val">None</span>,
         }
     }

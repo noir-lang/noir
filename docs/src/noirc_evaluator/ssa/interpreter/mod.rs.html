@@ -930,7 +930,274 @@
 <a href="#929" id="929">929</a>
 <a href="#930" id="930">930</a>
 <a href="#931" id="931">931</a>
-<a href="#932" id="932">932</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::cmp::Ordering;
+<a href="#932" id="932">932</a>
+<a href="#933" id="933">933</a>
+<a href="#934" id="934">934</a>
+<a href="#935" id="935">935</a>
+<a href="#936" id="936">936</a>
+<a href="#937" id="937">937</a>
+<a href="#938" id="938">938</a>
+<a href="#939" id="939">939</a>
+<a href="#940" id="940">940</a>
+<a href="#941" id="941">941</a>
+<a href="#942" id="942">942</a>
+<a href="#943" id="943">943</a>
+<a href="#944" id="944">944</a>
+<a href="#945" id="945">945</a>
+<a href="#946" id="946">946</a>
+<a href="#947" id="947">947</a>
+<a href="#948" id="948">948</a>
+<a href="#949" id="949">949</a>
+<a href="#950" id="950">950</a>
+<a href="#951" id="951">951</a>
+<a href="#952" id="952">952</a>
+<a href="#953" id="953">953</a>
+<a href="#954" id="954">954</a>
+<a href="#955" id="955">955</a>
+<a href="#956" id="956">956</a>
+<a href="#957" id="957">957</a>
+<a href="#958" id="958">958</a>
+<a href="#959" id="959">959</a>
+<a href="#960" id="960">960</a>
+<a href="#961" id="961">961</a>
+<a href="#962" id="962">962</a>
+<a href="#963" id="963">963</a>
+<a href="#964" id="964">964</a>
+<a href="#965" id="965">965</a>
+<a href="#966" id="966">966</a>
+<a href="#967" id="967">967</a>
+<a href="#968" id="968">968</a>
+<a href="#969" id="969">969</a>
+<a href="#970" id="970">970</a>
+<a href="#971" id="971">971</a>
+<a href="#972" id="972">972</a>
+<a href="#973" id="973">973</a>
+<a href="#974" id="974">974</a>
+<a href="#975" id="975">975</a>
+<a href="#976" id="976">976</a>
+<a href="#977" id="977">977</a>
+<a href="#978" id="978">978</a>
+<a href="#979" id="979">979</a>
+<a href="#980" id="980">980</a>
+<a href="#981" id="981">981</a>
+<a href="#982" id="982">982</a>
+<a href="#983" id="983">983</a>
+<a href="#984" id="984">984</a>
+<a href="#985" id="985">985</a>
+<a href="#986" id="986">986</a>
+<a href="#987" id="987">987</a>
+<a href="#988" id="988">988</a>
+<a href="#989" id="989">989</a>
+<a href="#990" id="990">990</a>
+<a href="#991" id="991">991</a>
+<a href="#992" id="992">992</a>
+<a href="#993" id="993">993</a>
+<a href="#994" id="994">994</a>
+<a href="#995" id="995">995</a>
+<a href="#996" id="996">996</a>
+<a href="#997" id="997">997</a>
+<a href="#998" id="998">998</a>
+<a href="#999" id="999">999</a>
+<a href="#1000" id="1000">1000</a>
+<a href="#1001" id="1001">1001</a>
+<a href="#1002" id="1002">1002</a>
+<a href="#1003" id="1003">1003</a>
+<a href="#1004" id="1004">1004</a>
+<a href="#1005" id="1005">1005</a>
+<a href="#1006" id="1006">1006</a>
+<a href="#1007" id="1007">1007</a>
+<a href="#1008" id="1008">1008</a>
+<a href="#1009" id="1009">1009</a>
+<a href="#1010" id="1010">1010</a>
+<a href="#1011" id="1011">1011</a>
+<a href="#1012" id="1012">1012</a>
+<a href="#1013" id="1013">1013</a>
+<a href="#1014" id="1014">1014</a>
+<a href="#1015" id="1015">1015</a>
+<a href="#1016" id="1016">1016</a>
+<a href="#1017" id="1017">1017</a>
+<a href="#1018" id="1018">1018</a>
+<a href="#1019" id="1019">1019</a>
+<a href="#1020" id="1020">1020</a>
+<a href="#1021" id="1021">1021</a>
+<a href="#1022" id="1022">1022</a>
+<a href="#1023" id="1023">1023</a>
+<a href="#1024" id="1024">1024</a>
+<a href="#1025" id="1025">1025</a>
+<a href="#1026" id="1026">1026</a>
+<a href="#1027" id="1027">1027</a>
+<a href="#1028" id="1028">1028</a>
+<a href="#1029" id="1029">1029</a>
+<a href="#1030" id="1030">1030</a>
+<a href="#1031" id="1031">1031</a>
+<a href="#1032" id="1032">1032</a>
+<a href="#1033" id="1033">1033</a>
+<a href="#1034" id="1034">1034</a>
+<a href="#1035" id="1035">1035</a>
+<a href="#1036" id="1036">1036</a>
+<a href="#1037" id="1037">1037</a>
+<a href="#1038" id="1038">1038</a>
+<a href="#1039" id="1039">1039</a>
+<a href="#1040" id="1040">1040</a>
+<a href="#1041" id="1041">1041</a>
+<a href="#1042" id="1042">1042</a>
+<a href="#1043" id="1043">1043</a>
+<a href="#1044" id="1044">1044</a>
+<a href="#1045" id="1045">1045</a>
+<a href="#1046" id="1046">1046</a>
+<a href="#1047" id="1047">1047</a>
+<a href="#1048" id="1048">1048</a>
+<a href="#1049" id="1049">1049</a>
+<a href="#1050" id="1050">1050</a>
+<a href="#1051" id="1051">1051</a>
+<a href="#1052" id="1052">1052</a>
+<a href="#1053" id="1053">1053</a>
+<a href="#1054" id="1054">1054</a>
+<a href="#1055" id="1055">1055</a>
+<a href="#1056" id="1056">1056</a>
+<a href="#1057" id="1057">1057</a>
+<a href="#1058" id="1058">1058</a>
+<a href="#1059" id="1059">1059</a>
+<a href="#1060" id="1060">1060</a>
+<a href="#1061" id="1061">1061</a>
+<a href="#1062" id="1062">1062</a>
+<a href="#1063" id="1063">1063</a>
+<a href="#1064" id="1064">1064</a>
+<a href="#1065" id="1065">1065</a>
+<a href="#1066" id="1066">1066</a>
+<a href="#1067" id="1067">1067</a>
+<a href="#1068" id="1068">1068</a>
+<a href="#1069" id="1069">1069</a>
+<a href="#1070" id="1070">1070</a>
+<a href="#1071" id="1071">1071</a>
+<a href="#1072" id="1072">1072</a>
+<a href="#1073" id="1073">1073</a>
+<a href="#1074" id="1074">1074</a>
+<a href="#1075" id="1075">1075</a>
+<a href="#1076" id="1076">1076</a>
+<a href="#1077" id="1077">1077</a>
+<a href="#1078" id="1078">1078</a>
+<a href="#1079" id="1079">1079</a>
+<a href="#1080" id="1080">1080</a>
+<a href="#1081" id="1081">1081</a>
+<a href="#1082" id="1082">1082</a>
+<a href="#1083" id="1083">1083</a>
+<a href="#1084" id="1084">1084</a>
+<a href="#1085" id="1085">1085</a>
+<a href="#1086" id="1086">1086</a>
+<a href="#1087" id="1087">1087</a>
+<a href="#1088" id="1088">1088</a>
+<a href="#1089" id="1089">1089</a>
+<a href="#1090" id="1090">1090</a>
+<a href="#1091" id="1091">1091</a>
+<a href="#1092" id="1092">1092</a>
+<a href="#1093" id="1093">1093</a>
+<a href="#1094" id="1094">1094</a>
+<a href="#1095" id="1095">1095</a>
+<a href="#1096" id="1096">1096</a>
+<a href="#1097" id="1097">1097</a>
+<a href="#1098" id="1098">1098</a>
+<a href="#1099" id="1099">1099</a>
+<a href="#1100" id="1100">1100</a>
+<a href="#1101" id="1101">1101</a>
+<a href="#1102" id="1102">1102</a>
+<a href="#1103" id="1103">1103</a>
+<a href="#1104" id="1104">1104</a>
+<a href="#1105" id="1105">1105</a>
+<a href="#1106" id="1106">1106</a>
+<a href="#1107" id="1107">1107</a>
+<a href="#1108" id="1108">1108</a>
+<a href="#1109" id="1109">1109</a>
+<a href="#1110" id="1110">1110</a>
+<a href="#1111" id="1111">1111</a>
+<a href="#1112" id="1112">1112</a>
+<a href="#1113" id="1113">1113</a>
+<a href="#1114" id="1114">1114</a>
+<a href="#1115" id="1115">1115</a>
+<a href="#1116" id="1116">1116</a>
+<a href="#1117" id="1117">1117</a>
+<a href="#1118" id="1118">1118</a>
+<a href="#1119" id="1119">1119</a>
+<a href="#1120" id="1120">1120</a>
+<a href="#1121" id="1121">1121</a>
+<a href="#1122" id="1122">1122</a>
+<a href="#1123" id="1123">1123</a>
+<a href="#1124" id="1124">1124</a>
+<a href="#1125" id="1125">1125</a>
+<a href="#1126" id="1126">1126</a>
+<a href="#1127" id="1127">1127</a>
+<a href="#1128" id="1128">1128</a>
+<a href="#1129" id="1129">1129</a>
+<a href="#1130" id="1130">1130</a>
+<a href="#1131" id="1131">1131</a>
+<a href="#1132" id="1132">1132</a>
+<a href="#1133" id="1133">1133</a>
+<a href="#1134" id="1134">1134</a>
+<a href="#1135" id="1135">1135</a>
+<a href="#1136" id="1136">1136</a>
+<a href="#1137" id="1137">1137</a>
+<a href="#1138" id="1138">1138</a>
+<a href="#1139" id="1139">1139</a>
+<a href="#1140" id="1140">1140</a>
+<a href="#1141" id="1141">1141</a>
+<a href="#1142" id="1142">1142</a>
+<a href="#1143" id="1143">1143</a>
+<a href="#1144" id="1144">1144</a>
+<a href="#1145" id="1145">1145</a>
+<a href="#1146" id="1146">1146</a>
+<a href="#1147" id="1147">1147</a>
+<a href="#1148" id="1148">1148</a>
+<a href="#1149" id="1149">1149</a>
+<a href="#1150" id="1150">1150</a>
+<a href="#1151" id="1151">1151</a>
+<a href="#1152" id="1152">1152</a>
+<a href="#1153" id="1153">1153</a>
+<a href="#1154" id="1154">1154</a>
+<a href="#1155" id="1155">1155</a>
+<a href="#1156" id="1156">1156</a>
+<a href="#1157" id="1157">1157</a>
+<a href="#1158" id="1158">1158</a>
+<a href="#1159" id="1159">1159</a>
+<a href="#1160" id="1160">1160</a>
+<a href="#1161" id="1161">1161</a>
+<a href="#1162" id="1162">1162</a>
+<a href="#1163" id="1163">1163</a>
+<a href="#1164" id="1164">1164</a>
+<a href="#1165" id="1165">1165</a>
+<a href="#1166" id="1166">1166</a>
+<a href="#1167" id="1167">1167</a>
+<a href="#1168" id="1168">1168</a>
+<a href="#1169" id="1169">1169</a>
+<a href="#1170" id="1170">1170</a>
+<a href="#1171" id="1171">1171</a>
+<a href="#1172" id="1172">1172</a>
+<a href="#1173" id="1173">1173</a>
+<a href="#1174" id="1174">1174</a>
+<a href="#1175" id="1175">1175</a>
+<a href="#1176" id="1176">1176</a>
+<a href="#1177" id="1177">1177</a>
+<a href="#1178" id="1178">1178</a>
+<a href="#1179" id="1179">1179</a>
+<a href="#1180" id="1180">1180</a>
+<a href="#1181" id="1181">1181</a>
+<a href="#1182" id="1182">1182</a>
+<a href="#1183" id="1183">1183</a>
+<a href="#1184" id="1184">1184</a>
+<a href="#1185" id="1185">1185</a>
+<a href="#1186" id="1186">1186</a>
+<a href="#1187" id="1187">1187</a>
+<a href="#1188" id="1188">1188</a>
+<a href="#1189" id="1189">1189</a>
+<a href="#1190" id="1190">1190</a>
+<a href="#1191" id="1191">1191</a>
+<a href="#1192" id="1192">1192</a>
+<a href="#1193" id="1193">1193</a>
+<a href="#1194" id="1194">1194</a>
+<a href="#1195" id="1195">1195</a>
+<a href="#1196" id="1196">1196</a>
+<a href="#1197" id="1197">1197</a>
+<a href="#1198" id="1198">1198</a>
+<a href="#1199" id="1199">1199</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::cmp::Ordering;
 
 <span class="kw">use super</span>::{
     Ssa,
@@ -942,13 +1209,15 @@
         value::ValueId,
     },
 };
-<span class="kw">use crate</span>::{errors::RuntimeError, ssa::ir::instruction::binary::truncate_field};
+<span class="kw">use </span><span class="kw">crate</span>::ssa::ir::{instruction::binary::truncate_field, printer::display_binary};
 <span class="kw">use </span>acvm::{AcirField, FieldElement};
+<span class="kw">use </span>errors::{InternalError, InterpreterError, MAX_SIGNED_BIT_SIZE, MAX_UNSIGNED_BIT_SIZE};
 <span class="kw">use </span>fxhash::FxHashMap <span class="kw">as </span>HashMap;
 <span class="kw">use </span>iter_extended::vecmap;
 <span class="kw">use </span>noirc_frontend::Shared;
-<span class="kw">use </span>value::{ArrayValue, NumericValue};
+<span class="kw">use </span>value::{ArrayValue, NumericValue, ReferenceValue};
 
+<span class="kw">mod </span>errors;
 <span class="kw">mod </span>intrinsics;
 <span class="kw">mod </span>tests;
 <span class="kw">pub mod </span>value;
@@ -988,7 +1257,7 @@
     }
 }
 
-<span class="kw">type </span>IResult&lt;T&gt; = <span class="prelude-ty">Result</span>&lt;T, RuntimeError&gt;;
+<span class="kw">type </span>IResult&lt;T&gt; = <span class="prelude-ty">Result</span>&lt;T, InterpreterError&gt;;
 <span class="kw">type </span>IResults = IResult&lt;Vec&lt;Value&gt;&gt;;
 
 <span class="attr">#[allow(unused)]
@@ -1085,7 +1354,11 @@
             <span class="kw">let </span>block = <span class="kw-2">&amp;</span>dfg[block_id];
 
             <span class="kw">if </span>arguments.len() != block.parameters().len() {
-                <span class="macro">panic!</span>(<span class="string">"Block argument count does not match the expected parameter count"</span>);
+                <span class="kw">return </span><span class="prelude-val">Err</span>(internal(InternalError::BlockArgumentCountMismatch {
+                    block: block_id,
+                    arguments: arguments.len(),
+                    parameters: block.parameters().len(),
+                }));
             }
 
             <span class="kw">for </span>(parameter, argument) <span class="kw">in </span>block.parameters().iter().zip(arguments) {
@@ -1098,7 +1371,11 @@
             }
 
             <span class="kw">match </span>block.terminator() {
-                <span class="prelude-val">None </span>=&gt; <span class="macro">panic!</span>(<span class="string">"No block terminator in block {block_id}"</span>),
+                <span class="prelude-val">None </span>=&gt; {
+                    <span class="kw">return </span><span class="prelude-val">Err</span>(internal(InternalError::BlockMissingTerminator {
+                        block: block_id,
+                    }));
+                }
                 <span class="prelude-val">Some</span>(TerminatorInstruction::Jmp { destination, arguments: jump_args, .. }) =&gt; {
                     block_id = <span class="kw-2">*</span>destination;
                     arguments = <span class="self">self</span>.lookup_all(jump_args);
@@ -1109,7 +1386,7 @@
                     else_destination,
                     call_stack: <span class="kw">_</span>,
                 }) =&gt; {
-                    block_id = <span class="kw">if </span><span class="self">self</span>.lookup(<span class="kw-2">*</span>condition).as_bool().unwrap() {
+                    block_id = <span class="kw">if </span><span class="self">self</span>.lookup_bool(<span class="kw-2">*</span>condition, <span class="string">"jmpif condition"</span>)<span class="question-mark">? </span>{
                         <span class="kw-2">*</span>then_destination
                     } <span class="kw">else </span>{
                         <span class="kw-2">*</span>else_destination
@@ -1150,6 +1427,68 @@
         }
     }
 
+    <span class="kw">fn </span>lookup_helper&lt;T&gt;(
+        <span class="kw-2">&amp;</span><span class="self">self</span>,
+        value_id: ValueId,
+        instruction: <span class="kw-2">&amp;</span><span class="lifetime">'static </span>str,
+        expected_type: <span class="kw-2">&amp;</span><span class="lifetime">'static </span>str,
+        convert: <span class="kw">impl </span>FnOnce(<span class="kw-2">&amp;</span>Value) -&gt; <span class="prelude-ty">Option</span>&lt;T&gt;,
+    ) -&gt; IResult&lt;T&gt; {
+        <span class="kw">let </span>value = <span class="self">self</span>.lookup(value_id);
+        <span class="kw">match </span>convert(<span class="kw-2">&amp;</span>value) {
+            <span class="prelude-val">Some</span>(value) =&gt; <span class="prelude-val">Ok</span>(value),
+            <span class="prelude-val">None </span>=&gt; {
+                <span class="kw">let </span>value = value.to_string();
+                <span class="prelude-val">Err</span>(internal(InternalError::TypeError {
+                    value_id,
+                    value,
+                    expected_type,
+                    instruction,
+                }))
+            }
+        }
+    }
+
+    <span class="kw">fn </span>lookup_bool(<span class="kw-2">&amp;</span><span class="self">self</span>, value_id: ValueId, instruction: <span class="kw-2">&amp;</span><span class="lifetime">'static </span>str) -&gt; IResult&lt;bool&gt; {
+        <span class="self">self</span>.lookup_helper(value_id, instruction, <span class="string">"bool"</span>, Value::as_bool)
+    }
+
+    <span class="kw">fn </span>lookup_u32(<span class="kw-2">&amp;</span><span class="self">self</span>, value_id: ValueId, instruction: <span class="kw-2">&amp;</span><span class="lifetime">'static </span>str) -&gt; IResult&lt;u32&gt; {
+        <span class="self">self</span>.lookup_helper(value_id, instruction, <span class="string">"u32"</span>, Value::as_u32)
+    }
+
+    <span class="kw">fn </span>lookup_field(<span class="kw-2">&amp;</span><span class="self">self</span>, value_id: ValueId, instruction: <span class="kw-2">&amp;</span><span class="lifetime">'static </span>str) -&gt; IResult&lt;FieldElement&gt; {
+        <span class="self">self</span>.lookup_helper(value_id, instruction, <span class="string">"Field"</span>, Value::as_field)
+    }
+
+    <span class="kw">fn </span>lookup_numeric(
+        <span class="kw-2">&amp;</span><span class="self">self</span>,
+        value_id: ValueId,
+        instruction: <span class="kw-2">&amp;</span><span class="lifetime">'static </span>str,
+    ) -&gt; IResult&lt;NumericValue&gt; {
+        <span class="self">self</span>.lookup_helper(value_id, instruction, <span class="string">"numeric"</span>, Value::as_numeric)
+    }
+
+    <span class="kw">fn </span>lookup_array_or_slice(
+        <span class="kw-2">&amp;</span><span class="self">self</span>,
+        value_id: ValueId,
+        instruction: <span class="kw-2">&amp;</span><span class="lifetime">'static </span>str,
+    ) -&gt; IResult&lt;ArrayValue&gt; {
+        <span class="self">self</span>.lookup_helper(value_id, instruction, <span class="string">"array or slice"</span>, Value::as_array_or_slice)
+    }
+
+    <span class="kw">fn </span>lookup_string(<span class="kw-2">&amp;</span><span class="self">self</span>, value_id: ValueId, instruction: <span class="kw-2">&amp;</span><span class="lifetime">'static </span>str) -&gt; IResult&lt;String&gt; {
+        <span class="self">self</span>.lookup_helper(value_id, instruction, <span class="string">"string"</span>, Value::as_string)
+    }
+
+    <span class="kw">fn </span>lookup_reference(
+        <span class="kw-2">&amp;</span><span class="self">self</span>,
+        value_id: ValueId,
+        instruction: <span class="kw-2">&amp;</span><span class="lifetime">'static </span>str,
+    ) -&gt; IResult&lt;ReferenceValue&gt; {
+        <span class="self">self</span>.lookup_helper(value_id, instruction, <span class="string">"reference"</span>, Value::as_reference)
+    }
+
     <span class="kw">fn </span>lookup_all(<span class="kw-2">&amp;</span><span class="self">self</span>, ids: <span class="kw-2">&amp;</span>[ValueId]) -&gt; Vec&lt;Value&gt; {
         vecmap(ids, |id| <span class="self">self</span>.lookup(<span class="kw-2">*</span>id))
     }
@@ -1166,53 +1505,67 @@
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
         instruction: <span class="kw-2">&amp;</span>Instruction,
         results: <span class="kw-2">&amp;</span>[ValueId],
-    ) -&gt; <span class="prelude-ty">Result</span>&lt;(), RuntimeError&gt; {
+    ) -&gt; IResult&lt;()&gt; {
         <span class="kw">match </span>instruction {
             Instruction::Binary(binary) =&gt; {
                 <span class="kw">let </span>result = <span class="self">self</span>.interpret_binary(binary)<span class="question-mark">?</span>;
                 <span class="self">self</span>.define(results[<span class="number">0</span>], result);
+                <span class="prelude-val">Ok</span>(())
             }
             <span class="comment">// Cast in SSA changes the type without altering the value
             </span>Instruction::Cast(value, numeric_type) =&gt; {
-                <span class="kw">let </span>field = <span class="self">self</span>.lookup(<span class="kw-2">*</span>value).as_numeric().unwrap().convert_to_field();
+                <span class="kw">let </span>field = <span class="self">self</span>.lookup_numeric(<span class="kw-2">*</span>value, <span class="string">"cast"</span>)<span class="question-mark">?</span>.convert_to_field();
                 <span class="kw">let </span>result = Value::Numeric(NumericValue::from_constant(field, <span class="kw-2">*</span>numeric_type));
                 <span class="self">self</span>.define(results[<span class="number">0</span>], result);
+                <span class="prelude-val">Ok</span>(())
             }
             Instruction::Not(id) =&gt; <span class="self">self</span>.interpret_not(<span class="kw-2">*</span>id, results[<span class="number">0</span>]),
             Instruction::Truncate { value, bit_size, max_bit_size } =&gt; {
-                <span class="self">self</span>.interpret_truncate(<span class="kw-2">*</span>value, <span class="kw-2">*</span>bit_size, <span class="kw-2">*</span>max_bit_size, results[<span class="number">0</span>]);
+                <span class="self">self</span>.interpret_truncate(<span class="kw-2">*</span>value, <span class="kw-2">*</span>bit_size, <span class="kw-2">*</span>max_bit_size, results[<span class="number">0</span>])
             }
-            Instruction::Constrain(lhs, rhs, constrain_error) =&gt; {
-                <span class="kw">let </span>lhs = <span class="self">self</span>.lookup(<span class="kw-2">*</span>lhs);
-                <span class="kw">let </span>rhs = <span class="self">self</span>.lookup(<span class="kw-2">*</span>rhs);
+            Instruction::Constrain(lhs_id, rhs_id, constrain_error) =&gt; {
+                <span class="kw">let </span>lhs = <span class="self">self</span>.lookup(<span class="kw-2">*</span>lhs_id);
+                <span class="kw">let </span>rhs = <span class="self">self</span>.lookup(<span class="kw-2">*</span>rhs_id);
                 <span class="kw">if </span><span class="self">self</span>.side_effects_enabled() &amp;&amp; lhs != rhs {
-                    <span class="macro">panic!</span>(<span class="string">"Constrain {lhs} == {rhs} failed!"</span>);
+                    <span class="kw">let </span>lhs = lhs.to_string();
+                    <span class="kw">let </span>rhs = rhs.to_string();
+                    <span class="kw">let </span>lhs_id = <span class="kw-2">*</span>lhs_id;
+                    <span class="kw">let </span>rhs_id = <span class="kw-2">*</span>rhs_id;
+                    <span class="kw">return </span><span class="prelude-val">Err</span>(InterpreterError::ConstrainEqFailed { lhs, lhs_id, rhs, rhs_id });
                 }
+                <span class="prelude-val">Ok</span>(())
             }
-            Instruction::ConstrainNotEqual(lhs, rhs, constrain_error) =&gt; {
-                <span class="kw">let </span>lhs = <span class="self">self</span>.lookup(<span class="kw-2">*</span>lhs);
-                <span class="kw">let </span>rhs = <span class="self">self</span>.lookup(<span class="kw-2">*</span>rhs);
+            Instruction::ConstrainNotEqual(lhs_id, rhs_id, constrain_error) =&gt; {
+                <span class="kw">let </span>lhs = <span class="self">self</span>.lookup(<span class="kw-2">*</span>lhs_id);
+                <span class="kw">let </span>rhs = <span class="self">self</span>.lookup(<span class="kw-2">*</span>rhs_id);
                 <span class="kw">if </span><span class="self">self</span>.side_effects_enabled() &amp;&amp; lhs == rhs {
-                    <span class="macro">panic!</span>(<span class="string">"Constrain {lhs} != {rhs} failed!"</span>);
+                    <span class="kw">let </span>lhs = lhs.to_string();
+                    <span class="kw">let </span>rhs = rhs.to_string();
+                    <span class="kw">let </span>lhs_id = <span class="kw-2">*</span>lhs_id;
+                    <span class="kw">let </span>rhs_id = <span class="kw-2">*</span>rhs_id;
+                    <span class="kw">return </span><span class="prelude-val">Err</span>(InterpreterError::ConstrainNeFailed { lhs, lhs_id, rhs, rhs_id });
                 }
+                <span class="prelude-val">Ok</span>(())
             }
             Instruction::RangeCheck { value, max_bit_size, assert_message } =&gt; {
-                <span class="self">self</span>.interpret_range_check(<span class="kw-2">*</span>value, <span class="kw-2">*</span>max_bit_size, assert_message.as_ref());
+                <span class="self">self</span>.interpret_range_check(<span class="kw-2">*</span>value, <span class="kw-2">*</span>max_bit_size, assert_message.as_ref())
             }
-            Instruction::Call { func, arguments } =&gt; {
-                <span class="self">self</span>.interpret_call(<span class="kw-2">*</span>func, arguments, results)<span class="question-mark">?</span>;
+            Instruction::Call { func, arguments } =&gt; <span class="self">self</span>.interpret_call(<span class="kw-2">*</span>func, arguments, results),
+            Instruction::Allocate =&gt; {
+                <span class="self">self</span>.interpret_allocate(results[<span class="number">0</span>]);
+                <span class="prelude-val">Ok</span>(())
             }
-            Instruction::Allocate =&gt; <span class="self">self</span>.interpret_allocate(results[<span class="number">0</span>]),
             Instruction::Load { address } =&gt; <span class="self">self</span>.interpret_load(<span class="kw-2">*</span>address, results[<span class="number">0</span>]),
             Instruction::Store { address, value } =&gt; <span class="self">self</span>.interpret_store(<span class="kw-2">*</span>address, <span class="kw-2">*</span>value),
             Instruction::EnableSideEffectsIf { condition } =&gt; {
-                <span class="self">self</span>.side_effects_enabled = <span class="self">self</span>.lookup(<span class="kw-2">*</span>condition).as_bool().unwrap();
+                <span class="self">self</span>.side_effects_enabled = <span class="self">self</span>.lookup_bool(<span class="kw-2">*</span>condition, <span class="string">"enable_side_effects"</span>)<span class="question-mark">?</span>;
+                <span class="prelude-val">Ok</span>(())
             }
             Instruction::ArrayGet { array, index } =&gt; {
-                <span class="self">self</span>.interpret_array_get(<span class="kw-2">*</span>array, <span class="kw-2">*</span>index, results[<span class="number">0</span>]);
+                <span class="self">self</span>.interpret_array_get(<span class="kw-2">*</span>array, <span class="kw-2">*</span>index, results[<span class="number">0</span>])
             }
             Instruction::ArraySet { array, index, value, mutable } =&gt; {
-                <span class="self">self</span>.interpret_array_set(<span class="kw-2">*</span>array, <span class="kw-2">*</span>index, <span class="kw-2">*</span>value, <span class="kw-2">*</span>mutable, results[<span class="number">0</span>]);
+                <span class="self">self</span>.interpret_array_set(<span class="kw-2">*</span>array, <span class="kw-2">*</span>index, <span class="kw-2">*</span>value, <span class="kw-2">*</span>mutable, results[<span class="number">0</span>])
             }
             Instruction::IncrementRc { value } =&gt; <span class="self">self</span>.interpret_inc_rc(<span class="kw-2">*</span>value),
             Instruction::DecrementRc { value } =&gt; <span class="self">self</span>.interpret_dec_rc(<span class="kw-2">*</span>value),
@@ -1226,16 +1579,19 @@
                 ),
             Instruction::MakeArray { elements, typ } =&gt; {
                 <span class="self">self</span>.interpret_make_array(elements, results[<span class="number">0</span>], typ);
+                <span class="prelude-val">Ok</span>(())
             }
-            Instruction::Noop =&gt; (),
+            Instruction::Noop =&gt; <span class="prelude-val">Ok</span>(()),
         }
-        <span class="prelude-val">Ok</span>(())
     }
 
-    <span class="kw">fn </span>interpret_not(<span class="kw-2">&amp;mut </span><span class="self">self</span>, id: ValueId, result: ValueId) {
-        <span class="kw">let </span>new_result = <span class="kw">match </span><span class="self">self</span>.lookup(id).as_numeric().unwrap() {
-            NumericValue::Field(field) =&gt; {
-                <span class="macro">unreachable!</span>(<span class="string">"not: Expected integer value, found field {field}"</span>)
+    <span class="kw">fn </span>interpret_not(<span class="kw-2">&amp;mut </span><span class="self">self</span>, id: ValueId, result: ValueId) -&gt; IResult&lt;()&gt; {
+        <span class="kw">let </span>new_result = <span class="kw">match </span><span class="self">self</span>.lookup_numeric(id, <span class="string">"not instruction"</span>)<span class="question-mark">? </span>{
+            NumericValue::Field(<span class="kw">_</span>) =&gt; {
+                <span class="kw">return </span><span class="prelude-val">Err</span>(internal(InternalError::UnsupportedOperatorForType {
+                    operator: <span class="string">"!"</span>,
+                    typ: <span class="string">"Field"</span>,
+                }));
             }
             NumericValue::U1(value) =&gt; NumericValue::U1(!value),
             NumericValue::U8(value) =&gt; NumericValue::U8(!value),
@@ -1249,48 +1605,54 @@
             NumericValue::I64(value) =&gt; NumericValue::I64(!value),
         };
         <span class="self">self</span>.define(result, Value::Numeric(new_result));
+        <span class="prelude-val">Ok</span>(())
     }
 
     <span class="kw">fn </span>interpret_truncate(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
-        value: ValueId,
+        value_id: ValueId,
         bit_size: u32,
-        _max_bit_size: u32,
+        max_bit_size: u32,
         result: ValueId,
-    ) {
-        <span class="kw">let </span>value = <span class="self">self</span>.lookup(value).as_numeric().unwrap();
-        <span class="kw">let </span>bit_mask = (<span class="number">1u128 </span>&lt;&lt; bit_size) - <span class="number">1</span>;
-        <span class="macro">assert_ne!</span>(bit_mask, <span class="number">0</span>);
+    ) -&gt; IResult&lt;()&gt; {
+        <span class="kw">let </span>value = <span class="self">self</span>.lookup_numeric(value_id, <span class="string">"truncate"</span>)<span class="question-mark">?</span>;
+        <span class="kw">if </span>bit_size == <span class="number">0 </span>{
+            <span class="kw">return </span><span class="prelude-val">Err</span>(internal(InternalError::TruncateToZeroBits { value_id, max_bit_size }));
+        }
 
         <span class="kw">let </span>truncated = <span class="kw">match </span>value {
             NumericValue::Field(value) =&gt; NumericValue::Field(truncate_field(value, bit_size)),
             NumericValue::U1(value) =&gt; NumericValue::U1(value),
-            NumericValue::U8(value) =&gt; NumericValue::U8(truncate_unsigned(value, bit_size)),
-            NumericValue::U16(value) =&gt; NumericValue::U16(truncate_unsigned(value, bit_size)),
-            NumericValue::U32(value) =&gt; NumericValue::U32(truncate_unsigned(value, bit_size)),
-            NumericValue::U64(value) =&gt; NumericValue::U64(truncate_unsigned(value, bit_size)),
-            NumericValue::U128(value) =&gt; NumericValue::U128(truncate_unsigned(value, bit_size)),
-            NumericValue::I8(value) =&gt; NumericValue::I8(truncate_signed(value, bit_size)),
-            NumericValue::I16(value) =&gt; NumericValue::I16(truncate_signed(value, bit_size)),
-            NumericValue::I32(value) =&gt; NumericValue::I32(truncate_signed(value, bit_size)),
-            NumericValue::I64(value) =&gt; NumericValue::I64(truncate_signed(value, bit_size)),
+            NumericValue::U8(value) =&gt; NumericValue::U8(truncate_unsigned(value, bit_size)<span class="question-mark">?</span>),
+            NumericValue::U16(value) =&gt; NumericValue::U16(truncate_unsigned(value, bit_size)<span class="question-mark">?</span>),
+            NumericValue::U32(value) =&gt; NumericValue::U32(truncate_unsigned(value, bit_size)<span class="question-mark">?</span>),
+            NumericValue::U64(value) =&gt; NumericValue::U64(truncate_unsigned(value, bit_size)<span class="question-mark">?</span>),
+            NumericValue::U128(value) =&gt; NumericValue::U128(truncate_unsigned(value, bit_size)<span class="question-mark">?</span>),
+            NumericValue::I8(value) =&gt; NumericValue::I8(truncate_signed(value, bit_size)<span class="question-mark">?</span>),
+            NumericValue::I16(value) =&gt; NumericValue::I16(truncate_signed(value, bit_size)<span class="question-mark">?</span>),
+            NumericValue::I32(value) =&gt; NumericValue::I32(truncate_signed(value, bit_size)<span class="question-mark">?</span>),
+            NumericValue::I64(value) =&gt; NumericValue::I64(truncate_signed(value, bit_size)<span class="question-mark">?</span>),
         };
 
         <span class="self">self</span>.define(result, Value::Numeric(truncated));
+        <span class="prelude-val">Ok</span>(())
     }
 
     <span class="kw">fn </span>interpret_range_check(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
-        value: ValueId,
+        value_id: ValueId,
         max_bit_size: u32,
         error_message: <span class="prelude-ty">Option</span>&lt;<span class="kw-2">&amp;</span>String&gt;,
-    ) {
+    ) -&gt; IResult&lt;()&gt; {
         <span class="kw">if </span>!<span class="self">self</span>.side_effects_enabled() {
-            <span class="kw">return</span>;
+            <span class="kw">return </span><span class="prelude-val">Ok</span>(());
         }
 
-        <span class="kw">let </span>value = <span class="self">self</span>.lookup(value).as_numeric().unwrap();
-        <span class="macro">assert_ne!</span>(max_bit_size, <span class="number">0</span>);
+        <span class="kw">if </span>max_bit_size == <span class="number">0 </span>{
+            <span class="kw">return </span><span class="prelude-val">Err</span>(internal(InternalError::RangeCheckToZeroBits { value_id }));
+        }
+
+        <span class="kw">let </span>value = <span class="self">self</span>.lookup_numeric(value_id, <span class="string">"range check"</span>)<span class="question-mark">?</span>;
 
         <span class="kw">fn </span>bit_count(x: <span class="kw">impl </span>Into&lt;f64&gt;) -&gt; u32 {
             <span class="kw">let </span>x = x.into();
@@ -1300,7 +1662,7 @@
         <span class="kw">let </span>bit_count = <span class="kw">match </span>value {
             NumericValue::Field(value) =&gt; value.num_bits(),
             <span class="comment">// max_bit_size &gt; 0 so u1 should always pass these checks
-            </span>NumericValue::U1(<span class="kw">_</span>) =&gt; <span class="kw">return</span>,
+            </span>NumericValue::U1(<span class="kw">_</span>) =&gt; <span class="kw">return </span><span class="prelude-val">Ok</span>(()),
             NumericValue::U8(value) =&gt; bit_count(value),
             NumericValue::U16(value) =&gt; bit_count(value),
             NumericValue::U32(value) =&gt; bit_count(value),
@@ -1328,23 +1690,33 @@
         };
 
         <span class="kw">if </span>bit_count &gt; max_bit_size {
+            <span class="kw">let </span>value = value.to_string();
+            <span class="kw">let </span>actual_bits = bit_count;
+            <span class="kw">let </span>max_bits = max_bit_size;
+
             <span class="kw">if let </span><span class="prelude-val">Some</span>(message) = error_message {
-                <span class="macro">panic!</span>(
-                    <span class="string">"bit count of {bit_count} exceeded max bit count of {max_bit_size}\n{message}"
-                </span>);
+                <span class="prelude-val">Err</span>(InterpreterError::RangeCheckFailedWithMessage {
+                    value,
+                    value_id,
+                    actual_bits,
+                    max_bits,
+                    message: message.clone(),
+                })
             } <span class="kw">else </span>{
-                <span class="macro">panic!</span>(<span class="string">"bit count of {bit_count} exceeded max bit count of {max_bit_size}"</span>);
+                <span class="prelude-val">Err</span>(InterpreterError::RangeCheckFailed { value, value_id, actual_bits, max_bits })
             }
+        } <span class="kw">else </span>{
+            <span class="prelude-val">Ok</span>(())
         }
     }
 
     <span class="kw">fn </span>interpret_call(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
-        function: ValueId,
+        function_id: ValueId,
         argument_ids: <span class="kw-2">&amp;</span>[ValueId],
         results: <span class="kw-2">&amp;</span>[ValueId],
     ) -&gt; IResult&lt;()&gt; {
-        <span class="kw">let </span>function = <span class="self">self</span>.lookup(function);
+        <span class="kw">let </span>function = <span class="self">self</span>.lookup(function_id);
         <span class="kw">let </span><span class="kw-2">mut </span>arguments = vecmap(argument_ids, |argument| <span class="self">self</span>.lookup(<span class="kw-2">*</span>argument));
 
         <span class="kw">let </span>new_results = <span class="kw">if </span><span class="self">self</span>.side_effects_enabled() {
@@ -1356,18 +1728,25 @@
                     </span><span class="kw">if </span>!<span class="self">self</span>.in_unconstrained_context()
                         &amp;&amp; <span class="self">self</span>.ssa.functions[<span class="kw-2">&amp;</span>id].runtime().is_brillig()
                     {
-                        arguments.iter_mut().for_each(<span class="self">Self</span>::reset_array_state);
+                        <span class="kw">for </span>argument <span class="kw">in </span>arguments.iter_mut() {
+                            <span class="self">Self</span>::reset_array_state(argument)<span class="question-mark">?</span>;
+                        }
                     }
                     <span class="self">self</span>.call_function(id, arguments)<span class="question-mark">?
                 </span>}
                 Value::Intrinsic(intrinsic) =&gt; {
-                    <span class="self">self</span>.call_intrinsic(intrinsic, arguments, results)<span class="question-mark">?
+                    <span class="self">self</span>.call_intrinsic(intrinsic, argument_ids, results)<span class="question-mark">?
                 </span>}
                 Value::ForeignFunction(name) <span class="kw">if </span>name == <span class="string">"print" </span>=&gt; <span class="self">self</span>.call_print(arguments)<span class="question-mark">?</span>,
                 Value::ForeignFunction(name) =&gt; {
-                    <span class="macro">todo!</span>(<span class="string">"call: ForeignFunction({name}) is not yet implemented"</span>)
+                    <span class="kw">return </span><span class="prelude-val">Err</span>(InterpreterError::UnknownForeignFunctionCall { name });
                 }
-                other =&gt; <span class="macro">panic!</span>(<span class="string">"call: Expected function, found {other:?}"</span>),
+                other =&gt; {
+                    <span class="kw">return </span><span class="prelude-val">Err</span>(internal(InternalError::CalledNonFunction {
+                        value: other.to_string(),
+                        value_id: function_id,
+                    }));
+                }
             }
         } <span class="kw">else </span>{
             vecmap(results, |result| {
@@ -1376,33 +1755,59 @@
             })
         };
 
-        <span class="macro">assert_eq!</span>(new_results.len(), results.len());
+        <span class="kw">if </span>new_results.len() != results.len() {
+            <span class="kw">let </span>function_name = <span class="self">self</span>.try_get_function_name(function_id);
+            <span class="kw">return </span><span class="prelude-val">Err</span>(internal(InternalError::FunctionReturnedIncorrectArgCount {
+                function: function_id,
+                function_name,
+                expected: results.len(),
+                actual: new_results.len(),
+            }));
+        }
+
         <span class="kw">for </span>(result, new_result) <span class="kw">in </span>results.iter().zip(new_results) {
             <span class="self">self</span>.define(<span class="kw-2">*</span>result, new_result);
         }
         <span class="prelude-val">Ok</span>(())
     }
 
+    <span class="doccomment">/// Try to get a function's name or approximate it if it is not known
+    </span><span class="kw">fn </span>try_get_function_name(<span class="kw-2">&amp;</span><span class="self">self</span>, function: ValueId) -&gt; String {
+        <span class="kw">match </span><span class="self">self</span>.lookup(function) {
+            Value::Function(id) =&gt; <span class="kw">match </span><span class="self">self</span>.ssa.functions.get(<span class="kw-2">&amp;</span>id) {
+                <span class="prelude-val">Some</span>(function) =&gt; function.name().to_string(),
+                <span class="prelude-val">None </span>=&gt; <span class="string">"unknown function"</span>.to_string(),
+            },
+            Value::Intrinsic(intrinsic) =&gt; intrinsic.to_string(),
+            Value::ForeignFunction(name) =&gt; name,
+            <span class="kw">_ </span>=&gt; <span class="string">"non-function"</span>.to_string(),
+        }
+    }
+
     <span class="doccomment">/// Reset the value's `Shared` states in each array within. This is used to mimic each
     /// invocation of the brillig vm receiving fresh values. No matter the history of this value
     /// (e.g. even if they were previously returned from another brillig function) the reference
     /// count should always be 1 and it shouldn't alias any other arrays.
-    </span><span class="kw">fn </span>reset_array_state(value: <span class="kw-2">&amp;mut </span>Value) {
+    </span><span class="kw">fn </span>reset_array_state(value: <span class="kw-2">&amp;mut </span>Value) -&gt; IResult&lt;()&gt; {
         <span class="kw">match </span>value {
             Value::Numeric(<span class="kw">_</span>)
             | Value::Function(<span class="kw">_</span>)
             | Value::Intrinsic(<span class="kw">_</span>)
-            | Value::ForeignFunction(<span class="kw">_</span>) =&gt; (),
+            | Value::ForeignFunction(<span class="kw">_</span>) =&gt; <span class="prelude-val">Ok</span>(()),
 
-            Value::Reference(<span class="kw">_</span>) =&gt; <span class="macro">panic!</span>(
-                <span class="string">"No reference values are allowed when crossing the constrained -&gt; unconstrained boundary"
-            </span>),
+            Value::Reference(value) =&gt; {
+                <span class="kw">let </span>value = value.to_string();
+                <span class="prelude-val">Err</span>(internal(InternalError::ReferenceValueCrossedUnconstrainedBoundary { value }))
+            }
 
             Value::ArrayOrSlice(array_value) =&gt; {
                 <span class="kw">let </span><span class="kw-2">mut </span>elements = array_value.elements.borrow().to_vec();
-                elements.iter_mut().for_each(<span class="self">Self</span>::reset_array_state);
+                <span class="kw">for </span>element <span class="kw">in </span>elements.iter_mut() {
+                    <span class="self">Self</span>::reset_array_state(element)<span class="question-mark">?</span>;
+                }
                 array_value.elements = Shared::new(elements);
                 array_value.rc = Shared::new(<span class="number">1</span>);
+                <span class="prelude-val">Ok</span>(())
             }
         }
     }
@@ -1418,39 +1823,42 @@
         <span class="self">self</span>.define(result, Value::reference(result, element_type));
     }
 
-    <span class="kw">fn </span>interpret_load(<span class="kw-2">&amp;mut </span><span class="self">self</span>, address: ValueId, result: ValueId) {
-        <span class="kw">let </span>address = <span class="self">self</span>.lookup(address);
-        <span class="kw">let </span>address = address.as_reference().unwrap();
+    <span class="kw">fn </span>interpret_load(<span class="kw-2">&amp;mut </span><span class="self">self</span>, address: ValueId, result: ValueId) -&gt; IResult&lt;()&gt; {
+        <span class="kw">let </span>address = <span class="self">self</span>.lookup_reference(address, <span class="string">"load"</span>)<span class="question-mark">?</span>;
 
         <span class="kw">let </span>element = address.element.borrow();
         <span class="kw">let </span><span class="prelude-val">Some</span>(value) = <span class="kw-2">&amp;*</span>element <span class="kw">else </span>{
-            <span class="macro">panic!</span>(
-                <span class="string">"reference value {} is being loaded before it was stored to"</span>,
-                address.original_id
-            );
+            <span class="kw">let </span>value = address.to_string();
+            <span class="kw">return </span><span class="prelude-val">Err</span>(internal(InternalError::UninitializedReferenceValueLoaded { value }));
         };
 
         <span class="self">self</span>.define(result, value.clone());
+        <span class="prelude-val">Ok</span>(())
     }
 
-    <span class="kw">fn </span>interpret_store(<span class="kw-2">&amp;mut </span><span class="self">self</span>, address: ValueId, value: ValueId) {
-        <span class="kw">let </span>address = <span class="self">self</span>.lookup(address);
-        <span class="kw">let </span>address = address.as_reference().unwrap();
+    <span class="kw">fn </span>interpret_store(<span class="kw-2">&amp;mut </span><span class="self">self</span>, address: ValueId, value: ValueId) -&gt; IResult&lt;()&gt; {
+        <span class="kw">let </span>address = <span class="self">self</span>.lookup_reference(address, <span class="string">"store"</span>)<span class="question-mark">?</span>;
         <span class="kw">let </span>value = <span class="self">self</span>.lookup(value);
         <span class="kw-2">*</span>address.element.borrow_mut() = <span class="prelude-val">Some</span>(value);
+        <span class="prelude-val">Ok</span>(())
     }
 
-    <span class="kw">fn </span>interpret_array_get(<span class="kw-2">&amp;mut </span><span class="self">self</span>, array: ValueId, index: ValueId, result: ValueId) {
+    <span class="kw">fn </span>interpret_array_get(
+        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
+        array: ValueId,
+        index: ValueId,
+        result: ValueId,
+    ) -&gt; IResult&lt;()&gt; {
         <span class="kw">let </span>element = <span class="kw">if </span><span class="self">self</span>.side_effects_enabled() {
-            <span class="kw">let </span>array = <span class="self">self</span>.lookup(array);
-            <span class="kw">let </span>array = array.as_array_or_slice().unwrap();
-            <span class="kw">let </span>index = <span class="self">self</span>.lookup(index).as_u32().unwrap();
+            <span class="kw">let </span>array = <span class="self">self</span>.lookup_array_or_slice(array, <span class="string">"array get"</span>)<span class="question-mark">?</span>;
+            <span class="kw">let </span>index = <span class="self">self</span>.lookup_u32(index, <span class="string">"array get index"</span>)<span class="question-mark">?</span>;
             array.elements.borrow()[index <span class="kw">as </span>usize].clone()
         } <span class="kw">else </span>{
             <span class="kw">let </span>typ = <span class="self">self</span>.dfg().type_of_value(result);
             Value::uninitialized(<span class="kw-2">&amp;</span>typ, result)
         };
         <span class="self">self</span>.define(result, element);
+        <span class="prelude-val">Ok</span>(())
     }
 
     <span class="kw">fn </span>interpret_array_set(
@@ -1460,11 +1868,11 @@
         value: ValueId,
         mutable: bool,
         result: ValueId,
-    ) {
+    ) -&gt; IResult&lt;()&gt; {
+        <span class="kw">let </span>array = <span class="self">self</span>.lookup_array_or_slice(array, <span class="string">"array set"</span>)<span class="question-mark">?</span>;
+
         <span class="kw">let </span>result_array = <span class="kw">if </span><span class="self">self</span>.side_effects_enabled() {
-            <span class="kw">let </span>array = <span class="self">self</span>.lookup(array);
-            <span class="kw">let </span>array = array.as_array_or_slice().unwrap();
-            <span class="kw">let </span>index = <span class="self">self</span>.lookup(index).as_u32().unwrap();
+            <span class="kw">let </span>index = <span class="self">self</span>.lookup_u32(index, <span class="string">"array set index"</span>)<span class="question-mark">?</span>;
             <span class="kw">let </span>value = <span class="self">self</span>.lookup(value);
 
             <span class="kw">let </span>should_mutate =
@@ -1484,43 +1892,48 @@
             }
         } <span class="kw">else </span>{
             <span class="comment">// Side effects are disabled, return the original array
-            </span><span class="self">self</span>.lookup(array)
+            </span>Value::ArrayOrSlice(array)
         };
         <span class="self">self</span>.define(result, result_array);
+        <span class="prelude-val">Ok</span>(())
     }
 
-    <span class="kw">fn </span>interpret_inc_rc(<span class="kw-2">&amp;</span><span class="self">self</span>, array: ValueId) {
+    <span class="kw">fn </span>interpret_inc_rc(<span class="kw-2">&amp;</span><span class="self">self</span>, value_id: ValueId) -&gt; IResult&lt;()&gt; {
         <span class="kw">if </span><span class="self">self</span>.in_unconstrained_context() {
-            <span class="kw">let </span>array = <span class="self">self</span>.lookup(array);
-            <span class="kw">let </span>array = array.as_array_or_slice().unwrap();
+            <span class="kw">let </span>array = <span class="self">self</span>.lookup_array_or_slice(value_id, <span class="string">"inc_rc"</span>)<span class="question-mark">?</span>;
             <span class="kw">let </span><span class="kw-2">mut </span>rc = array.rc.borrow_mut();
-
-            <span class="macro">assert_ne!</span>(<span class="kw-2">*</span>rc, <span class="number">0</span>, <span class="string">"inc_rc: increment from 0 back to 1 detected"</span>);
+            <span class="kw">if </span><span class="kw-2">*</span>rc == <span class="number">0 </span>{
+                <span class="kw">let </span>value = array.to_string();
+                <span class="kw">return </span><span class="prelude-val">Err</span>(InterpreterError::IncRcRevive { value_id, value });
+            }
             <span class="kw-2">*</span>rc += <span class="number">1</span>;
         }
+        <span class="prelude-val">Ok</span>(())
     }
 
-    <span class="kw">fn </span>interpret_dec_rc(<span class="kw-2">&amp;</span><span class="self">self</span>, array: ValueId) {
+    <span class="kw">fn </span>interpret_dec_rc(<span class="kw-2">&amp;</span><span class="self">self</span>, value_id: ValueId) -&gt; IResult&lt;()&gt; {
         <span class="kw">if </span><span class="self">self</span>.in_unconstrained_context() {
-            <span class="kw">let </span>array = <span class="self">self</span>.lookup(array);
-            <span class="kw">let </span>array = array.as_array_or_slice().unwrap();
+            <span class="kw">let </span>array = <span class="self">self</span>.lookup_array_or_slice(value_id, <span class="string">"dec_rc"</span>)<span class="question-mark">?</span>;
             <span class="kw">let </span><span class="kw-2">mut </span>rc = array.rc.borrow_mut();
-
-            <span class="macro">assert_ne!</span>(<span class="kw-2">*</span>rc, <span class="number">0</span>, <span class="string">"dec_rc: underflow detected"</span>);
+            <span class="kw">if </span><span class="kw-2">*</span>rc == <span class="number">0 </span>{
+                <span class="kw">let </span>value = array.to_string();
+                <span class="kw">return </span><span class="prelude-val">Err</span>(InterpreterError::DecRcUnderflow { value_id, value });
+            }
             <span class="kw-2">*</span>rc -= <span class="number">1</span>;
         }
+        <span class="prelude-val">Ok</span>(())
     }
 
     <span class="kw">fn </span>interpret_if_else(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
-        then_condition: ValueId,
+        then_condition_id: ValueId,
         then_value: ValueId,
-        else_condition: ValueId,
+        else_condition_id: ValueId,
         else_value: ValueId,
         result: ValueId,
-    ) {
-        <span class="kw">let </span>then_condition = <span class="self">self</span>.lookup(then_condition).as_bool().unwrap();
-        <span class="kw">let </span>else_condition = <span class="self">self</span>.lookup(else_condition).as_bool().unwrap();
+    ) -&gt; IResult&lt;()&gt; {
+        <span class="kw">let </span>then_condition = <span class="self">self</span>.lookup_bool(then_condition_id, <span class="string">"then condition"</span>)<span class="question-mark">?</span>;
+        <span class="kw">let </span>else_condition = <span class="self">self</span>.lookup_bool(else_condition_id, <span class="string">"else condition"</span>)<span class="question-mark">?</span>;
         <span class="kw">let </span>then_value = <span class="self">self</span>.lookup(then_value);
         <span class="kw">let </span>else_value = <span class="self">self</span>.lookup(else_value);
 
@@ -1529,7 +1942,12 @@
         //   then_condition = outer_condition &amp; a
         //   else_condition = outer_condition &amp; !a
         // If `outer_condition` is false, both will be false.
-        </span><span class="macro">assert!</span>(!then_condition || !else_condition);
+        </span><span class="kw">if </span>then_condition &amp;&amp; else_condition {
+            <span class="kw">return </span><span class="prelude-val">Err</span>(InterpreterError::DoubleTrueIfElse {
+                then_condition_id,
+                else_condition_id,
+            });
+        }
 
         <span class="kw">let </span>new_result = <span class="kw">if </span>!then_condition &amp;&amp; !else_condition {
             <span class="comment">// Returning uninitialized/zero if both conditions are false to match
@@ -1543,6 +1961,7 @@
         };
 
         <span class="self">self</span>.define(result, new_result);
+        <span class="prelude-val">Ok</span>(())
     }
 
     <span class="kw">fn </span>interpret_make_array(
@@ -1565,11 +1984,13 @@
 }
 
 <span class="macro">macro_rules!</span> apply_int_binop {
-    (<span class="macro-nonterminal">$lhs</span>:expr, <span class="macro-nonterminal">$rhs</span>:expr, <span class="macro-nonterminal">$f</span>:expr) =&gt; {{
+    (<span class="macro-nonterminal">$lhs</span>:expr, <span class="macro-nonterminal">$rhs</span>:expr, <span class="macro-nonterminal">$binary</span>:expr, <span class="macro-nonterminal">$f</span>:expr) =&gt; {{
         <span class="kw">use </span>value::NumericValue::<span class="kw-2">*</span>;
         <span class="kw">match </span>(<span class="macro-nonterminal">$lhs</span>, <span class="macro-nonterminal">$rhs</span>) {
-            (Field(<span class="kw">_</span>), Field(<span class="kw">_</span>)) =&gt; <span class="macro">panic!</span>(<span class="string">"Expected only integer values, found field values"</span>),
-            (U1(<span class="kw">_</span>), U1(<span class="kw">_</span>)) =&gt; <span class="macro">panic!</span>(<span class="string">"Expected only large integer values, found u1"</span>),
+            (Field(<span class="kw">_</span>), Field(<span class="kw">_</span>)) =&gt; {
+                <span class="macro">unreachable!</span>(<span class="string">"Expected only integer values, found field values"</span>)
+            }
+            (U1(<span class="kw">_</span>), U1(<span class="kw">_</span>)) =&gt; <span class="macro">unreachable!</span>(<span class="string">"Expected only large integer values, found u1"</span>),
             (U8(lhs), U8(rhs)) =&gt; U8(<span class="macro-nonterminal">$f</span>(<span class="kw-2">&amp;</span>lhs, <span class="kw-2">&amp;</span>rhs)),
             (U16(lhs), U16(rhs)) =&gt; U16(<span class="macro-nonterminal">$f</span>(<span class="kw-2">&amp;</span>lhs, <span class="kw-2">&amp;</span>rhs)),
             (U32(lhs), U32(rhs)) =&gt; U32(<span class="macro-nonterminal">$f</span>(<span class="kw-2">&amp;</span>lhs, <span class="kw-2">&amp;</span>rhs)),
@@ -1579,38 +2000,78 @@
             (I16(lhs), I16(rhs)) =&gt; I16(<span class="macro-nonterminal">$f</span>(<span class="kw-2">&amp;</span>lhs, <span class="kw-2">&amp;</span>rhs)),
             (I32(lhs), I32(rhs)) =&gt; I32(<span class="macro-nonterminal">$f</span>(<span class="kw-2">&amp;</span>lhs, <span class="kw-2">&amp;</span>rhs)),
             (I64(lhs), I64(rhs)) =&gt; I64(<span class="macro-nonterminal">$f</span>(<span class="kw-2">&amp;</span>lhs, <span class="kw-2">&amp;</span>rhs)),
-            (lhs, rhs) =&gt; <span class="macro">panic!</span>(<span class="string">"Got mismatched types in binop: {lhs:?} and {rhs:?}"</span>),
+            (lhs, rhs) =&gt; {
+                <span class="kw">let </span>binary = <span class="macro-nonterminal">$binary</span>;
+                <span class="kw">return </span><span class="prelude-val">Err</span>(internal(InternalError::MismatchedTypesInBinaryOperator {
+                    lhs: lhs.to_string(),
+                    rhs: rhs.to_string(),
+                    operator: binary.operator,
+                    lhs_id: binary.lhs,
+                    rhs_id: binary.rhs,
+                }));
+            }
         }
     }};
 }
 
 <span class="macro">macro_rules!</span> apply_int_binop_opt {
-    (<span class="macro-nonterminal">$lhs</span>:expr, <span class="macro-nonterminal">$rhs</span>:expr, <span class="macro-nonterminal">$f</span>:expr) =&gt; {{
+    (<span class="macro-nonterminal">$dfg</span>:expr, <span class="macro-nonterminal">$lhs</span>:expr, <span class="macro-nonterminal">$rhs</span>:expr, <span class="macro-nonterminal">$binary</span>:expr, <span class="macro-nonterminal">$f</span>:expr) =&gt; {{
         <span class="kw">use </span>value::NumericValue::<span class="kw-2">*</span>;
-        <span class="comment">// TODO: Error if None instead of unwrapping
-        </span><span class="kw">match </span>(<span class="macro-nonterminal">$lhs</span>, <span class="macro-nonterminal">$rhs</span>) {
-            (Field(<span class="kw">_</span>), Field(<span class="kw">_</span>)) =&gt; <span class="macro">panic!</span>(<span class="string">"Expected only integer values, found field values"</span>),
-            (U1(<span class="kw">_</span>), U1(<span class="kw">_</span>)) =&gt; <span class="macro">panic!</span>(<span class="string">"Expected only large integer values, found u1"</span>),
-            (U8(lhs), U8(rhs)) =&gt; U8(<span class="macro-nonterminal">$f</span>(<span class="kw-2">&amp;</span>lhs, <span class="kw-2">&amp;</span>rhs).unwrap()),
-            (U16(lhs), U16(rhs)) =&gt; U16(<span class="macro-nonterminal">$f</span>(<span class="kw-2">&amp;</span>lhs, <span class="kw-2">&amp;</span>rhs).unwrap()),
-            (U32(lhs), U32(rhs)) =&gt; U32(<span class="macro-nonterminal">$f</span>(<span class="kw-2">&amp;</span>lhs, <span class="kw-2">&amp;</span>rhs).unwrap()),
-            (U64(lhs), U64(rhs)) =&gt; U64(<span class="macro-nonterminal">$f</span>(<span class="kw-2">&amp;</span>lhs, <span class="kw-2">&amp;</span>rhs).unwrap()),
-            (U128(lhs), U128(rhs)) =&gt; U128(<span class="macro-nonterminal">$f</span>(<span class="kw-2">&amp;</span>lhs, <span class="kw-2">&amp;</span>rhs).unwrap()),
-            (I8(lhs), I8(rhs)) =&gt; I8(<span class="macro-nonterminal">$f</span>(<span class="kw-2">&amp;</span>lhs, <span class="kw-2">&amp;</span>rhs).unwrap()),
-            (I16(lhs), I16(rhs)) =&gt; I16(<span class="macro-nonterminal">$f</span>(<span class="kw-2">&amp;</span>lhs, <span class="kw-2">&amp;</span>rhs).unwrap()),
-            (I32(lhs), I32(rhs)) =&gt; I32(<span class="macro-nonterminal">$f</span>(<span class="kw-2">&amp;</span>lhs, <span class="kw-2">&amp;</span>rhs).unwrap()),
-            (I64(lhs), I64(rhs)) =&gt; I64(<span class="macro-nonterminal">$f</span>(<span class="kw-2">&amp;</span>lhs, <span class="kw-2">&amp;</span>rhs).unwrap()),
-            (lhs, rhs) =&gt; <span class="macro">panic!</span>(<span class="string">"Got mismatched types in binop: {lhs:?} and {rhs:?}"</span>),
+
+        <span class="kw">let </span>lhs = <span class="macro-nonterminal">$lhs</span>;
+        <span class="kw">let </span>rhs = <span class="macro-nonterminal">$rhs</span>;
+        <span class="kw">let </span>binary = <span class="macro-nonterminal">$binary</span>;
+        <span class="kw">let </span>operator = binary.operator;
+
+        <span class="kw">let </span>overflow = || {
+            <span class="kw">if </span><span class="macro">matches!</span>(binary.operator, BinaryOp::Div | BinaryOp::Mod) {
+                <span class="kw">let </span>lhs_id = binary.lhs;
+                <span class="kw">let </span>rhs_id = binary.rhs;
+                <span class="kw">let </span>lhs = lhs.to_string();
+                <span class="kw">let </span>rhs = rhs.to_string();
+                InterpreterError::DivisionByZero { lhs_id, lhs, rhs_id, rhs }
+            } <span class="kw">else </span>{
+                <span class="kw">let </span>instruction =
+                    <span class="macro">format!</span>(<span class="string">"`{}` ({operator} {lhs}, {rhs})"</span>, display_binary(binary, <span class="macro-nonterminal">$dfg</span>));
+                InterpreterError::Overflow { instruction }
+            }
+        };
+
+        <span class="kw">match </span>(lhs, rhs) {
+            (Field(<span class="kw">_</span>), Field(<span class="kw">_</span>)) =&gt; {
+                <span class="macro">unreachable!</span>(<span class="string">"Expected only integer values, found field values"</span>)
+            }
+            (U1(<span class="kw">_</span>), U1(<span class="kw">_</span>)) =&gt; <span class="macro">unreachable!</span>(<span class="string">"Expected only large integer values, found u1"</span>),
+            (U8(lhs), U8(rhs)) =&gt; U8(<span class="macro-nonterminal">$f</span>(<span class="kw-2">&amp;</span>lhs, <span class="kw-2">&amp;</span>rhs).ok_or_else(overflow)<span class="question-mark">?</span>),
+            (U16(lhs), U16(rhs)) =&gt; U16(<span class="macro-nonterminal">$f</span>(<span class="kw-2">&amp;</span>lhs, <span class="kw-2">&amp;</span>rhs).ok_or_else(overflow)<span class="question-mark">?</span>),
+            (U32(lhs), U32(rhs)) =&gt; U32(<span class="macro-nonterminal">$f</span>(<span class="kw-2">&amp;</span>lhs, <span class="kw-2">&amp;</span>rhs).ok_or_else(overflow)<span class="question-mark">?</span>),
+            (U64(lhs), U64(rhs)) =&gt; U64(<span class="macro-nonterminal">$f</span>(<span class="kw-2">&amp;</span>lhs, <span class="kw-2">&amp;</span>rhs).ok_or_else(overflow)<span class="question-mark">?</span>),
+            (U128(lhs), U128(rhs)) =&gt; U128(<span class="macro-nonterminal">$f</span>(<span class="kw-2">&amp;</span>lhs, <span class="kw-2">&amp;</span>rhs).ok_or_else(overflow)<span class="question-mark">?</span>),
+            (I8(lhs), I8(rhs)) =&gt; I8(<span class="macro-nonterminal">$f</span>(<span class="kw-2">&amp;</span>lhs, <span class="kw-2">&amp;</span>rhs).ok_or_else(overflow)<span class="question-mark">?</span>),
+            (I16(lhs), I16(rhs)) =&gt; I16(<span class="macro-nonterminal">$f</span>(<span class="kw-2">&amp;</span>lhs, <span class="kw-2">&amp;</span>rhs).ok_or_else(overflow)<span class="question-mark">?</span>),
+            (I32(lhs), I32(rhs)) =&gt; I32(<span class="macro-nonterminal">$f</span>(<span class="kw-2">&amp;</span>lhs, <span class="kw-2">&amp;</span>rhs).ok_or_else(overflow)<span class="question-mark">?</span>),
+            (I64(lhs), I64(rhs)) =&gt; I64(<span class="macro-nonterminal">$f</span>(<span class="kw-2">&amp;</span>lhs, <span class="kw-2">&amp;</span>rhs).ok_or_else(overflow)<span class="question-mark">?</span>),
+            (lhs, rhs) =&gt; {
+                <span class="kw">return </span><span class="prelude-val">Err</span>(internal(InternalError::MismatchedTypesInBinaryOperator {
+                    lhs: lhs.to_string(),
+                    rhs: rhs.to_string(),
+                    operator,
+                    lhs_id: binary.lhs,
+                    rhs_id: binary.rhs,
+                }));
+            }
         }
     }};
 }
 
 <span class="macro">macro_rules!</span> apply_int_comparison_op {
-    (<span class="macro-nonterminal">$lhs</span>:expr, <span class="macro-nonterminal">$rhs</span>:expr, <span class="macro-nonterminal">$f</span>:expr) =&gt; {{
+    (<span class="macro-nonterminal">$lhs</span>:expr, <span class="macro-nonterminal">$rhs</span>:expr, <span class="macro-nonterminal">$binary</span>:expr, <span class="macro-nonterminal">$f</span>:expr) =&gt; {{
         <span class="kw">use </span>NumericValue::<span class="kw-2">*</span>;
         <span class="kw">match </span>(<span class="macro-nonterminal">$lhs</span>, <span class="macro-nonterminal">$rhs</span>) {
-            (Field(<span class="kw">_</span>), Field(<span class="kw">_</span>)) =&gt; <span class="macro">panic!</span>(<span class="string">"Expected only integer values, found field values"</span>),
-            (U1(<span class="kw">_</span>), U1(<span class="kw">_</span>)) =&gt; <span class="macro">panic!</span>(<span class="string">"Expected only large integer values, found u1"</span>),
+            (Field(<span class="kw">_</span>), Field(<span class="kw">_</span>)) =&gt; {
+                <span class="macro">unreachable!</span>(<span class="string">"Expected only integer values, found field values"</span>)
+            }
+            (U1(<span class="kw">_</span>), U1(<span class="kw">_</span>)) =&gt; <span class="macro">unreachable!</span>(<span class="string">"Expected only large integer values, found u1"</span>),
             (U8(lhs), U8(rhs)) =&gt; U1(<span class="macro-nonterminal">$f</span>(<span class="kw-2">&amp;</span>lhs, <span class="kw-2">&amp;</span>rhs)),
             (U16(lhs), U16(rhs)) =&gt; U1(<span class="macro-nonterminal">$f</span>(<span class="kw-2">&amp;</span>lhs, <span class="kw-2">&amp;</span>rhs)),
             (U32(lhs), U32(rhs)) =&gt; U1(<span class="macro-nonterminal">$f</span>(<span class="kw-2">&amp;</span>lhs, <span class="kw-2">&amp;</span>rhs)),
@@ -1620,28 +2081,37 @@
             (I16(lhs), I16(rhs)) =&gt; U1(<span class="macro-nonterminal">$f</span>(<span class="kw-2">&amp;</span>lhs, <span class="kw-2">&amp;</span>rhs)),
             (I32(lhs), I32(rhs)) =&gt; U1(<span class="macro-nonterminal">$f</span>(<span class="kw-2">&amp;</span>lhs, <span class="kw-2">&amp;</span>rhs)),
             (I64(lhs), I64(rhs)) =&gt; U1(<span class="macro-nonterminal">$f</span>(<span class="kw-2">&amp;</span>lhs, <span class="kw-2">&amp;</span>rhs)),
-            (lhs, rhs) =&gt; <span class="macro">panic!</span>(<span class="string">"Got mismatched types in binop: {lhs:?} and {rhs:?}"</span>),
+            (lhs, rhs) =&gt; {
+                <span class="kw">let </span>binary = <span class="macro-nonterminal">$binary</span>;
+                <span class="kw">return </span><span class="prelude-val">Err</span>(internal(InternalError::MismatchedTypesInBinaryOperator {
+                    lhs: lhs.to_string(),
+                    rhs: rhs.to_string(),
+                    operator: binary.operator,
+                    lhs_id: binary.lhs,
+                    rhs_id: binary.rhs,
+                }));
+            }
         }
     }};
 }
 
 <span class="kw">impl </span>Interpreter&lt;<span class="lifetime">'_</span>&gt; {
     <span class="kw">fn </span>interpret_binary(<span class="kw-2">&amp;mut </span><span class="self">self</span>, binary: <span class="kw-2">&amp;</span>Binary) -&gt; IResult&lt;Value&gt; {
-        <span class="comment">// TODO: Replace unwrap with real error
-        </span><span class="kw">let </span>lhs = <span class="self">self</span>.lookup(binary.lhs).as_numeric().unwrap();
-        <span class="kw">let </span>rhs = <span class="self">self</span>.lookup(binary.rhs).as_numeric().unwrap();
+        <span class="kw">let </span>lhs_id = binary.lhs;
+        <span class="kw">let </span>rhs_id = binary.rhs;
+        <span class="kw">let </span>lhs = <span class="self">self</span>.lookup_numeric(lhs_id, <span class="string">"binary op lhs"</span>)<span class="question-mark">?</span>;
+        <span class="kw">let </span>rhs = <span class="self">self</span>.lookup_numeric(rhs_id, <span class="string">"binary op rhs"</span>)<span class="question-mark">?</span>;
 
         <span class="kw">if </span>lhs.get_type() != rhs.get_type()
             &amp;&amp; !<span class="macro">matches!</span>(binary.operator, BinaryOp::Shl | BinaryOp::Shr)
         {
-            <span class="macro">panic!</span>(
-                <span class="string">"Type error in ({}: {}) {} ({}: {})"</span>,
-                binary.lhs,
-                lhs.get_type(),
-                binary.operator,
-                binary.rhs,
-                rhs.get_type()
-            )
+            <span class="kw">return </span><span class="prelude-val">Err</span>(internal(InternalError::MismatchedTypesInBinaryOperator {
+                lhs_id,
+                lhs: lhs.to_string(),
+                operator: binary.operator,
+                rhs_id,
+                rhs: rhs.to_string(),
+            }));
         }
 
         <span class="comment">// Disable this instruction if it is side-effectful and side effects are disabled.
@@ -1651,75 +2121,118 @@
         }
 
         <span class="kw">if let </span>(<span class="prelude-val">Some</span>(lhs), <span class="prelude-val">Some</span>(rhs)) = (lhs.as_field(), rhs.as_field()) {
-            <span class="kw">return </span><span class="self">self</span>.interpret_field_binary_op(lhs, binary.operator, rhs);
+            <span class="kw">return </span><span class="self">self</span>.interpret_field_binary_op(lhs, binary.operator, rhs, lhs_id, rhs_id);
         }
 
         <span class="kw">if let </span>(<span class="prelude-val">Some</span>(lhs), <span class="prelude-val">Some</span>(rhs)) = (lhs.as_bool(), rhs.as_bool()) {
             <span class="kw">return </span><span class="self">self</span>.interpret_u1_binary_op(lhs, binary.operator, rhs);
         }
 
+        <span class="kw">let </span>dfg = <span class="self">self</span>.dfg();
         <span class="kw">let </span>result = <span class="kw">match </span>binary.operator {
             BinaryOp::Add { unchecked: <span class="bool-val">false </span>} =&gt; {
-                <span class="macro">apply_int_binop_opt!</span>(lhs, rhs, num_traits::CheckedAdd::checked_add)
+                <span class="macro">apply_int_binop_opt!</span>(dfg, lhs, rhs, binary, num_traits::CheckedAdd::checked_add)
             }
             BinaryOp::Add { unchecked: <span class="bool-val">true </span>} =&gt; {
-                <span class="macro">apply_int_binop!</span>(lhs, rhs, num_traits::WrappingAdd::wrapping_add)
+                <span class="macro">apply_int_binop!</span>(lhs, rhs, binary, num_traits::WrappingAdd::wrapping_add)
             }
             BinaryOp::Sub { unchecked: <span class="bool-val">false </span>} =&gt; {
-                <span class="macro">apply_int_binop_opt!</span>(lhs, rhs, num_traits::CheckedSub::checked_sub)
+                <span class="macro">apply_int_binop_opt!</span>(dfg, lhs, rhs, binary, num_traits::CheckedSub::checked_sub)
             }
             BinaryOp::Sub { unchecked: <span class="bool-val">true </span>} =&gt; {
-                <span class="macro">apply_int_binop!</span>(lhs, rhs, num_traits::WrappingSub::wrapping_sub)
+                <span class="macro">apply_int_binop!</span>(lhs, rhs, binary, num_traits::WrappingSub::wrapping_sub)
             }
             BinaryOp::Mul { unchecked: <span class="bool-val">false </span>} =&gt; {
-                <span class="macro">apply_int_binop_opt!</span>(lhs, rhs, num_traits::CheckedMul::checked_mul)
+                <span class="macro">apply_int_binop_opt!</span>(dfg, lhs, rhs, binary, num_traits::CheckedMul::checked_mul)
             }
             BinaryOp::Mul { unchecked: <span class="bool-val">true </span>} =&gt; {
-                <span class="macro">apply_int_binop!</span>(lhs, rhs, num_traits::WrappingMul::wrapping_mul)
+                <span class="macro">apply_int_binop!</span>(lhs, rhs, binary, num_traits::WrappingMul::wrapping_mul)
             }
             BinaryOp::Div =&gt; {
-                <span class="macro">apply_int_binop_opt!</span>(lhs, rhs, num_traits::CheckedDiv::checked_div)
+                <span class="macro">apply_int_binop_opt!</span>(dfg, lhs, rhs, binary, num_traits::CheckedDiv::checked_div)
             }
             BinaryOp::Mod =&gt; {
-                <span class="macro">apply_int_binop_opt!</span>(lhs, rhs, num_traits::CheckedRem::checked_rem)
+                <span class="macro">apply_int_binop_opt!</span>(dfg, lhs, rhs, binary, num_traits::CheckedRem::checked_rem)
             }
-            BinaryOp::Eq =&gt; <span class="macro">apply_int_comparison_op!</span>(lhs, rhs, |a, b| a == b),
-            BinaryOp::Lt =&gt; <span class="macro">apply_int_comparison_op!</span>(lhs, rhs, |a, b| a &lt; b),
+            BinaryOp::Eq =&gt; <span class="macro">apply_int_comparison_op!</span>(lhs, rhs, binary, |a, b| a == b),
+            BinaryOp::Lt =&gt; <span class="macro">apply_int_comparison_op!</span>(lhs, rhs, binary, |a, b| a &lt; b),
             BinaryOp::And =&gt; {
-                <span class="macro">apply_int_binop!</span>(lhs, rhs, std::ops::BitAnd::bitand)
+                <span class="macro">apply_int_binop!</span>(lhs, rhs, binary, std::ops::BitAnd::bitand)
             }
             BinaryOp::Or =&gt; {
-                <span class="macro">apply_int_binop!</span>(lhs, rhs, std::ops::BitOr::bitor)
+                <span class="macro">apply_int_binop!</span>(lhs, rhs, binary, std::ops::BitOr::bitor)
             }
             BinaryOp::Xor =&gt; {
-                <span class="macro">apply_int_binop!</span>(lhs, rhs, std::ops::BitXor::bitxor)
+                <span class="macro">apply_int_binop!</span>(lhs, rhs, binary, std::ops::BitXor::bitxor)
             }
             BinaryOp::Shl =&gt; {
-                <span class="kw">let </span>rhs = rhs.as_u32().expect(<span class="string">"Expected rhs of shl to be a u32"</span>);
-                <span class="kw">let </span>overflow_msg = <span class="string">"Overflow when evaluating `shl`, `rhs` is too large"</span>;
+                <span class="kw">let </span><span class="prelude-val">Some</span>(rhs) = rhs.as_u8() <span class="kw">else </span>{
+                    <span class="kw">let </span>rhs = rhs.to_string();
+                    <span class="kw">return </span><span class="prelude-val">Err</span>(internal(InternalError::RhsOfBitShiftShouldBeU8 {
+                        operator: <span class="string">"&lt;&lt;"</span>,
+                        rhs_id,
+                        rhs,
+                    }));
+                };
+
+                <span class="kw">let </span>overflow = || {
+                    <span class="kw">let </span>instruction =
+                        <span class="macro">format!</span>(<span class="string">"`{}` ({lhs} &lt;&lt; {rhs})"</span>, display_binary(binary, <span class="self">self</span>.dfg()));
+                    InterpreterError::Overflow { instruction }
+                };
+
+                <span class="kw">let </span>rhs = rhs <span class="kw">as </span>u32;
                 <span class="kw">use </span>NumericValue::<span class="kw-2">*</span>;
                 <span class="kw">match </span>lhs {
-                    Field(<span class="kw">_</span>) =&gt; <span class="macro">unreachable!</span>(<span class="string">"&lt;&lt; is not implemented for Field"</span>),
-                    U1(<span class="kw">_</span>) =&gt; <span class="macro">unreachable!</span>(<span class="string">"&lt;&lt; is not implemented for u1"</span>),
-                    U8(value) =&gt; U8(value.checked_shl(rhs).expect(overflow_msg)),
-                    U16(value) =&gt; U16(value.checked_shl(rhs).expect(overflow_msg)),
-                    U32(value) =&gt; U32(value.checked_shl(rhs).expect(overflow_msg)),
-                    U64(value) =&gt; U64(value.checked_shl(rhs).expect(overflow_msg)),
-                    U128(value) =&gt; U128(value.checked_shl(rhs).expect(overflow_msg)),
-                    I8(value) =&gt; I8(value.checked_shl(rhs).expect(overflow_msg)),
-                    I16(value) =&gt; I16(value.checked_shl(rhs).expect(overflow_msg)),
-                    I32(value) =&gt; I32(value.checked_shl(rhs).expect(overflow_msg)),
-                    I64(value) =&gt; I64(value.checked_shl(rhs).expect(overflow_msg)),
+                    Field(<span class="kw">_</span>) =&gt; {
+                        <span class="kw">return </span><span class="prelude-val">Err</span>(internal(InternalError::UnsupportedOperatorForType {
+                            operator: <span class="string">"&lt;&lt;"</span>,
+                            typ: <span class="string">"Field"</span>,
+                        }));
+                    }
+                    U1(<span class="kw">_</span>) =&gt; {
+                        <span class="kw">return </span><span class="prelude-val">Err</span>(internal(InternalError::UnsupportedOperatorForType {
+                            operator: <span class="string">"&lt;&lt;"</span>,
+                            typ: <span class="string">"u1"</span>,
+                        }));
+                    }
+                    U8(value) =&gt; U8(value.checked_shl(rhs).ok_or_else(overflow)<span class="question-mark">?</span>),
+                    U16(value) =&gt; U16(value.checked_shl(rhs).ok_or_else(overflow)<span class="question-mark">?</span>),
+                    U32(value) =&gt; U32(value.checked_shl(rhs).ok_or_else(overflow)<span class="question-mark">?</span>),
+                    U64(value) =&gt; U64(value.checked_shl(rhs).ok_or_else(overflow)<span class="question-mark">?</span>),
+                    U128(value) =&gt; U128(value.checked_shl(rhs).ok_or_else(overflow)<span class="question-mark">?</span>),
+                    I8(value) =&gt; I8(value.checked_shl(rhs).ok_or_else(overflow)<span class="question-mark">?</span>),
+                    I16(value) =&gt; I16(value.checked_shl(rhs).ok_or_else(overflow)<span class="question-mark">?</span>),
+                    I32(value) =&gt; I32(value.checked_shl(rhs).ok_or_else(overflow)<span class="question-mark">?</span>),
+                    I64(value) =&gt; I64(value.checked_shl(rhs).ok_or_else(overflow)<span class="question-mark">?</span>),
                 }
             }
             BinaryOp::Shr =&gt; {
                 <span class="kw">let </span>zero = || NumericValue::zero(lhs.get_type());
-                <span class="kw">let </span>rhs = rhs.as_u32().expect(<span class="string">"Expected rhs of shr to be a u32"</span>);
+                <span class="kw">let </span><span class="prelude-val">Some</span>(rhs) = rhs.as_u8() <span class="kw">else </span>{
+                    <span class="kw">let </span>rhs = rhs.to_string();
+                    <span class="kw">return </span><span class="prelude-val">Err</span>(internal(InternalError::RhsOfBitShiftShouldBeU8 {
+                        operator: <span class="string">"&gt;&gt;"</span>,
+                        rhs_id,
+                        rhs,
+                    }));
+                };
 
+                <span class="kw">let </span>rhs = rhs <span class="kw">as </span>u32;
                 <span class="kw">use </span>NumericValue::<span class="kw-2">*</span>;
                 <span class="kw">match </span>lhs {
-                    Field(<span class="kw">_</span>) =&gt; <span class="macro">unreachable!</span>(<span class="string">"&gt;&gt; is not implemented for Field"</span>),
-                    U1(<span class="kw">_</span>) =&gt; <span class="macro">unreachable!</span>(<span class="string">"&gt;&gt; is not implemented for u1"</span>),
+                    Field(<span class="kw">_</span>) =&gt; {
+                        <span class="kw">return </span><span class="prelude-val">Err</span>(internal(InternalError::UnsupportedOperatorForType {
+                            operator: <span class="string">"&gt;&gt;"</span>,
+                            typ: <span class="string">"Field"</span>,
+                        }));
+                    }
+                    U1(<span class="kw">_</span>) =&gt; {
+                        <span class="kw">return </span><span class="prelude-val">Err</span>(internal(InternalError::UnsupportedOperatorForType {
+                            operator: <span class="string">"&gt;&gt;"</span>,
+                            typ: <span class="string">"u1"</span>,
+                        }));
+                    }
                     U8(value) =&gt; value.checked_shr(rhs).map(U8).unwrap_or_else(zero),
                     U16(value) =&gt; value.checked_shr(rhs).map(U16).unwrap_or_else(zero),
                     U32(value) =&gt; value.checked_shr(rhs).map(U32).unwrap_or_else(zero),
@@ -1740,26 +2253,34 @@
         lhs: FieldElement,
         operator: BinaryOp,
         rhs: FieldElement,
+        lhs_id: ValueId,
+        rhs_id: ValueId,
     ) -&gt; IResult&lt;Value&gt; {
+        <span class="kw">let </span>unsupported_operator = |operator| -&gt; IResult&lt;Value&gt; {
+            <span class="kw">let </span>typ = <span class="string">"Field"</span>;
+            <span class="prelude-val">Err</span>(internal(InternalError::UnsupportedOperatorForType { operator, typ }))
+        };
+
         <span class="kw">let </span>result = <span class="kw">match </span>operator {
             BinaryOp::Add { unchecked: <span class="kw">_ </span>} =&gt; NumericValue::Field(lhs + rhs),
             BinaryOp::Sub { unchecked: <span class="kw">_ </span>} =&gt; NumericValue::Field(lhs - rhs),
             BinaryOp::Mul { unchecked: <span class="kw">_ </span>} =&gt; NumericValue::Field(lhs * rhs),
             BinaryOp::Div =&gt; {
-                <span class="comment">// FieldElement::div returns a value with panicking on divide by zero
-                </span><span class="kw">if </span>rhs.is_zero() {
-                    <span class="macro">panic!</span>(<span class="string">"Field division by zero"</span>);
+                <span class="kw">if </span>rhs.is_zero() {
+                    <span class="kw">let </span>lhs = lhs.to_string();
+                    <span class="kw">let </span>rhs = rhs.to_string();
+                    <span class="kw">return </span><span class="prelude-val">Err</span>(InterpreterError::DivisionByZero { lhs_id, lhs, rhs_id, rhs });
                 }
                 NumericValue::Field(lhs / rhs)
             }
-            BinaryOp::Mod =&gt; <span class="macro">panic!</span>(<span class="string">"Unsupported operator `%` for Field"</span>),
+            BinaryOp::Mod =&gt; <span class="kw">return </span>unsupported_operator(<span class="string">"%"</span>),
             BinaryOp::Eq =&gt; NumericValue::U1(lhs == rhs),
             BinaryOp::Lt =&gt; NumericValue::U1(lhs &lt; rhs),
-            BinaryOp::And =&gt; <span class="macro">panic!</span>(<span class="string">"Unsupported operator `&amp;` for Field"</span>),
-            BinaryOp::Or =&gt; <span class="macro">panic!</span>(<span class="string">"Unsupported operator `|` for Field"</span>),
-            BinaryOp::Xor =&gt; <span class="macro">panic!</span>(<span class="string">"Unsupported operator `^` for Field"</span>),
-            BinaryOp::Shl =&gt; <span class="macro">panic!</span>(<span class="string">"Unsupported operator `&lt;&lt;` for Field"</span>),
-            BinaryOp::Shr =&gt; <span class="macro">panic!</span>(<span class="string">"Unsupported operator `&gt;&gt;` for Field"</span>),
+            BinaryOp::And =&gt; <span class="kw">return </span>unsupported_operator(<span class="string">"&amp;"</span>),
+            BinaryOp::Or =&gt; <span class="kw">return </span>unsupported_operator(<span class="string">"|"</span>),
+            BinaryOp::Xor =&gt; <span class="kw">return </span>unsupported_operator(<span class="string">"^"</span>),
+            BinaryOp::Shl =&gt; <span class="kw">return </span>unsupported_operator(<span class="string">"&lt;&lt;"</span>),
+            BinaryOp::Shr =&gt; <span class="kw">return </span>unsupported_operator(<span class="string">"&gt;&gt;"</span>),
         };
         <span class="prelude-val">Ok</span>(Value::Numeric(result))
     }
@@ -1770,45 +2291,52 @@
         operator: BinaryOp,
         rhs: bool,
     ) -&gt; IResult&lt;Value&gt; {
+        <span class="kw">let </span>unsupported_operator = |operator| -&gt; IResult&lt;Value&gt; {
+            <span class="kw">let </span>typ = <span class="string">"u1"</span>;
+            <span class="prelude-val">Err</span>(internal(InternalError::UnsupportedOperatorForType { operator, typ }))
+        };
+
         <span class="kw">let </span>result = <span class="kw">match </span>operator {
-            BinaryOp::Add { unchecked: <span class="kw">_ </span>} =&gt; <span class="macro">panic!</span>(<span class="string">"Unsupported operator `+` for u1"</span>),
-            BinaryOp::Sub { unchecked: <span class="kw">_ </span>} =&gt; <span class="macro">panic!</span>(<span class="string">"Unsupported operator `-` for u1"</span>),
+            BinaryOp::Add { unchecked: <span class="kw">_ </span>} =&gt; <span class="kw">return </span>unsupported_operator(<span class="string">"+"</span>),
+            BinaryOp::Sub { unchecked: <span class="kw">_ </span>} =&gt; <span class="kw">return </span>unsupported_operator(<span class="string">"-"</span>),
             BinaryOp::Mul { unchecked: <span class="kw">_ </span>} =&gt; lhs &amp; rhs, <span class="comment">// (*) = (&amp;) for u1
-            </span>BinaryOp::Div =&gt; <span class="macro">panic!</span>(<span class="string">"Unsupported operator `/` for u1"</span>),
-            BinaryOp::Mod =&gt; <span class="macro">panic!</span>(<span class="string">"Unsupported operator `%` for u1"</span>),
+            </span>BinaryOp::Div =&gt; <span class="kw">return </span>unsupported_operator(<span class="string">"/"</span>),
+            BinaryOp::Mod =&gt; <span class="kw">return </span>unsupported_operator(<span class="string">"%"</span>),
             BinaryOp::Eq =&gt; lhs == rhs,
             <span class="comment">// clippy complains when you do `lhs &lt; rhs` and recommends this instead
             </span>BinaryOp::Lt =&gt; !lhs &amp; rhs,
             BinaryOp::And =&gt; lhs &amp; rhs,
             BinaryOp::Or =&gt; lhs | rhs,
             BinaryOp::Xor =&gt; lhs ^ rhs,
-            BinaryOp::Shl =&gt; <span class="macro">panic!</span>(<span class="string">"Unsupported operator `&lt;&lt;` for u1"</span>),
-            BinaryOp::Shr =&gt; <span class="macro">panic!</span>(<span class="string">"Unsupported operator `&gt;&gt;` for u1"</span>),
+            BinaryOp::Shl =&gt; <span class="kw">return </span>unsupported_operator(<span class="string">"&lt;&lt;"</span>),
+            BinaryOp::Shr =&gt; <span class="kw">return </span>unsupported_operator(<span class="string">"&gt;&gt;"</span>),
         };
         <span class="prelude-val">Ok</span>(Value::Numeric(NumericValue::U1(result)))
     }
 }
 
-<span class="kw">fn </span>truncate_unsigned&lt;T&gt;(value: T, bit_size: u32) -&gt; T
+<span class="kw">fn </span>truncate_unsigned&lt;T&gt;(value: T, bit_size: u32) -&gt; IResult&lt;T&gt;
 <span class="kw">where
     </span>u128: From&lt;T&gt;,
     T: TryFrom&lt;u128&gt;,
     &lt;T <span class="kw">as </span>TryFrom&lt;u128&gt;&gt;::Error: std::fmt::Debug,
 {
     <span class="kw">let </span>value_u128 = u128::from(value);
-    <span class="kw">let </span>bit_mask = <span class="kw">match </span>bit_size.cmp(<span class="kw-2">&amp;</span><span class="number">128</span>) {
+    <span class="kw">let </span>bit_mask = <span class="kw">match </span>bit_size.cmp(<span class="kw-2">&amp;</span>MAX_UNSIGNED_BIT_SIZE) {
         Ordering::Less =&gt; (<span class="number">1u128 </span>&lt;&lt; bit_size) - <span class="number">1</span>,
         Ordering::Equal =&gt; u128::MAX,
-        Ordering::Greater =&gt; <span class="macro">panic!</span>(<span class="string">"truncate: Invalid bit size: {bit_size}"</span>),
+        Ordering::Greater =&gt; {
+            <span class="kw">return </span><span class="prelude-val">Err</span>(internal(InternalError::InvalidUnsignedTruncateBitSize { bit_size }));
+        }
     };
 
     <span class="kw">let </span>result = value_u128 &amp; bit_mask;
-    T::try_from(result).expect(
+    <span class="prelude-val">Ok</span>(T::try_from(result).expect(
         <span class="string">"The truncated result should always be smaller than or equal to the original `value`"</span>,
-    )
+    ))
 }
 
-<span class="kw">fn </span>truncate_signed&lt;T&gt;(value: T, bit_size: u32) -&gt; T
+<span class="kw">fn </span>truncate_signed&lt;T&gt;(value: T, bit_size: u32) -&gt; IResult&lt;T&gt;
 <span class="kw">where
     </span>i128: From&lt;T&gt;,
     T: TryFrom&lt;i128&gt; + num_traits::Bounded,
@@ -1818,48 +2346,54 @@
     <span class="kw">if </span>value_i128 &lt; <span class="number">0 </span>{
         <span class="kw">let </span>max = <span class="number">1i128 </span>&lt;&lt; (bit_size - <span class="number">1</span>);
         value_i128 += max;
-        <span class="macro">assert!</span>(bit_size &lt;= <span class="number">64</span>, <span class="string">"The maximum bit size for signed integers is 64"</span>);
+        <span class="kw">if </span>bit_size &gt; MAX_SIGNED_BIT_SIZE {
+            <span class="kw">return </span><span class="prelude-val">Err</span>(internal(InternalError::InvalidSignedTruncateBitSize { bit_size }));
+        }
 
         <span class="kw">let </span>mask = (<span class="number">1i128 </span>&lt;&lt; bit_size) - <span class="number">1</span>;
         <span class="kw">let </span>result = (value_i128 &amp; mask) - max;
 
-        T::try_from(result).expect(
+        <span class="prelude-val">Ok</span>(T::try_from(result).expect(
             <span class="string">"The truncated result should always be smaller than or equal to the original `value`"</span>,
-        )
+        ))
     } <span class="kw">else </span>{
-        <span class="kw">let </span>result = truncate_unsigned::&lt;u128&gt;(value_i128 <span class="kw">as </span>u128, bit_size) <span class="kw">as </span>i128;
-        T::try_from(result).expect(
+        <span class="kw">let </span>result = truncate_unsigned::&lt;u128&gt;(value_i128 <span class="kw">as </span>u128, bit_size)<span class="question-mark">? </span><span class="kw">as </span>i128;
+        <span class="prelude-val">Ok</span>(T::try_from(result).expect(
             <span class="string">"The truncated result should always be smaller than or equal to the original `value`"</span>,
-        )
+        ))
     }
+}
+
+<span class="kw">fn </span>internal(error: InternalError) -&gt; InterpreterError {
+    InterpreterError::Internal(error)
 }
 
 <span class="attr">#[cfg(test)]
 </span><span class="kw">mod </span>test {
     <span class="attr">#[test]
     </span><span class="kw">fn </span>test_truncate_unsigned() {
-        <span class="macro">assert_eq!</span>(<span class="kw">super</span>::truncate_unsigned(<span class="number">57_u32</span>, <span class="number">8</span>), <span class="number">57</span>);
-        <span class="macro">assert_eq!</span>(<span class="kw">super</span>::truncate_unsigned(<span class="number">257_u16</span>, <span class="number">8</span>), <span class="number">1</span>);
-        <span class="macro">assert_eq!</span>(<span class="kw">super</span>::truncate_unsigned(<span class="number">130_u8</span>, <span class="number">7</span>), <span class="number">2</span>);
-        <span class="macro">assert_eq!</span>(<span class="kw">super</span>::truncate_unsigned(u8::MAX, <span class="number">8</span>), u8::MAX);
-        <span class="macro">assert_eq!</span>(<span class="kw">super</span>::truncate_unsigned(u128::MAX, <span class="number">128</span>), u128::MAX);
+        <span class="macro">assert_eq!</span>(<span class="kw">super</span>::truncate_unsigned(<span class="number">57_u32</span>, <span class="number">8</span>).unwrap(), <span class="number">57</span>);
+        <span class="macro">assert_eq!</span>(<span class="kw">super</span>::truncate_unsigned(<span class="number">257_u16</span>, <span class="number">8</span>).unwrap(), <span class="number">1</span>);
+        <span class="macro">assert_eq!</span>(<span class="kw">super</span>::truncate_unsigned(<span class="number">130_u8</span>, <span class="number">7</span>).unwrap(), <span class="number">2</span>);
+        <span class="macro">assert_eq!</span>(<span class="kw">super</span>::truncate_unsigned(u8::MAX, <span class="number">8</span>).unwrap(), u8::MAX);
+        <span class="macro">assert_eq!</span>(<span class="kw">super</span>::truncate_unsigned(u128::MAX, <span class="number">128</span>).unwrap(), u128::MAX);
     }
 
     <span class="attr">#[test]
     </span><span class="kw">fn </span>test_truncate_signed() {
-        <span class="macro">assert_eq!</span>(<span class="kw">super</span>::truncate_signed(<span class="number">57_i32</span>, <span class="number">8</span>), <span class="number">57</span>);
-        <span class="macro">assert_eq!</span>(<span class="kw">super</span>::truncate_signed(<span class="number">257_i16</span>, <span class="number">8</span>), <span class="number">1</span>);
-        <span class="macro">assert_eq!</span>(<span class="kw">super</span>::truncate_signed(<span class="number">130_i64</span>, <span class="number">7</span>), <span class="number">2</span>);
-        <span class="macro">assert_eq!</span>(<span class="kw">super</span>::truncate_signed(i16::MAX, <span class="number">16</span>), i16::MAX);
+        <span class="macro">assert_eq!</span>(<span class="kw">super</span>::truncate_signed(<span class="number">57_i32</span>, <span class="number">8</span>).unwrap(), <span class="number">57</span>);
+        <span class="macro">assert_eq!</span>(<span class="kw">super</span>::truncate_signed(<span class="number">257_i16</span>, <span class="number">8</span>).unwrap(), <span class="number">1</span>);
+        <span class="macro">assert_eq!</span>(<span class="kw">super</span>::truncate_signed(<span class="number">130_i64</span>, <span class="number">7</span>).unwrap(), <span class="number">2</span>);
+        <span class="macro">assert_eq!</span>(<span class="kw">super</span>::truncate_signed(i16::MAX, <span class="number">16</span>).unwrap(), i16::MAX);
 
-        <span class="macro">assert_eq!</span>(<span class="kw">super</span>::truncate_signed(-<span class="number">57_i32</span>, <span class="number">8</span>), -<span class="number">57</span>);
-        <span class="macro">assert_eq!</span>(<span class="kw">super</span>::truncate_signed(-<span class="number">1_i64</span>, <span class="number">3</span>), -<span class="number">1_i64</span>);
-        <span class="macro">assert_eq!</span>(<span class="kw">super</span>::truncate_signed(-<span class="number">258_i16</span>, <span class="number">8</span>), -<span class="number">2</span>);
-        <span class="macro">assert_eq!</span>(<span class="kw">super</span>::truncate_signed(-<span class="number">130_i16</span>, <span class="number">7</span>), -<span class="number">2</span>);
-        <span class="macro">assert_eq!</span>(<span class="kw">super</span>::truncate_signed(i8::MIN, <span class="number">8</span>), i8::MIN);
-        <span class="macro">assert_eq!</span>(<span class="kw">super</span>::truncate_signed(-<span class="number">8_i8</span>, <span class="number">4</span>), -<span class="number">8</span>);
-        <span class="macro">assert_eq!</span>(<span class="kw">super</span>::truncate_signed(-<span class="number">8_i8</span>, <span class="number">3</span>), <span class="number">0</span>);
-        <span class="macro">assert_eq!</span>(<span class="kw">super</span>::truncate_signed(-<span class="number">129_i32</span>, <span class="number">8</span>), <span class="number">127</span>);
+        <span class="macro">assert_eq!</span>(<span class="kw">super</span>::truncate_signed(-<span class="number">57_i32</span>, <span class="number">8</span>).unwrap(), -<span class="number">57</span>);
+        <span class="macro">assert_eq!</span>(<span class="kw">super</span>::truncate_signed(-<span class="number">1_i64</span>, <span class="number">3</span>).unwrap(), -<span class="number">1_i64</span>);
+        <span class="macro">assert_eq!</span>(<span class="kw">super</span>::truncate_signed(-<span class="number">258_i16</span>, <span class="number">8</span>).unwrap(), -<span class="number">2</span>);
+        <span class="macro">assert_eq!</span>(<span class="kw">super</span>::truncate_signed(-<span class="number">130_i16</span>, <span class="number">7</span>).unwrap(), -<span class="number">2</span>);
+        <span class="macro">assert_eq!</span>(<span class="kw">super</span>::truncate_signed(i8::MIN, <span class="number">8</span>).unwrap(), i8::MIN);
+        <span class="macro">assert_eq!</span>(<span class="kw">super</span>::truncate_signed(-<span class="number">8_i8</span>, <span class="number">4</span>).unwrap(), -<span class="number">8</span>);
+        <span class="macro">assert_eq!</span>(<span class="kw">super</span>::truncate_signed(-<span class="number">8_i8</span>, <span class="number">3</span>).unwrap(), <span class="number">0</span>);
+        <span class="macro">assert_eq!</span>(<span class="kw">super</span>::truncate_signed(-<span class="number">129_i32</span>, <span class="number">8</span>).unwrap(), <span class="number">127</span>);
     }
 }
 </code></pre></div></section></main></body></html>
