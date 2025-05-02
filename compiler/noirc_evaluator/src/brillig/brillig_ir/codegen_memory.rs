@@ -416,7 +416,7 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
         );
     }
 
-    /// Initializes a vector, allocating memory to store its representation and initializing the reference counter
+    /// Initializes a vector, allocating memory to store its representation and initializing the reference counter, size and capacity
     pub(crate) fn codegen_initialize_vector(
         &mut self,
         vector: BrilligVector,
