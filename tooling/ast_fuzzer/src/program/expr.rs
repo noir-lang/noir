@@ -437,7 +437,7 @@ pub fn prepend_block(block: Expression, statements: Vec<Expression>) -> Expressi
     Expression::Block(result_statements)
 }
 
-/// Check if an expression returns a certain type.
+/// The return type of an expression, if it has an obvious one.
 pub fn return_type(expr: &Expression) -> Option<&Type> {
     match expr {
         Expression::Ident(ident) => Some(&ident.typ),
