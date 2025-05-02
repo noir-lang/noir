@@ -834,13 +834,22 @@ impl<F: AcirField, B: BlackBoxFunctionSolver<F>> AcirContext<F, B> {
             // It is possible that we have an AcirVar which is a result of a multiplication of constants
             // which resulted in an overflow, but that check will only happen at runtime, and here we
             // can't assume that the RHS will never have more bits than the operand.
-            let max_q_bits = if max_rhs_bits > bit_size {
-                // Ignore what we know about the constant and let the runtime handle it.
-                bit_size
-            } else {
-                bit_size - max_rhs_bits + 1
-            };
-            (max_q_bits, max_rhs_bits)
+            // Alternatively if the RHS is a result of an underflow, it could be a negative number which
+            // is represented by a very large positive Field, which could fail to compile to ACIR in
+            // `range_constrain_var` below, because it can use all 254 bits.
+
+            // To avoid any uncertainty about how the rest of the calls would behave if we pretended that we
+            // didn't know that the RHS has more bits than the operation assumes, we return zero and add an
+            // assertion which will fail at runtime.
+            if max_rhs_bits > bit_size {
+                let msg = format!(
+                    "attempted to divide by constant larger than operand type: {max_rhs_bits} > {bit_size}"
+                );
+                let msg = self.generate_assertion_message_payload(msg);
+                self.assert_eq_var(zero, one, Some(msg))?;
+                return Ok((zero, zero));
+            }
+            (bit_size - max_rhs_bits + 1, max_rhs_bits)
         } else {
             (bit_size, bit_size)
         };

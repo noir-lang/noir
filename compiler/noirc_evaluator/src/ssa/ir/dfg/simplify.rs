@@ -24,6 +24,8 @@ mod call;
 mod cast;
 mod constrain;
 
+pub(crate) use call::constant_to_radix;
+
 /// Contains the result to Instruction::simplify, specifying how the instruction
 /// should be simplified.
 pub(crate) enum SimplifyResult {
