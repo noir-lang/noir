@@ -412,7 +412,7 @@ mod tests {
 
         // This could be `.par_iter()` but then error messages are no longer reported
         test_workspaces.iter().for_each(|workspace| {
-            let debug_compile_stdin = false;
+            let debug_compile_stdin = None;
             let (file_manager, parsed_files) = parse_workspace(workspace, debug_compile_stdin);
             let binary_packages = workspace.into_iter().filter(|package| package.is_binary());
 
