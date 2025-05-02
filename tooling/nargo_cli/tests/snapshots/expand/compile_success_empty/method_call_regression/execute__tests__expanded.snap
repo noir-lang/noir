@@ -12,13 +12,13 @@ struct Struct<A, B> {
     b: B,
 }
 
-impl Struct<u32, ()> {
+impl Struct<u8, u8> {
     fn foo(self) {
         let _: Self = self;
     }
 }
 
-impl Struct<u8, u8> {
+impl Struct<u32, ()> {
     fn foo(self) {
         let _: Self = self;
     }
