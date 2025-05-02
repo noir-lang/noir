@@ -103,7 +103,7 @@ impl CompareResult {
             CompareResult::BothPassed(o1, o2) => {
                 if o1.return_value != o2.return_value {
                     bail!(
-                        "programs disagree on return value: {:?} != {:?}",
+                        "programs disagree on return value:\n{:?}\n!=\n{:?}",
                         o1.return_value,
                         o2.return_value
                     )
