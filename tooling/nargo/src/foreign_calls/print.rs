@@ -20,18 +20,18 @@ impl<F: AcirField, W: std::io::Write> ForeignCallExecutor<F> for PrintForeignCal
     /// Below we outline the expected inputs.
     ///
     /// For regular printing:
-    /// [print_newline][ForeignCallParam::Single]: 0 for print, 1 for println
-    /// [value_to_print][ForeignCallParam::Array]: The field values representing the actual value to print
-    /// [type_metadata][ForeignCallParam::Array]: Field values representing the JSON encoded type, which tells us how to print the above value
-    /// [is_fmt_str][ForeignCallParam::Single]: 0 for regular string, 1 for indicating we have a format string
+    /// [print_newline][acvm::acir::brillig::ForeignCallParam::Single]: 0 for print, 1 for println
+    /// [value_to_print][acvm::acir::brillig::ForeignCallParam::Array]: The field values representing the actual value to print
+    /// [type_metadata][acvm::acir::brillig::ForeignCallParam::Array]: Field values representing the JSON encoded type, which tells us how to print the above value
+    /// [is_fmt_str][acvm::acir::brillig::ForeignCallParam::Single]: 0 for regular string, 1 for indicating we have a format string
     ///
     /// For printing a format string:
-    /// [print_newline][ForeignCallParam::Single]: 0 for print, 1 for println
-    /// [message][ForeignCallParam::Array]: The fmtstr as a regular string
-    /// [num_values][ForeignCallParam::Single]: Number of values in the fmtstr
-    /// [[value_to_print][ForeignCallParam::Array]; N]: Array of the field values for each value in the fmtstr
-    /// [[type_metadata][ForeignCallParam::Array]; N]: Array of field values representing the JSON encoded types
-    /// [is_fmt_str][ForeignCallParam::Single]: 0 for regular string, 1 for indicating we have a format string
+    /// [print_newline][acvm::acir::brillig::ForeignCallParam::Single]: 0 for print, 1 for println
+    /// [message][acvm::acir::brillig::ForeignCallParam::Array]: The fmtstr as a regular string
+    /// [num_values][acvm::acir::brillig::ForeignCallParam::Single]: Number of values in the fmtstr
+    /// [[value_to_print][acvm::acir::brillig::ForeignCallParam::Array]; N]: Array of the field values for each value in the fmtstr
+    /// [[type_metadata][acvm::acir::brillig::ForeignCallParam::Array]; N]: Array of field values representing the JSON encoded types
+    /// [is_fmt_str][acvm::acir::brillig::ForeignCallParam::Single]: 0 for regular string, 1 for indicating we have a format string
     fn execute(
         &mut self,
         foreign_call: &ForeignCallWaitInfo<F>,
