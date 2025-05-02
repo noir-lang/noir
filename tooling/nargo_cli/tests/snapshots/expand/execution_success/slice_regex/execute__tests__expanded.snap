@@ -58,7 +58,7 @@ impl<let N: u32> Regex for str<N> {
     }
 }
 
-impl<U, T> Regex for (T, U)
+impl<T, U> Regex for (T, U)
 where
     T: Regex,
     U: Regex,
@@ -90,7 +90,7 @@ struct Repeated<T, let N: u32> {
     inner: T,
 }
 
-impl<T, let N: u32> Regex for Repeated<T, N>
+impl<let N: u32, T> Regex for Repeated<T, N>
 where
     T: Regex,
 {
@@ -175,7 +175,7 @@ struct Plus<T, let N: u32, let N_PRED: u32> {
     inner: T,
 }
 
-impl<T, let N: u32, let N_PRED: u32> Regex for Plus<T, N, N_PRED>
+impl<let N: u32, let N_PRED: u32, T> Regex for Plus<T, N, N_PRED>
 where
     T: Regex,
 {

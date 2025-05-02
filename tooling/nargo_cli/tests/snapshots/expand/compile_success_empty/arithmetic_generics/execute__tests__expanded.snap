@@ -43,7 +43,7 @@ pub struct Equiv<T, TU, U, UT> {
     fro_: fn[UT](U) -> T,
 }
 
-impl<U, T, UT, TU> Equiv<T, TU, U, UT> {
+impl<T, TU, U, UT> Equiv<T, TU, U, UT> {
     fn to(self, x: T) -> U {
         (self.to_)(x)
     }

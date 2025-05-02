@@ -13,7 +13,7 @@ struct MyType<T> {
     d: T,
 }
 
-impl<T, let N: u32> Deserialize<N> for MyType<T>
+impl<let N: u32, T> Deserialize<N> for MyType<T>
 where
     T: Default2,
 {

@@ -20,12 +20,12 @@ trait Serialize<let N: u32> {}
 
 impl Serialize<1> for Field {}
 
-impl<let M: u32, T, let N: u32> Serialize<N * M> for [T; N]
+impl<let M: u32, let N: u32, T> Serialize<N * M> for [T; N]
 where
     T: Serialize<M>,
 {}
 
-impl<T, U, let N: u32, let M: u32> Serialize<N + M> for (T, U)
+impl<let M: u32, let N: u32, T, U> Serialize<N + M> for (T, U)
 where
     T: Serialize<N>,
     U: Serialize<M>,

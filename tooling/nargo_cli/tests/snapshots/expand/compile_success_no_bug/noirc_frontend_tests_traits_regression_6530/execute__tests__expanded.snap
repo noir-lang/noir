@@ -10,7 +10,7 @@ pub trait Into2<T> {
     fn into2(self) -> T;
 }
 
-impl<U, T> Into2<T> for U
+impl<T, U> Into2<T> for U
 where
     T: From2<U>,
 {

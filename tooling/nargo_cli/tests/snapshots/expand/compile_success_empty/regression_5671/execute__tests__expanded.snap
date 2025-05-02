@@ -7,7 +7,7 @@ struct MyOtherStruct<A, B> {
     field2: B,
 }
 
-impl<B, A> Eq for MyOtherStruct<A, B>
+impl<A, B> Eq for MyOtherStruct<A, B>
 where
     A: Eq,
     B: Eq,

@@ -13,7 +13,7 @@ use noirc_frontend::{
         FuncId, GlobalId, ImplMethod, Methods, TraitId, TraitImplId, TypeAliasId, TypeId,
     },
 };
-use std::collections::{HashMap, HashSet};
+use std::collections::{BTreeSet, HashMap, HashSet};
 
 use noirc_driver::CrateId;
 use noirc_frontend::{
@@ -65,13 +65,13 @@ pub(super) struct Trait {
 }
 
 pub(super) struct Impl {
-    pub(super) generics: HashSet<(String, Kind)>,
+    pub(super) generics: BTreeSet<(String, Kind)>,
     pub(super) typ: Type,
     pub(super) methods: Vec<(ItemVisibility, FuncId)>,
 }
 
 pub(super) struct TraitImpl {
-    pub(super) generics: HashSet<(String, Kind)>,
+    pub(super) generics: BTreeSet<(String, Kind)>,
     pub(super) id: TraitImplId,
     pub(super) methods: Vec<FuncId>,
 }
@@ -233,7 +233,7 @@ impl<'interner, 'def_map> ItemBuilder<'interner, 'def_map> {
     }
 
     fn build_impl(&mut self, typ: Type, methods: Vec<ImplMethod>) -> Impl {
-        let mut generics = HashSet::new();
+        let mut generics = BTreeSet::new();
         gather_named_type_vars(&typ, &mut generics);
 
         let mut methods = methods
@@ -310,7 +310,7 @@ impl<'interner, 'def_map> ItemBuilder<'interner, 'def_map> {
         let trait_impl = self.interner.get_trait_implementation(trait_impl_id);
         let trait_impl = trait_impl.borrow();
 
-        let mut type_var_names = HashSet::new();
+        let mut type_var_names = BTreeSet::new();
         for generic in &trait_impl.trait_generics {
             gather_named_type_vars(generic, &mut type_var_names);
         }
@@ -407,7 +407,7 @@ impl<'interner, 'def_map> ItemBuilder<'interner, 'def_map> {
     }
 }
 
-fn gather_named_type_vars(typ: &Type, type_vars: &mut HashSet<(String, Kind)>) {
+fn gather_named_type_vars(typ: &Type, type_vars: &mut BTreeSet<(String, Kind)>) {
     match typ {
         Type::Array(length, typ) => {
             gather_named_type_vars(length, type_vars);

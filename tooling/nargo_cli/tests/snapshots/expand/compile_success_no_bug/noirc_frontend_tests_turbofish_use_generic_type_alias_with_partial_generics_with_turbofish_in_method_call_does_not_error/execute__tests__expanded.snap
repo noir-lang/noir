@@ -7,7 +7,7 @@ pub struct Foo<T, U> {
     y: U,
 }
 
-impl<U, T> Foo<T, U> {
+impl<T, U> Foo<T, U> {
     fn new(x: T, y: U) -> Self {
         Self { x: x, y: y }
     }

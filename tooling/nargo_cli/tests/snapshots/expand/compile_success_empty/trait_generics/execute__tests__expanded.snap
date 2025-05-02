@@ -22,7 +22,7 @@ trait MyInto<T> {
     fn into(self) -> T;
 }
 
-impl<U, T, let N: u32> MyInto<[U; N]> for [T; N]
+impl<let N: u32, T, U> MyInto<[U; N]> for [T; N]
 where
     T: MyInto<U>,
 {
