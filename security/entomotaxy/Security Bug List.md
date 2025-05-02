@@ -52,10 +52,8 @@ This list is a collection of bugs. Its goal is to help developers, auditors and 
 | NoirVD-ACIR-ID | Component | Short description | Type | Potential Impact | Mechanism of finding | Found with a tool? | Found internally (yes or no) | Found by | Link to issue | Link to fix | Link to description |
 |-----------|-----------|-------------------|------|------------------|----------------------|-------------------|------------------------------|-----------|--------------|------------|---------------------|
 | NoirVD-ACIR-001 | ACIR generation | Casting `Field` to `u128` failed | Completeness | Compiler crash on valid code | ast_fuzzer | Yes | Yes | @aakoshh | https://github.com/noir-lang/noir/issues/8024 https://github.com/noir-lang/noir/issues/8175  | https://github.com/noir-lang/noir/issues/8180    |  |
-| NoirVD-ACIR-002 | ACIR generation | Handling constant overflows | Completeness | Compiler crash on valid code | ast_fuzzer | Yes | Yes | @aakoshh | https://github.com/noir-lang/noir/issues/8195  | https://github.com/noir-lang/noir/issues/8197   |  |
+| NoirVD-ACIR-002 | ACIR generation | Handling constant overflows | Completeness | Compilation failure or crash on valid code | ast_fuzzer | Yes | Yes | @aakoshh | https://github.com/noir-lang/noir/issues/8195 https://github.com/noir-lang/noir/issues/8272 https://github.com/noir-lang/noir/issues/8274 | https://github.com/noir-lang/noir/issues/8197 https://github.com/noir-lang/noir/issues/8294   |  |
 | NoirVD-ACIR-003 | ACIR generation | Handling constant zero | Completeness | Assertion failure only in ACIR | ast_fuzzer | Yes | Yes | @aakoshh | https://github.com/noir-lang/noir/issues/8235  | https://github.com/noir-lang/noir/issues/8243   |  |
-| NoirVD-ACIR-004 | ACIR generation | Handling negative constants | Completeness | Assertion failure only in ACIR | ast_fuzzer | Yes | Yes | @aakoshh | https://github.com/noir-lang/noir/issues/8272  |   |  |
-| NoirVD-ACIR-005 | ACIR generation | Handling constant overflows | Completeness | Compiler crash on valid code | ast_fuzzer | Yes | Yes | @aakoshh | https://github.com/noir-lang/noir/issues/8274  |   |  |
 
 ### Brillig
 
