@@ -56,7 +56,7 @@ fn rewrite_expr(
                 let range_ctx = rules::Context { is_in_range: true, ..*ctx };
                 rewrite_expr(&range_ctx, u, &mut for_.start_range, rules);
                 rewrite_expr(&range_ctx, u, &mut for_.end_range, rules);
-                rewrite_expr(&ctx, u, &mut for_.block, rules);
+                rewrite_expr(ctx, u, &mut for_.block, rules);
                 // No need to visit children, we just visited them.
                 false
             }
