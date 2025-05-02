@@ -431,7 +431,7 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
     ///
     /// This is the standard initialization used for most local or temporary vectors.
     /// If the vector should be treated as constant (e.g., a global), use
-    /// [BrilligContext::codegen_initialize_constant_vector`] instead.
+    /// [BrilligContext::codegen_initialize_constant_vector] instead.
     pub(crate) fn codegen_initialize_vector(
         &mut self,
         vector: BrilligVector,
