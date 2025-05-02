@@ -1,13 +1,9 @@
-use std::str;
-
-use acvm::{AcirField, FieldElement, acir::brillig::ForeignCallParam};
+use acvm::{FieldElement, acir::brillig::ForeignCallParam};
 use iter_extended::vecmap;
-use noirc_printable_type::{
-    PrintableType, PrintableValueDisplay, decode_value as decode_printable_value,
-};
+use noirc_printable_type::{TryFromParamsError, try_from_params};
 
 use crate::{
-    errors::RuntimeError,
+    errors::{InternalError, RuntimeError},
     ssa::{
         ir::{
             dfg::DataFlowGraph,
@@ -149,10 +145,24 @@ fn evaluate_static_assert(
         append_foreign_call_param(*arg, &function.dfg, &mut foreign_call_params);
     }
 
-    let display_values = try_from_params(&foreign_call_params);
-    let message = display_values.to_string();
+    match try_from_params(&foreign_call_params) {
+        Ok(display_values) => {
+            let message = display_values.to_string();
+            Err(RuntimeError::StaticAssertFailed { message, call_stack })
+        }
+        Err(err) => {
+            let message = match err {
+                TryFromParamsError::MissingForeignCallInputs => {
+                    "ICE: missing foreign call inputs".to_string()
+                }
+                TryFromParamsError::CouldNotDecodePrintableType(error) => {
+                    format!("ICE: could not decode printable type {:?}", error)
+                }
+            };
 
-    Err(RuntimeError::StaticAssertFailed { message, call_stack })
+            Err(RuntimeError::InternalError(InternalError::General { message, call_stack }))
+        }
+    }
 }
 
 fn append_foreign_call_param(
@@ -170,86 +180,4 @@ fn append_foreign_call_param(
     } else {
         panic!("ICE: expected constant value");
     }
-}
-
-// NOTE: the code here is a copy of tooling/nargo/src/foreign_calls/print.rs
-// It currently isn't imported because that would end up in a circular dependency.
-fn try_from_params(
-    foreign_call_inputs: &[ForeignCallParam<FieldElement>],
-) -> PrintableValueDisplay<FieldElement> {
-    let (is_fmt_str, foreign_call_inputs) =
-        foreign_call_inputs.split_last().expect("Missing foreign call inputs");
-
-    if is_fmt_str.unwrap_field().is_one() {
-        convert_fmt_string_inputs(foreign_call_inputs)
-    } else {
-        convert_string_inputs(foreign_call_inputs)
-    }
-}
-
-fn convert_string_inputs(
-    foreign_call_inputs: &[ForeignCallParam<FieldElement>],
-) -> PrintableValueDisplay<FieldElement> {
-    // Fetch the PrintableType from the foreign call input
-    // The remaining input values should hold what is to be printed
-    let (printable_type_as_values, input_values) =
-        foreign_call_inputs.split_last().expect("Missing foreign call inputs");
-    let printable_type = fetch_printable_type(printable_type_as_values);
-
-    // We must use a flat map here as each value in a struct will be in a separate input value
-    let mut input_values_as_fields = input_values.iter().flat_map(|param| param.fields());
-
-    let value = decode_printable_value(&mut input_values_as_fields, &printable_type);
-
-    PrintableValueDisplay::Plain(value, printable_type)
-}
-
-fn convert_fmt_string_inputs(
-    foreign_call_inputs: &[ForeignCallParam<FieldElement>],
-) -> PrintableValueDisplay<FieldElement> {
-    let (message, input_and_printable_types) =
-        foreign_call_inputs.split_first().expect("Missing foreign call inputs");
-
-    let message_as_fields = message.fields();
-    let message_as_string = decode_string_value(&message_as_fields);
-
-    let (num_values, input_and_printable_types) =
-        input_and_printable_types.split_first().expect("Missing foreign call inputs");
-
-    let mut output = Vec::new();
-    let num_values = num_values.unwrap_field().to_u128() as usize;
-
-    let types_start_at = input_and_printable_types.len() - num_values;
-
-    let mut input_iter =
-        input_and_printable_types[0..types_start_at].iter().flat_map(|param| param.fields());
-    for printable_type in input_and_printable_types.iter().skip(types_start_at) {
-        let printable_type = fetch_printable_type(printable_type);
-        let value = decode_printable_value(&mut input_iter, &printable_type);
-
-        output.push((value, printable_type));
-    }
-
-    PrintableValueDisplay::FmtString(message_as_string, output)
-}
-
-fn fetch_printable_type(printable_type: &ForeignCallParam<FieldElement>) -> PrintableType {
-    let printable_type_as_fields = printable_type.fields();
-    let printable_type_as_string = decode_string_value(&printable_type_as_fields);
-    let printable_type: PrintableType =
-        serde_json::from_str(&printable_type_as_string).expect("Could not decode printable type");
-
-    printable_type
-}
-
-fn decode_string_value<F: AcirField>(field_elements: &[F]) -> String {
-    let string_as_slice = vecmap(field_elements, |e| {
-        let mut field_as_bytes = e.to_be_bytes();
-        let char_byte = field_as_bytes.pop().unwrap(); // A character in a string is represented by a u8, thus we just want the last byte of the element
-        assert!(field_as_bytes.into_iter().all(|b| b == 0)); // Assert that the rest of the field element's bytes are empty
-        char_byte
-    });
-
-    let final_string = str::from_utf8(&string_as_slice).unwrap();
-    final_string.to_owned()
 }

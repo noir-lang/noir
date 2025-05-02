@@ -3753,6 +3753,7 @@ dependencies = [
  "iter-extended",
  "proptest",
  "serde",
+ "serde_json",
 ]
 
 [[package]]

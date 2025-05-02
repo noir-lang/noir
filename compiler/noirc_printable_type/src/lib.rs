@@ -5,7 +5,7 @@
 
 use std::{collections::BTreeMap, str};
 
-use acvm::AcirField;
+use acvm::{AcirField, acir::brillig::ForeignCallParam};
 
 use iter_extended::vecmap;
 use serde::{Deserialize, Serialize};
@@ -364,6 +364,84 @@ pub fn decode_string_value<F: AcirField>(field_elements: &[F]) -> String {
 
     let final_string = str::from_utf8(&string_as_slice).unwrap();
     final_string.to_owned()
+}
+
+pub enum TryFromParamsError {
+    MissingForeignCallInputs,
+    CouldNotDecodePrintableType(serde_json::Error),
+}
+
+pub fn try_from_params<F: AcirField>(
+    foreign_call_inputs: &[ForeignCallParam<F>],
+) -> Result<PrintableValueDisplay<F>, TryFromParamsError> {
+    let (is_fmt_str, foreign_call_inputs) =
+        foreign_call_inputs.split_last().ok_or(TryFromParamsError::MissingForeignCallInputs)?;
+
+    if is_fmt_str.unwrap_field().is_one() {
+        convert_fmt_string_inputs(foreign_call_inputs)
+    } else {
+        convert_string_inputs(foreign_call_inputs)
+    }
+}
+
+fn convert_string_inputs<F: AcirField>(
+    foreign_call_inputs: &[ForeignCallParam<F>],
+) -> Result<PrintableValueDisplay<F>, TryFromParamsError> {
+    // Fetch the PrintableType from the foreign call input
+    // The remaining input values should hold what is to be printed
+    let (printable_type_as_values, input_values) =
+        foreign_call_inputs.split_last().ok_or(TryFromParamsError::MissingForeignCallInputs)?;
+    let printable_type = fetch_printable_type(printable_type_as_values)?;
+
+    // We must use a flat map here as each value in a struct will be in a separate input value
+    let mut input_values_as_fields = input_values.iter().flat_map(|param| param.fields());
+
+    let value = decode_value(&mut input_values_as_fields, &printable_type);
+
+    Ok(PrintableValueDisplay::Plain(value, printable_type))
+}
+
+fn convert_fmt_string_inputs<F: AcirField>(
+    foreign_call_inputs: &[ForeignCallParam<F>],
+) -> Result<PrintableValueDisplay<F>, TryFromParamsError> {
+    let (message, input_and_printable_types) =
+        foreign_call_inputs.split_first().ok_or(TryFromParamsError::MissingForeignCallInputs)?;
+
+    let message_as_fields = message.fields();
+    let message_as_string = decode_string_value(&message_as_fields);
+
+    let (num_values, input_and_printable_types) = input_and_printable_types
+        .split_first()
+        .ok_or(TryFromParamsError::MissingForeignCallInputs)?;
+
+    let mut output = Vec::new();
+    let num_values = num_values.unwrap_field().to_u128() as usize;
+
+    let types_start_at = input_and_printable_types.len() - num_values;
+
+    let mut input_iter =
+        input_and_printable_types[0..types_start_at].iter().flat_map(|param| param.fields());
+    for printable_type in input_and_printable_types.iter().skip(types_start_at) {
+        let printable_type = fetch_printable_type(printable_type)?;
+        let value = decode_value(&mut input_iter, &printable_type);
+
+        output.push((value, printable_type));
+    }
+
+    Ok(PrintableValueDisplay::FmtString(message_as_string, output))
+}
+
+fn fetch_printable_type<F: AcirField>(
+    printable_type: &ForeignCallParam<F>,
+) -> Result<PrintableType, TryFromParamsError> {
+    let printable_type_as_fields = printable_type.fields();
+    let printable_type_as_string = decode_string_value(&printable_type_as_fields);
+    let printable_type: Result<PrintableType, serde_json::Error> =
+        serde_json::from_str(&printable_type_as_string);
+    match printable_type {
+        Ok(printable_type) => Ok(printable_type),
+        Err(err) => Err(TryFromParamsError::CouldNotDecodePrintableType(err)),
+    }
 }
 
 #[cfg(test)]
