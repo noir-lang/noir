@@ -104,8 +104,7 @@ impl CircuitSimulator {
                         return false;
                     }
                 }
-                self.initialized_blocks.insert(*block_id);
-                true
+                self.initialized_blocks.insert(*block_id)
             }
             Opcode::BrilligCall { id: _, inputs, outputs, predicate } => {
                 for input in inputs {
@@ -311,6 +310,28 @@ mod tests {
                 },
             ],
             BTreeSet::from([Witness(1)]),
+            PublicInputs::default(),
+        );
+
+        assert!(!CircuitSimulator::default().check_circuit(&circuit));
+    }
+
+    #[test]
+    fn reports_false_when_attempting_to_reinitialize_memory_block() {
+        let circuit = test_circuit(
+            vec![
+                Opcode::MemoryInit {
+                    block_id: BlockId(0),
+                    init: vec![Witness(0)],
+                    block_type: BlockType::Memory,
+                },
+                Opcode::MemoryInit {
+                    block_id: BlockId(0),
+                    init: vec![Witness(0)],
+                    block_type: BlockType::Memory,
+                },
+            ],
+            BTreeSet::from([Witness(0)]),
             PublicInputs::default(),
         );
 
