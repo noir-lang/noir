@@ -1,25 +1,11 @@
 use acvm::{
-    BlackBoxFunctionSolver, FieldElement,
+    FieldElement,
     acir::{
         circuit::Program,
-        native_types::{Witness, WitnessMap, WitnessStack},
+        native_types::{Witness, WitnessMap},
     },
 };
-use bn254_blackbox_solver::Bn254BlackBoxSolver;
-use nargo::errors::NargoError;
-use nargo::foreign_calls::DefaultForeignCallBuilder;
-use nargo::ops::execute_program;
-use thiserror::Error;
-
-/// Errors that can occur during execution of the program
-/// It can be NargoError or rust panic
-#[derive(Debug, Error)]
-pub enum RunnerError {
-    #[error("Execution failed: {0}")]
-    ExecutionFailed(NargoError<FieldElement>),
-    #[error("Execution panicked: {0}")]
-    ExecutionPanicked(String),
-}
+use noir_ssa_executor::runner::execute_single;
 
 #[derive(Debug)]
 pub enum CompareResults {
@@ -28,48 +14,6 @@ pub enum CompareResults {
     BothFailed(String, String),
     AcirFailed(String, FieldElement),
     BrilligFailed(String, FieldElement),
-}
-
-/// Low level function to execute the given program with the given initial witness
-/// It uses nargo execute_program to run the program
-fn execute<B: BlackBoxFunctionSolver<FieldElement> + Default>(
-    program: &Program<FieldElement>,
-    initial_witness: WitnessMap<FieldElement>,
-) -> Result<WitnessStack<FieldElement>, NargoError<FieldElement>> {
-    execute_program(
-        program,
-        initial_witness.clone(),
-        &B::default(),
-        &mut DefaultForeignCallBuilder::default().build(),
-    )
-}
-
-/// High level function to execute the given program with the given initial witness
-/// It returns the result of the program execution
-pub fn execute_single(
-    program: &Program<FieldElement>,
-    initial_witness: WitnessMap<FieldElement>,
-    return_witness: Witness,
-) -> Result<FieldElement, RunnerError> {
-    let result =
-        std::panic::catch_unwind(|| execute::<Bn254BlackBoxSolver>(program, initial_witness));
-
-    match result {
-        Ok(result) => match result {
-            Ok(result) => {
-                Ok(result.peek().expect("Should have at least one witness on the stack").witness
-                    [&return_witness])
-            }
-            Err(e) => Err(RunnerError::ExecutionFailed(e)),
-        },
-        Err(e) => {
-            if let Some(message) = e.downcast_ref::<&str>() {
-                Err(RunnerError::ExecutionPanicked(message.to_string()))
-            } else {
-                Err(RunnerError::ExecutionPanicked("Unknown error".to_string()))
-            }
-        }
-    }
 }
 
 /// High level function to execute the given ACIR and Brillig programs with the given initial witness
@@ -82,8 +26,8 @@ pub fn run_and_compare(
     return_witness_acir: Witness,
     return_witness_brillig: Witness,
 ) -> CompareResults {
-    let acir_result = execute_single(acir_program, initial_witness.clone(), return_witness_acir);
-    let brillig_result = execute_single(brillig_program, initial_witness, return_witness_brillig);
+    let acir_result = execute_single(acir_program, initial_witness.clone());
+    let brillig_result = execute_single(brillig_program, initial_witness);
 
     // we found bug in case of
     // 1) acir_result != brillig_result
@@ -92,6 +36,8 @@ pub fn run_and_compare(
     // it has depth 2, because nargo can panic or return NargoError
     match (acir_result, brillig_result) {
         (Ok(acir_result), Ok(brillig_result)) => {
+            let acir_result = acir_result[&return_witness_acir];
+            let brillig_result = brillig_result[&return_witness_brillig];
             if acir_result == brillig_result {
                 CompareResults::Agree(acir_result)
             } else {
@@ -99,9 +45,11 @@ pub fn run_and_compare(
             }
         }
         (Err(acir_error), Ok(brillig_result)) => {
+            let brillig_result = brillig_result[&return_witness_brillig];
             CompareResults::AcirFailed(acir_error.to_string(), brillig_result)
         }
         (Ok(acir_result), Err(brillig_error)) => {
+            let acir_result = acir_result[&return_witness_acir];
             CompareResults::BrilligFailed(brillig_error.to_string(), acir_result)
         }
         (Err(acir_error), Err(brillig_error)) => {
