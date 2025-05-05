@@ -3,7 +3,7 @@
 //! any `Store` instructions within a block that are no longer needed because no more loads occur in
 //! between the Store in question and the next Store.
 //!
-//! The pass works as follows:
+//! ## How the pass works:
 //! - Each block in each function is iterated in forward-order.
 //! - The starting value of each reference in the block is the unification of the same references
 //!   at the end of each direct predecessor block to the current block.
@@ -1017,9 +1017,8 @@ mod tests {
         builder.insert_constrain(v9, two, None);
         let v11 = builder.insert_load(v2, v2_type);
         let v12 = builder.insert_load(v11, Type::field());
-        let _ = builder.insert_binary(v12, BinaryOp::Eq, two);
 
-        builder.insert_constrain(v11, two, None);
+        builder.insert_constrain(v12, two, None);
         builder.terminate_with_return(vec![]);
 
         let ssa = builder.finish();

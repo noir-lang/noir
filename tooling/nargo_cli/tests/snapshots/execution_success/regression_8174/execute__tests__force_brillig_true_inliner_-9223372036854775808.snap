@@ -1,0 +1,65 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: artifact
+---
+{
+  "noir_version": "[noir_version]",
+  "hash": "[hash]",
+  "abi": {
+    "parameters": [
+      {
+        "name": "a",
+        "type": {
+          "kind": "array",
+          "length": 2,
+          "type": {
+            "kind": "string",
+            "length": 3
+          }
+        },
+        "visibility": "private"
+      },
+      {
+        "name": "b",
+        "type": {
+          "kind": "boolean"
+        },
+        "visibility": "private"
+      }
+    ],
+    "return_type": {
+      "abi_type": {
+        "kind": "array",
+        "length": 1,
+        "type": {
+          "kind": "array",
+          "length": 2,
+          "type": {
+            "kind": "string",
+            "length": 3
+          }
+        }
+      },
+      "visibility": "public"
+    },
+    "error_types": {
+      "12049594436772143978": {
+        "error_kind": "string",
+        "string": "array ref-count underflow detected"
+      },
+      "17843811134343075018": {
+        "error_kind": "string",
+        "string": "Stack too deep"
+      }
+    }
+  },
+  "bytecode": "H4sIAAAAAAAA/+1azW7TQBDexHYSO0lrwYs4ddKEWyUKFCj0V0Li5qbtc/jIkTfgAhIHxIUbEjwbXrqTfB6PQ0Q9rSJ1Jcvxznjmm9lvx7vbtsxNGxRXy/323b3t7ra/Y8qNdPfcPbldGzVoK9HC2NoAjO0NwOhtAEZ/AzAGChg1cHYaxNkCjFSTusXVK66wuKLi6puberYQYmB2glgC2gEOTLmwrWUQEvTb3UN3x4LZIMlHIfPbpP1ZMrkITbk1jD8NwaaC/SnZ93XsJ8Sht3nZvmF+PabH38H3jkDnqEbnGHSOa3ROQOekRucUdE5rdM5A56xG5xx0zkHHthD0jWmao+Mr5THeGbJYpdgCHd9pi/kzpswvw/xHRnU+jVrMH+Hh+Wmz/HR18CRkv6dkn+INhXgx/10Wb18HT0pcjAAP5+JAx/d4XS6S/4hh1eLiQBgbzA9xcUg6+RJPyGR+Xo2DZAHIaHwt795BfChDPFgfiKuxqXKFcCvPm1R53owe5s2iPcwbkGnPm6GR1xooa4MfWqtY2xeA7QPD1haw4Xjy753G97dYj0+U1xuL72lHyT7lrSfkE/dIFN+2qdbBHhsbyVZXGJtVNQnHi2JXrkmJct1Z5HpLiBdz2Ge5HoJsi+VOsjVckettQR/3rAOW61gnF6lUwygWqYZtMxnWMMKINUyZKyNlrqQPXFnm4q64onEmhN8IpT3g7uMa/PTbtm5uFs1j+cQcUc56qM9kIcj8vOwncs8++EFbhCNg+pl7prHrwDv0fiz47zD/JdxCH+aI2/KEPtK336D37redczQPnuZLe/bac/3Jrdp4Tvb3dexfkf1nKvYnu8SV5/kyl7i+t+0F+L7r9T36jxhWjfU9+kM8mB++vj/Iq1hjQYYc5DJP6CM/kq39Bm0Rt6TxbpBrWch8NzxXnpD9lzr2ZzTer/Jl7vhceQ2+72OukP+IYdWaK+QP8WB++Fw5zKtYY0GGHOQyT+jj/EbZQYO2iFsUD8bPuXAIfu/6bBv9RwyrFhekvGJ+OBfe5FWssSDDes9lntDHxw9lxE27NrBry0/wDl+P4dkFrdt96KPYtM8WqI7R/prWbNynz2LBswj8m2zA+j66u83HF3iHx+sJfTzXyDHS2xIwoB7yedXZGZ4v2OaDrMn5ZfPwFXDwmHENjviNKdcArb1K0XbWqQHoPzLVXGucja573sf/NojvxoKM8o9rej9vPpbpbPkPEcS9ALBg80GO+p/dM55DYxx7/4nzepqNrtPsOptkl5fjefaI2TeQw76C/2yazuY74/n0YpJm6e4//Ut7RJzPttE+E/ehqE/2Aqb/jXSL67v7zc8R0J/V+7VCr1Vz/2tD6PPzcp+0P8V9O+mT7yivYiRZH2R4JmLbwD1jvtAW4QiY/k/3TGOCe216Pxb895j/Em6hj+/b+4J+X9C34/OD7Lk7xq6xXukw+9jHsRF3LK//AP9hB7/hKQAA",
+  "debug_symbols": "XY5LCoQwDEDvknUXU2b8XkVEqkYplLbEVhjEu09aFGQ2TV5emuSAGce4DtouboO2O2AkbYxeB+MmFbSzXD1OATcOgRC5BA/Pv7witAFaG40RsCsTc9Pmlc0xKGL7EoB25sgDF20wZWfPoCZN/xt3RVqNBi9cop0eNnz9be6LPbkJ50iYJiUHr+vpZFkLWTe9gDdTXYmm4lxmVTRClp+EMncWjFV/psN+",
+  "file_map": {},
+  "names": [
+    "main"
+  ],
+  "brillig_names": [
+    "main"
+  ]
+}

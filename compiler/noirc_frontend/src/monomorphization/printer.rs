@@ -8,16 +8,27 @@ use super::ast::{
 use iter_extended::vecmap;
 use std::fmt::{Display, Formatter};
 
+#[derive(Default)]
+pub struct FunctionPrintOptions {
+    pub return_visibility: Option<Visibility>,
+    /// Wraps function body in a `comptime` block. Used to make
+    /// comptime function callers in fuzzing.
+    pub comptime_wrap_body: bool,
+    /// Marks function as comptime. Used in fuzzing.
+    pub comptime: bool,
+}
+
 #[derive(Debug)]
 pub struct AstPrinter {
     indent_level: u32,
     in_unconstrained: bool,
     pub show_id: bool,
+    pub show_clone_and_drop: bool,
 }
 
 impl Default for AstPrinter {
     fn default() -> Self {
-        Self { indent_level: 0, in_unconstrained: false, show_id: true }
+        Self { indent_level: 0, in_unconstrained: false, show_id: true, show_clone_and_drop: true }
     }
 }
 
@@ -43,8 +54,10 @@ impl AstPrinter {
             self.print_global(id, global, f)?;
         }
         for function in &program.functions {
-            let vis = (function.id == Program::main_id()).then_some(program.return_visibility);
-            self.print_function(function, vis, f)?;
+            let return_visibility =
+                (function.id == Program::main_id()).then_some(program.return_visibility);
+            let fpo = FunctionPrintOptions { return_visibility, ..Default::default() };
+            self.print_function(function, f, fpo)?;
         }
         Ok(())
     }
@@ -64,15 +77,16 @@ impl AstPrinter {
     pub fn print_function(
         &mut self,
         function: &Function,
-        return_visibility: Option<Visibility>,
         f: &mut Formatter,
+        options: FunctionPrintOptions,
     ) -> std::fmt::Result {
         let params = vecmap(&function.parameters, |(id, mutable, name, typ)| {
             format!("{}{}: {}", if *mutable { "mut " } else { "" }, self.fmt_local(name, *id), typ)
         })
         .join(", ");
 
-        let vis = return_visibility
+        let vis = options
+            .return_visibility
             .map(|vis| match vis {
                 Visibility::Private => "".to_string(),
                 Visibility::Public => "pub ".to_string(),
@@ -82,14 +96,25 @@ impl AstPrinter {
             .unwrap_or_default();
 
         let unconstrained = if function.unconstrained { "unconstrained " } else { "" };
+        let comptime = if options.comptime { "comptime " } else { "" };
         let name = self.fmt_func(&function.name, function.id);
         let return_type = &function.return_type;
 
-        write!(f, "{unconstrained}fn {name}({params}) -> {vis}{return_type} {{",)?;
+        write!(f, "{comptime}{unconstrained}fn {name}({params}) -> {vis}{return_type} {{",)?;
         self.in_unconstrained = function.unconstrained;
+        if options.comptime_wrap_body {
+            self.indent_level += 1;
+            self.next_line(f)?;
+            write!(f, "comptime {{")?;
+        }
         self.indent_level += 1;
         self.print_expr_expect_block(&function.body, f)?;
         self.indent_level -= 1;
+        if options.comptime_wrap_body {
+            self.next_line(f)?;
+            self.indent_level -= 1;
+            write!(f, "}}")?;
+        }
         self.in_unconstrained = false;
         self.next_line(f)?;
         writeln!(f, "}}")?;
@@ -153,11 +178,17 @@ impl AstPrinter {
             Expression::Continue => write!(f, "continue"),
             Expression::Clone(expr) => {
                 self.print_expr(expr, f)?;
-                write!(f, ".clone()")
+                if self.show_clone_and_drop {
+                    write!(f, ".clone()")?;
+                }
+                Ok(())
             }
             Expression::Drop(expr) => {
                 self.print_expr(expr, f)?;
-                write!(f, ".drop()")
+                if self.show_clone_and_drop {
+                    write!(f, ".drop()")?;
+                }
+                Ok(())
             }
         }
     }

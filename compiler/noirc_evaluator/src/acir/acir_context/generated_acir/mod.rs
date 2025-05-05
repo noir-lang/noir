@@ -22,11 +22,13 @@ use crate::{
     ErrorType,
     brillig::brillig_ir::artifact::GeneratedBrillig,
     errors::{InternalError, RuntimeError, SsaReport},
-    ssa::ir::call_stack::CallStack,
 };
 
 use iter_extended::vecmap;
-use noirc_errors::debug_info::ProcedureDebugId;
+use noirc_errors::{
+    call_stack::{CallStack, CallStackHelper, CallStackId},
+    debug_info::ProcedureDebugId,
+};
 use num_bigint::BigUint;
 
 mod brillig_directive;
@@ -47,13 +49,14 @@ pub struct GeneratedAcir<F: AcirField> {
     /// The opcodes of which the compiled ACIR will comprise.
     pub opcodes: Vec<AcirOpcode<F>>,
 
+    pub call_stacks: CallStackHelper,
+    pub location_map: OpcodeToLocationsMap,
+
     /// All witness indices that comprise the final return value of the program
     pub return_witnesses: Vec<Witness>,
 
     /// All witness indices which are inputs to the main function
     pub input_witnesses: Vec<Witness>,
-
-    pub locations: OpcodeToLocationsMap,
 
     /// Brillig function id -> Opcodes locations map
     /// This map is used to prevent redundant locations being stored for the same Brillig entry point.
@@ -61,7 +64,7 @@ pub struct GeneratedAcir<F: AcirField> {
 
     /// Source code location of the current instruction being processed
     /// None if we do not know the location
-    pub call_stack: CallStack,
+    pub(crate) call_stack_id: CallStackId,
 
     /// Correspondence between an opcode index and the error message associated with it.
     pub assertion_payloads: BTreeMap<OpcodeLocation, AssertionPayload<F>>,
@@ -87,9 +90,9 @@ pub struct GeneratedAcir<F: AcirField> {
 }
 
 /// Correspondence between an opcode index (in opcodes) and the source code call stack which generated it
-pub(crate) type OpcodeToLocationsMap = BTreeMap<OpcodeLocation, CallStack>;
+pub(crate) type OpcodeToLocationsMap = BTreeMap<OpcodeLocation, CallStackId>;
 
-pub(crate) type BrilligOpcodeToLocationsMap = BTreeMap<BrilligOpcodeLocation, CallStack>;
+pub(crate) type BrilligOpcodeToLocationsMap = BTreeMap<BrilligOpcodeLocation, CallStackId>;
 
 pub(crate) type BrilligProcedureRangeMap = BTreeMap<ProcedureDebugId, (usize, usize)>;
 
@@ -102,12 +105,16 @@ impl<F: AcirField> GeneratedAcir<F> {
     /// Adds a new opcode into ACIR.
     pub(crate) fn push_opcode(&mut self, opcode: AcirOpcode<F>) {
         self.opcodes.push(opcode);
-        if !self.call_stack.is_empty() {
-            self.locations.insert(self.last_acir_opcode_location(), self.call_stack.clone());
+        if !self.call_stack_id.is_root() {
+            self.location_map.insert(self.last_acir_opcode_location(), self.call_stack_id);
         }
     }
 
-    pub fn opcodes(&self) -> &[AcirOpcode<F>] {
+    pub(crate) fn get_call_stack(&self) -> CallStack {
+        self.call_stacks.get_call_stack(self.call_stack_id)
+    }
+
+    pub(crate) fn opcodes(&self) -> &[AcirOpcode<F>] {
         &self.opcodes
     }
 
@@ -563,7 +570,7 @@ impl<F: AcirField> GeneratedAcir<F> {
         if num_bits >= F::max_num_bits() {
             return Err(RuntimeError::InvalidRangeConstraint {
                 num_bits: F::max_num_bits(),
-                call_stack: self.call_stack.clone(),
+                call_stack: self.get_call_stack(),
             });
         };
 
@@ -621,7 +628,7 @@ impl<F: AcirField> GeneratedAcir<F> {
             self.brillig_locations
                 .entry(brillig_function_index)
                 .or_default()
-                .insert(BrilligOpcodeLocation(*brillig_index), call_stack.clone());
+                .insert(BrilligOpcodeLocation(*brillig_index), *call_stack);
         }
     }
 

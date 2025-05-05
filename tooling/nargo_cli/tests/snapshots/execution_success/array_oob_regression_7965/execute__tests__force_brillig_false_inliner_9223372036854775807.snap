@@ -62,8 +62,8 @@ expression: artifact
       }
     }
   },
-  "bytecode": "H4sIAAAAAAAA/+1XyU4DMQz1dArdaCl0XxA9wTWZpZ258R3cqJhe+E34L2rVhpBxOVC3UiUsRc68JJbz4rH0AtjZfDseaR5sR0iev10sELCKgIUCVt2OuoddCNilcLYmYHUBawjxmgLWEs5eCVhbwDpCvGsB6wpnbwTsVsB6Qrw+YVV6mwqUjd/tibw5zKJAL5YR0lXL0+ViQH4IHoG4cO9hQ4c0tvCIJMZmmSTFKipsbF9MlK+z1CTpepnZzKZZ+hplcVxkSbbK1/nK5DaJC7tJ87jY7GygEGtDiQ317mhOWJRWI2+isxDSPTS25YnLxYj8mAnhAhxB+e/HTQsvKeWi/EHiHwspokKyI9AryrHy4/rFd2h+7mMqvof57+rlPF0uJuSnTAj/LLjgd/UpnFdXn4BegU7hPLu6Rt6n7uoz8nMmhAtwBuWujpsWXlLaXX0Kel19BnpFOYfjdnVzmFlw3gwU7z3Ty9GwhkIbwLexBgtpHTUVaijUTKgXUBOhBkLNgxoHNQ1qGNQsqFFQk6AGQc3Rh7K5BX/3hXU7z+9vH+6+hz1rzGmdfIN801kP9XiKOH7rOPFNDcrWdOYtkPmrCueCPd8Vz/+218ddrC2sccweeTdfvscnv73PBxwQAAA=",
-  "debug_symbols": "ldNNCoMwEAXgu8zahSam/lylFIkaJRASibFQxLs3ioKUbt5u3jy+2c1KvWqXsdF2cDPVz5WM62TQzsa0EsuO3TxJu8c5SB+ozniekLJ9nMp0S2jQRlEt0u2VEGOw4LDIYSFg8YBFAYsSFhUqePpPsLQ6BRPiV2SwYLDgsMhhIWDxgEUBixITMbReG6PH5v6Zcf2WXsvWqDMOi+1ubfhMV3P5ybtO9YtX+6Wji+e/",
+  "bytecode": "H4sIAAAAAAAA/71WS1LDMAx1mkDThJZCm88GyhHsfBpnxznYkSHZcE24F9FUZoSjsiAumvHIebY18rMyT544WT6OA869cfjozTfFPAZbMJjPYME4Qgu7YrBr5uySwUIGWzHxIgaLmbM3DLZmsA0T75bBtszZOwa7Z7AdE2+PWIBvsxBTM+/2jF7Os8JzF0sy6TrLk3KRoE+FRSAsHCwsJaQZ8y9IYimPVdU3Ra9K9SqLttO1rOruqJVWta7fCl2Wva5003ZtI1tVlb0a6rbsh5MlDmINmFjq7o7yH4tSucgb6eyZdOfGVmZCucjQ54YQU4CZmP79sOnJSspxUf4g8Y+FVGAhqUy4K8rc8ePaxTc3P/qYDt9DcrnKeaYEqS+XHGQO7206A7CE8Go6Cx/XoVOAzgA6AVBBUHpQdlByUG5QalBmUGJQXlBaUFZQ0r2YGv05H76x7ebl4/2T7ns8s2Y4DdGv0Edk3XfHU2Hix5eJL5diahGZx4LnL2DOeWe+F5b/ba+NU2zNrJmYO/Q0X3OPL3AU44TyCgAA",
+  "debug_symbols": "nZLBjoMgEIbfZc4cEEWrr7LZGNSxISFoKGyyMb77jiLb9tALpw/m54NJmA0mHMK913ZeHtB9bTA4bYy+92YZldeLpeq2M0jb3jtEKsFLTtaqHFoPnQ3GMPhRJpyHHquyJ71ylHIGaCciXThrg8dqZ0+bf1aLsrnkoir+dZnlt1l+nfy6yfJl8huZ5VfJv/EMX/D28oV8f/+bdmrU7u3HQRSUMhAiooyoImREHdFE3CLaEyWHrt6PdpxWg8FriuZgx5eh8r9rStLYrW4ZcQoOj3bOjBr8Aw==",
   "file_map": {
     "50": {
       "source": "global G_A: [[bool; 0]; 2] = [[], []];\n\nfn main(a: bool, b: [(u1, bool, u1, str<2>); 4]) -> pub [bool; 0] {\n    if (a) {\n        G_A[((((b[0].0 as u8) + (b[0].0 as u8)) as u32) % 2)]\n    } else {\n        G_A[((((b[0].0 as u8) + (b[0].0 as u8)) as u32) % 2)]\n    }\n}\n",

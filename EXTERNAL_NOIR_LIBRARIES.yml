@@ -1,4 +1,4 @@
-define: &AZ_COMMIT b855fcd2e3f7cd8eeac984de2b167dbc34254173
+define: &AZ_COMMIT d0dccf50800b33605b7525cc31b171ff434ab1d8
 libraries:
   noir_check_shuffle:
     repo: noir-lang/noir_check_shuffle
@@ -46,7 +46,7 @@ libraries:
     critical: true
   sparse_array:
     repo: noir-lang/sparse_array
-    timeout: 2
+    timeout: 3
     critical: true
   noir_rsa:
     repo: noir-lang/noir_rsa
@@ -148,4 +148,9 @@ libraries:
     repo: teddav/tdd.nr
     ref: 4bebfb361f2e5175d23376645310eecca96749a5
     timeout: 20
+    critical: false
+  zkpassport_rsa:
+    repo: zkpassport/noir_rsa
+    ref: acb50389b79dbf38b1828f4fa82c28d742b140fc
+    timeout: 30
     critical: false

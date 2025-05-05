@@ -195,14 +195,15 @@ pub fn embedded_curve_add(
         let point1_1 = EmbeddedCurvePoint {
             x: point1.x + (x_coordinates_match as Field),
             y: point1.y,
-            is_infinite: x_coordinates_match,
+            is_infinite: false,
         };
+        let point2_1 = EmbeddedCurvePoint { x: point2.x, y: point2.y, is_infinite: false };
         // point1_1 is guaranteed to have a different abscissa than point2:
         // - if x_coordinates_match is 0, that means point1.x != point2.x, and point1_1.x = point1.x + 0
         // - if x_coordinates_match is 1, that means point1.x = point2.x, but point1_1.x = point1.x + 1 in this case
         // Because the abscissa is different, the addition formula is guaranteed to succeed, so we can safely use `embedded_curve_add_unsafe`
         // Note that this computation may be garbage: if x_coordinates_match is 1, or if one of the input is the point at infinity.
-        let mut result = embedded_curve_add_unsafe(point1_1, point2);
+        let mut result = embedded_curve_add_unsafe(point1_1, point2_1);
 
         // `embedded_curve_add_unsafe` is doing a doubling if the input is the same variable, because in this case it is guaranteed (at 'compile time') that the input is the same.
         let double = embedded_curve_add_unsafe(point1, point1);

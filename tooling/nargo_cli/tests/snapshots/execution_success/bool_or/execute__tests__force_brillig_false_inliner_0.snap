@@ -30,7 +30,7 @@ expression: artifact
     "error_types": {}
   },
   "bytecode": "H4sIAAAAAAAA/62QXQqAMAiAszqQTm361lUarfsfoaIGYw+9tA/EP/hAYXiAK6amhqqvZ9DsbtY3My4iOYZMTBsGT6YomhYjIzXdgzFnE4uePKKTcKZDnQ98KM6x8eI/qKcLOt57u+bXVW6u//rFCcsMZwO8AQAA",
-  "debug_symbols": "TYzLCsMgEEX/ZdZZlLZu/JVSgo8xDMgooxaK5N9jQgJZnnu4p4NH25aZOKQC+tMhJmcqJR7U4XlMJRveqVQjFfRLTYDsQb/VOkGgiKDVY/0OsEIx0jLfI2P+GSFjI54YGrubrf98meufJTn0TXAvHW7kNw==",
+  "debug_symbols": "nZDBCoMwDIbfJecexM2LrzKG1BqlENIS28EQ331RFPWwi6c0+fv9If8EHbZ5aDz3YYT6NUErnsgPDQVnkw+s02k2sLdNEkQdwUlXKlpBTlBzJjLwsZTXT2O0vNZkRdXCAHKnVQ17T7i8ZnPQxX/0UW3s84CrG3R1od/aWeflci2UUJfzYibetoRbAn1mdwokfeOu7JFFCQ67LLjYrZou+AE=",
   "file_map": {
     "50": {
       "source": "fn main(x: u1, y: u1) {\n    assert(x | y == 1);\n\n    assert(x | y | x == 1);\n}\n",
