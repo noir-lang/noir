@@ -82,6 +82,10 @@ impl SignedField {
             T::try_from(u128_value).ok()
         }
     }
+
+    pub fn to_field_element(self) -> FieldElement {
+        if self.is_negative { -self.field } else { self.field }
+    }
 }
 
 impl std::ops::Add for SignedField {

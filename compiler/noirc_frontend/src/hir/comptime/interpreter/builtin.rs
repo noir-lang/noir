@@ -962,7 +962,7 @@ fn to_le_radix(
         *element_type == Type::Integer(Signedness::Unsigned, IntegerBitSize::One);
 
     // Decompose the integer into its radix digits in little endian form.
-    let decomposed_integer = compute_to_radix_le(value.field, radix);
+    let decomposed_integer = compute_to_radix_le(value.to_field_element(), radix);
     let decomposed_integer = vecmap(0..limb_count.to_u128() as usize, |i| {
         let digit = match decomposed_integer.get(i) {
             Some(digit) => *digit,
