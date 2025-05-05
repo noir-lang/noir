@@ -1083,8 +1083,8 @@ impl FunctionContext<'_> {
     }
 
     fn codegen_assign(&mut self, assign: &ast::Assign) -> Result<Values, RuntimeError> {
-        let lhs = self.extract_current_value(&assign.lvalue)?;
         let rhs = self.codegen_expression(&assign.expression)?;
+        let lhs = self.extract_current_value(&assign.lvalue)?;
 
         self.assign_new_value(lhs, rhs);
         Ok(Self::unit_value())
