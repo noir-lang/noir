@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1746471864129,
+  "lastUpdate": 1746471879795,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -3700,95 +3700,6 @@ window.BENCHMARK_DATA = {
       }
     ],
     "Compilation Time": [
-      {
-        "commit": {
-          "author": {
-            "email": "15848336+TomAFrench@users.noreply.github.com",
-            "name": "Tom French",
-            "username": "TomAFrench"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "114c06c2e02412d43f01e9df9befb07314e49f58",
-          "message": "chore: refactor constrainedness checks on trait impls (#8170)\n\nCo-authored-by: Maxim Vezenov <mvezenov@gmail.com>",
-          "timestamp": "2025-04-24T18:33:17Z",
-          "tree_id": "887f6336e90512bb44f5e73977e38e4c6a36feac",
-          "url": "https://github.com/noir-lang/noir/commit/114c06c2e02412d43f01e9df9befb07314e49f58"
-        },
-        "date": 1745520889257,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "regression_4709",
-            "value": 0.762,
-            "unit": "s"
-          },
-          {
-            "name": "ram_blowup_regression",
-            "value": 12.9,
-            "unit": "s"
-          },
-          {
-            "name": "global_var_regression_entry_points",
-            "value": 0.491,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-inner",
-            "value": 2.186,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 6.482,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 1.106,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 18.36,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 14.46,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root-empty",
-            "value": 0.876,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root-single-tx",
-            "value": 117,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 121,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 0.887,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-root",
-            "value": 1.362,
-            "unit": "s"
-          }
-        ]
-      },
       {
         "commit": {
           "author": {
@@ -8146,6 +8057,95 @@ window.BENCHMARK_DATA = {
           {
             "name": "rollup-root",
             "value": 1.564,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "sirasistant@gmail.com",
+            "name": "Álvaro Rodríguez",
+            "username": "sirasistant"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "bbfac92ac129fde7c35706932530cd5c15ac4276",
+          "message": "fix: Ordering of items in callstacks (#8338)\n\nCo-authored-by: Maxim Vezenov <mvezenov@gmail.com>",
+          "timestamp": "2025-05-05T18:36:02Z",
+          "tree_id": "dd3e95716fe8777863824acedc030e720a2964ae",
+          "url": "https://github.com/noir-lang/noir/commit/bbfac92ac129fde7c35706932530cd5c15ac4276"
+        },
+        "date": 1746471872238,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "regression_4709",
+            "value": 0.648,
+            "unit": "s"
+          },
+          {
+            "name": "ram_blowup_regression",
+            "value": 12.7,
+            "unit": "s"
+          },
+          {
+            "name": "global_var_regression_entry_points",
+            "value": 0.487,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-inner",
+            "value": 2.278,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 6.632,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 1.21,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 17.14,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 13.02,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-empty",
+            "value": 1.268,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-single-tx",
+            "value": 124,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 129,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 1.098,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-root",
+            "value": 1.594,
             "unit": "s"
           }
         ]
