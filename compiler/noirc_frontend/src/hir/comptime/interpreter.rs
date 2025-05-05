@@ -2,7 +2,6 @@ use std::collections::VecDeque;
 use std::{collections::hash_map::Entry, rc::Rc};
 
 use acvm::blackbox_solver::BigIntSolverWithId;
-use acvm::{FieldElement, acir::AcirField};
 use im::Vector;
 use iter_extended::try_vecmap;
 use noirc_errors::Location;
@@ -859,9 +858,9 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
 
         use BinaryOpKind::*;
         let less_or_greater = if matches!(operator, Less | GreaterEqual) {
-            FieldElement::zero() // Ordering::Less
+            SignedField::zero() // Ordering::Less
         } else {
-            2u128.into() // Ordering::Greater
+            SignedField::positive(2u128) // Ordering::Greater
         };
 
         if matches!(operator, Less | Greater) {
@@ -1412,7 +1411,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
 
 fn evaluate_integer(typ: Type, value: SignedField, location: Location) -> IResult<Value> {
     if let Type::FieldElement = &typ {
-        Ok(Value::Field(value.into()))
+        Ok(Value::Field(value))
     } else if let Type::Integer(sign, bit_size) = &typ {
         match (sign, bit_size) {
             (Signedness::Unsigned, IntegerBitSize::One) => {
@@ -1481,7 +1480,7 @@ fn evaluate_integer(typ: Type, value: SignedField, location: Location) -> IResul
         }
     } else if let Type::TypeVariable(variable) = &typ {
         if variable.is_integer_or_field() {
-            Ok(Value::Field(value.into()))
+            Ok(Value::Field(value))
         } else if variable.is_integer() {
             let value = value
                 .try_to_unsigned()
@@ -1509,7 +1508,8 @@ fn bounds_check(array: Value, index: Value, location: Location) -> IResult<(Vect
 
     let index = match index {
         Value::Field(value) => {
-            value.try_to_u64().and_then(|value| value.try_into().ok()).ok_or_else(|| {
+            let u64: Option<u64> = value.try_to_unsigned();
+            u64.and_then(|value| value.try_into().ok()).ok_or_else(|| {
                 let typ = Type::default_int_type();
                 let value = SignedField::positive(value);
                 InterpreterError::IntegerOutOfRangeForType { value, typ, location }
@@ -1540,7 +1540,7 @@ fn bounds_check(array: Value, index: Value, location: Location) -> IResult<(Vect
 fn evaluate_prefix_with_value(rhs: Value, operator: UnaryOp, location: Location) -> IResult<Value> {
     match operator {
         UnaryOp::Minus => match rhs {
-            Value::Field(value) => Ok(Value::Field(FieldElement::zero() - value)),
+            Value::Field(value) => Ok(Value::Field(-value)),
             Value::I8(value) => Ok(Value::I8(-value)),
             Value::I16(value) => Ok(Value::I16(-value)),
             Value::I32(value) => Ok(Value::I32(-value)),
