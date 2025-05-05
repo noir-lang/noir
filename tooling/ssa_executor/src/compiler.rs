@@ -3,7 +3,7 @@ use acvm::{
     FieldElement,
     acir::circuit::{Circuit, ExpressionWidth},
 };
-use noirc_abi::{Abi, AbiReturnType, AbiType, AbiVisibility};
+use noirc_abi::Abi;
 use noirc_driver::{CompileError, CompileOptions, CompiledProgram, NOIR_ARTIFACT_VERSION_STRING};
 use noirc_errors::debug_info::{DebugFunctions, DebugInfo, DebugTypes, DebugVariables};
 use noirc_evaluator::{
@@ -151,16 +151,6 @@ fn convert_generated_acir_into_circuit_without_signature(
     }
 }
 
-/// Creates an ABI for the configured number of variables
-/// Seems useless in this case, but its needed for compile function
-fn generate_abi() -> Abi {
-    let parameters = vec![];
-    let return_type =
-        Some(AbiReturnType { abi_type: AbiType::Field, visibility: AbiVisibility::Public });
-    let error_types = BTreeMap::new();
-    Abi { parameters, return_type, error_types }
-}
-
 /// Creates a program artifact from the given FunctionBuilder
 /// its taken from noirc_evaluator::ssa::create_program, but modified to accept FunctionBuilder
 fn create_program(artifacts: ArtifactsAndWarnings) -> Result<SsaProgramArtifact, RuntimeError> {
@@ -196,10 +186,10 @@ fn create_program(artifacts: ArtifactsAndWarnings) -> Result<SsaProgramArtifact,
 /// its taken from noirc_driver::compile_no_check, but modified to accept ArtifactsAndWarnings
 pub fn compile_from_artifacts(
     artifacts: ArtifactsAndWarnings,
+    abi: Abi,
 ) -> Result<CompiledProgram, CompileError> {
     let SsaProgramArtifact { program, debug, warnings, names, brillig_names, .. } =
         create_program(artifacts)?;
-    let abi = generate_abi();
     let file_map = BTreeMap::new();
     Ok(CompiledProgram {
         hash: 1, // const hash, doesn't matter in this case
@@ -244,5 +234,9 @@ pub(crate) fn compile_from_ssa(
     options: &CompileOptions,
 ) -> Result<CompiledProgram, CompileError> {
     let artifacts = optimize_ssa_into_acir(ssa, evaluator_options(options))?;
-    compile_from_artifacts(artifacts)
+    // ABI is not used during SSA execution, but its needed for compile function
+    compile_from_artifacts(
+        artifacts,
+        Abi { parameters: vec![], return_type: None, error_types: BTreeMap::new() },
+    )
 }
