@@ -37,7 +37,7 @@ fn optimize_into_acir(
     // change to SsaLogging::Contains("Dead Instruction Elimination (2)".to_string()) to see triage final ssa.
     let builder = SsaBuilder {
         ssa,
-        ssa_logging: SsaLogging::None,
+        ssa_logging: SsaLogging::Contains("Dead Instruction Elimination (2)".to_string()),
         print_codegen_timings: false,
         passed: HashMap::new(),
     };

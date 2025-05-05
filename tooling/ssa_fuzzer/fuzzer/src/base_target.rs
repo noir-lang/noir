@@ -7,11 +7,14 @@ use libfuzzer_sys::arbitrary::Arbitrary;
 use noir_ssa_fuzzer::config;
 use noir_ssa_fuzzer::typed_value::ValueType;
 mod base_context;
-use crate::base_context::{FuzzerCommand, InstructionBlock};
+use crate::base_context::FuzzerCommand;
 mod fuzzer;
+mod instruction;
 use crate::fuzzer::Fuzzer;
+use crate::instruction::{Instruction, InstructionBlock};
 
 mod block_context;
+mod options;
 
 impl Fuzzer {
     fn process_fuzzer_command(&mut self, command: FuzzerCommand) {
@@ -46,7 +49,7 @@ enum WitnessValue {
 /// Represents the data for the fuzzer
 /// `methods` - sequence of instructions to be added to the program
 /// `initial_witness` - initial witness values for the program as `FieldRepresentation`
-#[derive(Arbitrary, Debug, Clone, Hash)]
+#[derive(Arbitrary, Debug, Clone)]
 struct FuzzerData {
     blocks: Vec<InstructionBlock>,
     commands: Vec<FuzzerCommand>,

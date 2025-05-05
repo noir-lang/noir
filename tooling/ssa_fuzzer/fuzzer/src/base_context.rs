@@ -1,4 +1,5 @@
 use crate::block_context::BlockContext;
+use crate::instruction::InstructionBlock;
 use acvm::FieldElement;
 use acvm::acir::native_types::Witness;
 use libfuzzer_sys::arbitrary;
@@ -13,56 +14,9 @@ use noirc_evaluator::ssa::ir::basic_block::BasicBlockId;
 use std::{
     cmp::{max, min},
     collections::{HashMap, HashSet, VecDeque},
+    hash::{Hash, Hasher},
+    mem::discriminant,
 };
-
-#[derive(Arbitrary, Debug, Clone, Hash, Copy)]
-pub(crate) struct Argument {
-    /// Index of the argument in the context of stored variables of this type
-    /// e.g. if we have variables with ids [0, 1] in u64 vector and variables with ids [5, 8] in fields vector
-    /// Argument(Index(0), ValueType::U64) -> id 0
-    /// Argument(Index(0), ValueType::Field) -> id 5
-    /// Argument(Index(1), ValueType::Field) -> id 8
-    pub(crate) index: usize,
-    /// Type of the argument
-    pub(crate) value_type: ValueType,
-}
-
-#[derive(Arbitrary, Debug, Clone, Hash, Copy)]
-pub(crate) enum Instruction {
-    /// Addition of two values
-    AddChecked { lhs: Argument, rhs: Argument },
-    /// Subtraction of two values
-    SubChecked { lhs: Argument, rhs: Argument },
-    /// Multiplication of two values
-    MulChecked { lhs: Argument, rhs: Argument },
-    /// Division of two values
-    Div { lhs: Argument, rhs: Argument },
-    /// Equality comparison
-    Eq { lhs: Argument, rhs: Argument },
-    /// Modulo operation
-    Mod { lhs: Argument, rhs: Argument },
-    /// Bitwise NOT
-    Not { lhs: Argument },
-    /// Left shift
-    Shl { lhs: Argument, rhs: Argument },
-    /// Right shift
-    Shr { lhs: Argument, rhs: Argument },
-    /// Cast into type
-    Cast { lhs: Argument, type_: ValueType },
-    /// Bitwise AND
-    And { lhs: Argument, rhs: Argument },
-    /// Bitwise OR
-    Or { lhs: Argument, rhs: Argument },
-    /// Bitwise XOR
-    Xor { lhs: Argument, rhs: Argument },
-}
-
-/// Represents set of instructions
-/// NOT EQUAL TO SSA BLOCK
-#[derive(Arbitrary, Debug, Clone, Hash)]
-pub(crate) struct InstructionBlock {
-    instructions: Vec<Instruction>,
-}
 
 /// Represents set of commands for the fuzzer
 ///

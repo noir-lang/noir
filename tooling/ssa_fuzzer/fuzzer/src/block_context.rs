@@ -1,4 +1,4 @@
-use crate::base_context::{Argument, Instruction};
+use crate::instruction::{Argument, Instruction};
 use acvm::FieldElement;
 use acvm::acir::native_types::Witness;
 use libfuzzer_sys::arbitrary;
