@@ -118,7 +118,7 @@ impl std::ops::Sub for SignedField {
     type Output = Self;
 
     fn sub(self, rhs: Self) -> Self::Output {
-        self + (-rhs)
+        self + -rhs
     }
 }
 
