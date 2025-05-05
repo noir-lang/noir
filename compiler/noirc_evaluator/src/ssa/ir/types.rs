@@ -194,6 +194,10 @@ impl Type {
         }
     }
 
+    pub(crate) fn is_numeric(&self) -> bool {
+        matches!(self, Type::Numeric(..))
+    }
+
     /// Returns the bit size of the provided numeric type.
     ///
     /// # Panics

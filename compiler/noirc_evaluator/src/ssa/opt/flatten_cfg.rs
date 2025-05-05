@@ -668,6 +668,10 @@ impl<'f> Context<'f> {
         let instruction = self.handle_instruction_side_effects(instruction, call_stack);
 
         let instruction_is_allocate = matches!(&instruction, Instruction::Allocate);
+        let instruction_is_array_get = matches!(&instruction, Instruction::ArrayGet { .. });
+        // Fetch information that borrows `self` immutably as `self` will be borrowed mutably
+        // to insert the instruction itself.
+        let condition = self.get_last_condition();
         let results =
             self.inserter.push_instruction_value(instruction, id, self.target_block, call_stack);
 
@@ -675,6 +679,21 @@ impl<'f> Context<'f> {
         // values across branches for it later.
         if instruction_is_allocate {
             self.local_allocations.insert(results.first());
+        }
+
+        // An array get under a predicate may result in an array read at index zero if the predicate is false.
+        // As arrays are not homogenous the value at index zero may contain a value that overflows the result type
+        // of the array get.
+        // To prevent this overflow we also set the value of an array get with a false predicate.
+        // See https://github.com/noir-lang/noir/pull/4971 for more details.
+        if let Some(condition) = condition.filter(|_| instruction_is_array_get) {
+            let result = results.first();
+            let res_typ = self.inserter.function.dfg.type_of_value(result);
+            if res_typ.is_numeric() {
+                let casted_condition =
+                    self.cast_condition_to_value_type(condition, result, call_stack);
+                self.inserter.map_value(result, casted_condition);
+            }
         }
     }
 

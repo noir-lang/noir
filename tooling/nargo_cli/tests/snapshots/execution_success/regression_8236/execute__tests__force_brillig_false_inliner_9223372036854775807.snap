@@ -1,0 +1,57 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: artifact
+---
+{
+  "noir_version": "[noir_version]",
+  "hash": "[hash]",
+  "abi": {
+    "parameters": [
+      {
+        "name": "a",
+        "type": {
+          "kind": "array",
+          "length": 3,
+          "type": {
+            "kind": "integer",
+            "sign": "unsigned",
+            "width": 16
+          }
+        },
+        "visibility": "private"
+      },
+      {
+        "name": "b",
+        "type": {
+          "kind": "array",
+          "length": 1,
+          "type": {
+            "kind": "boolean"
+          }
+        },
+        "visibility": "private"
+      }
+    ],
+    "return_type": {
+      "abi_type": {
+        "kind": "boolean"
+      },
+      "visibility": "public"
+    },
+    "error_types": {}
+  },
+  "bytecode": "H4sIAAAAAAAA/7VXUY6bMBAdgk2WrFaJ2iNU6l9bG5tgpH7ko7sr9aeVegIIcA6O3rixu8OsCdIuHskyeMZv3owH2yRwFX5pmXtOLi11vZUDGUsCY5vAGMYAhG3l5Holjlr3VdFLJRtR1K0phS7bo5FGlqbsCqNUb7Sp6rauRC216uVQ1moQV+EIS7xTbvEU7xPJVuRpuTGHxQjnjcs7jYMFxv64Pnf9BunTFWPPid818Y3QdQ5TWZm/yhFmBHzt8VkcfLF1OD/GKT4Qvymxo3NwbT0im8cZmydk8zRj84xsnpGNFZ+XSHUTO+/qAaa5DsXG4/jWCfEHMF1zIP53ELXGZUL8eT40P34PevA24wufhOjY+DoOr+NI59f37tI+IbtQbWGd52LF16bF+IrwvsGU3yYQXxKIL+aecqltE7m2ZWh96Nqxceob65bWJyeYsfITq94/zvD3z1a2I/yXlOQT58jn7A7bE12OdGyc+tm5d4b8YCzPgxP7L+597/oMzfHzDwH/GfE/4R0YwzmiWGlgzNvb++pn93zvmq2hn34ORF3j4taeFtpX9vD6m+RkXuhc9uOxzyvPO0OclnjZtkXrkhKMkD098yj+lth7HUf2PIAfyg+slx/JCZ/vrrc195twxvftW+cAzTm2D9XJPpCvbMZPaN3ymfHTG3PUtV2lq75pVVn1ujrT+JlrS2ctzg29I8X8fgGW70h+bAfx7qMC3ZFSwmeudnzueIDrAea/k3t4+edj4/qxVOb6j/qPv8PnMI0LiH9O7H+59x3ij+M4vZHnUDVyUM3QlE3X6XPzgeBb2aA8re3/XB7bsy4b0Uv7Wiz5/wtQM2ueoBEAAA==",
+  "debug_symbols": "pdLBDoMgDADQf+nZgzp0019ZFoNYDQkBgmCyGP99aMTpYRd2gra8NiGdocPWDQ2XvRqhfs7QGi4EHxqhGLVcSZ+dlwRC2FiD6FNwqnulqUFpoZZOiAQmKtz2aNRUbqelxlfTBFB2/vQNey5wvS3JV6e/KSEBE0IOXsT4Iovxt+rwZZQvD//4z5dFlC+Cr9IIn5HH7vPsHuFzEubn5XX+y0eUcXPZOCBQr980UcNpK3Dfwt5JdlpK+9ahEtZWG8WwcwbXdlvND/gA",
+  "file_map": {
+    "50": {
+      "source": "global G_A: [u16; 3] = [33700, 47314, 35095];\nglobal G_B: [u16; 3] = [59890, 17417, 14409];\nfn main(a: [u16; 3], b: [bool; 1]) -> pub bool {\n    if unsafe { func_1(G_B, true) }[(((a[0] as u32) % (G_B[2] as u32)) % 1)] {\n        let c = unsafe { func_1(a, b[0]) };\n        b[0]\n    } else {\n        ((a[((a[0] as u32) % 3)] as u32) > ((24993 % G_A[1]) as u32))\n    }\n}\nunconstrained fn func_1(a: [u16; 3], b: bool) -> [bool; 1] {\n    [((a[((a[1] as u32) % 3)] as u64) == 15841209287655810172)]\n}",
+      "path": ""
+    }
+  },
+  "names": [
+    "main"
+  ],
+  "brillig_names": [
+    "func_1"
+  ]
+}

@@ -1,0 +1,70 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: artifact
+---
+{
+  "noir_version": "[noir_version]",
+  "hash": "[hash]",
+  "abi": {
+    "parameters": [
+      {
+        "name": "a",
+        "type": {
+          "kind": "array",
+          "length": 3,
+          "type": {
+            "kind": "integer",
+            "sign": "unsigned",
+            "width": 16
+          }
+        },
+        "visibility": "private"
+      },
+      {
+        "name": "b",
+        "type": {
+          "kind": "array",
+          "length": 1,
+          "type": {
+            "kind": "boolean"
+          }
+        },
+        "visibility": "private"
+      }
+    ],
+    "return_type": {
+      "abi_type": {
+        "kind": "boolean"
+      },
+      "visibility": "public"
+    },
+    "error_types": {
+      "12049594436772143978": {
+        "error_kind": "string",
+        "string": "array ref-count underflow detected"
+      },
+      "14225679739041873922": {
+        "error_kind": "string",
+        "string": "Index out of bounds"
+      },
+      "17843811134343075018": {
+        "error_kind": "string",
+        "string": "Stack too deep"
+      }
+    }
+  },
+  "bytecode": "H4sIAAAAAAAA/91ZwW7TQBAdx3YSB1Wt4CeQuNixEye3SJRS2vIJHBwnufABiAtY3PkCJL6VLOzEz+Nx2lJvER0pWntndubN7OzsruPRHwr2Pw+eDQ1sa/p9ahLLrmwbP4ySHnXFrjB6/wHGQY8YPcDnCq/fM16moPVgwZsA+YpDgdL307aRbeWCWPUUhEjY7VP/Is62EbUnsUf8aUTNItGz/oz1B270xyOr513V1E/Cri/k5BjMrSuQueqQuQaZ6w6ZG5C5ARlDHBdHebN0HPf0hNqbi/QtdGM784Q9ouack7A/Iac5nnjCHuOR8eEadMIyVY3HE7ygavvBvBB4PL/j/e8lyGm5ZYjnxkU93Odd6Tjvkn+Yd9OnmHeSF1RtP+6bd9rh08il8HwudL+v6jFyPh3l6sbx3pe8OBIP9nFU0YGY50Mfx5zjNEZ5wYuAF1RNOxP7HoAd1MU4QiE/te+nth3CGB5/ptgfCvsN3Eofxkjq8pU+lh/uf6/s8zOqz3uvq1pfXwfr7XI3Zf3nDvRnWbxk/W8c6E8X2ZJz5aKqY4nrzdBbsP3Y+zbanwisLuon2kM8GB9ZIy+rNtYzhYc5KHm+0sd2NF3nPeri3NLm29DKtvHD6HA3ugT9fZ5BzXo3e8lnq++UmnuToQvw1eHZ4HDhHlp9XGelTfxAg/L4THYM9l3b1vj7FcZIf32lT+YCrieWixQ8PcYn57PBiNrEvDH0MUbm4T1Y5isJ/5HQJ6P/G9iUchIPnmEZm+M4Hc50Y+ETnovQPuf8SMHqi3cph3ojxV5wR3s8NhS8j7Y1Yz+APOr2FZyGsGbgGhqQnuNSfqD4iXEIO/CEID9Q9IdCvrSt0f2DdMxE7TkkamKU61+rHSwv6xyO1XJF3sVcnqvnSZHcJaaIUd7pcKzx65MYo8V1oMRCixOPdbwfzE+oPack/B0Jv5A3VmLhKbq0esc+3bfeYQxHgnfb3Bz75oDn8qBq8le2P34A5Yv6AzLfiUJqxwbth0L+i32fAH70d/WXOHd5kezSYlfMis0mK4vnQr+hAcSpb/tFni7KaVbm61lapPNb7eN5yvH9eHqXOon2j61nn7rzVO51OEb7XiL3kiHESdZlTV6zi7jw7IA8rJPa3hYK+e+2fYy9h/GcHvHn2Nyxjqijf2Xf43vSZr3Js3xbrNNZvs3yUs5BQPUfpBouWbcInh8j/0nYlvdhtD/p8GPVD55E5iPj6codjl2oYD2j7hxyUefK2XxdZrMi3ia/Y3tbnfsF9IN2gz0fAAA=",
+  "debug_symbols": "pZXbisIwEED/Jc99yGVy81cWkapRCqVKbRcW6b/vjMlUfVhY4ovnxHrGGkt7F8e0n8+7bjhdbmLzdRf7sev77rzrL4d26i4DvnsXkl68FxvVCB8y4gNBZqgMnWEyIMOKjUa4DJ+BUwwCp0AjoszAziIgw2a4DJ8RMrBzjVBSFqpCPAFPxEmBCIVYR2IopLOXKEqyKBbNYliAxbK4IoYqRaJZDAtVmoQqQ+JYPEtgiUVAstBkINEshoUmWxKaTD8bHItnCSyxiJUsikWz0GS3LI3gf303jSnRn/5yGeDFcW3HNExiM8x934jvtp8fH7pd2+HBqR3xKG5MGo5IHHjq+kS2NM9a/p0q60usPKy5/X8f+MtV+LCPqqaHUHqtfEVvpCm90bKql2uvP+xjRa9j5N6Gmt5a3j9b9f2w9q5m/wD49wPAZ72tuX7AxLV3Vb1b+/BZ72xVz/sP8X3/t7hqD9349mBZaNLYtfs+leVpHg4vR6efKx/hB9N1vBzScR4TTXo+nfAW9oWbb+WWbu+4UFo1SjtaqsfS4zJuFzqVXw==",
+  "file_map": {
+    "50": {
+      "source": "global G_A: [u16; 3] = [33700, 47314, 35095];\nglobal G_B: [u16; 3] = [59890, 17417, 14409];\nfn main(a: [u16; 3], b: [bool; 1]) -> pub bool {\n    if unsafe { func_1(G_B, true) }[(((a[0] as u32) % (G_B[2] as u32)) % 1)] {\n        let c = unsafe { func_1(a, b[0]) };\n        b[0]\n    } else {\n        ((a[((a[0] as u32) % 3)] as u32) > ((24993 % G_A[1]) as u32))\n    }\n}\nunconstrained fn func_1(a: [u16; 3], b: bool) -> [bool; 1] {\n    [((a[((a[1] as u32) % 3)] as u64) == 15841209287655810172)]\n}",
+      "path": ""
+    }
+  },
+  "names": [
+    "main"
+  ],
+  "brillig_names": [
+    "main"
+  ]
+}
