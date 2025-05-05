@@ -1241,13 +1241,13 @@ impl Elaborator<'_> {
         location: Location,
         target_type: Option<&Type>,
     ) -> (ExprId, Type) {
-        let (block, _typ) = self.elaborate_in_comptime_context(|this| {
+        let (block, typ) = self.elaborate_in_comptime_context(|this| {
             this.elaborate_block_expression(block, target_type)
         });
 
         let mut interpreter = self.setup_interpreter();
         let value = interpreter.evaluate_block(block);
-        let (id, typ) = self.inline_comptime_value(value, location);
+        let (id, _typ) = self.inline_comptime_value(value, location);
 
         let location = self.interner.id_location(id);
         self.debug_comptime(location, |interner| {
