@@ -1136,7 +1136,9 @@
 <a href="#1135" id="1135">1135</a>
 <a href="#1136" id="1136">1136</a>
 <a href="#1137" id="1137">1137</a>
-<a href="#1138" id="1138">1138</a></pre></div><pre class="rust"><code><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">mod </span>context;
+<a href="#1138" id="1138">1138</a>
+<a href="#1139" id="1139">1139</a>
+<a href="#1140" id="1140">1140</a></pre></div><pre class="rust"><code><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">mod </span>context;
 <span class="kw">mod </span>program;
 <span class="kw">mod </span>tests;
 <span class="kw">mod </span>value;
@@ -2221,8 +2223,10 @@
     }
 
     <span class="kw">fn </span>codegen_assign(<span class="kw-2">&amp;mut </span><span class="self">self</span>, assign: <span class="kw-2">&amp;</span>ast::Assign) -&gt; <span class="prelude-ty">Result</span>&lt;Values, RuntimeError&gt; {
+        <span class="comment">// Evaluate the rhs first - when we load the expression in the lvalue we want that
+        // to reflect any mutations from evaluating the rhs.
+        </span><span class="kw">let </span>rhs = <span class="self">self</span>.codegen_expression(<span class="kw-2">&amp;</span>assign.expression)<span class="question-mark">?</span>;
         <span class="kw">let </span>lhs = <span class="self">self</span>.extract_current_value(<span class="kw-2">&amp;</span>assign.lvalue)<span class="question-mark">?</span>;
-        <span class="kw">let </span>rhs = <span class="self">self</span>.codegen_expression(<span class="kw-2">&amp;</span>assign.expression)<span class="question-mark">?</span>;
 
         <span class="self">self</span>.assign_new_value(lhs, rhs);
         <span class="prelude-val">Ok</span>(<span class="self">Self</span>::unit_value())
