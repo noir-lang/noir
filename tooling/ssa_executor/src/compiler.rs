@@ -24,12 +24,10 @@ pub fn optimize_ssa_into_acir(
     ssa: Ssa,
     options: SsaEvaluatorOptions,
 ) -> Result<ArtifactsAndWarnings, RuntimeError> {
-    log::debug!("SSA: {}", format!("{}", ssa));
-    // change to SsaLogging::All to triage final ssa.
     let builder = SsaBuilder {
         ssa,
-        ssa_logging: SsaLogging::Contains("Dead Instruction Elimination (2)".to_string()),
-        print_codegen_timings: false,
+        ssa_logging: options.ssa_logging.clone(),
+        print_codegen_timings: options.print_codegen_timings,
         passed: HashMap::new(),
     };
     let previous_hook = std::panic::take_hook();
