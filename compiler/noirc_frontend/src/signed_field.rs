@@ -102,14 +102,12 @@ impl std::ops::Add for SignedField {
                 // For example "-4 + 5", so "5 - 4"
                 Self::new(rhs.field - self.field, false)
             }
+        } else if rhs.field > self.field {
+            // For example "4 + (-5)", so "-(5 - 4)"
+            Self::new(rhs.field - self.field, true)
         } else {
-            if rhs.field > self.field {
-                // For example "4 + (-5)", so "-(5 - 4)"
-                Self::new(rhs.field - self.field, true)
-            } else {
-                // For example "4 + (-3)", so "4 - 3"
-                Self::new(self.field - rhs.field, false)
-            }
+            // For example "4 + (-3)", so "4 - 3"
+            Self::new(self.field - rhs.field, false)
         }
     }
 }
