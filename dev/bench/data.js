@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1746475304025,
+  "lastUpdate": 1746475697675,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -8155,70 +8155,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "15848336+TomAFrench@users.noreply.github.com",
-            "name": "Tom French",
-            "username": "TomAFrench"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "10333d28ec4c2b15666ab46332ec6b1c931827e2",
-          "message": "chore: add regression test for panic encountered in bigcurve library. (#8211)",
-          "timestamp": "2025-04-24T20:49:44Z",
-          "tree_id": "6c65689237d095d02a40a5eb9777db03f3cb328c",
-          "url": "https://github.com/noir-lang/noir/commit/10333d28ec4c2b15666ab46332ec6b1c931827e2"
-        },
-        "date": 1745529497484,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 0.028,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 0.163,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 0.017,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 0.339,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 0.21,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 11.4,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 0.004,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-root",
-            "value": 0.013,
-            "unit": "s"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "asterite@gmail.com",
             "name": "Ary Borenszweig",
             "username": "asterite"
@@ -11338,6 +11274,70 @@ window.BENCHMARK_DATA = {
           {
             "name": "rollup-block-root",
             "value": 11.5,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 0.004,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-root",
+            "value": 0.013,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "jfecher11@gmail.com",
+            "name": "jfecher",
+            "username": "jfecher"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "a2dd9cf061dd7af0c2cf6f04f614d04a45f07e14",
+          "message": "fix: Fix evaluation order of assignments with side-effects in their rhs (#8342)",
+          "timestamp": "2025-05-05T19:39:35Z",
+          "tree_id": "0057f2a8514e41ec0bc56ede334d4062354454e7",
+          "url": "https://github.com/noir-lang/noir/commit/a2dd9cf061dd7af0c2cf6f04f614d04a45f07e14"
+        },
+        "date": 1746475690500,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 0.029,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 0.161,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 0.016,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 0.331,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 0.213,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 11.6,
             "unit": "s"
           },
           {
