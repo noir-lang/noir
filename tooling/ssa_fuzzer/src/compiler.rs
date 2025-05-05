@@ -24,7 +24,7 @@ pub fn compile_from_builder(
     builder: FunctionBuilder,
     options: &CompileOptions,
 ) -> Result<CompiledProgram, CompileError> {
-    let artifacts = optimize_builder_into_acir(builder, evaluator_options(options))?;
+    let artifacts = optimize_into_acir(builder, evaluator_options(options))?;
     compile_from_artifacts(
         artifacts,
         Abi { parameters: vec![], return_type: None, error_types: BTreeMap::new() },
