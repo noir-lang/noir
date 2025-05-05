@@ -45,6 +45,7 @@ use crate::{
     node_interner::{DefinitionKind, NodeInterner, TraitImplKind, TraitMethodId},
     parser::{Parser, StatementOrExpressionOrLValue},
     shared::{Signedness, Visibility},
+    signed_field::SignedField,
     token::{Attribute, LocatedToken, Token},
 };
 
@@ -961,7 +962,7 @@ fn to_le_radix(
         *element_type == Type::Integer(Signedness::Unsigned, IntegerBitSize::One);
 
     // Decompose the integer into its radix digits in little endian form.
-    let decomposed_integer = compute_to_radix_le(value, radix);
+    let decomposed_integer = compute_to_radix_le(value.to_field_element(), radix);
     let decomposed_integer = vecmap(0..limb_count.to_u128() as usize, |i| {
         let digit = match decomposed_integer.get(i) {
             Some(digit) => *digit,
@@ -1409,7 +1410,7 @@ where
 // fn zeroed<T>() -> T
 fn zeroed(return_type: Type, location: Location) -> Value {
     match return_type {
-        Type::FieldElement => Value::Field(0u128.into()),
+        Type::FieldElement => Value::Field(SignedField::zero()),
         Type::Array(length_type, elem) => {
             if let Ok(length) = length_type.evaluate_to_u32(location) {
                 let element = zeroed(elem.as_ref().clone(), location);
@@ -1656,7 +1657,10 @@ fn expr_as_binary_op(
             let binary_op_value = infix_expr.operator.contents as u128;
 
             let mut fields = HashMap::default();
-            fields.insert(Rc::new("op".to_string()), Value::Field(binary_op_value.into()));
+            fields.insert(
+                Rc::new("op".to_string()),
+                Value::Field(SignedField::positive(binary_op_value)),
+            );
 
             let unary_op = Value::Struct(fields, binary_op_type);
             let lhs = Value::expression(infix_expr.lhs.kind);
@@ -1918,11 +1922,17 @@ fn expr_as_integer(
 ) -> IResult<Value> {
     expr_as(interner, arguments, return_type.clone(), location, |expr| match expr {
         ExprValue::Expression(ExpressionKind::Literal(Literal::Integer(field))) => {
-            Some(Value::Tuple(vec![Value::Field(field.field), Value::Bool(field.is_negative)]))
+            Some(Value::Tuple(vec![
+                Value::Field(SignedField::positive(field.field)),
+                Value::Bool(field.is_negative),
+            ]))
         }
         ExprValue::Expression(ExpressionKind::Resolved(id)) => {
             if let HirExpression::Literal(HirLiteral::Integer(field)) = interner.expression(&id) {
-                Some(Value::Tuple(vec![Value::Field(field.field), Value::Bool(field.is_negative)]))
+                Some(Value::Tuple(vec![
+                    Value::Field(SignedField::positive(field.field)),
+                    Value::Bool(field.is_negative),
+                ]))
             } else {
                 None
             }
@@ -2196,7 +2206,10 @@ fn expr_as_unary_op(
             };
 
             let mut fields = HashMap::default();
-            fields.insert(Rc::new("op".to_string()), Value::Field(unary_op_value.into()));
+            fields.insert(
+                Rc::new("op".to_string()),
+                Value::Field(SignedField::positive(unary_op_value)),
+            );
 
             let unary_op = Value::Struct(fields, unary_op_type);
             let rhs = Value::expression(prefix_expr.rhs.kind);
@@ -3071,10 +3084,14 @@ fn derive_generators(
         let y_big: BigUint = generator.y.into();
         let y = FieldElement::from_be_bytes_reduce(&y_big.to_bytes_be());
         let mut embedded_curve_point_fields = HashMap::default();
-        embedded_curve_point_fields.insert(x_field_name.clone(), Value::Field(x));
-        embedded_curve_point_fields.insert(y_field_name.clone(), Value::Field(y));
         embedded_curve_point_fields
-            .insert(is_infinite_field_name.clone(), Value::Field(is_infinite));
+            .insert(x_field_name.clone(), Value::Field(SignedField::positive(x)));
+        embedded_curve_point_fields
+            .insert(y_field_name.clone(), Value::Field(SignedField::positive(y)));
+        embedded_curve_point_fields.insert(
+            is_infinite_field_name.clone(),
+            Value::Field(SignedField::positive(is_infinite)),
+        );
         let embedded_curve_point_struct =
             Value::Struct(embedded_curve_point_fields, *elements.clone());
         results.push_back(embedded_curve_point_struct);

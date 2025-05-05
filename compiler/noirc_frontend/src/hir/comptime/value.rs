@@ -39,7 +39,7 @@ use super::{
 pub enum Value {
     Unit,
     Bool(bool),
-    Field(FieldElement),
+    Field(SignedField),
     I8(i8),
     I16(i16),
     I32(i32),
@@ -182,9 +182,7 @@ impl Value {
         let kind = match self {
             Value::Unit => ExpressionKind::Literal(Literal::Unit),
             Value::Bool(value) => ExpressionKind::Literal(Literal::Bool(value)),
-            Value::Field(value) => {
-                cast(SignedField::positive(value), UnresolvedTypeData::FieldElement, location)
-            }
+            Value::Field(value) => cast(value, UnresolvedTypeData::FieldElement, location),
             Value::I8(value) => cast(
                 SignedField::from_signed(value),
                 UnresolvedTypeData::Integer(Signedness::Signed, IntegerBitSize::Eight),
@@ -374,7 +372,7 @@ impl Value {
         let expression = match self {
             Value::Unit => HirExpression::Literal(HirLiteral::Unit),
             Value::Bool(value) => HirExpression::Literal(HirLiteral::Bool(value)),
-            Value::Field(value) => HirExpression::Literal(HirLiteral::Integer(value.into())),
+            Value::Field(value) => HirExpression::Literal(HirLiteral::Integer(value)),
             Value::I8(value) => {
                 HirExpression::Literal(HirLiteral::Integer(SignedField::from_signed(value)))
             }
@@ -575,7 +573,13 @@ impl Value {
                     vec![Token::Int((value as u128).into())]
                 }
             }
-            Value::Field(value) => vec![Token::Int(value)],
+            Value::Field(value) => {
+                if value.is_negative {
+                    vec![Token::Minus, Token::Int(value.field)]
+                } else {
+                    vec![Token::Int(value.field)]
+                }
+            }
             other => vec![Token::UnquoteMarker(other.into_hir_expression(interner, location)?)],
         };
         let tokens = vecmap(tokens, |token| LocatedToken::new(token, location));
@@ -608,7 +612,14 @@ impl Value {
     /// Returns `None` for negative integers and non-integral `Value`s.
     pub(crate) fn to_field_element(&self) -> Option<FieldElement> {
         match self {
-            Self::Field(value) => Some(*value),
+            Self::Field(value) => {
+                if value.is_negative {
+                    None
+                } else {
+                    Some(value.field)
+                }
+            }
+
             Self::I8(value) => (*value >= 0).then_some((*value as u128).into()),
             Self::I16(value) => (*value >= 0).then_some((*value as u128).into()),
             Self::I32(value) => (*value >= 0).then_some((*value as u128).into()),
