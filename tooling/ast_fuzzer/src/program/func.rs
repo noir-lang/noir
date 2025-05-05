@@ -249,6 +249,11 @@ impl<'a> FunctionContext<'a> {
         self.ctx.config.max_depth
     }
 
+    /// Is the program supposed to be comptime friendly?
+    fn is_comptime_friendly(&self) -> bool {
+        self.ctx.config.comptime_friendly
+    }
+
     /// Get and increment the next local ID.
     fn next_local_id(&mut self) -> LocalId {
         let id = LocalId(self.next_local_id);
@@ -545,6 +550,8 @@ impl<'a> FunctionContext<'a> {
             .filter(|op| {
                 types::can_binary_op_return(op, typ)
                     && (!self.ctx.config.avoid_overflow || !types::can_binary_op_overflow(op))
+                    // TODO remove this after strange comptime shift right overflows are fixed
+                    && (!self.ctx.config.comptime_friendly || !matches!(op, BinaryOp::ShiftRight))
                     && (!self.ctx.config.avoid_err_by_zero || !types::can_binary_op_err_by_zero(op))
             })
             .collect::<Vec<_>>();
@@ -710,7 +717,8 @@ impl<'a> FunctionContext<'a> {
     fn gen_let(&mut self, u: &mut Unstructured) -> arbitrary::Result<Expression> {
         // Generate a type or choose an existing one.
         let max_depth = self.max_depth();
-        let typ = self.ctx.gen_type(u, max_depth, false, true)?;
+        let comptime_friendly = self.is_comptime_friendly();
+        let typ = self.ctx.gen_type(u, max_depth, false, true, comptime_friendly)?;
         let expr = self.gen_expr(u, &typ, max_depth, Flags::TOP)?;
         let mutable = bool::arbitrary(u)?;
         Ok(self.let_var(mutable, typ, expr, true))

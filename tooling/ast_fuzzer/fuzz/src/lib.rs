@@ -1,7 +1,7 @@
 use acir::circuit::ExpressionWidth;
 use color_eyre::eyre;
 use noir_ast_fuzzer::DisplayAstAsNoir;
-use noir_ast_fuzzer::compare::{CompareResult, CompareSsa, HasPrograms};
+use noir_ast_fuzzer::compare::{CompareComptime, CompareResult, CompareSsa, HasPrograms};
 use noirc_abi::input_parser::Format;
 use noirc_evaluator::brillig::Brillig;
 use noirc_evaluator::ssa::{SsaPass, primary_passes, secondary_passes};
@@ -110,6 +110,39 @@ where
 
         eprintln!("---\nOptions 2:\n{:?}", inputs.ssa2.options);
         eprintln!("---\nProgram 2:\n{}", inputs.ssa2.artifact.program);
+
+        // Returning it as-is, so we can see the error message at the bottom as well.
+        Err(report)
+    } else {
+        Ok(())
+    }
+}
+
+/// Compare the execution result for comptime fuzzing and print the inputs if the result is a failure.
+pub fn compare_results_comptime(
+    inputs: &CompareComptime,
+    result: &CompareResult,
+) -> eyre::Result<()> {
+    let res = result.return_value_or_err();
+
+    if let Err(report) = res {
+        eprintln!("---\nComparison failed:");
+        eprintln!("{report:#}");
+
+        // Showing the AST as Noir so we can easily create integration tests.
+        eprintln!("---\nAST:\n{}", DisplayAstAsNoir(&inputs.program));
+        eprintln!("---\nComptime source:\n{}", &inputs.source);
+
+        // Showing the inputs as TOML so we can easily create a Prover.toml file.
+        eprintln!(
+            "---\nAST Inputs:\n{}",
+            Format::Toml
+                .serialize(&inputs.input_map, &inputs.abi)
+                .unwrap_or_else(|e| format!("failed to serialize inputs: {e}"))
+        );
+
+        eprintln!("---\nCompile options:\n{:?}", inputs.ssa.options);
+        eprintln!("---\nCompiled program:\n{}", inputs.ssa.artifact.program);
 
         // Returning it as-is, so we can see the error message at the bottom as well.
         Err(report)

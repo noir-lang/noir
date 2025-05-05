@@ -431,7 +431,9 @@ pub fn compile_main(
     if options.deny_warnings && !compilation_warnings.is_empty() {
         return Err(compilation_warnings);
     }
-    warnings.extend(compilation_warnings);
+    if !options.silence_warnings {
+        warnings.extend(compilation_warnings);
+    }
 
     if options.print_acir {
         println!("Compiled ACIR for main (unoptimized):");
