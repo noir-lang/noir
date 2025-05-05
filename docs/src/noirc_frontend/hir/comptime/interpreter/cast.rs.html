@@ -132,11 +132,7 @@
 <a href="#131" id="131">131</a>
 <a href="#132" id="132">132</a>
 <a href="#133" id="133">133</a>
-<a href="#134" id="134">134</a>
-<a href="#135" id="135">135</a>
-<a href="#136" id="136">136</a>
-<a href="#137" id="137">137</a>
-<a href="#138" id="138">138</a></pre></div><pre class="rust"><code><span class="kw">use </span>acvm::{AcirField, FieldElement};
+<a href="#134" id="134">134</a></pre></div><pre class="rust"><code><span class="kw">use </span>acvm::{AcirField, FieldElement};
 <span class="kw">use </span>noirc_errors::Location;
 
 <span class="kw">use crate</span>::{
@@ -144,6 +140,7 @@
     ast::IntegerBitSize,
     hir::comptime::{InterpreterError, Value, errors::IResult},
     shared::Signedness,
+    signed_field::SignedField,
 };
 
 <span class="doccomment">/// evaluate_cast without recursion
@@ -165,8 +162,8 @@
         }};
     }
 
-    <span class="kw">let </span>(<span class="kw-2">mut </span>lhs, lhs_is_negative) = <span class="kw">match </span>evaluated_lhs {
-        Value::Field(value) =&gt; (value, <span class="bool-val">false</span>),
+    <span class="kw">let </span>(lhs, lhs_is_negative) = <span class="kw">match </span>evaluated_lhs {
+        Value::Field(value) =&gt; (value.field, value.is_negative),
         Value::U1(value) =&gt; ((value <span class="kw">as </span>u128).into(), <span class="bool-val">false</span>),
         Value::U8(value) =&gt; ((value <span class="kw">as </span>u128).into(), <span class="bool-val">false</span>),
         Value::U16(value) =&gt; ((value <span class="kw">as </span>u128).into(), <span class="bool-val">false</span>),
@@ -196,12 +193,7 @@
 
     <span class="comment">// Now actually cast the lhs, bit casting and wrapping as necessary
     </span><span class="kw">match </span>typ.follow_bindings() {
-        Type::FieldElement =&gt; {
-            <span class="kw">if </span>lhs_is_negative {
-                lhs = FieldElement::zero() - lhs;
-            }
-            <span class="prelude-val">Ok</span>(Value::Field(lhs))
-        }
+        Type::FieldElement =&gt; <span class="prelude-val">Ok</span>(Value::Field(SignedField::new(lhs, lhs_is_negative))),
         Type::Integer(sign, bit_size) =&gt; <span class="kw">match </span>(sign, bit_size) {
             (Signedness::Unsigned, IntegerBitSize::One) =&gt; {
                 <span class="prelude-val">Err</span>(InterpreterError::TypeUnsupported { typ: typ.clone(), location })
@@ -253,7 +245,7 @@
         <span class="kw">let </span>typ = Type::FieldElement;
 
         <span class="kw">let </span>lhs_values = [
-            Value::Field(FieldElement::one()),
+            Value::Field(SignedField::one()),
             Value::Bool(<span class="bool-val">true</span>),
             Value::U1(<span class="bool-val">true</span>),
             Value::U8(<span class="number">1</span>),
@@ -269,7 +261,7 @@
         <span class="kw">for </span>lhs <span class="kw">in </span>lhs_values {
             <span class="macro">assert_eq!</span>(
                 evaluate_cast_one_step(<span class="kw-2">&amp;</span>typ, location, lhs),
-                <span class="prelude-val">Ok</span>(Value::Field(FieldElement::one()))
+                <span class="prelude-val">Ok</span>(Value::Field(SignedField::one()))
             );
         }
     }

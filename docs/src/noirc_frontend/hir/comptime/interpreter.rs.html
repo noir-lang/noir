@@ -1615,7 +1615,6 @@
 <span class="kw">use </span>std::{collections::hash_map::Entry, rc::Rc};
 
 <span class="kw">use </span>acvm::blackbox_solver::BigIntSolverWithId;
-<span class="kw">use </span>acvm::{FieldElement, acir::AcirField};
 <span class="kw">use </span>im::Vector;
 <span class="kw">use </span>iter_extended::try_vecmap;
 <span class="kw">use </span>noirc_errors::Location;
@@ -2472,9 +2471,9 @@
 
         <span class="kw">use </span>BinaryOpKind::<span class="kw-2">*</span>;
         <span class="kw">let </span>less_or_greater = <span class="kw">if </span><span class="macro">matches!</span>(operator, Less | GreaterEqual) {
-            FieldElement::zero() <span class="comment">// Ordering::Less
+            SignedField::zero() <span class="comment">// Ordering::Less
         </span>} <span class="kw">else </span>{
-            <span class="number">2u128</span>.into() <span class="comment">// Ordering::Greater
+            SignedField::positive(<span class="number">2u128</span>) <span class="comment">// Ordering::Greater
         </span>};
 
         <span class="kw">if </span><span class="macro">matches!</span>(operator, Less | Greater) {
@@ -3025,7 +3024,7 @@
 
 <span class="kw">fn </span>evaluate_integer(typ: Type, value: SignedField, location: Location) -&gt; IResult&lt;Value&gt; {
     <span class="kw">if let </span>Type::FieldElement = <span class="kw-2">&amp;</span>typ {
-        <span class="prelude-val">Ok</span>(Value::Field(value.into()))
+        <span class="prelude-val">Ok</span>(Value::Field(value))
     } <span class="kw">else if let </span>Type::Integer(sign, bit_size) = <span class="kw-2">&amp;</span>typ {
         <span class="kw">match </span>(sign, bit_size) {
             (Signedness::Unsigned, IntegerBitSize::One) =&gt; {
@@ -3094,7 +3093,7 @@
         }
     } <span class="kw">else if let </span>Type::TypeVariable(variable) = <span class="kw-2">&amp;</span>typ {
         <span class="kw">if </span>variable.is_integer_or_field() {
-            <span class="prelude-val">Ok</span>(Value::Field(value.into()))
+            <span class="prelude-val">Ok</span>(Value::Field(value))
         } <span class="kw">else if </span>variable.is_integer() {
             <span class="kw">let </span>value = value
                 .try_to_unsigned()
@@ -3122,7 +3121,8 @@
 
     <span class="kw">let </span>index = <span class="kw">match </span>index {
         Value::Field(value) =&gt; {
-            value.try_to_u64().and_then(|value| value.try_into().ok()).ok_or_else(|| {
+            <span class="kw">let </span>u64: <span class="prelude-ty">Option</span>&lt;u64&gt; = value.try_to_unsigned();
+            u64.and_then(|value| value.try_into().ok()).ok_or_else(|| {
                 <span class="kw">let </span>typ = Type::default_int_type();
                 <span class="kw">let </span>value = SignedField::positive(value);
                 InterpreterError::IntegerOutOfRangeForType { value, typ, location }
@@ -3153,7 +3153,7 @@
 <span class="kw">fn </span>evaluate_prefix_with_value(rhs: Value, operator: UnaryOp, location: Location) -&gt; IResult&lt;Value&gt; {
     <span class="kw">match </span>operator {
         UnaryOp::Minus =&gt; <span class="kw">match </span>rhs {
-            Value::Field(value) =&gt; <span class="prelude-val">Ok</span>(Value::Field(FieldElement::zero() - value)),
+            Value::Field(value) =&gt; <span class="prelude-val">Ok</span>(Value::Field(-value)),
             Value::I8(value) =&gt; <span class="prelude-val">Ok</span>(Value::I8(-value)),
             Value::I16(value) =&gt; <span class="prelude-val">Ok</span>(Value::I16(-value)),
             Value::I32(value) =&gt; <span class="prelude-val">Ok</span>(Value::I32(-value)),

@@ -3091,7 +3091,24 @@
 <a href="#3090" id="3090">3090</a>
 <a href="#3091" id="3091">3091</a>
 <a href="#3092" id="3092">3092</a>
-<a href="#3093" id="3093">3093</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::rc::Rc;
+<a href="#3093" id="3093">3093</a>
+<a href="#3094" id="3094">3094</a>
+<a href="#3095" id="3095">3095</a>
+<a href="#3096" id="3096">3096</a>
+<a href="#3097" id="3097">3097</a>
+<a href="#3098" id="3098">3098</a>
+<a href="#3099" id="3099">3099</a>
+<a href="#3100" id="3100">3100</a>
+<a href="#3101" id="3101">3101</a>
+<a href="#3102" id="3102">3102</a>
+<a href="#3103" id="3103">3103</a>
+<a href="#3104" id="3104">3104</a>
+<a href="#3105" id="3105">3105</a>
+<a href="#3106" id="3106">3106</a>
+<a href="#3107" id="3107">3107</a>
+<a href="#3108" id="3108">3108</a>
+<a href="#3109" id="3109">3109</a>
+<a href="#3110" id="3110">3110</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::rc::Rc;
 
 <span class="kw">use </span>acvm::{AcirField, FieldElement};
 <span class="kw">use </span>builtin_helpers::{
@@ -3138,6 +3155,7 @@
     node_interner::{DefinitionKind, NodeInterner, TraitImplKind, TraitMethodId},
     parser::{Parser, StatementOrExpressionOrLValue},
     shared::{Signedness, Visibility},
+    signed_field::SignedField,
     token::{Attribute, LocatedToken, Token},
 };
 
@@ -4054,7 +4072,7 @@
         <span class="kw-2">*</span>element_type == Type::Integer(Signedness::Unsigned, IntegerBitSize::One);
 
     <span class="comment">// Decompose the integer into its radix digits in little endian form.
-    </span><span class="kw">let </span>decomposed_integer = compute_to_radix_le(value, radix);
+    </span><span class="kw">let </span>decomposed_integer = compute_to_radix_le(value.to_field_element(), radix);
     <span class="kw">let </span>decomposed_integer = vecmap(<span class="number">0</span>..limb_count.to_u128() <span class="kw">as </span>usize, |i| {
         <span class="kw">let </span>digit = <span class="kw">match </span>decomposed_integer.get(i) {
             <span class="prelude-val">Some</span>(digit) =&gt; <span class="kw-2">*</span>digit,
@@ -4502,7 +4520,7 @@
 <span class="comment">// fn zeroed&lt;T&gt;() -&gt; T
 </span><span class="kw">fn </span>zeroed(return_type: Type, location: Location) -&gt; Value {
     <span class="kw">match </span>return_type {
-        Type::FieldElement =&gt; Value::Field(<span class="number">0u128</span>.into()),
+        Type::FieldElement =&gt; Value::Field(SignedField::zero()),
         Type::Array(length_type, elem) =&gt; {
             <span class="kw">if let </span><span class="prelude-val">Ok</span>(length) = length_type.evaluate_to_u32(location) {
                 <span class="kw">let </span>element = zeroed(elem.as_ref().clone(), location);
@@ -4749,7 +4767,10 @@
             </span><span class="kw">let </span>binary_op_value = infix_expr.operator.contents <span class="kw">as </span>u128;
 
             <span class="kw">let </span><span class="kw-2">mut </span>fields = HashMap::default();
-            fields.insert(Rc::new(<span class="string">"op"</span>.to_string()), Value::Field(binary_op_value.into()));
+            fields.insert(
+                Rc::new(<span class="string">"op"</span>.to_string()),
+                Value::Field(SignedField::positive(binary_op_value)),
+            );
 
             <span class="kw">let </span>unary_op = Value::Struct(fields, binary_op_type);
             <span class="kw">let </span>lhs = Value::expression(infix_expr.lhs.kind);
@@ -5011,11 +5032,17 @@
 ) -&gt; IResult&lt;Value&gt; {
     expr_as(interner, arguments, return_type.clone(), location, |expr| <span class="kw">match </span>expr {
         ExprValue::Expression(ExpressionKind::Literal(Literal::Integer(field))) =&gt; {
-            <span class="prelude-val">Some</span>(Value::Tuple(<span class="macro">vec!</span>[Value::Field(field.field), Value::Bool(field.is_negative)]))
+            <span class="prelude-val">Some</span>(Value::Tuple(<span class="macro">vec!</span>[
+                Value::Field(SignedField::positive(field.field)),
+                Value::Bool(field.is_negative),
+            ]))
         }
         ExprValue::Expression(ExpressionKind::Resolved(id)) =&gt; {
             <span class="kw">if let </span>HirExpression::Literal(HirLiteral::Integer(field)) = interner.expression(<span class="kw-2">&amp;</span>id) {
-                <span class="prelude-val">Some</span>(Value::Tuple(<span class="macro">vec!</span>[Value::Field(field.field), Value::Bool(field.is_negative)]))
+                <span class="prelude-val">Some</span>(Value::Tuple(<span class="macro">vec!</span>[
+                    Value::Field(SignedField::positive(field.field)),
+                    Value::Bool(field.is_negative),
+                ]))
             } <span class="kw">else </span>{
                 <span class="prelude-val">None
             </span>}
@@ -5289,7 +5316,10 @@
             };
 
             <span class="kw">let </span><span class="kw-2">mut </span>fields = HashMap::default();
-            fields.insert(Rc::new(<span class="string">"op"</span>.to_string()), Value::Field(unary_op_value.into()));
+            fields.insert(
+                Rc::new(<span class="string">"op"</span>.to_string()),
+                Value::Field(SignedField::positive(unary_op_value)),
+            );
 
             <span class="kw">let </span>unary_op = Value::Struct(fields, unary_op_type);
             <span class="kw">let </span>rhs = Value::expression(prefix_expr.rhs.kind);
@@ -6164,10 +6194,14 @@
         <span class="kw">let </span>y_big: BigUint = generator.y.into();
         <span class="kw">let </span>y = FieldElement::from_be_bytes_reduce(<span class="kw-2">&amp;</span>y_big.to_bytes_be());
         <span class="kw">let </span><span class="kw-2">mut </span>embedded_curve_point_fields = HashMap::default();
-        embedded_curve_point_fields.insert(x_field_name.clone(), Value::Field(x));
-        embedded_curve_point_fields.insert(y_field_name.clone(), Value::Field(y));
         embedded_curve_point_fields
-            .insert(is_infinite_field_name.clone(), Value::Field(is_infinite));
+            .insert(x_field_name.clone(), Value::Field(SignedField::positive(x)));
+        embedded_curve_point_fields
+            .insert(y_field_name.clone(), Value::Field(SignedField::positive(y)));
+        embedded_curve_point_fields.insert(
+            is_infinite_field_name.clone(),
+            Value::Field(SignedField::positive(is_infinite)),
+        );
         <span class="kw">let </span>embedded_curve_point_struct =
             Value::Struct(embedded_curve_point_fields, <span class="kw-2">*</span>elements.clone());
         results.push_back(embedded_curve_point_struct);

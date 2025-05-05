@@ -514,13 +514,23 @@
 <a href="#513" id="513">513</a>
 <a href="#514" id="514">514</a>
 <a href="#515" id="515">515</a>
-<a href="#516" id="516">516</a></pre></div><pre class="rust"><code><span class="kw">use </span>acvm::{
+<a href="#516" id="516">516</a>
+<a href="#517" id="517">517</a>
+<a href="#518" id="518">518</a>
+<a href="#519" id="519">519</a>
+<a href="#520" id="520">520</a>
+<a href="#521" id="521">521</a>
+<a href="#522" id="522">522</a>
+<a href="#523" id="523">523</a>
+<a href="#524" id="524">524</a>
+<a href="#525" id="525">525</a></pre></div><pre class="rust"><code><span class="kw">use </span>acvm::{
     AcirField, BlackBoxResolutionError, FieldElement,
     acir::BlackBoxFunc,
     blackbox_solver::{BigIntSolverWithId, BlackBoxFunctionSolver},
 };
 <span class="kw">use </span>bn254_blackbox_solver::Bn254BlackBoxSolver; <span class="comment">// Currently locked to only bn254!
 </span><span class="kw">use </span>im::{Vector, vector};
+<span class="kw">use </span>iter_extended::vecmap;
 <span class="kw">use </span>noirc_errors::Location;
 
 <span class="kw">use crate</span>::{
@@ -530,6 +540,7 @@
         interpreter::builtin::builtin_helpers::to_byte_array,
     },
     node_interner::NodeInterner,
+    signed_field::SignedField,
 };
 
 <span class="kw">use super</span>::{
@@ -645,9 +656,11 @@
     <span class="kw">let </span>(value, num_bits) = check_two_arguments(arguments, location)<span class="question-mark">?</span>;
 
     <span class="kw">let </span>input = get_field(value)<span class="question-mark">?</span>;
+    <span class="kw">let </span>field = input.to_field_element();
+
     <span class="kw">let </span>num_bits = get_u32(num_bits)<span class="question-mark">?</span>;
 
-    <span class="kw">if </span>input.num_bits() &lt; num_bits {
+    <span class="kw">if </span>field.num_bits() &lt; num_bits {
         <span class="prelude-val">Ok</span>(Value::Unit)
     } <span class="kw">else </span>{
         <span class="prelude-val">Err</span>(InterpreterError::BlackBoxError(
@@ -874,13 +887,14 @@
     <span class="kw">let </span>(input, state_length) = check_two_arguments(arguments, location)<span class="question-mark">?</span>;
 
     <span class="kw">let </span>(input, typ) = get_array_map(interner, input, get_field)<span class="question-mark">?</span>;
+    <span class="kw">let </span>input = vecmap(input, SignedField::to_field_element);
     <span class="kw">let </span>state_length = get_u32(state_length)<span class="question-mark">?</span>;
 
     <span class="kw">let </span>fields = Bn254BlackBoxSolver(pedantic_solving)
         .poseidon2_permutation(<span class="kw-2">&amp;</span>input, state_length)
         .map_err(|error| InterpreterError::BlackBoxError(error, location))<span class="question-mark">?</span>;
 
-    <span class="kw">let </span>array = fields.into_iter().map(Value::Field).collect();
+    <span class="kw">let </span>array = fields.into_iter().map(|f| Value::Field(SignedField::positive(f))).collect();
     <span class="prelude-val">Ok</span>(Value::Array(array, typ))
 }
 
@@ -939,7 +953,7 @@
     <span class="kw">let </span>x = get_struct_field(<span class="string">"x"</span>, <span class="kw-2">&amp;</span>fields, <span class="kw-2">&amp;</span>typ, location, get_field)<span class="question-mark">?</span>;
     <span class="kw">let </span>y = get_struct_field(<span class="string">"y"</span>, <span class="kw-2">&amp;</span>fields, <span class="kw-2">&amp;</span>typ, location, get_field)<span class="question-mark">?</span>;
     <span class="kw">let </span>is_infinite = get_struct_field(<span class="string">"is_infinite"</span>, <span class="kw-2">&amp;</span>fields, <span class="kw-2">&amp;</span>typ, location, get_bool)<span class="question-mark">?</span>;
-    <span class="prelude-val">Ok</span>((x, y, is_infinite))
+    <span class="prelude-val">Ok</span>((x.to_field_element(), y.to_field_element(), is_infinite))
 }
 
 <span class="doccomment">/// Decode an `EmbeddedCurveScalar` struct.
@@ -951,7 +965,7 @@
     <span class="kw">let </span>(fields, typ) = get_struct_fields(<span class="string">"EmbeddedCurveScalar"</span>, (value, location))<span class="question-mark">?</span>;
     <span class="kw">let </span>lo = get_struct_field(<span class="string">"lo"</span>, <span class="kw-2">&amp;</span>fields, <span class="kw-2">&amp;</span>typ, location, get_field)<span class="question-mark">?</span>;
     <span class="kw">let </span>hi = get_struct_field(<span class="string">"hi"</span>, <span class="kw-2">&amp;</span>fields, <span class="kw-2">&amp;</span>typ, location, get_field)<span class="question-mark">?</span>;
-    <span class="prelude-val">Ok</span>((lo, hi))
+    <span class="prelude-val">Ok</span>((lo.to_field_element(), hi.to_field_element()))
 }
 
 <span class="kw">fn </span>to_bigint(id: u32, typ: Type) -&gt; Value {
@@ -965,7 +979,11 @@
     typ: Type,
 ) -&gt; Value {
     to_struct(
-        [(<span class="string">"x"</span>, Value::Field(x)), (<span class="string">"y"</span>, Value::Field(y)), (<span class="string">"is_infinite"</span>, Value::Bool(is_infinite))],
+        [
+            (<span class="string">"x"</span>, Value::Field(SignedField::positive(x))),
+            (<span class="string">"y"</span>, Value::Field(SignedField::positive(y))),
+            (<span class="string">"is_infinite"</span>, Value::Bool(is_infinite)),
+        ],
         typ,
     )
 }

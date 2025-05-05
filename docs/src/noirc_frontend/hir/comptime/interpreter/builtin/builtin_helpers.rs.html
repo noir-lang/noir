@@ -684,7 +684,6 @@
 <a href="#683" id="683">683</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::hash::Hash;
 <span class="kw">use </span>std::{hash::Hasher, rc::Rc};
 
-<span class="kw">use </span>acvm::FieldElement;
 <span class="kw">use </span>iter_extended::try_vecmap;
 <span class="kw">use </span>noirc_errors::Location;
 
@@ -694,6 +693,7 @@
 <span class="kw">use </span><span class="kw">crate</span>::hir::def_collector::dc_crate::CompilationError;
 <span class="kw">use </span><span class="kw">crate</span>::lexer::Lexer;
 <span class="kw">use </span><span class="kw">crate</span>::parser::{Parser, ParserError};
+<span class="kw">use </span><span class="kw">crate</span>::signed_field::SignedField;
 <span class="kw">use </span><span class="kw">crate</span>::token::{LocatedToken, SecondaryAttributeKind};
 <span class="kw">use crate</span>::{DataType, Kind, Shared};
 <span class="kw">use crate</span>::{
@@ -923,7 +923,7 @@
     }
 }
 
-<span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>get_field((value, location): (Value, Location)) -&gt; IResult&lt;FieldElement&gt; {
+<span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>get_field((value, location): (Value, Location)) -&gt; IResult&lt;SignedField&gt; {
     <span class="kw">match </span>value {
         Value::Field(value) =&gt; <span class="prelude-val">Ok</span>(value),
         value =&gt; type_mismatch(value, Type::FieldElement, location),
@@ -1319,7 +1319,7 @@
     <span class="kw">let </span><span class="kw-2">mut </span>hasher = std::collections::hash_map::DefaultHasher::new();
     item.hash(<span class="kw-2">&amp;mut </span>hasher);
     <span class="kw">let </span>hash = hasher.finish();
-    <span class="prelude-val">Ok</span>(Value::Field((hash <span class="kw">as </span>u128).into()))
+    <span class="prelude-val">Ok</span>(Value::Field(SignedField::positive(hash <span class="kw">as </span>u128)))
 }
 
 <span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>eq_item&lt;T: Eq&gt;(
