@@ -1,0 +1,15 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: expanded_code
+---
+fn main(a: bool, b: [[bool; 2]; 3]) -> pub [bool; 2] {
+    if !!a {
+        if !!a {
+            b[0]
+        } else {
+            b[0]
+        }
+    } else {
+        b[0]
+    }
+}
