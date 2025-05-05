@@ -232,11 +232,12 @@ pub fn evaluator_options(options: &CompileOptions) -> SsaEvaluatorOptions {
         expression_width: ExpressionWidth::default(),
         emit_ssa: { None },
         skip_underconstrained_check: options.skip_underconstrained_check,
-        skip_brillig_constraints_check: true,
+        skip_brillig_constraints_check: options.skip_brillig_constraints_check,
         inliner_aggressiveness: options.inliner_aggressiveness,
         max_bytecode_increase_percent: options.max_bytecode_increase_percent,
         brillig_options: BrilligOptions::default(),
-        enable_brillig_constraints_check_lookback: false,
+        enable_brillig_constraints_check_lookback: options
+            .enable_brillig_constraints_check_lookback,
     }
 }
 
