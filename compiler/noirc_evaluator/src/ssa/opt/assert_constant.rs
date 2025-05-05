@@ -3,7 +3,7 @@ use iter_extended::vecmap;
 use noirc_printable_type::{PrintableValueDisplay, TryFromParamsError};
 
 use crate::{
-    errors::{InternalError, RuntimeError},
+    errors::RuntimeError,
     ssa::{
         ir::{
             dfg::DataFlowGraph,
@@ -142,18 +142,14 @@ fn evaluate_static_assert(
             let message = display_values.to_string();
             Err(RuntimeError::StaticAssertFailed { message, call_stack })
         }
-        Err(err) => {
-            let message = match err {
-                TryFromParamsError::MissingForeignCallInputs => {
-                    "ICE: missing foreign call inputs".to_string()
-                }
-                TryFromParamsError::ParsingError(error) => {
-                    format!("ICE: could not decode printable type {:?}", error)
-                }
-            };
-
-            Err(RuntimeError::InternalError(InternalError::General { message, call_stack }))
-        }
+        Err(err) => match err {
+            TryFromParamsError::MissingForeignCallInputs => {
+                panic!("ICE: missing foreign call inputs")
+            }
+            TryFromParamsError::ParsingError(error) => {
+                panic!("ICE: could not decode printable type {:?}", error)
+            }
+        },
     }
 }
 
