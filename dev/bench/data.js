@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1746220093688,
+  "lastUpdate": 1746466700859,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -18066,48 +18066,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "aakoshh@gmail.com",
-            "name": "Akosh Farkash",
-            "username": "aakoshh"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "3bd32b8f461b23bb47aec451f1f74ff44ee7bc3a",
-          "message": "chore(test): Add smoke test for AST generation (#8048)",
-          "timestamp": "2025-04-24T15:48:43Z",
-          "tree_id": "1bcde2c9a7bf238f4f825c6e2ea1c3f7fb8657f2",
-          "url": "https://github.com/noir-lang/noir/commit/3bd32b8f461b23bb47aec451f1f74ff44ee7bc3a"
-        },
-        "date": 1745510773048,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 269543,
-            "range": "± 596",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 237418,
-            "range": "± 2158",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 3256955,
-            "range": "± 4984",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "15848336+TomAFrench@users.noreply.github.com",
             "name": "Tom French",
             "username": "TomAFrench"
@@ -20159,6 +20117,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 3589027,
             "range": "± 16557",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "asterite@gmail.com",
+            "name": "Ary Borenszweig",
+            "username": "asterite"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "f31097d0e09b6ac39842ee0e821ad62e70ebd1ba",
+          "message": "chore: add snapshosts for nargo expand tests (#8318)",
+          "timestamp": "2025-05-05T17:13:44Z",
+          "tree_id": "1fbf0e1fe1cadcad1453b950839a6083c09bfe0b",
+          "url": "https://github.com/noir-lang/noir/commit/f31097d0e09b6ac39842ee0e821ad62e70ebd1ba"
+        },
+        "date": 1746466693514,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 255162,
+            "range": "± 320",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 229018,
+            "range": "± 5047",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 3572462,
+            "range": "± 2867",
             "unit": "ns/iter"
           }
         ]
