@@ -40,8 +40,22 @@ it('circuit with a fmt string assert message should fail with the resolved asser
   } catch (error) {
     const knownError = error as ErrorWithPayload;
     expect(knownError.message).to.equal('Circuit execution failed: Expected x < y but got 10 < 5');
-    expect(knownError.noirCallStack).to.have.lengthOf(1);
-    expect(knownError.noirCallStack![0]).to.match(/^at x < y \(.*assert_msg_runtime\/src\/main.nr:3:12\)$/);
+  }
+});
+
+it('circuit with a nested assertion should fail with the resolved call stack', async () => {
+  try {
+    await new Noir(assert_msg_runtime).execute({
+      x: '10',
+      y: '5',
+    });
+  } catch (error) {
+    const knownError = error as ErrorWithPayload;
+    expect(knownError.noirCallStack).to.have.lengthOf(2);
+    expect(knownError.noirCallStack![0]).to.match(
+      /^at make_assertion\(x, y\) \(.*assert_msg_runtime\/src\/main.nr:2:5\)$/,
+    );
+    expect(knownError.noirCallStack![1]).to.match(/^at x < y \(.*assert_msg_runtime\/src\/main.nr:7:12\)$/);
   }
 });
 

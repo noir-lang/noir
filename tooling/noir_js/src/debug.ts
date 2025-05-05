@@ -101,7 +101,8 @@ function getCallStackFromLocationNode(
     const line = previousLines.length;
     const column = previousLines[previousLines.length - 1].length + 1;
 
-    result.push({
+    // Unshift since we are exploring child nodes first
+    result.unshift({
       filePath: path,
       line,
       column,
