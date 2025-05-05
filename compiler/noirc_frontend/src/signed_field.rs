@@ -103,7 +103,6 @@ impl std::ops::Add for SignedField {
                 Self::new(rhs.field - self.field, false)
             }
         } else {
-            // !self.is_negative && rhs.is_negative
             if rhs.field > self.field {
                 // For example "4 + (-5)", so "-(5 - 4)"
                 Self::new(rhs.field - self.field, true)
@@ -303,7 +302,7 @@ mod tests {
         let minus_six = SignedField::negative(6_u32);
 
         assert_eq!(two * three, six); // positive * positive
-        assert_eq!(two * minus_three, minus_six); // possitive * negative
+        assert_eq!(two * minus_three, minus_six); // positive * negative
         assert_eq!(minus_two * three, minus_six); // negative * positive
         assert_eq!(minus_two * minus_three, six); // negative * negative
     }
@@ -318,7 +317,7 @@ mod tests {
         let minus_six = SignedField::negative(6_u32);
 
         assert_eq!(six / two, three); // positive * positive
-        assert_eq!(six / minus_three, minus_two); // possitive * negative
+        assert_eq!(six / minus_three, minus_two); // positive * negative
         assert_eq!(minus_six / three, minus_two); // negative * positive
         assert_eq!(minus_six / minus_three, two); // negative * negative
     }
