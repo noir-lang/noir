@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1746472605379,
+  "lastUpdate": 1746473132992,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -3700,95 +3700,6 @@ window.BENCHMARK_DATA = {
       }
     ],
     "Compilation Time": [
-      {
-        "commit": {
-          "author": {
-            "email": "asterite@gmail.com",
-            "name": "Ary Borenszweig",
-            "username": "asterite"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "c14cc79bcd554500a11c6625499543e457987f09",
-          "message": "fix: validate numeric types when passing them to a FunctionBuilder (#8215)",
-          "timestamp": "2025-04-24T20:37:28Z",
-          "tree_id": "5a3a7e868b814ceb3c283c849ec7a7aba2d3be33",
-          "url": "https://github.com/noir-lang/noir/commit/c14cc79bcd554500a11c6625499543e457987f09"
-        },
-        "date": 1745528283690,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "regression_4709",
-            "value": 0.663,
-            "unit": "s"
-          },
-          {
-            "name": "ram_blowup_regression",
-            "value": 12.7,
-            "unit": "s"
-          },
-          {
-            "name": "global_var_regression_entry_points",
-            "value": 0.479,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-inner",
-            "value": 2.128,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 6.626,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 1.062,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 17.64,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 13.36,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root-empty",
-            "value": 0.886,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root-single-tx",
-            "value": 124,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 122,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 0.868,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-root",
-            "value": 1.34,
-            "unit": "s"
-          }
-        ]
-      },
       {
         "commit": {
           "author": {
@@ -8146,6 +8057,95 @@ window.BENCHMARK_DATA = {
           {
             "name": "rollup-root",
             "value": 1.594,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "asterite@gmail.com",
+            "name": "Ary Borenszweig",
+            "username": "asterite"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "f81925d6a4b7b216877da2c4db18f24bff196b27",
+          "message": "fix: let comptime Field value carry the field's sign (#8343)\n\nCo-authored-by: Maxim Vezenov <mvezenov@gmail.com>\nCo-authored-by: jfecher <jfecher11@gmail.com>",
+          "timestamp": "2025-05-05T18:53:56Z",
+          "tree_id": "0b34821e1dce85e3ed160c31d06208551c5de804",
+          "url": "https://github.com/noir-lang/noir/commit/f81925d6a4b7b216877da2c4db18f24bff196b27"
+        },
+        "date": 1746473125408,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "regression_4709",
+            "value": 0.667,
+            "unit": "s"
+          },
+          {
+            "name": "ram_blowup_regression",
+            "value": 12.7,
+            "unit": "s"
+          },
+          {
+            "name": "global_var_regression_entry_points",
+            "value": 0.489,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-inner",
+            "value": 2.362,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 6.468,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 1.186,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 18.62,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 13.2,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-empty",
+            "value": 1.218,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-single-tx",
+            "value": 128,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 124,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 1.096,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-root",
+            "value": 1.608,
             "unit": "s"
           }
         ]
