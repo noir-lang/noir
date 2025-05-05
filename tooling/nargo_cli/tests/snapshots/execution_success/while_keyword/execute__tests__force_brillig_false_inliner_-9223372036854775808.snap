@@ -10,13 +10,11 @@ expression: artifact
     "return_type": null,
     "error_types": {}
   },
-  "bytecode": "H4sIAAAAAAAA/71VzU6EMBBu+SkgbtzoxYMXPXjy0EoJ6MVN9EWaXXkOHl1IZmQydnFXqE3ItPTr99PSIMXPJocnEac1CfUdagE1IvPx8OxgrJc1UzDdNflbbW3hybei/6oAThmGXyN/oP3XGfB89BM/zYK6+fCUpH8ppu8jVH48v5D5b2Yyl5D1FcYbhhVsnWBzseddxPYtVK7tTK4N0VuaY8u45P9l/P42kjD8z8ifhuE3auC4Ba4r4FdES7I+3tUUfHB8ROYp/gHqiL1jevzeUj0cJ0RPzugh/h5q4PPR14RXMK1SnLenNKPy8PE9raCO2Efo+/RiNpfNeMnF1Hxe+NqCePDhc+Yd8U9Qx/kd9H33OGd6yuOPekqP5FFH8Ir5Q7yZ8Sc96/96j2gOdWYO37nwHO2JOTJPDjyrpJ9wa92dptUa9eN+8k7/B4Lppwz/BuMLkgNrssBn1zjTVa5ztTsc7N7xOz42+n9eW9/Wrtm7xpgXaz6tqX/T/wJHJZF/cAsAAA==",
-  "debug_symbols": "nZJLCoMwEIbvkrWLPNRGr1KKRB0lEKLERCji3RvFWFsolKwmM3++eTELaqF2fSV1N0yovC+oNlIp2VdqaISVg/bRZU1QcCtrAHwIXXRPjcKAtqjUTqkEzUK5/dM0Cr1bK4xXcYJAt976hJ1UsL3W5E3j3yjJA0xycuLZ/zwngec0hi+yg6cYR/AM04NnmMfwLPTP0pj5KUlD/zSmf8rO+ePq87N+EbP/jB/47bP6w3uikeb7XmdhpKgVHG7ndHNR7XMMSrj30QwNtM7AlmnXfO4X",
+  "bytecode": "H4sIAAAAAAAA/5XDsQkAAADCMAv+f7PuTgaCFm19Arunwj5IAAAA",
+  "debug_symbols": "nZJLCoMwEIbvkrWLPKqoVylFoo4SCEmIiVDEuzeKsbZQKFlNZv5882IW1EPrx0aoQU+ovi+otUJKMTZSd9wJrUJ0WTMU3cZZgBBCFz1QhltQDtXKS5mhmUu/f5oMV7t13AYVZwhUH2xIOAgJ22vN3jT+jZIiwqQgJ57/z5ck8iVN4av84CnGCTzD9OAZLlN4Fvtnt5T5KbnF/mlK/5Sd86fVL8/61ef+H8HjnbDfFzdzK3gr4XAHr7qL6p4mKvFijdUd9N7ClmnXQu4X",
   "file_map": {},
   "names": [
     "main"
   ],
-  "brillig_names": [
-    "check_while"
-  ]
+  "brillig_names": []
 }
