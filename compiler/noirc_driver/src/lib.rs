@@ -14,7 +14,9 @@ use noirc_errors::{CustomDiagnostic, DiagnosticKind};
 use noirc_evaluator::brillig::BrilligOptions;
 use noirc_evaluator::create_program;
 use noirc_evaluator::errors::RuntimeError;
-use noirc_evaluator::ssa::{SsaLogging, SsaProgramArtifact};
+use noirc_evaluator::ssa::{
+    SsaEvaluatorOptions, SsaLogging, SsaProgramArtifact, create_program_with_minimal_passes,
+};
 use noirc_frontend::debug::build_debug_crate_file;
 use noirc_frontend::elaborator::{FrontendOptions, UnstableFeature};
 use noirc_frontend::hir::Context;
@@ -87,6 +89,13 @@ pub struct CompileOptions {
     /// under `[compiled-package].ssa.json`.
     #[arg(long, hide = true)]
     pub emit_ssa: bool,
+
+    /// Only perform the minimum number of SSA passes.
+    ///
+    /// The purpose of this is to be able to debug fuzzing failures.
+    /// It implies `--force-brillig`.
+    #[arg(long, hide = true)]
+    pub minimal_ssa: bool,
 
     #[arg(long, hide = true)]
     pub show_brillig: bool,
@@ -173,6 +182,17 @@ pub struct CompileOptions {
     /// This is disabled by default.
     #[arg(long, default_value = "false")]
     pub pedantic_solving: bool,
+
+    /// Skip reading files/folders from the root directory and instead accept the
+    /// contents of `main.nr` through STDIN.
+    ///
+    /// The implicit package structure is:
+    /// ```
+    /// src/main.nr // STDIN
+    /// Nargo.toml // fixed "bin" Nargo.toml
+    /// ```
+    #[arg(long, hide = true)]
+    pub debug_compile_stdin: bool,
 
     /// Unstable features to enable for this current build
     #[arg(value_parser = clap::value_parser!(UnstableFeature))]
@@ -488,7 +508,7 @@ pub fn compile_contract(
 fn read_contract(context: &Context, module_id: ModuleId, name: String) -> Contract {
     let module = context.module(module_id);
 
-    let functions = module
+    let functions: Vec<ContractFunctionMeta> = module
         .value_definitions()
         .filter_map(|id| {
             id.as_function().map(|function_id| {
@@ -582,7 +602,9 @@ fn compile_contract_inner(
             .iter()
             .filter_map(|attr| match &attr.kind {
                 SecondaryAttributeKind::Tag(contents) => Some(contents.clone()),
-                SecondaryAttributeKind::Meta(attribute) => Some(attribute.to_string()),
+                SecondaryAttributeKind::Meta(meta_attribute) => {
+                    context.def_interner.get_meta_attribute_name(meta_attribute)
+                }
                 _ => None,
             })
             .collect();
@@ -686,7 +708,7 @@ pub fn compile_no_check(
     cached_program: Option<CompiledProgram>,
     force_compile: bool,
 ) -> Result<CompiledProgram, CompileError> {
-    let force_unconstrained = options.force_brillig;
+    let force_unconstrained = options.force_brillig || options.minimal_ssa;
 
     let program = if options.instrument_debug {
         monomorphize_debug(
@@ -711,7 +733,8 @@ pub fn compile_no_check(
         || options.force_brillig
         || options.show_ssa
         || options.show_ssa_pass.is_some()
-        || options.emit_ssa;
+        || options.emit_ssa
+        || options.minimal_ssa;
 
     // Hash the AST program, which is going to be used to fingerprint the compilation artifact.
     let hash = fxhash::hash64(&program);
@@ -724,7 +747,7 @@ pub fn compile_no_check(
     }
 
     let return_visibility = program.return_visibility;
-    let ssa_evaluator_options = noirc_evaluator::ssa::SsaEvaluatorOptions {
+    let ssa_evaluator_options = SsaEvaluatorOptions {
         ssa_logging: match &options.show_ssa_pass {
             Some(string) => SsaLogging::Contains(string.clone()),
             None => {
@@ -756,7 +779,11 @@ pub fn compile_no_check(
     };
 
     let SsaProgramArtifact { program, debug, warnings, names, brillig_names, error_types, .. } =
-        create_program(program, &ssa_evaluator_options)?;
+        if options.minimal_ssa {
+            create_program_with_minimal_passes(program, &ssa_evaluator_options)?
+        } else {
+            create_program(program, &ssa_evaluator_options)?
+        };
 
     let abi = abi_gen::gen_abi(context, &main_function, return_visibility, error_types);
     let file_map = filter_relevant_files(&debug, &context.file_manager);

@@ -10,7 +10,6 @@ keywords:
     smart contract,
     blockchain,
     compiler,
-    plonk_vk.sol,
     EVM blockchain,
     verifying Noir programs,
     proving backend,
@@ -43,13 +42,6 @@ Generating a Solidity Verifier with Barretenberg contract is actually a one-comm
 2. How to compile the smart contract in the RemixIDE
 3. How to deploy it to a testnet
 
-:::info[Which proving system to use?]
-
-Barretenberg currently provides two provers: `UltraPlonk` and `UltraHonk`. In a nutshell, `UltraHonk` is faster and uses less RAM, but its verifier contract is much more expensive. `UltraPlonk` is optimized for on-chain verification, but proving is more expensive.
-
-In any case, we provide instructions for both. Choose your poison ☠️
-
-:::
 
 ## Step 1 - Generate a contract
 
@@ -67,7 +59,7 @@ This will compile your source code into a Noir build artifact to be stored in th
 bb write_vk -b ./target/<noir_artifact_name>.json -o ./target --oracle_hash keccak
 
 # Generate the Solidity verifier from the vkey
-bb write_solidity_verifier -k ./target/vk -o ../target/Verifier.sol
+bb write_solidity_verifier -k ./target/vk -o ./target/Verifier.sol
 ```
 
 replacing `<noir_artifact_name>` with the name of your Noir project. A `Verifier.sol` contract is now in the target folder and can be deployed to any EVM blockchain acting as a verifier smart contract.

@@ -9,7 +9,9 @@ use noirc_evaluator::{
 };
 use std::collections::BTreeMap;
 /// Optimizes the given FunctionBuilder into ACIR
-fn optimize_builder_into_acir(
+/// its taken from noirc_evaluator::ssa::optimize_all, but modified to accept FunctionBuilder
+/// and to catch panics... It cannot be caught with just catch_unwind.
+fn optimize_into_acir(
     builder: FunctionBuilder,
     options: SsaEvaluatorOptions,
 ) -> Result<ArtifactsAndWarnings, RuntimeError> {

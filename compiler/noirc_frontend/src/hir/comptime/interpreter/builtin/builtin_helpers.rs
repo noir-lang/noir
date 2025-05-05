@@ -1,7 +1,6 @@
 use std::hash::Hash;
 use std::{hash::Hasher, rc::Rc};
 
-use acvm::FieldElement;
 use iter_extended::try_vecmap;
 use noirc_errors::Location;
 
@@ -9,10 +8,10 @@ use crate::elaborator::Elaborator;
 use crate::hir::comptime::display::tokens_to_string;
 use crate::hir::comptime::value::unwrap_rc;
 use crate::hir::def_collector::dc_crate::CompilationError;
-use crate::hir_def::expr::HirExpression;
 use crate::lexer::Lexer;
 use crate::parser::{Parser, ParserError};
-use crate::token::{LocatedToken, MetaAttributeName, SecondaryAttributeKind};
+use crate::signed_field::SignedField;
+use crate::token::{LocatedToken, SecondaryAttributeKind};
 use crate::{DataType, Kind, Shared};
 use crate::{
     QuotedType, Type,
@@ -241,7 +240,7 @@ pub(crate) fn get_tuple(
     }
 }
 
-pub(crate) fn get_field((value, location): (Value, Location)) -> IResult<FieldElement> {
+pub(crate) fn get_field((value, location): (Value, Location)) -> IResult<SignedField> {
     match value {
         Value::Field(value) => Ok(value),
         value => type_mismatch(value, Type::FieldElement, location),
@@ -608,15 +607,7 @@ fn secondary_attribute_name(
             let token = lexer.next()?.ok()?;
             if let Token::Ident(ident) = token.into_token() { Some(ident) } else { None }
         }
-        SecondaryAttributeKind::Meta(meta) => match &meta.name {
-            MetaAttributeName::Path(path) => Some(path.last_name().to_string()),
-            MetaAttributeName::Resolved(expr_id) => {
-                let HirExpression::Ident(ident, _) = interner.expression(expr_id) else {
-                    return None;
-                };
-                interner.try_definition(ident.id).map(|def| def.name.clone())
-            }
-        },
+        SecondaryAttributeKind::Meta(meta) => interner.get_meta_attribute_name(meta),
         SecondaryAttributeKind::Abi(_) => Some("abi".to_string()),
         SecondaryAttributeKind::Varargs => Some("varargs".to_string()),
         SecondaryAttributeKind::UseCallersScope => Some("use_callers_scope".to_string()),
@@ -645,7 +636,7 @@ pub(super) fn hash_item<T: Hash>(
     let mut hasher = std::collections::hash_map::DefaultHasher::new();
     item.hash(&mut hasher);
     let hash = hasher.finish();
-    Ok(Value::Field((hash as u128).into()))
+    Ok(Value::Field(SignedField::positive(hash as u128)))
 }
 
 pub(super) fn eq_item<T: Eq>(

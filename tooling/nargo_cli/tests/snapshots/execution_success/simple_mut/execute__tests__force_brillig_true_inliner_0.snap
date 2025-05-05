@@ -29,7 +29,7 @@ expression: artifact
     }
   },
   "bytecode": "H4sIAAAAAAAA/7VUQQ7CIBBcLI2i0YO96C/AtrZHD/oQYsM7+nQlLum6Ui+FSZot0B1mhlABHwh8PCSZ4whzN6x6GUxCLi0iOv+aiDWcsSqsK7JeJDSuIlpS8fe6uSr49ZxQf62QM2c+gTMDv14jz32c+LkXjz18Xw7as8H18H4gPR4Pwh36c+b2Pvc2c26mgvmsdphDNeMV0um48L0hokuQ86BjrjncFTmmz6zrpx9Tgfwl0w1s/5J9f8LxlugPVS7Q6TprXG2dbe0wNE97ZPxA8vQ5vQCrjYemLQYAAA==",
-  "debug_symbols": "lY5LCgMhEETv0msX45AJiVcZwuCnHQRR8RMI4t2jIQvJLpuiq6kqXgWFopyHcdonYHsF6yXPxrvuaiMgorHWnMf8hmUI3T75FLgbNmUeMzC6rATQqXHdel8bi8C2pT0I0Ot/jdbdk0fDhcUvji5OTnT5FfAHNEQvUZWIA3mi7brTO1kvfbZPvwE=",
+  "debug_symbols": "dZDRDoMgDEX/pc88wDKXzV8xxqBWQ0KAVFiyGP59xejmHvbSUu49l9AVRuzT3Bk3+QXqZoWejLVm7qwfdDTe8e0KshRVQa0EqBu3nAUcji4SYjGcEA4KmtBFqF2yVsBT27SZlqDd1qMmVqUAdCN3DpyMxXLK4kvL/6iSlx1W8v7BK+ZbnvRg6OcTuSSR0b3FfZySG05qfIVDOZYQyA84JsKSdNoE10Y9xOXa5vLaGw==",
   "file_map": {
     "50": {
       "source": "// A simple program to test mutable variables\nfn main(x: Field) -> pub Field {\n    let mut y = 2;\n    y += x;\n    y\n}\n",

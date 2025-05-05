@@ -19,15 +19,28 @@ expression: artifact
     ],
     "return_type": null,
     "error_types": {
+      "2920182694213909827": {
+        "error_kind": "string",
+        "string": "attempt to subtract with overflow"
+      },
+      "5019202896831570965": {
+        "error_kind": "string",
+        "string": "attempt to add with overflow"
+      },
       "17843811134343075018": {
         "error_kind": "string",
         "string": "Stack too deep"
       }
     }
   },
-  "bytecode": "H4sIAAAAAAAA/7VS0QrCMAzsXEWrKKLod2RsY3v0wR8pjn7HPn0MLjSEspe1ebmEpNe7ppWJUQGtqk1i5gukfdFk5KKk0K3gmQ/QAQ+iX2c069S9OflH6nqX8JdRf+vAWfJ9mLMAP53A85sjv/ZiBPKcPrP2b8jlP+OZM/qc35E7dabE/gvuh14J/XzXFV4foub/aOf8eoaRiHXU4D+auDsZVvTl/Bv1RfhhtDt0hsE3ofXB936aur9/Kn6j3m0BIk9j/oUFAAA=",
-  "debug_symbols": "XYzBCoAgEET/Zc8dskOHfiUi1DZZEBXTIGT/PYUO4WXgzWOmwIEqm53c6S9Y1gLWa5nIu0qFB1CRrCWzd/UtI0ll8cMzO/2z6QnY7UP0Go8csT01B2MLUXMV8zCJjZk3fgE=",
-  "file_map": {},
+  "bytecode": "H4sIAAAAAAAA/71UsY7CMAxNj/bucicYgAEWkJDYHZqSsjHwI6Gl39FPR5VsNVgpIDXBi53k5fk5dpuI3hL0KVsLD+aMHsaZCsgFXqHPjDB79BL9l3M+CVisZHlD8pegC+mpL6D+XCJnzPchzgj88IM8l7bn57UIxxOO3+nOpxi7c0aYXzyneIaxZHdi9D9if2Dh0U+5/rHWNas11qwk4rFnAuMhfbRPP7fvATzxZQy/FH0/twOcyZsaMo8GjnE1EH7laNhh3L07ffdp+6jjjPswwkwJQHomba/LfXfB8mcMv8H1n1Mj+XSEzsZY1eS2sYWta13ZOePvzJ3P0Pl1YU1ljVInrW5aFZ/OfyjL4+lwBW3qqql1/ir/HUrBFxvtBwAA",
+  "debug_symbols": "pZJNjoQgEEbvwpqF/Dp6FWMMKnZICBpaJ5kY7z6FYrcu6E1veEDxqlh8K+p1uzwa44bxicpqRa031ppHY8dOzWZ0cLuiLCxEoJJhROSB/MDPgWIHhYcSQA7QAwywbRidLZvZax06XmbA5El57WZUusVajH6VXfZHz0m5nbPyUM0w0q4HQsPBWB12G37bWVolnEWZSP7Sxd0naV8yGX3J85RPP/hFEf08S87/8H/KefSpFCmff/l/kfZzcfq5JDe/hpPqjL+lZgudvFGt1fE4LK67VOe/6aycqZv82Ol+8Tp0ukQP1ooKzLIasgbpqhjHTNZbGP0P",
+  "file_map": {
+    "50": {
+      "source": "struct MyStruct {\n    operation: unconstrained fn(u32) -> u32,\n}\n\nfn main(x: u32) {\n    // Safety: testing context\n    unsafe {\n        assert(wrapper(increment, x) == x + 1);\n        assert(wrapper(increment_acir, x) == x + 1);\n        assert(wrapper(decrement, x) == x - 1);\n        assert(wrapper_with_struct(MyStruct { operation: increment }, x) == x + 1);\n        assert(wrapper_with_struct(MyStruct { operation: decrement }, x) == x - 1);\n        // https://github.com/noir-lang/noir/issues/1975\n        assert(increment(x) == x + 1);\n    }\n}\n\nunconstrained fn wrapper(func: unconstrained fn(u32) -> u32, param: u32) -> u32 {\n    func(param)\n}\n\nunconstrained fn increment(x: u32) -> u32 {\n    x + 1\n}\n\nunconstrained fn decrement(x: u32) -> u32 {\n    x - 1\n}\n\nunconstrained fn wrapper_with_struct(my_struct: MyStruct, param: u32) -> u32 {\n    let func = my_struct.operation;\n    func(param)\n}\n\nfn increment_acir(x: u32) -> u32 {\n    x + 1\n}\n",
+      "path": ""
+    }
+  },
   "names": [
     "main"
   ],

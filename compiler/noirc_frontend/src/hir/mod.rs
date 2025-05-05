@@ -180,7 +180,7 @@ impl Context<'_, '_> {
             .get_all_test_functions(interner)
             .filter_map(|test_function| {
                 let fully_qualified_name =
-                    self.fully_qualified_function_name(crate_id, &test_function.get_id());
+                    self.fully_qualified_function_name(crate_id, &test_function.id);
                 match &pattern {
                     FunctionNameMatch::Anything => Some((fully_qualified_name, test_function)),
                     FunctionNameMatch::Exact(patterns) => patterns
@@ -211,7 +211,7 @@ impl Context<'_, '_> {
             .get_all_fuzzing_harnesses(interner)
             .filter_map(|fuzzing_harness| {
                 let fully_qualified_name =
-                    self.fully_qualified_function_name(crate_id, &fuzzing_harness.get_id());
+                    self.fully_qualified_function_name(crate_id, &fuzzing_harness.id);
                 match &pattern {
                     FunctionNameMatch::Anything => Some((fully_qualified_name, fuzzing_harness)),
                     FunctionNameMatch::Exact(patterns) => patterns

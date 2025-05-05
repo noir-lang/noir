@@ -3,7 +3,10 @@ pub mod data_bus;
 use std::{borrow::Cow, collections::BTreeMap, sync::Arc};
 
 use acvm::{FieldElement, acir::circuit::ErrorSelector};
-use noirc_errors::Location;
+use noirc_errors::{
+    Location,
+    call_stack::{CallStack, CallStackId},
+};
 use noirc_frontend::hir_def::types::Type as HirType;
 use noirc_frontend::monomorphization::ast::InlineType;
 
@@ -18,7 +21,6 @@ use crate::ssa::ir::{
 use super::{
     ir::{
         basic_block::BasicBlock,
-        call_stack::{CallStack, CallStackId},
         dfg::{GlobalsGraph, InsertInstructionResult},
         function::RuntimeType,
         instruction::{ConstrainError, InstructionId, Intrinsic},
@@ -128,7 +130,7 @@ impl FunctionBuilder {
         let old_function = std::mem::replace(&mut self.current_function, new_function);
         // Copy the call stack to the new function
         self.call_stack =
-            self.current_function.dfg.call_stack_data.get_or_insert_locations(call_stack);
+            self.current_function.dfg.call_stack_data.get_or_insert_locations(&call_stack);
         self.finished_functions.push(old_function);
 
         self.current_function.dfg.set_function_purities(self.purities.clone());
@@ -169,6 +171,7 @@ impl FunctionBuilder {
         value: impl Into<FieldElement>,
         typ: NumericType,
     ) -> ValueId {
+        validate_numeric_type(&typ);
         self.current_function.dfg.make_constant(value.into(), typ)
     }
 
@@ -298,6 +301,7 @@ impl FunctionBuilder {
     /// Insert a cast instruction at the end of the current block.
     /// Returns the result of the cast instruction.
     pub fn insert_cast(&mut self, value: ValueId, typ: NumericType) -> ValueId {
+        validate_numeric_type(&typ);
         self.insert_instruction(Instruction::Cast(value, typ), None).first()
     }
 
@@ -538,6 +542,28 @@ impl std::ops::Index<BasicBlockId> for FunctionBuilder {
 
     fn index(&self, id: BasicBlockId) -> &Self::Output {
         &self.current_function.dfg[id]
+    }
+}
+
+fn validate_numeric_type(typ: &NumericType) {
+    match &typ {
+        NumericType::Signed { bit_size } => match bit_size {
+            8 | 16 | 32 | 64 => (),
+            _ => {
+                panic!(
+                    "Invalid bit size for signed numeric type: {bit_size}. Expected one of 8, 16, 32 or 64."
+                );
+            }
+        },
+        NumericType::Unsigned { bit_size } => match bit_size {
+            1 | 8 | 16 | 32 | 64 | 128 => (),
+            _ => {
+                panic!(
+                    "Invalid bit size for unsigned numeric type: {bit_size}. Expected one of 1, 8, 16, 32, 64, or 128."
+                );
+            }
+        },
+        _ => (),
     }
 }
 

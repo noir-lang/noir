@@ -5,7 +5,7 @@ mod signature_help_tests {
         utils::get_cursor_line_and_column,
     };
 
-    use lsp_types::{
+    use async_lsp::lsp_types::{
         DidOpenTextDocumentParams, ParameterLabel, Position, SignatureHelp, SignatureHelpParams,
         TextDocumentIdentifier, TextDocumentItem, TextDocumentPositionParams,
         WorkDoneProgressParams,

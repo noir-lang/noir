@@ -177,7 +177,7 @@ impl Parser<'_> {
             Some(name) => name,
             None => {
                 self.expected_identifier();
-                Ident::default()
+                self.unknown_ident_at_previous_token_end()
             }
         };
 
@@ -196,7 +196,7 @@ impl Parser<'_> {
             Some(name) => name,
             None => {
                 self.expected_identifier();
-                Ident::default()
+                self.unknown_ident_at_previous_token_end()
             }
         };
 
@@ -204,7 +204,8 @@ impl Parser<'_> {
             self.parse_type_or_error()
         } else {
             self.expected_token(Token::Colon);
-            UnresolvedType { typ: UnresolvedTypeData::Unspecified, location: Location::dummy() }
+            let location = self.location_at_previous_token_end();
+            UnresolvedType { typ: UnresolvedTypeData::Unspecified, location }
         };
 
         let default_value =
@@ -271,7 +272,7 @@ fn empty_trait(
     location: Location,
 ) -> NoirTrait {
     NoirTrait {
-        name: Ident::default(),
+        name: Ident::new(String::new(), location),
         generics: Vec::new(),
         bounds: Vec::new(),
         where_clause: Vec::new(),
