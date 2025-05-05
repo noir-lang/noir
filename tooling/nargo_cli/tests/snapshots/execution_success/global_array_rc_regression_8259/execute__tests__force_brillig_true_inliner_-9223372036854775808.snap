@@ -1,0 +1,53 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: artifact
+---
+{
+  "noir_version": "[noir_version]",
+  "hash": "[hash]",
+  "abi": {
+    "parameters": [
+      {
+        "name": "a",
+        "type": {
+          "kind": "boolean"
+        },
+        "visibility": "private"
+      }
+    ],
+    "return_type": {
+      "abi_type": {
+        "kind": "array",
+        "length": 3,
+        "type": {
+          "kind": "boolean"
+        }
+      },
+      "visibility": "public"
+    },
+    "error_types": {
+      "12049594436772143978": {
+        "error_kind": "string",
+        "string": "array ref-count underflow detected"
+      },
+      "17843811134343075018": {
+        "error_kind": "string",
+        "string": "Stack too deep"
+      }
+    }
+  },
+  "bytecode": "H4sIAAAAAAAA/8VXTW/bMAylYytfXpdg2y/YbTdnTpb0FqBds8t22YCd3RTBLrsN2I766bNaEX5+VlygtVACgSyS4qNImowTeaC0/iX+OfOr7pGUt/dr8TxaDWirSMDHFJ5HsA9e6qwy6P/z68yvIwLbDxSQGeEOaX9XrI8zadPA/pcziGOs+HCCB7RfTLydL1ZaNSGEm5Ien3F04Z+x5lRnWv/eSfP8HjAQU7HYjspjxqOul0u1n0WwX1N5oXe0jf0RxM9RZtvYKDMgyyCeVxSfGPWI8YlUj+VbOV+D+i5f2UYmMnwvuo5jv9Acfvb2EUOxb2yUuK4TwhNp51AIf06+Dt3XEsJDfzA+/G4cbNfXZUDGNXII4BwCOCFb1wPaUr9yeXhvv3n+Qrp9UOMQewZor9V+kknTg/m/gt6Pe2QGfhviffCru+8POHOu7yOPY4n1yDMhUs/e6Fwz0iWVjeleKJuAPvrPlNKee/xPsMt67A/2T/VtId1ccY0ZOBejxtQXrDETuO9IunEdg9+GeJfSxIlrDO+bBnh9Ncb+ZGRb6bX053oUOBf6L6DndR5kIBtyHrg43YIfnfjatgznh+rlwJ/Y5mxK92J7jqaoT7IZyPD+juZ+r/XDttQPQ/pf/X7h1zGc0fPLAP6Y8Ft+B3iYZ7aVBniq72J6459dXGPmf7trPh419ka6/QfxDel/9/s53Vffkf0T/Txtq9WprE7Vprq7Wx+rN2QfY5ZHwK+25e74cX3c3m7Kqvz0KD7O8MhzetX37fAS/aI18wGXZ2Vfz+W5gPo8ixwt5fF5y7XgyOUq9O5jLB1p/8D+gvrqtyH9k+rWv1/gz72u7eI5vb89esmZ9d5GgJfZNi/Ud7Afq75iz23XR5XlIMM8O3rl9xgvtKV+GNL/4/eaE+yhen4ZwJ8SfsvvAI/7cR7QzwP6Lj+/1Z5f8e4xvoXGZB957JvWjqvr//bhYlbVFAAA",
+  "debug_symbols": "jZJLjoQgFEX3wpiBoPzcijEGFSskBA2lnXSMe++HT7uqBp30hAM+zpXfTkbXb4/Ox2l+krrZSZ98CP7RhXmwq58jfN1JkZuqJDWjpKoQAiERCqER5oQoEAzBEZgiMEVgisAUgSkCUyTqEnWJukRdoq5hJgeYE6ZAMARHlIgKAf/jx0HJvb1uTc7l3b3tF05hscnFldRxC4GSLxu2c9JzsfHkahNUC0pcHIEQOPngcu+gL7v4WzXl5bJC/dri3zpn5vI5Lz/8FkZ28OnjAo+clLztg7uG0xaHt+r6vdyV+wEsaR7cuCWXk16vAJrGaMqYaSmBs22kokpBn+WK0lSXeQB30OiKatkeeU0/",
+  "file_map": {
+    "50": {
+      "source": "global G_C: [bool; 3] = [true, false, true];\nfn main(a: bool) -> pub [bool; 3] {\n    let b = func_1(a, G_C);\n    if a {\n        G_C\n    } else {\n        b\n    }\n}\nfn func_1(a: bool, mut b: [bool; 3]) -> [bool; 3] {\n    b[1] = a;\n    b\n}\n",
+      "path": ""
+    }
+  },
+  "names": [
+    "main"
+  ],
+  "brillig_names": [
+    "main"
+  ]
+}
