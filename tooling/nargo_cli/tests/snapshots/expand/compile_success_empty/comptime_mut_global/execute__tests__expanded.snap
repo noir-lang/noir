@@ -11,11 +11,11 @@ comptime fn get_unique_id() -> Field {
 }
 
 fn id1() -> Field {
-    0
+    0 as Field
 }
 
 fn id2() -> Field {
-    1
+    1 as Field
 }
 
 fn main() {

@@ -176,7 +176,7 @@ mod test_as_typed_expr_3 {
     }
 
     pub fn bar() -> u32 {
-        4
+        4 as u32
     }
 
     pub fn test() {
