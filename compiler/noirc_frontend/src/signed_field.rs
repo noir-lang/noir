@@ -127,6 +127,10 @@ impl std::ops::Mul for SignedField {
     type Output = Self;
 
     fn mul(self, rhs: Self) -> Self::Output {
+        if self.field.is_zero() || rhs.field.is_zero() {
+            return Self::zero();
+        }
+
         Self::new(self.field * rhs.field, self.is_negative ^ rhs.is_negative)
     }
 }
@@ -135,6 +139,10 @@ impl std::ops::Div for SignedField {
     type Output = Self;
 
     fn div(self, rhs: Self) -> Self::Output {
+        if self.field.is_zero() {
+            return Self::zero();
+        }
+
         Self::new(self.field / rhs.field, self.is_negative ^ rhs.is_negative)
     }
 }
@@ -262,6 +270,7 @@ mod tests {
 
     #[test]
     fn addition() {
+        let zero = SignedField::zero();
         let one = SignedField::one();
         let two = SignedField::positive(2_u32);
         let three = SignedField::positive(3_u32);
@@ -275,10 +284,16 @@ mod tests {
         assert_eq!(minus_three + one, minus_two); // negative + positive
 
         assert_eq!(minus_one + minus_two, minus_three); // negative + negative
+
+        assert_eq!(one + zero, one);
+        assert_eq!(zero + one, one);
+        assert_eq!(minus_one + zero, minus_one);
+        assert_eq!(zero + minus_one, minus_one);
     }
 
     #[test]
     fn subtraction() {
+        let zero = SignedField::zero();
         let one = SignedField::one();
         let two = SignedField::positive(2_u32);
         let three = SignedField::positive(3_u32);
@@ -291,10 +306,16 @@ mod tests {
         assert_eq!(minus_one - two, minus_three); // negative - positive
 
         assert_eq!(minus_one - minus_three, two); // negative - negative
+
+        assert_eq!(one - zero, one);
+        assert_eq!(minus_one - zero, minus_one);
+        assert_eq!(zero - one, minus_one);
+        assert_eq!(zero - minus_one, one);
     }
 
     #[test]
     fn multiplication() {
+        let zero = SignedField::zero();
         let two = SignedField::positive(2_u32);
         let three = SignedField::positive(3_u32);
         let six = SignedField::positive(6_u32);
@@ -306,10 +327,15 @@ mod tests {
         assert_eq!(two * minus_three, minus_six); // possitive * negative
         assert_eq!(minus_two * three, minus_six); // negative * positive
         assert_eq!(minus_two * minus_three, six); // negative * negative
+        assert_eq!(two * zero, zero);
+        assert_eq!(minus_two * zero, zero);
+        assert_eq!(zero * two, zero);
+        assert_eq!(zero * minus_two, zero);
     }
 
     #[test]
     fn division() {
+        let zero = SignedField::zero();
         let two = SignedField::positive(2_u32);
         let three = SignedField::positive(3_u32);
         let six = SignedField::positive(6_u32);
@@ -317,9 +343,11 @@ mod tests {
         let minus_three = SignedField::negative(3_u32);
         let minus_six = SignedField::negative(6_u32);
 
-        assert_eq!(six / two, three); // positive * positive
-        assert_eq!(six / minus_three, minus_two); // possitive * negative
-        assert_eq!(minus_six / three, minus_two); // negative * positive
-        assert_eq!(minus_six / minus_three, two); // negative * negative
+        assert_eq!(six / two, three); // positive / positive
+        assert_eq!(six / minus_three, minus_two); // possitive / negative
+        assert_eq!(minus_six / three, minus_two); // negative / positive
+        assert_eq!(minus_six / minus_three, two); // negative / negative
+        assert_eq!(zero / two, zero);
+        assert_eq!(zero / minus_two, zero);
     }
 }
