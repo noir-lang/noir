@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1746467390495,
+  "lastUpdate": 1746471434011,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -18071,48 +18071,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "15848336+TomAFrench@users.noreply.github.com",
-            "name": "Tom French",
-            "username": "TomAFrench"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "114c06c2e02412d43f01e9df9befb07314e49f58",
-          "message": "chore: refactor constrainedness checks on trait impls (#8170)\n\nCo-authored-by: Maxim Vezenov <mvezenov@gmail.com>",
-          "timestamp": "2025-04-24T18:33:17Z",
-          "tree_id": "887f6336e90512bb44f5e73977e38e4c6a36feac",
-          "url": "https://github.com/noir-lang/noir/commit/114c06c2e02412d43f01e9df9befb07314e49f58"
-        },
-        "date": 1745520670143,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 283324,
-            "range": "± 687",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 257042,
-            "range": "± 2686",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 3257457,
-            "range": "± 2885",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "asterite@gmail.com",
             "name": "Ary Borenszweig",
             "username": "asterite"
@@ -20164,6 +20122,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 3572462,
             "range": "± 2867",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "sirasistant@gmail.com",
+            "name": "Álvaro Rodríguez",
+            "username": "sirasistant"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "bbfac92ac129fde7c35706932530cd5c15ac4276",
+          "message": "fix: Ordering of items in callstacks (#8338)\n\nCo-authored-by: Maxim Vezenov <mvezenov@gmail.com>",
+          "timestamp": "2025-05-05T18:36:02Z",
+          "tree_id": "dd3e95716fe8777863824acedc030e720a2964ae",
+          "url": "https://github.com/noir-lang/noir/commit/bbfac92ac129fde7c35706932530cd5c15ac4276"
+        },
+        "date": 1746471426466,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 255922,
+            "range": "± 715",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 230161,
+            "range": "± 710",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 3220530,
+            "range": "± 149757",
             "unit": "ns/iter"
           }
         ]
