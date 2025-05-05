@@ -1,6 +1,7 @@
 
 [package]
 name = "ssa_verification"
+description = "CLI tool to generate input for SSA formal verification"
 version.workspace = true
 authors.workspace = true
 edition.workspace = true
