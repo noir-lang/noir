@@ -23,11 +23,11 @@ fn main() {
                 is_assumed: false,
             };
 
-            let mut compile_options = CompileOptions::default();
-            compile_options.debug_compile_stdin = true;
-
-            // TODO: test run with this enabled
-            compile_options.pedantic_solving = true;
+            let compile_options = CompileOptions {
+                debug_compile_stdin: true,
+                pedantic_solving: true,
+                ..Default::default()
+            };
 
             let _ = compile_workspace_full(
                 &workspace,

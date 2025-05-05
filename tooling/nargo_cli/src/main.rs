@@ -7,7 +7,7 @@
 //! This name was used because it sounds like `cargo` and
 //! Noir Package Manager abbreviated is npm, which is already taken.
 
-mod cli;
+pub mod cli;
 mod errors;
 
 use std::env;

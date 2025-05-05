@@ -28,7 +28,6 @@ use rayon::prelude::*;
 
 /// Compile the program and its secret execution trace into ACIR format
 #[derive(Debug, Clone, Args)]
-// TODO: pub needed here?
 pub struct CompileCommand {
     #[clap(flatten)]
     pub(super) package_options: PackageOptions,
@@ -112,7 +111,10 @@ fn watch_workspace(workspace: &Workspace, compile_options: &CompileOptions) -> n
 }
 
 /// Parse all files in the workspace.
-fn parse_workspace(workspace: &Workspace, debug_compile_stdin: Option<String>) -> (FileManager, ParsedFiles) {
+fn parse_workspace(
+    workspace: &Workspace,
+    debug_compile_stdin: Option<String>,
+) -> (FileManager, ParsedFiles) {
     let mut file_manager = workspace.new_file_manager();
 
     if let Some(main_nr) = debug_compile_stdin {
@@ -143,8 +145,7 @@ pub fn compile_workspace_full(
         stdin_handle.read_to_string(&mut main_nr).expect("reading from stdin to succeed");
         debug_compile_stdin = Some(main_nr);
     }
-    let (workspace_file_manager, parsed_files) =
-        parse_workspace(workspace, debug_compile_stdin);
+    let (workspace_file_manager, parsed_files) = parse_workspace(workspace, debug_compile_stdin);
 
     let compiled_workspace =
         compile_workspace(&workspace_file_manager, &parsed_files, workspace, compile_options);
