@@ -71,13 +71,13 @@ function resolveOpcodeLocations(
   );
   // Adds the acir call stack if the last location is a brillig opcode
   if (locations.length > 0) {
-    const runtimeLocations = opcodeLocations[opcodeLocations.length - 1].split('.');
-    if (runtimeLocations.length === 2) {
-      const acirCallstackId = debug.acir_locations[runtimeLocations[0]];
+    const decomposedOpcodeLocation = opcodeLocations[opcodeLocations.length - 1].split('.');
+    if (decomposedOpcodeLocation.length === 2) {
+      const acirCallstackId = debug.acir_locations[decomposedOpcodeLocation[0]];
       if (acirCallstackId !== undefined) {
         const callStack = debug.location_tree.locations[acirCallstackId];
         const acirCallstack = getCallStackFromLocationNode(callStack, debug.location_tree.locations, files);
-        locations = locations.concat(acirCallstack);
+        locations = acirCallstack.concat(locations);
       }
     }
   }
