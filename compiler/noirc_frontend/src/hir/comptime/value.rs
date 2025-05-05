@@ -9,9 +9,9 @@ use strum_macros::Display;
 use crate::{
     Kind, QuotedType, Shared, Type, TypeBindings,
     ast::{
-        ArrayLiteral, BlockExpression, ConstructorExpression, Expression, ExpressionKind, Ident,
-        IntegerBitSize, LValue, Literal, Pattern, Statement, StatementKind, UnresolvedType,
-        UnresolvedTypeData,
+        ArrayLiteral, BlockExpression, CastExpression, ConstructorExpression, Expression,
+        ExpressionKind, Ident, IntegerBitSize, LValue, Literal, Pattern, Statement, StatementKind,
+        UnresolvedType, UnresolvedTypeData,
     },
     elaborator::Elaborator,
     hir::{
@@ -183,38 +183,61 @@ impl Value {
             Value::Unit => ExpressionKind::Literal(Literal::Unit),
             Value::Bool(value) => ExpressionKind::Literal(Literal::Bool(value)),
             Value::Field(value) => {
-                ExpressionKind::Literal(Literal::Integer(SignedField::positive(value)))
+                cast(SignedField::positive(value), UnresolvedTypeData::FieldElement, location)
             }
-            Value::I8(value) => {
-                ExpressionKind::Literal(Literal::Integer(SignedField::from_signed(value)))
-            }
-            Value::I16(value) => {
-                ExpressionKind::Literal(Literal::Integer(SignedField::from_signed(value)))
-            }
-            Value::I32(value) => {
-                ExpressionKind::Literal(Literal::Integer(SignedField::from_signed(value)))
-            }
-            Value::I64(value) => {
-                ExpressionKind::Literal(Literal::Integer(SignedField::from_signed(value)))
-            }
-            Value::U1(value) => {
-                ExpressionKind::Literal(Literal::Integer(SignedField::positive(value)))
-            }
-            Value::U8(value) => {
-                ExpressionKind::Literal(Literal::Integer(SignedField::positive(value as u128)))
-            }
-            Value::U16(value) => {
-                ExpressionKind::Literal(Literal::Integer(SignedField::positive(value as u128)))
-            }
-            Value::U32(value) => {
-                ExpressionKind::Literal(Literal::Integer(SignedField::positive(value)))
-            }
-            Value::U64(value) => {
-                ExpressionKind::Literal(Literal::Integer(SignedField::positive(value)))
-            }
-            Value::U128(value) => {
-                ExpressionKind::Literal(Literal::Integer(SignedField::positive(value)))
-            }
+            Value::I8(value) => cast(
+                SignedField::from_signed(value),
+                UnresolvedTypeData::Integer(Signedness::Signed, IntegerBitSize::Eight),
+                location,
+            ),
+            Value::I16(value) => cast(
+                SignedField::from_signed(value),
+                UnresolvedTypeData::Integer(Signedness::Signed, IntegerBitSize::Sixteen),
+                location,
+            ),
+            Value::I32(value) => cast(
+                SignedField::from_signed(value),
+                UnresolvedTypeData::Integer(Signedness::Signed, IntegerBitSize::ThirtyTwo),
+                location,
+            ),
+            Value::I64(value) => cast(
+                SignedField::from_signed(value),
+                UnresolvedTypeData::Integer(Signedness::Signed, IntegerBitSize::SixtyFour),
+                location,
+            ),
+            Value::U1(value) => cast(
+                SignedField::positive(value),
+                UnresolvedTypeData::Integer(Signedness::Unsigned, IntegerBitSize::One),
+                location,
+            ),
+            Value::U8(value) => cast(
+                SignedField::positive(value as u128),
+                UnresolvedTypeData::Integer(Signedness::Unsigned, IntegerBitSize::Eight),
+                location,
+            ),
+            Value::U16(value) => cast(
+                SignedField::positive(value as u128),
+                UnresolvedTypeData::Integer(Signedness::Unsigned, IntegerBitSize::Sixteen),
+                location,
+            ),
+            Value::U32(value) => cast(
+                SignedField::positive(value),
+                UnresolvedTypeData::Integer(Signedness::Unsigned, IntegerBitSize::ThirtyTwo),
+                location,
+            ),
+            Value::U64(value) => cast(
+                SignedField::positive(value),
+                UnresolvedTypeData::Integer(Signedness::Unsigned, IntegerBitSize::SixtyFour),
+                location,
+            ),
+            Value::U128(value) => cast(
+                SignedField::positive(value),
+                UnresolvedTypeData::Integer(
+                    Signedness::Unsigned,
+                    IntegerBitSize::HundredTwentyEight,
+                ),
+                location,
+            ),
             Value::String(value) | Value::CtString(value) => {
                 ExpressionKind::Literal(Literal::Str(unwrap_rc(value)))
             }
@@ -648,4 +671,11 @@ where
             Err(InterpreterError::FailedToParseMacro { error, tokens, rule, location })
         }
     }
+}
+
+fn cast(value: SignedField, typ: UnresolvedTypeData, location: Location) -> ExpressionKind {
+    ExpressionKind::Cast(Box::new(CastExpression {
+        lhs: Expression { kind: ExpressionKind::Literal(Literal::Integer(value)), location },
+        r#type: UnresolvedType { typ, location },
+    }))
 }
