@@ -501,8 +501,9 @@ impl<'brillig> Context<'brillig> {
         if can_be_deduplicated || matches!(instruction, Instruction::MakeArray { .. }) {
             let use_predicate =
                 self.use_constraint_info && instruction.requires_acir_gen_predicate(&function.dfg);
+            // dbg!(use_predicate);
             let predicate = use_predicate.then_some(side_effects_enabled_var);
-
+            // dbg!(predicate);
             self.cached_instruction_results
                 .entry(instruction)
                 .or_default()
@@ -1144,9 +1145,7 @@ mod test {
 
     #[test]
     fn constant_index_array_access_deduplication() {
-        // After constructing this IR, we run constant folding which should replace the second constant-index array get
-        // with a reference to the results to the first. This then allows us to optimize away
-        // the constrain instruction as both inputs are known to be equal.
+        // We should not be deduplicating any array accesses
         let src = "
             acir(inline) fn main f0 {
               b0(v0: [Field; 4], v1: u32, v2: bool, v3: bool):
@@ -1162,12 +1161,14 @@ mod test {
             ";
         let expected = "
             acir(inline) fn main f0 {
-              b0(v0: [Field; 4], v1: u32, v2: u1, v3: u1):
+              b0(v0: [Field; 4], v1: u32, v2: bool, v3: bool):
                 enable_side_effects v2
-                v5 = array_get v0, index u32 0 -> Field
-                v6 = array_get v0, index v1 -> Field
+                v4 = array_get v0, index u32 0 -> Field
+                v5 = array_get v0, index v1 -> Field
                 enable_side_effects v3
+                v6 = array_get v0, index u32 0 -> Field
                 v7 = array_get v0, index v1 -> Field
+                constrain v4 == v6
                 return
             }
             ";
@@ -1241,9 +1242,10 @@ mod test {
                 v8 = array_get v7, index u32 0 -> u32
                 constrain v4 == v8
                 enable_side_effects v1
-                v9 = array_set v2, index u32 1, value u32 2
-                v10 = array_get v9, index u32 0 -> u32
-                constrain v4 == v10
+                v9 = array_get v2, index u32 0 -> u32
+                v10 = array_set v2, index u32 1, value u32 2
+                v11 = array_get v10, index u32 0 -> u32
+                constrain v9 == v11
                 enable_side_effects v0
                 return
             }
@@ -2016,5 +2018,69 @@ mod test {
             return
         }
         ");
+    }
+
+    #[test]
+    fn does_not_deduplicate_safe_array_get_with_different_predicate() {
+        // This test is an expansion of `constant_index_array_access_deduplication` that shows
+        // the result of a duplicated array_get under a predicate being used as the index
+        // in a later array get where the predicate on the index is critical.
+        let src = r#"
+        acir(inline) predicate_pure fn main f0 {
+          b0(v8: [u16; 3], v9: [u1; 1]):
+            v10 = call f1(v8, u1 1) -> [u1; 1]
+            v11 = array_get v8, index u32 0 -> u16
+            v12 = cast v11 as u32
+            v13 = array_get v10, index u32 0 -> u1
+            enable_side_effects v13
+            v14 = array_get v9, index u32 0 -> u1
+            v15 = not v13
+            enable_side_effects v15
+            v16 = array_get v8, index u32 0 -> u16
+            v17 = cast v16 as u32
+            v18 = mod v17, u32 3
+            v19 = lt v18, u32 3
+            v20 = unchecked_mul v19, v15
+            constrain v20 == v15, "Index out of bounds"
+            v21 = array_get v8, index v18 -> u16
+            return v21
+        }
+        brillig(inline) predicate_pure fn func_1 f1 {
+          b0(v8: [u16; 3], v9: u1):
+            v11 = make_array [u1 0] : [u1; 1]
+            return v11
+        }
+        "#;
+
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.fold_constants();
+
+        // We expect the SSA to remain unchanged
+        assert_ssa_snapshot!(ssa, @r#"
+        acir(inline) predicate_pure fn main f0 {
+          b0(v0: [u16; 3], v1: [u1; 1]):
+            v4 = call f1(v0, u1 1) -> [u1; 1]
+            v6 = array_get v0, index u32 0 -> u16
+            v7 = cast v6 as u32
+            v8 = array_get v4, index u32 0 -> u1
+            enable_side_effects v8
+            v9 = array_get v1, index u32 0 -> u1
+            v10 = not v8
+            enable_side_effects v10
+            v11 = array_get v0, index u32 0 -> u16
+            v12 = cast v11 as u32
+            v14 = mod v12, u32 3
+            v15 = lt v14, u32 3
+            v16 = unchecked_mul v15, v10
+            constrain v16 == v10, "Index out of bounds"
+            v17 = array_get v0, index v14 -> u16
+            return v17
+        }
+        brillig(inline) predicate_pure fn func_1 f1 {
+          b0(v0: [u16; 3], v1: u1):
+            v3 = make_array [u1 0] : [u1; 1]
+            return v3
+        }
+        "#);
     }
 }

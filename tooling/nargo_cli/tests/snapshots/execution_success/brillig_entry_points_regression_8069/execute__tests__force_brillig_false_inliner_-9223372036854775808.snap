@@ -15,11 +15,19 @@ expression: artifact
     },
     "error_types": {}
   },
-  "bytecode": "H4sIAAAAAAAA/63OsQkAQAgDwAR+IH+D33+qR1As1EqvCaQIIQKRefcsZeYubol+O6gRvQ9x7LRQ9AAAAA==",
-  "debug_symbols": "pdPbisMgEAbgd/E6FxpPaV9lWYJJJkUQE6wWltB3Xxu02y0UyvTKjH++SRTdyARDOvXWz8uZHL82MgTrnD31bhlNtIvPs9u1IbXsYwDIU+Qhz2o1AXwkR5+ca8jFuLS/dF6N38doQk5pQ8BPecwNZ+vg9nRt/jR9Tbk8FMw1v3P5thetLF7wDuM1q75jGK948ZJ+6gXGi7p/kimEV0wXrzjm/9VBFK+pRnjddtVLzPc1u3uFOT9Kqrp+iTk/jLbFs/a//86VGW14vnEXE6wZHJRyTn58SOPPWpN6Y9ewjDClALdOe5Z7/wI=",
-  "file_map": {},
+  "bytecode": "H4sIAAAAAAAA/+1ZPY/bRhBd6oMn6mCc4RQpUrhIkZaUSIpKihhwkrvzHZAuaRLgpJMEpDZSpAjAIEiRIl1guPU/MPwLfWvtWE+PS54+ds8+QwMIS3GGb2Znd2dndgO1pM7Nr6uqFJj2iWmHcZ6m89FgngyTSTwYT4ssTrNpXiRFkhXZbFAMh/MiLUbj6XgUj5N0OE8W2Xi4iJcUAFa8H+U+7Ww5szPPfNrZdmZndu3Tzo4zO5N5k53xfpQ4xHo31zvKToHlXcu0L00b0Xv9jbvxjpOIbHGJX8TpNFLVPju0fxgZzI5n/K4f/PjI4JyWK3zsi+htkxx/gzJnIHMGMgHInIPMebnetwcgz7qE11JVHQ9IB2L3bn6P1Or5c7X6RtOzct1OTRHpcjw3JxHZ63ptfVZjv/RN09NyxVPudMeC/13ppW/v8b/3g/8+Lv3gBz89Vst5+DWMDa63jtHH81n82SV5SUTCm98XhMnjz5joQ8QMQY79bLPhsWl74CfWx+vac3zLJSaEqkrCOyLdyOuBvKwV4eHehT5matN/7K/Gfwo6WY5txX0S7UZM0cm+lrl8oqpjIt9+TOOhiX3eI7uQ52o8fgdclmNbbeMhPNxHRU73u6iR0yT9tcmhLvlGxxHpd6dc8V2N2ahY5pCa2ga/q6o+RP1dkv/W/O+D/diPJzvauRhNksVwsphkk9ksvZ48InxNLfCTa/2DosjHg2mcjmbXi1k6vE2/y3h/ZVo9T05rMDeN9yFgbRLvRf7CtBjvbTmNw3o7FnyO2Y7wC1vcF2qKM8Lrk13IOwYejhGTLT5Jf7eNTyHwxG7PeefIFsfZLozjAfHQvyHx0L/b+lDebbvn4l7SIx7GeJHTNj83z+JrjDkO10Nuq1Hc4eeZ3/WcXdvyDXf4ydyWbwQ0Np5iSRaQPkV+VKS/r6pr1mVNE6jqumyrqn84pvUstj5U9es4UNUY2ra8azVgtRxitR1iyTy1rX/cR5+TXF3u5jIn+B/0/0GYd1UD/mnaQw24TocacLfx0PQp1oAvauQ0YQ34okEXxpE35vl+n9dnyeG8vplkfuF5ddN5/UW58uUFfIMylyBzWa7bbTuLF922s/gL4uE6E2w8f9fPj8F+xrPFMOH7rGNuzudnnudKKrFFzkmw78LrlOu6kdcFXgf8eUn+8XR/MfNcR6bb3l8E7nR/kvcXDv2TC/6pF/xkLvhnXvCXdaemcy/4eSa5/c9qHX/X3P4b0+qc4MsazE1z+13P+74yre7Xr+Y5IhnH83jrsySuXTGf4Dxyn7OkEHxxBTpZjm3FWCl2f2w+DIgXkV3Ic+XDfwCX5djWXc7jnpFcYNHhc7+MtzgPEv19Vc35fZwHbZpv2eYwn5XgOPPe07boaVv02LDOHWKdOcSS/e+2eq9u/uE3x/D+qFy36V0L77qgV1MP5YkXAa9TrvRq6pv/sh8xltjRJfmfzP8T04bwjXz/0KI/JP1rdlvecQ0fWeQji7z2+Y/m+T7ckf5i/h/uSHfPmWz7qFLO4mXMOdlfptX65mTzXZ23/mZazMk+8Hnr1vlG0xle0/3fPud72+QbuBY4Z/NV+4pe210N5wOaTlR1TI/uxtatx5vHFMeb71f2GW+8770CXJZjW23jfdv+/neDXNggV5cHuKwdX4H+f2swN41Tu9aO/5n2UDseasf7Vju+JrnAouNQOx5qR1+1Y9384z3jLUisO3VINwAA",
+  "debug_symbols": "pdTNjoMgEADgd+HsgX9sX2WzMajYkBA0FDbZGN990UK3PTRppqcRxs9BwrCi0fTp0lk/zVd0/lpRH6xz9tK5edDRzj7PrluD6rCLwZg8hR7yWS06GB/R2SfnGvSjXTpeui7aHzHqkLO4QcaPOeYPTtaZ/Wlr/jV+TZk4FcwUu3PxtudUFM9ZC/GKVN8SiJeseIE/9Rzied0/QSTAS6KKlwyyfnnixSusAF7RtnoBqa/I3UvI+ZFC1v8XkPNDMC2eUIinuO4/Zc/r/84jPdjw1LEI50L5xJBboLfA9rDtRYLVvTOlt6fkh4dWj79LzdTLYAnzYMYUzF7kyOWyfw==",
+  "file_map": {
+    "50": {
+      "source": "fn main() -> pub bool {\n    let ctx_depth = 5;\n    // Safety: testing context\n    let cond = unsafe { func_1(true, 1, ctx_depth) };\n    let _ = if !cond {\n        // Safety: testing context\n        unsafe { func_2(1, true, ctx_depth) }[0]\n    } else {\n        0\n    };\n    false\n}\nunconstrained fn func_1(a: bool, b: i8, mut ctx_depth: u32) -> bool {\n    if (ctx_depth == 0) {\n        false\n    } else {\n        ctx_depth = (ctx_depth - 1);\n        func_1(false, func_2((a as Field), false, ctx_depth)[3], ctx_depth)\n    }\n}\nunconstrained fn func_2(mut a: Field, mut b: bool, mut ctx_depth: u32) -> [i8; 4] {\n    if (ctx_depth == 0) {\n        [6, 101, 92, 30]\n    } else {\n        ctx_depth = (ctx_depth - 1);\n        func_2(a, func_1(b, 0, ctx_depth), ctx_depth)\n    }\n}\n",
+      "path": ""
+    }
+  },
   "names": [
     "main"
   ],
-  "brillig_names": []
+  "brillig_names": [
+    "func_1",
+    "func_2"
+  ]
 }
