@@ -610,11 +610,17 @@ impl Elaborator<'_> {
 
     fn elaborate_comptime_statement(&mut self, statement: Statement) -> (HirStatement, Type) {
         let location = statement.location;
-        let (hir_statement, _typ) =
+        let (hir_statement, typ) =
             self.elaborate_in_comptime_context(|this| this.elaborate_statement(statement));
         let mut interpreter = self.setup_interpreter();
         let value = interpreter.evaluate_statement(hir_statement);
-        let (expr, typ) = self.inline_comptime_value(value, location);
+        let (expr, comptime_typ) = self.inline_comptime_value(value, location);
+
+        self.unify(&comptime_typ, &typ, || TypeCheckError::TypeMismatch {
+            expected_typ: typ.to_string(),
+            expr_typ: comptime_typ.to_string(),
+            expr_location: location,
+        });
 
         let location = self.interner.id_location(hir_statement);
         self.debug_comptime(location, |interner| expr.to_display_ast(interner).kind);

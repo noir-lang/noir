@@ -602,7 +602,14 @@ impl Elaborator<'_> {
             // (the error will make no sense, it will say that a non-comptime variable was referenced at runtime
             // but that's not true)
             if value.is_ok() {
-                let (id, typ) = self.inline_comptime_value(value, location);
+                let (id, comptime_typ) = self.inline_comptime_value(value, location);
+
+                self.unify(&comptime_typ, &typ, || TypeCheckError::TypeMismatch {
+                    expected_typ: typ.to_string(),
+                    expr_typ: comptime_typ.to_string(),
+                    expr_location: location,
+                });
+
                 self.debug_comptime(location, |interner| id.to_display_ast(interner).kind);
                 (id, typ)
             } else {

@@ -1,0 +1,7 @@
+[package]
+name = "comptime_statement_wrong_type_field"
+type = "bin"
+authors = [""]
+compiler_version = ">=0.34.0"
+
+[dependencies]
