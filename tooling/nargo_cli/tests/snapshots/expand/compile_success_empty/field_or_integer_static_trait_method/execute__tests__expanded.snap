@@ -1,0 +1,39 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: expanded_code
+---
+trait Read {
+    fn read(data: [Field; 1]) -> Self;
+}
+
+impl Read for Field {
+    fn read(data: [Self; 1]) -> Self {
+        data[0] * 10
+    }
+}
+
+impl Read for u32 {
+    fn read(data: [Field; 1]) -> Self {
+        data[0] as Self
+    }
+}
+
+fn main() {
+    let data: [Field; 1] = [1];
+    let value: u32 = Read::read(data);
+    assert(value == 1);
+    let value: Field = Read::read(data);
+    assert(value == 10);
+}
+
+pub fn foo() {}
+
+comptime fn attr(_: FunctionDefinition) -> Quoted {
+    quote {
+        pub fn hello() {
+            
+        }
+    }
+}
+
+pub fn hello() {}
