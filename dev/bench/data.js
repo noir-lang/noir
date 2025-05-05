@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1746466700859,
+  "lastUpdate": 1746467028674,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -8155,70 +8155,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "aakoshh@gmail.com",
-            "name": "Akosh Farkash",
-            "username": "aakoshh"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "3bd32b8f461b23bb47aec451f1f74ff44ee7bc3a",
-          "message": "chore(test): Add smoke test for AST generation (#8048)",
-          "timestamp": "2025-04-24T15:48:43Z",
-          "tree_id": "1bcde2c9a7bf238f4f825c6e2ea1c3f7fb8657f2",
-          "url": "https://github.com/noir-lang/noir/commit/3bd32b8f461b23bb47aec451f1f74ff44ee7bc3a"
-        },
-        "date": 1745510996171,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 0.029,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 0.162,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 0.017,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 0.334,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 0.218,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 10.9,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 0.004,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-root",
-            "value": 0.013,
-            "unit": "s"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "15848336+TomAFrench@users.noreply.github.com",
             "name": "Tom French",
             "username": "TomAFrench"
@@ -11338,6 +11274,70 @@ window.BENCHMARK_DATA = {
           {
             "name": "rollup-block-root",
             "value": 11.7,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 0.004,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-root",
+            "value": 0.013,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "asterite@gmail.com",
+            "name": "Ary Borenszweig",
+            "username": "asterite"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "f31097d0e09b6ac39842ee0e821ad62e70ebd1ba",
+          "message": "chore: add snapshosts for nargo expand tests (#8318)",
+          "timestamp": "2025-05-05T17:13:44Z",
+          "tree_id": "1fbf0e1fe1cadcad1453b950839a6083c09bfe0b",
+          "url": "https://github.com/noir-lang/noir/commit/f31097d0e09b6ac39842ee0e821ad62e70ebd1ba"
+        },
+        "date": 1746467021629,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 0.028,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 0.163,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 0.016,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 0.334,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 0.214,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 11.1,
             "unit": "s"
           },
           {
