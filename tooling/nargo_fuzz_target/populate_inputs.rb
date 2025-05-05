@@ -16,7 +16,7 @@ Dir["../../#{target_path}/**/*.nr"].each do |path|
     .sub(/^\.\.\/\.\.\/test_programs\//, '')
     .gsub(/\//, "__")
 
-  unless path.match?(/benchmark/)
+  unless path.match?(/benchmark/) || File.read(path).length > 512
     puts path
     FileUtils.cp path, "draft_inputs/#{new_filename}"
     num_inputs += 1

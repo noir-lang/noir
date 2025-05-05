@@ -129,11 +129,8 @@ fn parse_workspace(
 
 /// Parse and compile the entire workspace, then report errors.
 /// This is the main entry point used by all other commands that need compilation.
-// TODO: export wrapper function?
 pub fn compile_workspace_full(
     workspace: &Workspace,
-    // TODO: add to CompileOptions, e.g. make debug_compile_stdin: Option<Option<String>>, Some(None) for
-    // stdin, Some(Some(..)) for override
     compile_options: &CompileOptions,
     debug_compile_stdin: Option<String>, // use this String as STDIN if present
 ) -> Result<(), CliError> {

@@ -57,7 +57,6 @@ struct NargoCli {
 
 #[non_exhaustive]
 #[derive(Args, Clone, Debug)]
-// TODO: pub needed here?
 pub struct NargoConfig {
     // REMINDER: Also change this flag in the LSP test lens if renamed
     #[arg(long, hide = true, global = true, default_value = "./", value_parser = parse_path)]

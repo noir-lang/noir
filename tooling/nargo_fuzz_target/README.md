@@ -1,6 +1,14 @@
 # `nargo_fuzz_target`
 
-To run:
+To set up the inputs, empty the directory and run:
+
+```bash
+./populate_inputs.rb
+```
+
+To copy all `.nr` files with up to `512` bytes to the `draft_inputs` folder.
+
+Then, copy any relevant inputs (e.g. all of them) to `inputs` and run with:
 
 ```bash
 cargo afl build
@@ -9,11 +17,12 @@ cargo afl fuzz -i inputs -o outputs ../../target/debug/nargo_fuzz_target
 
 ## Collecting results:
 
-
 ```bash
 # (from this directory)
 ./collect_unique_crashes.rb
 ```
+
+To only collect outputs and deduplicate more manually, run:
 
 ```ruby
 # ❯ ./collect_outputs.rb ./collected_outputs
@@ -32,8 +41,9 @@ end
 Dir['./*'].map{|x| ff(x)}.sort.uniq.each{|x|puts('-'*80);puts(x);puts('-'*80)}
 ```
 
-TODO
 ## Ramdisk
+
+Using a ramdisk for the `inputs` and `outputs` folder may improve performance:
 
 ```bash
 # make dir
@@ -62,7 +72,7 @@ sudo umount /tmp/nargo_fuzz_ramdisk/
 ```
 
 
-## Results
+## Example Results
 
 Simple run in debug mode:
 
@@ -195,5 +205,4 @@ Independent simple release mode run before setting up proper parallel run:
 
 [!] Stopped during the first cycle, results may be incomplete.
 ```
-
 
