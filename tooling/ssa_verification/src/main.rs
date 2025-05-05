@@ -23,16 +23,12 @@ use std::path::Path;
 Each test case generates formatted SSA representation and serialized ACIR output.
 
 FLAGS:
-    -d, --dir <PATH>    Output directory for test artifacts [default: ../../../../../barretenberg/cpp/src/barretenberg/acir_formal_proofs/artifacts/]"
+    -d, --dir <PATH>    Output directory for test artifacts [default: /tmp/]"
 )]
 struct Args {
     /// Output directory path for the generated test artifacts
     /// Defaults to the barretenberg acir formal proofs artifacts directory
-    #[arg(
-        short,
-        long,
-        default_value = "../../../../../barretenberg/cpp/src/barretenberg/acir_formal_proofs/artifacts/"
-    )]
+    #[arg(short, long, default_value = "/tmp/")]
     dir: String,
 }
 
@@ -79,11 +75,9 @@ fn main() {
     // Define test variables with different types and sizes
     let field_var = Variable { variable_type: VariableType::Field, variable_size: 0 };
     // max bit size for signed and unsigned
-    let u127_var = Variable { variable_type: VariableType::Unsigned, variable_size: 127 };
+    let u128_var = Variable { variable_type: VariableType::Unsigned, variable_size: 128 };
+    let i128_var = Variable { variable_type: VariableType::Signed, variable_size: 128 };
     let i127_var = Variable { variable_type: VariableType::Signed, variable_size: 127 };
-    // max bit size allowed by mod and div
-    let u126_var = Variable { variable_type: VariableType::Unsigned, variable_size: 126 };
-    let i126_var = Variable { variable_type: VariableType::Signed, variable_size: 126 };
     // 64 bit unsigned
     let u64_var = Variable { variable_type: VariableType::Unsigned, variable_size: 64 };
     // 32 bit unsigned
@@ -91,22 +85,38 @@ fn main() {
     // 8 bit unsigned
     let u8_var = Variable { variable_type: VariableType::Unsigned, variable_size: 8 };
 
-    // Test bitvector operations with max bit size (127 bits)
-    all_artifacts.push(InstructionArtifacts::new_add(&u127_var, &u127_var));
-    all_artifacts.push(InstructionArtifacts::new_sub(&u127_var, &u127_var));
-    all_artifacts.push(InstructionArtifacts::new_mul(&u127_var, &u127_var));
-    all_artifacts.push(InstructionArtifacts::new_mod(&u126_var, &u126_var));
-    all_artifacts.push(InstructionArtifacts::new_xor(&u127_var, &u127_var));
-    all_artifacts.push(InstructionArtifacts::new_and(&u127_var, &u127_var));
-    all_artifacts.push(InstructionArtifacts::new_div(&u126_var, &u126_var));
-    all_artifacts.push(InstructionArtifacts::new_eq(&u127_var, &u127_var));
-    all_artifacts.push(InstructionArtifacts::new_lt(&u127_var, &u127_var));
-    all_artifacts.push(InstructionArtifacts::new_xor(&u127_var, &u127_var));
-    all_artifacts.push(InstructionArtifacts::new_or(&u127_var, &u127_var));
-    all_artifacts.push(InstructionArtifacts::new_not(&u127_var));
-    all_artifacts.push(InstructionArtifacts::new_constrain(&u127_var));
-    all_artifacts.push(InstructionArtifacts::new_truncate(&u127_var));
-    all_artifacts.push(InstructionArtifacts::new_range_check(&u127_var));
+    // Tests for bitvector operations with max bit size (128 bits)
+    all_artifacts.push(InstructionArtifacts::new_add(&u128_var, &u128_var));
+    all_artifacts.push(InstructionArtifacts::new_sub(&u128_var, &u128_var));
+    all_artifacts.push(InstructionArtifacts::new_mul(&u128_var, &u128_var));
+    all_artifacts.push(InstructionArtifacts::new_mod(&u128_var, &u128_var));
+    all_artifacts.push(InstructionArtifacts::new_xor(&u128_var, &u128_var));
+    all_artifacts.push(InstructionArtifacts::new_and(&u128_var, &u128_var));
+    all_artifacts.push(InstructionArtifacts::new_div(&u128_var, &u128_var));
+    all_artifacts.push(InstructionArtifacts::new_eq(&u128_var, &u128_var));
+    all_artifacts.push(InstructionArtifacts::new_lt(&u128_var, &u128_var));
+    all_artifacts.push(InstructionArtifacts::new_xor(&u128_var, &u128_var));
+    all_artifacts.push(InstructionArtifacts::new_or(&u128_var, &u128_var));
+    all_artifacts.push(InstructionArtifacts::new_not(&u128_var));
+    all_artifacts.push(InstructionArtifacts::new_constrain(&u128_var));
+    all_artifacts.push(InstructionArtifacts::new_truncate(&u128_var, 10, 20));
+    all_artifacts.push(InstructionArtifacts::new_range_check(&u128_var, 64));
+    // Tests for signed operations with max bit size (128 bits)
+    all_artifacts.push(InstructionArtifacts::new_add(&i128_var, &i128_var));
+    all_artifacts.push(InstructionArtifacts::new_sub(&i128_var, &i128_var));
+    all_artifacts.push(InstructionArtifacts::new_mul(&i128_var, &i128_var));
+    all_artifacts.push(InstructionArtifacts::new_mod(&i127_var, &i127_var));
+    all_artifacts.push(InstructionArtifacts::new_xor(&i128_var, &i128_var));
+    all_artifacts.push(InstructionArtifacts::new_and(&i128_var, &i128_var));
+    all_artifacts.push(InstructionArtifacts::new_div(&i127_var, &i127_var));
+    all_artifacts.push(InstructionArtifacts::new_eq(&i128_var, &i128_var));
+    all_artifacts.push(InstructionArtifacts::new_lt(&i127_var, &i127_var));
+    all_artifacts.push(InstructionArtifacts::new_xor(&i128_var, &i128_var));
+    all_artifacts.push(InstructionArtifacts::new_or(&i128_var, &i128_var));
+    all_artifacts.push(InstructionArtifacts::new_not(&i128_var));
+    all_artifacts.push(InstructionArtifacts::new_constrain(&i128_var));
+    all_artifacts.push(InstructionArtifacts::new_truncate(&i128_var, 10, 20));
+    all_artifacts.push(InstructionArtifacts::new_range_check(&i128_var, 64));
 
     // Test shift operations with smaller bit sizes
     // shl truncates variable, so test different sizes
@@ -128,7 +138,7 @@ fn main() {
     all_artifacts.push(InstructionArtifacts::new_eq(&field_var, &field_var));
 
     // Test signed division (only operation that differs for signed integers)
-    all_artifacts.push(InstructionArtifacts::new_div(&i126_var, &i126_var));
+    all_artifacts.push(InstructionArtifacts::new_div(&i127_var, &i127_var));
     all_artifacts.push(InstructionArtifacts::new_lt(&i127_var, &i127_var));
 
     save_artifacts(all_artifacts, &args.dir);

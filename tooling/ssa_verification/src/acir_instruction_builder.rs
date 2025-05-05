@@ -25,23 +25,23 @@ use serde::{Deserialize, Serialize};
 
 /// Represents artifacts generated from compiling an instruction
 #[derive(Serialize, Deserialize)]
-pub struct InstructionArtifacts {
+pub(crate) struct InstructionArtifacts {
     /// Name of the instruction
-    pub instruction_name: String,
+    pub(crate) instruction_name: String,
 
     /// SSA representation formatted as "acir(inline) {...}"
-    pub formatted_ssa: String,
+    pub(crate) formatted_ssa: String,
 
     /// JSON serialized SSA
-    pub serialized_ssa: String,
+    pub(crate) serialized_ssa: String,
 
     /// Gzipped bytes of ACIR program
-    pub serialized_acir: Vec<u8>,
+    pub(crate) serialized_acir: Vec<u8>,
 }
 
 /// Represents the type of a variable in the instruction
 #[derive(Debug)]
-pub enum VariableType {
+pub(crate) enum VariableType {
     /// Field element type
     Field,
     /// Unsigned integer type
@@ -51,16 +51,16 @@ pub enum VariableType {
 }
 
 /// Represents a variable with its type and size information
-pub struct Variable {
+pub(crate) struct Variable {
     /// Type of the variable (Field, Unsigned, or Signed)
-    pub variable_type: VariableType,
+    pub(crate) variable_type: VariableType,
     /// Bit size of the variable (ignored for Field type)
-    pub variable_size: u32,
+    pub(crate) variable_size: u32,
 }
 
 impl Variable {
     /// Gets a string representation of the variable's type and size
-    pub fn get_name(&self) -> String {
+    pub(crate) fn get_name(&self) -> String {
         format!("{:?}_{}", self.variable_type, self.variable_size)
     }
 }
@@ -113,6 +113,10 @@ impl InstructionArtifacts {
     ) -> Self {
         let variable_type = Self::get_type(variable);
         let ssa = ssa_generate_function(variable_type);
+        Self::new_by_ssa(ssa, instruction_name, variable)
+    }
+
+    fn new_by_ssa(ssa: Ssa, instruction_name: String, variable: &Variable) -> Self {
         let serialized_ssa = &serde_json::to_string(&ssa).unwrap();
         let formatted_ssa = format!("{}", ssa);
 
@@ -129,27 +133,29 @@ impl InstructionArtifacts {
     }
 
     /// Creates a new constrain instruction artifact
-    pub fn new_constrain(variable: &Variable) -> Self {
+    pub(crate) fn new_constrain(variable: &Variable) -> Self {
         Self::new_by_func(constrain_function, "Constrain".into(), variable)
     }
 
     /// Creates a new NOT operation instruction artifact
-    pub fn new_not(variable: &Variable) -> Self {
+    pub(crate) fn new_not(variable: &Variable) -> Self {
         Self::new_by_func(not_function, "Not".into(), variable)
     }
 
     /// Creates a new range check instruction artifact
-    pub fn new_range_check(variable: &Variable) -> Self {
-        Self::new_by_func(range_check_function, "RangeCheck".into(), variable)
+    pub(crate) fn new_range_check(variable: &Variable, bit_size: u32) -> Self {
+        let ssa = range_check_function(Self::get_type(variable), bit_size);
+        Self::new_by_ssa(ssa, "RangeCheck".into(), variable)
     }
 
     /// Creates a new truncate instruction artifact
-    pub fn new_truncate(variable: &Variable) -> Self {
-        Self::new_by_func(truncate_function, "Truncate".into(), variable)
+    pub(crate) fn new_truncate(variable: &Variable, bit_size: u32, max_bit_size: u32) -> Self {
+        let ssa = truncate_function(Self::get_type(variable), bit_size, max_bit_size);
+        Self::new_by_ssa(ssa, "Truncate".into(), variable)
     }
 
     /// Creates a new ADD operation instruction artifact
-    pub fn new_add(first_variable: &Variable, second_variable: &Variable) -> Self {
+    pub(crate) fn new_add(first_variable: &Variable, second_variable: &Variable) -> Self {
         Self::new_binary(
             BinaryOp::Add { unchecked: false },
             "Binary::Add".into(),
@@ -159,7 +165,7 @@ impl InstructionArtifacts {
     }
 
     /// Creates a new SUB operation instruction artifact
-    pub fn new_sub(first_variable: &Variable, second_variable: &Variable) -> Self {
+    pub(crate) fn new_sub(first_variable: &Variable, second_variable: &Variable) -> Self {
         Self::new_binary(
             BinaryOp::Sub { unchecked: false },
             "Binary::Sub".into(),
@@ -169,37 +175,37 @@ impl InstructionArtifacts {
     }
 
     /// Creates a new XOR operation instruction artifact
-    pub fn new_xor(first_variable: &Variable, second_variable: &Variable) -> Self {
+    pub(crate) fn new_xor(first_variable: &Variable, second_variable: &Variable) -> Self {
         Self::new_binary(BinaryOp::Xor, "Binary::Xor".into(), first_variable, second_variable)
     }
 
     /// Creates a new AND operation instruction artifact
-    pub fn new_and(first_variable: &Variable, second_variable: &Variable) -> Self {
+    pub(crate) fn new_and(first_variable: &Variable, second_variable: &Variable) -> Self {
         Self::new_binary(BinaryOp::And, "Binary::And".into(), first_variable, second_variable)
     }
 
     /// Creates a new OR operation instruction artifact
-    pub fn new_or(first_variable: &Variable, second_variable: &Variable) -> Self {
+    pub(crate) fn new_or(first_variable: &Variable, second_variable: &Variable) -> Self {
         Self::new_binary(BinaryOp::Or, "Binary::Or".into(), first_variable, second_variable)
     }
 
     /// Creates a new less than operation instruction artifact
-    pub fn new_lt(first_variable: &Variable, second_variable: &Variable) -> Self {
+    pub(crate) fn new_lt(first_variable: &Variable, second_variable: &Variable) -> Self {
         Self::new_binary(BinaryOp::Lt, "Binary::Lt".into(), first_variable, second_variable)
     }
 
     /// Creates a new equals operation instruction artifact
-    pub fn new_eq(first_variable: &Variable, second_variable: &Variable) -> Self {
+    pub(crate) fn new_eq(first_variable: &Variable, second_variable: &Variable) -> Self {
         Self::new_binary(BinaryOp::Eq, "Binary::Eq".into(), first_variable, second_variable)
     }
 
     /// Creates a new modulo operation instruction artifact
-    pub fn new_mod(first_variable: &Variable, second_variable: &Variable) -> Self {
+    pub(crate) fn new_mod(first_variable: &Variable, second_variable: &Variable) -> Self {
         Self::new_binary(BinaryOp::Mod, "Binary::Mod".into(), first_variable, second_variable)
     }
 
     /// Creates a new multiply operation instruction artifact
-    pub fn new_mul(first_variable: &Variable, second_variable: &Variable) -> Self {
+    pub(crate) fn new_mul(first_variable: &Variable, second_variable: &Variable) -> Self {
         Self::new_binary(
             BinaryOp::Mul { unchecked: false },
             "Binary::Mul".into(),
@@ -209,17 +215,17 @@ impl InstructionArtifacts {
     }
 
     /// Creates a new divide operation instruction artifact
-    pub fn new_div(first_variable: &Variable, second_variable: &Variable) -> Self {
+    pub(crate) fn new_div(first_variable: &Variable, second_variable: &Variable) -> Self {
         Self::new_binary(BinaryOp::Div, "Binary::Div".into(), first_variable, second_variable)
     }
 
     /// Creates a new shift left operation instruction artifact
-    pub fn new_shl(first_variable: &Variable, second_variable: &Variable) -> Self {
+    pub(crate) fn new_shl(first_variable: &Variable, second_variable: &Variable) -> Self {
         Self::new_binary(BinaryOp::Shl, "Binary::Shl".into(), first_variable, second_variable)
     }
 
     /// Creates a new shift right operation instruction artifact
-    pub fn new_shr(first_variable: &Variable, second_variable: &Variable) -> Self {
+    pub(crate) fn new_shr(first_variable: &Variable, second_variable: &Variable) -> Self {
         Self::new_binary(BinaryOp::Shr, "Binary::Shr".into(), first_variable, second_variable)
     }
 }
@@ -303,25 +309,24 @@ fn constrain_function(variable_type: Type) -> Ssa {
 }
 
 /// Creates an SSA function for range check operations
-fn range_check_function(variable_type: Type) -> Ssa {
+fn range_check_function(variable_type: Type, bit_size: u32) -> Ssa {
     let main_id: Id<Function> = Id::new(0);
     let mut builder = FunctionBuilder::new("main".into(), main_id);
 
     let v0 = builder.add_parameter(variable_type);
-    builder.insert_range_check(v0, 64, Some("Range Check failed".to_string()));
+    builder.insert_range_check(v0, bit_size, Some("Range Check failed".to_string()));
     builder.terminate_with_return(vec![v0]);
 
     builder.finish()
 }
 
 /// Creates an SSA function for truncate operations
-fn truncate_function(variable_type: Type) -> Ssa {
-    // truncate v0: field to bit size 10 with max bit size 20.
+fn truncate_function(variable_type: Type, bit_size: u32, max_bit_size: u32) -> Ssa {
     let main_id: Id<Function> = Id::new(0);
     let mut builder = FunctionBuilder::new("main".into(), main_id);
 
     let v0 = builder.add_parameter(variable_type);
-    let v1 = builder.insert_truncate(v0, 10, 20);
+    let v1 = builder.insert_truncate(v0, bit_size, max_bit_size);
     builder.terminate_with_return(vec![v1]);
 
     builder.finish()
