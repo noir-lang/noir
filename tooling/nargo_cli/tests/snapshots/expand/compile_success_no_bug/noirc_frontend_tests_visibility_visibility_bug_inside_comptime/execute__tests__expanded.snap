@@ -18,5 +18,5 @@ mod foo {
 
 fn main() {
     let _: Foo = Foo::new(5);
-    let _: Foo = Foo { inner: 5 as Field };
+    let _: Foo = Foo { inner: 5 };
 }

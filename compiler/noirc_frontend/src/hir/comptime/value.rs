@@ -182,7 +182,7 @@ impl Value {
         let kind = match self {
             Value::Unit => ExpressionKind::Literal(Literal::Unit),
             Value::Bool(value) => ExpressionKind::Literal(Literal::Bool(value)),
-            Value::Field(value) => cast(value, UnresolvedTypeData::FieldElement, location),
+            Value::Field(value) => ExpressionKind::Literal(Literal::Integer(value)),
             Value::I8(value) => cast(
                 SignedField::from_signed(value),
                 UnresolvedTypeData::Integer(Signedness::Signed, IntegerBitSize::Eight),
