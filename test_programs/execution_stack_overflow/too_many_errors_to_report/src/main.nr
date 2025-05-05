@@ -1,3 +1,4 @@
+// TODO(https://github.com/noir-lang/noir/issues/8354): stack overflow
 //
         struct Foo<let F: Field5 {}fn foqn f(
 #[oracle(oracleName)]
