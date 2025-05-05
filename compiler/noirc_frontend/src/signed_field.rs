@@ -84,6 +84,57 @@ impl SignedField {
     }
 }
 
+impl std::ops::Add for SignedField {
+    type Output = Self;
+
+    fn add(self, rhs: Self) -> Self::Output {
+        if self.is_negative == rhs.is_negative {
+            Self::new(self.field + rhs.field, self.is_negative)
+        } else if self.is_negative && !rhs.is_negative {
+            if self.field > rhs.field {
+                // For example "-4 + 3", so "-(4 - 3)"
+                Self::new(self.field - rhs.field, true)
+            } else {
+                // For example "-4 + 5", so "5 - 4"
+                Self::new(rhs.field - self.field, false)
+            }
+        } else {
+            // !self.is_negative && rhs.is_negative
+            if rhs.field > self.field {
+                // For example "4 + (-5)", so "-(5 - 4)"
+                Self::new(rhs.field - self.field, true)
+            } else {
+                // For example "4 + (-3)", so "4 - 3"
+                Self::new(self.field - rhs.field, false)
+            }
+        }
+    }
+}
+
+impl std::ops::Sub for SignedField {
+    type Output = Self;
+
+    fn sub(self, rhs: Self) -> Self::Output {
+        self + (-rhs)
+    }
+}
+
+impl std::ops::Mul for SignedField {
+    type Output = Self;
+
+    fn mul(self, rhs: Self) -> Self::Output {
+        Self::new(self.field * rhs.field, self.is_negative ^ rhs.is_negative)
+    }
+}
+
+impl std::ops::Div for SignedField {
+    type Output = Self;
+
+    fn div(self, rhs: Self) -> Self::Output {
+        Self::new(self.field / rhs.field, self.is_negative ^ rhs.is_negative)
+    }
+}
+
 impl std::ops::Neg for SignedField {
     type Output = Self;
 
@@ -203,5 +254,68 @@ mod tests {
         assert!(neg_two < neg_one);
 
         assert!(two > neg_two);
+    }
+
+    #[test]
+    fn addition() {
+        let one = SignedField::one();
+        let two = SignedField::positive(2_u32);
+        let three = SignedField::positive(3_u32);
+        assert_eq!(one + two, three); // positive + positive
+
+        let minus_one = SignedField::negative(1_u32);
+        let minus_two = SignedField::negative(2_u32);
+        let minus_three = SignedField::negative(3_u32);
+        assert_eq!(two + minus_one, one); // positive + negative
+
+        assert_eq!(minus_three + one, minus_two); // negative + positive
+
+        assert_eq!(minus_one + minus_two, minus_three); // negative + negative
+    }
+
+    #[test]
+    fn subtraction() {
+        let one = SignedField::one();
+        let two = SignedField::positive(2_u32);
+        let three = SignedField::positive(3_u32);
+        assert_eq!(three - two, one); // positive - positive
+
+        let minus_one = SignedField::negative(1_u32);
+        let minus_three = SignedField::negative(3_u32);
+        assert_eq!(two - minus_one, three); // positive - negative
+
+        assert_eq!(minus_one - two, minus_three); // negative - positive
+
+        assert_eq!(minus_one - minus_three, two); // negative - negative
+    }
+
+    #[test]
+    fn multiplication() {
+        let two = SignedField::positive(2_u32);
+        let three = SignedField::positive(3_u32);
+        let six = SignedField::positive(6_u32);
+        let minus_two = SignedField::negative(2_u32);
+        let minus_three = SignedField::negative(3_u32);
+        let minus_six = SignedField::negative(6_u32);
+
+        assert_eq!(two * three, six); // positive * positive
+        assert_eq!(two * minus_three, minus_six); // possitive * negative
+        assert_eq!(minus_two * three, minus_six); // negative * positive
+        assert_eq!(minus_two * minus_three, six); // negative * negative
+    }
+
+    #[test]
+    fn division() {
+        let two = SignedField::positive(2_u32);
+        let three = SignedField::positive(3_u32);
+        let six = SignedField::positive(6_u32);
+        let minus_two = SignedField::negative(2_u32);
+        let minus_three = SignedField::negative(3_u32);
+        let minus_six = SignedField::negative(6_u32);
+
+        assert_eq!(six / two, three); // positive * positive
+        assert_eq!(six / minus_three, minus_two); // possitive * negative
+        assert_eq!(minus_six / three, minus_two); // negative * positive
+        assert_eq!(minus_six / minus_three, two); // negative * negative
     }
 }
