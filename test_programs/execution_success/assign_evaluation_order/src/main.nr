@@ -10,9 +10,7 @@ fn bug_8262(mut a: (i32, bool, bool)) -> i32 {
     a.1 = if a.1 {
         a = (2, a.2, a.1);
         true
-    } else {
-        !a.2
-    };
+    } else { !a.2 };
     a.0
 }
 

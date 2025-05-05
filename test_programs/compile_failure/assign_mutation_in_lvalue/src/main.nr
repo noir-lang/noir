@@ -6,8 +6,8 @@ fn main() {
 fn bug() {
     let mut a = ([1, 2], 3);
     a.0[{
-        a = ([4,5], 6);
-        1
+    a = ([4, 5], 6);
+    1
     }] = 7;
 
     // acir+brillig yield ([1, 7], 3)
