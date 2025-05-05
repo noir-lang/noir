@@ -105,7 +105,7 @@ fn generate_test_runner_debugger_tests(test_file: &mut File, test_data_dir: &Pat
             .flatten()
             .collect();
         for test_name_line in test_names {
-            // TODO: get test name by regex perhaps?
+            // TODO(https://github.com/noir-lang/noir/issues/8352): get test name by regex perhaps?
             let test_name = test_name_line
                 .split("fn ")
                 .collect::<Vec<&str>>()
