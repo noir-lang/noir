@@ -117,23 +117,6 @@ fn evaluate_static_assert(
         panic!("ICE: static_assert called with wrong number of arguments")
     }
 
-    // All of the arguments representing the message must be constants
-    for arg in arguments.iter().skip(1) {
-        if !function.dfg.is_constant(*arg) {
-            let call_stack = function.dfg.get_instruction_call_stack(instruction);
-            return Err(RuntimeError::StaticAssertDynamicMessage { call_stack });
-        }
-    }
-
-    if function.dfg.is_constant_true(arguments[0]) {
-        return Ok(false);
-    }
-
-    let call_stack = function.dfg.get_instruction_call_stack(instruction);
-    if !function.dfg.is_constant(arguments[0]) {
-        return Err(RuntimeError::StaticAssertDynamicPredicate { call_stack });
-    }
-
     // To turn the arguments into a string we do the same as we'd do if the arguments
     // were passed to the built-in foreign call "print" functions.
     let mut foreign_call_params = Vec::with_capacity(arguments.len() - 1);
@@ -143,6 +126,15 @@ fn evaluate_static_assert(
             return Err(RuntimeError::StaticAssertDynamicMessage { call_stack });
         }
         append_foreign_call_param(*arg, &function.dfg, &mut foreign_call_params);
+    }
+
+    if function.dfg.is_constant_true(arguments[0]) {
+        return Ok(false);
+    }
+
+    let call_stack = function.dfg.get_instruction_call_stack(instruction);
+    if !function.dfg.is_constant(arguments[0]) {
+        return Err(RuntimeError::StaticAssertDynamicPredicate { call_stack });
     }
 
     match PrintableValueDisplay::<FieldElement>::try_from_params(&foreign_call_params) {
