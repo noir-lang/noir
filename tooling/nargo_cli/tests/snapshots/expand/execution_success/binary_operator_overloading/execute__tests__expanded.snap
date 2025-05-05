@@ -50,61 +50,61 @@ impl Wrapper {
 
 impl Add for Wrapper {
     fn add(self, other: Self) -> Self {
-        Wrapper::new(self.inner + other.inner)
+        Self::new(self.inner + other.inner)
     }
 }
 
 impl Sub for Wrapper {
     fn sub(self, other: Self) -> Self {
-        Wrapper::new(self.inner - other.inner)
+        Self::new(self.inner - other.inner)
     }
 }
 
 impl Mul for Wrapper {
     fn mul(self, other: Self) -> Self {
-        Wrapper::new(self.inner * other.inner)
+        Self::new(self.inner * other.inner)
     }
 }
 
 impl Div for Wrapper {
     fn div(self, other: Self) -> Self {
-        Wrapper::new(self.inner / other.inner)
+        Self::new(self.inner / other.inner)
     }
 }
 
 impl Rem for Wrapper {
     fn rem(self, other: Self) -> Self {
-        Wrapper::new(self.inner % other.inner)
+        Self::new(self.inner % other.inner)
     }
 }
 
 impl BitAnd for Wrapper {
     fn bitand(self, other: Self) -> Self {
-        Wrapper::new(self.inner & other.inner)
+        Self::new(self.inner & other.inner)
     }
 }
 
 impl BitOr for Wrapper {
     fn bitor(self, other: Self) -> Self {
-        Wrapper::new(self.inner | other.inner)
+        Self::new(self.inner | other.inner)
     }
 }
 
 impl BitXor for Wrapper {
     fn bitxor(self, other: Self) -> Self {
-        Wrapper::new(self.inner ^ other.inner)
+        Self::new(self.inner ^ other.inner)
     }
 }
 
 impl Shl for Wrapper {
     fn shl(self, other: u8) -> Self {
-        Wrapper::new(self.inner << other)
+        Self::new(self.inner << other)
     }
 }
 
 impl Shr for Wrapper {
     fn shr(self, other: u8) -> Self {
-        Wrapper::new(self.inner >> other)
+        Self::new(self.inner >> other)
     }
 }
 
