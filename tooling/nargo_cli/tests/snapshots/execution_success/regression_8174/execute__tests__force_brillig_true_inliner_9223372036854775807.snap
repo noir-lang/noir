@@ -43,14 +43,18 @@ expression: artifact
       "visibility": "public"
     },
     "error_types": {
+      "12049594436772143978": {
+        "error_kind": "string",
+        "string": "array ref-count underflow detected"
+      },
       "17843811134343075018": {
         "error_kind": "string",
         "string": "Stack too deep"
       }
     }
   },
-  "bytecode": "H4sIAAAAAAAA/+1ZzW7TQBBex3YSO0lrwYs4ddKWWyUKFCj0V0Li5v49xx55Ay5wQFy4IcEL4qU7yefxuIqopyhSV7Ic78zOfDP77XrWCcxtG1dX4H9H/t7zd9ffN/VGunv+nt+vTTu0lWthDNYAY28NMIZrgDFaA4yxAkYNnP0OcQaAkfakQXUNqyuprrS6RuZ2P1sIMTC3QBwB3QTHpr6xrWQQEvTb3xN/xw2zQ5JPE+a3S/u7+fwiMfXWMf4iAZsK9nfIfqRjPycOvbd1+4b5DZkeH4PjjkDnqEXnGHSOW3ROQOekRecUdE5bdM5A56xF5xx0zkHHtQT0jemao7Nr5TnemrBYpdhiHd9FwPwZU+eXYf5To7qepgHzR3h4fnosPwMdPDnZHyrZp3gTIV7M/4DFO9LBUxAXU8DDuTjW8T1blYvkP2VYtbg4FuYG80NcnJCOXeJJmCyyzThIFoOM5tfx7gPEhzLEg/sDcTUzTa4QbuV1Uyivm+njulm0x3UDMu11MzFyrYGyHvihWsXZvgBsnxi2noAN55O/7zTev1U9PleuNxbv076SfcrbUMgnnpEovk3T3AeHbG4kWwNhbu7ak3C+KHblPSlX3ncWud4Q4sUcjliuJyDbYLmTbE3uyPWmoI9n1jHLdaaTi0LawygWaQ/bZDLcwwgj7mHKXJkqc6V45MoyFw/FFY1vQviOUDoDbj9twU+/XRtYs2ghyyfmiHI2RH0mS0AW2bqf1D9H4AdtEY6Y6Zf+meauD2NofCb47zP/NdxCH+aI2wqFPtJ376CP/rdbc7QOntulPXft+f78Xm12Sfb3dexfk/0XKvbn28SVl3aZS6zvXXsFvh+6vkf/KcOqUd+jP8SD+eH1/YFtYs0EGXKQy0Khj/xItvY7tEXckua7Q66VCfPd8Vp5RvZf69jfpfl+Y5e542vlLfj+H2uF/KcMq9ZaIX+IB/PD18qhbWLNBBlykMtCoY/zG2UHHdoiblE8GD/nwiH4fehv2+g/ZVi1uCDlFfPDufDONrFmggz3ey4LhT4+fygjbrrawNWWn2EMr8fw28WGqZ+vXcN8BsI4qR6m8cSRCGRdcsTF9hVwOPsRYMc6EvEbU+exVr1dta1VeIz+U9PMtcb3vVW/WfH/t3BsJsgo/1iXRrb7WHZ2l3/qE/diwIItAjnqf/HP+C0V49j7R5w3O+X0pihvynl5dTW7LJ8w+wZy6PIknTNwPblGZxU8y6A+2YuZ/jfSra7v/jc/i6I/p/frDr2g5f7XhtAX2XqfdMbBsx/pk+/UNjGSbAQyPFe7NvbPmC+0RThipv/TP9Oc4HmNxmeC/yHzX8Mt9PGz30jQHwn6bn5+kD1/x9g13nl9Zh/7ODbijuP1H+YZ//olKAAA",
-  "debug_symbols": "jZHBjoQgDIbfpWcOoqM4vooxBrVOSAgaBjbZGN59y0zdmTlsshc+SvnbP+0BC07xNhq3bnfo+gMmb6w1t9Fusw5mc/R6QJEPWSnopCC2zOuTl4IpmSWzgq7MvDBrZsNUzJZJ9cqUBJy9x+ARc+s3M2Rx1x5dgM5FawV8aRsfn+67dg8G7SlbCEC3EKngaizmWxIvdfG3lByzmDz/yuv/65uzuWyqD/1AkZ6N/xhvypW80ZNFDtfo5rds+N7PzLme3W8zLtFjrvTaER29rJWQqh0E0Pz7Vomrort8pqSQdTOk7OQH",
+  "bytecode": "H4sIAAAAAAAA/+1azW7TQBDexHYSO0lrwYs4ddKEWyUKFCj0V0Li5qbtc/jIkTfgAhIHxIUbEjwbXrqTfB6PQ0Q9rSJ1Jcvxznjmm9lvx7vbtsxNGxRXy/323b3t7ra/Y8qNdPfcPbldGzVoK9HC2NoAjO0NwOhtAEZ/AzAGChg1cHYaxNkCjFSTusXVK66wuKLi6puberYQYmB2glgC2gEOTLmwrWUQEvTb3UN3x4LZIMlHIfPbpP1ZMrkITbk1jD8NwaaC/SnZ93XsJ8Sht3nZvmF+PabH38H3jkDnqEbnGHSOa3ROQOekRucUdE5rdM5A56xG5xx0zkHHthD0jWmao+Mr5THeGbJYpdgCHd9pi/kzpswvw/xHRnU+jVrMH+Hh+Wmz/HR18CRkv6dkn+INhXgx/10Wb18HT0pcjAAP5+JAx/d4XS6S/4hh1eLiQBgbzA9xcUg6+RJPyGR+Xo2DZAHIaHwt795BfChDPFgfiKuxqXKFcCvPm1R53owe5s2iPcwbkGnPm6GR1xooa4MfWqtY2xeA7QPD1haw4Xjy753G97dYj0+U1xuL72lHyT7lrSfkE/dIFN+2qdbBHhsbyVZXGJtVNQnHi2JXrkmJct1Z5HpLiBdz2Ge5HoJsi+VOsjVckettQR/3rAOW61gnF6lUwygWqYZtMxnWMMKINUyZKyNlrqQPXFnm4q64onEmhN8IpT3g7uMa/PTbtm5uFs1j+cQcUc56qM9kIcj8vOwncs8++EFbhCNg+pl7prHrwDv0fiz47zD/JdxCH+aI2/KEPtK336D37redczQPnuZLe/bac/3Jrdp4Tvb3dexfkf1nKvYnu8SV5/kyl7i+t+0F+L7r9T36jxhWjfU9+kM8mB++vj/Iq1hjQYYc5DJP6CM/kq39Bm0Rt6TxbpBrWch8NzxXnpD9lzr2ZzTer/Jl7vhceQ2+72OukP+IYdWaK+QP8WB++Fw5zKtYY0GGHOQyT+jj/EbZQYO2iFsUD8bPuXAIfu/6bBv9RwyrFhekvGJ+OBfe5FWssSDDes9lntDHxw9lxE27NrBry0/wDl+P4dkFrdt96KPYtM8WqI7R/prWbNynz2LBswj8m2zA+j66u83HF3iHx+sJfTzXyDHS2xIwoB7yedXZGZ4v2OaDrMn5ZfPwFXDwmHENjviNKdcArb1K0XbWqQHoPzLVXGucja573sf/NojvxoKM8o9rej9vPpbpbPkPEcS9ALBg80GO+p/dM55DYxx7/4nzepqNrtPsOptkl5fjefaI2TeQw76C/2yazuY74/n0YpJm6e4//Ut7RJzPttE+E/ehqE/2Aqb/jXSL67v7zc8R0J/V+7VCr1Vz/2tD6PPzcp+0P8V9O+mT7yivYiRZH2R4JmLbwD1jvtAW4QiY/k/3TGOCe216Pxb895j/Em6hj+/b+4J+X9C34/OD7Lk7xq6xXukw+9jHsRF3LK//AP9hB7/hKQAA",
+  "debug_symbols": "jZHdjoQgDIXfpddciAr+vIoxBhUnJAQNI5tsDO++RevOzMUme8NHKefQ0gNmPYbHYNyyPqHtDhi9sdY8BrtOajerw9MDsrTwooKWM2QNbZ7YXCwzIifmxIJYEgVRXj4l+ZU1sbkoMiL5CfIT5CfIT5CfkET0y2NkcNc+7F7rVPpbM9jiprx2O7QuWMvgS9lwXnpuyp3clcdsxkC7GYmGi7E67SJ7qbO/pdgxibHnX7n4v17ej3NZfOh7jNRk/Md4YnLyRo1WU7gEN71l9+/tztzj3fw66Tl4nZxeM8al47JmvG56BvjfXV2xpsI9P1OiYVyWKeTnTYFh1cdU2A8=",
   "file_map": {
     "50": {
       "source": "global G_A: (str<3>, [str<3>; 2]) = (\"AWQ\", [\"LNV\", \"ZIH\"]);\nunconstrained fn main(a: [str<3>; 2], b: bool) -> pub [[str<3>; 2]; 1] {\n    [if (!b) { a } else { G_A.1 }]\n}\n",
