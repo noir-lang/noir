@@ -1,0 +1,15 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: expanded_code
+---
+use std::mem::checked_transmute;
+
+fn main() {
+    let _: [Field; 5] = distribute::<1, 2, 3>([1, 2, 3, 4, 5]);
+}
+
+pub fn distribute<let N: u32, let A: u32, let B: u32>(
+    x: [Field; N * (A + B)],
+) -> [Field; (N * A) + (N * B)] {
+    checked_transmute(x)
+}
