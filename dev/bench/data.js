@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1746467028674,
+  "lastUpdate": 1746467031637,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -3700,95 +3700,6 @@ window.BENCHMARK_DATA = {
       }
     ],
     "Compilation Time": [
-      {
-        "commit": {
-          "author": {
-            "email": "aakoshh@gmail.com",
-            "name": "Akosh Farkash",
-            "username": "aakoshh"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "3bd32b8f461b23bb47aec451f1f74ff44ee7bc3a",
-          "message": "chore(test): Add smoke test for AST generation (#8048)",
-          "timestamp": "2025-04-24T15:48:43Z",
-          "tree_id": "1bcde2c9a7bf238f4f825c6e2ea1c3f7fb8657f2",
-          "url": "https://github.com/noir-lang/noir/commit/3bd32b8f461b23bb47aec451f1f74ff44ee7bc3a"
-        },
-        "date": 1745510987258,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "regression_4709",
-            "value": 0.667,
-            "unit": "s"
-          },
-          {
-            "name": "ram_blowup_regression",
-            "value": 12.9,
-            "unit": "s"
-          },
-          {
-            "name": "global_var_regression_entry_points",
-            "value": 0.484,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-inner",
-            "value": 2.212,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 6.492,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 1.07,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 17.62,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 13.52,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root-empty",
-            "value": 0.885,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root-single-tx",
-            "value": 121,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 118,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 0.88,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-root",
-            "value": 1.394,
-            "unit": "s"
-          }
-        ]
-      },
       {
         "commit": {
           "author": {
@@ -8146,6 +8057,95 @@ window.BENCHMARK_DATA = {
           {
             "name": "rollup-root",
             "value": 1.594,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "asterite@gmail.com",
+            "name": "Ary Borenszweig",
+            "username": "asterite"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "f31097d0e09b6ac39842ee0e821ad62e70ebd1ba",
+          "message": "chore: add snapshosts for nargo expand tests (#8318)",
+          "timestamp": "2025-05-05T17:13:44Z",
+          "tree_id": "1fbf0e1fe1cadcad1453b950839a6083c09bfe0b",
+          "url": "https://github.com/noir-lang/noir/commit/f31097d0e09b6ac39842ee0e821ad62e70ebd1ba"
+        },
+        "date": 1746467023701,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "regression_4709",
+            "value": 0.693,
+            "unit": "s"
+          },
+          {
+            "name": "ram_blowup_regression",
+            "value": 13,
+            "unit": "s"
+          },
+          {
+            "name": "global_var_regression_entry_points",
+            "value": 0.501,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-inner",
+            "value": 2.21,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 6.92,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 1.11,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 17.74,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 13.5,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-empty",
+            "value": 1.3,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-single-tx",
+            "value": 123,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 128,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 1.076,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-root",
+            "value": 1.564,
             "unit": "s"
           }
         ]
