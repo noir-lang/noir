@@ -2,7 +2,6 @@
 //! (after converting the AST to Noir and running it through the comptime
 //! interpreter) vs when everything is forced to be Brillig.
 use crate::{compare_results_comptime, create_ssa_or_die, default_ssa_options};
-use arbitrary::Arbitrary;
 use arbitrary::Unstructured;
 use color_eyre::eyre;
 use noir_ast_fuzzer::Config;
@@ -25,7 +24,7 @@ pub fn fuzz(u: &mut Unstructured) -> eyre::Result<()> {
         ..Default::default()
     };
 
-    let inputs = CompareComptime::arb(u, config, |u, program| {
+    let inputs = CompareComptime::arb(u, config, |_, program| {
         let options = CompareOptions::default();
         let ssa = create_ssa_or_die(
             change_all_functions_into_unconstrained(program),

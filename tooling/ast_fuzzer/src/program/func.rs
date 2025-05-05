@@ -602,8 +602,9 @@ impl<'a> FunctionContext<'a> {
 
         // Generate expressions for LHS and RHS.
         let lhs_expr = self.gen_expr(u, &lhs_type, max_depth.saturating_sub(1), Flags::NESTED)?;
-        let mut rhs_expr = self.gen_expr(u, rhs_type, max_depth.saturating_sub(1), Flags::NESTED)?;
-        
+        let mut rhs_expr =
+            self.gen_expr(u, rhs_type, max_depth.saturating_sub(1), Flags::NESTED)?;
+
         // Ensure that rhs does not exceed lhs' bit size for checked shifts
         if matches!(op, BinaryOp::ShiftLeft | BinaryOp::ShiftRight) {
             if let Type::Integer(_, size) = lhs_type {
@@ -612,7 +613,7 @@ impl<'a> FunctionContext<'a> {
                 unreachable!("Shift right rhs should've been an integer, but it's {}", lhs_type);
             }
         }
-        
+
         let mut expr = expr::binary(lhs_expr, op, rhs_expr);
 
         // If we have chosen e.g. u8 and need u32 we need to cast.
