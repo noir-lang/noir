@@ -101,8 +101,7 @@ function getCallStackFromLocationNode(
     const line = previousLines.length;
     const column = previousLines[previousLines.length - 1].length + 1;
 
-    // Unshift since we are exploring child nodes first
-    result.unshift({
+    result.push({
       filePath: path,
       line,
       column,
@@ -111,7 +110,8 @@ function getCallStackFromLocationNode(
 
     callStack = location_tree[callStack.parent];
   }
-  return result;
+  // Reverse since we explored the child nodes first
+  return result.reverse();
 }
 /**
  * Extracts the call stack from the location of a failing opcode and the debug metadata.
