@@ -443,8 +443,7 @@
 <a href="#442" id="442">442</a>
 <a href="#443" id="443">443</a>
 <a href="#444" id="444">444</a>
-<a href="#445" id="445">445</a>
-<a href="#446" id="446">446</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::{fs::OpenOptions, path::PathBuf};
+<a href="#445" id="445">445</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::{fs::OpenOptions, path::PathBuf};
 
 <span class="kw">use </span>acvm::{
     AcirField, BlackBoxFunctionSolver, FieldElement,
@@ -495,6 +494,7 @@
 
 <span class="kw">pub struct </span>FuzzConfig {
     <span class="kw">pub </span>folder_config: FuzzFolderConfig,
+    <span class="kw">pub </span>execution_config: FuzzExecutionConfig,
 }
 
 <span class="doccomment">/// Runs a test function. This will either run the test or fuzz it, depending on whether the function has arguments.
@@ -704,9 +704,7 @@
         fuzzing_failure_dir: <span class="prelude-val">Some</span>(fuzzing_failure_dir.to_string_lossy().to_string()),
         minimized_corpus_dir: fuzz_config.folder_config.minimized_corpus_dir,
     };
-    <span class="comment">// TODO: allow configuring this. See https://github.com/noir-lang/noir/issues/8214
-    </span><span class="kw">let </span>fuzz_execution_config =
-        FuzzExecutionConfig { timeout: <span class="number">1</span>, num_threads: <span class="number">1</span>, show_progress: <span class="bool-val">false </span>};
+    <span class="kw">let </span>fuzz_execution_config = fuzz_config.execution_config;
 
     <span class="comment">// TODO: show output?
     </span><span class="kw">let </span>show_output = <span class="bool-val">false</span>;
