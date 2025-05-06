@@ -71,7 +71,7 @@ fn basic_calls_fold() {
 }
 
 #[test]
-#[should_panic]
+#[should_panic = "internal error: entered unreachable code: Expected an associated final index for call to acir function f1 with args [Id(0), Id(1)]"]
 fn basic_calls_no_predicates() {
     basic_call_with_outputs_assert(InlineType::NoPredicates);
     call_output_as_next_call_input(InlineType::NoPredicates);
@@ -79,7 +79,7 @@ fn basic_calls_no_predicates() {
 }
 
 #[test]
-#[should_panic]
+#[should_panic = "ICE: Got an ACIR function named foo that should have already been inlined"]
 fn call_without_inline_attribute() {
     basic_call_with_outputs_assert(InlineType::Inline);
 }
