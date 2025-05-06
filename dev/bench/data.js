@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1746536044625,
+  "lastUpdate": 1746547243025,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -18076,48 +18076,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "asterite@gmail.com",
-            "name": "Ary Borenszweig",
-            "username": "asterite"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "abd805e7fe8f1e29c5c24515f725f2805e994d94",
-          "message": "fix: let SSA parser parse calls to print (#8232)",
-          "timestamp": "2025-04-25T15:36:17Z",
-          "tree_id": "0fc397205d38d56724abcd72b3cd7ec3325d3a10",
-          "url": "https://github.com/noir-lang/noir/commit/abd805e7fe8f1e29c5c24515f725f2805e994d94"
-        },
-        "date": 1745596453232,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 254402,
-            "range": "± 807",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 228937,
-            "range": "± 9715",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 3589022,
-            "range": "± 8900",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "rkarabut@users.noreply.github.com",
             "name": "Ratmir Karabut",
             "username": "rkarabut"
@@ -20169,6 +20127,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 3230378,
             "range": "± 7438",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "aakoshh@gmail.com",
+            "name": "Akosh Farkash",
+            "username": "aakoshh"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "82cf77921add97141bf4d9ef6d96bd05390bd7c5",
+          "message": "chore: Add GITHUB_TOKEN to cross build (#8370)",
+          "timestamp": "2025-05-06T15:40:58Z",
+          "tree_id": "e0aeb252378b31248fb1e0fca3e7a6498eb8ad24",
+          "url": "https://github.com/noir-lang/noir/commit/82cf77921add97141bf4d9ef6d96bd05390bd7c5"
+        },
+        "date": 1746547235569,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 255699,
+            "range": "± 1293",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 230485,
+            "range": "± 1099",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 3219880,
+            "range": "± 5700",
             "unit": "ns/iter"
           }
         ]
