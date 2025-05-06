@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1746475995822,
+  "lastUpdate": 1746531840759,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -18096,48 +18096,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "asterite@gmail.com",
-            "name": "Ary Borenszweig",
-            "username": "asterite"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "097b1164322e111fac4d6e0c46d81343f6d0fb43",
-          "message": "feat: add `--no-fuzz` and `--only-fuzz` to `nargo test` (#8213)",
-          "timestamp": "2025-04-24T23:01:42Z",
-          "tree_id": "7a9676951263ce3d1c7b41f6c236435f39bc8ad8",
-          "url": "https://github.com/noir-lang/noir/commit/097b1164322e111fac4d6e0c46d81343f6d0fb43"
-        },
-        "date": 1745536735222,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 270696,
-            "range": "± 717",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 241262,
-            "range": "± 1882",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 3253668,
-            "range": "± 4605",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "mvezenov@gmail.com",
             "name": "Maxim Vezenov",
             "username": "vezenovm"
@@ -20189,6 +20147,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 3589564,
             "range": "± 6181",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "asterite@gmail.com",
+            "name": "Ary Borenszweig",
+            "username": "asterite"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "4e064ba13616d584cc6bae1e67acabffe3967b0f",
+          "message": "fix(expand): try to use \"Self\" in function calls (#8353)",
+          "timestamp": "2025-05-06T11:14:10Z",
+          "tree_id": "b5c9992f8d1dfc7a1b8737be5f8e90566af4fe4f",
+          "url": "https://github.com/noir-lang/noir/commit/4e064ba13616d584cc6bae1e67acabffe3967b0f"
+        },
+        "date": 1746531833415,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 255681,
+            "range": "± 705",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 229212,
+            "range": "± 4145",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 3575169,
+            "range": "± 14552",
             "unit": "ns/iter"
           }
         ]
