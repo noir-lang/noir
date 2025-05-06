@@ -748,8 +748,8 @@ impl<'f> Context<'f> {
                     Instruction::Constrain(lhs, rhs, message)
                 }
                 Instruction::Store { address, value } => {
-                    // There is no side effect for 'Store' instructions on arrays allocated in the current branch, because
-                    // these arrays do not exist in other branches.
+                    // If this instruction immediately follows an allocate, and stores to that
+                    // address there is no previous value to load and we don't need a merge anyway.
                     if self.local_allocations.contains(&address) {
                         Instruction::Store { address, value }
                     } else {
