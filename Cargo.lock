@@ -3687,6 +3687,7 @@ dependencies = [
  "iter-extended",
  "noirc_errors",
  "noirc_frontend",
+ "noirc_printable_type",
  "num-bigint",
  "num-integer",
  "num-traits",
@@ -3744,8 +3745,10 @@ name = "noirc_printable_type"
 version = "1.0.0-beta.4"
 dependencies = [
  "acvm",
+ "iter-extended",
  "proptest",
  "serde",
+ "serde_json",
 ]
 
 [[package]]
