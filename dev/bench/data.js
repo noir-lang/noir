@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1746532390654,
+  "lastUpdate": 1746532522266,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -18066,48 +18066,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "asterite@gmail.com",
-            "name": "Ary Borenszweig",
-            "username": "asterite"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "ef57db00a5b4622d95e011ea774cc5e30c09042e",
-          "message": "fix: don't take implicitly added named generics when checking where clauses (#8184)\n\nCo-authored-by: TomAFrench <tom@tomfren.ch>\nCo-authored-by: Tom French <15848336+TomAFrench@users.noreply.github.com>",
-          "timestamp": "2025-04-25T11:58:41Z",
-          "tree_id": "a67a69b154673ed1863d56caf5b81c25ee68f521",
-          "url": "https://github.com/noir-lang/noir/commit/ef57db00a5b4622d95e011ea774cc5e30c09042e"
-        },
-        "date": 1745583347541,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 275848,
-            "range": "± 922",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 245566,
-            "range": "± 9094",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 3593883,
-            "range": "± 9494",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "15848336+TomAFrench@users.noreply.github.com",
             "name": "Tom French",
             "username": "TomAFrench"
@@ -20159,6 +20117,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 3573989,
             "range": "± 3407",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "asterite@gmail.com",
+            "name": "Ary Borenszweig",
+            "username": "asterite"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "873380cc1d999b6273c4f4ddb8fa020a1130afc2",
+          "message": "feat: add `--fuzz-timeout` to `nargo test` options (#8326)",
+          "timestamp": "2025-05-06T11:28:05Z",
+          "tree_id": "02875a2e30621834e18a19b3cef94f8a528010da",
+          "url": "https://github.com/noir-lang/noir/commit/873380cc1d999b6273c4f4ddb8fa020a1130afc2"
+        },
+        "date": 1746532514844,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 256718,
+            "range": "± 621",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 231063,
+            "range": "± 8060",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 3579393,
+            "range": "± 24703",
             "unit": "ns/iter"
           }
         ]
