@@ -12,7 +12,7 @@ pub trait MagicNumber {
 
 impl MagicNumber for i32 {
     fn from_magic_value() -> Self {
-        MagicNumber::from_value()
+        Self::from_value()
     }
 
     fn from_value() -> Self {
@@ -22,7 +22,7 @@ impl MagicNumber for i32 {
 
 impl MagicNumber for i64 {
     fn from_magic_value() -> Self {
-        MagicNumber::from_value()
+        Self::from_value()
     }
 
     fn from_value() -> Self {
