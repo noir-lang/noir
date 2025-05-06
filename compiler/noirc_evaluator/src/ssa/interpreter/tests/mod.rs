@@ -4,12 +4,15 @@ use std::sync::Arc;
 
 use acvm::{AcirField, FieldElement};
 
-use crate::ssa::{
-    interpreter::value::NumericValue,
-    ir::types::{NumericType, Type},
+use crate::{
+    errors::RuntimeError,
+    ssa::{
+        interpreter::value::NumericValue,
+        ir::types::{NumericType, Type},
+    },
 };
 
-use super::{InterpreterError, Ssa, Value};
+use super::{Ssa, Value};
 
 mod instructions;
 
@@ -30,7 +33,7 @@ fn expect_value(src: &str) -> Value {
 }
 
 #[track_caller]
-fn expect_error(src: &str) -> InterpreterError {
+fn expect_error(src: &str) -> RuntimeError {
     let ssa = Ssa::from_str(src).unwrap();
     ssa.interpret(Vec::new()).unwrap_err()
 }

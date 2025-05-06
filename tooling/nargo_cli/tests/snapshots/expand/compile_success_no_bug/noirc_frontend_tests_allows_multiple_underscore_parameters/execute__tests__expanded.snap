@@ -1,7 +1,0 @@
----
-source: tooling/nargo_cli/tests/execute.rs
-expression: expanded_code
----
-pub fn foo(_: i32, _: i64) {}
-
-fn main() {}

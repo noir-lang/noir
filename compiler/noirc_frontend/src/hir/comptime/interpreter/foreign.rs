@@ -5,7 +5,6 @@ use acvm::{
 };
 use bn254_blackbox_solver::Bn254BlackBoxSolver; // Currently locked to only bn254!
 use im::{Vector, vector};
-use iter_extended::vecmap;
 use noirc_errors::Location;
 
 use crate::{
@@ -15,7 +14,6 @@ use crate::{
         interpreter::builtin::builtin_helpers::to_byte_array,
     },
     node_interner::NodeInterner,
-    signed_field::SignedField,
 };
 
 use super::{
@@ -131,11 +129,9 @@ fn apply_range_constraint(arguments: Vec<(Value, Location)>, location: Location)
     let (value, num_bits) = check_two_arguments(arguments, location)?;
 
     let input = get_field(value)?;
-    let field = input.to_field_element();
-
     let num_bits = get_u32(num_bits)?;
 
-    if field.num_bits() < num_bits {
+    if input.num_bits() < num_bits {
         Ok(Value::Unit)
     } else {
         Err(InterpreterError::BlackBoxError(
@@ -362,14 +358,13 @@ fn poseidon2_permutation(
     let (input, state_length) = check_two_arguments(arguments, location)?;
 
     let (input, typ) = get_array_map(interner, input, get_field)?;
-    let input = vecmap(input, SignedField::to_field_element);
     let state_length = get_u32(state_length)?;
 
     let fields = Bn254BlackBoxSolver(pedantic_solving)
         .poseidon2_permutation(&input, state_length)
         .map_err(|error| InterpreterError::BlackBoxError(error, location))?;
 
-    let array = fields.into_iter().map(|f| Value::Field(SignedField::positive(f))).collect();
+    let array = fields.into_iter().map(Value::Field).collect();
     Ok(Value::Array(array, typ))
 }
 
@@ -428,7 +423,7 @@ fn get_embedded_curve_point(
     let x = get_struct_field("x", &fields, &typ, location, get_field)?;
     let y = get_struct_field("y", &fields, &typ, location, get_field)?;
     let is_infinite = get_struct_field("is_infinite", &fields, &typ, location, get_bool)?;
-    Ok((x.to_field_element(), y.to_field_element(), is_infinite))
+    Ok((x, y, is_infinite))
 }
 
 /// Decode an `EmbeddedCurveScalar` struct.
@@ -440,7 +435,7 @@ fn get_embedded_curve_scalar(
     let (fields, typ) = get_struct_fields("EmbeddedCurveScalar", (value, location))?;
     let lo = get_struct_field("lo", &fields, &typ, location, get_field)?;
     let hi = get_struct_field("hi", &fields, &typ, location, get_field)?;
-    Ok((lo.to_field_element(), hi.to_field_element()))
+    Ok((lo, hi))
 }
 
 fn to_bigint(id: u32, typ: Type) -> Value {
@@ -454,11 +449,7 @@ fn to_embedded_curve_point(
     typ: Type,
 ) -> Value {
     to_struct(
-        [
-            ("x", Value::Field(SignedField::positive(x))),
-            ("y", Value::Field(SignedField::positive(y))),
-            ("is_infinite", Value::Bool(is_infinite)),
-        ],
+        [("x", Value::Field(x)), ("y", Value::Field(y)), ("is_infinite", Value::Bool(is_infinite))],
         typ,
     )
 }

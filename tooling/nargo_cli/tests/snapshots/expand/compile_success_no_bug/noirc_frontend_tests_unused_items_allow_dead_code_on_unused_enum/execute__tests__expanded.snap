@@ -1,8 +1,0 @@
----
-source: tooling/nargo_cli/tests/execute.rs
-expression: expanded_code
----
-#[allow(dead_code)]
-enum Foo {}
-
-fn main() {}
