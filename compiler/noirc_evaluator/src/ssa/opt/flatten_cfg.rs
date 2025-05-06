@@ -838,6 +838,7 @@ impl<'f> Context<'f> {
     }
 
     /// 'Cast' the 'condition' to 'value' type
+    ///
     /// This needed because we need to multiply the condition with several values
     /// in order to 'nullify' side-effects when the 'condition' is false (in 'handle_instruction_side_effects()' function).
     /// Since the condition is a boolean, it can be safely casted to any other type.
