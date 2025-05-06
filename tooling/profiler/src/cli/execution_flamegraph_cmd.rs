@@ -17,7 +17,7 @@ use crate::opcode_formatter::format_brillig_opcode;
 use bn254_blackbox_solver::Bn254BlackBoxSolver;
 use noirc_artifacts::debug::DebugArtifact;
 
-/// Generates a flamegraph mapping Brillig opcodes to source code.
+/// Generates a flamegraph mapping unconstrained Noir execution to source code.
 #[derive(Debug, Clone, Args)]
 pub(crate) struct ExecutionFlamegraphCommand {
     /// The path to the artifact JSON file
@@ -78,7 +78,6 @@ fn run_with_generator(
 
     let initial_witness = program.abi.encode(&inputs_map, None)?;
 
-    debug!("Executing...");
     info!("Executing program...");
 
     let solved_witness_stack_err = nargo::ops::execute_program_with_profiling(
@@ -107,9 +106,6 @@ fn run_with_generator(
         }
     };
 
-    debug!("Executed");
-    info!("Execution complete");
-
     if print_sample_count {
         // We use `println!` directly here to ensure the output goes to stdout
         // and is not affected by log filtering levels
@@ -120,7 +116,6 @@ fn run_with_generator(
     // We place this logging output before the transforming and collection of the samples.
     // This is done because large traces can take some time, and can make it look
     // as if the profiler has stalled.
-    debug!("Generating flamegraph for {} samples...", profiling_samples.len());
     info!("Generating flamegraph for {} samples...", profiling_samples.len());
 
     let profiling_samples: Vec<BrilligExecutionSample> = profiling_samples
@@ -156,7 +151,6 @@ fn run_with_generator(
         &Path::new(output_path).join(Path::new(&format!("{}_brillig_trace.svg", "main"))),
     )?;
 
-    debug!("Generated flamegraph");
     info!("Flamegraph generation complete");
 
     Ok(())
