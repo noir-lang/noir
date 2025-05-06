@@ -132,16 +132,9 @@ fn evaluate_static_assert(
         return Ok(false);
     }
 
-    let call_stack = function.dfg.get_instruction_call_stack(instruction);
-    if !function.dfg.is_constant(arguments[0]) {
-        return Err(RuntimeError::StaticAssertDynamicPredicate { call_stack });
-    }
-
-    match PrintableValueDisplay::<FieldElement>::try_from_params(&foreign_call_params) {
-        Ok(display_values) => {
-            let message = display_values.to_string();
-            Err(RuntimeError::StaticAssertFailed { message, call_stack })
-        }
+    let message = match PrintableValueDisplay::<FieldElement>::try_from_params(&foreign_call_params)
+    {
+        Ok(display_values) => display_values.to_string(),
         Err(err) => match err {
             TryFromParamsError::MissingForeignCallInputs => {
                 panic!("ICE: missing foreign call inputs")
@@ -150,7 +143,14 @@ fn evaluate_static_assert(
                 panic!("ICE: could not decode printable type {:?}", error)
             }
         },
+    };
+
+    let call_stack = function.dfg.get_instruction_call_stack(instruction);
+    if !function.dfg.is_constant(arguments[0]) {
+        return Err(RuntimeError::StaticAssertDynamicPredicate { message, call_stack });
     }
+
+    Err(RuntimeError::StaticAssertFailed { message, call_stack })
 }
 
 fn append_foreign_call_param(
