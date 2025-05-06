@@ -348,6 +348,7 @@ impl<'f> Context<'f> {
     }
 
     /// Returns the current condition
+    ///
     /// The conditions are in a stack, they are added as conditional branches are encountered
     /// so the last one is the current condition.
     /// When processing a conditional branch, we first follow the 'then' branch and only after we
