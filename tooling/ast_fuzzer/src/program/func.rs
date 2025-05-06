@@ -651,7 +651,7 @@ impl<'a> FunctionContext<'a> {
         if types::is_unit(typ) && u.ratio(4, 5)? {
             // ending a unit block with `<stmt>;` looks better than a `()` but both are valid.
             // NB the AST printer puts a `;` between all statements, including after `if` and `for`.
-            stmts.push(Expression::Semi(Box::new(self.gen_stmt(u)?)))
+            stmts.push(Expression::Semi(Box::new(self.gen_stmt(u)?)));
         } else {
             stmts.push(self.gen_expr(u, typ, max_depth, Flags::TOP)?);
         }
