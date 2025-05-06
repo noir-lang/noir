@@ -486,7 +486,7 @@ impl ItemPrinter<'_, '_, '_> {
 
     fn show_hir_statement(&mut self, statement: HirStatement) {
         // A safety comment can be put before a statement and it applies to any `unsafe`
-        // expression inside it. Here we check if the statment has `unsafe` in it and
+        // expression inside it. Here we check if the statement has `unsafe` in it and
         // put a safety comment right before it. When printing an `Unsafe` expression
         // we'll never include a safety comment at that point.
         let has_unsafe = self.statement_has_unsafe(&statement);
