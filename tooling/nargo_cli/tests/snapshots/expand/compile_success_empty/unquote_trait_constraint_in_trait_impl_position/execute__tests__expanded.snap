@@ -1,0 +1,32 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: expanded_code
+---
+struct Struct {}
+
+impl Trait<Field> for Struct {
+    fn method(self) -> Field {
+        1
+    }
+}
+
+trait Trait<T> {
+    fn method(self) -> T;
+}
+
+fn main() {
+    let st: Struct = Struct {};
+    assert(st.method() == 1);
+}
+
+comptime fn foo(_: FunctionDefinition) -> Quoted {
+    let tr: TraitConstraint = quote { Trait < Field >  }.as_trait_constraint();
+    let st: Type = quote { Struct }.as_type();
+    quote {
+        impl tr for st {
+            fn method(self) -> Field {
+                1
+            }
+        }
+    }
+}

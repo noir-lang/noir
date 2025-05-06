@@ -1,7 +1,6 @@
 use std::hash::Hash;
 use std::{hash::Hasher, rc::Rc};
 
-use acvm::FieldElement;
 use iter_extended::try_vecmap;
 use noirc_errors::Location;
 
@@ -11,6 +10,7 @@ use crate::hir::comptime::value::unwrap_rc;
 use crate::hir::def_collector::dc_crate::CompilationError;
 use crate::lexer::Lexer;
 use crate::parser::{Parser, ParserError};
+use crate::signed_field::SignedField;
 use crate::token::{LocatedToken, SecondaryAttributeKind};
 use crate::{DataType, Kind, Shared};
 use crate::{
@@ -240,7 +240,7 @@ pub(crate) fn get_tuple(
     }
 }
 
-pub(crate) fn get_field((value, location): (Value, Location)) -> IResult<FieldElement> {
+pub(crate) fn get_field((value, location): (Value, Location)) -> IResult<SignedField> {
     match value {
         Value::Field(value) => Ok(value),
         value => type_mismatch(value, Type::FieldElement, location),
@@ -636,7 +636,7 @@ pub(super) fn hash_item<T: Hash>(
     let mut hasher = std::collections::hash_map::DefaultHasher::new();
     item.hash(&mut hasher);
     let hash = hasher.finish();
-    Ok(Value::Field((hash as u128).into()))
+    Ok(Value::Field(SignedField::positive(hash as u128)))
 }
 
 pub(super) fn eq_item<T: Eq>(
