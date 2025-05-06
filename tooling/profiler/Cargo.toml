@@ -37,6 +37,7 @@ noir_artifact_cli.workspace = true
 thiserror.workspace = true
 
 # Logs
+tracing.workspace = true
 tracing-subscriber.workspace = true
 tracing-appender = "0.2.3"
 
