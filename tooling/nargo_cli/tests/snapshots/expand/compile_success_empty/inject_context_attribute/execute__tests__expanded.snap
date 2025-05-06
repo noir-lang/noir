@@ -1,0 +1,71 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: expanded_code
+---
+struct Context {
+    value: Field,
+}
+
+fn foo(_context: Context, x: Field) {
+    {
+        if true {
+            {
+                bar(_context, qux(_context, x + 1) + zero())
+            }
+        } else {
+            {
+                assert(false)
+            }
+        }
+    }
+}
+
+fn bar(_context: Context, x: Field) {
+    {
+        let expected: Field = _context.value;
+        assert(x == expected)
+    }
+}
+
+fn qux(_context: Context, x: Field) -> Field {
+    {
+        x * 2
+    }
+}
+
+fn zero() -> Field {
+    0
+}
+
+comptime fn inject_context(f: FunctionDefinition) {
+    let parameters: [(Quoted, Type)] = f.parameters();
+    let parameters: [(Quoted, Type)] =
+        parameters.push_front((quote { _context }, quote { Context }.as_type()));
+    f.set_parameters(parameters);
+    let body: Expr = f.body().modify(|expr: Expr| -> Option<Expr> mapping_function(expr, f));
+    f.set_body(body);
+}
+
+comptime fn mapping_function(expr: Expr, f: FunctionDefinition) -> Option<Expr> {
+    expr.as_function_call().and_then(|(name, arguments): (Expr, [Expr])| -> Option<Expr> {
+        name
+            .resolve(Option::some(f))
+            .as_function_definition()
+            .and_then(|function_definition: FunctionDefinition| -> Option<Expr> {
+                if function_definition.has_named_attribute("inject_context") {
+                    let arguments: [Expr] =
+                        arguments.push_front(quote { _context }.as_expr().unwrap());
+                    let arguments: Quoted =
+                        arguments.map(|arg: Expr| -> Quoted arg.quoted()).join(quote { ,  });
+                    Option::some(quote { name(arguments) }.as_expr().unwrap())
+                } else {
+                    Option::none()
+                }
+            })
+    })
+}
+
+fn main() {
+    let context: Context = Context { value: 42 };
+    foo(context, 20);
+}
