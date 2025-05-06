@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1746533156508,
+  "lastUpdate": 1746535041712,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -18071,48 +18071,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "15848336+TomAFrench@users.noreply.github.com",
-            "name": "Tom French",
-            "username": "TomAFrench"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "ad56ce63fc11e1cfa667dcb5db1659f6cfc858dd",
-          "message": "chore: clippy (#8220)",
-          "timestamp": "2025-04-25T12:03:24Z",
-          "tree_id": "090fb9a1bf0450763e3fbbb8fe0d0db3acdceb6a",
-          "url": "https://github.com/noir-lang/noir/commit/ad56ce63fc11e1cfa667dcb5db1659f6cfc858dd"
-        },
-        "date": 1745583717822,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 276574,
-            "range": "± 1295",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 249211,
-            "range": "± 3127",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 3608866,
-            "range": "± 8853",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "kashbrti@gmail.com",
             "name": "Khashayar Barooti",
             "username": "kashbrti"
@@ -20164,6 +20122,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 3579393,
             "range": "± 24703",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "15848336+TomAFrench@users.noreply.github.com",
+            "name": "Tom French",
+            "username": "TomAFrench"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "7296f8aaece5bf4c4dcf6e33bf4d3764e283a554",
+          "message": "chore: remove unsafe code from greybox fuzzer (#8315)\n\nCo-authored-by: AztecBot <tech@aztecprotocol.com>",
+          "timestamp": "2025-05-06T12:18:25Z",
+          "tree_id": "c6f6e3b8b8fc7eabd1c058a4363ebb700c890427",
+          "url": "https://github.com/noir-lang/noir/commit/7296f8aaece5bf4c4dcf6e33bf4d3764e283a554"
+        },
+        "date": 1746535034637,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 254590,
+            "range": "± 771",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 230540,
+            "range": "± 2345",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 3222240,
+            "range": "± 26517",
             "unit": "ns/iter"
           }
         ]
