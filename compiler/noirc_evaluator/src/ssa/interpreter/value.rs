@@ -129,6 +129,13 @@ impl Value {
         Self::Numeric(NumericValue::from_constant(constant, typ))
     }
 
+    pub(crate) fn from_slice(slice: &[FieldElement], typ: NumericType) -> Self {
+        let values =
+            slice.iter().map(|v| Value::Numeric(NumericValue::from_constant(*v, typ))).collect();
+        let types = slice.iter().map(|_| Type::Numeric(typ)).collect();
+        Self::array(values, types)
+    }
+
     // This is used in tests but shouldn't be cfg(test) only
     #[allow(unused)]
     pub(crate) fn bool(value: bool) -> Self {

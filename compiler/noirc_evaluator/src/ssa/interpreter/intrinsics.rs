@@ -1,4 +1,4 @@
-use acvm::FieldElement;
+use acvm::{BlackBoxFunctionSolver, BlackBoxResolutionError, FieldElement};
 use iter_extended::vecmap;
 
 use crate::ssa::{
@@ -64,7 +64,9 @@ impl Interpreter<'_> {
             Intrinsic::SliceInsert => self.slice_insert(args),
             Intrinsic::SliceRemove => self.slice_remove(args),
             Intrinsic::ApplyRangeConstraint => {
-                todo!("Intrinsic::ApplyRangeConstraint is currently unimplemented")
+                unreachable!(
+                    "Intrinsic::ApplyRangeConstraint should have been converted to a RangeCheck instruction"
+                );
             }
             // Both of these are no-ops
             Intrinsic::StrAsBytes | Intrinsic::AsWitness => {
@@ -82,16 +84,228 @@ impl Interpreter<'_> {
                 let radix = self.lookup_u32(args[1], "call to to_bits")?;
                 self.to_radix(endian, args[0], field, radix, results[0])
             }
-            Intrinsic::BlackBox(black_box_func) => {
-                todo!("Intrinsic::BlackBox({black_box_func}) is currently unimplemented")
-            }
-            Intrinsic::Hint(_) => todo!("Intrinsic::Hint is currently unimplemented"),
+            Intrinsic::BlackBox(black_box_func) => match black_box_func {
+                acvm::acir::BlackBoxFunc::AES128Encrypt => {
+                    check_argument_count(args, 3, intrinsic)?;
+                    let inputs = self.lookup_bytes(args[0], "call AES128Encrypt BlackBox")?;
+                    let iv = self.lookup_bytes(args[1], "call AES128Encrypt BlackBox")?;
+                    let key = self.lookup_bytes(args[2], "call AES128Encrypt BlackBox")?;
+                    let iv_array: [u8; 16] = iv.try_into().expect("IV must be 16 bytes");
+                    let key_array: [u8; 16] = key.try_into().expect("Key must be 16 bytes");
+                    let result =
+                        acvm::blackbox_solver::aes128_encrypt(&inputs, iv_array, key_array)
+                            .map_err(Self::convert_error)?;
+                    let result: Vec<FieldElement> =
+                        result.iter().map(|v| (*v as u128).into()).collect();
+                    let result = Value::from_slice(&result, NumericType::NativeField);
+                    Ok(vec![result])
+                }
+                acvm::acir::BlackBoxFunc::AND => {
+                    unreachable!("AND instruction should have already been evaluated");
+                }
+                acvm::acir::BlackBoxFunc::XOR => {
+                    unreachable!("XOR instruction should have already been evaluated");
+                }
+                acvm::acir::BlackBoxFunc::RANGE => {
+                    unreachable!("RANGE instruction should have already been evaluated")
+                }
+                acvm::acir::BlackBoxFunc::Blake2s => {
+                    check_argument_count(args, 1, intrinsic)?;
+                    let inputs = self.lookup_bytes(args[0], "call Blake2s BlackBox")?;
+                    let result =
+                        acvm::blackbox_solver::blake2s(&inputs).map_err(Self::convert_error)?;
+                    let result: Vec<FieldElement> =
+                        result.iter().map(|e| (*e as u128).into()).collect();
+                    let result = Value::from_slice(&result, NumericType::NativeField);
+                    Ok(vec![result])
+                }
+                acvm::acir::BlackBoxFunc::Blake3 => {
+                    check_argument_count(args, 1, intrinsic)?;
+                    let inputs = self.lookup_bytes(args[0], "call Blake3 BlackBox")?;
+                    let results =
+                        acvm::blackbox_solver::blake3(&inputs).map_err(Self::convert_error)?;
+                    let results: Vec<FieldElement> =
+                        results.iter().map(|e| (*e as u128).into()).collect();
+                    let results = Value::from_slice(&results, NumericType::NativeField);
+                    Ok(vec![results])
+                }
+                acvm::acir::BlackBoxFunc::EcdsaSecp256k1 => {
+                    check_argument_count(args, 4, intrinsic)?;
+                    let x = self.lookup_bytes(args[0], "call EcdsaSecp256k1 BlackBox")?;
+                    let y = self.lookup_bytes(args[1], "call EcdsaSecp256k1 BlackBox")?;
+                    let s = self.lookup_bytes(args[2], "call EcdsaSecp256k1 BlackBox")?;
+                    let m = self.lookup_bytes(args[3], "call EcdsaSecp256k1 BlackBox")?;
+                    let x_array: &[u8; 32] = &x.try_into().expect("Public key x must be 32 bytes");
+                    let y_array: &[u8; 32] = &y.try_into().expect("Public key y must be 32 bytes");
+                    let s_array: &[u8; 64] = &s.try_into().expect("Signature must be 64 bytes");
+                    let result = acvm::blackbox_solver::ecdsa_secp256k1_verify(
+                        &m, x_array, y_array, s_array,
+                    )
+                    .unwrap();
+                    Ok(vec![Value::from_constant(
+                        result.into(),
+                        NumericType::Unsigned { bit_size: 1 },
+                    )])
+                }
+                acvm::acir::BlackBoxFunc::EcdsaSecp256r1 => {
+                    check_argument_count(args, 4, intrinsic)?;
+                    let x = self.lookup_bytes(args[0], "call EcdsaSecp256r1 BlackBox")?;
+                    let y = self.lookup_bytes(args[1], "call EcdsaSecp256r1 BlackBox")?;
+                    let s = self.lookup_bytes(args[2], "call EcdsaSecp256r1 BlackBox")?;
+                    let m = self.lookup_bytes(args[3], "call EcdsaSecp256r1 BlackBox")?;
+                    let x_array: &[u8; 32] = &x.try_into().expect("Public key x must be 32 bytes");
+                    let y_array: &[u8; 32] = &y.try_into().expect("Public key y must be 32 bytes");
+                    let s_array: &[u8; 64] = &s.try_into().expect("Signature must be 64 bytes");
+                    let result = acvm::blackbox_solver::ecdsa_secp256r1_verify(
+                        &m, x_array, y_array, s_array,
+                    )
+                    .unwrap();
+                    Ok(vec![Value::from_constant(
+                        result.into(),
+                        NumericType::Unsigned { bit_size: 1 },
+                    )])
+                }
+                acvm::acir::BlackBoxFunc::MultiScalarMul => {
+                    check_argument_count(args, 2, intrinsic)?;
+                    let input_points =
+                        self.lookup_array_or_slice(args[0], "call to MultiScalarMul blackbox")?;
+                    let mut points = Vec::new();
+                    for (i, v) in input_points.elements.borrow().iter().enumerate() {
+                        if i % 3 == 2 {
+                            points.push((v.as_bool().unwrap() as u128).into());
+                        } else {
+                            points.push(v.as_field().unwrap());
+                        }
+                    }
+                    let scalars =
+                        self.lookup_array_or_slice(args[1], "call to MultiScalarMul blackbox")?;
+                    let mut scalars_lo = Vec::new();
+                    let mut scalars_hi = Vec::new();
+                    for (i, v) in scalars.elements.borrow().iter().enumerate() {
+                        if i % 2 == 0 {
+                            scalars_lo.push(v.as_field().unwrap());
+                        } else {
+                            scalars_hi.push(v.as_field().unwrap());
+                        }
+                    }
+                    let solver = bn254_blackbox_solver::Bn254BlackBoxSolver(false);
+                    let result = solver.multi_scalar_mul(&points, &scalars_lo, &scalars_hi);
+                    let (a, b, c) = result.map_err(Self::convert_error)?;
+                    let result = Value::from_slice(&[a, b, c], NumericType::NativeField);
+                    Ok(vec![result])
+                }
+                acvm::acir::BlackBoxFunc::Keccakf1600 => {
+                    check_argument_count(args, 1, intrinsic)?;
+                    let inputs = self
+                        .lookup_array_or_slice(args[0], "call to Keccakf1600 BlackBox")?
+                        .elements
+                        .borrow()
+                        .iter()
+                        .map(|v| match v.as_numeric().unwrap() {
+                            NumericValue::U64(value) => value,
+                            _ => unreachable!("Keccakf1600 only supports u64 inputs"),
+                        })
+                        .collect::<Vec<u64>>();
+                    let inputs_array: [u64; 25] =
+                        inputs.try_into().expect("Expected 25 elements in inputs");
+                    let results = acvm::blackbox_solver::keccakf1600(inputs_array)
+                        .map_err(Self::convert_error)?;
+                    let results: Vec<FieldElement> =
+                        results.iter().map(|e| (*e as u128).into()).collect();
+                    let results =
+                        Value::from_slice(&results, NumericType::Unsigned { bit_size: 64 });
+                    Ok(vec![results])
+                }
+                acvm::acir::BlackBoxFunc::RecursiveAggregation => {
+                    // Recursive aggregation only updates the backend internal state
+                    // from the SSA interpreter, it is a no-op.
+                    Ok(vec![])
+                }
+                acvm::acir::BlackBoxFunc::EmbeddedCurveAdd => {
+                    check_argument_count(args, 6, intrinsic)?;
+                    let solver = bn254_blackbox_solver::Bn254BlackBoxSolver(false);
+                    let lhs = (
+                        self.lookup_field(args[0], "call EmbeddedCurveAdd BlackBox")?,
+                        self.lookup_field(args[1], "call EmbeddedCurveAdd BlackBox")?,
+                        self.lookup_bool(args[2], "call EmbeddedCurveAdd BlackBox")?,
+                    );
+                    let rhs = (
+                        self.lookup_field(args[3], "call EmbeddedCurveAdd BlackBox")?,
+                        self.lookup_field(args[4], "call EmbeddedCurveAdd BlackBox")?,
+                        self.lookup_bool(args[5], "call EmbeddedCurveAdd BlackBox")?,
+                    );
+                    let result =
+                        solver.ec_add(&lhs.0, &lhs.1, &lhs.2.into(), &rhs.0, &rhs.1, &rhs.2.into());
+                    let (x, y, inf) = result.unwrap();
+                    let result = Value::from_slice(&[x, y, inf], NumericType::NativeField);
+                    Ok(vec![result])
+                }
+                acvm::acir::BlackBoxFunc::BigIntAdd => {
+                    unimplemented!("unused BigInt BlackBox function")
+                }
+                acvm::acir::BlackBoxFunc::BigIntSub => {
+                    unimplemented!("unused BigInt BlackBox function")
+                }
+                acvm::acir::BlackBoxFunc::BigIntMul => {
+                    unimplemented!("unused BigInt BlackBox function")
+                }
+                acvm::acir::BlackBoxFunc::BigIntDiv => {
+                    unimplemented!("unused BigInt BlackBox function")
+                }
+                acvm::acir::BlackBoxFunc::BigIntFromLeBytes => {
+                    unimplemented!("unused BigInt BlackBox function")
+                }
+                acvm::acir::BlackBoxFunc::BigIntToLeBytes => {
+                    unimplemented!("unused BigInt BlackBox function")
+                }
+                acvm::acir::BlackBoxFunc::Poseidon2Permutation => {
+                    check_argument_count(args, 1, intrinsic)?;
+                    let inputs = self
+                        .lookup_array_or_slice(args[0], "call Poseidon2Permutation BlackBox")?
+                        .elements
+                        .borrow()
+                        .iter()
+                        .map(|v| v.as_field().unwrap())
+                        .collect::<Vec<FieldElement>>();
+                    let solver = bn254_blackbox_solver::Bn254BlackBoxSolver(false);
+                    let result = solver
+                        .poseidon2_permutation(&inputs, inputs.len() as u32)
+                        .map_err(Self::convert_error)?;
+                    let result = Value::from_slice(&result, NumericType::NativeField);
+                    Ok(vec![result])
+                }
+                acvm::acir::BlackBoxFunc::Sha256Compression => {
+                    check_argument_count(args, 2, intrinsic)?;
+                    let inputs = self
+                        .lookup_array_or_slice(args[0], "call Sha256Compression BlackBox")?
+                        .elements
+                        .borrow()
+                        .iter()
+                        .map(|v| v.as_u32().unwrap())
+                        .collect::<Vec<u32>>();
+                    let state = self
+                        .lookup_array_or_slice(args[1], "call Sha256Compression BlackBox")?
+                        .elements
+                        .borrow()
+                        .iter()
+                        .map(|v| v.as_u32().unwrap())
+                        .collect::<Vec<u32>>();
+                    let inputs: [u32; 16] = inputs.try_into().expect("Inputs must be 16 bytes");
+                    let mut state: [u32; 8] = state.try_into().expect("State must be 16 bytes");
+                    acvm::blackbox_solver::sha256_compression(&mut state, &inputs);
+                    let result: Vec<FieldElement> =
+                        state.iter().map(|e| (*e as u128).into()).collect();
+                    let result = Value::from_slice(&result, NumericType::NativeField);
+                    Ok(vec![result])
+                }
+            },
+            Intrinsic::Hint(_) => Ok(self.lookup_all(args)),
             Intrinsic::IsUnconstrained => {
                 check_argument_count(args, 0, intrinsic)?;
                 Ok(vec![Value::bool(self.in_unconstrained_context())])
             }
             Intrinsic::DerivePedersenGenerators => {
-                todo!("Intrinsic::DerivePedersenGenerators is currently unimplemented")
+                unreachable!("Intrinsic::DerivePedersenGenerators should have been simplified");
             }
             Intrinsic::FieldLessThan => {
                 if !self.in_unconstrained_context() {
@@ -110,6 +324,11 @@ impl Interpreter<'_> {
                 Ok(vec![Value::from_constant(rc.into(), NumericType::unsigned(32))])
             }
         }
+    }
+
+    fn convert_error(err: BlackBoxResolutionError) -> InterpreterError {
+        let BlackBoxResolutionError::Failed(name, reason) = err;
+        InterpreterError::BlackBoxError { name: name.to_string(), reason }
     }
 
     fn to_radix(

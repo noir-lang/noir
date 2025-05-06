@@ -278,6 +278,34 @@ impl<'ssa> Interpreter<'ssa> {
         self.lookup_helper(value_id, instruction, "array or slice", Value::as_array_or_slice)
     }
 
+    fn lookup_bytes(&self, value_id: ValueId, instruction: &'static str) -> IResult<Vec<u8>> {
+        let array =
+            self.lookup_helper(value_id, instruction, "array or slice", Value::as_array_or_slice)?;
+        let array = array.elements.borrow();
+        let mut error = None;
+        let result = array
+            .iter()
+            .map(|v| {
+                if let Some(v) = v.as_u8() {
+                    v
+                } else {
+                    error = Some(v);
+                    0
+                }
+            })
+            .collect::<Vec<u8>>();
+        if let Some(v) = error {
+            Err(internal(InternalError::TypeError {
+                value_id,
+                value: v.to_string(),
+                expected_type: "u8",
+                instruction,
+            }))
+        } else {
+            Ok(result)
+        }
+    }
+
     fn lookup_string(&self, value_id: ValueId, instruction: &'static str) -> IResult<String> {
         self.lookup_helper(value_id, instruction, "string", Value::as_string)
     }

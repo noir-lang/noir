@@ -56,6 +56,8 @@ pub(crate) enum InterpreterError {
     PoppedFromEmptySlice { slice: ValueId, instruction: &'static str },
     #[error("Unable to convert `{field_id} = {field}` to radix {radix}")]
     ToRadixFailed { field_id: ValueId, field: FieldElement, radix: u32 },
+    #[error("Failed to solve blackbox function {name}: {reason}")]
+    BlackBoxError { name: String, reason: String },
 }
 
 /// These errors can only result from interpreting malformed SSA
