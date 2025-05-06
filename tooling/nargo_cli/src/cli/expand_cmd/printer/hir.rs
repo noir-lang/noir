@@ -694,8 +694,19 @@ impl ItemPrinter<'_, '_, '_> {
         let definition = self.interner.definition(ident.id);
         match definition.kind {
             DefinitionKind::Function(func_id) => {
-                let use_import = true;
-                self.show_reference_to_module_def_id(ModuleDefId::FunctionId(func_id), use_import);
+                let func_meta = self.interner.function_meta(&func_id);
+                if func_meta.self_type.is_some() && func_meta.self_type == self.self_type {
+                    // No need to fully-qualify the function name if its self type is the current self type
+                    let name = self.interner.function_name(&func_id);
+                    self.push_str("Self::");
+                    self.push_str(name);
+                } else {
+                    let use_import = true;
+                    self.show_reference_to_module_def_id(
+                        ModuleDefId::FunctionId(func_id),
+                        use_import,
+                    );
+                }
             }
             DefinitionKind::Global(global_id) => {
                 let global_info = self.interner.get_global(global_id);

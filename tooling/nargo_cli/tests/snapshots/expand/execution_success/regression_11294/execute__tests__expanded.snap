@@ -1,0 +1,171 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: expanded_code
+---
+pub global MAX_PRIVATE_CALL_STACK_LENGTH_PER_TX: u32 = 8;
+
+unconstrained fn main(
+    previous_kernel_public_inputs: PrivateKernelCircuitPublicInputs,
+) -> pub PrivateKernelCircuitPublicInputs {
+    let private_inputs: PrivateKernelInnerCircuitPrivateInputs =
+        PrivateKernelInnerCircuitPrivateInputs::new(previous_kernel_public_inputs);
+    private_inputs.execute()
+}
+
+pub struct PrivateKernelCircuitPublicInputs {
+    end: PrivateAccumulatedData,
+}
+
+pub struct PrivateKernelData {
+    public_inputs: PrivateKernelCircuitPublicInputs,
+}
+
+pub struct PrivateAccumulatedData {
+    private_call_stack: [PrivateCallRequest; 8],
+}
+
+pub struct PrivateCallRequest {
+    args_hash: Field,
+    returns_hash: Field,
+    start_side_effect_counter: u32,
+    end_side_effect_counter: u32,
+}
+
+impl Eq for PrivateCallRequest {
+    fn eq(self, other: Self) -> bool {
+        (
+            ((self.args_hash == other.args_hash) & (self.returns_hash == other.returns_hash))
+                & (self.start_side_effect_counter == other.start_side_effect_counter)
+        )
+            & (self.end_side_effect_counter == other.end_side_effect_counter)
+    }
+}
+
+impl Empty for PrivateCallRequest {
+    fn empty() -> Self {
+        Self {
+            args_hash: 0,
+            returns_hash: 0,
+            start_side_effect_counter: 0,
+            end_side_effect_counter: 0,
+        }
+    }
+}
+
+pub struct PrivateKernelCircuitPublicInputsComposer {
+    public_inputs: PrivateKernelCircuitPublicInputsBuilder,
+}
+
+impl PrivateKernelCircuitPublicInputsComposer {
+    pub unconstrained fn new_from_previous_kernel(
+        previous_kernel_public_inputs: PrivateKernelCircuitPublicInputs,
+    ) -> Self {
+        let mut public_inputs: PrivateKernelCircuitPublicInputsBuilder = PrivateKernelCircuitPublicInputsBuilder {
+            end: PrivateAccumulatedDataBuilder { private_call_stack: BoundedVec::new() },
+        };
+        let start: PrivateAccumulatedData = previous_kernel_public_inputs.end;
+        public_inputs.end.private_call_stack = array_to_bounded_vec(start.private_call_stack);
+        Self { public_inputs: public_inputs }
+    }
+
+    pub fn pop_top_call_request(&mut self) -> Self {
+        let _call_request: PrivateCallRequest = self.public_inputs.end.private_call_stack.pop();
+        *self
+    }
+
+    pub fn finish(self) -> PrivateKernelCircuitPublicInputs {
+        self.public_inputs.finish()
+    }
+}
+
+pub struct PrivateKernelCircuitPublicInputsBuilder {
+    end: PrivateAccumulatedDataBuilder,
+}
+
+impl PrivateKernelCircuitPublicInputsBuilder {
+    pub fn finish(self) -> PrivateKernelCircuitPublicInputs {
+        PrivateKernelCircuitPublicInputs { end: self.end.finish() }
+    }
+}
+
+pub struct PrivateAccumulatedDataBuilder {
+    private_call_stack: BoundedVec<PrivateCallRequest, 8>,
+}
+
+impl PrivateAccumulatedDataBuilder {
+    pub fn finish(self) -> PrivateAccumulatedData {
+        PrivateAccumulatedData { private_call_stack: self.private_call_stack.storage() }
+    }
+}
+
+pub struct PrivateKernelInnerCircuitPrivateInputs {
+    previous_kernel: PrivateKernelData,
+}
+
+impl PrivateKernelInnerCircuitPrivateInputs {
+    pub fn new(public_inputs: PrivateKernelCircuitPublicInputs) -> Self {
+        Self { previous_kernel: PrivateKernelData { public_inputs: public_inputs } }
+    }
+
+    unconstrained fn generate_output(self) -> PrivateKernelCircuitPublicInputs {
+        PrivateKernelCircuitPublicInputsComposer::new_from_previous_kernel(
+            self.previous_kernel.public_inputs,
+        )
+            .pop_top_call_request()
+            .finish()
+    }
+
+    pub fn execute(self) -> PrivateKernelCircuitPublicInputs {
+        // Safety: comment added by `nargo expand`
+        let output: PrivateKernelCircuitPublicInputs = unsafe { self.generate_output() };
+        assert(
+            !is_empty(self.previous_kernel.public_inputs.end.private_call_stack[0]),
+            "not empty after",
+        );
+        output
+    }
+}
+
+pub trait Empty {
+    fn empty() -> Self;
+}
+
+pub fn is_empty<T>(item: T) -> bool
+where
+    T: Empty,
+    T: Eq,
+{
+    Eq::eq(item, Empty::empty())
+}
+
+pub fn array_length<T, let N: u32>(array: [T; N]) -> u32
+where
+    T: Empty,
+    T: Eq,
+{
+    // Safety: comment added by `nargo expand`
+    let length: u32 = unsafe { find_index_hint(array, |elem: T| -> bool is_empty(elem)) };
+    length
+}
+
+pub unconstrained fn find_index_hint<T, let N: u32, Env>(
+    array: [T; N],
+    find: fn[Env](T) -> bool,
+) -> u32 {
+    let mut index: u32 = N;
+    for i in 0..N {
+        if (index == N) & find(array[i]) {
+            index = i;
+        }
+    }
+    index
+}
+
+pub unconstrained fn array_to_bounded_vec<T, let N: u32>(array: [T; N]) -> BoundedVec<T, N>
+where
+    T: Empty,
+    T: Eq,
+{
+    let len: u32 = array_length(array);
+    BoundedVec::from_parts_unchecked(array, len)
+}
