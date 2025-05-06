@@ -1,0 +1,7 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: expanded_code
+---
+fn main(x: Field, y: Field) {
+    assert((x as u32) < (y as u32));
+}

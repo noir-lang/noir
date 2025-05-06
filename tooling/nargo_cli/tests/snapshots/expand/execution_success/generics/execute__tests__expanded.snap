@@ -1,0 +1,76 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: expanded_code
+---
+struct Bar<T> {
+    one: Field,
+    two: Field,
+    other: T,
+}
+
+impl Bar<Field> {
+    fn get_other(self) -> Field {
+        self.other
+    }
+}
+
+impl<T> Bar<T> {
+    fn zeroed<A>(_self: Self) -> A {
+        std::mem::zeroed()
+    }
+}
+
+fn foo<T>(bar: Bar<T>) {
+    assert(bar.one == bar.two);
+}
+
+struct BigInt<let N: u32> {
+    limbs: [u32; N],
+}
+
+impl<let N: u32> BigInt<N> {
+    fn first(first: Self, second: Self) -> Self {
+        assert(first.limbs != second.limbs);
+        first
+    }
+
+    fn second(first: Self, second: Self) -> Self {
+        assert(first.limbs != second.limbs);
+        second
+    }
+}
+
+fn main(x: Field, y: Field) {
+    let bar1: Bar<Field> = Bar::<Field> { one: x, two: y, other: 0 };
+    let bar2: Bar<[Field; 1]> = Bar::<[Field; 1]> { one: x, two: y, other: [0] };
+    foo(bar1);
+    foo(bar2);
+    let int1: BigInt<1> = BigInt::<1> { limbs: [1] };
+    let int2: BigInt<1> = BigInt::<1> { limbs: [2] };
+    let BigInt::<1> { limbs }: BigInt<1> = int1.second(int2).first(int1);
+    assert(limbs == int2.limbs);
+    assert(bar1.get_other() == bar1.other);
+    let one: Field = x;
+    let two: Field = y;
+    let nested_generics: Bar<Bar<Field>> = Bar::<Bar<Field>> {
+        one: one,
+        two: two,
+        other: Bar::<Field> { one: one, two: two, other: 0 },
+    };
+    assert(nested_generics.other.other == bar1.get_other());
+    foo::<Field>(bar1);
+    assert(bar1.zeroed::<u32>() == 0);
+    let _: Field = regression_2055([1, 2, 3]);
+}
+
+fn regression_2055<let LEN: u32>(bytes: [u8; LEN]) -> Field {
+    let mut f: Field = 0;
+    let mut b: Field = 1;
+    let mut len: u32 = LEN - 1;
+    for i in 0..LEN {
+        let j: u32 = len - i;
+        f = f + ((bytes[j] as Field) * b);
+        b = b * 256;
+    }
+    f
+}

@@ -16,15 +16,13 @@ use noirc_frontend::{
 
 use crate::Config;
 
-mod expr;
+pub mod expr;
 pub(crate) mod freq;
 mod func;
-mod rewrite;
+pub mod rewrite;
 mod scope;
 mod types;
-pub(crate) mod visitor;
-
-pub use rewrite::change_all_functions_into_unconstrained;
+pub mod visitor;
 
 #[cfg(test)]
 mod tests;
@@ -75,7 +73,7 @@ pub fn arb_program_comptime(u: &mut Unstructured, config: Config) -> arbitrary::
 
 /// ID of variables in scope.
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
-enum VariableId {
+pub(crate) enum VariableId {
     Local(LocalId),
     Global(GlobalId),
 }
@@ -85,7 +83,7 @@ type Name = String;
 
 #[derive(Default)]
 /// Context to accumulate top level generated item, so we know what we can choose from.
-struct Context {
+pub(crate) struct Context {
     config: Config,
     /// Global variables.
     globals: BTreeMap<GlobalId, (Name, Type, Expression)>,
