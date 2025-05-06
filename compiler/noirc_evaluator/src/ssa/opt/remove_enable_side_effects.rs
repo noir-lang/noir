@@ -14,11 +14,9 @@ use acvm::{FieldElement, acir::AcirField};
 
 use crate::ssa::{
     ir::{
-        dfg::DataFlowGraph,
         function::{Function, RuntimeType},
-        instruction::{BinaryOp, Hint, Instruction, Intrinsic},
+        instruction::Instruction,
         types::NumericType,
-        value::Value,
     },
     ssa_gen::Ssa,
 };
@@ -91,7 +89,7 @@ impl Function {
 
             // If we hit an instruction which is affected by the side effects var then we must insert the
             // `Instruction::EnableSideEffectsIf` before we insert this new instruction.
-            if responds_to_side_effects_var(context.dfg, instruction) {
+            if instruction.requires_acir_gen_predicate(context.dfg) {
                 if let Some(enable_side_effects_instruction_id) =
                     last_side_effects_enabled_instruction.take()
                 {
@@ -99,79 +97,6 @@ impl Function {
                 }
             }
         });
-    }
-}
-
-fn responds_to_side_effects_var(dfg: &DataFlowGraph, instruction: &Instruction) -> bool {
-    use Instruction::*;
-    match instruction {
-        Binary(binary) => match binary.operator {
-            BinaryOp::Add { .. } | BinaryOp::Sub { .. } | BinaryOp::Mul { .. } => {
-                dfg.type_of_value(binary.lhs).is_unsigned()
-            }
-            BinaryOp::Div | BinaryOp::Mod => {
-                if let Some(rhs) = dfg.get_numeric_constant(binary.rhs) {
-                    rhs == FieldElement::zero()
-                } else {
-                    true
-                }
-            }
-            _ => false,
-        },
-
-        Cast(_, _)
-        | Not(_)
-        | Truncate { .. }
-        | Constrain(..)
-        | ConstrainNotEqual(..)
-        | RangeCheck { .. }
-        | IfElse { .. }
-        | IncrementRc { .. }
-        | DecrementRc { .. }
-        | Noop
-        | MakeArray { .. } => false,
-
-        EnableSideEffectsIf { .. }
-        | ArrayGet { .. }
-        | ArraySet { .. }
-        | Allocate
-        | Store { .. }
-        | Load { .. } => true,
-
-        // Some `Intrinsic`s have side effects so we must check what kind of `Call` this is.
-        Call { func, .. } => match dfg[*func] {
-            Value::Intrinsic(intrinsic) => match intrinsic {
-                Intrinsic::SlicePushBack
-                | Intrinsic::SlicePushFront
-                | Intrinsic::SlicePopBack
-                | Intrinsic::SlicePopFront
-                | Intrinsic::SliceInsert
-                | Intrinsic::SliceRemove => true,
-
-                Intrinsic::ArrayLen
-                | Intrinsic::ArrayAsStrUnchecked
-                | Intrinsic::AssertConstant
-                | Intrinsic::StaticAssert
-                | Intrinsic::ApplyRangeConstraint
-                | Intrinsic::StrAsBytes
-                | Intrinsic::ToBits(_)
-                | Intrinsic::ToRadix(_)
-                | Intrinsic::BlackBox(_)
-                | Intrinsic::Hint(Hint::BlackBox)
-                | Intrinsic::AsSlice
-                | Intrinsic::AsWitness
-                | Intrinsic::IsUnconstrained
-                | Intrinsic::DerivePedersenGenerators
-                | Intrinsic::ArrayRefCount
-                | Intrinsic::SliceRefCount
-                | Intrinsic::FieldLessThan => false,
-            },
-
-            // We must assume that functions contain a side effect as we cannot inspect more deeply.
-            Value::Function(_) => true,
-
-            _ => false,
-        },
     }
 }
 
@@ -216,34 +141,81 @@ mod test {
     fn keeps_enable_side_effects_for_instructions_that_have_side_effects() {
         let src = "
         acir(inline) fn main f0 {
-          b0(v0: Field, v1: Field):
-            enable_side_effects v0
-            v3 = allocate -> &mut Field
-            enable_side_effects v0
-            v4 = allocate -> &mut Field
+          b0(v0: [u16; 3], v1: u32, v2: u32):
             enable_side_effects v1
-            v5 = allocate -> &mut Field
+            v3 = array_get v0, index v1 -> u16
+            enable_side_effects v1
+            v4 = array_get v0, index v1 -> u16
+            enable_side_effects v2
+            v5 = array_get v0, index v1 -> u16
             enable_side_effects u1 1
-            v6 = allocate -> &mut Field
+            v7 = array_get v0, index v1 -> u16
             return
-        }
-        ";
+        }";
         let ssa = Ssa::from_str(src).unwrap();
 
         let ssa = ssa.remove_enable_side_effects();
         assert_ssa_snapshot!(ssa, @r"
         acir(inline) fn main f0 {
-          b0(v0: Field, v1: Field):
-            enable_side_effects v0
-            v2 = allocate -> &mut Field
-            v3 = allocate -> &mut Field
+          b0(v0: [u16; 3], v1: u32, v2: u32):
             enable_side_effects v1
-            v4 = allocate -> &mut Field
+            v3 = array_get v0, index v1 -> u16
+            v4 = array_get v0, index v1 -> u16
+            enable_side_effects v2
+            v5 = array_get v0, index v1 -> u16
             enable_side_effects u1 1
-            v6 = allocate -> &mut Field
+            v7 = array_get v0, index v1 -> u16
             return
+        }");
+    }
+
+    #[test]
+    fn keep_enable_side_effects_for_safe_modulo() {
+        let src = r#"
+        acir(inline) predicate_pure fn main f0 {
+          b0(v0: [u16; 3], v1: [u1; 1]):
+            v4 = call f1(v0, u1 1) -> [u1; 1]
+            v6 = array_get v0, index u32 0 -> u16
+            v7 = cast v6 as u32
+            v8 = array_get v4, index u32 0 -> u1
+            enable_side_effects v8
+            v9 = not v8
+            enable_side_effects v9
+            v11 = mod v7, u32 3
+            v12 = array_get v0, index v11 -> u16
+            enable_side_effects u1 1
+            return v12
         }
-        "
-        );
+        brillig(inline) predicate_pure fn func_1 f1 {
+          b0(v0: [u16; 3], v1: u1):
+            v3 = make_array [u1 0] : [u1; 1]
+            return v3
+        }
+        "#;
+
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.remove_enable_side_effects();
+
+        // We expect the SSA to be unchanged
+        assert_ssa_snapshot!(ssa, @r#"
+        acir(inline) predicate_pure fn main f0 {
+          b0(v0: [u16; 3], v1: [u1; 1]):
+            v4 = call f1(v0, u1 1) -> [u1; 1]
+            v6 = array_get v0, index u32 0 -> u16
+            v7 = cast v6 as u32
+            v8 = array_get v4, index u32 0 -> u1
+            v9 = not v8
+            enable_side_effects v9
+            v11 = mod v7, u32 3
+            v12 = array_get v0, index v11 -> u16
+            enable_side_effects u1 1
+            return v12
+        }
+        brillig(inline) predicate_pure fn func_1 f1 {
+          b0(v0: [u16; 3], v1: u1):
+            v3 = make_array [u1 0] : [u1; 1]
+            return v3
+        }
+        "#);
     }
 }

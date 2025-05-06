@@ -376,12 +376,12 @@ impl Instruction {
         match self {
             Instruction::Binary(binary) => binary.requires_acir_gen_predicate(dfg),
 
-            Instruction::EnableSideEffectsIf { .. }
-            // `ArrayGet`s which read from "known good" indices from an array should not need a predicate.
-            // The result of `ArrayGet`s depend upon the predicate. 
-            // Thus, we must mark every `ArrayGet` as requiring 
-            | Instruction::ArrayGet { .. }
-            | Instruction::ArraySet { .. } => true,
+            Instruction::ArrayGet { array, index } => {
+                // `ArrayGet`s which read from "known good" indices from an array should not need a predicate.
+                !dfg.is_safe_index(*index, *array)
+            }
+
+            Instruction::EnableSideEffectsIf { .. } | Instruction::ArraySet { .. } => true,
 
             Instruction::Call { func, .. } => match dfg[*func] {
                 Value::Function(id) => !matches!(dfg.purity_of(id), Some(Purity::Pure)),

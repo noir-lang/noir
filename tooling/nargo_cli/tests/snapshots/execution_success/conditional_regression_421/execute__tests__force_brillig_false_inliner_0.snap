@@ -34,7 +34,7 @@ expression: artifact
     "error_types": {}
   },
   "bytecode": "H4sIAAAAAAAA/9VYUYrDIBDV2DRNu20Dm7K/ewSNSaN/vcqGTe9/hK2sA4P1rzNgH4SRMby8GfUFlOIf3eP5imP5eFSMAd9JTmZyVSanMrlNzGGoGG8x6tdgMJfV13Fc52E11vzowS9u0uO0XJ1xZnLT7+CsXd3oZr/4WXsz2tXcJ2/vkUwSctV0NeoNWqsUkriflLqx3i2n4C0Db0O4GbjqblCDiXhZtEpGrYCSjaUi5NqJ9zQWSt1Yb8spuGXg3YuyjSXUvUcNJuLNan21/iZqrQpeo4Mo25xD7w5M6w0o2ZwVIdeHeE9zptSN9R45BR8ZeE+ibHMOdZ9Qg4l4WbSCOaeHn8L0qbgojf4saA2OY2+fBf1PuCt8H4b91wn6MwNXHAE14ocrEoXmc4A62yRe0Lwi7APw9zz8usnUeEHjPqmzQnM3Ig3AB55Ti2dUyRy8u0v0SXp9JtWiMt8CfMbYoxz08w+dXR4DyxMAAA==",
-  "debug_symbols": "pZRRi4QgEID/yzz3oLal9VeOI6xsEcTCrYMj+u83mrK7DwdLvvip4yc4zLjDqPrt3mk7zQ9ov3bonTZG3zszD3LVs8Xd/SggLbvVKYVb8BJHa5FO2RVauxlTwI80Wzj0WKQNXKXDKClA2RGJF07aKD87iqdN/ld5HV3xlKvPbZpjNyLalLA8nV/QKWuSX5aX/FueX6Xk0arK8+sr2aeCJV/UV3zOs3xGUv4YEXk+fc//N67koN1br0GFBwuow8jDKMLYQIsXUQIttgKlJ9iJ8sQNCxxRnah9xSF5pIhsTjISSX2NIJnn4R/itOyNip0/bXZ4+QjW3yVF0lexuHlQ4+aUf0iI4dP+AA==",
+  "debug_symbols": "pZPRioQgFIbf5Vx7oTal9SrLElY2CGLh5MISvfueNJmZi4WhbvzU43fgR11h0F24t8aN0wOarxU6b6w199ZOvVrM5HB33QjkZbt4rXELXupozcprt0DjgrUEfpQN8dBjVi5yUR6rlIB2AxIbjsbqfbaRp03/V0V1uPIpl5/b7Ipdy8NmVJzQGa+zXxSn/Ns1v8zpWXUmPpM8+7I64wtxyec05+fsPf83rlRv/NtjhRIPEqjiKOIo41hDUxBgFF0ES+AJRcINGnxnrEzAFnjzTCTIhDqC0wTsgpfLsUu97Qm8UZ3Vx58Zg+tfvtDyO+dK/mSzn3o9BK/3BLGGmf4A",
   "file_map": {
     "50": {
       "source": "fn main(a: u32, mut c: [u32; 4]) {\n    //Issue reported in #421\n    if a == c[0] {\n        assert(c[0] == 0);\n    } else if a == c[1] {\n        assert(c[1] == 0);\n    } else if a == c[2] {\n        assert(c[2] == 0);\n    }\n}\n",
