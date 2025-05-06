@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1746548622632,
+  "lastUpdate": 1746557686588,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -18081,48 +18081,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "asterite@gmail.com",
-            "name": "Ary Borenszweig",
-            "username": "asterite"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "7dcfbec1e7dbc087c5db45b46525911acb13ac89",
-          "message": "fix(parser): do not use `Ident::default()` (#8224)",
-          "timestamp": "2025-04-25T19:32:17Z",
-          "tree_id": "3ce8cbe261a25d56661720928c31dbb2076990a9",
-          "url": "https://github.com/noir-lang/noir/commit/7dcfbec1e7dbc087c5db45b46525911acb13ac89"
-        },
-        "date": 1745610981728,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 271040,
-            "range": "± 1538",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 247640,
-            "range": "± 1423",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 3231631,
-            "range": "± 25697",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "84741533+defkit@users.noreply.github.com",
             "name": "defkit",
             "username": "defkit"
@@ -20174,6 +20132,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 3582942,
             "range": "± 11859",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "15848336+TomAFrench@users.noreply.github.com",
+            "name": "Tom French",
+            "username": "TomAFrench"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "04b0ee716ab4413619f86cf7ac6ce3a2fca688f4",
+          "message": "chore: avoid need to rebuild after running tests (#8379)\n\nCo-authored-by: AztecBot <tech@aztecprotocol.com>",
+          "timestamp": "2025-05-06T18:35:50Z",
+          "tree_id": "38ab23e05d890c05ff35e09bee0e74ce2a1fc93d",
+          "url": "https://github.com/noir-lang/noir/commit/04b0ee716ab4413619f86cf7ac6ce3a2fca688f4"
+        },
+        "date": 1746557678416,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 257139,
+            "range": "± 916",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 229999,
+            "range": "± 12560",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 3219162,
+            "range": "± 10189",
             "unit": "ns/iter"
           }
         ]
