@@ -1,13 +1,15 @@
 use std::path::{Path, PathBuf};
 
+use acir::circuit::Circuit;
+use acir::circuit::Opcode;
+use acir::circuit::OpcodeLocation;
 use acir::AcirField;
 use acir::circuit::brillig::BrilligFunctionId;
-use acir::circuit::{Circuit, Opcode, OpcodeLocation};
 use clap::Args;
 use color_eyre::eyre::{self, Context};
-
 use noir_artifact_cli::fs::artifact::read_program_from_file;
 use noirc_artifacts::debug::DebugArtifact;
+use tracing::info;
 
 use crate::flamegraph::{CompilationSample, FlamegraphGenerator, InfernoFlamegraphGenerator};
 use crate::opcode_formatter::{format_acir_opcode, format_brillig_opcode};
@@ -31,59 +33,47 @@ pub(crate) struct OpcodesFlamegraphCommand {
 pub(crate) fn run(args: OpcodesFlamegraphCommand) -> eyre::Result<()> {
     run_with_generator(
         &args.artifact_path,
-        &InfernoFlamegraphGenerator { count_name: "opcodes".to_string() },
         &args.output,
+        &InfernoFlamegraphGenerator { count_name: "opcodes".to_string() },
         args.skip_brillig,
     )
 }
 
 fn run_with_generator<Generator: FlamegraphGenerator>(
     artifact_path: &Path,
-    flamegraph_generator: &Generator,
     output_path: &Path,
+    flamegraph_generator: &Generator,
     skip_brillig: bool,
 ) -> eyre::Result<()> {
+    info!("Reading program from {:?}", artifact_path);
+
     let mut program =
-        read_program_from_file(artifact_path).context("Error reading program from file")?;
+        read_program_from_file(artifact_path).with_context(|| "Could not read program from file")?;
 
     let acir_names = std::mem::take(&mut program.names);
     let brillig_names = std::mem::take(&mut program.brillig_names);
 
     let bytecode = std::mem::take(&mut program.bytecode);
+    let debug_artifact = DebugArtifact::from(program);
 
-    let debug_artifact: DebugArtifact = program.into();
+    // There's one debug information per source file
+    assert_eq!(debug_artifact.debug_symbols.len(), 1);
 
-    for (func_idx, circuit) in bytecode.functions.iter().enumerate() {
-        // We can have repeated names if there are functions with the same name in different
-        // modules or functions that use generics. Thus, add the unique function index as a suffix.
-        let function_name = if bytecode.functions.len() > 1 {
-            format!("{}_{}", acir_names[func_idx].as_str(), func_idx)
-        } else {
-            acir_names[func_idx].to_owned()
-        };
+    let debug_info = &debug_artifact.debug_symbols[0];
 
-        println!("Opcode count for {}: {}", function_name, circuit.opcodes.len());
+    // Generate flamegraph for ACIR opcodes for each function in the program
+    for (acir_fn_index, (circuit, function_name)) in bytecode.functions.iter().zip(acir_names).enumerate() {
+        let circuit_samples = generate_acir_flamegraph_samples(circuit, &function_name);
 
-        let samples = circuit
-            .opcodes
-            .iter()
-            .enumerate()
-            .map(|(index, opcode)| CompilationSample {
-                opcode: Some(format_acir_opcode(opcode)),
-                call_stack: vec![OpcodeLocation::Acir(index)],
-                count: 1,
-                brillig_function_id: None,
-            })
-            .collect();
+        info!("Opcode count for {}: {}", function_name, circuit.opcodes.len());
 
         flamegraph_generator.generate_flamegraph(
-            samples,
-            &debug_artifact.debug_symbols[func_idx],
+            circuit_samples,
+            debug_info,
             &debug_artifact,
             artifact_path.to_str().unwrap(),
             &function_name,
-            &Path::new(&output_path)
-                .join(Path::new(&format!("{}_acir_opcodes.svg", &function_name))),
+            &Path::new(output_path).join(Path::new(&format!("{}_opcodes.svg", function_name))),
         )?;
     }
 
@@ -104,14 +94,12 @@ fn run_with_generator<Generator: FlamegraphGenerator>(
         let function_name =
             format!("{}_{}", brillig_names[brillig_fn_index].as_str(), brillig_fn_index);
 
-        println!("Opcode count for {}_brillig: {}", function_name, brillig_bytecode.bytecode.len());
-
-        let samples = brillig_bytecode
+        let brillig_samples = brillig_bytecode
             .bytecode
-            .into_iter()
+            .iter()
             .enumerate()
-            .map(|(brillig_index, opcode)| CompilationSample {
-                opcode: Some(format_brillig_opcode(&opcode)),
+            .map(|(brillig_index, brillig_opcode)| CompilationSample {
+                opcode: Some(format_brillig_opcode(brillig_opcode)),
                 call_stack: vec![OpcodeLocation::Brillig {
                     acir_index: acir_opcode_index,
                     brillig_index,
@@ -121,18 +109,40 @@ fn run_with_generator<Generator: FlamegraphGenerator>(
             })
             .collect();
 
+        info!("Opcode count for {}_brillig: {}", function_name, brillig_bytecode.bytecode.len());
+
         flamegraph_generator.generate_flamegraph(
-            samples,
-            &debug_artifact.debug_symbols[acir_fn_index],
+            brillig_samples,
+            debug_info,
             &debug_artifact,
             artifact_path.to_str().unwrap(),
             &function_name,
-            &Path::new(&output_path)
+            &Path::new(output_path)
                 .join(Path::new(&format!("{}_brillig_opcodes.svg", function_name))),
         )?;
     }
 
     Ok(())
+}
+
+fn generate_acir_flamegraph_samples<F: AcirField>(
+    circuit: &Circuit<F>,
+    _function_name: &str,
+) -> Vec<CompilationSample> {
+    circuit
+        .opcodes
+        .iter()
+        .enumerate()
+        .map(|(acir_index, acir_opcode)| {
+            let location = OpcodeLocation::Acir(acir_index);
+            CompilationSample {
+                opcode: Some(format_acir_opcode(acir_opcode)),
+                call_stack: vec![location],
+                count: 1,
+                brillig_function_id: None,
+            }
+        })
+        .collect()
 }
 
 fn locate_brillig_call<F: AcirField>(
@@ -213,11 +223,11 @@ mod tests {
 
         let flamegraph_generator = TestFlamegraphGenerator::default();
 
-        super::run_with_generator(&artifact_path, &flamegraph_generator, temp_dir.path(), true)
+        super::run_with_generator(&artifact_path, temp_dir.path(), &flamegraph_generator, true)
             .expect("should run without errors");
 
         // Check that the output file was written to
-        let output_file = temp_dir.path().join("main_acir_opcodes.svg");
+        let output_file = temp_dir.path().join("main_opcodes.svg");
         assert!(output_file.exists());
     }
 
@@ -272,11 +282,11 @@ mod tests {
 
         let flamegraph_generator = TestFlamegraphGenerator::default();
 
-        super::run_with_generator(&artifact_path, &flamegraph_generator, temp_dir.path(), false)
+        super::run_with_generator(&artifact_path, temp_dir.path(), &flamegraph_generator, false)
             .expect("should run without errors");
 
         // Check that the output files were written
-        let output_file = temp_dir.path().join("main_acir_opcodes.svg");
+        let output_file = temp_dir.path().join("main_opcodes.svg");
         assert!(output_file.exists());
 
         let output_file = temp_dir.path().join("main_0_brillig_opcodes.svg");
