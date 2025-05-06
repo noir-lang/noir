@@ -25,12 +25,12 @@ impl Wrapper {
 
 impl Neg for Wrapper {
     fn neg(self) -> Self {
-        Wrapper::new(-self.inner)
+        Self::new(-self.inner)
     }
 }
 
 impl Not for Wrapper {
     fn not(self) -> Self {
-        Wrapper::new(!self.inner)
+        Self::new(!self.inner)
     }
 }

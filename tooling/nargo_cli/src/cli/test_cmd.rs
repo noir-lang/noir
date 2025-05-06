@@ -14,7 +14,7 @@ use clap::Args;
 use fm::FileManager;
 use formatters::{Formatter, JsonFormatter, PrettyFormatter, TerseFormatter};
 use nargo::{
-    FuzzFolderConfig,
+    FuzzExecutionConfig, FuzzFolderConfig,
     foreign_calls::DefaultForeignCallBuilder,
     insert_all_files_for_workspace_into_file_manager,
     ops::{FuzzConfig, TestStatus, check_crate_and_report_errors},
@@ -92,6 +92,10 @@ pub(crate) struct TestCommand {
     /// If given, store the failing input in the given folder
     #[arg(long)]
     fuzzing_failure_dir: Option<String>,
+
+    /// Maximum time in seconds to spend fuzzing (default: 1 second)
+    #[arg(long, default_value_t = 1)]
+    fuzz_timeout: u64,
 }
 
 impl WorkspaceCommand for TestCommand {
@@ -560,6 +564,11 @@ impl<'a> TestRunner<'a> {
                 corpus_dir: self.args.corpus_dir.clone(),
                 minimized_corpus_dir: self.args.minimized_corpus_dir.clone(),
                 fuzzing_failure_dir: self.args.fuzzing_failure_dir.clone(),
+            },
+            execution_config: FuzzExecutionConfig {
+                num_threads: 1,
+                timeout: self.args.fuzz_timeout,
+                show_progress: false,
             },
         };
 

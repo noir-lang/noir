@@ -30,7 +30,7 @@ impl FromField for AztecAddress {
 
 impl Deserialize<1> for AztecAddress {
     fn deserialize(fields: [Field; 1]) -> Self {
-        FromField::from_field(fields[0])
+        Self::from_field(fields[0])
     }
 }
 
