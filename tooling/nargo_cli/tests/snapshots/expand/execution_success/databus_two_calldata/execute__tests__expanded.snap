@@ -8,6 +8,9 @@ fn main(mut x: [u32; 4], y: [u32; 3], z: [u32; 4]) -> return_data [u32; 4] {
         let idx: u32 = x[i];
         result[idx] = y[idx] + z[idx];
     }
-    result[x[3]] = z[x[3]];
+    {
+        let i: u32 = x[3];
+        result[i] = z[x[3]];
+    };
     result
 }

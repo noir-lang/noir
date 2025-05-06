@@ -35,16 +35,28 @@ fn compact_decode<let N: u32>(input: [u8; N], length: Field) -> ([U4; 16], Field
         for i in 1..input.len() {
             if (i as u32) < (length as u32) {
                 let x: u8 = input[i];
-                nibble[(2 * i) - 1] = U4::from_u8(x >> 4);
-                nibble[2 * i] = U4::from_u8(x & 15);
+                {
+                    let i: u32 = (2 * i) - 1;
+                    nibble[i] = U4::from_u8(x >> 4);
+                };
+                {
+                    let i: u32 = 2 * i;
+                    nibble[i] = U4::from_u8(x & 15);
+                }
             }
         }
     } else {
         for i in 0..2 {
             if (i as u32) < ((length as u32) - 1) {
                 let x: u8 = input[i + 1];
-                nibble[2 * i] = U4::from_u8(x >> 4);
-                nibble[(2 * i) + 1] = U4::from_u8(x & 15);
+                {
+                    let i: u32 = 2 * i;
+                    nibble[i] = U4::from_u8(x >> 4);
+                };
+                {
+                    let i: u32 = (2 * i) + 1;
+                    nibble[i] = U4::from_u8(x & 15);
+                }
             }
         }
     };

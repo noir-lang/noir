@@ -147,20 +147,35 @@ unconstrained fn main(kernel_data: DataToHash) -> pub [Field; 2] {
     let unencryptedLogsHash: [Field; 2] = kernel_data.unencrypted_logs_hash;
     let mut offset: u32 = 0;
     for j in 0..MAX_NOTE_HASHES_PER_TX {
-        tx_effects_hash_inputs[offset + j] = new_note_hashes[j];
+        {
+            let i: u32 = offset + j;
+            tx_effects_hash_inputs[i] = new_note_hashes[j];
+        }
     }
     offset = offset + MAX_NOTE_HASHES_PER_TX;
     for j in 0..MAX_NULLIFIERS_PER_TX {
-        tx_effects_hash_inputs[offset + j] = new_nullifiers[j];
+        {
+            let i: u32 = offset + j;
+            tx_effects_hash_inputs[i] = new_nullifiers[j];
+        }
     }
     offset = offset + MAX_NULLIFIERS_PER_TX;
     for j in 0..MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX {
-        tx_effects_hash_inputs[offset + (j * 2)] = public_data_update_requests[j].leaf_slot;
-        tx_effects_hash_inputs[(offset + (j * 2)) + 1] = public_data_update_requests[j].new_value;
+        {
+            let i: u32 = offset + (j * 2);
+            tx_effects_hash_inputs[i] = public_data_update_requests[j].leaf_slot;
+        };
+        {
+            let i: u32 = (offset + (j * 2)) + 1;
+            tx_effects_hash_inputs[i] = public_data_update_requests[j].new_value;
+        }
     }
     offset = offset + (MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX * 2);
     for j in 0..MAX_L2_TO_L1_MSGS_PER_TX {
-        tx_effects_hash_inputs[offset + j] = l2ToL1Msgs[j];
+        {
+            let i: u32 = offset + j;
+            tx_effects_hash_inputs[i] = l2ToL1Msgs[j];
+        }
     }
     offset = offset + MAX_L2_TO_L1_MSGS_PER_TX;
     let contract_leaf: NewContractData = kernel_data.new_contracts[0];
@@ -168,14 +183,23 @@ unconstrained fn main(kernel_data: DataToHash) -> pub [Field; 2] {
     offset = offset + MAX_NEW_CONTRACTS_PER_TX;
     let new_contracts: [NewContractData; 1] = kernel_data.new_contracts;
     tx_effects_hash_inputs[offset] = new_contracts[0].contract_address;
-    tx_effects_hash_inputs[offset + 1] = new_contracts[0].portal_contract_address;
+    {
+        let i: u32 = offset + 1;
+        tx_effects_hash_inputs[i] = new_contracts[0].portal_contract_address;
+    };
     offset = offset + (MAX_NEW_CONTRACTS_PER_TX * 2);
     for j in 0..NUM_FIELDS_PER_SHA256 {
-        tx_effects_hash_inputs[offset + j] = encryptedLogsHash[j];
+        {
+            let i: u32 = offset + j;
+            tx_effects_hash_inputs[i] = encryptedLogsHash[j];
+        }
     }
     offset = offset + (NUM_ENCRYPTED_LOGS_HASHES_PER_TX * NUM_FIELDS_PER_SHA256);
     for j in 0..NUM_FIELDS_PER_SHA256 {
-        tx_effects_hash_inputs[offset + j] = unencryptedLogsHash[j];
+        {
+            let i: u32 = offset + j;
+            tx_effects_hash_inputs[i] = unencryptedLogsHash[j];
+        }
     }
     offset = offset + (NUM_UNENCRYPTED_LOGS_HASHES_PER_TX * NUM_FIELDS_PER_SHA256);
     assert(offset == TX_EFFECT_HASH_INPUT_SIZE);
@@ -183,15 +207,21 @@ unconstrained fn main(kernel_data: DataToHash) -> pub [Field; 2] {
     for offset in 0..TX_EFFECT_HASH_FULL_FIELDS {
         let input_as_bytes: [u8; 32] = tx_effects_hash_inputs[offset].to_be_bytes();
         for byte_index in 0..32 {
-            hash_input_flattened[(offset * 32) + byte_index] = input_as_bytes[byte_index];
+            {
+                let i: u32 = (offset * 32) + byte_index;
+                hash_input_flattened[i] = input_as_bytes[byte_index];
+            }
         }
     }
     for log_field_index in 0..TX_EFFECT_HASH_LOG_FIELDS {
         let input_as_bytes: [u8; 16] =
             tx_effects_hash_inputs[TX_EFFECT_HASH_FULL_FIELDS + log_field_index].to_be_bytes();
         for byte_index in 0..16 {
-            hash_input_flattened[((TX_EFFECT_HASH_FULL_FIELDS * 32) + (log_field_index * 16)) + byte_index] =
-                input_as_bytes[byte_index];
+            {
+                let i: u32 =
+                    ((TX_EFFECT_HASH_FULL_FIELDS * 32) + (log_field_index * 16)) + byte_index;
+                hash_input_flattened[i] = input_as_bytes[byte_index];
+            }
         }
     }
     let blake3_digest: [u8; 32] = std::hash::blake3(hash_input_flattened);

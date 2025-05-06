@@ -26,7 +26,10 @@ fn main(a: u32, mut c: [u32; 4], x: [u8; 5], result: pub [u8; 32]) {
         let i_u32: u32 = i as u32;
         if i_u32 == a {
             for j in 0..4 {
-                data[i + j] = c[(4 - 1) - j];
+                {
+                    let i: u32 = i + j;
+                    data[i] = c[(4 - 1) - j];
+                };
                 for k in 0..4 {
                     ba = ba + data[k];
                 }

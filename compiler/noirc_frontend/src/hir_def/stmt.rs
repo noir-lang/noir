@@ -143,6 +143,9 @@ pub enum HirLValue {
     },
     Index {
         array: Box<HirLValue>,
+        /// `index` is required to be an identifier to simplify sequencing of side-effects.
+        /// However we also store types and locations on ExprIds which makes these necessary
+        /// for evaluating/compiling HirIdents so we don't directly require a HirIdent type here.
         index: ExprId,
         typ: Type,
         location: Location,
