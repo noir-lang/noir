@@ -341,6 +341,7 @@ pub struct DataType {
     pub id: TypeId,
 
     pub name: Ident,
+    pub visibility: ItemVisibility,
 
     /// A type's body is private to force struct fields or enum variants to only be
     /// accessed through get_field(), get_fields(), instantiate(), or similar functions
@@ -448,8 +449,14 @@ impl Ord for DataType {
 }
 
 impl DataType {
-    pub fn new(id: TypeId, name: Ident, location: Location, generics: Generics) -> DataType {
-        DataType { id, name, location, generics, body: TypeBody::None }
+    pub fn new(
+        id: TypeId,
+        name: Ident,
+        location: Location,
+        generics: Generics,
+        visibility: ItemVisibility,
+    ) -> DataType {
+        DataType { id, name, location, generics, body: TypeBody::None, visibility }
     }
 
     /// To account for cyclic references between structs, a struct's
@@ -690,6 +697,7 @@ pub struct TypeAlias {
     pub id: TypeAliasId,
     pub typ: Type,
     pub generics: Generics,
+    pub visibility: ItemVisibility,
     pub location: Location,
 }
 
@@ -730,8 +738,9 @@ impl TypeAlias {
         location: Location,
         typ: Type,
         generics: Generics,
+        visibility: ItemVisibility,
     ) -> TypeAlias {
-        TypeAlias { id, typ, name, location, generics }
+        TypeAlias { id, typ, name, location, generics, visibility }
     }
 
     pub fn set_type_and_generics(&mut self, new_typ: Type, new_generics: Generics) {
