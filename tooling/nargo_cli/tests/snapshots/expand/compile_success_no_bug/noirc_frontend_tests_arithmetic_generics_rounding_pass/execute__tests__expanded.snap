@@ -1,9 +1,0 @@
----
-source: tooling/nargo_cli/tests/execute.rs
-expression: expanded_code
----
-fn main() {
-    round::<3, 2>([1, 2]);
-}
-
-fn round<let N: u32, let M: u32>(_x: [Field; M * (N / M)]) {}

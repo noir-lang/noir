@@ -13,7 +13,7 @@ use noirc_frontend::{
         FuncId, GlobalId, ImplMethod, Methods, TraitId, TraitImplId, TypeAliasId, TypeId,
     },
 };
-use std::collections::{BTreeMap, BTreeSet, HashSet};
+use std::collections::{HashMap, HashSet};
 
 use noirc_driver::CrateId;
 use noirc_frontend::{
@@ -65,13 +65,13 @@ pub(super) struct Trait {
 }
 
 pub(super) struct Impl {
-    pub(super) generics: BTreeSet<(String, Kind)>,
+    pub(super) generics: HashSet<(String, Kind)>,
     pub(super) typ: Type,
     pub(super) methods: Vec<(ItemVisibility, FuncId)>,
 }
 
 pub(super) struct TraitImpl {
-    pub(super) generics: BTreeSet<(String, Kind)>,
+    pub(super) generics: HashSet<(String, Kind)>,
     pub(super) id: TraitImplId,
     pub(super) methods: Vec<FuncId>,
 }
@@ -221,7 +221,7 @@ impl<'interner, 'def_map> ItemBuilder<'interner, 'def_map> {
         // all of `Foo<i32>` methods in one bucket, all of `Foo<Field>` in another, and
         // all of `Foo<T>` in another one.
         #[allow(clippy::mutable_key_type)]
-        let mut impl_methods_by_type: BTreeMap<Type, Vec<ImplMethod>> = BTreeMap::new();
+        let mut impl_methods_by_type: HashMap<Type, Vec<ImplMethod>> = HashMap::new();
         for method in impl_methods {
             impl_methods_by_type.entry(method.typ.clone()).or_default().push(method);
         }
@@ -233,7 +233,7 @@ impl<'interner, 'def_map> ItemBuilder<'interner, 'def_map> {
     }
 
     fn build_impl(&mut self, typ: Type, methods: Vec<ImplMethod>) -> Impl {
-        let mut generics = BTreeSet::new();
+        let mut generics = HashSet::new();
         gather_named_type_vars(&typ, &mut generics);
 
         let mut methods = methods
@@ -273,7 +273,7 @@ impl<'interner, 'def_map> ItemBuilder<'interner, 'def_map> {
             })
             .collect::<Vec<_>>();
 
-        self.sort_trait_impls(&mut trait_impls);
+        trait_impls.sort_by_key(|(_trait_impl_id, location)| *location);
 
         trait_impls.into_iter().map(|(trait_impl, _)| self.build_trait_impl(trait_impl)).collect()
     }
@@ -298,18 +298,9 @@ impl<'interner, 'def_map> ItemBuilder<'interner, 'def_map> {
             })
             .collect::<Vec<_>>();
 
-        self.sort_trait_impls(&mut trait_impls);
+        trait_impls.sort_by_key(|(_trait_impl_id, location)| *location);
 
         trait_impls.into_iter().map(|(trait_impl, _)| self.build_trait_impl(trait_impl)).collect()
-    }
-
-    fn sort_trait_impls(&mut self, trait_impls: &mut [(TraitImplId, Location)]) {
-        trait_impls.sort_by_key(|(trait_impl_id, location)| {
-            let trait_impl = self.interner.get_trait_implementation(*trait_impl_id);
-            let trait_impl = trait_impl.borrow();
-            let trait_ = self.interner.get_trait(trait_impl.trait_id);
-            (*location, trait_.name.to_string())
-        });
     }
 
     fn build_trait_impl(&mut self, trait_impl_id: TraitImplId) -> TraitImpl {
@@ -319,7 +310,7 @@ impl<'interner, 'def_map> ItemBuilder<'interner, 'def_map> {
         let trait_impl = self.interner.get_trait_implementation(trait_impl_id);
         let trait_impl = trait_impl.borrow();
 
-        let mut type_var_names = BTreeSet::new();
+        let mut type_var_names = HashSet::new();
         for generic in &trait_impl.trait_generics {
             gather_named_type_vars(generic, &mut type_var_names);
         }
@@ -416,7 +407,7 @@ impl<'interner, 'def_map> ItemBuilder<'interner, 'def_map> {
     }
 }
 
-fn gather_named_type_vars(typ: &Type, type_vars: &mut BTreeSet<(String, Kind)>) {
+fn gather_named_type_vars(typ: &Type, type_vars: &mut HashSet<(String, Kind)>) {
     match typ {
         Type::Array(length, typ) => {
             gather_named_type_vars(length, type_vars);

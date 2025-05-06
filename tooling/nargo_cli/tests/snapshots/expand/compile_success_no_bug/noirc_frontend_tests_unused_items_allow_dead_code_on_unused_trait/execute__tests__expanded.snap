@@ -1,7 +1,0 @@
----
-source: tooling/nargo_cli/tests/execute.rs
-expression: expanded_code
----
-trait Foo {}
-
-fn main() {}
