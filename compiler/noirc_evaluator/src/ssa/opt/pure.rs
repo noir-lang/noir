@@ -408,7 +408,7 @@ mod test {
         acir(inline) pure fn pure_basic f6 {
           b0():
             v2 = make_array [Field 0, Field 1] : [Field; 2]
-            v4 = array_get v0, index u32 1 -> Field
+            v4 = array_get v2, index u32 1 -> Field
             v5 = allocate -> &mut Field
             store Field 0 at v5
             return
