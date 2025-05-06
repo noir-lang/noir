@@ -167,7 +167,7 @@ pub fn visit_expr<V>(expr: &Expression, v: &mut V)
 where
     V: FnMut(&Expression) -> bool,
 {
-    visit_expr_be(expr, &mut |e| (v(e), ()), &mut |_, _| {})
+    visit_expr_be(expr, &mut |e| (v(e), ()), &mut |_, _| {});
 }
 
 /// Visit the contents of an [Expression] representing the AST,
@@ -293,7 +293,7 @@ where
         Expression::Continue => {}
     }
 
-    e(expr, token)
+    e(expr, token);
 }
 
 fn visit_lvalue<B, E, T>(lvalue: &LValue, b: &mut B, e: &mut E)

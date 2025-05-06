@@ -1,3 +1,7 @@
+#![forbid(unsafe_code)]
+#![warn(clippy::semicolon_if_nothing_returned)]
+#![cfg_attr(not(test), warn(unused_crate_dependencies, unused_extern_crates))]
+
 use core::panic;
 use std::{
     cmp::max,
@@ -223,7 +227,7 @@ impl Metrics {
     pub fn increase_processed_testcase_count(&mut self, update: &usize) {
         self.processed_testcase_count += update;
     }
-    pub fn increment_removed_testcase_count(&mut self) {
+    fn increment_removed_testcase_count(&mut self) {
         self.removed_testcase_count += 1;
         self.removed_testcase_last_round = true;
     }
@@ -770,7 +774,7 @@ impl<
                     .increase_total_brillig_duration_micros(&fast_result.brillig_duration_micros());
                 self.metrics.increase_total_mutation_time(&fast_result.mutation_time());
                 if !fast_result.skip_check() {
-                    analysis_queue.push(index)
+                    analysis_queue.push(index);
                 }
             }
 

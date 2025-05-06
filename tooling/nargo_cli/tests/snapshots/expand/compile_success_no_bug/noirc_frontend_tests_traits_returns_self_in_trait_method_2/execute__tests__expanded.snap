@@ -14,7 +14,7 @@ pub struct Foo {}
 
 impl MagicNumber for Foo {
     fn from_magic_value() -> Self {
-        MagicNumber::from_value()
+        Self::from_value()
     }
 
     fn from_value() -> Self {
@@ -26,7 +26,7 @@ pub struct Bar {}
 
 impl MagicNumber for Bar {
     fn from_magic_value() -> Self {
-        MagicNumber::from_value()
+        Self::from_value()
     }
 
     fn from_value() -> Self {
