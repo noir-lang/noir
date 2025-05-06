@@ -1,4 +1,4 @@
-use std::collections::{HashMap, HashSet};
+use std::collections::{BTreeSet, HashMap};
 
 use noirc_driver::CrateId;
 use noirc_frontend::{
@@ -657,7 +657,7 @@ impl<'interner, 'def_map, 'string> ItemPrinter<'interner, 'def_map, 'string> {
         self.push('>');
     }
 
-    fn show_generic_type_variables(&mut self, generics: &HashSet<(String, Kind)>) {
+    fn show_generic_type_variables(&mut self, generics: &BTreeSet<(String, Kind)>) {
         if generics.is_empty() {
             return;
         }

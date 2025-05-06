@@ -10,11 +10,8 @@ mod program;
 pub use abi::program_abi;
 pub use input::arb_inputs;
 use program::freq::Freqs;
-pub use program::visitor::{visit_expr, visit_expr_mut};
-pub use program::{
-    DisplayAstAsNoir, DisplayAstAsNoirComptime, arb_program, arb_program_comptime,
-    change_all_functions_into_unconstrained,
-};
+pub use program::{DisplayAstAsNoir, DisplayAstAsNoirComptime, arb_program, arb_program_comptime};
+pub use program::{expr, rewrite, visitor};
 
 /// AST generation configuration.
 #[derive(Debug, Clone)]
