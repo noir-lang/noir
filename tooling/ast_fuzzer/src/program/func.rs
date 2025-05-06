@@ -550,8 +550,6 @@ impl<'a> FunctionContext<'a> {
             .filter(|op| {
                 types::can_binary_op_return(op, typ)
                     && (!self.ctx.config.avoid_overflow || !types::can_binary_op_overflow(op))
-                    // TODO remove this after strange comptime shift right overflows are fixed
-                    && (!self.ctx.config.comptime_friendly || !matches!(op, BinaryOp::ShiftRight))
                     && (!self.ctx.config.avoid_err_by_zero || !types::can_binary_op_err_by_zero(op))
             })
             .collect::<Vec<_>>();
