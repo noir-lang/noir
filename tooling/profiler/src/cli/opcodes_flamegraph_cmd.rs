@@ -56,11 +56,6 @@ fn run_with_generator<Generator: FlamegraphGenerator>(
     let bytecode = std::mem::take(&mut program.bytecode);
     let debug_artifact = DebugArtifact::from(program);
 
-    // There's one debug information per source file
-    assert_eq!(debug_artifact.debug_symbols.len(), 1);
-
-    let debug_info = &debug_artifact.debug_symbols[0];
-
     // Generate flamegraph for ACIR opcodes for each function in the program
     for (acir_fn_index, (circuit, function_name)) in bytecode.functions.iter().zip(acir_names).enumerate() {
         let circuit_samples = generate_acir_flamegraph_samples(circuit, &function_name);
@@ -69,7 +64,7 @@ fn run_with_generator<Generator: FlamegraphGenerator>(
 
         flamegraph_generator.generate_flamegraph(
             circuit_samples,
-            debug_info,
+            &debug_artifact.debug_symbols[0],
             &debug_artifact,
             artifact_path.to_str().unwrap(),
             &function_name,
@@ -91,8 +86,11 @@ fn run_with_generator<Generator: FlamegraphGenerator>(
 
         // We can have repeated names if there are functions with the same name in different
         // modules or functions that use generics. Thus, add the unique function index as a suffix.
-        let function_name =
-            format!("{}_{}", brillig_names[brillig_fn_index].as_str(), brillig_fn_index);
+        let function_name = if bytecode.functions.len() > 1 {
+            format!("{}_{}", brillig_names[brillig_fn_index].as_str(), brillig_fn_index)
+        } else {
+            brillig_names[brillig_fn_index].to_owned()
+        };
 
         let brillig_samples = brillig_bytecode
             .bytecode
@@ -113,7 +111,7 @@ fn run_with_generator<Generator: FlamegraphGenerator>(
 
         flamegraph_generator.generate_flamegraph(
             brillig_samples,
-            debug_info,
+            &debug_artifact.debug_symbols[0],
             &debug_artifact,
             artifact_path.to_str().unwrap(),
             &function_name,
