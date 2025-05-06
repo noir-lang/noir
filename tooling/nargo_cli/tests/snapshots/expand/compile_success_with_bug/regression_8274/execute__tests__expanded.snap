@@ -1,7 +1,0 @@
----
-source: tooling/nargo_cli/tests/execute.rs
-expression: expanded_code
----
-fn main(a: u8, b: u8) {
-    let h: u64 = ((a as u64) >> b) % (11912905567223247326 * 14329851068374824036);
-}

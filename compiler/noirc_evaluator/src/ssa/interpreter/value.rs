@@ -111,16 +111,16 @@ impl Value {
         }
     }
 
-    pub(crate) fn as_reference(&self) -> Option<ReferenceValue> {
+    pub(crate) fn as_reference(&self) -> Option<&ReferenceValue> {
         match self {
-            Value::Reference(value) => Some(value.clone()),
+            Value::Reference(value) => Some(value),
             _ => None,
         }
     }
 
-    pub(crate) fn as_array_or_slice(&self) -> Option<ArrayValue> {
+    pub(crate) fn as_array_or_slice(&self) -> Option<&ArrayValue> {
         match self {
-            Value::ArrayOrSlice(value) => Some(value.clone()),
+            Value::ArrayOrSlice(value) => Some(value),
             _ => None,
         }
     }
@@ -220,9 +220,9 @@ impl NumericValue {
         }
     }
 
-    pub(crate) fn as_u8(&self) -> Option<u8> {
+    pub(crate) fn as_u32(&self) -> Option<u32> {
         match self {
-            NumericValue::U8(value) => Some(*value),
+            NumericValue::U32(value) => Some(*value),
             _ => None,
         }
     }

@@ -5,7 +5,7 @@ use noirc_frontend::Shared;
 
 use crate::ssa::{
     interpreter::{
-        InterpreterError, NumericValue, Value,
+        NumericValue, Value,
         tests::{expect_value, expect_values},
         value::ReferenceValue,
     },
@@ -31,9 +31,11 @@ fn add() {
     assert_eq!(value, Value::Numeric(NumericValue::I32(102)));
 }
 
+/// TODO: Replace panic with error
 #[test]
+#[should_panic(expected = "called `Option::unwrap()` on a `None` value")]
 fn add_overflow() {
-    let error = expect_error(
+    expect_error(
         "
         acir(inline) fn main f0 {
           b0():
@@ -42,7 +44,6 @@ fn add_overflow() {
         }
     ",
     );
-    assert!(matches!(error, InterpreterError::Overflow { .. }));
 }
 
 #[test]
@@ -72,9 +73,11 @@ fn sub() {
     assert_eq!(value, Value::Numeric(NumericValue::I32(10000)));
 }
 
+/// TODO: Replace panic with error
 #[test]
+#[should_panic(expected = "called `Option::unwrap()` on a `None` value")]
 fn sub_underflow() {
-    let error = expect_error(
+    expect_error(
         "
         acir(inline) fn main f0 {
           b0():
@@ -83,7 +86,6 @@ fn sub_underflow() {
         }
     ",
     );
-    assert!(matches!(error, InterpreterError::Overflow { .. }));
 }
 
 #[test]
@@ -114,9 +116,11 @@ fn mul() {
     assert_eq!(value, Value::Numeric(NumericValue::U64(200)));
 }
 
+/// TODO: Replace panic with error
 #[test]
+#[should_panic(expected = "called `Option::unwrap()` on a `None` value")]
 fn mul_overflow() {
-    let error = expect_error(
+    expect_error(
         "
         acir(inline) fn main f0 {
           b0():
@@ -125,7 +129,6 @@ fn mul_overflow() {
         }
     ",
     );
-    assert!(matches!(error, InterpreterError::Overflow { .. }));
 }
 
 #[test]
@@ -156,9 +159,11 @@ fn div() {
     assert_eq!(value, Value::Numeric(NumericValue::I16(64)));
 }
 
+/// TODO: Replace panic with error
 #[test]
+#[should_panic(expected = "Field division by zero")]
 fn div_zero() {
-    let error = expect_error(
+    expect_error(
         "
         acir(inline) fn main f0 {
           b0():
@@ -167,7 +172,6 @@ fn div_zero() {
         }
     ",
     );
-    assert!(matches!(error, InterpreterError::DivisionByZero { .. }));
 }
 
 #[test]
@@ -184,9 +188,11 @@ fn r#mod() {
     assert_eq!(value, Value::Numeric(NumericValue::I64(2)));
 }
 
+/// TODO: Replace panic with error
 #[test]
+#[should_panic(expected = "called `Option::unwrap()` on a `None` value")]
 fn mod_zero() {
-    let error = expect_error(
+    expect_error(
         "
         acir(inline) fn main f0 {
           b0():
@@ -195,7 +201,6 @@ fn mod_zero() {
         }
     ",
     );
-    assert!(matches!(error, InterpreterError::DivisionByZero { .. }));
 }
 
 #[test]
@@ -291,27 +296,27 @@ fn shl() {
         "
         acir(inline) fn main f0 {
           b0():
-            v0 = shl i8 3, u8 2
+            v0 = shl u8 3, u32 2
             return v0
         }
     ",
     );
-    assert_eq!(value, Value::from_constant(12_u128.into(), NumericType::signed(8)));
+    assert_eq!(value, Value::from_constant(12_u128.into(), NumericType::unsigned(8)));
 }
 
-/// shl should overflow if the rhs is greater than the bit count
 #[test]
+#[should_panic]
+/// shl should overflow if the rhs is greater than the bit count
 fn shl_overflow() {
-    let error = expect_error(
+    expect_error(
         "
         acir(inline) fn main f0 {
           b0():
-            v0 = shl u8 3, u8 9
+            v0 = shl u8 3, u32 9
             return v0
         }
     ",
     );
-    assert!(matches!(error, InterpreterError::Overflow { .. }));
 }
 
 #[test]
@@ -320,16 +325,16 @@ fn shr() {
         "
         acir(inline) fn main f0 {
           b0():
-            v0 = shr u16 12, u8 2
-            v1 = shr u16 5, u8 1
-            v2 = shr u16 5, u8 4
+            v0 = shr u8 12, u32 2
+            v1 = shr u8 5, u32 1
+            v2 = shr u8 5, u32 4
             return v0, v1, v2
         }
     ",
     );
-    assert_eq!(values[0], Value::from_constant(3_u128.into(), NumericType::unsigned(16)));
-    assert_eq!(values[1], Value::from_constant(2_u128.into(), NumericType::unsigned(16)));
-    assert_eq!(values[2], Value::from_constant(0_u128.into(), NumericType::unsigned(16)));
+    assert_eq!(values[0], Value::from_constant(3_u128.into(), NumericType::unsigned(8)));
+    assert_eq!(values[1], Value::from_constant(2_u128.into(), NumericType::unsigned(8)));
+    assert_eq!(values[2], Value::from_constant(0_u128.into(), NumericType::unsigned(8)));
 }
 
 #[test]
@@ -339,7 +344,7 @@ fn shr_overflow() {
         "
         acir(inline) fn main f0 {
           b0():
-            v0 = shr u8 3, u8 9
+            v0 = shr u8 3, u32 9
             return v0
         }
     ",
@@ -472,8 +477,9 @@ fn range_check() {
 }
 
 #[test]
+#[should_panic]
 fn range_check_fail() {
-    let error = expect_error(
+    expect_error(
         "
         acir(inline) fn main f0 {
           b0():
@@ -482,7 +488,6 @@ fn range_check_fail() {
         }
     ",
     );
-    assert!(matches!(error, InterpreterError::RangeCheckFailed { .. }));
 }
 
 #[test]

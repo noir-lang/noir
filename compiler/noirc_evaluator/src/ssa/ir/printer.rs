@@ -190,7 +190,7 @@ fn display_instruction_inner(
 
     match instruction {
         Instruction::Binary(binary) => {
-            writeln!(f, "{}", display_binary(binary, dfg))
+            writeln!(f, "{} {}, {}", binary.operator, show(binary.lhs), show(binary.rhs))
         }
         Instruction::Cast(lhs, typ) => writeln!(f, "cast {} as {typ}", show(*lhs)),
         Instruction::Not(rhs) => writeln!(f, "not {}", show(*rhs)),
@@ -305,10 +305,6 @@ fn display_instruction_inner(
         }
         Instruction::Noop => writeln!(f, "nop"),
     }
-}
-
-pub(crate) fn display_binary(binary: &super::instruction::Binary, dfg: &DataFlowGraph) -> String {
-    format!("{} {}, {}", binary.operator, value(dfg, binary.lhs), value(dfg, binary.rhs))
 }
 
 fn try_byte_array_to_string(elements: &Vector<ValueId>, dfg: &DataFlowGraph) -> Option<String> {

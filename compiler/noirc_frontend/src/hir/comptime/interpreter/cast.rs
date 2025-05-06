@@ -6,7 +6,6 @@ use crate::{
     ast::IntegerBitSize,
     hir::comptime::{InterpreterError, Value, errors::IResult},
     shared::Signedness,
-    signed_field::SignedField,
 };
 
 /// evaluate_cast without recursion
@@ -28,8 +27,8 @@ pub(super) fn evaluate_cast_one_step(
         }};
     }
 
-    let (lhs, lhs_is_negative) = match evaluated_lhs {
-        Value::Field(value) => (value.field, value.is_negative),
+    let (mut lhs, lhs_is_negative) = match evaluated_lhs {
+        Value::Field(value) => (value, false),
         Value::U1(value) => ((value as u128).into(), false),
         Value::U8(value) => ((value as u128).into(), false),
         Value::U16(value) => ((value as u128).into(), false),
@@ -59,7 +58,12 @@ pub(super) fn evaluate_cast_one_step(
 
     // Now actually cast the lhs, bit casting and wrapping as necessary
     match typ.follow_bindings() {
-        Type::FieldElement => Ok(Value::Field(SignedField::new(lhs, lhs_is_negative))),
+        Type::FieldElement => {
+            if lhs_is_negative {
+                lhs = FieldElement::zero() - lhs;
+            }
+            Ok(Value::Field(lhs))
+        }
         Type::Integer(sign, bit_size) => match (sign, bit_size) {
             (Signedness::Unsigned, IntegerBitSize::One) => {
                 Err(InterpreterError::TypeUnsupported { typ: typ.clone(), location })
@@ -111,7 +115,7 @@ mod tests {
         let typ = Type::FieldElement;
 
         let lhs_values = [
-            Value::Field(SignedField::one()),
+            Value::Field(FieldElement::one()),
             Value::Bool(true),
             Value::U1(true),
             Value::U8(1),
@@ -127,7 +131,7 @@ mod tests {
         for lhs in lhs_values {
             assert_eq!(
                 evaluate_cast_one_step(&typ, location, lhs),
-                Ok(Value::Field(SignedField::one()))
+                Ok(Value::Field(FieldElement::one()))
             );
         }
     }
