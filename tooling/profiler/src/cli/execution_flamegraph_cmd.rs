@@ -9,6 +9,7 @@ use nargo::foreign_calls::DefaultForeignCallBuilder;
 use noir_artifact_cli::fs::artifact::read_program_from_file;
 use noir_artifact_cli::fs::inputs::read_inputs_from_file;
 use noirc_artifacts::program::ProgramArtifact;
+use tracing::{debug, info};
 
 use crate::errors::{CliError, report_error};
 use crate::flamegraph::{BrilligExecutionSample, FlamegraphGenerator, InfernoFlamegraphGenerator};
@@ -16,7 +17,7 @@ use crate::opcode_formatter::format_brillig_opcode;
 use bn254_blackbox_solver::Bn254BlackBoxSolver;
 use noirc_artifacts::debug::DebugArtifact;
 
-/// Generates a flamegraph mapping unconstrained Noir execution to source code.
+/// Generates a flamegraph mapping Brillig opcodes to source code.
 #[derive(Debug, Clone, Args)]
 pub(crate) struct ExecutionFlamegraphCommand {
     /// The path to the artifact JSON file
@@ -41,10 +42,6 @@ pub(crate) struct ExecutionFlamegraphCommand {
     /// Outputs to stdout and skips generating a flamegraph.
     #[clap(long, default_value = "false")]
     sample_count: bool,
-
-    /// Enables additional logging
-    #[clap(long, default_value = "false")]
-    verbose: bool,
 }
 
 pub(crate) fn run(args: ExecutionFlamegraphCommand) -> eyre::Result<()> {
@@ -55,7 +52,6 @@ pub(crate) fn run(args: ExecutionFlamegraphCommand) -> eyre::Result<()> {
         &args.output,
         args.pedantic_solving,
         args.sample_count,
-        args.verbose,
     )
 }
 
@@ -66,7 +62,6 @@ fn run_with_generator(
     output_path: &Option<PathBuf>,
     pedantic_solving: bool,
     print_sample_count: bool,
-    verbose: bool,
 ) -> eyre::Result<()> {
     let program =
         read_program_from_file(artifact_path).context("Error reading program from file")?;
@@ -74,7 +69,7 @@ fn run_with_generator(
     ensure_brillig_entry_point(&program)?;
 
     if !print_sample_count && output_path.is_none() {
-        return report_error("Missing --output <OUTPUT> argument for when building a flamegraph")
+        return report_error("Missing --output <o> argument for when building a flamegraph")
             .map_err(Into::into);
     }
 
@@ -83,9 +78,8 @@ fn run_with_generator(
 
     let initial_witness = program.abi.encode(&inputs_map, None)?;
 
-    if verbose {
-        println!("Executing...");
-    }
+    debug!("Executing...");
+    info!("Executing program...");
 
     let solved_witness_stack_err = nargo::ops::execute_program_with_profiling(
         &program.bytecode,
@@ -113,11 +107,12 @@ fn run_with_generator(
         }
     };
 
-    if verbose {
-        println!("Executed");
-    }
+    debug!("Executed");
+    info!("Execution complete");
 
     if print_sample_count {
+        // We use `println!` directly here to ensure the output goes to stdout
+        // and is not affected by log filtering levels
         println!("{}", profiling_samples.len());
         return Ok(());
     }
@@ -125,9 +120,8 @@ fn run_with_generator(
     // We place this logging output before the transforming and collection of the samples.
     // This is done because large traces can take some time, and can make it look
     // as if the profiler has stalled.
-    if verbose {
-        println!("Generating flamegraph for {} samples...", profiling_samples.len());
-    }
+    debug!("Generating flamegraph for {} samples...", profiling_samples.len());
+    info!("Generating flamegraph for {} samples...", profiling_samples.len());
 
     let profiling_samples: Vec<BrilligExecutionSample> = profiling_samples
         .iter_mut()
@@ -162,9 +156,8 @@ fn run_with_generator(
         &Path::new(output_path).join(Path::new(&format!("{}_brillig_trace.svg", "main"))),
     )?;
 
-    if verbose {
-        println!("Generated flamegraph");
-    }
+    debug!("Generated flamegraph");
+    info!("Flamegraph generation complete");
 
     Ok(())
 }
@@ -194,9 +187,8 @@ mod tests {
     use color_eyre::eyre;
     use fm::codespan_files::Files;
     use noirc_artifacts::program::ProgramArtifact;
-    use noirc_driver::CrateName;
     use noirc_errors::debug_info::{DebugInfo, ProgramDebugInfo};
-    use std::{collections::BTreeMap, path::Path, str::FromStr};
+    use std::{collections::BTreeMap, path::Path};
 
     use crate::flamegraph::Sample;
 
@@ -249,24 +241,23 @@ mod tests {
         // Write the artifact to a file
         let artifact_path = noir_artifact_cli::fs::artifact::save_program_to_file(
             &artifact,
-            &CrateName::from_str("test").unwrap(),
-            temp_dir.path(),
+            "tests",
+            temp_dir.path().to_path_buf(),
         )
         .unwrap();
 
-        let flamegraph_generator = TestFlamegraphGenerator::default();
+        // Create the Prover.toml file
+        std::fs::write(prover_toml_path, "").unwrap();
 
-        assert!(
-            super::run_with_generator(
-                &artifact_path,
-                &prover_toml_path,
-                &flamegraph_generator,
-                &Some(temp_dir.into_path()),
-                false,
-                false,
-                false
-            )
-            .is_err()
+        let result = super::run_with_generator(
+            &artifact_path,
+            &temp_dir.path().join("Prover"),
+            &TestFlamegraphGenerator::default(),
+            &Some(temp_dir.path().to_path_buf()),
+            false,
+            false,
         );
+
+        assert!(result.is_err());
     }
 }
