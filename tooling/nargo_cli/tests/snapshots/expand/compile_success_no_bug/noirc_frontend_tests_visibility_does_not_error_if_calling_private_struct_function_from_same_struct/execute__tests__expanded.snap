@@ -6,7 +6,7 @@ struct Foo {}
 
 impl Foo {
     fn foo() {
-        Foo::bar()
+        Self::bar()
     }
 
     fn bar() {}

@@ -10,7 +10,7 @@ impl S {
     }
 
     fn two() -> Field {
-        S::one() + S::one()
+        Self::one() + Self::one()
     }
 }
 
