@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"constant":["MAX_POW_2","SMALL_VALUE_MAX","SMALL_VALUE_MIN"],"fn":["mutate_field_input_value"],"static":["INVERSE_POWERS_OF_TWO","POWERS_OF_TWO","POWERS_OF_TWO_INITIALIZED","POWERS_OF_TWO_MINUS_ONE"],"struct":["FieldMutator"]};
+window.SIDEBAR_ITEMS = {"constant":["MAX_POW_2","SMALL_VALUE_MAX","SMALL_VALUE_MIN"],"fn":["inverse_powers_of_two","mutate_field_input_value","powers_of_two","powers_of_two_minus_one"],"struct":["FieldMutator"]};

@@ -1839,7 +1839,7 @@
         <span class="kw">if </span>types::is_unit(typ) &amp;&amp; u.ratio(<span class="number">4</span>, <span class="number">5</span>)<span class="question-mark">? </span>{
             <span class="comment">// ending a unit block with `&lt;stmt&gt;;` looks better than a `()` but both are valid.
             // NB the AST printer puts a `;` between all statements, including after `if` and `for`.
-            </span>stmts.push(Expression::Semi(Box::new(<span class="self">self</span>.gen_stmt(u)<span class="question-mark">?</span>)))
+            </span>stmts.push(Expression::Semi(Box::new(<span class="self">self</span>.gen_stmt(u)<span class="question-mark">?</span>)));
         } <span class="kw">else </span>{
             stmts.push(<span class="self">self</span>.gen_expr(u, typ, max_depth, Flags::TOP)<span class="question-mark">?</span>);
         }

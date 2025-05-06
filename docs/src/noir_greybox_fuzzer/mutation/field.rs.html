@@ -322,9 +322,7 @@
 <a href="#321" id="321">321</a>
 <a href="#322" id="322">322</a>
 <a href="#323" id="323">323</a>
-<a href="#324" id="324">324</a>
-<a href="#325" id="325">325</a>
-<a href="#326" id="326">326</a></pre></div><pre class="rust"><code><span class="doccomment">//! This file contains mechanisms for deterministically mutating a given field value
+<a href="#324" id="324">324</a></pre></div><pre class="rust"><code><span class="doccomment">//! This file contains mechanisms for deterministically mutating a given field value
 //! Types of mutations applied:
 //! 1. Substitutions
 //!     1. With zero
@@ -353,7 +351,9 @@
 //! There are configurations for determining probability of each top-level and low-level mutation
 //! Currently, the configurations are constant and "new" methods aren't used, but the architecture is prepared for easier introduction of MOpt (Mutation Optimization) technique in the future
 
-</span><span class="kw">use </span><span class="kw">super</span>::configurations::{
+</span><span class="kw">use </span>std::sync::OnceLock;
+
+<span class="kw">use </span><span class="kw">super</span>::configurations::{
     BASIC_FIELD_ELEMENT_DICTIONARY_UPDATE_CONFIGURATION,
     BASIC_FIELD_ELEMENT_POW_2_UPDATE_CONFIGURATION,
     BASIC_FIELD_ELEMENT_SMALL_VALUE_UPDATE_CONFIGURATION, BASIC_FIELD_INVERSION_CONFIGURATION,
@@ -370,10 +370,25 @@
 <span class="kw">const </span>SMALL_VALUE_MAX: u64 = <span class="number">0xff</span>;
 <span class="kw">const </span>SMALL_VALUE_MIN: u64 = <span class="number">1</span>;
 
-<span class="kw">static </span><span class="kw-2">mut </span>POWERS_OF_TWO_INITIALIZED: bool = <span class="bool-val">false</span>;
-<span class="kw">static </span><span class="kw-2">mut </span>POWERS_OF_TWO: Vec&lt;FieldElement&gt; = Vec::new();
-<span class="kw">static </span><span class="kw-2">mut </span>INVERSE_POWERS_OF_TWO: Vec&lt;FieldElement&gt; = Vec::new();
-<span class="kw">static </span><span class="kw-2">mut </span>POWERS_OF_TWO_MINUS_ONE: Vec&lt;FieldElement&gt; = Vec::new();
+<span class="kw">fn </span>powers_of_two() -&gt; <span class="kw-2">&amp;</span><span class="lifetime">'static </span>Vec&lt;FieldElement&gt; {
+    <span class="kw">static </span>INSTANCE: OnceLock&lt;Vec&lt;FieldElement&gt;&gt; = OnceLock::new();
+    INSTANCE.get_or_init(|| {
+        (<span class="number">1</span>..=MAX_POW_2)
+            .map(|i| FieldElement::from(<span class="number">2i128</span>).pow(<span class="kw-2">&amp;</span>FieldElement::from(i)))
+            .collect::&lt;Vec&lt;FieldElement&gt;&gt;()
+    })
+}
+
+<span class="kw">fn </span>powers_of_two_minus_one() -&gt; <span class="kw-2">&amp;</span><span class="lifetime">'static </span>Vec&lt;FieldElement&gt; {
+    <span class="kw">static </span>INSTANCE: OnceLock&lt;Vec&lt;FieldElement&gt;&gt; = OnceLock::new();
+    INSTANCE.get_or_init(|| powers_of_two().iter().map(|x| <span class="kw-2">*</span>x - FieldElement::one()).collect())
+}
+
+<span class="kw">fn </span>inverse_powers_of_two() -&gt; <span class="kw-2">&amp;</span><span class="lifetime">'static </span>Vec&lt;FieldElement&gt; {
+    <span class="kw">static </span>INSTANCE: OnceLock&lt;Vec&lt;FieldElement&gt;&gt; = OnceLock::new();
+    INSTANCE
+        .get_or_init(|| powers_of_two().iter().map(|p| p.inverse()).collect::&lt;Vec&lt;FieldElement&gt;&gt;())
+}
 
 <span class="comment">// We are using bn254 scalar field so 254 is enough
 </span><span class="kw">const </span>MAX_POW_2: usize = <span class="number">254</span>;
@@ -386,23 +401,7 @@
 <span class="kw">impl</span>&lt;<span class="lifetime">'a</span>&gt; FieldMutator&lt;<span class="lifetime">'a</span>&gt; {
     <span class="kw">pub fn </span>new(dictionary: <span class="kw-2">&amp;</span><span class="lifetime">'a </span>Vec&lt;FieldElement&gt;, prng: <span class="kw-2">&amp;</span><span class="lifetime">'a </span><span class="kw-2">mut </span>XorShiftRng) -&gt; <span class="self">Self </span>{
         <span class="comment">// Initialize powers of two if we haven't done that yet
-        </span><span class="kw">unsafe </span>{
-            <span class="kw">if </span>!POWERS_OF_TWO_INITIALIZED {
-                <span class="kw">let </span>powers_of_two = (<span class="number">1</span>..=MAX_POW_2)
-                    .map(|i| FieldElement::from(<span class="number">2i128</span>).pow(<span class="kw-2">&amp;</span>FieldElement::from(i)))
-                    .collect::&lt;Vec&lt;FieldElement&gt;&gt;();
-                INVERSE_POWERS_OF_TWO =
-                    powers_of_two.iter().map(|p| p.inverse()).collect::&lt;Vec&lt;FieldElement&gt;&gt;();
-
-                POWERS_OF_TWO_MINUS_ONE =
-                    powers_of_two.iter().map(|x| <span class="kw-2">*</span>x - FieldElement::from(<span class="number">1i128</span>)).collect();
-
-                POWERS_OF_TWO = powers_of_two;
-                POWERS_OF_TWO_INITIALIZED = <span class="bool-val">true</span>;
-            }
-        };
-
-        <span class="macro">assert!</span>(!dictionary.is_empty());
+        </span><span class="macro">assert!</span>(!dictionary.is_empty());
         <span class="self">Self </span>{ dictionary, prng }
     }
 
@@ -415,12 +414,12 @@
             FieldElementSubstitutionMutationOptions::Dictionary =&gt; {
                 <span class="kw-2">*</span><span class="self">self</span>.dictionary.choose(<span class="self">self</span>.prng).unwrap()
             }
-            FieldElementSubstitutionMutationOptions::PowerOfTwo =&gt; <span class="kw">unsafe </span>{
-                <span class="kw-2">*</span>POWERS_OF_TWO.choose(<span class="self">self</span>.prng).unwrap()
-            },
-            FieldElementSubstitutionMutationOptions::PowerOfTwoMinusOne =&gt; <span class="kw">unsafe </span>{
-                <span class="kw-2">*</span>POWERS_OF_TWO_MINUS_ONE.choose(<span class="self">self</span>.prng).unwrap()
-            },
+            FieldElementSubstitutionMutationOptions::PowerOfTwo =&gt; {
+                <span class="kw-2">*</span>powers_of_two().choose(<span class="self">self</span>.prng).unwrap()
+            }
+            FieldElementSubstitutionMutationOptions::PowerOfTwoMinusOne =&gt; {
+                <span class="kw-2">*</span>powers_of_two_minus_one().choose(<span class="self">self</span>.prng).unwrap()
+            }
         }
     }
 
@@ -433,9 +432,8 @@
 
     <span class="attr">#[allow(static_mut_refs)]
     </span><span class="kw">fn </span>apply_pow_2_update(<span class="kw-2">&amp;mut </span><span class="self">self</span>, element: FieldElement) -&gt; FieldElement {
-        <span class="kw">let </span>chosen_power_of_two = <span class="kw">unsafe </span>{ POWERS_OF_TWO.choose(<span class="self">self</span>.prng).unwrap() };
-        <span class="kw">let </span>chosen_inverse_power_of_two =
-            <span class="kw">unsafe </span>{ INVERSE_POWERS_OF_TWO.choose(<span class="self">self</span>.prng).unwrap() };
+        <span class="kw">let </span>chosen_power_of_two = powers_of_two().choose(<span class="self">self</span>.prng).unwrap();
+        <span class="kw">let </span>chosen_inverse_power_of_two = inverse_powers_of_two().choose(<span class="self">self</span>.prng).unwrap();
         <span class="kw">match </span>BASIC_FIELD_ELEMENT_POW_2_UPDATE_CONFIGURATION.select(<span class="self">self</span>.prng) {
             FieldElementPow2UpdateOptions::Addition =&gt; element + <span class="kw-2">*</span>chosen_power_of_two,
             FieldElementPow2UpdateOptions::Subtraction =&gt; element - <span class="kw-2">*</span>chosen_power_of_two,
@@ -502,7 +500,7 @@
 /// * `previous_input` - The input value to mutate, must be a Field variant
 /// * `dictionary` - A vector of interesting field element values to use in mutations
 /// * `prng` - Random number generator for selecting mutations
-</span><span class="kw">pub fn </span>mutate_field_input_value(
+</span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>mutate_field_input_value(
     previous_input: <span class="kw-2">&amp;</span>InputValue,
     dictionary: <span class="kw-2">&amp;</span>Vec&lt;FieldElement&gt;,
     prng: <span class="kw-2">&amp;mut </span>XorShiftRng,
@@ -535,8 +533,8 @@
                 || result == FieldElement::from(<span class="number">1u32</span>)
                 || result == -FieldElement::from(<span class="number">1u32</span>)
                 || result == FieldElement::from(<span class="number">42u32</span>)
-                || <span class="kw">unsafe </span>{ POWERS_OF_TWO.contains(<span class="kw-2">&amp;</span>result) }
-                || <span class="kw">unsafe </span>{ POWERS_OF_TWO_MINUS_ONE.contains(<span class="kw-2">&amp;</span>result) }
+                || powers_of_two().contains(<span class="kw-2">&amp;</span>result)
+                || powers_of_two_minus_one().contains(<span class="kw-2">&amp;</span>result)
         );
     }
 
@@ -567,14 +565,12 @@
             <span class="comment">// Verify result is different from input
             </span><span class="macro">assert_ne!</span>(result, element);
             <span class="comment">// Result should be element combined with a power of 2 via +,-,*,/
-            </span><span class="macro">assert!</span>(<span class="kw">unsafe </span>{
-                POWERS_OF_TWO.iter().any(|p| {
-                    result == element + <span class="kw-2">*</span>p
-                        || result == element - <span class="kw-2">*</span>p
-                        || result == element * <span class="kw-2">*</span>p
-                        || result == element * p.inverse()
-                })
-            });
+            </span><span class="macro">assert!</span>(powers_of_two().iter().any(|p| {
+                result == element + <span class="kw-2">*</span>p
+                    || result == element - <span class="kw-2">*</span>p
+                    || result == element * <span class="kw-2">*</span>p
+                    || result == element * p.inverse()
+            }));
         }
     }
 

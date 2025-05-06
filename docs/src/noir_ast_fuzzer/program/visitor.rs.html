@@ -484,7 +484,7 @@
 <span class="kw">where
     </span>V: FnMut(<span class="kw-2">&amp;</span>Expression) -&gt; bool,
 {
-    visit_expr_be(expr, <span class="kw-2">&amp;mut </span>|e| (v(e), ()), <span class="kw-2">&amp;mut </span>|<span class="kw">_</span>, <span class="kw">_</span>| {})
+    visit_expr_be(expr, <span class="kw-2">&amp;mut </span>|e| (v(e), ()), <span class="kw-2">&amp;mut </span>|<span class="kw">_</span>, <span class="kw">_</span>| {});
 }
 
 <span class="doccomment">/// Visit the contents of an [Expression] representing the AST,
@@ -610,7 +610,7 @@
         Expression::Continue =&gt; {}
     }
 
-    e(expr, token)
+    e(expr, token);
 }
 
 <span class="kw">fn </span>visit_lvalue&lt;B, E, T&gt;(lvalue: <span class="kw-2">&amp;</span>LValue, b: <span class="kw-2">&amp;mut </span>B, e: <span class="kw-2">&amp;mut </span>E)

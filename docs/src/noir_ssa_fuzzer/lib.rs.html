@@ -226,7 +226,15 @@
 <a href="#225" id="225">225</a>
 <a href="#226" id="226">226</a>
 <a href="#227" id="227">227</a>
-<a href="#228" id="228">228</a></pre></div><pre class="rust"><code><span class="attr">#![allow(dead_code)]
+<a href="#228" id="228">228</a>
+<a href="#229" id="229">229</a>
+<a href="#230" id="230">230</a>
+<a href="#231" id="231">231</a>
+<a href="#232" id="232">232</a></pre></div><pre class="rust"><code><span class="attr">#![forbid(unsafe_code)]
+#![warn(unreachable_pub)]
+#![warn(clippy::semicolon_if_nothing_returned)]
+#![cfg_attr(not(test), warn(unused_crate_dependencies, unused_extern_crates))]
+
 </span><span class="kw">pub mod </span>builder;
 <span class="kw">pub mod </span>compiler;
 <span class="kw">pub mod </span>config;

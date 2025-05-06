@@ -1467,7 +1467,15 @@
 <a href="#1466" id="1466">1466</a>
 <a href="#1467" id="1467">1467</a>
 <a href="#1468" id="1468">1468</a>
-<a href="#1469" id="1469">1469</a></pre></div><pre class="rust"><code><span class="kw">use </span>core::panic;
+<a href="#1469" id="1469">1469</a>
+<a href="#1470" id="1470">1470</a>
+<a href="#1471" id="1471">1471</a>
+<a href="#1472" id="1472">1472</a>
+<a href="#1473" id="1473">1473</a></pre></div><pre class="rust"><code><span class="attr">#![forbid(unsafe_code)]
+#![warn(clippy::semicolon_if_nothing_returned)]
+#![cfg_attr(not(test), warn(unused_crate_dependencies, unused_extern_crates))]
+
+</span><span class="kw">use </span>core::panic;
 <span class="kw">use </span>std::{
     cmp::max,
     path::{Path, PathBuf},
@@ -1692,7 +1700,7 @@
     <span class="kw">pub fn </span>increase_processed_testcase_count(<span class="kw-2">&amp;mut </span><span class="self">self</span>, update: <span class="kw-2">&amp;</span>usize) {
         <span class="self">self</span>.processed_testcase_count += update;
     }
-    <span class="kw">pub fn </span>increment_removed_testcase_count(<span class="kw-2">&amp;mut </span><span class="self">self</span>) {
+    <span class="kw">fn </span>increment_removed_testcase_count(<span class="kw-2">&amp;mut </span><span class="self">self</span>) {
         <span class="self">self</span>.removed_testcase_count += <span class="number">1</span>;
         <span class="self">self</span>.removed_testcase_last_round = <span class="bool-val">true</span>;
     }
@@ -2239,7 +2247,7 @@
                     .increase_total_brillig_duration_micros(<span class="kw-2">&amp;</span>fast_result.brillig_duration_micros());
                 <span class="self">self</span>.metrics.increase_total_mutation_time(<span class="kw-2">&amp;</span>fast_result.mutation_time());
                 <span class="kw">if </span>!fast_result.skip_check() {
-                    analysis_queue.push(index)
+                    analysis_queue.push(index);
                 }
             }
 

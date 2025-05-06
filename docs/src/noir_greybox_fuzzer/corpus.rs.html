@@ -612,13 +612,13 @@
 
     <span class="doccomment">/// Resets the sequence by setting remaining executions to 0
     </span><span class="kw">pub fn </span>clear(<span class="kw-2">&amp;mut </span><span class="self">self</span>) {
-        <span class="self">self</span>.executions_left = <span class="number">0
-    </span>}
+        <span class="self">self</span>.executions_left = <span class="number">0</span>;
+    }
 
     <span class="doccomment">/// Decrements the number of remaining executions by 1
     </span><span class="kw">pub fn </span>decrement(<span class="kw-2">&amp;mut </span><span class="self">self</span>) {
-        <span class="self">self</span>.executions_left -= <span class="number">1
-    </span>}
+        <span class="self">self</span>.executions_left -= <span class="number">1</span>;
+    }
 }
 
 <span class="doccomment">/// Manages the selection of testcases for fuzzing, tracking execution counts and scheduling
@@ -796,8 +796,8 @@
             <span class="self">self</span>.corpus_file_manager.save_testcase_to_disk(
                 <span class="kw-2">&amp;</span>serialize_to_json(<span class="kw-2">&amp;</span>new_testcase_value, <span class="kw-2">&amp;</span><span class="self">self</span>.corpus_file_manager.abi)
                     .expect(<span class="string">"Shouldn't be any issues with serializing input map"</span>),
-            )<span class="question-mark">?
-        </span>}
+            )<span class="question-mark">?</span>;
+        }
         <span class="self">self</span>.brillig_orchestrator.new_testcase(testcase_id);
         <span class="self">self</span>.acir_orchestrator.new_testcase(testcase_id);
         <span class="self">self</span>.discovered_testcases.insert(testcase_id, new_testcase_value.clone());

@@ -204,7 +204,7 @@
             IntStrategy::new(width <span class="kw">as </span>usize)
                 .prop_map(<span class="kw">move </span>|<span class="kw-2">mut </span>int| {
                     <span class="kw">if </span>int &lt; <span class="number">0 </span>{
-                        int += shift
+                        int += shift;
                     }
                     InputValue::Field(int.into())
                 })
