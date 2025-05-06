@@ -1,3 +1,4 @@
+use regex::Regex;
 use std::collections::HashSet;
 use std::fs::File;
 use std::io::{BufRead, BufReader, Write};
@@ -104,19 +105,27 @@ fn generate_test_runner_debugger_tests(test_file: &mut File, test_data_dir: &Pat
             })
             .flatten()
             .collect();
+        // Compile regex pattern once for efficiency
+        let fn_regex = Regex::new(r"fn\s+([a-zA-Z0-9_]+)(?:<[^>]*>)?(?:\([^)]*\))").unwrap();
         for test_name_line in test_names {
-            // TODO: get test name by regex perhaps?
-            let test_name = test_name_line
-                .split("fn ")
-                .collect::<Vec<&str>>()
-                .get(1)
-                .unwrap()
-                .split("<")
-                .next()
-                .unwrap()
-                .split("(")
-                .next()
-                .unwrap();
+            // Extract test name using regex
+            let test_name = match fn_regex.captures(&test_name_line) {
+                Some(captures) => captures.get(1).unwrap().as_str(),
+                None => {
+                    // Fallback to the old method if regex doesn't match
+                    test_name_line
+                        .split("fn ")
+                        .collect::<Vec<&str>>()
+                        .get(1)
+                        .unwrap()
+                        .split("<")
+                        .next()
+                        .unwrap()
+                        .split("(")
+                        .next()
+                        .unwrap()
+                }
+            };
 
             let ignored = ignored_tests.contains(test_name);
 
