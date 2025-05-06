@@ -2,7 +2,8 @@ global G_A: [u16; 3] = [33700, 47314, 35095];
 global G_B: [u16; 3] = [59890, 17417, 14409];
 fn main(a: [u16; 3], b: [bool; 1]) -> pub bool {
     // Safety: testing context
-    if unsafe { func_1(G_B, true) }[(((a[0] as u32) % (G_B[2] as u32)) % 1)] {
+    let res = unsafe { func_1(G_B, true) }[(((a[0] as u32) % (G_B[2] as u32)) % 1)];
+    if res {
         // Safety: testing context
         let c = unsafe { func_1(a, b[0]) };
         b[0]
