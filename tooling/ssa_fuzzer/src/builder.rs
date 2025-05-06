@@ -340,28 +340,6 @@ impl FuzzerBuilder {
         TypedValue::new(res, lhs.type_of_variable)
     }
 
-    /// Creates an array with the given Ids of values
-    pub fn insert_make_array(&mut self, elements: Vec<u32>) -> Id<Value> {
-        let mut elems = Vec::new();
-        for elem in elements.clone() {
-            elems.push(u32_to_id_value(elem));
-        }
-        let types = vec![self.type_.clone()];
-
-        self.builder.insert_make_array(
-            im::Vector::from(elems),
-            Type::Array(Arc::new(types), elements.len() as u32),
-        )
-    }
-
-    /// Gets an element from an array at the given index
-    pub fn insert_array_get(&mut self, array: Id<Value>, index: u32) -> Id<Value> {
-        let index_var =
-            self.builder.numeric_constant(index, NumericType::Unsigned { bit_size: 32 });
-
-        self.builder.insert_array_get(array, index_var, self.type_.clone())
-    }
-
     pub fn insert_constant(
         &mut self,
         value: impl Into<FieldElement>,
@@ -370,20 +348,6 @@ impl FuzzerBuilder {
         let id = self.builder.numeric_constant(value.into(), type_.to_numeric_type());
         TypedValue::new(id, type_.to_ssa_type())
     }
-
-    /// Sets an element in an array at the given index
-    pub fn insert_array_set(
-        &mut self,
-        array: Id<Value>,
-        index: u32,
-        value: Id<Value>,
-    ) -> Id<Value> {
-        let index_var =
-            self.builder.numeric_constant(index, NumericType::Unsigned { bit_size: 32 });
-
-        self.builder.insert_array_set(array, index_var, value)
-    }
-
     /// Gets the index of the entry block
     pub fn get_current_block(&mut self) -> BasicBlockId {
         self.builder.get_current_block_index()
@@ -418,10 +382,5 @@ impl FuzzerBuilder {
         else_destination: BasicBlockId,
     ) {
         self.builder.terminate_with_jmpif(condition, then_destination, else_destination);
-    }
-
-    /// Creates a numeric constant with the given value
-    pub fn numeric_constant(&mut self, value: impl Into<FieldElement>) -> Id<Value> {
-        self.builder.numeric_constant(value.into(), self.numeric_type)
     }
 }

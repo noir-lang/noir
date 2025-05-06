@@ -11,15 +11,14 @@ use crate::base_context::FuzzerCommand;
 mod fuzzer;
 mod instruction;
 use crate::fuzzer::Fuzzer;
-use crate::instruction::{Instruction, InstructionBlock};
+use crate::instruction::InstructionBlock;
 
 mod block_context;
 mod options;
 
 impl Fuzzer {
     fn process_fuzzer_command(&mut self, command: FuzzerCommand) {
-        self.context_non_constant.process_fuzzer_command(command.clone());
-        //self.context_constant.process_fuzzer_command(command);
+        self.context_non_constant.process_fuzzer_command(command);
     }
 }
 

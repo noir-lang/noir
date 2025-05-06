@@ -20,7 +20,7 @@ pub(crate) struct BlockContext {
     pub(crate) acir_ids: HashMap<ValueType, Vec<TypedValue>>,
     /// Ids of Brillig witnesses stored as TypedValue separated by type
     pub(crate) brillig_ids: HashMap<ValueType, Vec<TypedValue>>,
-    /// ACIR and Brillig last changed value
+    /// ACIR and Brillig last changed value, used to finalize the block with return
     pub(crate) last_value_acir: Option<TypedValue>,
     pub(crate) last_value_brillig: Option<TypedValue>,
     /// Depth of the block in the CFG
@@ -36,10 +36,10 @@ pub(crate) struct BlockContext {
 /// We use modulo to wrap index around the length of the vector, because fuzzer can produce index that is greater than the length of the vector
 fn get_typed_value_from_map(
     map: &HashMap<ValueType, Vec<TypedValue>>,
-    type_: ValueType,
+    type_: &ValueType,
     idx: usize,
 ) -> Option<TypedValue> {
-    let arr = map.get(&type_);
+    let arr = map.get(type_);
     arr?;
     let arr = arr.unwrap();
     let value = arr.get(idx % arr.len());
@@ -49,10 +49,10 @@ fn get_typed_value_from_map(
 
 fn append_typed_value_to_map(
     map: &mut HashMap<ValueType, Vec<TypedValue>>,
-    type_: ValueType,
+    type_: &ValueType,
     value: TypedValue,
 ) {
-    map.entry(type_.clone()).or_default().push(value);
+    map.entry(*type_).or_default().push(value);
 }
 
 impl BlockContext {
@@ -81,9 +81,8 @@ impl BlockContext {
         arg: Argument,
         instruction: InstructionWithOneArg,
     ) {
-        let acir_arg = get_typed_value_from_map(&self.acir_ids, arg.value_type.clone(), arg.index);
-        let brillig_arg =
-            get_typed_value_from_map(&self.brillig_ids, arg.value_type.clone(), arg.index);
+        let acir_arg = get_typed_value_from_map(&self.acir_ids, &arg.value_type, arg.index);
+        let brillig_arg = get_typed_value_from_map(&self.brillig_ids, &arg.value_type, arg.index);
         let (acir_arg, brillig_arg) = match (acir_arg, brillig_arg) {
             (Some(acir_arg), Some(brillig_arg)) => (acir_arg, brillig_arg),
             _ => return,
@@ -92,10 +91,10 @@ impl BlockContext {
         let brillig_result = instruction(brillig_builder, brillig_arg);
         self.last_value_acir = Some(acir_result.clone());
         self.last_value_brillig = Some(brillig_result.clone());
-        append_typed_value_to_map(&mut self.acir_ids, acir_result.to_value_type(), acir_result);
+        append_typed_value_to_map(&mut self.acir_ids, &acir_result.to_value_type(), acir_result);
         append_typed_value_to_map(
             &mut self.brillig_ids,
-            brillig_result.to_value_type(),
+            &brillig_result.to_value_type(),
             brillig_result,
         );
     }
@@ -109,17 +108,15 @@ impl BlockContext {
         rhs: Argument,
         instruction: InstructionWithTwoArgs,
     ) {
-        let acir_lhs = get_typed_value_from_map(&self.acir_ids, lhs.value_type.clone(), lhs.index);
-        let acir_rhs = get_typed_value_from_map(&self.acir_ids, rhs.value_type.clone(), rhs.index);
+        let acir_lhs = get_typed_value_from_map(&self.acir_ids, &lhs.value_type, lhs.index);
+        let acir_rhs = get_typed_value_from_map(&self.acir_ids, &rhs.value_type, rhs.index);
         let (acir_lhs, acir_rhs) = match (acir_lhs, acir_rhs) {
             (Some(acir_lhs), Some(acir_rhs)) => (acir_lhs, acir_rhs),
             _ => return,
         };
         let acir_result = instruction(acir_builder, acir_lhs, acir_rhs);
-        let brillig_lhs =
-            get_typed_value_from_map(&self.brillig_ids, lhs.value_type.clone(), lhs.index);
-        let brillig_rhs =
-            get_typed_value_from_map(&self.brillig_ids, rhs.value_type.clone(), rhs.index);
+        let brillig_lhs = get_typed_value_from_map(&self.brillig_ids, &lhs.value_type, lhs.index);
+        let brillig_rhs = get_typed_value_from_map(&self.brillig_ids, &rhs.value_type, rhs.index);
         let (brillig_lhs, brillig_rhs) = match (brillig_lhs, brillig_rhs) {
             (Some(brillig_lhs), Some(brillig_rhs)) => (brillig_lhs, brillig_rhs),
             _ => return,
@@ -127,10 +124,10 @@ impl BlockContext {
         let brillig_result = instruction(brillig_builder, brillig_lhs, brillig_rhs);
         self.last_value_acir = Some(acir_result.clone());
         self.last_value_brillig = Some(brillig_result.clone());
-        append_typed_value_to_map(&mut self.acir_ids, acir_result.to_value_type(), acir_result);
+        append_typed_value_to_map(&mut self.acir_ids, &acir_result.to_value_type(), acir_result);
         append_typed_value_to_map(
             &mut self.brillig_ids,
-            brillig_result.to_value_type(),
+            &brillig_result.to_value_type(),
             brillig_result,
         );
     }
@@ -189,26 +186,25 @@ impl BlockContext {
                 );
             }
             Instruction::Cast { lhs, type_ } => {
-                let acir_lhs =
-                    get_typed_value_from_map(&self.acir_ids, lhs.value_type.clone(), lhs.index);
+                let acir_lhs = get_typed_value_from_map(&self.acir_ids, &lhs.value_type, lhs.index);
                 let brillig_lhs =
-                    get_typed_value_from_map(&self.brillig_ids, lhs.value_type.clone(), lhs.index);
+                    get_typed_value_from_map(&self.brillig_ids, &lhs.value_type, lhs.index);
                 let (acir_lhs, brillig_lhs) = match (acir_lhs, brillig_lhs) {
                     (Some(acir_lhs), Some(brillig_lhs)) => (acir_lhs, brillig_lhs),
                     _ => return,
                 };
-                let acir_result = acir_builder.insert_cast(acir_lhs, type_.clone());
-                let brillig_result = brillig_builder.insert_cast(brillig_lhs, type_.clone());
+                let acir_result = acir_builder.insert_cast(acir_lhs, type_);
+                let brillig_result = brillig_builder.insert_cast(brillig_lhs, type_);
                 self.last_value_acir = Some(acir_result.clone());
                 self.last_value_brillig = Some(brillig_result.clone());
                 append_typed_value_to_map(
                     &mut self.acir_ids,
-                    acir_result.to_value_type(),
+                    &acir_result.to_value_type(),
                     acir_result,
                 );
                 append_typed_value_to_map(
                     &mut self.brillig_ids,
-                    brillig_result.to_value_type(),
+                    &brillig_result.to_value_type(),
                     brillig_result,
                 );
             }
@@ -281,10 +277,10 @@ impl BlockContext {
         &mut self,
         acir_builder: &mut FuzzerBuilder,
         brillig_builder: &mut FuzzerBuilder,
-        instructions: Vec<Instruction>,
+        instructions: &Vec<Instruction>,
     ) {
         for instruction in instructions {
-            self.insert_instruction(acir_builder, brillig_builder, instruction);
+            self.insert_instruction(acir_builder, brillig_builder, *instruction);
         }
     }
 
@@ -294,7 +290,7 @@ impl BlockContext {
         acir_builder: &mut FuzzerBuilder,
         brillig_builder: &mut FuzzerBuilder,
     ) {
-        match (self.last_value_acir.clone(), self.last_value_brillig.clone()) {
+        match (self.last_value_acir, self.last_value_brillig) {
             (Some(acir_result), Some(brillig_result)) => {
                 acir_builder.finalize_function(acir_result);
                 brillig_builder.finalize_function(brillig_result);
@@ -362,9 +358,5 @@ impl BlockContext {
         );
         self.children_blocks.push(then_destination);
         self.children_blocks.push(else_destination);
-    }
-
-    pub(crate) fn get_last_variables(self) -> (Option<TypedValue>, Option<TypedValue>) {
-        (self.last_value_acir, self.last_value_brillig)
     }
 }

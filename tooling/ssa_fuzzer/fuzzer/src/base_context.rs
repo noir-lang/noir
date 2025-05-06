@@ -26,7 +26,7 @@ pub(crate) enum FuzzerCommand {
     /// Adds instructions to current_block_context from stored instruction_blocks
     InsertSimpleInstructionBlock { instruction_block_idx: usize },
     /// Merges two instruction blocks, stores result in instruction_blocks
-    MergeBlocks { first_block_idx: usize, second_block_idx: usize },
+    MergeInstructionBlocks { first_block_idx: usize, second_block_idx: usize },
     /// terminates current SSA block with jmp_if_else. Creates two new SSA blocks from chosen InstructionBlocks.
     /// Switches current_block_context to then_branch.
     /// Adds else_branch to the next_block_queue. If current SSA block is already terminated, skip.
@@ -79,7 +79,7 @@ impl FuzzerContext {
         for type_ in types {
             let acir_id = acir_builder.insert_variable(type_.to_ssa_type());
             let brillig_id = brillig_builder.insert_variable(type_.to_ssa_type());
-            acir_ids.entry(type_.clone()).or_insert(Vec::new()).push(acir_id);
+            acir_ids.entry(type_).or_insert(Vec::new()).push(acir_id);
             brillig_ids.entry(type_).or_insert(Vec::new()).push(brillig_id);
         }
 
@@ -115,13 +115,13 @@ impl FuzzerContext {
         for (value, type_) in values.into_iter().zip(&types) {
             let field_element = value.into();
             acir_ids
-                .entry(type_.clone())
+                .entry(*type_)
                 .or_insert(Vec::new())
-                .push(acir_builder.insert_constant(field_element, type_.clone()));
+                .push(acir_builder.insert_constant(field_element, *type_));
             brillig_ids
-                .entry(type_.clone())
+                .entry(*type_)
                 .or_insert(Vec::new())
-                .push(brillig_builder.insert_constant(field_element, type_.clone()));
+                .push(brillig_builder.insert_constant(field_element, *type_));
         }
 
         let main_block = acir_builder.get_current_block();
@@ -147,6 +147,7 @@ impl FuzzerContext {
         self.brillig_builder.switch_to_block(block_id);
     }
 
+    /// Stores variables of the current block
     fn store_variables(&mut self) {
         self.stored_variables.insert(
             self.current_block.block_id,
@@ -161,9 +162,9 @@ impl FuzzerContext {
         self.store_variables();
 
         // find instruction block to be inserted
-        let block_then =
+        let block_then_instruction_block =
             self.instruction_blocks[block_then_idx % self.instruction_blocks.len()].clone();
-        let block_else =
+        let block_else_instruction_block =
             self.instruction_blocks[block_else_idx % self.instruction_blocks.len()].clone();
 
         // creates new blocks
@@ -194,14 +195,14 @@ impl FuzzerContext {
         block_then_context.insert_instructions(
             &mut self.acir_builder,
             &mut self.brillig_builder,
-            block_then.instructions,
+            &block_then_instruction_block.instructions,
         );
 
         self.switch_to_block(block_else_id);
         block_else_context.insert_instructions(
             &mut self.acir_builder,
             &mut self.brillig_builder,
-            block_else.instructions,
+            &block_else_instruction_block.instructions,
         );
 
         // terminates current block with jmp_if
@@ -249,7 +250,7 @@ impl FuzzerContext {
         destination_block_context.insert_instructions(
             &mut self.acir_builder,
             &mut self.brillig_builder,
-            block.instructions,
+            &block.instructions,
         );
 
         // switches to the current block and terminates it with jmp
@@ -270,24 +271,25 @@ impl FuzzerContext {
     pub(crate) fn process_fuzzer_command(&mut self, command: FuzzerCommand) {
         match command {
             FuzzerCommand::InsertSimpleInstructionBlock { instruction_block_idx } => {
-                let instruction_block = self.instruction_blocks
-                    [instruction_block_idx % self.instruction_blocks.len()]
-                .clone();
+                let instruction_block =
+                    &self.instruction_blocks[instruction_block_idx % self.instruction_blocks.len()];
                 self.current_block.context.insert_instructions(
                     &mut self.acir_builder,
                     &mut self.brillig_builder,
-                    instruction_block.instructions,
+                    &instruction_block.instructions,
                 );
             }
-            FuzzerCommand::MergeBlocks { first_block_idx, second_block_idx } => {
-                let first_block = self.instruction_blocks
-                    [first_block_idx % self.instruction_blocks.len()]
-                .clone();
-                let second_block = self.instruction_blocks
-                    [second_block_idx % self.instruction_blocks.len()]
-                .clone();
-                let combined_instructions =
-                    first_block.instructions.into_iter().chain(second_block.instructions).collect();
+            FuzzerCommand::MergeInstructionBlocks { first_block_idx, second_block_idx } => {
+                let first_idx = first_block_idx % self.instruction_blocks.len();
+                let second_idx = second_block_idx % self.instruction_blocks.len();
+
+                let combined_instructions = self.instruction_blocks[first_idx]
+                    .instructions
+                    .iter()
+                    .chain(&self.instruction_blocks[second_idx].instructions)
+                    .cloned()
+                    .collect();
+
                 self.instruction_blocks
                     .push(InstructionBlock { instructions: combined_instructions });
             }
@@ -378,32 +380,12 @@ impl FuzzerContext {
         unreachable!("Blocks are not in the same CFG. How?");
     }
 
-    /// Finds maximal distance to closest parent for lhs and rhs
-    fn find_distance_to_closest_parent(&mut self, lhs: &StoredBlock, rhs: &StoredBlock) -> u32 {
-        let closest_parent = self.find_closest_parent(lhs, rhs);
-        let mut distance = 0;
-        let mut max_distance = 0;
-        for block in &lhs.context.parent_blocks_history {
-            if *block == closest_parent {
-                max_distance = distance;
-                break;
-            }
-            distance += 1;
-        }
-
-        distance = 0;
-        for block in &rhs.context.parent_blocks_history {
-            if *block == closest_parent {
-                return max(distance, max_distance);
-            }
-            distance += 1;
-        }
-
-        unreachable!("Blocks are not in the same CFG");
+    fn ids_to_blocks(&self, ids: &Vec<BasicBlockId>) -> Vec<StoredBlock> {
+        ids.into_iter().map(|id| self.stored_blocks[&id].clone()).collect()
     }
 
     /// Checks if blocks' children blocks have only one end or block has no children blocks
-    fn end_of_block(&mut self, block_id: BasicBlockId) -> Option<BasicBlockId> {
+    fn end_of_block(&self, block_id: BasicBlockId) -> Option<BasicBlockId> {
         let block = match self.stored_blocks.get(&block_id) {
             Some(block) => block,
             None => unreachable!("Block not found in stored blocks. How?"),
@@ -412,16 +394,17 @@ impl FuzzerContext {
         if block.context.children_blocks.len() == 0 {
             return Some(block.block_id);
         }
-        let mut blocks_stack = vec![block.clone()];
+        let mut blocks_stack = vec![block.block_id];
         let mut end_blocks = Vec::new();
         while !blocks_stack.is_empty() {
-            let block = blocks_stack.pop().unwrap();
-            let children_blocks = self.ids_to_blocks(block.context.children_blocks.clone());
+            let block_id = blocks_stack.pop().unwrap();
+            let block = &self.stored_blocks[&block_id];
+            let children_blocks = self.ids_to_blocks(&block.context.children_blocks);
             for child_block in children_blocks {
                 if child_block.context.children_blocks.len() == 0 {
                     end_blocks.push(child_block.block_id);
                 } else {
-                    blocks_stack.push(child_block);
+                    blocks_stack.push(child_block.block_id);
                 }
             }
         }
@@ -433,29 +416,23 @@ impl FuzzerContext {
         None
     }
 
-    fn ids_to_blocks(&mut self, ids: Vec<BasicBlockId>) -> Vec<StoredBlock> {
-        ids.into_iter().map(|id| self.stored_blocks[&id].clone()).collect()
-    }
-
     fn merge_one_block(&mut self, block_id: BasicBlockId) -> StoredBlock {
-        let block = self.stored_blocks[&block_id].clone();
+        let block = &self.stored_blocks[&block_id];
         let block_end = self.end_of_block(block_id);
         if block_end.is_some() {
             return self.stored_blocks[&block_end.unwrap()].clone();
         }
-        if block.context.children_blocks.len() == 0 {
-            return block;
-        } else if block.context.children_blocks.len() == 1 {
+        if block.context.children_blocks.len() == 1 {
             let child_block = self.stored_blocks[&block.context.children_blocks[0]].clone();
             self.merge_one_block(child_block.block_id)
         } else if block.context.children_blocks.len() == 2 {
-            let child_block_1 = self.stored_blocks[&block.context.children_blocks[0]].clone();
-            let child_block_2 = self.stored_blocks[&block.context.children_blocks[1]].clone();
-            let end_of_block_1 = self.merge_one_block(child_block_1.block_id);
-            let end_of_block_2 = self.merge_one_block(child_block_2.block_id);
-            return self.merge_blocks(end_of_block_1, end_of_block_2);
+            let child_block_1 = self.stored_blocks[&block.context.children_blocks[0]].block_id;
+            let child_block_2 = self.stored_blocks[&block.context.children_blocks[1]].block_id;
+            let end_of_block_1 = self.merge_one_block(child_block_1);
+            let end_of_block_2 = self.merge_one_block(child_block_2);
+            self.merge_blocks(end_of_block_1, end_of_block_2)
         } else {
-            unreachable!("Block has more than 2 children blocks.");
+            unreachable!("Block {:?} has more than 2 children blocks.", block_id);
         }
     }
 
@@ -476,7 +453,7 @@ impl FuzzerContext {
         for block in self.next_block_queue.iter() {
             self.stored_blocks.insert(block.block_id, block.clone());
         }
-        let last_block = self.try_merge();
+        let mut last_block = self.try_merge();
 
         let return_instruction_block = self.instruction_blocks
             [return_instruction_block_idx % self.instruction_blocks.len()]
@@ -494,14 +471,14 @@ impl FuzzerContext {
         return_block_context.insert_instructions(
             &mut self.acir_builder,
             &mut self.brillig_builder,
-            return_instruction_block.instructions,
+            &return_instruction_block.instructions,
         );
 
         return_block_context
             .finalize_block_with_return(&mut self.acir_builder, &mut self.brillig_builder);
 
         self.switch_to_block(last_block.block_id);
-        last_block.context.clone().finalize_block_with_jmp(
+        last_block.context.finalize_block_with_jmp(
             &mut self.acir_builder,
             &mut self.brillig_builder,
             return_block_id,
