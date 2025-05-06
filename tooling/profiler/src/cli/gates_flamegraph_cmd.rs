@@ -3,6 +3,7 @@ use std::path::{Path, PathBuf};
 use acir::circuit::OpcodeLocation;
 use clap::Args;
 use color_eyre::eyre::{self, Context};
+use tracing::info;
 
 use noir_artifact_cli::fs::artifact::read_program_from_file;
 use noirc_artifacts::debug::DebugArtifact;
@@ -84,7 +85,7 @@ fn run_with_provider<Provider: GatesProvider, Generator: FlamegraphGenerator>(
             function_names[func_idx].to_owned()
         };
 
-        println!(
+        info!(
             "Opcode count: {}, Total gates by opcodes: {}, Circuit size: {}",
             func_gates.acir_opcodes,
             func_gates.gates_per_opcode.iter().sum::<usize>(),
