@@ -757,7 +757,7 @@ mod nargo_expand_{test_type} {{
     #[test]
     fn test_{test_name}() {{
         let test_program_dir = PathBuf::from("{test_dir}");
-        nargo_expand_compile(test_program_dir);
+        nargo_expand_compile(test_program_dir, "{test_type}");
     }}
     "#
         )
