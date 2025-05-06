@@ -1,9 +1,9 @@
 use std::path::{Path, PathBuf};
 
+use acir::AcirField;
 use acir::circuit::Circuit;
 use acir::circuit::Opcode;
 use acir::circuit::OpcodeLocation;
-use acir::AcirField;
 use acir::circuit::brillig::BrilligFunctionId;
 use clap::Args;
 use color_eyre::eyre::{self, Context};
@@ -47,8 +47,8 @@ fn run_with_generator<Generator: FlamegraphGenerator>(
 ) -> eyre::Result<()> {
     info!("Reading program from {:?}", artifact_path);
 
-    let mut program =
-        read_program_from_file(artifact_path).with_context(|| "Could not read program from file")?;
+    let mut program = read_program_from_file(artifact_path)
+        .with_context(|| "Could not read program from file")?;
 
     let acir_names = std::mem::take(&mut program.names);
     let brillig_names = std::mem::take(&mut program.brillig_names);
@@ -57,7 +57,9 @@ fn run_with_generator<Generator: FlamegraphGenerator>(
     let debug_artifact = DebugArtifact::from(program);
 
     // Generate flamegraph for ACIR opcodes for each function in the program
-    for (acir_fn_index, (circuit, function_name)) in bytecode.functions.iter().zip(acir_names).enumerate() {
+    for (acir_fn_index, (circuit, function_name)) in
+        bytecode.functions.iter().zip(acir_names).enumerate()
+    {
         let circuit_samples = generate_acir_flamegraph_samples(circuit, &function_name);
 
         info!("Opcode count for {}: {}", function_name, circuit.opcodes.len());
