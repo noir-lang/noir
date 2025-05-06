@@ -57,8 +57,6 @@ allow = [
     "BSL-1.0",
     # libfuzzer-sys
     "NCSA",
-    # webpki-root-certs
-    "CDLA-Permissive-2.0",
 ]
 
 # Allow 1 or more licenses on a per-crate basis, so that particular licenses
