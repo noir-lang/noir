@@ -69,7 +69,7 @@ fn run_with_generator(
     ensure_brillig_entry_point(&program)?;
 
     if !print_sample_count && output_path.is_none() {
-        return report_error("Missing --output <o> argument for when building a flamegraph")
+        return report_error("Missing --output <OUTPUT> argument for when building a flamegraph")
             .map_err(Into::into);
     }
 
