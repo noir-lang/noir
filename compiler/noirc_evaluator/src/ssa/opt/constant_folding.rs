@@ -501,9 +501,8 @@ impl<'brillig> Context<'brillig> {
         if can_be_deduplicated || matches!(instruction, Instruction::MakeArray { .. }) {
             let use_predicate =
                 self.use_constraint_info && instruction.requires_acir_gen_predicate(&function.dfg);
-            // dbg!(use_predicate);
             let predicate = use_predicate.then_some(side_effects_enabled_var);
-            // dbg!(predicate);
+
             self.cached_instruction_results
                 .entry(instruction)
                 .or_default()
@@ -1145,7 +1144,9 @@ mod test {
 
     #[test]
     fn constant_index_array_access_deduplication() {
-        // We should not be deduplicating any array accesses
+        // After constructing this IR, we run constant folding which should replace the second constant-index array get
+        // with a reference to the results to the first. This then allows us to optimize away
+        // the constrain instruction as both inputs are known to be equal.
         let src = "
             acir(inline) fn main f0 {
               b0(v0: [Field; 4], v1: u32, v2: bool, v3: bool):
@@ -1163,8 +1164,8 @@ mod test {
             acir(inline) fn main f0 {
               b0(v0: [Field; 4], v1: u32, v2: bool, v3: bool):
                 enable_side_effects v2
-                v4 = array_get v0, index u32 0 -> Field
-                v5 = array_get v0, index v1 -> Field
+                v5 = array_get v0, index u32 0 -> Field
+                v6 = array_get v0, index v1 -> Field
                 enable_side_effects v3
                 v7 = array_get v0, index v1 -> Field
                 return

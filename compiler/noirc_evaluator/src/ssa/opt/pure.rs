@@ -333,8 +333,9 @@ mod test {
             acir(inline) fn pure_basic f6 {
               b0():
                 v0 = make_array [Field 0, Field 1] : [Field; 2]
-                v1 = allocate -> &mut Field
-                store Field 0 at v1
+                v1 = array_get v0, index u32 1 -> Field
+                v2 = allocate -> &mut Field
+                store Field 0 at v2
                 return
             }
 
@@ -407,8 +408,9 @@ mod test {
         acir(inline) pure fn pure_basic f6 {
           b0():
             v2 = make_array [Field 0, Field 1] : [Field; 2]
-            v3 = allocate -> &mut Field
-            store Field 0 at v3
+            v4 = array_get v0, index u32 1 -> Field
+            v5 = allocate -> &mut Field
+            store Field 0 at v5
             return
         }
         acir(inline) pure fn pure_recursive f7 {
