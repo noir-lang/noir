@@ -132,10 +132,52 @@
 <a href="#131" id="131">131</a>
 <a href="#132" id="132">132</a>
 <a href="#133" id="133">133</a>
-<a href="#134" id="134">134</a></pre></div><pre class="rust"><code><span class="kw">use crate</span>::{
+<a href="#134" id="134">134</a>
+<a href="#135" id="135">135</a>
+<a href="#136" id="136">136</a>
+<a href="#137" id="137">137</a>
+<a href="#138" id="138">138</a>
+<a href="#139" id="139">139</a>
+<a href="#140" id="140">140</a>
+<a href="#141" id="141">141</a>
+<a href="#142" id="142">142</a>
+<a href="#143" id="143">143</a>
+<a href="#144" id="144">144</a>
+<a href="#145" id="145">145</a>
+<a href="#146" id="146">146</a>
+<a href="#147" id="147">147</a>
+<a href="#148" id="148">148</a>
+<a href="#149" id="149">149</a>
+<a href="#150" id="150">150</a>
+<a href="#151" id="151">151</a>
+<a href="#152" id="152">152</a>
+<a href="#153" id="153">153</a>
+<a href="#154" id="154">154</a>
+<a href="#155" id="155">155</a>
+<a href="#156" id="156">156</a>
+<a href="#157" id="157">157</a>
+<a href="#158" id="158">158</a>
+<a href="#159" id="159">159</a>
+<a href="#160" id="160">160</a>
+<a href="#161" id="161">161</a>
+<a href="#162" id="162">162</a>
+<a href="#163" id="163">163</a>
+<a href="#164" id="164">164</a>
+<a href="#165" id="165">165</a>
+<a href="#166" id="166">166</a>
+<a href="#167" id="167">167</a>
+<a href="#168" id="168">168</a>
+<a href="#169" id="169">169</a>
+<a href="#170" id="170">170</a>
+<a href="#171" id="171">171</a></pre></div><pre class="rust"><code><span class="kw">use </span>acvm::{FieldElement, acir::brillig::ForeignCallParam};
+<span class="kw">use </span>iter_extended::vecmap;
+<span class="kw">use </span>noirc_printable_type::{PrintableValueDisplay, TryFromParamsError};
+
+<span class="kw">use crate</span>::{
     errors::RuntimeError,
     ssa::{
         ir::{
+            dfg::DataFlowGraph,
             function::Function,
             instruction::{Instruction, InstructionId, Intrinsic},
             value::ValueId,
@@ -242,28 +284,60 @@
     instruction: InstructionId,
     arguments: <span class="kw-2">&amp;</span>[ValueId],
 ) -&gt; <span class="prelude-ty">Result</span>&lt;bool, RuntimeError&gt; {
-    <span class="kw">if </span>arguments.len() != <span class="number">2 </span>{
+    <span class="kw">if </span>arguments.len() &lt; <span class="number">2 </span>{
         <span class="macro">panic!</span>(<span class="string">"ICE: static_assert called with wrong number of arguments"</span>)
     }
 
-    <span class="kw">if </span>!function.dfg.is_constant(arguments[<span class="number">1</span>]) {
-        <span class="kw">let </span>call_stack = function.dfg.get_instruction_call_stack(instruction);
-        <span class="kw">return </span><span class="prelude-val">Err</span>(RuntimeError::StaticAssertDynamicMessage { call_stack });
+    <span class="comment">// To turn the arguments into a string we do the same as we'd do if the arguments
+    // were passed to the built-in foreign call "print" functions.
+    </span><span class="kw">let </span><span class="kw-2">mut </span>foreign_call_params = Vec::with_capacity(arguments.len() - <span class="number">1</span>);
+    <span class="kw">for </span>arg <span class="kw">in </span>arguments.iter().skip(<span class="number">1</span>) {
+        <span class="kw">if </span>!function.dfg.is_constant(<span class="kw-2">*</span>arg) {
+            <span class="kw">let </span>call_stack = function.dfg.get_instruction_call_stack(instruction);
+            <span class="kw">return </span><span class="prelude-val">Err</span>(RuntimeError::StaticAssertDynamicMessage { call_stack });
+        }
+        append_foreign_call_param(<span class="kw-2">*</span>arg, <span class="kw-2">&amp;</span>function.dfg, <span class="kw-2">&amp;mut </span>foreign_call_params);
     }
 
     <span class="kw">if </span>function.dfg.is_constant_true(arguments[<span class="number">0</span>]) {
-        <span class="prelude-val">Ok</span>(<span class="bool-val">false</span>)
+        <span class="kw">return </span><span class="prelude-val">Ok</span>(<span class="bool-val">false</span>);
+    }
+
+    <span class="kw">let </span>message = <span class="kw">match </span>PrintableValueDisplay::&lt;FieldElement&gt;::try_from_params(<span class="kw-2">&amp;</span>foreign_call_params)
+    {
+        <span class="prelude-val">Ok</span>(display_values) =&gt; display_values.to_string(),
+        <span class="prelude-val">Err</span>(err) =&gt; <span class="kw">match </span>err {
+            TryFromParamsError::MissingForeignCallInputs =&gt; {
+                <span class="macro">panic!</span>(<span class="string">"ICE: missing foreign call inputs"</span>)
+            }
+            TryFromParamsError::ParsingError(error) =&gt; {
+                <span class="macro">panic!</span>(<span class="string">"ICE: could not decode printable type {:?}"</span>, error)
+            }
+        },
+    };
+
+    <span class="kw">let </span>call_stack = function.dfg.get_instruction_call_stack(instruction);
+    <span class="kw">if </span>!function.dfg.is_constant(arguments[<span class="number">0</span>]) {
+        <span class="kw">return </span><span class="prelude-val">Err</span>(RuntimeError::StaticAssertDynamicPredicate { message, call_stack });
+    }
+
+    <span class="prelude-val">Err</span>(RuntimeError::StaticAssertFailed { message, call_stack })
+}
+
+<span class="kw">fn </span>append_foreign_call_param(
+    value: ValueId,
+    dfg: <span class="kw-2">&amp;</span>DataFlowGraph,
+    foreign_call_params: <span class="kw-2">&amp;mut </span>Vec&lt;ForeignCallParam&lt;FieldElement&gt;&gt;,
+) {
+    <span class="kw">if let </span><span class="prelude-val">Some</span>(field) = dfg.get_numeric_constant(value) {
+        foreign_call_params.push(ForeignCallParam::Single(field));
+    } <span class="kw">else if let </span><span class="prelude-val">Some</span>((values, _typ)) = dfg.get_array_constant(value) {
+        <span class="kw">let </span>values = vecmap(values, |value| {
+            dfg.get_numeric_constant(value).expect(<span class="string">"ICE: expected constant value"</span>)
+        });
+        foreign_call_params.push(ForeignCallParam::Array(values));
     } <span class="kw">else </span>{
-        <span class="kw">let </span>call_stack = function.dfg.get_instruction_call_stack(instruction);
-        <span class="kw">if </span>function.dfg.is_constant(arguments[<span class="number">0</span>]) {
-            <span class="kw">let </span>message = function
-                .dfg
-                .get_string(arguments[<span class="number">1</span>])
-                .expect(<span class="string">"Expected second argument to be a string"</span>);
-            <span class="prelude-val">Err</span>(RuntimeError::StaticAssertFailed { message, call_stack })
-        } <span class="kw">else </span>{
-            <span class="prelude-val">Err</span>(RuntimeError::StaticAssertDynamicPredicate { call_stack })
-        }
+        <span class="macro">panic!</span>(<span class="string">"ICE: expected constant value"</span>);
     }
 }
 </code></pre></div></section></main></body></html>

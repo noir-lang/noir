@@ -2570,7 +2570,20 @@
 <a href="#2569" id="2569">2569</a>
 <a href="#2570" id="2570">2570</a>
 <a href="#2571" id="2571">2571</a>
-<a href="#2572" id="2572">2572</a></pre></div><pre class="rust"><code><span class="doccomment">//! Coming after type checking, monomorphization is the last pass in Noir's frontend.
+<a href="#2572" id="2572">2572</a>
+<a href="#2573" id="2573">2573</a>
+<a href="#2574" id="2574">2574</a>
+<a href="#2575" id="2575">2575</a>
+<a href="#2576" id="2576">2576</a>
+<a href="#2577" id="2577">2577</a>
+<a href="#2578" id="2578">2578</a>
+<a href="#2579" id="2579">2579</a>
+<a href="#2580" id="2580">2580</a>
+<a href="#2581" id="2581">2581</a>
+<a href="#2582" id="2582">2582</a>
+<a href="#2583" id="2583">2583</a>
+<a href="#2584" id="2584">2584</a>
+<a href="#2585" id="2585">2585</a></pre></div><pre class="rust"><code><span class="doccomment">//! Coming after type checking, monomorphization is the last pass in Noir's frontend.
 //! It accepts the type checked HIR as input and produces a monomorphized AST as output.
 //! This file implements the pass itself, while the AST is defined in the ast module.
 //!
@@ -4216,6 +4229,15 @@
                     </span><span class="self">self</span>.append_printable_type_info(<span class="kw-2">&amp;</span>hir_arguments[<span class="number">1</span>], <span class="kw-2">&amp;mut </span>arguments);
                 }
             }
+            <span class="kw">if let </span>Definition::Builtin(name) = <span class="kw-2">&amp;</span>ident.definition {
+                <span class="kw">if </span>name.as_str() == <span class="string">"static_assert" </span>{
+                    <span class="comment">// static_assert can take any type for the `message` argument.
+                    // Here we append printable type info so we can know how to turn that argument
+                    // into a human-readable string.
+                    </span><span class="kw">let </span>typ = <span class="self">self</span>.interner.id_type(call.arguments[<span class="number">1</span>]);
+                    <span class="self">self</span>.append_printable_type_info_for_type(typ, <span class="kw-2">&amp;mut </span>arguments);
+                }
+            }
         }
 
         <span class="kw">let </span><span class="kw-2">mut </span>block_expressions = <span class="macro">vec!</span>[];
@@ -4285,33 +4307,37 @@
         <span class="kw">match </span>hir_argument {
             HirExpression::Ident(ident, <span class="kw">_</span>) =&gt; {
                 <span class="kw">let </span>typ = <span class="self">self</span>.interner.definition_type(ident.id);
-                <span class="kw">let </span>typ: Type = typ.follow_bindings();
-                <span class="kw">let </span>is_fmt_str = <span class="kw">match </span>typ {
-                    <span class="comment">// A format string has many different possible types that need to be handled.
-                    // Loop over each element in the format string to fetch each type's relevant metadata
-                    </span>Type::FmtString(<span class="kw">_</span>, elements) =&gt; {
-                        <span class="kw">match </span><span class="kw-2">*</span>elements {
-                            Type::Tuple(element_types) =&gt; {
-                                <span class="kw">for </span>typ <span class="kw">in </span>element_types {
-                                    <span class="self">Self</span>::append_printable_type_info_inner(<span class="kw-2">&amp;</span>typ, arguments);
-                                }
-                            }
-                            <span class="kw">_ </span>=&gt; <span class="macro">unreachable!</span>(
-                                <span class="string">"ICE: format string type should be a tuple but got a {elements}"
-                            </span>),
-                        }
-                        <span class="bool-val">true
-                    </span>}
-                    <span class="kw">_ </span>=&gt; {
-                        <span class="self">Self</span>::append_printable_type_info_inner(<span class="kw-2">&amp;</span>typ, arguments);
-                        <span class="bool-val">false
-                    </span>}
-                };
-                <span class="comment">// The caller needs information as to whether it is handling a format string or a single type
-                </span>arguments.push(ast::Expression::Literal(ast::Literal::Bool(is_fmt_str)));
+                <span class="self">self</span>.append_printable_type_info_for_type(typ, arguments);
             }
             <span class="kw">_ </span>=&gt; <span class="macro">unreachable!</span>(<span class="string">"logging expr {:?} is not supported"</span>, hir_argument),
         }
+    }
+
+    <span class="kw">fn </span>append_printable_type_info_for_type(<span class="kw-2">&amp;</span><span class="self">self</span>, typ: Type, arguments: <span class="kw-2">&amp;mut </span>Vec&lt;ast::Expression&gt;) {
+        <span class="kw">let </span>typ: Type = typ.follow_bindings();
+        <span class="kw">let </span>is_fmt_str = <span class="kw">match </span>typ {
+            <span class="comment">// A format string has many different possible types that need to be handled.
+            // Loop over each element in the format string to fetch each type's relevant metadata
+            </span>Type::FmtString(<span class="kw">_</span>, elements) =&gt; {
+                <span class="kw">match </span><span class="kw-2">*</span>elements {
+                    Type::Tuple(element_types) =&gt; {
+                        <span class="kw">for </span>typ <span class="kw">in </span>element_types {
+                            <span class="self">Self</span>::append_printable_type_info_inner(<span class="kw-2">&amp;</span>typ, arguments);
+                        }
+                    }
+                    <span class="kw">_ </span>=&gt; <span class="macro">unreachable!</span>(
+                        <span class="string">"ICE: format string type should be a tuple but got a {elements}"
+                    </span>),
+                }
+                <span class="bool-val">true
+            </span>}
+            <span class="kw">_ </span>=&gt; {
+                <span class="self">Self</span>::append_printable_type_info_inner(<span class="kw-2">&amp;</span>typ, arguments);
+                <span class="bool-val">false
+            </span>}
+        };
+        <span class="comment">// The caller needs information as to whether it is handling a format string or a single type
+        </span>arguments.push(ast::Expression::Literal(ast::Literal::Bool(is_fmt_str)));
     }
 
     <span class="kw">fn </span>append_printable_type_info_inner(typ: <span class="kw-2">&amp;</span>Type, arguments: <span class="kw-2">&amp;mut </span>Vec&lt;ast::Expression&gt;) {

@@ -1066,7 +1066,7 @@
             }
         }
         Intrinsic::StaticAssert =&gt; {
-            <span class="kw">if </span>arguments.len() != <span class="number">2 </span>{
+            <span class="kw">if </span>arguments.len() &lt; <span class="number">2 </span>{
                 <span class="macro">panic!</span>(<span class="string">"ICE: static_assert called with wrong number of arguments"</span>)
             }
 

@@ -3442,7 +3442,7 @@
     <span class="prelude-val">Ok</span>(Value::Slice(values, typ))
 }
 
-<span class="comment">// static_assert&lt;let N: u32&gt;(predicate: bool, message: str&lt;N&gt;)
+<span class="comment">// static_assert&lt;let N: u32&gt;(predicate: bool, message: T)
 </span><span class="kw">fn </span>static_assert(
     interner: <span class="kw-2">&amp;</span>NodeInterner,
     arguments: Vec&lt;(Value, Location)&gt;,
@@ -3451,7 +3451,7 @@
 ) -&gt; IResult&lt;Value&gt; {
     <span class="kw">let </span>(predicate, message) = check_two_arguments(arguments, location)<span class="question-mark">?</span>;
     <span class="kw">let </span>predicate = get_bool(predicate)<span class="question-mark">?</span>;
-    <span class="kw">let </span>message = get_str(interner, message)<span class="question-mark">?</span>;
+    <span class="kw">let </span>message = message.<span class="number">0</span>.display(interner).to_string();
 
     <span class="kw">if </span>predicate {
         <span class="prelude-val">Ok</span>(Value::Unit)
