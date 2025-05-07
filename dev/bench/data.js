@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1746635410702,
+  "lastUpdate": 1746641794060,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -18166,48 +18166,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "asterite@gmail.com",
-            "name": "Ary Borenszweig",
-            "username": "asterite"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "a5ffd085158c02481e1e0e35ae601026a768c65c",
-          "message": "fix: use temporary dirs when fuzzing during `nargo test` (#8275)",
-          "timestamp": "2025-04-29T15:44:31Z",
-          "tree_id": "d3cfb19b53c995332ca8a65b471d8592eb4d018d",
-          "url": "https://github.com/noir-lang/noir/commit/a5ffd085158c02481e1e0e35ae601026a768c65c"
-        },
-        "date": 1745942544946,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 274343,
-            "range": "± 1169",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 250473,
-            "range": "± 2772",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 3595888,
-            "range": "± 17322",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "47281315+guipublic@users.noreply.github.com",
             "name": "guipublic",
             "username": "guipublic"
@@ -20259,6 +20217,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 3227104,
             "range": "± 11745",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "asterite@gmail.com",
+            "name": "Ary Borenszweig",
+            "username": "asterite"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "f2ff1696923a84a900bd54fee020d22edc5a32a6",
+          "message": "fix: allow names to collide in the values/types namespaces (#8286)",
+          "timestamp": "2025-05-07T17:48:39Z",
+          "tree_id": "4098aac31c5595fe868a303a62a086e5d976093d",
+          "url": "https://github.com/noir-lang/noir/commit/f2ff1696923a84a900bd54fee020d22edc5a32a6"
+        },
+        "date": 1746641786442,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 273098,
+            "range": "± 921",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 244839,
+            "range": "± 6123",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 3226060,
+            "range": "± 5462",
             "unit": "ns/iter"
           }
         ]
