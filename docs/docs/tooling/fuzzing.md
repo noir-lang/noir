@@ -79,7 +79,7 @@ Additional fuzzing-specific options include:
       --timeout <TIMEOUT>
           Maximum time in seconds to spend fuzzing per harness (default: no timeout)
       --max-executions <MAX_EXECUTIONS>
-          Maximum number of executions of ACIR and Brillig per harness(default: no limit)
+          Maximum number of executions of ACIR and Brillig per harness (default: no limit)
 
 `--show-output` and `--oracle-resolver` can be used in the same way as with regular execution and testing.
 It is recommended to use `--skip-underconstrained-check` to increase compilation speed.
