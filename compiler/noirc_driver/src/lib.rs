@@ -772,10 +772,12 @@ pub fn compile_no_check(
             ExpressionWidth::default()
         },
         emit_ssa: if options.emit_ssa { Some(context.package_build_path.clone()) } else { None },
-        skip_underconstrained_check: options.skip_underconstrained_check,
+        skip_underconstrained_check: !options.silence_warnings
+            && options.skip_underconstrained_check,
         enable_brillig_constraints_check_lookback: options
             .enable_brillig_constraints_check_lookback,
-        skip_brillig_constraints_check: options.skip_brillig_constraints_check,
+        skip_brillig_constraints_check: !options.silence_warnings
+            && options.skip_brillig_constraints_check,
         inliner_aggressiveness: options.inliner_aggressiveness,
         max_bytecode_increase_percent: options.max_bytecode_increase_percent,
     };
