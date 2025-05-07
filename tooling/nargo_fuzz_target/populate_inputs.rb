@@ -11,6 +11,11 @@ target_path = 'test_programs'
 puts "Copying all #{target_path} to inputs (renamed).."
 num_inputs = 0
 
+# create target directory unless it already exists
+unless Dir.exist? 'draft_inputs'
+  FileUtils.mkdir 'draft_inputs'
+end
+
 Dir["../../#{target_path}/**/*.nr"].each do |path|
   new_filename = path
     .sub(/^\.\.\/\.\.\/test_programs\//, '')
