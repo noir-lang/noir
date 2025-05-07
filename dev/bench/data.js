@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1746635100093,
+  "lastUpdate": 1746635104056,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -3705,95 +3705,6 @@ window.BENCHMARK_DATA = {
       }
     ],
     "Compilation Time": [
-      {
-        "commit": {
-          "author": {
-            "email": "asterite@gmail.com",
-            "name": "Ary Borenszweig",
-            "username": "asterite"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "68e83809f2f87adfa8c6fb30e29f4ac66509ca67",
-          "message": "fix: correct error message on comptime overflow (#8238)",
-          "timestamp": "2025-04-29T15:04:57Z",
-          "tree_id": "3eb58c1ae3fc455a2d379cebde1421f249de4c11",
-          "url": "https://github.com/noir-lang/noir/commit/68e83809f2f87adfa8c6fb30e29f4ac66509ca67"
-        },
-        "date": 1745940921789,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "regression_4709",
-            "value": 0.682,
-            "unit": "s"
-          },
-          {
-            "name": "ram_blowup_regression",
-            "value": 12.8,
-            "unit": "s"
-          },
-          {
-            "name": "global_var_regression_entry_points",
-            "value": 0.481,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-inner",
-            "value": 2.21,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 6.432,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 1.17,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 17.62,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 13.02,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root-empty",
-            "value": 1.24,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root-single-tx",
-            "value": 122,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 122,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 1.034,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-root",
-            "value": 1.604,
-            "unit": "s"
-          }
-        ]
-      },
       {
         "commit": {
           "author": {
@@ -8151,6 +8062,95 @@ window.BENCHMARK_DATA = {
           {
             "name": "rollup-root",
             "value": 1.574,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "jfecher11@gmail.com",
+            "name": "jfecher",
+            "username": "jfecher"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "ea71a0e769fc691053d430eb854f445fd5e03950",
+          "message": "fix: Fix sequencing of side-effects in lvalue (#8384)\n\nCo-authored-by: Maxim Vezenov <mvezenov@gmail.com>",
+          "timestamp": "2025-05-07T15:57:07Z",
+          "tree_id": "4319b518aba03eeca1a7cfeb236760a00d83def5",
+          "url": "https://github.com/noir-lang/noir/commit/ea71a0e769fc691053d430eb854f445fd5e03950"
+        },
+        "date": 1746635092892,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "regression_4709",
+            "value": 0.669,
+            "unit": "s"
+          },
+          {
+            "name": "ram_blowup_regression",
+            "value": 12.6,
+            "unit": "s"
+          },
+          {
+            "name": "global_var_regression_entry_points",
+            "value": 0.483,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-inner",
+            "value": 2.242,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 6.612,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 1.118,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 16.44,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 13.26,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-empty",
+            "value": 1.25,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-single-tx",
+            "value": 120,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 127,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 1.056,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-root",
+            "value": 1.616,
             "unit": "s"
           }
         ]
