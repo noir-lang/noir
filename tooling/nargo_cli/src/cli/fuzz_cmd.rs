@@ -70,11 +70,11 @@ pub(crate) struct FuzzCommand {
     oracle_resolver: Option<String>,
 
     /// Maximum time in seconds to spend fuzzing (default: no timeout)
-    #[arg(long, default_value = 0)]
+    #[arg(long, default_value = "0")]
     timeout: u64,
 
     /// Maximum number of executions of ACIR and Brillig per harness (default: no limit)
-    #[arg(long, default_value = 0)]
+    #[arg(long, default_value = "0")]
     max_executions: usize,
 }
 impl WorkspaceCommand for FuzzCommand {
