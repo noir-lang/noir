@@ -1,0 +1,18 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: expanded_code
+---
+fn main() {
+    let _: Foo = { Foo {} };
+}
+
+comptime fn my_macro() -> Quoted {
+    let typ: Type = quote { Foo }.as_type();
+    quote {
+        typ {
+            
+        }
+    }
+}
+
+struct Foo {}

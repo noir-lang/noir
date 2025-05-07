@@ -1086,8 +1086,10 @@ impl FunctionContext<'_> {
     }
 
     fn codegen_assign(&mut self, assign: &ast::Assign) -> Result<Values, RuntimeError> {
-        let lhs = self.extract_current_value(&assign.lvalue)?;
+        // Evaluate the rhs first - when we load the expression in the lvalue we want that
+        // to reflect any mutations from evaluating the rhs.
         let rhs = self.codegen_expression(&assign.expression)?;
+        let lhs = self.extract_current_value(&assign.lvalue)?;
 
         self.assign_new_value(lhs, rhs);
         Ok(Self::unit_value())
