@@ -3262,6 +3262,7 @@ dependencies = [
  "prettytable-rs",
  "proptest",
  "rayon",
+ "regex",
  "serde",
  "serde_json",
  "sha2",

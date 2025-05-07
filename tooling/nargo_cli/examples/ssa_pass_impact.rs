@@ -4,7 +4,10 @@
 //! ```ignore
 //! cargo run -p nargo_cli --example ssa_pass_impact -- --ssa-pass "Removing Unreachable Functions"
 //! ```
-use std::path::{Path, PathBuf};
+use std::{
+    path::{Path, PathBuf},
+    sync::OnceLock,
+};
 
 use acvm::acir::circuit::ExpressionWidth;
 use clap::Parser;
@@ -29,6 +32,7 @@ use noirc_frontend::{
     hir::ParsedFiles,
     monomorphization::{ast::Program, monomorphize},
 };
+use regex::Regex;
 
 /// SSA rendered to `String` after a certain step.
 struct SsaPrint {
@@ -221,4 +225,71 @@ fn collect_ssa_before_and_after(
     }
 
     Ok(pairs)
+}
+
+/// Remove identifiers from the SSA, so we can compare the structure without
+/// worrying about trivial differences like changing IDs of the same variable
+/// between one pass to the next.
+fn sanitize_ssa(ssa: &str) -> String {
+    static RE: OnceLock<Regex> = OnceLock::new();
+    // Capture function ID, value IDs, global IDs.
+    let re = RE.get_or_init(|| Regex::new(r#"(f|b|v|g)\d+"#).expect("ID regex failed"));
+    re.replace_all(ssa, "${1}_").into_owned()
+}
+
+/// These tests can be executed with:
+/// ```ignore
+/// cargo test -p nargo_cli --example ssa_pass_impact
+/// ```
+#[cfg(test)]
+mod tests {
+    use crate::sanitize_ssa;
+
+    #[test]
+    fn test_sanitize_ssa() {
+        let ssa = r#"
+        g0 = i8 114
+        g1 = make_array [i8 114, u32 2354179802, i8 37, i8 179, u32 1465519558, i8 87] : [(i8, u32, i8); 2]
+
+        acir(inline) fn main f0 {
+        b0(v7: i8, v8: u32, v9: i8, v10: [(i8, i8, u1, u1, [u8; 0]); 2]):
+            v17 = allocate -> &mut u32
+            store u32 25 at v17
+            v19 = cast v9 as i64
+            v21 = array_get v10, index u32 5 -> i8
+            v23 = array_get v10, index u32 6 -> i8
+            v25 = array_get v10, index u32 7 -> u1
+            v27 = array_get v10, index u32 8 -> u1
+            v29 = array_get v10, index u32 9 -> [u8; 0]
+            v30 = cast v23 as i64
+            v31 = lt v30, v19
+            v32 = not v31
+            jmpif v32 then: b1, else: b2
+        "#;
+
+        let ssa = sanitize_ssa(ssa);
+
+        similar_asserts::assert_eq!(
+            ssa,
+            r#"
+        g_ = i8 114
+        g_ = make_array [i8 114, u32 2354179802, i8 37, i8 179, u32 1465519558, i8 87] : [(i8, u32, i8); 2]
+
+        acir(inline) fn main f_ {
+        b_(v_: i8, v_: u32, v_: i8, v_: [(i8, i8, u1, u1, [u8; 0]); 2]):
+            v_ = allocate -> &mut u32
+            store u32 25 at v_
+            v_ = cast v_ as i64
+            v_ = array_get v_, index u32 5 -> i8
+            v_ = array_get v_, index u32 6 -> i8
+            v_ = array_get v_, index u32 7 -> u1
+            v_ = array_get v_, index u32 8 -> u1
+            v_ = array_get v_, index u32 9 -> [u8; 0]
+            v_ = cast v_ as i64
+            v_ = lt v_, v_
+            v_ = not v_
+            jmpif v_ then: b_, else: b_
+        "#
+        )
+    }
 }
