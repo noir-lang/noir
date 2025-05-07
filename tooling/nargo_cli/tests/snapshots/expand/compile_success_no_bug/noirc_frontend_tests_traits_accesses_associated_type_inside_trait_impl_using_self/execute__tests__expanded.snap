@@ -1,0 +1,21 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: expanded_code
+---
+pub trait Trait {
+    let N: u32;
+
+    fn foo() -> u32;
+}
+
+impl Trait for i32 {
+    let N: u32 = 10;
+
+    fn foo() -> u32 {
+        10
+    }
+}
+
+fn main() {
+    let _: u32 = Trait::foo();
+}
