@@ -40,8 +40,9 @@ members = [
     # Utility crates
     "utils/iter-extended",
 
-    "tooling/ssa_fuzzer",
+    "tooling/ssa_fuzzer", # libfuzzer-sys
     "tooling/ssa_fuzzer/fuzzer",
+    "tooling/ssa_fuzz_target", # cargo-afl
     "utils/protobuf",
 ]
 default-members = [

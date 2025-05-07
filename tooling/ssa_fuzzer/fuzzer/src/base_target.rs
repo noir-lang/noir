@@ -74,5 +74,6 @@ libfuzzer_sys::fuzz_target!(|data: FuzzerData| {
     for method in data.methods {
         fuzzer.insert_instruction(method);
     }
-    fuzzer.run(initial_witness, false);
+    let skip_remove_unreachable = true;
+    fuzzer.run(initial_witness, false, skip_remove_unreachable);
 });

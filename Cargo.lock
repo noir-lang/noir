@@ -5401,6 +5401,10 @@ dependencies = [
 ]
 
 [[package]]
+name = "ssa_fuzz_target"
+version = "1.0.0-beta.4"
+
+[[package]]
 name = "ssa_fuzzer_fuzz"
 version = "0.0.1"
 dependencies = [

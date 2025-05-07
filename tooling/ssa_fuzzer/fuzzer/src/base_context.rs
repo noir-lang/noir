@@ -356,8 +356,11 @@ impl FuzzerContext {
     /// Returns programs for ACIR and Brillig
     pub(crate) fn get_programs(
         self,
+        skip_remove_unreachable: bool,
     ) -> (Result<CompiledProgram, FuzzerBuilderError>, Result<CompiledProgram, FuzzerBuilderError>)
     {
-        (self.acir_builder.compile(), self.brillig_builder.compile())
+        // TODO
+        let brillig_skip_remove_unreachable = true;
+        (self.acir_builder.compile(skip_remove_unreachable), self.brillig_builder.compile(brillig_skip_remove_unreachable))
     }
 }
