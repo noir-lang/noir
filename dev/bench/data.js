@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1746629214147,
+  "lastUpdate": 1746629779134,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -18151,48 +18151,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "aakoshh@gmail.com",
-            "name": "Akosh Farkash",
-            "username": "aakoshh"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "0d850a3655f744ecf5b9a8b041861d930a560669",
-          "message": "feat: Fuzz the inliner aggressiveness along with the AST (#8270)",
-          "timestamp": "2025-04-29T14:00:08Z",
-          "tree_id": "a152a5c3a0e8b9c91803ea3b4b3bff7455bc6973",
-          "url": "https://github.com/noir-lang/noir/commit/0d850a3655f744ecf5b9a8b041861d930a560669"
-        },
-        "date": 1745936265579,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 252660,
-            "range": "± 1112",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 227704,
-            "range": "± 920",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 3216603,
-            "range": "± 5972",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "15848336+TomAFrench@users.noreply.github.com",
             "name": "Tom French",
             "username": "TomAFrench"
@@ -20244,6 +20202,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 3219430,
             "range": "± 10792",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "asterite@gmail.com",
+            "name": "Ary Borenszweig",
+            "username": "asterite"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "a68685690bd65c204260944087214b3ca0899a59",
+          "message": "fix: warn on and discard unreachable statements after break and continue (#8382)",
+          "timestamp": "2025-05-07T14:35:18Z",
+          "tree_id": "c6dbc24b3cca64872a27ae945a45f09a10a58312",
+          "url": "https://github.com/noir-lang/noir/commit/a68685690bd65c204260944087214b3ca0899a59"
+        },
+        "date": 1746629771498,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 264637,
+            "range": "± 659",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 235164,
+            "range": "± 4812",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 3224546,
+            "range": "± 27320",
             "unit": "ns/iter"
           }
         ]
