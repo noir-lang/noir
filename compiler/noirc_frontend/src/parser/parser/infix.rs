@@ -30,7 +30,7 @@ macro_rules! parse_infix {
     }};
 }
 
-impl<'a> Parser<'a> {
+impl Parser<'_> {
     /// EqualOrNotEqualExpression
     ///     = OrExpression ( ( '==' | '!=' ) OrExpression )*
     #[inline(always)]
