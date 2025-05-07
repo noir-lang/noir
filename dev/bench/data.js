@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1746613773842,
+  "lastUpdate": 1746625720583,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -18141,48 +18141,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "mvezenov@gmail.com",
-            "name": "Maxim Vezenov",
-            "username": "vezenovm"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "96e8679f9a9a605797a342bfd5df2db4ef9e3fdc",
-          "message": "feat(ssa): Prune dead block parameters (#8239)\n\nCo-authored-by: jfecher <jfecher11@gmail.com>",
-          "timestamp": "2025-04-28T20:57:04Z",
-          "tree_id": "f8506cb2e786bae4c4d97d8df47b26ce69102436",
-          "url": "https://github.com/noir-lang/noir/commit/96e8679f9a9a605797a342bfd5df2db4ef9e3fdc"
-        },
-        "date": 1745874840636,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 252726,
-            "range": "± 911",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 231473,
-            "range": "± 3681",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 3227848,
-            "range": "± 6634",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "163862677+noirwhal@users.noreply.github.com",
             "name": "noirwhal",
             "username": "noirwhal"
@@ -20234,6 +20192,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 3578503,
             "range": "± 23025",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "rkarabut@users.noreply.github.com",
+            "name": "Ratmir Karabut",
+            "username": "rkarabut"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "d57382caa4e9603f5d0bdfac60e6a2f793b07982",
+          "message": "feat(fuzz): initial version of comptime vs brillig target for AST fuzzer (#8335)",
+          "timestamp": "2025-05-07T13:27:55Z",
+          "tree_id": "6efd7810f7ec4b704fc6f4481dd0a707fceffd7e",
+          "url": "https://github.com/noir-lang/noir/commit/d57382caa4e9603f5d0bdfac60e6a2f793b07982"
+        },
+        "date": 1746625712093,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 273970,
+            "range": "± 569",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 246577,
+            "range": "± 2449",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 3229440,
+            "range": "± 3394",
             "unit": "ns/iter"
           }
         ]
