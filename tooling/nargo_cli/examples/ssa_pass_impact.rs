@@ -5,6 +5,7 @@
 //! cargo run -p nargo_cli --example ssa_pass_impact -- --ssa-pass "Removing Unreachable Functions"
 //! ```
 use std::{
+    cmp::Ordering,
     path::{Path, PathBuf},
     sync::OnceLock,
 };
@@ -19,7 +20,9 @@ use nargo::{
 use nargo_toml::{
     ManifestError, PackageSelection, get_package_manifest, resolve_workspace_from_toml,
 };
-use noirc_driver::{CompilationResult, CompileOptions, NOIR_ARTIFACT_VERSION_STRING, check_crate};
+use noirc_driver::{
+    CompilationResult, CompileOptions, CrateName, NOIR_ARTIFACT_VERSION_STRING, check_crate,
+};
 use noirc_errors::CustomDiagnostic;
 use noirc_evaluator::{
     brillig::BrilligOptions,
@@ -91,8 +94,14 @@ struct Options {
     /// Name of the SSA pass we want to see the impact of.
     #[arg(long)]
     ssa_pass: String,
+
+    /// Inliner aggressiveness to use in SSA passes.
     #[arg(long, default_value = "0")]
     inliner_aggressiveness: i64,
+
+    /// Show the top N most impacted program passes.
+    #[arg(long, default_value = "50")]
+    top_impact_count: usize,
 }
 
 fn main() {
@@ -168,16 +177,44 @@ fn main() {
         }
     }
 
-    let package_cnt = ssa_pairs.len();
-    let ssa_pair_cnt = ssa_pairs.iter().map(|(_, pairs)| pairs.len()).sum::<usize>();
-    let no_impact_cnt = ssa_pairs
-        .iter()
-        .map(|(_, pairs)| pairs.iter().filter(|p| p.before.ssa == p.after.ssa).count())
-        .sum::<usize>();
+    show_report(ssa_pairs, opts.top_impact_count);
+}
+
+/// Show the impact on the console.
+fn show_report(pairs: Vec<(CrateName, Vec<SsaBeforeAndAfter>)>, top_impact_count: usize) {
+    let package_cnt = pairs.len();
+    let mut total_cnt = 0;
+    let mut equals_cnt = 0;
+    let mut not_equals = Vec::new();
+
+    for (package, passes) in pairs {
+        total_cnt += passes.len();
+        for pass in passes {
+            if pass.before.ssa == pass.after.ssa {
+                equals_cnt += 1;
+            } else {
+                let sim = ssa_similarity(&pass.before.ssa, &pass.after.ssa);
+                not_equals.push((sim, package.clone(), pass));
+            }
+        }
+    }
+
+    not_equals.sort_by(|a, b| a.0.partial_cmp(&b.0).unwrap_or(Ordering::Equal));
 
     println!("Packages: {package_cnt}");
-    println!("SSA pairs: {ssa_pair_cnt}");
-    println!("No impact: {no_impact_cnt}");
+    println!("Passes total: {total_cnt}");
+    println!("Passes with no impact: {equals_cnt}");
+    println!("Passes with most impact (top {top_impact_count}):");
+
+    for (sim, package, pass) in not_equals.iter().take(top_impact_count) {
+        println!(
+            "\t{:.3} change: step {}. ('{}' -> '{}') in {package}",
+            1.0 - sim,
+            pass.after.step,
+            pass.before.msg,
+            pass.after.msg,
+        );
+    }
 }
 
 /// Compile a package into a monomorphized [Program].
