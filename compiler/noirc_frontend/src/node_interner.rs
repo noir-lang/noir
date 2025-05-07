@@ -1563,6 +1563,13 @@ impl NodeInterner {
             }
         };
 
+        eprintln!("Solving {:?}: {}<{}, {}>",
+            object_type,
+            self.get_trait(trait_id).name,
+            vecmap(trait_generics, |t| format!("{t:?}")).join(", "),
+            vecmap(trait_associated_types, |t| format!("{} = {:?}", t.name, t.typ)).join(", "),
+        );
+
         let nested_error = || ImplSearchErrorKind::Nested(vec![make_constraint()]);
 
         // Prevent infinite recursion when looking for impls
@@ -1608,6 +1615,13 @@ impl NodeInterner {
                             trait_generic.typ.try_unify(&impl_generic2, &mut fresh_bindings).is_ok()
                         });
 
+        eprintln!("  Checking impl {:?}: {}<{}, {}>",
+            existing_object_type,
+            self.get_trait(trait_id).name,
+            vecmap(impl_generics, |t| format!("{t:?}")).join(", "),
+            vecmap(impl_associated_types, |t| format!("{} = {:?}", t.name, t.typ)).join(", "),
+        );
+
                     generics_unify && associated_types_unify
                 };
 
@@ -1623,13 +1637,19 @@ impl NodeInterner {
             };
 
             if !check_trait_generics(&trait_generics.ordered, &trait_generics.named) {
+                eprintln!("  generics don't match");
                 continue;
             }
 
             if object_type.try_unify(&existing_object_type, &mut fresh_bindings).is_ok() {
+                eprintln!("  object type matches");
                 if let TraitImplKind::Normal(impl_id) = impl_kind {
                     let trait_impl = self.get_trait_implementation(*impl_id);
                     let trait_impl = trait_impl.borrow();
+
+                    if !trait_impl.where_clause.is_empty() {
+                        eprintln!("  validating where clause {{");
+                    }
 
                     if let Err(error) = self.validate_where_clause(
                         &trait_impl.where_clause,
@@ -1637,11 +1657,18 @@ impl NodeInterner {
                         &instantiation_bindings,
                         recursion_limit,
                     ) {
+                        if !trait_impl.where_clause.is_empty() {
+                            eprintln!("  }} where clause failed");
+                        }
                         // Only keep the first errors we get from a failing where clause
                         if where_clause_error.is_none() {
                             where_clause_error = Some(error);
                         }
                         continue;
+                    } else {
+                        if !trait_impl.where_clause.is_empty() {
+                            eprintln!("  }} where clause matches");
+                        }
                     }
                 }
 
@@ -1654,6 +1681,8 @@ impl NodeInterner {
                     },
                 };
                 matching_impls.push((impl_kind.clone(), fresh_bindings, constraint));
+            } else {
+                eprintln!("  object types don't match");
             }
         }
 

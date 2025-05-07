@@ -764,7 +764,8 @@ impl NoMatchingImplFoundError {
             .into_iter()
             .map(|constraint| {
                 let r#trait = interner.try_get_trait(constraint.trait_bound.trait_id)?;
-                let name = format!("{}{}", r#trait.name, constraint.trait_bound.trait_generics);
+                let name = format!("{}{:?}", r#trait.name, constraint.trait_bound.trait_generics);
+                eprintln!("object type = {:?}", constraint.typ);
                 Some((constraint.typ, name))
             })
             .collect::<Option<Vec<_>>>()?;

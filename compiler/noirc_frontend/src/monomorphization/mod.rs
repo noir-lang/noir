@@ -1596,6 +1596,12 @@ impl<'interner> Monomorphizer<'interner> {
         function_type: HirType,
         method: TraitMethodId,
     ) -> Result<ast::Expression, MonomorphizationError> {
+        eprintln!("Instantiation bindings on trait method expr:");
+        let bindings = self.interner.get_instantiation_bindings(expr_id);
+        for (_a, (tv, _kind, typ)) in bindings {
+            eprintln!("  {tv:?} <- {typ:?}");
+        }
+
         let func_id = resolve_trait_method(self.interner, method, expr_id)
             .map_err(MonomorphizationError::InterpreterError)?;
 
@@ -2547,6 +2553,8 @@ pub fn resolve_trait_method(
         TraitImplKind::Normal(impl_id) => impl_id,
         TraitImplKind::Assumed { object_type, trait_generics } => {
             let location = interner.expr_location(&expr_id);
+
+            eprintln!("Monomorphizing trait method!");
 
             match interner.lookup_trait_implementation(
                 &object_type,
