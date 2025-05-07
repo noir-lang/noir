@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1746608160897,
+  "lastUpdate": 1746613004892,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -18136,48 +18136,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "asterite@gmail.com",
-            "name": "Ary Borenszweig",
-            "username": "asterite"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "ac520fb822d78cc07388731610ebe03be716e0a2",
-          "message": "chore: rename `inline_simple_functions` to `inline_functions_with_at_most_on… (#8227)",
-          "timestamp": "2025-04-28T18:06:09Z",
-          "tree_id": "5b93d4397baab15d38b47e02c13a3edd3765305d",
-          "url": "https://github.com/noir-lang/noir/commit/ac520fb822d78cc07388731610ebe03be716e0a2"
-        },
-        "date": 1745864549753,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 255758,
-            "range": "± 2381",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 228852,
-            "range": "± 2233",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 3219095,
-            "range": "± 14662",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "15848336+TomAFrench@users.noreply.github.com",
             "name": "Tom French",
             "username": "TomAFrench"
@@ -20229,6 +20187,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 3574753,
             "range": "± 20266",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "15848336+TomAFrench@users.noreply.github.com",
+            "name": "Tom French",
+            "username": "TomAFrench"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "6c9588bfe1049af16c46cabf553015f7c5edcc6a",
+          "message": "chore: add note on AI generated PRs in `CONTRIBUTING.md` (#8385)",
+          "timestamp": "2025-05-07T09:58:03Z",
+          "tree_id": "47f0da0bb57315e9608e5dd9f3a9c64fc294add7",
+          "url": "https://github.com/noir-lang/noir/commit/6c9588bfe1049af16c46cabf553015f7c5edcc6a"
+        },
+        "date": 1746612995979,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 256321,
+            "range": "± 3035",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 228007,
+            "range": "± 9384",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 3236552,
+            "range": "± 8050",
             "unit": "ns/iter"
           }
         ]
