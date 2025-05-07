@@ -168,7 +168,7 @@
 }
 
 <span class="kw">impl </span>Freq {
-    <span class="kw">pub fn </span>new(u: <span class="kw-2">&amp;mut </span>Unstructured, freqs: <span class="kw-2">&amp;</span>Freqs) -&gt; arbitrary::Result&lt;<span class="self">Self</span>&gt; {
+    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>new(u: <span class="kw-2">&amp;mut </span>Unstructured, freqs: <span class="kw-2">&amp;</span>Freqs) -&gt; arbitrary::Result&lt;<span class="self">Self</span>&gt; {
         <span class="kw">let </span>x = u.choose_index(freqs.total())<span class="question-mark">?</span>;
         <span class="prelude-val">Ok</span>(<span class="self">Self </span>{ freqs: freqs.clone(), x, accumulated: <span class="number">0</span>, disabled: <span class="number">0 </span>})
     }
@@ -176,7 +176,7 @@
     <span class="doccomment">/// Check if a key is enabled, based on the already checked cumulative values.
     ///
     /// To work correctly, `enabled` calls should come after `enabled_when`s.
-    </span><span class="kw">pub fn </span>enabled(<span class="kw-2">&amp;mut </span><span class="self">self</span>, key: <span class="kw-2">&amp;</span>str) -&gt; bool {
+    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>enabled(<span class="kw-2">&amp;mut </span><span class="self">self</span>, key: <span class="kw-2">&amp;</span>str) -&gt; bool {
         <span class="self">self</span>.accumulated += <span class="self">self</span>.freqs[key];
         <span class="self">self</span>.passed()
     }
@@ -196,7 +196,7 @@
     /// As a workaround, we should
     /// * check keys which are more likely to be disabled up front
     /// * have a default case at the end which is always enabled
-    </span><span class="kw">pub fn </span>enabled_when(<span class="kw-2">&amp;mut </span><span class="self">self</span>, key: <span class="kw-2">&amp;</span>str, cond: bool) -&gt; bool {
+    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>enabled_when(<span class="kw-2">&amp;mut </span><span class="self">self</span>, key: <span class="kw-2">&amp;</span>str, cond: bool) -&gt; bool {
         <span class="kw">if </span>cond {
             <span class="self">self</span>.enabled(key)
         } <span class="kw">else </span>{

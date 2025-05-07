@@ -1246,7 +1246,7 @@
 
 <span class="kw">impl </span>FunctionDeclaration {
     <span class="doccomment">/// Generate a HIR function signature.
-    </span><span class="kw">pub fn </span>signature(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; hir_def::function::FunctionSignature {
+    </span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>signature(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; hir_def::function::FunctionSignature {
         <span class="kw">let </span>param_types = <span class="self">self
             </span>.params
             .iter()
@@ -1344,7 +1344,7 @@
 }
 
 <span class="kw">impl</span>&lt;<span class="lifetime">'a</span>&gt; FunctionContext&lt;<span class="lifetime">'a</span>&gt; {
-    <span class="kw">pub fn </span>new(ctx: <span class="kw-2">&amp;</span><span class="lifetime">'a </span><span class="kw-2">mut </span>Context, id: FuncId) -&gt; <span class="self">Self </span>{
+    <span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>new(ctx: <span class="kw-2">&amp;</span><span class="lifetime">'a </span><span class="kw-2">mut </span>Context, id: FuncId) -&gt; <span class="self">Self </span>{
         <span class="kw">let </span>decl = ctx.function_decl(id);
         <span class="kw">let </span>next_local_id = decl.params.iter().map(|p| p.<span class="number">0.0 </span>+ <span class="number">1</span>).max().unwrap_or_default();
         <span class="kw">let </span>budget = ctx.config.max_function_size;
@@ -1410,7 +1410,7 @@
     }
 
     <span class="doccomment">/// Generate the function body.
-    </span><span class="kw">pub fn </span>gen_body(<span class="kw-2">mut </span><span class="self">self</span>, u: <span class="kw-2">&amp;mut </span>Unstructured) -&gt; arbitrary::Result&lt;Expression&gt; {
+    </span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>gen_body(<span class="kw-2">mut </span><span class="self">self</span>, u: <span class="kw-2">&amp;mut </span>Unstructured) -&gt; arbitrary::Result&lt;Expression&gt; {
         <span class="comment">// If we don't limit the budget according to the available data,
         // it gives us a lot of `false` and 0 and we end up with deep `!(!false)` if expressions.
         </span><span class="self">self</span>.budget = <span class="self">self</span>.budget.min(u.len());
@@ -1424,7 +1424,7 @@
 
     <span class="doccomment">/// Generate the function body, wrapping a function call with literal arguments.
     /// This is used to test comptime functions, which can only take those.
-    </span><span class="kw">pub fn </span>gen_body_with_lit_call(
+    </span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>gen_body_with_lit_call(
         <span class="kw-2">mut </span><span class="self">self</span>,
         u: <span class="kw-2">&amp;mut </span>Unstructured,
         callee_id: FuncId,
