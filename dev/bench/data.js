@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1746613394125,
+  "lastUpdate": 1746613579311,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -11362,70 +11362,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "asterite@gmail.com",
-            "name": "Ary Borenszweig",
-            "username": "asterite"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "ac520fb822d78cc07388731610ebe03be716e0a2",
-          "message": "chore: rename `inline_simple_functions` to `inline_functions_with_at_most_on… (#8227)",
-          "timestamp": "2025-04-28T18:06:09Z",
-          "tree_id": "5b93d4397baab15d38b47e02c13a3edd3765305d",
-          "url": "https://github.com/noir-lang/noir/commit/ac520fb822d78cc07388731610ebe03be716e0a2"
-        },
-        "date": 1745865150768,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 231.63,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 255.24,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 209.65,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 465.19,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 457.38,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 1440,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 288.72,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-root",
-            "value": 294.65,
-            "unit": "MB"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "15848336+TomAFrench@users.noreply.github.com",
             "name": "Tom French",
             "username": "TomAFrench"
@@ -14515,6 +14451,70 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/noir-lang/noir/commit/6e7dc911a4f94c1f29f31a0b1deca3ad5ff7e4b1"
         },
         "date": 1746608148870,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 234.1,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 256.58,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 212.44,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 541.5,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 533.68,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 1440,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 362.58,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-root",
+            "value": 368.5,
+            "unit": "MB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "15848336+TomAFrench@users.noreply.github.com",
+            "name": "Tom French",
+            "username": "TomAFrench"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "6c9588bfe1049af16c46cabf553015f7c5edcc6a",
+          "message": "chore: add note on AI generated PRs in `CONTRIBUTING.md` (#8385)",
+          "timestamp": "2025-05-07T09:58:03Z",
+          "tree_id": "47f0da0bb57315e9608e5dd9f3a9c64fc294add7",
+          "url": "https://github.com/noir-lang/noir/commit/6c9588bfe1049af16c46cabf553015f7c5edcc6a"
+        },
+        "date": 1746613571900,
         "tool": "customSmallerIsBetter",
         "benches": [
           {
