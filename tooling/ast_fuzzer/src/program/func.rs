@@ -698,7 +698,7 @@ impl<'a> FunctionContext<'a> {
                 return Ok(Expression::Break);
             }
 
-            if freq.enabled_when("continue", self.in_loop) {
+            if freq.enabled_when("continue", self.in_loop && !self.ctx.config.avoid_continue) {
                 return Ok(Expression::Continue);
             }
         }
