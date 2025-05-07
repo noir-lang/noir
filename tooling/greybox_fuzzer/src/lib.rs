@@ -1,3 +1,7 @@
+#![forbid(unsafe_code)]
+#![warn(clippy::semicolon_if_nothing_returned)]
+#![cfg_attr(not(test), warn(unused_crate_dependencies, unused_extern_crates))]
+
 use core::panic;
 use std::{
     cmp::max,
@@ -223,7 +227,7 @@ impl Metrics {
     pub fn increase_processed_testcase_count(&mut self, update: &usize) {
         self.processed_testcase_count += update;
     }
-    pub fn increment_removed_testcase_count(&mut self) {
+    fn increment_removed_testcase_count(&mut self) {
         self.removed_testcase_count += 1;
         self.removed_testcase_last_round = true;
     }
@@ -274,6 +278,8 @@ pub struct FuzzedExecutorExecutionConfiguration {
     pub timeout: u64,
     /// Whether to output progress to stdout or not.
     pub show_progress: bool,
+    /// Maximum number of executions of ACIR and Brillig (default: no limit)
+    pub max_executions: usize,
 }
 
 pub enum FuzzedExecutorFailureConfiguration {
@@ -344,6 +350,9 @@ pub struct FuzzedExecutor<E, F> {
 
     /// Maximum time in seconds to spend fuzzing (default: no timeout)
     timeout: u64,
+
+    /// Maximum number of executions of ACIR and Brillig (default: no limit)
+    max_executions: usize,
 }
 pub struct AcirAndBrilligPrograms {
     pub acir_program: ProgramArtifact,
@@ -408,6 +417,7 @@ impl<
             ),
             timeout: fuzz_execution_config.timeout,
             metrics: Metrics::default(),
+            max_executions: fuzz_execution_config.max_executions,
         }
     }
 
@@ -770,7 +780,7 @@ impl<
                     .increase_total_brillig_duration_micros(&fast_result.brillig_duration_micros());
                 self.metrics.increase_total_mutation_time(&fast_result.mutation_time());
                 if !fast_result.skip_check() {
-                    analysis_queue.push(index)
+                    analysis_queue.push(index);
                 }
             }
 
@@ -963,6 +973,12 @@ impl<
                 last_metric_check = time_tracker.elapsed();
                 // Check if we've exceeded the timeout
                 if self.timeout > 0 && time_tracker.elapsed() >= Duration::from_secs(self.timeout) {
+                    return FuzzTestResult::Success;
+                }
+                // Check if we've exceeded the maximum number of executions
+                if self.max_executions > 0
+                    && self.metrics.processed_testcase_count >= self.max_executions
+                {
                     return FuzzTestResult::Success;
                 }
             }

@@ -50,13 +50,20 @@ but that runs at compile-time.
 
 ```rust
 fn main(xs: [Field; 3]) {
-    let x = 2 + 2;
+    let x = 2;
     let y = 4;
-    static_assert(x == y, "expected 2 + 2 to equal 4");
+    static_assert(x + x == y, "expected 2 + 2 to equal 4");
 
     // This passes since the length of `xs` is known at compile-time
     static_assert(xs.len() == 3, "expected the input to have 3 elements");
 }
+```
+
+Like `assert`, the message can be a format string or any other type supported as input for Noir's [print](../standard_library/logging.md) functions.
+This feature lets you incorporate runtime variables into your failed assertion logs:
+
+```rust
+static_assert(x + x == y, f"Expected 2 + 2 to equal 4 but got: {x} + {x} == {y}");
 ```
 
 This function fails when passed a dynamic (run-time) argument:
