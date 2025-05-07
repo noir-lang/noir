@@ -570,7 +570,7 @@ impl Elaborator<'_> {
         }
 
         let id = self.interner.push_definition(
-            "i".to_string(),
+            format!("i_{}", self.interner.definition_count()),
             false,
             false,
             DefinitionKind::Local(None),
