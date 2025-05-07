@@ -73,7 +73,7 @@ pub(crate) struct FuzzCommand {
     #[arg(long)]
     timeout: Option<u64>,
 
-    /// Maximum number of executions of ACIR and Brillig per harness(default: no limit)
+    /// Maximum number of executions of ACIR and Brillig per harness (default: no limit)
     #[arg(long)]
     max_executions: Option<usize>,
 }
