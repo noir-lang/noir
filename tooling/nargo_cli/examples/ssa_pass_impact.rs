@@ -33,6 +33,7 @@ use noirc_frontend::{
     monomorphization::{ast::Program, monomorphize},
 };
 use regex::Regex;
+use similar::{ChangeTag, DiffableStr, DiffableStrRef, TextDiff};
 
 /// SSA rendered to `String` after a certain step.
 struct SsaPrint {
@@ -237,17 +238,34 @@ fn sanitize_ssa(ssa: &str) -> String {
     re.replace_all(ssa, "${1}_").into_owned()
 }
 
+/// Calculate a similarity metric between two SSA strings, ignoring the difference in ID allocation.
+fn ssa_similarity(ssa1: &str, ssa2: &str) -> f64 {
+    if ssa1.is_empty() && ssa2.is_empty() {
+        return 1.0;
+    }
+    let ssa1 = sanitize_ssa(ssa1);
+    let ssa2 = sanitize_ssa(ssa2);
+
+    let equals = TextDiff::from_lines(&ssa1, &ssa2)
+        .iter_all_changes()
+        .filter(|c| c.tag() == ChangeTag::Equal)
+        .count() as f64;
+
+    let lines1 = ssa1.as_diffable_str().tokenize_lines().len();
+    let lines2 = ssa2.as_diffable_str().tokenize_lines().len();
+
+    (2.0 * equals) / ((lines1 + lines2) as f64)
+}
+
 /// These tests can be executed with:
 /// ```ignore
 /// cargo test -p nargo_cli --example ssa_pass_impact
 /// ```
 #[cfg(test)]
 mod tests {
-    use crate::sanitize_ssa;
+    use crate::{sanitize_ssa, ssa_similarity};
 
-    #[test]
-    fn test_sanitize_ssa() {
-        let ssa = r#"
+    const SAMPLE_SSA: &str = r#"
         g0 = i8 114
         g1 = make_array [i8 114, u32 2354179802, i8 37, i8 179, u32 1465519558, i8 87] : [(i8, u32, i8); 2]
 
@@ -267,7 +285,9 @@ mod tests {
             jmpif v32 then: b1, else: b2
         "#;
 
-        let ssa = sanitize_ssa(ssa);
+    #[test]
+    fn test_sanitize_ssa() {
+        let ssa = sanitize_ssa(SAMPLE_SSA);
 
         similar_asserts::assert_eq!(
             ssa,
@@ -291,5 +311,46 @@ mod tests {
             jmpif v_ then: b_, else: b_
         "#
         )
+    }
+
+    #[test]
+    fn test_ssa_similarity() {
+        assert_eq!(1.0, ssa_similarity(SAMPLE_SSA, SAMPLE_SSA), "similar to self");
+        assert_eq!(1.0, ssa_similarity("", ""), "empty is similar");
+
+        let s = ssa_similarity(
+            SAMPLE_SSA,
+            r#"
+        g0 = i8 114
+        g1 = make_array [i8 114, u32 2354179802, i8 37, i8 179, u32 1465519558, i8 87] : [(i8, u32, i8); 2]
+
+        acir(inline) fn main f0 {
+        b0(v7: i8, v8: u32, v9: i8, v10: [(i8, i8, u1, u1, [u8; 0]); 2]):
+            v18 = array_get v10, index u32 0 -> i8
+            v20 = array_get v10, index u32 1 -> i8
+            v22 = array_get v10, index u32 2 -> u1
+            v24 = array_get v10, index u32 3 -> u1
+            v26 = array_get v10, index u32 4 -> [u8; 0]
+            v28 = array_get v10, index u32 5 -> i8
+            v30 = array_get v10, index u32 6 -> i8
+            v32 = array_get v10, index u32 7 -> u1
+            v34 = array_get v10, index u32 8 -> u1
+            v36 = array_get v10, index u32 9 -> [u8; 0]
+            v37 = make_array [v18, v20, v22, v24, v28, v30, v32, v34] : [Field; 8]
+            v38 = allocate -> &mut u32
+            store u32 25 at v38
+            v40 = cast v9 as i64
+            v41 = array_get v10, index u32 5 -> i8
+            v42 = array_get v10, index u32 6 -> i8
+            v43 = array_get v10, index u32 7 -> u1
+            v44 = array_get v10, index u32 8 -> u1
+            v45 = array_get v10, index u32 9 -> [u8; 0]
+            v46 = cast v42 as i64
+            v47 = lt v46, v40
+            v48 = not v47
+            jmpif v48 then: b1, else: b2
+        "#,
+        );
+        assert!(0.0 < s && s < 1.0, "somewhat similar with insertions")
     }
 }
