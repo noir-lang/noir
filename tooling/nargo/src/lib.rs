@@ -169,6 +169,26 @@ pub fn insert_all_files_under_path_into_file_manager(
 
 const STACK_SIZE: usize = 4 * 1024 * 1024;
 
+#[cfg(any(target_arch = "wasm32", target_arch = "wasm64"))]
+pub fn parse_all(file_manager: &FileManager) -> ParsedFiles {
+    use rayon::iter::ParallelBridge as _;
+    use rayon::iter::ParallelIterator as _;
+
+    file_manager
+        .as_file_map()
+        .all_file_ids()
+        .par_bridge()
+        .filter(|&&file_id| {
+            let file_path = file_manager.path(file_id).expect("expected file to exist");
+            let file_extension =
+                file_path.extension().expect("expected all file paths to have an extension");
+            file_extension == "nr"
+        })
+        .map(|&file_id| (file_id, parse_file(file_manager, file_id)))
+        .collect()
+}
+
+#[cfg(not(any(target_arch = "wasm32", target_arch = "wasm64")))]
 pub fn parse_all(file_manager: &FileManager) -> ParsedFiles {
     let num_threads = rayon::current_num_threads();
     let (sender, receiver) = mpsc::channel();
