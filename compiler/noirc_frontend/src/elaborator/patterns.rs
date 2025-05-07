@@ -14,12 +14,13 @@ use crate::{
         type_check::{Source, TypeCheckError},
     },
     hir_def::{
-        expr::{HirExpression, HirIdent, HirMethodReference, ImplKind, TraitMethod},
+        expr::{HirExpression, HirIdent, HirLiteral, HirMethodReference, ImplKind, TraitMethod},
         stmt::HirPattern,
     },
     node_interner::{
         DefinitionId, DefinitionInfo, DefinitionKind, ExprId, FuncId, GlobalId, TraitImplKind,
     },
+    signed_field::SignedField,
 };
 
 use super::{Elaborator, ResolverMeta, path_resolution::PathResolutionItem};
@@ -536,19 +537,50 @@ impl Elaborator<'_> {
     }
 
     pub(super) fn elaborate_variable(&mut self, mut variable: Path) -> (ExprId, Type) {
-        // Check if this is `Self::method_name` when we are inside a trait impl and `Self`
-        // resolves to a primitive type. In that case we elaborate this as if it were a TypePath
+        // Check if this is `Self::method_name` or `Self::AssociatedConstant` when we are inside a trait impl and `Self`
+        // resolves to a primitive type. 
+        //
+        // In the first case we elaborate this as if it were a TypePath
         // (for example, if `Self` is `u32` then we consider this the same as `u32::method_name`).
         // A regular path lookup won't work here for the same reason `TypePath` exists.
+        //
+        // In the second case we solve the associated constant by looking up its value, later
+        // turning it into a literal.
         if let Some(self_type) = &self.self_type {
-            if self.current_trait_impl.is_some()
-                && variable.segments.len() == 2
-                && variable.segments[0].ident.is_self_type_name()
-                && !matches!(self.self_type, Some(Type::DataType(..)))
-            {
-                let ident = variable.segments.remove(1).ident;
-                let typ_location = variable.segments[0].location;
-                return self.elaborate_type_path_impl(self_type.clone(), ident, None, typ_location);
+            if let Some(trait_impl_id) = &self.current_trait_impl {
+                if variable.segments.len() == 2
+                    && variable.segments[0].ident.is_self_type_name()
+                    && !matches!(self.self_type, Some(Type::DataType(..)))
+                {
+                    let name = variable.segments[1].ident.as_str();
+                    let associated_types =
+                        self.interner.get_associated_types_for_impl(*trait_impl_id);
+                    let associated_type =
+                        associated_types.iter().find(|typ| typ.name.as_str() == name);
+                    if let Some(associated_type) = associated_type {
+                        if let Type::Constant(field, Kind::Numeric(numeric_type)) =
+                            &associated_type.typ
+                        {
+                            let numeric_type: Type = *numeric_type.clone();
+                            let hir_expr = HirExpression::Literal(HirLiteral::Integer(
+                                SignedField::positive(*field),
+                            ));
+                            let id = self.interner.push_expr(hir_expr);
+                            self.interner.push_expr_location(id, variable.location);
+                            self.interner.push_expr_type(id, numeric_type.clone());
+                            return (id, numeric_type);
+                        }
+                    }
+
+                    let ident = variable.segments.remove(1).ident;
+                    let typ_location = variable.segments[0].location;
+                    return self.elaborate_type_path_impl(
+                        self_type.clone(),
+                        ident,
+                        None,
+                        typ_location,
+                    );
+                }
             }
         }
 
