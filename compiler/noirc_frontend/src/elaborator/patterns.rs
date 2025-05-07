@@ -617,6 +617,26 @@ impl Elaborator<'_> {
         &mut self,
         variable: &Path,
     ) -> Option<(ExprId, Type)> {
+        if !(variable.segments.len() == 2 && variable.segments[0].ident.is_self_type_name()) {
+            return None;
+        }
+
+        let name = variable.segments[1].ident.as_str();
+
+        // Check the `Self::AssociatedConstant` case when inside a trait
+        if let Some(trait_id) = &self.current_trait {
+            let trait_ = self.interner.get_trait(*trait_id);
+            if let Some(associated_type) = trait_.get_associated_type(name) {
+                if let Kind::Numeric(numeric_type) = associated_type.kind() {
+                    // We can produce any value here because this trait method is never going to
+                    // produce code (only trait impl methods do)
+                    let numeric_type: Type = *numeric_type.clone();
+                    let value = SignedField::zero();
+                    return Some(self.constant_integer(numeric_type, value, variable.location));
+                }
+            }
+        }
+
         let Some(self_type) = &self.self_type else {
             return None;
         };
@@ -625,23 +645,14 @@ impl Elaborator<'_> {
             return None;
         };
 
-        if !(variable.segments.len() == 2 && variable.segments[0].ident.is_self_type_name()) {
-            return None;
-        }
-
-        // Check the `Self::AssociatedConstant` case
-        let name = variable.segments[1].ident.as_str();
+        // Check the `Self::AssociatedConstant` case when inside a trait impl
         let associated_types = self.interner.get_associated_types_for_impl(*trait_impl_id);
         let associated_type = associated_types.iter().find(|typ| typ.name.as_str() == name);
         if let Some(associated_type) = associated_type {
             if let Type::Constant(field, Kind::Numeric(numeric_type)) = &associated_type.typ {
                 let numeric_type: Type = *numeric_type.clone();
-                let hir_expr =
-                    HirExpression::Literal(HirLiteral::Integer(SignedField::positive(*field)));
-                let id = self.interner.push_expr(hir_expr);
-                self.interner.push_expr_location(id, variable.location);
-                self.interner.push_expr_type(id, numeric_type.clone());
-                return Some((id, numeric_type));
+                let value = SignedField::positive(*field);
+                return Some(self.constant_integer(numeric_type, value, variable.location));
             }
         }
 
@@ -653,6 +664,19 @@ impl Elaborator<'_> {
         let ident = variable.segments[0].ident.clone();
         let typ_location = variable.segments[0].location;
         Some(self.elaborate_type_path_impl(self_type.clone(), ident, None, typ_location))
+    }
+
+    fn constant_integer(
+        &mut self,
+        numeric_type: Type,
+        value: SignedField,
+        location: Location,
+    ) -> (ExprId, Type) {
+        let hir_expr = HirExpression::Literal(HirLiteral::Integer(value));
+        let id = self.interner.push_expr(hir_expr);
+        self.interner.push_expr_location(id, location);
+        self.interner.push_expr_type(id, numeric_type.clone());
+        (id, numeric_type)
     }
 
     /// Solve any generics that are part of the path before the function, for example:

@@ -1605,3 +1605,26 @@ fn accesses_associated_type_inside_trait_impl_using_self() {
     "#;
     assert_no_errors!(src);
 }
+
+#[named]
+#[test]
+fn accesses_associated_type_inside_trait_using_self() {
+    let src = r#"
+    pub trait Trait {
+        let N: u32;
+
+        fn foo() -> u32 {
+            Self::N
+        }
+    }
+
+    impl Trait for i32 {
+        let N: u32 = 10;
+    }
+
+    fn main() {
+        let _ = i32::foo();
+    }
+    "#;
+    assert_no_errors!(src);
+}
