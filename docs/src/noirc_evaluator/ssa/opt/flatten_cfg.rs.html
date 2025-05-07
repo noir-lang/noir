@@ -1592,13 +1592,74 @@
 <a href="#1591" id="1591">1591</a>
 <a href="#1592" id="1592">1592</a>
 <a href="#1593" id="1593">1593</a>
-<a href="#1594" id="1594">1594</a></pre></div><pre class="rust"><code><span class="doccomment">//! The flatten cfg optimization pass "flattens" the entire control flow graph into a single block.
+<a href="#1594" id="1594">1594</a>
+<a href="#1595" id="1595">1595</a>
+<a href="#1596" id="1596">1596</a>
+<a href="#1597" id="1597">1597</a>
+<a href="#1598" id="1598">1598</a>
+<a href="#1599" id="1599">1599</a>
+<a href="#1600" id="1600">1600</a>
+<a href="#1601" id="1601">1601</a>
+<a href="#1602" id="1602">1602</a>
+<a href="#1603" id="1603">1603</a>
+<a href="#1604" id="1604">1604</a>
+<a href="#1605" id="1605">1605</a>
+<a href="#1606" id="1606">1606</a>
+<a href="#1607" id="1607">1607</a>
+<a href="#1608" id="1608">1608</a>
+<a href="#1609" id="1609">1609</a>
+<a href="#1610" id="1610">1610</a>
+<a href="#1611" id="1611">1611</a>
+<a href="#1612" id="1612">1612</a>
+<a href="#1613" id="1613">1613</a>
+<a href="#1614" id="1614">1614</a>
+<a href="#1615" id="1615">1615</a>
+<a href="#1616" id="1616">1616</a>
+<a href="#1617" id="1617">1617</a>
+<a href="#1618" id="1618">1618</a>
+<a href="#1619" id="1619">1619</a>
+<a href="#1620" id="1620">1620</a>
+<a href="#1621" id="1621">1621</a>
+<a href="#1622" id="1622">1622</a>
+<a href="#1623" id="1623">1623</a>
+<a href="#1624" id="1624">1624</a>
+<a href="#1625" id="1625">1625</a>
+<a href="#1626" id="1626">1626</a>
+<a href="#1627" id="1627">1627</a>
+<a href="#1628" id="1628">1628</a>
+<a href="#1629" id="1629">1629</a>
+<a href="#1630" id="1630">1630</a>
+<a href="#1631" id="1631">1631</a>
+<a href="#1632" id="1632">1632</a>
+<a href="#1633" id="1633">1633</a>
+<a href="#1634" id="1634">1634</a>
+<a href="#1635" id="1635">1635</a>
+<a href="#1636" id="1636">1636</a>
+<a href="#1637" id="1637">1637</a>
+<a href="#1638" id="1638">1638</a>
+<a href="#1639" id="1639">1639</a>
+<a href="#1640" id="1640">1640</a>
+<a href="#1641" id="1641">1641</a>
+<a href="#1642" id="1642">1642</a>
+<a href="#1643" id="1643">1643</a>
+<a href="#1644" id="1644">1644</a>
+<a href="#1645" id="1645">1645</a>
+<a href="#1646" id="1646">1646</a>
+<a href="#1647" id="1647">1647</a>
+<a href="#1648" id="1648">1648</a>
+<a href="#1649" id="1649">1649</a>
+<a href="#1650" id="1650">1650</a>
+<a href="#1651" id="1651">1651</a>
+<a href="#1652" id="1652">1652</a>
+<a href="#1653" id="1653">1653</a>
+<a href="#1654" id="1654">1654</a>
+<a href="#1655" id="1655">1655</a></pre></div><pre class="rust"><code><span class="doccomment">//! The flatten cfg optimization pass "flattens" the entire control flow graph into a single block.
 //! This includes branches in the CFG with non-constant conditions. Flattening these requires
 //! special handling for operations with side-effects and can lead to a loss of information since
 //! the jmpif will no longer be in the program. As a result, this pass should usually be towards or
-//! at the end of the optimization passes. Note that this pass will also perform unexpectedly if
-//! loops are still present in the program. Since the pass sees a normal jmpif, it will attempt to
-//! merge both blocks, but no actual looping will occur.
+//! at the end of the optimization passes.
+//! Furthermore, this pass assumes that no loops are present in the program and will assume
+//! that a jmpif is a branch point and will attempt to merge both blocks. No actual looping will occur.
 //!
 //! This pass is also known to produce some extra instructions which may go unused (usually 'Not')
 //! while merging branches. These extra instructions can be cleaned up by a later dead instruction
@@ -1812,7 +1873,10 @@
     </span>not_instructions: HashMap&lt;ValueId, ValueId&gt;,
 
     <span class="doccomment">/// Flag to tell the context to not issue 'enable_side_effect' instructions during flattening.
-    /// This should be set to true only by flatten_single(), when no instruction is known to fail.
+    ///
+    /// It is set with an attribute when defining a function that cannot fail whatsoever to avoid
+    /// the overhead of handling side effects.
+    /// It can also be set to true by flatten_single(), when no instruction is known to fail.
     </span><span class="kw">pub</span>(<span class="kw">crate</span>) no_predicate: bool,
 }
 
@@ -1841,14 +1905,20 @@
     </span>call_stack: CallStackId,
 }
 
-<span class="kw">fn </span>flatten_function_cfg(function: <span class="kw-2">&amp;mut </span>Function, no_predicates: <span class="kw-2">&amp;</span>HashMap&lt;FunctionId, bool&gt;) {
+<span class="doccomment">/// Flattens the control flow graph of the function such that it is left with a
+/// single block containing all instructions and no more control-flow.
+</span><span class="kw">fn </span>flatten_function_cfg(function: <span class="kw-2">&amp;mut </span>Function, no_predicates: <span class="kw-2">&amp;</span>HashMap&lt;FunctionId, bool&gt;) {
     <span class="comment">// This pass may run forever on a brillig function.
     // Analyze will check if the predecessors have been processed and push the block to the back of
     // the queue. This loops forever if there are still any loops present in the program.
     </span><span class="kw">if </span><span class="macro">matches!</span>(function.runtime(), RuntimeType::Brillig(<span class="kw">_</span>)) {
         <span class="kw">return</span>;
     }
-    <span class="kw">let </span>cfg = ControlFlowGraph::with_function(function);
+
+    <span class="comment">// Creates a context that will perform the flattening
+    // We give it the map of the conditional branches in the CFG
+    // and the target block where the flattened instructions should be added.
+    </span><span class="kw">let </span>cfg = ControlFlowGraph::with_function(function);
     <span class="kw">let </span>branch_ends = branch_analysis::find_branch_ends(function, <span class="kw-2">&amp;</span>cfg);
     <span class="kw">let </span>target_block = function.entry_block();
 
@@ -1887,17 +1957,30 @@
         }
     }
 
-    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>flatten(<span class="kw-2">&amp;mut </span><span class="self">self</span>, no_predicates: <span class="kw-2">&amp;</span>HashMap&lt;FunctionId, bool&gt;) {
-        <span class="comment">// Flatten the CFG by inlining all instructions from the queued blocks
-        // until all blocks have been flattened.
-        // We follow the terminator of each block to determine which blocks to
-        // process next
-        </span><span class="kw">let </span><span class="kw-2">mut </span>queue = <span class="macro">vec!</span>[<span class="self">self</span>.target_block];
+    <span class="doccomment">/// Flatten the CFG by inlining all instructions from the queued blocks
+    /// until all blocks have been flattened.
+    /// We follow the terminator of each block to determine which blocks to
+    /// process next:
+    /// If the terminator is a 'JumpIf', we assume we are entering a conditional statement and
+    /// add the start blocks of the 'then_branch', 'else_branch' and the 'exit' block to the queue.
+    /// Other blocks will have only one successor, so we will process them iteratively,
+    /// until we reach one block already in the queue, i.e added when entering a conditional statement,
+    /// i.e the 'else_branch' or the 'exit'. In that case we switch to the next block in the queue, instead
+    /// of the successor.
+    /// This process ensure that the blocks are always processed in this order:
+    /// if_entry -&gt; then_branch -&gt; else_branch -&gt; exit
+    /// In case of nested if statements, for instance in the 'then_branch', it will be:
+    /// if_entry -&gt; then_branch -&gt; if_entry_2 -&gt; then_branch_2 -&gt; exit_2 -&gt; else_branch -&gt; exit
+    /// Information about the nested if statements is stored in the 'condition_stack' which
+    /// is pop-ed/push-ed when entering/leaving a conditional statement.
+    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>flatten(<span class="kw-2">&amp;mut </span><span class="self">self</span>, no_predicates: <span class="kw-2">&amp;</span>HashMap&lt;FunctionId, bool&gt;) {
+        <span class="kw">let </span><span class="kw-2">mut </span>queue = <span class="macro">vec!</span>[<span class="self">self</span>.target_block];
         <span class="kw">while let </span><span class="prelude-val">Some</span>(block) = queue.pop() {
             <span class="self">self</span>.inline_block(block, no_predicates);
             <span class="kw">let </span>to_process = <span class="self">self</span>.handle_terminator(block, <span class="kw-2">&amp;</span>queue);
             <span class="kw">for </span>incoming_block <span class="kw">in </span>to_process {
-                <span class="kw">if </span>!queue.contains(<span class="kw-2">&amp;</span>incoming_block) {
+                <span class="comment">// Do not add blocks already in the queue
+                </span><span class="kw">if </span>!queue.contains(<span class="kw-2">&amp;</span>incoming_block) {
                     queue.push(incoming_block);
                 }
             }
@@ -1920,6 +2003,11 @@
     }
 
     <span class="doccomment">/// Returns the current condition
+    ///
+    /// The conditions are in a stack, they are added as conditional branches are encountered
+    /// so the last one is the current condition.
+    /// When processing a conditional branch, we first follow the 'then' branch and only after we
+    /// process the 'else' branch. At that point, the ConditionalContext has the 'else_branch'
     </span><span class="kw">fn </span>get_last_condition(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="prelude-ty">Option</span>&lt;ValueId&gt; {
         <span class="self">self</span>.condition_stack.last().map(|context| <span class="kw">match </span><span class="kw-2">&amp;</span>context.else_branch {
             <span class="prelude-val">Some</span>(else_branch) =&gt; else_branch.condition,
@@ -1942,7 +2030,11 @@
         result
     }
 
-    <span class="comment">// Inline all instructions from the given block into the target block, and track slice capacities
+    <span class="doccomment">/// Inline all instructions from the given block into the target block, and track slice capacities
+    /// This is done by processing every instructions in the block and using the flattening context
+    /// to push them in the target block
+    ///
+    /// - `no_predicates` indicates which functions have no predicates and for which we disable the handling side effects
     </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>inline_block(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
         block: BasicBlockId,
@@ -1982,6 +2074,12 @@
     /// For a normal block, it would be its successor
     /// For blocks related to a conditional statement, we ensure to process
     /// the 'then-branch', then the 'else-branch' (if it exists), and finally the end block
+    /// The update of the context is done by the functions 'if_start', 'then_stop' and 'else_stop'
+    /// which perform the business logic when  entering a conditional statement, finishing the 'then-branch'
+    /// and the 'else-branch, respectively.
+    /// We know if a block is related to the conditional statement if is referenced by the 'work_list'
+    /// Indeed, the start blocks of the 'then_branch' and 'else_branch' are added to the 'work_list' when
+    /// starting to process a conditional statement.
     </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>handle_terminator(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
         block: BasicBlockId,
@@ -2024,7 +2122,11 @@
         }
     }
 
-    <span class="doccomment">/// Process a conditional statement
+    <span class="doccomment">/// Process a conditional statement by creating a 'ConditionalContext'
+    /// with information about the branch, and storing it in the dedicated stack.
+    /// Local allocations are moved to the 'then_branch' of the ConditionalContext.
+    /// Returns the blocks corresponding to the 'then_branch', 'else_branch', and exit block of the conditional statement,
+    /// so that they will be processed in this order.
     </span><span class="kw">fn </span>if_start(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
         condition: <span class="kw-2">&amp;</span>ValueId,
@@ -2066,7 +2168,11 @@
         <span class="macro">vec!</span>[<span class="self">self</span>.branch_ends[if_entry], <span class="kw-2">*</span>else_destination, <span class="kw-2">*</span>then_destination]
     }
 
-    <span class="doccomment">/// Switch context to the 'else-branch'
+    <span class="doccomment">/// Switch context to the 'else-branch':
+    /// - Negates the condition for the 'else_branch' and set it in the ConditionalContext
+    /// - Move the local allocations to the 'else_branch'
+    /// - Issues the 'enable_side_effect' instruction
+    /// - Returns the exit block of the conditional statement
     </span><span class="kw">fn </span>then_stop(<span class="kw-2">&amp;mut </span><span class="self">self</span>, block: <span class="kw-2">&amp;</span>BasicBlockId) -&gt; Vec&lt;BasicBlockId&gt; {
         <span class="kw">let </span><span class="kw-2">mut </span>cond_context = <span class="self">self</span>.condition_stack.pop().unwrap();
         cond_context.then_branch.last_block = <span class="kw-2">*</span>block;
@@ -2094,7 +2200,8 @@
         <span class="macro">vec!</span>[<span class="self">self</span>.cfg.successors(<span class="kw-2">*</span>block).next().unwrap()]
     }
 
-    <span class="kw">fn </span>not_instruction(<span class="kw-2">&amp;mut </span><span class="self">self</span>, condition: ValueId, call_stack: CallStackId) -&gt; ValueId {
+    <span class="doccomment">/// Negates a boolean value by inserting a Not instruction
+    </span><span class="kw">fn </span>not_instruction(<span class="kw-2">&amp;mut </span><span class="self">self</span>, condition: ValueId, call_stack: CallStackId) -&gt; ValueId {
         <span class="kw">if let </span><span class="prelude-val">Some</span>(existing) = <span class="self">self</span>.not_instructions.get(<span class="kw-2">&amp;</span>condition) {
             <span class="kw">return </span><span class="kw-2">*</span>existing;
         }
@@ -2104,7 +2211,10 @@
         not
     }
 
-    <span class="doccomment">/// Process the 'exit' block of a conditional statement
+    <span class="doccomment">/// Process the 'exit' block of a conditional statement:
+    /// - Retrieves the local allocations from the Conditional Context
+    /// - Issues the 'enable_side_effect' instruction
+    /// - Joins the arguments from both branches
     </span><span class="kw">fn </span>else_stop(<span class="kw-2">&amp;mut </span><span class="self">self</span>, block: <span class="kw-2">&amp;</span>BasicBlockId) -&gt; Vec&lt;BasicBlockId&gt; {
         <span class="kw">let </span><span class="kw-2">mut </span>cond_context = <span class="self">self</span>.condition_stack.pop().unwrap();
         <span class="kw">if </span>cond_context.else_branch.is_none() {
@@ -2141,8 +2251,9 @@
     /// all of the join point's predecessors, and it must handle any differing side effects from
     /// each branch.
     ///
-    /// Afterwards, continues inlining recursively until it finds the next end block or finds the
-    /// end of the function.
+    /// The merge of arguments is done by inserting an 'IfElse' instructions which returns
+    /// the argument from the then_branch or the else_branch depending the the condition.
+    /// They are added to the 'arguments_stack' instead of the arguments of the 2 branches.
     ///
     /// Returns the final block that was inlined.
     </span><span class="kw">fn </span>inline_branch_end(
@@ -2272,8 +2383,10 @@
         }
     }
 
-    <span class="doccomment">/// If we are currently in a branch, we need to modify constrain instructions
-    /// to multiply them by the branch's condition (see optimization #1 in the module comment).
+    <span class="doccomment">/// If we are currently in a branch, we need to modify instructions that have side effects
+    /// (e.g. constraints, stores, range checks) to ensure that the side effect is only applied
+    /// if their branch is taken.
+    /// For instance we multiply constrain instructions by the branch's condition (see optimization #1 in the module comment).
     </span><span class="kw">fn </span>handle_instruction_side_effects(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
         instruction: Instruction,
@@ -2297,7 +2410,7 @@
                     </span><span class="kw">if </span><span class="self">self</span>.local_allocations.contains(<span class="kw-2">&amp;</span>address) {
                         Instruction::Store { address, value }
                     } <span class="kw">else </span>{
-                        <span class="comment">// Instead of storing `value`, store `if condition { value } else { previous_value }`
+                        <span class="comment">// Instead of storing `value`, we store: `if condition { value } else { previous_value }`
                         </span><span class="kw">let </span>typ = <span class="self">self</span>.inserter.function.dfg.type_of_value(value);
                         <span class="kw">let </span>load = Instruction::Load { address };
                         <span class="kw">let </span>previous_value = <span class="self">self
@@ -2328,7 +2441,9 @@
                 }
                 Instruction::Call { func, <span class="kw-2">mut </span>arguments } =&gt; <span class="kw">match </span><span class="self">self</span>.inserter.function.dfg[func]
                 {
-                    Value::Intrinsic(Intrinsic::ToBits(<span class="kw">_</span>) | Intrinsic::ToRadix(<span class="kw">_</span>)) =&gt; {
+                    <span class="comment">// A ToBits (or ToRadix in general) can fail if the input has more bits than the target.
+                    // We ensure it does not fail by multiplying the input by the condition.
+                    </span>Value::Intrinsic(Intrinsic::ToBits(<span class="kw">_</span>) | Intrinsic::ToRadix(<span class="kw">_</span>)) =&gt; {
                         <span class="kw">let </span>field = arguments[<span class="number">0</span>];
                         <span class="kw">let </span>casted_condition =
                             <span class="self">self</span>.cast_condition_to_value_type(condition, field, call_stack);
@@ -2338,14 +2453,15 @@
 
                         Instruction::Call { func, arguments }
                     }
-                    <span class="comment">//Issue #5045: We set curve points to infinity if condition is false
+                    <span class="comment">//Issue #5045: We set curve points to infinity if condition is false, to ensure that they are on the curve, if not the addition may fail.
                     </span>Value::Intrinsic(Intrinsic::BlackBox(BlackBoxFunc::EmbeddedCurveAdd)) =&gt; {
                         arguments[<span class="number">2</span>] = <span class="self">self</span>.var_or_one(arguments[<span class="number">2</span>], condition, call_stack);
                         arguments[<span class="number">5</span>] = <span class="self">self</span>.var_or_one(arguments[<span class="number">5</span>], condition, call_stack);
 
                         Instruction::Call { func, arguments }
                     }
-                    Value::Intrinsic(Intrinsic::BlackBox(BlackBoxFunc::MultiScalarMul)) =&gt; {
+                    <span class="comment">// For MSM, we also ensure the inputs are on the curve if the predicate is false.
+                    </span>Value::Intrinsic(Intrinsic::BlackBox(BlackBoxFunc::MultiScalarMul)) =&gt; {
                         <span class="kw">let </span>points_array_idx = <span class="kw">if </span><span class="macro">matches!</span>(
                             <span class="self">self</span>.inserter.function.dfg.type_of_value(arguments[<span class="number">0</span>]),
                             Type::Array { .. }
@@ -2376,7 +2492,12 @@
         }
     }
 
-    <span class="kw">fn </span>cast_condition_to_value_type(
+    <span class="doccomment">/// 'Cast' the 'condition' to 'value' type
+    ///
+    /// This needed because we need to multiply the condition with several values
+    /// in order to 'nullify' side-effects when the 'condition' is false (in 'handle_instruction_side_effects()' function).
+    /// Since the condition is a boolean, it can be safely casted to any other type.
+    </span><span class="kw">fn </span>cast_condition_to_value_type(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
         condition: ValueId,
         value: ValueId,
@@ -2387,7 +2508,8 @@
         <span class="self">self</span>.insert_instruction(cast, call_stack)
     }
 
-    <span class="kw">fn </span>mul_by_condition(
+    <span class="doccomment">/// Insert a multiplication between 'condition' and 'value'
+    </span><span class="kw">fn </span>mul_by_condition(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
         value: ValueId,
         condition: ValueId,
