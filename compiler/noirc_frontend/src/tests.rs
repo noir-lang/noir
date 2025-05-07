@@ -4675,3 +4675,43 @@ fn attempt_to_divide_by_zero_at_comptime() {
         "#;
     check_errors!(src);
 }
+
+#[named]
+#[test]
+fn same_name_in_types_and_values_namespace_works() {
+    let src = "
+    struct foo {}
+
+    fn foo(x: foo) -> foo {
+        x
+    }
+
+    fn main() {
+        let x: foo = foo {};
+        let _ = foo(x);
+    }
+    ";
+    assert_no_errors!(src);
+}
+
+#[named]
+#[test]
+fn only_one_private_error_when_name_in_types_and_values_namespace_collides() {
+    let src = "
+    mod moo {
+        struct foo {}
+
+        fn foo() {}
+    }
+
+    fn main() {
+        let _ = moo::foo {};
+                     ^^^ foo is private and not visible from the current module
+                     ~~~ foo is private
+        x
+        ^ cannot find `x` in this scope
+        ~ not found in this scope
+    }
+    ";
+    check_errors!(src);
+}
