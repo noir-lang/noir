@@ -1951,14 +1951,13 @@ impl Type {
                     Err(UnificationError)
                 }
             }
-            (
-                Constant(_, kind),
-                Type::NamedGeneric(types::NamedGeneric { type_var, implicit: true, .. }),
-            )
-            | (
-                Type::NamedGeneric(types::NamedGeneric { type_var, implicit: true, .. }),
-                Constant(_, kind),
-            ) if type_var.borrow().is_unbound() => kind.unify(&type_var.kind()),
+            (Constant(field, kind), Type::NamedGeneric(types::NamedGeneric { type_var, .. }))
+            | (Type::NamedGeneric(types::NamedGeneric { type_var, .. }), Constant(field, kind)) => {
+                let other = Type::Constant(*field, kind.clone());
+                other.try_unify_to_type_variable(type_var, bindings, |bindings| {
+                    other.try_bind_to(type_var, bindings, kind.clone())
+                })
+            }
 
             (Constant(value, kind), other) | (other, Constant(value, kind)) => {
                 let dummy_location = Location::dummy();
