@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1746632961183,
+  "lastUpdate": 1746632974067,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -3705,95 +3705,6 @@ window.BENCHMARK_DATA = {
       }
     ],
     "Compilation Time": [
-      {
-        "commit": {
-          "author": {
-            "email": "15848336+TomAFrench@users.noreply.github.com",
-            "name": "Tom French",
-            "username": "TomAFrench"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "5a9a5b474238a61413895c4e867a6cb47a8b8c1e",
-          "message": "chore: remove old fuzzer package (#8267)\n\nCo-authored-by: AztecBot <tech@aztecprotocol.com>",
-          "timestamp": "2025-04-29T15:01:29Z",
-          "tree_id": "f0876f5714a09b69b70ed57416f2fc8a33115470",
-          "url": "https://github.com/noir-lang/noir/commit/5a9a5b474238a61413895c4e867a6cb47a8b8c1e"
-        },
-        "date": 1745940142488,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "regression_4709",
-            "value": 0.666,
-            "unit": "s"
-          },
-          {
-            "name": "ram_blowup_regression",
-            "value": 12.6,
-            "unit": "s"
-          },
-          {
-            "name": "global_var_regression_entry_points",
-            "value": 0.47,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-inner",
-            "value": 2.314,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 6.472,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 1.194,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 17.2,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 14.96,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root-empty",
-            "value": 1.228,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root-single-tx",
-            "value": 127,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 120,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 1.044,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-root",
-            "value": 1.598,
-            "unit": "s"
-          }
-        ]
-      },
       {
         "commit": {
           "author": {
@@ -8151,6 +8062,95 @@ window.BENCHMARK_DATA = {
           {
             "name": "rollup-root",
             "value": 1.652,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "isennovskiy@gmail.com",
+            "name": "Innokentii Sennovskii",
+            "username": "Rumata888"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "40ecdb2bb1a5180e21e88a6bb4e31550b754e0bc",
+          "message": "feat(greybox_fuzzer): Maximum executions parameter added (#8390)\n\nCo-authored-by: Tom French <15848336+TomAFrench@users.noreply.github.com>",
+          "timestamp": "2025-05-07T15:22:20Z",
+          "tree_id": "a07c4757df6c217b0c96e5179a2f8cce64fecda2",
+          "url": "https://github.com/noir-lang/noir/commit/40ecdb2bb1a5180e21e88a6bb4e31550b754e0bc"
+        },
+        "date": 1746632964913,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "regression_4709",
+            "value": 0.681,
+            "unit": "s"
+          },
+          {
+            "name": "ram_blowup_regression",
+            "value": 12.7,
+            "unit": "s"
+          },
+          {
+            "name": "global_var_regression_entry_points",
+            "value": 0.488,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-inner",
+            "value": 2.424,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 6.46,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 1.116,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 18.76,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 13.12,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-empty",
+            "value": 1.254,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-single-tx",
+            "value": 116,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 117,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 1.08,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-root",
+            "value": 1.574,
             "unit": "s"
           }
         ]
