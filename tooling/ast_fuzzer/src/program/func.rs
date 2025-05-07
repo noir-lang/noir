@@ -249,6 +249,11 @@ impl<'a> FunctionContext<'a> {
         self.ctx.config.max_depth
     }
 
+    /// Is the program supposed to be comptime friendly?
+    fn is_comptime_friendly(&self) -> bool {
+        self.ctx.config.comptime_friendly
+    }
+
     /// Get and increment the next local ID.
     fn next_local_id(&mut self) -> LocalId {
         let id = LocalId(self.next_local_id);
@@ -596,6 +601,7 @@ impl<'a> FunctionContext<'a> {
         // Generate expressions for LHS and RHS.
         let lhs_expr = self.gen_expr(u, &lhs_type, max_depth.saturating_sub(1), Flags::NESTED)?;
         let rhs_expr = self.gen_expr(u, rhs_type, max_depth.saturating_sub(1), Flags::NESTED)?;
+
         let mut expr = expr::binary(lhs_expr, op, rhs_expr);
 
         // If we have chosen e.g. u8 and need u32 we need to cast.
@@ -688,11 +694,11 @@ impl<'a> FunctionContext<'a> {
                 return self.gen_while(u);
             }
 
-            if freq.enabled_when("break", self.in_loop) {
+            if freq.enabled_when("break", self.in_loop && !self.ctx.config.avoid_loop_control) {
                 return Ok(Expression::Break);
             }
 
-            if freq.enabled_when("continue", self.in_loop) {
+            if freq.enabled_when("continue", self.in_loop && !self.ctx.config.avoid_loop_control) {
                 return Ok(Expression::Continue);
             }
         }
@@ -710,7 +716,8 @@ impl<'a> FunctionContext<'a> {
     fn gen_let(&mut self, u: &mut Unstructured) -> arbitrary::Result<Expression> {
         // Generate a type or choose an existing one.
         let max_depth = self.max_depth();
-        let typ = self.ctx.gen_type(u, max_depth, false, true)?;
+        let comptime_friendly = self.is_comptime_friendly();
+        let typ = self.ctx.gen_type(u, max_depth, false, true, comptime_friendly)?;
         let expr = self.gen_expr(u, &typ, max_depth, Flags::TOP)?;
         let mutable = bool::arbitrary(u)?;
         Ok(self.let_var(mutable, typ, expr, true))
