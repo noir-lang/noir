@@ -1,0 +1,7 @@
+[package]
+name = "associated_constant_bound_with_different_types"
+type = "bin"
+authors = [""]
+compiler_version = ">=0.33.0"
+
+[dependencies]

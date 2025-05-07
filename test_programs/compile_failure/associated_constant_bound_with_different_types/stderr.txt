@@ -1,0 +1,8 @@
+error: Expected type [Field; 6], found type [Field; 5]
+   ┌─ src/main.nr:32:35
+   │
+32 │         let _array2: [Field; 6] = self.inner.make_array(); // get the same method to return an array of a different size
+   │                                   -----------------------
+   │
+
+Aborting due to 1 previous error
