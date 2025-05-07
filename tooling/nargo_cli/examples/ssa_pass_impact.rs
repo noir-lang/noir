@@ -127,6 +127,13 @@ fn main() {
 
     let mut ssa_pairs = Vec::new();
 
+    // Note that instead of compiling the code and running SSA passes one by one,
+    // we could work with the snapshots exported in https://github.com/noir-lang/noir/pull/7853 (currently draft),
+    // and focus on just the string comparison part. That would have the benefit
+    // of doing 100% what the normal compilation pipeline does, and that once the
+    // snapshots are prepared, we can compare any pairs at will, rather than have
+    // to recompile to look at another pass.
+
     for workspace in test_workspaces {
         let mut file_manager = workspace.new_file_manager();
         insert_all_files_for_workspace_into_file_manager(&workspace, &mut file_manager);
@@ -156,7 +163,16 @@ fn main() {
         }
     }
 
-    println!("{}", ssa_pairs.len());
+    let package_cnt = ssa_pairs.len();
+    let ssa_pair_cnt = ssa_pairs.iter().map(|(_, pairs)| pairs.len()).sum::<usize>();
+    let no_impact_cnt = ssa_pairs
+        .iter()
+        .map(|(_, pairs)| pairs.iter().filter(|p| p.before.ssa == p.after.ssa).count())
+        .sum::<usize>();
+
+    println!("Packages: {package_cnt}");
+    println!("SSA pairs: {ssa_pair_cnt}");
+    println!("No impact: {no_impact_cnt}");
 }
 
 /// Compile a package into a monomorphized [Program].
