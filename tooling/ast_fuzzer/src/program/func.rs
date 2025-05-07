@@ -42,7 +42,7 @@ pub(super) struct FunctionDeclaration {
 
 impl FunctionDeclaration {
     /// Generate a HIR function signature.
-    pub fn signature(&self) -> hir_def::function::FunctionSignature {
+    pub(super) fn signature(&self) -> hir_def::function::FunctionSignature {
         let param_types = self
             .params
             .iter()
@@ -140,7 +140,7 @@ pub(super) struct FunctionContext<'a> {
 }
 
 impl<'a> FunctionContext<'a> {
-    pub fn new(ctx: &'a mut Context, id: FuncId) -> Self {
+    pub(super) fn new(ctx: &'a mut Context, id: FuncId) -> Self {
         let decl = ctx.function_decl(id);
         let next_local_id = decl.params.iter().map(|p| p.0.0 + 1).max().unwrap_or_default();
         let budget = ctx.config.max_function_size;
@@ -206,7 +206,7 @@ impl<'a> FunctionContext<'a> {
     }
 
     /// Generate the function body.
-    pub fn gen_body(mut self, u: &mut Unstructured) -> arbitrary::Result<Expression> {
+    pub(super) fn gen_body(mut self, u: &mut Unstructured) -> arbitrary::Result<Expression> {
         // If we don't limit the budget according to the available data,
         // it gives us a lot of `false` and 0 and we end up with deep `!(!false)` if expressions.
         self.budget = self.budget.min(u.len());
@@ -220,7 +220,7 @@ impl<'a> FunctionContext<'a> {
 
     /// Generate the function body, wrapping a function call with literal arguments.
     /// This is used to test comptime functions, which can only take those.
-    pub fn gen_body_with_lit_call(
+    pub(super) fn gen_body_with_lit_call(
         mut self,
         u: &mut Unstructured,
         callee_id: FuncId,
