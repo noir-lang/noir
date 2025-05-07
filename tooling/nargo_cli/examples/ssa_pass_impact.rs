@@ -242,7 +242,7 @@ fn compile_into_program(
     context.disable_comptime_printing();
     context.debug_instrumenter = DebugInstrumenter::default();
     context.package_build_path = workspace.package_build_path(package);
-    let (_, warnings) = check_crate(&mut context, crate_id, &options)?;
+    let (_, warnings) = check_crate(&mut context, crate_id, options)?;
     let Some(main) = context.get_main_function(&crate_id) else {
         return Ok((None, warnings));
     };
