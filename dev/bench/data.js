@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1746607474221,
+  "lastUpdate": 1746607728505,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -3700,95 +3700,6 @@ window.BENCHMARK_DATA = {
       }
     ],
     "Compilation Time": [
-      {
-        "commit": {
-          "author": {
-            "email": "mvezenov@gmail.com",
-            "name": "Maxim Vezenov",
-            "username": "vezenovm"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "49a025ebed0b74795b6b1be190c04e4fb5e37d44",
-          "message": "fix(acir): Do not do the bound_constraint_with_offset optimization when the rhs is const and zero (#8243)",
-          "timestamp": "2025-04-28T15:24:40Z",
-          "tree_id": "f51b0e7b2b3215a6b7a8497078fab38cb1880041",
-          "url": "https://github.com/noir-lang/noir/commit/49a025ebed0b74795b6b1be190c04e4fb5e37d44"
-        },
-        "date": 1745855496764,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "regression_4709",
-            "value": 0.737,
-            "unit": "s"
-          },
-          {
-            "name": "ram_blowup_regression",
-            "value": 13.3,
-            "unit": "s"
-          },
-          {
-            "name": "global_var_regression_entry_points",
-            "value": 0.515,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-inner",
-            "value": 2.214,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 6.588,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 1.122,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 18.68,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 13.56,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root-empty",
-            "value": 1.154,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root-single-tx",
-            "value": 127,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 125,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 0.92,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-root",
-            "value": 1.5,
-            "unit": "s"
-          }
-        ]
-      },
       {
         "commit": {
           "author": {
@@ -8146,6 +8057,95 @@ window.BENCHMARK_DATA = {
           {
             "name": "rollup-root",
             "value": 1.6,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "47281315+guipublic@users.noreply.github.com",
+            "name": "guipublic",
+            "username": "guipublic"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "6e7dc911a4f94c1f29f31a0b1deca3ad5ff7e4b1",
+          "message": "chore: document flattening pass (#8312)\n\nCo-authored-by: jfecher <jfecher11@gmail.com>\nCo-authored-by: Tom French <15848336+TomAFrench@users.noreply.github.com>",
+          "timestamp": "2025-05-07T08:26:09Z",
+          "tree_id": "8f5cb29fcd466538f76839f93737635b3758b51b",
+          "url": "https://github.com/noir-lang/noir/commit/6e7dc911a4f94c1f29f31a0b1deca3ad5ff7e4b1"
+        },
+        "date": 1746607720574,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "regression_4709",
+            "value": 0.67,
+            "unit": "s"
+          },
+          {
+            "name": "ram_blowup_regression",
+            "value": 12.8,
+            "unit": "s"
+          },
+          {
+            "name": "global_var_regression_entry_points",
+            "value": 0.486,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-inner",
+            "value": 2.256,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 6.538,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 1.114,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 17.14,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 12.86,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-empty",
+            "value": 1.266,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-single-tx",
+            "value": 124,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 128,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 1.058,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-root",
+            "value": 1.672,
             "unit": "s"
           }
         ]
