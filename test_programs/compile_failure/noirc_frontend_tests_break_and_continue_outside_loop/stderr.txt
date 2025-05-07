@@ -6,9 +6,9 @@ error: continue is only allowed within loops
   │
 
 error: break is only allowed within loops
-  ┌─ src/main.nr:6:13
+  ┌─ src/main.nr:4:13
   │
-6 │             break;
+4 │             break;
   │             ------
   │
 

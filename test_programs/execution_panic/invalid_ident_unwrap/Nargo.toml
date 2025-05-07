@@ -1,6 +1,0 @@
-[package]
-name = "invalid_ident_unwrap"
-type = "bin"
-authors = [""]
-
-[dependencies]

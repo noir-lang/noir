@@ -15,10 +15,7 @@ impl BoundedVec4 {
     }
 
     pub fn push(&mut self, elem: Field) {
-        {
-            let i_3788: u32 = self.len;
-            self.storage[i_3788] = elem;
-        };
+        self.storage[self.len] = elem;
         self.len = self.len + 1;
     }
 }

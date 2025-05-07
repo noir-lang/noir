@@ -134,8 +134,8 @@ mod tests {
         force_brillig: ForceBrillig,
         inliner: Inliner,
     ) {
-        let target_dir = tempfile::tempdir().unwrap().into_path();
-
+        let target_dir = test_program_dir
+            .join(format!("target_force_brillig_{}_inliner_{}", force_brillig.0, inliner.0));
         nargo.arg(format!("--target-dir={}", target_dir.to_string_lossy()));
 
         nargo.assert().success();

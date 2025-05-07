@@ -1,6 +1,0 @@
-[package]
-name = "comptime_right_shift_no_overflow"
-type = "bin"
-authors = [""]
-
-[dependencies]

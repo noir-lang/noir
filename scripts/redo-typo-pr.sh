@@ -10,7 +10,7 @@ AUTHOR=`gh pr view $ORIGINAL_PR_NUMBER --json author --jq '.author.login'`
 
 # Step 1: Checkout the PR locally
 echo "Checking out PR #$ORIGINAL_PR_NUMBER"
-gh pr checkout $ORIGINAL_PR_NUMBER
+gh pr checkout $ORIGINAL_PR_NUMBER --force
 
 # Step 2: Create a new local branch
 echo "Creating new local branch $NEW_BRANCH"

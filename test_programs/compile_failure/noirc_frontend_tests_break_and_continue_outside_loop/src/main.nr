@@ -1,8 +1,6 @@
 
-        pub unconstrained fn foo() {
+        unconstrained fn main() {
             continue;
-        }
-        pub unconstrained fn bar() {
             break;
         }
     

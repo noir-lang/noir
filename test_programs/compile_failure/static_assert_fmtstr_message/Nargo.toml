@@ -1,7 +1,0 @@
-[package]
-name = "static_assert_fmtstr_message"
-type = "bin"
-authors = [""]
-compiler_version = ">=0.31.0"
-
-[dependencies]

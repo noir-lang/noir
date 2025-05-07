@@ -288,7 +288,7 @@ pub(super) fn simplify_call(
             }
         }
         Intrinsic::StaticAssert => {
-            if arguments.len() < 2 {
+            if arguments.len() != 2 {
                 panic!("ICE: static_assert called with wrong number of arguments")
             }
 

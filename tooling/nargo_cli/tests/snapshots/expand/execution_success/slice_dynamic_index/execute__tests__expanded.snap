@@ -35,10 +35,7 @@ fn dynamic_slice_index_set_if(mut slice: [Field], x: Field, y: Field) {
     if (x as u32) < 10 {
         assert(slice[x] == 4);
         slice[x] = slice[x] - 2;
-        {
-            let i_3814: Field = x - 1;
-            slice[i_3814] = slice[x];
-        }
+        slice[x - 1] = slice[x];
     } else {
         slice[x] = 0;
     };
@@ -55,10 +52,7 @@ fn dynamic_slice_index_set_else(mut slice: [Field], x: Field, y: Field) {
     if (x as u32) > 10 {
         assert(slice[x] == 4);
         slice[x] = slice[x] - 2;
-        {
-            let i_3815: Field = x - 1;
-            slice[i_3815] = slice[x];
-        }
+        slice[x - 1] = slice[x];
     } else {
         slice[x] = 0;
     };

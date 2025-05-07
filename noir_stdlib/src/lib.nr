@@ -84,10 +84,9 @@ fn verify_proof_internal<let N: u32, let M: u32, let K: u32>(
 #[builtin(assert_constant)]
 pub fn assert_constant<T>(x: T) {}
 
-// Asserts that the given value is both true and known at compile-time.
-// The message can be a string, a format string, or any value, as long as it is known at compile-time
+// Asserts that the given value is both true and known at compile-time
 #[builtin(static_assert)]
-pub fn static_assert<let N: u32, T>(predicate: bool, message: T) {}
+pub fn static_assert<let N: u32>(predicate: bool, message: str<N>) {}
 
 #[deprecated("wrapping operations should be done with the Wrapping traits. E.g: x.wrapping_add(y)")]
 pub fn wrapping_add<T>(x: T, y: T) -> T

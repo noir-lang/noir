@@ -20,7 +20,6 @@ members = [
     "tooling/nargo_fmt",
     "tooling/nargo_cli",
     "tooling/nargo_toml",
-    "tooling/nargo_fuzz_target",
     "tooling/noirc_artifacts",
     "tooling/noirc_artifacts_info",
     "tooling/noirc_abi",
@@ -93,7 +92,6 @@ noirc_printable_type = { path = "compiler/noirc_printable_type" }
 # Noir tooling workspace dependencies
 noir_greybox_fuzzer = { path = "tooling/greybox_fuzzer" }
 nargo = { path = "tooling/nargo" }
-nargo_cli = { path = "tooling/nargo_cli" }
 nargo_fmt = { path = "tooling/nargo_fmt" }
 nargo_toml = { path = "tooling/nargo_toml" }
 noir_lsp = { path = "tooling/lsp" }
@@ -178,7 +176,7 @@ num-integer = "0.1"
 similar-asserts = "1.5.0"
 tempfile = "3.6.0"
 test-case = "3.3.1"
-jsonrpsee = { version = "0.25.1", features = ["client-core"] }
+jsonrpsee = { version = "0.24.7", features = ["client-core"] }
 flate2 = "1.0.24"
 color-eyre = "0.6.2"
 rand = "0.8.5"

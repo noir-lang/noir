@@ -139,8 +139,7 @@ impl Context {
         u: &mut Unstructured,
         i: usize,
     ) -> arbitrary::Result<(Name, Type, Expression)> {
-        let typ =
-            self.gen_type(u, self.config.max_depth, true, false, self.config.comptime_friendly)?;
+        let typ = self.gen_type(u, self.config.max_depth, true, false)?;
         // By the time we get to the monomorphized AST the compiler will have already turned
         // complex global expressions into literals.
         let val = expr::gen_literal(u, &typ)?;
@@ -175,13 +174,7 @@ impl Context {
             let id = LocalId(p as u32);
             let name = make_name(p, false);
             let is_mutable = !is_main && bool::arbitrary(u)?;
-            let typ = self.gen_type(
-                u,
-                self.config.max_depth,
-                false,
-                false,
-                self.config.comptime_friendly,
-            )?;
+            let typ = self.gen_type(u, self.config.max_depth, false, false)?;
             params.push((id, is_mutable, name, typ));
 
             param_visibilities.push(if is_main {
@@ -195,8 +188,7 @@ impl Context {
             });
         }
 
-        let return_type =
-            self.gen_type(u, self.config.max_depth, false, false, self.config.comptime_friendly)?;
+        let return_type = self.gen_type(u, self.config.max_depth, false, false)?;
         let return_visibility = if is_main {
             if types::is_unit(&return_type) {
                 Visibility::Private
@@ -244,7 +236,6 @@ impl Context {
 
     /// Generate random function body.
     fn gen_function(&mut self, u: &mut Unstructured, id: FuncId) -> arbitrary::Result<()> {
-        println!("gen_function");
         self.gen_function_with_body(u, id, |u, fctx| fctx.gen_body(u))
     }
 
@@ -331,7 +322,6 @@ impl Context {
         max_depth: usize,
         is_global: bool,
         is_frontend_friendly: bool,
-        is_comptime_friendly: bool,
     ) -> arbitrary::Result<Type> {
         // See if we can reuse an existing type without going over the maximum depth.
         if u.ratio(5, 10)? {
@@ -369,9 +359,7 @@ impl Context {
                             // i1 and i128 are rejected by the frontend
                             (!sign.is_signed() || (bs.bit_size() != 1 && bs.bit_size() != 128)) &&
                             // The frontend doesn't like non-u32 literals
-                            (!is_frontend_friendly || bs.bit_size() <= 32) &&
-                            // Comptime doesn't allow for u1 either
-                            (!is_comptime_friendly || bs.bit_size() != 1)
+                            (!is_frontend_friendly || bs.bit_size() <= 32)
                         })
                         .collect::<Vec<_>>();
                     Type::Integer(sign, u.choose_iter(sizes)?)
@@ -382,28 +370,14 @@ impl Context {
                     // 1-size tuples look strange, so let's make it minimum 2 fields.
                     let size = u.int_in_range(2..=self.config.max_tuple_size)?;
                     let types = (0..size)
-                        .map(|_| {
-                            self.gen_type(
-                                u,
-                                max_depth - 1,
-                                is_global,
-                                is_frontend_friendly,
-                                is_comptime_friendly,
-                            )
-                        })
+                        .map(|_| self.gen_type(u, max_depth - 1, is_global, is_frontend_friendly))
                         .collect::<Result<Vec<_>, _>>()?;
                     Type::Tuple(types)
                 }
                 6 | 7 => {
                     let min_size = if is_frontend_friendly { 1 } else { 0 };
                     let size = u.int_in_range(min_size..=self.config.max_array_size)?;
-                    let typ = self.gen_type(
-                        u,
-                        max_depth - 1,
-                        is_global,
-                        is_frontend_friendly,
-                        is_comptime_friendly,
-                    )?;
+                    let typ = self.gen_type(u, max_depth - 1, is_global, is_frontend_friendly)?;
                     Type::Array(size as u32, Box::new(typ))
                 }
                 _ => unreachable!("unexpected arbitrary type index"),

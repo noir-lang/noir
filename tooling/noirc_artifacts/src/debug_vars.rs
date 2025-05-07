@@ -1,8 +1,9 @@
 use acvm::AcirField;
+use noirc_abi::decode_printable_value;
 use noirc_errors::debug_info::{
     DebugFnId, DebugFunction, DebugInfo, DebugTypeId, DebugVarId, DebugVariable,
 };
-use noirc_printable_type::{PrintableType, PrintableValue, decode_printable_value};
+use noirc_printable_type::{PrintableType, PrintableValue};
 use std::collections::HashMap;
 
 #[derive(Debug, Default, Clone)]

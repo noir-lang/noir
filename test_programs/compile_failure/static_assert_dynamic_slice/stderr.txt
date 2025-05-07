@@ -1,6 +1,4 @@
-error: Failed because the predicate is dynamic:
-
-The predicate must be known at compile time to be evaluated.
+error: Argument is dynamic
    ┌─ src/main.nr:14:5
    │
 14 │     std::static_assert(dynamic_built_slice_pair.len() == 3, "");

@@ -1,6 +1,0 @@
-[package]
-name = "invalid_attribute_span"
-type = "bin"
-authors = [""]
-
-[dependencies]

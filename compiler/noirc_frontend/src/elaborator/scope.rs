@@ -15,7 +15,7 @@ use crate::{Type, TypeAlias};
 
 use super::path_resolution::{PathResolutionItem, PathResolutionMode};
 use super::types::SELF_TYPE_NAME;
-use super::{Elaborator, PathResolutionTarget, ResolverMeta};
+use super::{Elaborator, ResolverMeta};
 
 type Scope = GenericScope<String, ResolverMeta>;
 type ScopeTree = GenericScopeTree<String, ResolverMeta>;
@@ -82,7 +82,7 @@ impl Elaborator<'_> {
         path: Path,
     ) -> Result<(DefinitionId, PathResolutionItem), ResolverError> {
         let location = path.location;
-        let item = self.use_path_or_error(path, PathResolutionTarget::Value)?;
+        let item = self.use_path_or_error(path)?;
 
         if let Some(function) = item.function_id() {
             return Ok((self.interner.function_definition_id(function), item));
@@ -137,7 +137,7 @@ impl Elaborator<'_> {
     /// Lookup a given trait by name/path.
     pub fn lookup_trait_or_error(&mut self, path: Path) -> Option<&mut Trait> {
         let location = path.location;
-        match self.resolve_path_or_error(path, PathResolutionTarget::Type) {
+        match self.resolve_path_or_error(path) {
             Ok(item) => {
                 if let PathResolutionItem::Trait(trait_id) = item {
                     Some(self.get_trait_mut(trait_id))
@@ -164,7 +164,7 @@ impl Elaborator<'_> {
         mode: PathResolutionMode,
     ) -> Option<Shared<DataType>> {
         let location = path.location;
-        match self.resolve_path_or_error_inner(path, PathResolutionTarget::Type, mode) {
+        match self.resolve_path_or_error_inner(path, mode) {
             Ok(item) => {
                 if let PathResolutionItem::Type(struct_id) = item {
                     Some(self.get_type(struct_id))
@@ -195,7 +195,7 @@ impl Elaborator<'_> {
         }
 
         let location = path.location;
-        match self.use_path_or_error(path, PathResolutionTarget::Type) {
+        match self.use_path_or_error(path) {
             Ok(PathResolutionItem::Type(struct_id)) => {
                 let struct_type = self.get_type(struct_id);
                 let generics = struct_type.borrow().instantiate(self.interner);
@@ -226,7 +226,7 @@ impl Elaborator<'_> {
         path: Path,
         mode: PathResolutionMode,
     ) -> Option<Shared<TypeAlias>> {
-        match self.resolve_path_or_error_inner(path, PathResolutionTarget::Type, mode) {
+        match self.resolve_path_or_error_inner(path, mode) {
             Ok(PathResolutionItem::TypeAlias(type_alias_id)) => {
                 Some(self.interner.get_type_alias(type_alias_id))
             }

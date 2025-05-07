@@ -1,7 +1,0 @@
-
-            [package]
-            name = "noirc_frontend_tests_same_name_in_types_and_values_namespace_works"
-            type = "bin"
-            authors = [""]
-            
-            [dependencies]

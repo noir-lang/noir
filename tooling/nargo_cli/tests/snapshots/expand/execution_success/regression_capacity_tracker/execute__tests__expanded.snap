@@ -7,10 +7,7 @@ fn main(expected: pub Field, first: Field, input: [Field; 20]) {
     hasher_slice = hasher_slice.push_front(first);
     assert(hasher_slice[0] == expected);
     if (expected as u32) > 10 {
-        {
-            let i_3770: Field = expected - 10;
-            hasher_slice[i_3770] = 100;
-        }
+        hasher_slice[expected - 10] = 100;
     } else {
         hasher_slice[expected] = 100;
     };

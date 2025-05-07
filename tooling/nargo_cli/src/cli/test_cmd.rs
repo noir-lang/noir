@@ -569,7 +569,6 @@ impl<'a> TestRunner<'a> {
                 num_threads: 1,
                 timeout: self.args.fuzz_timeout,
                 show_progress: false,
-                max_executions: 0,
             },
         };
 

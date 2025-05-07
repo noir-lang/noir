@@ -27,7 +27,7 @@ use crate::{
     token::Attributes,
 };
 
-use super::{Elaborator, path_resolution::PathResolutionTarget};
+use super::Elaborator;
 
 const WILDCARD_PATTERN: &str = "_";
 
@@ -419,7 +419,7 @@ impl Elaborator<'_> {
                 // user is trying to resolve to a non-local item.
                 let shadow_existing = path.is_ident().then_some(last_ident);
 
-                match self.resolve_path_or_error(path, PathResolutionTarget::Value) {
+                match self.resolve_path_or_error(path) {
                     Ok(resolution) => self.path_resolution_to_constructor(
                         resolution,
                         shadow_existing,
@@ -588,7 +588,7 @@ impl Elaborator<'_> {
             ExpressionKind::Variable(path) => {
                 let location = path.location;
 
-                match self.resolve_path_or_error(path, PathResolutionTarget::Value) {
+                match self.resolve_path_or_error(path) {
                     // Use None for `name` here - we don't want to define a variable if this
                     // resolves to an existing item.
                     Ok(resolution) => self.path_resolution_to_constructor(

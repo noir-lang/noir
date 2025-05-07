@@ -70,9 +70,7 @@ use noirc_errors::{Located, Location};
 pub(crate) use options::ElaboratorOptions;
 pub use options::{FrontendOptions, UnstableFeature};
 pub use path_resolution::Turbofish;
-use path_resolution::{
-    PathResolution, PathResolutionItem, PathResolutionMode, PathResolutionTarget,
-};
+use path_resolution::{PathResolution, PathResolutionItem, PathResolutionMode};
 use types::bind_ordered_generics;
 
 use self::traits::check_trait_impl_method_matches_declaration;
@@ -790,18 +788,16 @@ impl<'context> Elaborator<'context> {
     }
 
     pub fn resolve_module_by_path(&mut self, path: Path) -> Option<ModuleId> {
-        match self.resolve_path_as_type(path.clone()) {
-            Ok(PathResolution { item: PathResolutionItem::Module(module_id), errors })
-                if errors.is_empty() =>
-            {
-                Some(module_id)
+        match self.resolve_path(path.clone()) {
+            Ok(PathResolution { item: PathResolutionItem::Module(module_id), errors }) => {
+                if errors.is_empty() { Some(module_id) } else { None }
             }
             _ => None,
         }
     }
 
     fn resolve_trait_by_path(&mut self, path: Path) -> Option<TraitId> {
-        let error = match self.resolve_path_as_type(path.clone()) {
+        let error = match self.resolve_path(path.clone()) {
             Ok(PathResolution { item: PathResolutionItem::Trait(trait_id), errors }) => {
                 for error in errors {
                     self.push_err(error);
@@ -867,9 +863,11 @@ impl<'context> Elaborator<'context> {
     ) -> Vec<ResolvedGeneric> {
         let mut added_generics = Vec::new();
 
-        let Ok(PathResolutionItem::Trait(trait_id)) =
-            self.resolve_path_or_error(bound.trait_path.clone(), PathResolutionTarget::Type)
-        else {
+        let Ok(item) = self.resolve_path_or_error(bound.trait_path.clone()) else {
+            return Vec::new();
+        };
+
+        let PathResolutionItem::Trait(trait_id) = item else {
             return Vec::new();
         };
 

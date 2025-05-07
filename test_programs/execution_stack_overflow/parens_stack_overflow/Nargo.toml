@@ -1,6 +1,0 @@
-[package]
-name = "parens_stack_overflow"
-type = "bin"
-authors = [""]
-
-[dependencies]

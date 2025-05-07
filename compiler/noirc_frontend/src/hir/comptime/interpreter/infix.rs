@@ -57,7 +57,6 @@ pub(super) fn evaluate_infix(
                     (U16, U16)     to U16   => $int_expr,
                     (U32, U32)     to U32   => $int_expr,
                     (U64, U64)     to U64   => $int_expr,
-                    (U128, U128)   to U128  => $int_expr,
                 }
             }
         };
@@ -78,7 +77,6 @@ pub(super) fn evaluate_infix(
                     (U16, U16)     to Bool => Some($expr),
                     (U32, U32)     to Bool => Some($expr),
                     (U64, U64)     to Bool => Some($expr),
-                    (U128, U128)   to Bool => Some($expr),
                 }
             }
         };
@@ -98,7 +96,6 @@ pub(super) fn evaluate_infix(
                     (U16, U16)     to U16  => Some($expr),
                     (U32, U32)     to U32  => Some($expr),
                     (U64, U64)     to U64  => Some($expr),
-                    (U128, U128)   to U128  => Some($expr),
                 }
             }
         };
@@ -117,7 +114,6 @@ pub(super) fn evaluate_infix(
                     (U16, U16)     to U16  => $expr,
                     (U32, U32)     to U32  => $expr,
                     (U64, U64)     to U64  => $expr,
-                    (U128, U128)   to U128 => $expr,
                 }
             }
         };
@@ -136,7 +132,6 @@ pub(super) fn evaluate_infix(
                     (U16, U8)      to U16  => $expr,
                     (U32, U8)      to U32  => $expr,
                     (U64, U8)      to U64  => $expr,
-                    (U128, U8)     to U128  => $expr,
                 }
             }
         };
@@ -196,8 +191,7 @@ pub(super) fn evaluate_infix(
             (lhs_value as lhs "^" rhs_value as rhs) => lhs ^ rhs
         },
         BinaryOpKind::ShiftRight => match_bitshift! {
-            // Overflow on shift-right returns 0 in Noir
-            (lhs_value as lhs ">>" rhs_value as rhs) => lhs.checked_shr(rhs.into()).or(Some(0))
+            (lhs_value as lhs ">>" rhs_value as rhs) => lhs.checked_shr(rhs.into())
         },
         BinaryOpKind::ShiftLeft => match_bitshift! {
             (lhs_value as lhs "<<" rhs_value as rhs) => lhs.checked_shl(rhs.into())
@@ -205,24 +199,5 @@ pub(super) fn evaluate_infix(
         BinaryOpKind::Modulo => match_integer! {
             (lhs_value as lhs "%" rhs_value as rhs) => lhs.checked_rem(rhs)
         },
-    }
-}
-
-#[cfg(test)]
-mod test {
-    use super::{BinaryOpKind, HirBinaryOp, Location, Value};
-
-    use super::evaluate_infix;
-
-    #[test]
-    /// See: https://github.com/noir-lang/noir/issues/8391
-    fn regression_8391() {
-        let lhs = Value::U128(340282366920938463463374607431768211455);
-        let rhs = Value::U128(2);
-        let operator = HirBinaryOp { kind: BinaryOpKind::Divide, location: Location::dummy() };
-        let location = Location::dummy();
-        let result = evaluate_infix(lhs, rhs, operator, location).unwrap();
-
-        assert_eq!(result, Value::U128(170141183460469231731687303715884105727));
     }
 }

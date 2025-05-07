@@ -278,8 +278,6 @@ pub struct FuzzedExecutorExecutionConfiguration {
     pub timeout: u64,
     /// Whether to output progress to stdout or not.
     pub show_progress: bool,
-    /// Maximum number of executions of ACIR and Brillig (default: no limit)
-    pub max_executions: usize,
 }
 
 pub enum FuzzedExecutorFailureConfiguration {
@@ -350,9 +348,6 @@ pub struct FuzzedExecutor<E, F> {
 
     /// Maximum time in seconds to spend fuzzing (default: no timeout)
     timeout: u64,
-
-    /// Maximum number of executions of ACIR and Brillig (default: no limit)
-    max_executions: usize,
 }
 pub struct AcirAndBrilligPrograms {
     pub acir_program: ProgramArtifact,
@@ -417,7 +412,6 @@ impl<
             ),
             timeout: fuzz_execution_config.timeout,
             metrics: Metrics::default(),
-            max_executions: fuzz_execution_config.max_executions,
         }
     }
 
@@ -973,12 +967,6 @@ impl<
                 last_metric_check = time_tracker.elapsed();
                 // Check if we've exceeded the timeout
                 if self.timeout > 0 && time_tracker.elapsed() >= Duration::from_secs(self.timeout) {
-                    return FuzzTestResult::Success;
-                }
-                // Check if we've exceeded the maximum number of executions
-                if self.max_executions > 0
-                    && self.metrics.processed_testcase_count >= self.max_executions
-                {
                     return FuzzTestResult::Success;
                 }
             }

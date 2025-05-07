@@ -874,7 +874,7 @@ impl Elaborator<'_> {
         }
     }
 
-    pub(crate) fn get_ident_from_path(
+    pub fn get_ident_from_path(
         &mut self,
         path: Path,
     ) -> ((HirIdent, usize), Option<PathResolutionItem>) {

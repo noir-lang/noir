@@ -52,8 +52,7 @@ impl WorkspaceCommand for ExecuteCommand {
 
 pub(crate) fn run(args: ExecuteCommand, workspace: Workspace) -> Result<(), CliError> {
     // Compile the full workspace in order to generate any build artifacts.
-    let debug_compile_stdin = None;
-    compile_workspace_full(&workspace, &args.compile_options, debug_compile_stdin)?;
+    compile_workspace_full(&workspace, &args.compile_options)?;
 
     let binary_packages = workspace.into_iter().filter(|package| package.is_binary());
     for package in binary_packages {
