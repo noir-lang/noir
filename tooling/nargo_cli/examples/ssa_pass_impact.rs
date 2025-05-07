@@ -35,6 +35,7 @@ use noirc_frontend::{
     hir::ParsedFiles,
     monomorphization::{ast::Program, monomorphize},
 };
+use rayon::iter::{IntoParallelIterator, ParallelIterator};
 use regex::Regex;
 use similar::{ChangeTag, DiffableStr, DiffableStrRef, TextDiff};
 
@@ -131,15 +132,12 @@ fn main() {
         max_bytecode_increase_percent: None,
     };
 
-    let ssa_passes = primary_passes(&ssa_options);
-    let last_pass = ssa_passes
+    let last_pass = primary_passes(&ssa_options)
         .iter()
         .enumerate()
         .filter_map(|(i, p)| p.msg().contains(&opts.ssa_pass).then_some(i))
         .max()
         .expect("cannot find a pass with the given name");
-
-    let mut ssa_pairs = Vec::new();
 
     // Note that instead of compiling the code and running SSA passes one by one,
     // we could work with the snapshots exported in https://github.com/noir-lang/noir/pull/7853 (currently draft),
@@ -148,34 +146,47 @@ fn main() {
     // snapshots are prepared, we can compare any pairs at will, rather than have
     // to recompile to look at another pass.
 
-    for workspace in test_workspaces {
-        let mut file_manager = workspace.new_file_manager();
-        insert_all_files_for_workspace_into_file_manager(&workspace, &mut file_manager);
-        let parsed_files = parse_all(&file_manager);
-        let binary_packages = workspace.into_iter().filter(|package| package.is_binary());
+    let ssa_pairs: Vec<Vec<(CrateName, Vec<SsaBeforeAndAfter>)>> = test_workspaces
+        .into_par_iter()
+        .map(|workspace| {
+            let mut workspace_pairs = Vec::new();
 
-        for package in binary_packages {
-            let Ok((Some(program), _)) = compile_into_program(
-                &file_manager,
-                &parsed_files,
-                &workspace,
-                package,
-                &compile_options,
-            ) else {
-                continue;
-            };
+            let mut file_manager = workspace.new_file_manager();
+            insert_all_files_for_workspace_into_file_manager(&workspace, &mut file_manager);
+            let parsed_files = parse_all(&file_manager);
+            let binary_packages = workspace.into_iter().filter(|package| package.is_binary());
 
-            let pairs =
-                collect_ssa_before_and_after(program, &ssa_passes[..=last_pass], &opts.ssa_pass)
-                    .unwrap_or_else(|e| {
-                        panic!("failed to run SSA passes on {}: {e}", package.name)
-                    });
+            // Cannot share the boxed closures between threads.
+            let ssa_passes = primary_passes(&ssa_options);
 
-            if !pairs.is_empty() {
-                ssa_pairs.push((package.name.clone(), pairs));
+            for package in binary_packages {
+                let Ok((Some(program), _)) = compile_into_program(
+                    &file_manager,
+                    &parsed_files,
+                    &workspace,
+                    package,
+                    &compile_options,
+                ) else {
+                    continue;
+                };
+
+                let package_pairs = collect_ssa_before_and_after(
+                    program,
+                    &ssa_passes[..=last_pass],
+                    &opts.ssa_pass,
+                )
+                .unwrap_or_else(|e| panic!("failed to run SSA passes on {}: {e}", package.name));
+
+                if !package_pairs.is_empty() {
+                    workspace_pairs.push((package.name.clone(), package_pairs));
+                }
             }
-        }
-    }
+
+            workspace_pairs
+        })
+        .collect();
+
+    let ssa_pairs = ssa_pairs.into_iter().flatten().collect();
 
     show_report(ssa_pairs, opts.top_impact_count);
 }
