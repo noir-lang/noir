@@ -694,11 +694,11 @@ impl<'a> FunctionContext<'a> {
                 return self.gen_while(u);
             }
 
-            if freq.enabled_when("break", self.in_loop) {
+            if freq.enabled_when("break", self.in_loop && !self.ctx.config.avoid_loop_control) {
                 return Ok(Expression::Break);
             }
 
-            if freq.enabled_when("continue", self.in_loop && !self.ctx.config.avoid_continue) {
+            if freq.enabled_when("continue", self.in_loop && !self.ctx.config.avoid_loop_control) {
                 return Ok(Expression::Continue);
             }
         }

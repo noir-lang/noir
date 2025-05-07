@@ -225,6 +225,7 @@ pub struct CompareComptime {
 impl CompareComptime {
     /// Execute the Noir code and the SSA, then compare the results.
     pub fn exec(&self) -> eyre::Result<CompareResult> {
+        println!("{}", self.source);
         let program1 = match prepare_and_compile_snippet(self.source.clone(), self.force_brillig) {
             Ok((program, _)) => program,
             Err(e) => panic!("failed to compile program:\n{}\n{e:?}", self.source),
