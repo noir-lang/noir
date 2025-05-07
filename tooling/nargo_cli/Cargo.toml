@@ -107,6 +107,8 @@ lazy_static.workspace = true
 light-poseidon = "0.3.0"
 insta = { workspace = true, features = ["json", "redactions"] }
 
+noirc_evaluator.workspace = true
+
 [[bench]]
 name = "criterion"
 harness = false
