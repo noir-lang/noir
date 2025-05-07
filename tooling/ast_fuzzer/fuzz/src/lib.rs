@@ -133,14 +133,6 @@ pub fn compare_results_comptime(
         eprintln!("---\nAST:\n{}", DisplayAstAsNoir(&inputs.program));
         eprintln!("---\nComptime source:\n{}", &inputs.source);
 
-        // Showing the inputs as TOML so we can easily create a Prover.toml file.
-        eprintln!(
-            "---\nAST Inputs:\n{}",
-            Format::Toml
-                .serialize(&inputs.input_map, &inputs.abi)
-                .unwrap_or_else(|e| format!("failed to serialize inputs: {e}"))
-        );
-
         eprintln!("---\nCompile options:\n{:?}", inputs.ssa.options);
         eprintln!("---\nCompiled program:\n{}", inputs.ssa.artifact.program);
 
