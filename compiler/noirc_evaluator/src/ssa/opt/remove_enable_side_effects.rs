@@ -102,7 +102,16 @@ impl Function {
 
 #[cfg(test)]
 mod test {
-    use crate::{assert_ssa_snapshot, ssa::ssa_gen::Ssa};
+    use crate::{
+        assert_ssa_snapshot,
+        ssa::{
+            ir::{
+                function::Function,
+                instruction::{Instruction, Intrinsic},
+            },
+            ssa_gen::Ssa,
+        },
+    };
 
     #[test]
     fn remove_chains_of_same_condition() {
@@ -171,6 +180,7 @@ mod test {
 
     #[test]
     fn keep_enable_side_effects_for_safe_modulo() {
+        // This is a simplification of `test_programs/execution_success/regression_8236`
         let src = r#"
         acir(inline) predicate_pure fn main f0 {
           b0(v0: [u16; 3], v1: [u1; 1]):
@@ -217,5 +227,160 @@ mod test {
             return v3
         }
         "#);
+    }
+
+    #[test]
+    fn keep_side_effects_for_safe_div() {
+        let src = r#"
+        acir(inline) predicate_pure fn main f0 {
+          b0(v0: [u32; 3], v1: u1):
+            v3 = array_get v0, index u32 0 -> u32
+            enable_side_effects v1
+            v5 = div v3, u32 3
+            return
+        }
+        "#;
+
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.remove_enable_side_effects();
+        // We expect the SSA to be unchanged
+        assert_ssa_snapshot!(ssa, @r#"
+        acir(inline) predicate_pure fn main f0 {
+          b0(v0: [u32; 3], v1: u1):
+            v3 = array_get v0, index u32 0 -> u32
+            enable_side_effects v1
+            v5 = div v3, u32 3
+            return
+        }
+        "#);
+    }
+
+    #[test]
+    fn remove_enable_side_effects_for_slice_push_back() {
+        let src = get_slice_intrinsic_src(
+            "v13, v14",
+            &Intrinsic::SlicePushBack.to_string(),
+            ", Field 5) -> (u32, [Field])",
+        );
+        verify_all_enable_side_effects_removed(&src);
+    }
+
+    #[test]
+    fn remove_enable_side_effects_for_slice_push_front() {
+        let src = get_slice_intrinsic_src(
+            "v13, v14",
+            &Intrinsic::SlicePushFront.to_string(),
+            ", Field 5) -> (u32, [Field])",
+        );
+        verify_all_enable_side_effects_removed(&src);
+    }
+
+    #[test]
+    fn remove_enable_side_effects_for_slice_pop_back() {
+        let src = get_slice_intrinsic_src(
+            "v13, v14, v15",
+            &Intrinsic::SlicePopBack.to_string(),
+            ") -> (u32, [Field], Field)",
+        );
+        verify_all_enable_side_effects_removed(&src);
+    }
+
+    #[test]
+    fn remove_enable_side_effects_for_slice_pop_front() {
+        let src = get_slice_intrinsic_src(
+            "v13, v14, v15",
+            &Intrinsic::SlicePopFront.to_string(),
+            ") -> (Field, u32, [Field])",
+        );
+        verify_all_enable_side_effects_removed(&src);
+    }
+
+    #[test]
+    fn keep_enable_side_effects_for_slice_insert() {
+        let src = get_slice_intrinsic_src(
+            "v13, v14",
+            &Intrinsic::SliceInsert.to_string(),
+            ", u32 1, Field 5) -> (u32, [Field])",
+        );
+        verify_ssa_unchanged(&src);
+    }
+
+    #[test]
+    fn keep_enable_side_effects_for_slice_remove() {
+        let src = get_slice_intrinsic_src(
+            "v13, v14, v15",
+            &Intrinsic::SliceRemove.to_string(),
+            ", u32 1) -> (u32, [Field], Field)",
+        );
+        verify_ssa_unchanged(&src);
+    }
+
+    fn verify_all_enable_side_effects_removed(src: &str) {
+        let ssa = Ssa::from_str(&src).unwrap();
+        let num_enable_side_effects = num_enable_side_effects_instructions(ssa.main());
+        assert!(
+            num_enable_side_effects >= 1,
+            "Should have at least one EnableSideEffectsIf instruction"
+        );
+        let expected_total_instructions = ssa.main().num_instructions() - num_enable_side_effects;
+
+        let ssa = ssa.remove_enable_side_effects();
+
+        let num_enable_side_effects = num_enable_side_effects_instructions(ssa.main());
+        assert_eq!(
+            num_enable_side_effects, 0,
+            "Should not have any EnableSideEffectsIf instructions"
+        );
+        assert_eq!(ssa.main().num_instructions(), expected_total_instructions);
+    }
+
+    fn verify_ssa_unchanged(src: &str) {
+        let ssa = Ssa::from_str(src).unwrap();
+        let num_enable_side_effects = num_enable_side_effects_instructions(ssa.main());
+        assert!(
+            num_enable_side_effects >= 1,
+            "Should have at least one EnableSideEffectsIf instruction"
+        );
+        let expected_total_instructions = ssa.main().num_instructions();
+
+        let ssa = ssa.remove_enable_side_effects();
+
+        let ssa = ssa.remove_enable_side_effects();
+        let got_num_enable_side_effects = num_enable_side_effects_instructions(ssa.main());
+        assert_eq!(
+            got_num_enable_side_effects, num_enable_side_effects,
+            "Should not same number of EnableSideEffectsIf instructions"
+        );
+        assert_eq!(ssa.main().num_instructions(), expected_total_instructions);
+    }
+
+    // Helper method to set up the SSA for unit tests on slice intrinsics
+    fn get_slice_intrinsic_src(
+        return_values: &str,
+        intrinsic_name: &str,
+        args_and_return_type: &str,
+    ) -> String {
+        format!(
+            "
+        acir(inline) predicate_pure fn main f0 {{
+          b0(v0: u32, v1: u1):
+            v3 = array_get v0, index u32 0 -> u32
+            v7 = make_array [Field 1, Field 2, Field 3] : [Field]
+            v9 = array_set v7, index v0, value Field 4
+            enable_side_effects v1
+            {return_values} = call {intrinsic_name}(u32 3, v9{args_and_return_type}
+            return
+        }}
+        "
+        )
+    }
+
+    fn num_enable_side_effects_instructions(function: &Function) -> usize {
+        function
+            .reachable_blocks()
+            .iter()
+            .flat_map(|block| function.dfg[*block].instructions())
+            .filter(|inst| matches!(function.dfg[**inst], Instruction::EnableSideEffectsIf { .. }))
+            .count()
     }
 }

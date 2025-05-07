@@ -386,6 +386,8 @@ impl Instruction {
             Instruction::Call { func, .. } => match dfg[*func] {
                 Value::Function(id) => !matches!(dfg.purity_of(id), Some(Purity::Pure)),
                 Value::Intrinsic(intrinsic) => {
+                    // These utilize `noirc_evaluator::acir::Context::get_flattened_index` internally
+                    // which uses the side effects predicate.
                     matches!(intrinsic, Intrinsic::SliceInsert | Intrinsic::SliceRemove)
                 }
                 _ => false,
