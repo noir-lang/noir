@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1746628499681,
+  "lastUpdate": 1746628568279,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -18156,48 +18156,6 @@ window.BENCHMARK_DATA = {
             "username": "web-flow"
           },
           "distinct": true,
-          "id": "4b85c09ab6f0cd116acd8daf02560d68ea524232",
-          "message": "feat: AST fuzzer compare result between minimum and full SSA pipeline (#8216)\n\nCo-authored-by: Ratmir Karabut <rkarabut@users.noreply.github.com>",
-          "timestamp": "2025-04-29T13:23:00Z",
-          "tree_id": "4545b9e2e935f87b244b9ab353a7796e9eb111e9",
-          "url": "https://github.com/noir-lang/noir/commit/4b85c09ab6f0cd116acd8daf02560d68ea524232"
-        },
-        "date": 1745934038570,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 252413,
-            "range": "± 585",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 226558,
-            "range": "± 1890",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 3228884,
-            "range": "± 11663",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
-            "email": "aakoshh@gmail.com",
-            "name": "Akosh Farkash",
-            "username": "aakoshh"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
           "id": "0d850a3655f744ecf5b9a8b041861d930a560669",
           "message": "feat: Fuzz the inliner aggressiveness along with the AST (#8270)",
           "timestamp": "2025-04-29T14:00:08Z",
@@ -20239,6 +20197,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 3226063,
             "range": "± 14738",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "15848336+TomAFrench@users.noreply.github.com",
+            "name": "Tom French",
+            "username": "TomAFrench"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "85241deaef7eaab9cc1526e7a3031a3dcb0c6eb3",
+          "message": "fix: add handling for u128 infix ops in interpreter (#8392)\n\nCo-authored-by: AztecBot <tech@aztecprotocol.com>",
+          "timestamp": "2025-05-07T14:17:55Z",
+          "tree_id": "c4d35417a615b197b90e6259a75461583e977c3b",
+          "url": "https://github.com/noir-lang/noir/commit/85241deaef7eaab9cc1526e7a3031a3dcb0c6eb3"
+        },
+        "date": 1746628560633,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 264694,
+            "range": "± 331",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 234893,
+            "range": "± 3012",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 3219430,
+            "range": "± 10792",
             "unit": "ns/iter"
           }
         ]
