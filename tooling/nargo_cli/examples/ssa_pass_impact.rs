@@ -6,6 +6,7 @@
 //! ```
 use std::{
     cmp::Ordering,
+    collections::BTreeMap,
     path::{Path, PathBuf},
     sync::OnceLock,
 };
@@ -196,7 +197,8 @@ fn show_report(pairs: Vec<(CrateName, Vec<SsaBeforeAndAfter>)>, top_impact_count
     let package_cnt = pairs.len();
     let mut total_cnt = 0;
     let mut equals_cnt = 0;
-    let mut not_equals = Vec::new();
+    let mut passes_by_name: BTreeMap<String, Vec<(f64, CrateName, SsaBeforeAndAfter)>> =
+        Default::default();
 
     for (package, passes) in pairs {
         total_cnt += passes.len();
@@ -205,32 +207,37 @@ fn show_report(pairs: Vec<(CrateName, Vec<SsaBeforeAndAfter>)>, top_impact_count
                 equals_cnt += 1;
             } else {
                 let sim = ssa_similarity(&pass.before.ssa, &pass.after.ssa);
-                not_equals.push((sim, package.clone(), pass));
+                let passes = passes_by_name.entry(pass.after.msg.clone()).or_default();
+                passes.push((sim, package.clone(), pass));
             }
         }
     }
 
-    not_equals.sort_by(|a, b| a.0.partial_cmp(&b.0).unwrap_or(Ordering::Equal));
+    for passes in passes_by_name.values_mut() {
+        passes.sort_by(|a, b| a.0.partial_cmp(&b.0).unwrap_or(Ordering::Equal));
+    }
 
     println!("Packages: {package_cnt}");
     println!("Passes total: {total_cnt}");
     println!("Passes with no impact: {equals_cnt}");
     println!("Passes with most impact (top {top_impact_count}):");
 
-    for (sim, package, pass) in not_equals.iter().take(top_impact_count) {
-        println!(
-            "\t{:.3} change: step {}. ('{}' -> '{}') in {package}",
-            1.0 - sim,
-            pass.after.step,
-            pass.before.msg,
-            pass.after.msg,
-        );
+    for (name, passes) in passes_by_name {
+        println!("Passes most impacted by '{name}' (top {top_impact_count}):");
+        for (sim, package, pass) in passes.into_iter().take(top_impact_count) {
+            println!(
+                "\t{:.3} impact: step {} following '{}' in {package}",
+                1.0 - sim,
+                pass.after.step,
+                pass.before.msg,
+            );
+        }
     }
 }
 
 /// Compile a package into a monomorphized [Program].
 ///
-/// If the package has no `main` function then `None` is returend.
+/// If the package has no `main` function then `None` is returned.
 fn compile_into_program(
     file_manager: &FileManager,
     parsed_files: &ParsedFiles,
