@@ -220,7 +220,6 @@ fn show_report(pairs: Vec<(CrateName, Vec<SsaBeforeAndAfter>)>, top_impact_count
     println!("Packages: {package_cnt}");
     println!("Passes total: {total_cnt}");
     println!("Passes with no impact: {equals_cnt}");
-    println!("Passes with most impact (top {top_impact_count}):");
 
     for (name, passes) in passes_by_name {
         println!("Passes most impacted by '{name}' (top {top_impact_count}):");
