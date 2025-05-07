@@ -72,6 +72,10 @@ pub(crate) struct FuzzCommand {
     /// Maximum time in seconds to spend fuzzing (default: no timeout)
     #[arg(long)]
     timeout: Option<u64>,
+
+    /// Maximum number of executions of ACIR and Brillig per harness(default: no limit)
+    #[arg(long)]
+    max_executions: Option<usize>,
 }
 impl WorkspaceCommand for FuzzCommand {
     fn package_selection(&self) -> PackageSelection {
@@ -156,6 +160,7 @@ pub(crate) fn run(args: FuzzCommand, workspace: Workspace) -> Result<(), CliErro
         timeout: args.timeout.unwrap_or(0),
         num_threads: args.num_threads,
         show_progress: true,
+        max_executions: args.max_executions.unwrap_or(0),
     };
 
     let fuzzing_reports: Vec<Vec<(String, FuzzingRunStatus)>> = workspace
