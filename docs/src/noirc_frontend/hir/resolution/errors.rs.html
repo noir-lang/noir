@@ -830,7 +830,19 @@
 <a href="#829" id="829">829</a>
 <a href="#830" id="830">830</a>
 <a href="#831" id="831">831</a>
-<a href="#832" id="832">832</a></pre></div><pre class="rust"><code><span class="kw">use </span>acvm::FieldElement;
+<a href="#832" id="832">832</a>
+<a href="#833" id="833">833</a>
+<a href="#834" id="834">834</a>
+<a href="#835" id="835">835</a>
+<a href="#836" id="836">836</a>
+<a href="#837" id="837">837</a>
+<a href="#838" id="838">838</a>
+<a href="#839" id="839">839</a>
+<a href="#840" id="840">840</a>
+<a href="#841" id="841">841</a>
+<a href="#842" id="842">842</a>
+<a href="#843" id="843">843</a>
+<a href="#844" id="844">844</a></pre></div><pre class="rust"><code><span class="kw">use </span>acvm::FieldElement;
 <span class="kw">pub use </span>noirc_errors::Span;
 <span class="kw">use </span>noirc_errors::{CustomDiagnostic <span class="kw">as </span>Diagnostic, Location};
 <span class="kw">use </span>thiserror::Error;
@@ -1032,6 +1044,8 @@
         <span class="string">"The type parameter `{ident}` is not constrained by the impl trait, self type, or predicates"
     </span>)]
     </span>UnconstrainedTypeParameter { ident: Ident },
+    <span class="attr">#[error(<span class="string">"Unreachable statement"</span>)]
+    </span>UnreachableStatement { location: Location, break_or_continue_location: Location },
 }
 
 <span class="kw">impl </span>ResolverError {
@@ -1100,7 +1114,8 @@
             | ResolverError::NoPredicatesAttributeOnUnconstrained { location, .. }
             | ResolverError::FoldAttributeOnUnconstrained { location, .. }
             | ResolverError::OracleMarkedAsConstrained { location, .. }
-            | ResolverError::LowLevelFunctionOutsideOfStdlib { location } =&gt; <span class="kw-2">*</span>location,
+            | ResolverError::LowLevelFunctionOutsideOfStdlib { location }
+            | ResolverError::UnreachableStatement { location, .. } =&gt; <span class="kw-2">*</span>location,
             ResolverError::UnusedVariable { ident }
             | ResolverError::UnusedItem { ident, .. }
             | ResolverError::DuplicateField { field: ident }
@@ -1658,6 +1673,15 @@
                     <span class="macro">format!</span>(<span class="string">"Hint: remove the `{ident}` type parameter"</span>),
                     ident.location(),
                 )
+            }
+            ResolverError::UnreachableStatement { location, break_or_continue_location} =&gt; {
+                <span class="kw">let </span><span class="kw-2">mut </span>diagnostic = Diagnostic::simple_warning(
+                    <span class="string">"Unreachable statement"</span>.to_string(),
+                    <span class="string">"Unreachable statement"</span>.to_string(),
+                    <span class="kw-2">*</span>location,
+                );
+                diagnostic.add_secondary(<span class="string">"Any code following this expression is unreachable"</span>.to_string(), <span class="kw-2">*</span>break_or_continue_location);
+                diagnostic
             }
         }
     }

@@ -1416,7 +1416,30 @@
 <a href="#1415" id="1415">1415</a>
 <a href="#1416" id="1416">1416</a>
 <a href="#1417" id="1417">1417</a>
-<a href="#1418" id="1418">1418</a></pre></div><pre class="rust"><code><span class="kw">use </span>acvm::{AcirField, FieldElement};
+<a href="#1418" id="1418">1418</a>
+<a href="#1419" id="1419">1419</a>
+<a href="#1420" id="1420">1420</a>
+<a href="#1421" id="1421">1421</a>
+<a href="#1422" id="1422">1422</a>
+<a href="#1423" id="1423">1423</a>
+<a href="#1424" id="1424">1424</a>
+<a href="#1425" id="1425">1425</a>
+<a href="#1426" id="1426">1426</a>
+<a href="#1427" id="1427">1427</a>
+<a href="#1428" id="1428">1428</a>
+<a href="#1429" id="1429">1429</a>
+<a href="#1430" id="1430">1430</a>
+<a href="#1431" id="1431">1431</a>
+<a href="#1432" id="1432">1432</a>
+<a href="#1433" id="1433">1433</a>
+<a href="#1434" id="1434">1434</a>
+<a href="#1435" id="1435">1435</a>
+<a href="#1436" id="1436">1436</a>
+<a href="#1437" id="1437">1437</a>
+<a href="#1438" id="1438">1438</a>
+<a href="#1439" id="1439">1439</a>
+<a href="#1440" id="1440">1440</a>
+<a href="#1441" id="1441">1441</a></pre></div><pre class="rust"><code><span class="kw">use </span>acvm::{AcirField, FieldElement};
 <span class="kw">use </span>iter_extended::vecmap;
 <span class="kw">use </span>noirc_errors::{Located, Location};
 <span class="kw">use </span>rustc_hash::FxHashSet <span class="kw">as </span>HashSet;
@@ -1569,13 +1592,25 @@
         <span class="kw">let </span>statements_len = block.statements.len();
         <span class="kw">let </span><span class="kw-2">mut </span>statements = Vec::with_capacity(statements_len);
 
+        <span class="comment">// If we found a break or continue statement, this holds its location (only for the first one)
+        </span><span class="kw">let </span><span class="kw-2">mut </span>break_or_continue_location = <span class="prelude-val">None</span>;
+        <span class="comment">// When encountering a statement after a break or continue we'll error saying it's unreachable,
+        // but we only want to error for the first statement.
+        </span><span class="kw">let </span><span class="kw-2">mut </span>errored_unreachable = <span class="bool-val">false</span>;
+
         <span class="kw">for </span>(i, statement) <span class="kw">in </span>block.statements.into_iter().enumerate() {
+            <span class="kw">let </span>location = statement.location;
             <span class="kw">let </span>statement_target_type = <span class="kw">if </span>i == statements_len - <span class="number">1 </span>{ target_type } <span class="kw">else </span>{ <span class="prelude-val">None </span>};
             <span class="kw">let </span>(id, stmt_type) =
                 <span class="self">self</span>.elaborate_statement_with_target_type(statement, statement_target_type);
-            statements.push(id);
 
-            <span class="kw">if let </span>HirStatement::Semi(expr) = <span class="self">self</span>.interner.statement(<span class="kw-2">&amp;</span>id) {
+            <span class="kw">if </span>break_or_continue_location.is_none() {
+                statements.push(id);
+            }
+
+            <span class="kw">let </span>stmt = <span class="self">self</span>.interner.statement(<span class="kw-2">&amp;</span>id);
+
+            <span class="kw">if let </span>HirStatement::Semi(expr) = stmt {
                 <span class="kw">let </span>inner_expr_type = <span class="self">self</span>.interner.id_type(expr);
                 <span class="kw">let </span>location = <span class="self">self</span>.interner.expr_location(<span class="kw-2">&amp;</span>expr);
 
@@ -1585,7 +1620,18 @@
                 });
             }
 
-            <span class="kw">if </span>i + <span class="number">1 </span>== statements.len() {
+            <span class="kw">if let </span><span class="prelude-val">Some</span>(break_or_continue_location) = break_or_continue_location {
+                <span class="kw">if </span>!errored_unreachable {
+                    <span class="self">self</span>.push_err(ResolverError::UnreachableStatement {
+                        location,
+                        break_or_continue_location,
+                    });
+                    errored_unreachable = <span class="bool-val">true</span>;
+                }
+            } <span class="kw">else if </span><span class="macro">matches!</span>(stmt, HirStatement::Break | HirStatement::Continue) {
+                break_or_continue_location = <span class="prelude-val">Some</span>(location);
+                block_type = stmt_type;
+            } <span class="kw">else if </span>i + <span class="number">1 </span>== statements.len() {
                 block_type = stmt_type;
             }
         }
