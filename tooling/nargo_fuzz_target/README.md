@@ -1,6 +1,6 @@
 # `nargo_fuzz_target`
 
-To set up the inputs, empty the directory and run:
+To set up the inputs, empty the `draft_inputs` directory, if present, and run:
 
 ```bash
 ./populate_inputs.rb
@@ -11,6 +11,9 @@ To copy all `.nr` files with up to `512` bytes to the `draft_inputs` folder.
 Then, copy any relevant inputs (e.g. all of them) to `inputs` and run with:
 
 ```bash
+# to install 'cargo-afl'
+cargo install cargo-afl
+
 cargo afl build
 cargo afl fuzz -i inputs -o outputs ../../target/debug/nargo_fuzz_target
 ```
