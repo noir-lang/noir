@@ -661,7 +661,7 @@ impl Elaborator<'_> {
             return None;
         }
 
-        let ident = variable.segments[0].ident.clone();
+        let ident = variable.segments[1].ident.clone();
         let typ_location = variable.segments[0].location;
         Some(self.elaborate_type_path_impl(self_type.clone(), ident, None, typ_location))
     }
