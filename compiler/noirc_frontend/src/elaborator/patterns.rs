@@ -657,7 +657,7 @@ impl Elaborator<'_> {
         }
 
         // Check the `Self::method_name` case when `Self` is a primitive type
-        if !matches!(self.self_type, Some(Type::DataType(..))) {
+        if matches!(self.self_type, Some(Type::DataType(..))) {
             return None;
         }
 
