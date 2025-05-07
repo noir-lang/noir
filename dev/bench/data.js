@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1746642481501,
+  "lastUpdate": 1746644667067,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -18171,48 +18171,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "47281315+guipublic@users.noreply.github.com",
-            "name": "guipublic",
-            "username": "guipublic"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "d8c43708bb6a85c8b2026ac458bc99d44cd83884",
-          "message": "chore: document cast (#8268)\n\nCo-authored-by: Tom French <15848336+TomAFrench@users.noreply.github.com>",
-          "timestamp": "2025-04-29T16:06:54Z",
-          "tree_id": "4a04a062b5ce42a3b6490b0f21db811a7ae37272",
-          "url": "https://github.com/noir-lang/noir/commit/d8c43708bb6a85c8b2026ac458bc99d44cd83884"
-        },
-        "date": 1745943914645,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 253639,
-            "range": "± 1249",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 226567,
-            "range": "± 4513",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 3247228,
-            "range": "± 9774",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "15848336+TomAFrench@users.noreply.github.com",
             "name": "Tom French",
             "username": "TomAFrench"
@@ -20264,6 +20222,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 3226060,
             "range": "± 5462",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "michaeljklein@users.noreply.github.com",
+            "name": "Michael J Klein",
+            "username": "michaeljklein"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "3a9ff197364336e6760c49f5f5dcf5d879765e3d",
+          "message": "feat(test): add `nargo_fuzz_target` (#8308)",
+          "timestamp": "2025-05-07T18:40:29Z",
+          "tree_id": "2807aa6f7468c83ebc3ecef54661dd5b8915849a",
+          "url": "https://github.com/noir-lang/noir/commit/3a9ff197364336e6760c49f5f5dcf5d879765e3d"
+        },
+        "date": 1746644658769,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 268505,
+            "range": "± 454",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 239263,
+            "range": "± 6526",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 3229303,
+            "range": "± 1913",
             "unit": "ns/iter"
           }
         ]
