@@ -316,7 +316,7 @@ mod test {
     }
 
     fn verify_all_enable_side_effects_removed(src: &str) {
-        let ssa = Ssa::from_str(&src).unwrap();
+        let ssa = Ssa::from_str(src).unwrap();
         let num_enable_side_effects = num_enable_side_effects_instructions(ssa.main());
         assert!(
             num_enable_side_effects >= 1,
