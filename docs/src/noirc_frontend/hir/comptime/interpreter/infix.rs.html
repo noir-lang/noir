@@ -202,7 +202,31 @@
 <a href="#201" id="201">201</a>
 <a href="#202" id="202">202</a>
 <a href="#203" id="203">203</a>
-<a href="#204" id="204">204</a></pre></div><pre class="rust"><code><span class="kw">use </span><span class="kw">crate</span>::ast::BinaryOpKind;
+<a href="#204" id="204">204</a>
+<a href="#205" id="205">205</a>
+<a href="#206" id="206">206</a>
+<a href="#207" id="207">207</a>
+<a href="#208" id="208">208</a>
+<a href="#209" id="209">209</a>
+<a href="#210" id="210">210</a>
+<a href="#211" id="211">211</a>
+<a href="#212" id="212">212</a>
+<a href="#213" id="213">213</a>
+<a href="#214" id="214">214</a>
+<a href="#215" id="215">215</a>
+<a href="#216" id="216">216</a>
+<a href="#217" id="217">217</a>
+<a href="#218" id="218">218</a>
+<a href="#219" id="219">219</a>
+<a href="#220" id="220">220</a>
+<a href="#221" id="221">221</a>
+<a href="#222" id="222">222</a>
+<a href="#223" id="223">223</a>
+<a href="#224" id="224">224</a>
+<a href="#225" id="225">225</a>
+<a href="#226" id="226">226</a>
+<a href="#227" id="227">227</a>
+<a href="#228" id="228">228</a></pre></div><pre class="rust"><code><span class="kw">use </span><span class="kw">crate</span>::ast::BinaryOpKind;
 <span class="kw">use </span><span class="kw">crate</span>::hir::Location;
 <span class="kw">use </span><span class="kw">crate</span>::hir_def::expr::HirBinaryOp;
 
@@ -261,6 +285,7 @@
                     (U16, U16)     to U16   =&gt; <span class="macro-nonterminal">$int_expr</span>,
                     (U32, U32)     to U32   =&gt; <span class="macro-nonterminal">$int_expr</span>,
                     (U64, U64)     to U64   =&gt; <span class="macro-nonterminal">$int_expr</span>,
+                    (U128, U128)   to U128  =&gt; <span class="macro-nonterminal">$int_expr</span>,
                 }
             }
         };
@@ -281,6 +306,7 @@
                     (U16, U16)     to Bool =&gt; <span class="prelude-val">Some</span>(<span class="macro-nonterminal">$expr</span>),
                     (U32, U32)     to Bool =&gt; <span class="prelude-val">Some</span>(<span class="macro-nonterminal">$expr</span>),
                     (U64, U64)     to Bool =&gt; <span class="prelude-val">Some</span>(<span class="macro-nonterminal">$expr</span>),
+                    (U128, U128)   to Bool =&gt; <span class="prelude-val">Some</span>(<span class="macro-nonterminal">$expr</span>),
                 }
             }
         };
@@ -300,6 +326,7 @@
                     (U16, U16)     to U16  =&gt; <span class="prelude-val">Some</span>(<span class="macro-nonterminal">$expr</span>),
                     (U32, U32)     to U32  =&gt; <span class="prelude-val">Some</span>(<span class="macro-nonterminal">$expr</span>),
                     (U64, U64)     to U64  =&gt; <span class="prelude-val">Some</span>(<span class="macro-nonterminal">$expr</span>),
+                    (U128, U128)   to U128  =&gt; <span class="prelude-val">Some</span>(<span class="macro-nonterminal">$expr</span>),
                 }
             }
         };
@@ -318,6 +345,7 @@
                     (U16, U16)     to U16  =&gt; <span class="macro-nonterminal">$expr</span>,
                     (U32, U32)     to U32  =&gt; <span class="macro-nonterminal">$expr</span>,
                     (U64, U64)     to U64  =&gt; <span class="macro-nonterminal">$expr</span>,
+                    (U128, U128)   to U128 =&gt; <span class="macro-nonterminal">$expr</span>,
                 }
             }
         };
@@ -336,6 +364,7 @@
                     (U16, U8)      to U16  =&gt; <span class="macro-nonterminal">$expr</span>,
                     (U32, U8)      to U32  =&gt; <span class="macro-nonterminal">$expr</span>,
                     (U64, U8)      to U64  =&gt; <span class="macro-nonterminal">$expr</span>,
+                    (U128, U8)     to U128  =&gt; <span class="macro-nonterminal">$expr</span>,
                 }
             }
         };
@@ -404,6 +433,25 @@
         BinaryOpKind::Modulo =&gt; <span class="macro">match_integer!</span> {
             (lhs_value <span class="kw">as </span>lhs <span class="string">"%" </span>rhs_value <span class="kw">as </span>rhs) =&gt; lhs.checked_rem(rhs)
         },
+    }
+}
+
+<span class="attr">#[cfg(test)]
+</span><span class="kw">mod </span>test {
+    <span class="kw">use super</span>::{BinaryOpKind, HirBinaryOp, Location, Value};
+
+    <span class="kw">use </span><span class="kw">super</span>::evaluate_infix;
+
+    <span class="attr">#[test]
+    </span><span class="doccomment">/// See: https://github.com/noir-lang/noir/issues/8391
+    </span><span class="kw">fn </span>regression_8391() {
+        <span class="kw">let </span>lhs = Value::U128(<span class="number">340282366920938463463374607431768211455</span>);
+        <span class="kw">let </span>rhs = Value::U128(<span class="number">2</span>);
+        <span class="kw">let </span>operator = HirBinaryOp { kind: BinaryOpKind::Divide, location: Location::dummy() };
+        <span class="kw">let </span>location = Location::dummy();
+        <span class="kw">let </span>result = evaluate_infix(lhs, rhs, operator, location).unwrap();
+
+        <span class="macro">assert_eq!</span>(result, Value::U128(<span class="number">170141183460469231731687303715884105727</span>));
     }
 }
 </code></pre></div></section></main></body></html>
