@@ -2303,7 +2303,9 @@
 <a href="#2302" id="2302">2302</a>
 <a href="#2303" id="2303">2303</a>
 <a href="#2304" id="2304">2304</a>
-<a href="#2305" id="2305">2305</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::{
+<a href="#2305" id="2305">2305</a>
+<a href="#2306" id="2306">2306</a>
+<a href="#2307" id="2307">2307</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::{
     collections::{BTreeMap, BTreeSet},
     rc::Rc,
 };
@@ -2375,7 +2377,9 @@
 <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">use </span>options::ElaboratorOptions;
 <span class="kw">pub use </span>options::{FrontendOptions, UnstableFeature};
 <span class="kw">pub use </span>path_resolution::Turbofish;
-<span class="kw">use </span>path_resolution::{PathResolution, PathResolutionItem, PathResolutionMode};
+<span class="kw">use </span>path_resolution::{
+    PathResolution, PathResolutionItem, PathResolutionMode, PathResolutionTarget,
+};
 <span class="kw">use </span>types::bind_ordered_generics;
 
 <span class="kw">use </span><span class="self">self</span>::traits::check_trait_impl_method_matches_declaration;
@@ -3093,16 +3097,18 @@
     }
 
     <span class="kw">pub fn </span>resolve_module_by_path(<span class="kw-2">&amp;mut </span><span class="self">self</span>, path: Path) -&gt; <span class="prelude-ty">Option</span>&lt;ModuleId&gt; {
-        <span class="kw">match </span><span class="self">self</span>.resolve_path(path.clone()) {
-            <span class="prelude-val">Ok</span>(PathResolution { item: PathResolutionItem::Module(module_id), errors }) =&gt; {
-                <span class="kw">if </span>errors.is_empty() { <span class="prelude-val">Some</span>(module_id) } <span class="kw">else </span>{ <span class="prelude-val">None </span>}
+        <span class="kw">match </span><span class="self">self</span>.resolve_path_as_type(path.clone()) {
+            <span class="prelude-val">Ok</span>(PathResolution { item: PathResolutionItem::Module(module_id), errors })
+                <span class="kw">if </span>errors.is_empty() =&gt;
+            {
+                <span class="prelude-val">Some</span>(module_id)
             }
             <span class="kw">_ </span>=&gt; <span class="prelude-val">None</span>,
         }
     }
 
     <span class="kw">fn </span>resolve_trait_by_path(<span class="kw-2">&amp;mut </span><span class="self">self</span>, path: Path) -&gt; <span class="prelude-ty">Option</span>&lt;TraitId&gt; {
-        <span class="kw">let </span>error = <span class="kw">match </span><span class="self">self</span>.resolve_path(path.clone()) {
+        <span class="kw">let </span>error = <span class="kw">match </span><span class="self">self</span>.resolve_path_as_type(path.clone()) {
             <span class="prelude-val">Ok</span>(PathResolution { item: PathResolutionItem::Trait(trait_id), errors }) =&gt; {
                 <span class="kw">for </span>error <span class="kw">in </span>errors {
                     <span class="self">self</span>.push_err(error);
@@ -3168,11 +3174,9 @@
     ) -&gt; Vec&lt;ResolvedGeneric&gt; {
         <span class="kw">let </span><span class="kw-2">mut </span>added_generics = Vec::new();
 
-        <span class="kw">let </span><span class="prelude-val">Ok</span>(item) = <span class="self">self</span>.resolve_path_or_error(bound.trait_path.clone()) <span class="kw">else </span>{
-            <span class="kw">return </span>Vec::new();
-        };
-
-        <span class="kw">let </span>PathResolutionItem::Trait(trait_id) = item <span class="kw">else </span>{
+        <span class="kw">let </span><span class="prelude-val">Ok</span>(PathResolutionItem::Trait(trait_id)) =
+            <span class="self">self</span>.resolve_path_or_error(bound.trait_path.clone(), PathResolutionTarget::Type)
+        <span class="kw">else </span>{
             <span class="kw">return </span>Vec::new();
         };
 

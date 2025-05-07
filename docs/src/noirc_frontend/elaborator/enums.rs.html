@@ -1395,7 +1395,7 @@
     token::Attributes,
 };
 
-<span class="kw">use </span><span class="kw">super</span>::Elaborator;
+<span class="kw">use super</span>::{Elaborator, path_resolution::PathResolutionTarget};
 
 <span class="kw">const </span>WILDCARD_PATTERN: <span class="kw-2">&amp;</span>str = <span class="string">"_"</span>;
 
@@ -1787,7 +1787,7 @@
                 // user is trying to resolve to a non-local item.
                 </span><span class="kw">let </span>shadow_existing = path.is_ident().then_some(last_ident);
 
-                <span class="kw">match </span><span class="self">self</span>.resolve_path_or_error(path) {
+                <span class="kw">match </span><span class="self">self</span>.resolve_path_or_error(path, PathResolutionTarget::Value) {
                     <span class="prelude-val">Ok</span>(resolution) =&gt; <span class="self">self</span>.path_resolution_to_constructor(
                         resolution,
                         shadow_existing,
@@ -1956,7 +1956,7 @@
             ExpressionKind::Variable(path) =&gt; {
                 <span class="kw">let </span>location = path.location;
 
-                <span class="kw">match </span><span class="self">self</span>.resolve_path_or_error(path) {
+                <span class="kw">match </span><span class="self">self</span>.resolve_path_or_error(path, PathResolutionTarget::Value) {
                     <span class="comment">// Use None for `name` here - we don't want to define a variable if this
                     // resolves to an existing item.
                     </span><span class="prelude-val">Ok</span>(resolution) =&gt; <span class="self">self</span>.path_resolution_to_constructor(
