@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1746649299686,
+  "lastUpdate": 1746649435637,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -11371,70 +11371,6 @@ window.BENCHMARK_DATA = {
             "name": "GitHub",
             "username": "web-flow"
           },
-          "distinct": true,
-          "id": "c7e56beaac4081c5b71c0717e122aaf9a7b075f2",
-          "message": "chore: refactor array handling in ACIRgen (#8256)\n\nCo-authored-by: AztecBot <tech@aztecprotocol.com>",
-          "timestamp": "2025-04-29T16:27:38Z",
-          "tree_id": "909c4525d1bf016b95be549a181c5689b18ef83b",
-          "url": "https://github.com/noir-lang/noir/commit/c7e56beaac4081c5b71c0717e122aaf9a7b075f2"
-        },
-        "date": 1745945811276,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 231.63,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 255.24,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 209.65,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 540.14,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 532.32,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 1440,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 361.22,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-root",
-            "value": 367.16,
-            "unit": "MB"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
-            "email": "15848336+TomAFrench@users.noreply.github.com",
-            "name": "Tom French",
-            "username": "TomAFrench"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
           "distinct": false,
           "id": "b101f73c1d1a32e70996770201c4c57985f88134",
           "message": "feat: omit element size array for more array types (#8257)\n\nCo-authored-by: AztecBot <tech@aztecprotocol.com>",
@@ -14515,6 +14451,70 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/noir-lang/noir/commit/3a9ff197364336e6760c49f5f5dcf5d879765e3d"
         },
         "date": 1746645249240,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 234.12,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 256.59,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 212.44,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 541.54,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 533.71,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 1440,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 362.58,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-root",
+            "value": 368.5,
+            "unit": "MB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "15848336+TomAFrench@users.noreply.github.com",
+            "name": "Tom French",
+            "username": "TomAFrench"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "d8e4de40d05efe79b970055f42bd72f061f6aae6",
+          "message": "chore: redo typo PR by shystrui1199 (#8405)\n\nCo-authored-by: AztecBot <tech@aztecprotocol.com>",
+          "timestamp": "2025-05-07T19:52:31Z",
+          "tree_id": "77dcf986e22b230402c792be4e322d04c5aa9357",
+          "url": "https://github.com/noir-lang/noir/commit/d8e4de40d05efe79b970055f42bd72f061f6aae6"
+        },
+        "date": 1746649428232,
         "tool": "customSmallerIsBetter",
         "benches": [
           {
