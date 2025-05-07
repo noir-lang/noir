@@ -27,7 +27,7 @@ pub(super) fn evaluate_cast_one_step(
             ((value as u128).into(), is_negative)
         }};
     }
-
+println!("{:?}", evaluated_lhs);
     let (lhs, lhs_is_negative) = match evaluated_lhs {
         Value::Field(value) => (value.field, value.is_negative),
         Value::U1(value) => ((value as u128).into(), false),

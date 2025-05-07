@@ -1,3 +1,4 @@
+use std::collections::BTreeMap;
 use std::path::Path;
 
 use acir::{FieldElement, native_types::WitnessStack};
@@ -216,7 +217,6 @@ impl From<(SsaProgramArtifact, CompareOptions)> for CompareArtifact {
 pub struct CompareComptime {
     pub program: Program,
     pub abi: Abi,
-    pub input_map: InputMap,
     pub source: String,
     pub ssa: CompareArtifact,
     pub force_brillig: bool,
@@ -231,7 +231,7 @@ impl CompareComptime {
         };
 
         let blackbox_solver = Bn254BlackBoxSolver(false);
-        let initial_witness = self.abi.encode(&self.input_map, None).wrap_err("abi::encode")?;
+        let initial_witness = self.abi.encode(&BTreeMap::new(), None).wrap_err("abi::encode")?;
 
         let do_exec = |program| {
             let mut print = Vec::new();
@@ -274,12 +274,9 @@ impl CompareComptime {
 
         let ssa = CompareArtifact::from(f(u, program.clone())?);
 
-        let input_program = &ssa.artifact.program;
-        let input_map = arb_inputs(u, input_program, &abi)?;
-
         let source = format!("{}", DisplayAstAsNoirComptime(&program));
 
-        Ok(Self { program, abi, input_map, source, ssa, force_brillig })
+        Ok(Self { program, abi, source, ssa, force_brillig })
     }
 }
 
