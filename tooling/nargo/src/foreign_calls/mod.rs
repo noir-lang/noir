@@ -1,4 +1,5 @@
 use acvm::{acir::brillig::ForeignCallResult, pwg::ForeignCallWaitInfo};
+use noirc_printable_type::TryFromParamsError;
 use thiserror::Error;
 
 pub mod layers;
@@ -92,4 +93,15 @@ pub enum ForeignCallError {
 
     #[error("Failed to replay oracle transcript: {0}")]
     TranscriptError(String),
+}
+
+impl From<TryFromParamsError> for ForeignCallError {
+    fn from(err: TryFromParamsError) -> Self {
+        match err {
+            TryFromParamsError::MissingForeignCallInputs => {
+                ForeignCallError::MissingForeignCallInputs
+            }
+            TryFromParamsError::ParsingError(error) => ForeignCallError::ParsingError(error),
+        }
+    }
 }
