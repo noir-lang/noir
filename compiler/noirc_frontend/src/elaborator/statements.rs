@@ -375,7 +375,7 @@ impl Elaborator<'_> {
     /// - The type being assigned to
     /// - Whether the underlying variable is mutable
     /// - A vector of new statements which need to prefix the resulting assign statement.
-    ///   This hoists out any sub-expressions to simpilfy sequencing of side-effects.
+    ///   This hoists out any sub-expressions to simplify sequencing of side-effects.
     fn elaborate_lvalue(&mut self, lvalue: LValue) -> (HirLValue, Type, bool, Vec<StmtId>) {
         match lvalue {
             LValue::Ident(ident) => {
