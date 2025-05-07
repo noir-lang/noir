@@ -1471,7 +1471,19 @@
 <a href="#1470" id="1470">1470</a>
 <a href="#1471" id="1471">1471</a>
 <a href="#1472" id="1472">1472</a>
-<a href="#1473" id="1473">1473</a></pre></div><pre class="rust"><code><span class="attr">#![forbid(unsafe_code)]
+<a href="#1473" id="1473">1473</a>
+<a href="#1474" id="1474">1474</a>
+<a href="#1475" id="1475">1475</a>
+<a href="#1476" id="1476">1476</a>
+<a href="#1477" id="1477">1477</a>
+<a href="#1478" id="1478">1478</a>
+<a href="#1479" id="1479">1479</a>
+<a href="#1480" id="1480">1480</a>
+<a href="#1481" id="1481">1481</a>
+<a href="#1482" id="1482">1482</a>
+<a href="#1483" id="1483">1483</a>
+<a href="#1484" id="1484">1484</a>
+<a href="#1485" id="1485">1485</a></pre></div><pre class="rust"><code><span class="attr">#![forbid(unsafe_code)]
 #![warn(clippy::semicolon_if_nothing_returned)]
 #![cfg_attr(not(test), warn(unused_crate_dependencies, unused_extern_crates))]
 
@@ -1751,6 +1763,8 @@
     </span><span class="kw">pub </span>timeout: u64,
     <span class="doccomment">/// Whether to output progress to stdout or not.
     </span><span class="kw">pub </span>show_progress: bool,
+    <span class="doccomment">/// Maximum number of executions of ACIR and Brillig (default: no limit)
+    </span><span class="kw">pub </span>max_executions: usize,
 }
 
 <span class="kw">pub enum </span>FuzzedExecutorFailureConfiguration {
@@ -1821,6 +1835,9 @@
 
     <span class="doccomment">/// Maximum time in seconds to spend fuzzing (default: no timeout)
     </span>timeout: u64,
+
+    <span class="doccomment">/// Maximum number of executions of ACIR and Brillig (default: no limit)
+    </span>max_executions: usize,
 }
 <span class="kw">pub struct </span>AcirAndBrilligPrograms {
     <span class="kw">pub </span>acir_program: ProgramArtifact,
@@ -1885,6 +1902,7 @@
             ),
             timeout: fuzz_execution_config.timeout,
             metrics: Metrics::default(),
+            max_executions: fuzz_execution_config.max_executions,
         }
     }
 
@@ -2440,6 +2458,12 @@
                 last_metric_check = time_tracker.elapsed();
                 <span class="comment">// Check if we've exceeded the timeout
                 </span><span class="kw">if </span><span class="self">self</span>.timeout &gt; <span class="number">0 </span>&amp;&amp; time_tracker.elapsed() &gt;= Duration::from_secs(<span class="self">self</span>.timeout) {
+                    <span class="kw">return </span>FuzzTestResult::Success;
+                }
+                <span class="comment">// Check if we've exceeded the maximum number of executions
+                </span><span class="kw">if </span><span class="self">self</span>.max_executions &gt; <span class="number">0
+                    </span>&amp;&amp; <span class="self">self</span>.metrics.processed_testcase_count &gt;= <span class="self">self</span>.max_executions
+                {
                     <span class="kw">return </span>FuzzTestResult::Success;
                 }
             }
