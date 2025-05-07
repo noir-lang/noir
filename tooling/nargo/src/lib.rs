@@ -167,7 +167,7 @@ pub fn insert_all_files_under_path_into_file_manager(
     }
 }
 
-const STACK_SIZE: usize = 4 * 1024 * 1024;
+const STACK_SIZE: usize = 8 * 1024 * 1024;
 
 #[cfg(any(target_arch = "wasm32", target_arch = "wasm64"))]
 pub fn parse_all(file_manager: &FileManager) -> ParsedFiles {
