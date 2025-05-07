@@ -23,6 +23,8 @@ pub fn fuzz(u: &mut Unstructured) -> eyre::Result<()> {
         avoid_large_int_literals: true,
         // Has to only use expressions valid in comptime
         comptime_friendly: true,
+        // Force brillig
+        force_brillig: true,
         ..Default::default()
     };
 

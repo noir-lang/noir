@@ -55,7 +55,13 @@ pub fn prepare_and_compile_snippet(
     force_brillig: bool,
 ) -> CompilationResult<CompiledProgram> {
     let (mut context, root_crate_id) = prepare_snippet(source);
-    let options = CompileOptions { force_brillig, silence_warnings: true, ..Default::default() };
+    let options = CompileOptions {
+        force_brillig,
+        silence_warnings: true,
+        skip_underconstrained_check: true,
+        skip_brillig_constraints_check: true,
+        ..Default::default()
+    };
     compile_main(&mut context, root_crate_id, &options, None)
 }
 
@@ -213,12 +219,13 @@ pub struct CompareComptime {
     pub input_map: InputMap,
     pub source: String,
     pub ssa: CompareArtifact,
+    pub force_brillig: bool,
 }
 
 impl CompareComptime {
     /// Execute the Noir code and the SSA, then compare the results.
     pub fn exec(&self) -> eyre::Result<CompareResult> {
-        let program1 = match prepare_and_compile_snippet(self.source.clone(), true) {
+        let program1 = match prepare_and_compile_snippet(self.source.clone(), self.force_brillig) {
             Ok((program, _)) => program,
             Err(e) => panic!("failed to compile program:\n{}\n{e:?}", self.source),
         };
@@ -261,6 +268,7 @@ impl CompareComptime {
             Program,
         ) -> arbitrary::Result<(SsaProgramArtifact, CompareOptions)>,
     ) -> arbitrary::Result<Self> {
+        let force_brillig = c.force_brillig;
         let program = arb_program_comptime(u, c)?;
         let abi = program_abi(&program);
 
@@ -271,7 +279,7 @@ impl CompareComptime {
 
         let source = format!("{}", DisplayAstAsNoirComptime(&program));
 
-        Ok(Self { program, abi, input_map, source, ssa })
+        Ok(Self { program, abi, input_map, source, ssa, force_brillig })
     }
 }
 
