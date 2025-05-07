@@ -1504,7 +1504,7 @@ impl<'context> Elaborator<'context> {
         self.local_module = module;
 
         for (generics, location, unresolved) in impls {
-            self.check_generics_appear_in_type(generics, self_type);
+            self.check_generics_appear_in_types(generics, &[self_type]);
 
             let old_generic_count = self.generics.len();
             self.add_generics(generics);
@@ -1529,6 +1529,11 @@ impl<'context> Elaborator<'context> {
                 location: self_type_location,
             });
         }
+
+        self.check_generics_appear_in_types(
+            &trait_impl.generics,
+            &[&trait_impl.r#trait, &trait_impl.object_type],
+        );
 
         if let Some(trait_id) = trait_impl.trait_id {
             self.generics = trait_impl.resolved_generics.clone();
@@ -2233,11 +2238,11 @@ impl<'context> Elaborator<'context> {
             })
     }
 
-    /// Check that all the generics show up in `self_type` (if they don't, we produce an error)
-    fn check_generics_appear_in_type(
+    /// Check that all the generics show up in any of `types` (if they don't, we produce an error)
+    fn check_generics_appear_in_types(
         &mut self,
         generics: &[UnresolvedGeneric],
-        self_type: &UnresolvedType,
+        types: &[&UnresolvedType],
     ) {
         if generics.is_empty() {
             return;
@@ -2265,7 +2270,9 @@ impl<'context> Elaborator<'context> {
 
         // Remove the ones that show up in `self_type`
         let mut visitor = RemoveGenericsAppearingInTypeVisitor { idents: &mut idents };
-        self_type.accept(&mut visitor);
+        for typ in types {
+            typ.accept(&mut visitor);
+        }
 
         // The ones that remain are not mentioned in the impl: it's an error.
         for ident in idents {

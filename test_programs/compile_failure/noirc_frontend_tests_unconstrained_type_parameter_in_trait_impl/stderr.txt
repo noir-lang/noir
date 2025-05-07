@@ -1,0 +1,36 @@
+error: The type parameter `H` is not constrained by the impl trait, self type, or predicates
+    ┌─ std/collections/map.nr:637:27
+    │
+637 │ impl<K, V, let N: u32, B, H> Eq for HashMap<K, V, N, B>
+    │                           - Hint: remove the `H` type parameter
+    │
+
+error: The type parameter `H` is not constrained by the impl trait, self type, or predicates
+    ┌─ std/collections/map.nr:689:27
+    │
+689 │ impl<K, V, let N: u32, B, H> Default for HashMap<K, V, N, B>
+    │                           - Hint: remove the `H` type parameter
+    │
+
+error: The type parameter `H` is not constrained by the impl trait, self type, or predicates
+    ┌─ std/collections/umap.nr:419:15
+    │
+419 │ impl<K, V, B, H> Eq for UHashMap<K, V, B>
+    │               - Hint: remove the `H` type parameter
+    │
+
+error: The type parameter `H` is not constrained by the impl trait, self type, or predicates
+    ┌─ std/collections/umap.nr:456:15
+    │
+456 │ impl<K, V, B, H> Default for UHashMap<K, V, B>
+    │               - Hint: remove the `H` type parameter
+    │
+
+error: The type parameter `U` is not constrained by the impl trait, self type, or predicates
+  ┌─ src/main.nr:5:17
+  │
+5 │         impl<T, U> Trait<T> for Foo<T> {}
+  │                 - Hint: remove the `U` type parameter
+  │
+
+Aborting due to 5 previous errors
