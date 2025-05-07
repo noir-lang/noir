@@ -1344,9 +1344,11 @@ fn break_and_continue_in_constrained_fn() {
 #[test]
 fn break_and_continue_outside_loop() {
     let src = r#"
-        unconstrained fn main() {
+        pub unconstrained fn foo() {
             continue;
             ^^^^^^^^^ continue is only allowed within loops
+        }
+        pub unconstrained fn bar() {
             break;
             ^^^^^^ break is only allowed within loops
         }
