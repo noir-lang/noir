@@ -117,10 +117,35 @@
 <a href="#116" id="116">116</a>
 <a href="#117" id="117">117</a>
 <a href="#118" id="118">118</a>
-<a href="#119" id="119">119</a></pre></div><pre class="rust"><code><span class="kw">use </span>acir::circuit::ExpressionWidth;
+<a href="#119" id="119">119</a>
+<a href="#120" id="120">120</a>
+<a href="#121" id="121">121</a>
+<a href="#122" id="122">122</a>
+<a href="#123" id="123">123</a>
+<a href="#124" id="124">124</a>
+<a href="#125" id="125">125</a>
+<a href="#126" id="126">126</a>
+<a href="#127" id="127">127</a>
+<a href="#128" id="128">128</a>
+<a href="#129" id="129">129</a>
+<a href="#130" id="130">130</a>
+<a href="#131" id="131">131</a>
+<a href="#132" id="132">132</a>
+<a href="#133" id="133">133</a>
+<a href="#134" id="134">134</a>
+<a href="#135" id="135">135</a>
+<a href="#136" id="136">136</a>
+<a href="#137" id="137">137</a>
+<a href="#138" id="138">138</a>
+<a href="#139" id="139">139</a>
+<a href="#140" id="140">140</a>
+<a href="#141" id="141">141</a>
+<a href="#142" id="142">142</a>
+<a href="#143" id="143">143</a>
+<a href="#144" id="144">144</a></pre></div><pre class="rust"><code><span class="kw">use </span>acir::circuit::ExpressionWidth;
 <span class="kw">use </span>color_eyre::eyre;
 <span class="kw">use </span>noir_ast_fuzzer::DisplayAstAsNoir;
-<span class="kw">use </span>noir_ast_fuzzer::compare::{CompareResult, CompareSsa, HasPrograms};
+<span class="kw">use </span>noir_ast_fuzzer::compare::{CompareComptime, CompareResult, CompareSsa, HasPrograms};
 <span class="kw">use </span>noirc_abi::input_parser::Format;
 <span class="kw">use </span>noirc_evaluator::brillig::Brillig;
 <span class="kw">use </span>noirc_evaluator::ssa::{SsaPass, primary_passes, secondary_passes};
@@ -229,6 +254,31 @@
 
         <span class="macro">eprintln!</span>(<span class="string">"---\nOptions 2:\n{:?}"</span>, inputs.ssa2.options);
         <span class="macro">eprintln!</span>(<span class="string">"---\nProgram 2:\n{}"</span>, inputs.ssa2.artifact.program);
+
+        <span class="comment">// Returning it as-is, so we can see the error message at the bottom as well.
+        </span><span class="prelude-val">Err</span>(report)
+    } <span class="kw">else </span>{
+        <span class="prelude-val">Ok</span>(())
+    }
+}
+
+<span class="doccomment">/// Compare the execution result for comptime fuzzing and print the inputs if the result is a failure.
+</span><span class="kw">pub fn </span>compare_results_comptime(
+    inputs: <span class="kw-2">&amp;</span>CompareComptime,
+    result: <span class="kw-2">&amp;</span>CompareResult,
+) -&gt; eyre::Result&lt;()&gt; {
+    <span class="kw">let </span>res = result.return_value_or_err();
+
+    <span class="kw">if let </span><span class="prelude-val">Err</span>(report) = res {
+        <span class="macro">eprintln!</span>(<span class="string">"---\nComparison failed:"</span>);
+        <span class="macro">eprintln!</span>(<span class="string">"{report:#}"</span>);
+
+        <span class="comment">// Showing the AST as Noir so we can easily create integration tests.
+        </span><span class="macro">eprintln!</span>(<span class="string">"---\nAST:\n{}"</span>, DisplayAstAsNoir(<span class="kw-2">&amp;</span>inputs.program));
+        <span class="macro">eprintln!</span>(<span class="string">"---\nComptime source:\n{}"</span>, <span class="kw-2">&amp;</span>inputs.source);
+
+        <span class="macro">eprintln!</span>(<span class="string">"---\nCompile options:\n{:?}"</span>, inputs.ssa.options);
+        <span class="macro">eprintln!</span>(<span class="string">"---\nCompiled program:\n{}"</span>, inputs.ssa.artifact.program);
 
         <span class="comment">// Returning it as-is, so we can see the error message at the bottom as well.
         </span><span class="prelude-val">Err</span>(report)

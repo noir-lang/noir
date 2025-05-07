@@ -282,17 +282,145 @@
 <a href="#281" id="281">281</a>
 <a href="#282" id="282">282</a>
 <a href="#283" id="283">283</a>
-<a href="#284" id="284">284</a></pre></div><pre class="rust"><code><span class="kw">use </span>acir::{FieldElement, native_types::WitnessStack};
+<a href="#284" id="284">284</a>
+<a href="#285" id="285">285</a>
+<a href="#286" id="286">286</a>
+<a href="#287" id="287">287</a>
+<a href="#288" id="288">288</a>
+<a href="#289" id="289">289</a>
+<a href="#290" id="290">290</a>
+<a href="#291" id="291">291</a>
+<a href="#292" id="292">292</a>
+<a href="#293" id="293">293</a>
+<a href="#294" id="294">294</a>
+<a href="#295" id="295">295</a>
+<a href="#296" id="296">296</a>
+<a href="#297" id="297">297</a>
+<a href="#298" id="298">298</a>
+<a href="#299" id="299">299</a>
+<a href="#300" id="300">300</a>
+<a href="#301" id="301">301</a>
+<a href="#302" id="302">302</a>
+<a href="#303" id="303">303</a>
+<a href="#304" id="304">304</a>
+<a href="#305" id="305">305</a>
+<a href="#306" id="306">306</a>
+<a href="#307" id="307">307</a>
+<a href="#308" id="308">308</a>
+<a href="#309" id="309">309</a>
+<a href="#310" id="310">310</a>
+<a href="#311" id="311">311</a>
+<a href="#312" id="312">312</a>
+<a href="#313" id="313">313</a>
+<a href="#314" id="314">314</a>
+<a href="#315" id="315">315</a>
+<a href="#316" id="316">316</a>
+<a href="#317" id="317">317</a>
+<a href="#318" id="318">318</a>
+<a href="#319" id="319">319</a>
+<a href="#320" id="320">320</a>
+<a href="#321" id="321">321</a>
+<a href="#322" id="322">322</a>
+<a href="#323" id="323">323</a>
+<a href="#324" id="324">324</a>
+<a href="#325" id="325">325</a>
+<a href="#326" id="326">326</a>
+<a href="#327" id="327">327</a>
+<a href="#328" id="328">328</a>
+<a href="#329" id="329">329</a>
+<a href="#330" id="330">330</a>
+<a href="#331" id="331">331</a>
+<a href="#332" id="332">332</a>
+<a href="#333" id="333">333</a>
+<a href="#334" id="334">334</a>
+<a href="#335" id="335">335</a>
+<a href="#336" id="336">336</a>
+<a href="#337" id="337">337</a>
+<a href="#338" id="338">338</a>
+<a href="#339" id="339">339</a>
+<a href="#340" id="340">340</a>
+<a href="#341" id="341">341</a>
+<a href="#342" id="342">342</a>
+<a href="#343" id="343">343</a>
+<a href="#344" id="344">344</a>
+<a href="#345" id="345">345</a>
+<a href="#346" id="346">346</a>
+<a href="#347" id="347">347</a>
+<a href="#348" id="348">348</a>
+<a href="#349" id="349">349</a>
+<a href="#350" id="350">350</a>
+<a href="#351" id="351">351</a>
+<a href="#352" id="352">352</a>
+<a href="#353" id="353">353</a>
+<a href="#354" id="354">354</a>
+<a href="#355" id="355">355</a>
+<a href="#356" id="356">356</a>
+<a href="#357" id="357">357</a>
+<a href="#358" id="358">358</a>
+<a href="#359" id="359">359</a>
+<a href="#360" id="360">360</a>
+<a href="#361" id="361">361</a>
+<a href="#362" id="362">362</a>
+<a href="#363" id="363">363</a>
+<a href="#364" id="364">364</a>
+<a href="#365" id="365">365</a>
+<a href="#366" id="366">366</a>
+<a href="#367" id="367">367</a>
+<a href="#368" id="368">368</a>
+<a href="#369" id="369">369</a>
+<a href="#370" id="370">370</a>
+<a href="#371" id="371">371</a>
+<a href="#372" id="372">372</a>
+<a href="#373" id="373">373</a>
+<a href="#374" id="374">374</a>
+<a href="#375" id="375">375</a>
+<a href="#376" id="376">376</a>
+<a href="#377" id="377">377</a>
+<a href="#378" id="378">378</a>
+<a href="#379" id="379">379</a>
+<a href="#380" id="380">380</a>
+<a href="#381" id="381">381</a>
+<a href="#382" id="382">382</a>
+<a href="#383" id="383">383</a>
+<a href="#384" id="384">384</a>
+<a href="#385" id="385">385</a>
+<a href="#386" id="386">386</a>
+<a href="#387" id="387">387</a>
+<a href="#388" id="388">388</a>
+<a href="#389" id="389">389</a>
+<a href="#390" id="390">390</a>
+<a href="#391" id="391">391</a>
+<a href="#392" id="392">392</a>
+<a href="#393" id="393">393</a>
+<a href="#394" id="394">394</a>
+<a href="#395" id="395">395</a>
+<a href="#396" id="396">396</a>
+<a href="#397" id="397">397</a>
+<a href="#398" id="398">398</a>
+<a href="#399" id="399">399</a>
+<a href="#400" id="400">400</a>
+<a href="#401" id="401">401</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::collections::BTreeMap;
+<span class="kw">use </span>std::path::Path;
+
+<span class="kw">use </span>acir::{FieldElement, native_types::WitnessStack};
 <span class="kw">use </span>acvm::pwg::{OpcodeResolutionError, ResolvedAssertionPayload};
 <span class="kw">use </span>arbitrary::{Arbitrary, Unstructured};
 <span class="kw">use </span>bn254_blackbox_solver::Bn254BlackBoxSolver;
 <span class="kw">use </span>color_eyre::eyre::{<span class="self">self</span>, WrapErr, bail};
-<span class="kw">use </span>nargo::{NargoError, errors::ExecutionError, foreign_calls::DefaultForeignCallBuilder};
+<span class="kw">use </span>nargo::{
+    NargoError, errors::ExecutionError, foreign_calls::DefaultForeignCallBuilder, parse_all,
+};
 <span class="kw">use </span>noirc_abi::{Abi, InputMap, input_parser::InputValue};
+<span class="kw">use </span>noirc_driver::{
+    CompilationResult, CompileOptions, CompiledProgram, CrateId, compile_main,
+    file_manager_with_stdlib, prepare_crate,
+};
 <span class="kw">use </span>noirc_evaluator::ssa::{SsaEvaluatorOptions, SsaProgramArtifact};
-<span class="kw">use </span>noirc_frontend::monomorphization::ast::Program;
+<span class="kw">use </span>noirc_frontend::{hir::Context, monomorphization::ast::Program};
 
-<span class="kw">use crate</span>::{Config, arb_inputs, arb_program, program_abi};
+<span class="kw">use crate</span>::{
+    Config, DisplayAstAsNoirComptime, arb_inputs, arb_program, arb_program_comptime, program_abi,
+};
 
 <span class="attr">#[derive(Clone, Debug, PartialEq)]
 </span><span class="kw">pub struct </span>ExecOutput {
@@ -301,6 +429,43 @@
 }
 
 <span class="kw">type </span>ExecResult = (<span class="prelude-ty">Result</span>&lt;WitnessStack&lt;FieldElement&gt;, NargoError&lt;FieldElement&gt;&gt;, String);
+
+<span class="doccomment">/// Prepare a code snippet.
+/// (copied from nargo_cli/tests/common.rs)
+</span><span class="kw">fn </span>prepare_snippet(source: String) -&gt; (Context&lt;<span class="lifetime">'static</span>, <span class="lifetime">'static</span>&gt;, CrateId) {
+    <span class="kw">let </span>root = Path::new(<span class="string">""</span>);
+    <span class="kw">let </span>file_name = Path::new(<span class="string">"main.nr"</span>);
+    <span class="kw">let </span><span class="kw-2">mut </span>file_manager = file_manager_with_stdlib(root);
+    file_manager.add_file_with_source(file_name, source).expect(
+        <span class="string">"Adding source buffer to file manager should never fail when file manager is empty"</span>,
+    );
+    <span class="kw">let </span>parsed_files = parse_all(<span class="kw-2">&amp;</span>file_manager);
+
+    <span class="kw">let </span><span class="kw-2">mut </span>context = Context::new(file_manager, parsed_files);
+    <span class="kw">let </span>root_crate_id = prepare_crate(<span class="kw-2">&amp;mut </span>context, file_name);
+
+    (context, root_crate_id)
+}
+
+<span class="doccomment">/// Compile the main function in a code snippet.
+///
+/// Use `force_brillig` to test it as an unconstrained function without having to change the code.
+/// This is useful for methods that use the `runtime::is_unconstrained()` method to change their behavior.
+/// (copied from nargo_cli/tests/common.rs)
+</span><span class="kw">pub fn </span>prepare_and_compile_snippet(
+    source: String,
+    force_brillig: bool,
+) -&gt; CompilationResult&lt;CompiledProgram&gt; {
+    <span class="kw">let </span>(<span class="kw-2">mut </span>context, root_crate_id) = prepare_snippet(source);
+    <span class="kw">let </span>options = CompileOptions {
+        force_brillig,
+        silence_warnings: <span class="bool-val">true</span>,
+        skip_underconstrained_check: <span class="bool-val">true</span>,
+        skip_brillig_constraints_check: <span class="bool-val">true</span>,
+        ..Default::default()
+    };
+    compile_main(<span class="kw-2">&amp;mut </span>context, root_crate_id, <span class="kw-2">&amp;</span>options, <span class="prelude-val">None</span>)
+}
 
 <span class="doccomment">/// Subset of [SsaEvaluatorOptions] that we want to vary.
 ///
@@ -445,6 +610,75 @@
 <span class="kw">impl </span>From&lt;(SsaProgramArtifact, CompareOptions)&gt; <span class="kw">for </span>CompareArtifact {
     <span class="kw">fn </span>from((artifact, options): (SsaProgramArtifact, CompareOptions)) -&gt; <span class="self">Self </span>{
         <span class="self">Self</span>::new(artifact, options)
+    }
+}
+
+<span class="doccomment">/// Compare the execution of a Noir program in pure comptime (via interpreter)
+/// vs normal SSA execution.
+</span><span class="kw">pub struct </span>CompareComptime {
+    <span class="kw">pub </span>program: Program,
+    <span class="kw">pub </span>abi: Abi,
+    <span class="kw">pub </span>source: String,
+    <span class="kw">pub </span>ssa: CompareArtifact,
+    <span class="kw">pub </span>force_brillig: bool,
+}
+
+<span class="kw">impl </span>CompareComptime {
+    <span class="doccomment">/// Execute the Noir code and the SSA, then compare the results.
+    </span><span class="kw">pub fn </span>exec(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; eyre::Result&lt;CompareResult&gt; {
+        <span class="macro">println!</span>(<span class="string">"{}"</span>, <span class="self">self</span>.source);
+        <span class="kw">let </span>program1 = <span class="kw">match </span>prepare_and_compile_snippet(<span class="self">self</span>.source.clone(), <span class="self">self</span>.force_brillig) {
+            <span class="prelude-val">Ok</span>((program, <span class="kw">_</span>)) =&gt; program,
+            <span class="prelude-val">Err</span>(e) =&gt; <span class="macro">panic!</span>(<span class="string">"failed to compile program:\n{}\n{e:?}"</span>, <span class="self">self</span>.source),
+        };
+
+        <span class="kw">let </span>blackbox_solver = Bn254BlackBoxSolver(<span class="bool-val">false</span>);
+        <span class="kw">let </span>initial_witness = <span class="self">self</span>.abi.encode(<span class="kw-2">&amp;</span>BTreeMap::new(), <span class="prelude-val">None</span>).wrap_err(<span class="string">"abi::encode"</span>)<span class="question-mark">?</span>;
+
+        <span class="kw">let </span>do_exec = |program| {
+            <span class="kw">let </span><span class="kw-2">mut </span>print = Vec::new();
+
+            <span class="kw">let </span><span class="kw-2">mut </span>foreign_call_executor = DefaultForeignCallBuilder::default()
+                .with_mocks(<span class="bool-val">false</span>)
+                .with_output(<span class="kw-2">&amp;mut </span>print)
+                .build();
+
+            <span class="kw">let </span>res = nargo::ops::execute_program(
+                program,
+                initial_witness.clone(),
+                <span class="kw-2">&amp;</span>blackbox_solver,
+                <span class="kw-2">&amp;mut </span>foreign_call_executor,
+            );
+
+            <span class="kw">let </span>print = String::from_utf8(print).expect(<span class="string">"should be valid utf8 string"</span>);
+            (res, print)
+        };
+
+        <span class="kw">let </span>(res1, print1) = do_exec(<span class="kw-2">&amp;</span>program1.program);
+        <span class="kw">let </span>(res2, print2) = do_exec(<span class="kw-2">&amp;</span><span class="self">self</span>.ssa.artifact.program);
+
+        CompareResult::new(<span class="kw-2">&amp;</span><span class="self">self</span>.abi, (res1, print1), (res2, print2))
+    }
+
+    <span class="doccomment">/// Generate a random comptime-viable AST, reverse it into
+    /// Noir code and also compile it into SSA.
+    </span><span class="kw">pub fn </span>arb(
+        u: <span class="kw-2">&amp;mut </span>Unstructured,
+        c: Config,
+        f: <span class="kw">impl </span>FnOnce(
+            <span class="kw-2">&amp;mut </span>Unstructured,
+            Program,
+        ) -&gt; arbitrary::Result&lt;(SsaProgramArtifact, CompareOptions)&gt;,
+    ) -&gt; arbitrary::Result&lt;<span class="self">Self</span>&gt; {
+        <span class="kw">let </span>force_brillig = c.force_brillig;
+        <span class="kw">let </span>program = arb_program_comptime(u, c)<span class="question-mark">?</span>;
+        <span class="kw">let </span>abi = program_abi(<span class="kw-2">&amp;</span>program);
+
+        <span class="kw">let </span>ssa = CompareArtifact::from(f(u, program.clone())<span class="question-mark">?</span>);
+
+        <span class="kw">let </span>source = <span class="macro">format!</span>(<span class="string">"{}"</span>, DisplayAstAsNoirComptime(<span class="kw-2">&amp;</span>program));
+
+        <span class="prelude-val">Ok</span>(<span class="self">Self </span>{ program, abi, source, ssa, force_brillig })
     }
 }
 

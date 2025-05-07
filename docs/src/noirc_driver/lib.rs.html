@@ -826,7 +826,11 @@
 <a href="#825" id="825">825</a>
 <a href="#826" id="826">826</a>
 <a href="#827" id="827">827</a>
-<a href="#828" id="828">828</a></pre></div><pre class="rust"><code><span class="attr">#![forbid(unsafe_code)]
+<a href="#828" id="828">828</a>
+<a href="#829" id="829">829</a>
+<a href="#830" id="830">830</a>
+<a href="#831" id="831">831</a>
+<a href="#832" id="832">832</a></pre></div><pre class="rust"><code><span class="attr">#![forbid(unsafe_code)]
 #![warn(unused_crate_dependencies, unused_extern_crates)]
 #![warn(unreachable_pub)]
 #![warn(clippy::semicolon_if_nothing_returned)]
@@ -1259,7 +1263,9 @@
     <span class="kw">if </span>options.deny_warnings &amp;&amp; !compilation_warnings.is_empty() {
         <span class="kw">return </span><span class="prelude-val">Err</span>(compilation_warnings);
     }
-    warnings.extend(compilation_warnings);
+    <span class="kw">if </span>!options.silence_warnings {
+        warnings.extend(compilation_warnings);
+    }
 
     <span class="kw">if </span>options.print_acir {
         <span class="macro">println!</span>(<span class="string">"Compiled ACIR for main (unoptimized):"</span>);
@@ -1598,10 +1604,12 @@
             ExpressionWidth::default()
         },
         emit_ssa: <span class="kw">if </span>options.emit_ssa { <span class="prelude-val">Some</span>(context.package_build_path.clone()) } <span class="kw">else </span>{ <span class="prelude-val">None </span>},
-        skip_underconstrained_check: options.skip_underconstrained_check,
+        skip_underconstrained_check: !options.silence_warnings
+            &amp;&amp; options.skip_underconstrained_check,
         enable_brillig_constraints_check_lookback: options
             .enable_brillig_constraints_check_lookback,
-        skip_brillig_constraints_check: options.skip_brillig_constraints_check,
+        skip_brillig_constraints_check: !options.silence_warnings
+            &amp;&amp; options.skip_brillig_constraints_check,
         inliner_aggressiveness: options.inliner_aggressiveness,
         max_bytecode_increase_percent: options.max_bytecode_increase_percent,
     };

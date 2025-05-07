@@ -131,8 +131,7 @@
 <a href="#130" id="130">130</a>
 <a href="#131" id="131">131</a>
 <a href="#132" id="132">132</a>
-<a href="#133" id="133">133</a>
-<a href="#134" id="134">134</a></pre></div><pre class="rust"><code><span class="kw">use </span>acvm::{AcirField, FieldElement};
+<a href="#133" id="133">133</a></pre></div><pre class="rust"><code><span class="kw">use </span>acvm::{AcirField, FieldElement};
 <span class="kw">use </span>noirc_errors::Location;
 
 <span class="kw">use crate</span>::{
@@ -161,7 +160,6 @@
             ((value <span class="kw">as </span>u128).into(), is_negative)
         }};
     }
-
     <span class="kw">let </span>(lhs, lhs_is_negative) = <span class="kw">match </span>evaluated_lhs {
         Value::Field(value) =&gt; (value.field, value.is_negative),
         Value::U1(value) =&gt; ((value <span class="kw">as </span>u128).into(), <span class="bool-val">false</span>),

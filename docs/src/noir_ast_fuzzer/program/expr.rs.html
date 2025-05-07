@@ -484,7 +484,12 @@
 <a href="#483" id="483">483</a>
 <a href="#484" id="484">484</a>
 <a href="#485" id="485">485</a>
-<a href="#486" id="486">486</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::collections::HashSet;
+<a href="#486" id="486">486</a>
+<a href="#487" id="487">487</a>
+<a href="#488" id="488">488</a>
+<a href="#489" id="489">489</a>
+<a href="#490" id="490">490</a>
+<a href="#491" id="491">491</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::collections::HashSet;
 
 <span class="kw">use </span>acir::FieldElement;
 <span class="kw">use </span>nargo::errors::Location;
@@ -727,6 +732,11 @@
         typ,
         Location::dummy(),
     ))
+}
+
+<span class="doccomment">/// 8-bit unsigned int literal, used in bit shifts.
+</span><span class="kw">pub fn </span>u8_literal(value: u8) -&gt; Expression {
+    int_literal(value <span class="kw">as </span>u32, <span class="bool-val">false</span>, types::U8)
 }
 
 <span class="doccomment">/// 32-bit unsigned int literal, used in indexing arrays.

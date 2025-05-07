@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"mod":["acir_vs_brillig","init_vs_final","orig_vs_morph"]};
+window.SIDEBAR_ITEMS = {"mod":["acir_vs_brillig","comptime_vs_brillig","init_vs_final","orig_vs_morph"]};

@@ -465,7 +465,33 @@
 <a href="#464" id="464">464</a>
 <a href="#465" id="465">465</a>
 <a href="#466" id="466">466</a>
-<a href="#467" id="467">467</a></pre></div><pre class="rust"><code><span class="doccomment">//! Module responsible for generating arbitrary [Program] ASTs.
+<a href="#467" id="467">467</a>
+<a href="#468" id="468">468</a>
+<a href="#469" id="469">469</a>
+<a href="#470" id="470">470</a>
+<a href="#471" id="471">471</a>
+<a href="#472" id="472">472</a>
+<a href="#473" id="473">473</a>
+<a href="#474" id="474">474</a>
+<a href="#475" id="475">475</a>
+<a href="#476" id="476">476</a>
+<a href="#477" id="477">477</a>
+<a href="#478" id="478">478</a>
+<a href="#479" id="479">479</a>
+<a href="#480" id="480">480</a>
+<a href="#481" id="481">481</a>
+<a href="#482" id="482">482</a>
+<a href="#483" id="483">483</a>
+<a href="#484" id="484">484</a>
+<a href="#485" id="485">485</a>
+<a href="#486" id="486">486</a>
+<a href="#487" id="487">487</a>
+<a href="#488" id="488">488</a>
+<a href="#489" id="489">489</a>
+<a href="#490" id="490">490</a>
+<a href="#491" id="491">491</a>
+<a href="#492" id="492">492</a>
+<a href="#493" id="493">493</a></pre></div><pre class="rust"><code><span class="doccomment">//! Module responsible for generating arbitrary [Program] ASTs.
 </span><span class="kw">use </span>std::collections::{BTreeMap, BTreeSet}; <span class="comment">// Using BTree for deterministic enumeration, for repeatability.
 
 </span><span class="kw">use </span>func::{FunctionContext, FunctionDeclaration};
@@ -606,7 +632,8 @@
         u: <span class="kw-2">&amp;mut </span>Unstructured,
         i: usize,
     ) -&gt; arbitrary::Result&lt;(Name, Type, Expression)&gt; {
-        <span class="kw">let </span>typ = <span class="self">self</span>.gen_type(u, <span class="self">self</span>.config.max_depth, <span class="bool-val">true</span>, <span class="bool-val">false</span>)<span class="question-mark">?</span>;
+        <span class="kw">let </span>typ =
+            <span class="self">self</span>.gen_type(u, <span class="self">self</span>.config.max_depth, <span class="bool-val">true</span>, <span class="bool-val">false</span>, <span class="self">self</span>.config.comptime_friendly)<span class="question-mark">?</span>;
         <span class="comment">// By the time we get to the monomorphized AST the compiler will have already turned
         // complex global expressions into literals.
         </span><span class="kw">let </span>val = expr::gen_literal(u, <span class="kw-2">&amp;</span>typ)<span class="question-mark">?</span>;
@@ -641,7 +668,13 @@
             <span class="kw">let </span>id = LocalId(p <span class="kw">as </span>u32);
             <span class="kw">let </span>name = make_name(p, <span class="bool-val">false</span>);
             <span class="kw">let </span>is_mutable = !is_main &amp;&amp; bool::arbitrary(u)<span class="question-mark">?</span>;
-            <span class="kw">let </span>typ = <span class="self">self</span>.gen_type(u, <span class="self">self</span>.config.max_depth, <span class="bool-val">false</span>, <span class="bool-val">false</span>)<span class="question-mark">?</span>;
+            <span class="kw">let </span>typ = <span class="self">self</span>.gen_type(
+                u,
+                <span class="self">self</span>.config.max_depth,
+                <span class="bool-val">false</span>,
+                <span class="bool-val">false</span>,
+                <span class="self">self</span>.config.comptime_friendly,
+            )<span class="question-mark">?</span>;
             params.push((id, is_mutable, name, typ));
 
             param_visibilities.push(<span class="kw">if </span>is_main {
@@ -655,7 +688,8 @@
             });
         }
 
-        <span class="kw">let </span>return_type = <span class="self">self</span>.gen_type(u, <span class="self">self</span>.config.max_depth, <span class="bool-val">false</span>, <span class="bool-val">false</span>)<span class="question-mark">?</span>;
+        <span class="kw">let </span>return_type =
+            <span class="self">self</span>.gen_type(u, <span class="self">self</span>.config.max_depth, <span class="bool-val">false</span>, <span class="bool-val">false</span>, <span class="self">self</span>.config.comptime_friendly)<span class="question-mark">?</span>;
         <span class="kw">let </span>return_visibility = <span class="kw">if </span>is_main {
             <span class="kw">if </span>types::is_unit(<span class="kw-2">&amp;</span>return_type) {
                 Visibility::Private
@@ -703,6 +737,7 @@
 
     <span class="doccomment">/// Generate random function body.
     </span><span class="kw">fn </span>gen_function(<span class="kw-2">&amp;mut </span><span class="self">self</span>, u: <span class="kw-2">&amp;mut </span>Unstructured, id: FuncId) -&gt; arbitrary::Result&lt;()&gt; {
+        <span class="macro">println!</span>(<span class="string">"gen_function"</span>);
         <span class="self">self</span>.gen_function_with_body(u, id, |u, fctx| fctx.gen_body(u))
     }
 
@@ -789,6 +824,7 @@
         max_depth: usize,
         is_global: bool,
         is_frontend_friendly: bool,
+        is_comptime_friendly: bool,
     ) -&gt; arbitrary::Result&lt;Type&gt; {
         <span class="comment">// See if we can reuse an existing type without going over the maximum depth.
         </span><span class="kw">if </span>u.ratio(<span class="number">5</span>, <span class="number">10</span>)<span class="question-mark">? </span>{
@@ -826,7 +862,9 @@
                             <span class="comment">// i1 and i128 are rejected by the frontend
                             </span>(!sign.is_signed() || (bs.bit_size() != <span class="number">1 </span>&amp;&amp; bs.bit_size() != <span class="number">128</span>)) &amp;&amp;
                             <span class="comment">// The frontend doesn't like non-u32 literals
-                            </span>(!is_frontend_friendly || bs.bit_size() &lt;= <span class="number">32</span>)
+                            </span>(!is_frontend_friendly || bs.bit_size() &lt;= <span class="number">32</span>) &amp;&amp;
+                            <span class="comment">// Comptime doesn't allow for u1 either
+                            </span>(!is_comptime_friendly || bs.bit_size() != <span class="number">1</span>)
                         })
                         .collect::&lt;Vec&lt;<span class="kw">_</span>&gt;&gt;();
                     Type::Integer(sign, u.choose_iter(sizes)<span class="question-mark">?</span>)
@@ -837,14 +875,28 @@
                     <span class="comment">// 1-size tuples look strange, so let's make it minimum 2 fields.
                     </span><span class="kw">let </span>size = u.int_in_range(<span class="number">2</span>..=<span class="self">self</span>.config.max_tuple_size)<span class="question-mark">?</span>;
                     <span class="kw">let </span>types = (<span class="number">0</span>..size)
-                        .map(|<span class="kw">_</span>| <span class="self">self</span>.gen_type(u, max_depth - <span class="number">1</span>, is_global, is_frontend_friendly))
+                        .map(|<span class="kw">_</span>| {
+                            <span class="self">self</span>.gen_type(
+                                u,
+                                max_depth - <span class="number">1</span>,
+                                is_global,
+                                is_frontend_friendly,
+                                is_comptime_friendly,
+                            )
+                        })
                         .collect::&lt;<span class="prelude-ty">Result</span>&lt;Vec&lt;<span class="kw">_</span>&gt;, <span class="kw">_</span>&gt;&gt;()<span class="question-mark">?</span>;
                     Type::Tuple(types)
                 }
                 <span class="number">6 </span>| <span class="number">7 </span>=&gt; {
                     <span class="kw">let </span>min_size = <span class="kw">if </span>is_frontend_friendly { <span class="number">1 </span>} <span class="kw">else </span>{ <span class="number">0 </span>};
                     <span class="kw">let </span>size = u.int_in_range(min_size..=<span class="self">self</span>.config.max_array_size)<span class="question-mark">?</span>;
-                    <span class="kw">let </span>typ = <span class="self">self</span>.gen_type(u, max_depth - <span class="number">1</span>, is_global, is_frontend_friendly)<span class="question-mark">?</span>;
+                    <span class="kw">let </span>typ = <span class="self">self</span>.gen_type(
+                        u,
+                        max_depth - <span class="number">1</span>,
+                        is_global,
+                        is_frontend_friendly,
+                        is_comptime_friendly,
+                    )<span class="question-mark">?</span>;
                     Type::Array(size <span class="kw">as </span>u32, Box::new(typ))
                 }
                 <span class="kw">_ </span>=&gt; <span class="macro">unreachable!</span>(<span class="string">"unexpected arbitrary type index"</span>),
