@@ -29,7 +29,7 @@ expression: artifact
     }
   },
   "bytecode": "H4sIAAAAAAAA/7VUQQ6CMBDcSo1Wowe56C/aAMLRgz6kkfQdPF0bt2EthQvbSchC2x1mhiwCfhB4eUiyFiOsPbDqdTCMXFokdC6aSDXcsCqsG7JfMBpXCS1c/J2u7wqmnhn1Vwo5c+YTODPw6x3yPIeRP/bicYL/4aA9e9wP92fS4/Ei3KE/Z27f795kzs2UMJ/VEXMoZ7wCnw4NCZ+xrni+xcJZ6iHMjhz4M2y78UdVIP+WvJ9Ckn16/orPB6I/VLlCp2utcZV1trF9X7/tJeIHkpnP6QPX7oSfPQYAAA==",
-  "debug_symbols": "lY/LCsMgEEX/ZdYukpI0JL8SSjBxDIKo+CgU8d87lhakdNPNMHeYc+FkELinc1NG2gDLmkHbg0dlDaVcGOxeaa3OrT1DV0c/vv6D46bGELmPsAzDxACNqNtMvFQaYRm7cmPQX/8mpt/E+CHorSUKpTv3iu8a3wIymaPxiQ+HX2rO2wNF8lglGz+aaz+zy0C1VP0E",
+  "debug_symbols": "lZBBDoMgEEXvMmsW2mCNXsUYgzgaEgIEoUljuHvBSquLLrqZYZj//iR/gwlHvwxCzXqFtttgtEJKsQxSc+aEVvF3gyKVsoK2JFDe362G9hYCgSwcnEVMuhMZ/QyzqBy0yktJ4MGk30WrYWrvjtm4LQigmmKPhrOQmF6BfOniN0ppfcCUNh+8+oOvMl8VF76PE+PCXrIIyckKNko8xtkrftq6p8mbnKWxmuPkLSanU6CxdmVDbrQP6doL",
   "file_map": {
     "50": {
       "source": "// Regression from issue #7964 (https://github.com/noir-lang/noir/issues/7964)\nglobal G_A: bool = false;\nfn main(a: Field) -> pub Field {\n    if (\n        (\n            if (!G_A) {\n                if (!G_A) {\n                    (a as u128)\n                } else {\n                    (a as u128)\n                }\n            } else {\n                (a as u128)\n            }\n                <= (a as u128)\n        ) as bool\n    ) {\n        (-(-a))\n    } else {\n        (-(-a))\n    }\n}\n",

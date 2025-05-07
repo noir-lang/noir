@@ -31,7 +31,7 @@ expression: artifact
     }
   },
   "bytecode": "H4sIAAAAAAAA/62QwQmFMAyG7eNt4sVj0iQ2ubmKxTqD84gLuJkjCNpDKd70g/CH//AR4pobl6fml3PICe/A0kXQM6fgExKO4C2qAEvsFRVFZfJKlJQ1WLQAhkwJZzGas8x9d9fl+he/aKr9qStZVti79tjq/gRx+KzKYAEAAA==",
-  "debug_symbols": "TYzdCsMgDEbfJde96AqD4auMUfyJJSBRog6G9N2npYXe5XyHnAYOTd1WYh8zqHeDEK0uFLlTg/mYctI8KBctBdRjWSZAduN67RN4CgjqOe+fDkYoBNrWe6bPXy2kTcATfWV7s+WXLnP9J4kWXRUcpcP1/B8=",
+  "debug_symbols": "dY/RCoMwDEX/Jc99cMJg+CtjSK1RAiEtsR0M8d8XRTf3sKc0uTm3uTP02JWxJRniBM19hk6JmcaWY/CZoth0XhwcbZsV0UZw0o1KXlEyNFKYHTw9l21pSl62mr2aWjlA6a2a4UCM62txX7r6j17qeocv9e2DX41/WOcD6c/FUNnistop+Y5xTzEUCadQ+ZUO5YidNAbsi+Jqt2n2wRs=",
   "file_map": {
     "50": {
       "source": "// Tests a very simple program.\n//\n// The features being tested is assertion\nfn main(x: Field, y: pub Field) {\n    assert(x == y, \"x and y are not equal\");\n    assert_eq(x, y, \"x and y are not equal\");\n}\n",

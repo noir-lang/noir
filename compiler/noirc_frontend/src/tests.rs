@@ -181,13 +181,7 @@ fn check_errors_with_options(
             panic!("get_monomorphized: test program contains no 'main' function")
         });
 
-        let ownership = options.enabled_unstable_features.contains(&UnstableFeature::Ownership);
-        let result = crate::monomorphization::monomorphize(
-            main,
-            &mut context.def_interner,
-            false,
-            ownership,
-        );
+        let result = crate::monomorphization::monomorphize(main, &mut context.def_interner, false);
         match result {
             Ok(_) => {
                 if primary_spans_with_errors.is_empty() {
@@ -4648,4 +4642,34 @@ fn resolves_generic_type_argument_via_self() {
     }
     ";
     check_monomorphization_error!(src);
+}
+
+#[named]
+#[test]
+fn attempt_to_add_with_overflow_at_comptime() {
+    let src = r#"
+        fn main() -> pub u8 {
+            comptime {
+                255 as u8 + 1 as u8
+                ^^^^^^^^^^^^^^^^^^^ Attempt to add with overflow
+            }
+        }
+
+        "#;
+    check_errors!(src);
+}
+
+#[named]
+#[test]
+fn attempt_to_divide_by_zero_at_comptime() {
+    let src = r#"
+        fn main() -> pub u8 {
+            comptime {
+                255 as u8 / 0
+                ^^^^^^^^^^^^^ Attempt to divide by zero
+            }
+        }
+
+        "#;
+    check_errors!(src);
 }

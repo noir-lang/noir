@@ -1,13 +1,6 @@
-use acvm::{AcirField as _, FieldElement};
-use binary::simplify_binary;
-use call::simplify_call;
-use cast::simplify_cast;
-use constrain::decompose_constrain;
-
 use crate::ssa::{
     ir::{
         basic_block::BasicBlockId,
-        call_stack::CallStackId,
         instruction::{
             Binary, BinaryOp, Instruction,
             binary::{truncate, truncate_field},
@@ -17,6 +10,12 @@ use crate::ssa::{
     },
     opt::flatten_cfg::value_merger::ValueMerger,
 };
+use acvm::{AcirField as _, FieldElement};
+use binary::simplify_binary;
+use call::simplify_call;
+use cast::simplify_cast;
+use constrain::decompose_constrain;
+use noirc_errors::call_stack::CallStackId;
 
 use super::DataFlowGraph;
 
@@ -24,6 +23,8 @@ mod binary;
 mod call;
 mod cast;
 mod constrain;
+
+pub(crate) use call::constant_to_radix;
 
 /// Contains the result to Instruction::simplify, specifying how the instruction
 /// should be simplified.
@@ -225,47 +226,43 @@ pub(crate) fn simplify(
                 return SimplifiedTo(then_value);
             }
 
-            if let Value::Instruction { instruction, .. } = &dfg[then_value] {
-                if let Instruction::IfElse {
-                    then_condition: inner_then_condition,
-                    then_value: inner_then_value,
-                    ..
-                } = dfg[*instruction]
-                {
-                    if then_condition == inner_then_condition {
-                        let instruction = Instruction::IfElse {
-                            then_condition,
-                            then_value: inner_then_value,
-                            else_condition,
-                            else_value,
-                        };
-                        return SimplifiedToInstruction(instruction);
-                    }
-                    // TODO: We could check to see if `then_condition == inner_else_condition`
-                    // but we run into issues with duplicate NOT instructions having distinct ValueIds.
+            if let Some(Instruction::IfElse {
+                then_condition: inner_then_condition,
+                then_value: inner_then_value,
+                ..
+            }) = dfg.get_local_or_global_instruction(then_value)
+            {
+                if then_condition == *inner_then_condition {
+                    let instruction = Instruction::IfElse {
+                        then_condition,
+                        then_value: *inner_then_value,
+                        else_condition,
+                        else_value,
+                    };
+                    return SimplifiedToInstruction(instruction);
                 }
-            };
+                // TODO: We could check to see if `then_condition == inner_else_condition`
+                // but we run into issues with duplicate NOT instructions having distinct ValueIds.
+            }
 
-            if let Value::Instruction { instruction, .. } = &dfg[else_value] {
-                if let Instruction::IfElse {
-                    then_condition: inner_then_condition,
-                    else_value: inner_else_value,
-                    ..
-                } = dfg[*instruction]
-                {
-                    if then_condition == inner_then_condition {
-                        let instruction = Instruction::IfElse {
-                            then_condition,
-                            then_value,
-                            else_condition,
-                            else_value: inner_else_value,
-                        };
-                        return SimplifiedToInstruction(instruction);
-                    }
-                    // TODO: We could check to see if `then_condition == inner_else_condition`
-                    // but we run into issues with duplicate NOT instructions having distinct ValueIds.
+            if let Some(Instruction::IfElse {
+                then_condition: inner_then_condition,
+                else_value: inner_else_value,
+                ..
+            }) = dfg.get_local_or_global_instruction(else_value)
+            {
+                if then_condition == *inner_then_condition {
+                    let instruction = Instruction::IfElse {
+                        then_condition,
+                        then_value,
+                        else_condition,
+                        else_value: *inner_else_value,
+                    };
+                    return SimplifiedToInstruction(instruction);
                 }
-            };
+                // TODO: We could check to see if `then_condition == inner_else_condition`
+                // but we run into issues with duplicate NOT instructions having distinct ValueIds.
+            }
 
             if matches!(&typ, Type::Numeric(_)) {
                 let result = ValueMerger::merge_numeric_values(
@@ -377,20 +374,17 @@ fn try_optimize_array_set_from_previous_get(
     target_index: ValueId,
     target_value: ValueId,
 ) -> SimplifyResult {
-    let array_from_get = match &dfg[target_value] {
-        Value::Instruction { instruction, .. } => match &dfg[*instruction] {
-            Instruction::ArrayGet { array, index } => {
-                if *array == array_id && *index == target_index {
-                    // If array and index match from the value, we can immediately simplify
-                    return SimplifyResult::SimplifiedTo(array_id);
-                } else if *index == target_index {
-                    *array
-                } else {
-                    return SimplifyResult::None;
-                }
+    let array_from_get = match dfg.get_local_or_global_instruction(target_value) {
+        Some(Instruction::ArrayGet { array, index }) => {
+            if *array == array_id && *index == target_index {
+                // If array and index match from the value, we can immediately simplify
+                return SimplifyResult::SimplifiedTo(array_id);
+            } else if *index == target_index {
+                *array
+            } else {
+                return SimplifyResult::None;
             }
-            _ => return SimplifyResult::None,
-        },
+        }
         _ => return SimplifyResult::None,
     };
 

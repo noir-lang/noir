@@ -1,3 +1,7 @@
+#![forbid(unsafe_code)]
+#![warn(clippy::semicolon_if_nothing_returned)]
+#![cfg_attr(not(test), warn(unused_crate_dependencies, unused_extern_crates))]
+
 use core::panic;
 use std::{
     cmp::max,
@@ -13,18 +17,19 @@ use acvm::{
     },
 };
 use coverage::{
-    AccumulatedFuzzerCoverage, BrilligCoverageRanges, FeatureToIndexMap, PotentialBoolWitnessList,
-    RawBrilligCoverage, SingleTestCaseCoverage, analyze_brillig_program_before_fuzzing,
+    AccumulatedFuzzerCoverage, BrilligCoverageRanges, FeatureToIndexMap, RawBrilligCoverage,
+    SingleTestCaseCoverage, analyze_brillig_program_before_fuzzing,
 };
-use noir_fuzzer::dictionary::build_dictionary_from_program;
+pub use dictionary::build_dictionary_from_program;
 
 mod corpus;
 mod coverage;
+mod dictionary;
 mod mutation;
 mod types;
 
 use corpus::{Corpus, DEFAULT_CORPUS_FOLDER, TestCase, TestCaseId};
-use mutation::InputMutator;
+use mutation::{InputMutator, add_elements_from_input_map_to_vector_without_abi};
 use rayon::iter::ParallelIterator;
 use termcolor::{ColorChoice, StandardStream};
 pub use types::FuzzTestResult;
@@ -56,8 +61,11 @@ type SimpleXorShiftRNGSeed = <XorShiftRng as SeedableRng>::Seed;
 /// Information collected from testcase execution on success
 pub type WitnessAndCoverage = (WitnessStack<FieldElement>, Option<Vec<u32>>);
 
-/// Information collected from testcase execution on failure
+/// Information collected from testcase execution on failure in brillig
 pub type ErrorAndCoverage = (String, Option<Vec<u32>>);
+
+/// Information collected from testcase execution on failure in ACIR
+pub type ErrorAndWitness = (String, WitnessStack<FieldElement>);
 
 /// A structure with the values for a single mutation-fuzz iteration in the fuzzer
 struct FuzzTask {
@@ -219,7 +227,7 @@ impl Metrics {
     pub fn increase_processed_testcase_count(&mut self, update: &usize) {
         self.processed_testcase_count += update;
     }
-    pub fn increment_removed_testcase_count(&mut self) {
+    fn increment_removed_testcase_count(&mut self) {
         self.removed_testcase_count += 1;
         self.removed_testcase_last_round = true;
     }
@@ -268,14 +276,15 @@ pub struct FuzzedExecutorExecutionConfiguration {
     pub num_threads: usize,
     /// Maximum time in seconds to spend fuzzing (default: no timeout)
     pub timeout: u64,
+    /// Whether to output progress to stdout or not.
+    pub show_progress: bool,
 }
 
-pub struct FuzzedExecutorFailureConfiguration {
-    /// Fail on specific asserts
-    pub fail_on_specific_asserts: bool,
-
-    /// Failure reason
-    pub failure_reason: Option<String>,
+pub enum FuzzedExecutorFailureConfiguration {
+    None,                   // Fail on any failing assertion
+    OnlyFailWith(String),   // Fail on failing assertions containing a specific message
+    ShouldFail,             // Pass if the program fails
+    ShouldFailWith(String), // Pass if the program fails with a specific message
 }
 
 pub struct FuzzedExecutorFolderConfiguration {
@@ -319,6 +328,9 @@ pub struct FuzzedExecutor<E, F> {
     /// Number of threads to use
     num_threads: usize,
 
+    /// Whether to output progress to stdout or not.
+    show_progress: bool,
+
     /// Determines what is considered a failure during execution
     failure_configuration: FuzzedExecutorFailureConfiguration,
 
@@ -345,7 +357,7 @@ impl<
     E: Fn(
             &Program<FieldElement>,
             WitnessMap<FieldElement>,
-        ) -> Result<WitnessStack<FieldElement>, String>
+        ) -> Result<WitnessStack<FieldElement>, ErrorAndWitness>
         + Sync,
     F: Fn(
             &Program<FieldElement>,
@@ -389,6 +401,7 @@ impl<
             package_name: package_name.to_string(),
             function_name: function_name.to_string(),
             num_threads: fuzz_execution_config.num_threads,
+            show_progress: fuzz_execution_config.show_progress,
             failure_configuration,
             corpus_dir: PathBuf::from(
                 folder_configuration.corpus_dir.unwrap_or(DEFAULT_CORPUS_FOLDER.to_string()),
@@ -410,19 +423,12 @@ impl<
         witness: &Option<WitnessStack<FieldElement>>,
         brillig_coverage: &Option<RawBrilligCoverage>,
     ) -> bool {
-        // Get a list of boolean witnesses (default or taken from accumulated coverage)
-        let mut default_list = PotentialBoolWitnessList::default();
-        let mut bool_witness_list =
-            accumulated_coverage.potential_bool_witness_list.as_ref().unwrap_or(&default_list);
+        // Get a list of non-boolean witnesses (default or taken from accumulated coverage)
+        let mut non_bool_witness_list = accumulated_coverage.non_bool_witness_list.clone();
 
         // If ACVM solved the witness, collect boolean states
-        if witness.is_some() {
-            default_list = accumulated_coverage
-                .potential_bool_witness_list
-                .as_ref()
-                .unwrap_or(&default_list)
-                .merge_new(witness.as_ref().unwrap());
-            bool_witness_list = &default_list;
+        if let Some(witness) = witness {
+            non_bool_witness_list = non_bool_witness_list.merge_new(witness);
         }
 
         // Form a coverage object with coverage from this run
@@ -431,10 +437,43 @@ impl<
             TestCaseId::default(),
             witness,
             brillig_coverage.clone().unwrap(),
-            bool_witness_list,
+            &non_bool_witness_list,
         );
         // Quickly detect if there is any new coverage so that later single-threaded check can quickly discard this testcase
         accumulated_coverage.detect_new_coverage(&new_coverage)
+    }
+
+    /// Filter the starting corpus and add elements to the dictionary
+    /// Removes testcases that can't be encoded by the new ABI and adds interesting values from them to the dictionary
+    fn filter_starting_corpus(
+        &self,
+        corpus: &Corpus,
+        starting_corpus_ids: &mut Vec<TestCaseId>,
+    ) -> Option<Vec<FieldElement>> {
+        let mut elements_for_dictionary = Vec::new();
+        let mut ids_to_remove = Vec::new();
+        for (index, id) in starting_corpus_ids.iter().enumerate() {
+            let testcase = corpus.get_testcase_by_id(*id);
+            match self.acir_program.abi.encode(testcase, None) {
+                Ok(_) => (),
+                Err(_) => {
+                    add_elements_from_input_map_to_vector_without_abi(
+                        testcase,
+                        &mut elements_for_dictionary,
+                    );
+                    // Remove the testcase from the corpus
+                    ids_to_remove.push(index);
+                }
+            }
+        }
+        ids_to_remove.sort();
+        for index in ids_to_remove.iter().rev() {
+            starting_corpus_ids.remove(*index);
+        }
+        if elements_for_dictionary.is_empty() {
+            return None;
+        }
+        Some(elements_for_dictionary)
     }
 
     /// Start the fuzzing campaign
@@ -470,11 +509,21 @@ impl<
         let mut starting_corpus_ids: Vec<_> =
             corpus.get_full_stored_corpus().iter().map(|x| x.id()).collect();
 
+        let elements_for_dictionary =
+            self.filter_starting_corpus(&corpus, &mut starting_corpus_ids);
+
         // Can't minimize if there is no corpus
         if self.minimize_corpus && starting_corpus_ids.is_empty() {
-            return FuzzTestResult::MinimizationFailure(
-                "No initial corpus found to minimize".to_string(),
-            );
+            let minimization_failure_message = if elements_for_dictionary.is_some() {
+                "The corpus has only elements from a previous ABI version of the fuzzing harness. Nothing to minimize"
+            } else {
+                "No initial corpus found to minimize"
+            };
+            return FuzzTestResult::MinimizationFailure(minimization_failure_message.to_string());
+        }
+        let abi_change_detected = elements_for_dictionary.is_some();
+        if let Some(elements_for_dictionary) = elements_for_dictionary {
+            self.mutator.update_dictionary_from_vector(&elements_for_dictionary);
         }
 
         let minimized_corpus = if self.minimize_corpus {
@@ -492,16 +541,19 @@ impl<
             minimized_corpus_path =
                 minimized_corpus.as_ref().unwrap().get_corpus_storage_path().to_path_buf();
         }
-        let _ = display_starting_info(
-            self.minimize_corpus,
-            seed,
-            starting_corpus_ids.len(),
-            self.num_threads,
-            &self.package_name,
-            &self.function_name,
-            corpus.get_corpus_storage_path(),
-            &minimized_corpus_path,
-        );
+        if self.show_progress {
+            let _ = display_starting_info(
+                self.minimize_corpus,
+                seed,
+                starting_corpus_ids.len(),
+                self.num_threads,
+                &self.package_name,
+                &self.function_name,
+                corpus.get_corpus_storage_path(),
+                &minimized_corpus_path,
+                abi_change_detected,
+            );
+        }
 
         // Generate the default input (it is needed if the corpus is empty)
         let default_map = self.mutator.generate_default_input_map();
@@ -706,7 +758,9 @@ impl<
                 all_fuzzing_results.iter().find(|fast_result| fast_result.failed())
             {
                 self.metrics.set_active_corpus_size(corpus.get_testcase_count());
-                let _ = display_metrics(&self.metrics);
+                if self.show_progress {
+                    let _ = display_metrics(&self.metrics);
+                }
                 break individual_failing_result.outcome().clone();
             }
 
@@ -720,7 +774,7 @@ impl<
                     .increase_total_brillig_duration_micros(&fast_result.brillig_duration_micros());
                 self.metrics.increase_total_mutation_time(&fast_result.mutation_time());
                 if !fast_result.skip_check() {
-                    analysis_queue.push(index)
+                    analysis_queue.push(index);
                 }
             }
 
@@ -743,19 +797,11 @@ impl<
                         )
                     }
                 };
-                // If we ran ACIR and  managed to produce an ACIR witness
-                if acir_round && witness.is_some() {
-                    // Update the potential list
-                    if accumulated_coverage.potential_bool_witness_list.is_none() {
-                        // If it's the first time, we need to assign
-                        accumulated_coverage.potential_bool_witness_list =
-                            Some(PotentialBoolWitnessList::from(witness.as_ref().unwrap()));
-                    } else {
+                // If we ran ACIR and managed to produce an ACIR witness
+                if acir_round {
+                    if let Some(ref witness) = witness {
                         accumulated_coverage
-                            .potential_bool_witness_list
-                            .as_mut()
-                            .unwrap()
-                            .update(witness.as_ref().unwrap());
+                            .update_non_bool_witness_list_with_witness_stack(witness);
                     }
                 }
 
@@ -764,10 +810,7 @@ impl<
                     case_id,
                     &witness,
                     brillig_coverage.clone(),
-                    accumulated_coverage
-                        .potential_bool_witness_list
-                        .as_ref()
-                        .unwrap_or(&PotentialBoolWitnessList::default()),
+                    &accumulated_coverage.non_bool_witness_list,
                 );
 
                 // In case this is just a brillig round, we need to detect first, since a merge might skip some witnesses that we haven't added from acir
@@ -874,32 +917,16 @@ impl<
                     };
                 self.metrics.increase_total_acir_duration_micros(&acir_duration_micros);
 
-                // In case ACIR execution was successful
-                if witness.is_some() {
-                    // Update the potential list
-                    if accumulated_coverage.potential_bool_witness_list.is_none() {
-                        // If it's the first time, we need to assign
-                        accumulated_coverage.potential_bool_witness_list =
-                            Some(PotentialBoolWitnessList::from(witness.as_ref().unwrap()));
-                    } else {
-                        accumulated_coverage
-                            .potential_bool_witness_list
-                            .as_mut()
-                            .unwrap()
-                            .update(witness.as_ref().unwrap());
-                    }
+                // In case we got a witness from ACIR
+                if let Some(ref witness) = witness {
+                    accumulated_coverage.update_non_bool_witness_list_with_witness_stack(witness);
                 }
-                // If we ran just brillig at the start, we won't have a potential bool witness list, so we need a dummy
-                let mut dummy_witness_list_for_brillig = PotentialBoolWitnessList::default();
 
                 let new_coverage = SingleTestCaseCoverage::new(
                     case_id,
                     &witness,
                     brillig_coverage,
-                    accumulated_coverage
-                        .potential_bool_witness_list
-                        .as_mut()
-                        .unwrap_or(&mut dummy_witness_list_for_brillig),
+                    &accumulated_coverage.non_bool_witness_list,
                 );
                 let (new_coverage_discovered, testcases_to_remove) =
                     accumulated_coverage.merge(&new_coverage);
@@ -922,7 +949,9 @@ impl<
             // If we've found something, return
             if let Some(result) = failing_result {
                 self.metrics.set_active_corpus_size(corpus.get_testcase_count());
-                let _ = display_metrics(&self.metrics);
+                if self.show_progress {
+                    let _ = display_metrics(&self.metrics);
+                }
                 break result;
             }
             if time_tracker.elapsed() - last_metric_check
@@ -931,7 +960,9 @@ impl<
                 // Update and display metrics
                 self.metrics.set_active_corpus_size(corpus.get_testcase_count());
                 self.metrics.set_last_round_update_time(updating_time);
-                let _ = display_metrics(&self.metrics);
+                if self.show_progress {
+                    let _ = display_metrics(&self.metrics);
+                }
                 self.metrics.refresh_round();
                 last_metric_check = time_tracker.elapsed();
                 // Check if we've exceeded the timeout
@@ -1023,18 +1054,33 @@ impl<
         // Parse results
         match (result_acir, result_brillig) {
             (Ok(witnesses), Ok((_map, brillig_coverage))) => {
-                // If both were OK, collect coverage and ACIR witnesses along with timings and return
-                HarnessExecutionOutcome::Case(SuccessfulCaseOutcome {
-                    case_id: testcase.id(),
-                    case: testcase.value().clone(),
-                    witness: Some(witnesses),
-                    brillig_coverage: Some(brillig_coverage.unwrap()),
-                    acir_duration_micros: acir_elapsed.as_micros(),
-                    brillig_duration_micros: brillig_elapsed.as_micros(),
-                })
+                // If we expect the program to always fail, we need to return a counter example
+                match self.failure_configuration {
+                    // If we expect the program to always fail, we need to return a counter example, if it actually passes
+                    FuzzedExecutorFailureConfiguration::ShouldFail
+                    | FuzzedExecutorFailureConfiguration::ShouldFailWith(_) => {
+                        HarnessExecutionOutcome::CounterExample(CounterExampleOutcome {
+                            case_id: testcase.id(),
+                            exit_reason: "".to_string(),
+                            counterexample: testcase.value().clone(),
+                        })
+                    }
+                    FuzzedExecutorFailureConfiguration::OnlyFailWith(_)
+                    | FuzzedExecutorFailureConfiguration::None => {
+                        // If both were OK, collect coverage and ACIR witnesses along with timings and return
+                        HarnessExecutionOutcome::Case(SuccessfulCaseOutcome {
+                            case_id: testcase.id(),
+                            case: testcase.value().clone(),
+                            witness: Some(witnesses),
+                            brillig_coverage: Some(brillig_coverage.unwrap()),
+                            acir_duration_micros: acir_elapsed.as_micros(),
+                            brillig_duration_micros: brillig_elapsed.as_micros(),
+                        })
+                    }
+                }
             }
             // If results diverge, it's a discrepancy
-            (Err(err), Ok(_)) => HarnessExecutionOutcome::Discrepancy(DiscrepancyOutcome {
+            (Err((err, _)), Ok(_)) => HarnessExecutionOutcome::Discrepancy(DiscrepancyOutcome {
                 case_id: testcase.id(),
                 exit_reason: err,
                 acir_failed: true,
@@ -1047,42 +1093,97 @@ impl<
                 counterexample: testcase.value().clone(),
             }),
             // If both failed, then we need to check
-            (Err(..), Err((err, coverage))) => {
-                // If this is a foreign call failure, we need to inform the user
-                if err.contains(FOREIGN_CALL_FAILURE_SUBSTRING) {
-                    return HarnessExecutionOutcome::ForeignCallFailure(
-                        types::ForeignCallErrorInFuzzing { exit_reason: err },
-                    );
-                }
-                // If failures are expected and this is not the failure that we are looking for, then don't treat as failure
-                if self.failure_configuration.fail_on_specific_asserts
-                    && !err.contains(
-                        self.failure_configuration
-                            .failure_reason
-                            .as_ref()
-                            .expect("Failure reason should be provided"),
-                    )
-                {
-                    return HarnessExecutionOutcome::Case(SuccessfulCaseOutcome {
-                        case_id: testcase.id(),
-                        case: testcase.value().clone(),
-                        witness: None,
-                        brillig_coverage: coverage,
-                        acir_duration_micros: acir_elapsed.as_micros(),
-                        brillig_duration_micros: brillig_elapsed.as_micros(),
-                    });
-                }
-
-                // This is a bug, inform the user
-                HarnessExecutionOutcome::CounterExample(CounterExampleOutcome {
-                    case_id: testcase.id(),
-                    exit_reason: err,
-                    counterexample: testcase.value().clone(),
-                })
-            }
+            (Err((err, witness)), Err((_, coverage))) => self.handle_failed_case(
+                &err,
+                Some(witness),
+                coverage,
+                acir_elapsed,
+                brillig_elapsed,
+                testcase,
+            ),
         }
     }
 
+    /// Handle a failed execution case
+    /// The handling depends on the failure configuration
+    fn handle_failed_case(
+        &self,
+        err: &str,
+        witness: Option<WitnessStack<FieldElement>>,
+        coverage: Option<RawBrilligCoverage>,
+        acir_elapsed: Duration,
+        brillig_elapsed: Duration,
+        testcase: &TestCase,
+    ) -> HarnessExecutionOutcome {
+        // If this is a foreign call failure, we need to inform the user
+        if err.contains(FOREIGN_CALL_FAILURE_SUBSTRING) {
+            return HarnessExecutionOutcome::ForeignCallFailure(types::ForeignCallErrorInFuzzing {
+                exit_reason: err.to_string(),
+            });
+        }
+        match &self.failure_configuration {
+            // Failure is failure
+            FuzzedExecutorFailureConfiguration::None => {
+                // This is a bug, inform the user
+                HarnessExecutionOutcome::CounterExample(CounterExampleOutcome {
+                    case_id: testcase.id(),
+                    exit_reason: err.to_string(),
+                    counterexample: testcase.value().clone(),
+                })
+            }
+            // Failure is failure if the message in assertion matches the failure reason
+            FuzzedExecutorFailureConfiguration::OnlyFailWith(failure_reason) => {
+                // If we have triggered the failure that we are looking for, then it's a failure
+                if err.contains(failure_reason) {
+                    HarnessExecutionOutcome::CounterExample(CounterExampleOutcome {
+                        case_id: testcase.id(),
+                        exit_reason: err.to_string(),
+                        counterexample: testcase.value().clone(),
+                    })
+                } else {
+                    HarnessExecutionOutcome::Case(SuccessfulCaseOutcome {
+                        case_id: testcase.id(),
+                        case: testcase.value().clone(),
+                        witness,
+                        brillig_coverage: coverage,
+                        acir_duration_micros: acir_elapsed.as_micros(),
+                        brillig_duration_micros: brillig_elapsed.as_micros(),
+                    })
+                }
+            }
+            // Failure is a success
+            FuzzedExecutorFailureConfiguration::ShouldFail => {
+                HarnessExecutionOutcome::Case(SuccessfulCaseOutcome {
+                    case_id: testcase.id(),
+                    case: testcase.value().clone(),
+                    witness,
+                    brillig_coverage: coverage,
+                    acir_duration_micros: acir_elapsed.as_micros(),
+                    brillig_duration_micros: brillig_elapsed.as_micros(),
+                })
+            }
+            // Failure is a success if the message in assertion matches the failure reason
+            FuzzedExecutorFailureConfiguration::ShouldFailWith(failure_reason) => {
+                // If the failure reason is in the error message
+                if err.contains(failure_reason) {
+                    HarnessExecutionOutcome::Case(SuccessfulCaseOutcome {
+                        case_id: testcase.id(),
+                        case: testcase.value().clone(),
+                        witness,
+                        brillig_coverage: coverage,
+                        acir_duration_micros: acir_elapsed.as_micros(),
+                        brillig_duration_micros: brillig_elapsed.as_micros(),
+                    })
+                } else {
+                    HarnessExecutionOutcome::CounterExample(CounterExampleOutcome {
+                        case_id: testcase.id(),
+                        exit_reason: err.to_string(),
+                        counterexample: testcase.value().clone(),
+                    })
+                }
+            }
+        }
+    }
     /// Granular and single-step function that runs only one fuzz and returns either a `CaseOutcome`
     /// or a `CounterExampleOutcome`
     pub fn single_fuzz_acir(&self, testcase: &TestCase) -> HarnessExecutionOutcome {
@@ -1092,44 +1193,38 @@ impl<
         let acir_elapsed = acir_start.elapsed();
 
         match result_acir {
-            Ok(witnesses) => HarnessExecutionOutcome::Case(SuccessfulCaseOutcome {
-                case_id: testcase.id(),
-                case: testcase.value().clone(),
-                witness: Some(witnesses),
-                brillig_coverage: None,
-                acir_duration_micros: acir_elapsed.as_micros(),
-                brillig_duration_micros: 0,
-            }),
-            Err(err) => {
-                if err.contains(FOREIGN_CALL_FAILURE_SUBSTRING) {
-                    return HarnessExecutionOutcome::ForeignCallFailure(
-                        types::ForeignCallErrorInFuzzing { exit_reason: err },
-                    );
+            Ok(witnesses) => {
+                match &self.failure_configuration {
+                    // If we expect the program to always fail, we need to return a counter example
+                    FuzzedExecutorFailureConfiguration::ShouldFail
+                    | FuzzedExecutorFailureConfiguration::ShouldFailWith(_) => {
+                        HarnessExecutionOutcome::CounterExample(CounterExampleOutcome {
+                            case_id: testcase.id(),
+                            exit_reason: "".to_string(),
+                            counterexample: testcase.value().clone(),
+                        })
+                    }
+                    FuzzedExecutorFailureConfiguration::OnlyFailWith(_)
+                    | FuzzedExecutorFailureConfiguration::None => {
+                        HarnessExecutionOutcome::Case(SuccessfulCaseOutcome {
+                            case_id: testcase.id(),
+                            case: testcase.value().clone(),
+                            witness: Some(witnesses),
+                            brillig_coverage: None,
+                            acir_duration_micros: acir_elapsed.as_micros(),
+                            brillig_duration_micros: 0,
+                        })
+                    }
                 }
-                if self.failure_configuration.fail_on_specific_asserts
-                    && !err.contains(
-                        self.failure_configuration
-                            .failure_reason
-                            .as_ref()
-                            .expect("Failure reason should be provided"),
-                    )
-                {
-                    // TODO: in the future we can add partial witness propagation from ACIR
-                    return HarnessExecutionOutcome::Case(SuccessfulCaseOutcome {
-                        case_id: testcase.id(),
-                        case: testcase.value().clone(),
-                        witness: None,
-                        brillig_coverage: None,
-                        acir_duration_micros: acir_elapsed.as_micros(),
-                        brillig_duration_micros: 0,
-                    });
-                }
-                HarnessExecutionOutcome::CounterExample(CounterExampleOutcome {
-                    case_id: testcase.id(),
-                    exit_reason: err,
-                    counterexample: testcase.value().clone(),
-                })
             }
+            Err((err, witness)) => self.handle_failed_case(
+                &err,
+                Some(witness),
+                None,
+                acir_elapsed,
+                Duration::from_secs(0),
+                testcase,
+            ),
         }
     }
 
@@ -1146,43 +1241,38 @@ impl<
         let brillig_elapsed = brillig_start.elapsed();
 
         match result_brillig {
-            Ok((_, brillig_coverage)) => HarnessExecutionOutcome::Case(SuccessfulCaseOutcome {
-                case_id: testcase.id(),
-                case: testcase.value().clone(),
-                witness: None,
-                brillig_coverage: Some(brillig_coverage.unwrap()),
-                acir_duration_micros: 0,
-                brillig_duration_micros: brillig_elapsed.as_micros(),
-            }),
-            Err((err, coverage)) => {
-                if err.contains(FOREIGN_CALL_FAILURE_SUBSTRING) {
-                    return HarnessExecutionOutcome::ForeignCallFailure(
-                        types::ForeignCallErrorInFuzzing { exit_reason: err },
-                    );
+            Ok((_, brillig_coverage)) => {
+                // If we expect the program to always fail, we need to return a counter example
+                match &self.failure_configuration {
+                    FuzzedExecutorFailureConfiguration::ShouldFail
+                    | FuzzedExecutorFailureConfiguration::ShouldFailWith(_) => {
+                        HarnessExecutionOutcome::CounterExample(CounterExampleOutcome {
+                            case_id: testcase.id(),
+                            exit_reason: "".to_string(),
+                            counterexample: testcase.value().clone(),
+                        })
+                    }
+                    FuzzedExecutorFailureConfiguration::OnlyFailWith(_)
+                    | FuzzedExecutorFailureConfiguration::None => {
+                        HarnessExecutionOutcome::Case(SuccessfulCaseOutcome {
+                            case_id: testcase.id(),
+                            case: testcase.value().clone(),
+                            witness: None,
+                            brillig_coverage: Some(brillig_coverage.unwrap()),
+                            acir_duration_micros: 0,
+                            brillig_duration_micros: brillig_elapsed.as_micros(),
+                        })
+                    }
                 }
-                if self.failure_configuration.fail_on_specific_asserts
-                    && !err.contains(
-                        self.failure_configuration
-                            .failure_reason
-                            .as_ref()
-                            .expect("Failure reason should be provided"),
-                    )
-                {
-                    return HarnessExecutionOutcome::Case(SuccessfulCaseOutcome {
-                        case_id: testcase.id(),
-                        case: testcase.value().clone(),
-                        witness: None,
-                        brillig_coverage: Some(coverage.unwrap()),
-                        acir_duration_micros: 0,
-                        brillig_duration_micros: brillig_elapsed.as_micros(),
-                    });
-                }
-                HarnessExecutionOutcome::CounterExample(CounterExampleOutcome {
-                    case_id: testcase.id(),
-                    exit_reason: err,
-                    counterexample: testcase.value().clone(),
-                })
             }
+            Err((err, coverage)) => self.handle_failed_case(
+                &err,
+                None,
+                coverage,
+                Duration::from_secs(0),
+                brillig_elapsed,
+                testcase,
+            ),
         }
     }
 }
@@ -1198,6 +1288,7 @@ fn display_starting_info(
     fuzzing_harness_name: &str,
     corpus_path: &Path,
     minimized_corpus_path: &Path,
+    abi_change_detected: bool,
 ) -> Result<(), std::io::Error> {
     let writer = StandardStream::stderr(ColorChoice::Always);
     let mut writer = writer.lock();
@@ -1222,6 +1313,7 @@ fn display_starting_info(
             minimized_corpus_path.to_str().unwrap_or("No minimized corpus path provided")
         )?;
         writer.reset()?;
+
         writeln!(writer, "\"")?;
     } else {
         write!(writer, "Starting fuzzing with harness ")?;
@@ -1252,6 +1344,16 @@ fn display_starting_info(
     writer.set_color(ColorSpec::new().set_fg(Some(Color::Blue)))?;
     writeln!(writer, "{}", num_threads)?;
     writer.reset()?;
+
+    if abi_change_detected {
+        writer.set_color(ColorSpec::new().set_fg(Some(Color::Yellow)))?;
+        write!(writer, "ABI change detected. ")?;
+        writeln!(
+            writer,
+            "Some testcases will be skipped due to ABI change and elements from them will be added to the dictionary."
+        )?;
+        writer.reset()?;
+    }
     writer.flush()?;
     Ok(())
 }

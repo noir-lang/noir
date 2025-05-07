@@ -1,4 +1,5 @@
 use std::borrow::Cow;
+use std::collections::HashSet;
 use std::fmt;
 use std::hash::Hash;
 use std::marker::Copy;
@@ -26,6 +27,8 @@ use crate::hir::type_check::generics::TraitGenerics;
 use crate::hir_def::traits::NamedType;
 use crate::hir_def::traits::ResolvedTraitBound;
 use crate::locations::AutoImportEntry;
+use crate::token::MetaAttribute;
+use crate::token::MetaAttributeName;
 
 use crate::GenericTypeVars;
 use crate::Generics;
@@ -1461,6 +1464,14 @@ impl NodeInterner {
         self.trait_implementations[&id].clone()
     }
 
+    pub fn get_trait_implementations_in_crate(&self, crate_id: CrateId) -> HashSet<TraitImplId> {
+        let trait_impls = self.trait_implementations.iter();
+        let trait_impls = trait_impls.filter_map(|(id, trait_impl)| {
+            if trait_impl.borrow().crate_id == crate_id { Some(*id) } else { None }
+        });
+        trait_impls.collect()
+    }
+
     /// If the given function belongs to a trait impl, return its trait method id.
     /// Otherwise, return None.
     pub fn get_trait_method_id(&self, function: FuncId) -> Option<TraitMethodId> {
@@ -1576,16 +1587,24 @@ impl NodeInterner {
 
             let mut check_trait_generics =
                 |impl_generics: &[Type], impl_associated_types: &[NamedType]| {
-                    trait_generics.iter().zip(impl_generics).all(|(trait_generic, impl_generic)| {
-                        let impl_generic = impl_generic.force_substitute(&instantiation_bindings);
-                        trait_generic.try_unify(&impl_generic, &mut fresh_bindings).is_ok()
-                    }) && trait_associated_types.iter().zip(impl_associated_types).all(
+                    let generics_unify = trait_generics.iter().zip(impl_generics).all(
                         |(trait_generic, impl_generic)| {
+                            let impl_generic =
+                                impl_generic.force_substitute(&instantiation_bindings);
+                            trait_generic.try_unify(&impl_generic, &mut fresh_bindings).is_ok()
+                        },
+                    );
+
+                    let associated_types_unify = trait_associated_types
+                        .iter()
+                        .zip(impl_associated_types)
+                        .all(|(trait_generic, impl_generic)| {
                             let impl_generic2 =
                                 impl_generic.typ.force_substitute(&instantiation_bindings);
                             trait_generic.typ.try_unify(&impl_generic2, &mut fresh_bindings).is_ok()
-                        },
-                    )
+                        });
+
+                    generics_unify && associated_types_unify
                 };
 
             let trait_generics = match impl_kind {
@@ -2337,6 +2356,18 @@ impl NodeInterner {
     pub fn get_trait_reexports(&self, trait_id: TraitId) -> &[Reexport] {
         self.get_reexports(ModuleDefId::TraitId(trait_id))
     }
+
+    pub fn get_meta_attribute_name(&self, meta: &MetaAttribute) -> Option<String> {
+        match &meta.name {
+            MetaAttributeName::Path(path) => Some(path.last_name().to_string()),
+            MetaAttributeName::Resolved(expr_id) => {
+                let HirExpression::Ident(ident, _) = self.expression(expr_id) else {
+                    return None;
+                };
+                self.try_definition(ident.id).map(|def| def.name.clone())
+            }
+        }
+    }
 }
 
 impl Methods {
@@ -2495,7 +2526,7 @@ fn get_type_method_key(typ: &Type) -> Option<TypeMethodKey> {
         Type::Unit => Some(Unit),
         Type::Tuple(_) => Some(Tuple),
         Type::Function(_, _, _, _) => Some(Function),
-        Type::NamedGeneric(_, _) => Some(Generic),
+        Type::NamedGeneric(_) => Some(Generic),
         Type::Quoted(quoted) => Some(Quoted(*quoted)),
         Type::Reference(element, _) => get_type_method_key(element),
         Type::Alias(alias, _) => get_type_method_key(&alias.borrow().typ),

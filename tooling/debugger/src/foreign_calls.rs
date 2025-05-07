@@ -1,3 +1,5 @@
+use std::path::PathBuf;
+
 use acvm::{
     AcirField, FieldElement,
     acir::brillig::{ForeignCallParam, ForeignCallResult},
@@ -40,6 +42,7 @@ impl DebugForeignCall {
 pub trait DebugForeignCallExecutor: ForeignCallExecutor<FieldElement> {
     fn get_variables(&self) -> Vec<StackFrame<FieldElement>>;
     fn current_stack_frame(&self) -> Option<StackFrame<FieldElement>>;
+    fn restart(&mut self, artifact: &DebugArtifact);
 }
 
 #[derive(Default)]
@@ -50,23 +53,42 @@ pub struct DefaultDebugForeignCallExecutor {
 impl DefaultDebugForeignCallExecutor {
     fn make<'a, W: 'a + std::io::Write>(
         output: W,
+        resolver_url: Option<String>,
         ex: DefaultDebugForeignCallExecutor,
+        root_path: Option<PathBuf>,
+        package_name: String,
     ) -> impl DebugForeignCallExecutor + 'a {
-        DefaultForeignCallBuilder::default().with_output(output).build().add_layer(ex)
+        DefaultForeignCallBuilder {
+            output,
+            enable_mocks: true,
+            resolver_url,
+            root_path: root_path.clone(),
+            package_name: Some(package_name),
+        }
+        .build()
+        .add_layer(ex)
     }
 
     #[allow(clippy::new_ret_no_self, dead_code)]
-    pub fn new<'a, W: 'a + std::io::Write>(output: W) -> impl DebugForeignCallExecutor + 'a {
-        Self::make(output, Self::default())
+    pub fn new<'a, W: 'a + std::io::Write>(
+        output: W,
+        resolver_url: Option<String>,
+        root_path: Option<PathBuf>,
+        package_name: String,
+    ) -> impl DebugForeignCallExecutor + 'a {
+        Self::make(output, resolver_url, Self::default(), root_path, package_name)
     }
 
     pub fn from_artifact<'a, W: 'a + std::io::Write>(
         output: W,
+        resolver_url: Option<String>,
         artifact: &DebugArtifact,
+        root_path: Option<PathBuf>,
+        package_name: String,
     ) -> impl DebugForeignCallExecutor + use<'a, W> {
         let mut ex = Self::default();
         ex.load_artifact(artifact);
-        Self::make(output, ex)
+        Self::make(output, resolver_url, ex, root_path, package_name)
     }
 
     pub fn load_artifact(&mut self, artifact: &DebugArtifact) {
@@ -86,6 +108,11 @@ impl DebugForeignCallExecutor for DefaultDebugForeignCallExecutor {
 
     fn current_stack_frame(&self) -> Option<StackFrame<FieldElement>> {
         self.debug_vars.current_stack_frame()
+    }
+
+    fn restart(&mut self, artifact: &DebugArtifact) {
+        self.debug_vars = DebugVars::default();
+        self.load_artifact(artifact);
     }
 }
 
@@ -188,5 +215,8 @@ where
 
     fn current_stack_frame(&self) -> Option<StackFrame<FieldElement>> {
         self.handler().current_stack_frame()
+    }
+    fn restart(&mut self, artifact: &DebugArtifact) {
+        self.handler.restart(artifact);
     }
 }

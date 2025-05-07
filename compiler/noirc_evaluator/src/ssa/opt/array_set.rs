@@ -53,9 +53,7 @@ impl Function {
         }
 
         let instructions_to_update = mem::take(&mut context.instructions_that_can_be_made_mutable);
-        for block in reachable_blocks {
-            make_mutable(&mut self.dfg, block, &instructions_to_update);
-        }
+        make_mutable(&mut self.dfg, &instructions_to_update);
     }
 }
 
@@ -159,34 +157,15 @@ impl<'f> Context<'f> {
 }
 
 /// Make each ArraySet instruction in `instructions_to_update` mutable.
-fn make_mutable(
-    dfg: &mut DataFlowGraph,
-    block_id: BasicBlockId,
-    instructions_to_update: &HashSet<InstructionId>,
-) {
-    if instructions_to_update.is_empty() {
-        return;
-    }
-
-    // Take the instructions temporarily so we can mutate the DFG while we iterate through them
-    let block = &mut dfg[block_id];
-    let instructions = block.take_instructions();
-
-    for instruction in &instructions {
-        if instructions_to_update.contains(instruction) {
-            let instruction = &mut dfg[*instruction];
-
-            if let Instruction::ArraySet { mutable, .. } = instruction {
-                *mutable = true;
-            } else {
-                unreachable!(
-                    "Non-ArraySet instruction in instructions_to_update!\n{instruction:?}"
-                );
-            }
+fn make_mutable(dfg: &mut DataFlowGraph, instructions_to_update: &HashSet<InstructionId>) {
+    for instruction_id in instructions_to_update {
+        let instruction = &mut dfg[*instruction_id];
+        if let Instruction::ArraySet { mutable, .. } = instruction {
+            *mutable = true;
+        } else {
+            unreachable!("Non-ArraySet instruction in instructions_to_update!\n{instruction:?}");
         }
     }
-
-    *dfg[block_id].instructions_mut() = instructions;
 }
 
 #[cfg(test)]

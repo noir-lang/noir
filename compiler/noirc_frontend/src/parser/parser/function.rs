@@ -87,9 +87,17 @@ impl Parser<'_> {
         allow_optional_body: bool,
         allow_self: bool,
     ) -> FunctionDefinitionWithOptionalBody {
-        let Some(name) = self.eat_ident() else {
+        let name = if let Some(name) = self.eat_ident() {
+            name
+        } else if self.at(Token::LeftParen) || self.at(Token::Less) {
+            // If it's `fn (...` or `fn <...` we assume the user missed the function name but a function
+            // definition follows. This can happen if the user is currently renaming a function by first
+            // erasing the name.
             self.expected_identifier();
-            return empty_function(self.previous_token_location);
+            self.unknown_ident_at_previous_token_end()
+        } else {
+            self.expected_identifier();
+            return empty_function(self.location_at_previous_token_end());
         };
 
         let generics = self.parse_generics_allowing_trait_bounds();
@@ -223,8 +231,8 @@ impl Parser<'_> {
             );
 
             let visibility = Visibility::Private;
-            let typ =
-                UnresolvedType { typ: UnresolvedTypeData::Error, location: Location::dummy() };
+            let location = self.location_at_previous_token_end();
+            let typ = UnresolvedType { typ: UnresolvedTypeData::Error, location };
             (visibility, typ)
         } else {
             (
@@ -320,15 +328,14 @@ impl Parser<'_> {
 }
 
 fn empty_function(location: Location) -> FunctionDefinitionWithOptionalBody {
-    let span = Span::from(location.span.end()..location.span.end());
     FunctionDefinitionWithOptionalBody {
-        name: Ident::default(),
+        name: Ident::new(String::new(), location),
         generics: Vec::new(),
         parameters: Vec::new(),
         body: None,
-        location: Location::new(span, location.file),
+        location,
         where_clause: Vec::new(),
-        return_type: FunctionReturnType::Default(Location::dummy()),
+        return_type: FunctionReturnType::Default(location),
         return_visibility: Visibility::Private,
     }
 }
@@ -339,6 +346,8 @@ fn empty_body() -> BlockExpression {
 
 #[cfg(test)]
 mod tests {
+    use insta::assert_snapshot;
+
     use crate::{
         ast::{
             ExpressionKind, IntegerBitSize, ItemVisibility, NoirFunction, StatementKind,
@@ -499,7 +508,7 @@ mod tests {
         assert_eq!(noir_function.parameters().len(), 1);
 
         let error = get_single_error(&errors, span);
-        assert_eq!(error.to_string(), "Expected a pattern but found '1'");
+        assert_snapshot!(error.to_string(), @"Expected a pattern but found '1'");
     }
 
     #[test]
@@ -535,7 +544,7 @@ mod tests {
         assert_eq!(noir_function.parameters().len(), 2);
 
         let error = get_single_error(&errors, span);
-        assert_eq!(error.to_string(), "Expected a type but found ','");
+        assert_snapshot!(error.to_string(), @"Expected a type but found ','");
     }
 
     #[test]
@@ -568,7 +577,7 @@ mod tests {
         let (src, span) = get_source_with_error_span(src);
         let (mut module, errors) = parse_program_with_dummy_file(&src);
         let error = get_single_error(&errors, span);
-        assert_eq!(error.to_string(), "Expected a type but found 'mut'");
+        assert_snapshot!(error.to_string(), @"Expected a type but found 'mut'");
 
         assert_eq!(module.items.len(), 1);
         let item = module.items.remove(0);
@@ -653,7 +662,7 @@ mod tests {
         let _ = parser.parse_program();
 
         let error = get_single_error(&parser.errors, span);
-        assert_eq!(error.to_string(), "Unexpected 'struct', expected one of 'where', '{', '->'");
+        assert_snapshot!(error.to_string(), @"Unexpected 'struct', expected one of 'where', '{', '->'");
     }
 
     #[test]
@@ -667,7 +676,7 @@ mod tests {
         let _ = parser.parse_program();
 
         let error = get_single_error(&parser.errors, span);
-        assert_eq!(error.to_string(), "Unexpected 'struct', expected one of 'where', '{'");
+        assert_snapshot!(error.to_string(), @"Unexpected 'struct', expected one of 'where', '{'");
     }
 
     #[test]
@@ -681,6 +690,20 @@ mod tests {
         let _ = parser.parse_program();
 
         let error = get_single_error(&parser.errors, span);
-        assert_eq!(error.to_string(), "Expected a '{' but found 'struct'");
+        assert_snapshot!(error.to_string(), @"Expected a '{' but found 'struct'");
+    }
+
+    #[test]
+    fn errors_on_missing_function_name() {
+        let src = "
+          fn () {}
+             ^
+          ";
+        let (src, span) = get_source_with_error_span(src);
+        let mut parser = Parser::for_str_with_dummy_file(&src);
+        let _ = parser.parse_program();
+
+        let error = get_single_error(&parser.errors, span);
+        assert_snapshot!(error.to_string(), @"Expected an identifier but found '('");
     }
 }

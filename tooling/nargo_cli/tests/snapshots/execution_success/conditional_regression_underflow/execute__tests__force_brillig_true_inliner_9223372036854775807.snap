@@ -19,14 +19,26 @@ expression: artifact
     ],
     "return_type": null,
     "error_types": {
+      "2920182694213909827": {
+        "error_kind": "string",
+        "string": "attempt to subtract with overflow"
+      },
+      "5019202896831570965": {
+        "error_kind": "string",
+        "string": "attempt to add with overflow"
+      },
+      "7233212735005103307": {
+        "error_kind": "string",
+        "string": "attempt to multiply with overflow"
+      },
       "17843811134343075018": {
         "error_kind": "string",
         "string": "Stack too deep"
       }
     }
   },
-  "bytecode": "H4sIAAAAAAAA/7WVvw7CIBDGQfEPNjpYBx10UBedaNqmdXPwRYhNn6OPrk2OcF4uLsAlzX2E4+N3kLZS+JCQFRkLpuYJ2YRFEdHLsKD/wtXcIWvIEzQ/jdisJvvG9G9NVWumv4j8pQbPlOfjPBP4mwX4vAbvT3sRKLs6umZ81kjTmiXMO70BrcmaFPef8H5MzvC7vTLo9Up6xSwyHouV4vfOFNqD45uR+hzy/PvsGJ2Y/xHKv0fMB0an5W9NKP8RMZ8Ynfj8m1D+M2K+MDoT/n+iBu8X631sWmMc53TwjI4Ph0LzuP4G4xXq12UVwNk3tuhL29vadl31tlviPwb+bnwAy1dx+4UIAAA=",
-  "debug_symbols": "ldHRCoMgFAbgdznXXnhyGfkqY4SVhSAaZoMRvft0tBGtG2+EX/wOHv4VetUuY6Pt4GYQ9xWM62TQzsa0bgRar43RY3O8BpoOLD/v50naFOcgfQBRMwLK9iCQ0sgHbRSIkm4PAsgzQUGvALKfYPVZYLa43AIr/IrqT/BcwS73KJDuokB+Fpgntpie0mvZGrUXNyy2O/QYXpM6VTp516l+8SqVe+g1/ZZxcsM4No5+Aw==",
+  "bytecode": "H4sIAAAAAAAA/72WwU6EMBCGywK6uNGDe9GDHjzpwaRdCi0mJpvoi3SLfQ4eXUmmYZw0u5ultAmZFn5mvr9DgIxNI4NYkDULaPYQ+bwhIubiQdBjw2u+IFYQV+h6HtFsRerGzK+5bKqAv4j8dQU5l9wfn3OB/Pwa8nwPU37qhaHodfSe8bhFc6pZw3U/v4N5Re5Zov8L9odvA/y+1ga8SuIVs2TxWEzG/vesQDVCfCXRbyFe/R2PSZido8zsBLM/XyDWkD4nHr3+AeLYl4/kfnk3t0dPiPk5MF+WX/O5/C+I+S0JM68p84qd94yVsM7RufyIvgjsSUk0eE+8/hXi+Ex+pt8fNben74i5TsOsQ/249L1BNdij1+8grpEH7HfDpn+lYpjyxfrWKM25Z8uHiRG/NxmpXxJ9B+sb5Jchn/sLOZ0ywtXGmcb0vbTmnuQfB/4mxq4vG6OsUUJ0UvxI0aSu38pWaG20ba3rpD2krr/Tuu12By5Vb10v61P1fwFx2BqP4QwAAA==",
+  "debug_symbols": "nZPNisMgEIDfZc4eMhq1yauUUmxqiyAm2GRhKXn3nWRqfw4LJRe/mPGbUXHucPan6XoM6dLfoN3f4ZRDjOF6jH3nxtAn+nuHahlQQ4sC0DAaaKUAWTGQIRmKQYIimBWKVtYEZNTQaoJmGIZl7BjNipoEQ5AMEizBMCxjxyDBzrOAsvfjmL1ftv52GDri4LJPI7RpilHAj4vTuug2uLRydJmilQCfzkRKeAnRL1+zeNnV/2qjHi5WL1t/rSNi8XG3xVfP+qrZ4ttnfbvJb8rdYaM3+BKLL9Fs8aUtvpIf/oFmrgv543XPS6Yc3Cn6x/Qype4tOv4OJVK6Y8h9589T9kumtxahca+l0PZAHUIPd29qYcxhXkr/AQ==",
   "file_map": {
     "50": {
       "source": "// Regression test for https://github.com/noir-lang/noir/issues/3493\nfn main(x: u8) {\n    if x == 10 {\n        x + 255;\n    }\n    if x == 9 {\n        x << 7;\n    }\n    if x == 128 {\n        x * 3;\n    }\n    if x == 7 {\n        x - 8;\n    }\n}\n",

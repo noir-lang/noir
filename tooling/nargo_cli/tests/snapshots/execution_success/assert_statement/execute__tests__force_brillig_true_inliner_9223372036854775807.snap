@@ -35,7 +35,7 @@ expression: artifact
     }
   },
   "bytecode": "H4sIAAAAAAAA/7VTwQ6CMAwtMqLT6AEumvgRY0PZ0YN+yJTsO/h0Q+y0G6gHtiakJe1eX1+3DF6W4TcYQ7+AsbmaC3oxz+qIWCIlzywRzzdRGmfwXfgjeg7+koZ8HnFgPsEpFr4WzZlPzBeRv+IEMwG+dPgsDb5YIs619/Eh6LsF//HSMy5HH/INcyvMu3iHMQ/wUuydcoqtWzXB3/Xa4KwV0YPqWvw4WwS1JdHuQPDdvWZ9/PlaLYTjlvcfXjmMjZE8rd/j/5rM6DybwdO2prbKWHMyXdc8TBngA/h7iN3fNFZIJfW9VsLIVv/r/wSdexm/+QYAAA==",
-  "debug_symbols": "lY/NCsMgEITfZc8eojRNm1cJJZhkEwRR8adQxHfvWnqQ3HIZdpYdZr8MGy7pmJXZbYBxyqDtKqOyhlwuDBavtFbH3K6hq8L7331w0lQbovQRRi4EAzRbnR6U35VGGPuuvBjw++XEcC1RyL2lV3LR+AfYk1kbnvhxeEJz3q64JY8VsuEjnfiTiVt9hJMRPRMDdVDPFw==",
+  "debug_symbols": "dVBLDoMgEL3LrFkIqbX1KsYY1NGQECAITRrD3TtYbe2im3kM70N4K4zYx7lTZrIL1M0KvVdaq7nTdpBBWUO3KxR58BJqzoBf31ARpMTgEHbBI2bdyUl5Tno0AWoTtWbwkDpuosVJs2GQntiCAZqRkAInpTGfEvu6i/9WLsRu5uL2sZfkb2mTg/I/f0k5ySvZa9zXKZrhxIanO5ijC+ftgGP0mJNOhdBs+J2JS0t9cFpEyUTVpvz0Cw==",
   "file_map": {
     "50": {
       "source": "// Tests a very simple program.\n//\n// The features being tested is assertion\nfn main(x: Field, y: pub Field) {\n    assert(x == y, \"x and y are not equal\");\n    assert_eq(x, y, \"x and y are not equal\");\n}\n",

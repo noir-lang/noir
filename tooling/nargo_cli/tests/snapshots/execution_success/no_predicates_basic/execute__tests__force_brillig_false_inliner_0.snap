@@ -26,7 +26,7 @@ expression: artifact
     "error_types": {}
   },
   "bytecode": "H4sIAAAAAAAA/7VSWw4CIQzkoVG/Ze/R8ljKn1eRyN7/CMYICWH7t+wkZAhthpmCFH+oun64VJZij9bzqgzHgL2Wg9X7Em1Bh2+wKVMAH/JKSBgofCw5V8hTTDlFSOhdwS0kt1UxOc8XSCbzKeHV5AGozvhMXe5TSOZsrD0GXrq6njjLpm/O0Ycbk3Hp9mbIyb0DHETT05WvYg811FrvffAn5/vD0Ytm7mp4VjbdWZvnF3hgTpCVBAAA",
-  "debug_symbols": "tY/NCsMgEITfZc8eYoNQfJVSgr9hQVT8KRTJu9eEBISec9tvZnZgGmgj67qgtyEDfzVwQYmCwXdqMB1SjsLvlItIBfj8JGC8Bs7YRsCiM/2cNvIXpA92JulMx+ibAL2puYNM6Byuy7ikyx+RUEhnTrTVq8Et33g5139MQRldk9mbDq/X/wA=",
+  "debug_symbols": "dZDRCoMwDEX/Jc99sIow/JUxpNYohdCW2A6G+O+Lops++NI0uT235M7QY5fH1vkhTNA8Z+jYEbmxpWBNcsHLdF4UHG2bGFFGcNKFiobRJ2h8JlLwNpS3R1M0fqvJsKiFAvS9VDEcHOF6W9SfLu7R6rGzdf2D6yut72ld1juuK33hX9IZ6/iyLxTQlAq0nMtqys50hHsSQ/b2FEz6xEM5ooscLPaZcTXdNPnmCw==",
   "file_map": {
     "50": {
       "source": "fn main(x: Field, y: pub Field) {\n    basic_check(x, y);\n}\n\n#[no_predicates]\nfn basic_check(x: Field, y: Field) {\n    assert(x != y);\n}\n",

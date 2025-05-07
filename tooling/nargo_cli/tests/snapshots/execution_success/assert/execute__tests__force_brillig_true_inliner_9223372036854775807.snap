@@ -33,7 +33,7 @@ expression: artifact
     }
   },
   "bytecode": "H4sIAAAAAAAA/7VUQQ6DIBBExbTUeqm9tK9Yo0aPHvoRUsM7eHpLsoTNhnqoMIlZCcvszEgsRECBVbK1iPSsWOEY+oRcEBW6B9/zxKqwlmS/SmhWsbkp+RcYJxXxl1D/oJAzZz6eMwM/nJDnZQM/9+LQ4preIX/m/H2uIry3+K7YmRzfNmP20EX0+1kNer0zryXJJ5GOnnpzqHd01ay3Y/pkpqxuhFewWY0I/xFp08+fFwA/t7IhB58BhST7tP+B68sPH+ufOs2sezNooye9beNb85wc6J36AHrAVfJ9BgAA",
-  "debug_symbols": "lZDLCsMgEEX/ZdYukrRpSn4llGCSMQii4qNQxH/vWLqQ7NwMc4czd3ESHLjFc5VaGA/zkkCZnQdpNKWUGWxOKiXPtT5DV0Z///Hecl2iD9wFmG89A9QHLRN9C6kQ5rHLLwb92Mg/GvmpkX+28JnSmzvJN4V/NSLqvTIVPhYv0qwzOx7RYdFXmaO5DB0bRqql6i8=",
+  "debug_symbols": "dZDLDoMgEEX/ZdYsfNTa+CvGGMTRkBAgCE0aw7938NHaRTdzGS7nkpkVRhzC3Es9mQWadoXBSaXk3CsjuJdG0+0KWSr5DZqcQV7tct+l3uVBEiODE+u9Q0zUJYfSLXeoPTQ6KMXgyVXYHi2W6009d+RmDFCPpBQ4SYXpFNmXzv6jZX6wZf2BK6I76riQ7meumHKc5IPCo52CFhfXv+zpnHuxzggcg8OUdFkO1bbIWFF1Mf32Bg==",
   "file_map": {
     "50": {
       "source": "fn main(x: Field) {\n    assert(x == 1);\n    assert(1 == conditional(x as bool));\n}\n\nfn conditional(x: bool) -> Field {\n    assert(x, f\"Expected x to be true but got {x}\");\n    assert_eq(x, true, f\"Expected x to be true but got {x}\");\n    1\n}\n",
