@@ -7,7 +7,7 @@ use std::path::PathBuf;
 use thiserror::Error;
 
 #[derive(Debug, Error)]
-pub(crate) enum CliError {
+pub enum CliError {
     #[error("{0}")]
     Generic(String),
 
