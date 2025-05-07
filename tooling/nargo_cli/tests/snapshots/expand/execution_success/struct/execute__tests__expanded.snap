@@ -1,0 +1,76 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: expanded_code
+---
+struct Foo {
+    bar: Field,
+    array: [Field; 2],
+}
+
+impl Foo {
+    fn default(x: Field, y: Field) -> Self {
+        Self { bar: 0, array: [x, y] }
+    }
+}
+
+struct Pair {
+    first: Foo,
+    second: Field,
+}
+
+impl Pair {
+    fn foo(p: Self) -> Foo {
+        p.first
+    }
+
+    fn bar(self) -> Field {
+        self.foo().bar
+    }
+}
+
+struct Nested {
+    a: Field,
+    b: Field,
+}
+
+struct MyStruct {
+    my_bool: bool,
+    my_int: u32,
+    my_nest: Nested,
+}
+
+fn test_struct_in_tuple(a_bool: bool, x: Field, y: Field) -> (MyStruct, bool) {
+    let my_struct: MyStruct =
+        MyStruct { my_bool: a_bool, my_int: 5, my_nest: Nested { a: x, b: y } };
+    (my_struct, a_bool)
+}
+
+struct Animal {
+    legs: Field,
+    eyes: u8,
+}
+
+fn get_dog() -> Animal {
+    let dog: Animal = Animal { legs: 4, eyes: 2 };
+    dog
+}
+
+struct Unit {}
+
+fn main(x: Field, y: Field) {
+    let unit: Unit = Unit {};
+    let first: Foo = Foo::default(x, y);
+    let p: Pair = Pair { first: first, second: 1 };
+    assert(p.bar() == x);
+    assert(p.second == y);
+    assert(p.first.array[0] != p.first.array[1]);
+    let (struct_from_tuple, a_bool): (MyStruct, bool) = test_struct_in_tuple(true, x, y);
+    assert(struct_from_tuple.my_bool == true);
+    assert(a_bool == true);
+    assert(struct_from_tuple.my_int == 5);
+    assert(struct_from_tuple.my_nest.a == 0);
+    let Animal { legs, eyes }: Animal = get_dog();
+    let six: Field = legs + (eyes as Field);
+    assert(six == 6);
+    let Animal { legs: _, eyes: _ }: Animal = get_dog();
+}

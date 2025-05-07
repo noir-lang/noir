@@ -1650,6 +1650,15 @@ impl<'interner> Monomorphizer<'interner> {
                     self.append_printable_type_info(&hir_arguments[1], &mut arguments);
                 }
             }
+            if let Definition::Builtin(name) = &ident.definition {
+                if name.as_str() == "static_assert" {
+                    // static_assert can take any type for the `message` argument.
+                    // Here we append printable type info so we can know how to turn that argument
+                    // into a human-readable string.
+                    let typ = self.interner.id_type(call.arguments[1]);
+                    self.append_printable_type_info_for_type(typ, &mut arguments);
+                }
+            }
         }
 
         let mut block_expressions = vec![];
@@ -1719,33 +1728,37 @@ impl<'interner> Monomorphizer<'interner> {
         match hir_argument {
             HirExpression::Ident(ident, _) => {
                 let typ = self.interner.definition_type(ident.id);
-                let typ: Type = typ.follow_bindings();
-                let is_fmt_str = match typ {
-                    // A format string has many different possible types that need to be handled.
-                    // Loop over each element in the format string to fetch each type's relevant metadata
-                    Type::FmtString(_, elements) => {
-                        match *elements {
-                            Type::Tuple(element_types) => {
-                                for typ in element_types {
-                                    Self::append_printable_type_info_inner(&typ, arguments);
-                                }
-                            }
-                            _ => unreachable!(
-                                "ICE: format string type should be a tuple but got a {elements}"
-                            ),
-                        }
-                        true
-                    }
-                    _ => {
-                        Self::append_printable_type_info_inner(&typ, arguments);
-                        false
-                    }
-                };
-                // The caller needs information as to whether it is handling a format string or a single type
-                arguments.push(ast::Expression::Literal(ast::Literal::Bool(is_fmt_str)));
+                self.append_printable_type_info_for_type(typ, arguments);
             }
             _ => unreachable!("logging expr {:?} is not supported", hir_argument),
         }
+    }
+
+    fn append_printable_type_info_for_type(&self, typ: Type, arguments: &mut Vec<ast::Expression>) {
+        let typ: Type = typ.follow_bindings();
+        let is_fmt_str = match typ {
+            // A format string has many different possible types that need to be handled.
+            // Loop over each element in the format string to fetch each type's relevant metadata
+            Type::FmtString(_, elements) => {
+                match *elements {
+                    Type::Tuple(element_types) => {
+                        for typ in element_types {
+                            Self::append_printable_type_info_inner(&typ, arguments);
+                        }
+                    }
+                    _ => unreachable!(
+                        "ICE: format string type should be a tuple but got a {elements}"
+                    ),
+                }
+                true
+            }
+            _ => {
+                Self::append_printable_type_info_inner(&typ, arguments);
+                false
+            }
+        };
+        // The caller needs information as to whether it is handling a format string or a single type
+        arguments.push(ast::Expression::Literal(ast::Literal::Bool(is_fmt_str)));
     }
 
     fn append_printable_type_info_inner(typ: &Type, arguments: &mut Vec<ast::Expression>) {
@@ -1927,7 +1940,7 @@ impl<'interner> Monomorphizer<'interner> {
                 let element_type = Self::convert_type(&typ, location)?;
                 ast::LValue::Index { array, index, element_type, location }
             }
-            HirLValue::Dereference { lvalue, element_type, location } => {
+            HirLValue::Dereference { lvalue, element_type, location, implicitly_added: _ } => {
                 let reference = Box::new(self.lvalue(*lvalue)?);
                 let element_type = Self::convert_type(&element_type, location)?;
                 ast::LValue::Dereference { reference, element_type }

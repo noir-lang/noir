@@ -1,0 +1,6 @@
+[package]
+name = "regression_noir_sort"
+type = "bin"
+authors = [""]
+
+[dependencies]

@@ -834,13 +834,22 @@ impl<F: AcirField, B: BlackBoxFunctionSolver<F>> AcirContext<F, B> {
             // It is possible that we have an AcirVar which is a result of a multiplication of constants
             // which resulted in an overflow, but that check will only happen at runtime, and here we
             // can't assume that the RHS will never have more bits than the operand.
-            let max_q_bits = if max_rhs_bits > bit_size {
-                // Ignore what we know about the constant and let the runtime handle it.
-                bit_size
-            } else {
-                bit_size - max_rhs_bits + 1
-            };
-            (max_q_bits, max_rhs_bits)
+            // Alternatively if the RHS is a result of an underflow, it could be a negative number which
+            // is represented by a very large positive Field, which could fail to compile to ACIR in
+            // `range_constrain_var` below, because it can use all 254 bits.
+
+            // To avoid any uncertainty about how the rest of the calls would behave if we pretended that we
+            // didn't know that the RHS has more bits than the operation assumes, we return zero and add an
+            // assertion which will fail at runtime.
+            if max_rhs_bits > bit_size {
+                let msg = format!(
+                    "attempted to divide by constant larger than operand type: {max_rhs_bits} > {bit_size}"
+                );
+                let msg = self.generate_assertion_message_payload(msg);
+                self.assert_eq_var(zero, one, Some(msg))?;
+                return Ok((zero, zero));
+            }
+            (bit_size - max_rhs_bits + 1, max_rhs_bits)
         } else {
             (bit_size, bit_size)
         };
@@ -981,7 +990,10 @@ impl<F: AcirField, B: BlackBoxFunctionSolver<F>> AcirContext<F, B> {
 
         // Optimization when rhs is const and fits within a u128
         let rhs_expr = self.var_to_expression(rhs)?;
-        if rhs_expr.is_const() && rhs_expr.q_c.num_bits() <= 128 {
+        // Do not attempt this optimization when the q_c is zero as otherwise
+        // we will compute an rhs offset of zero and ultimately lay down a range constrain of zero bits
+        // which will always fail.
+        if rhs_expr.is_const() && rhs_expr.q_c.num_bits() <= 128 && !rhs_expr.q_c.is_zero() {
             // We try to move the offset to rhs
             let rhs_offset = if self.is_constant_one(&offset) && rhs_expr.q_c.to_u128() >= 1 {
                 lhs_offset = lhs;
@@ -1001,6 +1013,7 @@ impl<F: AcirField, B: BlackBoxFunctionSolver<F>> AcirContext<F, B> {
 
             let r_var = self.add_constant(r);
             let aor = self.add_var(lhs_offset, r_var)?;
+
             // lhs_offset<=rhs_offset <=> lhs_offset + r < rhs_offset + r = 2^bit_size <=> witness < 2^bit_size
             self.range_constrain_var(aor, &NumericType::Unsigned { bit_size }, None)?;
             return Ok(());

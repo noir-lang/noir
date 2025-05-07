@@ -219,6 +219,8 @@ impl Parser<'_> {
 #[cfg(test)]
 mod tests {
 
+    use insta::assert_snapshot;
+
     use crate::{
         ast::{Path, PathKind},
         parser::{
@@ -352,6 +354,6 @@ mod tests {
         assert!(path.is_none());
 
         let error = get_single_error(&parser.errors, span);
-        assert_eq!(error.to_string(), "Expected an identifier but found end of input");
+        assert_snapshot!(error.to_string(), @"Expected an identifier but found end of input");
     }
 }

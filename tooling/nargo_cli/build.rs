@@ -41,7 +41,29 @@ fn main() {
     generate_compile_success_no_bug_tests(&mut test_file, &test_dir);
     generate_compile_success_with_bug_tests(&mut test_file, &test_dir);
     generate_compile_failure_tests(&mut test_file, &test_dir);
+
     generate_fuzzing_failure_tests(&mut test_file, &test_dir);
+
+    generate_nargo_expand_execution_success_tests(&mut test_file, &test_dir);
+    generate_nargo_expand_compile_tests_with_ignore_list(
+        "compile_success_empty",
+        &mut test_file,
+        &test_dir,
+        &IGNORED_NARGO_EXPAND_COMPILE_SUCCESS_EMPTY_TESTS,
+    );
+    generate_nargo_expand_compile_tests("compile_success_contract", &mut test_file, &test_dir);
+    generate_nargo_expand_compile_tests_with_ignore_list(
+        "compile_success_no_bug",
+        &mut test_file,
+        &test_dir,
+        &IGNORED_NARGO_EXPAND_COMPILE_SUCCESS_NO_BUG_TESTS,
+    );
+    generate_nargo_expand_compile_tests_with_ignore_list(
+        "compile_success_with_bug",
+        &mut test_file,
+        &test_dir,
+        &IGNORED_NARGO_EXPAND_COMPILE_SUCCESS_WITH_BUG_TESTS,
+    );
 }
 
 /// Some tests are explicitly ignored in brillig due to them failing.
@@ -91,8 +113,91 @@ const TESTS_WITH_EXPECTED_WARNINGS: [&str; 4] = [
     "comptime_enums",
 ];
 
+/// These tests are ignored because making them work involves a more complex test code that
+/// might not be worth it.
+/// Others are ignored because of existing bugs in `nargo expand`.
+/// As the bugs are fixed these tests should be removed from this list.
+const IGNORED_NARGO_EXPAND_EXECUTION_TESTS: [&str; 8] = [
+    // There's nothing special about this program but making it work with a custom entry would involve
+    // having to parse the Nargo.toml file, etc., which is not worth it
+    "custom_entry",
+    // There's no "src/main.nr" here so it's trickier to make this work
+    "diamond_deps_0",
+    // There's no "src/main.nr" here so it's trickier to make this work
+    "overlapping_dep_and_mod",
+    // bug
+    "poseidonsponge_x5_254",
+    // bug
+    "regression_5045",
+    // bug
+    "regression_7744",
+    // There's no "src/main.nr" here so it's trickier to make this work
+    "workspace",
+    // There's no "src/main.nr" here so it's trickier to make this work
+    "workspace_default_member",
+];
+
 /// Tests for which we don't check that stdout matches the expected output.
 const TESTS_WITHOUT_STDOUT_CHECK: [&str; 0] = [];
+
+/// These tests are ignored because of existing bugs in `nargo expand`.
+/// As the bugs are fixed these tests should be removed from this list.
+/// (some are ignored on purpose for the same reason as `IGNORED_NARGO_EXPAND_EXECUTION_TESTS`)
+const IGNORED_NARGO_EXPAND_COMPILE_SUCCESS_EMPTY_TESTS: [&str; 14] = [
+    // There's no "src/main.nr" here so it's trickier to make this work
+    "overlapping_dep_and_mod",
+    // bug
+    "reexports",
+    // bug
+    "regression_7038",
+    // bug
+    "regression_7038_2",
+    // bug
+    "regression_7038_3",
+    // bug
+    "regression_7038_4",
+    // bug
+    "serialize",
+    // bug
+    "trait_allowed_item_name_matches",
+    // bug
+    "trait_default_implementation",
+    // bug
+    "trait_function_calls",
+    // bug
+    "trait_method_mut_self",
+    // bug
+    "trait_override_implementation",
+    // bug
+    "trait_static_methods",
+    // There's no "src/main.nr" here so it's trickier to make this work
+    "workspace_reexport_bug",
+];
+
+/// These tests are ignored because of existing bugs in `nargo expand`.
+/// As the bugs are fixed these tests should be removed from this list.
+const IGNORED_NARGO_EXPAND_COMPILE_SUCCESS_NO_BUG_TESTS: [&str; 17] = [
+    "noirc_frontend_tests_arithmetic_generics_checked_casts_do_not_prevent_canonicalization",
+    "noirc_frontend_tests_check_trait_as_type_as_fn_parameter",
+    "noirc_frontend_tests_check_trait_as_type_as_two_fn_parameters",
+    "noirc_frontend_tests_enums_match_on_empty_enum",
+    "noirc_frontend_tests_resolves_generic_type_argument_via_self",
+    "noirc_frontend_tests_traits_calls_trait_function_if_it_is_in_scope",
+    "noirc_frontend_tests_traits_calls_trait_function_if_it_is_only_candidate_in_scope",
+    "noirc_frontend_tests_traits_calls_trait_function_if_it_is_only_candidate_in_scope_in_nested_module_using_super",
+    "noirc_frontend_tests_traits_passes_trait_with_associated_number_to_generic_function",
+    "noirc_frontend_tests_traits_passes_trait_with_associated_number_to_generic_function_inside_struct_impl",
+    "noirc_frontend_tests_traits_trait_alias_polymorphic_inheritance",
+    "noirc_frontend_tests_traits_trait_alias_single_member",
+    "noirc_frontend_tests_traits_trait_alias_two_members",
+    "noirc_frontend_tests_traits_trait_impl_with_where_clause_with_trait_with_associated_numeric",
+    "noirc_frontend_tests_traits_trait_impl_with_where_clause_with_trait_with_associated_type",
+    "noirc_frontend_tests_u32_globals_as_sizes_in_types",
+    "noirc_frontend_tests_unused_items_considers_struct_as_constructed_if_trait_method_is_called",
+];
+
+const IGNORED_NARGO_EXPAND_COMPILE_SUCCESS_WITH_BUG_TESTS: [&str; 1] =
+    ["noirc_frontend_tests_cast_negative_one_to_u8_size_checks"];
 
 fn read_test_cases(
     test_data_dir: &Path,
@@ -482,7 +587,7 @@ fn generate_compile_success_contract_tests(test_file: &mut File, test_data_dir: 
             &test_name,
             &test_dir,
             "compile",
-            "compile_success_contract(nargo);",
+            "compile_success_contract(nargo, test_program_dir, force_brillig, inliner_aggressiveness);",
             &MatrixConfig::default(),
         );
     }
@@ -566,5 +671,96 @@ fn generate_compile_failure_tests(test_file: &mut File, test_data_dir: &Path) {
             &MatrixConfig::default(),
         );
     }
+    writeln!(test_file, "}}").unwrap();
+}
+
+/// Here we check, for every program in `test_programs/exeuction_success`, that:
+/// 1. `nargo expand` works on it
+/// 2. That the output of the original program is the same as the output of the expanded program
+///    (that is, we run `nargo execute` on the original program and the expanded program and compare the output)
+fn generate_nargo_expand_execution_success_tests(test_file: &mut File, test_data_dir: &Path) {
+    let test_type = "execution_success";
+    let test_cases = read_test_cases(test_data_dir, test_type);
+
+    writeln!(
+        test_file,
+        "
+mod nargo_expand_{test_type} {{
+    use super::*;
+    "
+    )
+    .unwrap();
+
+    for (test_name, test_dir) in test_cases {
+        if IGNORED_NARGO_EXPAND_EXECUTION_TESTS.contains(&test_name.as_str()) {
+            continue;
+        }
+
+        let test_dir = test_dir.display();
+
+        write!(
+            test_file,
+            r#"
+    #[test]
+    fn test_{test_name}() {{
+        let test_program_dir = PathBuf::from("{test_dir}");
+        nargo_expand_execute(test_program_dir);
+    }}
+    "#
+        )
+        .unwrap();
+    }
+
+    writeln!(test_file, "}}").unwrap();
+}
+
+/// Here we check, for every program in `test_programs/{test_type}`, that:
+/// 1. `nargo expand` works on it
+/// 2. Compiling the output works fine
+fn generate_nargo_expand_compile_tests(
+    test_type: &'static str,
+    test_file: &mut File,
+    test_data_dir: &Path,
+) {
+    generate_nargo_expand_compile_tests_with_ignore_list(test_type, test_file, test_data_dir, &[]);
+}
+
+fn generate_nargo_expand_compile_tests_with_ignore_list(
+    test_type: &'static str,
+    test_file: &mut File,
+    test_data_dir: &Path,
+    ignore: &[&str],
+) {
+    let test_cases = read_test_cases(test_data_dir, test_type);
+
+    writeln!(
+        test_file,
+        "
+mod nargo_expand_{test_type} {{
+    use super::*;
+    "
+    )
+    .unwrap();
+
+    for (test_name, test_dir) in test_cases {
+        if ignore.contains(&test_name.as_str()) {
+            continue;
+        }
+
+        let test_dir = test_dir.display();
+
+        write!(
+            test_file,
+            r#"
+    #[test]
+    fn test_{test_name}() {{
+        let test_program_dir = PathBuf::from("{test_dir}");
+        nargo_expand_compile(test_program_dir, "{test_type}");
+    }}
+    "#
+        )
+        .unwrap();
+    }
+
     writeln!(test_file, "}}").unwrap();
 }

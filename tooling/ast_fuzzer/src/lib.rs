@@ -1,3 +1,8 @@
+#![forbid(unsafe_code)]
+#![warn(unreachable_pub)]
+#![warn(clippy::semicolon_if_nothing_returned)]
+#![cfg_attr(not(test), warn(unused_crate_dependencies, unused_extern_crates))]
+
 mod abi;
 pub mod compare;
 mod input;
@@ -6,8 +11,8 @@ mod program;
 pub use abi::program_abi;
 pub use input::arb_inputs;
 use program::freq::Freqs;
-pub use program::visitor::{visit_expr, visit_expr_mut};
 pub use program::{DisplayAstAsNoir, DisplayAstAsNoirComptime, arb_program, arb_program_comptime};
+pub use program::{expr, rewrite, visitor};
 
 /// AST generation configuration.
 #[derive(Debug, Clone)]
@@ -44,6 +49,15 @@ pub struct Config {
     pub stmt_freqs_brillig: Freqs,
     /// Whether to force all functions to be unconstrained.
     pub force_brillig: bool,
+    /// Try to avoid overflowing operations. Useful when testing the minimal pipeline,
+    /// to avoid trivial failures due to multiplying or adding constants.
+    pub avoid_overflow: bool,
+    /// Try to avoid operations that can result in error when zero is on the RHS.
+    pub avoid_err_by_zero: bool,
+    /// Avoid using negative integer literals where the frontend expects unsigned types.
+    pub avoid_negative_int_literals: bool,
+    /// Avoid using large integer literals where the frontend expects 32 bits.
+    pub avoid_large_int_literals: bool,
 }
 
 impl Default for Config {
@@ -58,7 +72,7 @@ impl Default for Config {
             ("call", 15),
         ]);
         let stmt_freqs_acir = Freqs::new(&[
-            ("drop", 3),
+            ("drop", 0), // The `ownership` module says it will insert `Drop` and `Clone`.
             ("assign", 30),
             ("if", 10),
             ("for", 18),
@@ -66,7 +80,7 @@ impl Default for Config {
             ("call", 5),
         ]);
         let stmt_freqs_brillig = Freqs::new(&[
-            ("drop", 5),
+            ("drop", 0),
             ("break", 20),
             ("continue", 20),
             ("assign", 30),
@@ -94,6 +108,10 @@ impl Default for Config {
             stmt_freqs_acir,
             stmt_freqs_brillig,
             force_brillig: false,
+            avoid_overflow: false,
+            avoid_err_by_zero: false,
+            avoid_large_int_literals: false,
+            avoid_negative_int_literals: false,
         }
     }
 }
