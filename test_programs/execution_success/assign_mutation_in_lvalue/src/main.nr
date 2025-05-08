@@ -10,8 +10,5 @@ fn bug() {
     1
     }] = 7;
 
-    // acir+brillig yield ([1, 7], 3)
-    // comptime yields ([1, 7], 6)
-    // both should yield:
     assert_eq(a, ([4, 7], 6));
 }

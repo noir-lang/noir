@@ -18,7 +18,7 @@ use color_eyre::eyre;
 use crate::errors::CliError;
 
 mod check_cmd;
-mod compile_cmd;
+pub mod compile_cmd;
 mod dap_cmd;
 mod debug_cmd;
 mod execute_cmd;
@@ -57,7 +57,7 @@ struct NargoCli {
 
 #[non_exhaustive]
 #[derive(Args, Clone, Debug)]
-pub(crate) struct NargoConfig {
+pub struct NargoConfig {
     // REMINDER: Also change this flag in the LSP test lens if renamed
     #[arg(long, hide = true, global = true, default_value = "./", value_parser = parse_path)]
     program_dir: PathBuf,

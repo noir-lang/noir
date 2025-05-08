@@ -1,0 +1,60 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: artifact
+---
+{
+  "noir_version": "[noir_version]",
+  "hash": "[hash]",
+  "abi": {
+    "parameters": [
+      {
+        "name": "x",
+        "type": {
+          "kind": "boolean"
+        },
+        "visibility": "private"
+      },
+      {
+        "name": "y",
+        "type": {
+          "kind": "boolean"
+        },
+        "visibility": "private"
+      },
+      {
+        "name": "z",
+        "type": {
+          "kind": "boolean"
+        },
+        "visibility": "private"
+      }
+    ],
+    "return_type": {
+      "abi_type": {
+        "kind": "boolean"
+      },
+      "visibility": "public"
+    },
+    "error_types": {
+      "2920182694213909827": {
+        "error_kind": "string",
+        "string": "attempt to subtract with overflow"
+      }
+    }
+  },
+  "bytecode": "H4sIAAAAAAAA/91ZS07DMBCdfEr6oaRAwgaxQgiWdpPQZIfEgnNQ0R6FA3ASDsRVkGhLRowStyzypiqMVDm109c3M89jO/Ho265Wn9v62lt9grrl77LPc/T54n62oG4f6tZ0M+sJrMzc5/liNl3YzD6baTUvC5MX8/vSlrYoi5dpmWWLMi9n1byamcrm2cIuiypb1mA+ECvE+WhkTEPRkiO+sg/0/9YH+8LW0yTcU8A9AgpEy+8jEWAQrgrXUIkrTxCf2ob2AR1jLZ7ICSzjGtVtX3BWEQqKvKykEbVXLOmIRhJCB27XQnJBWBH6YH5h7TcSr6/AcwDMNTInUp8DZX1Gjriabmb7wBwNSVfrppttFgS01of0Y0jfNep0RPj6dkk6i2wA5jmig6zpFhk/WYtG9PvpDnkiM93MRkBex8CY7vMkh+Qt+Y41CY8VcE+AYtDy+0QEGISrWgBj+v8FUCPX6zzHCrne50k4Ih2Nojf5WguK6WgyR5O6PSXFU3VMOruCCbVP1dIRDeHFhN91XhFW0Bo7I2TBjRXw1nlHT+AzoHaQOZZ6PxN61ChgE/D8mRD+JHwK9PmcdBdwhNbPCV/b0DWIDf0ODq1vFFZCOvM7ob/1XjMBYqVKMU0dMUXXpOCA4xA2dETU3rx74p5Q9PP14+fH0/vb650Y2tSlbWPXO8Zutowxn0GjTQVHGWfTzSzjJzr4JqK2peI6afgp8/EA4sB4nPsetc1vjPG9/QY/D8/PNrkEjv9iY70loi/dwnUocIA5nTL+SAffqRn5lH7UGOPchY7feVu++4121727nhyOHWOMybmSfNmPL3g5QqYEJAAA",
+  "debug_symbols": "nZPBboQgEIbfhTMHYITVfZWmMai4ISFoWN2kMfvuHRlpdw9NGi/zKeP3G0bc2OC69db6OE53dv3YWJd8CP7Whqm3i58irm5PzsptuyTncIm99NGabXJxYde4hsDZw4Y1P3SfbcxcbMKu4MzFAYmBow9uv3ryX1v8rRp5uMb8yPrfdqMPWwpxQpeyLr6CM74pO5dGn/Ebc/hKyBO+kmX/Sr3v/xPvbO/T2+dmgK/krMpVo8SZyfWSa51rk6sUBElQBCBUBEqQFCExAxA1oclQmFIhJEERgFARNMEQLoSa0GQApQClAKUApQCm4AxAEzAFJwqYsp+mh03edsEdR31cY/9y8pevuXTKvzGnqXfDmtw+ttzDQX4D",
+  "file_map": {
+    "50": {
+      "source": "fn main(x: bool, y: bool, z: bool) -> pub bool {\n    let p = y - z;\n    if p {\n        let a = x / z;\n        let b = a - z;\n        if b {\n            let _ = a / b;\n        }\n    }\n\n    let u = x - z;\n    let v = y - u;\n    v\n}\n",
+      "path": ""
+    }
+  },
+  "names": [
+    "main"
+  ],
+  "brillig_names": [
+    "directive_invert",
+    "directive_integer_quotient"
+  ]
+}
