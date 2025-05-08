@@ -226,9 +226,24 @@ impl Interpreter<'_> {
                     let mut points = Vec::new();
                     for (i, v) in input_points.elements.borrow().iter().enumerate() {
                         if i % 3 == 2 {
-                            points.push((v.as_bool().unwrap() as u128).into());
+                            points.push((v.as_bool().ok_or(
+                                InterpreterError::Internal(InternalError::TypeError {
+                                    value_id: args[0],
+                                    value: v.to_string(),
+                                    expected_type: "bool",
+                                    instruction: "retrieving is_infinite in call to MultiScalarMul blackbox",
+                                })
+                            )? as u128).into());
                         } else {
-                            points.push(v.as_field().unwrap());
+                            points.push(
+                            v.as_field().ok_or(
+                                InterpreterError::Internal(InternalError::TypeError {
+                                    value_id: args[0],
+                                    value: v.to_string(),
+                                    expected_type: "field",
+                                    instruction: "retrieving ec points in call to MultiScalarMul blackbox",
+                                })
+                            )?);
                         }
                     }
                     let scalars =
@@ -237,9 +252,23 @@ impl Interpreter<'_> {
                     let mut scalars_hi = Vec::new();
                     for (i, v) in scalars.elements.borrow().iter().enumerate() {
                         if i % 2 == 0 {
-                            scalars_lo.push(v.as_field().unwrap());
+                            scalars_lo.push(v.as_field().ok_or(
+                                InterpreterError::Internal(InternalError::TypeError {
+                                    value_id: args[0],
+                                    value: v.to_string(),
+                                    expected_type: "Field",
+                                    instruction: "retrieving scalars in call to MultiScalarMul blackbox",
+                                })
+                            )?);
                         } else {
-                            scalars_hi.push(v.as_field().unwrap());
+                            scalars_hi.push(v.as_field().ok_or(
+                                InterpreterError::Internal(InternalError::TypeError {
+                                    value_id: args[0],
+                                    value: v.to_string(),
+                                    expected_type: "Field",
+                                    instruction: "retrieving scalars in call to MultiScalarMul blackbox",
+                                })
+                            )?);
                         }
                     }
                     let solver = bn254_blackbox_solver::Bn254BlackBoxSolver(false);
@@ -250,18 +279,14 @@ impl Interpreter<'_> {
                 }
                 acvm::acir::BlackBoxFunc::Keccakf1600 => {
                     check_argument_count(args, 1, intrinsic)?;
-                    let inputs = self
-                        .lookup_array_or_slice(args[0], "call to Keccakf1600 BlackBox")?
-                        .elements
-                        .borrow()
-                        .iter()
-                        .map(|v| match v.as_numeric().unwrap() {
-                            NumericValue::U64(value) => value,
-                            _ => unreachable!("Keccakf1600 only supports u64 inputs"),
+                    let inputs = self.lookup_vec_u64(args[0], "call to Keccakf1600 BlackBox")?;
+                    let input_len = inputs.len();
+                    let inputs_array: [u64; 25] = inputs.try_into().map_err(|_| {
+                        InterpreterError::Internal(InternalError::InvalidInputSize {
+                            expected_size: 25,
+                            size: input_len,
                         })
-                        .collect::<Vec<u64>>();
-                    let inputs_array: [u64; 25] =
-                        inputs.try_into().expect("Expected 25 elements in inputs");
+                    })?;
                     let results = acvm::blackbox_solver::keccakf1600(inputs_array)
                         .map_err(Self::convert_error)?;
                     let results: Vec<FieldElement> =
@@ -290,37 +315,24 @@ impl Interpreter<'_> {
                     );
                     let result =
                         solver.ec_add(&lhs.0, &lhs.1, &lhs.2.into(), &rhs.0, &rhs.1, &rhs.2.into());
-                    let (x, y, inf) = result.unwrap();
+                    let (x, y, inf) = result.map_err(Self::convert_error)?;
                     let result = Value::from_slice(&[x, y, inf], NumericType::NativeField);
                     Ok(vec![result])
                 }
-                acvm::acir::BlackBoxFunc::BigIntAdd => {
-                    unimplemented!("unused BigInt BlackBox function")
-                }
-                acvm::acir::BlackBoxFunc::BigIntSub => {
-                    unimplemented!("unused BigInt BlackBox function")
-                }
-                acvm::acir::BlackBoxFunc::BigIntMul => {
-                    unimplemented!("unused BigInt BlackBox function")
-                }
-                acvm::acir::BlackBoxFunc::BigIntDiv => {
-                    unimplemented!("unused BigInt BlackBox function")
-                }
-                acvm::acir::BlackBoxFunc::BigIntFromLeBytes => {
-                    unimplemented!("unused BigInt BlackBox function")
-                }
-                acvm::acir::BlackBoxFunc::BigIntToLeBytes => {
-                    unimplemented!("unused BigInt BlackBox function")
+                acvm::acir::BlackBoxFunc::BigIntAdd
+                | acvm::acir::BlackBoxFunc::BigIntSub
+                | acvm::acir::BlackBoxFunc::BigIntMul
+                | acvm::acir::BlackBoxFunc::BigIntDiv
+                | acvm::acir::BlackBoxFunc::BigIntFromLeBytes
+                | acvm::acir::BlackBoxFunc::BigIntToLeBytes => {
+                    Err(InterpreterError::Internal(InternalError::UnexpectedInstruction {
+                        reason: "unused BigInt BlackBox function",
+                    }))
                 }
                 acvm::acir::BlackBoxFunc::Poseidon2Permutation => {
                     check_argument_count(args, 1, intrinsic)?;
-                    let inputs = self
-                        .lookup_array_or_slice(args[0], "call Poseidon2Permutation BlackBox")?
-                        .elements
-                        .borrow()
-                        .iter()
-                        .map(|v| v.as_field().unwrap())
-                        .collect::<Vec<FieldElement>>();
+                    let inputs =
+                        self.lookup_vec_field(args[0], "call Poseidon2Permutation BlackBox")?;
                     let solver = bn254_blackbox_solver::Bn254BlackBoxSolver(false);
                     let result = solver
                         .poseidon2_permutation(&inputs, inputs.len() as u32)
@@ -330,22 +342,22 @@ impl Interpreter<'_> {
                 }
                 acvm::acir::BlackBoxFunc::Sha256Compression => {
                     check_argument_count(args, 2, intrinsic)?;
-                    let inputs = self
-                        .lookup_array_or_slice(args[0], "call Sha256Compression BlackBox")?
-                        .elements
-                        .borrow()
-                        .iter()
-                        .map(|v| v.as_u32().unwrap())
-                        .collect::<Vec<u32>>();
-                    let state = self
-                        .lookup_array_or_slice(args[1], "call Sha256Compression BlackBox")?
-                        .elements
-                        .borrow()
-                        .iter()
-                        .map(|v| v.as_u32().unwrap())
-                        .collect::<Vec<u32>>();
-                    let inputs: [u32; 16] = inputs.try_into().expect("Inputs must be 16 bytes");
-                    let mut state: [u32; 8] = state.try_into().expect("State must be 16 bytes");
+                    let inputs = self.lookup_vec_u32(args[0], "call Sha256Compression BlackBox")?;
+                    let state = self.lookup_vec_u32(args[1], "call Sha256Compression BlackBox")?;
+                    let input_len = inputs.len();
+                    let inputs: [u32; 16] = inputs.try_into().map_err(|_| {
+                        InterpreterError::Internal(InternalError::InvalidInputSize {
+                            expected_size: 16,
+                            size: input_len,
+                        })
+                    })?;
+                    let state_len = state.len();
+                    let mut state: [u32; 8] = state.try_into().map_err(|_| {
+                        InterpreterError::Internal(InternalError::InvalidInputSize {
+                            expected_size: 16,
+                            size: state_len,
+                        })
+                    })?;
                     acvm::blackbox_solver::sha256_compression(&mut state, &inputs);
                     let result: Vec<FieldElement> =
                         state.iter().map(|e| (*e as u128).into()).collect();
