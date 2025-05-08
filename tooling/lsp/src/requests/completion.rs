@@ -34,6 +34,7 @@ use noirc_frontend::{
         },
     },
     hir_def::traits::Trait,
+    modules::module_def_id_is_visible,
     node_interner::{FuncId, NodeInterner, ReferenceId, TypeId},
     parser::{Item, ItemKind, ParsedSubModule},
     token::{MetaAttribute, MetaAttributeName, Token, Tokens},
@@ -43,7 +44,7 @@ use sort_text::underscore_sort_text;
 use crate::{
     LspState, requests::to_lsp_location,
     trait_impl_method_stub_generator::TraitImplMethodStubGenerator,
-    use_segment_positions::UseSegmentPositions, utils, visibility::module_def_id_is_visible,
+    use_segment_positions::UseSegmentPositions, utils,
 };
 
 use super::{TraitReexport, process_request};

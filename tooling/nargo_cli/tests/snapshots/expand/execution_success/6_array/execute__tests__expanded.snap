@@ -2,7 +2,7 @@
 source: tooling/nargo_cli/tests/execute.rs
 expression: expanded_code
 ---
-use std::ops::arith::{WrappingAdd, WrappingMul, WrappingSub};
+use std::ops::{WrappingAdd, WrappingMul, WrappingSub};
 
 fn main(x: [u32; 5], y: [u32; 5], mut z: u32, t: u32) {
     let mut c: u32 = 2301;

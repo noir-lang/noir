@@ -9,7 +9,7 @@ use crate::{
     DataType, Kind, Shared, Type,
     ast::{
         ConstructorExpression, EnumVariant, Expression, ExpressionKind, FunctionKind, Ident,
-        Literal, NoirEnumeration, StatementKind, UnresolvedType,
+        ItemVisibility, Literal, NoirEnumeration, StatementKind, UnresolvedType,
     },
     elaborator::path_resolution::PathResolutionItem,
     hir::{comptime::Value, resolution::errors::ResolverError, type_check::TypeCheckError},
@@ -164,6 +164,7 @@ impl Elaborator<'_> {
             Vec::new(),
             false,
             false,
+            ItemVisibility::Public,
         );
 
         let mut typ = self_type.clone();

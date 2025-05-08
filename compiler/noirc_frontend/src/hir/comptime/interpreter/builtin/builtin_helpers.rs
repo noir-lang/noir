@@ -4,6 +4,7 @@ use std::{hash::Hasher, rc::Rc};
 use iter_extended::try_vecmap;
 use noirc_errors::Location;
 
+use crate::ast::ItemVisibility;
 use crate::elaborator::Elaborator;
 use crate::hir::comptime::display::tokens_to_string;
 use crate::hir::comptime::value::unwrap_rc;
@@ -116,6 +117,7 @@ pub(crate) fn get_struct_fields(
                 Ident::new(name.to_string(), location),
                 location,
                 Vec::new(),
+                ItemVisibility::Public,
             );
             let expected = Type::DataType(Shared::new(expected), Vec::new());
             type_mismatch(value, expected, location)

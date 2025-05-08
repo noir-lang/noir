@@ -2,7 +2,7 @@
 source: tooling/nargo_cli/tests/execute.rs
 expression: expanded_code
 ---
-use std::ops::{arith::Neg, bit::Not};
+use std::ops::{Neg, Not};
 
 fn main(x: u32) {
     let wx: Wrapper = Wrapper::new(x as i32);
