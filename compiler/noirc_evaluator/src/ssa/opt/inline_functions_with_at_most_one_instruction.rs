@@ -72,6 +72,12 @@ mod test {
         ssa::{Ssa, opt::assert_normalized_ssa_equals},
     };
 
+    fn assert_does_not_inline(src: &str) {
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.inline_functions_with_at_most_one_instruction();
+        assert_normalized_ssa_equals(ssa, src);
+    }
+
     #[test]
     fn inline_functions_with_zero_instructions() {
         let src = "
@@ -155,9 +161,26 @@ mod test {
             return v1
         }
         ";
-        let ssa = Ssa::from_str(src).unwrap();
+        assert_does_not_inline(src);
+    }
 
-        let ssa = ssa.inline_functions_with_at_most_one_instruction();
-        assert_normalized_ssa_equals(ssa, src);
+    #[test]
+    fn does_not_inline_functions_with_no_predicates() {
+        let src = "
+        acir(inline) fn main f0 {
+          b0(v0: Field):
+            v2 = call f1(v0) -> Field
+            v3 = call f1(v0) -> Field
+            v4 = add v2, v3
+            return v4
+        }
+
+        acir(no_predicates) fn foo f1 {
+          b0(v0: Field):
+            v2 = add v0, Field 1
+            return v2
+        }
+        ";
+        assert_does_not_inline(src);
     }
 }
