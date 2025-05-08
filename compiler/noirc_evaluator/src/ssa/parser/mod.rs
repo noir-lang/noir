@@ -41,6 +41,7 @@ impl FromStr for Ssa {
     }
 }
 
+#[allow(unused)]
 impl Ssa {
     /// Creates an Ssa object from the given string.
     pub(crate) fn from_str(src: &str) -> Result<Ssa, SsaErrorWithSource> {

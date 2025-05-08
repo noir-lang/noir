@@ -42,7 +42,9 @@ impl<T> Id<T> {
     /// be used for testing. Obtaining Ids in this way should be avoided
     /// as unlike DenseMap::push and SparseMap::push, the Ids created
     /// here are likely invalid for any particularly map.
-    #[cfg(test)]
+
+    // TODO: used for fuzzing
+    // #[cfg(test)]
     pub(crate) fn test_new(index: u32) -> Self {
         Self::new(index)
     }

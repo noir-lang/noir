@@ -47,8 +47,11 @@ pub mod function_builder;
 pub mod interpreter;
 pub mod ir;
 pub(crate) mod opt;
-#[cfg(test)]
-pub(crate) mod parser;
+
+// TODO: only for testing?
+// #[cfg(test)]
+// pub(crate) mod parser;
+pub mod parser;
 pub mod ssa_gen;
 
 #[derive(Debug, Clone)]
