@@ -971,7 +971,15 @@
 <a href="#970" id="970">970</a>
 <a href="#971" id="971">971</a>
 <a href="#972" id="972">972</a>
-<a href="#973" id="973">973</a></pre></div><pre class="rust"><code><span class="kw">use </span>iter_extended::vecmap;
+<a href="#973" id="973">973</a>
+<a href="#974" id="974">974</a>
+<a href="#975" id="975">975</a>
+<a href="#976" id="976">976</a>
+<a href="#977" id="977">977</a>
+<a href="#978" id="978">978</a>
+<a href="#979" id="979">979</a>
+<a href="#980" id="980">980</a>
+<a href="#981" id="981">981</a></pre></div><pre class="rust"><code><span class="kw">use </span>iter_extended::vecmap;
 <span class="kw">use </span>noirc_errors::Location;
 <span class="kw">use </span>rustc_hash::FxHashSet <span class="kw">as </span>HashSet;
 
@@ -1106,6 +1114,14 @@
                         Vec::new()
                     }
                 };
+
+                <span class="kw">if </span>fields.len() != field_types.len() {
+                    <span class="self">self</span>.push_err(TypeCheckError::TupleMismatch {
+                        tuple_types: field_types.clone(),
+                        actual_count: fields.len(),
+                        location,
+                    });
+                }
 
                 <span class="kw">let </span>fields = vecmap(fields.into_iter().enumerate(), |(i, field)| {
                     <span class="kw">let </span>field_type = field_types.get(i).cloned().unwrap_or(Type::Error);
