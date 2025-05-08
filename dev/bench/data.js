@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1746711857047,
+  "lastUpdate": 1746711936994,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -18205,48 +18205,6 @@ window.BENCHMARK_DATA = {
             "name": "GitHub",
             "username": "web-flow"
           },
-          "distinct": false,
-          "id": "5909d24024e78944d7fd9ff274b551d7deb13d37",
-          "message": "chore: Extend the bug list with issues found by the AST fuzzer (#8285)\n\nCo-authored-by: Rumata888 <isennovskiy@gmail.com>",
-          "timestamp": "2025-04-30T14:42:19Z",
-          "tree_id": "3db23b326f809455b5615108751069cfb35bee96",
-          "url": "https://github.com/noir-lang/noir/commit/5909d24024e78944d7fd9ff274b551d7deb13d37"
-        },
-        "date": 1746025344448,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 266593,
-            "range": "± 1325",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 249417,
-            "range": "± 1505",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 3594314,
-            "range": "± 17480",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
-            "email": "aakoshh@gmail.com",
-            "name": "Akosh Farkash",
-            "username": "aakoshh"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
           "distinct": true,
           "id": "888f3a9e0969eee05273bde58d14bb7b2e5163f5",
           "message": "chore: redo typo PR by ciaranightingale (#8292)",
@@ -20289,6 +20247,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 3575595,
             "range": "± 14112",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "asterite@gmail.com",
+            "name": "Ary Borenszweig",
+            "username": "asterite"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "3a01a276e18ec2f7a157808db285e818c6a739e3",
+          "message": "fix: print slice composite types surrounded by parentheses (#8412)",
+          "timestamp": "2025-05-08T13:25:17Z",
+          "tree_id": "a7d922745120140edaaced2236a6911af6a7133c",
+          "url": "https://github.com/noir-lang/noir/commit/3a01a276e18ec2f7a157808db285e818c6a739e3"
+        },
+        "date": 1746711929401,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 277862,
+            "range": "± 925",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 245382,
+            "range": "± 3050",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 3234367,
+            "range": "± 21662",
             "unit": "ns/iter"
           }
         ]
