@@ -110,11 +110,9 @@ fn responds_to_side_effects_var(dfg: &DataFlowGraph, instruction: &Instruction) 
                 dfg.type_of_value(binary.lhs).is_unsigned()
             }
             BinaryOp::Div | BinaryOp::Mod => {
-                if let Some(rhs) = dfg.get_numeric_constant(binary.rhs) {
-                    rhs == FieldElement::zero()
-                } else {
-                    true
-                }
+                // Even with non zero rhs, division and modulo respond to side effects because they
+                // use non-deterministic outputs which will be affected by the side effects var.
+                true
             }
             _ => false,
         },

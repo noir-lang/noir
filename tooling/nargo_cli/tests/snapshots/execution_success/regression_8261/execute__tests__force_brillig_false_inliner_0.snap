@@ -1,0 +1,131 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: artifact
+---
+{
+  "noir_version": "[noir_version]",
+  "hash": "[hash]",
+  "abi": {
+    "parameters": [
+      {
+        "name": "a",
+        "type": {
+          "kind": "boolean"
+        },
+        "visibility": "private"
+      },
+      {
+        "name": "b",
+        "type": {
+          "kind": "tuple",
+          "fields": [
+            {
+              "kind": "array",
+              "length": 2,
+              "type": {
+                "kind": "boolean"
+              }
+            },
+            {
+              "kind": "array",
+              "length": 2,
+              "type": {
+                "kind": "boolean"
+              }
+            },
+            {
+              "kind": "string",
+              "length": 2
+            },
+            {
+              "kind": "tuple",
+              "fields": [
+                {
+                  "kind": "integer",
+                  "sign": "unsigned",
+                  "width": 16
+                },
+                {
+                  "kind": "integer",
+                  "sign": "unsigned",
+                  "width": 16
+                }
+              ]
+            },
+            {
+              "kind": "integer",
+              "sign": "unsigned",
+              "width": 16
+            }
+          ]
+        },
+        "visibility": "private"
+      },
+      {
+        "name": "c",
+        "type": {
+          "kind": "tuple",
+          "fields": [
+            {
+              "kind": "tuple",
+              "fields": [
+                {
+                  "kind": "field"
+                },
+                {
+                  "kind": "string",
+                  "length": 0
+                },
+                {
+                  "kind": "boolean"
+                },
+                {
+                  "kind": "boolean"
+                }
+              ]
+            },
+            {
+              "kind": "tuple",
+              "fields": [
+                {
+                  "kind": "integer",
+                  "sign": "unsigned",
+                  "width": 16
+                },
+                {
+                  "kind": "string",
+                  "length": 2
+                }
+              ]
+            }
+          ]
+        },
+        "visibility": "private"
+      }
+    ],
+    "return_type": {
+      "abi_type": {
+        "kind": "integer",
+        "sign": "unsigned",
+        "width": 16
+      },
+      "visibility": "public"
+    },
+    "error_types": {}
+  },
+  "bytecode": "H4sIAAAAAAAA/81Y23KbQAwV4NRgmsZ2cFPXfusP7JqL4S2/Elr4/08omqymyiL3BW3GmmEEWjhIR9prBO9ynq5f7j6arsRpeua2SLDFgi0RbCvB9jBdqWf7ItjW07X1bKlgywRbLvz3q2B7FL79Jvjy5Gwrx1EMcyH+Xp02y8SmelhGcFcFe+yHmnOxc3qPfPiElKapquF6GWxp38yl69vaVHXftLa1dVv/ubRlObRVe+367mo6W5WDHeuuHN3P8kBEK2IZXjQ7mBccErO9EcdSfhAjd/+6U37sXjHeZy2/KvsWMh9xwHws9bEA3UFGu29ijosAuTlAmD6PuNS/tfth6rhYysEwjuNU8793SnjE6d7hgW7cHyavWLkOckWs76DbxzXHja5qesTIQXcsL4Q6X1KXTd81mlia+X1RzAVfGN+qbbNMLMa+VsTD+n5h/irhGs7Bj1BkrJWLn8jQnpiOcN8TMiboCPMiWBr3Z+6sMggzOWn7qVkLnNefTp/IaVq9YIO/HT7BvxUNifbK5qhYSCdFrLMiFuf0DOF2gUeXR+0BNAuUI7NQgIl2zNs7jZmO1gA+9k06mktcOx614dEaTn64e8AcbuB9IsTjMDz+wuOuJw/DxyVeU6czpzfsm0Qvvgvh52HwzRrmsmH3uddG8a+E76Ibz7Gn//eub+e2R6GNMJ+d5v5SHJmnDwxXkUtL+EUYfDFXB3ZfeHFyvl+VfCA8mvceYC6x10bv+n0m0vfP+r4kwr9IqGb4Tp34/AsJx6i+HxgAAA==",
+  "debug_symbols": "jdHLqoMwEAbgd5l1Frkc29pXORSJOpZAiJImhSK+e8dM7WVR6OozGf/RYWbosc3nxoVhvMDxf4Y2Ou/dufFjZ5MbA93Oi4Dt2KSISFfwVqfUZCOGBMeQvRdwtT6Xly6TDcVkI1WlAAw9SQ0H53F9WsQrLb9Hda0fYSOrZ7z6Oa+q7ePGyI/8iU62c/FjYlAVZQSoHbNnDkxd0JJRjGYM88dQF/pvvWP2zIGpC0YyitEMddHLOk10tvX4WMKQQ/e2k3Sbtsq2tSmOHfY54jpNqdF8dw==",
+  "file_map": {
+    "50": {
+      "source": "fn main(\n    a: bool,\n    b: ([bool; 2], [bool; 2], str<2>, (u16, u16), u16),\n    c: ((Field, str<0>, bool, bool), (u16, str<2>)),\n) -> pub u16 {\n    b.4\n        % if c.0.2 {\n            b.3.0\n        } else {\n            if (!a) {\n                37995\n            } else {\n                (b.3.1 % 64485)\n            }\n        }\n}\n",
+      "path": ""
+    }
+  },
+  "names": [
+    "main"
+  ],
+  "brillig_names": [
+    "directive_integer_quotient",
+    "directive_invert"
+  ]
+}
