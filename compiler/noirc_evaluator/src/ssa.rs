@@ -614,10 +614,16 @@ fn split_public_and_private_inputs(
 
 // This is just a convenience object to bundle the ssa with `print_ssa_passes` for debug printing.
 pub struct SsaBuilder {
+    /// The SSA being built; it is the input and the output of every pass ran by the builder.
     pub ssa: Ssa,
+    /// Options to control which SSA passes to print.
     pub ssa_logging: SsaLogging,
+    /// Whether to print the amount of time it took to run individual SSA passes.
     pub print_codegen_timings: bool,
+    /// Counters indexed by the message in the SSA pass, so we can distinguish between multiple
+    /// runs of the same pass in the printed messages.
     pub passed: HashMap<String, usize>,
+    /// List of SSA pass message fragments that we want to skip, for testing purposes.
     pub skip_passes: Vec<String>,
 }
 
