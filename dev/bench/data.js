@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1746711776230,
+  "lastUpdate": 1746711851949,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -11362,70 +11362,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "15848336+TomAFrench@users.noreply.github.com",
-            "name": "Tom French",
-            "username": "TomAFrench"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "4bc636a3f6b01c439333382980c2e4b7a4eb47e6",
-          "message": "fix: don't disallow writing to memory after passing it to brillig (#8276)\n\nCo-authored-by: AztecBot <tech@aztecprotocol.com>",
-          "timestamp": "2025-04-29T19:28:22Z",
-          "tree_id": "5da21caaa67476d5f3089692d46a16e9256ec9c8",
-          "url": "https://github.com/noir-lang/noir/commit/4bc636a3f6b01c439333382980c2e4b7a4eb47e6"
-        },
-        "date": 1745956631045,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 231.63,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 255.24,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 209.66,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 540.14,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 532.31,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 1440,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 361.22,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-root",
-            "value": 367.14,
-            "unit": "MB"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "aakoshh@gmail.com",
             "name": "Akosh Farkash",
             "username": "aakoshh"
@@ -14515,6 +14451,70 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/noir-lang/noir/commit/9e1e0fe6e6a734bf55c426a172da956a1cc27713"
         },
         "date": 1746708158898,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 234.12,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 256.59,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 212.44,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 541.54,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 533.71,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 1440,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 362.58,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-root",
+            "value": 368.5,
+            "unit": "MB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "aakoshh@gmail.com",
+            "name": "Akosh Farkash",
+            "username": "aakoshh"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "27345365ac2be310b5ae32af902d683709c11cb0",
+          "message": "feat: Skip SSA passes that contain any of the given messages (#8416)",
+          "timestamp": "2025-05-08T13:14:45Z",
+          "tree_id": "16b8d2bb542b82926fe0a14820a52e94f32976f0",
+          "url": "https://github.com/noir-lang/noir/commit/27345365ac2be310b5ae32af902d683709c11cb0"
+        },
+        "date": 1746711844404,
         "tool": "customSmallerIsBetter",
         "benches": [
           {
