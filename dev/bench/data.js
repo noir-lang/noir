@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1746712592289,
+  "lastUpdate": 1746721070992,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -18201,48 +18201,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "aakoshh@gmail.com",
-            "name": "Akosh Farkash",
-            "username": "aakoshh"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "888f3a9e0969eee05273bde58d14bb7b2e5163f5",
-          "message": "chore: redo typo PR by ciaranightingale (#8292)",
-          "timestamp": "2025-04-30T14:59:11Z",
-          "tree_id": "4ca83d995738f317f006ff41f934ea3ab90a33c6",
-          "url": "https://github.com/noir-lang/noir/commit/888f3a9e0969eee05273bde58d14bb7b2e5163f5"
-        },
-        "date": 1746026221709,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 253361,
-            "range": "± 4025",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 226645,
-            "range": "± 2100",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 3216630,
-            "range": "± 3626",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "asterite@gmail.com",
             "name": "Ary Borenszweig",
             "username": "asterite"
@@ -20294,6 +20252,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 3234367,
             "range": "± 21662",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "15848336+TomAFrench@users.noreply.github.com",
+            "name": "Tom French",
+            "username": "TomAFrench"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "8ab59da0020d6d84ecb06d72f0f3ca073bf11f70",
+          "message": "chore: add minor docs for interpreter (#8397)\n\nCo-authored-by: AztecBot <tech@aztecprotocol.com>\nCo-authored-by: jfecher <jfecher11@gmail.com>",
+          "timestamp": "2025-05-08T15:56:29Z",
+          "tree_id": "0a8ab8ac45d2237a33cb9abeef5b38d9e48d77c3",
+          "url": "https://github.com/noir-lang/noir/commit/8ab59da0020d6d84ecb06d72f0f3ca073bf11f70"
+        },
+        "date": 1746721063282,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 265363,
+            "range": "± 578",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 235325,
+            "range": "± 2113",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 3573231,
+            "range": "± 3859",
             "unit": "ns/iter"
           }
         ]
