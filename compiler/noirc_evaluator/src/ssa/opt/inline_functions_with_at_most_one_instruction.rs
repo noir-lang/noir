@@ -202,4 +202,32 @@ mod test {
         ";
         assert_does_not_inline(src);
     }
+
+    #[test]
+    fn does_not_inline_function_with_multiple_blocks() {
+        let src = "
+        acir(inline) fn main f0 {
+          b0(v0: Field, v1: bool):
+            v2 = call f1(v0, v1) -> Field
+            return v2
+        }
+
+        acir(inline) fn foo f1 {
+          b0(v0: Field, v1: bool):
+            jmpif v1 then: b1, else: b2
+
+          b1():
+            v3 = add v0, Field 1
+            jmp b3(v3)
+
+          b2():
+            v4 = mul v0, Field 2
+            jmp b3(v4)
+
+          b3(v5: Field):
+            return v5
+        }
+        ";
+        assert_does_not_inline(src);
+    }
 }
