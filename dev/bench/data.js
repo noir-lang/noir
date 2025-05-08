@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1746712550818,
+  "lastUpdate": 1746712554899,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -11371,70 +11371,6 @@ window.BENCHMARK_DATA = {
             "name": "GitHub",
             "username": "web-flow"
           },
-          "distinct": false,
-          "id": "5909d24024e78944d7fd9ff274b551d7deb13d37",
-          "message": "chore: Extend the bug list with issues found by the AST fuzzer (#8285)\n\nCo-authored-by: Rumata888 <isennovskiy@gmail.com>",
-          "timestamp": "2025-04-30T14:42:19Z",
-          "tree_id": "3db23b326f809455b5615108751069cfb35bee96",
-          "url": "https://github.com/noir-lang/noir/commit/5909d24024e78944d7fd9ff274b551d7deb13d37"
-        },
-        "date": 1746025985398,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 231.63,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 255.24,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 209.65,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 540.14,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 532.31,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 1440,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 361.22,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-root",
-            "value": 367.14,
-            "unit": "MB"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
-            "email": "aakoshh@gmail.com",
-            "name": "Akosh Farkash",
-            "username": "aakoshh"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
           "distinct": true,
           "id": "888f3a9e0969eee05273bde58d14bb7b2e5163f5",
           "message": "chore: redo typo PR by ciaranightingale (#8292)",
@@ -14515,6 +14451,70 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/noir-lang/noir/commit/27345365ac2be310b5ae32af902d683709c11cb0"
         },
         "date": 1746711844404,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 234.12,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 256.59,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 212.44,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 541.54,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 533.71,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 1440,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 362.58,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-root",
+            "value": 368.5,
+            "unit": "MB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "asterite@gmail.com",
+            "name": "Ary Borenszweig",
+            "username": "asterite"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "3a01a276e18ec2f7a157808db285e818c6a739e3",
+          "message": "fix: print slice composite types surrounded by parentheses (#8412)",
+          "timestamp": "2025-05-08T13:25:17Z",
+          "tree_id": "a7d922745120140edaaced2236a6911af6a7133c",
+          "url": "https://github.com/noir-lang/noir/commit/3a01a276e18ec2f7a157808db285e818c6a739e3"
+        },
+        "date": 1746712545978,
         "tool": "customSmallerIsBetter",
         "benches": [
           {
