@@ -568,7 +568,7 @@ jobs:
           # Github actions seems to not expand "**" in globs by default.
           shopt -s globstar
           jq --slurp '.' ./reports/*
-          jq --slurp 'map(.compilation_time)' ./reports/* | tee time_bench.json
+          jq --slurp 'map(.compilation_time | select(.))' ./reports/* | tee time_bench.json
 
       - name: Store benchmark result
         uses: benchmark-action/github-action-benchmark@4de1bed97a47495fc4c5404952da0499e31f5c29
@@ -590,7 +590,7 @@ jobs:
         run: |
           # Github actions seems to not expand "**" in globs by default.
           shopt -s globstar
-          jq --slurp 'map(.execution_time)' ./reports/* | tee time_bench.json
+          jq --slurp 'map(.execution_time | select(.))' ./reports/* | tee time_bench.json
 
       - name: Store benchmark result
         uses: benchmark-action/github-action-benchmark@4de1bed97a47495fc4c5404952da0499e31f5c29
