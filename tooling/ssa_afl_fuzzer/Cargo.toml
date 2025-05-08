@@ -1,0 +1,15 @@
+[package]
+name = "ssa_afl_fuzzer"
+version.workspace = true
+authors.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[dependencies]
+afl = "*"
+noirc_evaluator.workspace = true
+
+[lints]
+workspace = true

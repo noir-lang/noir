@@ -363,7 +363,8 @@ impl FunctionBuilder {
             .first()
     }
 
-    #[cfg(test)]
+    // TODO: used in fuzzing too
+    // #[cfg(test)]
     pub fn insert_mutable_array_set(
         &mut self,
         array: ValueId,

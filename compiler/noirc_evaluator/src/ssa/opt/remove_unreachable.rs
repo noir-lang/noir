@@ -32,7 +32,8 @@ use crate::ssa::{
 
 impl Ssa {
     /// See [`remove_unreachable`][self] module for more information.
-    pub(crate) fn remove_unreachable_functions(mut self) -> Self {
+    // TODO: pub for fuzzing, otherwise pub(crate)
+    pub fn remove_unreachable_functions(mut self) -> Self {
         let mut reachable_functions = HashSet::default();
 
         // Go through all the functions, and if we have an entry point, extend the set of all

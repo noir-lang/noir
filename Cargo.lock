@@ -5432,6 +5432,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "ssa_afl_fuzzer"
+version = "1.0.0-beta.4"
+dependencies = [
+ "afl",
+ "noirc_evaluator",
+]
+
+[[package]]
 name = "ssa_fuzzer_fuzz"
 version = "0.0.1"
 dependencies = [
