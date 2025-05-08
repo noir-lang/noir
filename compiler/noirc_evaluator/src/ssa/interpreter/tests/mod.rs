@@ -11,6 +11,7 @@ use crate::ssa::{
 
 use super::{InterpreterError, Ssa, Value};
 
+mod black_box;
 mod instructions;
 
 #[track_caller]
@@ -46,6 +47,15 @@ fn expect_value_with_args(src: &str, args: Vec<Value>) -> Value {
     let mut results = expect_values_with_args(src, args);
     assert_eq!(results.len(), 1);
     results.pop().unwrap()
+}
+
+fn from_u32_slice(slice: &[u32], typ: NumericType) -> Value {
+    let values = slice
+        .iter()
+        .map(|v| Value::Numeric(NumericValue::from_constant((*v as u128).into(), typ)))
+        .collect();
+    let types = slice.iter().map(|_| Type::Numeric(typ)).collect();
+    Value::array(values, types)
 }
 
 #[test]
