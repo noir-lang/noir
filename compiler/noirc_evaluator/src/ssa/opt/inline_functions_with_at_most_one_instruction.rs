@@ -111,6 +111,7 @@ mod test {
         ");
     }
 
+    /// This test is here to make clear that this SSA pass does not attempt multiple passes.
     #[test]
     fn does_not_inline_functions_that_require_multiple_passes() {
         let src = "
@@ -137,7 +138,7 @@ mod test {
 
         // In the first pass it won't recognize that `main` could be simplified.
         let ssa = ssa.inline_functions_with_at_most_one_instruction();
-        assert_ssa_snapshot!(ssa.clone(), @r"
+        assert_ssa_snapshot!(ssa, @r"
         acir(inline) fn main f0 {
           b0(v0: Field):
             v2 = call f2(v0) -> Field
@@ -155,7 +156,10 @@ mod test {
         ");
 
         // After `bar` has been simplified, it does `main` as well.
-        let ssa = ssa.inline_functions_with_at_most_one_instruction();
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa
+            .inline_functions_with_at_most_one_instruction()
+            .inline_functions_with_at_most_one_instruction();
         assert_ssa_snapshot!(ssa, @r"
         acir(inline) fn main f0 {
           b0(v0: Field):
