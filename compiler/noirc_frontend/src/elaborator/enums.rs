@@ -9,7 +9,7 @@ use crate::{
     DataType, Kind, Shared, Type,
     ast::{
         ConstructorExpression, EnumVariant, Expression, ExpressionKind, FunctionKind, Ident,
-        Literal, NoirEnumeration, StatementKind, UnresolvedType,
+        ItemVisibility, Literal, NoirEnumeration, StatementKind, UnresolvedType,
     },
     elaborator::path_resolution::PathResolutionItem,
     hir::{comptime::Value, resolution::errors::ResolverError, type_check::TypeCheckError},
@@ -542,7 +542,7 @@ impl Elaborator<'_> {
         let mut fields = BTreeMap::default();
         for (field_name, field) in constructor.fields {
             let Some(field_index) =
-                expected_field_types.iter().position(|(name, _)| *name == field_name.as_str())
+                expected_field_types.iter().position(|(name, _, _)| *name == field_name.as_str())
             else {
                 let error = if fields.contains_key(field_name.as_str()) {
                     ResolverError::DuplicateField { field: field_name }
@@ -554,7 +554,8 @@ impl Elaborator<'_> {
                 continue;
             };
 
-            let (field_name, expected_field_type) = expected_field_types.swap_remove(field_index);
+            let (field_name, expected_field_type, _) =
+                expected_field_types.swap_remove(field_index);
             let pattern =
                 self.expression_to_pattern(field, &expected_field_type, variables_defined);
             fields.insert(field_name, pattern);
@@ -562,7 +563,7 @@ impl Elaborator<'_> {
 
         if !expected_field_types.is_empty() {
             let struct_definition = struct_name;
-            let missing_fields = vecmap(expected_field_types, |(name, _)| name);
+            let missing_fields = vecmap(expected_field_types, |(name, _, _)| name);
             let error =
                 ResolverError::MissingFields { location, missing_fields, struct_definition };
             self.push_err(error);
@@ -777,11 +778,12 @@ impl Elaborator<'_> {
         Pattern::Int(value)
     }
 
+    #[allow(clippy::type_complexity)]
     fn struct_name_and_field_types(
         &mut self,
         typ: &Type,
         location: Location,
-    ) -> Option<(Ident, Vec<(String, Type)>)> {
+    ) -> Option<(Ident, Vec<(String, Type, ItemVisibility)>)> {
         if let Type::DataType(typ, generics) = typ.follow_bindings_shallow().as_ref() {
             if let Some(fields) = typ.borrow().get_fields(generics) {
                 return Some((typ.borrow().name.clone(), fields));
@@ -914,7 +916,7 @@ impl<'elab, 'ctx> MatchCompiler<'elab, 'ctx> {
                     let typ = Type::DataType(type_def, generics);
 
                     // Just treat structs as a single-variant type
-                    let fields = vecmap(fields, |(_name, typ)| typ);
+                    let fields = vecmap(fields, |(_name, typ, _)| typ);
                     let constructor = Constructor::Variant(typ, 0);
                     let field_variables = self.fresh_match_variables(fields, location);
                     let cases = vec![(constructor, field_variables, Vec::new())];
