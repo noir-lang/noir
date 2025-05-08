@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1746736397859,
+  "lastUpdate": 1746742474911,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -18221,48 +18221,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "michaeljklein@users.noreply.github.com",
-            "name": "Michael J Klein",
-            "username": "michaeljklein"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "981256c8e7c241cf42f2ed40a8cb64ec329c1593",
-          "message": "chore: update `quicksort` from iterative `noir_sort` version (#7348)\n\nCo-authored-by: Tom French <tom@tomfren.ch>",
-          "timestamp": "2025-04-30T18:06:56Z",
-          "tree_id": "b45facd19b034d00d8ec995f19ebc465b50595a2",
-          "url": "https://github.com/noir-lang/noir/commit/981256c8e7c241cf42f2ed40a8cb64ec329c1593"
-        },
-        "date": 1746038026466,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 252311,
-            "range": "± 404",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 226283,
-            "range": "± 3007",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 3233457,
-            "range": "± 3458",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "asterite@gmail.com",
             "name": "Ary Borenszweig",
             "username": "asterite"
@@ -20314,6 +20272,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 3221519,
             "range": "± 4324",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "mvezenov@gmail.com",
+            "name": "Maxim Vezenov",
+            "username": "vezenovm"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "29025036dadfb837985ad25726407fb922c3ca1b",
+          "message": "feat(ssa): Mark transitively dead parameters during DIE (#8254)\n\nCo-authored-by: AztecBot <tech@aztecprotocol.com>",
+          "timestamp": "2025-05-08T21:56:02Z",
+          "tree_id": "37e2dccba6951e66726e4a2959b5dd76ef684d90",
+          "url": "https://github.com/noir-lang/noir/commit/29025036dadfb837985ad25726407fb922c3ca1b"
+        },
+        "date": 1746742466762,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 267024,
+            "range": "± 4173",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 235989,
+            "range": "± 21132",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 3575435,
+            "range": "± 22884",
             "unit": "ns/iter"
           }
         ]
