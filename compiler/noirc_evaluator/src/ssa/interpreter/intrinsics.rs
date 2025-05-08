@@ -90,8 +90,20 @@ impl Interpreter<'_> {
                     let inputs = self.lookup_bytes(args[0], "call AES128Encrypt BlackBox")?;
                     let iv = self.lookup_bytes(args[1], "call AES128Encrypt BlackBox")?;
                     let key = self.lookup_bytes(args[2], "call AES128Encrypt BlackBox")?;
-                    let iv_array: [u8; 16] = iv.try_into().expect("IV must be 16 bytes");
-                    let key_array: [u8; 16] = key.try_into().expect("Key must be 16 bytes");
+                    let iv_len = iv.len();
+                    let iv_array: [u8; 16] = iv.try_into().map_err(|_| {
+                        InterpreterError::Internal(InternalError::InvalidInputSize {
+                            expected_size: 16,
+                            size: iv_len,
+                        })
+                    })?;
+                    let key_len = key.len();
+                    let key_array: [u8; 16] = key.try_into().map_err(|_| {
+                        InterpreterError::Internal(InternalError::InvalidInputSize {
+                            expected_size: 16,
+                            size: key_len,
+                        })
+                    })?;
                     let result =
                         acvm::blackbox_solver::aes128_encrypt(&inputs, iv_array, key_array)
                             .map_err(Self::convert_error)?;
