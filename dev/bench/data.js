@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1746707594491,
+  "lastUpdate": 1746708166681,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -11371,70 +11371,6 @@ window.BENCHMARK_DATA = {
             "name": "GitHub",
             "username": "web-flow"
           },
-          "distinct": false,
-          "id": "a1b74f8010e13f854aa8ea02f74487360c891701",
-          "message": "chore: test against zkpassport rsa lib (#8278)\n\nCo-authored-by: AztecBot <tech@aztecprotocol.com>",
-          "timestamp": "2025-04-29T18:47:04Z",
-          "tree_id": "913b5d32932306a0e7fc70326774089449217b99",
-          "url": "https://github.com/noir-lang/noir/commit/a1b74f8010e13f854aa8ea02f74487360c891701"
-        },
-        "date": 1745954069174,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 231.63,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 255.24,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 209.65,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 540.14,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 532.31,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 1440,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 361.22,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-root",
-            "value": 367.14,
-            "unit": "MB"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
-            "email": "15848336+TomAFrench@users.noreply.github.com",
-            "name": "Tom French",
-            "username": "TomAFrench"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
           "distinct": true,
           "id": "4bc636a3f6b01c439333382980c2e4b7a4eb47e6",
           "message": "fix: don't disallow writing to memory after passing it to brillig (#8276)\n\nCo-authored-by: AztecBot <tech@aztecprotocol.com>",
@@ -14515,6 +14451,70 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/noir-lang/noir/commit/c41ba19891333b72b518166286caddb51d91ad6a"
         },
         "date": 1746705182611,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 234.12,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 256.59,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 212.44,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 541.54,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 533.71,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 1440,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 362.58,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-root",
+            "value": 368.5,
+            "unit": "MB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "47281315+guipublic@users.noreply.github.com",
+            "name": "guipublic",
+            "username": "guipublic"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "9e1e0fe6e6a734bf55c426a172da956a1cc27713",
+          "message": "fix: disable range constraints using the predicate (#8396)",
+          "timestamp": "2025-05-08T12:08:23Z",
+          "tree_id": "237b01229ca4bc43537fbba886cf3e0ee7873706",
+          "url": "https://github.com/noir-lang/noir/commit/9e1e0fe6e6a734bf55c426a172da956a1cc27713"
+        },
+        "date": 1746708158898,
         "tool": "customSmallerIsBetter",
         "benches": [
           {
