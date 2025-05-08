@@ -1,0 +1,63 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: artifact
+---
+{
+  "noir_version": "[noir_version]",
+  "hash": "[hash]",
+  "abi": {
+    "parameters": [
+      {
+        "name": "x",
+        "type": {
+          "kind": "boolean"
+        },
+        "visibility": "private"
+      },
+      {
+        "name": "y",
+        "type": {
+          "kind": "boolean"
+        },
+        "visibility": "private"
+      },
+      {
+        "name": "z",
+        "type": {
+          "kind": "boolean"
+        },
+        "visibility": "private"
+      }
+    ],
+    "return_type": {
+      "abi_type": {
+        "kind": "boolean"
+      },
+      "visibility": "public"
+    },
+    "error_types": {
+      "2920182694213909827": {
+        "error_kind": "string",
+        "string": "attempt to subtract with overflow"
+      },
+      "17843811134343075018": {
+        "error_kind": "string",
+        "string": "Stack too deep"
+      }
+    }
+  },
+  "bytecode": "H4sIAAAAAAAA/9VWTU+EMBBtoaB142X3YrwY48GDHvhawRsHWX8HLuF38NOFOBOGsS2JWw5OQqbbvs57rwwsUvxEOF4SxorM8UBMDTm5LFKPtZItdcp/ojPwqFMSneGvAYgPDGZCw9wRsoYckPXQ4wFoxuuzfpUUlRbL8Kw/11BTbVw/2qZ+cgV1Poa5PvUSsR5BHN9DMQ3BNBbMiWBODHMLY9rQyIVrtI8btkb7GWtfj9dezOMD4Zrik2hAXs24PPdmqZle38/WwaJ/ih2cw6tY+qb3Xjj2Ix77I7ZgcG/E8HeQJw0Zw6CGe1L7yaKT61nTSTHKgY8JtwmjmGbEPTh8oYZHh6/Y4Mv0PLrORLJ5m8e1eyct+p8NHqWBD3Ng8UL5YguG9w/iXwwapp7G970alp5qmE8uiLKa/2TDYdZl+vBSZJ3iU/h9QzxS3/UfdfZlm/Z527fHtuuKc7tn9QU5y90G/FlVvb1nX+NbrTv3XZGv8X8DV/De5skKAAA=",
+  "debug_symbols": "nZLBioQwDED/Jecemmo7o78iIlXrUChVOrqwiP++0dqdmcPC4iXPmr40gazQm3Z5NNYP4xPKaoU2WOfso3Fjp2c7evq7At+DoIgMBEaIiCxCQSkINygzwj2iOJDxCLqZEySUkqAibhH3CBIUg5xHYAQ9pLaNQeqomYMxe0NvLVLjkw7Gz1D6xTkGX9otx6XnpP3BWQfKcgbG90QqOFhn9q+NvWz+t6rwdJX6leW/7UKeNnJ+QUe8J19kV3yVJkclr/iFOn3B8YIvMM0vxOf8NZ10Z8PHxm17pWB168x5HBbfvWXn7yll0sZOYexMvwSzV3qtLVKs8pzlRc0AaacqyZkU9bY//QM=",
+  "file_map": {
+    "50": {
+      "source": "fn main(x: bool, y: bool, z: bool) -> pub bool {\n    let p = y - z;\n    if p {\n        let a = x / z;\n        let b = a - z;\n        if b {\n            let _ = a / b;\n        }\n    }\n\n    let u = x - z;\n    let v = y - u;\n    v\n}\n",
+      "path": ""
+    }
+  },
+  "names": [
+    "main"
+  ],
+  "brillig_names": [
+    "main"
+  ]
+}
