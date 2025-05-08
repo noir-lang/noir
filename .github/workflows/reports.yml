@@ -69,7 +69,7 @@ jobs:
       - name: Build list of projects
         id: get_bench_projects
         run: |
-          PROJECTS=$(yq ./.github/benchmark_projects.yml -o json | jq -c '.projects | map(.)')
+          PROJECTS=$(yq ./.github/benchmark_projects.yml -o json | jq -c '.projects | to_entries | map(.value + { name: .key })')
           echo "projects=$PROJECTS"
           echo "projects=$PROJECTS" >> $GITHUB_OUTPUT
 
@@ -390,7 +390,7 @@ jobs:
           ./scripts/process_benchmark_data.sh $INPUT_DIR > ${{ steps.compilation_report.outputs.report_path }}
         env:
           INPUT_DIR: ${{ github.workspace }}/output
-          PROJECT_NAME: ${{ steps.compilation_report.outputs.report_name }}
+          PROJECT_NAME: ${{ matrix.name }}
 
       - name: Upload compilation report
         uses: actions/upload-artifact@v4
@@ -612,7 +612,7 @@ jobs:
         run: |
           # Github actions seems to not expand "**" in globs by default.
           shopt -s globstar
-          jq --slurp 'map(.artifact_size)' ./reports/* | tee artifact_size.json
+          jq --slurp 'map(.artifact_size | select(.))' ./reports/* | tee artifact_size.json
 
       - name: Store benchmark result
         uses: benchmark-action/github-action-benchmark@4de1bed97a47495fc4c5404952da0499e31f5c29
