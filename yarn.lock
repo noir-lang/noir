@@ -7710,6 +7710,7 @@ __metadata:
     commander: "npm:^12.1.0"
     eslint: "npm:^9.24.0"
     eslint-plugin-prettier: "npm:^5.2.6"
+    pino: "npm:^9.6.0"
     prettier: "npm:3.5.3"
     toml: "npm:^3.0.0"
     ts-node: "npm:^10.9.2"

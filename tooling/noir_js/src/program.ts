@@ -37,8 +37,8 @@ export class Noir {
   async execute(
     inputs: InputMap,
     foreignCallHandler?: ForeignCallHandler,
+    logger: Logger = pino({ name: 'noir_js::execute', level: 'silent' }),
   ): Promise<{ witness: Uint8Array; returnValue: InputValue }> {
-    const logger = pino({ name: 'noir_js::execute' });
     const total_timer = new Timer();
 
     await this.#init(logger);

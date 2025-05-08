@@ -2,6 +2,7 @@ import { CompiledCircuit, InputMap, Noir } from '@noir-lang/noir_js';
 import { readFileSync, writeFileSync } from 'node:fs';
 import toml from 'toml';
 import { Command } from 'commander';
+import pino from 'pino';
 
 async function executeProgram({
   bytecodePath,
@@ -19,7 +20,8 @@ async function executeProgram({
 
   const program = new Noir(bytecode);
 
-  const { witness } = await program.execute(inputs);
+  const logger = pino({ name: 'noir_js::execute', level: 'info' });
+  const { witness } = await program.execute(inputs, undefined, logger);
 
   writeFileSync(outputPath, witness);
 }
