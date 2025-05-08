@@ -142,7 +142,8 @@
 <a href="#141" id="141">141</a>
 <a href="#142" id="142">142</a>
 <a href="#143" id="143">143</a>
-<a href="#144" id="144">144</a></pre></div><pre class="rust"><code><span class="kw">use </span>acir::circuit::ExpressionWidth;
+<a href="#144" id="144">144</a>
+<a href="#145" id="145">145</a></pre></div><pre class="rust"><code><span class="kw">use </span>acir::circuit::ExpressionWidth;
 <span class="kw">use </span>color_eyre::eyre;
 <span class="kw">use </span>noir_ast_fuzzer::DisplayAstAsNoir;
 <span class="kw">use </span>noir_ast_fuzzer::compare::{CompareComptime, CompareResult, CompareSsa, HasPrograms};
@@ -178,6 +179,7 @@
         enable_brillig_constraints_check_lookback: <span class="bool-val">false</span>,
         inliner_aggressiveness: <span class="number">0</span>,
         max_bytecode_increase_percent: <span class="prelude-val">None</span>,
+        skip_passes: Default::default(),
     }
 }
 

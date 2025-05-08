@@ -246,15 +246,11 @@
 <a href="#245" id="245">245</a>
 <a href="#246" id="246">246</a>
 <a href="#247" id="247">247</a>
-<a href="#248" id="248">248</a>
-<a href="#249" id="249">249</a>
-<a href="#250" id="250">250</a>
-<a href="#251" id="251">251</a>
-<a href="#252" id="252">252</a></pre></div><pre class="rust"><code><span class="kw">use </span>acvm::{
+<a href="#248" id="248">248</a></pre></div><pre class="rust"><code><span class="kw">use </span>acvm::{
     FieldElement,
     acir::circuit::{AcirOpcodeLocation, Circuit, ExpressionWidth, OpcodeLocation},
 };
-<span class="kw">use </span>std::collections::{BTreeMap, BTreeSet, HashMap};
+<span class="kw">use </span>std::collections::{BTreeMap, BTreeSet};
 
 <span class="kw">use </span><span class="kw">crate</span>::config::NUMBER_OF_VARIABLES_INITIAL;
 <span class="kw">use </span>acvm::acir::circuit::PublicInputs;
@@ -287,12 +283,7 @@
     <span class="kw">let </span>ssa = builder.finish();
     <span class="macro">log::debug!</span>(<span class="string">"SSA: {}"</span>, ssa);
     <span class="comment">// change to SsaLogging::All to see triage final ssa.
-    </span><span class="kw">let </span>builder = SsaBuilder {
-        ssa,
-        ssa_logging: SsaLogging::All,
-        print_codegen_timings: <span class="bool-val">false</span>,
-        passed: HashMap::new(),
-    };
+    </span><span class="kw">let </span>builder = SsaBuilder::from_ssa(ssa, SsaLogging::All, <span class="bool-val">false</span>);
     <span class="kw">let </span>previous_hook = std::panic::take_hook();
     <span class="kw">let </span>panic_message = std::sync::Arc::new(std::sync::Mutex::new(String::new()));
     <span class="kw">let </span>hook_message = panic_message.clone();
@@ -485,6 +476,7 @@
         max_bytecode_increase_percent: options.max_bytecode_increase_percent,
         brillig_options: BrilligOptions::default(),
         enable_brillig_constraints_check_lookback: <span class="bool-val">false</span>,
+        skip_passes: Default::default(),
     };
     <span class="kw">let </span>SsaProgramArtifact { program, debug, warnings, names, brillig_names, .. } =
         create_program(builder, ssa_evaluator_options)<span class="question-mark">?</span>;

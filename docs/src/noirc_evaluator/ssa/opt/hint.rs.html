@@ -96,11 +96,7 @@
 <a href="#95" id="95">95</a>
 <a href="#96" id="96">96</a>
 <a href="#97" id="97">97</a>
-<a href="#98" id="98">98</a>
-<a href="#99" id="99">99</a>
-<a href="#100" id="100">100</a>
-<a href="#101" id="101">101</a>
-<a href="#102" id="102">102</a></pre></div><pre class="rust"><code><span class="attr">#[cfg(test)]
+<a href="#98" id="98">98</a></pre></div><pre class="rust"><code><span class="attr">#[cfg(test)]
 </span><span class="kw">mod </span>tests {
     <span class="kw">use </span>acvm::acir::circuit::ExpressionWidth;
 
@@ -123,14 +119,10 @@
             skip_brillig_constraints_check: <span class="bool-val">true</span>,
             inliner_aggressiveness: <span class="number">0</span>,
             max_bytecode_increase_percent: <span class="prelude-val">None</span>,
+            skip_passes: Default::default(),
         };
 
-        <span class="kw">let </span>builder = SsaBuilder {
-            ssa,
-            ssa_logging: options.ssa_logging.clone(),
-            print_codegen_timings: <span class="bool-val">false</span>,
-            passed: Default::default(),
-        };
+        <span class="kw">let </span>builder = SsaBuilder::from_ssa(ssa, options.ssa_logging.clone(), <span class="bool-val">false</span>);
 
         <span class="prelude-val">Ok</span>(builder.run_passes(<span class="kw-2">&amp;</span>primary_passes(options))<span class="question-mark">?</span>.finish())
     }

@@ -830,7 +830,12 @@
 <a href="#829" id="829">829</a>
 <a href="#830" id="830">830</a>
 <a href="#831" id="831">831</a>
-<a href="#832" id="832">832</a></pre></div><pre class="rust"><code><span class="attr">#![forbid(unsafe_code)]
+<a href="#832" id="832">832</a>
+<a href="#833" id="833">833</a>
+<a href="#834" id="834">834</a>
+<a href="#835" id="835">835</a>
+<a href="#836" id="836">836</a>
+<a href="#837" id="837">837</a></pre></div><pre class="rust"><code><span class="attr">#![forbid(unsafe_code)]
 #![warn(unused_crate_dependencies, unused_extern_crates)]
 #![warn(unreachable_pub)]
 #![warn(clippy::semicolon_if_nothing_returned)]
@@ -915,6 +920,10 @@
     <span class="doccomment">/// Only show the SSA and ACIR for the contract function with a given name.
     </span><span class="attr">#[arg(long, hide = <span class="bool-val">true</span>)]
     </span><span class="kw">pub </span>show_contract_fn: <span class="prelude-ty">Option</span>&lt;String&gt;,
+
+    <span class="doccomment">/// Skip SSA passes whose name contains the provided string(s).
+    </span><span class="attr">#[arg(long, hide = <span class="bool-val">true</span>)]
+    </span><span class="kw">pub </span>skip_ssa_pass: Vec&lt;String&gt;,
 
     <span class="doccomment">/// Emit the unoptimized SSA IR to file.
     /// The IR will be dumped into the workspace target directory,
@@ -1612,6 +1621,7 @@
             &amp;&amp; options.skip_brillig_constraints_check,
         inliner_aggressiveness: options.inliner_aggressiveness,
         max_bytecode_increase_percent: options.max_bytecode_increase_percent,
+        skip_passes: options.skip_ssa_pass.clone(),
     };
 
     <span class="kw">let </span>SsaProgramArtifact { program, debug, warnings, names, brillig_names, error_types, .. } =
