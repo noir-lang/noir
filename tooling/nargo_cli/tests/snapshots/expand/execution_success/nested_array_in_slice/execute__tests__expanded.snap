@@ -31,15 +31,27 @@ fn main(y: Field) {
     assert(x[y].b == [11, 12, 23]);
     assert(x[y].bar.inner == [109, 110, 111]);
     if y != 2 {
-        x[y - 2].a = 50;
+        {
+            let i_3772: Field = y - 2;
+            x[i_3772].a = 50;
+        }
     } else {
-        x[y - 2].a = 100;
+        {
+            let i_3773: Field = y - 2;
+            x[i_3773].a = 100;
+        }
     };
     assert(x[y - 2].a == 50);
     if y == 2 {
-        x[y - 1].b = [50, 51, 52];
+        {
+            let i_3774: Field = y - 1;
+            x[i_3774].b = [50, 51, 52];
+        }
     } else {
-        x[y - 1].b = [100, 101, 102];
+        {
+            let i_3775: Field = y - 1;
+            x[i_3775].b = [100, 101, 102];
+        }
     };
     assert(x[2].b == [100, 101, 102]);
     assert(x[y - 3].bar.inner == [100, 101, 102]);

@@ -431,7 +431,9 @@ pub fn compile_main(
     if options.deny_warnings && !compilation_warnings.is_empty() {
         return Err(compilation_warnings);
     }
-    warnings.extend(compilation_warnings);
+    if !options.silence_warnings {
+        warnings.extend(compilation_warnings);
+    }
 
     if options.print_acir {
         println!("Compiled ACIR for main (unoptimized):");
@@ -776,10 +778,12 @@ pub fn compile_no_check(
             ExpressionWidth::default()
         },
         emit_ssa: if options.emit_ssa { Some(context.package_build_path.clone()) } else { None },
-        skip_underconstrained_check: options.skip_underconstrained_check,
+        skip_underconstrained_check: !options.silence_warnings
+            && options.skip_underconstrained_check,
         enable_brillig_constraints_check_lookback: options
             .enable_brillig_constraints_check_lookback,
-        skip_brillig_constraints_check: options.skip_brillig_constraints_check,
+        skip_brillig_constraints_check: !options.silence_warnings
+            && options.skip_brillig_constraints_check,
         inliner_aggressiveness: options.inliner_aggressiveness,
         max_bytecode_increase_percent: options.max_bytecode_increase_percent,
     };

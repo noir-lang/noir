@@ -243,6 +243,11 @@ where
     ))
 }
 
+/// 8-bit unsigned int literal, used in bit shifts.
+pub fn u8_literal(value: u8) -> Expression {
+    int_literal(value as u32, false, types::U8)
+}
+
 /// 32-bit unsigned int literal, used in indexing arrays.
 pub fn u32_literal(value: u32) -> Expression {
     int_literal(value, false, types::U32)
