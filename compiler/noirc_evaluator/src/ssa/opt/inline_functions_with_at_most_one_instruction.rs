@@ -137,8 +137,8 @@ mod test {
         let ssa = Ssa::from_str(src).unwrap();
 
         // In the first pass it won't recognize that `main` could be simplified.
-        let ssa = ssa.inline_functions_with_at_most_one_instruction();
-        assert_ssa_snapshot!(ssa, @r"
+        let mut ssa = ssa.inline_functions_with_at_most_one_instruction();
+        assert_ssa_snapshot!(&mut ssa, @r"
         acir(inline) fn main f0 {
           b0(v0: Field):
             v2 = call f2(v0) -> Field
@@ -156,10 +156,7 @@ mod test {
         ");
 
         // After `bar` has been simplified, it does `main` as well.
-        let ssa = Ssa::from_str(src).unwrap();
-        let ssa = ssa
-            .inline_functions_with_at_most_one_instruction()
-            .inline_functions_with_at_most_one_instruction();
+        ssa = ssa.inline_functions_with_at_most_one_instruction();
         assert_ssa_snapshot!(ssa, @r"
         acir(inline) fn main f0 {
           b0(v0: Field):
