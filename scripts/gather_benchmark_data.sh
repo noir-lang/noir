@@ -25,7 +25,7 @@ setup_repo() {
 compile_project() {
     echo "Compiling program"
     for ((i = 1; i <= NUM_RUNS; i++)); do
-      NOIR_LOG=trace NARGO_LOG_DIR=$tmp_dir $NARGO compile --force --silence-warnings 2>> /dev/null
+      NOIR_LOG=trace NARGO_LOG_DIR=./tmp $NARGO compile --force --silence-warnings 2>> /dev/null
     done
 
     mv ./tmp/* $OUTPUT_DIR/compilation.jsonl
