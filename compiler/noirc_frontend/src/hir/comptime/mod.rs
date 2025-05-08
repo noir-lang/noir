@@ -3,7 +3,7 @@
 //!     - Metaprogramming such as deriving trait implementations.
 //!     - Evaluation of globals.
 //!
-//! This interpreter is run on the HIR before the program is monomorphized. Code written to be run at comptime may
+//! This interpreter is run on the HIR while the program is being resolved and type-checked, and before it is monomorphized. Code written to be run at comptime may
 //! then require additional type hints compared to equivalent non-comptime Noir code.
 //!
 //! For more information on Noir's comptime execution and metaprogramming in general, see the linked page in
