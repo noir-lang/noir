@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1746712285000,
+  "lastUpdate": 1746712286785,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -8169,70 +8169,6 @@ window.BENCHMARK_DATA = {
             "name": "GitHub",
             "username": "web-flow"
           },
-          "distinct": false,
-          "id": "5909d24024e78944d7fd9ff274b551d7deb13d37",
-          "message": "chore: Extend the bug list with issues found by the AST fuzzer (#8285)\n\nCo-authored-by: Rumata888 <isennovskiy@gmail.com>",
-          "timestamp": "2025-04-30T14:42:19Z",
-          "tree_id": "3db23b326f809455b5615108751069cfb35bee96",
-          "url": "https://github.com/noir-lang/noir/commit/5909d24024e78944d7fd9ff274b551d7deb13d37"
-        },
-        "date": 1746025680519,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 0.028,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 0.162,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 0.017,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 0.336,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 0.215,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 11.6,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 0.004,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-root",
-            "value": 0.013,
-            "unit": "s"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
-            "email": "aakoshh@gmail.com",
-            "name": "Akosh Farkash",
-            "username": "aakoshh"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
           "distinct": true,
           "id": "888f3a9e0969eee05273bde58d14bb7b2e5163f5",
           "message": "chore: redo typo PR by ciaranightingale (#8292)",
@@ -11353,6 +11289,70 @@ window.BENCHMARK_DATA = {
           {
             "name": "rollup-root",
             "value": 0.014,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "asterite@gmail.com",
+            "name": "Ary Borenszweig",
+            "username": "asterite"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "3a01a276e18ec2f7a157808db285e818c6a739e3",
+          "message": "fix: print slice composite types surrounded by parentheses (#8412)",
+          "timestamp": "2025-05-08T13:25:17Z",
+          "tree_id": "a7d922745120140edaaced2236a6911af6a7133c",
+          "url": "https://github.com/noir-lang/noir/commit/3a01a276e18ec2f7a157808db285e818c6a739e3"
+        },
+        "date": 1746712277729,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 0.028,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 0.161,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 0.017,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 0.329,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 0.209,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 11.6,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 0.004,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-root",
+            "value": 0.013,
             "unit": "s"
           }
         ]
