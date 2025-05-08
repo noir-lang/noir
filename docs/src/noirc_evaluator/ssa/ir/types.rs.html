@@ -366,7 +366,11 @@
 <a href="#365" id="365">365</a>
 <a href="#366" id="366">366</a>
 <a href="#367" id="367">367</a>
-<a href="#368" id="368">368</a></pre></div><pre class="rust"><code><span class="kw">use </span>acvm::{FieldElement, acir::AcirField};
+<a href="#368" id="368">368</a>
+<a href="#369" id="369">369</a>
+<a href="#370" id="370">370</a>
+<a href="#371" id="371">371</a>
+<a href="#372" id="372">372</a></pre></div><pre class="rust"><code><span class="kw">use </span>acvm::{FieldElement, acir::AcirField};
 <span class="kw">use </span>iter_extended::vecmap;
 <span class="kw">use </span>noirc_frontend::signed_field::SignedField;
 <span class="kw">use </span>serde::{Deserialize, Serialize};
@@ -683,7 +687,11 @@
             }
             Type::Slice(element) =&gt; {
                 <span class="kw">let </span>elements = vecmap(element.iter(), |element| element.to_string());
-                <span class="macro">write!</span>(f, <span class="string">"[{}]"</span>, elements.join(<span class="string">", "</span>))
+                <span class="kw">if </span>elements.len() == <span class="number">1 </span>{
+                    <span class="macro">write!</span>(f, <span class="string">"[{}]"</span>, elements.join(<span class="string">", "</span>))
+                } <span class="kw">else </span>{
+                    <span class="macro">write!</span>(f, <span class="string">"[({})]"</span>, elements.join(<span class="string">", "</span>))
+                }
             }
             Type::Function =&gt; <span class="macro">write!</span>(f, <span class="string">"function"</span>),
         }
