@@ -1044,7 +1044,78 @@
 <a href="#1043" id="1043">1043</a>
 <a href="#1044" id="1044">1044</a>
 <a href="#1045" id="1045">1045</a>
-<a href="#1046" id="1046">1046</a></pre></div><pre class="rust"><code><span class="doccomment">//! Dead Instruction Elimination (DIE) pass: Removes any instruction without side-effects for
+<a href="#1046" id="1046">1046</a>
+<a href="#1047" id="1047">1047</a>
+<a href="#1048" id="1048">1048</a>
+<a href="#1049" id="1049">1049</a>
+<a href="#1050" id="1050">1050</a>
+<a href="#1051" id="1051">1051</a>
+<a href="#1052" id="1052">1052</a>
+<a href="#1053" id="1053">1053</a>
+<a href="#1054" id="1054">1054</a>
+<a href="#1055" id="1055">1055</a>
+<a href="#1056" id="1056">1056</a>
+<a href="#1057" id="1057">1057</a>
+<a href="#1058" id="1058">1058</a>
+<a href="#1059" id="1059">1059</a>
+<a href="#1060" id="1060">1060</a>
+<a href="#1061" id="1061">1061</a>
+<a href="#1062" id="1062">1062</a>
+<a href="#1063" id="1063">1063</a>
+<a href="#1064" id="1064">1064</a>
+<a href="#1065" id="1065">1065</a>
+<a href="#1066" id="1066">1066</a>
+<a href="#1067" id="1067">1067</a>
+<a href="#1068" id="1068">1068</a>
+<a href="#1069" id="1069">1069</a>
+<a href="#1070" id="1070">1070</a>
+<a href="#1071" id="1071">1071</a>
+<a href="#1072" id="1072">1072</a>
+<a href="#1073" id="1073">1073</a>
+<a href="#1074" id="1074">1074</a>
+<a href="#1075" id="1075">1075</a>
+<a href="#1076" id="1076">1076</a>
+<a href="#1077" id="1077">1077</a>
+<a href="#1078" id="1078">1078</a>
+<a href="#1079" id="1079">1079</a>
+<a href="#1080" id="1080">1080</a>
+<a href="#1081" id="1081">1081</a>
+<a href="#1082" id="1082">1082</a>
+<a href="#1083" id="1083">1083</a>
+<a href="#1084" id="1084">1084</a>
+<a href="#1085" id="1085">1085</a>
+<a href="#1086" id="1086">1086</a>
+<a href="#1087" id="1087">1087</a>
+<a href="#1088" id="1088">1088</a>
+<a href="#1089" id="1089">1089</a>
+<a href="#1090" id="1090">1090</a>
+<a href="#1091" id="1091">1091</a>
+<a href="#1092" id="1092">1092</a>
+<a href="#1093" id="1093">1093</a>
+<a href="#1094" id="1094">1094</a>
+<a href="#1095" id="1095">1095</a>
+<a href="#1096" id="1096">1096</a>
+<a href="#1097" id="1097">1097</a>
+<a href="#1098" id="1098">1098</a>
+<a href="#1099" id="1099">1099</a>
+<a href="#1100" id="1100">1100</a>
+<a href="#1101" id="1101">1101</a>
+<a href="#1102" id="1102">1102</a>
+<a href="#1103" id="1103">1103</a>
+<a href="#1104" id="1104">1104</a>
+<a href="#1105" id="1105">1105</a>
+<a href="#1106" id="1106">1106</a>
+<a href="#1107" id="1107">1107</a>
+<a href="#1108" id="1108">1108</a>
+<a href="#1109" id="1109">1109</a>
+<a href="#1110" id="1110">1110</a>
+<a href="#1111" id="1111">1111</a>
+<a href="#1112" id="1112">1112</a>
+<a href="#1113" id="1113">1113</a>
+<a href="#1114" id="1114">1114</a>
+<a href="#1115" id="1115">1115</a>
+<a href="#1116" id="1116">1116</a>
+<a href="#1117" id="1117">1117</a></pre></div><pre class="rust"><code><span class="doccomment">//! Dead Instruction Elimination (DIE) pass: Removes any instruction without side-effects for
 //! which the results are unused.
 //!
 //! DIE also tracks which block parameters are unused.
@@ -1058,7 +1129,7 @@
         basic_block::{BasicBlock, BasicBlockId},
         dfg::DataFlowGraph,
         function::{Function, FunctionId},
-        instruction::{BinaryOp, Instruction, InstructionId, Intrinsic},
+        instruction::{BinaryOp, Instruction, InstructionId, Intrinsic, TerminatorInstruction},
         post_order::PostOrder,
         types::Type,
         value::{Value, ValueId},
@@ -1087,9 +1158,45 @@
         <span class="self">self</span>.dead_instruction_elimination_with_pruning(<span class="bool-val">true</span>, <span class="bool-val">true</span>)
     }
 
-    <span class="kw">fn </span>dead_instruction_elimination_with_pruning(<span class="self">self</span>, flattened: bool, skip_brillig: bool) -&gt; Ssa {
-        <span class="kw">let </span>(ssa, result) = <span class="self">self</span>.dead_instruction_elimination_inner(flattened, skip_brillig);
-        ssa.prune_dead_parameters(result.unused_parameters)
+    <span class="doccomment">/// The elimination of certain unused instructions assumes that the DIE pass runs after
+    /// the flattening of the CFG, but if that's not the case then we should not eliminate
+    /// them just yet.
+    </span><span class="attr">#[tracing::instrument(level = <span class="string">"trace"</span>, skip(<span class="self">self</span>))]
+    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>dead_instruction_elimination_pre_flattening(<span class="self">self</span>) -&gt; Ssa {
+        <span class="self">self</span>.dead_instruction_elimination_with_pruning(<span class="bool-val">false</span>, <span class="bool-val">false</span>)
+    }
+
+    <span class="kw">fn </span>dead_instruction_elimination_with_pruning(
+        <span class="kw-2">mut </span><span class="self">self</span>,
+        flattened: bool,
+        skip_brillig: bool,
+    ) -&gt; Ssa {
+        <span class="kw">let </span><span class="kw-2">mut </span>previous_unused_params = <span class="prelude-val">None</span>;
+        <span class="kw">loop </span>{
+            <span class="kw">let </span>(new_ssa, result) =
+                <span class="self">self</span>.dead_instruction_elimination_inner(flattened, skip_brillig);
+
+            <span class="comment">// Determine whether we have any unused variables
+            </span><span class="kw">let </span>has_unused = result
+                .unused_parameters
+                .values()
+                .any(|block_map| block_map.values().any(|params| !params.is_empty()));
+            <span class="comment">// If there are no unused parameters, return early
+            </span><span class="kw">if </span>!has_unused {
+                <span class="kw">return </span>new_ssa;
+            }
+
+            <span class="kw">if let </span><span class="prelude-val">Some</span>(previous) = <span class="kw-2">&amp;</span>previous_unused_params {
+                <span class="comment">// If no changes to dead parameters occurred, return early
+                </span><span class="kw">if </span>previous == <span class="kw-2">&amp;</span>result.unused_parameters {
+                    <span class="kw">return </span>new_ssa;
+                }
+            }
+
+            <span class="comment">// Prune unused parameters and repeat
+            </span><span class="self">self </span>= new_ssa.prune_dead_parameters(<span class="kw-2">&amp;</span>result.unused_parameters);
+            previous_unused_params = <span class="prelude-val">Some</span>(result.unused_parameters);
+        }
     }
 
     <span class="kw">fn </span>dead_instruction_elimination_inner(
@@ -1143,6 +1250,12 @@
 <span class="kw">impl </span>Function {
     <span class="doccomment">/// Removes any unused instructions in the reachable blocks of the given function.
     ///
+    /// This method is designed to be run within the context of the full SSA, not in isolation.
+    /// Running DIE on a single function may cause inconsistencies, such as leaving dangling unused parameters.
+    /// The pruning of block parameters depends on the full SSA context.
+    /// Therefore, this method must remain private, and DIE should run over the entire SSA,
+    /// ensuring proper tracking of unused parameters across all blocks.
+    ///
     /// The blocks of the function are iterated in post order, such that any blocks containing
     /// instructions that reference results from an instruction in another block are evaluated first.
     /// If we did not iterate blocks in this order we could not safely say whether or not the results
@@ -1153,7 +1266,7 @@
     ///   After processing all functions, the union of these sets enables determining the unused globals.
     /// - A mapping of (block id -&gt; unused parameters) for the given function.
     ///   This can be used by follow-up passes to prune unused parameters from blocks.
-    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>dead_instruction_elimination(
+    </span><span class="kw">fn </span>dead_instruction_elimination(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
         flattened: bool,
         skip_brillig: bool,
@@ -1175,13 +1288,20 @@
         <span class="kw">for </span>block <span class="kw">in </span>blocks.as_slice() {
             context.remove_unused_instructions_in_block(<span class="self">self</span>, <span class="kw-2">*</span>block);
 
-            <span class="kw">let </span>unused_params = <span class="self">self</span>.dfg[<span class="kw-2">*</span>block]
-                .parameters()
+            <span class="kw">let </span>parameters = <span class="self">self</span>.dfg[<span class="kw-2">*</span>block].parameters();
+            <span class="kw">let </span><span class="kw-2">mut </span>keep_list = Vec::with_capacity(parameters.len());
+            <span class="kw">let </span>unused_params = parameters
                 .iter()
-                .filter(|value| !context.used_values.contains(value))
+                .filter(|value| {
+                    <span class="kw">let </span>keep = context.used_values.contains(value);
+                    keep_list.push(keep);
+                    !keep
+                })
                 .copied()
                 .collect::&lt;Vec&lt;<span class="kw">_</span>&gt;&gt;();
+
             unused_params_per_block.insert(<span class="kw-2">*</span>block, unused_params);
+            context.parameter_keep_list.insert(<span class="kw-2">*</span>block, keep_list);
         }
 
         context.remove_rc_instructions(<span class="kw-2">&amp;mut </span><span class="self">self</span>.dfg);
@@ -1216,6 +1336,17 @@
 
     <span class="doccomment">/// Track IncrementRc instructions per block to determine whether they are useless.
     </span>rc_tracker: RcTracker,
+
+    <span class="doccomment">/// A per-block list indicating which block parameters are still considered alive.
+    ///
+    /// Each entry maps a [BasicBlockId] to a `Vec&lt;bool&gt;`, where the `i`th boolean corresponds to
+    /// the `i`th parameter of that block. A value of `true` means the parameter is used and should
+    /// be preserved. A value of `false` means it is unused and can be pruned.
+    ///
+    /// This keep list is used during terminator analysis to avoid incorrectly marking values as used
+    /// simply because they appear as terminator arguments. Only parameters marked as live here
+    /// should result in values being marked as used in terminator arguments.
+    </span>parameter_keep_list: HashMap&lt;BasicBlockId, Vec&lt;bool&gt;&gt;,
 }
 
 <span class="kw">impl </span>Context {
@@ -1292,8 +1423,19 @@
 
     <span class="doccomment">/// Adds values referenced by the terminator to the set of used values.
     </span><span class="kw">fn </span>mark_terminator_values_as_used(<span class="kw-2">&amp;mut </span><span class="self">self</span>, function: <span class="kw-2">&amp;</span>Function, block: <span class="kw-2">&amp;</span>BasicBlock) {
-        block.unwrap_terminator().for_each_value(|value| {
-            <span class="self">self</span>.mark_used_instruction_results(<span class="kw-2">&amp;</span>function.dfg, value);
+        <span class="kw">let </span>terminator = block.unwrap_terminator();
+        <span class="kw">let </span>jmp_destination = <span class="kw">if let </span>TerminatorInstruction::Jmp { destination, .. } = terminator {
+            <span class="prelude-val">Some</span>(<span class="kw-2">*</span>destination)
+        } <span class="kw">else </span>{
+            <span class="prelude-val">None
+        </span>};
+
+        block.unwrap_terminator().for_eachi_value(|index, value| {
+            <span class="kw">let </span>keep_list = jmp_destination.and_then(|dest| <span class="self">self</span>.parameter_keep_list.get(<span class="kw-2">&amp;</span>dest));
+            <span class="kw">let </span>should_keep = keep_list.is_none_or(|list| list[index]);
+            <span class="kw">if </span>should_keep {
+                <span class="self">self</span>.mark_used_instruction_results(<span class="kw-2">&amp;</span>function.dfg, value);
+            }
         });
     }
 
@@ -1621,7 +1763,7 @@
                 store Field 1 at v8
                 v9 = load v8 -&gt; Field
                 v10 = add v9, Field 1
-                v11 = add v9, Field 2
+                v11 = add v1, Field 2
                 v13 = add v9, Field 3
                 v14 = add v13, v13
                 call assert_constant(v10)
@@ -1641,7 +1783,7 @@
             store Field 1 at v4
             v6 = load v4 -&gt; Field
             v7 = add v6, Field 1
-            v8 = add v6, Field 2
+            v8 = add v1, Field 2
             call assert_constant(v7)
             return v8
         }
