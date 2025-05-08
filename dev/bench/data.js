@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1746746405453,
+  "lastUpdate": 1746748638481,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -18221,48 +18221,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "jfecher11@gmail.com",
-            "name": "jfecher",
-            "username": "jfecher"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "dc84c5de1c63e722f7188b6b9c3340c2d9890167",
-          "message": "feat(testing): Add SSA interpreter for testing SSA (#8115)\n\nCo-authored-by: Jake Fecher <jake@aztecprotocol.com>\nCo-authored-by: Akosh Farkash <aakoshh@gmail.com>",
-          "timestamp": "2025-05-01T14:06:41Z",
-          "tree_id": "fb255b0ef7c16cfbf0e3bb58568fcbe122b905b0",
-          "url": "https://github.com/noir-lang/noir/commit/dc84c5de1c63e722f7188b6b9c3340c2d9890167"
-        },
-        "date": 1746109508857,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 252479,
-            "range": "± 1517",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 226641,
-            "range": "± 5731",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 3590021,
-            "range": "± 13820",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "15848336+TomAFrench@users.noreply.github.com",
             "name": "Tom French",
             "username": "TomAFrench"
@@ -20314,6 +20272,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 3233844,
             "range": "± 19821",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "asterite@gmail.com",
+            "name": "Ary Borenszweig",
+            "username": "asterite"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "aceb4fc3e2f12a4914c7f9719cad0b99119dcebd",
+          "message": "fix!: error on tuple mismatch (#8424)\n\nCo-authored-by: Tom French <15848336+TomAFrench@users.noreply.github.com>",
+          "timestamp": "2025-05-08T23:38:04Z",
+          "tree_id": "fb4ae7853cbaa5ee44b64a7ba185788f1baf2aa6",
+          "url": "https://github.com/noir-lang/noir/commit/aceb4fc3e2f12a4914c7f9719cad0b99119dcebd"
+        },
+        "date": 1746748629779,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 268901,
+            "range": "± 1052",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 239326,
+            "range": "± 6531",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 3575527,
+            "range": "± 4938",
             "unit": "ns/iter"
           }
         ]
