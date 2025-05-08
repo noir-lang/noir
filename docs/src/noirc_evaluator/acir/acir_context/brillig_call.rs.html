@@ -361,7 +361,10 @@
 <a href="#360" id="360">360</a>
 <a href="#361" id="361">361</a>
 <a href="#362" id="362">362</a>
-<a href="#363" id="363">363</a></pre></div><pre class="rust"><code><span class="kw">use </span>acvm::{
+<a href="#363" id="363">363</a>
+<a href="#364" id="364">364</a>
+<a href="#365" id="365">365</a>
+<a href="#366" id="366">366</a></pre></div><pre class="rust"><code><span class="kw">use </span>acvm::{
     BlackBoxFunctionSolver,
     acir::{
         AcirField,
@@ -496,13 +499,16 @@
             context: <span class="kw-2">&amp;mut </span>AcirContext&lt;G, C&gt;,
             value: <span class="kw-2">&amp;</span>AcirValue,
         ) -&gt; <span class="prelude-ty">Result</span>&lt;(), RuntimeError&gt; {
+            <span class="kw">let </span>one = context.add_constant(G::one());
             <span class="kw">match </span>value {
                 AcirValue::Var(var, typ) =&gt; {
                     <span class="kw">let </span>numeric_type = <span class="kw">match </span>typ {
                         AcirType::NumericType(numeric_type) =&gt; numeric_type,
                         <span class="kw">_ </span>=&gt; <span class="macro">unreachable!</span>(<span class="string">"`AcirValue::Var` may only hold primitive values"</span>),
                     };
-                    context.range_constrain_var(<span class="kw-2">*</span>var, numeric_type, <span class="prelude-val">None</span>)<span class="question-mark">?</span>;
+                    <span class="comment">// Predicate is one so that the constrain is always applied, because
+                    // values returned from Brillig will be 0 under a false predicate.
+                    </span>context.range_constrain_var(<span class="kw-2">*</span>var, numeric_type, <span class="prelude-val">None</span>, one)<span class="question-mark">?</span>;
                 }
                 AcirValue::Array(values) =&gt; {
                     <span class="kw">for </span>value <span class="kw">in </span>values {

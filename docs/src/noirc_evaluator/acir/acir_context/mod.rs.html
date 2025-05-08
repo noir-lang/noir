@@ -1696,7 +1696,38 @@
 <a href="#1695" id="1695">1695</a>
 <a href="#1696" id="1696">1696</a>
 <a href="#1697" id="1697">1697</a>
-<a href="#1698" id="1698">1698</a></pre></div><pre class="rust"><code><span class="doccomment">//! The `acir_context` module acts as a high-level wrapper around [`generated_acir`], maintaining a small amount
+<a href="#1698" id="1698">1698</a>
+<a href="#1699" id="1699">1699</a>
+<a href="#1700" id="1700">1700</a>
+<a href="#1701" id="1701">1701</a>
+<a href="#1702" id="1702">1702</a>
+<a href="#1703" id="1703">1703</a>
+<a href="#1704" id="1704">1704</a>
+<a href="#1705" id="1705">1705</a>
+<a href="#1706" id="1706">1706</a>
+<a href="#1707" id="1707">1707</a>
+<a href="#1708" id="1708">1708</a>
+<a href="#1709" id="1709">1709</a>
+<a href="#1710" id="1710">1710</a>
+<a href="#1711" id="1711">1711</a>
+<a href="#1712" id="1712">1712</a>
+<a href="#1713" id="1713">1713</a>
+<a href="#1714" id="1714">1714</a>
+<a href="#1715" id="1715">1715</a>
+<a href="#1716" id="1716">1716</a>
+<a href="#1717" id="1717">1717</a>
+<a href="#1718" id="1718">1718</a>
+<a href="#1719" id="1719">1719</a>
+<a href="#1720" id="1720">1720</a>
+<a href="#1721" id="1721">1721</a>
+<a href="#1722" id="1722">1722</a>
+<a href="#1723" id="1723">1723</a>
+<a href="#1724" id="1724">1724</a>
+<a href="#1725" id="1725">1725</a>
+<a href="#1726" id="1726">1726</a>
+<a href="#1727" id="1727">1727</a>
+<a href="#1728" id="1728">1728</a>
+<a href="#1729" id="1729">1729</a></pre></div><pre class="rust"><code><span class="doccomment">//! The `acir_context` module acts as a high-level wrapper around [`generated_acir`], maintaining a small amount
 //! of type information from SSA in order to allow efficient ACIR-gen.
 //!
 //! The [`AcirContext`] struct defines how to translate SSA instructions into equivalent ACIR constructs. This
@@ -2570,10 +2601,14 @@
         <span class="kw">let </span>remainder_var = r_value.into_var()<span class="question-mark">?</span>;
 
         <span class="comment">// Constrain `q &lt; 2^{max_q_bits}`.
+        //
+        // We do not need to use a predicate in the range constraint because
+        // `quotient_var` is the output of a brillig call
         </span><span class="self">self</span>.range_constrain_var(
             quotient_var,
             <span class="kw-2">&amp;</span>NumericType::Unsigned { bit_size: max_q_bits },
             <span class="prelude-val">None</span>,
+            one,
         )<span class="question-mark">?</span>;
 
         <span class="comment">// Constrain `r &lt; 2^{max_rhs_bits}`.
@@ -2582,14 +2617,21 @@
         // In the case where `rhs` isn't a power of 2 then this range constraint is required
         // as the bound constraint creates a new witness.
         // This opcode will be optimized out if it is redundant so we always add it for safety.
+        // Furthermore, we do not need to use a predicate in the range constraint because
+        // the remainder is the output of a brillig call
         </span><span class="self">self</span>.range_constrain_var(
             remainder_var,
             <span class="kw-2">&amp;</span>NumericType::Unsigned { bit_size: max_rhs_bits },
             <span class="prelude-val">None</span>,
+            one,
         )<span class="question-mark">?</span>;
 
         <span class="comment">// Constrain `r &lt; rhs`.
-        </span><span class="self">self</span>.bound_constraint_with_offset(remainder_var, rhs, predicate, max_rhs_bits)<span class="question-mark">?</span>;
+        //
+        // We need to use the predicate in case of `rhs` does not have the assumed bit size.
+        // This can happen when the predicate is false because the values
+        // in a non taken branch are not constrained (cf. issue #8329).
+        </span><span class="self">self</span>.bound_constraint_with_offset(remainder_var, rhs, predicate, max_rhs_bits, predicate)<span class="question-mark">?</span>;
 
         <span class="comment">// a * predicate == (b * q + r) * predicate
         // =&gt; predicate * (a - b * q - r) == 0
@@ -2613,7 +2655,9 @@
                 <span class="kw">let </span>q0 = F::from_be_bytes_reduce(<span class="kw-2">&amp;</span>q0_big.to_bytes_be());
                 <span class="kw">let </span>q0_var = <span class="self">self</span>.add_constant(q0);
                 <span class="comment">// ensure that q &lt;= q0
-                </span><span class="self">self</span>.bound_constraint_with_offset(quotient_var, q0_var, zero, max_q_bits)<span class="question-mark">?</span>;
+                // We do not need to use a predicate in the range constraint because
+                // quotient_var is the output of a brillig call
+                </span><span class="self">self</span>.bound_constraint_with_offset(quotient_var, q0_var, zero, max_q_bits, one)<span class="question-mark">?</span>;
 
                 <span class="comment">// when q == q0, b*q+r can overflow so we need to bound r to avoid the overflow.
                 </span><span class="kw">let </span>size_predicate = <span class="self">self</span>.eq_var(q0_var, quotient_var)<span class="question-mark">?</span>;
@@ -2623,14 +2667,13 @@
                 <span class="kw">let </span>max_r = F::from_be_bytes_reduce(<span class="kw-2">&amp;</span>max_r_big.to_bytes_be());
                 <span class="kw">let </span>max_r_var = <span class="self">self</span>.add_constant(max_r);
 
-                <span class="kw">let </span>max_r_predicate = <span class="self">self</span>.mul_var(predicate, max_r_var)<span class="question-mark">?</span>;
-                <span class="kw">let </span>r_predicate = <span class="self">self</span>.mul_var(remainder_var, predicate)<span class="question-mark">?</span>;
                 <span class="comment">// Bound the remainder to be &lt;p-q0*b, if the predicate is true.
                 </span><span class="self">self</span>.bound_constraint_with_offset(
-                    r_predicate,
-                    max_r_predicate,
+                    remainder_var,
+                    max_r_var,
                     predicate,
                     rhs_const.num_bits(),
+                    predicate,
                 )<span class="question-mark">?</span>;
             } <span class="kw">else if </span>bit_size == <span class="number">128 </span>{
                 <span class="comment">// q and b are u128 and q*b could overflow so we check that either q or b are less than 2^64
@@ -2656,6 +2699,7 @@
     /// lhs &lt; rhs , when offset is 1, or
     /// lhs &lt;= rhs, when offset is 0
     /// bits is the bit size of a and b (or an upper bound of the bit size)
+    /// predicate is assumed to be 0 or 1, and when it is 0, the generated constrains will never fail.
     ///
     /// lhs&lt;=rhs is done by constraining b-a to a bit size of 'bits':
     /// if lhs&lt;=rhs, 0 &lt;= rhs-lhs &lt;= b &lt; 2^bits
@@ -2669,6 +2713,7 @@
         rhs: AcirVar,
         offset: AcirVar,
         bits: u32,
+        predicate: AcirVar,
     ) -&gt; <span class="prelude-ty">Result</span>&lt;(), RuntimeError&gt; {
         <span class="attr">#[allow(unused_qualifications)]
         </span><span class="kw">const fn </span>num_bits&lt;T&gt;() -&gt; usize {
@@ -2706,19 +2751,31 @@
             </span><span class="kw">let </span>r = (<span class="number">1_u128 </span>&lt;&lt; bit_size) - rhs_offset - <span class="number">1</span>;
             <span class="comment">// however, since it is a constant, we can compute it's actual bit size
             </span><span class="kw">let </span>r_bit_size = bit_size_u128(r);
-            <span class="comment">// witness = lhs_offset + r
-            </span><span class="macro">assert!</span>(bits + r_bit_size &lt; F::max_num_bits()); <span class="comment">//we need to ensure lhs_offset + r does not overflow
 
-            </span><span class="kw">let </span>r_var = <span class="self">self</span>.add_constant(r);
-            <span class="kw">let </span>aor = <span class="self">self</span>.add_var(lhs_offset, r_var)<span class="question-mark">?</span>;
+            <span class="comment">//we need to ensure lhs_offset + r does not overflow
+            </span><span class="kw">if </span>bits + r_bit_size &lt; F::max_num_bits() {
+                <span class="comment">// witness = lhs_offset + r
+                </span><span class="kw">let </span>r_var = <span class="self">self</span>.add_constant(r);
+                <span class="kw">let </span>aor = <span class="self">self</span>.add_var(lhs_offset, r_var)<span class="question-mark">?</span>;
 
-            <span class="comment">// lhs_offset&lt;=rhs_offset &lt;=&gt; lhs_offset + r &lt; rhs_offset + r = 2^bit_size &lt;=&gt; witness &lt; 2^bit_size
-            </span><span class="self">self</span>.range_constrain_var(aor, <span class="kw-2">&amp;</span>NumericType::Unsigned { bit_size }, <span class="prelude-val">None</span>)<span class="question-mark">?</span>;
-            <span class="kw">return </span><span class="prelude-val">Ok</span>(());
+                <span class="comment">// lhs_offset&lt;=rhs_offset &lt;=&gt; lhs_offset + r &lt; rhs_offset + r = 2^bit_size &lt;=&gt; witness &lt; 2^bit_size
+                </span><span class="self">self</span>.range_constrain_var(
+                    aor,
+                    <span class="kw-2">&amp;</span>NumericType::Unsigned { bit_size },
+                    <span class="prelude-val">None</span>,
+                    predicate,
+                )<span class="question-mark">?</span>;
+                <span class="kw">return </span><span class="prelude-val">Ok</span>(());
+            }
         }
         <span class="comment">// General case:  lhs_offset&lt;=rhs &lt;=&gt; rhs-lhs_offset&gt;=0 &lt;=&gt; rhs-lhs_offset is a 'bits' bit integer
         </span><span class="kw">let </span>sub_expression = <span class="self">self</span>.sub_var(rhs, lhs_offset)<span class="question-mark">?</span>; <span class="comment">//rhs-lhs_offset
-        </span><span class="self">self</span>.range_constrain_var(sub_expression, <span class="kw-2">&amp;</span>NumericType::Unsigned { bit_size: bits }, <span class="prelude-val">None</span>)<span class="question-mark">?</span>;
+        </span><span class="self">self</span>.range_constrain_var(
+            sub_expression,
+            <span class="kw-2">&amp;</span>NumericType::Unsigned { bit_size: bits },
+            <span class="prelude-val">None</span>,
+            predicate,
+        )<span class="question-mark">?</span>;
 
         <span class="prelude-val">Ok</span>(())
     }
@@ -2825,11 +2882,14 @@
     }
 
     <span class="doccomment">/// Constrains the `AcirVar` variable to be of type `NumericType`.
+    ///
+    /// If `predicate` is false, the constrain will never fail.
     </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>range_constrain_var(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
         variable: AcirVar,
         numeric_type: <span class="kw-2">&amp;</span>NumericType,
         message: <span class="prelude-ty">Option</span>&lt;String&gt;,
+        predicate: AcirVar,
     ) -&gt; <span class="prelude-ty">Result</span>&lt;AcirVar, RuntimeError&gt; {
         <span class="kw">match </span>numeric_type {
             NumericType::Signed { bit_size } | NumericType::Unsigned { bit_size } =&gt; {
@@ -2840,8 +2900,10 @@
                         <span class="kw">return </span><span class="prelude-val">Ok</span>(variable);
                     }
                 }
-
-                <span class="kw">let </span>witness_var = <span class="self">self</span>.get_or_create_witness_var(variable)<span class="question-mark">?</span>;
+                <span class="comment">// Under a predicate, a range check must not fail, so we
+                // range check `predicate * variable` instead.
+                </span><span class="kw">let </span>predicate_range = <span class="self">self</span>.mul_var(variable, predicate)<span class="question-mark">?</span>;
+                <span class="kw">let </span>witness_var = <span class="self">self</span>.get_or_create_witness_var(predicate_range)<span class="question-mark">?</span>;
                 <span class="kw">let </span>witness = <span class="self">self</span>.var_to_witness(witness_var)<span class="question-mark">?</span>;
                 <span class="self">self</span>.acir_ir.range_constraint(witness, <span class="kw-2">*</span>bit_size)<span class="question-mark">?</span>;
                 <span class="kw">if let </span><span class="prelude-val">Some</span>(message) = message {
