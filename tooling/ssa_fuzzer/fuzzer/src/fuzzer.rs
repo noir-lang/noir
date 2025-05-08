@@ -40,6 +40,9 @@ impl Fuzzer {
         mut self,
         initial_witness: WitnessMap<FieldElement>,
         constant_checking_enabled: bool,
+
+        // TODO
+        skip_remove_unreachable: bool,
     ) {
         self.context_non_constant.finalize_function();
         self.context_constant.finalize_function();
@@ -51,6 +54,9 @@ impl Fuzzer {
             initial_witness.clone(),
             acir_return_witness,
             brillig_return_witness,
+
+            // TODO
+            skip_remove_unreachable,
         );
         log::debug!("Non-constant result: {:?}", non_constant_result);
 
@@ -66,6 +72,9 @@ impl Fuzzer {
             WitnessMap::new(),
             acir_return_witness,
             brillig_return_witness,
+
+            // TODO
+            skip_remove_unreachable,
         );
         log::debug!("Constant result: {:?}", constant_result);
 
@@ -105,8 +114,11 @@ impl Fuzzer {
         initial_witness: WitnessMap<FieldElement>,
         acir_return_witness: Witness,
         brillig_return_witness: Witness,
+
+        // TODO
+        skip_remove_unreachable: bool,
     ) -> Option<FieldElement> {
-        let (acir_program, brillig_program) = context.get_programs();
+        let (acir_program, brillig_program) = context.get_programs(skip_remove_unreachable);
         let (acir_program, brillig_program) = match (acir_program, brillig_program) {
             (Ok(acir), Ok(brillig)) => (acir, brillig),
             (Err(acir_error), Err(brillig_error)) => {

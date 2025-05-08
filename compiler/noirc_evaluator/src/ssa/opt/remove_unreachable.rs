@@ -79,6 +79,7 @@ fn collect_reachable_functions(
     // If the debugger is used, its possible for function inlining
     // to remove functions that the debugger still references
     let Some(func) = ssa.functions.get(&current_func_id) else {
+        // TODO: when does this trigger??
         return;
     };
 

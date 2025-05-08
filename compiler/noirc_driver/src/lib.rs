@@ -780,6 +780,7 @@ pub fn compile_no_check(
             && options.skip_brillig_constraints_check,
         inliner_aggressiveness: options.inliner_aggressiveness,
         max_bytecode_increase_percent: options.max_bytecode_increase_percent,
+        skip_remove_unreachable: false,
     };
 
     let SsaProgramArtifact { program, debug, warnings, names, brillig_names, error_types, .. } =

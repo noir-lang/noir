@@ -1,0 +1,1000 @@
+    v10 = add v0, v0
+    return v10
+}
+
+After Constraint Folding (1):
+acir(inline) pure fn main f0 {
+  b0(v0: Field, v1: Field, v2: Field, v3: Field, v4: Field, v5: Field, v6: Field):
+    v7 = truncate v0 to 8 bits, max_bit_size: 254
+    v8 = cast v7 as i8
+    v9 = add v3, v7
+    v10 = add v0, v0
+    return v10
+}
+
+After Unrolling (2):
+acir(inline) pure fn main f0 {
+  b0(v0: Field, v1: Field, v2: Field, v3: Field, v4: Field, v5: Field, v6: Field):
+    v7 = truncate v0 to 8 bits, max_bit_size: 254
+    v8 = cast v7 as i8
+    v9 = add v3, v7
+    v10 = add v0, v0
+    return v10
+}
+
+After Adding constrain not equal (1):
+acir(inline) pure fn main f0 {
+  b0(v0: Field, v1: Field, v2: Field, v3: Field, v4: Field, v5: Field, v6: Field):
+    v7 = truncate v0 to 8 bits, max_bit_size: 254
+    v8 = cast v7 as i8
+    v9 = add v3, v7
+    v10 = add v0, v0
+    return v10
+}
+
+After Check u128 mul overflow (1):
+acir(inline) pure fn main f0 {
+  b0(v0: Field, v1: Field, v2: Field, v3: Field, v4: Field, v5: Field, v6: Field):
+    v7 = truncate v0 to 8 bits, max_bit_size: 254
+    v8 = cast v7 as i8
+    v9 = add v3, v7
+    v10 = add v0, v0
+    return v10
+}
+
+After Dead Instruction Elimination (1):
+acir(inline) pure fn main f0 {
+  b0(v0: Field, v1: Field, v2: Field, v3: Field, v4: Field, v5: Field, v6: Field):
+    v7 = add v0, v0
+    return v7
+}
+
+After Simplifying (3):
+acir(inline) pure fn main f0 {
+  b0(v0: Field, v1: Field, v2: Field, v3: Field, v4: Field, v5: Field, v6: Field):
+    v7 = add v0, v0
+    return v7
+}
+
+After Mem2Reg (4):
+acir(inline) pure fn main f0 {
+  b0(v0: Field, v1: Field, v2: Field, v3: Field, v4: Field, v5: Field, v6: Field):
+    v7 = add v0, v0
+    return v7
+}
+
+After Array Set Optimizations (1):
+acir(inline) pure fn main f0 {
+  b0(v0: Field, v1: Field, v2: Field, v3: Field, v4: Field, v5: Field, v6: Field):
+    v7 = add v0, v0
+    return v7
+}
+
+After Brillig Entry Point Analysis (1):
+acir(inline) pure fn main f0 {
+  b0(v0: Field, v1: Field, v2: Field, v3: Field, v4: Field, v5: Field, v6: Field):
+    v7 = add v0, v0
+    return v7
+}
+
+After Removing Unreachable Functions (3):
+acir(inline) pure fn main f0 {
+  b0(v0: Field, v1: Field, v2: Field, v3: Field, v4: Field, v5: Field, v6: Field):
+    v7 = add v0, v0
+    return v7
+}
+
+After Removing Truncate after RangeCheck (1):
+acir(inline) pure fn main f0 {
+  b0(v0: Field, v1: Field, v2: Field, v3: Field, v4: Field, v5: Field, v6: Field):
+    v7 = add v0, v0
+    return v7
+}
+
+After Brillig Array Get Optimizations (1):
+acir(inline) pure fn main f0 {
+  b0(v0: Field, v1: Field, v2: Field, v3: Field, v4: Field, v5: Field, v6: Field):
+    v7 = add v0, v0
+    return v7
+}
+
+After Dead Instruction Elimination (2):
+acir(inline) pure fn main f0 {
+  b0(v0: Field, v1: Field, v2: Field, v3: Field, v4: Field, v5: Field, v6: Field):
+    v7 = add v0, v0
+    return v7
+}
+
+After Removing Unreachable Functions (4):
+acir(inline) pure fn main f0 {
+  b0(v0: Field, v1: Field, v2: Field, v3: Field, v4: Field, v5: Field, v6: Field):
+    v7 = add v0, v0
+    return v7
+}
+
+After Checked to unchecked (1):
+acir(inline) pure fn main f0 {
+  b0(v0: Field, v1: Field, v2: Field, v3: Field, v4: Field, v5: Field, v6: Field):
+    v7 = add v0, v0
+    return v7
+}
+
+After Removing Unreachable Functions (1):
+brillig(inline) fn main f0 {
+  b0(v0: Field, v1: Field, v2: Field, v3: Field, v4: Field, v5: Field, v6: Field):
+    v7 = truncate v0 to 8 bits, max_bit_size: 254
+    v8 = cast v7 as i8
+    v9 = cast v7 as Field
+    v10 = add v3, v9
+    v11 = add v0, v0
+    return v11
+}
+
+After Defunctionalization (1):
+brillig(inline) fn main f0 {
+  b0(v0: Field, v1: Field, v2: Field, v3: Field, v4: Field, v5: Field, v6: Field):
+    v7 = truncate v0 to 8 bits, max_bit_size: 254
+    v8 = cast v7 as i8
+    v9 = cast v7 as Field
+    v10 = add v3, v9
+    v11 = add v0, v0
+    return v11
+}
+
+After Inlining functions with at most one instruction (1):
+brillig(inline) fn main f0 {
+  b0(v0: Field, v1: Field, v2: Field, v3: Field, v4: Field, v5: Field, v6: Field):
+    v7 = truncate v0 to 8 bits, max_bit_size: 254
+    v8 = cast v7 as i8
+    v9 = add v3, v7
+    v10 = add v0, v0
+    return v10
+}
+
+After Removing Paired rc_inc & rc_decs (1):
+brillig(inline) fn main f0 {
+  b0(v0: Field, v1: Field, v2: Field, v3: Field, v4: Field, v5: Field, v6: Field):
+    v7 = truncate v0 to 8 bits, max_bit_size: 254
+    v8 = cast v7 as i8
+    v9 = add v3, v7
+    v10 = add v0, v0
+    return v10
+}
+
+After Preprocessing Functions (1):
+brillig(inline) fn main f0 {
+  b0(v0: Field, v1: Field, v2: Field, v3: Field, v4: Field, v5: Field, v6: Field):
+    v7 = truncate v0 to 8 bits, max_bit_size: 254
+    v8 = cast v7 as i8
+    v9 = add v3, v7
+    v10 = add v0, v0
+    return v10
+}
+
+After Inlining (1):
+brillig(inline) fn main f0 {
+  b0(v0: Field, v1: Field, v2: Field, v3: Field, v4: Field, v5: Field, v6: Field):
+    v7 = truncate v0 to 8 bits, max_bit_size: 254
+    v8 = cast v7 as i8
+    v9 = add v3, v7
+    v10 = add v0, v0
+    return v10
+}
+
+After Mem2Reg (1):
+brillig(inline) fn main f0 {
+  b0(v0: Field, v1: Field, v2: Field, v3: Field, v4: Field, v5: Field, v6: Field):
+    v7 = truncate v0 to 8 bits, max_bit_size: 254
+    v8 = cast v7 as i8
+    v9 = add v3, v7
+    v10 = add v0, v0
+    return v10
+}
+
+After Simplifying (1):
+brillig(inline) fn main f0 {
+  b0(v0: Field, v1: Field, v2: Field, v3: Field, v4: Field, v5: Field, v6: Field):
+    v7 = truncate v0 to 8 bits, max_bit_size: 254
+    v8 = cast v7 as i8
+    v9 = add v3, v7
+    v10 = add v0, v0
+    return v10
+}
+
+After `as_slice` optimization (1):
+brillig(inline) fn main f0 {
+  b0(v0: Field, v1: Field, v2: Field, v3: Field, v4: Field, v5: Field, v6: Field):
+    v7 = truncate v0 to 8 bits, max_bit_size: 254
+    v8 = cast v7 as i8
+    v9 = add v3, v7
+    v10 = add v0, v0
+    return v10
+}
+
+After Removing Unreachable Functions (2):
+brillig(inline) fn main f0 {
+  b0(v0: Field, v1: Field, v2: Field, v3: Field, v4: Field, v5: Field, v6: Field):
+    v7 = truncate v0 to 8 bits, max_bit_size: 254
+    v8 = cast v7 as i8
+    v9 = add v3, v7
+    v10 = add v0, v0
+    return v10
+}
+
+After `static_assert` and `assert_constant` (1):
+brillig(inline) fn main f0 {
+  b0(v0: Field, v1: Field, v2: Field, v3: Field, v4: Field, v5: Field, v6: Field):
+    v7 = truncate v0 to 8 bits, max_bit_size: 254
+    v8 = cast v7 as i8
+    v9 = add v3, v7
+    v10 = add v0, v0
+    return v10
+}
+
+After Purity Analysis (1):
+brillig(inline) predicate_pure fn main f0 {
+  b0(v0: Field, v1: Field, v2: Field, v3: Field, v4: Field, v5: Field, v6: Field):
+    v7 = truncate v0 to 8 bits, max_bit_size: 254
+    v8 = cast v7 as i8
+    v9 = add v3, v7
+    v10 = add v0, v0
+    return v10
+}
+
+After Loop Invariant Code Motion (1):
+brillig(inline) predicate_pure fn main f0 {
+  b0(v0: Field, v1: Field, v2: Field, v3: Field, v4: Field, v5: Field, v6: Field):
+    v7 = truncate v0 to 8 bits, max_bit_size: 254
+    v8 = cast v7 as i8
+    v9 = add v3, v7
+    v10 = add v0, v0
+    return v10
+}
+
+After Unrolling (1):
+brillig(inline) predicate_pure fn main f0 {
+  b0(v0: Field, v1: Field, v2: Field, v3: Field, v4: Field, v5: Field, v6: Field):
+    v7 = truncate v0 to 8 bits, max_bit_size: 254
+    v8 = cast v7 as i8
+    v9 = add v3, v7
+    v10 = add v0, v0
+    return v10
+}
+
+After Simplifying (2):
+brillig(inline) predicate_pure fn main f0 {
+  b0(v0: Field, v1: Field, v2: Field, v3: Field, v4: Field, v5: Field, v6: Field):
+    v7 = truncate v0 to 8 bits, max_bit_size: 254
+    v8 = cast v7 as i8
+    v9 = add v3, v7
+    v10 = add v0, v0
+    return v10
+}
+
+After Mem2Reg (2):
+brillig(inline) predicate_pure fn main f0 {
+  b0(v0: Field, v1: Field, v2: Field, v3: Field, v4: Field, v5: Field, v6: Field):
+    v7 = truncate v0 to 8 bits, max_bit_size: 254
+    v8 = cast v7 as i8
+    v9 = add v3, v7
+    v10 = add v0, v0
+    return v10
+}
+
+After Flattening (1):
+brillig(inline) predicate_pure fn main f0 {
+  b0(v0: Field, v1: Field, v2: Field, v3: Field, v4: Field, v5: Field, v6: Field):
+    v7 = truncate v0 to 8 bits, max_bit_size: 254
+    v8 = cast v7 as i8
+    v9 = add v3, v7
+    v10 = add v0, v0
+    return v10
+}
+
+After Removing Bit Shifts (1):
+brillig(inline) predicate_pure fn main f0 {
+  b0(v0: Field, v1: Field, v2: Field, v3: Field, v4: Field, v5: Field, v6: Field):
+    v7 = truncate v0 to 8 bits, max_bit_size: 254
+    v8 = cast v7 as i8
+    v9 = add v3, v7
+    v10 = add v0, v0
+    return v10
+}
+
+After Mem2Reg (3):
+brillig(inline) predicate_pure fn main f0 {
+  b0(v0: Field, v1: Field, v2: Field, v3: Field, v4: Field, v5: Field, v6: Field):
+    v7 = truncate v0 to 8 bits, max_bit_size: 254
+    v8 = cast v7 as i8
+    v9 = add v3, v7
+    v10 = add v0, v0
+    return v10
+}
+
+After Inlining (2):
+brillig(inline) predicate_pure fn main f0 {
+  b0(v0: Field, v1: Field, v2: Field, v3: Field, v4: Field, v5: Field, v6: Field):
+    v7 = truncate v0 to 8 bits, max_bit_size: 254
+    v8 = cast v7 as i8
+    v9 = add v3, v7
+    v10 = add v0, v0
+    return v10
+}
+
+After Remove IfElse (1):
+brillig(inline) predicate_pure fn main f0 {
+  b0(v0: Field, v1: Field, v2: Field, v3: Field, v4: Field, v5: Field, v6: Field):
+    v7 = truncate v0 to 8 bits, max_bit_size: 254
+    v8 = cast v7 as i8
+    v9 = add v3, v7
+    v10 = add v0, v0
+    return v10
+}
+
+After Purity Analysis (2):
+brillig(inline) predicate_pure fn main f0 {
+  b0(v0: Field, v1: Field, v2: Field, v3: Field, v4: Field, v5: Field, v6: Field):
+    v7 = truncate v0 to 8 bits, max_bit_size: 254
+    v8 = cast v7 as i8
+    v9 = add v3, v7
+    v10 = add v0, v0
+    return v10
+}
+
+After Constant Folding (1):
+brillig(inline) predicate_pure fn main f0 {
+  b0(v0: Field, v1: Field, v2: Field, v3: Field, v4: Field, v5: Field, v6: Field):
+    v7 = truncate v0 to 8 bits, max_bit_size: 254
+    v8 = cast v7 as i8
+    v9 = add v3, v7
+    v10 = add v0, v0
+    return v10
+}
+
+After Simplify conditionals for unconstrained (1):
+brillig(inline) predicate_pure fn main f0 {
+  b0(v0: Field, v1: Field, v2: Field, v3: Field, v4: Field, v5: Field, v6: Field):
+    v7 = truncate v0 to 8 bits, max_bit_size: 254
+    v8 = cast v7 as i8
+    v9 = add v3, v7
+    v10 = add v0, v0
+    return v10
+}
+
+After EnableSideEffectsIf removal (1):
+brillig(inline) predicate_pure fn main f0 {
+  b0(v0: Field, v1: Field, v2: Field, v3: Field, v4: Field, v5: Field, v6: Field):
+    v7 = truncate v0 to 8 bits, max_bit_size: 254
+    v8 = cast v7 as i8
+    v9 = add v3, v7
+    v10 = add v0, v0
+    return v10
+}
+
+After Constraint Folding (1):
+brillig(inline) predicate_pure fn main f0 {
+  b0(v0: Field, v1: Field, v2: Field, v3: Field, v4: Field, v5: Field, v6: Field):
+    v7 = truncate v0 to 8 bits, max_bit_size: 254
+    v8 = cast v7 as i8
+    v9 = add v3, v7
+    v10 = add v0, v0
+    return v10
+}
+
+After Unrolling (2):
+brillig(inline) predicate_pure fn main f0 {
+  b0(v0: Field, v1: Field, v2: Field, v3: Field, v4: Field, v5: Field, v6: Field):
+    v7 = truncate v0 to 8 bits, max_bit_size: 254
+    v8 = cast v7 as i8
+    v9 = add v3, v7
+    v10 = add v0, v0
+    return v10
+}
+
+After Adding constrain not equal (1):
+brillig(inline) predicate_pure fn main f0 {
+  b0(v0: Field, v1: Field, v2: Field, v3: Field, v4: Field, v5: Field, v6: Field):
+    v7 = truncate v0 to 8 bits, max_bit_size: 254
+    v8 = cast v7 as i8
+    v9 = add v3, v7
+    v10 = add v0, v0
+    return v10
+}
+
+After Check u128 mul overflow (1):
+brillig(inline) predicate_pure fn main f0 {
+  b0(v0: Field, v1: Field, v2: Field, v3: Field, v4: Field, v5: Field, v6: Field):
+    v7 = truncate v0 to 8 bits, max_bit_size: 254
+    v8 = cast v7 as i8
+    v9 = add v3, v7
+    v10 = add v0, v0
+    return v10
+}
+
+After Dead Instruction Elimination (1):
+brillig(inline) predicate_pure fn main f0 {
+  b0(v0: Field, v1: Field, v2: Field, v3: Field, v4: Field, v5: Field, v6: Field):
+    v7 = add v0, v0
+    return v7
+}
+
+After Simplifying (3):
+brillig(inline) predicate_pure fn main f0 {
+  b0(v0: Field, v1: Field, v2: Field, v3: Field, v4: Field, v5: Field, v6: Field):
+    v7 = add v0, v0
+    return v7
+}
+
+After Mem2Reg (4):
+brillig(inline) predicate_pure fn main f0 {
+  b0(v0: Field, v1: Field, v2: Field, v3: Field, v4: Field, v5: Field, v6: Field):
+    v7 = add v0, v0
+    return v7
+}
+
+After Array Set Optimizations (1):
+brillig(inline) predicate_pure fn main f0 {
+  b0(v0: Field, v1: Field, v2: Field, v3: Field, v4: Field, v5: Field, v6: Field):
+    v7 = add v0, v0
+    return v7
+}
+
+After Brillig Entry Point Analysis (1):
+brillig(inline) predicate_pure fn main f0 {
+  b0(v0: Field, v1: Field, v2: Field, v3: Field, v4: Field, v5: Field, v6: Field):
+    v7 = add v0, v0
+    return v7
+}
+
+After Removing Unreachable Functions (3):
+brillig(inline) predicate_pure fn main f0 {
+  b0(v0: Field, v1: Field, v2: Field, v3: Field, v4: Field, v5: Field, v6: Field):
+    v7 = add v0, v0
+    return v7
+}
+
+After Removing Truncate after RangeCheck (1):
+brillig(inline) predicate_pure fn main f0 {
+  b0(v0: Field, v1: Field, v2: Field, v3: Field, v4: Field, v5: Field, v6: Field):
+    v7 = add v0, v0
+    return v7
+}
+
+After Brillig Array Get Optimizations (1):
+brillig(inline) predicate_pure fn main f0 {
+  b0(v0: Field, v1: Field, v2: Field, v3: Field, v4: Field, v5: Field, v6: Field):
+    v7 = add v0, v0
+    return v7
+}
+
+After Dead Instruction Elimination (2):
+brillig(inline) predicate_pure fn main f0 {
+  b0(v0: Field, v1: Field, v2: Field, v3: Field, v4: Field, v5: Field, v6: Field):
+    v7 = add v0, v0
+    return v7
+}
+
+After Removing Unreachable Functions (4):
+brillig(inline) predicate_pure fn main f0 {
+  b0(v0: Field, v1: Field, v2: Field, v3: Field, v4: Field, v5: Field, v6: Field):
+    v7 = add v0, v0
+    return v7
+}
+
+After Checked to unchecked (1):
+brillig(inline) predicate_pure fn main f0 {
+  b0(v0: Field, v1: Field, v2: Field, v3: Field, v4: Field, v5: Field, v6: Field):
+    v7 = add v0, v0
+    return v7
+}
+
+
+thread '<unnamed>' panicked at compiler/noirc_evaluator/src/ssa/ir/dfg/simplify/binary.rs:24:9:
+assertion `left == right` failed: ICE - Binary instruction operands must have the same type
+  left: Signed { bit_size: 64 }
+ right: Signed { bit_size: 8 }
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+==1582303== ERROR: libFuzzer: deadly signal
+    #0 0x55555a47c371  (/home/michael/coding/rust/noir/target/x86_64-unknown-linux-gnu/release/base_target+0x4f28371) (BuildId: 331408a3e14689cc0a85e389134a4fdb879b7270)
+    #1 0x555560b9154d  (/home/michael/coding/rust/noir/target/x86_64-unknown-linux-gnu/release/base_target+0xb63d54d) (BuildId: 331408a3e14689cc0a85e389134a4fdb879b7270)
+    #2 0x555560b56849  (/home/michael/coding/rust/noir/target/x86_64-unknown-linux-gnu/release/base_target+0xb602849) (BuildId: 331408a3e14689cc0a85e389134a4fdb879b7270)
+    #3 0x7ffff784532f  (/lib/x86_64-linux-gnu/libc.so.6+0x4532f) (BuildId: 42c84c92e6f98126b3e2230ebfdead22c235b667)
+    #4 0x7ffff789eb2b  (/lib/x86_64-linux-gnu/libc.so.6+0x9eb2b) (BuildId: 42c84c92e6f98126b3e2230ebfdead22c235b667)
+    #5 0x7ffff784527d  (/lib/x86_64-linux-gnu/libc.so.6+0x4527d) (BuildId: 42c84c92e6f98126b3e2230ebfdead22c235b667)
+    #6 0x7ffff78288fe  (/lib/x86_64-linux-gnu/libc.so.6+0x288fe) (BuildId: 42c84c92e6f98126b3e2230ebfdead22c235b667)
+    #7 0x555561864959  (/home/michael/coding/rust/noir/target/x86_64-unknown-linux-gnu/release/base_target+0xc310959) (BuildId: 331408a3e14689cc0a85e389134a4fdb879b7270)
+    #8 0x555561859c69  (/home/michael/coding/rust/noir/target/x86_64-unknown-linux-gnu/release/base_target+0xc305c69) (BuildId: 331408a3e14689cc0a85e389134a4fdb879b7270)
+    #9 0x555560b50254  (/home/michael/coding/rust/noir/target/x86_64-unknown-linux-gnu/release/base_target+0xb5fc254) (BuildId: 331408a3e14689cc0a85e389134a4fdb879b7270)
+    #10 0x555561860332  (/home/michael/coding/rust/noir/target/x86_64-unknown-linux-gnu/release/base_target+0xc30c332) (BuildId: 331408a3e14689cc0a85e389134a4fdb879b7270)
+    #11 0x55556185ffe9  (/home/michael/coding/rust/noir/target/x86_64-unknown-linux-gnu/release/base_target+0xc30bfe9) (BuildId: 331408a3e14689cc0a85e389134a4fdb879b7270)
+    #12 0x55556185c098  (/home/michael/coding/rust/noir/target/x86_64-unknown-linux-gnu/release/base_target+0xc308098) (BuildId: 331408a3e14689cc0a85e389134a4fdb879b7270)
+    #13 0x55556185fc7c  (/home/michael/coding/rust/noir/target/x86_64-unknown-linux-gnu/release/base_target+0xc30bc7c) (BuildId: 331408a3e14689cc0a85e389134a4fdb879b7270)
+    #14 0x5555618a718f  (/home/michael/coding/rust/noir/target/x86_64-unknown-linux-gnu/release/base_target+0xc35318f) (BuildId: 331408a3e14689cc0a85e389134a4fdb879b7270)
+    #15 0x5555618a7679  (/home/michael/coding/rust/noir/target/x86_64-unknown-linux-gnu/release/base_target+0xc353679) (BuildId: 331408a3e14689cc0a85e389134a4fdb879b7270)
+    #16 0x55555de71148  (/home/michael/coding/rust/noir/target/x86_64-unknown-linux-gnu/release/base_target+0x891d148) (BuildId: 331408a3e14689cc0a85e389134a4fdb879b7270)
+    #17 0x55555e6da734  (/home/michael/coding/rust/noir/target/x86_64-unknown-linux-gnu/release/base_target+0x9186734) (BuildId: 331408a3e14689cc0a85e389134a4fdb879b7270)
+    #18 0x55555e70c270  (/home/michael/coding/rust/noir/target/x86_64-unknown-linux-gnu/release/base_target+0x91b8270) (BuildId: 331408a3e14689cc0a85e389134a4fdb879b7270)
+    #19 0x55555e71883e  (/home/michael/coding/rust/noir/target/x86_64-unknown-linux-gnu/release/base_target+0x91c483e) (BuildId: 331408a3e14689cc0a85e389134a4fdb879b7270)
+    #20 0x55555e67edf4  (/home/michael/coding/rust/noir/target/x86_64-unknown-linux-gnu/release/base_target+0x912adf4) (BuildId: 331408a3e14689cc0a85e389134a4fdb879b7270)
+    #21 0x55555ba075bf  (/home/michael/coding/rust/noir/target/x86_64-unknown-linux-gnu/release/base_target+0x64b35bf) (BuildId: 331408a3e14689cc0a85e389134a4fdb879b7270)
+    #22 0x55555a4f3243  (/home/michael/coding/rust/noir/target/x86_64-unknown-linux-gnu/release/base_target+0x4f9f243) (BuildId: 331408a3e14689cc0a85e389134a4fdb879b7270)
+    #23 0x55555a5b5f71  (/home/michael/coding/rust/noir/target/x86_64-unknown-linux-gnu/release/base_target+0x5061f71) (BuildId: 331408a3e14689cc0a85e389134a4fdb879b7270)
+    #24 0x55555a5b7ca1  (/home/michael/coding/rust/noir/target/x86_64-unknown-linux-gnu/release/base_target+0x5063ca1) (BuildId: 331408a3e14689cc0a85e389134a4fdb879b7270)
+    #25 0x55555a5c35bb  (/home/michael/coding/rust/noir/target/x86_64-unknown-linux-gnu/release/base_target+0x506f5bb) (BuildId: 331408a3e14689cc0a85e389134a4fdb879b7270)
+    #26 0x55555a5d5c69  (/home/michael/coding/rust/noir/target/x86_64-unknown-linux-gnu/release/base_target+0x5081c69) (BuildId: 331408a3e14689cc0a85e389134a4fdb879b7270)
+    #27 0x55555a5d46c9  (/home/michael/coding/rust/noir/target/x86_64-unknown-linux-gnu/release/base_target+0x50806c9) (BuildId: 331408a3e14689cc0a85e389134a4fdb879b7270)
+    #28 0x555560b4ce5f  (/home/michael/coding/rust/noir/target/x86_64-unknown-linux-gnu/release/base_target+0xb5f8e5f) (BuildId: 331408a3e14689cc0a85e389134a4fdb879b7270)
+    #29 0x555560b50478  (/home/michael/coding/rust/noir/target/x86_64-unknown-linux-gnu/release/base_target+0xb5fc478) (BuildId: 331408a3e14689cc0a85e389134a4fdb879b7270)
+    #30 0x555560b4f7db  (/home/michael/coding/rust/noir/target/x86_64-unknown-linux-gnu/release/base_target+0xb5fb7db) (BuildId: 331408a3e14689cc0a85e389134a4fdb879b7270)
+    #31 0x555560b56db0  (/home/michael/coding/rust/noir/target/x86_64-unknown-linux-gnu/release/base_target+0xb602db0) (BuildId: 331408a3e14689cc0a85e389134a4fdb879b7270)
+    #32 0x555560b5f079  (/home/michael/coding/rust/noir/target/x86_64-unknown-linux-gnu/release/base_target+0xb60b079) (BuildId: 331408a3e14689cc0a85e389134a4fdb879b7270)
+    #33 0x555560b60052  (/home/michael/coding/rust/noir/target/x86_64-unknown-linux-gnu/release/base_target+0xb60c052) (BuildId: 331408a3e14689cc0a85e389134a4fdb879b7270)
+    #34 0x555560b60ec7  (/home/michael/coding/rust/noir/target/x86_64-unknown-linux-gnu/release/base_target+0xb60cec7) (BuildId: 331408a3e14689cc0a85e389134a4fdb879b7270)
+    #35 0x555560b716f3  (/home/michael/coding/rust/noir/target/x86_64-unknown-linux-gnu/release/base_target+0xb61d6f3) (BuildId: 331408a3e14689cc0a85e389134a4fdb879b7270)
+    #36 0x555560ba0aa6  (/home/michael/coding/rust/noir/target/x86_64-unknown-linux-gnu/release/base_target+0xb64caa6) (BuildId: 331408a3e14689cc0a85e389134a4fdb879b7270)
+    #37 0x7ffff782a1c9  (/lib/x86_64-linux-gnu/libc.so.6+0x2a1c9) (BuildId: 42c84c92e6f98126b3e2230ebfdead22c235b667)
+    #38 0x7ffff782a28a  (/lib/x86_64-linux-gnu/libc.so.6+0x2a28a) (BuildId: 42c84c92e6f98126b3e2230ebfdead22c235b667)
+    #39 0x55555a3cfae4  (/home/michael/coding/rust/noir/target/x86_64-unknown-linux-gnu/release/base_target+0x4e7bae4) (BuildId: 331408a3e14689cc0a85e389134a4fdb879b7270)
+
+NOTE: libFuzzer has rudimentary signal handlers.
+      Combine libFuzzer with AddressSanitizer or similar for better crash reports.
+SUMMARY: libFuzzer: deadly signal
+MS: 5 ChangeBinInt-CopyPart-ShuffleBytes-InsertByte-EraseBytes-; base unit: 7e0bacaa11ffa86eab5a1d2c45d27fe03470f977
+0xb1,0xb1,0xb1,0xb1,0xb1,0xb1,0xb1,0xb1,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0xcb,0xb1,0xb1,0xb1,0xb1,0xb1,0xb1,0xb1,0xb1,0xb1,0xb1,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0xff,0xff,0xff,0xff,0xb1,0xb1,0xb1,0xff,0xff,0xff,0xff,0xff,0xff,0x4c,0xb1,0xb1,0xb1,0xb1,0xff,0xff,0xff,0xff,0xff,0x3f,0xb1,0xb1,0xb1,0xb1,0x4f,0x4c,0xb1,0xb1,0xb1,0xb1,0xb1,0xb1,0xb1,0xb1,0x0,0x0,0x0,0xeb,0x7,0xfc,0xff,0x0,0x0,0xb1,0x1b,
+\261\261\261\261\261\261\261\261\000\000\000\000\000\000\000\000\000\000\313\261\261\261\261\261\261\261\261\261\261\000\000\000\000\000\000\000\000\000\000\377\377\377\377\261\261\261\377\377\377\377\377\377L\261\261\261\261\377\377\377\377\377?\261\261\261\261OL\261\261\261\261\261\261\261\261\000\000\000\353\007\374\377\000\000\261\033
+artifact_prefix='./fuzzer/artifacts/base_target/'; Test unit written to ./fuzzer/artifacts/base_target/crash-4cda6a561a36dfb9f998716c7452dc16598a255a
+Base64: sbGxsbGxsbEAAAAAAAAAAAAAy7GxsbGxsbGxsbEAAAAAAAAAAAAA/////7Gxsf///////0yxsbGx//////8/sbGxsU9MsbGxsbGxsbEAAADrB/z/AACxGw==
+
+────────────────────────────────────────────────────────────────────────────────
+
+Failing input:
+
+	./fuzzer/artifacts/base_target/crash-fc8bbff4e5f4a1e24ec0113be5d0f72bf22f2323
+
+Output of `std::fmt::Debug`:
+
+	FuzzerData {
+	    methods: [
+	        Cast {
+	            lhs: Argument {
+	                index: 11611313,
+	                value_type: Field,
+	            },
+	            type_: I8,
+	        },
+	        Xor {
+	            lhs: Argument {
+	                index: 9187360217644908955,
+	                value_type: I8,
+	            },
+	            rhs: Argument {
+	                index: 6378405591244758993,
+	                value_type: U64,
+	            },
+	        },
+	    ],
+	    initial_witness: [
+	        U64(
+	            476851725250993,
+	        ),
+	        Field(
+	            FieldRepresentation {
+	                high: 236195995862649367453729829867643535360,
+	                low: 288239181391853199325133932649887412657,
+	            },
+	        ),
+	        Field(
+	            FieldRepresentation {
+	                high: 0,
+	                low: 0,
+	            },
+	        ),
+	        Field(
+	            FieldRepresentation {
+	                high: 0,
+	                low: 0,
+	            },
+	        ),
+	        Field(
+	            FieldRepresentation {
+	                high: 0,
+	                low: 0,
+	            },
+	        ),
+	        Field(
+	            FieldRepresentation {
+	                high: 0,
+	                low: 0,
+	            },
+	        ),
+	        Field(
+	            FieldRepresentation {
+	                high: 0,
+	                low: 0,
+	            },
+	        ),
+	    ],
+	}
+
+Reproduce with:
+
+	cargo fuzz run --fuzz-dir ./fuzzer base_target ./fuzzer/artifacts/base_target/crash-fc8bbff4e5f4a1e24ec0113be5d0f72bf22f2323
+
+Minimize test case with:
+
+	cargo fuzz tmin --fuzz-dir ./fuzzer base_target ./fuzzer/artifacts/base_target/crash-fc8bbff4e5f4a1e24ec0113be5d0f72bf22f2323
+
+
+────────────────────────────────────────────────────────────────────────────────
+
+Failing input:
+
+	./fuzzer/artifacts/base_target/crash-3d75bb0e50f96f8e6a85ec074bd9940af518d09a
+
+Output of `std::fmt::Debug`:
+
+	FuzzerData {
+	    methods: [
+	        Cast {
+	            lhs: Argument {
+	                index: 12804210592339571121,
+	                value_type: Field,
+	            },
+	            type_: I8,
+	        },
+	        Cast {
+	            lhs: Argument {
+	                index: 12804210592332493233,
+	                value_type: I8,
+	            },
+	            type_: U32,
+	        },
+	        Mod {
+	            lhs: Argument {
+	                index: 7596844095265251444,
+	                value_type: U32,
+	            },
+	            rhs: Argument {
+	                index: 12804210592335490671,
+	                value_type: I8,
+	            },
+	        },
+	    ],
+	    initial_witness: [
+	        U64(
+	            13380671344642994609,
+	        ),
+	        U64(
+	            98,
+	        ),
+	        Field(
+	            FieldRepresentation {
+	                high: 0,
+	                low: 0,
+	            },
+	        ),
+	        Field(
+	            FieldRepresentation {
+	                high: 0,
+	                low: 0,
+	            },
+	        ),
+	        Field(
+	            FieldRepresentation {
+	                high: 0,
+	                low: 0,
+	            },
+	        ),
+	        Field(
+	            FieldRepresentation {
+	                high: 0,
+	                low: 0,
+	            },
+	        ),
+	        Field(
+	            FieldRepresentation {
+	                high: 0,
+	                low: 0,
+	            },
+	        ),
+	    ],
+	}
+
+Reproduce with:
+
+	cargo fuzz run --fuzz-dir ./fuzzer base_target ./fuzzer/artifacts/base_target/crash-3d75bb0e50f96f8e6a85ec074bd9940af518d09a
+
+Minimize test case with:
+
+	cargo fuzz tmin --fuzz-dir ./fuzzer base_target ./fuzzer/artifacts/base_target/crash-3d75bb0e50f96f8e6a85ec074bd9940af518d09a
+
+
+────────────────────────────────────────────────────────────────────────────────
+
+Failing input:
+
+	./fuzzer/artifacts/base_target/crash-4cda6a561a36dfb9f998716c7452dc16598a255a
+
+Output of `std::fmt::Debug`:
+
+	FuzzerData {
+	    methods: [
+	        Cast {
+	            lhs: Argument {
+	                index: 11645361,
+	                value_type: Field,
+	            },
+	            type_: I8,
+	        },
+	        Cast {
+	            lhs: Argument {
+	                index: 11645361,
+	                value_type: Field,
+	            },
+	            type_: I64,
+	        },
+	        Xor {
+	            lhs: Argument {
+	                index: 12804099877986369535,
+	                value_type: I64,
+	            },
+	            rhs: Argument {
+	                index: 12804210590432100351,
+	                value_type: I8,
+	            },
+	        },
+	        Cast {
+	            lhs: Argument {
+	                index: 18445626879701418161,
+	                value_type: Boolean,
+	            },
+	            type_: Field,
+	        },
+	    ],
+	    initial_witness: [
+	        Field(
+	            FieldRepresentation {
+	                high: 0,
+	                low: 0,
+	            },
+	        ),
+	        Field(
+	            FieldRepresentation {
+	                high: 0,
+	                low: 0,
+	            },
+	        ),
+	        Field(
+	            FieldRepresentation {
+	                high: 0,
+	                low: 0,
+	            },
+	        ),
+	        Field(
+	            FieldRepresentation {
+	                high: 0,
+	                low: 0,
+	            },
+	        ),
+	        Field(
+	            FieldRepresentation {
+	                high: 0,
+	                low: 0,
+	            },
+	        ),
+	        Field(
+	            FieldRepresentation {
+	                high: 0,
+	                low: 0,
+	            },
+	        ),
+	        Field(
+	            FieldRepresentation {
+	                high: 0,
+	                low: 0,
+	            },
+	        ),
+	    ],
+	}
+
+Reproduce with:
+
+	cargo fuzz run --fuzz-dir ./fuzzer base_target ./fuzzer/artifacts/base_target/crash-4cda6a561a36dfb9f998716c7452dc16598a255a
+
+Minimize test case with:
+
+	cargo fuzz tmin --fuzz-dir ./fuzzer base_target ./fuzzer/artifacts/base_target/crash-4cda6a561a36dfb9f998716c7452dc16598a255a
+
+
+────────────────────────────────────────────────────────────────────────────────
+
+Failing input:
+
+	./fuzzer/artifacts/base_target/crash-2543d3a637fb2a13284e687804c1bc4963eca245
+
+Output of `std::fmt::Debug`:
+
+	FuzzerData {
+	    methods: [
+	        Cast {
+	            lhs: Argument {
+	                index: 16325676184744369,
+	                value_type: Field,
+	            },
+	            type_: I8,
+	        },
+	        Cast {
+	            lhs: Argument {
+	                index: 0,
+	                value_type: Field,
+	            },
+	            type_: I64,
+	        },
+	        Xor {
+	            lhs: Argument {
+	                index: 8046713911189941009,
+	                value_type: I8,
+	            },
+	            rhs: Argument {
+	                index: 737319562155,
+	                value_type: I64,
+	            },
+	        },
+	        And {
+	            lhs: Argument {
+	                index: 3381643721,
+	                value_type: Field,
+	            },
+	            rhs: Argument {
+	                index: 27779924466139136,
+	                value_type: Field,
+	            },
+	        },
+	    ],
+	    initial_witness: [
+	        Field(
+	            FieldRepresentation {
+	                high: 0,
+	                low: 0,
+	            },
+	        ),
+	        Field(
+	            FieldRepresentation {
+	                high: 0,
+	                low: 0,
+	            },
+	        ),
+	        Field(
+	            FieldRepresentation {
+	                high: 0,
+	                low: 0,
+	            },
+	        ),
+	        Field(
+	            FieldRepresentation {
+	                high: 0,
+	                low: 0,
+	            },
+	        ),
+	        Field(
+	            FieldRepresentation {
+	                high: 0,
+	                low: 0,
+	            },
+	        ),
+	        Field(
+	            FieldRepresentation {
+	                high: 0,
+	                low: 0,
+	            },
+	        ),
+	        Field(
+	            FieldRepresentation {
+	                high: 0,
+	                low: 0,
+	            },
+	        ),
+	    ],
+	}
+
+Reproduce with:
+
+	cargo fuzz run --fuzz-dir ./fuzzer base_target ./fuzzer/artifacts/base_target/crash-2543d3a637fb2a13284e687804c1bc4963eca245
+
+Minimize test case with:
+
+	cargo fuzz tmin --fuzz-dir ./fuzzer base_target ./fuzzer/artifacts/base_target/crash-2543d3a637fb2a13284e687804c1bc4963eca245
+
+
+────────────────────────────────────────────────────────────────────────────────
+
+Failing input:
+
+	./fuzzer/artifacts/base_target/crash-eaef21f86e82d251de7bf830cbcacf8bf9cf50b0
+
+Output of `std::fmt::Debug`:
+
+	FuzzerData {
+	    methods: [
+	        Cast {
+	            lhs: Argument {
+	                index: 5454336000470908593,
+	                value_type: Field,
+	            },
+	            type_: I8,
+	        },
+	        Div {
+	            lhs: Argument {
+	                index: 11529215072728166734,
+	                value_type: U128,
+	            },
+	            rhs: Argument {
+	                index: 17381486299841078119,
+	                value_type: Field,
+	            },
+	        },
+	        Xor {
+	            lhs: Argument {
+	                index: 12763863072553511360,
+	                value_type: I8,
+	            },
+	            rhs: Argument {
+	                index: 12804101740688421120,
+	                value_type: U64,
+	            },
+	        },
+	    ],
+	    initial_witness: [
+	        U64(
+	            216054171485312,
+	        ),
+	        Field(
+	            FieldRepresentation {
+	                high: 0,
+	                low: 0,
+	            },
+	        ),
+	        Field(
+	            FieldRepresentation {
+	                high: 0,
+	                low: 0,
+	            },
+	        ),
+	        Field(
+	            FieldRepresentation {
+	                high: 0,
+	                low: 0,
+	            },
+	        ),
+	        Field(
+	            FieldRepresentation {
+	                high: 0,
+	                low: 0,
+	            },
+	        ),
+	        Field(
+	            FieldRepresentation {
+	                high: 0,
+	                low: 0,
+	            },
+	        ),
+	        Field(
+	            FieldRepresentation {
+	                high: 0,
+	                low: 0,
+	            },
+	        ),
+	    ],
+	}
+
+Reproduce with:
+
+	cargo fuzz run --fuzz-dir ./fuzzer base_target ./fuzzer/artifacts/base_target/crash-eaef21f86e82d251de7bf830cbcacf8bf9cf50b0
+
+Minimize test case with:
+
+	cargo fuzz tmin --fuzz-dir ./fuzzer base_target ./fuzzer/artifacts/base_target/crash-eaef21f86e82d251de7bf830cbcacf8bf9cf50b0
+
+────────────────────────────────────────────────────────────────────────────────
+
+Error: Fuzz target exited with exit status: 1

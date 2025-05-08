@@ -93,6 +93,9 @@ pub struct SsaEvaluatorOptions {
     /// When `None` the size increase check is skipped altogether and any decrease in the SSA
     /// instruction count is accepted.
     pub max_bytecode_increase_percent: Option<i32>,
+
+    /// Skip 'Ssa::remove_unreachable_functions'
+    pub skip_remove_unreachable: bool,
 }
 
 /// An SSA pass reified as a construct we can put into a list,
@@ -121,13 +124,23 @@ impl<'a> SsaPass<'a> {
 
 pub struct ArtifactsAndWarnings(pub Artifacts, pub Vec<SsaReport>);
 
+// run remove_unreachable_functions unless 'skip_remove_unreachable' is set
+// TODO: make into a better util
+fn opt_remove_unreachable_functions(skip_remove_unreachable: bool, msg: &'static str) -> SsaPass<'static> {
+    if skip_remove_unreachable {
+        SsaPass::new(|ssa| { ssa }, msg)
+    } else {
+        SsaPass::new(Ssa::remove_unreachable_functions, msg)
+    }
+}
+
 /// The default SSA optimization pipeline.
 ///
 /// After these passes everything is ready for execution, which is
 /// something we take can advantage of in the [secondary_passes].
 pub fn primary_passes(options: &SsaEvaluatorOptions) -> Vec<SsaPass> {
     vec![
-        SsaPass::new(Ssa::remove_unreachable_functions, "Removing Unreachable Functions"),
+        opt_remove_unreachable_functions(options.skip_remove_unreachable, "Removing Unreachable Functions"),
         SsaPass::new(Ssa::defunctionalize, "Defunctionalization"),
         SsaPass::new(
             Ssa::inline_functions_with_at_most_one_instruction,
@@ -146,7 +159,7 @@ pub fn primary_passes(options: &SsaEvaluatorOptions) -> Vec<SsaPass> {
         SsaPass::new(Ssa::mem2reg, "Mem2Reg"),
         SsaPass::new(Ssa::simplify_cfg, "Simplifying"),
         SsaPass::new(Ssa::as_slice_optimization, "`as_slice` optimization"),
-        SsaPass::new(Ssa::remove_unreachable_functions, "Removing Unreachable Functions"),
+        opt_remove_unreachable_functions(options.skip_remove_unreachable, "Removing Unreachable Functions"),
         SsaPass::new_try(
             Ssa::evaluate_static_assert_and_assert_constant,
             "`static_assert` and `assert_constant`",
@@ -191,7 +204,7 @@ pub fn primary_passes(options: &SsaEvaluatorOptions) -> Vec<SsaPass> {
         // The used globals map is determined during DIE, so we should duplicate entry points before a DIE pass run.
         SsaPass::new(Ssa::brillig_entry_point_analysis, "Brillig Entry Point Analysis"),
         // Remove any potentially unnecessary duplication from the Brillig entry point analysis.
-        SsaPass::new(Ssa::remove_unreachable_functions, "Removing Unreachable Functions"),
+        opt_remove_unreachable_functions(options.skip_remove_unreachable, "Removing Unreachable Functions"),
         SsaPass::new(Ssa::remove_truncate_after_range_check, "Removing Truncate after RangeCheck"),
         // This pass makes transformations specific to Brillig generation.
         // It must be the last pass to either alter or add new instructions before Brillig generation,
@@ -202,7 +215,7 @@ pub fn primary_passes(options: &SsaEvaluatorOptions) -> Vec<SsaPass> {
         SsaPass::new(Ssa::brillig_array_gets, "Brillig Array Get Optimizations"),
         SsaPass::new(Ssa::dead_instruction_elimination, "Dead Instruction Elimination"),
         // A function can be potentially unreachable post-DIE if all calls to that function were removed.
-        SsaPass::new(Ssa::remove_unreachable_functions, "Removing Unreachable Functions"),
+        opt_remove_unreachable_functions(options.skip_remove_unreachable, "Removing Unreachable Functions"),
         SsaPass::new(Ssa::checked_to_unchecked, "Checked to unchecked"),
     ]
 }
@@ -210,14 +223,17 @@ pub fn primary_passes(options: &SsaEvaluatorOptions) -> Vec<SsaPass> {
 /// The second SSA pipeline, in which we take the Brillig functions compiled after
 /// the primary pipeline, and execute the ones with all-constant arguments,
 /// to replace the calls with the return value.
-pub fn secondary_passes(brillig: &Brillig) -> Vec<SsaPass> {
-    vec![
-        SsaPass::new(move |ssa| ssa.fold_constants_with_brillig(brillig), "Inlining Brillig Calls"),
-        // It could happen that we inlined all calls to a given brillig function.
-        // In that case it's unused so we can remove it. This is what we check next.
-        SsaPass::new(Ssa::remove_unreachable_functions, "Removing Unreachable Functions"),
-        SsaPass::new(Ssa::dead_instruction_elimination_acir, "Dead Instruction Elimination"),
-    ]
+pub fn secondary_passes<'a>(options: &'a SsaEvaluatorOptions) -> impl for<'b> Fn(&'b Brillig) -> Vec<SsaPass<'b>> + 'a
+{
+    |brillig: &Brillig| {
+        vec![
+            SsaPass::new(move |ssa| ssa.fold_constants_with_brillig(brillig), "Inlining Brillig Calls"),
+            // It could happen that we inlined all calls to a given brillig function.
+            // In that case it's unused so we can remove it. This is what we check next.
+            opt_remove_unreachable_functions(options.skip_remove_unreachable, "Removing Unreachable Functions"),
+            SsaPass::new(Ssa::dead_instruction_elimination_acir, "Dead Instruction Elimination"),
+        ]
+    }
 }
 
 /// For testing purposes we want a list of the minimum number of SSA passes that should
@@ -419,7 +435,7 @@ pub fn create_program(
     program: Program,
     options: &SsaEvaluatorOptions,
 ) -> Result<SsaProgramArtifact, RuntimeError> {
-    create_program_with_passes(program, options, &primary_passes(options), secondary_passes)
+    create_program_with_passes(program, options, &primary_passes(options), secondary_passes(options))
 }
 
 /// Compiles the [`Program`] into [`ACIR`][acvm::acir::circuit::Program] using the minimum amount of SSA passes.

@@ -66,7 +66,7 @@ fn optimize_into_acir(
             builder,
             &options,
             &primary_passes(&options),
-            secondary_passes,
+            secondary_passes(&options),
         )
     }));
     std::panic::set_hook(previous_hook);
@@ -212,6 +212,9 @@ fn generate_abi() -> Abi {
 pub fn compile(
     builder: FunctionBuilder,
     options: &CompileOptions,
+
+    // TODO
+    skip_remove_unreachable: bool,
 ) -> Result<CompiledProgram, CompileError> {
     let ssa_evaluator_options = SsaEvaluatorOptions {
         ssa_logging: match &options.show_ssa_pass {
@@ -233,6 +236,9 @@ pub fn compile(
         max_bytecode_increase_percent: options.max_bytecode_increase_percent,
         brillig_options: BrilligOptions::default(),
         enable_brillig_constraints_check_lookback: false,
+
+        // TODO!
+        skip_remove_unreachable,
     };
     let SsaProgramArtifact { program, debug, warnings, names, brillig_names, .. } =
         create_program(builder, ssa_evaluator_options)?;
