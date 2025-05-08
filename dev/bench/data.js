@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1746745093641,
+  "lastUpdate": 1746745096601,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -3705,95 +3705,6 @@ window.BENCHMARK_DATA = {
       }
     ],
     "Compilation Time": [
-      {
-        "commit": {
-          "author": {
-            "email": "asterite@gmail.com",
-            "name": "Ary Borenszweig",
-            "username": "asterite"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "09d55f62373572e88017c986f1cf657697dc99d2",
-          "message": "feat: better error message on unicode whitespace that isn't ascii whitespace (#8295)\n\nCo-authored-by: Tom French <15848336+TomAFrench@users.noreply.github.com>",
-          "timestamp": "2025-04-30T18:40:15Z",
-          "tree_id": "3b9ab86613ce9783e5aed7bf2e715266367e05c4",
-          "url": "https://github.com/noir-lang/noir/commit/09d55f62373572e88017c986f1cf657697dc99d2"
-        },
-        "date": 1746040126876,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "regression_4709",
-            "value": 0.68,
-            "unit": "s"
-          },
-          {
-            "name": "ram_blowup_regression",
-            "value": 12.9,
-            "unit": "s"
-          },
-          {
-            "name": "global_var_regression_entry_points",
-            "value": 0.5,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-inner",
-            "value": 2.238,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 6.566,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 1.168,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 16.56,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 13.04,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root-empty",
-            "value": 1.254,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root-single-tx",
-            "value": 129,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 124,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 1.062,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-root",
-            "value": 1.6,
-            "unit": "s"
-          }
-        ]
-      },
       {
         "commit": {
           "author": {
@@ -8151,6 +8062,95 @@ window.BENCHMARK_DATA = {
           {
             "name": "rollup-root",
             "value": 1.584,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "mvezenov@gmail.com",
+            "name": "Maxim Vezenov",
+            "username": "vezenovm"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "b42264b75875f6edbb6f718408be104291c0de33",
+          "message": "chore(acir): Test whether the predicate has an effect on slice intrinsics (#8421)",
+          "timestamp": "2025-05-08T22:33:20Z",
+          "tree_id": "975e8a85a8d7d42a72d5098ed284cae3401647e2",
+          "url": "https://github.com/noir-lang/noir/commit/b42264b75875f6edbb6f718408be104291c0de33"
+        },
+        "date": 1746745086756,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "regression_4709",
+            "value": 0.652,
+            "unit": "s"
+          },
+          {
+            "name": "ram_blowup_regression",
+            "value": 12.6,
+            "unit": "s"
+          },
+          {
+            "name": "global_var_regression_entry_points",
+            "value": 0.346,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-inner",
+            "value": 2.244,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 6.384,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 1.142,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 17.36,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 13.2,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-empty",
+            "value": 1.248,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-single-tx",
+            "value": 119,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 128,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 1.06,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-root",
+            "value": 1.6,
             "unit": "s"
           }
         ]
