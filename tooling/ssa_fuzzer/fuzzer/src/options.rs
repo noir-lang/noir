@@ -24,9 +24,3 @@ pub struct FuzzerOptions {
     pub constant_execution_enabled: bool,
     pub idempotent_morphing_enabled: bool,
 }
-
-impl FuzzerOptions {
-    pub fn new(constant_execution_enabled: bool, idempotent_morphing_enabled: bool) -> Self {
-        Self { constant_execution_enabled, idempotent_morphing_enabled }
-    }
-}

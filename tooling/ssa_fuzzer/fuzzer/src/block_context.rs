@@ -41,8 +41,6 @@ fn get_typed_value_from_map(
     arr?;
     let arr = arr.unwrap();
     let value = arr.get(idx % arr.len());
-    log::debug!("value: {:?}", value);
-    log::debug!("index_mod_len: {:?}, idx: {:?}, arr_len: {:?}", idx % arr.len(), idx, arr.len());
     value?;
     Some(value.unwrap().clone())
 }
@@ -259,7 +257,79 @@ impl BlockContext {
                     |builder, lhs, rhs| builder.insert_xor_instruction(lhs, rhs),
                 );
             }
-            _ => {}
+            Instruction::AddSubConstrain { lhs, rhs } => {
+                // inserts lhs' = lhs + rhs
+                let lhs_orig =
+                    get_typed_value_from_map(&self.stored_values, &ValueType::Field, lhs);
+                let rhs = get_typed_value_from_map(&self.stored_values, &ValueType::Field, rhs);
+                let (lhs_orig, rhs) = match (lhs_orig, rhs) {
+                    (Some(lhs_orig), Some(rhs)) => (lhs_orig, rhs),
+                    _ => return,
+                };
+                // assert ids of add are the same for both builders
+                let lhs_add_rhs =
+                    acir_builder.insert_add_instruction_checked(lhs_orig.clone(), rhs.clone());
+                log::debug!("adding lhs {:?} and rhs {:?}", lhs_orig, rhs);
+                log::debug!("lhs_add_rhs: {:?}", lhs_add_rhs);
+                assert_eq!(
+                    lhs_add_rhs.value_id,
+                    brillig_builder
+                        .insert_add_instruction_checked(lhs_orig.clone(), rhs.clone())
+                        .value_id,
+                );
+                // inserts lhs'' = lhs' - rhs
+                let lhs = lhs_add_rhs;
+                let morphed = acir_builder.insert_sub_instruction_checked(lhs.clone(), rhs.clone());
+                log::debug!("subbing lhs {:?} and rhs {:?}", lhs, rhs);
+                log::debug!("morphed: {:?}", morphed);
+                // assert ids of sub are the same for both builders
+                assert_eq!(
+                    morphed.value_id,
+                    brillig_builder
+                        .insert_sub_instruction_checked(lhs.clone(), rhs.clone())
+                        .value_id,
+                );
+
+                if !self.options.idempotent_morphing_enabled {
+                    return;
+                }
+
+                acir_builder.insert_constrain(lhs_orig.clone(), morphed.clone());
+                brillig_builder.insert_constrain(lhs_orig.clone(), morphed.clone());
+            }
+            Instruction::MulDivConstrain { lhs, rhs } => {
+                let lhs_orig =
+                    get_typed_value_from_map(&self.stored_values, &ValueType::Field, lhs);
+                let rhs = get_typed_value_from_map(&self.stored_values, &ValueType::Field, rhs);
+                let (lhs_orig, rhs) = match (lhs_orig, rhs) {
+                    (Some(lhs_orig), Some(rhs)) => (lhs_orig, rhs),
+                    _ => return,
+                };
+                // inserts lhs' = lhs * rhs
+                // assert ids of mul are the same for both builders
+                let lhs_mul_rhs =
+                    acir_builder.insert_mul_instruction_checked(lhs_orig.clone(), rhs.clone());
+                assert_eq!(
+                    lhs_mul_rhs.value_id,
+                    brillig_builder
+                        .insert_mul_instruction_checked(lhs_orig.clone(), rhs.clone())
+                        .value_id,
+                );
+                // inserts lhs'' = lhs' / rhs
+                let lhs = lhs_mul_rhs;
+                // insert to both builders, assert ids of div are the same
+                let morphed = acir_builder.insert_div_instruction(lhs.clone(), rhs.clone());
+                assert_eq!(
+                    morphed.value_id,
+                    brillig_builder.insert_div_instruction(lhs.clone(), rhs.clone()).value_id,
+                );
+
+                if !self.options.idempotent_morphing_enabled {
+                    return;
+                }
+                acir_builder.insert_constrain(lhs_orig.clone(), morphed.clone());
+                brillig_builder.insert_constrain(lhs_orig.clone(), morphed.clone());
+            }
         }
     }
 
@@ -286,17 +356,11 @@ impl BlockContext {
                 brillig_builder.finalize_function(&last_value);
             }
             _ => {
-                // If no last value was set, use the first value from the first type in each map
-                let first_type =
-                    self.stored_values.keys().next().expect("Should have at least one type");
-
-                let function_result = self
-                    .stored_values
-                    .get(first_type)
-                    .and_then(|values| values.first().cloned())
-                    .expect("Should have at least one value");
-                acir_builder.finalize_function(&function_result);
-                brillig_builder.finalize_function(&function_result);
+                // If no last value was set, we return boolean, that definitely  set
+                let last_value =
+                    get_typed_value_from_map(&self.stored_values, &ValueType::Boolean, 0).unwrap();
+                acir_builder.finalize_function(&last_value);
+                brillig_builder.finalize_function(&last_value);
             }
         }
     }

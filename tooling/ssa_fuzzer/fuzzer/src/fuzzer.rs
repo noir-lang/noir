@@ -78,14 +78,18 @@ impl Fuzzer {
         }
     }
 
-    fn run_context(&mut self, context: FuzzerContext, initial_witness: WitnessMap<FieldElement>) {
+    fn run_context(
+        &mut self,
+        context: FuzzerContext,
+        initial_witness: WitnessMap<FieldElement>,
+    ) -> Option<FieldElement> {
         let (acir_return_witness, brillig_return_witness) = context.get_return_witnesses();
         Self::execute_and_compare(
             context,
             initial_witness,
             acir_return_witness,
             brillig_return_witness,
-        );
+        )
     }
 
     /// Finalizes the function for both contexts, executes and compares the results
@@ -111,12 +115,13 @@ impl Fuzzer {
         if let Some(context) = self.context_non_constant_with_idempotent_morphing.take() {
             let mut context_with_idempotent_morphin = context;
             context_with_idempotent_morphin.finalize(return_instruction_block_idx);
-            let constant_result =
+            let result_with_constrains =
                 self.run_context(context_with_idempotent_morphin, initial_witness);
             assert_eq!(
-                non_constant_result, constant_result,
+                non_constant_result, result_with_constrains,
                 "Non-constant and idempotent morphing contexts should return the same result"
             );
+            log::debug!("result_with_constrains: {:?}", result_with_constrains);
         }
     }
 

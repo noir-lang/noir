@@ -61,6 +61,12 @@ libfuzzer_sys::fuzz_target!(|data: FuzzerData| {
     if data.blocks.is_empty() {
         return;
     }
+    for instr_block in &data.blocks {
+        if instr_block.instructions.is_empty() {
+            return;
+        }
+    }
+
     for (i, witness_value) in data.initial_witness.iter().enumerate() {
         let (value, type_) = match witness_value {
             WitnessValue::Field(field) => (FieldElement::from(field), ValueType::Field),
@@ -81,7 +87,12 @@ libfuzzer_sys::fuzz_target!(|data: FuzzerData| {
     log::debug!("initial_witness_in_data: {:?}", data.initial_witness);
     log::debug!("commands: {:?}", data.commands);
 
-    let mut fuzzer = Fuzzer::new(types, values, data.blocks, FuzzerOptions::new(false, false));
+    let mut fuzzer = Fuzzer::new(
+        types,
+        values,
+        data.blocks,
+        FuzzerOptions { constant_execution_enabled: false, idempotent_morphing_enabled: true },
+    );
     for command in data.commands {
         fuzzer.process_fuzzer_command(command);
     }

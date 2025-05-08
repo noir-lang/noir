@@ -348,6 +348,11 @@ impl FuzzerBuilder {
         let id = self.builder.numeric_constant(value.into(), type_.to_numeric_type());
         TypedValue::new(id, type_.to_ssa_type())
     }
+
+    pub fn insert_constrain(&mut self, lhs: TypedValue, rhs: TypedValue) {
+        self.builder.insert_constrain(lhs.value_id, rhs.value_id, None);
+    }
+
     /// Gets the index of the entry block
     pub fn get_current_block(&mut self) -> BasicBlockId {
         self.builder.get_current_block_index()

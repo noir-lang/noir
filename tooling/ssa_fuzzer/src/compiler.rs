@@ -2,7 +2,7 @@ use acvm::{
     FieldElement,
     acir::circuit::{AcirOpcodeLocation, Circuit, ExpressionWidth, OpcodeLocation},
 };
-use std::collections::{BTreeMap, BTreeSet, HashMap};
+use std::collections::{BTreeMap, BTreeSet};
 
 use crate::config::NUMBER_OF_VARIABLES_INITIAL;
 use acvm::acir::circuit::PublicInputs;
@@ -22,6 +22,7 @@ use noirc_evaluator::{
         optimize_ssa_builder_into_acir, primary_passes, secondary_passes,
     },
 };
+use std::collections::HashMap;
 
 use std::panic::AssertUnwindSafe;
 
@@ -40,6 +41,7 @@ fn optimize_into_acir(
         ssa_logging: SsaLogging::None,
         print_codegen_timings: false,
         passed: HashMap::new(),
+        skip_passes: vec![],
     };
     let previous_hook = std::panic::take_hook();
     let panic_message = std::sync::Arc::new(std::sync::Mutex::new(String::new()));
@@ -233,6 +235,7 @@ pub fn compile(
         max_bytecode_increase_percent: options.max_bytecode_increase_percent,
         brillig_options: BrilligOptions::default(),
         enable_brillig_constraints_check_lookback: false,
+        skip_passes: Default::default(),
     };
     let SsaProgramArtifact { program, debug, warnings, names, brillig_names, .. } =
         create_program(builder, ssa_evaluator_options)?;
