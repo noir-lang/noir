@@ -294,48 +294,6 @@ jobs:
           retention-days: 3
           overwrite: true
 
-  generate_compilation_and_execution_report:
-    name: Compilation and execution time
-    needs: [build-nargo]
-    runs-on: ubuntu-22.04
-    timeout-minutes: 20
-    permissions:
-      pull-requests: write
-
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Download nargo binary
-        uses: ./.github/actions/download-nargo
-
-      - name: Generate Compilation report
-        working-directory: ./test_programs
-        run: |
-          ./compilation_report.sh 0 1
-          mv compilation_report.json ../compilation_report.json
-
-      - name: Generate Execution report
-        working-directory: ./test_programs
-        run: |
-          ./execution_report.sh 0 1
-          mv execution_report.json ../execution_report.json
-
-      - name: Upload compilation report
-        uses: actions/upload-artifact@v4
-        with:
-          name: in_progress_compilation_report
-          path: compilation_report.json
-          retention-days: 3
-          overwrite: true
-
-      - name: Upload execution report
-        uses: actions/upload-artifact@v4
-        with:
-          name: in_progress_execution_report
-          path: execution_report.json
-          retention-days: 3
-          overwrite: true
-
   external_repo_reports:
     needs: [build-nargo, benchmark-projects-list]
     runs-on: ubuntu-22.04
@@ -535,7 +493,7 @@ jobs:
 
   upload_compilation_reports:
     name: Upload compilation reports
-    needs: [generate_compilation_and_execution_report, external_repo_reports]
+    needs: [external_repo_reports]
     timeout-minutes: 5
     # We want this job to run even if one variation of the matrix in `external_repo_reports` fails
     if: always()
