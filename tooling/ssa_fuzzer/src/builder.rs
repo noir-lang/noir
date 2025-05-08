@@ -64,9 +64,9 @@ impl FuzzerBuilder {
     }
 
     /// Compiles the built function into a CompiledProgram, to run it with nargo execute
-    pub fn compile(self) -> Result<CompiledProgram, FuzzerBuilderError> {
+    pub fn compile(self, skip_unreachable: bool) -> Result<CompiledProgram, FuzzerBuilderError> {
         let result = std::panic::catch_unwind(AssertUnwindSafe(|| {
-            compile(self.builder, &CompileOptions::default())
+            compile(self.builder, &CompileOptions::default(), skip_unreachable)
         }));
         match result {
             Ok(result) => match result {

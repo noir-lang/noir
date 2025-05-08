@@ -509,6 +509,8 @@ impl FuzzerContext {
         self,
     ) -> (Result<CompiledProgram, FuzzerBuilderError>, Result<CompiledProgram, FuzzerBuilderError>)
     {
-        (self.acir_builder.compile(), self.brillig_builder.compile())
+        let skip_unreachable_acir = true;
+        let skip_unreachable_brillig = false;
+        (self.acir_builder.compile(skip_unreachable_acir), self.brillig_builder.compile(skip_unreachable_brillig))
     }
 }
