@@ -713,6 +713,9 @@ impl SsaBuilder {
     }
 
     fn print(mut self, msg: &str) -> Self {
+        // TODO: disable this always-print option
+        self.ssa_logging = SsaLogging::All;
+
         // Always normalize if we are going to print at least one of the passes
         if !matches!(self.ssa_logging, SsaLogging::None) {
             self.ssa.normalize_ids();
@@ -732,6 +735,26 @@ impl SsaBuilder {
         if print_ssa_pass {
             println!("After {msg}:\n{}", self.ssa);
         }
+
+        // TODO: BEGIN: quick hack for audit
+        let counter_path = Path::new("./counter.txt");
+        // make counter file if missing
+        if !counter_path.is_file() {
+            std::fs::write(counter_path, 0u64.to_string()).expect("Unable to write counter file");
+        }
+        // read counter from file
+        let mut counter: u64 = std::fs::read_to_string(counter_path).expect("Unable to read counter file").parse().unwrap();
+
+        // write to input_[counter].ssa
+        let output_file = PathBuf::from(format!("./input_{counter}.ssa"));
+        std::fs::write(output_file, format!("{}", self.ssa)).expect("Unable to write output file");
+
+        // update counter in file
+        counter += 1;
+        let counter_str = counter.to_string();
+        std::fs::write(counter_path, counter_str).expect("Unable to write counter file");
+        // TODO: END: quick hack for audit
+
         self
     }
 }
