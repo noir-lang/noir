@@ -112,6 +112,69 @@ mod test {
     }
 
     #[test]
+    fn does_not_inline_functions_that_require_multiple_passes() {
+        let src = "
+        acir(inline) fn main f0 {
+          b0(v0: Field):
+            v1 = call f2(v0) -> Field
+            return v1
+        }
+
+        acir(inline) fn foo f1 {
+          b0(v0: Field):
+            return v0
+        }
+
+        acir(inline) fn bar f2 {
+          b0(v0: Field):
+            v1 = call f1(v0) -> Field
+            v2 = call f1(v0) -> Field
+            v3 = add v1, v2
+            return v3
+        }
+        ";
+        let ssa = Ssa::from_str(src).unwrap();
+
+        // In the first pass it won't recognize that `main` could be simplified.
+        let ssa = ssa.inline_functions_with_at_most_one_instruction();
+        assert_ssa_snapshot!(ssa.clone(), @r"
+        acir(inline) fn main f0 {
+          b0(v0: Field):
+            v2 = call f2(v0) -> Field
+            return v2
+        }
+        acir(inline) fn foo f1 {
+          b0(v0: Field):
+            return v0
+        }
+        acir(inline) fn bar f2 {
+          b0(v0: Field):
+            v1 = add v0, v0
+            return v1
+        }
+        ");
+
+        // After `bar` has been simplified, it does `main` as well.
+        let ssa = ssa.inline_functions_with_at_most_one_instruction();
+        assert_ssa_snapshot!(ssa, @r"
+        acir(inline) fn main f0 {
+          b0(v0: Field):
+            v1 = add v0, v0
+            return v1
+        }
+        acir(inline) fn foo f1 {
+          b0(v0: Field):
+            return v0
+        }
+        acir(inline) fn bar f2 {
+          b0(v0: Field):
+            v1 = add v0, v0
+            return v1
+        }
+        ");
+    }
+
+    #[test]
     fn inline_functions_with_one_instruction() {
         let src = "
         acir(inline) fn main f0 {
