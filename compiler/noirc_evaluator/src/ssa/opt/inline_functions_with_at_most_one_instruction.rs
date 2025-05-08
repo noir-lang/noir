@@ -183,4 +183,23 @@ mod test {
         ";
         assert_does_not_inline(src);
     }
+
+    #[test]
+    fn does_not_inline_function_with_multiple_instructions() {
+        let src = "
+        acir(inline) fn main f0 {
+          b0(v0: Field):
+            v1 = call f1(v0) -> Field
+            return v1
+        }
+
+        acir(inline) fn foo f1 {
+          b0(v0: Field):
+            v1 = add v0, Field 1
+            v2 = mul v1, Field 2
+            return v2
+        }
+        ";
+        assert_does_not_inline(src);
+    }
 }
