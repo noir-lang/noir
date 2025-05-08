@@ -134,6 +134,14 @@ impl Elaborator<'_> {
                     }
                 };
 
+                if fields.len() != field_types.len() {
+                    self.push_err(TypeCheckError::TupleMismatch {
+                        tuple_types: field_types.clone(),
+                        actual_count: fields.len(),
+                        location,
+                    });
+                }
+
                 let fields = vecmap(fields.into_iter().enumerate(), |(i, field)| {
                     let field_type = field_types.get(i).cloned().unwrap_or(Type::Error);
                     self.elaborate_pattern_mut(
