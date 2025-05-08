@@ -64,9 +64,9 @@ impl Interpreter<'_> {
             Intrinsic::SliceInsert => self.slice_insert(args),
             Intrinsic::SliceRemove => self.slice_remove(args),
             Intrinsic::ApplyRangeConstraint => {
-                unreachable!(
-                    "Intrinsic::ApplyRangeConstraint should have been converted to a RangeCheck instruction"
-                );
+                Err(InterpreterError::Internal(InternalError::UnexpectedInstruction {
+                    reason: "Intrinsic::ApplyRangeConstraint should have been converted to a RangeCheck instruction",
+                }))
             }
             // Both of these are no-ops
             Intrinsic::StrAsBytes | Intrinsic::AsWitness => {
@@ -101,13 +101,19 @@ impl Interpreter<'_> {
                     Ok(vec![result])
                 }
                 acvm::acir::BlackBoxFunc::AND => {
-                    unreachable!("AND instruction should have already been evaluated");
+                    Err(InterpreterError::Internal(InternalError::UnexpectedInstruction {
+                        reason: "AND instruction should have already been evaluated",
+                    }))
                 }
                 acvm::acir::BlackBoxFunc::XOR => {
-                    unreachable!("XOR instruction should have already been evaluated");
+                    Err(InterpreterError::Internal(InternalError::UnexpectedInstruction {
+                        reason: "XOR instruction should have already been evaluated",
+                    }))
                 }
                 acvm::acir::BlackBoxFunc::RANGE => {
-                    unreachable!("RANGE instruction should have already been evaluated")
+                    Err(InterpreterError::Internal(InternalError::UnexpectedInstruction {
+                        reason: "RANGE instruction should have already been evaluated",
+                    }))
                 }
                 acvm::acir::BlackBoxFunc::Blake2s => {
                     check_argument_count(args, 1, intrinsic)?;
@@ -135,13 +141,31 @@ impl Interpreter<'_> {
                     let y = self.lookup_bytes(args[1], "call EcdsaSecp256k1 BlackBox")?;
                     let s = self.lookup_bytes(args[2], "call EcdsaSecp256k1 BlackBox")?;
                     let m = self.lookup_bytes(args[3], "call EcdsaSecp256k1 BlackBox")?;
-                    let x_array: &[u8; 32] = &x.try_into().expect("Public key x must be 32 bytes");
-                    let y_array: &[u8; 32] = &y.try_into().expect("Public key y must be 32 bytes");
-                    let s_array: &[u8; 64] = &s.try_into().expect("Signature must be 64 bytes");
+                    let x_len = x.len();
+                    let x_array: &[u8; 32] = &x.try_into().map_err(|_| {
+                        InterpreterError::Internal(InternalError::InvalidInputSize {
+                            expected_size: 32,
+                            size: x_len,
+                        })
+                    })?;
+                    let y_len = y.len();
+                    let y_array: &[u8; 32] = &y.try_into().map_err(|_| {
+                        InterpreterError::Internal(InternalError::InvalidInputSize {
+                            expected_size: 32,
+                            size: y_len,
+                        })
+                    })?;
+                    let s_len = s.len();
+                    let s_array: &[u8; 64] = &s.try_into().map_err(|_| {
+                        InterpreterError::Internal(InternalError::InvalidInputSize {
+                            expected_size: 64,
+                            size: s_len,
+                        })
+                    })?;
                     let result = acvm::blackbox_solver::ecdsa_secp256k1_verify(
                         &m, x_array, y_array, s_array,
                     )
-                    .unwrap();
+                    .map_err(Self::convert_error)?;
                     Ok(vec![Value::from_constant(
                         result.into(),
                         NumericType::Unsigned { bit_size: 1 },
@@ -153,13 +177,31 @@ impl Interpreter<'_> {
                     let y = self.lookup_bytes(args[1], "call EcdsaSecp256r1 BlackBox")?;
                     let s = self.lookup_bytes(args[2], "call EcdsaSecp256r1 BlackBox")?;
                     let m = self.lookup_bytes(args[3], "call EcdsaSecp256r1 BlackBox")?;
-                    let x_array: &[u8; 32] = &x.try_into().expect("Public key x must be 32 bytes");
-                    let y_array: &[u8; 32] = &y.try_into().expect("Public key y must be 32 bytes");
-                    let s_array: &[u8; 64] = &s.try_into().expect("Signature must be 64 bytes");
+                    let x_len = x.len();
+                    let x_array: &[u8; 32] = &x.try_into().map_err(|_| {
+                        InterpreterError::Internal(InternalError::InvalidInputSize {
+                            expected_size: 32,
+                            size: x_len,
+                        })
+                    })?;
+                    let y_len = y.len();
+                    let y_array: &[u8; 32] = &y.try_into().map_err(|_| {
+                        InterpreterError::Internal(InternalError::InvalidInputSize {
+                            expected_size: 32,
+                            size: y_len,
+                        })
+                    })?;
+                    let s_len = s.len();
+                    let s_array: &[u8; 64] = &s.try_into().map_err(|_| {
+                        InterpreterError::Internal(InternalError::InvalidInputSize {
+                            expected_size: 64,
+                            size: s_len,
+                        })
+                    })?;
                     let result = acvm::blackbox_solver::ecdsa_secp256r1_verify(
                         &m, x_array, y_array, s_array,
                     )
-                    .unwrap();
+                    .map_err(Self::convert_error)?;
                     Ok(vec![Value::from_constant(
                         result.into(),
                         NumericType::Unsigned { bit_size: 1 },

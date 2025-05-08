@@ -138,4 +138,8 @@ pub(crate) enum InternalError {
         actual_length: usize,
         element_types: Vec<String>,
     },
+    #[error("Unexpected instruction: `{reason}`")]
+    UnexpectedInstruction { reason: &'static str },
+    #[error("Expected array of {expected_size} elements, got {size}")]
+    InvalidInputSize { expected_size: usize, size: usize },
 }
