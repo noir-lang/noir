@@ -728,6 +728,9 @@ impl ItemPrinter<'_, '_, '_> {
 
                 self.push_str(&name);
             }
+            DefinitionKind::AssociatedConstant(..) => {
+                todo!()
+            }
         }
     }
 
