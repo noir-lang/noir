@@ -533,7 +533,7 @@ jobs:
             exit 1
           fi
 
-  upload_reports:
+  upload_compilation_reports:
     name: Upload reports
     needs: [generate_compilation_and_execution_report, external_repo_reports]
     timeout-minutes: 5
@@ -550,12 +550,6 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      # - name: Download initial compilation report
-      #   uses: actions/download-artifact@v4
-      #   with:
-      #     name: in_progress_compilation_report
-      #     path: ./reports
-
       - name: Download matrix compilation reports
         uses: actions/download-artifact@v4
         with:
@@ -567,7 +561,6 @@ jobs:
         run: |
           # Github actions seems to not expand "**" in globs by default.
           shopt -s globstar
-          jq --slurp '.' ./reports/*
           jq --slurp 'map(.compilation_time | select(.))' ./reports/* | tee time_bench.json
 
       - name: Store benchmark result
@@ -585,6 +578,30 @@ jobs:
           fail-on-alert: false
           alert-comment-cc-users: "@TomAFrench"
           max-items-in-chart: 50
+
+  upload_execution_reports:
+    name: Upload execution reports
+    needs: [external_repo_reports]
+    timeout-minutes: 5
+    # We want this job to run even if one variation of the matrix in `external_repo_reports` fails
+    if: always()
+    runs-on: ubuntu-22.04
+    permissions:
+      pull-requests: write
+      # deployments permission to deploy GitHub pages website
+      deployments: write
+      # contents permission to update benchmark contents in gh-pages branch
+      contents: write
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download matrix compilation reports
+        uses: actions/download-artifact@v4
+        with:
+          pattern: external_report_*
+          path: ./reports
+          merge-multiple: true
 
       - name: Merge execution reports using jq
         run: |
@@ -607,6 +624,30 @@ jobs:
           fail-on-alert: false
           alert-comment-cc-users: "@TomAFrench"
           max-items-in-chart: 50
+
+  upload_artifact_reports:
+    name: Upload artifact reports
+    needs: [external_repo_reports]
+    timeout-minutes: 5
+    # We want this job to run even if one variation of the matrix in `external_repo_reports` fails
+    if: always()
+    runs-on: ubuntu-22.04
+    permissions:
+      pull-requests: write
+      # deployments permission to deploy GitHub pages website
+      deployments: write
+      # contents permission to update benchmark contents in gh-pages branch
+      contents: write
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download matrix compilation reports
+        uses: actions/download-artifact@v4
+        with:
+          pattern: external_report_*
+          path: ./reports
+          merge-multiple: true
 
       - name: Merge artifact size reports using jq
         run: |
@@ -742,7 +783,9 @@ jobs:
     if: ${{ always() }}
     needs:
       - rust_benchmarks
-      - upload_reports
+      - upload_compilation_reports
+      - upload_execution_reports
+      - upload_artifact_reports
       - upload_compilation_memory_report
       - upload_execution_memory_report
 
