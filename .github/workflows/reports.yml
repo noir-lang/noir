@@ -534,7 +534,7 @@ jobs:
           fi
 
   upload_compilation_reports:
-    name: Upload reports
+    name: Upload compilation reports
     needs: [generate_compilation_and_execution_report, external_repo_reports]
     timeout-minutes: 5
     # We want this job to run even if one variation of the matrix in `external_repo_reports` fails
