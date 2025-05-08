@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1746711221680,
+  "lastUpdate": 1746711505940,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -3705,95 +3705,6 @@ window.BENCHMARK_DATA = {
       }
     ],
     "Compilation Time": [
-      {
-        "commit": {
-          "author": {
-            "email": "15848336+TomAFrench@users.noreply.github.com",
-            "name": "Tom French",
-            "username": "TomAFrench"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "4bc636a3f6b01c439333382980c2e4b7a4eb47e6",
-          "message": "fix: don't disallow writing to memory after passing it to brillig (#8276)\n\nCo-authored-by: AztecBot <tech@aztecprotocol.com>",
-          "timestamp": "2025-04-29T19:28:22Z",
-          "tree_id": "5da21caaa67476d5f3089692d46a16e9256ec9c8",
-          "url": "https://github.com/noir-lang/noir/commit/4bc636a3f6b01c439333382980c2e4b7a4eb47e6"
-        },
-        "date": 1745956305211,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "regression_4709",
-            "value": 0.653,
-            "unit": "s"
-          },
-          {
-            "name": "ram_blowup_regression",
-            "value": 12.7,
-            "unit": "s"
-          },
-          {
-            "name": "global_var_regression_entry_points",
-            "value": 0.482,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-inner",
-            "value": 2.198,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 6.394,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 1.138,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 17.18,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 12.92,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root-empty",
-            "value": 1.252,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root-single-tx",
-            "value": 124,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 124,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 1.13,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-root",
-            "value": 1.806,
-            "unit": "s"
-          }
-        ]
-      },
       {
         "commit": {
           "author": {
@@ -8151,6 +8062,95 @@ window.BENCHMARK_DATA = {
           {
             "name": "rollup-root",
             "value": 1.592,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "aakoshh@gmail.com",
+            "name": "Akosh Farkash",
+            "username": "aakoshh"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "27345365ac2be310b5ae32af902d683709c11cb0",
+          "message": "feat: Skip SSA passes that contain any of the given messages (#8416)",
+          "timestamp": "2025-05-08T13:14:45Z",
+          "tree_id": "16b8d2bb542b82926fe0a14820a52e94f32976f0",
+          "url": "https://github.com/noir-lang/noir/commit/27345365ac2be310b5ae32af902d683709c11cb0"
+        },
+        "date": 1746711498142,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "regression_4709",
+            "value": 0.672,
+            "unit": "s"
+          },
+          {
+            "name": "ram_blowup_regression",
+            "value": 13,
+            "unit": "s"
+          },
+          {
+            "name": "global_var_regression_entry_points",
+            "value": 0.497,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-inner",
+            "value": 2.286,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 6.334,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 1.16,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 16.66,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 14.54,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-empty",
+            "value": 1.232,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-single-tx",
+            "value": 119,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 124,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 1.092,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-root",
+            "value": 1.686,
             "unit": "s"
           }
         ]
