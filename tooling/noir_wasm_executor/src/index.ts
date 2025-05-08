@@ -1,4 +1,4 @@
-import { acvm, CompiledCircuit, InputMap, Noir } from '@noir-lang/noir_js';
+import { CompiledCircuit, InputMap, Noir } from '@noir-lang/noir_js';
 import { readFileSync, writeFileSync } from 'node:fs';
 import toml from 'toml';
 import { Command } from 'commander';
