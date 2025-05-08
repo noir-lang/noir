@@ -21,7 +21,7 @@ fn slice_push_back_not_affected_by_predicate() {
         false,
     )[0];
     assert_eq!(func_with_pred.current_witness_index(), func_no_pred.current_witness_index());
-    assert_eq!(func_with_pred.opcodes(), func_no_pred.opcodes);
+    assert_eq!(func_with_pred.opcodes(), func_no_pred.opcodes());
 }
 
 #[test]
@@ -39,7 +39,7 @@ fn slice_push_front_not_affected_by_predicate() {
         false,
     )[0];
     assert_eq!(func_with_pred.current_witness_index(), func_no_pred.current_witness_index());
-    assert_eq!(func_with_pred.opcodes(), func_no_pred.opcodes);
+    assert_eq!(func_with_pred.opcodes(), func_no_pred.opcodes());
 }
 
 #[test]
@@ -57,7 +57,7 @@ fn slice_pop_back_not_affected_by_predicate() {
         false,
     )[0];
     assert_eq!(func_with_pred.current_witness_index(), func_no_pred.current_witness_index());
-    assert_eq!(func_with_pred.opcodes(), func_no_pred.opcodes);
+    assert_eq!(func_with_pred.opcodes(), func_no_pred.opcodes());
 }
 
 #[test]
@@ -75,7 +75,7 @@ fn slice_pop_front_not_affected_by_predicate() {
         false,
     )[0];
     assert_eq!(func_with_pred.current_witness_index(), func_no_pred.current_witness_index());
-    assert_eq!(func_with_pred.opcodes(), func_no_pred.opcodes);
+    assert_eq!(func_with_pred.opcodes(), func_no_pred.opcodes());
 }
 
 #[test]
@@ -93,7 +93,7 @@ fn slice_insert_affected_by_predicate() {
         false,
     )[0];
     assert_ne!(func_with_pred.current_witness_index(), func_no_pred.current_witness_index());
-    assert_ne!(func_with_pred.opcodes(), func_no_pred.opcodes);
+    assert_ne!(func_with_pred.opcodes(), func_no_pred.opcodes());
 }
 
 #[test]
@@ -111,7 +111,7 @@ fn slice_remove_affected_by_predicate() {
         false,
     )[0];
     assert_ne!(func_with_pred.current_witness_index(), func_no_pred.current_witness_index());
-    assert_ne!(func_with_pred.opcodes(), func_no_pred.opcodes);
+    assert_ne!(func_with_pred.opcodes(), func_no_pred.opcodes());
 }
 
 /// Helper method to set up the SSA for unit tests on whether slice intrinsics
