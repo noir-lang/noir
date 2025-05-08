@@ -282,28 +282,80 @@ impl<'ssa> Interpreter<'ssa> {
         let array =
             self.lookup_helper(value_id, instruction, "array or slice", Value::as_array_or_slice)?;
         let array = array.elements.borrow();
-        let mut error = None;
-        let result = array
+        array
             .iter()
             .map(|v| {
-                if let Some(v) = v.as_u8() {
-                    v
-                } else {
-                    error = Some(v);
-                    0
-                }
+                v.as_u8().ok_or_else(|| {
+                    internal(InternalError::TypeError {
+                        value_id,
+                        value: v.to_string(),
+                        expected_type: "u8",
+                        instruction,
+                    })
+                })
             })
-            .collect::<Vec<u8>>();
-        if let Some(v) = error {
-            Err(internal(InternalError::TypeError {
-                value_id,
-                value: v.to_string(),
-                expected_type: "u8",
-                instruction,
-            }))
-        } else {
-            Ok(result)
-        }
+            .collect::<Result<Vec<u8>, _>>()
+    }
+
+    fn lookup_vec_u32(&self, value_id: ValueId, instruction: &'static str) -> IResult<Vec<u32>> {
+        let array =
+            self.lookup_helper(value_id, instruction, "array or slice", Value::as_array_or_slice)?;
+        let array = array.elements.borrow();
+        array
+            .iter()
+            .map(|v| {
+                v.as_u32().ok_or_else(|| {
+                    internal(InternalError::TypeError {
+                        value_id,
+                        value: v.to_string(),
+                        expected_type: "u32",
+                        instruction,
+                    })
+                })
+            })
+            .collect::<Result<Vec<u32>, _>>()
+    }
+
+    fn lookup_vec_u64(&self, value_id: ValueId, instruction: &'static str) -> IResult<Vec<u64>> {
+        let array =
+            self.lookup_helper(value_id, instruction, "array or slice", Value::as_array_or_slice)?;
+        let array = array.elements.borrow();
+        array
+            .iter()
+            .map(|v| {
+                v.as_u64().ok_or_else(|| {
+                    internal(InternalError::TypeError {
+                        value_id,
+                        value: v.to_string(),
+                        expected_type: "u64",
+                        instruction,
+                    })
+                })
+            })
+            .collect::<Result<Vec<u64>, _>>()
+    }
+
+    fn lookup_vec_field(
+        &self,
+        value_id: ValueId,
+        instruction: &'static str,
+    ) -> IResult<Vec<FieldElement>> {
+        let array =
+            self.lookup_helper(value_id, instruction, "array or slice", Value::as_array_or_slice)?;
+        let array = array.elements.borrow();
+        array
+            .iter()
+            .map(|v| {
+                v.as_field().ok_or_else(|| {
+                    internal(InternalError::TypeError {
+                        value_id,
+                        value: v.to_string(),
+                        expected_type: "Field",
+                        instruction,
+                    })
+                })
+            })
+            .collect::<Result<Vec<FieldElement>, _>>()
     }
 
     fn lookup_string(&self, value_id: ValueId, instruction: &'static str) -> IResult<String> {

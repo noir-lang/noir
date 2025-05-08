@@ -109,7 +109,7 @@ impl Interpreter<'_> {
                             .map_err(Self::convert_error)?;
                     let result: Vec<FieldElement> =
                         result.iter().map(|v| (*v as u128).into()).collect();
-                    let result = Value::from_slice(&result, NumericType::NativeField);
+                    let result = Value::array_from_slice(&result, NumericType::NativeField);
                     Ok(vec![result])
                 }
                 acvm::acir::BlackBoxFunc::AND => {
@@ -134,7 +134,7 @@ impl Interpreter<'_> {
                         acvm::blackbox_solver::blake2s(&inputs).map_err(Self::convert_error)?;
                     let result: Vec<FieldElement> =
                         result.iter().map(|e| (*e as u128).into()).collect();
-                    let result = Value::from_slice(&result, NumericType::NativeField);
+                    let result = Value::array_from_slice(&result, NumericType::NativeField);
                     Ok(vec![result])
                 }
                 acvm::acir::BlackBoxFunc::Blake3 => {
@@ -144,7 +144,7 @@ impl Interpreter<'_> {
                         acvm::blackbox_solver::blake3(&inputs).map_err(Self::convert_error)?;
                     let results: Vec<FieldElement> =
                         results.iter().map(|e| (*e as u128).into()).collect();
-                    let results = Value::from_slice(&results, NumericType::NativeField);
+                    let results = Value::array_from_slice(&results, NumericType::NativeField);
                     Ok(vec![results])
                 }
                 acvm::acir::BlackBoxFunc::EcdsaSecp256k1 => {
@@ -274,7 +274,7 @@ impl Interpreter<'_> {
                     let solver = bn254_blackbox_solver::Bn254BlackBoxSolver(false);
                     let result = solver.multi_scalar_mul(&points, &scalars_lo, &scalars_hi);
                     let (a, b, c) = result.map_err(Self::convert_error)?;
-                    let result = Value::from_slice(&[a, b, c], NumericType::NativeField);
+                    let result = Value::array_from_slice(&[a, b, c], NumericType::NativeField);
                     Ok(vec![result])
                 }
                 acvm::acir::BlackBoxFunc::Keccakf1600 => {
@@ -292,7 +292,7 @@ impl Interpreter<'_> {
                     let results: Vec<FieldElement> =
                         results.iter().map(|e| (*e as u128).into()).collect();
                     let results =
-                        Value::from_slice(&results, NumericType::Unsigned { bit_size: 64 });
+                        Value::array_from_slice(&results, NumericType::Unsigned { bit_size: 64 });
                     Ok(vec![results])
                 }
                 acvm::acir::BlackBoxFunc::RecursiveAggregation => {
@@ -316,7 +316,7 @@ impl Interpreter<'_> {
                     let result =
                         solver.ec_add(&lhs.0, &lhs.1, &lhs.2.into(), &rhs.0, &rhs.1, &rhs.2.into());
                     let (x, y, inf) = result.map_err(Self::convert_error)?;
-                    let result = Value::from_slice(&[x, y, inf], NumericType::NativeField);
+                    let result = Value::array_from_slice(&[x, y, inf], NumericType::NativeField);
                     Ok(vec![result])
                 }
                 acvm::acir::BlackBoxFunc::BigIntAdd
@@ -337,7 +337,7 @@ impl Interpreter<'_> {
                     let result = solver
                         .poseidon2_permutation(&inputs, inputs.len() as u32)
                         .map_err(Self::convert_error)?;
-                    let result = Value::from_slice(&result, NumericType::NativeField);
+                    let result = Value::array_from_slice(&result, NumericType::NativeField);
                     Ok(vec![result])
                 }
                 acvm::acir::BlackBoxFunc::Sha256Compression => {
@@ -361,7 +361,7 @@ impl Interpreter<'_> {
                     acvm::blackbox_solver::sha256_compression(&mut state, &inputs);
                     let result: Vec<FieldElement> =
                         state.iter().map(|e| (*e as u128).into()).collect();
-                    let result = Value::from_slice(&result, NumericType::NativeField);
+                    let result = Value::array_from_slice(&result, NumericType::NativeField);
                     Ok(vec![result])
                 }
             },
