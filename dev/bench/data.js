@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1746742701118,
+  "lastUpdate": 1746742702782,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -8160,70 +8160,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "michaeljklein@users.noreply.github.com",
-            "name": "Michael J Klein",
-            "username": "michaeljklein"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "981256c8e7c241cf42f2ed40a8cb64ec329c1593",
-          "message": "chore: update `quicksort` from iterative `noir_sort` version (#7348)\n\nCo-authored-by: Tom French <tom@tomfren.ch>",
-          "timestamp": "2025-04-30T18:06:56Z",
-          "tree_id": "b45facd19b034d00d8ec995f19ebc465b50595a2",
-          "url": "https://github.com/noir-lang/noir/commit/981256c8e7c241cf42f2ed40a8cb64ec329c1593"
-        },
-        "date": 1746038420027,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 0.029,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 0.166,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 0.016,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 0.335,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 0.212,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 11.6,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 0.004,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-root",
-            "value": 0.013,
-            "unit": "s"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "asterite@gmail.com",
             "name": "Ary Borenszweig",
             "username": "asterite"
@@ -11338,6 +11274,70 @@ window.BENCHMARK_DATA = {
           {
             "name": "rollup-base-public",
             "value": 0.212,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 11.6,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 0.004,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-root",
+            "value": 0.013,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "mvezenov@gmail.com",
+            "name": "Maxim Vezenov",
+            "username": "vezenovm"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "29025036dadfb837985ad25726407fb922c3ca1b",
+          "message": "feat(ssa): Mark transitively dead parameters during DIE (#8254)\n\nCo-authored-by: AztecBot <tech@aztecprotocol.com>",
+          "timestamp": "2025-05-08T21:56:02Z",
+          "tree_id": "37e2dccba6951e66726e4a2959b5dd76ef684d90",
+          "url": "https://github.com/noir-lang/noir/commit/29025036dadfb837985ad25726407fb922c3ca1b"
+        },
+        "date": 1746742693174,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 0.028,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 0.161,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 0.016,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 0.327,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 0.208,
             "unit": "s"
           },
           {
