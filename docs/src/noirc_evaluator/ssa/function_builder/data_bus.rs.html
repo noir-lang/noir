@@ -271,7 +271,13 @@
 <a href="#270" id="270">270</a>
 <a href="#271" id="271">271</a>
 <a href="#272" id="272">272</a>
-<a href="#273" id="273">273</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::{collections::BTreeMap, sync::Arc};
+<a href="#273" id="273">273</a>
+<a href="#274" id="274">274</a>
+<a href="#275" id="275">275</a>
+<a href="#276" id="276">276</a>
+<a href="#277" id="277">277</a>
+<a href="#278" id="278">278</a>
+<a href="#279" id="279">279</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::{collections::BTreeMap, sync::Arc};
 
 <span class="kw">use </span><span class="kw">crate</span>::ssa::ir::{
     function::RuntimeType,
@@ -429,6 +435,11 @@
                         <span class="kw">let </span>index_var = FieldElement::from(index <span class="kw">as </span>i128);
                         <span class="kw">let </span>index_var =
                             <span class="self">self</span>.current_function.dfg.make_constant(index_var, length_type);
+                        <span class="comment">// If we do not check for an empty array we will have an unused array get
+                        // as an array of length zero will not be actually added to the databus' values.
+                        </span><span class="kw">if let </span>Type::Array(<span class="kw">_</span>, <span class="number">0</span>) = subitem_typ {
+                            <span class="kw">continue</span>;
+                        }
                         <span class="kw">let </span>element = <span class="self">self</span>.insert_array_get(value, index_var, subitem_typ.clone());
                         index += <span class="kw">match </span>subitem_typ {
                             Type::Array(<span class="kw">_</span>, <span class="kw">_</span>) | Type::Slice(<span class="kw">_</span>) =&gt; subitem_typ.element_size(),
@@ -503,6 +514,7 @@
                 }
             }
         }
+
         <span class="comment">// create the call-data-bus from the filtered lists
         </span><span class="kw">let </span><span class="kw-2">mut </span>result = Vec::new();
         <span class="kw">for </span>id <span class="kw">in </span>databus_param.keys() {
