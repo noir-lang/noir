@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1746732815675,
+  "lastUpdate": 1746735500930,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -18216,48 +18216,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "asterite@gmail.com",
-            "name": "Ary Borenszweig",
-            "username": "asterite"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "84a7d3eb64336faad8b9e8371b12bfd32223ae5f",
-          "message": "fix: use correct meta attribute names in contract custom attributes (#8273)",
-          "timestamp": "2025-04-30T18:03:30Z",
-          "tree_id": "d41b75893c2a62c8e59dc7d8d4a69c82a5735c0c",
-          "url": "https://github.com/noir-lang/noir/commit/84a7d3eb64336faad8b9e8371b12bfd32223ae5f"
-        },
-        "date": 1746037856245,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 275667,
-            "range": "± 785",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 250145,
-            "range": "± 2616",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 3243190,
-            "range": "± 6388",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "michaeljklein@users.noreply.github.com",
             "name": "Michael J Klein",
             "username": "michaeljklein"
@@ -20309,6 +20267,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 3229828,
             "range": "± 5053",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "mvezenov@gmail.com",
+            "name": "Maxim Vezenov",
+            "username": "vezenovm"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "a593e48c6a9339f38291029d0aac949be77dd0d3",
+          "message": "fix(ssa_gen): Do not code gen fetching of empty arrays when initializing the data bus (#8426)",
+          "timestamp": "2025-05-08T19:53:53Z",
+          "tree_id": "2e796b9ce202f239c7f07cbf04b86a01b7581e0f",
+          "url": "https://github.com/noir-lang/noir/commit/a593e48c6a9339f38291029d0aac949be77dd0d3"
+        },
+        "date": 1746735493099,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 264740,
+            "range": "± 520",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 234841,
+            "range": "± 3881",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 3221519,
+            "range": "± 4324",
             "unit": "ns/iter"
           }
         ]
