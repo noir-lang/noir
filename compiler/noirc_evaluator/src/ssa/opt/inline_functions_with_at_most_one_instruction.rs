@@ -25,6 +25,7 @@ impl Ssa {
 
             let entry_block_id = callee.entry_block();
             let entry_block = &callee.dfg[entry_block_id];
+            let instructions = entry_block.instructions();
 
             // Only inline functions with a single block
             if entry_block.successors().next().is_some() {
@@ -32,11 +33,11 @@ impl Ssa {
             }
 
             // Only inline functions with 0 or 1 instructions
-            if entry_block.instructions().len() > 1 {
+            if instructions.len() > 1 {
                 return false;
             }
 
-            let instructions = callee.dfg[entry_block_id].instructions();
+            // Inline zero instructions
             if instructions.is_empty() {
                 return true;
             }
@@ -45,7 +46,7 @@ impl Ssa {
             // This special check is done here to avoid performing the entire inline info computation.
             // The inline info computation contains extra logic and requires passing over every function.
             // which we can avoid in when inlining simple functions.
-            let only_instruction = callee.dfg[entry_block_id].instructions()[0];
+            let only_instruction = instructions[0];
             if let Instruction::Call { func, .. } = callee.dfg[only_instruction] {
                 let Value::Function(func_id) = callee.dfg[func] else {
                     return true;
