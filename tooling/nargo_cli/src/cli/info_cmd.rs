@@ -67,7 +67,8 @@ pub(crate) fn run(mut args: InfoCommand, workspace: Workspace) -> Result<(), Cli
         args.compile_options.force_brillig = true;
     }
     // Compile the full workspace in order to generate any build artifacts.
-    compile_workspace_full(&workspace, &args.compile_options)?;
+    let debug_compile_stdin = None;
+    compile_workspace_full(&workspace, &args.compile_options, debug_compile_stdin)?;
 
     let binary_packages: Vec<(Package, ProgramArtifact)> = workspace
         .into_iter()
