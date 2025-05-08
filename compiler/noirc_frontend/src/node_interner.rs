@@ -980,6 +980,10 @@ impl NodeInterner {
         self.func_meta.insert(func_id, func_data);
     }
 
+    pub fn definition_count(&self) -> usize {
+        self.definitions.len()
+    }
+
     pub fn push_definition(
         &mut self,
         name: String,

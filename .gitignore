@@ -18,6 +18,9 @@ pkg/
 # Noir.js
 tooling/noir_js/lib
 
+# fuzzing inputs (generated from 'test_programs')
+tooling/nargo_fuzz_target/draft_inputs
+
 # Nargo output
 *.proof
 *.acir
