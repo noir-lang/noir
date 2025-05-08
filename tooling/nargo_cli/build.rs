@@ -189,7 +189,7 @@ const IGNORED_NARGO_EXPAND_COMPILE_SUCCESS_NO_BUG_TESTS: [&str; 16] = [
     "noirc_frontend_tests_traits_trait_alias_single_member",
     "noirc_frontend_tests_traits_trait_alias_two_members",
     "noirc_frontend_tests_traits_trait_impl_with_where_clause_with_trait_with_associated_type",
-    "test_noirc_frontend_tests_traits_accesses_associated_type_inside_trait_impl_using_self",
+    "noirc_frontend_tests_traits_accesses_associated_type_inside_trait_impl_using_self",
     "noirc_frontend_tests_traits_accesses_associated_type_inside_trait_using_self",
     "noirc_frontend_tests_u32_globals_as_sizes_in_types",
     "noirc_frontend_tests_unused_items_considers_struct_as_constructed_if_trait_method_is_called",
