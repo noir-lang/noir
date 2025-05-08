@@ -1,6 +1,7 @@
 use crate::instruction::{Argument, Instruction};
-use acvm::FieldElement;
+use crate::options::SsaBlockOptions;
 use acvm::acir::native_types::Witness;
+use acvm::{FieldElement, acir};
 use libfuzzer_sys::arbitrary;
 use libfuzzer_sys::arbitrary::Arbitrary;
 use noir_ssa_fuzzer::{
@@ -16,19 +17,16 @@ use std::collections::{HashMap, VecDeque};
 /// It works with indices of variables Ids, because it cannot handle Ids logic for ACIR and Brillig
 #[derive(Debug, Clone)]
 pub(crate) struct BlockContext {
-    /// Ids of ACIR witnesses stored as TypedValue separated by type
-    pub(crate) acir_ids: HashMap<ValueType, Vec<TypedValue>>,
-    /// Ids of Brillig witnesses stored as TypedValue separated by type
-    pub(crate) brillig_ids: HashMap<ValueType, Vec<TypedValue>>,
+    /// Ids of the Program variables stored as TypedValue separated by type
+    pub(crate) stored_values: HashMap<ValueType, Vec<TypedValue>>,
     /// ACIR and Brillig last changed value, used to finalize the block with return
-    pub(crate) last_value_acir: Option<TypedValue>,
-    pub(crate) last_value_brillig: Option<TypedValue>,
-    /// Depth of the block in the CFG
-    pub(crate) depth: usize,
+    pub(crate) last_value: Option<TypedValue>,
     /// Parent blocks history
     pub(crate) parent_blocks_history: VecDeque<BasicBlockId>,
     /// Children blocks
     pub(crate) children_blocks: Vec<BasicBlockId>,
+    /// Options for the block
+    pub(crate) options: SsaBlockOptions,
 }
 
 /// Returns a typed value from the map
@@ -43,6 +41,8 @@ fn get_typed_value_from_map(
     arr?;
     let arr = arr.unwrap();
     let value = arr.get(idx % arr.len());
+    log::debug!("value: {:?}", value);
+    log::debug!("index_mod_len: {:?}, idx: {:?}, arr_len: {:?}", idx % arr.len(), idx, arr.len());
     value?;
     Some(value.unwrap().clone())
 }
@@ -57,19 +57,16 @@ fn append_typed_value_to_map(
 
 impl BlockContext {
     pub(crate) fn new(
-        acir_ids: HashMap<ValueType, Vec<TypedValue>>,
-        brillig_ids: HashMap<ValueType, Vec<TypedValue>>,
+        stored_values: HashMap<ValueType, Vec<TypedValue>>,
         parent_blocks_history: VecDeque<BasicBlockId>,
-        depth: usize,
+        options: SsaBlockOptions,
     ) -> Self {
         Self {
-            acir_ids,
-            brillig_ids,
-            last_value_acir: None,
-            last_value_brillig: None,
+            stored_values,
+            last_value: None,
             parent_blocks_history,
             children_blocks: Vec::new(),
-            depth,
+            options,
         }
     }
 
@@ -81,21 +78,19 @@ impl BlockContext {
         arg: Argument,
         instruction: InstructionWithOneArg,
     ) {
-        let acir_arg = get_typed_value_from_map(&self.acir_ids, &arg.value_type, arg.index);
-        let brillig_arg = get_typed_value_from_map(&self.brillig_ids, &arg.value_type, arg.index);
-        let (acir_arg, brillig_arg) = match (acir_arg, brillig_arg) {
-            (Some(acir_arg), Some(brillig_arg)) => (acir_arg, brillig_arg),
+        let value = get_typed_value_from_map(&self.stored_values, &arg.value_type, arg.index);
+        let value = match value {
+            Some(value) => value,
             _ => return,
         };
-        let acir_result = instruction(acir_builder, acir_arg);
-        let brillig_result = instruction(brillig_builder, brillig_arg);
-        self.last_value_acir = Some(acir_result.clone());
-        self.last_value_brillig = Some(brillig_result.clone());
-        append_typed_value_to_map(&mut self.acir_ids, &acir_result.to_value_type(), acir_result);
+        let acir_result = instruction(acir_builder, value.clone());
+        // insert to brillig, assert id is the same
+        assert_eq!(acir_result.value_id, instruction(brillig_builder, value).value_id);
+        self.last_value = Some(acir_result.clone());
         append_typed_value_to_map(
-            &mut self.brillig_ids,
-            &brillig_result.to_value_type(),
-            brillig_result,
+            &mut self.stored_values,
+            &acir_result.to_value_type(),
+            acir_result,
         );
     }
 
@@ -108,28 +103,22 @@ impl BlockContext {
         rhs: Argument,
         instruction: InstructionWithTwoArgs,
     ) {
-        let acir_lhs = get_typed_value_from_map(&self.acir_ids, &lhs.value_type, lhs.index);
-        let acir_rhs = get_typed_value_from_map(&self.acir_ids, &rhs.value_type, rhs.index);
-        let (acir_lhs, acir_rhs) = match (acir_lhs, acir_rhs) {
+        let instr_lhs = get_typed_value_from_map(&self.stored_values, &lhs.value_type, lhs.index);
+        let instr_rhs = get_typed_value_from_map(&self.stored_values, &rhs.value_type, rhs.index);
+        let (instr_lhs, instr_rhs) = match (instr_lhs, instr_rhs) {
             (Some(acir_lhs), Some(acir_rhs)) => (acir_lhs, acir_rhs),
             _ => return,
         };
-        let acir_result = instruction(acir_builder, acir_lhs, acir_rhs);
-        let brillig_lhs = get_typed_value_from_map(&self.brillig_ids, &lhs.value_type, lhs.index);
-        let brillig_rhs = get_typed_value_from_map(&self.brillig_ids, &rhs.value_type, rhs.index);
-        let (brillig_lhs, brillig_rhs) = match (brillig_lhs, brillig_rhs) {
-            (Some(brillig_lhs), Some(brillig_rhs)) => (brillig_lhs, brillig_rhs),
-            _ => return,
-        };
-        let brillig_result = instruction(brillig_builder, brillig_lhs, brillig_rhs);
-        self.last_value_acir = Some(acir_result.clone());
-        self.last_value_brillig = Some(brillig_result.clone());
-        append_typed_value_to_map(&mut self.acir_ids, &acir_result.to_value_type(), acir_result);
-        append_typed_value_to_map(
-            &mut self.brillig_ids,
-            &brillig_result.to_value_type(),
-            brillig_result,
-        );
+        let result = instruction(acir_builder, instr_lhs.clone(), instr_rhs.clone());
+        // insert to brillig, assert id of return is the same
+        assert_eq!(result.value_id, instruction(brillig_builder, instr_lhs, instr_rhs).value_id);
+
+        //
+        if self.stored_values.get(&result.to_value_type()).unwrap().contains(&result) {
+            return;
+        }
+        self.last_value = Some(result.clone());
+        append_typed_value_to_map(&mut self.stored_values, &result.to_value_type(), result);
     }
 
     /// Inserts an instruction into both ACIR and Brillig programs
@@ -186,26 +175,26 @@ impl BlockContext {
                 );
             }
             Instruction::Cast { lhs, type_ } => {
-                let acir_lhs = get_typed_value_from_map(&self.acir_ids, &lhs.value_type, lhs.index);
-                let brillig_lhs =
-                    get_typed_value_from_map(&self.brillig_ids, &lhs.value_type, lhs.index);
-                let (acir_lhs, brillig_lhs) = match (acir_lhs, brillig_lhs) {
-                    (Some(acir_lhs), Some(brillig_lhs)) => (acir_lhs, brillig_lhs),
+                let value =
+                    get_typed_value_from_map(&self.stored_values, &lhs.value_type, lhs.index);
+                let value = match value {
+                    Some(value) => value,
                     _ => return,
                 };
-                let acir_result = acir_builder.insert_cast(acir_lhs, type_);
-                let brillig_result = brillig_builder.insert_cast(brillig_lhs, type_);
-                self.last_value_acir = Some(acir_result.clone());
-                self.last_value_brillig = Some(brillig_result.clone());
+                let acir_result = acir_builder.insert_cast(value.clone(), type_);
+                assert_eq!(
+                    acir_result.value_id,
+                    brillig_builder.insert_cast(value.clone(), type_).value_id
+                );
+                // TODO COMMENTS WHY
+                if self.stored_values.get(&value.to_value_type()).unwrap().contains(&acir_result) {
+                    return;
+                }
+                self.last_value = Some(acir_result.clone());
                 append_typed_value_to_map(
-                    &mut self.acir_ids,
+                    &mut self.stored_values,
                     &acir_result.to_value_type(),
                     acir_result,
-                );
-                append_typed_value_to_map(
-                    &mut self.brillig_ids,
-                    &brillig_result.to_value_type(),
-                    brillig_result,
                 );
             }
             Instruction::Mod { lhs, rhs } => {
@@ -270,6 +259,7 @@ impl BlockContext {
                     |builder, lhs, rhs| builder.insert_xor_instruction(lhs, rhs),
                 );
             }
+            _ => {}
         }
     }
 
@@ -290,30 +280,23 @@ impl BlockContext {
         acir_builder: &mut FuzzerBuilder,
         brillig_builder: &mut FuzzerBuilder,
     ) {
-        match (self.last_value_acir, self.last_value_brillig) {
-            (Some(acir_result), Some(brillig_result)) => {
-                acir_builder.finalize_function(acir_result);
-                brillig_builder.finalize_function(brillig_result);
+        match self.last_value {
+            Some(last_value) => {
+                acir_builder.finalize_function(&last_value);
+                brillig_builder.finalize_function(&last_value);
             }
             _ => {
                 // If no last value was set, use the first value from the first type in each map
                 let first_type =
-                    self.acir_ids.keys().next().expect("Should have at least one type");
+                    self.stored_values.keys().next().expect("Should have at least one type");
 
-                let acir_result = self
-                    .acir_ids
+                let function_result = self
+                    .stored_values
                     .get(first_type)
                     .and_then(|values| values.first().cloned())
                     .expect("Should have at least one value");
-
-                let brillig_result = self
-                    .brillig_ids
-                    .get(first_type)
-                    .and_then(|values| values.first().cloned())
-                    .expect("Should have at least one value");
-
-                acir_builder.finalize_function(acir_result);
-                brillig_builder.finalize_function(brillig_result);
+                acir_builder.finalize_function(&function_result);
+                brillig_builder.finalize_function(&function_result);
             }
         }
     }
@@ -337,25 +320,15 @@ impl BlockContext {
         else_destination: BasicBlockId,
     ) {
         // takes last boolean variable as condition
-        let acir_condition = self
-            .acir_ids
-            .get(&ValueType::Boolean)
-            .and_then(|values| values.last().cloned())
-            .expect("Should have at least one boolean")
-            .value_id;
-        let brillig_condition = self
-            .brillig_ids
+        let condition = self
+            .stored_values
             .get(&ValueType::Boolean)
             .and_then(|values| values.last().cloned())
             .expect("Should have at least one boolean")
             .value_id;
 
-        acir_builder.insert_jmpif_instruction(acir_condition, then_destination, else_destination);
-        brillig_builder.insert_jmpif_instruction(
-            brillig_condition,
-            then_destination,
-            else_destination,
-        );
+        acir_builder.insert_jmpif_instruction(condition, then_destination, else_destination);
+        brillig_builder.insert_jmpif_instruction(condition, then_destination, else_destination);
         self.children_blocks.push(then_destination);
         self.children_blocks.push(else_destination);
     }

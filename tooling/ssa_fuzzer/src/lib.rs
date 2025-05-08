@@ -49,8 +49,8 @@ mod tests {
         }
 
         fn finalize_function(&mut self, return_value: TypedValue) {
-            self.acir_builder.finalize_function(return_value.clone());
-            self.brillig_builder.finalize_function(return_value);
+            self.acir_builder.finalize_function(&return_value);
+            self.brillig_builder.finalize_function(&return_value);
         }
     }
 
@@ -110,31 +110,25 @@ mod tests {
             CompareResults::Disagree(acir_result, brillig_result) => {
                 panic!(
                     "ACIR and Brillig results disagree: ACIR: {}, Brillig: {}, values: {:?}",
-                    acir_result,
-                    brillig_result,
-                    values.clone()
+                    acir_result, brillig_result, &values
                 );
             }
             CompareResults::BothFailed(acir_error, brillig_error) => {
                 panic!(
                     "Both ACIR and Brillig failed: ACIR: {}, Brillig: {}, values: {:?}",
-                    acir_error,
-                    brillig_error,
-                    values.clone()
+                    acir_error, brillig_error, &values
                 );
             }
             CompareResults::AcirFailed(acir_error, brillig_result) => {
                 panic!(
                     "ACIR failed: ACIR: {}, Brillig: {}, values: {:?}",
-                    acir_error,
-                    brillig_result,
-                    values.clone()
+                    acir_error, brillig_result, &values
                 );
             }
             CompareResults::BrilligFailed(brillig_error, acir_result) => {
                 panic!(
                     "Brillig failed: Brillig: {}, ACIR: {}, values: {:?}",
-                    brillig_error, acir_result, values
+                    brillig_error, acir_result, &values
                 );
             }
         }

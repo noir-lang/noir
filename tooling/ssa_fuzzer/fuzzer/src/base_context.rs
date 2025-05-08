@@ -1,5 +1,6 @@
 use crate::block_context::BlockContext;
 use crate::instruction::InstructionBlock;
+use crate::options::{ContextOptions, SsaBlockOptions};
 use acvm::FieldElement;
 use acvm::acir::native_types::Witness;
 use libfuzzer_sys::arbitrary;
@@ -53,39 +54,44 @@ pub(crate) struct FuzzerContext {
     brillig_builder: FuzzerBuilder,
     /// Current ACIR and Brillig blocks
     current_block: StoredBlock,
-    /// Stack of ACIR and Brillig blocks
-    next_block_queue: VecDeque<StoredBlock>,
+    /// Stored ACIR and Brillig blocks that are not terminated
+    not_terminated_blocks: VecDeque<StoredBlock>,
     /// Instruction blocks
     instruction_blocks: Vec<InstructionBlock>,
     /// Hashmap of stored variables in blocks
-    stored_variables: HashMap<
-        BasicBlockId,
-        (HashMap<ValueType, Vec<TypedValue>>, HashMap<ValueType, Vec<TypedValue>>),
-    >,
+    stored_variables_for_block: HashMap<BasicBlockId, HashMap<ValueType, Vec<TypedValue>>>,
     /// Hashmap of stored blocks
     stored_blocks: HashMap<BasicBlockId, StoredBlock>,
     /// Whether the program is executed in constants
     is_constant: bool,
+    context_options: ContextOptions,
 }
 
 impl FuzzerContext {
     /// Creates a new fuzzer context with the given types
     /// It creates a new variable for each type and stores it in the map
-    pub(crate) fn new(types: Vec<ValueType>, instruction_blocks: Vec<InstructionBlock>) -> Self {
+    pub(crate) fn new(
+        types: Vec<ValueType>,
+        instruction_blocks: Vec<InstructionBlock>,
+        context_options: ContextOptions,
+    ) -> Self {
         let mut acir_builder = FuzzerBuilder::new_acir();
         let mut brillig_builder = FuzzerBuilder::new_brillig();
         let mut acir_ids = HashMap::new();
-        let mut brillig_ids = HashMap::new();
         for type_ in types {
             let acir_id = acir_builder.insert_variable(type_.to_ssa_type());
             let brillig_id = brillig_builder.insert_variable(type_.to_ssa_type());
+            assert_eq!(acir_id, brillig_id);
             acir_ids.entry(type_).or_insert(Vec::new()).push(acir_id);
-            brillig_ids.entry(type_).or_insert(Vec::new()).push(brillig_id);
         }
 
         let main_block = acir_builder.get_current_block();
         let current_block = StoredBlock {
-            context: BlockContext::new(acir_ids.clone(), brillig_ids.clone(), VecDeque::new(), 0),
+            context: BlockContext::new(
+                acir_ids.clone(),
+                VecDeque::new(),
+                SsaBlockOptions::from(context_options.clone()),
+            ),
             block_id: main_block,
         };
 
@@ -93,11 +99,12 @@ impl FuzzerContext {
             acir_builder,
             brillig_builder,
             current_block,
-            next_block_queue: VecDeque::new(),
+            not_terminated_blocks: VecDeque::new(),
             instruction_blocks,
-            stored_variables: HashMap::new(),
+            stored_variables_for_block: HashMap::new(),
             stored_blocks: HashMap::new(),
             is_constant: false,
+            context_options,
         }
     }
 
@@ -106,6 +113,7 @@ impl FuzzerContext {
         values: Vec<impl Into<FieldElement>>,
         types: Vec<ValueType>,
         instruction_blocks: Vec<InstructionBlock>,
+        context_options: ContextOptions,
     ) -> Self {
         let mut acir_builder = FuzzerBuilder::new_acir();
         let mut brillig_builder = FuzzerBuilder::new_brillig();
@@ -122,11 +130,16 @@ impl FuzzerContext {
                 .entry(*type_)
                 .or_insert(Vec::new())
                 .push(brillig_builder.insert_constant(field_element, *type_));
+            assert_eq!(brillig_ids, acir_ids);
         }
 
         let main_block = acir_builder.get_current_block();
         let current_block = StoredBlock {
-            context: BlockContext::new(acir_ids.clone(), brillig_ids.clone(), VecDeque::new(), 0),
+            context: BlockContext::new(
+                acir_ids.clone(),
+                VecDeque::new(),
+                SsaBlockOptions::from(context_options.clone()),
+            ),
             block_id: main_block,
         };
 
@@ -134,11 +147,12 @@ impl FuzzerContext {
             acir_builder,
             brillig_builder,
             current_block,
-            next_block_queue: VecDeque::new(),
+            not_terminated_blocks: VecDeque::new(),
             instruction_blocks,
-            stored_variables: HashMap::new(),
+            stored_variables_for_block: HashMap::new(),
             stored_blocks: HashMap::new(),
             is_constant: true,
+            context_options,
         }
     }
 
@@ -149,13 +163,8 @@ impl FuzzerContext {
 
     /// Stores variables of the current block
     fn store_variables(&mut self) {
-        self.stored_variables.insert(
-            self.current_block.block_id,
-            (
-                self.current_block.context.acir_ids.clone(),
-                self.current_block.context.brillig_ids.clone(),
-            ),
-        );
+        self.stored_variables_for_block
+            .insert(self.current_block.block_id, self.current_block.context.stored_values.clone());
     }
 
     fn process_jmp_if_command(&mut self, block_then_idx: usize, block_else_idx: usize) {
@@ -178,16 +187,14 @@ impl FuzzerContext {
         let mut parent_blocks_history = self.current_block.context.parent_blocks_history.clone();
         parent_blocks_history.push_front(self.current_block.block_id);
         let mut block_then_context = BlockContext::new(
-            self.current_block.context.acir_ids.clone(),
-            self.current_block.context.brillig_ids.clone(),
+            self.current_block.context.stored_values.clone(),
             parent_blocks_history.clone(),
-            self.current_block.context.depth + 1,
+            SsaBlockOptions::from(self.context_options.clone()),
         );
         let mut block_else_context = BlockContext::new(
-            self.current_block.context.acir_ids.clone(),
-            self.current_block.context.brillig_ids.clone(),
+            self.current_block.context.stored_values.clone(),
             parent_blocks_history,
-            self.current_block.context.depth + 1,
+            SsaBlockOptions::from(self.context_options.clone()),
         );
 
         // inserts instructions into created blocks
@@ -220,9 +227,9 @@ impl FuzzerContext {
             StoredBlock { context: block_then_context, block_id: block_then_id };
         let else_stored_block =
             StoredBlock { context: block_else_context, block_id: block_else_id };
-        self.next_block_queue.push_back(else_stored_block);
+        self.not_terminated_blocks.push_back(else_stored_block);
         self.switch_to_block(then_stored_block.block_id);
-        self.current_block = then_stored_block;
+        self.current_block = then_stored_block.clone();
     }
 
     fn process_jmp_block(&mut self, block_idx: usize) {
@@ -240,10 +247,9 @@ impl FuzzerContext {
         parent_blocks_history.push_front(self.current_block.block_id);
         self.switch_to_block(destination_block_id);
         let mut destination_block_context = BlockContext::new(
-            self.current_block.context.acir_ids.clone(),
-            self.current_block.context.brillig_ids.clone(),
+            self.current_block.context.stored_values.clone(),
             parent_blocks_history,
-            self.current_block.context.depth + 1,
+            SsaBlockOptions::from(self.context_options.clone()),
         );
 
         // inserts instructions into the new block
@@ -255,7 +261,7 @@ impl FuzzerContext {
 
         // switches to the current block and terminates it with jmp
         self.switch_to_block(self.current_block.block_id);
-        self.current_block.context.clone().finalize_block_with_jmp(
+        self.current_block.context.finalize_block_with_jmp(
             &mut self.acir_builder,
             &mut self.brillig_builder,
             destination_block_id,
@@ -268,7 +274,7 @@ impl FuzzerContext {
             StoredBlock { context: destination_block_context, block_id: destination_block_id };
     }
 
-    pub(crate) fn process_fuzzer_command(&mut self, command: FuzzerCommand) {
+    pub(crate) fn process_fuzzer_command(&mut self, command: &FuzzerCommand) {
         match command {
             FuzzerCommand::InsertSimpleInstructionBlock { instruction_block_idx } => {
                 let instruction_block =
@@ -294,14 +300,14 @@ impl FuzzerContext {
                     .push(InstructionBlock { instructions: combined_instructions });
             }
             FuzzerCommand::InsertJmpIfBlock { block_then_idx, block_else_idx } => {
-                self.process_jmp_if_command(block_then_idx, block_else_idx);
+                self.process_jmp_if_command(*block_then_idx, *block_else_idx);
             }
             FuzzerCommand::InsertJmpBlock { block_idx } => {
-                self.process_jmp_block(block_idx);
+                self.process_jmp_block(*block_idx);
             }
             FuzzerCommand::SwitchToNextBlock => {
-                self.next_block_queue.push_back(self.current_block.clone());
-                self.current_block = self.next_block_queue.pop_front().unwrap();
+                self.not_terminated_blocks.push_back(self.current_block.clone());
+                self.current_block = self.not_terminated_blocks.pop_front().unwrap();
                 self.switch_to_block(self.current_block.block_id);
             }
         }
@@ -323,13 +329,12 @@ impl FuzzerContext {
         parent_blocks_history.push_front(second_block.block_id);
 
         let closest_parent = self.find_closest_parent(&first_block, &second_block);
-        let (acir_ids, brillig_ids) = self.stored_variables.get(&closest_parent).unwrap();
+        let values_block_can_use = self.stored_variables_for_block.get(&closest_parent).unwrap();
 
         let merged_block_context = BlockContext::new(
-            acir_ids.clone(),
-            brillig_ids.clone(),
+            values_block_can_use.clone(),
             parent_blocks_history,
-            first_block.context.depth + 1,
+            SsaBlockOptions::from(self.context_options.clone()),
         );
 
         self.switch_to_block(first_block.block_id);
@@ -423,8 +428,8 @@ impl FuzzerContext {
             return self.stored_blocks[&block_end.unwrap()].clone();
         }
         if block.context.children_blocks.len() == 1 {
-            let child_block = self.stored_blocks[&block.context.children_blocks[0]].clone();
-            self.merge_one_block(child_block.block_id)
+            let child_block = self.stored_blocks[&block.context.children_blocks[0]].block_id;
+            self.merge_one_block(child_block)
         } else if block.context.children_blocks.len() == 2 {
             let child_block_1 = self.stored_blocks[&block.context.children_blocks[0]].block_id;
             let child_block_2 = self.stored_blocks[&block.context.children_blocks[1]].block_id;
@@ -449,8 +454,10 @@ impl FuzzerContext {
         // Every block must have 0, 1 or 2 successors(blocks that jumped to it)
         // so we need to merge all not terminated blocks into one
         // and then terminate merged block with return
-        self.next_block_queue.push_back(self.current_block.clone());
-        for block in self.next_block_queue.iter() {
+
+        // save all blocks to stored_blocks
+        self.not_terminated_blocks.push_back(self.current_block.clone());
+        for block in self.not_terminated_blocks.iter() {
             self.stored_blocks.insert(block.block_id, block.clone());
         }
         let mut last_block = self.try_merge();
@@ -463,10 +470,9 @@ impl FuzzerContext {
 
         self.switch_to_block(return_block_id);
         let mut return_block_context = BlockContext::new(
-            last_block.context.acir_ids.clone(),
-            last_block.context.brillig_ids.clone(),
+            last_block.context.stored_values.clone(),
             VecDeque::new(),
-            last_block.context.depth + 1,
+            SsaBlockOptions::from(self.context_options.clone()),
         );
         return_block_context.insert_instructions(
             &mut self.acir_builder,

@@ -13,16 +13,19 @@
 //!    - If programs return different results
 //!    - If one program fails to compile but the other executes successfully
 
-use crate::base_context::FuzzerContext;
+use crate::base_context::{FuzzerCommand, FuzzerContext};
 use crate::instruction::InstructionBlock;
+use crate::options::{ContextOptions, FuzzerOptions};
 use acvm::FieldElement;
 use acvm::acir::native_types::{Witness, WitnessMap};
 use noir_ssa_fuzzer::runner::{CompareResults, execute_single, run_and_compare};
 use noir_ssa_fuzzer::typed_value::ValueType;
 
 pub(crate) struct Fuzzer {
-    pub(crate) context_non_constant: FuzzerContext,
-    pub(crate) context_constant: FuzzerContext,
+    pub(crate) context_non_constant: Option<FuzzerContext>,
+    pub(crate) context_non_constant_with_idempotent_morphing: Option<FuzzerContext>,
+    pub(crate) context_constant: Option<FuzzerContext>,
+    pub(crate) options: FuzzerOptions,
 }
 
 impl Fuzzer {
@@ -30,79 +33,90 @@ impl Fuzzer {
         types: Vec<ValueType>,
         initial_witness_vector: Vec<impl Into<FieldElement>>,
         instruction_blocks: Vec<InstructionBlock>,
+        options: FuzzerOptions,
     ) -> Self {
-        Self {
-            context_non_constant: FuzzerContext::new(types.clone(), instruction_blocks.clone()),
-            context_constant: FuzzerContext::new_constant_context(
+        let context_constant = match options.constant_execution_enabled {
+            true => Some(FuzzerContext::new_constant_context(
                 initial_witness_vector,
-                types,
-                instruction_blocks,
-            ),
+                types.clone(),
+                instruction_blocks.clone(),
+                ContextOptions { idempotent_morphing_enabled: false },
+            )),
+            false => None,
+        };
+        let context_non_constant = Some(FuzzerContext::new(
+            types.clone(),
+            instruction_blocks.clone(),
+            ContextOptions { idempotent_morphing_enabled: false },
+        ));
+        let context_non_constant_with_idempotent_morphing =
+            match options.idempotent_morphing_enabled {
+                true => Some(FuzzerContext::new(
+                    types,
+                    instruction_blocks,
+                    ContextOptions { idempotent_morphing_enabled: true },
+                )),
+                false => None,
+            };
+        Self {
+            context_non_constant,
+            context_non_constant_with_idempotent_morphing,
+            context_constant,
+            options,
         }
+    }
+
+    pub(crate) fn process_fuzzer_command(&mut self, command: FuzzerCommand) {
+        if let Some(context) = &mut self.context_non_constant {
+            context.process_fuzzer_command(&command);
+        }
+        if let Some(context) = &mut self.context_non_constant_with_idempotent_morphing {
+            context.process_fuzzer_command(&command);
+        }
+        if let Some(context) = &mut self.context_constant {
+            context.process_fuzzer_command(&command);
+        }
+    }
+
+    fn run_context(&mut self, context: FuzzerContext, initial_witness: WitnessMap<FieldElement>) {
+        let (acir_return_witness, brillig_return_witness) = context.get_return_witnesses();
+        Self::execute_and_compare(
+            context,
+            initial_witness,
+            acir_return_witness,
+            brillig_return_witness,
+        );
     }
 
     /// Finalizes the function for both contexts, executes and compares the results
     pub(crate) fn run(
         mut self,
         initial_witness: WitnessMap<FieldElement>,
-        constant_checking_enabled: bool,
         return_instruction_block_idx: usize,
     ) {
-        self.context_non_constant.finalize(return_instruction_block_idx);
-        let (acir_return_witness, brillig_return_witness) =
-            self.context_non_constant.get_return_witnesses();
-        let non_constant_result = Self::execute_and_compare(
-            self.context_non_constant,
-            initial_witness.clone(),
-            acir_return_witness,
-            brillig_return_witness,
-        );
-        log::debug!("Non-constant result: {:?}", non_constant_result);
+        let mut non_constant_context = self.context_non_constant.take().unwrap();
+        non_constant_context.finalize(return_instruction_block_idx);
+        let non_constant_result = self.run_context(non_constant_context, initial_witness.clone());
 
-        if !constant_checking_enabled {
-            return;
+        if let Some(context) = self.context_constant.take() {
+            let mut constant_context = context;
+            constant_context.finalize(return_instruction_block_idx);
+            let constant_result = self.run_context(constant_context, initial_witness.clone());
+            assert_eq!(
+                non_constant_result, constant_result,
+                "Non-constant and constant contexts should return the same result"
+            );
         }
 
-        self.context_constant.finalize(return_instruction_block_idx);
-
-        let (acir_return_witness, brillig_return_witness) =
-            self.context_constant.get_return_witnesses();
-        let constant_result = Self::execute_and_compare(
-            self.context_constant,
-            WitnessMap::new(),
-            acir_return_witness,
-            brillig_return_witness,
-        );
-        log::debug!("Constant result: {:?}", constant_result);
-
-        if non_constant_result != constant_result {
-            match (non_constant_result, constant_result) {
-                (Some(non_constant_result), Some(constant_result)) => {
-                    // #7947
-                    if constant_result == FieldElement::from(0_u32) {
-                        return;
-                    }
-                    panic!(
-                        "Constant and non-constant results are different for the same program: {:?} != {:?}",
-                        non_constant_result, constant_result
-                    );
-                }
-                (Some(non_constant_result), None) => {
-                    panic!(
-                        "Non-constant result is {:?}, but constant result is None",
-                        non_constant_result
-                    );
-                }
-                (None, Some(constant_result)) => {
-                    // #7947, non-constant failed due to overflow, but constant succeeded
-                    println!(
-                        "Constant result is {:?}, but non-constant program failed to execute",
-                        constant_result
-                    );
-                }
-                // both are None
-                _ => {}
-            }
+        if let Some(context) = self.context_non_constant_with_idempotent_morphing.take() {
+            let mut context_with_idempotent_morphin = context;
+            context_with_idempotent_morphin.finalize(return_instruction_block_idx);
+            let constant_result =
+                self.run_context(context_with_idempotent_morphin, initial_witness);
+            assert_eq!(
+                non_constant_result, constant_result,
+                "Non-constant and idempotent morphing contexts should return the same result"
+            );
         }
     }
 
@@ -165,8 +179,6 @@ impl Fuzzer {
             brillig_return_witness,
         );
         log::debug!("Comparison result: {:?}", comparison_result);
-        log::debug!("ACIR program: {:?}", acir_program);
-        log::debug!("Brillig program: {:?}", brillig_program);
         match comparison_result {
             CompareResults::Agree(result) => Some(result),
             CompareResults::Disagree(acir_return_value, brillig_return_value) => {

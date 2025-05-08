@@ -12,15 +12,10 @@ mod fuzzer;
 mod instruction;
 use crate::fuzzer::Fuzzer;
 use crate::instruction::InstructionBlock;
+use crate::options::FuzzerOptions;
 
 mod block_context;
 mod options;
-
-impl Fuzzer {
-    fn process_fuzzer_command(&mut self, command: FuzzerCommand) {
-        self.context_non_constant.process_fuzzer_command(command);
-    }
-}
 
 /// Field modulus has 254 bits, and FieldElement::from supports u128, so we use two unsigneds to represent a field element
 /// field = low + high * 2^128
@@ -48,7 +43,7 @@ enum WitnessValue {
 /// Represents the data for the fuzzer
 /// `methods` - sequence of instructions to be added to the program
 /// `initial_witness` - initial witness values for the program as `FieldRepresentation`
-#[derive(Arbitrary, Debug, Clone)]
+#[derive(Arbitrary, Debug)]
 struct FuzzerData {
     blocks: Vec<InstructionBlock>,
     commands: Vec<FuzzerCommand>,
@@ -86,9 +81,9 @@ libfuzzer_sys::fuzz_target!(|data: FuzzerData| {
     log::debug!("initial_witness_in_data: {:?}", data.initial_witness);
     log::debug!("commands: {:?}", data.commands);
 
-    let mut fuzzer = Fuzzer::new(types, values, data.blocks);
+    let mut fuzzer = Fuzzer::new(types, values, data.blocks, FuzzerOptions::new(false, false));
     for command in data.commands {
         fuzzer.process_fuzzer_command(command);
     }
-    fuzzer.run(initial_witness, false, data.return_instruction_block_idx);
+    fuzzer.run(initial_witness, data.return_instruction_block_idx);
 });

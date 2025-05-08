@@ -86,7 +86,7 @@ impl FuzzerBuilder {
     }
 
     /// Terminates main function block with the given value
-    pub fn finalize_function(&mut self, return_value: TypedValue) {
+    pub fn finalize_function(&mut self, return_value: &TypedValue) {
         self.builder.terminate_with_return(vec![return_value.value_id]);
     }
 
@@ -140,7 +140,7 @@ impl FuzzerBuilder {
         lhs: TypedValue,
         rhs: TypedValue,
     ) -> TypedValue {
-        let (lhs, rhs) = self.balance_arithmetic(lhs, rhs);
+        let (lhs, rhs) = self.balance_arithmetic(lhs.clone(), rhs.clone());
         let res = self.builder.insert_binary(
             lhs.value_id,
             BinaryOp::Mul { unchecked: false },

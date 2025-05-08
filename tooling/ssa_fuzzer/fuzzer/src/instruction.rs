@@ -42,6 +42,11 @@ pub(crate) enum Instruction {
     Or { lhs: Argument, rhs: Argument },
     /// Bitwise XOR
     Xor { lhs: Argument, rhs: Argument },
+
+    /// constrain(lhs == lhs + rhs - rhs), doesnt insert constraint if idempotent_morphing_enabled=false
+    AddSubConstrain { lhs: Argument, rhs: Argument },
+    /// constrain(lhs == lhs * rhs / rhs), doesnt insert constraint if idempotent_morphing_enabled=false
+    MulDivConstrain { lhs: Argument, rhs: Argument },
 }
 
 /// Check if two vectors of arguments have the same types

@@ -18,7 +18,7 @@ pub enum ValueType {
     I64,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct TypedValue {
     pub value_id: Id<Value>,
     pub type_of_variable: Type,
