@@ -8,6 +8,7 @@
     "tooling/noirc_abi_wasm",
     "tooling/noir_js",
     "tooling/noir_codegen",
+    "tooling/noir_wasm_executor",
     "acvm-repo/acvm_js",
     "docs"
   ],
