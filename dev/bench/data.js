@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1746744865537,
+  "lastUpdate": 1746745093641,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -8160,70 +8160,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "asterite@gmail.com",
-            "name": "Ary Borenszweig",
-            "username": "asterite"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "09d55f62373572e88017c986f1cf657697dc99d2",
-          "message": "feat: better error message on unicode whitespace that isn't ascii whitespace (#8295)\n\nCo-authored-by: Tom French <15848336+TomAFrench@users.noreply.github.com>",
-          "timestamp": "2025-04-30T18:40:15Z",
-          "tree_id": "3b9ab86613ce9783e5aed7bf2e715266367e05c4",
-          "url": "https://github.com/noir-lang/noir/commit/09d55f62373572e88017c986f1cf657697dc99d2"
-        },
-        "date": 1746040135788,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 0.028,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 0.163,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 0.017,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 0.33,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 0.213,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 11.5,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 0.004,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-root",
-            "value": 0.013,
-            "unit": "s"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "michaeljklein@users.noreply.github.com",
             "name": "Michael J Klein",
             "username": "michaeljklein"
@@ -11343,6 +11279,70 @@ window.BENCHMARK_DATA = {
           {
             "name": "rollup-block-root",
             "value": 11.6,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 0.004,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-root",
+            "value": 0.013,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "mvezenov@gmail.com",
+            "name": "Maxim Vezenov",
+            "username": "vezenovm"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "b42264b75875f6edbb6f718408be104291c0de33",
+          "message": "chore(acir): Test whether the predicate has an effect on slice intrinsics (#8421)",
+          "timestamp": "2025-05-08T22:33:20Z",
+          "tree_id": "975e8a85a8d7d42a72d5098ed284cae3401647e2",
+          "url": "https://github.com/noir-lang/noir/commit/b42264b75875f6edbb6f718408be104291c0de33"
+        },
+        "date": 1746745085165,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 0.028,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 0.16,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 0.016,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 0.33,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 0.21,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 11.4,
             "unit": "s"
           },
           {
