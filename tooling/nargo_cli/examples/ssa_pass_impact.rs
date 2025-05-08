@@ -131,6 +131,7 @@ fn main() {
         enable_brillig_constraints_check_lookback: false,
         inliner_aggressiveness: opts.inliner_aggressiveness,
         max_bytecode_increase_percent: None,
+        skip_passes: Default::default(),
     };
 
     let last_pass = primary_passes(&ssa_options)
