@@ -490,8 +490,7 @@
 <a href="#489" id="489">489</a>
 <a href="#490" id="490">490</a>
 <a href="#491" id="491">491</a>
-<a href="#492" id="492">492</a>
-<a href="#493" id="493">493</a></pre></div><pre class="rust"><code><span class="doccomment">//! Module responsible for generating arbitrary [Program] ASTs.
+<a href="#492" id="492">492</a></pre></div><pre class="rust"><code><span class="doccomment">//! Module responsible for generating arbitrary [Program] ASTs.
 </span><span class="kw">use </span>std::collections::{BTreeMap, BTreeSet}; <span class="comment">// Using BTree for deterministic enumeration, for repeatability.
 
 </span><span class="kw">use </span>func::{FunctionContext, FunctionDeclaration};
@@ -737,7 +736,6 @@
 
     <span class="doccomment">/// Generate random function body.
     </span><span class="kw">fn </span>gen_function(<span class="kw-2">&amp;mut </span><span class="self">self</span>, u: <span class="kw-2">&amp;mut </span>Unstructured, id: FuncId) -&gt; arbitrary::Result&lt;()&gt; {
-        <span class="macro">println!</span>(<span class="string">"gen_function"</span>);
         <span class="self">self</span>.gen_function_with_body(u, id, |u, fctx| fctx.gen_body(u))
     }
 
