@@ -353,7 +353,41 @@ impl Elaborator<'_> {
             }
         }
 
-        self.resolve_path_in_module(path, module_id, intermediate_item, target, mode)
+        let last_segment_turbofish_location = path
+            .segments
+            .last()
+            .and_then(|segment| segment.generics.as_ref().map(|_| segment.turbofish_location()));
+
+        let result = self.resolve_path_in_module(path, module_id, intermediate_item, target, mode);
+        let Some(last_segment_turbofish_location) = last_segment_turbofish_location else {
+            return result;
+        };
+
+        result.map(|mut resolution| {
+            match resolution.item {
+                PathResolutionItem::Global(..) => {
+                    resolution.errors.push(PathResolutionError::TurbofishNotAllowedOnItem {
+                        item: "global".to_string(),
+                        location: last_segment_turbofish_location,
+                    });
+                }
+                PathResolutionItem::Module(..) => {
+                    resolution.errors.push(PathResolutionError::TurbofishNotAllowedOnItem {
+                        item: "module".to_string(),
+                        location: last_segment_turbofish_location,
+                    });
+                }
+                PathResolutionItem::Type(..)
+                | PathResolutionItem::TypeAlias(..)
+                | PathResolutionItem::Trait(..)
+                | PathResolutionItem::ModuleFunction(..)
+                | PathResolutionItem::Method(..)
+                | PathResolutionItem::SelfMethod(..)
+                | PathResolutionItem::TypeAliasFunction(..)
+                | PathResolutionItem::TraitFunction(..) => (),
+            }
+            resolution
+        })
     }
 
     /// Resolves a path in `current_module`.
