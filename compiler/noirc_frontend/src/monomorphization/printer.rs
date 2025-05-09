@@ -1,6 +1,6 @@
 //! This module implements printing of the monomorphized AST, for debugging purposes.
 
-use crate::{ast::UnaryOp, monomorphization::ast::Ident, shared::Visibility};
+use crate::{ast::UnaryOp, monomorphization::ast::Ident};
 
 use super::ast::{
     Definition, Expression, FuncId, Function, GlobalId, LValue, LocalId, Program, Type, While,
@@ -78,12 +78,8 @@ impl AstPrinter {
         options: FunctionPrintOptions,
     ) -> std::fmt::Result {
         let params = vecmap(&function.parameters, |(id, mutable, name, typ, visibility)| {
-            let vis = match visibility {
-                Visibility::Private => "".to_string(),
-                Visibility::Public => "pub ".to_string(),
-                Visibility::ReturnData => "return_data ".to_string(),
-                Visibility::CallData(i) => format!("call_data({i}) "),
-            };
+            let vis = visibility.to_string();
+            let vis = if vis.is_empty() { vis } else { format!(" {vis}") };
             format!(
                 "{}{}{}: {}",
                 vis,
@@ -94,12 +90,8 @@ impl AstPrinter {
         })
         .join(", ");
 
-        let vis = match function.return_visibility {
-            Visibility::Private => "".to_string(),
-            Visibility::Public => "pub ".to_string(),
-            Visibility::ReturnData => "return_data ".to_string(),
-            Visibility::CallData(i) => format!("call_data({i}) "),
-        };
+        let vis = function.return_visibility.to_string();
+        let vis = if vis.is_empty() { vis } else { format!(" {vis}") };
 
         let unconstrained = if function.unconstrained { "unconstrained " } else { "" };
         let comptime = if options.comptime { "comptime " } else { "" };
