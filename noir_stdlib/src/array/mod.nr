@@ -342,6 +342,20 @@ mod test {
     }
 
     #[test]
+    fn test_sort_local_single_element() {
+        let mut arr: [u32; 1] = [1];
+        let sorted = arr.sort_via(|a, b| a <= b);
+        assert(sorted == arr);
+    }
+
+    global arr_0: [u32; 1] = [0];
+    #[test]
+    fn test_sort_global_single_element() {
+        let sorted = arr_0.sort_via(|a, b| a <= b);
+        assert(sorted == arr_0);
+    }
+
+    #[test]
     fn test_sort_100_values() {
         let mut arr: [u32; 100] = [
             42, 123, 87, 93, 48, 80, 50, 5, 104, 84, 70, 47, 119, 66, 71, 121, 3, 29, 42, 118, 2,
