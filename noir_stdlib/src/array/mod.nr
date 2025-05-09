@@ -342,15 +342,15 @@ mod test {
     }
 
     #[test]
-    fn test_sort_local_single_element() {
-        let mut arr: [u32; 1] = [1];
-        let sorted = arr.sort_via(|a, b| a <= b);
-        assert(sorted == arr);
-    }
+    fn test_sort_local_single_element() {}
 
     global arr_0: [u32; 1] = [0];
     #[test]
-    fn test_sort_global_single_element() {
+    fn test_sort_global_and_local_single_element() {
+        let arr: [u32; 1] = [1];
+        let sorted = arr.sort_via(|a, b| a <= b);
+        assert(sorted == arr);
+
         let sorted = arr_0.sort_via(|a, b| a <= b);
         assert(sorted == arr_0);
     }
