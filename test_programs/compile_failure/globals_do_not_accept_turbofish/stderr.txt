@@ -12,7 +12,7 @@ error: Could not resolve 'world' in path
   │                        -----
   │
 
-error: turbofish (`::<_>`) not allowed on global
+error: turbofish (`::<_>`) not allowed on globals
   ┌─ src/main.nr:4:14
   │
 4 │     let _ = x::<hello, world>;
