@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1746820757666,
+  "lastUpdate": 1746820768203,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -20595,6 +20595,80 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/noir-lang/noir/commit/c651df6e2bf5db3966aa0c95abea2fc4c69d4513"
         },
         "date": 1746820273214,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 1110.4,
+            "unit": "KB"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 2033.9,
+            "unit": "KB"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 638.3,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 5175.6,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 3959,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-block-root-empty",
+            "value": 257.1,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-block-root-single-tx",
+            "value": 25677.1,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 25704,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 179.3,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-root",
+            "value": 470.5,
+            "unit": "KB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "asterite@gmail.com",
+            "name": "Ary Borenszweig",
+            "username": "asterite"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "944d23430d2746e25980ca283160f13665f123c3",
+          "message": "fix: always type-check turbofish, and error when it's not allowed (#8437)\n\nCo-authored-by: Tom French <15848336+TomAFrench@users.noreply.github.com>",
+          "timestamp": "2025-05-09T19:34:35Z",
+          "tree_id": "77421e3590fa49825816d04e604bb1856774a70a",
+          "url": "https://github.com/noir-lang/noir/commit/944d23430d2746e25980ca283160f13665f123c3"
+        },
+        "date": 1746820759247,
         "tool": "customSmallerIsBetter",
         "benches": [
           {
