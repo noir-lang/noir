@@ -53,3 +53,10 @@ path = "fuzz_targets/orig_vs_morph.rs"
 test = false
 doc = false
 bench = false
+
+[[bin]]
+name = "pass_vs_prev"
+path = "fuzz_targets/pass_vs_prev.rs"
+test = false
+doc = false
+bench = false
