@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1746820768203,
+  "lastUpdate": 1746820772667,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -3705,95 +3705,6 @@ window.BENCHMARK_DATA = {
       }
     ],
     "Compilation Time": [
-      {
-        "commit": {
-          "author": {
-            "email": "aakoshh@gmail.com",
-            "name": "Akosh Farkash",
-            "username": "aakoshh"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "86e61f0290a99015c7987eec77b3ebadf0bd5aaf",
-          "message": "feat: Metamorphic AST fuzzing (#8299)",
-          "timestamp": "2025-05-02T15:27:36Z",
-          "tree_id": "e0d598859a2300eb3ff09aad1b37fd2add9de9a5",
-          "url": "https://github.com/noir-lang/noir/commit/86e61f0290a99015c7987eec77b3ebadf0bd5aaf"
-        },
-        "date": 1746201040467,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "regression_4709",
-            "value": 0.676,
-            "unit": "s"
-          },
-          {
-            "name": "ram_blowup_regression",
-            "value": 12.7,
-            "unit": "s"
-          },
-          {
-            "name": "global_var_regression_entry_points",
-            "value": 0.481,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-inner",
-            "value": 2.27,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 6.27,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 1.086,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 19.26,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 12.94,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root-empty",
-            "value": 1.262,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root-single-tx",
-            "value": 121,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 124,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 1.066,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-root",
-            "value": 1.616,
-            "unit": "s"
-          }
-        ]
-      },
       {
         "commit": {
           "author": {
@@ -8061,6 +7972,80 @@ window.BENCHMARK_DATA = {
           {
             "name": "rollup-root",
             "value": 1.754,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "asterite@gmail.com",
+            "name": "Ary Borenszweig",
+            "username": "asterite"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "944d23430d2746e25980ca283160f13665f123c3",
+          "message": "fix: always type-check turbofish, and error when it's not allowed (#8437)\n\nCo-authored-by: Tom French <15848336+TomAFrench@users.noreply.github.com>",
+          "timestamp": "2025-05-09T19:34:35Z",
+          "tree_id": "77421e3590fa49825816d04e604bb1856774a70a",
+          "url": "https://github.com/noir-lang/noir/commit/944d23430d2746e25980ca283160f13665f123c3"
+        },
+        "date": 1746820763611,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 2.316,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 6.332,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 1.13,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 17.12,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 12.82,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-empty",
+            "value": 1.252,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-single-tx",
+            "value": 125,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 148,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 1.08,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-root",
+            "value": 1.63,
             "unit": "s"
           }
         ]
