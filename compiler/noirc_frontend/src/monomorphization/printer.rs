@@ -77,8 +77,20 @@ impl AstPrinter {
         f: &mut Formatter,
         options: FunctionPrintOptions,
     ) -> std::fmt::Result {
-        let params = vecmap(&function.parameters, |(id, mutable, name, typ)| {
-            format!("{}{}: {}", if *mutable { "mut " } else { "" }, self.fmt_local(name, *id), typ)
+        let params = vecmap(&function.parameters, |(id, mutable, name, typ, visibility)| {
+            let vis = match visibility {
+                Visibility::Private => "".to_string(),
+                Visibility::Public => "pub ".to_string(),
+                Visibility::ReturnData => "return_data ".to_string(),
+                Visibility::CallData(i) => format!("call_data({i}) "),
+            };
+            format!(
+                "{}{}{}: {}",
+                vis,
+                if *mutable { "mut " } else { "" },
+                self.fmt_local(name, *id),
+                typ
+            )
         })
         .join(", ");
 

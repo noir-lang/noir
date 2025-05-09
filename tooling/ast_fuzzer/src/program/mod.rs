@@ -57,7 +57,6 @@ pub fn arb_program_comptime(u: &mut Unstructured, config: Config) -> arbitrary::
         name: "main".into(),
         params: vec![],
         return_type: decl_inner.return_type.clone(),
-        param_visibilities: vec![],
         return_visibility: Visibility::Public,
         inline_type: InlineType::default(),
         unconstrained: false,
@@ -165,7 +164,6 @@ impl Context {
         let num_params = u.int_in_range(0..=self.config.max_function_args)?;
 
         let mut params = Vec::new();
-        let mut param_visibilities = Vec::new();
         for p in 0..num_params {
             let id = LocalId(p as u32);
             let name = make_name(p, false);
@@ -177,9 +175,8 @@ impl Context {
                 false,
                 self.config.comptime_friendly,
             )?;
-            params.push((id, is_mutable, name, typ));
 
-            param_visibilities.push(if is_main {
+            let visibility = if is_main {
                 match u.choose_index(5)? {
                     0 | 1 => Visibility::Public,
                     2 | 3 => Visibility::Private,
@@ -187,7 +184,9 @@ impl Context {
                 }
             } else {
                 Visibility::Private
-            });
+            };
+
+            params.push((id, is_mutable, name, typ, visibility));
         }
 
         let return_type =
@@ -207,7 +206,6 @@ impl Context {
         let decl = FunctionDeclaration {
             name: if is_main { "main".to_string() } else { format!("func_{i}") },
             params,
-            param_visibilities,
             return_type,
             return_visibility,
             inline_type: if is_main {

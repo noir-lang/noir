@@ -157,7 +157,6 @@ fn test_recursion_limit_rewrite() {
             FunctionDeclaration {
                 name: name.to_string(),
                 params: vec![],
-                param_visibilities: vec![],
                 return_type: Type::Unit,
                 return_visibility: Visibility::Private,
                 inline_type: func.inline_type,
