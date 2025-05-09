@@ -79,7 +79,7 @@
 };
 <span class="kw">use </span>arbitrary::{Arbitrary, Unstructured};
 <span class="kw">use </span>color_eyre::eyre;
-<span class="kw">use </span>noir_ast_fuzzer::compare::{CompareOptions, ComparePasses};
+<span class="kw">use </span>noir_ast_fuzzer::compare::{CompareOptions, ComparePipelines};
 <span class="kw">use </span>noir_ast_fuzzer::{
     Config, compare::CompareResult, rewrite::change_all_functions_into_unconstrained,
 };
@@ -96,7 +96,7 @@
         ..Default::default()
     };
 
-    <span class="kw">let </span>inputs = ComparePasses::arb(
+    <span class="kw">let </span>inputs = ComparePipelines::arb(
         u,
         config,
         |_u, program| {

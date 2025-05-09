@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"enum":["CompareResult"],"fn":["prepare_and_compile_snippet","prepare_snippet"],"struct":["CompareArtifact","CompareComptime","CompareOptions","CompareSsa","ExecOutput"],"trait":["HasPrograms"],"type":["CompareMorph","ComparePasses","ExecResult"]};
+window.SIDEBAR_ITEMS = {"enum":["CompareResult"],"mod":["compiled","comptime"],"struct":["CompareArtifact","CompareCompiled","CompareComptime","CompareOptions","ExecOutput"],"trait":["HasPrograms"],"type":["CompareMorph","ComparePipelines","ExecResult"]};

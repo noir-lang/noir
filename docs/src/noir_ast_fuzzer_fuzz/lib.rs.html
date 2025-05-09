@@ -146,7 +146,7 @@
 <a href="#145" id="145">145</a></pre></div><pre class="rust"><code><span class="kw">use </span>acir::circuit::ExpressionWidth;
 <span class="kw">use </span>color_eyre::eyre;
 <span class="kw">use </span>noir_ast_fuzzer::DisplayAstAsNoir;
-<span class="kw">use </span>noir_ast_fuzzer::compare::{CompareComptime, CompareResult, CompareSsa, HasPrograms};
+<span class="kw">use </span>noir_ast_fuzzer::compare::{CompareCompiled, CompareComptime, CompareResult, HasPrograms};
 <span class="kw">use </span>noirc_abi::input_parser::Format;
 <span class="kw">use </span>noirc_evaluator::brillig::Brillig;
 <span class="kw">use </span>noirc_evaluator::ssa::{SsaPass, primary_passes, secondary_passes};
@@ -224,9 +224,9 @@
 }
 
 <span class="doccomment">/// Compare the execution result and print the inputs if the result is a failure.
-</span><span class="kw">pub fn </span>compare_results&lt;P&gt;(inputs: <span class="kw-2">&amp;</span>CompareSsa&lt;P&gt;, result: <span class="kw-2">&amp;</span>CompareResult) -&gt; eyre::Result&lt;()&gt;
+</span><span class="kw">pub fn </span>compare_results&lt;P&gt;(inputs: <span class="kw-2">&amp;</span>CompareCompiled&lt;P&gt;, result: <span class="kw-2">&amp;</span>CompareResult) -&gt; eyre::Result&lt;()&gt;
 <span class="kw">where
-    </span>CompareSsa&lt;P&gt;: HasPrograms,
+    </span>CompareCompiled&lt;P&gt;: HasPrograms,
 {
     <span class="kw">let </span>res = result.return_value_or_err();
 

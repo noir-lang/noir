@@ -64,7 +64,7 @@
 <span class="kw">use </span>arbitrary::Unstructured;
 <span class="kw">use </span>color_eyre::eyre;
 <span class="kw">use </span>noir_ast_fuzzer::Config;
-<span class="kw">use </span>noir_ast_fuzzer::compare::{CompareOptions, ComparePasses};
+<span class="kw">use </span>noir_ast_fuzzer::compare::{CompareOptions, ComparePipelines};
 <span class="kw">use </span>noir_ast_fuzzer::rewrite::change_all_functions_into_unconstrained;
 
 <span class="kw">pub fn </span>fuzz(u: <span class="kw-2">&amp;mut </span>Unstructured) -&gt; eyre::Result&lt;()&gt; {
@@ -78,7 +78,7 @@
         ..Default::default()
     };
 
-    <span class="kw">let </span>inputs = ComparePasses::arb(
+    <span class="kw">let </span>inputs = ComparePipelines::arb(
         u,
         config,
         |u, program| {

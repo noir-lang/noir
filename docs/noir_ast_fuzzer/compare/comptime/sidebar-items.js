@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"fn":["prepare_and_compile_snippet","prepare_snippet"],"struct":["CompareComptime"]};
