@@ -97,9 +97,17 @@ pub(crate) struct TestCommand {
     #[arg(long)]
     fuzzing_failure_dir: Option<String>,
 
-    /// Maximum time in seconds to spend fuzzing (default: 1 second)
-    #[arg(long, default_value_t = 1)]
+    /// Maximum time in seconds to spend fuzzing (default: 10 seconds)
+    #[arg(long, default_value_t = 10)]
     fuzz_timeout: u64,
+
+    /// Maximum number of executions to run for each fuzz test (default: 100000)
+    #[arg(long, default_value_t = 100000)]
+    fuzz_max_executions: usize,
+
+    /// Show progress of fuzzing (default: false)
+    #[arg(long)]
+    fuzz_show_progress: bool,
 }
 
 impl WorkspaceCommand for TestCommand {
@@ -370,7 +378,7 @@ impl<'a> TestRunner<'a> {
                     .stack_size(STACK_SIZE)
                     .spawn_scoped(scope, move || {
                         self.process_chunk_of_tests(
-                            &iter_tests_without_arguments,
+                            iter_tests_without_arguments,
                             &test_result_thread_sender,
                         );
                         // Signal that we've finished processing the standard tests in this thread
@@ -390,7 +398,7 @@ impl<'a> TestRunner<'a> {
                     // Process fuzz tests sequentially
                     // Parallelism is handled by the fuzz tests themselves
                     self.process_chunk_of_tests(
-                        &iter_tests_with_arguments,
+                        iter_tests_with_arguments,
                         &test_result_thread_sender,
                     );
                 })
@@ -548,7 +556,6 @@ impl<'a> TestRunner<'a> {
                         package,
                         &test_name,
                         test_function.has_arguments,
-                        self.num_threads,
                         foreign_call_resolver_url,
                         root_path,
                         package_name_clone.clone(),
@@ -585,7 +592,6 @@ impl<'a> TestRunner<'a> {
         package: &Package,
         fn_name: &str,
         has_arguments: bool,
-        num_threads: usize,
         foreign_call_resolver_url: Option<&str>,
         root_path: Option<PathBuf>,
         package_name: String,
@@ -616,10 +622,10 @@ impl<'a> TestRunner<'a> {
                 fuzzing_failure_dir: self.args.fuzzing_failure_dir.clone(),
             },
             execution_config: FuzzExecutionConfig {
-                num_threads,
+                num_threads: self.num_threads,
                 timeout: self.args.fuzz_timeout,
-                show_progress: false,
-                max_executions: 0,
+                show_progress: self.args.fuzz_show_progress,
+                max_executions: self.args.fuzz_max_executions,
             },
         };
 
