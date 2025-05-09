@@ -1,7 +1,7 @@
 //! Compare an arbitrary AST compiled into SSA and executed with the
 //! SSA interpreter at some stage of the SSA pipeline.
 
-use std::{collections::BTreeMap, sync::Arc};
+use std::sync::Arc;
 
 use arbitrary::Unstructured;
 use color_eyre::eyre;
@@ -10,7 +10,7 @@ use noirc_abi::{Abi, AbiType, InputMap, Sign, input_parser::InputValue};
 use noirc_evaluator::ssa::{self, ssa_gen::Ssa};
 use noirc_frontend::{Shared, monomorphization::ast::Program};
 
-use crate::{Config, arb_program, program_abi};
+use crate::{Config, DisplayAstAsNoir, arb_program, input::arb_inputs_from_ssa, program_abi};
 
 use super::{CompareError, CompareOptions, CompareResult, ExecOutput};
 
@@ -61,13 +61,14 @@ impl CompareInterpreted {
         let abi = program_abi(&program);
         let (options, ssa1, ssa2) = f(u, program.clone())?;
 
-        // TODO: Figure out how to create random input from the SSA itself.
-        let input_map = BTreeMap::default();
+        let input_map = arb_inputs_from_ssa(u, &ssa1.ssa, &abi)?;
 
         Ok(Self { program, abi, input_map, options, ssa1, ssa2 })
     }
 
     pub fn exec(&self) -> eyre::Result<CompareInterpretedResult> {
+        println!("AST:\n{}", DisplayAstAsNoir(&self.program));
+        println!("Inputs:\n{:?}", self.input_map);
         let inputs = input_values_to_ssa(&self.abi, &self.input_map);
         let res1 = self.ssa1.ssa.interpret(inputs.clone());
         let res2 = self.ssa2.ssa.interpret(inputs);
@@ -97,7 +98,9 @@ impl CompareError for ssa::interpreter::errors::InterpreterError {
 fn input_values_to_ssa(abi: &Abi, input_map: &InputMap) -> Vec<ssa::interpreter::value::Value> {
     let mut inputs = Vec::new();
     for param in &abi.parameters {
-        let input = &input_map[&param.name];
+        let input = &input_map
+            .get(&param.name)
+            .unwrap_or_else(|| panic!("parameter not found in input: {}", param.name));
         let input = input_value_to_ssa(&param.typ, input);
         inputs.push(input);
     }
