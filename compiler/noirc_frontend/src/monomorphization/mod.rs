@@ -1596,12 +1596,6 @@ impl<'interner> Monomorphizer<'interner> {
         function_type: HirType,
         method: TraitMethodId,
     ) -> Result<ast::Expression, MonomorphizationError> {
-        eprintln!("Instantiation bindings on trait method expr:");
-        let bindings = self.interner.get_instantiation_bindings(expr_id);
-        for (_a, (tv, _kind, typ)) in bindings {
-            eprintln!("  {tv:?} <- {typ:?}");
-        }
-
         let func_id = resolve_trait_method(self.interner, method, expr_id)
             .map_err(MonomorphizationError::InterpreterError)?;
 
@@ -1892,6 +1886,7 @@ impl<'interner> Monomorphizer<'interner> {
 
         let location = self.interner.expr_location(&expr_id);
         let bindings = self.interner.get_instantiation_bindings(expr_id);
+
         let bindings = self.follow_bindings(bindings);
         self.queue.push_back((id, new_id, bindings, trait_method, is_unconstrained, location));
         new_id
@@ -2554,16 +2549,14 @@ pub fn resolve_trait_method(
         TraitImplKind::Assumed { object_type, trait_generics } => {
             let location = interner.expr_location(&expr_id);
 
-            eprintln!("Monomorphizing trait method!");
-
             match interner.lookup_trait_implementation(
                 &object_type,
                 method.trait_id,
                 &trait_generics.ordered,
                 &trait_generics.named,
             ) {
-                Ok(TraitImplKind::Normal(impl_id)) => impl_id,
-                Ok(TraitImplKind::Assumed { .. }) => {
+                Ok((TraitImplKind::Normal(impl_id), _instantiation_bindings)) => impl_id,
+                Ok((TraitImplKind::Assumed { .. }, _instantiation_bindings)) => {
                     return Err(InterpreterError::NoImpl { location });
                 }
                 Err(ImplSearchErrorKind::TypeAnnotationsNeededOnObjectType) => {

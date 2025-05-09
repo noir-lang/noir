@@ -454,7 +454,7 @@ impl StmtId {
 }
 
 #[derive(Debug, Eq, PartialEq, Hash, Copy, Clone, PartialOrd, Ord)]
-pub struct ExprId(Index);
+pub struct ExprId(pub Index);
 
 #[derive(Debug, Eq, PartialEq, Hash, Copy, Clone)]
 pub struct FuncId(Index);
@@ -1494,14 +1494,16 @@ impl NodeInterner {
     /// constraints deep. In this case, all of the constraints are returned, starting with the
     /// failing one.
     /// If this list of failing constraints is empty, this means type annotations are required.
+    /// Returns the list of instantiation bindings as well, which should be stored on the
+    /// expression.
     pub fn lookup_trait_implementation(
         &self,
         object_type: &Type,
         trait_id: TraitId,
         trait_generics: &[Type],
         trait_associated_types: &[NamedType],
-    ) -> Result<TraitImplKind, ImplSearchErrorKind> {
-        let (impl_kind, bindings) = self.try_lookup_trait_implementation(
+    ) -> Result<(TraitImplKind, TypeBindings), ImplSearchErrorKind> {
+        let (impl_kind, bindings, instantiation_bindings) = self.try_lookup_trait_implementation(
             object_type,
             trait_id,
             trait_generics,
@@ -1509,7 +1511,7 @@ impl NodeInterner {
         )?;
 
         Type::apply_type_bindings(bindings);
-        Ok(impl_kind)
+        Ok((impl_kind, instantiation_bindings))
     }
 
     /// Similar to `lookup_trait_implementation` but does not apply any type bindings on success.
@@ -1523,9 +1525,9 @@ impl NodeInterner {
         trait_id: TraitId,
         trait_generics: &[Type],
         trait_associated_types: &[NamedType],
-    ) -> Result<(TraitImplKind, TypeBindings), ImplSearchErrorKind> {
+    ) -> Result<(TraitImplKind, TypeBindings, TypeBindings), ImplSearchErrorKind> {
         let mut bindings = TypeBindings::new();
-        let impl_kind = self.lookup_trait_implementation_helper(
+        let (impl_kind, instantiation_bindings) = self.lookup_trait_implementation_helper(
             object_type,
             trait_id,
             trait_generics,
@@ -1533,10 +1535,15 @@ impl NodeInterner {
             &mut bindings,
             IMPL_SEARCH_RECURSION_LIMIT,
         )?;
-        Ok((impl_kind, bindings))
+        Ok((impl_kind, bindings, instantiation_bindings))
     }
 
-    /// Returns the trait implementation if found.
+    /// Returns the trait implementation if found along with the instantiation bindings for
+    /// instantiating that trait impl. Note that this is separate from the passed-in TypeBindings
+    /// which can be bound via `Type::apply_type_bindings` if needed. Instantiation bindings should
+    /// be stored as such but not bound, lest the original named generics in trait impls get bound
+    /// over.
+    ///
     /// On error returns either:
     /// - 1+ failing trait constraints, including the original.
     ///   Each constraint after the first represents a `where` clause that was followed.
@@ -1549,7 +1556,7 @@ impl NodeInterner {
         trait_associated_types: &[NamedType],
         type_bindings: &mut TypeBindings,
         recursion_limit: u32,
-    ) -> Result<TraitImplKind, ImplSearchErrorKind> {
+    ) -> Result<(TraitImplKind, TypeBindings), ImplSearchErrorKind> {
         let make_constraint = || {
             let ordered = trait_generics.to_vec();
             let named = trait_associated_types.to_vec();
@@ -1562,13 +1569,6 @@ impl NodeInterner {
                 },
             }
         };
-
-        eprintln!("Solving {:?}: {}<{}, {}>",
-            object_type,
-            self.get_trait(trait_id).name,
-            vecmap(trait_generics, |t| format!("{t:?}")).join(", "),
-            vecmap(trait_associated_types, |t| format!("{} = {:?}", t.name, t.typ)).join(", "),
-        );
 
         let nested_error = || ImplSearchErrorKind::Nested(vec![make_constraint()]);
 
@@ -1590,7 +1590,6 @@ impl NodeInterner {
         let mut where_clause_error = None;
 
         for (existing_object_type, impl_kind) in impls {
-            // Bug: We're instantiating only the object type's generics here, not all of the trait's generics like we need to
             let (existing_object_type, instantiation_bindings) =
                 existing_object_type.instantiate(self);
 
@@ -1615,13 +1614,6 @@ impl NodeInterner {
                             trait_generic.typ.try_unify(&impl_generic2, &mut fresh_bindings).is_ok()
                         });
 
-        eprintln!("  Checking impl {:?}: {}<{}, {}>",
-            existing_object_type,
-            self.get_trait(trait_id).name,
-            vecmap(impl_generics, |t| format!("{t:?}")).join(", "),
-            vecmap(impl_associated_types, |t| format!("{} = {:?}", t.name, t.typ)).join(", "),
-        );
-
                     generics_unify && associated_types_unify
                 };
 
@@ -1637,19 +1629,13 @@ impl NodeInterner {
             };
 
             if !check_trait_generics(&trait_generics.ordered, &trait_generics.named) {
-                eprintln!("  generics don't match");
                 continue;
             }
 
             if object_type.try_unify(&existing_object_type, &mut fresh_bindings).is_ok() {
-                eprintln!("  object type matches");
                 if let TraitImplKind::Normal(impl_id) = impl_kind {
                     let trait_impl = self.get_trait_implementation(*impl_id);
                     let trait_impl = trait_impl.borrow();
-
-                    if !trait_impl.where_clause.is_empty() {
-                        eprintln!("  validating where clause {{");
-                    }
 
                     if let Err(error) = self.validate_where_clause(
                         &trait_impl.where_clause,
@@ -1657,18 +1643,11 @@ impl NodeInterner {
                         &instantiation_bindings,
                         recursion_limit,
                     ) {
-                        if !trait_impl.where_clause.is_empty() {
-                            eprintln!("  }} where clause failed");
-                        }
                         // Only keep the first errors we get from a failing where clause
                         if where_clause_error.is_none() {
                             where_clause_error = Some(error);
                         }
                         continue;
-                    } else {
-                        if !trait_impl.where_clause.is_empty() {
-                            eprintln!("  }} where clause matches");
-                        }
                     }
                 }
 
@@ -1680,16 +1659,19 @@ impl NodeInterner {
                         location: Location::dummy(),
                     },
                 };
-                matching_impls.push((impl_kind.clone(), fresh_bindings, constraint));
-            } else {
-                eprintln!("  object types don't match");
+                matching_impls.push((
+                    impl_kind.clone(),
+                    fresh_bindings,
+                    instantiation_bindings,
+                    constraint,
+                ));
             }
         }
 
         if matching_impls.len() == 1 {
-            let (impl_, fresh_bindings, _) = matching_impls.pop().unwrap();
+            let (impl_, fresh_bindings, instantiation_bindings, _) = matching_impls.pop().unwrap();
             *type_bindings = fresh_bindings;
-            Ok(impl_)
+            Ok((impl_, instantiation_bindings))
         } else if matching_impls.is_empty() {
             let mut errors = match where_clause_error {
                 Some((_, ImplSearchErrorKind::Nested(errors))) => errors,
@@ -1699,7 +1681,7 @@ impl NodeInterner {
             errors.push(make_constraint());
             Err(ImplSearchErrorKind::Nested(errors))
         } else {
-            let impls = vecmap(matching_impls, |(_, _, constraint)| {
+            let impls = vecmap(matching_impls, |(_, _, _, constraint)| {
                 let name = &self.get_trait(constraint.trait_bound.trait_id).name;
                 format!("{}: {name}{}", constraint.typ, constraint.trait_bound.trait_generics)
             });
@@ -1834,7 +1816,7 @@ impl NodeInterner {
         // It should never happen since impls are defined at global scope, but even
         // if they were, we should never prevent defining a new impl because a 'where'
         // clause already assumes it exists.
-        if let Ok((TraitImplKind::Normal(existing), _)) = self.try_lookup_trait_implementation(
+        if let Ok((TraitImplKind::Normal(existing), ..)) = self.try_lookup_trait_implementation(
             &instantiated_object_type,
             trait_id,
             trait_generics,

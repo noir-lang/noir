@@ -1585,11 +1585,7 @@ impl<'context> Elaborator<'context> {
                 methods,
             });
 
-            eprintln!("Next impl");
-            let generics = vecmap(&self.generics, |generic| {
-                eprintln!("  impl has generic {:?}", generic.name);
-                generic.type_var.clone()
-            });
+            let generics = vecmap(&self.generics, |generic| generic.type_var.clone());
 
             if let Err(prev_location) = self.interner.add_trait_implementation(
                 self_type.clone(),
