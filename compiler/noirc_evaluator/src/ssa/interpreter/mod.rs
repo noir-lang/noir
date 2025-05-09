@@ -18,7 +18,7 @@ use iter_extended::vecmap;
 use noirc_frontend::Shared;
 use value::{ArrayValue, NumericValue, ReferenceValue};
 
-mod errors;
+pub mod errors;
 mod intrinsics;
 mod tests;
 pub mod value;
@@ -63,7 +63,7 @@ type IResults = IResult<Vec<Value>>;
 
 #[allow(unused)]
 impl Ssa {
-    pub(crate) fn interpret(&self, args: Vec<Value>) -> IResults {
+    pub fn interpret(&self, args: Vec<Value>) -> IResults {
         self.interpret_function(self.main_id, args)
     }
 
