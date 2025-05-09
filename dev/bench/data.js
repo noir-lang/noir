@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1746788850749,
+  "lastUpdate": 1746793846888,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -18216,48 +18216,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "aakoshh@gmail.com",
-            "name": "Akosh Farkash",
-            "username": "aakoshh"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "f31449818b82b5c478d784bacf1429570a837e5c",
-          "message": "fix: Return zero and insert an assertion if RHS bit size is over the limit in euclidian division (#8294)",
-          "timestamp": "2025-05-01T15:27:07Z",
-          "tree_id": "741560dc3a0a04a04cb6006f4f4ad9af11238d73",
-          "url": "https://github.com/noir-lang/noir/commit/f31449818b82b5c478d784bacf1429570a837e5c"
-        },
-        "date": 1746114445032,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 278185,
-            "range": "± 1643",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 254023,
-            "range": "± 5673",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 3598623,
-            "range": "± 14688",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "mvezenov@gmail.com",
             "name": "Maxim Vezenov",
             "username": "vezenovm"
@@ -20309,6 +20267,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 3220345,
             "range": "± 8323",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "aakoshh@gmail.com",
+            "name": "Akosh Farkash",
+            "username": "aakoshh"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "cf1408a33d829ed2ec787a3306746da007d1d874",
+          "message": "chore(fuzz): Break up the AST fuzzer `compare` module (#8431)",
+          "timestamp": "2025-05-09T12:11:27Z",
+          "tree_id": "a813cda34e02888775555d677cfc85520424c4a4",
+          "url": "https://github.com/noir-lang/noir/commit/cf1408a33d829ed2ec787a3306746da007d1d874"
+        },
+        "date": 1746793838549,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 265400,
+            "range": "± 417",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 235987,
+            "range": "± 2029",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 3221284,
+            "range": "± 10223",
             "unit": "ns/iter"
           }
         ]
