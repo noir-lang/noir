@@ -9,8 +9,8 @@ use thiserror::Error;
 pub(super) const MAX_SIGNED_BIT_SIZE: u32 = 64;
 pub(super) const MAX_UNSIGNED_BIT_SIZE: u32 = 128;
 
-#[derive(Debug, Error)]
-pub(crate) enum InterpreterError {
+#[derive(Debug, Error, PartialEq, Eq)]
+pub enum InterpreterError {
     /// These errors are all the result from malformed input SSA
     #[error("{0}")]
     Internal(InternalError),
@@ -59,8 +59,8 @@ pub(crate) enum InterpreterError {
 }
 
 /// These errors can only result from interpreting malformed SSA
-#[derive(Debug, Error)]
-pub(crate) enum InternalError {
+#[derive(Debug, Error, PartialEq, Eq)]
+pub enum InternalError {
     #[error(
         "Argument count {arguments} to block {block} does not match the expected parameter count {parameters}"
     )]

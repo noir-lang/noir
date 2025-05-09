@@ -1,6 +1,6 @@
 //! Compare the execution of random ASTs between the normal execution
 //! vs when everything is forced to be Brillig.
-use crate::{compare_results, create_ssa_or_die, default_ssa_options};
+use crate::{compare_results_compiled, create_ssa_or_die, default_ssa_options};
 use arbitrary::Arbitrary;
 use arbitrary::Unstructured;
 use color_eyre::eyre;
@@ -41,7 +41,7 @@ pub fn fuzz(u: &mut Unstructured) -> eyre::Result<()> {
 
     let result = inputs.exec()?;
 
-    compare_results(&inputs, &result)
+    compare_results_compiled(&inputs, &result)
 }
 
 #[cfg(test)]
