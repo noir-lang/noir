@@ -4,7 +4,7 @@ use crate::{
     DataType, Type,
     ast::{
         AssignStatement, Expression, ForLoopStatement, ForRange, Ident, ItemVisibility, LValue,
-        LetStatement, Path, Statement, StatementKind, WhileStatement,
+        LetStatement, Statement, StatementKind, WhileStatement,
     },
     hir::{
         resolution::{
@@ -23,7 +23,7 @@ use crate::{
     node_interner::{DefinitionId, DefinitionKind, ExprId, GlobalId, StmtId},
 };
 
-use super::{Elaborator, Loop, lints};
+use super::{Elaborator, Loop, TypedPath, lints};
 
 impl Elaborator<'_> {
     fn elaborate_statement_value(&mut self, statement: Statement) -> (HirStatement, Type) {
@@ -381,7 +381,7 @@ impl Elaborator<'_> {
             LValue::Ident(ident) => {
                 let mut mutable = true;
                 let location = ident.location();
-                let path = Path::from_single(ident.to_string(), location);
+                let path = TypedPath::from_single(ident.to_string(), location);
                 let ((ident, scope_index), _) = self.get_ident_from_path(path);
 
                 self.resolve_local_variable(ident.clone(), scope_index);

@@ -41,6 +41,7 @@ fn arb_program_can_be_executed() {
             enable_brillig_constraints_check_lookback: false,
             inliner_aggressiveness: 0,
             max_bytecode_increase_percent: None,
+            skip_passes: Default::default(),
         };
 
         // Print the AST if something goes wrong, then panic.
