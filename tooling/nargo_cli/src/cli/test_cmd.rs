@@ -97,8 +97,8 @@ pub(crate) struct TestCommand {
     #[arg(long)]
     fuzzing_failure_dir: Option<String>,
 
-    /// Maximum time in seconds to spend fuzzing (default: 10 seconds)
-    #[arg(long, default_value_t = 10)]
+    /// Maximum time in seconds to spend fuzzing (default: 1 seconds)
+    #[arg(long, default_value_t = 1)]
     fuzz_timeout: u64,
 
     /// Maximum number of executions to run for each fuzz test (default: 100000)

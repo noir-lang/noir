@@ -134,9 +134,9 @@ There are some fuzzing-specific options that can be used with `nargo test`:
           If given, store the failing input in the given folder
 
       --fuzz-timeout <FUZZ_TIMEOUT>
-          Maximum time in seconds to spend fuzzing (default: 10 seconds)
+          Maximum time in seconds to spend fuzzing (default: 1 second)
 
-          [default: 10]
+          [default: 1]
 
       --fuzz-max-executions <FUZZ_MAX_EXECUTIONS>
           Maximum number of executions to run for each fuzz test (default: 100000)
