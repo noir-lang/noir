@@ -118,11 +118,6 @@ impl Context {
         self.function_declarations.insert(id, decl);
     }
 
-    /// Get the main function declaration.
-    fn main_decl(&self) -> &FunctionDeclaration {
-        self.function_declarations.get(&Program::main_id()).expect("main should exist")
-    }
-
     /// Generate random global definitions.
     fn gen_globals(&mut self, u: &mut Unstructured) -> arbitrary::Result<()> {
         let num_globals = u.int_in_range(0..=self.config.max_globals)?;
@@ -263,6 +258,7 @@ impl Context {
             parameters: decl.params.clone(),
             body,
             return_type: decl.return_type.clone(),
+            return_visibility: decl.return_visibility,
             unconstrained: decl.unconstrained,
             inline_type: decl.inline_type,
             func_sig: decl.signature(),
@@ -278,7 +274,6 @@ impl Context {
 
     /// Return the generated [Program].
     fn finalize(self) -> Program {
-        let return_visibility = self.main_decl().return_visibility;
         let functions = self.functions.into_values().collect::<Vec<_>>();
 
         // The signatures should only contain entry functions. Currently that's just `main`.
@@ -294,7 +289,6 @@ impl Context {
             function_signatures,
             main_function_signature,
             return_location: None,
-            return_visibility,
             globals,
             debug_variables: Default::default(),
             debug_functions: Default::default(),
@@ -480,12 +474,14 @@ impl std::fmt::Display for DisplayAstAsNoirComptime<'_> {
         printer.show_id = false;
         printer.show_clone_and_drop = false;
         for function in &self.0.functions {
-            let mut fpo = FunctionPrintOptions::default();
             if function.id == Program::main_id() {
-                fpo.comptime_wrap_body = true;
-                fpo.return_visibility = Some(Visibility::Public);
+                let mut function = function.clone();
+                function.return_visibility = Visibility::Public;
+                let fpo = FunctionPrintOptions { comptime_wrap_body: true, ..Default::default() };
+                printer.print_function(&function, f, fpo)?;
+            } else {
+                printer.print_function(function, f, FunctionPrintOptions::default())?;
             }
-            printer.print_function(function, f, fpo)?;
         }
         Ok(())
     }

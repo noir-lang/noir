@@ -26,7 +26,7 @@ pub fn program_abi(program: &Program) -> Abi {
         Type::Unit => None,
         typ => Some(AbiReturnType {
             abi_type: to_abi_type(typ),
-            visibility: to_abi_visibility(&program.return_visibility),
+            visibility: to_abi_visibility(&program.return_visibility()),
         }),
     };
 

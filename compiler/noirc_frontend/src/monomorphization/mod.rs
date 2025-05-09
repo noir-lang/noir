@@ -21,7 +21,7 @@ use crate::{
     debug::DebugInstrumenter,
     hir_def::{
         expr::*,
-        function::{FuncMeta, FunctionSignature, Parameters},
+        function::{FunctionSignature, Parameters},
         stmt::{HirAssignStatement, HirLValue, HirLetStatement, HirPattern, HirStatement},
         types,
     },
@@ -185,7 +185,6 @@ pub fn monomorphize_debug(
         .collect();
 
     let functions = vecmap(monomorphizer.finished_functions, |(_, f)| f);
-    let FuncMeta { return_visibility, .. } = monomorphizer.interner.function_meta(&main);
 
     let globals = monomorphizer.finished_globals.into_iter().collect::<BTreeMap<_, _>>();
 
@@ -197,7 +196,6 @@ pub fn monomorphize_debug(
         func_sigs,
         function_sig,
         monomorphizer.return_location,
-        *return_visibility,
         globals,
         debug_variables,
         debug_functions,
@@ -393,6 +391,7 @@ impl<'interner> Monomorphizer<'interner> {
         // call site after instantiating this function's type. So show the error there
         // instead of at the function definition.
         let return_type = Self::convert_type(return_type, location)?;
+        let return_visibility = meta.return_visibility;
         let unconstrained = self.in_unconstrained_function;
 
         let attributes = self.interner.function_attributes(&f);
@@ -406,6 +405,7 @@ impl<'interner> Monomorphizer<'interner> {
             parameters,
             body,
             return_type,
+            return_visibility,
             unconstrained,
             inline_type,
             func_sig,
@@ -1982,6 +1982,7 @@ impl<'interner> Monomorphizer<'interner> {
             parameters,
             body,
             return_type: ret_type.clone(),
+            return_visibility: Visibility::Private,
             unconstrained: self.in_unconstrained_function,
             inline_type: InlineType::default(),
             func_sig: FunctionSignature::default(),
@@ -2118,6 +2119,7 @@ impl<'interner> Monomorphizer<'interner> {
             parameters,
             body,
             return_type,
+            return_visibility: Visibility::Private,
             unconstrained: self.in_unconstrained_function,
             inline_type: InlineType::default(),
             func_sig: FunctionSignature::default(),
@@ -2308,6 +2310,7 @@ impl<'interner> Monomorphizer<'interner> {
             parameters,
             body,
             return_type,
+            return_visibility: Visibility::Private,
             unconstrained,
             inline_type: InlineType::default(),
             func_sig: FunctionSignature::default(),

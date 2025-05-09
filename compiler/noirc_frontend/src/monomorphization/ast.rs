@@ -322,6 +322,7 @@ pub struct Function {
     pub body: Expression,
 
     pub return_type: Type,
+    pub return_visibility: Visibility,
     pub unconstrained: bool,
     pub inline_type: InlineType,
     pub func_sig: FunctionSignature,
@@ -375,7 +376,6 @@ pub struct Program {
     pub function_signatures: Vec<FunctionSignature>,
     pub main_function_signature: FunctionSignature,
     pub return_location: Option<Location>,
-    pub return_visibility: Visibility,
     pub globals: BTreeMap<GlobalId, (String, Type, Expression)>,
     pub debug_variables: DebugVariables,
     pub debug_functions: DebugFunctions,
@@ -389,7 +389,6 @@ impl Program {
         function_signatures: Vec<FunctionSignature>,
         main_function_signature: FunctionSignature,
         return_location: Option<Location>,
-        return_visibility: Visibility,
         globals: BTreeMap<GlobalId, (String, Type, Expression)>,
         debug_variables: DebugVariables,
         debug_functions: DebugFunctions,
@@ -400,7 +399,6 @@ impl Program {
             function_signatures,
             main_function_signature,
             return_location,
-            return_visibility,
             globals,
             debug_variables,
             debug_functions,
@@ -433,6 +431,10 @@ impl Program {
         let function_definition = &mut self[function];
         let replacement = Expression::Block(vec![]);
         std::mem::replace(&mut function_definition.body, replacement)
+    }
+
+    pub fn return_visibility(&self) -> Visibility {
+        self.main().return_visibility
     }
 }
 
