@@ -109,7 +109,7 @@ fn compute_times_called(
 }
 
 /// Compute for each function the set of functions that call it, and how many times they do so.
-fn compute_callers(ssa: &Ssa) -> BTreeMap<FunctionId, BTreeMap<FunctionId, usize>> {
+pub(crate)fn compute_callers(ssa: &Ssa) -> BTreeMap<FunctionId, BTreeMap<FunctionId, usize>> {
     ssa.functions
         .iter()
         .flat_map(|(caller_id, function)| {
@@ -128,7 +128,7 @@ fn compute_callers(ssa: &Ssa) -> BTreeMap<FunctionId, BTreeMap<FunctionId, usize
 }
 
 /// Compute for each function the set of functions called by it, and how many times it does so.
-fn compute_callees(ssa: &Ssa) -> BTreeMap<FunctionId, BTreeMap<FunctionId, usize>> {
+pub(crate) fn compute_callees(ssa: &Ssa) -> BTreeMap<FunctionId, BTreeMap<FunctionId, usize>> {
     ssa.functions
         .iter()
         .flat_map(|(caller_id, function)| {
@@ -364,4 +364,55 @@ fn mark_brillig_functions_to_retain(
             entry_point,
         );
     }
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::ssa::{ir::map::Id, ssa_gen::Ssa};
+
+    use super::compute_inline_infos;
+
+    // This panic is a regression that will need to be updating by fixing the inline infos computation.
+    #[test]
+    #[should_panic]
+    fn mark_mutually_recursive_functions() {
+      let src = "
+      acir(inline) fn main f0 {
+        b0():
+          call f1()
+          return
+      }
+      brillig(inline) fn starter f1 {
+        b0():
+          call f2()
+          return
+      }
+      brillig(inline) fn ping f2 {
+        b0():
+          call f3()
+          return
+      }
+      brillig(inline) fn pong f3 {
+        b0():
+          call f2()
+          return
+      }
+      ";
+
+      let ssa = Ssa::from_str(src).unwrap();
+      let inline_infos = compute_inline_infos(&ssa, false, i64::MAX);
+
+      let func_0 = inline_infos.get(&Id::test_new(0)).expect("Should have made ");
+      assert!(!func_0.is_recursive);
+
+      let func_1 = inline_infos.get(&Id::test_new(1)).expect("Should have made ");
+      assert!(!func_1.is_recursive);
+
+      let func_2 = inline_infos.get(&Id::test_new(2)).expect("Should have made ");
+      assert!(func_2.is_recursive);
+
+      let func_3 = inline_infos.get(&Id::test_new(3)).expect("Should have made ");
+      assert!(func_3.is_recursive);
+    }
+
 }

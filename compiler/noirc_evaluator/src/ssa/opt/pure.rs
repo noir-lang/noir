@@ -250,7 +250,7 @@ fn analyze_call_graph(
     finished_purities
 }
 
-fn build_call_graph(
+pub(crate) fn build_call_graph(
     dependencies: HashMap<FunctionId, BTreeSet<FunctionId>>,
 ) -> (DiGraph<FunctionId, ()>, HashMap<FunctionId, PetGraphIndex>, HashMap<PetGraphIndex, FunctionId>)
 {

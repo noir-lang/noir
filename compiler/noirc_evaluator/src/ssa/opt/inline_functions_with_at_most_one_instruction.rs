@@ -1,20 +1,48 @@
 //! This modules defines an SSA pass that inlines calls to functions with at most one instruction.
 //! That is, the contents of the called function is put directly into the caller's body.
 //! Functions are still restricted to not be inlined if they are recursive or marked with no predicates.
+use fxhash::FxHashSet as HashSet;
 use iter_extended::btree_map;
+use petgraph::algo::kosaraju_scc;
 
 use crate::ssa::{
     ir::{
         function::{Function, RuntimeType},
         instruction::Instruction,
         value::Value,
-    },
-    ssa_gen::Ssa,
+    }, opt::inlining::{called_functions, called_functions_vec}, ssa_gen::Ssa
 };
 
 impl Ssa {
     /// See the [`inline_functions_with_at_most_one_instruction`][self] module for more information.
     pub(crate) fn inline_functions_with_at_most_one_instruction(mut self: Ssa) -> Ssa {
+        let function_deps = self.functions.iter().map(|(id, func)| {
+            let called_functions = called_functions(func);
+            (*id, called_functions)
+        }).collect();
+
+        let (graph, _, indices_to_ids) = super::pure::build_call_graph(function_deps);
+
+        // SCCs are Vec<Vec<NodeIndex>> where each inner Vec is a strongly connected component.
+        let sccs = kosaraju_scc(&graph);
+
+        let mut recursive_functions = HashSet::default();
+
+        for scc in sccs {
+            if scc.len() > 1 {
+                // Mutual recursion
+                for idx in scc {
+                    recursive_functions.insert(indices_to_ids[&idx]);
+                }
+            } else {
+                // Check for self-recursion
+                let idx = scc[0];
+                if graph.neighbors(idx).any(|n| n == idx) {
+                    recursive_functions.insert(indices_to_ids[&idx]);
+                }
+            }
+        }
+
         let should_inline_call = |callee: &Function| {
             if let RuntimeType::Acir(_) = callee.runtime() {
                 // Functions marked to not have predicates should be preserved.
@@ -40,6 +68,10 @@ impl Ssa {
             // Inline zero instructions
             if instructions.is_empty() {
                 return true;
+            }
+
+            if recursive_functions.contains(&callee.id()) {
+                return false;
             }
 
             // Check whether the only instruction is a recursive call, which prevents inlining the callee.
@@ -294,5 +326,54 @@ mod test {
         }
         ";
         assert_does_not_inline(src);
+    }
+
+    #[test]
+    fn does_not_inline_mutually_recursive_functions_acir() {
+      let src = "
+      acir(inline) fn main f0 {
+        b0():
+          call f1()
+          return
+      }
+      acir(inline) fn starter f1 {
+        b0():
+          call f2()
+          return
+      }
+      acir(inline) fn main f2 {
+        b0():
+          call f1()
+          return
+      }
+      ";
+      assert_does_not_inline(src);
+    }
+
+    #[test]
+    fn does_not_inline_mutually_recursive_functions_brillig() {
+      let src = "
+      acir(inline) fn main f0 {
+        b0():
+          call f1()
+          return
+      }
+      brillig(inline) fn starter f1 {
+        b0():
+          call f2()
+          return
+      }
+      brillig(inline) fn ping f2 {
+        b0():
+          call f3()
+          return
+      }
+      brillig(inline) fn pong f3 {
+        b0():
+          call f2()
+          return
+      }
+      ";
+      assert_does_not_inline(src);
     }
 }
