@@ -205,17 +205,12 @@ impl TypedPath {
         self.segments.last().unwrap().ident.as_str()
     }
 
-    fn is_ident(&self) -> bool {
-        self.kind == PathKind::Plain
-            && self.segments.len() == 1
-            && self.segments.first().unwrap().generics.is_none()
-    }
-
-    pub fn as_ident(&self) -> Option<&Ident> {
-        if !self.is_ident() {
-            return None;
+    pub fn as_single_segment(&self) -> Option<&TypedPathSegment> {
+        if self.kind == PathKind::Plain && self.segments.len() == 1 {
+            self.segments.first()
+        } else {
+            None
         }
-        self.segments.first().map(|segment| &segment.ident)
     }
 }
 
@@ -367,13 +362,13 @@ impl Elaborator<'_> {
             match resolution.item {
                 PathResolutionItem::Global(..) => {
                     resolution.errors.push(PathResolutionError::TurbofishNotAllowedOnItem {
-                        item: "global".to_string(),
+                        item: "globals".to_string(),
                         location: last_segment_turbofish_location,
                     });
                 }
                 PathResolutionItem::Module(..) => {
                     resolution.errors.push(PathResolutionError::TurbofishNotAllowedOnItem {
-                        item: "module".to_string(),
+                        item: "modules".to_string(),
                         location: last_segment_turbofish_location,
                     });
                 }

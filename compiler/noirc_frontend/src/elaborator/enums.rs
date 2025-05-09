@@ -27,7 +27,7 @@ use crate::{
     token::Attributes,
 };
 
-use super::{Elaborator, path_resolution::PathResolutionTarget};
+use super::{Elaborator, TypedPathSegment, path_resolution::PathResolutionTarget};
 
 const WILDCARD_PATTERN: &str = "_";
 
@@ -418,7 +418,8 @@ impl Elaborator<'_> {
                 // Setting this to `Some` allows us to shadow globals with the same name.
                 // We should avoid this if there is a `::` in the path since that means the
                 // user is trying to resolve to a non-local item.
-                let shadow_existing = path.as_ident().cloned();
+
+                let shadow_existing = path.as_single_segment().cloned();
 
                 match self.resolve_path_or_error(path, PathResolutionTarget::Value) {
                     Ok(resolution) => self.path_resolution_to_constructor(
@@ -431,7 +432,12 @@ impl Elaborator<'_> {
                     ),
                     Err(error) => {
                         if let Some(name) = shadow_existing {
-                            self.define_pattern_variable(name, expected_type, variables_defined)
+                            // TODO: error on turbofish
+                            self.define_pattern_variable(
+                                name.ident,
+                                expected_type,
+                                variables_defined,
+                            )
                         } else {
                             self.push_err(error);
                             Pattern::Error
@@ -640,7 +646,7 @@ impl Elaborator<'_> {
     fn path_resolution_to_constructor(
         &mut self,
         resolution: PathResolutionItem,
-        name: Option<Ident>,
+        name: Option<TypedPathSegment>,
         args: Vec<Expression>,
         expected_type: &Type,
         location: Location,
@@ -698,7 +704,12 @@ impl Elaborator<'_> {
                 // This variable refers to an existing item
                 if let Some(name) = name {
                     // If name is set, shadow the existing item
-                    return self.define_pattern_variable(name, expected_type, variables_defined);
+                    // TODO: error on turbofish
+                    return self.define_pattern_variable(
+                        name.ident,
+                        expected_type,
+                        variables_defined,
+                    );
                 } else {
                     let item = resolution.description();
                     self.push_err(ResolverError::UnexpectedItemInPattern { location, item });

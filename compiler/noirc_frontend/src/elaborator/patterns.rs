@@ -10,7 +10,7 @@ use crate::{
     },
     hir::{
         def_collector::dc_crate::CompilationError,
-        resolution::errors::ResolverError,
+        resolution::{errors::ResolverError, import::PathResolutionError},
         type_check::{Source, TypeCheckError},
     },
     hir_def::{
@@ -916,8 +916,17 @@ impl Elaborator<'_> {
         path: TypedPath,
     ) -> ((HirIdent, usize), Option<PathResolutionItem>) {
         let location = Location::new(path.last_ident().span(), path.location.file);
+        let use_variable_result = path.as_single_segment().map(|segment| {
+            let result = self.use_variable(&segment.ident);
+            if result.is_ok() && segment.generics.is_some() {
+                let item = "local variables".to_string();
+                let location = segment.turbofish_location();
+                self.push_err(PathResolutionError::TurbofishNotAllowedOnItem { item, location });
+            }
+            result
+        });
 
-        let error = match path.as_ident().map(|ident| self.use_variable(ident)) {
+        let error = match use_variable_result {
             Some(Ok(found)) => return (found, None),
             // Try to look it up as a global, but still issue the first error if we fail
             Some(Err(error)) => match self.lookup_global(path) {
