@@ -12,7 +12,11 @@ use crate::{
         Literal, NoirEnumeration, StatementKind, UnresolvedType,
     },
     elaborator::path_resolution::PathResolutionItem,
-    hir::{comptime::Value, resolution::errors::ResolverError, type_check::TypeCheckError},
+    hir::{
+        comptime::Value,
+        resolution::{errors::ResolverError, import::PathResolutionError},
+        type_check::TypeCheckError,
+    },
     hir_def::{
         expr::{
             Case, Constructor, HirBlockExpression, HirEnumConstructorExpression, HirExpression,
@@ -432,7 +436,13 @@ impl Elaborator<'_> {
                     ),
                     Err(error) => {
                         if let Some(name) = shadow_existing {
-                            // TODO: error on turbofish
+                            if name.generics.is_some() {
+                                self.push_err(PathResolutionError::TurbofishNotAllowedOnItem {
+                                    item: "local variables".to_string(),
+                                    location: name.turbofish_location(),
+                                });
+                            }
+
                             self.define_pattern_variable(
                                 name.ident,
                                 expected_type,
@@ -704,7 +714,12 @@ impl Elaborator<'_> {
                 // This variable refers to an existing item
                 if let Some(name) = name {
                     // If name is set, shadow the existing item
-                    // TODO: error on turbofish
+                    if name.generics.is_some() {
+                        self.push_err(PathResolutionError::TurbofishNotAllowedOnItem {
+                            item: "local variables".to_string(),
+                            location: name.turbofish_location(),
+                        });
+                    }
                     return self.define_pattern_variable(
                         name.ident,
                         expected_type,
