@@ -1007,7 +1007,7 @@ fn update_assert_error_call_stack<F: AcirField>(
                         .iter()
                         .map(|opcode_location| ResolvedOpcodeLocation {
                             acir_function_index: 0,
-                            opcode_location: opcode_location.clone(),
+                            opcode_location: *opcode_location,
                         })
                         .collect::<Vec<ResolvedOpcodeLocation>>(),
                     Some(function_id),
