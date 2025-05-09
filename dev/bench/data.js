@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1746803835004,
+  "lastUpdate": 1746808771964,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -18161,48 +18161,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "47281315+guipublic@users.noreply.github.com",
-            "name": "guipublic",
-            "username": "guipublic"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "9f88f1920dd8cbde95d4ffecbc6d936218bea39b",
-          "message": "fix: uses non-zero points with ec-add-unsafe (#8248)",
-          "timestamp": "2025-05-02T09:50:14Z",
-          "tree_id": "e5df424381e411d5f18592d595f617d90c94fa49",
-          "url": "https://github.com/noir-lang/noir/commit/9f88f1920dd8cbde95d4ffecbc6d936218bea39b"
-        },
-        "date": 1746180751704,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 252776,
-            "range": "± 659",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 226589,
-            "range": "± 7486",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 3228477,
-            "range": "± 7918",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "15848336+TomAFrench@users.noreply.github.com",
             "name": "Tom French",
             "username": "TomAFrench"
@@ -20254,6 +20212,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 3583011,
             "range": "± 19508",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "mvezenov@gmail.com",
+            "name": "Maxim Vezenov",
+            "username": "vezenovm"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "74279a4de32baf7f3a9712268d1ff1626e7dc9b2",
+          "message": "fix(ssa): Mislabeled instructions with side effects in EnableSideEffectsIf removal pass (#8355)",
+          "timestamp": "2025-05-09T16:20:33Z",
+          "tree_id": "2572d8f7852d9a61f397fc4aee2a399a5feb693e",
+          "url": "https://github.com/noir-lang/noir/commit/74279a4de32baf7f3a9712268d1ff1626e7dc9b2"
+        },
+        "date": 1746808764282,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 266234,
+            "range": "± 670",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 236279,
+            "range": "± 7852",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 3223952,
+            "range": "± 18834",
             "unit": "ns/iter"
           }
         ]
