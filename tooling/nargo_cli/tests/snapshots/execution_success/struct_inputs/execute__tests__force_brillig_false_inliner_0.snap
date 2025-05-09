@@ -137,10 +137,10 @@ expression: artifact
   },
   "bytecode": [
     "func 0",
-    "current witness index : 26",
-    "private parameters indices : [0]",
-    "public parameters indices : [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24]",
-    "return value indices : [25]",
+    "current witness index : _26",
+    "private parameters indices : [_0]",
+    "public parameters indices : [_1, _2, _3, _4, _5, _6, _7, _8, _9, _10, _11, _12, _13, _14, _15, _16, _17, _18, _19, _20, _21, _22, _23, _24]",
+    "return value indices : [_25]",
     "BLACKBOX::RANGE [(_1, 32)] []",
     "BLACKBOX::RANGE [(_11, 8)] []",
     "BLACKBOX::RANGE [(_12, 8)] []",
@@ -169,7 +169,7 @@ expression: artifact
     "unconstrained func 0",
     "[Const { destination: Direct(21), bit_size: Integer(U32), value: 1 }, Const { destination: Direct(20), bit_size: Integer(U32), value: 0 }, CalldataCopy { destination_address: Direct(0), size_address: Direct(21), offset_address: Direct(20) }, Const { destination: Direct(2), bit_size: Field, value: 0 }, BinaryFieldOp { destination: Direct(3), op: Equals, lhs: Direct(0), rhs: Direct(2) }, JumpIf { condition: Direct(3), location: 8 }, Const { destination: Direct(1), bit_size: Field, value: 1 }, BinaryFieldOp { destination: Direct(0), op: Div, lhs: Direct(1), rhs: Direct(0) }, Stop { return_data: HeapVector { pointer: Direct(20), size: Direct(21) } }]"
   ],
-  "debug_symbols": "tdTfioQgFAbwd/G6C/901HqVZRmsbBDEwmphiXn3bQaDcLw5LHN5PN/vAxHcyWC77X5zYZwW0n7txE+9Wd0Ujmkn8nW0zCY8p2U1cSUtV01FbBhIK6h4VGR03pIW+KN6iypBU1QBXKPfFVH/7NZMpqgGlnXrD3Y3pW4hVQI1zS/KKFqwkqg5nAJELnhJABNJAH8TAi3qohD6FKBzAWgh0UKhhUaL4puD4klI1mSCU7RgaMHRQuDEMXTRee/ut+u3cBz/mOhM520axy30l+36O5+b089x6u2wRftseu2O+j8=",
+  "debug_symbols": "pZTNjoMgEIDfhTMHfkX7KptNg4oNCUFDdZON8d13FNjWgx7sxU8YPnBkYEatqafH3fquf6Lb14zqYJ2zj7vrGz3a3kPvvGCUm/cxGANd6C0O1qCD8SO6+ck5jH60m7ZBz0H7jaMOECUYGd8CYcLOOrO+Lfhlk2OVqSrJnPB/XbKdT499xfPiSsoLfkmL5JdcXfEFzb6kn61/7J/8P16o5AsiL/iCyexLfsGXlCdfsks+L7MvyyO/OqkfUeQCYqISrxn2G3BWgYTkLWCE8oMZzlJQLPkFrQ5LgH2cA7+Uwzc0dGPD7uCjAgZipGAERuX2rODzMaIkgsJ5AjAoSwCPENtOUBlRRKiIMqKKmTKSSBNZIl+5rIkEq2tn0i3UTb55u5TG3yFH8rU1hL4x7RTMmscWg8z+AA==",
   "file_map": {
     "52": {
       "source": "mod foo;\n\nstruct myStruct {\n    foo: u32,\n    bar: Field,\n    message: str<5>,\n}\n\nfn main(x: Field, y: pub myStruct, z: pub foo::bar::barStruct, a: pub foo::fooStruct) -> pub Field {\n    let struct_from_bar = foo::bar::barStruct { val: 1, array: [0, 1], message: \"hello\" };\n\n    check_inner_struct(a, z);\n\n    for i in 0..struct_from_bar.array.len() {\n        assert(struct_from_bar.array[i] == z.array[i]);\n    }\n    assert(z.val == struct_from_bar.val);\n\n    assert((struct_from_bar.val * x) == x);\n\n    assert(x != y.bar);\n\n    assert(y.message == \"hello\");\n    assert(a.bar_struct.message == struct_from_bar.message);\n\n    a.bar_struct.array[1]\n}\n\nfn check_inner_struct(a: foo::fooStruct, z: foo::bar::barStruct) {\n    assert(a.bar_struct.val == z.val);\n    for i in 0..a.bar_struct.array.len() {\n        assert(a.bar_struct.array[i] == z.array[i]);\n    }\n}\n",

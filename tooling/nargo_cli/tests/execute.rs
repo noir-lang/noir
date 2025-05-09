@@ -6,7 +6,10 @@ mod tests {
     // Some of these imports are consumed by the injected tests
     use assert_cmd::prelude::*;
     use base64::Engine;
+    use insta::assert_snapshot;
     use insta::internals::Content;
+    use insta::internals::Redaction;
+    use noirc_artifacts::contract::ContractArtifact;
     use noirc_artifacts::program::ProgramArtifact;
     use predicates::prelude::*;
     use serde::Deserialize;
@@ -135,8 +138,8 @@ mod tests {
         force_brillig: ForceBrillig,
         inliner: Inliner,
     ) {
-        let target_dir = test_program_dir
-            .join(format!("target_force_brillig_{}_inliner_{}", force_brillig.0, inliner.0));
+        let target_dir = tempfile::tempdir().unwrap().into_path();
+
         nargo.arg(format!("--target-dir={}", target_dir.to_string_lossy()));
 
         nargo.assert().success();
@@ -164,6 +167,11 @@ mod tests {
                     println!(
                         "stdout does not match expected output. Expected:\n{expected_stdout}\n\nActual:\n{stdout}"
                     );
+                    if expected_stdout.is_empty() && !stdout_path.exists() {
+                        println!(
+                            "Hint: set the OVERWRITE_TEST_OUTPUT env var to establish a stdout.txt"
+                        )
+                    }
                     assert_eq!(stdout, expected_stdout);
                 }
             }
@@ -258,8 +266,25 @@ mod tests {
         );
     }
 
-    fn compile_success_contract(mut nargo: Command) {
+    fn compile_success_contract(
+        mut nargo: Command,
+        test_program_dir: PathBuf,
+        force_brillig: ForceBrillig,
+        inliner: Inliner,
+    ) {
+        let target_dir = test_program_dir
+            .join(format!("target_force_brillig_{}_inliner_{}", force_brillig.0, inliner.0));
+        nargo.arg(format!("--target-dir={}", target_dir.to_string_lossy()));
+
         nargo.assert().success().stderr(predicate::str::contains("warning:").not());
+
+        check_contract_artifact(
+            "compile_success_contract",
+            &test_program_dir,
+            &target_dir,
+            force_brillig,
+            inliner,
+        );
     }
 
     fn compile_success_no_bug(mut nargo: Command) {
@@ -310,6 +335,143 @@ mod tests {
         }
     }
 
+    fn nargo_expand_execute(test_program_dir: PathBuf) {
+        // First run `nargo execute` on the original code to get the output
+        let mut nargo = Command::cargo_bin("nargo").unwrap();
+        nargo.arg("--program-dir").arg(test_program_dir.clone());
+        nargo.arg("execute").arg("--force").arg("--disable-comptime-printing");
+
+        // Enable enums as an unstable feature
+        nargo.arg("-Zenums");
+
+        // Enable pedantic solving
+        nargo.arg("--pedantic-solving");
+
+        nargo.assert().success();
+
+        let original_output = nargo.output().unwrap();
+        let original_output: String = String::from_utf8(original_output.stdout).unwrap();
+
+        let mut nargo = Command::cargo_bin("nargo").unwrap();
+        nargo.arg("--program-dir").arg(test_program_dir.clone());
+        nargo.arg("expand").arg("--force").arg("--disable-comptime-printing");
+
+        // Enable enums as an unstable feature
+        nargo.arg("-Zenums");
+
+        // Enable pedantic solving
+        nargo.arg("--pedantic-solving");
+
+        nargo.assert().success();
+
+        let expanded_code = nargo.output().unwrap();
+        let expanded_code: String = String::from_utf8(expanded_code.stdout).unwrap();
+
+        let test_name = test_program_dir.file_name().unwrap().to_string_lossy().to_string();
+        let snapshot_name = "expanded";
+        insta::with_settings!(
+        {
+            snapshot_path => format!("./snapshots/expand/execution_success/{test_name}")
+        },
+        {
+            insta::assert_snapshot!(snapshot_name, expanded_code)
+        });
+
+        // Create a new directory where we'll put the expanded code
+        let temp_dir = tempfile::tempdir().unwrap().into_path();
+
+        // Copy everything from the original directory to the new directory
+        // (because some depdendencies might be there and might be needed for the expanded code to work)
+        copy_dir_all(test_program_dir.clone(), temp_dir.clone()).unwrap();
+
+        // Create a main file for the expanded code
+        fs::write(temp_dir.join("src").join("main.nr"), expanded_code).unwrap();
+
+        // First check if `nargo fmt` works on the expanded code. If not, it means the code is not valid.
+        run_nargo_fmt(temp_dir.clone());
+
+        // Now we can run `nargo execute` on the expanded code
+        let mut nargo = Command::cargo_bin("nargo").unwrap();
+        nargo.arg("--program-dir").arg(temp_dir);
+        nargo.arg("execute").arg("--force").arg("--disable-comptime-printing");
+
+        // Enable enums as an unstable feature
+        nargo.arg("-Zenums");
+
+        // Enable pedantic solving
+        nargo.arg("--pedantic-solving");
+
+        nargo.assert().success();
+
+        let expanded_output = nargo.output().unwrap();
+        let expanded_output: String = String::from_utf8(expanded_output.stdout).unwrap();
+
+        let original_output = remove_noise_lines(original_output);
+        let expanded_output = remove_noise_lines(expanded_output);
+
+        assert_eq!(original_output, expanded_output);
+    }
+
+    fn nargo_expand_compile(test_program_dir: PathBuf, prefix: &'static str) {
+        let mut nargo = Command::cargo_bin("nargo").unwrap();
+        nargo.arg("--program-dir").arg(test_program_dir.clone());
+        nargo.arg("expand").arg("--force").arg("--disable-comptime-printing");
+
+        // Enable enums as an unstable feature
+        nargo.arg("-Zenums");
+
+        // Enable pedantic solving
+        nargo.arg("--pedantic-solving");
+
+        nargo.assert().success();
+
+        let expanded_code = nargo.output().unwrap();
+        let expanded_code: String = String::from_utf8(expanded_code.stdout).unwrap();
+
+        let test_name = test_program_dir.file_name().unwrap().to_string_lossy().to_string();
+        let snapshot_name = "expanded";
+        insta::with_settings!(
+        {
+            snapshot_path => format!("./snapshots/expand/{prefix}/{test_name}")
+        },
+        {
+            insta::assert_snapshot!(snapshot_name, expanded_code)
+        });
+
+        // Create a new directory where we'll put the expanded code
+        let temp_dir = tempfile::tempdir().unwrap().into_path();
+
+        // Copy everything from the original directory to the new directory
+        // (because some depdendencies might be there and might be needed for the expanded code to work)
+        copy_dir_all(test_program_dir.clone(), temp_dir.clone()).unwrap();
+
+        // Create a main file for the expanded code
+        fs::write(temp_dir.join("src").join("main.nr"), expanded_code).unwrap();
+
+        // First check if `nargo fmt` works on the expanded code. If not, it means the code is not valid.
+        run_nargo_fmt(temp_dir.clone());
+
+        // Now we can run `nargo compile` on the expanded code
+        let mut nargo = Command::cargo_bin("nargo").unwrap();
+        nargo.arg("--program-dir").arg(temp_dir);
+        nargo.arg("compile").arg("--force");
+
+        // Enable enums as an unstable feature
+        nargo.arg("-Zenums");
+
+        // Enable pedantic solving
+        nargo.arg("--pedantic-solving");
+
+        nargo.assert().success();
+    }
+
+    fn run_nargo_fmt(target_dir: PathBuf) {
+        let mut nargo = Command::cargo_bin("nargo").unwrap();
+        nargo.arg("--program-dir").arg(target_dir);
+        nargo.arg("fmt");
+        nargo.assert().success();
+    }
+
     fn check_program_artifact(
         prefix: &'static str,
         test_program_dir: &Path,
@@ -349,16 +511,47 @@ mod tests {
                     let program = Program::<FieldElement>::deserialize_program(&bytecode).unwrap();
                     Content::Seq(program.to_string().split("\n").filter(|line: &&str| !line.is_empty()).map(Content::from).collect::<Vec<Content>>())
                 }),
-                ".file_map.**.path" => insta::dynamic_redaction(|value, _path| {
-                    // Some paths are absolute: clear those out.
-                    let value = value.as_str().expect("Expected a string value in a path entry");
-                    if value.starts_with("/") {
-                        String::new()
-                    } else {
-                        value.to_string()
-                    }
-                }),
+                ".file_map.**.path" => file_map_path_redaction(),
             })
+        })
+    }
+
+    fn check_contract_artifact(
+        prefix: &'static str,
+        test_program_dir: &Path,
+        target_dir: &PathBuf,
+        force_brillig: ForceBrillig,
+        inliner: Inliner,
+    ) {
+        let artifact_filename =
+            find_program_artifact_in_dir(target_dir).expect("Expected an artifact to exist");
+
+        let artifact_file = fs::File::open(&artifact_filename).unwrap();
+        let artifact: ContractArtifact = serde_json::from_reader(artifact_file).unwrap();
+
+        fs::remove_dir_all(target_dir).expect("Could not remove target dir");
+
+        let test_name = test_program_dir.file_name().unwrap().to_string_lossy().to_string();
+
+        let snapshot_name = format!("force_brillig_{}_inliner_{}", force_brillig.0, inliner.0);
+        insta::with_settings!(
+            {
+                snapshot_path => format!("./snapshots/{prefix}/{test_name}")
+            },
+            {
+            insta::assert_json_snapshot!(snapshot_name, artifact, {
+                ".noir_version" => "[noir_version]",
+                ".functions[].hash" => "[hash]",
+                ".file_map.**.path" => file_map_path_redaction(),
+            })
+        })
+    }
+
+    fn file_map_path_redaction() -> Redaction {
+        insta::dynamic_redaction(|value, _path| {
+            // Some paths are absolute: clear those out.
+            let value = value.as_str().expect("Expected a string value in a path entry");
+            if value.starts_with("/") { String::new() } else { value.to_string() }
         })
     }
 
@@ -381,6 +574,22 @@ mod tests {
         }
 
         None
+    }
+
+    fn copy_dir_all(src: impl AsRef<Path>, dst: impl AsRef<Path>) -> std::io::Result<()> {
+        {
+            fs::create_dir_all(&dst)?;
+            for entry in fs::read_dir(src)? {
+                let entry = entry?;
+                let ty = entry.file_type()?;
+                if ty.is_dir() {
+                    copy_dir_all(entry.path(), dst.as_ref().join(entry.file_name()))?;
+                } else {
+                    fs::copy(entry.path(), dst.as_ref().join(entry.file_name()))?;
+                }
+            }
+            Ok(())
+        }
     }
 
     // include tests generated by `build.rs`

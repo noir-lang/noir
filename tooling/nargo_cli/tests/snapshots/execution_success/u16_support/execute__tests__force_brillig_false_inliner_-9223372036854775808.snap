@@ -31,8 +31,8 @@ expression: artifact
   },
   "bytecode": [
     "func 0",
-    "current witness index : 52",
-    "private parameters indices : [0]",
+    "current witness index : _52",
+    "private parameters indices : [_0]",
     "public parameters indices : []",
     "return value indices : []",
     "BLACKBOX::RANGE [(_0, 16)] []",
@@ -92,8 +92,8 @@ expression: artifact
     "BRILLIG CALL func 3: inputs: [Single(Expression { mul_terms: [], linear_combinations: [(-1, Witness(43))], q_c: 333988080930164722019140712665668870369695501715332555293246523843014656 })], outputs: [Simple(Witness(46))]",
     "EXPR [ (-1, _43, _46) (333988080930164722019140712665668870369695501715332555293246523843014656, _46) (1, _47) -1 ]",
     "EXPR [ (-1, _43, _47) (333988080930164722019140712665668870369695501715332555293246523843014656, _47) 0 ]",
-    "EXPR [ (-1, _44, _47) (-1, _48) 0 ]",
-    "BLACKBOX::RANGE [(_48, 17)] []",
+    "EXPR [ (1, _44, _47) (1, _47, _47) (-1, _48) 0 ]",
+    "BLACKBOX::RANGE [(_48, 1)] []",
     "EXPR [ (1, _40) -1 ]",
     "EXPR [ (1, _44) -8 ]",
     "BRILLIG CALL func 3: inputs: [Single(Expression { mul_terms: [], linear_combinations: [(1, Witness(41))], q_c: 0 })], outputs: [Simple(Witness(49))]",
@@ -115,7 +115,7 @@ expression: artifact
     "unconstrained func 3",
     "[Const { destination: Direct(21), bit_size: Integer(U32), value: 1 }, Const { destination: Direct(20), bit_size: Integer(U32), value: 0 }, CalldataCopy { destination_address: Direct(0), size_address: Direct(21), offset_address: Direct(20) }, Const { destination: Direct(2), bit_size: Field, value: 0 }, BinaryFieldOp { destination: Direct(3), op: Equals, lhs: Direct(0), rhs: Direct(2) }, JumpIf { condition: Direct(3), location: 8 }, Const { destination: Direct(1), bit_size: Field, value: 1 }, BinaryFieldOp { destination: Direct(0), op: Div, lhs: Direct(1), rhs: Direct(0) }, Stop { return_data: HeapVector { pointer: Direct(20), size: Direct(21) } }]"
   ],
-  "debug_symbols": "tZnbauswEEX/Rc9+sOZiyfmVQylO4haDcYKTHCgh/1671CV1heiQ7peAYu0lsFkaRrq6fbu9vD53w8vh5Db/rq4/7Jpzdxim0dX5j79Ox2aYR6dzM57dhqhw7bB3G+Zb4V66vnUbLW/Fj4lcf82s6/upT4UjGJlhZIGR9TFyiJ8zpSxX5ApGDjByhJFrGNmXOLTHoQmHZhxacGiciR6nose56HEyepyNhLORcDYSzkbC2Ug4GwlnI+FsJJyNhLORcDYyzkbG2cg4GxlnI+NsZJyNjLORcTYyzkbG2Sg4GwVno+BsFJyNgrNRcDYKzkbB2Sg4GwVno+JsVJyNirNRcTYqzkbF2ag4GxVno+JsVJyN1WM2iucFTbxGP2ajcFjQqms04dCMQwsOrTh0hUMHHDri0PVfoau4QoekjXEJeE/fAtNgO3Z9370+f7vEKOef9MGeD1+wuF49fV6XTQRzIpoTtTWRPgvLJpJrZO9cSnPCmxPJXc7eZtu7Z3tTbO917S2svTPNlad0w5lLpPvIbMKbE2ROJL95bgNL92i5fSndemUTlTkRzInkN1e/GKU/31VtTaS7lftE/FUTkk2QOcHmhNgSt2n0vxm7Ztu3c02ZH16G3VJipuH57bg8WYrQcTzs2v1lbOdydFeJ5nc41UcKT593e1oVGqc1pnXeAQ==",
+  "debug_symbols": "tZVBjuIwEEXv4nUWcZXLjrkKQihAuhUpCigNI40Qd58y9cPQi5ZGiWaThwn/Bbsq9t2dusPtc9+PH+cvt9ne3WHqh6H/3A/nY3vtz6N+e3d1uXhxG185Hw3J0BjyE1QbdESV49rgDeQ2rGBDMIghGpJBnUGRnwi1wRvIoBZRqCUqxBANyaCWpMhPiFoahTeQgQ1qaR6Pys1z3l+nritTflsEXZpLO3Xj1W3G2zBU7lc73J4/+rq045PXdtK7deW68aRU4Uc/dOXTo/qbrn+O+pQQ9k3ziss/5zkT8pzzknxqkA91vSAfPM954iV5nucfRNbl45L1Ez+vnyz6/+/5Jc+nV/l+fHpeWf28svp5ZfXzyurnldXPK6uf/1/1m9fL7+lbfKej9thP3/dk3cm82sjAhmAoO7Xuw9GQDI0hG3wNepBABgMIl4fMw+ah8/ARfAQfwUfwEXwEH8FH8BF8BB/Dx/AxfAwfw8fwMXwMH8PH8AX4AnwBvgBfgC/AF+AL8AX4AnwCn8An8Al8Ap/AJ/AJfAKfwBeLTxsoFp++SJFABgMoYAQT2IDFpydkKr70KO029e1h6ErTlLa6jce5h3R4/X2Z78wn/2U6H7vTbepKv70d/3rd6g5FaWdds5VYSbN7lAb9Aw==",
   "file_map": {
     "50": {
       "source": "fn main(x: u16) {\n    test_u16(x);\n    // Safety: testing context\n    unsafe {\n        test_u16_unconstrained(x);\n    }\n}\n\nunconstrained fn test_u16_unconstrained(x: u16) {\n    test_u16(x)\n}\n\nfn test_u16(x: u16) {\n    let t1: u16 = 1234;\n    let t2: u16 = 4321;\n    let t = t1 + t2;\n\n    let t4 = t - t2;\n    assert(t4 == t1);\n\n    let mut small_int = x as u16;\n    let shift = small_int << (x as u8);\n    assert(shift == 8);\n    assert(shift >> (x as u8) == small_int);\n    assert(shift >> 15 == 0);\n    assert(shift << 15 == 0);\n}\n",

@@ -40,7 +40,7 @@ fn test_empty_brillig_function() {
 
 #[test]
 fn test_return_integer() {
-    for typ in ["u1", "u8", "u16", "u32", "u64", "i1", "i8", "i16", "i32", "i64", "Field"] {
+    for typ in ["u1", "u8", "u16", "u32", "u64", "i8", "i16", "i32", "i64", "Field"] {
         let src = format!(
             "
             acir(inline) fn main f0 {{
@@ -84,6 +84,19 @@ fn test_make_composite_array() {
           b0():
             v2 = make_array [Field 1, Field 2] : [(Field, Field); 1]
             return v2
+        }
+        ";
+    assert_ssa_roundtrip(src);
+}
+
+#[test]
+fn test_make_composite_slice() {
+    let src = "
+        acir(inline) predicate_pure fn main f0 {
+          b0():
+            v2 = make_array [Field 2, Field 3] : [Field; 2]
+            v4 = make_array [Field 1, v2] : [(Field, [Field; 2])]
+            return v4
         }
         ";
     assert_ssa_roundtrip(src);
@@ -656,6 +669,18 @@ fn test_parses_nop() {
         acir(inline) fn add f0 {
           b0():
             nop
+            return
+        }
+        ";
+    assert_ssa_roundtrip(src);
+}
+
+#[test]
+fn test_parses_print() {
+    let src = "
+        brillig(inline) impure fn main f0 {
+          b0():
+            call print()
             return
         }
         ";

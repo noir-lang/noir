@@ -22,8 +22,8 @@ expression: artifact
   },
   "bytecode": [
     "func 0",
-    "current witness index : 6",
-    "private parameters indices : [0]",
+    "current witness index : _6",
+    "private parameters indices : [_0]",
     "public parameters indices : []",
     "return value indices : []",
     "BRILLIG CALL func 0: inputs: [Single(Expression { mul_terms: [], linear_combinations: [(1, Witness(0))], q_c: 0 }), Single(Expression { mul_terms: [], linear_combinations: [], q_c: 256 })], outputs: [Simple(Witness(1)), Simple(Witness(2))]",
@@ -42,7 +42,7 @@ expression: artifact
     "unconstrained func 0",
     "[Const { destination: Direct(10), bit_size: Integer(U32), value: 2 }, Const { destination: Direct(11), bit_size: Integer(U32), value: 0 }, CalldataCopy { destination_address: Direct(0), size_address: Direct(10), offset_address: Direct(11) }, BinaryFieldOp { destination: Direct(2), op: IntegerDiv, lhs: Direct(0), rhs: Direct(1) }, BinaryFieldOp { destination: Direct(1), op: Mul, lhs: Direct(2), rhs: Direct(1) }, BinaryFieldOp { destination: Direct(1), op: Sub, lhs: Direct(0), rhs: Direct(1) }, Mov { destination: Direct(0), source: Direct(2) }, Stop { return_data: HeapVector { pointer: Direct(11), size: Direct(10) } }]"
   ],
-  "debug_symbols": "ldLNCoQgFAXgd7nrFpr9aK8yDGFlIYiG2cAQvftYFDQSgTuP9zt3owt0opmHWureTFC9FlCm5U4a7dMCaL+aRq63NDluHVQkTUDozh/YmkAvlYAqR+s7ARzH0zhOHnlGAp7d8QIdvKABz+N4EcfLR16mAad3nLKDszLgLI5jFOnxo8cIh4Xbl8WYng2C/ho+NFYqJYf6+v389YdbyRsljtjPur1M3Xc8J2d/tKYV3WzFtmmf+fU/",
+  "debug_symbols": "pZJNjsMgDIXv4jULCC35ucpoFJHEqZAQiShUGkW9+zhMmLaLLppsnsH2Z1nyW2DALl5a48bpCs3XAp031ppLa6deBzM5yi53BvnbBo9IKXiqEzVrjy5A46K1DG7axtR0nbVLMWhPVc4A3UCRBo7G4vq6swfN36Oy2FhZ/8Pnz+mT3EGrvLeqjtBlsYOu6o2uyyO04GIHLkSV+UId4yV/4b/pp3vjX2wGnBoZiKRFUgkNne5EF2RwTqqSlnRKBhUNY1AnFfwvEK0oEL4e66a90Z3FzcVjdP2TqcPPnCvZ9rOfehyix3WzVKNdfwE=",
   "file_map": {
     "50": {
       "source": "fn main(x: u64) {\n    assert_eq(x as i8, -1);\n    assert_eq(x as i16, -1);\n    assert_eq(x as i32, -1);\n    assert_eq(x as i64, -1);\n}\n",

@@ -35,8 +35,8 @@ expression: artifact
   },
   "bytecode": [
     "func 0",
-    "current witness index : 22",
-    "private parameters indices : [0, 1, 2, 3, 4]",
+    "current witness index : _22",
+    "private parameters indices : [_0, _1, _2, _3, _4]",
     "public parameters indices : []",
     "return value indices : []",
     "BLACKBOX::RANGE [(_0, 32)] []",
@@ -74,7 +74,7 @@ expression: artifact
     "unconstrained func 0",
     "[Const { destination: Direct(21), bit_size: Integer(U32), value: 1 }, Const { destination: Direct(20), bit_size: Integer(U32), value: 0 }, CalldataCopy { destination_address: Direct(0), size_address: Direct(21), offset_address: Direct(20) }, Const { destination: Direct(2), bit_size: Field, value: 0 }, BinaryFieldOp { destination: Direct(3), op: Equals, lhs: Direct(0), rhs: Direct(2) }, JumpIf { condition: Direct(3), location: 8 }, Const { destination: Direct(1), bit_size: Field, value: 1 }, BinaryFieldOp { destination: Direct(0), op: Div, lhs: Direct(1), rhs: Direct(0) }, Stop { return_data: HeapVector { pointer: Direct(20), size: Direct(21) } }]"
   ],
-  "debug_symbols": "ldTRioQgFAbgd/G6C49paq+yLIOVDYJYWC0sMe++zpDL4Hhz7jr6f16cHzrJZIfjfnNhXjbSf53EL6PZ3RLSdBLxOtpWE57Ttpu4k56zhtgwkV7AoyGz8zZ90sd3QzpcXOLiChfXtXinr7hURRxoLa/FlQfKSwBYwLCgxQJeA8DyjqAtlwQCLaolA1dZCFkKiRYKLTRWMIoW1cJB/vehyj4YQ4tq5YzCJRjQUnC0EGjRoYVEi2rnrMu7YvJjVxor2mrnLc2iBVEKwIk0DNF57+639x9pOv4x0ZnB22ucjzC+3e6/a77Jfo3LaKcj2udLr7v0/B8=",
+  "debug_symbols": "pZTNboQgEIDfhbMHBkV0X6VpDCpuSAgaVps0xnfvyM9299CkwQufgN/IjMBORtVv907baX6Q28dOeqeN0ffOzINc9WxxdD8Kkrrd6pTCIfIyj9YinbIrudnNmIJ8SbP5lx6LtJ6rdDhLC6LsiMSAkzbqfDqKX5v+rVYiuhyeMv+/za7YdRtt0WTYQFPaQKsMv+WXdGApdyhzkgdeJp+LHL9qrvnimX+Tkz+jdfQZ0Cwfrvl1Wj8TOesvafJL4G/+J/bkoN3bUSUcP1SQ2rfCt41vWwxQEKDoIiCABZQBFW51BA/AEPjnQAQ0Aa0HowEYBY8GYwEYBbBWrIrkkXWkiGzOTYlsA0t6bk0knDzOSjgte6PizTNtdni5iNbvJc2kq2px86DGzamzEn4Oa/MD",
   "file_map": {
     "50": {
       "source": "fn main(a: u32, mut c: [u32; 4]) {\n    if a == c[0] {\n        assert(c[0] == 0);\n    } else if a == c[1] {\n        assert(c[1] == 0);\n    } else if a == c[2] {\n        assert(c[2] == 0);\n    } else if a == c[3] {\n        // expect to match this case\n        assert(c[3] == 0);\n    } else {\n        assert(c[0] == 10);\n    }\n}\n",

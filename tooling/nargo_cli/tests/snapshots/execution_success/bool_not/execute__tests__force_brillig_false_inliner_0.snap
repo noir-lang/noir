@@ -22,13 +22,13 @@ expression: artifact
   },
   "bytecode": [
     "func 0",
-    "current witness index : 0",
-    "private parameters indices : [0]",
+    "current witness index : _0",
+    "private parameters indices : [_0]",
     "public parameters indices : []",
     "return value indices : []",
     "EXPR [ (1, _0) -1 ]"
   ],
-  "debug_symbols": "TYxLCoQwEAXv0msXMoMw5CrDIPl0pCF0QicZkODdjaLgsl7xqoFDU5eZ2McM6tsgRKsLRe7UYDynnDQflIuWAur1GQDZgXpP2wCeAoKaxu3XwQiFQMv8jPT5r4W0CXihr2wftqzpNvc/SbToquBROl3P7w==",
+  "debug_symbols": "dY/RCoMwDEX/Jc99cBuD4a+MIbVGCYS0xHYwxH9fFN3cw57S5Pbc5E7QYVuGhqSPI9T3CVolZhoajsFnimLTaXawt01WRBvBQTcqeUXJUEthdvD0XNZPY/Ky1uzV1MoBSmfVDHtiXF6z+9LVf/R829jL9QNfjX5Y5wPpz71QQX2aFzMl3zJuGfoi4RApv9Ku7KGTxoBdUVzsVs0WvAE=",
   "file_map": {
     "50": {
       "source": "fn main(x: u1) {\n    assert(!x == 0);\n}\n",

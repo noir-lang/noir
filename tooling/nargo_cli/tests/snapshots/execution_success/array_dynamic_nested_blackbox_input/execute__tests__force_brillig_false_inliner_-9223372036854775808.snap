@@ -89,9 +89,9 @@ expression: artifact
   },
   "bytecode": [
     "func 0",
-    "current witness index : 130",
-    "private parameters indices : [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20]",
-    "public parameters indices : [21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53]",
+    "current witness index : _130",
+    "private parameters indices : [_0, _1, _2, _3, _4, _5, _6, _7, _8, _9, _10, _11, _12, _13, _14, _15, _16, _17, _18, _19, _20]",
+    "public parameters indices : [_21, _22, _23, _24, _25, _26, _27, _28, _29, _30, _31, _32, _33, _34, _35, _36, _37, _38, _39, _40, _41, _42, _43, _44, _45, _46, _47, _48, _49, _50, _51, _52, _53]",
     "return value indices : []",
     "BLACKBOX::RANGE [(_4, 8)] []",
     "BLACKBOX::RANGE [(_5, 8)] []",
@@ -225,7 +225,7 @@ expression: artifact
     "unconstrained func 0",
     "[Const { destination: Direct(10), bit_size: Integer(U32), value: 2 }, Const { destination: Direct(11), bit_size: Integer(U32), value: 0 }, CalldataCopy { destination_address: Direct(0), size_address: Direct(10), offset_address: Direct(11) }, BinaryFieldOp { destination: Direct(2), op: IntegerDiv, lhs: Direct(0), rhs: Direct(1) }, BinaryFieldOp { destination: Direct(1), op: Mul, lhs: Direct(2), rhs: Direct(1) }, BinaryFieldOp { destination: Direct(1), op: Sub, lhs: Direct(0), rhs: Direct(1) }, Mov { destination: Direct(0), source: Direct(2) }, Stop { return_data: HeapVector { pointer: Direct(11), size: Direct(10) } }]"
   ],
-  "debug_symbols": "ldjPasJAEIDxd9mzh8zsn8z6KqWUqFECIZEYC0V890YxRdJcvltmh28vP8hhb+5Q766nr6Y79he3/bi5tt9XY9N303RzQZ9nl3PVPcbLWA2j26r3G1d3h8eX3Tfu2LS128bi/rlxweMi4CLiIq0X8lfkZVHiwnCRaRELXAguFBceFwEXERfYPGLziM0jNk/YPGHzhM0TNk/YPGHzhM3Tunme/yW+kGVhuMi0KAtcCC4UFx4XARcRFwkX2LzE5iU2N2xu2NywuWFzw+aGzQ2bGzY3bG7YPK+ah5heRSj9shBcKC5WzUMOryLqvyLgIuIi4WLVPPo8FzEtC8NFpoUUBU+EJ8oTz5PAk8iTxJOSJ8YTri9cX7i+cH3h+sL1hesL1xeuL1xfuL5yfeX6yvWV6yvXV66vXF+5vkL9adgNTds2p6/3B5Pp+LsammrX1q/xeO32b9vx5zxv5v489Pv6cB3qx03P3XT9Lw==",
+  "debug_symbols": "ndTdarNAEMbxe9ljD3Zmv3srLy/BJJsiiAlWCyXk3jvxGdP0oKV49I8f8zOyi1dzrPv5ddcNp/Obefl3Nfux6/vuddefD+3UnQc5e701Zj3cTWOtcso8XZepSzvWYTIvw9z3jXlv+3m56e3SDkundpSrtjF1OEoFPHV9vf+6NV/T9udRdk6H2eXHePj7fHzMx7Bl3tHj+WXLfFmf7yxtmPch6rxPbst88TofeMt8cGWdD/Gn+fTL+1u7vgBbevoHfwcoPQAOz8B/OWgP3fhtzxrPcmdjvEM8EpAo6yBJSEbKkmARQhhxiEcCAiVACVAClAglQolQIpQIJUKJUKIoskQxI2VJsgghjDjEIwGJCJQEJUHJUDKUDCVDyVAylAwlQ8lQMpQiSpAQwogosq7FIwGJSFoWtGSkLCFrtaRlrdN6bdBGbdJmrXqkHqlH6pF6pB6pR+qReqQeqcfqsXqsHqvH6rF6rB6rx3fvdt/HY9fu+6rfz9M8HJ4+p9PHZb2yfnAv4/lQj/NY79t4uSYb+xM=",
   "file_map": {
     "50": {
       "source": "struct Bar {\n    inner: [u8; 3],\n}\n\nstruct Foo {\n    a: Field,\n    b: [Field; 3],\n    bar: Bar,\n}\n\nfn main(mut x: [Foo; 3], y: pub Field, hash_result: pub [u8; 32]) {\n    // Simple dynamic array set for entire inner most array\n    x[y - 1].bar.inner = [106, 107, 10];\n    let mut hash_input = x[y - 1].bar.inner;\n    // Make sure that we are passing a dynamic array to the black box function call\n    // by setting the array using a dynamic index here\n    hash_input[y - 1] = 0;\n    let hash = std::hash::blake3(hash_input);\n    assert_eq(hash, hash_result);\n}\n",

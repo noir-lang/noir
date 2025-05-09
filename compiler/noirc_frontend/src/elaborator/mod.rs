@@ -4,7 +4,7 @@ use std::{
 };
 
 use crate::{
-    DataType, StructField, TypeBindings,
+    DataType, NamedGeneric, StructField, TypeBindings,
     ast::{IntegerBitSize, ItemVisibility, UnresolvedType},
     graph::CrateGraph,
     hir_def::traits::ResolvedTraitBound,
@@ -70,7 +70,9 @@ use noirc_errors::{Located, Location};
 pub(crate) use options::ElaboratorOptions;
 pub use options::{FrontendOptions, UnstableFeature};
 pub use path_resolution::Turbofish;
-use path_resolution::{PathResolution, PathResolutionItem, PathResolutionMode};
+use path_resolution::{
+    PathResolution, PathResolutionItem, PathResolutionMode, PathResolutionTarget,
+};
 use types::bind_ordered_generics;
 
 use self::traits::check_trait_impl_method_matches_declaration;
@@ -659,7 +661,11 @@ impl<'context> Elaborator<'context> {
         generics.push(new_generic.clone());
 
         let name = format!("impl {trait_path}");
-        let generic_type = Type::NamedGeneric(new_generic, Rc::new(name));
+        let generic_type = Type::NamedGeneric(NamedGeneric {
+            type_var: new_generic,
+            name: Rc::new(name),
+            implicit: false,
+        });
         let trait_bound = TraitBound { trait_path, trait_id: None, trait_generics };
 
         if let Some(trait_bound) = self.resolve_trait_bound(&trait_bound) {
@@ -728,7 +734,9 @@ impl<'context> Elaborator<'context> {
             // previous macro call being inserted into a generics list.
             UnresolvedGeneric::Resolved(id, location) => {
                 match self.interner.get_quoted_type(*id).follow_bindings() {
-                    Type::NamedGeneric(type_variable, name) => Ok((type_variable.clone(), name)),
+                    Type::NamedGeneric(NamedGeneric { type_var, name, .. }) => {
+                        Ok((type_var.clone(), name))
+                    }
                     other => Err(ResolverError::MacroResultInGenericsListNotAGeneric {
                         location: *location,
                         typ: other.clone(),
@@ -782,16 +790,18 @@ impl<'context> Elaborator<'context> {
     }
 
     pub fn resolve_module_by_path(&mut self, path: Path) -> Option<ModuleId> {
-        match self.resolve_path(path.clone()) {
-            Ok(PathResolution { item: PathResolutionItem::Module(module_id), errors }) => {
-                if errors.is_empty() { Some(module_id) } else { None }
+        match self.resolve_path_as_type(path.clone()) {
+            Ok(PathResolution { item: PathResolutionItem::Module(module_id), errors })
+                if errors.is_empty() =>
+            {
+                Some(module_id)
             }
             _ => None,
         }
     }
 
     fn resolve_trait_by_path(&mut self, path: Path) -> Option<TraitId> {
-        let error = match self.resolve_path(path.clone()) {
+        let error = match self.resolve_path_as_type(path.clone()) {
             Ok(PathResolution { item: PathResolutionItem::Trait(trait_id), errors }) => {
                 for error in errors {
                     self.push_err(error);
@@ -857,11 +867,9 @@ impl<'context> Elaborator<'context> {
     ) -> Vec<ResolvedGeneric> {
         let mut added_generics = Vec::new();
 
-        let Ok(item) = self.resolve_path_or_error(bound.trait_path.clone()) else {
-            return Vec::new();
-        };
-
-        let PathResolutionItem::Trait(trait_id) = item else {
+        let Ok(PathResolutionItem::Trait(trait_id)) =
+            self.resolve_path_or_error(bound.trait_path.clone(), PathResolutionTarget::Type)
+        else {
             return Vec::new();
         };
 
@@ -886,7 +894,11 @@ impl<'context> Elaborator<'context> {
                     let location = bound.trait_path.location;
                     let name = format!("<{object} as {trait_name}>::{}", associated_type.name);
                     let name = Rc::new(name);
-                    let typ = Type::NamedGeneric(type_var.clone(), name.clone());
+                    let typ = Type::NamedGeneric(NamedGeneric {
+                        type_var: type_var.clone(),
+                        name: name.clone(),
+                        implicit: true,
+                    });
                     let typ = self.interner.push_quoted_type(typ);
                     let typ = UnresolvedTypeData::Resolved(typ).with_location(location);
                     let ident = Ident::new(associated_type.name.as_ref().clone(), location);
@@ -1563,10 +1575,12 @@ impl<'context> Elaborator<'context> {
 
             let resolved_trait_impl = Shared::new(TraitImpl {
                 ident,
+                location,
                 typ: self_type.clone(),
                 trait_id,
                 trait_generics,
                 file: trait_impl.file_id,
+                crate_id: self.crate_id,
                 where_clause,
                 methods,
             });
@@ -2242,7 +2256,7 @@ impl<'context> Elaborator<'context> {
                     idents.insert(ident.clone());
                 }
                 UnresolvedGeneric::Resolved(quoted_type_id, span) => {
-                    if let Type::NamedGeneric(_type_variable, name) =
+                    if let Type::NamedGeneric(NamedGeneric { name, .. }) =
                         self.interner.get_quoted_type(*quoted_type_id).follow_bindings()
                     {
                         idents.insert(Ident::new(name.to_string(), *span));

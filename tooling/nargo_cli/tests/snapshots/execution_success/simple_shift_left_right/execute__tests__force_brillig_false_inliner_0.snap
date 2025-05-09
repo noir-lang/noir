@@ -22,8 +22,8 @@ expression: artifact
   },
   "bytecode": [
     "func 0",
-    "current witness index : 6",
-    "private parameters indices : [0]",
+    "current witness index : _6",
+    "private parameters indices : [_0]",
     "public parameters indices : []",
     "return value indices : []",
     "BLACKBOX::RANGE [(_0, 32)] []",
@@ -43,7 +43,7 @@ expression: artifact
     "unconstrained func 0",
     "[Const { destination: Direct(10), bit_size: Integer(U32), value: 2 }, Const { destination: Direct(11), bit_size: Integer(U32), value: 0 }, CalldataCopy { destination_address: Direct(0), size_address: Direct(10), offset_address: Direct(11) }, BinaryFieldOp { destination: Direct(2), op: IntegerDiv, lhs: Direct(0), rhs: Direct(1) }, BinaryFieldOp { destination: Direct(1), op: Mul, lhs: Direct(2), rhs: Direct(1) }, BinaryFieldOp { destination: Direct(1), op: Sub, lhs: Direct(0), rhs: Direct(1) }, Mov { destination: Direct(0), source: Direct(2) }, Stop { return_data: HeapVector { pointer: Direct(11), size: Direct(10) } }]"
   ],
-  "debug_symbols": "ldJNDoMgEAXgu8zahVh/Wq/SNAYVDQkBg9CkId69YEpjDC5mx5uXbzaMg5H1du64nNQK7dOBUAM1XEmfHJB9tC5UhrQaqg20pCAZMDmGV7NlMHHBoK3y7ZVBgQU3LCixoEqC8g/KM6ixoMGCOxY8kqCuImjICZAcLQhaFGiR/u06vxA+9JoLwefueJZ+/Kaa016wX5ysHA6t+SyxiX7RamCj1Sxs2ju//gs=",
+  "debug_symbols": "nZJNCoMwEIXvMussTKq19SqlSNSxBEKUNCkU8e4dx9rahVDcvJf5+cKQyQANVvFWGtd2dyguA1TeWGtupe1qHUznKDuMApawDB6RUrCqE9Vrjy5A4aK1Ah7aRm6699qxB+2pmghA15DTha2xOJ1G8aWTbVQq+Yalyj949j+ffvh0F3/MFj6Xu/hkg79SpGvjf14cJDUKUKwH1pQ1g0IJOLLmrCfWMxQHATKZTc6mZiM+HafRvNGVxfdG2+jq1YLDs18qyxfofVdjEz1Oo3GNhn0B",
   "file_map": {
     "50": {
       "source": "// Tests a very simple program.\n//\n// The features being tested are left and right shifts.\nfn main(x: u32) {\n    let z = x >> 4;\n    let t = x << 4;\n    assert(z == t >> 8);\n}\n",

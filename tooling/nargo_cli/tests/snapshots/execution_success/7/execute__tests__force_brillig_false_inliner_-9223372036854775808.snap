@@ -39,8 +39,8 @@ expression: artifact
   },
   "bytecode": [
     "func 0",
-    "current witness index : 68",
-    "private parameters indices : [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36]",
+    "current witness index : _68",
+    "private parameters indices : [_0, _1, _2, _3, _4, _5, _6, _7, _8, _9, _10, _11, _12, _13, _14, _15, _16, _17, _18, _19, _20, _21, _22, _23, _24, _25, _26, _27, _28, _29, _30, _31, _32, _33, _34, _35, _36]",
     "public parameters indices : []",
     "return value indices : []",
     "BLACKBOX::RANGE [(_0, 8)] []",
@@ -114,7 +114,7 @@ expression: artifact
     "EXPR [ (-1, _35) (1, _67) 0 ]",
     "EXPR [ (-1, _36) (1, _68) 0 ]"
   ],
-  "debug_symbols": "ldVBCoMwEIXhu8zahW2cafUqpZSoUQIhStRCEe/eKApSunm7TIY/m2+RmWpTTu3L+qYbqHjM5LpKj7bzcZpJ3ba7odd+HYdRh5GKK+cJGV/H0z1dEmqsM1RwujwTUve/Ra72QqX5b5GjRZbCxQUurnCh4CKDC4YLgYsbXMDmGWzOsDnD5gybM2zOsDnD5gybM2zOsDnD5gKbC2wusLnA5gKbC2wusLnA5gKbC2gehzJY52z7Ov9D8fqtg9WlM/vYTL46bcdPf2yOvg9dZeopmPWlbRef/wI=",
+  "debug_symbols": "jdLBaoQwFAXQf8naRTTznqO/UopEjUMgRMlooYj/3ujVahdTZnU1z3uQR2bRmnp6VNZ3/VOUH7Oog3XOPirXN3q0vY+n85KI47UagzHxSFzmsTXoYPwoSj85l4gv7abto+eg/ZajDnEqE2F8GzOCnXVmfVqSsy1fVzMq9nJ2P+v0fr9Qe1/J4lU/+6cvJR8/IFN1Cu8Daf4LZHQFPuOLbmz4s3OhclGmiVD3jVXFFjeJSBEZQiFuCEIwIkdAuUEhKASFoBAUgkJQCApBISgEhaEwFIbCUBgKQ2EoDIWh8Kos68KC1bUz+0XrJt9c7t34PRyT42YOoW9MOwWz7mubxQ3+AA==",
   "file_map": {
     "50": {
       "source": "// This is the same as Blake2s example.\n//\n// Pre-alpha dependencies must now be prefixed with the word \"dep\".\n// The line below indicates that we would like to pull in the standard library dependency.\nfn main(x: [u8; 5], result: [u8; 32]) {\n    let digest = std::hash::blake2s(x);\n    assert(digest == result);\n}\n",

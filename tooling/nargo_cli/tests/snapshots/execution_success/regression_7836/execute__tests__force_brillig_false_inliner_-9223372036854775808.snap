@@ -22,8 +22,8 @@ expression: artifact
   },
   "bytecode": [
     "func 0",
-    "current witness index : 9",
-    "private parameters indices : [0]",
+    "current witness index : _9",
+    "private parameters indices : [_0]",
     "public parameters indices : []",
     "return value indices : []",
     "BLACKBOX::RANGE [(_0, 32)] []",
@@ -49,7 +49,7 @@ expression: artifact
     "unconstrained func 1",
     "[Const { destination: Direct(10), bit_size: Integer(U32), value: 2 }, Const { destination: Direct(11), bit_size: Integer(U32), value: 0 }, CalldataCopy { destination_address: Direct(0), size_address: Direct(10), offset_address: Direct(11) }, BinaryFieldOp { destination: Direct(2), op: IntegerDiv, lhs: Direct(0), rhs: Direct(1) }, BinaryFieldOp { destination: Direct(1), op: Mul, lhs: Direct(2), rhs: Direct(1) }, BinaryFieldOp { destination: Direct(1), op: Sub, lhs: Direct(0), rhs: Direct(1) }, Mov { destination: Direct(0), source: Direct(2) }, Stop { return_data: HeapVector { pointer: Direct(11), size: Direct(10) } }]"
   ],
-  "debug_symbols": "tdRLCoMwEIDhu8zaRWMSX1cpRaJGCYQoUQtFvHujRBArBVtmOTN/vmUmqGQxNrkyddtDdp9At6UYVGvcNAFZV30nzDL1g7ADZGEUgDQVZJTOAdRKS8j4bX4EEF7L6bWcneWc+pyn+zz4CAllviSMHWSOJkdocowmJ2dynPg+Yb/LKZpMbv/RnGx0FB5pgkeHeDTFoxkezfHo6DudHvv4Su+GwiqtVZPvP1C3fgqrRKGlH+vRlLvr8Oq2y/a+s20pq9HKRVpvjn8D",
+  "debug_symbols": "pZLBboQgEIbfZc4cREBdX6VpDCpuSAgaFpo0xnfvCNjuHmw2u5f/F8ZvZoBZYVR9uHbaTvMN2o8VeqeN0dfOzIP0era4u24EjmXnnVK4BXdxpBbplPXQ2mAMgS9pQvzptkgb3UuH0YKAsiM6Jpy0UfvXRv7o4hwtq8wy9guLp2nBMi0uZ3R5TlPGM045f6F63WS8OaX5m9X/4wU9+Kp8q/vHu/vElRy0e5gUoFiGQBmVReX4ZgRE1CpqHbXBNAQuUWkBLT4wpcnKZCwZTyaSYYoaDXPU296007I3Kk/pFOxwN7T+ezkix1gvbh7UGJza244xPMgP",
   "file_map": {
     "50": {
       "source": "fn main(x: u32) {\n    if (x == 43) {\n        let _ = foo(x);\n    }\n    assert(foo(x) != 0);\n}\n\nfn foo(input: u32) -> u32 {\n    assert(input != 0);\n    input % 100\n}\n",

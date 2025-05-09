@@ -41,10 +41,10 @@ expression: artifact
   },
   "bytecode": [
     "func 0",
-    "current witness index : 10",
-    "private parameters indices : [0, 1]",
+    "current witness index : _10",
+    "private parameters indices : [_0, _1]",
     "public parameters indices : []",
-    "return value indices : [2]",
+    "return value indices : [_2]",
     "BRILLIG CALL func 0: inputs: [Single(Expression { mul_terms: [], linear_combinations: [(1, Witness(0))], q_c: 0 }), Single(Expression { mul_terms: [], linear_combinations: [(1, Witness(1))], q_c: 0 })], outputs: [Array([Witness(3), Witness(4)])]",
     "INIT (id: 0, len: 2, witnesses: [_3, _4])",
     "BRILLIG CALL func 1: inputs: [Single(Expression { mul_terms: [], linear_combinations: [(1, Witness(0))], q_c: 4294967294 }), Single(Expression { mul_terms: [], linear_combinations: [], q_c: 4294967296 })], outputs: [Simple(Witness(5)), Simple(Witness(6))]",
@@ -63,7 +63,7 @@ expression: artifact
     "unconstrained func 1",
     "[Const { destination: Direct(10), bit_size: Integer(U32), value: 2 }, Const { destination: Direct(11), bit_size: Integer(U32), value: 0 }, CalldataCopy { destination_address: Direct(0), size_address: Direct(10), offset_address: Direct(11) }, BinaryFieldOp { destination: Direct(2), op: IntegerDiv, lhs: Direct(0), rhs: Direct(1) }, BinaryFieldOp { destination: Direct(1), op: Mul, lhs: Direct(2), rhs: Direct(1) }, BinaryFieldOp { destination: Direct(1), op: Sub, lhs: Direct(0), rhs: Direct(1) }, Mov { destination: Direct(0), source: Direct(2) }, Stop { return_data: HeapVector { pointer: Direct(11), size: Direct(10) } }]"
   ],
-  "debug_symbols": "tZTBasQgEIbfZc4ejKPJJq9SymISdxHEBJMUSsi7V0ul2+0edli85Y9+n8LMuMNo+u16tv4yLdC97eCmQa928jHtwL9/LbP2KS2rDit0FW8YGD/GL6EOBhfrDHSKH+8MKiogHgKoMqDwFmDPb41uLOiWBd2qoLt+0S1E/bNVoLxzNwXdp4LutqC74iXl1atyzJMp5N/JjKEP1jl7Pd+/CDuIh1N7c1P5b8yRTEgyochETSYaMnEiEy2VQE4jjpg+dLC6dyZVNS1ufshFjnH9nPNKboM5TIMZt2BSQ/z2QiosIpOYm11KJtt4RDzmCw==",
+  "debug_symbols": "tZNhi4QgEIb/i5/9kI7W1l+JCCt3EcTCrYMj+u836nq7cCx3BPflfTN9ZsZh3Mmkh+3WG3ed76RpdzJ4Y6259XYe1Wpmh393UgThnDSMEg7JRDKZrExWJbskq6MB0uw4KMkh+9VrHSK+5MDMi/LaraRxm7WUfCi7xUP3Rbnoq/K4W1Ci3YSOAa/G6vB10CddvEc5Lx8wF/Ibl3/mWVE9eMZP8SAzL+EdD//Hv9wfxBkeqt/7B2f63+FKjcb/mDpOCYuKsydwlKKKqDIqzh02pYp6iVpHZUUypMsjlOSNGqwOcUPmzY05DS7XzyXv5PFf/DzqafM6lPR8A1hAC0AFdClFKwQVdXeEK3wB",
   "file_map": {
     "50": {
       "source": "fn main(x: Field, y: Field) -> pub Field {\n    // Safety: testing context\n    unsafe {\n        let notes = create_notes(x, y);\n        sum_x(notes, x, y)\n    }\n}\n\nfn sum_x(notes: [Field; 2], x: Field, y: Field) -> Field {\n    notes[x] + notes[y]\n}\n\nunconstrained fn create_notes(x: Field, y: Field) -> [Field; 2] {\n    [x, y]\n}\n",
