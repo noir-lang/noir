@@ -3,7 +3,11 @@ use std::collections::BTreeSet;
 use fxhash::FxHashMap as HashMap;
 use petgraph::graph::{DiGraph, NodeIndex as PetGraphIndex};
 
-use super::{function::{Function, FunctionId}, instruction::Instruction, value::Value};
+use super::{
+    function::{Function, FunctionId},
+    instruction::Instruction,
+    value::Value,
+};
 
 struct CallGraph {
     graph: DiGraph<FunctionId, ()>,

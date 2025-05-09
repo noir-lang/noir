@@ -10,16 +10,22 @@ use crate::ssa::{
         function::{Function, RuntimeType},
         instruction::Instruction,
         value::Value,
-    }, opt::inlining::{called_functions, called_functions_vec}, ssa_gen::Ssa
+    },
+    opt::inlining::{called_functions, called_functions_vec},
+    ssa_gen::Ssa,
 };
 
 impl Ssa {
     /// See the [`inline_functions_with_at_most_one_instruction`][self] module for more information.
     pub(crate) fn inline_functions_with_at_most_one_instruction(mut self: Ssa) -> Ssa {
-        let function_deps = self.functions.iter().map(|(id, func)| {
-            let called_functions = called_functions(func);
-            (*id, called_functions)
-        }).collect();
+        let function_deps = self
+            .functions
+            .iter()
+            .map(|(id, func)| {
+                let called_functions = called_functions(func);
+                (*id, called_functions)
+            })
+            .collect();
 
         let (graph, _, indices_to_ids) = super::pure::build_call_graph(function_deps);
 
@@ -70,24 +76,12 @@ impl Ssa {
                 return true;
             }
 
+            // Check whether the only instruction is a recursive call, which prevents inlining the callee.
             if recursive_functions.contains(&callee.id()) {
                 return false;
             }
 
-            // Check whether the only instruction is a recursive call, which prevents inlining the callee.
-            // This special check is done here to avoid performing the entire inline info computation.
-            // The inline info computation contains extra logic and requires passing over every function.
-            // which we can avoid in when inlining simple functions.
-            let only_instruction = instructions[0];
-            if let Instruction::Call { func, .. } = callee.dfg[only_instruction] {
-                let Value::Function(func_id) = callee.dfg[func] else {
-                    return true;
-                };
-
-                func_id != callee.id()
-            } else {
-                true
-            }
+            true
         };
 
         self.functions = btree_map(&self.functions, |(id, function)| {
@@ -330,7 +324,7 @@ mod test {
 
     #[test]
     fn does_not_inline_mutually_recursive_functions_acir() {
-      let src = "
+        let src = "
       acir(inline) fn main f0 {
         b0():
           call f1()
@@ -347,12 +341,12 @@ mod test {
           return
       }
       ";
-      assert_does_not_inline(src);
+        assert_does_not_inline(src);
     }
 
     #[test]
     fn does_not_inline_mutually_recursive_functions_brillig() {
-      let src = "
+        let src = "
       acir(inline) fn main f0 {
         b0():
           call f1()
@@ -374,6 +368,6 @@ mod test {
           return
       }
       ";
-      assert_does_not_inline(src);
+        assert_does_not_inline(src);
     }
 }
