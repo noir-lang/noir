@@ -2844,7 +2844,7 @@ impl Type {
         }
     }
 
-    /// Subtitute any [`Kind::Any`] in this type, for types that hold kinds (like [`Type::Constant`])
+    /// Substitute any [`Kind::Any`] in this type, for types that hold kinds (like [`Type::Constant`])
     /// with the given `kind`.
     pub(crate) fn substitute_kind_any_with_kind(self, kind: &Kind) -> Type {
         match self {
