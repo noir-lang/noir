@@ -2,7 +2,8 @@ use acir::circuit::ExpressionWidth;
 use color_eyre::eyre;
 use noir_ast_fuzzer::DisplayAstAsNoir;
 use noir_ast_fuzzer::compare::{
-    CompareCompiled, CompareComptime, CompareInterpreted, CompareResult, HasPrograms,
+    CompareCompiled, CompareCompiledResult, CompareComptime, CompareInterpreted,
+    CompareInterpretedResult, HasPrograms,
 };
 use noirc_abi::input_parser::Format;
 use noirc_evaluator::brillig::Brillig;
@@ -81,7 +82,10 @@ where
 }
 
 /// Compare the execution result and print the inputs if the result is a failure.
-pub fn compare_results<P>(inputs: &CompareCompiled<P>, result: &CompareResult) -> eyre::Result<()>
+pub fn compare_results_compiled<P>(
+    inputs: &CompareCompiled<P>,
+    result: &CompareCompiledResult,
+) -> eyre::Result<()>
 where
     CompareCompiled<P>: HasPrograms,
 {
@@ -124,7 +128,7 @@ where
 /// Compare the execution result for comptime fuzzing and print the inputs if the result is a failure.
 pub fn compare_results_comptime(
     inputs: &CompareComptime,
-    result: &CompareResult,
+    result: &CompareCompiledResult,
 ) -> eyre::Result<()> {
     let res = result.return_value_or_err();
 
@@ -149,7 +153,7 @@ pub fn compare_results_comptime(
 /// Compare the execution result and print the inputs if the result is a failure.
 pub fn compare_results_interpreted(
     inputs: &CompareInterpreted,
-    result: &CompareResult,
+    result: &CompareInterpretedResult,
 ) -> eyre::Result<()> {
     let res = result.return_value_or_err();
 

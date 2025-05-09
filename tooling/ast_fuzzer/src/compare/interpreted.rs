@@ -6,12 +6,12 @@ use std::collections::BTreeMap;
 use arbitrary::Unstructured;
 use color_eyre::eyre;
 use noirc_abi::{Abi, InputMap};
-use noirc_evaluator::ssa::ssa_gen::Ssa;
+use noirc_evaluator::ssa::{self, ssa_gen::Ssa};
 use noirc_frontend::monomorphization::ast::Program;
 
 use crate::{Config, arb_program, program_abi};
 
-use super::{CompareOptions, CompareResult};
+use super::{CompareError, CompareOptions, CompareResult, ExecOutput};
 
 /// The state of the SSA after a particular pass in the pipeline.
 pub struct ComparePass {
@@ -24,6 +24,13 @@ pub struct ComparePass {
     /// The state of the SSA after the pass.
     pub ssa: Ssa,
 }
+
+type InterpretResult =
+    Result<Vec<ssa::interpreter::value::Value>, ssa::interpreter::errors::InterpreterError>;
+
+/// The result of the SSA interpreter execution.
+pub type CompareInterpretedResult =
+    CompareResult<Vec<ssa::interpreter::value::Value>, ssa::interpreter::errors::InterpreterError>;
 
 /// Compare the interpretation of two SSA states of an arbitrary program.
 pub struct CompareInterpreted {
@@ -59,8 +66,28 @@ impl CompareInterpreted {
         Ok(Self { program, abi, input_map, options, ssa1, ssa2 })
     }
 
-    pub fn exec(&self) -> eyre::Result<CompareResult> {
-        // TODO: Maybe `CompareResult` needs to be generic in the error and the return type.
-        todo!("use the SSA interpreter")
+    pub fn exec(&self) -> eyre::Result<CompareInterpretedResult> {
+        let inputs = todo!();
+        let res1 = self.ssa1.ssa.interpret(inputs);
+        let res2 = self.ssa2.ssa.interpret(inputs);
+        Ok(CompareInterpretedResult::new(res1, res2))
+    }
+}
+
+impl CompareInterpretedResult {
+    pub fn new(res1: InterpretResult, res2: InterpretResult) -> Self {
+        let out = |ret| ExecOutput { return_value: Some(ret), print_output: Default::default() };
+        match (res1, res2) {
+            (Ok(r1), Ok(e2)) => Self::BothPassed(out(r1), out(e2)),
+            (Ok(r1), Err(e2)) => Self::RightFailed(out(r1), e2),
+            (Err(e1), Ok(r2)) => Self::LeftFailed(e1, out(r2)),
+            (Err(e1), Err(e2)) => Self::BothFailed(e1, e2),
+        }
+    }
+}
+
+impl CompareError for ssa::interpreter::errors::InterpreterError {
+    fn equivalent(e1: &Self, e2: &Self) -> bool {
+        e1 == e2
     }
 }
