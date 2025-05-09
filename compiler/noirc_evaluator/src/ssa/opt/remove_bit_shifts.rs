@@ -241,15 +241,16 @@ impl Context<'_, '_, '_> {
             let mut r = one;
             // All operations are unchecked as we're acting on Field types (which are always unchecked)
             for i in 1..bit_size + 1 {
-                let r_squared = self.insert_binary(r, BinaryOp::Mul { unchecked: true }, r);
-                let a = self.insert_binary(r_squared, BinaryOp::Mul { unchecked: true }, lhs);
                 let idx = self.field_constant(FieldElement::from((bit_size - i) as i128));
                 let b = self.insert_array_get(rhs_bits, idx, Type::bool());
                 let not_b = self.insert_not(b);
                 let b = self.insert_cast(b, NumericType::NativeField);
                 let not_b = self.insert_cast(not_b, NumericType::NativeField);
-                let r1 = self.insert_binary(a, BinaryOp::Mul { unchecked: true }, b);
-                let r2 = self.insert_binary(r_squared, BinaryOp::Mul { unchecked: true }, not_b);
+
+                let r_squared = self.insert_binary(r, BinaryOp::Mul { unchecked: true }, r);
+                let r1 = self.insert_binary(r_squared, BinaryOp::Mul { unchecked: true }, not_b);
+                let a = self.insert_binary(r_squared, BinaryOp::Mul { unchecked: true }, lhs);
+                let r2 = self.insert_binary(a, BinaryOp::Mul { unchecked: true }, b);
                 r = self.insert_binary(r1, BinaryOp::Add { unchecked: true }, r2);
             }
             r
