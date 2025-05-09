@@ -503,6 +503,13 @@ impl Elaborator<'_> {
                 return Some(generic.as_named_generic());
             }
         } else if let Some(typ) = self.lookup_associated_type_on_self(path) {
+            if let Some(last_segment) = path.segments.last() {
+                if last_segment.generics.is_some() {
+                    self.push_err(ResolverError::GenericsOnAssociatedType {
+                        location: last_segment.turbofish_location(),
+                    });
+                }
+            }
             return Some(typ);
         }
 
