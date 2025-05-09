@@ -1,13 +1,14 @@
 //! Compare an arbitrary AST compiled into SSA and executed with the
 //! SSA interpreter at some stage of the SSA pipeline.
 
-use std::collections::BTreeMap;
+use std::{collections::BTreeMap, sync::Arc};
 
 use arbitrary::Unstructured;
 use color_eyre::eyre;
-use noirc_abi::{Abi, InputMap};
+use iter_extended::vecmap;
+use noirc_abi::{Abi, AbiType, InputMap, Sign, input_parser::InputValue};
 use noirc_evaluator::ssa::{self, ssa_gen::Ssa};
-use noirc_frontend::monomorphization::ast::Program;
+use noirc_frontend::{Shared, monomorphization::ast::Program};
 
 use crate::{Config, arb_program, program_abi};
 
@@ -67,8 +68,8 @@ impl CompareInterpreted {
     }
 
     pub fn exec(&self) -> eyre::Result<CompareInterpretedResult> {
-        let inputs = todo!();
-        let res1 = self.ssa1.ssa.interpret(inputs);
+        let inputs = input_values_to_ssa(&self.abi, &self.input_map);
+        let res1 = self.ssa1.ssa.interpret(inputs.clone());
         let res2 = self.ssa2.ssa.interpret(inputs);
         Ok(CompareInterpretedResult::new(res1, res2))
     }
@@ -89,5 +90,95 @@ impl CompareInterpretedResult {
 impl CompareError for ssa::interpreter::errors::InterpreterError {
     fn equivalent(e1: &Self, e2: &Self) -> bool {
         e1 == e2
+    }
+}
+
+/// Convert the ABI encoded inputs to what the SSA interpreter expects.
+fn input_values_to_ssa(abi: &Abi, input_map: &InputMap) -> Vec<ssa::interpreter::value::Value> {
+    let mut inputs = Vec::new();
+    for param in &abi.parameters {
+        let input = &input_map[&param.name];
+        let input = input_value_to_ssa(&param.typ, input);
+        inputs.push(input);
+    }
+    inputs
+}
+
+/// Convert one ABI encoded input to what the SSA interpreter expects.
+fn input_value_to_ssa(typ: &AbiType, input: &InputValue) -> ssa::interpreter::value::Value {
+    use ssa::interpreter::value::{ArrayValue, NumericValue, Value};
+    use ssa::ir::types::Type;
+    let array_value = |elements, types| {
+        Value::ArrayOrSlice(ArrayValue {
+            elements: Shared::new(elements),
+            rc: Shared::new(1),
+            element_types: Arc::new(types),
+            is_slice: false,
+        })
+    };
+    match input {
+        InputValue::Field(f) => Value::Numeric(NumericValue::Field(*f)),
+        InputValue::String(s) => array_value(
+            vecmap(s.as_bytes(), |b| Value::Numeric(NumericValue::U8(*b))),
+            vec![Type::unsigned(8)],
+        ),
+        InputValue::Vec(input_values) => match typ {
+            AbiType::Array { length, typ } => {
+                assert_eq!(*length as usize, input_values.len(), "array length != input length");
+                array_value(
+                    vecmap(input_values, |input| input_value_to_ssa(typ, input)),
+                    vec![input_type_to_ssa(typ)],
+                )
+            }
+            AbiType::Tuple { fields } => {
+                assert_eq!(fields.len(), input_values.len(), "tuple size != input length");
+                array_value(
+                    vecmap(fields.iter().zip(input_values), |(typ, input)| {
+                        input_value_to_ssa(typ, input)
+                    }),
+                    vecmap(fields, input_type_to_ssa),
+                )
+            }
+            other => {
+                panic!("unexpected ABI type for vector input: {other:?}")
+            }
+        },
+        InputValue::Struct(field_values) => match typ {
+            AbiType::Struct { path: _, fields } => {
+                assert_eq!(fields.len(), field_values.len(), "struct size != input length");
+                array_value(
+                    vecmap(fields, |(name, typ)| {
+                        let input = &field_values[name];
+                        input_value_to_ssa(typ, input)
+                    }),
+                    vecmap(fields.iter().map(|(_, typ)| typ), input_type_to_ssa),
+                )
+            }
+            other => {
+                panic!("unexpected ABI type for map input: {other:?}")
+            }
+        },
+    }
+}
+
+/// Convert an ABI type into SSA.
+fn input_type_to_ssa(typ: &AbiType) -> ssa::ir::types::Type {
+    use ssa::ir::types::Type;
+    match typ {
+        AbiType::Field => Type::field(),
+        AbiType::Array { length, typ } => {
+            Type::Array(Arc::new(vec![input_type_to_ssa(typ)]), *length)
+        }
+        AbiType::Integer { sign: Sign::Signed, width } => Type::signed(*width),
+        AbiType::Integer { sign: Sign::Unsigned, width } => Type::unsigned(*width),
+        AbiType::Boolean => Type::bool(),
+        AbiType::Struct { path: _, fields } => Type::Array(
+            Arc::new(vecmap(fields, |(_, typ)| input_type_to_ssa(typ))),
+            fields.len() as u32,
+        ),
+        AbiType::Tuple { fields } => {
+            Type::Array(Arc::new(vecmap(fields, input_type_to_ssa)), fields.len() as u32)
+        }
+        AbiType::String { length } => Type::Array(Arc::new(vec![Type::unsigned(8)]), *length),
     }
 }
