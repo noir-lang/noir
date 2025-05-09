@@ -312,10 +312,8 @@ pub fn trace_circuit<B: BlackBoxFunctionSolver<FieldElement>>(
                     call_stack,
                     Some(function_id),
                 )) => {
-                    let opcode_locations = call_stack
-                        .iter()
-                        .map(|loc| loc.opcode_location)
-                        .collect::<Vec<_>>();
+                    let opcode_locations =
+                        call_stack.iter().map(|loc| loc.opcode_location).collect::<Vec<_>>();
                     handle_function_error(
                         function_id,
                         &opcode_locations,
@@ -354,22 +352,21 @@ fn handle_function_error<F, B: BlackBoxFunctionSolver<FieldElement>>(
     err: &NargoError<F>,
     tracing_context: &mut TracingContext<B>,
     tracer: &mut Tracer,
-) 
-where F: AcirField
+) where
+    F: AcirField,
 {
-    let err_str = if let Some(ResolvedAssertionPayload::Raw(RawAssertionPayload {
-        selector,
-        data: _,
-    })) = payload
-    {
-        if let Some(AbiErrorType::String { string }) = error_types.get(selector) {
-            string.clone()
+    let err_str =
+        if let Some(ResolvedAssertionPayload::Raw(RawAssertionPayload { selector, data: _ })) =
+            payload
+        {
+            if let Some(AbiErrorType::String { string }) = error_types.get(selector) {
+                string.clone()
+            } else {
+                err.to_string()
+            }
         } else {
             err.to_string()
-        }
-    } else {
-        err.to_string()
-    };
+        };
 
     let debug_locations = call_stack
         .iter()

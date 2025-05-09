@@ -17,7 +17,10 @@ use noirc_evaluator::{
     brillig::BrilligOptions,
     errors::{InternalError, RuntimeError},
     ssa::{
-        function_builder::FunctionBuilder, ir::instruction::ErrorType, optimize_ssa_builder_into_acir, primary_passes, secondary_passes, ArtifactsAndWarnings, OptimizationLevel, SsaBuilder, SsaCircuitArtifact, SsaEvaluatorOptions, SsaLogging, SsaProgramArtifact
+        ArtifactsAndWarnings, OptimizationLevel, SsaBuilder, SsaCircuitArtifact,
+        SsaEvaluatorOptions, SsaLogging, SsaProgramArtifact, function_builder::FunctionBuilder,
+        ir::instruction::ErrorType, optimize_ssa_builder_into_acir, primary_passes,
+        secondary_passes,
     },
 };
 
