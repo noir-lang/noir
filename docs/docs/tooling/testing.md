@@ -88,7 +88,7 @@ fn test_basic(a: Field, b: Field) {
     assert(a + b == b + a);
 }
 ```
-The test above is not expected to fail. By default, the fuzzer will run for 10 seconds and use 100000 executions (whichever comes first). All available threads will be used for each fuzz test.
+The test above is not expected to fail. By default, the fuzzer will run for 1 seconds and use 100000 executions (whichever comes first). All available threads will be used for each fuzz test.
 The fuzz tests also work with `#[test(should_fail)]` and `#[test(should_fail_with = "<the reason for failure>")]`. For example:
 
 ```rust
