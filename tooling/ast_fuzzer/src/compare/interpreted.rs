@@ -37,7 +37,9 @@ pub type CompareInterpretedResult =
 pub struct CompareInterpreted {
     pub program: Program,
     pub abi: Abi,
-    // TODO: Figure out how to map ABI to SSA input values.
+    /// ABI inputs, which we map to SSA values as part of the execution.
+    /// We could generate random input for the SSA directly, but it would
+    /// make it more difficult to use it with `nargo` if we find a failure.
     pub input_map: InputMap,
     /// Options that influence the pipeline, common to both passes.
     pub options: CompareOptions,
@@ -67,8 +69,6 @@ impl CompareInterpreted {
     }
 
     pub fn exec(&self) -> eyre::Result<CompareInterpretedResult> {
-        println!("AST:\n{}", DisplayAstAsNoir(&self.program));
-        println!("Inputs:\n{:?}", self.input_map);
         let inputs = input_values_to_ssa(&self.abi, &self.input_map);
         let res1 = self.ssa1.ssa.interpret(inputs.clone());
         let res2 = self.ssa2.ssa.interpret(inputs);
