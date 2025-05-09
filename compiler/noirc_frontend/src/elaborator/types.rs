@@ -64,7 +64,7 @@ impl Elaborator<'_> {
     }
 
     pub(crate) fn use_type_with_kind(&mut self, typ: UnresolvedType, kind: &Kind) -> Type {
-        self.resolve_type_inner(typ, &kind, PathResolutionMode::MarkAsUsed)
+        self.resolve_type_inner(typ, kind, PathResolutionMode::MarkAsUsed)
     }
 
     /// Translates an UnresolvedType to a Type with a `TypeKind::Normal`
@@ -75,7 +75,7 @@ impl Elaborator<'_> {
         mode: PathResolutionMode,
     ) -> Type {
         let location = typ.location;
-        let resolved_type = self.resolve_type_with_kind_inner(typ, &kind, mode);
+        let resolved_type = self.resolve_type_with_kind_inner(typ, kind, mode);
         if resolved_type.is_nested_slice() {
             self.push_err(ResolverError::NestedSlices { location });
         }
