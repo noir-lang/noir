@@ -660,7 +660,9 @@ impl Elaborator<'_> {
         let object_type = self.use_type(path.typ.clone());
 
         match self.interner.lookup_trait_implementation(&object_type, trait_id, &ordered, &named) {
-            Ok(impl_kind) => self.get_associated_type_from_trait_impl(path, impl_kind),
+            Ok((impl_kind, _instantiation_bindings)) => {
+                self.get_associated_type_from_trait_impl(path, impl_kind)
+            }
             Err(constraints) => {
                 self.push_trait_constraint_error(&object_type, constraints, location);
                 Type::Error
@@ -1468,6 +1470,7 @@ impl Elaborator<'_> {
                     object_type.clone(),
                 ),
             );
+
             self.interner.select_impl_for_expression(
                 expr_id,
                 TraitImplKind::Assumed { object_type, trait_generics },
@@ -2068,8 +2071,38 @@ impl Elaborator<'_> {
             trait_generics,
             associated_types,
         ) {
-            Ok(impl_kind) => {
+            Ok((impl_kind, instantiation_bindings)) => {
                 if select_impl {
+                    // Insert any additional instantiation bindings into this expression's
+                    // instantiation bindings. We should avoid doing this if `select_impl` is
+                    // not true since that means we're not solving for this expressions exact
+                    // impl anyway. If we ignore this, we may rarely overwrite existing type
+                    // bindings causing incorrect types. The `slice_regex` test is one example
+                    // of that happening without this being behind `select_impl`.
+                    let mut bindings =
+                        self.interner.get_instantiation_bindings(function_ident_id).clone();
+
+                    // These can clash in the `slice_regex` test which causes us to insert
+                    // incorrect type bindings if they override the previous bindings.
+                    for (id, binding) in instantiation_bindings {
+                        let existing = bindings.insert(id, binding.clone());
+
+                        if let Some((_, type_var, existing)) = existing {
+                            let existing = existing.follow_bindings();
+                            let new = binding.2.follow_bindings();
+
+                            // Exact equality on types is intential here, we never want to
+                            // overwrite even type variables but should probably avoid a panic if
+                            // the types are exactly the same.
+                            if existing != new {
+                                panic!(
+                                    "Overwriting an existing type binding with a different type!\n  {type_var:?} <- {existing:?}\n  {type_var:?} <- {new:?}"
+                                );
+                            }
+                        }
+                    }
+
+                    self.interner.store_instantiation_bindings(function_ident_id, bindings);
                     self.interner.select_impl_for_expression(function_ident_id, impl_kind);
                 }
             }
