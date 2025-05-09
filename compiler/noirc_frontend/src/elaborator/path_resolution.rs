@@ -205,7 +205,7 @@ impl TypedPath {
         self.segments.last().unwrap().ident.as_str()
     }
 
-    pub fn is_ident(&self) -> bool {
+    fn is_ident(&self) -> bool {
         self.kind == PathKind::Plain
             && self.segments.len() == 1
             && self.segments.first().unwrap().generics.is_none()
