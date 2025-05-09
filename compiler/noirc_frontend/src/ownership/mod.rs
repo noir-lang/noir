@@ -48,13 +48,28 @@ mod last_uses;
 mod tests;
 
 impl Program {
-    pub(crate) fn handle_ownership(mut self) -> Self {
-        let mut context = Context { variables_to_move: Default::default() };
-
+    /// Perform "ownership analysis".
+    ///
+    /// See [ownership](crate::ownership) for details.
+    ///
+    /// This should only be called once, before converting to SSA.
+    pub fn handle_ownership(mut self) -> Self {
         for function in self.functions.iter_mut() {
-            context.handle_ownership_in_function(function);
+            function.handle_ownership();
         }
         self
+    }
+}
+
+impl Function {
+    /// Perform "ownership analysis".
+    ///
+    /// See [ownership](crate::ownership) for details.
+    ///
+    /// This should only be called on a function once.
+    pub fn handle_ownership(&mut self) {
+        let mut context = Context { variables_to_move: Default::default() };
+        context.handle_ownership_in_function(self);
     }
 }
 
@@ -189,12 +204,14 @@ impl Context {
 
     /// Whenever an ident is used it is always cloned unless it is the last use of the ident (not in a loop).
     fn should_clone_ident(&self, ident: &Ident) -> bool {
-        if let Definition::Local(local_id) = &ident.definition {
-            if contains_array_or_str_type(&ident.typ) && !self.should_move(*local_id, ident.id) {
-                return true;
+        match &ident.definition {
+            Definition::Local(local_id) => {
+                contains_array_or_str_type(&ident.typ) && !self.should_move(*local_id, ident.id)
             }
+            // Globals are always cloned if they contain arrays
+            Definition::Global(_) => contains_array_or_str_type(&ident.typ),
+            _ => false,
         }
-        false
     }
 
     fn handle_ident(&self, expr: &mut Expression) {

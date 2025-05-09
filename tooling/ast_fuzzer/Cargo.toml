@@ -26,11 +26,12 @@ acvm.workspace = true
 bn254_blackbox_solver.workspace = true
 nargo.workspace = true
 noirc_abi.workspace = true
+noirc_driver.workspace = true
 noirc_evaluator.workspace = true
 noirc_frontend.workspace = true
-noir_fuzzer.workspace = true
+noir_greybox_fuzzer.workspace = true
+rand.workspace = true
 
 [dev-dependencies]
 arbtest.workspace = true
 insta.workspace = true
-rand.workspace = true

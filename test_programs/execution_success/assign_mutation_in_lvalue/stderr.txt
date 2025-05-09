@@ -1,0 +1,10 @@
+error: Assertion failed
+   ┌─ src/main.nr:16:15
+   │
+16 │     assert_eq(a, ([4, 7], 6));
+   │               --------------
+   │
+   = Call stack:
+     1. src/main.nr:3:16
+
+Aborting due to 1 previous error

@@ -1,3 +1,7 @@
+#![forbid(unsafe_code)]
+#![warn(clippy::semicolon_if_nothing_returned)]
+#![cfg_attr(not(test), warn(unused_crate_dependencies, unused_extern_crates))]
+
 use core::panic;
 use std::{
     cmp::max,
@@ -16,10 +20,11 @@ use coverage::{
     AccumulatedFuzzerCoverage, BrilligCoverageRanges, FeatureToIndexMap, RawBrilligCoverage,
     SingleTestCaseCoverage, analyze_brillig_program_before_fuzzing,
 };
-use noir_fuzzer::dictionary::build_dictionary_from_program;
+pub use dictionary::build_dictionary_from_program;
 
 mod corpus;
 mod coverage;
+mod dictionary;
 mod mutation;
 mod types;
 
@@ -222,7 +227,7 @@ impl Metrics {
     pub fn increase_processed_testcase_count(&mut self, update: &usize) {
         self.processed_testcase_count += update;
     }
-    pub fn increment_removed_testcase_count(&mut self) {
+    fn increment_removed_testcase_count(&mut self) {
         self.removed_testcase_count += 1;
         self.removed_testcase_last_round = true;
     }
@@ -271,6 +276,10 @@ pub struct FuzzedExecutorExecutionConfiguration {
     pub num_threads: usize,
     /// Maximum time in seconds to spend fuzzing (default: no timeout)
     pub timeout: u64,
+    /// Whether to output progress to stdout or not.
+    pub show_progress: bool,
+    /// Maximum number of executions of ACIR and Brillig (default: no limit)
+    pub max_executions: usize,
 }
 
 pub enum FuzzedExecutorFailureConfiguration {
@@ -321,6 +330,9 @@ pub struct FuzzedExecutor<E, F> {
     /// Number of threads to use
     num_threads: usize,
 
+    /// Whether to output progress to stdout or not.
+    show_progress: bool,
+
     /// Determines what is considered a failure during execution
     failure_configuration: FuzzedExecutorFailureConfiguration,
 
@@ -338,6 +350,9 @@ pub struct FuzzedExecutor<E, F> {
 
     /// Maximum time in seconds to spend fuzzing (default: no timeout)
     timeout: u64,
+
+    /// Maximum number of executions of ACIR and Brillig (default: no limit)
+    max_executions: usize,
 }
 pub struct AcirAndBrilligPrograms {
     pub acir_program: ProgramArtifact,
@@ -391,6 +406,7 @@ impl<
             package_name: package_name.to_string(),
             function_name: function_name.to_string(),
             num_threads: fuzz_execution_config.num_threads,
+            show_progress: fuzz_execution_config.show_progress,
             failure_configuration,
             corpus_dir: PathBuf::from(
                 folder_configuration.corpus_dir.unwrap_or(DEFAULT_CORPUS_FOLDER.to_string()),
@@ -401,6 +417,7 @@ impl<
             ),
             timeout: fuzz_execution_config.timeout,
             metrics: Metrics::default(),
+            max_executions: fuzz_execution_config.max_executions,
         }
     }
 
@@ -530,17 +547,19 @@ impl<
             minimized_corpus_path =
                 minimized_corpus.as_ref().unwrap().get_corpus_storage_path().to_path_buf();
         }
-        let _ = display_starting_info(
-            self.minimize_corpus,
-            seed,
-            starting_corpus_ids.len(),
-            self.num_threads,
-            &self.package_name,
-            &self.function_name,
-            corpus.get_corpus_storage_path(),
-            &minimized_corpus_path,
-            abi_change_detected,
-        );
+        if self.show_progress {
+            let _ = display_starting_info(
+                self.minimize_corpus,
+                seed,
+                starting_corpus_ids.len(),
+                self.num_threads,
+                &self.package_name,
+                &self.function_name,
+                corpus.get_corpus_storage_path(),
+                &minimized_corpus_path,
+                abi_change_detected,
+            );
+        }
 
         // Generate the default input (it is needed if the corpus is empty)
         let default_map = self.mutator.generate_default_input_map();
@@ -745,7 +764,9 @@ impl<
                 all_fuzzing_results.iter().find(|fast_result| fast_result.failed())
             {
                 self.metrics.set_active_corpus_size(corpus.get_testcase_count());
-                let _ = display_metrics(&self.metrics);
+                if self.show_progress {
+                    let _ = display_metrics(&self.metrics);
+                }
                 break individual_failing_result.outcome().clone();
             }
 
@@ -759,7 +780,7 @@ impl<
                     .increase_total_brillig_duration_micros(&fast_result.brillig_duration_micros());
                 self.metrics.increase_total_mutation_time(&fast_result.mutation_time());
                 if !fast_result.skip_check() {
-                    analysis_queue.push(index)
+                    analysis_queue.push(index);
                 }
             }
 
@@ -934,7 +955,9 @@ impl<
             // If we've found something, return
             if let Some(result) = failing_result {
                 self.metrics.set_active_corpus_size(corpus.get_testcase_count());
-                let _ = display_metrics(&self.metrics);
+                if self.show_progress {
+                    let _ = display_metrics(&self.metrics);
+                }
                 break result;
             }
             if time_tracker.elapsed() - last_metric_check
@@ -943,11 +966,19 @@ impl<
                 // Update and display metrics
                 self.metrics.set_active_corpus_size(corpus.get_testcase_count());
                 self.metrics.set_last_round_update_time(updating_time);
-                let _ = display_metrics(&self.metrics);
+                if self.show_progress {
+                    let _ = display_metrics(&self.metrics);
+                }
                 self.metrics.refresh_round();
                 last_metric_check = time_tracker.elapsed();
                 // Check if we've exceeded the timeout
                 if self.timeout > 0 && time_tracker.elapsed() >= Duration::from_secs(self.timeout) {
+                    return FuzzTestResult::Success;
+                }
+                // Check if we've exceeded the maximum number of executions
+                if self.max_executions > 0
+                    && self.metrics.processed_testcase_count >= self.max_executions
+                {
                     return FuzzTestResult::Success;
                 }
             }
