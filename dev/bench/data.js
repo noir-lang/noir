@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1746794473620,
+  "lastUpdate": 1746795813594,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -18220,48 +18220,6 @@ window.BENCHMARK_DATA = {
             "name": "GitHub",
             "username": "web-flow"
           },
-          "distinct": false,
-          "id": "ce0135a771cf7e964b41d3779e6923cea0b73be3",
-          "message": "fix(ssa): Do not remove unused checked binary ops (#8303)",
-          "timestamp": "2025-05-01T15:32:54Z",
-          "tree_id": "63c0b14772b848f353b1c8d37b53ca9cfa5a0e05",
-          "url": "https://github.com/noir-lang/noir/commit/ce0135a771cf7e964b41d3779e6923cea0b73be3"
-        },
-        "date": 1746114687541,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 256566,
-            "range": "± 989",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 229539,
-            "range": "± 3433",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 3221921,
-            "range": "± 7024",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
-            "email": "mvezenov@gmail.com",
-            "name": "Maxim Vezenov",
-            "username": "vezenovm"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
           "distinct": true,
           "id": "bf93f861e9d6482a8841a8d3b74c39f13d36144e",
           "message": "fix(ssa): Remove unused calls to pure functions (#8298)\n\nCo-authored-by: Tom French <15848336+TomAFrench@users.noreply.github.com>",
@@ -20304,6 +20262,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 3221284,
             "range": "± 10223",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "15848336+TomAFrench@users.noreply.github.com",
+            "name": "Tom French",
+            "username": "TomAFrench"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "2114ae222cb19936e1e85f211fdc447e86d0a5a4",
+          "message": "chore: separate benchmarking from github actions more (#7943)\n\nCo-authored-by: AztecBot <tech@aztecprotocol.com>",
+          "timestamp": "2025-05-09T12:44:43Z",
+          "tree_id": "ac185fd0a73155ba48721dadda658884f33a903d",
+          "url": "https://github.com/noir-lang/noir/commit/2114ae222cb19936e1e85f211fdc447e86d0a5a4"
+        },
+        "date": 1746795805281,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 290350,
+            "range": "± 668",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 260248,
+            "range": "± 838",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 3251640,
+            "range": "± 8266",
             "unit": "ns/iter"
           }
         ]
