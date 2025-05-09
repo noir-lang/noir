@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1746803433385,
+  "lastUpdate": 1746803435602,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -20354,6 +20354,80 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/noir-lang/noir/commit/94e839d82c13c90e7f5989e9ab6cea73ab2ba403"
         },
         "date": 1746797817254,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 1110.6,
+            "unit": "KB"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 2034.4,
+            "unit": "KB"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 638.3,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 5181.3,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 3963.2,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-block-root-empty",
+            "value": 257.5,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-block-root-single-tx",
+            "value": 25674.3,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 25708.7,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 179.4,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-root",
+            "value": 470.7,
+            "unit": "KB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "aakoshh@gmail.com",
+            "name": "Akosh Farkash",
+            "username": "aakoshh"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "b6570a5057072f628f332582c6a7fc11bf5413cd",
+          "message": "feat: SSA pass impact report (#8393)",
+          "timestamp": "2025-05-09T14:47:40Z",
+          "tree_id": "31ba812a3b24ed44f31e71eb7fbf5e393478b585",
+          "url": "https://github.com/noir-lang/noir/commit/b6570a5057072f628f332582c6a7fc11bf5413cd"
+        },
+        "date": 1746803427704,
         "tool": "customSmallerIsBetter",
         "benches": [
           {
