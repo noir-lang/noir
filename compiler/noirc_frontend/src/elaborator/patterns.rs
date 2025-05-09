@@ -641,6 +641,7 @@ impl Elaborator<'_> {
             return None;
         }
 
+        let location = variable.location;
         let name = variable.segments[1].ident.as_str();
 
         // Check the `Self::AssociatedConstant` case when inside a trait
@@ -652,7 +653,7 @@ impl Elaborator<'_> {
                     // produce code (only trait impl methods do)
                     let numeric_type: Type = *numeric_type.clone();
                     let value = SignedField::zero();
-                    return Some(self.constant_integer(numeric_type, value, variable.location));
+                    return Some(self.constant_integer(numeric_type, value, location));
                 }
             }
         }
@@ -669,10 +670,23 @@ impl Elaborator<'_> {
         let associated_types = self.interner.get_associated_types_for_impl(*trait_impl_id);
         let associated_type = associated_types.iter().find(|typ| typ.name.as_str() == name);
         if let Some(associated_type) = associated_type {
-            if let Type::Constant(field, Kind::Numeric(numeric_type)) = &associated_type.typ {
-                let numeric_type: Type = *numeric_type.clone();
-                let value = SignedField::positive(*field);
-                return Some(self.constant_integer(numeric_type, value, variable.location));
+            if let Kind::Numeric(numeric_type) = associated_type.typ.kind() {
+                let definition_id = self.interner.push_definition(
+                    associated_type.name.to_string(),
+                    false,
+                    false,
+                    DefinitionKind::AssociatedConstant(
+                        *trait_impl_id,
+                        associated_type.name.to_string(),
+                    ),
+                    location,
+                );
+                let hir_ident = HirIdent::non_trait_method(definition_id, location);
+                let hir_expr = HirExpression::Ident(hir_ident, None);
+                let id = self.interner.push_expr(hir_expr);
+                self.interner.push_expr_location(id, location);
+                self.interner.push_expr_type(id, *numeric_type.clone());
+                return Some((id, *numeric_type.clone()));
             }
         }
 
@@ -858,6 +872,9 @@ impl Elaborator<'_> {
                         self.resolve_local_variable(hir_ident.clone(), var_scope_index);
 
                         self.interner.add_local_reference(hir_ident.id, location);
+                    }
+                    DefinitionKind::AssociatedConstant(..) => {
+                        // TODO
                     }
                 }
             }
