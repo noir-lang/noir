@@ -29,7 +29,5 @@ expression: artifact
   "names": [
     "main"
   ],
-  "brillig_names": [
-    "directive_invert"
-  ]
+  "brillig_names": []
 }
