@@ -9,9 +9,11 @@ use noirc_frontend::monomorphization::ast::Program;
 
 mod compiled;
 mod comptime;
+mod interpreted;
 
 pub use compiled::{CompareArtifact, CompareCompiled, CompareMorph, ComparePipelines};
 pub use comptime::CompareComptime;
+pub use interpreted::{CompareInterpreted, ComparePass};
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct ExecOutput {

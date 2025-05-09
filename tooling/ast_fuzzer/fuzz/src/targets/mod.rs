@@ -2,6 +2,7 @@ pub mod acir_vs_brillig;
 pub mod comptime_vs_brillig;
 pub mod min_vs_full;
 pub mod orig_vs_morph;
+pub mod pass_vs_prev;
 
 #[cfg(test)]
 mod tests {

@@ -1,3 +1,4 @@
+//! Compare an arbitrary AST compiled into bytecode and executed with the VM.
 use arbitrary::Unstructured;
 use bn254_blackbox_solver::Bn254BlackBoxSolver;
 use color_eyre::eyre::{self, WrapErr};

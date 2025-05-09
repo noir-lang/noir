@@ -1,3 +1,5 @@
+//! Compare an arbitrary AST executed as Noir with the comptime
+//! interpreter vs compiled into bytecode and ran through a VM.
 use std::collections::BTreeMap;
 use std::path::Path;
 
