@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1746798171198,
+  "lastUpdate": 1746803192919,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -18176,48 +18176,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "15848336+TomAFrench@users.noreply.github.com",
-            "name": "Tom French",
-            "username": "TomAFrench"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "3261a6b5876cd9920653f05e0ccee402b8389a59",
-          "message": "feat: disallow emitting multiple `MemoryInit` opcodes for the same block (#8291)\n\nCo-authored-by: AztecBot <tech@aztecprotocol.com>",
-          "timestamp": "2025-05-01T18:16:19Z",
-          "tree_id": "810ad4642955fb635ee3b8fc9661b8479ea60496",
-          "url": "https://github.com/noir-lang/noir/commit/3261a6b5876cd9920653f05e0ccee402b8389a59"
-        },
-        "date": 1746124603697,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 278851,
-            "range": "± 650",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 254337,
-            "range": "± 4121",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 3246302,
-            "range": "± 11176",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "47281315+guipublic@users.noreply.github.com",
             "name": "guipublic",
             "username": "guipublic"
@@ -20269,6 +20227,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 3232278,
             "range": "± 6368",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "aakoshh@gmail.com",
+            "name": "Akosh Farkash",
+            "username": "aakoshh"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "b6570a5057072f628f332582c6a7fc11bf5413cd",
+          "message": "feat: SSA pass impact report (#8393)",
+          "timestamp": "2025-05-09T14:47:40Z",
+          "tree_id": "31ba812a3b24ed44f31e71eb7fbf5e393478b585",
+          "url": "https://github.com/noir-lang/noir/commit/b6570a5057072f628f332582c6a7fc11bf5413cd"
+        },
+        "date": 1746803185145,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 271117,
+            "range": "± 2533",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 243570,
+            "range": "± 2874",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 3583011,
+            "range": "± 19508",
             "unit": "ns/iter"
           }
         ]
