@@ -151,6 +151,7 @@ pub(super) enum PathResolutionTarget {
     Value,
 }
 
+/// Like a [`crate::ast::Path`] but each segment has resolved turbofish types.
 #[derive(Debug, PartialEq, Eq, Clone, Hash)]
 pub struct TypedPath {
     pub segments: Vec<TypedPathSegment>,
@@ -229,6 +230,7 @@ impl std::fmt::Display for TypedPath {
     }
 }
 
+/// Like a [`crate::ast::PathSegment`] but with resolved turbofish types.
 #[derive(Debug, PartialEq, Eq, Clone, Hash)]
 pub struct TypedPathSegment {
     pub ident: Ident,
