@@ -1441,7 +1441,6 @@ impl Elaborator<'_> {
         // We must also remember to apply these substitutions to the object_type
         // referenced by the selected trait impl, if one has yet to be selected.
         let impl_kind = self.interner.get_selected_impl_for_expression(expr_id);
-
         if let Some(TraitImplKind::Assumed { object_type, trait_generics }) = impl_kind {
             let the_trait = self.interner.get_trait(trait_method_id.trait_id);
             let object_type = object_type.substitute(&bindings);
@@ -1453,24 +1452,6 @@ impl Elaborator<'_> {
                     object_type.clone(),
                 ),
             );
-
-            for associated_type in &the_trait.associated_types {
-                if let Some(binding) = trait_generics
-                    .named
-                    .iter()
-                    .find(|generic| generic.name.as_str() == *associated_type.name)
-                {
-                    let binding = binding.typ.clone();
-                    bindings.insert(
-                        associated_type.type_var.id(),
-                        (
-                            associated_type.type_var.clone(),
-                            associated_type.type_var.kind(),
-                            binding,
-                        ),
-                    );
-                }
-            }
 
             self.interner.select_impl_for_expression(
                 expr_id,

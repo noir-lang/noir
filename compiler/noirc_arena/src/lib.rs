@@ -6,7 +6,7 @@
 use std::fmt;
 
 #[derive(Clone, Copy, Debug, Eq, Ord, PartialEq, PartialOrd, Hash)]
-pub struct Index(pub usize);
+pub struct Index(usize);
 
 impl Index {
     /// Return a dummy index (max value internally).

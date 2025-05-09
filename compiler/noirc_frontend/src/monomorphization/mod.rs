@@ -1886,7 +1886,6 @@ impl<'interner> Monomorphizer<'interner> {
 
         let location = self.interner.expr_location(&expr_id);
         let bindings = self.interner.get_instantiation_bindings(expr_id);
-
         let bindings = self.follow_bindings(bindings);
         self.queue.push_back((id, new_id, bindings, trait_method, is_unconstrained, location));
         new_id

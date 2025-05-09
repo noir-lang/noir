@@ -454,7 +454,7 @@ impl StmtId {
 }
 
 #[derive(Debug, Eq, PartialEq, Hash, Copy, Clone, PartialOrd, Ord)]
-pub struct ExprId(pub Index);
+pub struct ExprId(Index);
 
 #[derive(Debug, Eq, PartialEq, Hash, Copy, Clone)]
 pub struct FuncId(Index);
