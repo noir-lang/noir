@@ -27,8 +27,8 @@ noir_ast_fuzzer = { path = ".." }
 arbtest.workspace = true
 
 [[bin]]
-name = "init_vs_final"
-path = "fuzz_targets/init_vs_final.rs"
+name = "min_vs_full"
+path = "fuzz_targets/min_vs_full.rs"
 test = false
 doc = false
 bench = false
