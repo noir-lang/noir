@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"fn":["responds_to_side_effects_var"]};
+window.SIDEBAR_ITEMS = {};

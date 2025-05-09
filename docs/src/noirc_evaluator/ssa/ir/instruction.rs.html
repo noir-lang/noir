@@ -852,7 +852,9 @@
 <a href="#851" id="851">851</a>
 <a href="#852" id="852">852</a>
 <a href="#853" id="853">853</a>
-<a href="#854" id="854">854</a></pre></div><pre class="rust"><code><span class="kw">use </span>noirc_errors::call_stack::CallStackId;
+<a href="#854" id="854">854</a>
+<a href="#855" id="855">855</a>
+<a href="#856" id="856">856</a></pre></div><pre class="rust"><code><span class="kw">use </span>noirc_errors::call_stack::CallStackId;
 <span class="kw">use </span>serde::{Deserialize, Serialize};
 <span class="kw">use </span>std::hash::{Hash, Hasher};
 
@@ -1240,7 +1242,9 @@
             Instruction::Call { func, .. } =&gt; <span class="kw">match </span>dfg[<span class="kw-2">*</span>func] {
                 Value::Function(id) =&gt; !<span class="macro">matches!</span>(dfg.purity_of(id), <span class="prelude-val">Some</span>(Purity::Pure)),
                 Value::Intrinsic(intrinsic) =&gt; {
-                    <span class="macro">matches!</span>(intrinsic, Intrinsic::SliceInsert | Intrinsic::SliceRemove)
+                    <span class="comment">// These utilize `noirc_evaluator::acir::Context::get_flattened_index` internally
+                    // which uses the side effects predicate.
+                    </span><span class="macro">matches!</span>(intrinsic, Intrinsic::SliceInsert | Intrinsic::SliceRemove)
                 }
                 <span class="kw">_ </span>=&gt; <span class="bool-val">false</span>,
             },
