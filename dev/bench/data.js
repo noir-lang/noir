@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1746796403674,
+  "lastUpdate": 1746797266373,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -18191,48 +18191,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "mvezenov@gmail.com",
-            "name": "Maxim Vezenov",
-            "username": "vezenovm"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "bf93f861e9d6482a8841a8d3b74c39f13d36144e",
-          "message": "fix(ssa): Remove unused calls to pure functions (#8298)\n\nCo-authored-by: Tom French <15848336+TomAFrench@users.noreply.github.com>",
-          "timestamp": "2025-05-01T15:49:07Z",
-          "tree_id": "0bd897be7d24ef032d52aaabcff2d3df5657f1b5",
-          "url": "https://github.com/noir-lang/noir/commit/bf93f861e9d6482a8841a8d3b74c39f13d36144e"
-        },
-        "date": 1746115749645,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 255078,
-            "range": "± 1071",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 227029,
-            "range": "± 2143",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 3236540,
-            "range": "± 16777",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "15848336+TomAFrench@users.noreply.github.com",
             "name": "Tom French",
             "username": "TomAFrench"
@@ -20284,6 +20242,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 3251640,
             "range": "± 8266",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "163862677+noirwhal@users.noreply.github.com",
+            "name": "noirwhal",
+            "username": "noirwhal"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "94e839d82c13c90e7f5989e9ab6cea73ab2ba403",
+          "message": "chore: bump external pinned commits (#8433)\n\nCo-authored-by: noirwhal <tomfrench@aztecprotocol.com>\nCo-authored-by: Tom French <15848336+TomAFrench@users.noreply.github.com>",
+          "timestamp": "2025-05-09T13:05:48Z",
+          "tree_id": "5a0956b0ed40f48e656f5a25b2e6ecd37785df25",
+          "url": "https://github.com/noir-lang/noir/commit/94e839d82c13c90e7f5989e9ab6cea73ab2ba403"
+        },
+        "date": 1746797258051,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 274406,
+            "range": "± 1526",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 245685,
+            "range": "± 3209",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 3232278,
+            "range": "± 6368",
             "unit": "ns/iter"
           }
         ]
