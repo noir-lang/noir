@@ -9,9 +9,9 @@ use crate::{
         ArrayLiteral, AsTraitPath, BinaryOpKind, BlockExpression, CallExpression, CastExpression,
         ConstrainExpression, ConstrainKind, ConstructorExpression, Expression, ExpressionKind,
         Ident, IfExpression, IndexExpression, InfixExpression, ItemVisibility, Lambda, Literal,
-        MatchExpression, MemberAccessExpression, MethodCallExpression, Path, PathSegment,
-        PrefixExpression, StatementKind, TraitBound, UnaryOp, UnresolvedTraitConstraint,
-        UnresolvedTypeData, UnresolvedTypeExpression, UnsafeExpression,
+        MatchExpression, MemberAccessExpression, MethodCallExpression, PrefixExpression,
+        StatementKind, TraitBound, UnaryOp, UnresolvedTraitConstraint, UnresolvedTypeData,
+        UnresolvedTypeExpression, UnsafeExpression,
     },
     hir::{
         comptime::{self, InterpreterError},
@@ -38,7 +38,10 @@ use crate::{
     token::{FmtStrFragment, Tokens},
 };
 
-use super::{Elaborator, LambdaContext, UnsafeBlockStatus, UnstableFeature};
+use super::{
+    Elaborator, LambdaContext, UnsafeBlockStatus, UnstableFeature,
+    path_resolution::{TypedPath, TypedPathSegment},
+};
 
 impl Elaborator<'_> {
     pub(crate) fn elaborate_expression(&mut self, expr: Expression) -> (ExprId, Type) {
@@ -333,7 +336,7 @@ impl Elaborator<'_> {
                     old_value.num_times_used += 1;
                     old_value.ident.clone()
                 } else if let Ok((definition_id, _)) =
-                    self.lookup_global(Path::from_single(ident_name.to_string(), *location))
+                    self.lookup_global(TypedPath::from_single(ident_name.to_string(), *location))
                 {
                     HirIdent::non_trait_method(definition_id, *location)
                 } else {
@@ -567,12 +570,10 @@ impl Elaborator<'_> {
                         &mut object_type,
                         &mut object,
                     );
-
-                    self.resolve_function_turbofish_generics(
-                        &func_id,
-                        method_call.generics,
-                        location,
-                    )
+                    let generics = method_call.generics;
+                    let generics =
+                        generics.map(|generics| vecmap(generics, |generic| self.use_type(generic)));
+                    self.resolve_function_turbofish_generics(&func_id, generics, location)
                 } else {
                     None
                 };
@@ -786,6 +787,7 @@ impl Elaborator<'_> {
             last_segment.generics = Some(generics.ordered_args);
         }
 
+        let path = self.validate_path(path);
         let last_segment = path.last_segment();
 
         let Some(typ) = self.lookup_type_or_error(path) else {
@@ -800,7 +802,7 @@ impl Elaborator<'_> {
         typ: Type,
         fields: Vec<(Ident, Expression)>,
         location: Location,
-        last_segment: Option<PathSegment>,
+        last_segment: Option<TypedPathSegment>,
     ) -> (HirExpression, Type) {
         let typ = typ.follow_bindings_shallow();
         let (r#type, generics) = match typ.as_ref() {

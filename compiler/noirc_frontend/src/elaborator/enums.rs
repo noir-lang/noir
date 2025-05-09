@@ -405,6 +405,8 @@ impl Elaborator<'_> {
                 Pattern::Constructor(constructor, Vec::new())
             }
             ExpressionKind::Variable(path) => {
+                let path = self.validate_path(path);
+
                 // A variable can be free or bound if it refers to an enum constant:
                 // - in `(a, b)`, both variables may be free and should be defined, or
                 //   may refer to an enum variant named `a` or `b` in scope.
@@ -587,6 +589,7 @@ impl Elaborator<'_> {
         match name.kind {
             ExpressionKind::Variable(path) => {
                 let location = path.location;
+                let path = self.validate_path(path);
 
                 match self.resolve_path_or_error(path, PathResolutionTarget::Value) {
                     // Use None for `name` here - we don't want to define a variable if this

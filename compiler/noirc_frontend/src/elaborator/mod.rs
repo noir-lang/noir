@@ -76,6 +76,7 @@ use path_resolution::{
 use types::bind_ordered_generics;
 
 use self::traits::check_trait_impl_method_matches_declaration;
+pub(crate) use path_resolution::{TypedPath, TypedPathSegment};
 
 /// ResolverMetas are tagged onto each definition to track how many times they are used
 #[derive(Debug, PartialEq, Eq)]
@@ -789,8 +790,8 @@ impl<'context> Elaborator<'context> {
         }
     }
 
-    pub fn resolve_module_by_path(&mut self, path: Path) -> Option<ModuleId> {
-        match self.resolve_path_as_type(path.clone()) {
+    pub(crate) fn resolve_module_by_path(&mut self, path: TypedPath) -> Option<ModuleId> {
+        match self.resolve_path_as_type(path) {
             Ok(PathResolution { item: PathResolutionItem::Module(module_id), errors })
                 if errors.is_empty() =>
             {
@@ -800,7 +801,7 @@ impl<'context> Elaborator<'context> {
         }
     }
 
-    fn resolve_trait_by_path(&mut self, path: Path) -> Option<TraitId> {
+    fn resolve_trait_by_path(&mut self, path: TypedPath) -> Option<TraitId> {
         let error = match self.resolve_path_as_type(path.clone()) {
             Ok(PathResolution { item: PathResolutionItem::Trait(trait_id), errors }) => {
                 for error in errors {
@@ -866,9 +867,10 @@ impl<'context> Elaborator<'context> {
         bound: &mut TraitBound,
     ) -> Vec<ResolvedGeneric> {
         let mut added_generics = Vec::new();
+        let trait_path = self.validate_path(bound.trait_path.clone());
 
         let Ok(PathResolutionItem::Trait(trait_id)) =
-            self.resolve_path_or_error(bound.trait_path.clone(), PathResolutionTarget::Type)
+            self.resolve_path_or_error(trait_path, PathResolutionTarget::Type)
         else {
             return Vec::new();
         };
@@ -946,7 +948,8 @@ impl<'context> Elaborator<'context> {
         bound: &TraitBound,
         mode: PathResolutionMode,
     ) -> Option<ResolvedTraitBound> {
-        let the_trait = self.lookup_trait_or_error(bound.trait_path.clone())?;
+        let trait_path = self.validate_path(bound.trait_path.clone());
+        let the_trait = self.lookup_trait_or_error(trait_path)?;
         let trait_id = the_trait.id;
         let location = bound.trait_path.location;
 
@@ -2109,8 +2112,10 @@ impl<'context> Elaborator<'context> {
 
             let (trait_id, mut trait_generics, path_location) = match &trait_impl.r#trait.typ {
                 UnresolvedTypeData::Named(trait_path, trait_generics, _) => {
-                    let trait_id = self.resolve_trait_by_path(trait_path.clone());
-                    (trait_id, trait_generics.clone(), trait_path.location)
+                    let location = trait_path.location;
+                    let trait_path = self.validate_path(trait_path.clone());
+                    let trait_id = self.resolve_trait_by_path(trait_path);
+                    (trait_id, trait_generics.clone(), location)
                 }
                 UnresolvedTypeData::Resolved(quoted_type_id) => {
                     let typ = self.interner.get_quoted_type(*quoted_type_id);

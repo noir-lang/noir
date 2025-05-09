@@ -9,7 +9,7 @@ use crate::{
     Generics, Kind, NamedGeneric, ResolvedGeneric, Type, TypeBinding, TypeBindings,
     UnificationError,
     ast::{
-        AsTraitPath, BinaryOpKind, GenericTypeArgs, Ident, IntegerBitSize, Path, PathKind, UnaryOp,
+        AsTraitPath, BinaryOpKind, GenericTypeArgs, Ident, IntegerBitSize, PathKind, UnaryOp,
         UnresolvedGeneric, UnresolvedGenerics, UnresolvedType, UnresolvedTypeData,
         UnresolvedTypeExpression, WILDCARD_TYPE,
     },
@@ -43,7 +43,7 @@ use crate::{
 
 use super::{
     Elaborator, FunctionContext, PathResolutionTarget, UnsafeBlockStatus, lints,
-    path_resolution::{PathResolutionItem, PathResolutionMode},
+    path_resolution::{PathResolutionItem, PathResolutionMode, TypedPath},
 };
 
 pub const SELF_TYPE_NAME: &str = "Self";
@@ -75,10 +75,6 @@ impl Elaborator<'_> {
 
     pub(crate) fn resolve_type_with_kind(&mut self, typ: UnresolvedType, kind: &Kind) -> Type {
         self.resolve_type_with_kind_inner(typ, kind, PathResolutionMode::MarkAsReferenced)
-    }
-
-    pub(crate) fn use_type_with_kind(&mut self, typ: UnresolvedType, kind: &Kind) -> Type {
-        self.resolve_type_with_kind_inner(typ, kind, PathResolutionMode::MarkAsUsed)
     }
 
     /// Translates an UnresolvedType into a Type and appends any
@@ -142,8 +138,14 @@ impl Elaborator<'_> {
                 Type::Error
             }
             Error => Type::Error,
-            Named(path, args, _) => self.resolve_named_type(path, args, mode),
-            TraitAsType(path, args) => self.resolve_trait_as_type(path, args, mode),
+            Named(path, args, _) => {
+                let path = self.validate_path(path);
+                self.resolve_named_type(path, args, mode)
+            }
+            TraitAsType(path, args) => {
+                let path = self.validate_path(path);
+                self.resolve_trait_as_type(path, args, mode)
+            }
 
             Tuple(fields) => Type::Tuple(vecmap(fields, |field| {
                 self.resolve_type_with_kind_inner(field, kind, mode)
@@ -227,7 +229,7 @@ impl Elaborator<'_> {
     }
 
     // Resolve Self::Foo to an associated type on the current trait or trait impl
-    fn lookup_associated_type_on_self(&self, path: &Path) -> Option<Type> {
+    fn lookup_associated_type_on_self(&self, path: &TypedPath) -> Option<Type> {
         if path.segments.len() == 2 && path.first_name() == Some(SELF_TYPE_NAME) {
             if let Some(trait_id) = self.current_trait {
                 let the_trait = self.interner.get_trait(trait_id);
@@ -248,7 +250,7 @@ impl Elaborator<'_> {
 
     fn resolve_named_type(
         &mut self,
-        path: Path,
+        path: TypedPath,
         args: GenericTypeArgs,
         mode: PathResolutionMode,
     ) -> Type {
@@ -342,7 +344,7 @@ impl Elaborator<'_> {
 
     fn resolve_trait_as_type(
         &mut self,
-        path: Path,
+        path: TypedPath,
         args: GenericTypeArgs,
         mode: PathResolutionMode,
     ) -> Type {
@@ -492,7 +494,7 @@ impl Elaborator<'_> {
 
     fn lookup_generic_or_global_type(
         &mut self,
-        path: &Path,
+        path: &TypedPath,
         mode: PathResolutionMode,
     ) -> Option<Type> {
         if path.segments.len() == 1 {
@@ -575,6 +577,7 @@ impl Elaborator<'_> {
     ) -> Type {
         match length {
             UnresolvedTypeExpression::Variable(path) => {
+                let path = self.validate_path(path);
                 let mode = PathResolutionMode::MarkAsReferenced;
                 let typ = self.resolve_named_type(path, GenericTypeArgs::default(), mode);
                 self.check_kind(typ, expected_kind, location)
@@ -636,7 +639,8 @@ impl Elaborator<'_> {
 
     fn resolve_as_trait_path(&mut self, path: AsTraitPath) -> Type {
         let location = path.trait_path.location;
-        let Some(trait_id) = self.resolve_trait_by_path(path.trait_path.clone()) else {
+        let trait_path = self.validate_path(path.trait_path.clone());
+        let Some(trait_id) = self.resolve_trait_by_path(trait_path) else {
             // Error should already be pushed in the None case
             return Type::Error;
         };
@@ -681,7 +685,10 @@ impl Elaborator<'_> {
     //
     // Returns the trait method, trait constraint, and whether the impl is assumed to exist by a where clause or not
     // E.g. `t.method()` with `where T: Foo<Bar>` in scope will return `(Foo::method, T, vec![Bar])`
-    fn resolve_trait_static_method_by_self(&mut self, path: &Path) -> Option<TraitPathResolution> {
+    fn resolve_trait_static_method_by_self(
+        &mut self,
+        path: &TypedPath,
+    ) -> Option<TraitPathResolution> {
         // If we are inside a trait impl, `Self` is known to be a concrete type so we don't have
         // to solve the path via trait method lookup.
         if self.current_trait_impl.is_some() {
@@ -717,7 +724,7 @@ impl Elaborator<'_> {
     //
     // Returns the trait method, trait constraint, and whether the impl is assumed to exist by a where clause or not
     // E.g. `t.method()` with `where T: Foo<Bar>` in scope will return `(Foo::method, T, vec![Bar])`
-    fn resolve_trait_static_method(&mut self, path: &Path) -> Option<TraitPathResolution> {
+    fn resolve_trait_static_method(&mut self, path: &TypedPath) -> Option<TraitPathResolution> {
         let path_resolution = self.use_path_as_type(path.clone()).ok()?;
         let func_id = path_resolution.item.function_id()?;
         let meta = self.interner.try_function_meta(&func_id)?;
@@ -738,7 +745,7 @@ impl Elaborator<'_> {
     // E.g. `t.method()` with `where T: Foo<Bar>` in scope will return `(Foo::method, T, vec![Bar])`
     fn resolve_trait_method_by_named_generic(
         &mut self,
-        path: &Path,
+        path: &TypedPath,
     ) -> Option<TraitPathResolution> {
         if path.segments.len() != 2 {
             return None;
@@ -765,7 +772,7 @@ impl Elaborator<'_> {
     }
 
     /// This resolves a method in the form `Type::method` where `method` is a trait method
-    fn resolve_type_trait_method(&mut self, path: &Path) -> Option<TraitPathResolution> {
+    fn resolve_type_trait_method(&mut self, path: &TypedPath) -> Option<TraitPathResolution> {
         if path.segments.len() < 2 {
             return None;
         }
@@ -824,7 +831,7 @@ impl Elaborator<'_> {
     // E.g. `t.method()` with `where T: Foo<Bar>` in scope will return `(Foo::method, T, vec![Bar])`
     pub(super) fn resolve_trait_generic_path(
         &mut self,
-        path: &Path,
+        path: &TypedPath,
     ) -> Option<TraitPathResolution> {
         self.resolve_trait_static_method_by_self(path)
             .or_else(|| self.resolve_trait_static_method(path))

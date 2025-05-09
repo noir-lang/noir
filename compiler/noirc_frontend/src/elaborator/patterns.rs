@@ -6,7 +6,7 @@ use crate::{
     DataType, Kind, Shared, Type, TypeAlias, TypeBindings,
     ast::{
         ERROR_IDENT, Expression, ExpressionKind, GenericTypeArgs, Ident, ItemVisibility, Path,
-        Pattern, TypePath, UnresolvedType,
+        PathSegment, Pattern, TypePath,
     },
     hir::{
         def_collector::dc_crate::CompilationError,
@@ -22,7 +22,10 @@ use crate::{
     },
 };
 
-use super::{Elaborator, ResolverMeta, path_resolution::PathResolutionItem};
+use super::{
+    Elaborator, ResolverMeta,
+    path_resolution::{PathResolutionItem, TypedPath, TypedPathSegment},
+};
 
 impl Elaborator<'_> {
     pub(super) fn elaborate_pattern(
@@ -155,15 +158,18 @@ impl Elaborator<'_> {
                 });
                 HirPattern::Tuple(fields, location)
             }
-            Pattern::Struct(name, fields, location) => self.elaborate_struct_pattern(
-                name,
-                fields,
-                location,
-                expected_type,
-                definition,
-                mutable,
-                new_definitions,
-            ),
+            Pattern::Struct(name, fields, location) => {
+                let name = self.validate_path(name);
+                self.elaborate_struct_pattern(
+                    name,
+                    fields,
+                    location,
+                    expected_type,
+                    definition,
+                    mutable,
+                    new_definitions,
+                )
+            }
             Pattern::Interned(id, _) => {
                 let pattern = self.interner.get_pattern(id).clone();
                 self.elaborate_pattern_mut(
@@ -181,7 +187,7 @@ impl Elaborator<'_> {
     #[allow(clippy::too_many_arguments)]
     fn elaborate_struct_pattern(
         &mut self,
-        name: Path,
+        name: TypedPath,
         fields: Vec<(Ident, Pattern)>,
         location: Location,
         expected_type: Type,
@@ -432,23 +438,23 @@ impl Elaborator<'_> {
     pub(super) fn resolve_function_turbofish_generics(
         &mut self,
         func_id: &FuncId,
-        unresolved_turbofish: Option<Vec<UnresolvedType>>,
+        resolved_turbofish: Option<Vec<Type>>,
         location: Location,
     ) -> Option<Vec<Type>> {
         let direct_generic_kinds =
             vecmap(&self.interner.function_meta(func_id).direct_generics, |generic| generic.kind());
 
-        unresolved_turbofish.map(|unresolved_turbofish| {
-            if unresolved_turbofish.len() != direct_generic_kinds.len() {
+        resolved_turbofish.map(|resolved_turbofish| {
+            if resolved_turbofish.len() != direct_generic_kinds.len() {
                 let type_check_err = TypeCheckError::IncorrectTurbofishGenericCount {
                     expected_count: direct_generic_kinds.len(),
-                    actual_count: unresolved_turbofish.len(),
+                    actual_count: resolved_turbofish.len(),
                     location,
                 };
                 self.push_err(type_check_err);
             }
 
-            self.resolve_turbofish_generics(direct_generic_kinds, unresolved_turbofish)
+            self.resolve_turbofish_generics(direct_generic_kinds, resolved_turbofish)
         })
     }
 
@@ -456,7 +462,7 @@ impl Elaborator<'_> {
         &mut self,
         struct_type: &DataType,
         generics: Vec<Type>,
-        unresolved_turbofish: Option<Vec<UnresolvedType>>,
+        resolved_turbofish: Option<Vec<Type>>,
         location: Location,
     ) -> Vec<Type> {
         let kinds = vecmap(&struct_type.generics, |generic| generic.kind());
@@ -465,7 +471,7 @@ impl Elaborator<'_> {
             struct_type.name.as_str(),
             kinds,
             generics,
-            unresolved_turbofish,
+            resolved_turbofish,
             location,
         )
     }
@@ -475,7 +481,7 @@ impl Elaborator<'_> {
         trait_name: &str,
         trait_generic_kinds: Vec<Kind>,
         generics: Vec<Type>,
-        unresolved_turbofish: Option<Vec<UnresolvedType>>,
+        resolved_turbofish: Option<Vec<Type>>,
         location: Location,
     ) -> Vec<Type> {
         self.resolve_item_turbofish_generics(
@@ -483,7 +489,7 @@ impl Elaborator<'_> {
             trait_name,
             trait_generic_kinds,
             generics,
-            unresolved_turbofish,
+            resolved_turbofish,
             location,
         )
     }
@@ -492,7 +498,7 @@ impl Elaborator<'_> {
         &mut self,
         type_alias: &TypeAlias,
         generics: Vec<Type>,
-        unresolved_turbofish: Option<Vec<UnresolvedType>>,
+        resolved_turbofish: Option<Vec<Type>>,
         location: Location,
     ) -> Vec<Type> {
         let kinds = vecmap(&type_alias.generics, |generic| generic.kind());
@@ -501,7 +507,7 @@ impl Elaborator<'_> {
             type_alias.name.as_str(),
             kinds,
             generics,
-            unresolved_turbofish,
+            resolved_turbofish,
             location,
         )
     }
@@ -512,10 +518,10 @@ impl Elaborator<'_> {
         item_name: &str,
         item_generic_kinds: Vec<Kind>,
         generics: Vec<Type>,
-        unresolved_turbofish: Option<Vec<UnresolvedType>>,
+        resolved_turbofish: Option<Vec<Type>>,
         location: Location,
     ) -> Vec<Type> {
-        let Some(turbofish_generics) = unresolved_turbofish else {
+        let Some(turbofish_generics) = resolved_turbofish else {
             return generics;
         };
 
@@ -535,15 +541,29 @@ impl Elaborator<'_> {
     pub(super) fn resolve_turbofish_generics(
         &mut self,
         kinds: Vec<Kind>,
-        turbofish_generics: Vec<UnresolvedType>,
+        turbofish_generics: Vec<Type>,
     ) -> Vec<Type> {
         let kinds_with_types = kinds.into_iter().zip(turbofish_generics);
-        vecmap(kinds_with_types, |(kind, unresolved_type)| {
-            self.use_type_with_kind(unresolved_type, &kind)
+        vecmap(kinds_with_types, |(kind, typ)| {
+            let typ_kind = typ.kind();
+            if !kind.unifies(&typ_kind) {
+                let expected_typ_err =
+                    CompilationError::TypeError(TypeCheckError::TypeKindMismatch {
+                        expected_kind: kind.clone(),
+                        expr_kind: typ_kind,
+                        expr_location: Location::dummy(), // TODO
+                    });
+                self.push_err(expected_typ_err);
+                Type::Error
+            } else {
+                typ
+            }
         })
     }
 
-    pub(super) fn elaborate_variable(&mut self, mut variable: Path) -> (ExprId, Type) {
+    pub(super) fn elaborate_variable(&mut self, variable: Path) -> (ExprId, Type) {
+        let mut variable = self.validate_path(variable);
+
         // Check if this is `Self::method_name` when we are inside a trait impl and `Self`
         // resolves to a primitive type. In that case we elaborate this as if it were a TypePath
         // (for example, if `Self` is `u32` then we consider this the same as `u32::method_name`).
@@ -560,7 +580,7 @@ impl Elaborator<'_> {
             }
         }
 
-        let unresolved_turbofish = variable.segments.last().unwrap().generics.clone();
+        let resolved_turbofish = variable.segments.last().unwrap().generics.clone();
 
         let location = variable.location;
         let (expr, item) = self.resolve_variable(variable);
@@ -578,7 +598,7 @@ impl Elaborator<'_> {
         // Resolve any generics if we the variable we have resolved is a function
         // and if the turbofish operator was used.
         let generics = if let Some(DefinitionKind::Function(func_id)) = &definition_kind {
-            self.resolve_function_turbofish_generics(func_id, unresolved_turbofish, location)
+            self.resolve_function_turbofish_generics(func_id, resolved_turbofish, location)
         } else {
             None
         };
@@ -619,6 +639,18 @@ impl Elaborator<'_> {
         } else {
             (id, typ)
         }
+    }
+
+    pub(crate) fn validate_path(&mut self, path: Path) -> TypedPath {
+        let segments = vecmap(path.segments, |segment| self.validate_path_segment(segment));
+        let kind_location = path.kind_location;
+        TypedPath { segments, kind: path.kind, location: path.location, kind_location }
+    }
+
+    fn validate_path_segment(&mut self, segment: PathSegment) -> TypedPathSegment {
+        let generics =
+            segment.generics.map(|generics| vecmap(generics, |generic| self.use_type(generic)));
+        TypedPathSegment { ident: segment.ident, generics, location: segment.location }
     }
 
     /// Solve any generics that are part of the path before the function, for example:
@@ -697,7 +729,7 @@ impl Elaborator<'_> {
         }
     }
 
-    fn resolve_variable(&mut self, path: Path) -> (HirIdent, Option<PathResolutionItem>) {
+    fn resolve_variable(&mut self, path: TypedPath) -> (HirIdent, Option<PathResolutionItem>) {
         if let Some(trait_path_resolution) = self.resolve_trait_generic_path(&path) {
             for error in trait_path_resolution.errors {
                 self.push_err(error);
@@ -884,7 +916,7 @@ impl Elaborator<'_> {
 
     pub(crate) fn get_ident_from_path(
         &mut self,
-        path: Path,
+        path: TypedPath,
     ) -> ((HirIdent, usize), Option<PathResolutionItem>) {
         let location = Location::new(path.last_ident().span(), path.location.file);
 
