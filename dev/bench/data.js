@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1746809027452,
+  "lastUpdate": 1746809030075,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -8100,70 +8100,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "47281315+guipublic@users.noreply.github.com",
-            "name": "guipublic",
-            "username": "guipublic"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "9f88f1920dd8cbde95d4ffecbc6d936218bea39b",
-          "message": "fix: uses non-zero points with ec-add-unsafe (#8248)",
-          "timestamp": "2025-05-02T09:50:14Z",
-          "tree_id": "e5df424381e411d5f18592d595f617d90c94fa49",
-          "url": "https://github.com/noir-lang/noir/commit/9f88f1920dd8cbde95d4ffecbc6d936218bea39b"
-        },
-        "date": 1746180981640,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 0.028,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 0.162,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 0.017,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 0.333,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 0.211,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 11,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 0.004,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-root",
-            "value": 0.013,
-            "unit": "s"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "15848336+TomAFrench@users.noreply.github.com",
             "name": "Tom French",
             "username": "TomAFrench"
@@ -11283,6 +11219,70 @@ window.BENCHMARK_DATA = {
           {
             "name": "rollup-block-root",
             "value": 11.1,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 0.004,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-root",
+            "value": 0.013,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "mvezenov@gmail.com",
+            "name": "Maxim Vezenov",
+            "username": "vezenovm"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "74279a4de32baf7f3a9712268d1ff1626e7dc9b2",
+          "message": "fix(ssa): Mislabeled instructions with side effects in EnableSideEffectsIf removal pass (#8355)",
+          "timestamp": "2025-05-09T16:20:33Z",
+          "tree_id": "2572d8f7852d9a61f397fc4aee2a399a5feb693e",
+          "url": "https://github.com/noir-lang/noir/commit/74279a4de32baf7f3a9712268d1ff1626e7dc9b2"
+        },
+        "date": 1746809019251,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 0.028,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 0.161,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 0.016,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 0.327,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 0.209,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 11.2,
             "unit": "s"
           },
           {
