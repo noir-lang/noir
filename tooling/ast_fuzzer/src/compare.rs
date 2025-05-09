@@ -323,7 +323,7 @@ impl<P> CompareCompiled<P> {
 }
 
 /// Compare the execution the same program compiled in two different ways.
-pub type ComparePasses = CompareCompiled<Program>;
+pub type ComparePipelines = CompareCompiled<Program>;
 
 impl CompareCompiled<Program> {
     /// Generate a random AST and compile it into SSA in two different ways.
@@ -388,7 +388,7 @@ pub trait HasPrograms {
     fn programs(&self) -> Vec<&Program>;
 }
 
-impl HasPrograms for ComparePasses {
+impl HasPrograms for ComparePipelines {
     fn programs(&self) -> Vec<&Program> {
         vec![&self.program]
     }
