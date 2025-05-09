@@ -389,10 +389,30 @@
 <a href="#388" id="388">388</a>
 <a href="#389" id="389">389</a>
 <a href="#390" id="390">390</a>
-<a href="#391" id="391">391</a></pre></div><pre class="rust"><code><span class="kw">use </span>iter_extended::vecmap;
+<a href="#391" id="391">391</a>
+<a href="#392" id="392">392</a>
+<a href="#393" id="393">393</a>
+<a href="#394" id="394">394</a>
+<a href="#395" id="395">395</a>
+<a href="#396" id="396">396</a>
+<a href="#397" id="397">397</a>
+<a href="#398" id="398">398</a>
+<a href="#399" id="399">399</a>
+<a href="#400" id="400">400</a>
+<a href="#401" id="401">401</a>
+<a href="#402" id="402">402</a>
+<a href="#403" id="403">403</a>
+<a href="#404" id="404">404</a>
+<a href="#405" id="405">405</a>
+<a href="#406" id="406">406</a>
+<a href="#407" id="407">407</a>
+<a href="#408" id="408">408</a>
+<a href="#409" id="409">409</a>
+<a href="#410" id="410">410</a></pre></div><pre class="rust"><code><span class="kw">use </span>iter_extended::vecmap;
 <span class="kw">use </span>noirc_errors::{CustomDiagnostic, Location};
 <span class="kw">use </span>thiserror::Error;
 
+<span class="kw">use </span><span class="kw">crate</span>::elaborator::{TypedPath, TypedPathSegment};
 <span class="kw">use </span><span class="kw">crate</span>::graph::CrateId;
 <span class="kw">use </span><span class="kw">crate</span>::hir::def_collector::dc_crate::CompilationError;
 
@@ -401,7 +421,7 @@
 
 <span class="kw">use </span>std::collections::BTreeMap;
 
-<span class="kw">use </span><span class="kw">crate</span>::ast::{Ident, ItemVisibility, Path, PathKind};
+<span class="kw">use </span><span class="kw">crate</span>::ast::{Ident, ItemVisibility, Path, PathKind, PathSegment};
 <span class="kw">use </span><span class="kw">crate</span>::hir::def_map::{CrateDefMap, LocalModuleId, ModuleData, ModuleDefId, ModuleId, PerNs};
 
 <span class="kw">use </span><span class="kw">super</span>::errors::ResolverError;
@@ -545,11 +565,23 @@
     usage_tracker: <span class="kw-2">&amp;mut </span>UsageTracker,
     references_tracker: <span class="prelude-ty">Option</span>&lt;ReferencesTracker&gt;,
 ) -&gt; ImportResolutionResult {
+    <span class="kw">let </span>path = path_to_typed_path(path);
     <span class="kw">let </span>(path, module_id, references_tracker) =
         resolve_path_kind(path, importing_module, def_maps, references_tracker)<span class="question-mark">?</span>;
     <span class="kw">let </span><span class="kw-2">mut </span>solver =
         ImportSolver::new(importing_module, def_maps, usage_tracker, references_tracker);
     solver.resolve_name_in_module(path, module_id)
+}
+
+<span class="kw">fn </span>path_to_typed_path(path: Path) -&gt; TypedPath {
+    <span class="kw">let </span>segments = vecmap(path.segments, path_segment_to_typed_path_segment);
+    <span class="kw">let </span>kind_location = path.kind_location;
+    TypedPath { segments, kind: path.kind, location: path.location, kind_location }
+}
+
+<span class="kw">fn </span>path_segment_to_typed_path_segment(segment: PathSegment) -&gt; TypedPathSegment {
+    <span class="macro">assert!</span>(segment.generics.is_none(), <span class="string">"generics should not be present in a use path segment"</span>);
+    TypedPathSegment { ident: segment.ident, generics: <span class="prelude-val">None</span>, location: segment.location }
 }
 
 <span class="doccomment">/// Given a Path and a ModuleId it's being used in, this function returns a plain Path
@@ -560,11 +592,11 @@
 /// method, which is used in case the path kind is `dep`: the segment after `dep`
 /// will be linked to the root module of the external dependency.
 </span><span class="kw">pub fn </span>resolve_path_kind&lt;<span class="lifetime">'r</span>&gt;(
-    path: Path,
+    path: TypedPath,
     importing_module: ModuleId,
     def_maps: <span class="kw-2">&amp;</span>BTreeMap&lt;CrateId, CrateDefMap&gt;,
     references_tracker: <span class="prelude-ty">Option</span>&lt;ReferencesTracker&lt;<span class="lifetime">'r</span>&gt;&gt;,
-) -&gt; <span class="prelude-ty">Result</span>&lt;(Path, ModuleId, <span class="prelude-ty">Option</span>&lt;ReferencesTracker&lt;<span class="lifetime">'r</span>&gt;&gt;), PathResolutionError&gt; {
+) -&gt; <span class="prelude-ty">Result</span>&lt;(TypedPath, ModuleId, <span class="prelude-ty">Option</span>&lt;ReferencesTracker&lt;<span class="lifetime">'r</span>&gt;&gt;), PathResolutionError&gt; {
     <span class="kw">let </span><span class="kw-2">mut </span>solver =
         PathResolutionTargetResolver { importing_module, def_maps, references_tracker };
     <span class="kw">let </span>(path, module_id) = solver.resolve(path)<span class="question-mark">?</span>;
@@ -578,7 +610,7 @@
 }
 
 <span class="kw">impl </span>PathResolutionTargetResolver&lt;<span class="lifetime">'_</span>, <span class="lifetime">'_</span>&gt; {
-    <span class="kw">fn </span>resolve(<span class="kw-2">&amp;mut </span><span class="self">self</span>, path: Path) -&gt; <span class="prelude-ty">Result</span>&lt;(Path, ModuleId), PathResolutionError&gt; {
+    <span class="kw">fn </span>resolve(<span class="kw-2">&amp;mut </span><span class="self">self</span>, path: TypedPath) -&gt; <span class="prelude-ty">Result</span>&lt;(TypedPath, ModuleId), PathResolutionError&gt; {
         <span class="kw">match </span>path.kind {
             PathKind::Crate =&gt; <span class="self">self</span>.resolve_crate_path(path),
             PathKind::Plain =&gt; <span class="self">self</span>.resolve_plain_path(path, <span class="self">self</span>.importing_module),
@@ -587,7 +619,10 @@
         }
     }
 
-    <span class="kw">fn </span>resolve_crate_path(<span class="kw-2">&amp;mut </span><span class="self">self</span>, path: Path) -&gt; <span class="prelude-ty">Result</span>&lt;(Path, ModuleId), PathResolutionError&gt; {
+    <span class="kw">fn </span>resolve_crate_path(
+        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
+        path: TypedPath,
+    ) -&gt; <span class="prelude-ty">Result</span>&lt;(TypedPath, ModuleId), PathResolutionError&gt; {
         <span class="kw">let </span>root_module = <span class="self">self</span>.def_maps[<span class="kw-2">&amp;</span><span class="self">self</span>.importing_module.krate].root();
         <span class="kw">let </span>current_module = ModuleId { krate: <span class="self">self</span>.importing_module.krate, local_id: root_module };
         <span class="prelude-val">Ok</span>((path, current_module))
@@ -595,9 +630,9 @@
 
     <span class="kw">fn </span>resolve_plain_path(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
-        path: Path,
+        path: TypedPath,
         current_module: ModuleId,
-    ) -&gt; <span class="prelude-ty">Result</span>&lt;(Path, ModuleId), PathResolutionError&gt; {
+    ) -&gt; <span class="prelude-ty">Result</span>&lt;(TypedPath, ModuleId), PathResolutionError&gt; {
         <span class="comment">// There is a possibility that the import path is empty. In that case, early return.
         // This happens on import statements such as `use crate` or `use std`.
         </span><span class="kw">if </span>path.segments.is_empty() {
@@ -616,8 +651,8 @@
 
     <span class="kw">fn </span>resolve_dep_path(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
-        <span class="kw-2">mut </span>path: Path,
-    ) -&gt; <span class="prelude-ty">Result</span>&lt;(Path, ModuleId), PathResolutionError&gt; {
+        <span class="kw-2">mut </span>path: TypedPath,
+    ) -&gt; <span class="prelude-ty">Result</span>&lt;(TypedPath, ModuleId), PathResolutionError&gt; {
         <span class="comment">// Use extern_prelude to get the dep
         </span><span class="kw">let </span>current_def_map = <span class="kw-2">&amp;</span><span class="self">self</span>.def_maps[<span class="kw-2">&amp;</span><span class="self">self</span>.importing_module.krate];
 
@@ -640,7 +675,10 @@
         <span class="prelude-val">Ok</span>((path, <span class="kw-2">*</span>dep_module))
     }
 
-    <span class="kw">fn </span>resolve_super_path(<span class="kw-2">&amp;mut </span><span class="self">self</span>, path: Path) -&gt; <span class="prelude-ty">Result</span>&lt;(Path, ModuleId), PathResolutionError&gt; {
+    <span class="kw">fn </span>resolve_super_path(
+        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
+        path: TypedPath,
+    ) -&gt; <span class="prelude-ty">Result</span>&lt;(TypedPath, ModuleId), PathResolutionError&gt; {
         <span class="kw">let </span><span class="prelude-val">Some</span>(parent_module_id) = get_module(<span class="self">self</span>.def_maps, <span class="self">self</span>.importing_module).parent <span class="kw">else </span>{
             <span class="kw">return </span><span class="prelude-val">Err</span>(PathResolutionError::NoSuper(path.kind_location));
         };
@@ -672,7 +710,7 @@
 
     <span class="kw">fn </span>resolve_name_in_module(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
-        path: Path,
+        path: TypedPath,
         starting_module: ModuleId,
     ) -&gt; ImportResolutionResult {
         <span class="comment">// There is a possibility that the import path is empty. In that case, early return.

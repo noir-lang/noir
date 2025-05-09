@@ -2232,7 +2232,25 @@
 <a href="#2231" id="2231">2231</a>
 <a href="#2232" id="2232">2232</a>
 <a href="#2233" id="2233">2233</a>
-<a href="#2234" id="2234">2234</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::{borrow::Cow, rc::Rc};
+<a href="#2234" id="2234">2234</a>
+<a href="#2235" id="2235">2235</a>
+<a href="#2236" id="2236">2236</a>
+<a href="#2237" id="2237">2237</a>
+<a href="#2238" id="2238">2238</a>
+<a href="#2239" id="2239">2239</a>
+<a href="#2240" id="2240">2240</a>
+<a href="#2241" id="2241">2241</a>
+<a href="#2242" id="2242">2242</a>
+<a href="#2243" id="2243">2243</a>
+<a href="#2244" id="2244">2244</a>
+<a href="#2245" id="2245">2245</a>
+<a href="#2246" id="2246">2246</a>
+<a href="#2247" id="2247">2247</a>
+<a href="#2248" id="2248">2248</a>
+<a href="#2249" id="2249">2249</a>
+<a href="#2250" id="2250">2250</a>
+<a href="#2251" id="2251">2251</a>
+<a href="#2252" id="2252">2252</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::{borrow::Cow, rc::Rc};
 
 <span class="kw">use </span>im::HashSet;
 <span class="kw">use </span>iter_extended::vecmap;
@@ -2243,7 +2261,7 @@
     Generics, Kind, NamedGeneric, ResolvedGeneric, Type, TypeBinding, TypeBindings,
     UnificationError,
     ast::{
-        AsTraitPath, BinaryOpKind, GenericTypeArgs, Ident, IntegerBitSize, Path, PathKind, UnaryOp,
+        AsTraitPath, BinaryOpKind, GenericTypeArgs, Ident, IntegerBitSize, PathKind, UnaryOp,
         UnresolvedGeneric, UnresolvedGenerics, UnresolvedType, UnresolvedTypeData,
         UnresolvedTypeExpression, WILDCARD_TYPE,
     },
@@ -2277,7 +2295,7 @@
 
 <span class="kw">use super</span>::{
     Elaborator, FunctionContext, PathResolutionTarget, UnsafeBlockStatus, lints,
-    path_resolution::{PathResolutionItem, PathResolutionMode},
+    path_resolution::{PathResolutionItem, PathResolutionMode, TypedPath},
 };
 
 <span class="kw">pub const </span>SELF_TYPE_NAME: <span class="kw-2">&amp;</span>str = <span class="string">"Self"</span>;
@@ -2290,17 +2308,26 @@
 
 <span class="kw">impl </span>Elaborator&lt;<span class="lifetime">'_</span>&gt; {
     <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>resolve_type(<span class="kw-2">&amp;mut </span><span class="self">self</span>, typ: UnresolvedType) -&gt; Type {
-        <span class="self">self</span>.resolve_type_inner(typ, PathResolutionMode::MarkAsReferenced)
+        <span class="self">self</span>.resolve_type_inner(typ, <span class="kw-2">&amp;</span>Kind::Normal, PathResolutionMode::MarkAsReferenced)
     }
 
     <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>use_type(<span class="kw-2">&amp;mut </span><span class="self">self</span>, typ: UnresolvedType) -&gt; Type {
-        <span class="self">self</span>.resolve_type_inner(typ, PathResolutionMode::MarkAsUsed)
+        <span class="self">self</span>.use_type_with_kind(typ, <span class="kw-2">&amp;</span>Kind::Normal)
+    }
+
+    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>use_type_with_kind(<span class="kw-2">&amp;mut </span><span class="self">self</span>, typ: UnresolvedType, kind: <span class="kw-2">&amp;</span>Kind) -&gt; Type {
+        <span class="self">self</span>.resolve_type_inner(typ, kind, PathResolutionMode::MarkAsUsed)
     }
 
     <span class="doccomment">/// Translates an UnresolvedType to a Type with a `TypeKind::Normal`
-    </span><span class="kw">fn </span>resolve_type_inner(<span class="kw-2">&amp;mut </span><span class="self">self</span>, typ: UnresolvedType, mode: PathResolutionMode) -&gt; Type {
+    </span><span class="kw">fn </span>resolve_type_inner(
+        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
+        typ: UnresolvedType,
+        kind: <span class="kw-2">&amp;</span>Kind,
+        mode: PathResolutionMode,
+    ) -&gt; Type {
         <span class="kw">let </span>location = typ.location;
-        <span class="kw">let </span>resolved_type = <span class="self">self</span>.resolve_type_with_kind_inner(typ, <span class="kw-2">&amp;</span>Kind::Normal, mode);
+        <span class="kw">let </span>resolved_type = <span class="self">self</span>.resolve_type_with_kind_inner(typ, kind, mode);
         <span class="kw">if </span>resolved_type.is_nested_slice() {
             <span class="self">self</span>.push_err(ResolverError::NestedSlices { location });
         }
@@ -2309,10 +2336,6 @@
 
     <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>resolve_type_with_kind(<span class="kw-2">&amp;mut </span><span class="self">self</span>, typ: UnresolvedType, kind: <span class="kw-2">&amp;</span>Kind) -&gt; Type {
         <span class="self">self</span>.resolve_type_with_kind_inner(typ, kind, PathResolutionMode::MarkAsReferenced)
-    }
-
-    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>use_type_with_kind(<span class="kw-2">&amp;mut </span><span class="self">self</span>, typ: UnresolvedType, kind: <span class="kw-2">&amp;</span>Kind) -&gt; Type {
-        <span class="self">self</span>.resolve_type_with_kind_inner(typ, kind, PathResolutionMode::MarkAsUsed)
     }
 
     <span class="doccomment">/// Translates an UnresolvedType into a Type and appends any
@@ -2376,8 +2399,14 @@
                 Type::Error
             }
             Error =&gt; Type::Error,
-            Named(path, args, <span class="kw">_</span>) =&gt; <span class="self">self</span>.resolve_named_type(path, args, mode),
-            TraitAsType(path, args) =&gt; <span class="self">self</span>.resolve_trait_as_type(path, args, mode),
+            Named(path, args, <span class="kw">_</span>) =&gt; {
+                <span class="kw">let </span>path = <span class="self">self</span>.validate_path(path);
+                <span class="self">self</span>.resolve_named_type(path, args, mode)
+            }
+            TraitAsType(path, args) =&gt; {
+                <span class="kw">let </span>path = <span class="self">self</span>.validate_path(path);
+                <span class="self">self</span>.resolve_trait_as_type(path, args, mode)
+            }
 
             Tuple(fields) =&gt; Type::Tuple(vecmap(fields, |field| {
                 <span class="self">self</span>.resolve_type_with_kind_inner(field, kind, mode)
@@ -2443,17 +2472,7 @@
             <span class="kw">_ </span>=&gt; (),
         }
 
-        <span class="kw">if </span>!kind.unifies(<span class="kw-2">&amp;</span>resolved_type.kind()) {
-            <span class="kw">let </span>expected_typ_err = CompilationError::TypeError(TypeCheckError::TypeKindMismatch {
-                expected_kind: kind.clone(),
-                expr_kind: resolved_type.kind(),
-                expr_location: location,
-            });
-            <span class="self">self</span>.push_err(expected_typ_err);
-            <span class="kw">return </span>Type::Error;
-        }
-
-        resolved_type
+        <span class="self">self</span>.check_kind(resolved_type, kind, location)
     }
 
     <span class="kw">pub fn </span>find_generic(<span class="kw-2">&amp;</span><span class="self">self</span>, target_name: <span class="kw-2">&amp;</span>str) -&gt; <span class="prelude-ty">Option</span>&lt;<span class="kw-2">&amp;</span>ResolvedGeneric&gt; {
@@ -2461,7 +2480,7 @@
     }
 
     <span class="comment">// Resolve Self::Foo to an associated type on the current trait or trait impl
-    </span><span class="kw">fn </span>lookup_associated_type_on_self(<span class="kw-2">&amp;</span><span class="self">self</span>, path: <span class="kw-2">&amp;</span>Path) -&gt; <span class="prelude-ty">Option</span>&lt;Type&gt; {
+    </span><span class="kw">fn </span>lookup_associated_type_on_self(<span class="kw-2">&amp;</span><span class="self">self</span>, path: <span class="kw-2">&amp;</span>TypedPath) -&gt; <span class="prelude-ty">Option</span>&lt;Type&gt; {
         <span class="kw">if </span>path.segments.len() == <span class="number">2 </span>&amp;&amp; path.first_name() == <span class="prelude-val">Some</span>(SELF_TYPE_NAME) {
             <span class="kw">if let </span><span class="prelude-val">Some</span>(trait_id) = <span class="self">self</span>.current_trait {
                 <span class="kw">let </span>the_trait = <span class="self">self</span>.interner.get_trait(trait_id);
@@ -2482,7 +2501,7 @@
 
     <span class="kw">fn </span>resolve_named_type(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
-        path: Path,
+        path: TypedPath,
         args: GenericTypeArgs,
         mode: PathResolutionMode,
     ) -&gt; Type {
@@ -2576,7 +2595,7 @@
 
     <span class="kw">fn </span>resolve_trait_as_type(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
-        path: Path,
+        path: TypedPath,
         args: GenericTypeArgs,
         mode: PathResolutionMode,
     ) -&gt; Type {
@@ -2726,7 +2745,7 @@
 
     <span class="kw">fn </span>lookup_generic_or_global_type(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
-        path: <span class="kw-2">&amp;</span>Path,
+        path: <span class="kw-2">&amp;</span>TypedPath,
         mode: PathResolutionMode,
     ) -&gt; <span class="prelude-ty">Option</span>&lt;Type&gt; {
         <span class="kw">if </span>path.segments.len() == <span class="number">1 </span>{
@@ -2736,6 +2755,13 @@
                 <span class="kw">return </span><span class="prelude-val">Some</span>(generic.as_named_generic());
             }
         } <span class="kw">else if let </span><span class="prelude-val">Some</span>(typ) = <span class="self">self</span>.lookup_associated_type_on_self(path) {
+            <span class="kw">if let </span><span class="prelude-val">Some</span>(last_segment) = path.segments.last() {
+                <span class="kw">if </span>last_segment.generics.is_some() {
+                    <span class="self">self</span>.push_err(ResolverError::GenericsOnAssociatedType {
+                        location: last_segment.turbofish_location(),
+                    });
+                }
+            }
             <span class="kw">return </span><span class="prelude-val">Some</span>(typ);
         }
 
@@ -2809,6 +2835,7 @@
     ) -&gt; Type {
         <span class="kw">match </span>length {
             UnresolvedTypeExpression::Variable(path) =&gt; {
+                <span class="kw">let </span>path = <span class="self">self</span>.validate_path(path);
                 <span class="kw">let </span>mode = PathResolutionMode::MarkAsReferenced;
                 <span class="kw">let </span>typ = <span class="self">self</span>.resolve_named_type(path, GenericTypeArgs::default(), mode);
                 <span class="self">self</span>.check_kind(typ, expected_kind, location)
@@ -2856,7 +2883,12 @@
         }
     }
 
-    <span class="kw">fn </span>check_kind(<span class="kw-2">&amp;mut </span><span class="self">self</span>, typ: Type, expected_kind: <span class="kw-2">&amp;</span>Kind, location: Location) -&gt; Type {
+    <span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>check_kind(
+        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
+        typ: Type,
+        expected_kind: <span class="kw-2">&amp;</span>Kind,
+        location: Location,
+    ) -&gt; Type {
         <span class="kw">if </span>!typ.kind().unifies(expected_kind) {
             <span class="self">self</span>.push_err(TypeCheckError::TypeKindMismatch {
                 expected_kind: expected_kind.clone(),
@@ -2870,7 +2902,8 @@
 
     <span class="kw">fn </span>resolve_as_trait_path(<span class="kw-2">&amp;mut </span><span class="self">self</span>, path: AsTraitPath) -&gt; Type {
         <span class="kw">let </span>location = path.trait_path.location;
-        <span class="kw">let </span><span class="prelude-val">Some</span>(trait_id) = <span class="self">self</span>.resolve_trait_by_path(path.trait_path.clone()) <span class="kw">else </span>{
+        <span class="kw">let </span>trait_path = <span class="self">self</span>.validate_path(path.trait_path.clone());
+        <span class="kw">let </span><span class="prelude-val">Some</span>(trait_id) = <span class="self">self</span>.resolve_trait_by_path(trait_path) <span class="kw">else </span>{
             <span class="comment">// Error should already be pushed in the None case
             </span><span class="kw">return </span>Type::Error;
         };
@@ -2915,7 +2948,10 @@
     //
     // Returns the trait method, trait constraint, and whether the impl is assumed to exist by a where clause or not
     // E.g. `t.method()` with `where T: Foo&lt;Bar&gt;` in scope will return `(Foo::method, T, vec![Bar])`
-    </span><span class="kw">fn </span>resolve_trait_static_method_by_self(<span class="kw-2">&amp;mut </span><span class="self">self</span>, path: <span class="kw-2">&amp;</span>Path) -&gt; <span class="prelude-ty">Option</span>&lt;TraitPathResolution&gt; {
+    </span><span class="kw">fn </span>resolve_trait_static_method_by_self(
+        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
+        path: <span class="kw-2">&amp;</span>TypedPath,
+    ) -&gt; <span class="prelude-ty">Option</span>&lt;TraitPathResolution&gt; {
         <span class="comment">// If we are inside a trait impl, `Self` is known to be a concrete type so we don't have
         // to solve the path via trait method lookup.
         </span><span class="kw">if </span><span class="self">self</span>.current_trait_impl.is_some() {
@@ -2951,7 +2987,7 @@
     //
     // Returns the trait method, trait constraint, and whether the impl is assumed to exist by a where clause or not
     // E.g. `t.method()` with `where T: Foo&lt;Bar&gt;` in scope will return `(Foo::method, T, vec![Bar])`
-    </span><span class="kw">fn </span>resolve_trait_static_method(<span class="kw-2">&amp;mut </span><span class="self">self</span>, path: <span class="kw-2">&amp;</span>Path) -&gt; <span class="prelude-ty">Option</span>&lt;TraitPathResolution&gt; {
+    </span><span class="kw">fn </span>resolve_trait_static_method(<span class="kw-2">&amp;mut </span><span class="self">self</span>, path: <span class="kw-2">&amp;</span>TypedPath) -&gt; <span class="prelude-ty">Option</span>&lt;TraitPathResolution&gt; {
         <span class="kw">let </span>path_resolution = <span class="self">self</span>.use_path_as_type(path.clone()).ok()<span class="question-mark">?</span>;
         <span class="kw">let </span>func_id = path_resolution.item.function_id()<span class="question-mark">?</span>;
         <span class="kw">let </span>meta = <span class="self">self</span>.interner.try_function_meta(<span class="kw-2">&amp;</span>func_id)<span class="question-mark">?</span>;
@@ -2972,7 +3008,7 @@
     // E.g. `t.method()` with `where T: Foo&lt;Bar&gt;` in scope will return `(Foo::method, T, vec![Bar])`
     </span><span class="kw">fn </span>resolve_trait_method_by_named_generic(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
-        path: <span class="kw-2">&amp;</span>Path,
+        path: <span class="kw-2">&amp;</span>TypedPath,
     ) -&gt; <span class="prelude-ty">Option</span>&lt;TraitPathResolution&gt; {
         <span class="kw">if </span>path.segments.len() != <span class="number">2 </span>{
             <span class="kw">return </span><span class="prelude-val">None</span>;
@@ -2999,7 +3035,7 @@
     </span>}
 
     <span class="doccomment">/// This resolves a method in the form `Type::method` where `method` is a trait method
-    </span><span class="kw">fn </span>resolve_type_trait_method(<span class="kw-2">&amp;mut </span><span class="self">self</span>, path: <span class="kw-2">&amp;</span>Path) -&gt; <span class="prelude-ty">Option</span>&lt;TraitPathResolution&gt; {
+    </span><span class="kw">fn </span>resolve_type_trait_method(<span class="kw-2">&amp;mut </span><span class="self">self</span>, path: <span class="kw-2">&amp;</span>TypedPath) -&gt; <span class="prelude-ty">Option</span>&lt;TraitPathResolution&gt; {
         <span class="kw">if </span>path.segments.len() &lt; <span class="number">2 </span>{
             <span class="kw">return </span><span class="prelude-val">None</span>;
         }
@@ -3058,7 +3094,7 @@
     // E.g. `t.method()` with `where T: Foo&lt;Bar&gt;` in scope will return `(Foo::method, T, vec![Bar])`
     </span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>resolve_trait_generic_path(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
-        path: <span class="kw-2">&amp;</span>Path,
+        path: <span class="kw-2">&amp;</span>TypedPath,
     ) -&gt; <span class="prelude-ty">Option</span>&lt;TraitPathResolution&gt; {
         <span class="self">self</span>.resolve_trait_static_method_by_self(path)
             .or_else(|| <span class="self">self</span>.resolve_trait_static_method(path))

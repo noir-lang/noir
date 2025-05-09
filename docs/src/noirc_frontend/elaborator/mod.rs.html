@@ -2305,7 +2305,12 @@
 <a href="#2304" id="2304">2304</a>
 <a href="#2305" id="2305">2305</a>
 <a href="#2306" id="2306">2306</a>
-<a href="#2307" id="2307">2307</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::{
+<a href="#2307" id="2307">2307</a>
+<a href="#2308" id="2308">2308</a>
+<a href="#2309" id="2309">2309</a>
+<a href="#2310" id="2310">2310</a>
+<a href="#2311" id="2311">2311</a>
+<a href="#2312" id="2312">2312</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::{
     collections::{BTreeMap, BTreeSet},
     rc::Rc,
 };
@@ -2383,6 +2388,7 @@
 <span class="kw">use </span>types::bind_ordered_generics;
 
 <span class="kw">use </span><span class="self">self</span>::traits::check_trait_impl_method_matches_declaration;
+<span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">use </span>path_resolution::{TypedPath, TypedPathSegment};
 
 <span class="doccomment">/// ResolverMetas are tagged onto each definition to track how many times they are used
 </span><span class="attr">#[derive(Debug, PartialEq, Eq)]
@@ -3096,8 +3102,8 @@
         }
     }
 
-    <span class="kw">pub fn </span>resolve_module_by_path(<span class="kw-2">&amp;mut </span><span class="self">self</span>, path: Path) -&gt; <span class="prelude-ty">Option</span>&lt;ModuleId&gt; {
-        <span class="kw">match </span><span class="self">self</span>.resolve_path_as_type(path.clone()) {
+    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>resolve_module_by_path(<span class="kw-2">&amp;mut </span><span class="self">self</span>, path: TypedPath) -&gt; <span class="prelude-ty">Option</span>&lt;ModuleId&gt; {
+        <span class="kw">match </span><span class="self">self</span>.resolve_path_as_type(path) {
             <span class="prelude-val">Ok</span>(PathResolution { item: PathResolutionItem::Module(module_id), errors })
                 <span class="kw">if </span>errors.is_empty() =&gt;
             {
@@ -3107,7 +3113,7 @@
         }
     }
 
-    <span class="kw">fn </span>resolve_trait_by_path(<span class="kw-2">&amp;mut </span><span class="self">self</span>, path: Path) -&gt; <span class="prelude-ty">Option</span>&lt;TraitId&gt; {
+    <span class="kw">fn </span>resolve_trait_by_path(<span class="kw-2">&amp;mut </span><span class="self">self</span>, path: TypedPath) -&gt; <span class="prelude-ty">Option</span>&lt;TraitId&gt; {
         <span class="kw">let </span>error = <span class="kw">match </span><span class="self">self</span>.resolve_path_as_type(path.clone()) {
             <span class="prelude-val">Ok</span>(PathResolution { item: PathResolutionItem::Trait(trait_id), errors }) =&gt; {
                 <span class="kw">for </span>error <span class="kw">in </span>errors {
@@ -3173,9 +3179,10 @@
         bound: <span class="kw-2">&amp;mut </span>TraitBound,
     ) -&gt; Vec&lt;ResolvedGeneric&gt; {
         <span class="kw">let </span><span class="kw-2">mut </span>added_generics = Vec::new();
+        <span class="kw">let </span>trait_path = <span class="self">self</span>.validate_path(bound.trait_path.clone());
 
         <span class="kw">let </span><span class="prelude-val">Ok</span>(PathResolutionItem::Trait(trait_id)) =
-            <span class="self">self</span>.resolve_path_or_error(bound.trait_path.clone(), PathResolutionTarget::Type)
+            <span class="self">self</span>.resolve_path_or_error(trait_path, PathResolutionTarget::Type)
         <span class="kw">else </span>{
             <span class="kw">return </span>Vec::new();
         };
@@ -3253,7 +3260,8 @@
         bound: <span class="kw-2">&amp;</span>TraitBound,
         mode: PathResolutionMode,
     ) -&gt; <span class="prelude-ty">Option</span>&lt;ResolvedTraitBound&gt; {
-        <span class="kw">let </span>the_trait = <span class="self">self</span>.lookup_trait_or_error(bound.trait_path.clone())<span class="question-mark">?</span>;
+        <span class="kw">let </span>trait_path = <span class="self">self</span>.validate_path(bound.trait_path.clone());
+        <span class="kw">let </span>the_trait = <span class="self">self</span>.lookup_trait_or_error(trait_path)<span class="question-mark">?</span>;
         <span class="kw">let </span>trait_id = the_trait.id;
         <span class="kw">let </span>location = bound.trait_path.location;
 
@@ -4416,8 +4424,10 @@
 
             <span class="kw">let </span>(trait_id, <span class="kw-2">mut </span>trait_generics, path_location) = <span class="kw">match </span><span class="kw-2">&amp;</span>trait_impl.r#trait.typ {
                 UnresolvedTypeData::Named(trait_path, trait_generics, <span class="kw">_</span>) =&gt; {
-                    <span class="kw">let </span>trait_id = <span class="self">self</span>.resolve_trait_by_path(trait_path.clone());
-                    (trait_id, trait_generics.clone(), trait_path.location)
+                    <span class="kw">let </span>location = trait_path.location;
+                    <span class="kw">let </span>trait_path = <span class="self">self</span>.validate_path(trait_path.clone());
+                    <span class="kw">let </span>trait_id = <span class="self">self</span>.resolve_trait_by_path(trait_path);
+                    (trait_id, trait_generics.clone(), location)
                 }
                 UnresolvedTypeData::Resolved(quoted_type_id) =&gt; {
                     <span class="kw">let </span>typ = <span class="self">self</span>.interner.get_quoted_type(<span class="kw-2">*</span>quoted_type_id);

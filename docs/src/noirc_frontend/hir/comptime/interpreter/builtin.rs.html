@@ -3108,7 +3108,8 @@
 <a href="#3107" id="3107">3107</a>
 <a href="#3108" id="3108">3108</a>
 <a href="#3109" id="3109">3109</a>
-<a href="#3110" id="3110">3110</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::rc::Rc;
+<a href="#3110" id="3110">3110</a>
+<a href="#3111" id="3111">3111</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::rc::Rc;
 
 <span class="kw">use </span>acvm::{AcirField, FieldElement};
 <span class="kw">use </span>builtin_helpers::{
@@ -3948,6 +3949,7 @@
         parse(interpreter.elaborator, argument, Parser::parse_path_no_turbofish_or_error, <span class="string">"a path"</span>)
             .ok();
     <span class="kw">let </span>option_value = path.and_then(|path| {
+        <span class="kw">let </span>path = interpreter.elaborator.validate_path(path);
         <span class="kw">let </span>reason = <span class="prelude-val">Some</span>(ElaborateReason::EvaluatingComptimeCall(<span class="string">"Quoted::as_module"</span>, location));
         <span class="kw">let </span>module =
             interpreter.elaborate_in_function(interpreter.current_function, reason, |elaborator| {

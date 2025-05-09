@@ -979,19 +979,68 @@
 <a href="#978" id="978">978</a>
 <a href="#979" id="979">979</a>
 <a href="#980" id="980">980</a>
-<a href="#981" id="981">981</a></pre></div><pre class="rust"><code><span class="kw">use </span>iter_extended::vecmap;
-<span class="kw">use </span>noirc_errors::Location;
+<a href="#981" id="981">981</a>
+<a href="#982" id="982">982</a>
+<a href="#983" id="983">983</a>
+<a href="#984" id="984">984</a>
+<a href="#985" id="985">985</a>
+<a href="#986" id="986">986</a>
+<a href="#987" id="987">987</a>
+<a href="#988" id="988">988</a>
+<a href="#989" id="989">989</a>
+<a href="#990" id="990">990</a>
+<a href="#991" id="991">991</a>
+<a href="#992" id="992">992</a>
+<a href="#993" id="993">993</a>
+<a href="#994" id="994">994</a>
+<a href="#995" id="995">995</a>
+<a href="#996" id="996">996</a>
+<a href="#997" id="997">997</a>
+<a href="#998" id="998">998</a>
+<a href="#999" id="999">999</a>
+<a href="#1000" id="1000">1000</a>
+<a href="#1001" id="1001">1001</a>
+<a href="#1002" id="1002">1002</a>
+<a href="#1003" id="1003">1003</a>
+<a href="#1004" id="1004">1004</a>
+<a href="#1005" id="1005">1005</a>
+<a href="#1006" id="1006">1006</a>
+<a href="#1007" id="1007">1007</a>
+<a href="#1008" id="1008">1008</a>
+<a href="#1009" id="1009">1009</a>
+<a href="#1010" id="1010">1010</a>
+<a href="#1011" id="1011">1011</a>
+<a href="#1012" id="1012">1012</a>
+<a href="#1013" id="1013">1013</a>
+<a href="#1014" id="1014">1014</a>
+<a href="#1015" id="1015">1015</a>
+<a href="#1016" id="1016">1016</a>
+<a href="#1017" id="1017">1017</a>
+<a href="#1018" id="1018">1018</a>
+<a href="#1019" id="1019">1019</a>
+<a href="#1020" id="1020">1020</a>
+<a href="#1021" id="1021">1021</a>
+<a href="#1022" id="1022">1022</a>
+<a href="#1023" id="1023">1023</a>
+<a href="#1024" id="1024">1024</a>
+<a href="#1025" id="1025">1025</a>
+<a href="#1026" id="1026">1026</a>
+<a href="#1027" id="1027">1027</a>
+<a href="#1028" id="1028">1028</a>
+<a href="#1029" id="1029">1029</a>
+<a href="#1030" id="1030">1030</a></pre></div><pre class="rust"><code><span class="kw">use </span>iter_extended::vecmap;
+<span class="kw">use </span>noirc_errors::{Located, Location};
 <span class="kw">use </span>rustc_hash::FxHashSet <span class="kw">as </span>HashSet;
 
 <span class="kw">use crate</span>::{
     DataType, Kind, Shared, Type, TypeAlias, TypeBindings,
     ast::{
         ERROR_IDENT, Expression, ExpressionKind, GenericTypeArgs, Ident, ItemVisibility, Path,
-        Pattern, TypePath, UnresolvedType,
+        PathSegment, Pattern, TypePath,
     },
     hir::{
         def_collector::dc_crate::CompilationError,
-        resolution::errors::ResolverError,
+        resolution::{errors::ResolverError, import::PathResolutionError},
         type_check::{Source, TypeCheckError},
     },
     hir_def::{
@@ -1003,7 +1052,10 @@
     },
 };
 
-<span class="kw">use super</span>::{Elaborator, ResolverMeta, path_resolution::PathResolutionItem};
+<span class="kw">use super</span>::{
+    Elaborator, ResolverMeta,
+    path_resolution::{PathResolutionItem, TypedPath, TypedPathSegment},
+};
 
 <span class="kw">impl </span>Elaborator&lt;<span class="lifetime">'_</span>&gt; {
     <span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>elaborate_pattern(
@@ -1136,15 +1188,18 @@
                 });
                 HirPattern::Tuple(fields, location)
             }
-            Pattern::Struct(name, fields, location) =&gt; <span class="self">self</span>.elaborate_struct_pattern(
-                name,
-                fields,
-                location,
-                expected_type,
-                definition,
-                mutable,
-                new_definitions,
-            ),
+            Pattern::Struct(name, fields, location) =&gt; {
+                <span class="kw">let </span>name = <span class="self">self</span>.validate_path(name);
+                <span class="self">self</span>.elaborate_struct_pattern(
+                    name,
+                    fields,
+                    location,
+                    expected_type,
+                    definition,
+                    mutable,
+                    new_definitions,
+                )
+            }
             Pattern::Interned(id, <span class="kw">_</span>) =&gt; {
                 <span class="kw">let </span>pattern = <span class="self">self</span>.interner.get_pattern(id).clone();
                 <span class="self">self</span>.elaborate_pattern_mut(
@@ -1162,7 +1217,7 @@
     <span class="attr">#[allow(clippy::too_many_arguments)]
     </span><span class="kw">fn </span>elaborate_struct_pattern(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
-        name: Path,
+        name: TypedPath,
         fields: Vec&lt;(Ident, Pattern)&gt;,
         location: Location,
         expected_type: Type,
@@ -1413,23 +1468,23 @@
     </span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>resolve_function_turbofish_generics(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
         func_id: <span class="kw-2">&amp;</span>FuncId,
-        unresolved_turbofish: <span class="prelude-ty">Option</span>&lt;Vec&lt;UnresolvedType&gt;&gt;,
+        resolved_turbofish: <span class="prelude-ty">Option</span>&lt;Vec&lt;Located&lt;Type&gt;&gt;&gt;,
         location: Location,
     ) -&gt; <span class="prelude-ty">Option</span>&lt;Vec&lt;Type&gt;&gt; {
         <span class="kw">let </span>direct_generic_kinds =
             vecmap(<span class="kw-2">&amp;</span><span class="self">self</span>.interner.function_meta(func_id).direct_generics, |generic| generic.kind());
 
-        unresolved_turbofish.map(|unresolved_turbofish| {
-            <span class="kw">if </span>unresolved_turbofish.len() != direct_generic_kinds.len() {
+        resolved_turbofish.map(|resolved_turbofish| {
+            <span class="kw">if </span>resolved_turbofish.len() != direct_generic_kinds.len() {
                 <span class="kw">let </span>type_check_err = TypeCheckError::IncorrectTurbofishGenericCount {
                     expected_count: direct_generic_kinds.len(),
-                    actual_count: unresolved_turbofish.len(),
+                    actual_count: resolved_turbofish.len(),
                     location,
                 };
                 <span class="self">self</span>.push_err(type_check_err);
             }
 
-            <span class="self">self</span>.resolve_turbofish_generics(direct_generic_kinds, unresolved_turbofish)
+            <span class="self">self</span>.resolve_turbofish_generics(direct_generic_kinds, resolved_turbofish)
         })
     }
 
@@ -1437,7 +1492,7 @@
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
         struct_type: <span class="kw-2">&amp;</span>DataType,
         generics: Vec&lt;Type&gt;,
-        unresolved_turbofish: <span class="prelude-ty">Option</span>&lt;Vec&lt;UnresolvedType&gt;&gt;,
+        resolved_turbofish: <span class="prelude-ty">Option</span>&lt;Vec&lt;Located&lt;Type&gt;&gt;&gt;,
         location: Location,
     ) -&gt; Vec&lt;Type&gt; {
         <span class="kw">let </span>kinds = vecmap(<span class="kw-2">&amp;</span>struct_type.generics, |generic| generic.kind());
@@ -1446,7 +1501,7 @@
             struct_type.name.as_str(),
             kinds,
             generics,
-            unresolved_turbofish,
+            resolved_turbofish,
             location,
         )
     }
@@ -1456,7 +1511,7 @@
         trait_name: <span class="kw-2">&amp;</span>str,
         trait_generic_kinds: Vec&lt;Kind&gt;,
         generics: Vec&lt;Type&gt;,
-        unresolved_turbofish: <span class="prelude-ty">Option</span>&lt;Vec&lt;UnresolvedType&gt;&gt;,
+        resolved_turbofish: <span class="prelude-ty">Option</span>&lt;Vec&lt;Located&lt;Type&gt;&gt;&gt;,
         location: Location,
     ) -&gt; Vec&lt;Type&gt; {
         <span class="self">self</span>.resolve_item_turbofish_generics(
@@ -1464,7 +1519,7 @@
             trait_name,
             trait_generic_kinds,
             generics,
-            unresolved_turbofish,
+            resolved_turbofish,
             location,
         )
     }
@@ -1473,7 +1528,7 @@
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
         type_alias: <span class="kw-2">&amp;</span>TypeAlias,
         generics: Vec&lt;Type&gt;,
-        unresolved_turbofish: <span class="prelude-ty">Option</span>&lt;Vec&lt;UnresolvedType&gt;&gt;,
+        resolved_turbofish: <span class="prelude-ty">Option</span>&lt;Vec&lt;Located&lt;Type&gt;&gt;&gt;,
         location: Location,
     ) -&gt; Vec&lt;Type&gt; {
         <span class="kw">let </span>kinds = vecmap(<span class="kw-2">&amp;</span>type_alias.generics, |generic| generic.kind());
@@ -1482,7 +1537,7 @@
             type_alias.name.as_str(),
             kinds,
             generics,
-            unresolved_turbofish,
+            resolved_turbofish,
             location,
         )
     }
@@ -1493,10 +1548,10 @@
         item_name: <span class="kw-2">&amp;</span>str,
         item_generic_kinds: Vec&lt;Kind&gt;,
         generics: Vec&lt;Type&gt;,
-        unresolved_turbofish: <span class="prelude-ty">Option</span>&lt;Vec&lt;UnresolvedType&gt;&gt;,
+        resolved_turbofish: <span class="prelude-ty">Option</span>&lt;Vec&lt;Located&lt;Type&gt;&gt;&gt;,
         location: Location,
     ) -&gt; Vec&lt;Type&gt; {
-        <span class="kw">let </span><span class="prelude-val">Some</span>(turbofish_generics) = unresolved_turbofish <span class="kw">else </span>{
+        <span class="kw">let </span><span class="prelude-val">Some</span>(turbofish_generics) = resolved_turbofish <span class="kw">else </span>{
             <span class="kw">return </span>generics;
         };
 
@@ -1516,15 +1571,21 @@
     <span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>resolve_turbofish_generics(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
         kinds: Vec&lt;Kind&gt;,
-        turbofish_generics: Vec&lt;UnresolvedType&gt;,
+        turbofish_generics: Vec&lt;Located&lt;Type&gt;&gt;,
     ) -&gt; Vec&lt;Type&gt; {
         <span class="kw">let </span>kinds_with_types = kinds.into_iter().zip(turbofish_generics);
-        vecmap(kinds_with_types, |(kind, unresolved_type)| {
-            <span class="self">self</span>.use_type_with_kind(unresolved_type, <span class="kw-2">&amp;</span>kind)
+
+        vecmap(kinds_with_types, |(kind, located_type)| {
+            <span class="kw">let </span>location = located_type.location();
+            <span class="kw">let </span>typ = located_type.contents;
+            <span class="kw">let </span>typ = typ.substitute_kind_any_with_kind(<span class="kw-2">&amp;</span>kind);
+            <span class="self">self</span>.check_kind(typ, <span class="kw-2">&amp;</span>kind, location)
         })
     }
 
-    <span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>elaborate_variable(<span class="kw-2">&amp;mut </span><span class="self">self</span>, <span class="kw-2">mut </span>variable: Path) -&gt; (ExprId, Type) {
+    <span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>elaborate_variable(<span class="kw-2">&amp;mut </span><span class="self">self</span>, variable: Path) -&gt; (ExprId, Type) {
+        <span class="kw">let </span><span class="kw-2">mut </span>variable = <span class="self">self</span>.validate_path(variable);
+
         <span class="comment">// Check if this is `Self::method_name` when we are inside a trait impl and `Self`
         // resolves to a primitive type. In that case we elaborate this as if it were a TypePath
         // (for example, if `Self` is `u32` then we consider this the same as `u32::method_name`).
@@ -1541,7 +1602,7 @@
             }
         }
 
-        <span class="kw">let </span>unresolved_turbofish = variable.segments.last().unwrap().generics.clone();
+        <span class="kw">let </span>resolved_turbofish = variable.segments.last().unwrap().generics.clone();
 
         <span class="kw">let </span>location = variable.location;
         <span class="kw">let </span>(expr, item) = <span class="self">self</span>.resolve_variable(variable);
@@ -1559,7 +1620,7 @@
         <span class="comment">// Resolve any generics if we the variable we have resolved is a function
         // and if the turbofish operator was used.
         </span><span class="kw">let </span>generics = <span class="kw">if let </span><span class="prelude-val">Some</span>(DefinitionKind::Function(func_id)) = <span class="kw-2">&amp;</span>definition_kind {
-            <span class="self">self</span>.resolve_function_turbofish_generics(func_id, unresolved_turbofish, location)
+            <span class="self">self</span>.resolve_function_turbofish_generics(func_id, resolved_turbofish, location)
         } <span class="kw">else </span>{
             <span class="prelude-val">None
         </span>};
@@ -1600,6 +1661,34 @@
         } <span class="kw">else </span>{
             (id, typ)
         }
+    }
+
+    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>validate_path(<span class="kw-2">&amp;mut </span><span class="self">self</span>, path: Path) -&gt; TypedPath {
+        <span class="kw">let </span><span class="kw-2">mut </span>segments = vecmap(path.segments, |segment| <span class="self">self</span>.validate_path_segment(segment));
+
+        <span class="kw">if let </span><span class="prelude-val">Some</span>(first_segment) = segments.first_mut() {
+            <span class="kw">if </span>first_segment.generics.is_some() &amp;&amp; first_segment.ident.is_self_type_name() {
+                <span class="self">self</span>.push_err(PathResolutionError::TurbofishNotAllowedOnItem {
+                    item: <span class="string">"self type"</span>.to_string(),
+                    location: first_segment.turbofish_location(),
+                });
+                first_segment.generics = <span class="prelude-val">None</span>;
+            }
+        }
+
+        <span class="kw">let </span>kind_location = path.kind_location;
+        TypedPath { segments, kind: path.kind, location: path.location, kind_location }
+    }
+
+    <span class="kw">fn </span>validate_path_segment(<span class="kw-2">&amp;mut </span><span class="self">self</span>, segment: PathSegment) -&gt; TypedPathSegment {
+        <span class="kw">let </span>generics = segment.generics.map(|generics| {
+            vecmap(generics, |generic| {
+                <span class="kw">let </span>location = generic.location;
+                <span class="kw">let </span>typ = <span class="self">self</span>.use_type_with_kind(generic, <span class="kw-2">&amp;</span>Kind::Any);
+                Located::from(location, typ)
+            })
+        });
+        TypedPathSegment { ident: segment.ident, generics, location: segment.location }
     }
 
     <span class="doccomment">/// Solve any generics that are part of the path before the function, for example:
@@ -1678,7 +1767,7 @@
         }
     }
 
-    <span class="kw">fn </span>resolve_variable(<span class="kw-2">&amp;mut </span><span class="self">self</span>, path: Path) -&gt; (HirIdent, <span class="prelude-ty">Option</span>&lt;PathResolutionItem&gt;) {
+    <span class="kw">fn </span>resolve_variable(<span class="kw-2">&amp;mut </span><span class="self">self</span>, path: TypedPath) -&gt; (HirIdent, <span class="prelude-ty">Option</span>&lt;PathResolutionItem&gt;) {
         <span class="kw">if let </span><span class="prelude-val">Some</span>(trait_path_resolution) = <span class="self">self</span>.resolve_trait_generic_path(<span class="kw-2">&amp;</span>path) {
             <span class="kw">for </span>error <span class="kw">in </span>trait_path_resolution.errors {
                 <span class="self">self</span>.push_err(error);
@@ -1865,11 +1954,20 @@
 
     <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>get_ident_from_path(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
-        path: Path,
+        path: TypedPath,
     ) -&gt; ((HirIdent, usize), <span class="prelude-ty">Option</span>&lt;PathResolutionItem&gt;) {
         <span class="kw">let </span>location = Location::new(path.last_ident().span(), path.location.file);
+        <span class="kw">let </span>use_variable_result = path.as_single_segment().map(|segment| {
+            <span class="kw">let </span>result = <span class="self">self</span>.use_variable(<span class="kw-2">&amp;</span>segment.ident);
+            <span class="kw">if </span>result.is_ok() &amp;&amp; segment.generics.is_some() {
+                <span class="kw">let </span>item = <span class="string">"local variables"</span>.to_string();
+                <span class="kw">let </span>location = segment.turbofish_location();
+                <span class="self">self</span>.push_err(PathResolutionError::TurbofishNotAllowedOnItem { item, location });
+            }
+            result
+        });
 
-        <span class="kw">let </span>error = <span class="kw">match </span>path.as_ident().map(|ident| <span class="self">self</span>.use_variable(ident)) {
+        <span class="kw">let </span>error = <span class="kw">match </span>use_variable_result {
             <span class="prelude-val">Some</span>(<span class="prelude-val">Ok</span>(found)) =&gt; <span class="kw">return </span>(found, <span class="prelude-val">None</span>),
             <span class="comment">// Try to look it up as a global, but still issue the first error if we fail
             </span><span class="prelude-val">Some</span>(<span class="prelude-val">Err</span>(error)) =&gt; <span class="kw">match </span><span class="self">self</span>.lookup_global(path) {

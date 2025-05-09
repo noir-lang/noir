@@ -281,7 +281,9 @@
 <a href="#280" id="280">280</a>
 <a href="#281" id="281">281</a>
 <a href="#282" id="282">282</a>
-<a href="#283" id="283">283</a></pre></div><pre class="rust"><code><span class="kw">use </span><span class="kw">crate</span>::ast::{Ident, ItemVisibility, Path, UnsupportedNumericGenericType};
+<a href="#283" id="283">283</a>
+<a href="#284" id="284">284</a></pre></div><pre class="rust"><code><span class="kw">use </span><span class="kw">crate</span>::ast::{Ident, ItemVisibility, UnsupportedNumericGenericType};
+<span class="kw">use </span><span class="kw">crate</span>::elaborator::TypedPath;
 <span class="kw">use </span><span class="kw">crate</span>::hir::resolution::import::PathResolutionError;
 <span class="kw">use </span><span class="kw">crate</span>::hir::type_check::generics::TraitGenerics;
 
@@ -329,9 +331,9 @@
     <span class="attr">#[error(<span class="string">"Method is not defined in trait"</span>)]
     </span>MethodNotInTrait { trait_name: Ident, impl_method: Ident },
     <span class="attr">#[error(<span class="string">"Only traits can be implemented"</span>)]
-    </span>NotATrait { not_a_trait_name: Path },
+    </span>NotATrait { not_a_trait_name: TypedPath },
     <span class="attr">#[error(<span class="string">"Trait not found"</span>)]
-    </span>TraitNotFound { trait_path: Path },
+    </span>TraitNotFound { trait_path: TypedPath },
     <span class="attr">#[error(<span class="string">"Missing Trait method implementation"</span>)]
     </span>TraitMissingMethod { trait_name: Ident, method_name: Ident, trait_impl_location: Location },
     <span class="attr">#[error(<span class="string">"Module is already part of the crate"</span>)]

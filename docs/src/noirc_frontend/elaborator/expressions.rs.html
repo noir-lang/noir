@@ -1439,7 +1439,14 @@
 <a href="#1438" id="1438">1438</a>
 <a href="#1439" id="1439">1439</a>
 <a href="#1440" id="1440">1440</a>
-<a href="#1441" id="1441">1441</a></pre></div><pre class="rust"><code><span class="kw">use </span>acvm::{AcirField, FieldElement};
+<a href="#1441" id="1441">1441</a>
+<a href="#1442" id="1442">1442</a>
+<a href="#1443" id="1443">1443</a>
+<a href="#1444" id="1444">1444</a>
+<a href="#1445" id="1445">1445</a>
+<a href="#1446" id="1446">1446</a>
+<a href="#1447" id="1447">1447</a>
+<a href="#1448" id="1448">1448</a></pre></div><pre class="rust"><code><span class="kw">use </span>acvm::{AcirField, FieldElement};
 <span class="kw">use </span>iter_extended::vecmap;
 <span class="kw">use </span>noirc_errors::{Located, Location};
 <span class="kw">use </span>rustc_hash::FxHashSet <span class="kw">as </span>HashSet;
@@ -1450,9 +1457,9 @@
         ArrayLiteral, AsTraitPath, BinaryOpKind, BlockExpression, CallExpression, CastExpression,
         ConstrainExpression, ConstrainKind, ConstructorExpression, Expression, ExpressionKind,
         Ident, IfExpression, IndexExpression, InfixExpression, ItemVisibility, Lambda, Literal,
-        MatchExpression, MemberAccessExpression, MethodCallExpression, Path, PathSegment,
-        PrefixExpression, StatementKind, TraitBound, UnaryOp, UnresolvedTraitConstraint,
-        UnresolvedTypeData, UnresolvedTypeExpression, UnsafeExpression,
+        MatchExpression, MemberAccessExpression, MethodCallExpression, PrefixExpression,
+        StatementKind, TraitBound, UnaryOp, UnresolvedTraitConstraint, UnresolvedTypeData,
+        UnresolvedTypeExpression, UnsafeExpression,
     },
     hir::{
         comptime::{<span class="self">self</span>, InterpreterError},
@@ -1479,7 +1486,10 @@
     token::{FmtStrFragment, Tokens},
 };
 
-<span class="kw">use super</span>::{Elaborator, LambdaContext, UnsafeBlockStatus, UnstableFeature};
+<span class="kw">use super</span>::{
+    Elaborator, LambdaContext, UnsafeBlockStatus, UnstableFeature,
+    path_resolution::{TypedPath, TypedPathSegment},
+};
 
 <span class="kw">impl </span>Elaborator&lt;<span class="lifetime">'_</span>&gt; {
     <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>elaborate_expression(<span class="kw-2">&amp;mut </span><span class="self">self</span>, expr: Expression) -&gt; (ExprId, Type) {
@@ -1774,7 +1784,7 @@
                     old_value.num_times_used += <span class="number">1</span>;
                     old_value.ident.clone()
                 } <span class="kw">else if let </span><span class="prelude-val">Ok</span>((definition_id, <span class="kw">_</span>)) =
-                    <span class="self">self</span>.lookup_global(Path::from_single(ident_name.to_string(), <span class="kw-2">*</span>location))
+                    <span class="self">self</span>.lookup_global(TypedPath::from_single(ident_name.to_string(), <span class="kw-2">*</span>location))
                 {
                     HirIdent::non_trait_method(definition_id, <span class="kw-2">*</span>location)
                 } <span class="kw">else </span>{
@@ -2008,12 +2018,15 @@
                         <span class="kw-2">&amp;mut </span>object_type,
                         <span class="kw-2">&amp;mut </span>object,
                     );
-
-                    <span class="self">self</span>.resolve_function_turbofish_generics(
-                        <span class="kw-2">&amp;</span>func_id,
-                        method_call.generics,
-                        location,
-                    )
+                    <span class="kw">let </span>generics = method_call.generics;
+                    <span class="kw">let </span>generics = generics.map(|generics| {
+                        vecmap(generics, |generic| {
+                            <span class="kw">let </span>location = generic.location;
+                            <span class="kw">let </span>typ = <span class="self">self</span>.use_type_with_kind(generic, <span class="kw-2">&amp;</span>Kind::Any);
+                            Located::from(location, typ)
+                        })
+                    });
+                    <span class="self">self</span>.resolve_function_turbofish_generics(<span class="kw-2">&amp;</span>func_id, generics, location)
                 } <span class="kw">else </span>{
                     <span class="prelude-val">None
                 </span>};
@@ -2227,6 +2240,7 @@
             last_segment.generics = <span class="prelude-val">Some</span>(generics.ordered_args);
         }
 
+        <span class="kw">let </span>path = <span class="self">self</span>.validate_path(path);
         <span class="kw">let </span>last_segment = path.last_segment();
 
         <span class="kw">let </span><span class="prelude-val">Some</span>(typ) = <span class="self">self</span>.lookup_type_or_error(path) <span class="kw">else </span>{
@@ -2241,7 +2255,7 @@
         typ: Type,
         fields: Vec&lt;(Ident, Expression)&gt;,
         location: Location,
-        last_segment: <span class="prelude-ty">Option</span>&lt;PathSegment&gt;,
+        last_segment: <span class="prelude-ty">Option</span>&lt;TypedPathSegment&gt;,
     ) -&gt; (HirExpression, Type) {
         <span class="kw">let </span>typ = typ.follow_bindings_shallow();
         <span class="kw">let </span>(r#type, generics) = <span class="kw">match </span>typ.as_ref() {

@@ -603,10 +603,168 @@
 <a href="#602" id="602">602</a>
 <a href="#603" id="603">603</a>
 <a href="#604" id="604">604</a>
-<a href="#605" id="605">605</a></pre></div><pre class="rust"><code><span class="kw">use </span>iter_extended::vecmap;
-<span class="kw">use </span>noirc_errors::Location;
+<a href="#605" id="605">605</a>
+<a href="#606" id="606">606</a>
+<a href="#607" id="607">607</a>
+<a href="#608" id="608">608</a>
+<a href="#609" id="609">609</a>
+<a href="#610" id="610">610</a>
+<a href="#611" id="611">611</a>
+<a href="#612" id="612">612</a>
+<a href="#613" id="613">613</a>
+<a href="#614" id="614">614</a>
+<a href="#615" id="615">615</a>
+<a href="#616" id="616">616</a>
+<a href="#617" id="617">617</a>
+<a href="#618" id="618">618</a>
+<a href="#619" id="619">619</a>
+<a href="#620" id="620">620</a>
+<a href="#621" id="621">621</a>
+<a href="#622" id="622">622</a>
+<a href="#623" id="623">623</a>
+<a href="#624" id="624">624</a>
+<a href="#625" id="625">625</a>
+<a href="#626" id="626">626</a>
+<a href="#627" id="627">627</a>
+<a href="#628" id="628">628</a>
+<a href="#629" id="629">629</a>
+<a href="#630" id="630">630</a>
+<a href="#631" id="631">631</a>
+<a href="#632" id="632">632</a>
+<a href="#633" id="633">633</a>
+<a href="#634" id="634">634</a>
+<a href="#635" id="635">635</a>
+<a href="#636" id="636">636</a>
+<a href="#637" id="637">637</a>
+<a href="#638" id="638">638</a>
+<a href="#639" id="639">639</a>
+<a href="#640" id="640">640</a>
+<a href="#641" id="641">641</a>
+<a href="#642" id="642">642</a>
+<a href="#643" id="643">643</a>
+<a href="#644" id="644">644</a>
+<a href="#645" id="645">645</a>
+<a href="#646" id="646">646</a>
+<a href="#647" id="647">647</a>
+<a href="#648" id="648">648</a>
+<a href="#649" id="649">649</a>
+<a href="#650" id="650">650</a>
+<a href="#651" id="651">651</a>
+<a href="#652" id="652">652</a>
+<a href="#653" id="653">653</a>
+<a href="#654" id="654">654</a>
+<a href="#655" id="655">655</a>
+<a href="#656" id="656">656</a>
+<a href="#657" id="657">657</a>
+<a href="#658" id="658">658</a>
+<a href="#659" id="659">659</a>
+<a href="#660" id="660">660</a>
+<a href="#661" id="661">661</a>
+<a href="#662" id="662">662</a>
+<a href="#663" id="663">663</a>
+<a href="#664" id="664">664</a>
+<a href="#665" id="665">665</a>
+<a href="#666" id="666">666</a>
+<a href="#667" id="667">667</a>
+<a href="#668" id="668">668</a>
+<a href="#669" id="669">669</a>
+<a href="#670" id="670">670</a>
+<a href="#671" id="671">671</a>
+<a href="#672" id="672">672</a>
+<a href="#673" id="673">673</a>
+<a href="#674" id="674">674</a>
+<a href="#675" id="675">675</a>
+<a href="#676" id="676">676</a>
+<a href="#677" id="677">677</a>
+<a href="#678" id="678">678</a>
+<a href="#679" id="679">679</a>
+<a href="#680" id="680">680</a>
+<a href="#681" id="681">681</a>
+<a href="#682" id="682">682</a>
+<a href="#683" id="683">683</a>
+<a href="#684" id="684">684</a>
+<a href="#685" id="685">685</a>
+<a href="#686" id="686">686</a>
+<a href="#687" id="687">687</a>
+<a href="#688" id="688">688</a>
+<a href="#689" id="689">689</a>
+<a href="#690" id="690">690</a>
+<a href="#691" id="691">691</a>
+<a href="#692" id="692">692</a>
+<a href="#693" id="693">693</a>
+<a href="#694" id="694">694</a>
+<a href="#695" id="695">695</a>
+<a href="#696" id="696">696</a>
+<a href="#697" id="697">697</a>
+<a href="#698" id="698">698</a>
+<a href="#699" id="699">699</a>
+<a href="#700" id="700">700</a>
+<a href="#701" id="701">701</a>
+<a href="#702" id="702">702</a>
+<a href="#703" id="703">703</a>
+<a href="#704" id="704">704</a>
+<a href="#705" id="705">705</a>
+<a href="#706" id="706">706</a>
+<a href="#707" id="707">707</a>
+<a href="#708" id="708">708</a>
+<a href="#709" id="709">709</a>
+<a href="#710" id="710">710</a>
+<a href="#711" id="711">711</a>
+<a href="#712" id="712">712</a>
+<a href="#713" id="713">713</a>
+<a href="#714" id="714">714</a>
+<a href="#715" id="715">715</a>
+<a href="#716" id="716">716</a>
+<a href="#717" id="717">717</a>
+<a href="#718" id="718">718</a>
+<a href="#719" id="719">719</a>
+<a href="#720" id="720">720</a>
+<a href="#721" id="721">721</a>
+<a href="#722" id="722">722</a>
+<a href="#723" id="723">723</a>
+<a href="#724" id="724">724</a>
+<a href="#725" id="725">725</a>
+<a href="#726" id="726">726</a>
+<a href="#727" id="727">727</a>
+<a href="#728" id="728">728</a>
+<a href="#729" id="729">729</a>
+<a href="#730" id="730">730</a>
+<a href="#731" id="731">731</a>
+<a href="#732" id="732">732</a>
+<a href="#733" id="733">733</a>
+<a href="#734" id="734">734</a>
+<a href="#735" id="735">735</a>
+<a href="#736" id="736">736</a>
+<a href="#737" id="737">737</a>
+<a href="#738" id="738">738</a>
+<a href="#739" id="739">739</a>
+<a href="#740" id="740">740</a>
+<a href="#741" id="741">741</a>
+<a href="#742" id="742">742</a>
+<a href="#743" id="743">743</a>
+<a href="#744" id="744">744</a>
+<a href="#745" id="745">745</a>
+<a href="#746" id="746">746</a>
+<a href="#747" id="747">747</a>
+<a href="#748" id="748">748</a>
+<a href="#749" id="749">749</a>
+<a href="#750" id="750">750</a>
+<a href="#751" id="751">751</a>
+<a href="#752" id="752">752</a>
+<a href="#753" id="753">753</a>
+<a href="#754" id="754">754</a>
+<a href="#755" id="755">755</a>
+<a href="#756" id="756">756</a>
+<a href="#757" id="757">757</a>
+<a href="#758" id="758">758</a>
+<a href="#759" id="759">759</a>
+<a href="#760" id="760">760</a>
+<a href="#761" id="761">761</a>
+<a href="#762" id="762">762</a>
+<a href="#763" id="763">763</a></pre></div><pre class="rust"><code><span class="kw">use </span>iter_extended::vecmap;
+<span class="kw">use </span>noirc_errors::{Located, Location, Span};
 
-<span class="kw">use </span><span class="kw">crate</span>::ast::{Ident, Path, PathKind, UnresolvedType};
+<span class="kw">use </span><span class="kw">crate</span>::ast::{Ident, PathKind};
 <span class="kw">use </span><span class="kw">crate</span>::hir::def_map::{ModuleData, ModuleDefId, ModuleId, PerNs};
 <span class="kw">use </span><span class="kw">crate</span>::hir::resolution::import::{PathResolutionError, resolve_path_kind};
 
@@ -680,7 +838,7 @@
 
 <span class="attr">#[derive(Debug, Clone)]
 </span><span class="kw">pub struct </span>Turbofish {
-    <span class="kw">pub </span>generics: Vec&lt;UnresolvedType&gt;,
+    <span class="kw">pub </span>generics: Vec&lt;Located&lt;Type&gt;&gt;,
     <span class="kw">pub </span>location: Location,
 }
 
@@ -756,10 +914,134 @@
     Value,
 }
 
+<span class="doccomment">/// Like a [`crate::ast::Path`] but each segment has resolved turbofish types.
+</span><span class="attr">#[derive(Debug, PartialEq, Eq, Clone, Hash)]
+</span><span class="kw">pub struct </span>TypedPath {
+    <span class="kw">pub </span>segments: Vec&lt;TypedPathSegment&gt;,
+    <span class="kw">pub </span>kind: PathKind,
+    <span class="kw">pub </span>location: Location,
+    <span class="comment">// The location of `kind` (this is the same as `location` for plain kinds)
+    </span><span class="kw">pub </span>kind_location: Location,
+}
+
+<span class="kw">impl </span>TypedPath {
+    <span class="kw">pub fn </span>plain(segments: Vec&lt;TypedPathSegment&gt;, location: Location) -&gt; <span class="self">Self </span>{
+        <span class="self">Self </span>{ segments, location, kind: PathKind::Plain, kind_location: location }
+    }
+
+    <span class="kw">pub fn </span>pop(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; TypedPathSegment {
+        <span class="self">self</span>.segments.pop().unwrap()
+    }
+
+    <span class="doccomment">/// Construct a PathKind::Plain from this single
+    </span><span class="kw">pub fn </span>from_single(name: String, location: Location) -&gt; TypedPath {
+        <span class="kw">let </span>segment = Ident::from(Located::from(location, name));
+        TypedPath::from_ident(segment)
+    }
+
+    <span class="kw">pub fn </span>from_ident(name: Ident) -&gt; TypedPath {
+        <span class="kw">let </span>segment =
+            TypedPathSegment { ident: name.clone(), generics: <span class="prelude-val">None</span>, location: name.location() };
+        <span class="kw">let </span>location = name.location();
+        TypedPath::plain(<span class="macro">vec!</span>[segment], location)
+    }
+
+    <span class="kw">pub fn </span>span(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; Span {
+        <span class="self">self</span>.location.span
+    }
+
+    <span class="kw">pub fn </span>last_segment(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; TypedPathSegment {
+        <span class="macro">assert!</span>(!<span class="self">self</span>.segments.is_empty());
+        <span class="self">self</span>.segments.last().unwrap().clone()
+    }
+
+    <span class="kw">pub fn </span>last_ident(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; Ident {
+        <span class="self">self</span>.last_segment().ident
+    }
+
+    <span class="kw">pub fn </span>first_name(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="prelude-ty">Option</span>&lt;<span class="kw-2">&amp;</span>str&gt; {
+        <span class="self">self</span>.segments.first().map(|segment| segment.ident.as_str())
+    }
+
+    <span class="kw">pub fn </span>last_name(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="kw-2">&amp;</span>str {
+        <span class="macro">assert!</span>(!<span class="self">self</span>.segments.is_empty());
+        <span class="self">self</span>.segments.last().unwrap().ident.as_str()
+    }
+
+    <span class="kw">pub fn </span>as_single_segment(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="prelude-ty">Option</span>&lt;<span class="kw-2">&amp;</span>TypedPathSegment&gt; {
+        <span class="kw">if </span><span class="self">self</span>.kind == PathKind::Plain &amp;&amp; <span class="self">self</span>.segments.len() == <span class="number">1 </span>{
+            <span class="self">self</span>.segments.first()
+        } <span class="kw">else </span>{
+            <span class="prelude-val">None
+        </span>}
+    }
+}
+
+<span class="kw">impl </span>std::fmt::Display <span class="kw">for </span>TypedPath {
+    <span class="kw">fn </span>fmt(<span class="kw-2">&amp;</span><span class="self">self</span>, f: <span class="kw-2">&amp;mut </span>std::fmt::Formatter&lt;<span class="lifetime">'_</span>&gt;) -&gt; std::fmt::Result {
+        <span class="kw">let </span>segments = vecmap(<span class="kw-2">&amp;</span><span class="self">self</span>.segments, ToString::to_string);
+        <span class="kw">if </span><span class="self">self</span>.kind == PathKind::Plain {
+            <span class="macro">write!</span>(f, <span class="string">"{}"</span>, segments.join(<span class="string">"::"</span>))
+        } <span class="kw">else </span>{
+            <span class="macro">write!</span>(f, <span class="string">"{}::{}"</span>, <span class="self">self</span>.kind, segments.join(<span class="string">"::"</span>))
+        }
+    }
+}
+
+<span class="doccomment">/// Like a [`crate::ast::PathSegment`] but with resolved turbofish types.
+</span><span class="attr">#[derive(Debug, PartialEq, Eq, Clone, Hash)]
+</span><span class="kw">pub struct </span>TypedPathSegment {
+    <span class="kw">pub </span>ident: Ident,
+    <span class="kw">pub </span>generics: <span class="prelude-ty">Option</span>&lt;Vec&lt;Located&lt;Type&gt;&gt;&gt;,
+    <span class="kw">pub </span>location: Location,
+}
+
+<span class="kw">impl </span>TypedPathSegment {
+    <span class="doccomment">/// Returns the span where turbofish happen. For example:
+    ///
+    /// ```noir
+    ///    foo::&lt;T&gt;
+    ///       ~^^^^
+    /// ```
+    ///
+    /// Returns an empty span at the end of `foo` if there's no turbofish.
+    </span><span class="kw">pub fn </span>turbofish_span(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; Span {
+        <span class="kw">if </span><span class="self">self</span>.ident.location().file == <span class="self">self</span>.location.file {
+            Span::from(<span class="self">self</span>.ident.span().end()..<span class="self">self</span>.location.span.end())
+        } <span class="kw">else </span>{
+            <span class="self">self</span>.location.span
+        }
+    }
+
+    <span class="kw">pub fn </span>turbofish_location(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; Location {
+        Location::new(<span class="self">self</span>.turbofish_span(), <span class="self">self</span>.location.file)
+    }
+
+    <span class="kw">pub fn </span>turbofish(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="prelude-ty">Option</span>&lt;Turbofish&gt; {
+        <span class="self">self</span>.generics.as_ref().map(|generics| Turbofish {
+            location: <span class="self">self</span>.turbofish_location(),
+            generics: generics.clone(),
+        })
+    }
+}
+
+<span class="kw">impl </span>std::fmt::Display <span class="kw">for </span>TypedPathSegment {
+    <span class="kw">fn </span>fmt(<span class="kw-2">&amp;</span><span class="self">self</span>, f: <span class="kw-2">&amp;mut </span>std::fmt::Formatter&lt;<span class="lifetime">'_</span>&gt;) -&gt; std::fmt::Result {
+        <span class="self">self</span>.ident.fmt(f)<span class="question-mark">?</span>;
+
+        <span class="kw">if let </span><span class="prelude-val">Some</span>(generics) = <span class="kw-2">&amp;</span><span class="self">self</span>.generics {
+            <span class="kw">let </span>generics = vecmap(generics, |generic| generic.contents.to_string());
+            <span class="macro">write!</span>(f, <span class="string">"::&lt;{}&gt;"</span>, generics.join(<span class="string">", "</span>))<span class="question-mark">?</span>;
+        }
+
+        <span class="prelude-val">Ok</span>(())
+    }
+}
+
 <span class="kw">impl </span>Elaborator&lt;<span class="lifetime">'_</span>&gt; {
     <span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>resolve_path_or_error(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
-        path: Path,
+        path: TypedPath,
         target: PathResolutionTarget,
     ) -&gt; <span class="prelude-ty">Result</span>&lt;PathResolutionItem, ResolverError&gt; {
         <span class="self">self</span>.resolve_path_or_error_inner(path, target, PathResolutionMode::MarkAsReferenced)
@@ -767,7 +1049,7 @@
 
     <span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>use_path_or_error(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
-        path: Path,
+        path: TypedPath,
         target: PathResolutionTarget,
     ) -&gt; <span class="prelude-ty">Result</span>&lt;PathResolutionItem, ResolverError&gt; {
         <span class="self">self</span>.resolve_path_or_error_inner(path, target, PathResolutionMode::MarkAsUsed)
@@ -775,7 +1057,7 @@
 
     <span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>resolve_path_or_error_inner(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
-        path: Path,
+        path: TypedPath,
         target: PathResolutionTarget,
         mode: PathResolutionMode,
     ) -&gt; <span class="prelude-ty">Result</span>&lt;PathResolutionItem, ResolverError&gt; {
@@ -788,7 +1070,7 @@
         <span class="prelude-val">Ok</span>(path_resolution.item)
     }
 
-    <span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>resolve_path_as_type(<span class="kw-2">&amp;mut </span><span class="self">self</span>, path: Path) -&gt; PathResolutionResult {
+    <span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>resolve_path_as_type(<span class="kw-2">&amp;mut </span><span class="self">self</span>, path: TypedPath) -&gt; PathResolutionResult {
         <span class="self">self</span>.resolve_path_inner(
             path,
             PathResolutionTarget::Type,
@@ -796,7 +1078,7 @@
         )
     }
 
-    <span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>use_path_as_type(<span class="kw-2">&amp;mut </span><span class="self">self</span>, path: Path) -&gt; PathResolutionResult {
+    <span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>use_path_as_type(<span class="kw-2">&amp;mut </span><span class="self">self</span>, path: TypedPath) -&gt; PathResolutionResult {
         <span class="self">self</span>.resolve_path_inner(path, PathResolutionTarget::Type, PathResolutionMode::MarkAsUsed)
     }
 
@@ -806,7 +1088,7 @@
     /// is not accessible from the current module (e.g. because it's private).
     </span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>resolve_path_inner(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
-        <span class="kw-2">mut </span>path: Path,
+        <span class="kw-2">mut </span>path: TypedPath,
         target: PathResolutionTarget,
         mode: PathResolutionMode,
     ) -&gt; PathResolutionResult {
@@ -829,14 +1111,48 @@
             }
         }
 
-        <span class="self">self</span>.resolve_path_in_module(path, module_id, intermediate_item, target, mode)
+        <span class="kw">let </span>last_segment_turbofish_location = path
+            .segments
+            .last()
+            .and_then(|segment| segment.generics.as_ref().map(|<span class="kw">_</span>| segment.turbofish_location()));
+
+        <span class="kw">let </span>result = <span class="self">self</span>.resolve_path_in_module(path, module_id, intermediate_item, target, mode);
+        <span class="kw">let </span><span class="prelude-val">Some</span>(last_segment_turbofish_location) = last_segment_turbofish_location <span class="kw">else </span>{
+            <span class="kw">return </span>result;
+        };
+
+        result.map(|<span class="kw-2">mut </span>resolution| {
+            <span class="kw">match </span>resolution.item {
+                PathResolutionItem::Global(..) =&gt; {
+                    resolution.errors.push(PathResolutionError::TurbofishNotAllowedOnItem {
+                        item: <span class="string">"globals"</span>.to_string(),
+                        location: last_segment_turbofish_location,
+                    });
+                }
+                PathResolutionItem::Module(..) =&gt; {
+                    resolution.errors.push(PathResolutionError::TurbofishNotAllowedOnItem {
+                        item: <span class="string">"modules"</span>.to_string(),
+                        location: last_segment_turbofish_location,
+                    });
+                }
+                PathResolutionItem::Type(..)
+                | PathResolutionItem::TypeAlias(..)
+                | PathResolutionItem::Trait(..)
+                | PathResolutionItem::ModuleFunction(..)
+                | PathResolutionItem::Method(..)
+                | PathResolutionItem::SelfMethod(..)
+                | PathResolutionItem::TypeAliasFunction(..)
+                | PathResolutionItem::TraitFunction(..) =&gt; (),
+            }
+            resolution
+        })
     }
 
     <span class="doccomment">/// Resolves a path in `current_module`.
     /// `importing_module` is the module where the lookup originally started.
     </span><span class="kw">fn </span>resolve_path_in_module(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
-        path: Path,
+        path: TypedPath,
         importing_module: ModuleId,
         intermediate_item: IntermediatePathResolutionItem,
         target: PathResolutionTarget,
@@ -863,7 +1179,7 @@
     /// `importing_module` is the module where the lookup originally started.
     </span><span class="kw">fn </span>resolve_name_in_module(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
-        path: Path,
+        path: TypedPath,
         starting_module: ModuleId,
         importing_module: ModuleId,
         <span class="kw-2">mut </span>intermediate_item: IntermediatePathResolutionItem,
@@ -1071,7 +1387,7 @@
     <span class="attr">#[allow(clippy::too_many_arguments)]
     </span><span class="kw">fn </span>per_ns_item_to_path_resolution_item(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
-        path: Path,
+        path: TypedPath,
         importing_module: ModuleId,
         intermediate_item: IntermediatePathResolutionItem,
         current_module_id: ModuleId,

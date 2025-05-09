@@ -842,7 +842,8 @@
 <a href="#841" id="841">841</a>
 <a href="#842" id="842">842</a>
 <a href="#843" id="843">843</a>
-<a href="#844" id="844">844</a></pre></div><pre class="rust"><code><span class="kw">use </span>acvm::FieldElement;
+<a href="#844" id="844">844</a>
+<a href="#845" id="845">845</a></pre></div><pre class="rust"><code><span class="kw">use </span>acvm::FieldElement;
 <span class="kw">pub use </span>noirc_errors::Span;
 <span class="kw">use </span>noirc_errors::{CustomDiagnostic <span class="kw">as </span>Diagnostic, Location};
 <span class="kw">use </span>thiserror::Error;
@@ -850,6 +851,7 @@
 <span class="kw">use crate</span>::{
     Kind, Type,
     ast::{Ident, UnsupportedNumericGenericType},
+    elaborator::TypedPath,
     hir::{
         comptime::{InterpreterError, Value},
         type_check::TypeCheckError,
@@ -905,7 +907,7 @@
     <span class="attr">#[error(<span class="string">"Integer too large to be evaluated in an array length context"</span>)]
     </span>IntegerTooLarge { location: Location },
     <span class="attr">#[error(<span class="string">"No global or generic type parameter found with the given name"</span>)]
-    </span>NoSuchNumericTypeVariable { path: <span class="kw">crate</span>::ast::Path },
+    </span>NoSuchNumericTypeVariable { path: TypedPath },
     <span class="attr">#[error(<span class="string">"Closures cannot capture mutable variables"</span>)]
     </span>CapturedMutableVariable { location: Location },
     <span class="attr">#[error(<span class="string">"Test functions are not allowed to have any parameters"</span>)]

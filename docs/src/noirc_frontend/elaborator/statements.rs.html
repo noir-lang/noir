@@ -697,7 +697,7 @@
     DataType, Type,
     ast::{
         AssignStatement, Expression, ForLoopStatement, ForRange, Ident, ItemVisibility, LValue,
-        LetStatement, Path, Statement, StatementKind, WhileStatement,
+        LetStatement, Statement, StatementKind, WhileStatement,
     },
     hir::{
         resolution::{
@@ -716,7 +716,7 @@
     node_interner::{DefinitionId, DefinitionKind, ExprId, GlobalId, StmtId},
 };
 
-<span class="kw">use super</span>::{Elaborator, Loop, lints};
+<span class="kw">use super</span>::{Elaborator, Loop, TypedPath, lints};
 
 <span class="kw">impl </span>Elaborator&lt;<span class="lifetime">'_</span>&gt; {
     <span class="kw">fn </span>elaborate_statement_value(<span class="kw-2">&amp;mut </span><span class="self">self</span>, statement: Statement) -&gt; (HirStatement, Type) {
@@ -1074,7 +1074,7 @@
             LValue::Ident(ident) =&gt; {
                 <span class="kw">let </span><span class="kw-2">mut </span>mutable = <span class="bool-val">true</span>;
                 <span class="kw">let </span>location = ident.location();
-                <span class="kw">let </span>path = Path::from_single(ident.to_string(), location);
+                <span class="kw">let </span>path = TypedPath::from_single(ident.to_string(), location);
                 <span class="kw">let </span>((ident, scope_index), <span class="kw">_</span>) = <span class="self">self</span>.get_ident_from_path(path);
 
                 <span class="self">self</span>.resolve_local_variable(ident.clone(), scope_index);
