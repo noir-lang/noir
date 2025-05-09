@@ -1,0 +1,112 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: artifact
+---
+{
+  "noir_version": "[noir_version]",
+  "hash": "[hash]",
+  "abi": {
+    "parameters": [
+      {
+        "name": "a",
+        "type": {
+          "kind": "tuple",
+          "fields": [
+            {
+              "kind": "integer",
+              "sign": "signed",
+              "width": 8
+            },
+            {
+              "kind": "integer",
+              "sign": "unsigned",
+              "width": 32
+            },
+            {
+              "kind": "integer",
+              "sign": "signed",
+              "width": 8
+            }
+          ]
+        },
+        "visibility": "private"
+      },
+      {
+        "name": "b",
+        "type": {
+          "kind": "array",
+          "length": 2,
+          "type": {
+            "kind": "tuple",
+            "fields": [
+              {
+                "kind": "integer",
+                "sign": "signed",
+                "width": 8
+              },
+              {
+                "kind": "integer",
+                "sign": "signed",
+                "width": 8
+              },
+              {
+                "kind": "boolean"
+              },
+              {
+                "kind": "boolean"
+              },
+              {
+                "kind": "string",
+                "length": 0
+              }
+            ]
+          }
+        },
+        "visibility": "databus"
+      }
+    ],
+    "return_type": {
+      "abi_type": {
+        "kind": "array",
+        "length": 0,
+        "type": {
+          "kind": "tuple",
+          "fields": [
+            {
+              "kind": "boolean"
+            },
+            {
+              "kind": "string",
+              "length": 3
+            },
+            {
+              "kind": "string",
+              "length": 0
+            },
+            {
+              "kind": "integer",
+              "sign": "unsigned",
+              "width": 32
+            }
+          ]
+        }
+      },
+      "visibility": "public"
+    },
+    "error_types": {
+      "17843811134343075018": {
+        "error_kind": "string",
+        "string": "Stack too deep"
+      }
+    }
+  },
+  "bytecode": "H4sIAAAAAAAA/+1Zy27bMBCkHpQtKS+0PyLFduTeeojzTv5BaeBrgd7aXoRe2s9umHDj0YYMkIQbQFEIGJS4o93Z4WotSJG6H8XtL7LHKZtxEOarnavXjTqgr0qSZzQQnnFAnobbVMnufyKga2iO6QA46gFwzAbAcTIAjtMBcMwHwLFQYXslcnwYJRwbo2nQpumZpmJuWnNTmKIzm2pEK5R/kPN/ds7tHIM9YEOtcxY3pP9lNV/njvwC8p/l1qeW8X9N/jMZ/9XE+jnsNv4xF4qbMBy/JgLMCjCrrs+bMEeAOfL4OQbMsQdzApgTD+YUMKeAUYA5A8yZB3MOmHNPrAvAXHgwl4C59MS6AswVw2yDTxqHXd8Wg23FbAnYSHuqM3ogD3wfNsJ13FJuGnIjfSj2RCb2tasxJ2wN4xdKtGfUEYtHfLg+MdMnl+FTkf9CyD/lWzryxXqm/Hbt+RRsJRz7fGH9UC57juunb6NrLaxrPVJd94V13R+prjNhXWcj1XUurOv8uboSn20ZPhX9128Bn8gzE1e+Rv99BfMl1UN31GPtthx8SLOk2/ApmS0F2w6zabDRmqnD75Af2pDPU3WNe0m8B17Xi5H2i4Wwrgcj1fVAWNdmpLo2wrouR6rrUljXLx/PDS8e7/q5gfYBa0BDzF9w/JvFjx3xXftDtYR7GPq9MvKR8i/B34zPHv4K9Jx0qqf13QxrVDMP9YJ4ZsvBlnb9OIU9TyEO+iIemuF/2vNdO2dwDV2/54ifsfg93o411Ij7ShxrhDfvOn/Y49L+TE3/sWtPvbN8aT+SfqeYMT6cf8xywzw0aEE9P+3C822Wm49lVIda9d97KxZfM/xftdGV+NH8mo/166at17N23S7am5v5t/YT848aGp3+A9ZsGH49IwAA",
+  "debug_symbols": "XY7dCoMwDIXfJde9aCe72asMkVijFEJbYisM8d2XygTZTZKTLz9nh4nGugwhzmmF13uHUQJzWAZOHktIUbv7YeCSQxEibcGN61ZGoVjgFSuzgQ25nkNrxnjmgqLUGqA4adaDc2Bq1dGrQB/k/+OGEnBk+sm5Rn+j5ZMvcjnOkjxNVahdagxsC50adM4Z93C9AWeb7Kxx3bM/2vcv",
+  "file_map": {},
+  "names": [
+    "main"
+  ],
+  "brillig_names": [
+    "main"
+  ]
+}

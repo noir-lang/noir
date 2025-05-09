@@ -1,4 +1,4 @@
-define: &AZ_COMMIT f6a77748ac3d1779f16d5695447f434ea27d10d8
+define: &AZ_COMMIT 278661f67ce4d444b068b331971a5bb3e2a2461f
 libraries:
   noir_check_shuffle:
     repo: noir-lang/noir_check_shuffle
@@ -135,12 +135,12 @@ libraries:
     critical: false
   noir_jwt:
     repo: zkemail/noir-jwt
-    ref: d461d01b24432c42c17a149e7075974b2a7bce3d
+    ref: 899ff2ca9ec196bc80be6dbe87fcb8ed721695b7
     timeout: 20
     critical: false
   zkemail:
     repo: zkemail/zkemail.nr
-    ref: 07053e865447b3167b670f9167f256e971fdb5c8
+    ref: 0a2cc39293fea71cdd0beaff8928abf54e555a36
     path: lib
     timeout: 20
     critical: false

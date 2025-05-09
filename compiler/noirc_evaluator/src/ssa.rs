@@ -102,6 +102,9 @@ pub struct SsaEvaluatorOptions {
     /// When `None` the size increase check is skipped altogether and any decrease in the SSA
     /// instruction count is accepted.
     pub max_bytecode_increase_percent: Option<i32>,
+
+    /// A list of SSA pass messages to skip, for testing purposes.
+    pub skip_passes: Vec<String>,
 }
 
 /// An SSA pass reified as a construct we can put into a list,
@@ -400,7 +403,7 @@ where
 {
     let ssa_gen_span = span!(Level::TRACE, "ssa_generation");
     let ssa_gen_span_guard = ssa_gen_span.enter();
-    let mut builder = builder.run_passes(primary)?;
+    let mut builder = builder.with_skip_passes(options.skip_passes.clone()).run_passes(primary)?;
     let passed = std::mem::take(&mut builder.passed);
     let mut ssa = builder.finish();
 
@@ -415,14 +418,12 @@ where
     let ssa_gen_span = span!(Level::TRACE, "ssa_generation");
     let ssa_gen_span_guard = ssa_gen_span.enter();
 
-    let mut ssa = SsaBuilder {
-        ssa,
-        ssa_logging: options.ssa_logging.clone(),
-        print_codegen_timings: options.print_codegen_timings,
-        passed,
-    }
-    .run_passes(&secondary(&brillig))?
-    .finish();
+    let mut ssa =
+        SsaBuilder::from_ssa(ssa, options.ssa_logging.clone(), options.print_codegen_timings)
+            .with_passed(passed)
+            .with_skip_passes(options.skip_passes.clone())
+            .run_passes(&secondary(&brillig))?
+            .finish();
 
     if !options.skip_underconstrained_check {
         ssa_level_warnings.extend(time(
@@ -474,7 +475,7 @@ pub fn optimize_into_acir<S>(
 where
     S: for<'b> Fn(&'b Brillig) -> Vec<SsaPass<'b>>,
 {
-    let builder = SsaBuilder::new(
+    let builder = SsaBuilder::from_program(
         program,
         options.ssa_logging.clone(),
         options.print_codegen_timings,
@@ -752,19 +753,26 @@ fn split_public_and_private_inputs(
 
 // This is just a convenience object to bundle the ssa with `print_ssa_passes` for debug printing.
 pub struct SsaBuilder {
+    /// The SSA being built; it is the input and the output of every pass ran by the builder.
     pub ssa: Ssa,
+    /// Options to control which SSA passes to print.
     pub ssa_logging: SsaLogging,
+    /// Whether to print the amount of time it took to run individual SSA passes.
     pub print_codegen_timings: bool,
+    /// Counters indexed by the message in the SSA pass, so we can distinguish between multiple
+    /// runs of the same pass in the printed messages.
     pub passed: HashMap<String, usize>,
+    /// List of SSA pass message fragments that we want to skip, for testing purposes.
+    pub skip_passes: Vec<String>,
 }
 
 impl SsaBuilder {
-    fn new(
+    pub fn from_program(
         program: Program,
         ssa_logging: SsaLogging,
         print_codegen_timings: bool,
         emit_ssa: &Option<PathBuf>,
-    ) -> Result<SsaBuilder, RuntimeError> {
+    ) -> Result<Self, RuntimeError> {
         let ssa = ssa_gen::generate_ssa(program)?;
         if let Some(emit_ssa) = emit_ssa {
             let mut emit_ssa_dir = emit_ssa.clone();
@@ -775,10 +783,27 @@ impl SsaBuilder {
             let ssa_path = emit_ssa.with_extension("ssa.json");
             write_to_file(&serde_json::to_vec(&ssa).unwrap(), &ssa_path);
         }
-        let builder =
-            SsaBuilder { ssa_logging, print_codegen_timings, ssa, passed: Default::default() };
-        let builder = builder.print("Initial SSA");
-        Ok(builder)
+        Ok(Self::from_ssa(ssa, ssa_logging, print_codegen_timings).print("Initial SSA"))
+    }
+
+    pub fn from_ssa(ssa: Ssa, ssa_logging: SsaLogging, print_codegen_timings: bool) -> Self {
+        Self {
+            ssa_logging,
+            print_codegen_timings,
+            ssa,
+            passed: Default::default(),
+            skip_passes: Default::default(),
+        }
+    }
+
+    pub fn with_passed(mut self, passed: HashMap<String, usize>) -> Self {
+        self.passed = passed;
+        self
+    }
+
+    pub fn with_skip_passes(mut self, skip_passes: Vec<String>) -> Self {
+        self.skip_passes = skip_passes;
+        self
     }
 
     pub fn finish(self) -> Ssa {
@@ -808,15 +833,22 @@ impl SsaBuilder {
     where
         F: FnOnce(Ssa) -> Result<Ssa, RuntimeError>,
     {
-        self.ssa = time(msg, self.print_codegen_timings, || pass(self.ssa))?;
-        Ok(self.print(msg))
-    }
-
-    fn print(mut self, msg: &str) -> Self {
         // Count the number of times we have seen this message.
         let cnt = self.passed.entry(msg.to_string()).and_modify(|cnt| *cnt += 1).or_insert(1);
         let msg = format!("{msg} ({cnt})");
 
+        // See if we should skip this pass, including the count, so we can skip the n-th occurrence of a step.
+        let skip = self.skip_passes.iter().any(|s| msg.contains(s));
+
+        if !skip {
+            self.ssa = time(&msg, self.print_codegen_timings, || pass(self.ssa))?;
+            Ok(self.print(&msg))
+        } else {
+            Ok(self)
+        }
+    }
+
+    fn print(mut self, msg: &str) -> Self {
         // Always normalize if we are going to print at least one of the passes
         if !matches!(self.ssa_logging, SsaLogging::None) {
             self.ssa.normalize_ids();

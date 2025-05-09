@@ -801,6 +801,26 @@ impl TerminatorInstruction {
         }
     }
 
+    /// Apply a function to each value along with its index
+    pub(crate) fn for_eachi_value<T>(&self, mut f: impl FnMut(usize, ValueId) -> T) {
+        use TerminatorInstruction::*;
+        match self {
+            JmpIf { condition, .. } => {
+                f(0, *condition);
+            }
+            Jmp { arguments, .. } => {
+                for (index, argument) in arguments.iter().enumerate() {
+                    f(index, *argument);
+                }
+            }
+            Return { return_values, .. } => {
+                for (index, return_value) in return_values.iter().enumerate() {
+                    f(index, *return_value);
+                }
+            }
+        }
+    }
+
     /// Mutate each BlockId to a new BlockId specified by the given mapping function.
     pub(crate) fn mutate_blocks(&mut self, mut f: impl FnMut(BasicBlockId) -> BasicBlockId) {
         use TerminatorInstruction::*;

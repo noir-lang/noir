@@ -64,7 +64,7 @@ mod tests {
     /// ```ignore
     /// NOIR_ARBTEST_SEED=0x6819c61400001000 \
     /// NOIR_AST_FUZZER_SHOW_AST=1 \
-    /// cargo test -p noir_ast_fuzzer_fuzz init_vs_final
+    /// cargo test -p noir_ast_fuzzer_fuzz min_vs_full
     /// ```
     #[test]
     fn fuzz_with_arbtest() {
