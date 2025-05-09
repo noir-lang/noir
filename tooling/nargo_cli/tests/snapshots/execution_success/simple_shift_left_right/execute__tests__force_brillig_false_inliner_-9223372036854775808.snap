@@ -20,7 +20,29 @@ expression: artifact
     "return_type": null,
     "error_types": {}
   },
-  "bytecode": "H4sIAAAAAAAA/9VVzU7DMAxO07TAJrhw4cBhj2DnZ01uvAoV6fs/Ag3EUhbCkJg7aZYsu7Flff7yKe3Et42rP+W8W73PMdlhdZVzKX4a9b3lCJcZMs6CBlym2QiywYGsCUz+Wp3JglCyfkMSDRytjZOOaPAddJi9A+vmo0ePzrsP7Y2J3vopzGGCgNZEXFwwcfky7BhmLRmY5NsRridKBMa72UKUSIlsaEoRIX0RVXWWvg8VKF5RnpL4TyHpLCTsBZ8olbhFUQJy4m7A5ZmNp6IcchyJEBJgKrxUZ6npvgLF/VIqwfVSAg6CT5Sj2OZyJTN/nH+HgXFnetRIZ38Z9ZDeHnLcFfWeD5+m+ftt5sNdY8ddke+rGulCid+5qb9lFc/1dmfmPjZqNPM5xxIv7fEJiEFuZr8KAAA=",
+  "bytecode": [
+    "func 0",
+    "current witness index : _6",
+    "private parameters indices : [_0]",
+    "public parameters indices : []",
+    "return value indices : []",
+    "BLACKBOX::RANGE [(_0, 32)] []",
+    "BRILLIG CALL func 0: inputs: [Single(Expression { mul_terms: [], linear_combinations: [(1, Witness(0))], q_c: 0 }), Single(Expression { mul_terms: [], linear_combinations: [], q_c: 16 })], outputs: [Simple(Witness(1)), Simple(Witness(2))]",
+    "BLACKBOX::RANGE [(_1, 28)] []",
+    "BLACKBOX::RANGE [(_2, 4)] []",
+    "EXPR [ (1, _0) (-16, _1) (-1, _2) 0 ]",
+    "BRILLIG CALL func 0: inputs: [Single(Expression { mul_terms: [], linear_combinations: [(16, Witness(0))], q_c: 0 }), Single(Expression { mul_terms: [], linear_combinations: [], q_c: 4294967296 })], outputs: [Simple(Witness(3)), Simple(Witness(4))]",
+    "BLACKBOX::RANGE [(_3, 4)] []",
+    "BLACKBOX::RANGE [(_4, 32)] []",
+    "EXPR [ (16, _0) (-4294967296, _3) (-1, _4) 0 ]",
+    "BRILLIG CALL func 0: inputs: [Single(Expression { mul_terms: [], linear_combinations: [(1, Witness(4))], q_c: 0 }), Single(Expression { mul_terms: [], linear_combinations: [], q_c: 256 })], outputs: [Simple(Witness(5)), Simple(Witness(6))]",
+    "BLACKBOX::RANGE [(_5, 24)] []",
+    "BLACKBOX::RANGE [(_6, 8)] []",
+    "EXPR [ (1, _4) (-256, _5) (-1, _6) 0 ]",
+    "EXPR [ (1, _1) (-1, _5) 0 ]",
+    "unconstrained func 0",
+    "[Const { destination: Direct(10), bit_size: Integer(U32), value: 2 }, Const { destination: Direct(11), bit_size: Integer(U32), value: 0 }, CalldataCopy { destination_address: Direct(0), size_address: Direct(10), offset_address: Direct(11) }, BinaryFieldOp { destination: Direct(2), op: IntegerDiv, lhs: Direct(0), rhs: Direct(1) }, BinaryFieldOp { destination: Direct(1), op: Mul, lhs: Direct(2), rhs: Direct(1) }, BinaryFieldOp { destination: Direct(1), op: Sub, lhs: Direct(0), rhs: Direct(1) }, Mov { destination: Direct(0), source: Direct(2) }, Stop { return_data: HeapVector { pointer: Direct(11), size: Direct(10) } }]"
+  ],
   "debug_symbols": "nZJNCoMwEIXvMussTKq19SqlSNSxBEKUNCkU8e4dx9rahVDcvJf5+cKQyQANVvFWGtd2dyguA1TeWGtupe1qHUznKDuMApawDB6RUrCqE9Vrjy5A4aK1Ah7aRm6699qxB+2pmghA15DTha2xOJ1G8aWTbVQq+Yalyj949j+ffvh0F3/MFj6Xu/hkg79SpGvjf14cJDUKUKwH1pQ1g0IJOLLmrCfWMxQHATKZTc6mZiM+HafRvNGVxfdG2+jq1YLDs18qyxfofVdjEz1Oo3GNhn0B",
   "file_map": {
     "50": {

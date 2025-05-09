@@ -33,7 +33,31 @@ expression: artifact
       }
     }
   },
-  "bytecode": "H4sIAAAAAAAA/9VWMU7EMBB0nIRzaEAiKfgBpR0nF7s7hBDvSHRJzycQNeIPUPIKCij4ACXfQCIGGy0muiZrKTeStVbWGs96o9FG5AfZuI7tPhpXbKMBG1cCcj7ct42NfB4E5JJ8XVV9U/ZCipaXulM1r+purYQStaq3pZKyV5VqdKcbrkUlezHUWvbDN5poQmcQwYaTerwY4rE0UgRdgyUL9YZ0gnfuG1I8jUHrpqi8w4DZ7xjxDaG5mLi/5qIE1JuEFJwQbHNRIkHUmJLlm0tKsM1F/ambz0SAuiV23a5HBySMIRjePZ42Wqh3FVKwIUeeNtoVokZGlm8IjKBPGy0jy582GP6/ozH7nZEw5pKBnu8yGIcY7FMbi4/z0+uXh0t47tDG1/u358fbdgtzRzZefL5fPd3dnBHv3syLBcgjTl3C8edh+Pmv2QEUYJ97dVKQ2yBpcHyubyn5D+rl3Fnm6Yvw9QlfSzxxl8OJjTn45t7zC9KIVyazDwAA",
+  "bytecode": [
+    "func 0",
+    "current witness index : _9",
+    "private parameters indices : [_0]",
+    "public parameters indices : []",
+    "return value indices : []",
+    "BLACKBOX::RANGE [(_0, 8)] []",
+    "BRILLIG CALL func 0: inputs: [Single(Expression { mul_terms: [], linear_combinations: [(1, Witness(0))], q_c: -10 })], outputs: [Simple(Witness(1))]",
+    "EXPR [ (1, _0, _1) (-10, _1) (1, _2) -1 ]",
+    "EXPR [ (1, _0, _2) (-10, _2) 0 ]",
+    "EXPR [ (1, _0, _2) (255, _2) (-1, _3) 0 ]",
+    "BLACKBOX::RANGE [(_3, 8)] []",
+    "BRILLIG CALL func 0: inputs: [Single(Expression { mul_terms: [], linear_combinations: [(1, Witness(0))], q_c: -128 })], outputs: [Simple(Witness(4))]",
+    "EXPR [ (1, _0, _4) (-128, _4) (1, _5) -1 ]",
+    "EXPR [ (1, _0, _5) (-128, _5) 0 ]",
+    "EXPR [ (3, _0, _5) (-1, _6) 0 ]",
+    "BLACKBOX::RANGE [(_6, 8)] []",
+    "BRILLIG CALL func 0: inputs: [Single(Expression { mul_terms: [], linear_combinations: [(1, Witness(0))], q_c: -7 })], outputs: [Simple(Witness(7))]",
+    "EXPR [ (1, _0, _7) (-7, _7) (1, _8) -1 ]",
+    "EXPR [ (1, _0, _8) (-7, _8) 0 ]",
+    "EXPR [ (1, _0, _8) (-8, _8) (-1, _9) 0 ]",
+    "BLACKBOX::RANGE [(_9, 8)] []",
+    "unconstrained func 0",
+    "[Const { destination: Direct(21), bit_size: Integer(U32), value: 1 }, Const { destination: Direct(20), bit_size: Integer(U32), value: 0 }, CalldataCopy { destination_address: Direct(0), size_address: Direct(21), offset_address: Direct(20) }, Const { destination: Direct(2), bit_size: Field, value: 0 }, BinaryFieldOp { destination: Direct(3), op: Equals, lhs: Direct(0), rhs: Direct(2) }, JumpIf { condition: Direct(3), location: 8 }, Const { destination: Direct(1), bit_size: Field, value: 1 }, BinaryFieldOp { destination: Direct(0), op: Div, lhs: Direct(1), rhs: Direct(0) }, Stop { return_data: HeapVector { pointer: Direct(20), size: Direct(21) } }]"
+  ],
   "debug_symbols": "nZLBioMwEIbfZc45OLFq46ssi0QdSyBESZPCIn33HWOzbQ8Lxcv/J5l8wwwzK4zUx0tn3DRfof1aoffGWnPp7DzoYGbHr+tdQL52wRPxE7zEmVq0JxegddFaATdtY/p0XbRLHrTnaCGA3MjOCSdjaTvdxZMu/kdV+WCxeNLVxzgiZh7PR/jmj2/UEV7l3lFVB3iJmZdYH+Flk/lSvvHffNOD8W8DB+RCBcikZdITowKqpDW0PI4m6TmpgvYkAIvdmK7Y5G7lbpygZuMMWwM37Y3uLT3Wa4pueNm28LPkSN7Hxc8DjdHTVmiKcem/",
   "file_map": {
     "50": {

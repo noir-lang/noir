@@ -47,7 +47,27 @@ expression: artifact
       }
     }
   },
-  "bytecode": "H4sIAAAAAAAA/7VUS04EIRAFmu7RGV0ZF+48AsVnGna68CDTmZ69t/AA3kFP4kIXXsKDOMYiqSDOJNPVLyEPCngpXgFS/KLbtwvsy31rkH9wW8RkJaYwRtEg3yGbaQBOLUm0nFl7P/Z2BAcbY9MQg/FhWEeIEGLY2ujcGH3s05B6k8C7EXYhuR2KNXx5GeppU/FUFZ5OzV0xesrpw6Ezm2mIitE/PVPtNdZeFx5QSOa7wHAWQE6VdLm0DfWiRe6yIdnAThz/kDgNO1HLoha0jHl1MxWS+8K1gvfx6KLOOefa46GxvO/66/7m8f3lga5bIH88f769Pm22pRdnyOfISzLP+CHarL+aR98sxF8sSX8l6v7pyj75z1gVfGhtGaexy8pc1rxCpvnmc3wDWqiISu0IAAA=",
+  "bytecode": [
+    "func 0",
+    "current witness index : _6",
+    "private parameters indices : [_0, _1, _2]",
+    "public parameters indices : []",
+    "return value indices : []",
+    "BLACKBOX::RANGE [(_0, 32)] []",
+    "BLACKBOX::RANGE [(_1, 32)] []",
+    "BLACKBOX::RANGE [(_2, 32)] []",
+    "EXPR [ (1, _0) (1, _1) (-1, _3) 0 ]",
+    "BLACKBOX::RANGE [(_3, 32)] []",
+    "EXPR [ (-1, _2) (1, _3) 0 ]",
+    "EXPR [ (8, _2) (-1, _4) 0 ]",
+    "BLACKBOX::RANGE [(_4, 32)] []",
+    "BRILLIG CALL func 0: inputs: [Single(Expression { mul_terms: [], linear_combinations: [(-1, Witness(4))], q_c: 4294967305 }), Single(Expression { mul_terms: [], linear_combinations: [], q_c: 4294967296 })], outputs: [Simple(Witness(5)), Simple(Witness(6))]",
+    "BLACKBOX::RANGE [(_6, 32)] []",
+    "EXPR [ (-1, _4) (-4294967296, _5) (-1, _6) 4294967305 ]",
+    "EXPR [ (-1, _5) 0 ]",
+    "unconstrained func 0",
+    "[Const { destination: Direct(10), bit_size: Integer(U32), value: 2 }, Const { destination: Direct(11), bit_size: Integer(U32), value: 0 }, CalldataCopy { destination_address: Direct(0), size_address: Direct(10), offset_address: Direct(11) }, BinaryFieldOp { destination: Direct(2), op: IntegerDiv, lhs: Direct(0), rhs: Direct(1) }, BinaryFieldOp { destination: Direct(1), op: Mul, lhs: Direct(2), rhs: Direct(1) }, BinaryFieldOp { destination: Direct(1), op: Sub, lhs: Direct(0), rhs: Direct(1) }, Mov { destination: Direct(0), source: Direct(2) }, Stop { return_data: HeapVector { pointer: Direct(11), size: Direct(10) } }]"
+  ],
   "debug_symbols": "nZHBDoMgDIbfpWcOMnQ6XmVZDGpdSAgaBksW47uvMtnmYcnipT/t348UOkGHTbjW2vbDDeR5gsZpY/S1NkOrvB4sVaeZQUpr7xCpBF8+UaNyaD1IG4xhcFcmxKbbqGxUrxy5GQO0HSld2GuDy2lmHzr7jZbVylb5Gy7+pk/lSvNM7MA554nn5R5epJdzUWz4C2Wq1W7z3SCokUEeYwHywOAIUjAoY6xA5gxOMfLsJZxkXgZwWjUG16X1wbZfO/SPMTlpy6MbWuyCw2WA6NFITw==",
   "file_map": {
     "50": {
