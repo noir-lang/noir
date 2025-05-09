@@ -244,7 +244,6 @@ impl Context {
 
     /// Generate random function body.
     fn gen_function(&mut self, u: &mut Unstructured, id: FuncId) -> arbitrary::Result<()> {
-        println!("gen_function");
         self.gen_function_with_body(u, id, |u, fctx| fctx.gen_body(u))
     }
 
