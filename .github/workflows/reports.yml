@@ -751,9 +751,11 @@ jobs:
         - name: Report overall success
           run: |
             if [[ $FAIL == true ]]; then
-                exit 1
-            else
+                echo "Expected reports-end to fail but it didn't. Please update the workflow to assert that the command now does not fail."
                 exit 0
+            else
+                echo "This step is currently expected to fail."
+                exit 1
             fi
           env:
             # We treat any skipped or failing jobs as a failure for the workflow as a whole.

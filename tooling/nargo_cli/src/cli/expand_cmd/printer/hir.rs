@@ -1,6 +1,6 @@
 use noirc_frontend::{
     NamedGeneric, Type, TypeBindings,
-    ast::UnaryOp,
+    ast::{ItemVisibility, UnaryOp},
     hir::def_map::ModuleDefId,
     hir_def::{
         expr::{
@@ -288,7 +288,7 @@ impl ItemPrinter<'_, '_, '_> {
                             self.push('{');
                             self.show_separated_by_comma(
                                 &case.arguments.into_iter().zip(fields).collect::<Vec<_>>(),
-                                |this, (argument, (name, _))| {
+                                |this, (argument, (name, _, _))| {
                                     this.push_str(name);
                                     this.push_str(": ");
                                     this.show_definition_id(*argument);
@@ -895,7 +895,7 @@ fn hir_expression_needs_parentheses(hir_expr: &HirExpression) -> bool {
     }
 }
 
-fn get_type_fields(typ: &Type) -> Option<Vec<(String, Type)>> {
+fn get_type_fields(typ: &Type) -> Option<Vec<(String, Type, ItemVisibility)>> {
     match typ.follow_bindings() {
         Type::DataType(data_type, generics) => {
             let data_type = data_type.borrow();
