@@ -7699,9 +7699,9 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@noir-lang/noir_wasm_executor@workspace:tooling/noir_wasm_executor":
+"@noir-lang/noir_wasm_executor@workspace:benchmarks/noir_wasm_executor":
   version: 0.0.0-use.local
-  resolution: "@noir-lang/noir_wasm_executor@workspace:tooling/noir_wasm_executor"
+  resolution: "@noir-lang/noir_wasm_executor@workspace:benchmarks/noir_wasm_executor"
   dependencies:
     "@noir-lang/noir_js": "workspace:*"
     "@types/node": "npm:^22.13.10"
