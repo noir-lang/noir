@@ -382,7 +382,7 @@ impl<'a> TestRunner<'a> {
                             &test_result_thread_sender,
                         );
                         // Signal that we've finished processing the standard tests in this thread
-                        standard_tests_finished_thread_sender.send(()).unwrap();
+                        let _ = standard_tests_finished_thread_sender.send(());
                     })
                     .unwrap();
             }
@@ -391,10 +391,15 @@ impl<'a> TestRunner<'a> {
             thread::Builder::new()
                 .stack_size(STACK_SIZE)
                 .spawn_scoped(scope, move || {
+                    let mut standard_tests_threads_finished = 0;
                     // Wait for at least half of the threads to finish processing the standard tests
-                    for _ in 0..max(1, self.num_threads / 2) {
-                        standard_tests_finished_receiver.recv().unwrap();
+                    while let Ok(_) = standard_tests_finished_receiver.recv() {
+                        standard_tests_threads_finished += 1;
+                        if standard_tests_threads_finished >= max(1, self.num_threads / 2) {
+                            break;
+                        }
                     }
+
                     // Process fuzz tests sequentially
                     // Parallelism is handled by the fuzz tests themselves
                     self.process_chunk_of_tests(
