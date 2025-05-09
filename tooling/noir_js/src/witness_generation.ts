@@ -68,19 +68,19 @@ export async function generateWitness(
   compiledProgram: CompiledCircuit,
   inputs: InputMap,
   foreignCallHandler: ForeignCallHandler = defaultForeignCallHandler,
-  logger: Logger,
+  logger?: Logger,
 ): Promise<WitnessStack> {
   // Throws on ABI encoding error
   const abi_encode_timer = new Timer();
   const witnessMap = abiEncode(compiledProgram.abi, inputs);
-  logger.info({ duration: abi_encode_timer.ms() }, 'ABI encoding');
+  logger?.info({ duration: abi_encode_timer.ms() }, 'ABI encoding');
 
   // Execute the circuit to generate the rest of the witnesses and serialize
   // them into a Uint8Array.
   try {
     const witgen_timer = new Timer();
     const solvedWitness = await executeProgram(base64Decode(compiledProgram.bytecode), witnessMap, foreignCallHandler);
-    logger.info({ duration: witgen_timer.ms() }, 'Witness generation');
+    logger?.info({ duration: witgen_timer.ms() }, 'Witness generation');
     return solvedWitness;
   } catch (err) {
     // Typescript types catched errors as unknown or any, so we need to narrow its type to check if it has raw assertion payload.

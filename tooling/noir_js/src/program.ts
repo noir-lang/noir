@@ -2,7 +2,7 @@ import { CompiledCircuit } from '@noir-lang/types';
 import { generateWitness } from './witness_generation.js';
 import initAbi, { abiDecode, InputMap, InputValue } from '@noir-lang/noirc_abi';
 import initACVM, { compressWitnessStack, ForeignCallHandler } from '@noir-lang/acvm_js';
-import pino, { Logger } from 'pino';
+import { Logger } from 'pino';
 import { Timer } from './utils.js';
 
 export class Noir {
@@ -37,7 +37,7 @@ export class Noir {
   async execute(
     inputs: InputMap,
     foreignCallHandler?: ForeignCallHandler,
-    logger: Logger = pino({ name: 'noir_js::execute', level: 'silent' }),
+    logger?: Logger,
   ): Promise<{ witness: Uint8Array; returnValue: InputValue }> {
     const total_timer = new Timer();
 
@@ -48,13 +48,13 @@ export class Noir {
     const abi_decoding_timer = new Timer();
     const main_witness = witness_stack[0].witness;
     const { return_value: returnValue } = abiDecode(this.circuit.abi, main_witness);
-    logger.info({ duration: abi_decoding_timer.ms() }, 'ABI decoding');
+    logger?.info({ duration: abi_decoding_timer.ms() }, 'ABI decoding');
 
     const witness_compression_timer = new Timer();
     const witness = compressWitnessStack(witness_stack);
-    logger.info({ duration: witness_compression_timer.ms() }, 'Witness compression');
+    logger?.info({ duration: witness_compression_timer.ms() }, 'Witness compression');
 
-    logger.info({ duration: total_timer.ms() }, 'Total execution');
+    logger?.info({ duration: total_timer.ms() }, 'Total execution');
 
     return { witness, returnValue };
   }
