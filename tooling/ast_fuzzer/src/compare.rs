@@ -281,8 +281,8 @@ impl CompareComptime {
     }
 }
 
-/// Compare the execution of different SSA representations of equivalent program(s).
-pub struct CompareSsa<P> {
+/// Compare the execution of equivalent programs, compiled in different ways.
+pub struct CompareCompiled<P> {
     pub program: P,
     pub abi: Abi,
     pub input_map: InputMap,
@@ -290,7 +290,7 @@ pub struct CompareSsa<P> {
     pub ssa2: CompareArtifact,
 }
 
-impl<P> CompareSsa<P> {
+impl<P> CompareCompiled<P> {
     /// Execute the two SSAs and compare the results.
     pub fn exec(&self) -> eyre::Result<CompareResult> {
         let blackbox_solver = Bn254BlackBoxSolver(false);
@@ -323,9 +323,9 @@ impl<P> CompareSsa<P> {
 }
 
 /// Compare the execution the same program compiled in two different ways.
-pub type ComparePasses = CompareSsa<Program>;
+pub type ComparePasses = CompareCompiled<Program>;
 
-impl CompareSsa<Program> {
+impl CompareCompiled<Program> {
     /// Generate a random AST and compile it into SSA in two different ways.
     pub fn arb(
         u: &mut Unstructured,
@@ -353,7 +353,7 @@ impl CompareSsa<Program> {
 }
 
 /// Compare two equivalent variants of the same program, compiled the same way.
-pub type CompareMorph = CompareSsa<(Program, Program)>;
+pub type CompareMorph = CompareCompiled<(Program, Program)>;
 
 impl CompareMorph {
     /// Generate a random AST, a random metamorph of it, then compile both into SSA with the same options.
