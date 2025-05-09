@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1746794077873,
+  "lastUpdate": 1746794081634,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -3705,95 +3705,6 @@ window.BENCHMARK_DATA = {
       }
     ],
     "Compilation Time": [
-      {
-        "commit": {
-          "author": {
-            "email": "aakoshh@gmail.com",
-            "name": "Akosh Farkash",
-            "username": "aakoshh"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "f31449818b82b5c478d784bacf1429570a837e5c",
-          "message": "fix: Return zero and insert an assertion if RHS bit size is over the limit in euclidian division (#8294)",
-          "timestamp": "2025-05-01T15:27:07Z",
-          "tree_id": "741560dc3a0a04a04cb6006f4f4ad9af11238d73",
-          "url": "https://github.com/noir-lang/noir/commit/f31449818b82b5c478d784bacf1429570a837e5c"
-        },
-        "date": 1746114763766,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "regression_4709",
-            "value": 0.698,
-            "unit": "s"
-          },
-          {
-            "name": "ram_blowup_regression",
-            "value": 12.9,
-            "unit": "s"
-          },
-          {
-            "name": "global_var_regression_entry_points",
-            "value": 0.493,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-inner",
-            "value": 2.31,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 6.528,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 1.13,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 16.74,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 13.18,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root-empty",
-            "value": 1.294,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root-single-tx",
-            "value": 118,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 124,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 1.022,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-root",
-            "value": 1.614,
-            "unit": "s"
-          }
-        ]
-      },
       {
         "commit": {
           "author": {
@@ -8151,6 +8062,95 @@ window.BENCHMARK_DATA = {
           {
             "name": "rollup-root",
             "value": 1.586,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "aakoshh@gmail.com",
+            "name": "Akosh Farkash",
+            "username": "aakoshh"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "cf1408a33d829ed2ec787a3306746da007d1d874",
+          "message": "chore(fuzz): Break up the AST fuzzer `compare` module (#8431)",
+          "timestamp": "2025-05-09T12:11:27Z",
+          "tree_id": "a813cda34e02888775555d677cfc85520424c4a4",
+          "url": "https://github.com/noir-lang/noir/commit/cf1408a33d829ed2ec787a3306746da007d1d874"
+        },
+        "date": 1746794072642,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "regression_4709",
+            "value": 0.691,
+            "unit": "s"
+          },
+          {
+            "name": "ram_blowup_regression",
+            "value": 13,
+            "unit": "s"
+          },
+          {
+            "name": "global_var_regression_entry_points",
+            "value": 0.362,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-inner",
+            "value": 2.536,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 6.77,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 1.342,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 17.38,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 14.08,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-empty",
+            "value": 1.27,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-single-tx",
+            "value": 124,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 126,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 1.066,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-root",
+            "value": 1.668,
             "unit": "s"
           }
         ]
