@@ -1,0 +1,135 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: artifact
+---
+{
+  "noir_version": "[noir_version]",
+  "hash": "[hash]",
+  "abi": {
+    "parameters": [
+      {
+        "name": "a",
+        "type": {
+          "kind": "boolean"
+        },
+        "visibility": "private"
+      },
+      {
+        "name": "b",
+        "type": {
+          "kind": "tuple",
+          "fields": [
+            {
+              "kind": "array",
+              "length": 2,
+              "type": {
+                "kind": "boolean"
+              }
+            },
+            {
+              "kind": "array",
+              "length": 2,
+              "type": {
+                "kind": "boolean"
+              }
+            },
+            {
+              "kind": "string",
+              "length": 2
+            },
+            {
+              "kind": "tuple",
+              "fields": [
+                {
+                  "kind": "integer",
+                  "sign": "unsigned",
+                  "width": 16
+                },
+                {
+                  "kind": "integer",
+                  "sign": "unsigned",
+                  "width": 16
+                }
+              ]
+            },
+            {
+              "kind": "integer",
+              "sign": "unsigned",
+              "width": 16
+            }
+          ]
+        },
+        "visibility": "private"
+      },
+      {
+        "name": "c",
+        "type": {
+          "kind": "tuple",
+          "fields": [
+            {
+              "kind": "tuple",
+              "fields": [
+                {
+                  "kind": "field"
+                },
+                {
+                  "kind": "string",
+                  "length": 0
+                },
+                {
+                  "kind": "boolean"
+                },
+                {
+                  "kind": "boolean"
+                }
+              ]
+            },
+            {
+              "kind": "tuple",
+              "fields": [
+                {
+                  "kind": "integer",
+                  "sign": "unsigned",
+                  "width": 16
+                },
+                {
+                  "kind": "string",
+                  "length": 2
+                }
+              ]
+            }
+          ]
+        },
+        "visibility": "private"
+      }
+    ],
+    "return_type": {
+      "abi_type": {
+        "kind": "integer",
+        "sign": "unsigned",
+        "width": 16
+      },
+      "visibility": "public"
+    },
+    "error_types": {
+      "17843811134343075018": {
+        "error_kind": "string",
+        "string": "Stack too deep"
+      }
+    }
+  },
+  "bytecode": "H4sIAAAAAAAA/+1Z227TQBBd2+ukTpqL4EecJibtWx56b0LTlmcklxIBEkLiCSEe/ALfTUfdwcdjOyLEi7pSRop8Occzs7NnL3Y89WTDx59nzrU59lTZmDMzx3g7GzXoK6bcfMv5eg3maytH37GaBg7UVDtW09CBmrYs5Ggjz7Yjee45kmfkSJ4d1eyYr7Kmc+46Utt9R/LsKbfm/b56/vP+QNkZV8PSiUmeik6bDFrEaWGkhYcmdZowaTKigU4Dh0RJHU5FHAgfVX7JfpljZI4+4A1ubEaRiNuk/8M4SSJVtIbzH0fGZ9+K/1HM/gd28o/bxs9xlvvHtnDcQPDkM8g5Ac5JDecUOKc1nDPgnNVwzoFzXsO5AM4FcDzgXALnsoZzBZwr4PjAmQNnXsNZAGdRw7kGzjVwFHCWwFnWcG6Ac1MT6xY4t8DBtt8B505wenDOdmw4EcRTqunxPUksj48Dblsf2sbt5NhDO7HHnoinVN4fiHH8jrI5Fz19JMB4nI+sD/c1f2gJsjwfiems3A7GQsC4f2ltews8qS3OI1JF/Tasu+lOd27pLhCYzsrt2FR3WBOpO22hFo+6O9rpzi3dyY/OOiu3Y1Pdobb6AgtVbrxHYawF2FxgbcAWAtsD7LXBWAu4f29Q5yvb+951Ov8bHZJxv7ugw0hgGrB/1SH2vdRhR+XG+1fGuoAtBbYPGO9XWQs9iNfgO+LBbk51a07tCUxn5XZsqmXUVh94H+H8k/D9Jsufkf1p530nmdjc11L/vKzJX0Eb25n6Y4wFcI9rznXaQ77AIsB0VozTMdca4qAvziMU/A/mmvu7Bc/w88OK+C0Rv5B3xT2skfQVVNxjPq3DqTnvmh/pi6mhKs6h3+G5z4LDsb8C5wvHFhzu15m5jrewo8mr+6r3Lw/y+PYf8ljdv0/Yt4ba+6q455Hxca/kA1+v4Qcif+mf/VXVJaioi1wX8Bni/VjDCyt4nvCBdWgDp1/TLqyDv4Yv+1H6Z3+ka94j6KyIz8z9eAubHuYfynleCSE+mgYc+T/NdQfy5+M2f46vpuloNU5XaZI+PEzepS+Ef6XyGlOdfgN3tSDbsSIAAA==",
+  "debug_symbols": "jZDNqsMgEIXfZdYu/In33uZVSggmmRRBTLB6oQTfvWNr+rModOOnczxn4Gww4ZBOvfXzcob2uMEQrHP21LtlNNEunqYb8HII0UArGFFX/lT+3ilJl4W6knSZM4M9q48BsUS9hNPK1QT0EVqfnGPwb1y6fTqvxt8YTSCVM0A/ESlwtg7LLbOnm3+2yoOsZsX1w66/9gu9L1eKv/k7epnRhre6ckkK1gwO63NOfnxR42Xdlb3uNSwjTilgSXp2rqigQ8MEbzoqlEZHIf+YUKrLZfkV",
+  "file_map": {
+    "50": {
+      "source": "fn main(\n    a: bool,\n    b: ([bool; 2], [bool; 2], str<2>, (u16, u16), u16),\n    c: ((Field, str<0>, bool, bool), (u16, str<2>)),\n) -> pub u16 {\n    b.4\n        % if c.0.2 {\n            b.3.0\n        } else {\n            if (!a) {\n                37995\n            } else {\n                (b.3.1 % 64485)\n            }\n        }\n}\n",
+      "path": ""
+    }
+  },
+  "names": [
+    "main"
+  ],
+  "brillig_names": [
+    "main"
+  ]
+}
