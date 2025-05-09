@@ -115,6 +115,7 @@ fn main() {
         .collect::<Vec<_>>();
 
     let compile_options = CompileOptions {
+        // Keep this up to date with whatever features are required by the integration tests.
         unstable_features: vec![UnstableFeature::Enums],
         silence_warnings: true,
         ..Default::default()
@@ -162,14 +163,19 @@ fn main() {
             let ssa_passes = primary_passes(&ssa_options);
 
             for package in binary_packages {
-                let Ok((Some(program), _)) = compile_into_program(
+                let program = match compile_into_program(
                     &file_manager,
                     &parsed_files,
                     &workspace,
                     package,
                     &compile_options,
-                ) else {
-                    continue;
+                ) {
+                    Ok((Some(program), _)) => program,
+                    Ok((None, _)) => continue,
+                    Err(_) => {
+                        eprintln!("failed to compile {}", package.name);
+                        continue;
+                    }
                 };
 
                 let package_pairs = collect_ssa_before_and_after(
