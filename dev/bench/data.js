@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1746748638481,
+  "lastUpdate": 1746748850450,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -8160,70 +8160,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "jfecher11@gmail.com",
-            "name": "jfecher",
-            "username": "jfecher"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "dc84c5de1c63e722f7188b6b9c3340c2d9890167",
-          "message": "feat(testing): Add SSA interpreter for testing SSA (#8115)\n\nCo-authored-by: Jake Fecher <jake@aztecprotocol.com>\nCo-authored-by: Akosh Farkash <aakoshh@gmail.com>",
-          "timestamp": "2025-05-01T14:06:41Z",
-          "tree_id": "fb255b0ef7c16cfbf0e3bb58568fcbe122b905b0",
-          "url": "https://github.com/noir-lang/noir/commit/dc84c5de1c63e722f7188b6b9c3340c2d9890167"
-        },
-        "date": 1746109829490,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 0.031,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 0.163,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 0.016,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 0.332,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 0.216,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 11.1,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 0.004,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-root",
-            "value": 0.013,
-            "unit": "s"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "15848336+TomAFrench@users.noreply.github.com",
             "name": "Tom French",
             "username": "TomAFrench"
@@ -11343,6 +11279,70 @@ window.BENCHMARK_DATA = {
           {
             "name": "rollup-block-root",
             "value": 11.6,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 0.004,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-root",
+            "value": 0.013,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "asterite@gmail.com",
+            "name": "Ary Borenszweig",
+            "username": "asterite"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "aceb4fc3e2f12a4914c7f9719cad0b99119dcebd",
+          "message": "fix!: error on tuple mismatch (#8424)\n\nCo-authored-by: Tom French <15848336+TomAFrench@users.noreply.github.com>",
+          "timestamp": "2025-05-08T23:38:04Z",
+          "tree_id": "fb4ae7853cbaa5ee44b64a7ba185788f1baf2aa6",
+          "url": "https://github.com/noir-lang/noir/commit/aceb4fc3e2f12a4914c7f9719cad0b99119dcebd"
+        },
+        "date": 1746748842578,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 0.028,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 0.161,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 0.016,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 0.332,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 0.211,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 11.3,
             "unit": "s"
           },
           {
