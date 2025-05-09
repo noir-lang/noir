@@ -422,6 +422,7 @@ impl<'interner> Monomorphizer<'interner> {
 
     /// Monomorphize each parameter, expanding tuple/struct patterns into multiple parameters
     /// and binding any generic types found.
+    #[allow(clippy::type_complexity)]
     fn parameters(
         &mut self,
         params: &Parameters,
@@ -451,7 +452,7 @@ impl<'interner> Monomorphizer<'interner> {
                 self.define_local(ident.id, new_id);
             }
             HirPattern::Mutable(pattern, _) => {
-                self.parameter(pattern, typ, visibility, new_params)?
+                self.parameter(pattern, typ, visibility, new_params)?;
             }
             HirPattern::Tuple(fields, _) => {
                 let tuple_field_types = unwrap_tuple_type(typ);
