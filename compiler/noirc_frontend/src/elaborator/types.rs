@@ -56,17 +56,26 @@ pub(super) struct TraitPathResolution {
 
 impl Elaborator<'_> {
     pub(crate) fn resolve_type(&mut self, typ: UnresolvedType) -> Type {
-        self.resolve_type_inner(typ, PathResolutionMode::MarkAsReferenced)
+        self.resolve_type_inner(typ, &Kind::Normal, PathResolutionMode::MarkAsReferenced)
     }
 
     pub(crate) fn use_type(&mut self, typ: UnresolvedType) -> Type {
-        self.resolve_type_inner(typ, PathResolutionMode::MarkAsUsed)
+        self.use_type_with_kind(typ, &Kind::Normal)
+    }
+
+    pub(crate) fn use_type_with_kind(&mut self, typ: UnresolvedType, kind: &Kind) -> Type {
+        self.resolve_type_inner(typ, &kind, PathResolutionMode::MarkAsUsed)
     }
 
     /// Translates an UnresolvedType to a Type with a `TypeKind::Normal`
-    fn resolve_type_inner(&mut self, typ: UnresolvedType, mode: PathResolutionMode) -> Type {
+    fn resolve_type_inner(
+        &mut self,
+        typ: UnresolvedType,
+        kind: &Kind,
+        mode: PathResolutionMode,
+    ) -> Type {
         let location = typ.location;
-        let resolved_type = self.resolve_type_with_kind_inner(typ, &Kind::Normal, mode);
+        let resolved_type = self.resolve_type_with_kind_inner(typ, &kind, mode);
         if resolved_type.is_nested_slice() {
             self.push_err(ResolverError::NestedSlices { location });
         }
@@ -211,17 +220,7 @@ impl Elaborator<'_> {
             _ => (),
         }
 
-        if !kind.unifies(&resolved_type.kind()) {
-            let expected_typ_err = CompilationError::TypeError(TypeCheckError::TypeKindMismatch {
-                expected_kind: kind.clone(),
-                expr_kind: resolved_type.kind(),
-                expr_location: location,
-            });
-            self.push_err(expected_typ_err);
-            return Type::Error;
-        }
-
-        resolved_type
+        self.check_kind(resolved_type, kind, location)
     }
 
     pub fn find_generic(&self, target_name: &str) -> Option<&ResolvedGeneric> {
@@ -625,7 +624,12 @@ impl Elaborator<'_> {
         }
     }
 
-    fn check_kind(&mut self, typ: Type, expected_kind: &Kind, location: Location) -> Type {
+    pub(super) fn check_kind(
+        &mut self,
+        typ: Type,
+        expected_kind: &Kind,
+        location: Location,
+    ) -> Type {
         if !typ.kind().unifies(expected_kind) {
             self.push_err(TypeCheckError::TypeKindMismatch {
                 expected_kind: expected_kind.clone(),

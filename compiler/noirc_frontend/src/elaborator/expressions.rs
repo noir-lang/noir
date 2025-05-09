@@ -571,8 +571,13 @@ impl Elaborator<'_> {
                         &mut object,
                     );
                     let generics = method_call.generics;
-                    let generics =
-                        generics.map(|generics| vecmap(generics, |generic| self.use_type(generic)));
+                    let generics = generics.map(|generics| {
+                        vecmap(generics, |generic| {
+                            let location = generic.location;
+                            let typ = self.use_type_with_kind(generic, &Kind::Any);
+                            Located::from(location, typ)
+                        })
+                    });
                     self.resolve_function_turbofish_generics(&func_id, generics, location)
                 } else {
                     None

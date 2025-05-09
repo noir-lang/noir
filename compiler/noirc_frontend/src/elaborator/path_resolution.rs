@@ -75,7 +75,7 @@ impl PathResolutionItem {
 
 #[derive(Debug, Clone)]
 pub struct Turbofish {
-    pub generics: Vec<Type>,
+    pub generics: Vec<Located<Type>>,
     pub location: Location,
 }
 
@@ -232,7 +232,7 @@ impl std::fmt::Display for TypedPath {
 #[derive(Debug, PartialEq, Eq, Clone, Hash)]
 pub struct TypedPathSegment {
     pub ident: Ident,
-    pub generics: Option<Vec<Type>>,
+    pub generics: Option<Vec<Located<Type>>>,
     pub location: Location,
 }
 
@@ -270,7 +270,7 @@ impl std::fmt::Display for TypedPathSegment {
         self.ident.fmt(f)?;
 
         if let Some(generics) = &self.generics {
-            let generics = vecmap(generics, ToString::to_string);
+            let generics = vecmap(generics, |generic| generic.contents.to_string());
             write!(f, "::<{}>", generics.join(", "))?;
         }
 

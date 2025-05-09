@@ -1,5 +1,5 @@
 use iter_extended::vecmap;
-use noirc_errors::Location;
+use noirc_errors::{Located, Location};
 use rustc_hash::FxHashSet as HashSet;
 
 use crate::{
@@ -438,7 +438,7 @@ impl Elaborator<'_> {
     pub(super) fn resolve_function_turbofish_generics(
         &mut self,
         func_id: &FuncId,
-        resolved_turbofish: Option<Vec<Type>>,
+        resolved_turbofish: Option<Vec<Located<Type>>>,
         location: Location,
     ) -> Option<Vec<Type>> {
         let direct_generic_kinds =
@@ -462,7 +462,7 @@ impl Elaborator<'_> {
         &mut self,
         struct_type: &DataType,
         generics: Vec<Type>,
-        resolved_turbofish: Option<Vec<Type>>,
+        resolved_turbofish: Option<Vec<Located<Type>>>,
         location: Location,
     ) -> Vec<Type> {
         let kinds = vecmap(&struct_type.generics, |generic| generic.kind());
@@ -481,7 +481,7 @@ impl Elaborator<'_> {
         trait_name: &str,
         trait_generic_kinds: Vec<Kind>,
         generics: Vec<Type>,
-        resolved_turbofish: Option<Vec<Type>>,
+        resolved_turbofish: Option<Vec<Located<Type>>>,
         location: Location,
     ) -> Vec<Type> {
         self.resolve_item_turbofish_generics(
@@ -498,7 +498,7 @@ impl Elaborator<'_> {
         &mut self,
         type_alias: &TypeAlias,
         generics: Vec<Type>,
-        resolved_turbofish: Option<Vec<Type>>,
+        resolved_turbofish: Option<Vec<Located<Type>>>,
         location: Location,
     ) -> Vec<Type> {
         let kinds = vecmap(&type_alias.generics, |generic| generic.kind());
@@ -518,7 +518,7 @@ impl Elaborator<'_> {
         item_name: &str,
         item_generic_kinds: Vec<Kind>,
         generics: Vec<Type>,
-        resolved_turbofish: Option<Vec<Type>>,
+        resolved_turbofish: Option<Vec<Located<Type>>>,
         location: Location,
     ) -> Vec<Type> {
         let Some(turbofish_generics) = resolved_turbofish else {
@@ -541,23 +541,13 @@ impl Elaborator<'_> {
     pub(super) fn resolve_turbofish_generics(
         &mut self,
         kinds: Vec<Kind>,
-        turbofish_generics: Vec<Type>,
+        turbofish_generics: Vec<Located<Type>>,
     ) -> Vec<Type> {
         let kinds_with_types = kinds.into_iter().zip(turbofish_generics);
-        vecmap(kinds_with_types, |(kind, typ)| {
-            let typ_kind = typ.kind();
-            if !kind.unifies(&typ_kind) {
-                let expected_typ_err =
-                    CompilationError::TypeError(TypeCheckError::TypeKindMismatch {
-                        expected_kind: kind.clone(),
-                        expr_kind: typ_kind,
-                        expr_location: Location::dummy(), // TODO
-                    });
-                self.push_err(expected_typ_err);
-                Type::Error
-            } else {
-                typ
-            }
+
+        vecmap(kinds_with_types, |(kind, located_type)| {
+            let location = located_type.location();
+            self.check_kind(located_type.contents, &kind, location)
         })
     }
 
@@ -648,8 +638,13 @@ impl Elaborator<'_> {
     }
 
     fn validate_path_segment(&mut self, segment: PathSegment) -> TypedPathSegment {
-        let generics =
-            segment.generics.map(|generics| vecmap(generics, |generic| self.use_type(generic)));
+        let generics = segment.generics.map(|generics| {
+            vecmap(generics, |generic| {
+                let location = generic.location;
+                let typ = self.use_type_with_kind(generic, &Kind::Any);
+                Located::from(location, typ)
+            })
+        });
         TypedPathSegment { ident: segment.ident, generics, location: segment.location }
     }
 
