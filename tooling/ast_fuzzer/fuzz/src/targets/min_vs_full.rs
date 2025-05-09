@@ -6,7 +6,7 @@ use crate::{
 };
 use arbitrary::{Arbitrary, Unstructured};
 use color_eyre::eyre;
-use noir_ast_fuzzer::compare::{CompareOptions, ComparePasses};
+use noir_ast_fuzzer::compare::{CompareOptions, ComparePipelines};
 use noir_ast_fuzzer::{
     Config, compare::CompareResult, rewrite::change_all_functions_into_unconstrained,
 };
@@ -23,7 +23,7 @@ pub fn fuzz(u: &mut Unstructured) -> eyre::Result<()> {
         ..Default::default()
     };
 
-    let inputs = ComparePasses::arb(
+    let inputs = ComparePipelines::arb(
         u,
         config,
         |_u, program| {
@@ -64,7 +64,7 @@ mod tests {
     /// ```ignore
     /// NOIR_ARBTEST_SEED=0x6819c61400001000 \
     /// NOIR_AST_FUZZER_SHOW_AST=1 \
-    /// cargo test -p noir_ast_fuzzer_fuzz init_vs_final
+    /// cargo test -p noir_ast_fuzzer_fuzz min_vs_full
     /// ```
     #[test]
     fn fuzz_with_arbtest() {

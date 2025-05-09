@@ -31,6 +31,8 @@ use crate::{
     },
 };
 
+mod intrinsics;
+
 fn build_basic_foo_with_return(
     builder: &mut FunctionBuilder,
     foo_id: FunctionId,
