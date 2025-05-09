@@ -17,38 +17,93 @@ pub(crate) struct Argument {
 #[derive(Arbitrary, Debug, Clone, Copy)]
 pub(crate) enum Instruction {
     /// Addition of two values
-    AddChecked { lhs: Argument, rhs: Argument },
+    AddChecked {
+        lhs: Argument,
+        rhs: Argument,
+    },
     /// Subtraction of two values
-    SubChecked { lhs: Argument, rhs: Argument },
+    SubChecked {
+        lhs: Argument,
+        rhs: Argument,
+    },
     /// Multiplication of two values
-    MulChecked { lhs: Argument, rhs: Argument },
+    MulChecked {
+        lhs: Argument,
+        rhs: Argument,
+    },
     /// Division of two values
-    Div { lhs: Argument, rhs: Argument },
+    Div {
+        lhs: Argument,
+        rhs: Argument,
+    },
     /// Equality comparison
-    Eq { lhs: Argument, rhs: Argument },
+    Eq {
+        lhs: Argument,
+        rhs: Argument,
+    },
     /// Modulo operation
-    Mod { lhs: Argument, rhs: Argument },
+    Mod {
+        lhs: Argument,
+        rhs: Argument,
+    },
     /// Bitwise NOT
-    Not { lhs: Argument },
+    Not {
+        lhs: Argument,
+    },
     /// Left shift
-    Shl { lhs: Argument, rhs: Argument },
+    Shl {
+        lhs: Argument,
+        rhs: Argument,
+    },
     /// Right shift
-    Shr { lhs: Argument, rhs: Argument },
+    Shr {
+        lhs: Argument,
+        rhs: Argument,
+    },
     /// Cast into type
-    Cast { lhs: Argument, type_: ValueType },
+    Cast {
+        lhs: Argument,
+        type_: ValueType,
+    },
     /// Bitwise AND
-    And { lhs: Argument, rhs: Argument },
+    And {
+        lhs: Argument,
+        rhs: Argument,
+    },
     /// Bitwise OR
-    Or { lhs: Argument, rhs: Argument },
+    Or {
+        lhs: Argument,
+        rhs: Argument,
+    },
     /// Bitwise XOR
-    Xor { lhs: Argument, rhs: Argument },
+    Xor {
+        lhs: Argument,
+        rhs: Argument,
+    },
 
     /// constrain(lhs == lhs + rhs - rhs), doesn't insert constraint if idempotent_morphing_enabled=false
     /// uses only fields variables
-    AddSubConstrain { lhs: usize, rhs: usize },
+    AddSubConstrain {
+        lhs: usize,
+        rhs: usize,
+    },
     /// constrain(lhs == lhs * rhs / rhs), doesn't insert constraint if idempotent_morphing_enabled=false
     /// uses only fields variables
-    MulDivConstrain { lhs: usize, rhs: usize },
+    MulDivConstrain {
+        lhs: usize,
+        rhs: usize,
+    },
+
+    AddToMemory {
+        lhs: Argument,
+    },
+    LoadFromMemory {
+        memory_addr: usize,
+    },
+    SetToMemory {
+        memory_addr: usize,
+        value: Argument,
+    },
 }
 
 /// Check if two vectors of arguments have the same types

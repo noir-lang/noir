@@ -91,7 +91,7 @@ libfuzzer_sys::fuzz_target!(|data: FuzzerData| {
         types,
         values,
         data.blocks,
-        FuzzerOptions { constant_execution_enabled: false, idempotent_morphing_enabled: true },
+        FuzzerOptions { constant_execution_enabled: false, idempotent_morphing_enabled: false },
     );
     for command in data.commands {
         fuzzer.process_fuzzer_command(command);

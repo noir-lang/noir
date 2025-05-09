@@ -1,6 +1,5 @@
 #![allow(dead_code)]
 use crate::compiler::compile;
-use crate::helpers::{id_to_int, u32_to_id_value};
 use crate::typed_value::{TypedValue, ValueType};
 use acvm::FieldElement;
 use noirc_driver::{CompileOptions, CompiledProgram};
@@ -12,8 +11,8 @@ use noirc_evaluator::ssa::ir::map::Id;
 use noirc_evaluator::ssa::ir::types::{NumericType, Type};
 use noirc_evaluator::ssa::ir::value::Value;
 use noirc_frontend::monomorphization::ast::InlineType as FrontendInlineType;
+use std::collections::HashMap;
 use std::panic::AssertUnwindSafe;
-use std::sync::Arc;
 use thiserror::Error;
 
 #[derive(Debug, Error)]
@@ -36,6 +35,8 @@ pub struct FuzzerBuilder {
     pub(crate) builder: FunctionBuilder,
     pub(crate) numeric_type: NumericType,
     pub(crate) type_: Type,
+    // represents mutable memory, key is type of variable, value is vector of addresses
+    pub(crate) memory: HashMap<ValueType, Vec<Id<Value>>>,
 }
 
 impl FuzzerBuilder {
@@ -48,6 +49,7 @@ impl FuzzerBuilder {
             builder,
             numeric_type: NumericType::NativeField,
             type_: Type::Numeric(NumericType::NativeField),
+            memory: HashMap::new(),
         }
     }
 
@@ -60,6 +62,7 @@ impl FuzzerBuilder {
             builder,
             numeric_type: NumericType::NativeField,
             type_: Type::Numeric(NumericType::NativeField),
+            memory: HashMap::new(),
         }
     }
 
@@ -170,9 +173,7 @@ impl FuzzerBuilder {
 
     /// Inserts a modulo instruction between two values
     pub fn insert_mod_instruction(&mut self, lhs: TypedValue, rhs: TypedValue) -> TypedValue {
-        let mut lhs = lhs;
-        let mut rhs = rhs;
-        let (lhs, mut rhs) = match (lhs.supports_mod(), rhs.supports_mod()) {
+        let (lhs, rhs) = match (lhs.supports_mod(), rhs.supports_mod()) {
             (true, true) => self.balance_arithmetic(lhs, rhs),
             (true, false) => self.balance_arithmetic(lhs, rhs),
             (false, true) => self.balance_arithmetic(rhs, lhs),
@@ -387,5 +388,21 @@ impl FuzzerBuilder {
         else_destination: BasicBlockId,
     ) {
         self.builder.terminate_with_jmpif(condition, then_destination, else_destination);
+    }
+
+    pub fn insert_add_to_memory(&mut self, lhs: TypedValue) -> TypedValue {
+        let memory_address = self.builder.insert_allocate(lhs.type_of_variable.clone());
+        self.builder.insert_store(memory_address, lhs.value_id);
+        TypedValue::new(memory_address, lhs.type_of_variable)
+    }
+
+    pub fn insert_load_from_memory(&mut self, memory_addr: TypedValue) -> TypedValue {
+        let res =
+            self.builder.insert_load(memory_addr.value_id, memory_addr.clone().type_of_variable);
+        TypedValue::new(res, memory_addr.type_of_variable.clone())
+    }
+
+    pub fn insert_set_to_memory(&mut self, memory_addr: TypedValue, value: TypedValue) {
+        self.builder.insert_store(memory_addr.value_id, value.value_id);
     }
 }

@@ -16,6 +16,7 @@ pub enum ValueType {
     I16,
     I32,
     I64,
+    Memory,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -43,6 +44,7 @@ impl TypedValue {
             ValueType::I16 => Type::signed(16),
             ValueType::I32 => Type::signed(32),
             ValueType::I64 => Type::signed(64),
+            ValueType::Memory => unreachable!(),
         };
 
         Self { value_id: Id::new(value_id), type_of_variable: type_ }
@@ -150,6 +152,7 @@ impl ValueType {
             ValueType::I16 => Type::signed(16),
             ValueType::I32 => Type::signed(32),
             ValueType::I64 => Type::signed(64),
+            ValueType::Memory => unreachable!(),
         }
     }
 
@@ -184,6 +187,7 @@ impl ValueType {
             ValueType::I16 => NumericType::Signed { bit_size: 16 },
             ValueType::I32 => NumericType::Signed { bit_size: 32 },
             ValueType::I64 => NumericType::Signed { bit_size: 64 },
+            ValueType::Memory => unreachable!(),
         }
     }
 
@@ -200,6 +204,7 @@ impl ValueType {
             ValueType::I16 => 16,
             ValueType::I32 => 32,
             ValueType::I64 => 64,
+            ValueType::Memory => unreachable!(),
         }
     }
 }

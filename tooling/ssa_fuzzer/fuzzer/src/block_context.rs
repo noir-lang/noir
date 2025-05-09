@@ -1,16 +1,11 @@
 use crate::instruction::{Argument, Instruction};
 use crate::options::SsaBlockOptions;
-use acvm::acir::native_types::Witness;
-use acvm::{FieldElement, acir};
-use libfuzzer_sys::arbitrary;
-use libfuzzer_sys::arbitrary::Arbitrary;
+use acvm::acir;
 use noir_ssa_fuzzer::{
-    builder::{FuzzerBuilder, FuzzerBuilderError, InstructionWithOneArg, InstructionWithTwoArgs},
-    config::NUMBER_OF_VARIABLES_INITIAL,
+    builder::{FuzzerBuilder, InstructionWithOneArg, InstructionWithTwoArgs},
     typed_value::{TypedValue, ValueType},
 };
-use noirc_driver::CompiledProgram;
-use noirc_evaluator::ssa::ir::{basic_block::BasicBlockId, types::Type};
+use noirc_evaluator::ssa::ir::basic_block::BasicBlockId;
 use std::collections::{HashMap, VecDeque};
 
 /// Main context for the ssa block containing both ACIR and Brillig builders and their state
@@ -76,6 +71,9 @@ impl BlockContext {
         arg: Argument,
         instruction: InstructionWithOneArg,
     ) {
+        if arg.value_type == ValueType::Memory {
+            return;
+        }
         let value = get_typed_value_from_map(&self.stored_values, &arg.value_type, arg.index);
         let value = match value {
             Some(value) => value,
@@ -101,6 +99,9 @@ impl BlockContext {
         rhs: Argument,
         instruction: InstructionWithTwoArgs,
     ) {
+        if lhs.value_type == ValueType::Memory || rhs.value_type == ValueType::Memory {
+            return;
+        }
         let instr_lhs = get_typed_value_from_map(&self.stored_values, &lhs.value_type, lhs.index);
         let instr_rhs = get_typed_value_from_map(&self.stored_values, &rhs.value_type, rhs.index);
         let (instr_lhs, instr_rhs) = match (instr_lhs, instr_rhs) {
@@ -173,6 +174,9 @@ impl BlockContext {
                 );
             }
             Instruction::Cast { lhs, type_ } => {
+                if lhs.value_type == ValueType::Memory || type_ == ValueType::Memory {
+                    return;
+                }
                 let value =
                     get_typed_value_from_map(&self.stored_values, &lhs.value_type, lhs.index);
                 let value = match value {
@@ -329,6 +333,63 @@ impl BlockContext {
                 }
                 acir_builder.insert_constrain(lhs_orig.clone(), morphed.clone());
                 brillig_builder.insert_constrain(lhs_orig.clone(), morphed.clone());
+            }
+            Instruction::AddToMemory { lhs } => {
+                return;
+                if lhs.value_type == ValueType::Memory {
+                    return;
+                }
+                let value =
+                    match get_typed_value_from_map(&self.stored_values, &lhs.value_type, lhs.index)
+                    {
+                        Some(value) => value,
+                        _ => return,
+                    };
+                let addr = acir_builder.insert_add_to_memory(value.clone());
+                assert_eq!(
+                    addr.clone().value_id,
+                    brillig_builder.insert_add_to_memory(value.clone()).value_id,
+                    "add to memory differs in ACIR and Brillig"
+                );
+                // Append the memory address to stored_values with Memory type
+                append_typed_value_to_map(&mut self.stored_values, &ValueType::Memory, addr);
+            }
+            Instruction::LoadFromMemory { memory_addr } => {
+                return;
+                let addr =
+                    get_typed_value_from_map(&self.stored_values, &ValueType::Memory, memory_addr);
+                let addr = match addr {
+                    Some(addr) => addr,
+                    _ => return,
+                };
+                let value = acir_builder.insert_load_from_memory(addr.clone());
+                assert_eq!(
+                    value.value_id,
+                    brillig_builder.insert_load_from_memory(addr.clone()).value_id,
+                    "load from memory differs in ACIR and Brillig"
+                );
+                self.last_value = Some(value.clone());
+                append_typed_value_to_map(&mut self.stored_values, &value.to_value_type(), value);
+            }
+            Instruction::SetToMemory { memory_addr, value } => {
+                return;
+                if value.value_type == ValueType::Memory {
+                    return;
+                }
+                let addr =
+                    get_typed_value_from_map(&self.stored_values, &ValueType::Memory, memory_addr);
+                let addr = match addr {
+                    Some(addr) => addr,
+                    _ => return,
+                };
+                let value =
+                    get_typed_value_from_map(&self.stored_values, &value.value_type, value.index);
+                let value = match value {
+                    Some(value) => value,
+                    _ => return,
+                };
+                acir_builder.insert_set_to_memory(addr.clone(), value.clone());
+                brillig_builder.insert_set_to_memory(addr.clone(), value);
             }
         }
     }
