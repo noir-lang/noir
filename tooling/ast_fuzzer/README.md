@@ -19,7 +19,8 @@ To run the fuzzer, pick one of the available targets:
 $ cd tooling/ast_fuzzer
 $ cargo fuzz list
 acir_vs_brillig
-init_vs_final
+comptime_vs_brillig
+min_vs_full
 orig_vs_morph
 ```
 
