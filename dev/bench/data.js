@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1746797266373,
+  "lastUpdate": 1746797825178,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -20310,6 +20310,80 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/noir-lang/noir/commit/2114ae222cb19936e1e85f211fdc447e86d0a5a4"
         },
         "date": 1746796132519,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 1110.6,
+            "unit": "KB"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 2034.4,
+            "unit": "KB"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 638.3,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 5181.3,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 3963.2,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-block-root-empty",
+            "value": 257.5,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-block-root-single-tx",
+            "value": 25674.3,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 25708.7,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 179.4,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-root",
+            "value": 470.7,
+            "unit": "KB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "163862677+noirwhal@users.noreply.github.com",
+            "name": "noirwhal",
+            "username": "noirwhal"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "94e839d82c13c90e7f5989e9ab6cea73ab2ba403",
+          "message": "chore: bump external pinned commits (#8433)\n\nCo-authored-by: noirwhal <tomfrench@aztecprotocol.com>\nCo-authored-by: Tom French <15848336+TomAFrench@users.noreply.github.com>",
+          "timestamp": "2025-05-09T13:05:48Z",
+          "tree_id": "5a0956b0ed40f48e656f5a25b2e6ecd37785df25",
+          "url": "https://github.com/noir-lang/noir/commit/94e839d82c13c90e7f5989e9ab6cea73ab2ba403"
+        },
+        "date": 1746797817254,
         "tool": "customSmallerIsBetter",
         "benches": [
           {
