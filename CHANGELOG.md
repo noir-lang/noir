@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.0.0-beta.6](https://github.com/noir-lang/noir/compare/v1.0.0-beta.5...v1.0.0-beta.6) (2025-05-09)
+
+
+### Bug Fixes
+
+* Always type-check turbofish, and error when it's not allowed ([#8437](https://github.com/noir-lang/noir/issues/8437)) ([944d234](https://github.com/noir-lang/noir/commit/944d23430d2746e25980ca283160f13665f123c3))
+
 ## [1.0.0-beta.5](https://github.com/noir-lang/noir/compare/v1.0.0-beta.4...v1.0.0-beta.5) (2025-05-09)
 
 
