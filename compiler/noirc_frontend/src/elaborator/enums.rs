@@ -414,12 +414,11 @@ impl Elaborator<'_> {
                 //   when there is a matching enum variant with name `Foo::a` which can
                 //   be imported. The user likely intended to reference the enum variant.
                 let location = path.location;
-                let last_ident = path.last_ident();
 
                 // Setting this to `Some` allows us to shadow globals with the same name.
                 // We should avoid this if there is a `::` in the path since that means the
                 // user is trying to resolve to a non-local item.
-                let shadow_existing = path.is_ident().then_some(last_ident);
+                let shadow_existing = path.as_ident().cloned();
 
                 match self.resolve_path_or_error(path, PathResolutionTarget::Value) {
                     Ok(resolution) => self.path_resolution_to_constructor(
