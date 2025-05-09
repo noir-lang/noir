@@ -29,8 +29,13 @@ expression: artifact
     }
   },
   "bytecode": "H4sIAAAAAAAA/7VUWw6CMBBcoEYrURP50VuUAMKnH3qQRsI5OLoQt+lYKz+0kzTbx+5kZ9I2oQ8SHjME7Lkwe3eOah3KgFwq8fS5KMJXcOUoOaZwngUULj29hOLvVH2T9Ks5YP+VZM6Y/hjOCPxqyzyP0fK7WgiiyXNrZhzo+wFhzm4aR7LzE9TMeAKXqY/p7XQ3msjelgX99zNnHwpep55c9NH1FnNzsu9UjOG1tJ39VDLm34AWhIBzzL/weg/9myhW9Dm0uhwqPehG93390meHnxyf3vJxnPDpBQAA",
-  "debug_symbols": "XY7BCoMwDIbfJece5thlvoqIxBqlENISW2GI775UJsguSf58Sf7sMNFYliHIHFdoux1GDcxhGTh6zCGKdffDwSWHrETWghu3rYRKkqGVwuxgQy7n0JpQzpxRjT4ckEyW7eAcmGp19CbQB/133FADjkw/ORfxN5o/6SLXx0mjp6ko1UuVwaOGxmLXvN3z1R/V7Qs=",
-  "file_map": {},
+  "debug_symbols": "dZBNCoQwDIXvknUXOsyvVxGRqlEKoS2xHRikd59UFJ3FbJKmL99rkwUG7OLUGju6Gap6gY4NkZlacr0Oxlm5XaDIobxDVaakYJfawIhZOfWKg9eMNkBlI5GCt6a4Ns1e2zUHzaIWCtAOksVwNIT5lNRBF//Rx2tjnwd8E7qRSveGf/6esg8b3RFu5Rhtf1LDx+/KPrtn1+MQGbPTaQES6/KlLtcm5de+",
+  "file_map": {
+    "50": {
+      "source": "// A simple program for testing the NOT op\nfn main(x: bool) -> pub bool {\n    !x\n}\n",
+      "path": ""
+    }
+  },
   "names": [
     "main"
   ],

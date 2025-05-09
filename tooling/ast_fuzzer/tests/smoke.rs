@@ -32,6 +32,7 @@ fn arb_program_can_be_executed() {
 
         let options = ssa::SsaEvaluatorOptions {
             ssa_logging: ssa::SsaLogging::None,
+            optimization_level: ssa::OptimizationLevel::All,
             brillig_options: BrilligOptions::default(),
             print_codegen_timings: false,
             expression_width: ExpressionWidth::default(),
