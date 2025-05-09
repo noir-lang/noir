@@ -4,7 +4,11 @@ import initACVM, { executeCircuit, WitnessMap, initLogLevel, ForeignCallHandler 
 beforeEach(async () => {
   await initACVM();
 
-  initLogLevel('INFO');
+  try {
+    initLogLevel('INFO');
+  } catch {
+    // ignore
+  }
 });
 
 it('successfully executes circuit and extracts return value', async () => {

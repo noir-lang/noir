@@ -20,7 +20,8 @@
     "@noir-lang/acvm_js": "workspace:*",
     "@noir-lang/noirc_abi": "workspace:*",
     "@noir-lang/types": "workspace:*",
-    "pako": "^2.1.0"
+    "pako": "^2.1.0",
+    "pino": "^9.6.0"
   },
   "files": [
     "lib",

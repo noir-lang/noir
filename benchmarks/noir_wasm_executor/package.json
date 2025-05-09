@@ -1,0 +1,51 @@
+{
+  "name": "@noir-lang/noir_wasm_executor",
+  "private": true,
+  "contributors": [
+    "The Noir Team <team@noir-lang.org>"
+  ],
+  "version": "1.0.0-beta.4",
+  "packageManager": "yarn@4.5.2",
+  "license": "(MIT OR Apache-2.0)",
+  "type": "module",
+  "homepage": "https://noir-lang.org/",
+  "repository": {
+    "url": "https://github.com/noir-lang/noir.git",
+    "directory": "tooling/noir_wasm_executor",
+    "type": "git"
+  },
+  "bugs": {
+    "url": "https://github.com/noir-lang/noir/issues"
+  },
+  "dependencies": {
+    "@noir-lang/noir_js": "workspace:*",
+    "commander": "^12.1.0",
+    "pino": "^9.6.0",
+    "toml": "^3.0.0"
+  },
+  "files": [
+    "lib",
+    "package.json"
+  ],
+  "main": "lib/index.js",
+  "scripts": {
+    "dev": "tsc --watch",
+    "build": "tsc",
+    "prettier": "prettier 'src/**/*.ts'",
+    "prettier:fix": "prettier --write 'src/**/*.ts' 'test/**/*.ts'",
+    "lint": "NODE_NO_WARNINGS=1 eslint . --max-warnings 0",
+    "publish": "echo skipping publishing `$npm_package_name`",
+    "clean": "rm -rf ./lib"
+  },
+  "devDependencies": {
+    "@types/node": "^22.13.10",
+    "@types/prettier": "^3.0.0",
+    "chai": "^4.4.1",
+    "eslint": "^9.24.0",
+    "eslint-plugin-prettier": "^5.2.6",
+    "prettier": "3.5.3",
+    "ts-node": "^10.9.2",
+    "tsx": "^4.19.3",
+    "typescript": "^5.8.3"
+  }
+}
