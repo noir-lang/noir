@@ -634,7 +634,18 @@ impl Elaborator<'_> {
     }
 
     pub(crate) fn validate_path(&mut self, path: Path) -> TypedPath {
-        let segments = vecmap(path.segments, |segment| self.validate_path_segment(segment));
+        let mut segments = vecmap(path.segments, |segment| self.validate_path_segment(segment));
+
+        if let Some(first_segment) = segments.first_mut() {
+            if first_segment.generics.is_some() && first_segment.ident.is_self_type_name() {
+                self.push_err(PathResolutionError::TurbofishNotAllowedOnItem {
+                    item: "self type".to_string(),
+                    location: first_segment.turbofish_location(),
+                });
+                first_segment.generics = None;
+            }
+        }
+
         let kind_location = path.kind_location;
         TypedPath { segments, kind: path.kind, location: path.location, kind_location }
     }
