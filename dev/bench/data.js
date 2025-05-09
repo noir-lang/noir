@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1746796132185,
+  "lastUpdate": 1746796140881,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -20290,6 +20290,82 @@ window.BENCHMARK_DATA = {
             "value": 3251640,
             "range": "± 8266",
             "unit": "ns/iter"
+          }
+        ]
+      }
+    ],
+    "Artifact Size": [
+      {
+        "commit": {
+          "author": {
+            "email": "15848336+TomAFrench@users.noreply.github.com",
+            "name": "Tom French",
+            "username": "TomAFrench"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "2114ae222cb19936e1e85f211fdc447e86d0a5a4",
+          "message": "chore: separate benchmarking from github actions more (#7943)\n\nCo-authored-by: AztecBot <tech@aztecprotocol.com>",
+          "timestamp": "2025-05-09T12:44:43Z",
+          "tree_id": "ac185fd0a73155ba48721dadda658884f33a903d",
+          "url": "https://github.com/noir-lang/noir/commit/2114ae222cb19936e1e85f211fdc447e86d0a5a4"
+        },
+        "date": 1746796132519,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 1110.6,
+            "unit": "KB"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 2034.4,
+            "unit": "KB"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 638.3,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 5181.3,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 3963.2,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-block-root-empty",
+            "value": 257.5,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-block-root-single-tx",
+            "value": 25674.3,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 25708.7,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 179.4,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-root",
+            "value": 470.7,
+            "unit": "KB"
           }
         ]
       }
