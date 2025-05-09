@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1746821054715,
+  "lastUpdate": 1746821056433,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -11257,70 +11257,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "aakoshh@gmail.com",
-            "name": "Akosh Farkash",
-            "username": "aakoshh"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "86e61f0290a99015c7987eec77b3ebadf0bd5aaf",
-          "message": "feat: Metamorphic AST fuzzing (#8299)",
-          "timestamp": "2025-05-02T15:27:36Z",
-          "tree_id": "e0d598859a2300eb3ff09aad1b37fd2add9de9a5",
-          "url": "https://github.com/noir-lang/noir/commit/86e61f0290a99015c7987eec77b3ebadf0bd5aaf"
-        },
-        "date": 1746201424618,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 232.94,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 256.56,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 210.97,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 541.5,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 533.67,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 1440,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 362.58,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-root",
-            "value": 368.5,
-            "unit": "MB"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "jfecher11@gmail.com",
             "name": "jfecher",
             "username": "jfecher"
@@ -14430,6 +14366,70 @@ window.BENCHMARK_DATA = {
           {
             "name": "rollup-base-private",
             "value": 542.51,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 534.7,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 1440,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 363.67,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-root",
+            "value": 369.59,
+            "unit": "MB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "asterite@gmail.com",
+            "name": "Ary Borenszweig",
+            "username": "asterite"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "944d23430d2746e25980ca283160f13665f123c3",
+          "message": "fix: always type-check turbofish, and error when it's not allowed (#8437)\n\nCo-authored-by: Tom French <15848336+TomAFrench@users.noreply.github.com>",
+          "timestamp": "2025-05-09T19:34:35Z",
+          "tree_id": "77421e3590fa49825816d04e604bb1856774a70a",
+          "url": "https://github.com/noir-lang/noir/commit/944d23430d2746e25980ca283160f13665f123c3"
+        },
+        "date": 1746821046298,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 235.13,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 257.61,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 213.46,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 542.52,
             "unit": "MB"
           },
           {
