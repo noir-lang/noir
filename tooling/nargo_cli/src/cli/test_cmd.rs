@@ -285,6 +285,8 @@ impl<'a> TestRunner<'a> {
         if all_passed { Ok(()) } else { Err(CliError::Generic(String::new())) }
     }
 
+    /// Process a chunk of tests sequentially and send the results to the main thread
+    /// We need this functions, because first we process the standard tests, and then the fuzz tests.
     fn process_chunk_of_tests<I>(&self, iter_tests: &Mutex<I>, thread_sender: &Sender<TestResult>)
     where
         I: Iterator<Item = Test<'a>>,
@@ -341,6 +343,7 @@ impl<'a> TestRunner<'a> {
             }
         }
     }
+
     /// Runs all tests. Returns `true` if all tests passed, `false` otherwise.
     fn run_all_tests(
         &self,
@@ -393,7 +396,7 @@ impl<'a> TestRunner<'a> {
                 .spawn_scoped(scope, move || {
                     let mut standard_tests_threads_finished = 0;
                     // Wait for at least half of the threads to finish processing the standard tests
-                    while let Ok(_) = standard_tests_finished_receiver.recv() {
+                    while standard_tests_finished_receiver.recv().is_ok() {
                         standard_tests_threads_finished += 1;
                         if standard_tests_threads_finished >= max(1, self.num_threads / 2) {
                             break;
