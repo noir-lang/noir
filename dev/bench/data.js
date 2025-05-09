@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1746788486710,
+  "lastUpdate": 1746788488979,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -3705,95 +3705,6 @@ window.BENCHMARK_DATA = {
       }
     ],
     "Compilation Time": [
-      {
-        "commit": {
-          "author": {
-            "email": "15848336+TomAFrench@users.noreply.github.com",
-            "name": "Tom French",
-            "username": "TomAFrench"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "9e69d4cd6235b9183cefa84c7f1bca6ea7057c4e",
-          "message": "feat: remove unnecessary dynamic arrays when pushing onto slices (#8287)\n\nCo-authored-by: AztecBot <tech@aztecprotocol.com>\nCo-authored-by: Maxim Vezenov <mvezenov@gmail.com>",
-          "timestamp": "2025-05-01T14:44:14Z",
-          "tree_id": "86954196383c0a5e5c425a986776b19792ff0d15",
-          "url": "https://github.com/noir-lang/noir/commit/9e69d4cd6235b9183cefa84c7f1bca6ea7057c4e"
-        },
-        "date": 1746112066451,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "regression_4709",
-            "value": 0.677,
-            "unit": "s"
-          },
-          {
-            "name": "ram_blowup_regression",
-            "value": 12.9,
-            "unit": "s"
-          },
-          {
-            "name": "global_var_regression_entry_points",
-            "value": 0.485,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-inner",
-            "value": 2.286,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 6.548,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 1.09,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 17.1,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 12.84,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root-empty",
-            "value": 1.248,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root-single-tx",
-            "value": 123,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 125,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 1.034,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-root",
-            "value": 1.608,
-            "unit": "s"
-          }
-        ]
-      },
       {
         "commit": {
           "author": {
@@ -8151,6 +8062,95 @@ window.BENCHMARK_DATA = {
           {
             "name": "rollup-root",
             "value": 1.626,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "aakoshh@gmail.com",
+            "name": "Akosh Farkash",
+            "username": "aakoshh"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "df3a540a0ca30dec0a2596d5e8ebc3c323278952",
+          "message": "chore(fuzz): Rename `init_vs_final` to `min_vs_full` (#8430)",
+          "timestamp": "2025-05-09T10:37:18Z",
+          "tree_id": "af39da8b521c41a18e0b9e7015546b0083b59b77",
+          "url": "https://github.com/noir-lang/noir/commit/df3a540a0ca30dec0a2596d5e8ebc3c323278952"
+        },
+        "date": 1746788479774,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "regression_4709",
+            "value": 0.721,
+            "unit": "s"
+          },
+          {
+            "name": "ram_blowup_regression",
+            "value": 13.1,
+            "unit": "s"
+          },
+          {
+            "name": "global_var_regression_entry_points",
+            "value": 0.376,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-inner",
+            "value": 2.286,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 6.474,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 1.15,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 18.72,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 13.42,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-empty",
+            "value": 1.37,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-single-tx",
+            "value": 124,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 131,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 1.068,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-root",
+            "value": 1.586,
             "unit": "s"
           }
         ]
