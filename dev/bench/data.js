@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1746808771964,
+  "lastUpdate": 1746809023918,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -20478,6 +20478,80 @@ window.BENCHMARK_DATA = {
           {
             "name": "rollup-root",
             "value": 470.7,
+            "unit": "KB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "mvezenov@gmail.com",
+            "name": "Maxim Vezenov",
+            "username": "vezenovm"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "74279a4de32baf7f3a9712268d1ff1626e7dc9b2",
+          "message": "fix(ssa): Mislabeled instructions with side effects in EnableSideEffectsIf removal pass (#8355)",
+          "timestamp": "2025-05-09T16:20:33Z",
+          "tree_id": "2572d8f7852d9a61f397fc4aee2a399a5feb693e",
+          "url": "https://github.com/noir-lang/noir/commit/74279a4de32baf7f3a9712268d1ff1626e7dc9b2"
+        },
+        "date": 1746809015757,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 1110.4,
+            "unit": "KB"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 2033.9,
+            "unit": "KB"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 638.3,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 5175.6,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 3959,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-block-root-empty",
+            "value": 257.1,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-block-root-single-tx",
+            "value": 25677.1,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 25704,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 179.3,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-root",
+            "value": 470.5,
             "unit": "KB"
           }
         ]
