@@ -21,7 +21,7 @@ use crate::{
     debug::DebugInstrumenter,
     hir_def::{
         expr::*,
-        function::{FuncMeta, FunctionSignature, Parameters},
+        function::{FunctionSignature, Parameters},
         stmt::{HirAssignStatement, HirLValue, HirLetStatement, HirPattern, HirStatement},
         types,
     },
@@ -185,7 +185,6 @@ pub fn monomorphize_debug(
         .collect();
 
     let functions = vecmap(monomorphizer.finished_functions, |(_, f)| f);
-    let FuncMeta { return_visibility, .. } = monomorphizer.interner.function_meta(&main);
 
     let globals = monomorphizer.finished_globals.into_iter().collect::<BTreeMap<_, _>>();
 
@@ -197,7 +196,6 @@ pub fn monomorphize_debug(
         func_sigs,
         function_sig,
         monomorphizer.return_location,
-        *return_visibility,
         globals,
         debug_variables,
         debug_functions,
@@ -393,6 +391,7 @@ impl<'interner> Monomorphizer<'interner> {
         // call site after instantiating this function's type. So show the error there
         // instead of at the function definition.
         let return_type = Self::convert_type(return_type, location)?;
+        let return_visibility = meta.return_visibility;
         let unconstrained = self.in_unconstrained_function;
 
         let attributes = self.interner.function_attributes(&f);
@@ -406,6 +405,7 @@ impl<'interner> Monomorphizer<'interner> {
             parameters,
             body,
             return_type,
+            return_visibility,
             unconstrained,
             inline_type,
             func_sig,
@@ -422,13 +422,15 @@ impl<'interner> Monomorphizer<'interner> {
 
     /// Monomorphize each parameter, expanding tuple/struct patterns into multiple parameters
     /// and binding any generic types found.
+    #[allow(clippy::type_complexity)]
     fn parameters(
         &mut self,
         params: &Parameters,
-    ) -> Result<Vec<(ast::LocalId, bool, String, ast::Type)>, MonomorphizationError> {
+    ) -> Result<Vec<(ast::LocalId, bool, String, ast::Type, Visibility)>, MonomorphizationError>
+    {
         let mut new_params = Vec::with_capacity(params.len());
-        for (parameter, typ, _) in &params.0 {
-            self.parameter(parameter, typ, &mut new_params)?;
+        for (parameter, typ, visibility) in &params.0 {
+            self.parameter(parameter, typ, visibility, &mut new_params)?;
         }
         Ok(new_params)
     }
@@ -437,7 +439,8 @@ impl<'interner> Monomorphizer<'interner> {
         &mut self,
         param: &HirPattern,
         typ: &HirType,
-        new_params: &mut Vec<(ast::LocalId, bool, String, ast::Type)>,
+        visibility: &Visibility,
+        new_params: &mut Vec<(ast::LocalId, bool, String, ast::Type, Visibility)>,
     ) -> Result<(), MonomorphizationError> {
         match param {
             HirPattern::Identifier(ident) => {
@@ -445,15 +448,17 @@ impl<'interner> Monomorphizer<'interner> {
                 let definition = self.interner.definition(ident.id);
                 let name = definition.name.clone();
                 let typ = Self::convert_type(typ, ident.location)?;
-                new_params.push((new_id, definition.mutable, name, typ));
+                new_params.push((new_id, definition.mutable, name, typ, *visibility));
                 self.define_local(ident.id, new_id);
             }
-            HirPattern::Mutable(pattern, _) => self.parameter(pattern, typ, new_params)?,
+            HirPattern::Mutable(pattern, _) => {
+                self.parameter(pattern, typ, visibility, new_params)?;
+            }
             HirPattern::Tuple(fields, _) => {
                 let tuple_field_types = unwrap_tuple_type(typ);
 
                 for (field, typ) in fields.iter().zip(tuple_field_types) {
-                    self.parameter(field, &typ, new_params)?;
+                    self.parameter(field, &typ, visibility, new_params)?;
                 }
             }
             HirPattern::Struct(_, fields, location) => {
@@ -469,7 +474,7 @@ impl<'interner> Monomorphizer<'interner> {
                         unreachable!("Expected a field named '{field_name}' in the struct pattern")
                     });
 
-                    self.parameter(field, &field_type, new_params)?;
+                    self.parameter(field, &field_type, visibility, new_params)?;
                 }
             }
         }
@@ -1982,6 +1987,7 @@ impl<'interner> Monomorphizer<'interner> {
             parameters,
             body,
             return_type: ret_type.clone(),
+            return_visibility: Visibility::Private,
             unconstrained: self.in_unconstrained_function,
             inline_type: InlineType::default(),
             func_sig: FunctionSignature::default(),
@@ -2109,7 +2115,8 @@ impl<'interner> Monomorphizer<'interner> {
             id: self.next_ident_id(),
         });
 
-        let mut parameters = vec![(env_local_id, true, env_name.to_string(), env_typ.clone())];
+        let mut parameters =
+            vec![(env_local_id, true, env_name.to_string(), env_typ.clone(), Visibility::Private)];
         parameters.append(&mut converted_parameters);
 
         let function = ast::Function {
@@ -2118,6 +2125,7 @@ impl<'interner> Monomorphizer<'interner> {
             parameters,
             body,
             return_type,
+            return_visibility: Visibility::Private,
             unconstrained: self.in_unconstrained_function,
             inline_type: InlineType::default(),
             func_sig: FunctionSignature::default(),
@@ -2293,7 +2301,7 @@ impl<'interner> Monomorphizer<'interner> {
         let lambda_name = "zeroed_lambda";
 
         let parameters = vecmap(parameter_types, |parameter_type| {
-            (self.next_local_id(), false, "_".into(), parameter_type.clone())
+            (self.next_local_id(), false, "_".into(), parameter_type.clone(), Visibility::Private)
         });
 
         let body = self.zeroed_value_of_type(ret_type, location);
@@ -2308,6 +2316,7 @@ impl<'interner> Monomorphizer<'interner> {
             parameters,
             body,
             return_type,
+            return_visibility: Visibility::Private,
             unconstrained,
             inline_type: InlineType::default(),
             func_sig: FunctionSignature::default(),

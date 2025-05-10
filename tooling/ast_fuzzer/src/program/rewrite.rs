@@ -8,6 +8,7 @@ use noirc_frontend::{
     monomorphization::ast::{
         Call, Definition, Expression, FuncId, Function, Ident, IdentId, LocalId, Program, Type,
     },
+    shared::Visibility,
 };
 
 use super::{
@@ -92,7 +93,13 @@ pub(crate) fn add_recursion_limit(
             // In non-main we look at the limit and return a random value if it's zero,
             // otherwise decrease it by one and continue with the original body.
             let limit_type = types::ref_mut(types::U32);
-            func.parameters.push((limit_id, false, limit_name.clone(), limit_type.clone()));
+            func.parameters.push((
+                limit_id,
+                false,
+                limit_name.clone(),
+                limit_type.clone(),
+                Visibility::Private,
+            ));
 
             // Generate a random value to return.
             let default_return = expr::gen_literal(u, &func.return_type)?;
@@ -129,7 +136,13 @@ pub(crate) fn add_recursion_limit(
 
         // Add the non-reference version of the parameter to the proxy function.
         if let Some(proxy) = proxy_functions.get_mut(func_id) {
-            proxy.parameters.push((limit_id, true, limit_name.clone(), types::U32));
+            proxy.parameters.push((
+                limit_id,
+                true,
+                limit_name.clone(),
+                types::U32,
+                Visibility::Private,
+            ));
             // The body is just a call the the non-proxy function.
             proxy.body = Expression::Call(Call {
                 func: Box::new(Expression::Ident(Ident {
@@ -148,7 +161,7 @@ pub(crate) fn add_recursion_limit(
                 arguments: proxy
                     .parameters
                     .iter()
-                    .map(|(id, mutable, name, typ)| {
+                    .map(|(id, mutable, name, typ, _visibility)| {
                         if *id == limit_id {
                             // Pass mutable reference to the limit.
                             expr::ref_mut(

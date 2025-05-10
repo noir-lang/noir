@@ -1,6 +1,6 @@
 //! This module implements printing of the monomorphized AST, for debugging purposes.
 
-use crate::{ast::UnaryOp, monomorphization::ast::Ident, shared::Visibility};
+use crate::{ast::UnaryOp, monomorphization::ast::Ident};
 
 use super::ast::{
     Definition, Expression, FuncId, Function, GlobalId, LValue, LocalId, Program, Type, While,
@@ -10,7 +10,6 @@ use std::fmt::{Display, Formatter};
 
 #[derive(Default)]
 pub struct FunctionPrintOptions {
-    pub return_visibility: Option<Visibility>,
     /// Wraps function body in a `comptime` block. Used to make
     /// comptime function callers in fuzzing.
     pub comptime_wrap_body: bool,
@@ -54,9 +53,7 @@ impl AstPrinter {
             self.print_global(id, global, f)?;
         }
         for function in &program.functions {
-            let return_visibility =
-                (function.id == Program::main_id()).then_some(program.return_visibility);
-            let fpo = FunctionPrintOptions { return_visibility, ..Default::default() };
+            let fpo = FunctionPrintOptions::default();
             self.print_function(function, f, fpo)?;
         }
         Ok(())
@@ -80,20 +77,21 @@ impl AstPrinter {
         f: &mut Formatter,
         options: FunctionPrintOptions,
     ) -> std::fmt::Result {
-        let params = vecmap(&function.parameters, |(id, mutable, name, typ)| {
-            format!("{}{}: {}", if *mutable { "mut " } else { "" }, self.fmt_local(name, *id), typ)
+        let params = vecmap(&function.parameters, |(id, mutable, name, typ, visibility)| {
+            let vis = visibility.to_string();
+            let vis = if vis.is_empty() { vis } else { format!("{vis} ") };
+            format!(
+                "{}{}{}: {}",
+                vis,
+                if *mutable { "mut " } else { "" },
+                self.fmt_local(name, *id),
+                typ
+            )
         })
         .join(", ");
 
-        let vis = options
-            .return_visibility
-            .map(|vis| match vis {
-                Visibility::Private => "".to_string(),
-                Visibility::Public => "pub ".to_string(),
-                Visibility::ReturnData => "return_data ".to_string(),
-                Visibility::CallData(i) => format!("call_data({i}) "),
-            })
-            .unwrap_or_default();
+        let vis = function.return_visibility.to_string();
+        let vis = if vis.is_empty() { vis } else { format!("{vis} ") };
 
         let unconstrained = if function.unconstrained { "unconstrained " } else { "" };
         let comptime = if options.comptime { "comptime " } else { "" };

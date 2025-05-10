@@ -752,7 +752,7 @@ pub fn compile_no_check(
         }
     }
 
-    let return_visibility = program.return_visibility;
+    let return_visibility = program.return_visibility();
     let ssa_evaluator_options = SsaEvaluatorOptions {
         ssa_logging: match &options.show_ssa_pass {
             Some(string) => SsaLogging::Contains(string.clone()),
