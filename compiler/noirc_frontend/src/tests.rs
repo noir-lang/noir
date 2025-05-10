@@ -16,7 +16,6 @@ mod visibility;
 // XXX: These tests repeat a lot of code
 // what we should do is have test cases which are passed to a test harness
 // A test harness will allow for more expressive and readable tests
-use std::collections::HashMap;
 
 use ::function_name::named;
 
@@ -24,7 +23,7 @@ use crate::elaborator::{FrontendOptions, UnstableFeature};
 use crate::function_path;
 use crate::test_utils::{Expect, get_program, get_program_with_options};
 
-use noirc_errors::reporter::report_all;
+use noirc_errors::reporter::{ReportBuffer, report_all, report_with};
 use noirc_errors::{CustomDiagnostic, Span};
 
 use crate::hir::Context;
@@ -74,7 +73,7 @@ fn assert_no_errors(src: &str, test_path: &str) {
 ///
 /// this method will check that compiling the program without those error markers
 /// will produce errors at those locations and with/ those messages.
-fn check_errors(src: &str, test_path: Option<&str>) {
+fn check_errors(src: &str, test_path: Option<&str>) -> String {
     let allow_parser_errors = false;
     let monomorphize = false;
     check_errors_with_options(
@@ -83,7 +82,7 @@ fn check_errors(src: &str, test_path: Option<&str>) {
         allow_parser_errors,
         monomorphize,
         FrontendOptions::test_default(),
-    );
+    )
 }
 
 fn check_errors_using_features(src: &str, test_path: Option<&str>, features: &[UnstableFeature]) {
@@ -103,7 +102,7 @@ pub(super) fn check_monomorphization_error_using_features(
     src: &str,
     test_path: Option<&str>,
     features: &[UnstableFeature],
-) {
+) -> String {
     let allow_parser_errors = false;
     let monomorphize = true;
     check_errors_with_options(
@@ -112,7 +111,7 @@ pub(super) fn check_monomorphization_error_using_features(
         allow_parser_errors,
         monomorphize,
         FrontendOptions { enabled_unstable_features: features, ..FrontendOptions::test_default() },
-    );
+    )
 }
 
 fn check_errors_with_options(
@@ -121,7 +120,7 @@ fn check_errors_with_options(
     allow_parser_errors: bool,
     monomorphize: bool,
     options: FrontendOptions,
-) {
+) -> String {
     let lines = src.lines().collect::<Vec<_>>();
 
     // Here we'll hold just the lines that are code
@@ -159,12 +158,6 @@ fn check_errors_with_options(
         last_line_length = line.len();
     }
 
-    let mut primary_spans_with_errors: HashMap<Span, String> =
-        primary_spans_with_errors.into_iter().collect();
-
-    let mut secondary_spans_with_errors: HashMap<Span, String> =
-        secondary_spans_with_errors.into_iter().collect();
-
     let src = code_lines.join("\n");
     let expect = if primary_spans_with_errors.is_empty() { Expect::Success } else { Expect::Error };
     let (_, mut context, errors) =
@@ -185,7 +178,7 @@ fn check_errors_with_options(
         match result {
             Ok(_) => {
                 if primary_spans_with_errors.is_empty() {
-                    return;
+                    return String::new();
                 }
                 panic!("Expected a monomorphization error but got none")
             }
@@ -199,75 +192,13 @@ fn check_errors_with_options(
         panic!("Expected some errors but got none");
     }
 
+    let mut buf = ReportBuffer::default();
+
     for error in &errors {
-        let secondary = error
-            .secondaries
-            .first()
-            .unwrap_or_else(|| panic!("Expected {:?} to have a secondary label", error));
-        let span = secondary.location.span;
-        let message = &error.message;
-
-        let Some(expected_message) = primary_spans_with_errors.remove(&span) else {
-            if let Some(message) = secondary_spans_with_errors.get(&span) {
-                report_all(context.file_manager.as_file_map(), &errors, false, false);
-                panic!(
-                    "Error at {span:?} with message {message:?} is annotated as secondary but should be primary"
-                );
-            } else {
-                report_all(context.file_manager.as_file_map(), &errors, false, false);
-                panic!(
-                    "Couldn't find primary error at {span:?} with message {message:?}.\nAll errors: {errors:?}"
-                );
-            }
-        };
-
-        if message != &expected_message {
-            report_all(context.file_manager.as_file_map(), &errors, false, false);
-            assert_eq!(
-                message, &expected_message,
-                "Primary error at {span:?} has unexpected message"
-            );
-        }
-
-        for secondary in &error.secondaries {
-            let message = &secondary.message;
-            if message.is_empty() {
-                continue;
-            }
-
-            let span = secondary.location.span;
-            let Some(expected_message) = secondary_spans_with_errors.remove(&span) else {
-                report_all(context.file_manager.as_file_map(), &errors, false, false);
-                if let Some(message) = primary_spans_with_errors.get(&span) {
-                    panic!(
-                        "Error at {span:?} with message {message:?} is annotated as primary but should be secondary"
-                    );
-                } else {
-                    panic!(
-                        "Couldn't find secondary error at {span:?} with message {message:?}.\nAll errors: {errors:?}"
-                    );
-                };
-            };
-
-            if message != &expected_message {
-                report_all(context.file_manager.as_file_map(), &errors, false, false);
-                assert_eq!(
-                    message, &expected_message,
-                    "Secondary error at {span:?} has unexpected message"
-                );
-            }
-        }
+        report_with(&mut buf, context.file_manager.as_file_map(), &error, false);
     }
 
-    if !primary_spans_with_errors.is_empty() {
-        report_all(context.file_manager.as_file_map(), &errors, false, false);
-        panic!("These primary errors didn't happen: {primary_spans_with_errors:?}");
-    }
-
-    if !secondary_spans_with_errors.is_empty() {
-        report_all(context.file_manager.as_file_map(), &errors, false, false);
-        panic!("These secondary errors didn't happen: {secondary_spans_with_errors:?}");
-    }
+    String::from_utf8_lossy(&buf).to_string()
 }
 
 /// Helper function for `check_errors` that returns the span that
@@ -467,7 +398,19 @@ fn check_trait_implementation_duplicate_method() {
     fn main() {
         let _ = Foo { bar: 1, array: [2, 3] }; // silence Foo never constructed warning
     }";
-    check_errors!(src);
+    let report = check_errors!(src);
+
+    insta::assert_snapshot!(report, @r"
+    error: Duplicate definitions of trait associated function with name default found
+       ┌─ /test_file:13:12
+       │
+    13 │         fn default(x: Field, y: Field) -> Field {
+       │            ------- First trait associated function found here
+       ·
+    17 │         fn default(x: Field, y: Field) -> Field {
+       │            ------- Second trait associated function found here
+       │
+    ")
 }
 
 #[named]
