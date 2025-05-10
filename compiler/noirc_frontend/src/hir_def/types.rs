@@ -1951,6 +1951,13 @@ impl Type {
                     Err(UnificationError)
                 }
             }
+            (Constant(field, kind), Type::NamedGeneric(types::NamedGeneric { type_var, .. }))
+            | (Type::NamedGeneric(types::NamedGeneric { type_var, .. }), Constant(field, kind)) => {
+                let other = Type::Constant(*field, kind.clone());
+                other.try_unify_to_type_variable(type_var, bindings, |bindings| {
+                    other.try_bind_to(type_var, bindings, kind.clone())
+                })
+            }
 
             (Constant(value, kind), other) | (other, Constant(value, kind)) => {
                 let dummy_location = Location::dummy();
