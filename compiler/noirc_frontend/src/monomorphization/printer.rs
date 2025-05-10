@@ -79,7 +79,7 @@ impl AstPrinter {
     ) -> std::fmt::Result {
         let params = vecmap(&function.parameters, |(id, mutable, name, typ, visibility)| {
             let vis = visibility.to_string();
-            let vis = if vis.is_empty() { vis } else { format!(" {vis}") };
+            let vis = if vis.is_empty() { vis } else { format!("{vis} ") };
             format!(
                 "{}{}{}: {}",
                 vis,
@@ -91,7 +91,7 @@ impl AstPrinter {
         .join(", ");
 
         let vis = function.return_visibility.to_string();
-        let vis = if vis.is_empty() { vis } else { format!(" {vis}") };
+        let vis = if vis.is_empty() { vis } else { format!("{vis} ") };
 
         let unconstrained = if function.unconstrained { "unconstrained " } else { "" };
         let comptime = if options.comptime { "comptime " } else { "" };
