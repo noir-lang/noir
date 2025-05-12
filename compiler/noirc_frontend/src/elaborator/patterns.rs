@@ -764,6 +764,10 @@ impl Elaborator<'_> {
                         }
                         Vec::new()
                     }
+                    PrimitiveType::Str => {
+                        // TODO
+                        Vec::new()
+                    }
                 }
             }
             PathResolutionItem::Method(_, None, _)

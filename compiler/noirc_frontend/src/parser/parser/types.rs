@@ -108,10 +108,6 @@ impl Parser<'_> {
     }
 
     pub(super) fn parse_primitive_type(&mut self) -> Option<UnresolvedTypeData> {
-        if let Some(typ) = self.parse_str_type() {
-            return Some(typ);
-        }
-
         if let Some(typ) = self.parse_fmtstr_type() {
             return Some(typ);
         }
@@ -125,36 +121,6 @@ impl Parser<'_> {
         }
 
         None
-    }
-
-    fn parse_str_type(&mut self) -> Option<UnresolvedTypeData> {
-        if !self.eat_keyword(Keyword::String) {
-            return None;
-        }
-
-        if !self.eat_less() {
-            self.expected_token(Token::Less);
-            let expr = UnresolvedTypeExpression::Constant(
-                FieldElement::zero(),
-                self.current_token_location,
-            );
-            return Some(UnresolvedTypeData::String(expr));
-        }
-
-        let expr = match self.parse_type_expression() {
-            Ok(expr) => expr,
-            Err(error) => {
-                self.errors.push(error);
-                UnresolvedTypeExpression::Constant(
-                    FieldElement::zero(),
-                    self.current_token_location,
-                )
-            }
-        };
-
-        self.eat_or_error(Token::Greater);
-
-        Some(UnresolvedTypeData::String(expr))
     }
 
     fn parse_fmtstr_type(&mut self) -> Option<UnresolvedTypeData> {
@@ -424,8 +390,7 @@ mod tests {
     fn parses_str_type() {
         let src = "str<10>";
         let typ = parse_type_no_errors(src);
-        let UnresolvedTypeData::String(expr) = typ.typ else { panic!("Expected a string type") };
-        assert_eq!(expr.to_string(), "10");
+        assert_eq!(typ.to_string(), "str<10>");
     }
 
     #[test]

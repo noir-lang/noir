@@ -27,10 +27,10 @@ error: The numeric generic is not of type `u32`
   │
 
 error: The numeric generic is not of type `u32`
-  ┌─ src/main.nr:8:21
+  ┌─ src/main.nr:8:25
   │
 8 │             let _b: str<STR_LEN> = "hi";
-  │                     ------------ expected `u32`, found `Field`
+  │                         ------- expected `u32`, found `Field`
   │
 
 error: The numeric generic is not of type `u32`

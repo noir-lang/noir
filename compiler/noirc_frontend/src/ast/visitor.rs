@@ -433,10 +433,6 @@ pub trait Visitor {
         true
     }
 
-    fn visit_string_type(&mut self, _: &UnresolvedTypeExpression, _: Span) -> bool {
-        true
-    }
-
     fn visit_unspecified_type(&mut self, _: Span) {}
 
     fn visit_unit_type(&mut self, _: Span) {}
@@ -1462,11 +1458,6 @@ impl UnresolvedType {
                 if visitor.visit_format_string_type(expr, typ, self.location.span) {
                     expr.accept(visitor);
                     typ.accept(visitor);
-                }
-            }
-            UnresolvedTypeData::String(expr) => {
-                if visitor.visit_string_type(expr, self.location.span) {
-                    expr.accept(visitor);
                 }
             }
             UnresolvedTypeData::Unspecified => visitor.visit_unspecified_type(self.location.span),

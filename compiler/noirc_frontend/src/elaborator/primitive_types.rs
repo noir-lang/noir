@@ -19,6 +19,7 @@ pub enum PrimitiveType {
     U128,
     Module,
     Quoted,
+    Str,
     TraitConstraint,
     TraitDefinition,
     TraitImpl,
@@ -48,6 +49,7 @@ impl PrimitiveType {
             "u128" => Some(Self::U128),
             "Module" => Some(Self::Module),
             "Quoted" => Some(Self::Quoted),
+            "str" => Some(Self::Str),
             "TraitConstraint" => Some(Self::TraitConstraint),
             "TraitDefinition" => Some(Self::TraitDefinition),
             "TraitImpl" => Some(Self::TraitImpl),
@@ -78,6 +80,7 @@ impl PrimitiveType {
             Self::U128 => Type::Integer(Signedness::Unsigned, IntegerBitSize::HundredTwentyEight),
             Self::Module => Type::Quoted(QuotedType::Module),
             Self::Quoted => Type::Quoted(QuotedType::Quoted),
+            Self::Str => Type::String(Box::new(Type::Error)),
             Self::TraitConstraint => Type::Quoted(QuotedType::TraitConstraint),
             Self::TraitDefinition => Type::Quoted(QuotedType::TraitDefinition),
             Self::TraitImpl => Type::Quoted(QuotedType::TraitImpl),
@@ -107,6 +110,7 @@ impl PrimitiveType {
             | Self::FunctionDefinition
             | Self::Module
             | Self::Quoted
+            | Self::Str
             | Self::TraitConstraint
             | Self::TraitDefinition
             | Self::TraitImpl
@@ -136,6 +140,7 @@ impl PrimitiveType {
             Self::U128 => "u128",
             Self::Module => "Module",
             Self::Quoted => "Quoted",
+            Self::Str => "str",
             Self::TraitConstraint => "TraitConstraint",
             Self::TraitDefinition => "TraitDefinition",
             Self::TraitImpl => "TraitImpl",

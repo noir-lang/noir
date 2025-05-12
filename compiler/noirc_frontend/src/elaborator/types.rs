@@ -20,7 +20,7 @@ use crate::{
         resolution::{errors::ResolverError, import::PathResolutionError},
         type_check::{
             NoMatchingImplFoundError, Source, TypeCheckError,
-            generics::{Generic, TraitGenerics},
+            generics::{Generic, StrPrimitiveType, TraitGenerics},
         },
     },
     hir_def::{
@@ -120,10 +120,6 @@ impl Elaborator<'_> {
                 Type::Slice(elem)
             }
             Expression(expr) => self.convert_expression_type(expr, kind, location),
-            String(size) => {
-                let resolved_size = self.convert_expression_type(size, &Kind::u32(), location);
-                Type::String(Box::new(resolved_size))
-            }
             FormatString(size, fields) => {
                 let resolved_size = self.convert_expression_type(size, &Kind::u32(), location);
                 let fields = self.resolve_type_with_kind_inner(*fields, kind, mode);
@@ -409,6 +405,17 @@ impl Elaborator<'_> {
                     ));
                 }
             }
+            PrimitiveType::Str => {
+                let item = StrPrimitiveType;
+                let (mut args, _) = self.resolve_type_args_inner(
+                    args,
+                    item,
+                    location,
+                    PathResolutionMode::MarkAsReferenced,
+                );
+                assert_eq!(args.len(), 1);
+                return Some(Type::String(Box::new(args.remove(0))));
+            }
         }
 
         Some(primitive_type.to_type())
@@ -475,7 +482,7 @@ impl Elaborator<'_> {
         allow_implicit_named_args: bool,
         mode: PathResolutionMode,
     ) -> (Vec<Type>, Vec<NamedType>) {
-        let expected_kinds = item.generics(self.interner);
+        let expected_kinds = item.generic_kinds(self.interner);
 
         if args.ordered_args.len() != expected_kinds.len() {
             self.push_err(TypeCheckError::GenericCountMismatch {
@@ -489,9 +496,8 @@ impl Elaborator<'_> {
         }
 
         let ordered_args = expected_kinds.iter().zip(args.ordered_args);
-        let ordered = vecmap(ordered_args, |(generic, typ)| {
-            self.resolve_type_with_kind_inner(typ, &generic.kind(), mode)
-        });
+        let ordered =
+            vecmap(ordered_args, |(kind, typ)| self.resolve_type_with_kind_inner(typ, kind, mode));
 
         let mut associated = Vec::new();
 

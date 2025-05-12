@@ -225,7 +225,6 @@ pub(super) fn keyword_builtin_function(keyword: &Keyword) -> Option<BuiltInFunct
         | Keyword::Pub
         | Keyword::Return
         | Keyword::ReturnData
-        | Keyword::String
         | Keyword::Struct
         | Keyword::Super
         | Keyword::Trait

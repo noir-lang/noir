@@ -2997,8 +2997,8 @@ fn do_not_infer_globals_to_u32_from_type_use() {
                     ^^^^^^^^^^^^^^^^ The numeric generic is not of type `u32`
                     ~~~~~~~~~~~~~~~~ expected `u32`, found `Field`
             let _b: str<STR_LEN> = "hi";
-                    ^^^^^^^^^^^^ The numeric generic is not of type `u32`
-                    ~~~~~~~~~~~~ expected `u32`, found `Field`
+                        ^^^^^^^ The numeric generic is not of type `u32`
+                        ~~~~~~~ expected `u32`, found `Field`
             let _c: fmtstr<FMT_STR_LEN, _> = f"hi";
                     ^^^^^^^^^^^^^^^^^^^^^^ The numeric generic is not of type `u32`
                     ~~~~~~~~~~~~~~~~~~~~~~ expected `u32`, found `Field`

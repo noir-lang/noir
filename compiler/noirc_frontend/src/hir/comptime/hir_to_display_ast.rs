@@ -392,7 +392,7 @@ impl Type {
             Type::Bool => UnresolvedTypeData::bool(Location::dummy()),
             Type::String(length) => {
                 let length = length.to_type_expression();
-                UnresolvedTypeData::String(length)
+                UnresolvedTypeData::string(length, Location::dummy())
             }
             Type::FmtString(length, element) => {
                 let length = length.to_type_expression();

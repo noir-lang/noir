@@ -125,7 +125,6 @@ pub enum UnresolvedTypeData {
     Array(UnresolvedTypeExpression, Box<UnresolvedType>), // [Field; 4] = Array(4, Field)
     Slice(Box<UnresolvedType>),
     Expression(UnresolvedTypeExpression),
-    String(UnresolvedTypeExpression),
     FormatString(UnresolvedTypeExpression, Box<UnresolvedType>),
     Unit,
 
@@ -284,7 +283,6 @@ impl std::fmt::Display for UnresolvedTypeData {
                 write!(f, "({})", elements.join(", "))
             }
             Expression(expression) => expression.fmt(f),
-            String(len) => write!(f, "str<{len}>"),
             FormatString(len, elements) => write!(f, "fmt<{len}, {elements}"),
             Function(args, ret, env, unconstrained) => {
                 if *unconstrained {
@@ -406,6 +404,23 @@ impl UnresolvedTypeData {
         Self::named(quoted.to_string(), location)
     }
 
+    pub fn string(length: UnresolvedTypeExpression, location: Location) -> Self {
+        let ident = Ident::new("str".to_string(), location);
+        let path = Path::from_ident(ident);
+        Self::Named(
+            path,
+            GenericTypeArgs {
+                ordered_args: vec![UnresolvedType {
+                    typ: UnresolvedTypeData::Expression(length),
+                    location,
+                }],
+                named_args: vec![],
+                kinds: vec![GenericTypeArgKind::Ordered],
+            },
+            false,
+        )
+    }
+
     fn named(name: String, location: Location) -> Self {
         let ident = Ident::new(name, location);
         let path = Path::from_ident(ident);
@@ -427,7 +442,6 @@ impl UnresolvedTypeData {
             }
             UnresolvedTypeData::Slice(typ) => typ.contains_unspecified(),
             UnresolvedTypeData::Expression(expr) => expr.contains_unspecified(),
-            UnresolvedTypeData::String(length) => length.contains_unspecified(),
             UnresolvedTypeData::FormatString(typ, length) => {
                 typ.contains_unspecified() || length.contains_unspecified()
             }
