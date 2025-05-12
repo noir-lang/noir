@@ -217,7 +217,6 @@ pub(super) fn keyword_builtin_type(keyword: &Keyword) -> Option<&'static str> {
         | Keyword::AssertEq
         | Keyword::Break
         | Keyword::CallData
-        | Keyword::Char
         | Keyword::Comptime
         | Keyword::Constrain
         | Keyword::Continue
@@ -280,7 +279,6 @@ pub(super) fn keyword_builtin_function(keyword: &Keyword) -> Option<BuiltInFunct
         | Keyword::Bool
         | Keyword::Break
         | Keyword::CallData
-        | Keyword::Char
         | Keyword::Comptime
         | Keyword::Constrain
         | Keyword::Continue
