@@ -139,184 +139,24 @@ fn field_vec_strategy(len: usize) -> impl Strategy<Value = Vec<FieldElement>> {
     prop::collection::vec(field, len)
 }
 
-/// The tests fuzz_zero_extent(), fuzz_signed_unsigned_same_size(), fuzz_sign_extent() and fuzz_truncate()
-/// ensure that casting between integer types is correct, assuming casting to Field is correct.
-/// Casting to Field is validated with the fuzz_field_cast() test.
-/// Any casting between integer types will use a combination of: no-op, zero extension, sign extension, or truncation.
-/// Testing these 4 primitives should be enough to guarantee that casting between any integer types is correct.
-///
-/// Check that casting to Field is a no-op
-#[test]
-fn fuzz_field_cast() {
-    let unsigned_8 = "fn main(x: u8) -> pub Field {
-        x as Field
-    }";
-    let signed_8 = "fn main(x: i8) -> pub Field {
-        x as Field
-    }";
-    let strategy_u8 = any::<u8>()
-        .prop_map(|x| {
-            SnippetInputOutput::new(
-                vec![("x", InputValue::Field((x as u128).into()))],
-                InputValue::Field((x as u128).into()),
-            )
-        })
-        .boxed();
-    run_snippet_proptest(unsigned_8.to_string(), false, strategy_u8.clone());
-    run_snippet_proptest(unsigned_8.to_string(), true, strategy_u8.clone());
-    run_snippet_proptest(signed_8.to_string(), false, strategy_u8.clone());
-    run_snippet_proptest(signed_8.to_string(), true, strategy_u8.clone());
-
-    let unsigned_16 = "fn main(x: u16) -> pub Field {
-        x as Field
-    }";
-    let signed_16 = "fn main(x: i16) -> pub Field {
-        x as Field
-    }";
-    let strategy_u16 = any::<u16>()
-        .prop_map(|x| {
-            SnippetInputOutput::new(
-                vec![("x", InputValue::Field((x as u128).into()))],
-                InputValue::Field((x as u128).into()),
-            )
-        })
-        .boxed();
-    run_snippet_proptest(unsigned_16.to_string(), false, strategy_u16.clone());
-    run_snippet_proptest(unsigned_16.to_string(), true, strategy_u16.clone());
-    run_snippet_proptest(signed_16.to_string(), false, strategy_u16.clone());
-    run_snippet_proptest(signed_16.to_string(), true, strategy_u16.clone());
-
-    let unsigned_32 = "fn main(x: u32) -> pub Field {
-        x as Field
-    }";
-    let signed_32 = "fn main(x: i32) -> pub Field {
-        x as Field
-    }";
-    let strategy_u32 = any::<u32>()
-        .prop_map(|x| {
-            SnippetInputOutput::new(
-                vec![("x", InputValue::Field((x as u128).into()))],
-                InputValue::Field((x as u128).into()),
-            )
-        })
-        .boxed();
-    run_snippet_proptest(unsigned_32.to_string(), false, strategy_u32.clone());
-    run_snippet_proptest(unsigned_32.to_string(), true, strategy_u32.clone());
-    run_snippet_proptest(signed_32.to_string(), false, strategy_u32.clone());
-    run_snippet_proptest(signed_32.to_string(), true, strategy_u32.clone());
-
-    let unsigned_64 = "fn main(x: u64) -> pub Field {
-        x as Field
-    }";
-    let signed_64 = "fn main(x: i64) -> pub Field {
-        x as Field
-    }";
-    let strategy_u64 = any::<u64>()
-        .prop_map(|x| {
-            SnippetInputOutput::new(
-                vec![("x", InputValue::Field((x as u128).into()))],
-                InputValue::Field((x as u128).into()),
-            )
-        })
-        .boxed();
-    run_snippet_proptest(unsigned_64.to_string(), false, strategy_u64.clone());
-    run_snippet_proptest(unsigned_64.to_string(), true, strategy_u64.clone());
-    run_snippet_proptest(signed_64.to_string(), false, strategy_u64.clone());
-    run_snippet_proptest(signed_64.to_string(), true, strategy_u64.clone());
-
-    let unsigned_128 = "fn main(x: u128) -> pub Field {
-        x as Field
-    }";
-
-    let strategy_u128 = any::<u128>()
-        .prop_map(|x| {
-            SnippetInputOutput::new(
-                vec![("x", InputValue::Field(x.into()))],
-                InputValue::Field(x.into()),
-            )
-        })
-        .boxed();
-    run_snippet_proptest(unsigned_128.to_string(), false, strategy_u128.clone());
-    run_snippet_proptest(unsigned_128.to_string(), true, strategy_u128.clone());
+fn make_field_cast_test(size: u32, signed: bool) -> String {
+    if signed {
+        format!(
+            "fn main(x: i{size}) -> pub Field {{
+            x as Field
+         }}
+         "
+        )
+    } else {
+        format!(
+            "fn main(x: u{size}) -> pub Field {{
+            x as Field
+}}"
+        )
+    }
 }
 
-/// Check that up-casting unsigned types is correct
-#[test]
-fn fuzz_zero_extent() {
-    let unsigned_8_16 = "fn main(x: u8) -> pub Field {
-    let y = x as u16;
-    y as Field - x as Field
-}";
-
-    let unsigned_8_32 = "fn main(x: u8) -> pub Field {
-    let y = x as u32;
-    y as Field - x as Field
-}";
-
-    let unsigned_8_64 = "fn main(x: u8) -> pub Field {
-    let y = x as u64;
-    y as Field - x as Field
-}";
-
-    let unsigned_8_128 = "fn main(x: u8) -> pub Field {
-    let y = x as u128;
-    y as Field - x as Field
-}";
-
-    let unsigned_16_32 = "fn main(x: u16) -> pub Field {
-    let y = x as u32;
-    y as Field - x as Field
-}";
-
-    let unsigned_16_64 = "fn main(x: u16) -> pub Field {
-    let y = x as u64;
-    y as Field - x as Field
-}";
-
-    let unsigned_16_128 = "fn main(x: u16) -> pub Field {
-    let y = x as u128;
-    y as Field - x as Field
-}";
-
-    let unsigned_32_64 = "fn main(x: u32) -> pub Field {
-    let y = x as u64;
-    y as Field - x as Field
-}";
-
-    let unsigned_32_128 = "fn main(x: u32) -> pub Field {
-    let y = x as u128;
-    y as Field - x as Field
-}";
-
-    let unsigned_64_128 = "fn main(x: u64) -> pub Field {
-    let y = x as u128;
-    y as Field - x as Field
-}";
-
-    let unsigned_8_8 = "fn main(x: u8) -> pub Field {
-    let y = x as u8;
-    y as Field - x as Field
-}";
-    let unsigned_16_16 = "fn main(x: u16) -> pub Field {
-    let y = x as u16;
-    y as Field - x as Field
-}";
-
-    let unsigned_32_32 = "fn main(x: u32) -> pub Field {
-    let y = x as u32;
-    y as Field - x as Field
-}";
-
-    let unsigned_64_64 = "fn main(x: u64) -> pub Field {
-    let y = x as u64;
-    y as Field - x as Field
-}";
-
-    let unsigned_128_128 = "fn main(x: u128) -> pub Field {
-    let y = x as u128;
-   y as Field - x as Field
-}";
-
+fn get_unsigned_strategies() -> Vec<(u32, BoxedStrategy<SnippetInputOutput>)> {
     let strategy_u8 = any::<u8>()
         .prop_map(|x| {
             SnippetInputOutput::new(
@@ -357,168 +197,15 @@ fn fuzz_zero_extent() {
             )
         })
         .boxed();
-
-    // zero extend 8 bits
-    run_snippet_proptest(unsigned_8_8.to_string(), false, strategy_u8.clone());
-    run_snippet_proptest(unsigned_8_16.to_string(), false, strategy_u8.clone());
-    run_snippet_proptest(unsigned_8_32.to_string(), false, strategy_u8.clone());
-    run_snippet_proptest(unsigned_8_64.to_string(), false, strategy_u8.clone());
-    run_snippet_proptest(unsigned_8_128.to_string(), false, strategy_u8.clone());
-    run_snippet_proptest(unsigned_8_8.to_string(), true, strategy_u8.clone());
-    run_snippet_proptest(unsigned_8_16.to_string(), true, strategy_u8.clone());
-    run_snippet_proptest(unsigned_8_32.to_string(), true, strategy_u8.clone());
-    run_snippet_proptest(unsigned_8_64.to_string(), true, strategy_u8.clone());
-    run_snippet_proptest(unsigned_8_128.to_string(), true, strategy_u8.clone());
-    // zero extend 16 bits
-    run_snippet_proptest(unsigned_16_16.to_string(), false, strategy_u16.clone());
-    run_snippet_proptest(unsigned_16_16.to_string(), true, strategy_u16.clone());
-    run_snippet_proptest(unsigned_16_32.to_string(), false, strategy_u16.clone());
-    run_snippet_proptest(unsigned_16_32.to_string(), true, strategy_u16.clone());
-    run_snippet_proptest(unsigned_16_64.to_string(), false, strategy_u16.clone());
-    run_snippet_proptest(unsigned_16_64.to_string(), true, strategy_u16.clone());
-    run_snippet_proptest(unsigned_16_128.to_string(), false, strategy_u16.clone());
-    run_snippet_proptest(unsigned_16_128.to_string(), true, strategy_u16.clone());
-
-    // zero extend 32 bits
-    run_snippet_proptest(unsigned_32_32.to_string(), false, strategy_u32.clone());
-    run_snippet_proptest(unsigned_32_32.to_string(), true, strategy_u32.clone());
-    run_snippet_proptest(unsigned_32_64.to_string(), false, strategy_u32.clone());
-    run_snippet_proptest(unsigned_32_64.to_string(), true, strategy_u32.clone());
-    run_snippet_proptest(unsigned_32_128.to_string(), false, strategy_u32.clone());
-    run_snippet_proptest(unsigned_32_128.to_string(), true, strategy_u32.clone());
-
-    // zero extend 64 bits
-    run_snippet_proptest(unsigned_64_64.to_string(), false, strategy_u64.clone());
-    run_snippet_proptest(unsigned_64_64.to_string(), false, strategy_u64.clone());
-    run_snippet_proptest(unsigned_64_128.to_string(), false, strategy_u64.clone());
-    run_snippet_proptest(unsigned_64_128.to_string(), true, strategy_u64.clone());
-    // zero extend 128 bits
-    run_snippet_proptest(unsigned_128_128.to_string(), false, strategy_u128.clone());
-    run_snippet_proptest(unsigned_128_128.to_string(), true, strategy_u128.clone());
+    vec![
+        (8, strategy_u8),
+        (16, strategy_u16),
+        (32, strategy_u32),
+        (64, strategy_u64),
+        (128, strategy_u128),
+    ]
 }
-
-/// Check that signed to unsigned and unsigned to signed, with the same bit size, do not change the inner value.
-#[test]
-fn fuzz_signed_unsigned_same_size() {
-    let signed_unsigned_8_8 = "fn main(x: i8) -> pub Field {
-    let y = x as u8;
-    let z = y as i8;
-    assert(z == x);
-    y as Field - x as Field
-}";
-    let signed_unsigned_16_16 = "fn main(x: i16) -> pub Field {
-    let y = x as u16;
-    let z = y as i16;
-    assert(z == x);
-    y as Field - x as Field
-}";
-
-    let signed_unsigned_32_32 = "fn main(x: i32) -> pub Field {
-    let y = x as u32;
-    let z = y as i32;
-    assert(z == x);
-    y as Field - x as Field
-}";
-
-    let signed_unsigned_64_64 = "fn main(x: i64) -> pub Field {
-    let y = x as u64;
-    let z = y as i64;
-    assert(z == x);
-    y as Field - x as Field
-}";
-
-    let strategy_i8 = any::<u8>()
-        .prop_map(|x| {
-            SnippetInputOutput::new(
-                vec![("x", InputValue::Field((x as u128).into()))],
-                InputValue::Field(0_u128.into()),
-            )
-        })
-        .boxed();
-    let strategy_i16 = any::<u16>()
-        .prop_map(|x| {
-            SnippetInputOutput::new(
-                vec![("x", InputValue::Field((x as u128).into()))],
-                InputValue::Field(0_u128.into()),
-            )
-        })
-        .boxed();
-    let strategy_i32 = any::<u32>()
-        .prop_map(|x| {
-            SnippetInputOutput::new(
-                vec![("x", InputValue::Field((x as u128).into()))],
-                InputValue::Field(0_u128.into()),
-            )
-        })
-        .boxed();
-    let strategy_i64 = any::<u64>()
-        .prop_map(|x| {
-            SnippetInputOutput::new(
-                vec![("x", InputValue::Field((x as u128).into()))],
-                InputValue::Field(0_u128.into()),
-            )
-        })
-        .boxed();
-
-    // zero extend 8 bits
-    run_snippet_proptest(signed_unsigned_8_8.to_string(), false, strategy_i8.clone());
-    run_snippet_proptest(signed_unsigned_8_8.to_string(), true, strategy_i8.clone());
-    // zero extend 16 bits
-    run_snippet_proptest(signed_unsigned_16_16.to_string(), false, strategy_i16.clone());
-    run_snippet_proptest(signed_unsigned_16_16.to_string(), true, strategy_i16.clone());
-    // zero extend 32 bits
-    run_snippet_proptest(signed_unsigned_32_32.to_string(), false, strategy_i32.clone());
-    run_snippet_proptest(signed_unsigned_32_32.to_string(), true, strategy_i32.clone());
-    // zero extend 64 bits
-    run_snippet_proptest(signed_unsigned_64_64.to_string(), false, strategy_i64.clone());
-    run_snippet_proptest(signed_unsigned_64_64.to_string(), false, strategy_i64.clone());
-}
-
-#[test]
-// Test sign extension
-fn fuzz_sign_extent() {
-    let signed_8_16 = "fn main(x: i8) -> pub Field {
-     let neg = -x;
-     let y = x as i16;
-     let neg_y = neg as i16;
-     (neg_y+y) as Field
-    }";
-
-    let signed_8_32 = "fn main(x: i8) -> pub Field {
-     let neg = -x;
-     let y = x as i32;
-     let neg_y = neg as i32;
-     (neg_y+y) as Field
-    }";
-
-    let signed_8_64 = "fn main(x: i8) -> pub Field {
-     let neg = -x;
-     let y = x as i64;
-     let neg_y = neg as i64;
-     (neg_y+y) as Field
-    }";
-
-    let signed_16_32 = "fn main(x: i16) -> pub Field {
-     let neg = -x;
-     let y = x as i32;
-     let neg_y = neg as i32;
-     (neg_y+y) as Field
-    }";
-
-    let signed_16_64 = "fn main(x: i16) -> pub Field {
-     let neg = -x;
-     let y = x as i64;
-     let neg_y = neg as i64;
-     (neg_y+y) as Field
-    }";
-
-    let signed_32_64 = "fn main(x: i32) -> pub Field {
-     let neg = -x;
-     let y = x as i64;
-     let neg_y = neg as i64;
-     (neg_y+y) as Field
-    }";
-
+fn get_signed_strategies() -> Vec<(u32, BoxedStrategy<SnippetInputOutput>)> {
     let strategy_i8 = any::<u8>()
         .prop_map(|mut x| {
             if x == 128 {
@@ -553,78 +240,10 @@ fn fuzz_sign_extent() {
             )
         })
         .boxed();
-    // sign extent 8 bits
-    run_snippet_proptest(signed_8_16.to_string(), false, strategy_i8.clone());
-    run_snippet_proptest(signed_8_32.to_string(), false, strategy_i8.clone());
-    run_snippet_proptest(signed_8_64.to_string(), false, strategy_i8.clone());
-    run_snippet_proptest(signed_8_16.to_string(), true, strategy_i8.clone());
-    run_snippet_proptest(signed_8_32.to_string(), true, strategy_i8.clone());
-    run_snippet_proptest(signed_8_64.to_string(), true, strategy_i8.clone());
-    // sign extent 16 bits
-    run_snippet_proptest(signed_16_32.to_string(), false, strategy_i16.clone());
-    run_snippet_proptest(signed_16_64.to_string(), false, strategy_i16.clone());
-    run_snippet_proptest(signed_16_32.to_string(), true, strategy_i16.clone());
-    run_snippet_proptest(signed_16_64.to_string(), true, strategy_i16.clone());
-    // sign extent 32 bits
-    run_snippet_proptest(signed_32_64.to_string(), false, strategy_i32.clone());
-    run_snippet_proptest(signed_32_64.to_string(), true, strategy_i32.clone());
+    vec![(8, strategy_i8), (16, strategy_i16), (32, strategy_i32)]
 }
 
-/// Check that truncation between unsigned types is correct
-#[test]
-fn fuzz_truncate() {
-    let unsigned_16_8 = "fn main(x: u16) -> pub u16 {
-        let y = x as u8;
-        let q = (x as Field - y as Field)/256;
-        (q as u16)*256 + y as u16
-    }";
-    let unsigned_32_8 = "fn main(x: u32) -> pub u32 {
-        let y = x as u8;
-        let q = (x as Field - y as Field)/256;
-        (q as u32)*256 + y as u32
-    }";
-    let unsigned_32_16 = "fn main(x: u32) -> pub u32 {
-        let y = x as u16;
-        let q = (x as Field - y as Field)/65536;
-        (q as u32)*65536 + y as u32
-    }";
-
-    let unsigned_64_8 = "fn main(x: u64) -> pub u64 {
-        let y = x as u8;
-        let q = (x as Field - y as Field)/256;
-        (q as u64)*256 + y as u64
-    }";
-    let unsigned_64_16 = "fn main(x: u64) -> pub u64 {
-        let y = x as u16;
-        let q = (x as Field - y as Field)/65536;
-        (q as u64)*65536 + y as u64
-    }";
-    let unsigned_64_32 = "fn main(x: u64) -> pub u64 {
-        let y = x as u32;
-        let q = (x as Field - y as Field)/4294967296;
-        (q as u64)*4294967296 + y as u64
-    }";
-    let unsigned_128_8 = "fn main(x: u128) -> pub u128 {
-        let y = x as u8;
-        let q = (x as Field - y as Field)/256;
-        (q as u128)*256 + y as u128
-    }";
-    let unsigned_128_16 = "fn main(x: u128) -> pub u128 {
-        let y = x as u16;
-        let q = (x as Field - y as Field)/65536;
-        (q as u128)*65536 + y as u128
-    }";
-    let unsigned_128_32 = "fn main(x: u128) -> pub u128 {
-        let y = x as u32;
-        let q = (x as Field - y as Field)/4294967296;
-        (q as u128)*4294967296 + y as u128
-    }";
-    let unsigned_128_64 = "fn main(x: u128) -> pub u128 {
-        let y = x as u64;
-        let q = (x as Field - y as Field)/18446744073709551616;
-        (q as u128)*18446744073709551616 + y as u128
-    }";
-
+fn get_truncate_strategies() -> Vec<(u32, BoxedStrategy<SnippetInputOutput>)> {
     let strategy_u16 = any::<u16>()
         .prop_map(|x| {
             SnippetInputOutput::new(
@@ -658,24 +277,126 @@ fn fuzz_truncate() {
         })
         .boxed();
 
-    run_snippet_proptest(unsigned_16_8.to_string(), false, strategy_u16.clone());
-    run_snippet_proptest(unsigned_16_8.to_string(), true, strategy_u16.clone());
-    run_snippet_proptest(unsigned_32_8.to_string(), false, strategy_u32.clone());
-    run_snippet_proptest(unsigned_32_8.to_string(), true, strategy_u32.clone());
-    run_snippet_proptest(unsigned_32_16.to_string(), false, strategy_u32.clone());
-    run_snippet_proptest(unsigned_32_16.to_string(), true, strategy_u32.clone());
-    run_snippet_proptest(unsigned_64_8.to_string(), false, strategy_u64.clone());
-    run_snippet_proptest(unsigned_64_8.to_string(), true, strategy_u64.clone());
-    run_snippet_proptest(unsigned_64_16.to_string(), false, strategy_u64.clone());
-    run_snippet_proptest(unsigned_64_16.to_string(), true, strategy_u64.clone());
-    run_snippet_proptest(unsigned_64_32.to_string(), false, strategy_u64.clone());
-    run_snippet_proptest(unsigned_64_32.to_string(), true, strategy_u64.clone());
-    run_snippet_proptest(unsigned_128_8.to_string(), false, strategy_u128.clone());
-    run_snippet_proptest(unsigned_128_8.to_string(), true, strategy_u128.clone());
-    run_snippet_proptest(unsigned_128_16.to_string(), false, strategy_u128.clone());
-    run_snippet_proptest(unsigned_128_16.to_string(), true, strategy_u128.clone());
-    run_snippet_proptest(unsigned_128_32.to_string(), false, strategy_u128.clone());
-    run_snippet_proptest(unsigned_128_32.to_string(), true, strategy_u128.clone());
-    run_snippet_proptest(unsigned_128_64.to_string(), false, strategy_u128.clone());
-    run_snippet_proptest(unsigned_128_64.to_string(), true, strategy_u128.clone());
+    vec![(16, strategy_u16), (32, strategy_u32), (64, strategy_u64), (128, strategy_u128)]
+}
+
+/// The tests fuzz_zero_extent(), fuzz_signed_unsigned_same_size(), fuzz_sign_extent() and fuzz_truncate()
+/// ensure that casting between integer types is correct, assuming casting to Field is correct.
+/// Casting to Field is validated with the fuzz_field_cast() test.
+/// Any casting between integer types will use a combination of: no-op, zero extension, sign extension, or truncation.
+/// Testing these 4 primitives should be enough to guarantee that casting between any integer types is correct.
+///
+/// Check that casting to Field is a no-op
+#[test]
+fn fuzz_field_cast() {
+    for (size, strategy) in get_truncate_strategies().iter() {
+        if *size < 128 {
+            let signed_i = make_field_cast_test(*size, true);
+            run_snippet_proptest(signed_i.to_string(), false, strategy.clone());
+            run_snippet_proptest(signed_i.to_string(), true, strategy.clone());
+        }
+        let unsigned_i = make_field_cast_test(*size, false);
+        run_snippet_proptest(unsigned_i.to_string(), false, strategy.clone());
+        run_snippet_proptest(unsigned_i.to_string(), true, strategy.clone());
+    }
+}
+
+fn make_zero_extent_test(in_size: u32, out_size: u32) -> String {
+    format!(
+        "fn main(x: u{in_size}) -> pub Field {{
+        let y = x as u{out_size};
+        y as Field - x as Field
+}}"
+    )
+}
+
+/// Check that up-casting unsigned types is correct
+#[test]
+fn fuzz_zero_extent() {
+    let strategies = get_unsigned_strategies();
+    // zero extend 8, 16, 32, 64, 128 bits
+    for (size, strategy) in strategies.iter() {
+        for i in [8, 16, 32, 64, 128].iter() {
+            if *i >= *size {
+                let unsigned_j_i = make_zero_extent_test(*size, *i);
+                run_snippet_proptest(unsigned_j_i.to_string(), false, strategy.clone());
+                run_snippet_proptest(unsigned_j_i.to_string(), true, strategy.clone());
+            }
+        }
+    }
+}
+
+fn make_sign_unsigned_test(size: u32) -> String {
+    format!(
+        "fn main(x: i{size}) -> pub Field {{
+    let y = x as u{size};
+    let z = y as i{size};
+    assert(z == x);
+    y as Field - x as Field
+}}"
+    )
+}
+
+/// Check that signed to unsigned and unsigned to signed, with the same bit size, do not change the inner value.
+#[test]
+fn fuzz_signed_unsigned_same_size() {
+    let strategies = get_unsigned_strategies();
+
+    for (size, strategy) in strategies.iter() {
+        if *size < 128 {
+            let signed_unsigned_i_i = make_sign_unsigned_test(*size);
+            run_snippet_proptest(signed_unsigned_i_i.to_string(), false, strategy.clone());
+            run_snippet_proptest(signed_unsigned_i_i.to_string(), true, strategy.clone());
+        }
+    }
+}
+
+fn make_sign_extent_test(in_size: u32, out_size: u32) -> String {
+    format!(
+        "fn main(x: i{in_size}) -> pub Field {{
+         let neg = -x;
+     let y = x as i{out_size};
+     let neg_y = neg as i{out_size};
+     (neg_y+y) as Field
+}}"
+    )
+}
+#[test]
+// Test sign extension
+fn fuzz_sign_extent() {
+    for (size, strategy) in get_signed_strategies().iter() {
+        for i in [16, 32, 64] {
+            if i > *size {
+                // sign extent
+                let signed_i_i = make_sign_extent_test(*size, i);
+                run_snippet_proptest(signed_i_i.to_string(), false, strategy.clone());
+                run_snippet_proptest(signed_i_i.to_string(), true, strategy.clone());
+            }
+        }
+    }
+}
+
+fn make_truncate_test(size: u32, truncate: u32) -> String {
+    let max: u128 = 1 << truncate;
+
+    format!(
+        "fn main(x: u{size}) -> pub u{size} {{
+        let y = x as u{truncate};
+        let q = (x as Field - y as Field)/{max};
+        (q as u{size})*{max} + y as u{size}
+}}"
+    )
+}
+/// Check that truncation between unsigned types is correct
+#[test]
+fn fuzz_truncate() {
+    for (size, strategy) in get_truncate_strategies().iter() {
+        for i in [8, 16, 32, 64] {
+            if i < *size {
+                let unsigned_j_i = make_truncate_test(*size, i);
+                run_snippet_proptest(unsigned_j_i.to_string(), false, strategy.clone());
+                run_snippet_proptest(unsigned_j_i.to_string(), true, strategy.clone());
+            }
+        }
+    }
 }
