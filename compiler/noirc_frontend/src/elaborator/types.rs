@@ -269,48 +269,47 @@ impl Elaborator<'_> {
 
         let location = path.location;
         match self.resolve_path_or_error_inner(path.clone(), PathResolutionTarget::Type, mode) {
-            Ok(item) => {
-                if let PathResolutionItem::Type(type_id) = item {
-                    let data_type = self.get_type(type_id);
+            Ok(PathResolutionItem::Type(type_id)) => {
+                let data_type = self.get_type(type_id);
 
-                    if self.resolving_ids.contains(&data_type.borrow().id) {
-                        self.push_err(ResolverError::SelfReferentialType {
-                            location: data_type.borrow().name.location(),
-                        });
-
-                        return Type::Error;
-                    }
-
-                    if !self.in_contract()
-                        && self
-                            .interner
-                            .type_attributes(&data_type.borrow().id)
-                            .iter()
-                            .any(|attr| matches!(attr.kind, SecondaryAttributeKind::Abi(_)))
-                    {
-                        self.push_err(ResolverError::AbiAttributeOutsideContract {
-                            location: data_type.borrow().name.location(),
-                        });
-                    }
-
-                    let (args, _) =
-                        self.resolve_type_args_inner(args, data_type.borrow(), location, mode);
-
-                    if let Some(current_item) = self.current_item {
-                        let dependency_id = data_type.borrow().id;
-                        self.interner.add_type_dependency(current_item, dependency_id);
-                    }
-
-                    Type::DataType(data_type, args)
-                } else {
-                    self.push_err(ResolverError::Expected {
-                        expected: "type",
-                        got: item.description(),
-                        location,
+                if self.resolving_ids.contains(&data_type.borrow().id) {
+                    self.push_err(ResolverError::SelfReferentialType {
+                        location: data_type.borrow().name.location(),
                     });
 
-                    Type::Error
+                    return Type::Error;
                 }
+
+                if !self.in_contract()
+                    && self
+                        .interner
+                        .type_attributes(&data_type.borrow().id)
+                        .iter()
+                        .any(|attr| matches!(attr.kind, SecondaryAttributeKind::Abi(_)))
+                {
+                    self.push_err(ResolverError::AbiAttributeOutsideContract {
+                        location: data_type.borrow().name.location(),
+                    });
+                }
+
+                let (args, _) =
+                    self.resolve_type_args_inner(args, data_type.borrow(), location, mode);
+
+                if let Some(current_item) = self.current_item {
+                    let dependency_id = data_type.borrow().id;
+                    self.interner.add_type_dependency(current_item, dependency_id);
+                }
+
+                Type::DataType(data_type, args)
+            }
+            Ok(item) => {
+                self.push_err(ResolverError::Expected {
+                    expected: "type",
+                    got: item.description(),
+                    location,
+                });
+
+                Type::Error
             }
             Err(err) => {
                 if let Some(typ) = self.resolve_primitive_type(path, args) {
