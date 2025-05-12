@@ -270,8 +270,7 @@ impl<F: Clone + std::fmt::Debug> BrilligArtifact<F> {
     fn is_jmp_instruction(instruction: &BrilligOpcode<F>) -> bool {
         matches!(
             instruction,
-            BrilligOpcode::JumpIfNot { .. }
-                | BrilligOpcode::JumpIf { .. }
+                BrilligOpcode::JumpIf { .. }
                 | BrilligOpcode::Jump { .. }
         )
     }
@@ -312,15 +311,6 @@ impl<F: Clone + std::fmt::Debug> BrilligArtifact<F> {
 
                     self.byte_code[*location_of_jump] =
                         BrilligOpcode::Jump { location: resolved_location };
-                }
-                BrilligOpcode::JumpIfNot { condition, location } => {
-                    assert_eq!(
-                        location, 0,
-                        "location is not zero, which means that the jump label does not need resolving"
-                    );
-
-                    self.byte_code[*location_of_jump] =
-                        BrilligOpcode::JumpIfNot { condition, location: resolved_location };
                 }
                 BrilligOpcode::JumpIf { condition, location } => {
                     assert_eq!(
