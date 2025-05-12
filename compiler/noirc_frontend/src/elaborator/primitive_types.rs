@@ -10,6 +10,7 @@ pub enum PrimitiveType {
     Field,
     FunctionDefinition,
     Module,
+    Quoted,
 }
 
 impl PrimitiveType {
@@ -21,6 +22,7 @@ impl PrimitiveType {
             "Field" => Some(Self::Field),
             "FunctionDefinition" => Some(Self::FunctionDefinition),
             "Module" => Some(Self::Module),
+            "Quoted" => Some(Self::Quoted),
             _ => None,
         }
     }
@@ -33,15 +35,19 @@ impl PrimitiveType {
             Self::Field => Type::FieldElement,
             Self::FunctionDefinition => Type::Quoted(QuotedType::FunctionDefinition),
             Self::Module => Type::Quoted(QuotedType::Module),
+            Self::Quoted => Type::Quoted(QuotedType::Quoted),
         }
     }
 
     pub fn to_integer_or_field(self) -> Option<Type> {
         match self {
             Self::Field => Some(Type::FieldElement),
-            Self::Bool | Self::CtString | Self::Expr | Self::FunctionDefinition | Self::Module => {
-                None
-            }
+            Self::Bool
+            | Self::CtString
+            | Self::Expr
+            | Self::FunctionDefinition
+            | Self::Module
+            | Self::Quoted => None,
         }
     }
 }
