@@ -372,7 +372,8 @@
 <a href="#371" id="371">371</a>
 <a href="#372" id="372">372</a>
 <a href="#373" id="373">373</a>
-<a href="#374" id="374">374</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::{borrow::Cow, sync::Arc};
+<a href="#374" id="374">374</a>
+<a href="#375" id="375">375</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::{borrow::Cow, sync::Arc};
 
 <span class="kw">use </span>acvm::{FieldElement, acir::AcirField};
 <span class="kw">use </span>noirc_errors::call_stack::CallStackId;
@@ -615,15 +616,16 @@
             <span class="kw">let </span><span class="kw-2">mut </span>r = one;
             <span class="comment">// All operations are unchecked as we're acting on Field types (which are always unchecked)
             </span><span class="kw">for </span>i <span class="kw">in </span><span class="number">1</span>..bit_size + <span class="number">1 </span>{
-                <span class="kw">let </span>r_squared = <span class="self">self</span>.insert_binary(r, BinaryOp::Mul { unchecked: <span class="bool-val">true </span>}, r);
-                <span class="kw">let </span>a = <span class="self">self</span>.insert_binary(r_squared, BinaryOp::Mul { unchecked: <span class="bool-val">true </span>}, lhs);
                 <span class="kw">let </span>idx = <span class="self">self</span>.field_constant(FieldElement::from((bit_size - i) <span class="kw">as </span>i128));
                 <span class="kw">let </span>b = <span class="self">self</span>.insert_array_get(rhs_bits, idx, Type::bool());
                 <span class="kw">let </span>not_b = <span class="self">self</span>.insert_not(b);
                 <span class="kw">let </span>b = <span class="self">self</span>.insert_cast(b, NumericType::NativeField);
                 <span class="kw">let </span>not_b = <span class="self">self</span>.insert_cast(not_b, NumericType::NativeField);
-                <span class="kw">let </span>r1 = <span class="self">self</span>.insert_binary(a, BinaryOp::Mul { unchecked: <span class="bool-val">true </span>}, b);
-                <span class="kw">let </span>r2 = <span class="self">self</span>.insert_binary(r_squared, BinaryOp::Mul { unchecked: <span class="bool-val">true </span>}, not_b);
+
+                <span class="kw">let </span>r_squared = <span class="self">self</span>.insert_binary(r, BinaryOp::Mul { unchecked: <span class="bool-val">true </span>}, r);
+                <span class="kw">let </span>r1 = <span class="self">self</span>.insert_binary(r_squared, BinaryOp::Mul { unchecked: <span class="bool-val">true </span>}, not_b);
+                <span class="kw">let </span>a = <span class="self">self</span>.insert_binary(r_squared, BinaryOp::Mul { unchecked: <span class="bool-val">true </span>}, lhs);
+                <span class="kw">let </span>r2 = <span class="self">self</span>.insert_binary(a, BinaryOp::Mul { unchecked: <span class="bool-val">true </span>}, b);
                 r = <span class="self">self</span>.insert_binary(r1, BinaryOp::Add { unchecked: <span class="bool-val">true </span>}, r2);
             }
             r
