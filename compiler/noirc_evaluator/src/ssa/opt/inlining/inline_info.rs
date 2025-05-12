@@ -376,7 +376,7 @@ mod tests {
     // This panic is a regression that will need to be updated by fixing the inline infos computation.
     // https://github.com/noir-lang/noir/issues/8448
     #[test]
-    #[should_panic]
+    #[should_panic(expected = "func_3.is_recursive")]
     fn mark_mutually_recursive_functions() {
         let src = "
         acir(inline) fn main f0 {
@@ -404,16 +404,16 @@ mod tests {
         let ssa = Ssa::from_str(src).unwrap();
         let inline_infos = compute_inline_infos(&ssa, false, i64::MAX);
 
-        let func_0 = inline_infos.get(&Id::test_new(0)).expect("Should have made ");
+        let func_0 = inline_infos.get(&Id::test_new(0)).expect("Should have computed inline info");
         assert!(!func_0.is_recursive);
 
-        let func_1 = inline_infos.get(&Id::test_new(1)).expect("Should have made ");
+        let func_1 = inline_infos.get(&Id::test_new(1)).expect("Should have computed inline info");
         assert!(!func_1.is_recursive);
 
-        let func_2 = inline_infos.get(&Id::test_new(2)).expect("Should have made ");
+        let func_2 = inline_infos.get(&Id::test_new(2)).expect("Should have computed inline info");
         assert!(func_2.is_recursive);
 
-        let func_3 = inline_infos.get(&Id::test_new(3)).expect("Should have made ");
+        let func_3 = inline_infos.get(&Id::test_new(3)).expect("Should have computed inline info");
         assert!(func_3.is_recursive);
     }
 }
