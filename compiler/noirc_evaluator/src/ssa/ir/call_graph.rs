@@ -1,3 +1,13 @@
+//! Call graph analysis
+//!
+//! This module provides a `CallGraph` structure that builds a directed call graph from SSA functions.
+//!
+//! It enables:
+//! - Construction of the call graph from SSA or explicit function dependencies
+//! - Detection of directly and mutually recursive functions using Kosaraju's algorithm for finding SCCs
+//!
+//! This utility is used by SSA passes such as inlining, which need to avoid recursive functions,
+//! and purity analysis which needs to unify the purities of all functions called within another function.
 use std::collections::BTreeSet;
 
 use fxhash::{FxHashMap as HashMap, FxHashSet as HashSet};
@@ -14,6 +24,9 @@ use super::{
     value::Value,
 };
 
+/// Represents a function call graph built from the SSA
+/// Internally, this is a directed graph where each node is a [FunctionId] and each edge
+/// represents a call from one function to another.
 pub(crate) struct CallGraph {
     graph: DiGraph<FunctionId, ()>,
     ids_to_indices: HashMap<FunctionId, PetGraphIndex>,
@@ -21,6 +34,7 @@ pub(crate) struct CallGraph {
 }
 
 impl CallGraph {
+    /// Construct a [CallGraph] from the [Ssa]
     pub(crate) fn new_from_ssa(ssa: &Ssa) -> Self {
         let function_deps = ssa
             .functions
@@ -34,6 +48,7 @@ impl CallGraph {
         Self::new_from_deps(function_deps)
     }
 
+    /// Construct a [CallGraph] from an explicit dependency mapping of (caller -> callees)
     pub(crate) fn new_from_deps(dependencies: HashMap<FunctionId, BTreeSet<FunctionId>>) -> Self {
         let mut graph = DiGraph::new();
         let mut ids_to_indices = HashMap::default();
@@ -58,6 +73,11 @@ impl CallGraph {
         Self { graph, ids_to_indices, indices_to_ids }
     }
 
+    /// Returns the set of all recursive functions.
+    ///
+    /// A function is considered recursive if:
+    /// - It is self-recursive (calls itself), or
+    /// - It is part of a mutual recursion cycle with other functions.
     pub(crate) fn get_recursive_functions(&self) -> HashSet<FunctionId> {
         let mut recursive_functions = HashSet::default();
 
