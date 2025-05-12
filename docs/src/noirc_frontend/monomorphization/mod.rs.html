@@ -5157,8 +5157,8 @@
                 <span class="kw-2">&amp;</span>trait_generics.ordered,
                 <span class="kw-2">&amp;</span>trait_generics.named,
             ) {
-                <span class="prelude-val">Ok</span>(TraitImplKind::Normal(impl_id)) =&gt; impl_id,
-                <span class="prelude-val">Ok</span>(TraitImplKind::Assumed { .. }) =&gt; {
+                <span class="prelude-val">Ok</span>((TraitImplKind::Normal(impl_id), _instantiation_bindings)) =&gt; impl_id,
+                <span class="prelude-val">Ok</span>((TraitImplKind::Assumed { .. }, _instantiation_bindings)) =&gt; {
                     <span class="kw">return </span><span class="prelude-val">Err</span>(InterpreterError::NoImpl { location });
                 }
                 <span class="prelude-val">Err</span>(ImplSearchErrorKind::TypeAnnotationsNeededOnObjectType) =&gt; {

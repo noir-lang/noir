@@ -2250,7 +2250,40 @@
 <a href="#2249" id="2249">2249</a>
 <a href="#2250" id="2250">2250</a>
 <a href="#2251" id="2251">2251</a>
-<a href="#2252" id="2252">2252</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::{borrow::Cow, rc::Rc};
+<a href="#2252" id="2252">2252</a>
+<a href="#2253" id="2253">2253</a>
+<a href="#2254" id="2254">2254</a>
+<a href="#2255" id="2255">2255</a>
+<a href="#2256" id="2256">2256</a>
+<a href="#2257" id="2257">2257</a>
+<a href="#2258" id="2258">2258</a>
+<a href="#2259" id="2259">2259</a>
+<a href="#2260" id="2260">2260</a>
+<a href="#2261" id="2261">2261</a>
+<a href="#2262" id="2262">2262</a>
+<a href="#2263" id="2263">2263</a>
+<a href="#2264" id="2264">2264</a>
+<a href="#2265" id="2265">2265</a>
+<a href="#2266" id="2266">2266</a>
+<a href="#2267" id="2267">2267</a>
+<a href="#2268" id="2268">2268</a>
+<a href="#2269" id="2269">2269</a>
+<a href="#2270" id="2270">2270</a>
+<a href="#2271" id="2271">2271</a>
+<a href="#2272" id="2272">2272</a>
+<a href="#2273" id="2273">2273</a>
+<a href="#2274" id="2274">2274</a>
+<a href="#2275" id="2275">2275</a>
+<a href="#2276" id="2276">2276</a>
+<a href="#2277" id="2277">2277</a>
+<a href="#2278" id="2278">2278</a>
+<a href="#2279" id="2279">2279</a>
+<a href="#2280" id="2280">2280</a>
+<a href="#2281" id="2281">2281</a>
+<a href="#2282" id="2282">2282</a>
+<a href="#2283" id="2283">2283</a>
+<a href="#2284" id="2284">2284</a>
+<a href="#2285" id="2285">2285</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::{borrow::Cow, rc::Rc};
 
 <span class="kw">use </span>im::HashSet;
 <span class="kw">use </span>iter_extended::vecmap;
@@ -2912,7 +2945,9 @@
         <span class="kw">let </span>object_type = <span class="self">self</span>.use_type(path.typ.clone());
 
         <span class="kw">match </span><span class="self">self</span>.interner.lookup_trait_implementation(<span class="kw-2">&amp;</span>object_type, trait_id, <span class="kw-2">&amp;</span>ordered, <span class="kw-2">&amp;</span>named) {
-            <span class="prelude-val">Ok</span>(impl_kind) =&gt; <span class="self">self</span>.get_associated_type_from_trait_impl(path, impl_kind),
+            <span class="prelude-val">Ok</span>((impl_kind, _instantiation_bindings)) =&gt; {
+                <span class="self">self</span>.get_associated_type_from_trait_impl(path, impl_kind)
+            }
             <span class="prelude-val">Err</span>(constraints) =&gt; {
                 <span class="self">self</span>.push_trait_constraint_error(<span class="kw-2">&amp;</span>object_type, constraints, location);
                 Type::Error
@@ -3720,6 +3755,7 @@
                     object_type.clone(),
                 ),
             );
+
             <span class="self">self</span>.interner.select_impl_for_expression(
                 expr_id,
                 TraitImplKind::Assumed { object_type, trait_generics },
@@ -4320,8 +4356,38 @@
             trait_generics,
             associated_types,
         ) {
-            <span class="prelude-val">Ok</span>(impl_kind) =&gt; {
+            <span class="prelude-val">Ok</span>((impl_kind, instantiation_bindings)) =&gt; {
                 <span class="kw">if </span>select_impl {
+                    <span class="comment">// Insert any additional instantiation bindings into this expression's
+                    // instantiation bindings. We should avoid doing this if `select_impl` is
+                    // not true since that means we're not solving for this expressions exact
+                    // impl anyway. If we ignore this, we may rarely overwrite existing type
+                    // bindings causing incorrect types. The `slice_regex` test is one example
+                    // of that happening without this being behind `select_impl`.
+                    </span><span class="kw">let </span><span class="kw-2">mut </span>bindings =
+                        <span class="self">self</span>.interner.get_instantiation_bindings(function_ident_id).clone();
+
+                    <span class="comment">// These can clash in the `slice_regex` test which causes us to insert
+                    // incorrect type bindings if they override the previous bindings.
+                    </span><span class="kw">for </span>(id, binding) <span class="kw">in </span>instantiation_bindings {
+                        <span class="kw">let </span>existing = bindings.insert(id, binding.clone());
+
+                        <span class="kw">if let </span><span class="prelude-val">Some</span>((<span class="kw">_</span>, type_var, existing)) = existing {
+                            <span class="kw">let </span>existing = existing.follow_bindings();
+                            <span class="kw">let </span>new = binding.<span class="number">2</span>.follow_bindings();
+
+                            <span class="comment">// Exact equality on types is intential here, we never want to
+                            // overwrite even type variables but should probably avoid a panic if
+                            // the types are exactly the same.
+                            </span><span class="kw">if </span>existing != new {
+                                <span class="macro">panic!</span>(
+                                    <span class="string">"Overwriting an existing type binding with a different type!\n  {type_var:?} &lt;- {existing:?}\n  {type_var:?} &lt;- {new:?}"
+                                </span>);
+                            }
+                        }
+                    }
+
+                    <span class="self">self</span>.interner.store_instantiation_bindings(function_ident_id, bindings);
                     <span class="self">self</span>.interner.select_impl_for_expression(function_ident_id, impl_kind);
                 }
             }

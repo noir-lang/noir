@@ -2545,7 +2545,18 @@
 <a href="#2544" id="2544">2544</a>
 <a href="#2545" id="2545">2545</a>
 <a href="#2546" id="2546">2546</a>
-<a href="#2547" id="2547">2547</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::borrow::Cow;
+<a href="#2547" id="2547">2547</a>
+<a href="#2548" id="2548">2548</a>
+<a href="#2549" id="2549">2549</a>
+<a href="#2550" id="2550">2550</a>
+<a href="#2551" id="2551">2551</a>
+<a href="#2552" id="2552">2552</a>
+<a href="#2553" id="2553">2553</a>
+<a href="#2554" id="2554">2554</a>
+<a href="#2555" id="2555">2555</a>
+<a href="#2556" id="2556">2556</a>
+<a href="#2557" id="2557">2557</a>
+<a href="#2558" id="2558">2558</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::borrow::Cow;
 <span class="kw">use </span>std::collections::HashSet;
 <span class="kw">use </span>std::fmt;
 <span class="kw">use </span>std::hash::Hash;
@@ -4041,14 +4052,16 @@
     /// constraints deep. In this case, all of the constraints are returned, starting with the
     /// failing one.
     /// If this list of failing constraints is empty, this means type annotations are required.
+    /// Returns the list of instantiation bindings as well, which should be stored on the
+    /// expression.
     </span><span class="kw">pub fn </span>lookup_trait_implementation(
         <span class="kw-2">&amp;</span><span class="self">self</span>,
         object_type: <span class="kw-2">&amp;</span>Type,
         trait_id: TraitId,
         trait_generics: <span class="kw-2">&amp;</span>[Type],
         trait_associated_types: <span class="kw-2">&amp;</span>[NamedType],
-    ) -&gt; <span class="prelude-ty">Result</span>&lt;TraitImplKind, ImplSearchErrorKind&gt; {
-        <span class="kw">let </span>(impl_kind, bindings) = <span class="self">self</span>.try_lookup_trait_implementation(
+    ) -&gt; <span class="prelude-ty">Result</span>&lt;(TraitImplKind, TypeBindings), ImplSearchErrorKind&gt; {
+        <span class="kw">let </span>(impl_kind, bindings, instantiation_bindings) = <span class="self">self</span>.try_lookup_trait_implementation(
             object_type,
             trait_id,
             trait_generics,
@@ -4056,7 +4069,7 @@
         )<span class="question-mark">?</span>;
 
         Type::apply_type_bindings(bindings);
-        <span class="prelude-val">Ok</span>(impl_kind)
+        <span class="prelude-val">Ok</span>((impl_kind, instantiation_bindings))
     }
 
     <span class="doccomment">/// Similar to `lookup_trait_implementation` but does not apply any type bindings on success.
@@ -4070,9 +4083,9 @@
         trait_id: TraitId,
         trait_generics: <span class="kw-2">&amp;</span>[Type],
         trait_associated_types: <span class="kw-2">&amp;</span>[NamedType],
-    ) -&gt; <span class="prelude-ty">Result</span>&lt;(TraitImplKind, TypeBindings), ImplSearchErrorKind&gt; {
+    ) -&gt; <span class="prelude-ty">Result</span>&lt;(TraitImplKind, TypeBindings, TypeBindings), ImplSearchErrorKind&gt; {
         <span class="kw">let </span><span class="kw-2">mut </span>bindings = TypeBindings::new();
-        <span class="kw">let </span>impl_kind = <span class="self">self</span>.lookup_trait_implementation_helper(
+        <span class="kw">let </span>(impl_kind, instantiation_bindings) = <span class="self">self</span>.lookup_trait_implementation_helper(
             object_type,
             trait_id,
             trait_generics,
@@ -4080,10 +4093,15 @@
             <span class="kw-2">&amp;mut </span>bindings,
             IMPL_SEARCH_RECURSION_LIMIT,
         )<span class="question-mark">?</span>;
-        <span class="prelude-val">Ok</span>((impl_kind, bindings))
+        <span class="prelude-val">Ok</span>((impl_kind, bindings, instantiation_bindings))
     }
 
-    <span class="doccomment">/// Returns the trait implementation if found.
+    <span class="doccomment">/// Returns the trait implementation if found along with the instantiation bindings for
+    /// instantiating that trait impl. Note that this is separate from the passed-in TypeBindings
+    /// which can be bound via `Type::apply_type_bindings` if needed. Instantiation bindings should
+    /// be stored as such but not bound, lest the original named generics in trait impls get bound
+    /// over.
+    ///
     /// On error returns either:
     /// - 1+ failing trait constraints, including the original.
     ///   Each constraint after the first represents a `where` clause that was followed.
@@ -4096,7 +4114,7 @@
         trait_associated_types: <span class="kw-2">&amp;</span>[NamedType],
         type_bindings: <span class="kw-2">&amp;mut </span>TypeBindings,
         recursion_limit: u32,
-    ) -&gt; <span class="prelude-ty">Result</span>&lt;TraitImplKind, ImplSearchErrorKind&gt; {
+    ) -&gt; <span class="prelude-ty">Result</span>&lt;(TraitImplKind, TypeBindings), ImplSearchErrorKind&gt; {
         <span class="kw">let </span>make_constraint = || {
             <span class="kw">let </span>ordered = trait_generics.to_vec();
             <span class="kw">let </span>named = trait_associated_types.to_vec();
@@ -4130,8 +4148,7 @@
         <span class="kw">let </span><span class="kw-2">mut </span>where_clause_error = <span class="prelude-val">None</span>;
 
         <span class="kw">for </span>(existing_object_type, impl_kind) <span class="kw">in </span>impls {
-            <span class="comment">// Bug: We're instantiating only the object type's generics here, not all of the trait's generics like we need to
-            </span><span class="kw">let </span>(existing_object_type, instantiation_bindings) =
+            <span class="kw">let </span>(existing_object_type, instantiation_bindings) =
                 existing_object_type.instantiate(<span class="self">self</span>);
 
             <span class="kw">let </span><span class="kw-2">mut </span>fresh_bindings = type_bindings.clone();
@@ -4200,14 +4217,19 @@
                         location: Location::dummy(),
                     },
                 };
-                matching_impls.push((impl_kind.clone(), fresh_bindings, constraint));
+                matching_impls.push((
+                    impl_kind.clone(),
+                    fresh_bindings,
+                    instantiation_bindings,
+                    constraint,
+                ));
             }
         }
 
         <span class="kw">if </span>matching_impls.len() == <span class="number">1 </span>{
-            <span class="kw">let </span>(impl_, fresh_bindings, <span class="kw">_</span>) = matching_impls.pop().unwrap();
+            <span class="kw">let </span>(impl_, fresh_bindings, instantiation_bindings, <span class="kw">_</span>) = matching_impls.pop().unwrap();
             <span class="kw-2">*</span>type_bindings = fresh_bindings;
-            <span class="prelude-val">Ok</span>(impl_)
+            <span class="prelude-val">Ok</span>((impl_, instantiation_bindings))
         } <span class="kw">else if </span>matching_impls.is_empty() {
             <span class="kw">let </span><span class="kw-2">mut </span>errors = <span class="kw">match </span>where_clause_error {
                 <span class="prelude-val">Some</span>((<span class="kw">_</span>, ImplSearchErrorKind::Nested(errors))) =&gt; errors,
@@ -4217,7 +4239,7 @@
             errors.push(make_constraint());
             <span class="prelude-val">Err</span>(ImplSearchErrorKind::Nested(errors))
         } <span class="kw">else </span>{
-            <span class="kw">let </span>impls = vecmap(matching_impls, |(<span class="kw">_</span>, <span class="kw">_</span>, constraint)| {
+            <span class="kw">let </span>impls = vecmap(matching_impls, |(<span class="kw">_</span>, <span class="kw">_</span>, <span class="kw">_</span>, constraint)| {
                 <span class="kw">let </span>name = <span class="kw-2">&amp;</span><span class="self">self</span>.get_trait(constraint.trait_bound.trait_id).name;
                 <span class="macro">format!</span>(<span class="string">"{}: {name}{}"</span>, constraint.typ, constraint.trait_bound.trait_generics)
             });
@@ -4352,7 +4374,7 @@
         // It should never happen since impls are defined at global scope, but even
         // if they were, we should never prevent defining a new impl because a 'where'
         // clause already assumes it exists.
-        </span><span class="kw">if let </span><span class="prelude-val">Ok</span>((TraitImplKind::Normal(existing), <span class="kw">_</span>)) = <span class="self">self</span>.try_lookup_trait_implementation(
+        </span><span class="kw">if let </span><span class="prelude-val">Ok</span>((TraitImplKind::Normal(existing), ..)) = <span class="self">self</span>.try_lookup_trait_implementation(
             <span class="kw-2">&amp;</span>instantiated_object_type,
             trait_id,
             trait_generics,
