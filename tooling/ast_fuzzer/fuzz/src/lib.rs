@@ -163,13 +163,27 @@ pub fn compare_results_interpreted(
 
         // Showing the AST as Noir so we can easily create integration tests.
         eprintln!("---\nAST:\n{}", DisplayAstAsNoir(&inputs.program));
+
         // Showing the inputs as TOML so we can easily create a Prover.toml file.
         eprintln!(
-            "---\nInputs:\n{}",
+            "---\nABI Inputs:\n{}",
             Format::Toml
                 .serialize(&inputs.input_map, &inputs.abi)
                 .unwrap_or_else(|e| format!("failed to serialize inputs: {e}"))
         );
+
+        // Show the SSA inputs as well so we can see any discrepancy in encoding.
+        eprintln!(
+            "---\nSSA Inputs:\n {:?}",
+            inputs
+                .input_values
+                .iter()
+                .enumerate()
+                .map(|(i, v)| format!("{i}: {v}"))
+                .collect::<Vec<_>>()
+                .join("\n")
+        );
+
         // Common options for the SSA passes.
         eprintln!("---\nOptions:\n{:?}", inputs.options);
 

@@ -33,7 +33,7 @@ type InterpretResult =
 pub type CompareInterpretedResult =
     CompareResult<Vec<ssa::interpreter::value::Value>, ssa::interpreter::errors::InterpreterError>;
 
-/// Compare the interpretation of two SSA states of an arbitrary program.
+/// Inputs for comparing the interpretation of two SSA states of an arbitrary program.
 pub struct CompareInterpreted {
     pub program: Program,
     pub abi: Abi,
@@ -41,6 +41,8 @@ pub struct CompareInterpreted {
     /// We could generate random input for the SSA directly, but it would
     /// make it more difficult to use it with `nargo` if we find a failure.
     pub input_map: InputMap,
+    /// Inputs for the `main` function in the SSA.
+    pub input_values: Vec<ssa::interpreter::value::Value>,
     /// Options that influence the pipeline, common to both passes.
     pub options: CompareOptions,
     pub ssa1: ComparePass,
@@ -64,14 +66,29 @@ impl CompareInterpreted {
         let (options, ssa1, ssa2) = f(u, program.clone())?;
 
         let input_map = arb_inputs_from_ssa(u, &ssa1.ssa, &abi)?;
+        let input_values = input_values_to_ssa(&abi, &input_map);
 
-        Ok(Self { program, abi, input_map, options, ssa1, ssa2 })
+        Ok(Self { program, abi, input_map, input_values, options, ssa1, ssa2 })
     }
 
     pub fn exec(&self) -> eyre::Result<CompareInterpretedResult> {
-        let inputs = input_values_to_ssa(&self.abi, &self.input_map);
-        let res1 = self.ssa1.ssa.interpret(inputs.clone());
-        let res2 = self.ssa2.ssa.interpret(inputs);
+        // println!("program: \n{}\n", DisplayAstAsNoir(&self.program));
+        // println!(
+        //     "input map: \n{}\n",
+        //     noirc_abi::input_parser::Format::Toml.serialize(&self.input_map, &self.abi).unwrap()
+        // );
+        // println!(
+        //     "input values:\n{}\n",
+        //     self.input_values
+        //         .iter()
+        //         .enumerate()
+        //         .map(|(i, v)| format!("{i}: {v}"))
+        //         .collect::<Vec<_>>()
+        //         .join("\n")
+        // );
+        // println!("SSA:\n{}\n", self.ssa1.ssa);
+        let res1 = self.ssa1.ssa.interpret(self.input_values.clone());
+        let res2 = self.ssa2.ssa.interpret(self.input_values.clone());
         Ok(CompareInterpretedResult::new(res1, res2))
     }
 }
