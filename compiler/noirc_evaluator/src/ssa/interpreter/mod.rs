@@ -926,7 +926,7 @@ impl Interpreter<'_> {
         }
 
         if let (Some(lhs), Some(rhs)) = (lhs.as_bool(), rhs.as_bool()) {
-            return self.interpret_u1_binary_op(lhs, binary.operator, rhs);
+            return self.interpret_u1_binary_op(lhs, binary.operator, rhs, lhs_id, rhs_id);
         }
 
         let dfg = self.dfg();
@@ -1093,6 +1093,8 @@ impl Interpreter<'_> {
         lhs: bool,
         operator: BinaryOp,
         rhs: bool,
+        lhs_id: ValueId,
+        rhs_id: ValueId,
     ) -> IResult<Value> {
         let unsupported_operator = |operator| -> IResult<Value> {
             let typ = "u1";
@@ -1100,11 +1102,45 @@ impl Interpreter<'_> {
         };
 
         let result = match operator {
-            BinaryOp::Add { unchecked: _ } => return unsupported_operator("+"),
-            BinaryOp::Sub { unchecked: _ } => return unsupported_operator("-"),
+            BinaryOp::Add { unchecked } => match (lhs, rhs) {
+                (true, true) if !unchecked => {
+                    return Err(InterpreterError::Overflow {
+                        instruction: format!("{lhs} + {rhs}"),
+                    });
+                }
+                (lhs, rhs) => lhs ^ rhs,
+            },
+            BinaryOp::Sub { unchecked } => match (lhs, rhs) {
+                (false, true) if !unchecked => {
+                    return Err(InterpreterError::Overflow {
+                        instruction: format!("{lhs} - {rhs}"),
+                    });
+                }
+                (lhs, rhs) => lhs ^ rhs,
+            },
             BinaryOp::Mul { unchecked: _ } => lhs & rhs, // (*) = (&) for u1
-            BinaryOp::Div => return unsupported_operator("/"),
-            BinaryOp::Mod => return unsupported_operator("%"),
+            BinaryOp::Div => {
+                if !rhs {
+                    return Err(InterpreterError::DivisionByZero {
+                        lhs_id,
+                        lhs: lhs.to_string(),
+                        rhs_id,
+                        rhs: rhs.to_string(),
+                    });
+                }
+                lhs
+            }
+            BinaryOp::Mod => {
+                if !rhs {
+                    return Err(InterpreterError::DivisionByZero {
+                        lhs_id,
+                        lhs: lhs.to_string(),
+                        rhs_id,
+                        rhs: rhs.to_string(),
+                    });
+                }
+                false
+            }
             BinaryOp::Eq => lhs == rhs,
             // clippy complains when you do `lhs < rhs` and recommends this instead
             BinaryOp::Lt => !lhs & rhs,
