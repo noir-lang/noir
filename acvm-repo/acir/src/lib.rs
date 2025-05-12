@@ -6,9 +6,9 @@
 #[doc = include_str!("../README.md")]
 pub mod circuit;
 pub mod native_types;
+mod parser;
 mod proto;
 mod serialization;
-mod parser; 
 
 pub use acir_field;
 pub use acir_field::{AcirField, FieldElement};
