@@ -58,7 +58,23 @@ expression: artifact
       }
     }
   },
-  "bytecode": "H4sIAAAAAAAA/71W227bMAy1k6ZNOnQDtpe9bN8gipJIveVh23/oxu/olxdTUHnVXKMbFnsEHMqWc8RzRJkch2d7V69jG4/12jd/0/lpbm7Ts3Pz6jqDFbHUrovz0PztnMB+QwKonDGFdAGEoLSPbJWx0TEwWLZZM2Jhw+SjJ+XBYAGxHqWBHf4eK/0BC25XFPZ/JsQ4bJMQd80fh40TYlwxIe5WTIjjisKOTcj+dP3CZizkATKjVZ6c9jUCRxZBEtgUJJMP7GMpKaL3CsV5Szo5dGKCDU8zPAgktkgImQQrgLbBAwuqlDgTIkpKIVKdTl4JmFwYYkpWs3iPNj+tu7/qVcJbEwK7QJgiBzRW22JjLNkVgzEAeC7slFhBb5V2LARZjPUQczFKz+PTyuckUXT9sSRenDJVGZMJQnIShEnXJSWRUZSUKdFpCE4zpZBAuy349h+Ay0fqqY1vu/FdNz628ale98NzxeltN4vx2nOyW48vnFbUbkvO+xU532+UL4eO/9g02HfzSzadr6/Nn2b6TR3LecX97tddE5+VodMCvxXjx1On7Vb6TJgb4KupMH97fMGfc7nYQ7vvm5DpP5fvzfvhZfyh+8/FvnfY42zux8K6W3KuOWEn/JsN8KvpTwvxT2tN3f/ndr9feLc/C4funaV9GRaejQs4c237fTw3D4igVK10kgUteR2htgW1+gk5Nllq3ctUwATUvlCt9lxK7SwSOalF08mc6+4Nbg9vxPiwwLfXbzrTN4+/cz+35+oKI37pMfYN/zC81rtf/zB7/0u7v+/i73mc/zFOoQCCQWqblrNJ4eMMf+g0u+j0EwFj0ChyDgAA",
+  "bytecode": [
+    "func 0",
+    "current witness index : _11",
+    "private parameters indices : [_0, _1, _2, _3, _4]",
+    "public parameters indices : []",
+    "return value indices : []",
+    "BLACKBOX::RANGE [(_4, 1)] []",
+    "BRILLIG CALL func 0: inputs: [Single(Expression { mul_terms: [], linear_combinations: [(1, Witness(0))], q_c: 0 })], outputs: [Simple(Witness(5)), Simple(Witness(6))]",
+    "EXPR [ (1, _0) (-1, _5) (-340282366920938463463374607431768211456, _6) 0 ]",
+    "BRILLIG CALL func 0: inputs: [Single(Expression { mul_terms: [], linear_combinations: [(1, Witness(1))], q_c: 0 })], outputs: [Simple(Witness(7)), Simple(Witness(8))]",
+    "EXPR [ (1, _1) (-1, _7) (-340282366920938463463374607431768211456, _8) 0 ]",
+    "BLACKBOX::MULTI_SCALAR_MUL [(3728882899078719075161482178784387565366481897740339799480980287259621149274, 254), (-9903063709032878667290627648209915537972247634463802596148419711785767431332, 254), (0, 1), (2393473289045184898987089634332637236754766663897650125720167164137088869378, 254), (-7135402912423807765050323395026152633898511180575289670895350565966806597339, 254), (0, 1), (_5, 254), (_6, 254), (_7, 254), (_8, 254)] [_9, _10, _11]",
+    "EXPR [ (-1, _2) (1, _9) 0 ]",
+    "EXPR [ (-1, _3) (1, _10) 0 ]",
+    "unconstrained func 0",
+    "[Const { destination: Direct(2), bit_size: Integer(U32), value: 1 }, Const { destination: Direct(1), bit_size: Integer(U32), value: 32839 }, Const { destination: Direct(0), bit_size: Integer(U32), value: 3 }, Const { destination: Relative(2), bit_size: Integer(U32), value: 1 }, Const { destination: Relative(3), bit_size: Integer(U32), value: 0 }, CalldataCopy { destination_address: Direct(32836), size_address: Relative(2), offset_address: Relative(3) }, Mov { destination: Relative(1), source: Direct(32836) }, Call { location: 14 }, Call { location: 15 }, Mov { destination: Direct(32837), source: Relative(1) }, Mov { destination: Direct(32838), source: Relative(2) }, Const { destination: Relative(3), bit_size: Integer(U32), value: 32837 }, Const { destination: Relative(4), bit_size: Integer(U32), value: 2 }, Stop { return_data: HeapVector { pointer: Relative(3), size: Relative(4) } }, Return, Call { location: 24 }, Cast { destination: Relative(3), source: Relative(1), bit_size: Integer(U128) }, Cast { destination: Relative(2), source: Relative(3), bit_size: Field }, BinaryFieldOp { destination: Relative(3), op: Sub, lhs: Relative(1), rhs: Relative(2) }, Const { destination: Relative(1), bit_size: Field, value: 8680525429001239497728366687280168587232520577698044359798894838135247199343 }, BinaryFieldOp { destination: Relative(4), op: Mul, lhs: Relative(3), rhs: Relative(1) }, Mov { destination: Relative(1), source: Relative(2) }, Mov { destination: Relative(2), source: Relative(4) }, Return, Const { destination: Direct(32772), bit_size: Integer(U32), value: 30720 }, BinaryIntOp { destination: Direct(32771), op: LessThan, bit_size: U32, lhs: Direct(0), rhs: Direct(32772) }, JumpIf { condition: Direct(32771), location: 29 }, IndirectConst { destination_pointer: Direct(1), bit_size: Integer(U64), value: 17843811134343075018 }, Trap { revert_data: HeapVector { pointer: Direct(1), size: Direct(2) } }, Return]"
+  ],
   "debug_symbols": "pZTLroIwEIbfZdZddHovr2KMQa2GpAFS4SQnhnc/LVqEBcRwNpSh/b+50JknXN25v5+q+tY8oDg84Rwq76v7yTeXsquaOn59Ak0PVFAwAqhfi4GCx8VCIQiweEIMA4EsO3XBuaSacSK9LYOrOyjq3nsCP6Xvx0OPtqzHtStD3KUEXH2NawTeKu/S20A+arouNZS9xYapSY56ocd1vRLirVeS79EbzHpjdulz8pqu+t/IH2X2j8ZOermsn9zQo+AZgEZ/IrALgtqKgOcUUMpVgl4ncCVyElwZsYegVc6CG4q7CFL/lyDsF4TNSqKZKsn2/QujMmFxn5cE5BtpUDUVAuct9X0QStopCCtXg9i4lULa3JZCic9YQLUTwdcQG63FqHwD2CwE+fVoYtONYpYt9MdolZcqLIcuxhkWJ2tqRAJ8NMTLkClsAio1OQE9ljL5DVV59i6JE76vL5kVze63zTt5xLehubhrH1zyO5vz8XlggjB7HFJsfw==",
   "file_map": {
     "16": {

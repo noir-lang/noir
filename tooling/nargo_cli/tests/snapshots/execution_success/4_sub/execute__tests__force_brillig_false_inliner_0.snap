@@ -38,7 +38,32 @@ expression: artifact
     "return_type": null,
     "error_types": {}
   },
-  "bytecode": "H4sIAAAAAAAA/7VWW3KDMAy0wTySTKcfJf85go0hmL9cpUzh2r1KQyqlqmPSDsg7w8gReLMr2QYpvlFer1cYy+uVQpxx8nIykEsgp2BOIh6BuQtEvQ2Gcll9bpqxq0djzbuu+8G1ummHszPOtK79qJ21o2tc1w99p3vT2NFMbW8nIJP/12X+ygesb/V856Z1TSEqv2lz/PRyChpEoXjE3UXGashKrhq4TMqoS0VaKP7m2KqT03MW8LyWk67JDNapEj8Hiw8ZsS4cXhB5TMG5WD491/Lngm/jF4x+Y9WwCPBurWHBV8Obb+43pALfnH0uOHVON4yc66dk7Ak9rGbek/gN7kM7Ye49Zx3wYyEl/qUIf+n59Skh7iDuyfyUT2eN/Ic4/LoIeNyT8WHBvwrMkwu/Ey8+e/bZC/MlcA853yBSvehj58Uj4WWspUH+Kg5/sFdHMq48n7TeFyYNyId7JhOPSLx7+Ky/ZyS/PuNrSQP/hcA1U5Ec1vMLV7va8EYOAAA=",
+  "bytecode": [
+    "func 0",
+    "current witness index : _8",
+    "private parameters indices : [_0, _1, _2]",
+    "public parameters indices : []",
+    "return value indices : []",
+    "BLACKBOX::RANGE [(_0, 32)] []",
+    "BLACKBOX::RANGE [(_1, 32)] []",
+    "BLACKBOX::RANGE [(_2, 32)] []",
+    "BRILLIG CALL func 0: inputs: [Single(Expression { mul_terms: [], linear_combinations: [(1, Witness(0)), (-1, Witness(1))], q_c: 340282366920938463463374607436063178752 }), Single(Expression { mul_terms: [], linear_combinations: [], q_c: 4294967296 })], outputs: [Simple(Witness(3)), Simple(Witness(4))]",
+    "BLACKBOX::RANGE [(_3, 223)] []",
+    "BLACKBOX::RANGE [(_4, 32)] []",
+    "EXPR [ (1, _0) (-1, _1) (-4294967296, _3) (-1, _4) 340282366920938463463374607436063178752 ]",
+    "EXPR [ (-1, _3) (-1, _5) 5096253676302562286669017222071363378443840053029366383258766538131 ]",
+    "BLACKBOX::RANGE [(_5, 223)] []",
+    "BRILLIG CALL func 1: inputs: [Single(Expression { mul_terms: [], linear_combinations: [(-1, Witness(3))], q_c: 5096253676302562286669017222071363378443840053029366383258766538131 })], outputs: [Simple(Witness(6))]",
+    "EXPR [ (-1, _3, _6) (5096253676302562286669017222071363378443840053029366383258766538131, _6) (1, _7) -1 ]",
+    "EXPR [ (-1, _3, _7) (5096253676302562286669017222071363378443840053029366383258766538131, _7) 0 ]",
+    "EXPR [ (1, _4, _7) (1, _7, _7) (268435454, _7) (-1, _8) 0 ]",
+    "BLACKBOX::RANGE [(_8, 32)] []",
+    "EXPR [ (-1, _2) (1, _4) 0 ]",
+    "unconstrained func 0",
+    "[Const { destination: Direct(10), bit_size: Integer(U32), value: 2 }, Const { destination: Direct(11), bit_size: Integer(U32), value: 0 }, CalldataCopy { destination_address: Direct(0), size_address: Direct(10), offset_address: Direct(11) }, BinaryFieldOp { destination: Direct(2), op: IntegerDiv, lhs: Direct(0), rhs: Direct(1) }, BinaryFieldOp { destination: Direct(1), op: Mul, lhs: Direct(2), rhs: Direct(1) }, BinaryFieldOp { destination: Direct(1), op: Sub, lhs: Direct(0), rhs: Direct(1) }, Mov { destination: Direct(0), source: Direct(2) }, Stop { return_data: HeapVector { pointer: Direct(11), size: Direct(10) } }]",
+    "unconstrained func 1",
+    "[Const { destination: Direct(21), bit_size: Integer(U32), value: 1 }, Const { destination: Direct(20), bit_size: Integer(U32), value: 0 }, CalldataCopy { destination_address: Direct(0), size_address: Direct(21), offset_address: Direct(20) }, Const { destination: Direct(2), bit_size: Field, value: 0 }, BinaryFieldOp { destination: Direct(3), op: Equals, lhs: Direct(0), rhs: Direct(2) }, JumpIf { condition: Direct(3), location: 8 }, Const { destination: Direct(1), bit_size: Field, value: 1 }, BinaryFieldOp { destination: Direct(0), op: Div, lhs: Direct(1), rhs: Direct(0) }, Stop { return_data: HeapVector { pointer: Direct(20), size: Direct(21) } }]"
+  ],
   "debug_symbols": "vVNBjoQgEPwLZw/QKKhf2WwMKk5ICBpGNtkY/76IMo4HJps5zKUaaKpSDd0L6mXrbo0yw3hH9deCWqu0VrdGj52Y1Wj86bJmKG6b2Urpj9BT3rMmYaWZUW2c1hn6EdqFS/dJmBBnYX0WZ0ia3kcvOCgtt9WanWycphLGDjIpT3px5ZM0n7MiPwQ449VDgVYXBXjhAAPj0QMGDikNmtagwMkh4ZfFQ4HAey4oYW9VQkl1akCe0mAfrASSlfz3V8ukwqu+qmJfAYZLX337neiUvUwCoqj2T5cHLAKygDxgGbAKSPAeyB5gDzuf5FvN62bLKtFqeUzZ4Ez3NHTz7xQzcSwnO3ayd1ZutkLOG/0D",
   "file_map": {
     "39": {
