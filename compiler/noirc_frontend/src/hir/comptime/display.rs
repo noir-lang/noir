@@ -921,7 +921,6 @@ fn remove_interned_in_unresolved_type_data(
         }
         UnresolvedTypeData::Interned(id) => interner.get_unresolved_type_data(id).clone(),
         UnresolvedTypeData::Integer(_, _)
-        | UnresolvedTypeData::Bool
         | UnresolvedTypeData::Unit
         | UnresolvedTypeData::String(_)
         | UnresolvedTypeData::Resolved(_)

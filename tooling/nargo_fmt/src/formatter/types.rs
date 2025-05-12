@@ -14,9 +14,6 @@ impl Formatter<'_> {
                 self.write_left_paren();
                 self.write_right_paren();
             }
-            UnresolvedTypeData::Bool => {
-                self.write_keyword(Keyword::Bool);
-            }
             UnresolvedTypeData::Integer(..) => {
                 self.write_current_token_and_bump();
             }

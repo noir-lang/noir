@@ -901,9 +901,8 @@ impl ModCollector<'_> {
                         PrimitiveType::lookup_by_name(path.segments[0].ident.as_str())
                     {
                         // TODO: check generics
-                        match primitive_type {
-                            PrimitiveType::Field => return Type::FieldElement,
-                            PrimitiveType::CtString => (),
+                        if let Some(typ) = primitive_type.to_integer_or_field() {
+                            return typ;
                         }
                     }
                 }

@@ -12,7 +12,7 @@ use crate::node_interner::{ExprId, InternedExpressionKind, InternedStatementKind
 use crate::shared::Visibility;
 use crate::signed_field::SignedField;
 use crate::token::{Attributes, FmtStrFragment, FunctionAttributeKind, Token, Tokens};
-use crate::{Kind, QuotedType, Type};
+use crate::{Kind, Type};
 use acvm::FieldElement;
 use iter_extended::vecmap;
 use noirc_errors::{Located, Location, Span};
@@ -127,11 +127,8 @@ impl UnresolvedGeneric {
                         PrimitiveType::lookup_by_name(path.segments[0].ident.as_str())
                     {
                         // TODO: check generics
-                        match primitive_type {
-                            PrimitiveType::CtString => {
-                                return Ok(Type::Quoted(QuotedType::CtString));
-                            }
-                            PrimitiveType::Field => return Ok(Type::FieldElement),
+                        if let Some(typ) = primitive_type.to_integer_or_field() {
+                            return Ok(typ);
                         }
                     }
                 }

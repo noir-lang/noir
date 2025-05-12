@@ -121,7 +121,6 @@ impl Elaborator<'_> {
             }
             Expression(expr) => self.convert_expression_type(expr, kind, location),
             Integer(sign, bits) => Type::Integer(sign, bits),
-            Bool => Type::Bool,
             String(size) => {
                 let resolved_size = self.convert_expression_type(size, &Kind::u32(), location);
                 Type::String(Box::new(resolved_size))

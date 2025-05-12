@@ -125,7 +125,6 @@ pub enum UnresolvedTypeData {
     Array(UnresolvedTypeExpression, Box<UnresolvedType>), // [Field; 4] = Array(4, Field)
     Slice(Box<UnresolvedType>),
     Integer(Signedness, IntegerBitSize), // u32 = Integer(unsigned, ThirtyTwo)
-    Bool,
     Expression(UnresolvedTypeExpression),
     String(UnresolvedTypeExpression),
     FormatString(UnresolvedTypeExpression, Box<UnresolvedType>),
@@ -293,7 +292,6 @@ impl std::fmt::Display for UnresolvedTypeData {
                 write!(f, "({})", elements.join(", "))
             }
             Expression(expression) => expression.fmt(f),
-            Bool => write!(f, "bool"),
             String(len) => write!(f, "str<{len}>"),
             FormatString(len, elements) => write!(f, "fmt<{len}, {elements}"),
             Function(args, ret, env, unconstrained) => {
@@ -384,7 +382,15 @@ impl UnresolvedType {
 
 impl UnresolvedTypeData {
     pub fn field(location: Location) -> Self {
-        let ident = Ident::new("Field".to_string(), location);
+        Self::named("Field", location)
+    }
+
+    pub fn bool(location: Location) -> Self {
+        Self::named("bool", location)
+    }
+
+    fn named(name: &'static str, location: Location) -> Self {
+        let ident = Ident::new(name.to_string(), location);
         let path = Path::from_ident(ident);
         Self::Named(path, GenericTypeArgs::default(), false)
     }
@@ -447,7 +453,6 @@ impl UnresolvedTypeData {
             UnresolvedTypeData::Unspecified => true,
 
             UnresolvedTypeData::Integer(_, _)
-            | UnresolvedTypeData::Bool
             | UnresolvedTypeData::Unit
             | UnresolvedTypeData::Quoted(_)
             | UnresolvedTypeData::AsTraitPath(_)

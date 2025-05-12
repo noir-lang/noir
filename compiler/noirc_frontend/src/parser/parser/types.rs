@@ -88,10 +88,6 @@ impl Parser<'_> {
             return Some(typ);
         }
 
-        if let Some(typ) = self.parse_bool_type() {
-            return Some(typ);
-        }
-
         if let Some(typ) = self.parse_str_type() {
             return Some(typ);
         }
@@ -110,14 +106,6 @@ impl Parser<'_> {
 
         if let Some(typ) = self.parse_interned_type() {
             return Some(typ);
-        }
-
-        None
-    }
-
-    fn parse_bool_type(&mut self) -> Option<UnresolvedTypeData> {
-        if self.eat_keyword(Keyword::Bool) {
-            return Some(UnresolvedTypeData::Bool);
         }
 
         None
@@ -459,10 +447,8 @@ mod tests {
 
     use insta::assert_snapshot;
     use proptest::prelude::*;
-    use strum::IntoEnumIterator;
 
     use crate::{
-        QuotedType,
         ast::{IntegerBitSize, UnresolvedType, UnresolvedTypeData},
         parser::{
             Parser, ParserErrorReason,
@@ -483,13 +469,6 @@ mod tests {
         let src = "()";
         let typ = parse_type_no_errors(src);
         assert!(matches!(typ.typ, UnresolvedTypeData::Unit));
-    }
-
-    #[test]
-    fn parses_bool_type() {
-        let src = "bool";
-        let typ = parse_type_no_errors(src);
-        assert!(matches!(typ.typ, UnresolvedTypeData::Bool));
     }
 
     #[test]
@@ -559,18 +538,6 @@ mod tests {
     }
 
     #[test]
-    fn parses_comptime_types() {
-        for quoted_type in QuotedType::iter() {
-            let src = quoted_type.to_string();
-            let typ = parse_type_no_errors(&src);
-            let UnresolvedTypeData::Quoted(parsed_quoted_type) = typ.typ else {
-                panic!("Expected a quoted type for {}", quoted_type)
-            };
-            assert_eq!(parsed_quoted_type, quoted_type);
-        }
-    }
-
-    #[test]
     fn parses_tuple_type() {
         let src = "(Field, bool)";
         let typ = parse_type_no_errors(src);
@@ -581,7 +548,7 @@ mod tests {
         assert_eq!(typ.typ.to_string(), "Field");
 
         let typ = types.remove(0);
-        assert!(matches!(typ.typ, UnresolvedTypeData::Bool));
+        assert_eq!(typ.typ.to_string(), "bool");
     }
 
     #[test]

@@ -4,6 +4,7 @@ use crate::{QuotedType, Type};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum PrimitiveType {
+    Bool,
     CtString,
     Field,
 }
@@ -11,6 +12,7 @@ pub enum PrimitiveType {
 impl PrimitiveType {
     pub fn lookup_by_name(name: &str) -> Option<Self> {
         match name {
+            "bool" => Some(Self::Bool),
             "CtString" => Some(Self::CtString),
             "Field" => Some(Self::Field),
             _ => None,
@@ -19,8 +21,16 @@ impl PrimitiveType {
 
     pub fn to_type(self, _generics: &Option<Vec<Located<Type>>>) -> Type {
         match self {
+            Self::Bool => Type::Bool,
             Self::CtString => Type::Quoted(QuotedType::CtString),
             Self::Field => Type::FieldElement,
+        }
+    }
+
+    pub fn to_integer_or_field(self) -> Option<Type> {
+        match self {
+            Self::Field => Some(Type::FieldElement),
+            Self::Bool | Self::CtString => None,
         }
     }
 }

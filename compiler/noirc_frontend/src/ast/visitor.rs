@@ -443,8 +443,6 @@ pub trait Visitor {
 
     fn visit_integer_type(&mut self, _: Signedness, _: IntegerBitSize, _: Span) {}
 
-    fn visit_bool_type(&mut self, _: Span) {}
-
     fn visit_unit_type(&mut self, _: Span) {}
 
     fn visit_resolved_type(&mut self, _: QuotedTypeId, _: Span) {}
@@ -1480,7 +1478,6 @@ impl UnresolvedType {
             UnresolvedTypeData::Integer(signdness, size) => {
                 visitor.visit_integer_type(*signdness, *size, self.location.span);
             }
-            UnresolvedTypeData::Bool => visitor.visit_bool_type(self.location.span),
             UnresolvedTypeData::Unit => visitor.visit_unit_type(self.location.span),
             UnresolvedTypeData::Resolved(id) => {
                 visitor.visit_resolved_type(*id, self.location.span);

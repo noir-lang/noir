@@ -554,9 +554,7 @@ mod tests {
             panic!("Expected tuple type");
         };
         assert_eq!(types[0].typ.to_string(), "Field");
-        let UnresolvedTypeData::Bool = types[1].typ else {
-            panic!("Expected bool type");
-        };
+        assert_eq!(types[1].typ.to_string(), "bool");
     }
 
     #[test]
@@ -581,9 +579,7 @@ mod tests {
             panic!("Expected tuple type");
         };
         assert_eq!(types[0].typ.to_string(), "Field");
-        let UnresolvedTypeData::Bool = types[1].typ else {
-            panic!("Expected bool type");
-        };
+        assert_eq!(types[1].typ.to_string(), "bool");
     }
 
     #[test]

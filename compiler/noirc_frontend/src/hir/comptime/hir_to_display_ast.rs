@@ -387,7 +387,7 @@ impl Type {
                 UnresolvedTypeData::Slice(element)
             }
             Type::Integer(sign, bit_size) => UnresolvedTypeData::Integer(*sign, *bit_size),
-            Type::Bool => UnresolvedTypeData::Bool,
+            Type::Bool => UnresolvedTypeData::bool(Location::dummy()),
             Type::String(length) => {
                 let length = length.to_type_expression();
                 UnresolvedTypeData::String(length)

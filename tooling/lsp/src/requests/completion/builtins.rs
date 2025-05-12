@@ -197,7 +197,6 @@ pub(super) fn builtin_integer_types() -> [&'static str; 9] {
 /// If a keyword corresponds to a built-in type, returns that type's name.
 pub(super) fn keyword_builtin_type(keyword: &Keyword) -> Option<&'static str> {
     match keyword {
-        Keyword::Bool => Some("bool"),
         Keyword::Expr => Some("Expr"),
         Keyword::FunctionDefinition => Some("FunctionDefinition"),
         Keyword::Module => Some("Module"),
@@ -275,7 +274,6 @@ pub(super) fn keyword_builtin_function(keyword: &Keyword) -> Option<BuiltInFunct
         }),
 
         Keyword::As
-        | Keyword::Bool
         | Keyword::Break
         | Keyword::CallData
         | Keyword::Comptime
