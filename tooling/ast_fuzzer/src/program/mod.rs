@@ -177,7 +177,8 @@ impl Context {
             )?;
 
             let visibility = if is_main {
-                match u.choose_index(5)? {
+                let max_index = if self.config.avoid_calldata { 4 } else { 5 };
+                match u.choose_index(max_index)? {
                     0 | 1 => Visibility::Public,
                     2 | 3 => Visibility::Private,
                     _ => Visibility::CallData(p as u32),
