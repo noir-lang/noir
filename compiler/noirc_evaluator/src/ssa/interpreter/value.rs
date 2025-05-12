@@ -105,6 +105,13 @@ impl Value {
         }
     }
 
+    pub(crate) fn as_u64(&self) -> Option<u64> {
+        match self {
+            Value::Numeric(NumericValue::U64(value)) => Some(*value),
+            _ => None,
+        }
+    }
+
     pub(crate) fn as_numeric(&self) -> Option<NumericValue> {
         match self {
             Value::Numeric(value) => Some(*value),
@@ -128,6 +135,13 @@ impl Value {
 
     pub(crate) fn from_constant(constant: FieldElement, typ: NumericType) -> Self {
         Self::Numeric(NumericValue::from_constant(constant, typ))
+    }
+
+    pub(crate) fn array_from_slice(slice: &[FieldElement], typ: NumericType) -> Self {
+        let values =
+            slice.iter().map(|v| Value::Numeric(NumericValue::from_constant(*v, typ))).collect();
+        let types = slice.iter().map(|_| Type::Numeric(typ)).collect();
+        Self::array(values, types)
     }
 
     // This is used in tests but shouldn't be cfg(test) only

@@ -6,7 +6,7 @@ use noirc_frontend::Shared;
 use crate::ssa::{
     interpreter::{
         InterpreterError, NumericValue, Value,
-        tests::{expect_value, expect_values},
+        tests::{expect_value, expect_values, expect_values_with_args},
         value::ReferenceValue,
     },
     ir::{
@@ -832,4 +832,40 @@ fn nop() {
         }
     ",
     );
+}
+
+#[test]
+fn test_range_and_xor_bb() {
+    let src = "
+  acir(inline) fn main f0 {
+          b0(v0: Field, v1: Field):
+            v2 = call black_box(v0) -> Field
+            v3 = call f2(v2,v1) -> Field
+            call f3(v3)
+            return
+  }
+
+  acir(inline) fn test_and_xor f2 {
+    b0(v0: Field, v1: Field):
+    v2 = cast v0 as u8
+    v4 = cast v1 as u8
+    v8 = and v2, v4
+    v9 = xor v2, v4
+    return v9
+}
+
+  acir(inline) fn test_range f3 {
+    b0(v0: Field):
+      range_check v0 to 8 bits
+      return
+    }
+      ";
+    let values = expect_values_with_args(
+        src,
+        vec![
+            Value::from_constant(1_u128.into(), NumericType::NativeField),
+            Value::from_constant(12_u128.into(), NumericType::NativeField),
+        ],
+    );
+    assert!(values.is_empty());
 }

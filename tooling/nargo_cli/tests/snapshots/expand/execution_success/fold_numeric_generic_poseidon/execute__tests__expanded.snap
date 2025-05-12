@@ -2,15 +2,13 @@
 source: tooling/nargo_cli/tests/execute.rs
 expression: expanded_code
 ---
-use std::hash::poseidon2::Poseidon2;
-
 global NUM_HASHES: u32 = 2;
 
 global HASH_LENGTH: u32 = 10;
 
 #[fold]
 pub fn poseidon_hash<let N: u32>(inputs: [Field; N]) -> Field {
-    Poseidon2::hash(inputs, inputs.len())
+    poseidon::poseidon2::Poseidon2::hash(inputs, inputs.len())
 }
 
 fn main(to_hash: [[Field; 10]; 2], enable: [bool; 2]) -> pub [Field; 3] {

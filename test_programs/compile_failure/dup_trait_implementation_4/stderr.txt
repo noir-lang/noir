@@ -1,50 +1,8 @@
-warning: MyTrait is private and not visible from the current module
-  ┌─ src/module3.nr:1:21
-  │
-1 │ use crate::module1::MyTrait;
-  │                     ------- MyTrait is private
-  │
-
-warning: MyStruct is private and not visible from the current module
-  ┌─ src/module3.nr:2:21
-  │
-2 │ use crate::module2::MyStruct;
-  │                     -------- MyStruct is private
-  │
-
-warning: MyTrait is private and not visible from the current module
-  ┌─ src/module3.nr:6:22
-  │
-6 │ impl crate::module1::MyTrait for crate::module2::MyStruct { }
-  │                      ------- MyTrait is private
-  │
-
-warning: MyStruct is private and not visible from the current module
-  ┌─ src/module3.nr:6:50
-  │
-6 │ impl crate::module1::MyTrait for crate::module2::MyStruct { }
-  │                                                  -------- MyStruct is private
-  │
-
-warning: MyStruct is private and not visible from the current module
-  ┌─ src/module3.nr:6:50
-  │
-6 │ impl crate::module1::MyTrait for crate::module2::MyStruct { }
-  │                                                  -------- MyStruct is private
-  │
-
-warning: MyStruct is private and not visible from the current module
-  ┌─ src/module3.nr:6:50
-  │
-6 │ impl crate::module1::MyTrait for crate::module2::MyStruct { }
-  │                                                  -------- MyStruct is private
-  │
-
 warning: struct `MyStruct` is never constructed
-  ┌─ src/module2.nr:1:8
+  ┌─ src/module2.nr:1:19
   │
-1 │ struct MyStruct {
-  │        -------- struct is never constructed
+1 │ pub(crate) struct MyStruct {
+  │                   -------- struct is never constructed
   │
 
 error: Impl for type `MyStruct` overlaps with existing impl
