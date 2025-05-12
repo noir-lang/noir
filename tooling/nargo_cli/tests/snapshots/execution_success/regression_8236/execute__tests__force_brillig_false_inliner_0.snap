@@ -1,0 +1,63 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: artifact
+---
+{
+  "noir_version": "[noir_version]",
+  "hash": "[hash]",
+  "abi": {
+    "parameters": [
+      {
+        "name": "a",
+        "type": {
+          "kind": "array",
+          "length": 3,
+          "type": {
+            "kind": "integer",
+            "sign": "unsigned",
+            "width": 16
+          }
+        },
+        "visibility": "private"
+      },
+      {
+        "name": "b",
+        "type": {
+          "kind": "array",
+          "length": 1,
+          "type": {
+            "kind": "boolean"
+          }
+        },
+        "visibility": "private"
+      }
+    ],
+    "return_type": {
+      "abi_type": {
+        "kind": "boolean"
+      },
+      "visibility": "public"
+    },
+    "error_types": {
+      "14225679739041873922": {
+        "error_kind": "string",
+        "string": "Index out of bounds"
+      }
+    }
+  },
+  "bytecode": "H4sIAAAAAAAA/9VYwZKbMAw1AZKYLG2mO9Nrd6YzvbW1AyTQS3Po7v5Db6SBS3+Cj2v/q3FiJUI16TTIh9UMY2PJ0vOzEIZAnCQ9XG9tPzhcoW2NLMlY4Bib2LHQzoFWID31jWNgWyNb22ZqnefNZtXoTNdqVe3KQuXFbl3qUhdlsV+VWdaUebmpdtVGVTrPGt0WVdaqk8TIlxopEVnLNdxqnGhGX8oBl8t3hrmY2nZGN9oo3pGxmYPICTOJM8ZEmjPiwjzMHTyEHpPpVh6a9ijNlJHTmXiZDycH7hOd7d4Bd6xvDR3MhbRtAoRAApqBB+E3ARkexJVNGi0ZEzDxtJHcbzHJtxfK9YAw7rUa4kCNE81ZLHxhXHBi/J+KNjbBGIAfq85a11rwJ5ezot3ZNgVCoKLdics5FcaM0QMBFXokcWyVu2PElXraXO7jWsToi5M/kz+R9RWh9cPDSb91wA5/27w+c7Z89f3Xz99DHEoyDjnMxYskODn9lyqvpOgLM/5MIp8e/OfgP/Lj/3jkNfKt6/sXJG5I7OgcnHePyOZxwOYJ2TwN2Dwjm2dkYwR48ZQ3vnnPUtHn2rW22E/sPCDxhOjvuSDxE+E1x3VA4gEeyg/UoBRsuguegOii7u91gC5GOthf89n7Htm5cgvr8IsfctP4+IT8fRZ9fBPH+gLH+nzWlENul55zW7v2h+5d1PVjY92/9kcK9z+8LTM/vvL9fgA/9I3MOnGWkPCJOQLO5tie6CTSRV0/TmLvIxQH+wIcMbH/aO/hHDFFc2D+0hF/SuL3cDvGMEfUV+gYA3vzW+iD7S/sZXLoC8wRbt63tlUjBeoEPZ/h2J7q++rW+u6rHlyr75gfXCPgNy3FunToaG3GawT/C3E5y0Yd/zo35elcflyb9R+L/vtLkPgxsf9q7xOEH69jeyPOdlPrNqvbuqj3+/xH/Yb4NzJBPM1tXzrwcOapRDE9+D+fbbEkqL8gOuAgcswLBu4npL1mS8fxWOrQgc9722K8sI4/Lg0guTAbAAA=",
+  "debug_symbols": "pZPBjoMgEED/Zc4cRKCiv7LZGFRsSAgaqptsjP/eEdS2hyYNvfCE4Q1DZBbodDNfa+P64QbVzwKNN9aaa22HVk1mcLi6rASOaT15rXEJnuJojcprN0HlZmsJ/Ck7h023UbnASXmMZgS065CYsDdWb18redjZe5VJvsucs1MXn/v8OJxxnuBTedn9XIiU89nj/CRflodfsq98nmVJvjz9tPrF6Rff+fT1//3iTLXGv7xYELiRwAWqgkARRhnGMow0i6AReQSL4BEiAlPgzSnmoAgZUQbkmIWuW83eqMbqvVX62bVPnTP9j0fk6K3RD63uZq+3mkMMb3EH",
+  "file_map": {
+    "50": {
+      "source": "global G_A: [u16; 3] = [33700, 47314, 35095];\nglobal G_B: [u16; 3] = [59890, 17417, 14409];\nfn main(a: [u16; 3], b: [bool; 1]) -> pub bool {\n    // Safety: testing context\n    let res = unsafe { func_1(G_B, true) }[(((a[0] as u32) % (G_B[2] as u32)) % 1)];\n    if res {\n        // Safety: testing context\n        let c = unsafe { func_1(a, b[0]) };\n        b[0]\n    } else {\n        ((a[((a[0] as u32) % 3)] as u32) > ((24993 % G_A[1]) as u32))\n    }\n}\nunconstrained fn func_1(a: [u16; 3], b: bool) -> [bool; 1] {\n    [false]\n}\n",
+      "path": ""
+    }
+  },
+  "names": [
+    "main"
+  ],
+  "brillig_names": [
+    "func_1",
+    "directive_integer_quotient"
+  ]
+}

@@ -99,6 +99,8 @@ criterion.workspace = true
 pprof.workspace = true
 paste = "1.0.14"
 proptest.workspace = true
+regex.workspace = true
+similar.workspace = true
 sha2.workspace = true
 sha3.workspace = true
 iai = "0.1.1"
@@ -106,6 +108,8 @@ test-case.workspace = true
 lazy_static.workspace = true
 light-poseidon = "0.3.0"
 insta = { workspace = true, features = ["json", "redactions"] }
+
+noirc_evaluator.workspace = true
 
 [[bench]]
 name = "criterion"

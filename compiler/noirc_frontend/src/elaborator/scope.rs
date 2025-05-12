@@ -1,4 +1,4 @@
-use crate::ast::{ERROR_IDENT, Ident, Path};
+use crate::ast::{ERROR_IDENT, Ident};
 use crate::hir::def_map::{LocalModuleId, ModuleId};
 
 use crate::hir::scope::{Scope as GenericScope, ScopeTree as GenericScopeTree};
@@ -13,7 +13,7 @@ use crate::{
 };
 use crate::{Type, TypeAlias};
 
-use super::path_resolution::{PathResolutionItem, PathResolutionMode};
+use super::path_resolution::{PathResolutionItem, PathResolutionMode, TypedPath};
 use super::types::SELF_TYPE_NAME;
 use super::{Elaborator, PathResolutionTarget, ResolverMeta};
 
@@ -79,7 +79,7 @@ impl Elaborator<'_> {
 
     pub(super) fn lookup_global(
         &mut self,
-        path: Path,
+        path: TypedPath,
     ) -> Result<(DefinitionId, PathResolutionItem), ResolverError> {
         let location = path.location;
         let item = self.use_path_or_error(path, PathResolutionTarget::Value)?;
@@ -135,7 +135,7 @@ impl Elaborator<'_> {
     }
 
     /// Lookup a given trait by name/path.
-    pub fn lookup_trait_or_error(&mut self, path: Path) -> Option<&mut Trait> {
+    pub(crate) fn lookup_trait_or_error(&mut self, path: TypedPath) -> Option<&mut Trait> {
         let location = path.location;
         match self.resolve_path_or_error(path, PathResolutionTarget::Type) {
             Ok(item) => {
@@ -160,7 +160,7 @@ impl Elaborator<'_> {
     /// Lookup a given struct type by name.
     pub(super) fn lookup_datatype_or_error(
         &mut self,
-        path: Path,
+        path: TypedPath,
         mode: PathResolutionMode,
     ) -> Option<Shared<DataType>> {
         let location = path.location;
@@ -186,11 +186,13 @@ impl Elaborator<'_> {
 
     /// Looks up a given type by name.
     /// This will also instantiate any struct types found.
-    pub(super) fn lookup_type_or_error(&mut self, path: Path) -> Option<Type> {
-        let ident = path.as_ident();
-        if ident.is_some_and(|i| i == SELF_TYPE_NAME) {
-            if let Some(typ) = &self.self_type {
-                return Some(typ.clone());
+    pub(super) fn lookup_type_or_error(&mut self, path: TypedPath) -> Option<Type> {
+        let segment = path.as_single_segment();
+        if let Some(segment) = segment {
+            if segment.ident.as_str() == SELF_TYPE_NAME {
+                if let Some(typ) = &self.self_type {
+                    return Some(typ.clone());
+                }
             }
         }
 
@@ -223,7 +225,7 @@ impl Elaborator<'_> {
 
     pub(super) fn lookup_type_alias(
         &mut self,
-        path: Path,
+        path: TypedPath,
         mode: PathResolutionMode,
     ) -> Option<Shared<TypeAlias>> {
         match self.resolve_path_or_error_inner(path, PathResolutionTarget::Type, mode) {
