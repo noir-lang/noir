@@ -49,11 +49,12 @@ fn expect_value_with_args(src: &str, args: Vec<Value>) -> Value {
     results.pop().unwrap()
 }
 
+fn from_constant(constant: FieldElement, typ: NumericType) -> Value {
+    Value::from_constant(constant, typ).unwrap()
+}
+
 fn from_u32_slice(slice: &[u32], typ: NumericType) -> Value {
-    let values = slice
-        .iter()
-        .map(|v| Value::Numeric(NumericValue::from_constant((*v as u128).into(), typ)))
-        .collect();
+    let values = slice.iter().map(|v| from_constant((*v as u128).into(), typ)).collect();
     let types = slice.iter().map(|_| Type::Numeric(typ)).collect();
     Value::array(values, types)
 }
@@ -188,7 +189,7 @@ fn loads_passed_to_a_call() {
     ";
 
     let value = expect_value(src);
-    assert_eq!(value, Value::from_constant(2_u128.into(), NumericType::NativeField));
+    assert_eq!(value, from_constant(2_u128.into(), NumericType::NativeField));
 }
 
 #[test]
@@ -224,8 +225,8 @@ fn keep_repeat_loads_with_alias_store() {
     let values = expect_values_with_args(src, vec![Value::bool(true)]);
     assert_eq!(values.len(), 2);
 
-    assert_eq!(values[0], Value::from_constant(FieldElement::zero(), NumericType::NativeField));
-    assert_eq!(values[1], Value::from_constant(FieldElement::one(), NumericType::NativeField));
+    assert_eq!(values[0], from_constant(FieldElement::zero(), NumericType::NativeField));
+    assert_eq!(values[1], from_constant(FieldElement::one(), NumericType::NativeField));
 }
 
 #[test]
@@ -261,10 +262,8 @@ fn accepts_print() {
             return
         }
     "#;
-    let values = expect_values_with_args(
-        src,
-        vec![Value::from_constant(5u128.into(), NumericType::NativeField)],
-    );
+    let values =
+        expect_values_with_args(src, vec![from_constant(5u128.into(), NumericType::NativeField)]);
     assert_eq!(values.len(), 0);
 }
 
@@ -297,8 +296,8 @@ fn calls_with_higher_order_function() {
     "#;
 
     // Program simplifies to `mul v0, v0` if inlined
-    let input = Value::from_constant(4u128.into(), NumericType::NativeField);
-    let output = Value::from_constant(16u128.into(), NumericType::NativeField);
+    let input = from_constant(4u128.into(), NumericType::NativeField);
+    let output = from_constant(16u128.into(), NumericType::NativeField);
     let result = expect_value_with_args(src, vec![input]);
     assert_eq!(result, output);
 }
@@ -345,10 +344,8 @@ fn is_odd_is_even_recursive_calls() {
             return v2
         }
     "#;
-    let values = expect_values_with_args(
-        src,
-        vec![Value::from_constant(7_u128.into(), NumericType::unsigned(32)), Value::bool(true)],
-    );
+    let seven = from_constant(7_u128.into(), NumericType::unsigned(32));
+    let values = expect_values_with_args(src, vec![seven, Value::bool(true)]);
     assert!(values.is_empty());
 }
 
@@ -1503,8 +1500,8 @@ acir(inline) fn eq f31 {
     let values = expect_values_with_args(
         src,
         vec![
-            Value::from_constant(5_u128.into(), NumericType::NativeField),
-            Value::from_constant(10_u128.into(), NumericType::NativeField),
+            from_constant(5_u128.into(), NumericType::NativeField),
+            from_constant(10_u128.into(), NumericType::NativeField),
         ],
     );
     assert!(values.is_empty());

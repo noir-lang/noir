@@ -1,15 +1,17 @@
 use std::sync::Arc;
 
 use acvm::{AcirField, FieldElement};
-use iter_extended::vecmap;
+use iter_extended::{try_vecmap, vecmap};
 use noirc_frontend::Shared;
 
 use crate::ssa::ir::{
     function::FunctionId,
-    instruction::Intrinsic,
+    instruction::{Intrinsic, binary::convert_signed_integer_to_field_element},
     types::{CompositeType, NumericType, Type},
     value::ValueId,
 };
+
+use super::IResult;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) enum Value {
@@ -132,15 +134,16 @@ impl Value {
         }
     }
 
-    pub(crate) fn from_constant(constant: FieldElement, typ: NumericType) -> Self {
-        Self::Numeric(NumericValue::from_constant(constant, typ))
+    pub(crate) fn from_constant(constant: FieldElement, typ: NumericType) -> IResult<Self> {
+        NumericValue::from_constant(constant, typ).map(Self::Numeric)
     }
 
-    pub(crate) fn array_from_slice(slice: &[FieldElement], typ: NumericType) -> Self {
-        let values =
-            slice.iter().map(|v| Value::Numeric(NumericValue::from_constant(*v, typ))).collect();
-        let types = slice.iter().map(|_| Type::Numeric(typ)).collect();
-        Self::array(values, types)
+    pub(crate) fn array_from_iter(
+        iter: impl IntoIterator<Item = FieldElement>,
+        typ: NumericType,
+    ) -> IResult<Self> {
+        let values = try_vecmap(iter, |v| Value::from_constant(v, typ))?;
+        Ok(Self::array(values, vec![Type::Numeric(typ)]))
     }
 
     // This is used in tests but shouldn't be cfg(test) only
@@ -217,7 +220,7 @@ impl NumericValue {
     }
 
     pub(crate) fn zero(typ: NumericType) -> Self {
-        Self::from_constant(FieldElement::zero(), typ)
+        Self::from_constant(FieldElement::zero(), typ).expect("zero should fit in every type")
     }
 
     pub(crate) fn as_field(&self) -> Option<FieldElement> {
@@ -241,42 +244,69 @@ impl NumericValue {
         }
     }
 
-    pub(crate) fn from_constant(constant: FieldElement, typ: NumericType) -> NumericValue {
+    pub(crate) fn from_constant(constant: FieldElement, typ: NumericType) -> IResult<NumericValue> {
+        use super::InternalError::{ConstantDoesNotFitInType, UnsupportedNumericType};
+        use super::InterpreterError::Internal;
+
         match typ {
-            NumericType::NativeField => Self::Field(constant),
-            NumericType::Unsigned { bit_size: 1 } => Self::U1(constant.is_one()),
-            NumericType::Unsigned { bit_size: 8 } => {
-                Self::U8(constant.try_into_u128().unwrap().try_into().unwrap())
+            NumericType::NativeField => Ok(Self::Field(constant)),
+            NumericType::Unsigned { bit_size: 1 } => {
+                if constant.is_zero() || constant.is_one() {
+                    Ok(Self::U1(constant.is_one()))
+                } else {
+                    Err(Internal(ConstantDoesNotFitInType { constant, typ }))
+                }
             }
-            NumericType::Unsigned { bit_size: 16 } => {
-                Self::U16(constant.try_into_u128().unwrap().try_into().unwrap())
-            }
-            NumericType::Unsigned { bit_size: 32 } => {
-                Self::U32(constant.try_into_u128().unwrap().try_into().unwrap())
-            }
-            NumericType::Unsigned { bit_size: 64 } => {
-                Self::U64(constant.try_into_u128().unwrap().try_into().unwrap())
-            }
-            NumericType::Unsigned { bit_size: 128 } => {
-                Self::U128(constant.try_into_u128().unwrap())
-            }
-            NumericType::Signed { bit_size: 8 } => {
-                Self::I8(constant.try_into_i128().unwrap().try_into().unwrap())
-            }
-            NumericType::Signed { bit_size: 16 } => {
-                Self::I16(constant.try_into_i128().unwrap().try_into().unwrap())
-            }
-            NumericType::Signed { bit_size: 32 } => {
-                Self::I32(constant.try_into_i128().unwrap().try_into().unwrap())
-            }
-            NumericType::Signed { bit_size: 64 } => {
-                Self::I64(constant.try_into_i128().unwrap().try_into().unwrap())
-            }
-            other => panic!("Unsupported numeric type: {other}"),
+            NumericType::Unsigned { bit_size: 8 } => constant
+                .try_into_u128()
+                .and_then(|x| x.try_into().ok())
+                .map(Self::U8)
+                .ok_or_else(|| Internal(ConstantDoesNotFitInType { constant, typ })),
+            NumericType::Unsigned { bit_size: 16 } => constant
+                .try_into_u128()
+                .and_then(|x| x.try_into().ok())
+                .map(Self::U16)
+                .ok_or_else(|| Internal(ConstantDoesNotFitInType { constant, typ })),
+            NumericType::Unsigned { bit_size: 32 } => constant
+                .try_into_u128()
+                .and_then(|x| x.try_into().ok())
+                .map(Self::U32)
+                .ok_or_else(|| Internal(ConstantDoesNotFitInType { constant, typ })),
+            NumericType::Unsigned { bit_size: 64 } => constant
+                .try_into_u128()
+                .and_then(|x| x.try_into().ok())
+                .map(Self::U64)
+                .ok_or_else(|| Internal(ConstantDoesNotFitInType { constant, typ })),
+            NumericType::Unsigned { bit_size: 128 } => constant
+                .try_into_u128()
+                .map(Self::U128)
+                .ok_or_else(|| Internal(ConstantDoesNotFitInType { constant, typ })),
+            NumericType::Signed { bit_size: 8 } => constant
+                .try_into_i128()
+                .and_then(|x| x.try_into().ok())
+                .map(Self::I8)
+                .ok_or_else(|| Internal(ConstantDoesNotFitInType { constant, typ })),
+            NumericType::Signed { bit_size: 16 } => constant
+                .try_into_i128()
+                .and_then(|x| x.try_into().ok())
+                .map(Self::I16)
+                .ok_or_else(|| Internal(ConstantDoesNotFitInType { constant, typ })),
+            NumericType::Signed { bit_size: 32 } => constant
+                .try_into_i128()
+                .and_then(|x| x.try_into().ok())
+                .map(Self::I32)
+                .ok_or_else(|| Internal(ConstantDoesNotFitInType { constant, typ })),
+            NumericType::Signed { bit_size: 64 } => constant
+                .try_into_i128()
+                .and_then(|x| x.try_into().ok())
+                .map(Self::I64)
+                .ok_or_else(|| Internal(ConstantDoesNotFitInType { constant, typ })),
+            typ => Err(Internal(UnsupportedNumericType { typ })),
         }
     }
 
     pub(crate) fn convert_to_field(&self) -> FieldElement {
+        let signed = convert_signed_integer_to_field_element;
         match self {
             NumericValue::Field(field) => *field,
             NumericValue::U1(boolean) if *boolean => FieldElement::one(),
@@ -286,10 +316,10 @@ impl NumericValue {
             NumericValue::U32(value) => FieldElement::from(*value),
             NumericValue::U64(value) => FieldElement::from(*value),
             NumericValue::U128(value) => FieldElement::from(*value),
-            NumericValue::I8(value) => FieldElement::from(*value as i128),
-            NumericValue::I16(value) => FieldElement::from(*value as i128),
-            NumericValue::I32(value) => FieldElement::from(*value as i128),
-            NumericValue::I64(value) => FieldElement::from(*value as i128),
+            NumericValue::I8(value) => FieldElement::from(signed(*value as i128, 8)),
+            NumericValue::I16(value) => FieldElement::from(signed(*value as i128, 16)),
+            NumericValue::I32(value) => FieldElement::from(signed(*value as i128, 32)),
+            NumericValue::I64(value) => FieldElement::from(signed(*value as i128, 64)),
         }
     }
 }
