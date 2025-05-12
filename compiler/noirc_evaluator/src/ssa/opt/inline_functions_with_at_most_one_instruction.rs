@@ -5,9 +5,8 @@ use iter_extended::btree_map;
 
 use crate::ssa::{
     ir::{
+        call_graph::CallGraph,
         function::{Function, RuntimeType},
-        instruction::Instruction,
-        value::Value,
     },
     ssa_gen::Ssa,
 };
@@ -15,6 +14,9 @@ use crate::ssa::{
 impl Ssa {
     /// See the [`inline_functions_with_at_most_one_instruction`][self] module for more information.
     pub(crate) fn inline_functions_with_at_most_one_instruction(mut self: Ssa) -> Ssa {
+        let call_graph = CallGraph::new_from_ssa(&self);
+        let recursive_functions = call_graph.get_recursive_functions();
+
         let should_inline_call = |callee: &Function| {
             if let RuntimeType::Acir(_) = callee.runtime() {
                 // Functions marked to not have predicates should be preserved.
@@ -43,19 +45,11 @@ impl Ssa {
             }
 
             // Check whether the only instruction is a recursive call, which prevents inlining the callee.
-            // This special check is done here to avoid performing the entire inline info computation.
-            // The inline info computation contains extra logic and requires passing over every function.
-            // which we can avoid in when inlining simple functions.
-            let only_instruction = instructions[0];
-            if let Instruction::Call { func, .. } = callee.dfg[only_instruction] {
-                let Value::Function(func_id) = callee.dfg[func] else {
-                    return true;
-                };
-
-                func_id != callee.id()
-            } else {
-                true
+            if recursive_functions.contains(&callee.id()) {
+                return false;
             }
+
+            true
         };
 
         self.functions = btree_map(&self.functions, |(id, function)| {
@@ -293,6 +287,55 @@ mod test {
             return v5
         }
         ";
+        assert_does_not_inline(src);
+    }
+
+    #[test]
+    fn does_not_inline_mutually_recursive_functions_acir() {
+        let src = "
+      acir(inline) fn main f0 {
+        b0():
+          call f1()
+          return
+      }
+      acir(inline) fn starter f1 {
+        b0():
+          call f2()
+          return
+      }
+      acir(inline) fn main f2 {
+        b0():
+          call f1()
+          return
+      }
+      ";
+        assert_does_not_inline(src);
+    }
+
+    #[test]
+    fn does_not_inline_mutually_recursive_functions_brillig() {
+        let src = "
+      acir(inline) fn main f0 {
+        b0():
+          call f1()
+          return
+      }
+      brillig(inline) fn starter f1 {
+        b0():
+          call f2()
+          return
+      }
+      brillig(inline) fn ping f2 {
+        b0():
+          call f3()
+          return
+      }
+      brillig(inline) fn pong f3 {
+        b0():
+          call f2()
+          return
+      }
+      ";
         assert_does_not_inline(src);
     }
 }
