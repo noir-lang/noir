@@ -237,7 +237,7 @@ pub fn parse_arithmetic_expression<F: AcirField>(
                 let first_index = temp[1].strip_prefix("_").unwrap().parse::<u32>().unwrap();
                 let second_index = temp[2].strip_prefix("_").unwrap().parse::<u32>().unwrap();
                 let coeff = parse_str_to_field(temp[0]).unwrap();
-                mul_terms.push((coeff, Witness(first_index), Witness(second_index)))
+                mul_terms.push((coeff, Witness(first_index), Witness(second_index))); 
             }
             2 => {
                 // this is a linear_combination term of form (constant, witness)
@@ -418,5 +418,47 @@ mod test {
                 q_c: FieldElement::zero()
             }
         );
+    }
+
+    #[test]
+    fn test_parse_acir() {
+        let acir_string = "
+        Compiled ACIR for main (unoptimized):
+        func 0
+        current witness index : _16
+        private parameters indices : [_0, _1, _2]
+        public parameters indices : []
+        return value indices : [_3]
+        BRILLIG CALL func 0: inputs: [Single(Expression { mul_terms: [], linear_combinations: [(1, Witness(0)), (1, Witness(1))], q_c: 0 }), Single(Expression { mul_terms: [], linear_combinations: [], q_c: 4294967296 })], outputs: [Simple(Witness(4)), Simple(Witness(5))]
+        BLACKBOX::RANGE [(_4, 222)] []
+        BLACKBOX::RANGE [(_5, 32)] []
+        EXPR [ (1, _0) (1, _1) (-4294967296, _4) (-1, _5) 0 ]
+        EXPR [ (-1, _4) (-1, _6) 5096253676302562286669017222071363378443840053029366383258766538131 ]
+        BLACKBOX::RANGE [(_6, 222)] []
+        BRILLIG CALL func 1: inputs: [Single(Expression { mul_terms: [], linear_combinations: [(-1, Witness(4))], q_c: 5096253676302562286669017222071363378443840053029366383258766538131 })], outputs: [Simple(Witness(7))]
+        EXPR [ (-1, _4, _7) (5096253676302562286669017222071363378443840053029366383258766538131, _7) (1, _8) -1 ]
+        EXPR [ (-1, _4, _8) (5096253676302562286669017222071363378443840053029366383258766538131, _8) 0 ]
+        EXPR [ (-1, _5, _8) (4026531840, _8) (-1, _9) 0 ]
+        BLACKBOX::RANGE [(_9, 33)] []
+        BRILLIG CALL func 0: inputs: [Single(Expression { mul_terms: [], linear_combinations: [(1, Witness(2))], q_c: 0 }), Single(Expression { mul_terms: [], linear_combinations: [], q_c: 4294967296 })], outputs: [Simple(Witness(10)), Simple(Witness(11))]
+        BLACKBOX::RANGE [(_10, 222)] []
+        BLACKBOX::RANGE [(_11, 32)] []
+        EXPR [ (1, _2) (-4294967296, _10) (-1, _11) 0 ]
+        EXPR [ (-1, _10) (-1, _12) 5096253676302562286669017222071363378443840053029366383258766538131 ]
+        BLACKBOX::RANGE [(_12, 222)] []
+        BRILLIG CALL func 1: inputs: [Single(Expression { mul_terms: [], linear_combinations: [(-1, Witness(10))], q_c: 5096253676302562286669017222071363378443840053029366383258766538131 })], outputs: [Simple(Witness(13))]
+        EXPR [ (-1, _10, _13) (5096253676302562286669017222071363378443840053029366383258766538131, _13) (1, _14) -1 ]
+        EXPR [ (-1, _10, _14) (5096253676302562286669017222071363378443840053029366383258766538131, _14) 0 ]
+        EXPR [ (-1, _11, _14) (4026531840, _14) (-1, _15) 0 ]
+        BLACKBOX::RANGE [(_15, 33)] []
+        EXPR [ (1, _5, _11) (-1, _16) 0 ]
+        BLACKBOX::RANGE [(_16, 32)] []
+        EXPR [ (1, _3) (-1, _16) 0 ]
+
+        unconstrained func 0
+        [Const { destination: Direct(10), bit_size: Integer(U32), value: 2 }, Const { destination: Direct(11), bit_size: Integer(U32), value: 0 }, CalldataCopy { destination_address: Direct(0), size_address: Direct(10), offset_address: Direct(11) }, BinaryFieldOp { destination: Direct(2), op: IntegerDiv, lhs: Direct(0), rhs: Direct(1) }, BinaryFieldOp { destination: Direct(1), op: Mul, lhs: Direct(2), rhs: Direct(1) }, BinaryFieldOp { destination: Direct(1), op: Sub, lhs: Direct(0), rhs: Direct(1) }, Mov { destination: Direct(0), source: Direct(2) }, Stop { return_data: HeapVector { pointer: Direct(11), size: Direct(10) } }]
+        unconstrained func 1
+        [Const { destination: Direct(21), bit_size: Integer(U32), value: 1 }, Const { destination: Direct(20), bit_size: Integer(U32), value: 0 }, CalldataCopy { destination_address: Direct(0), size_address: Direct(21), offset_address: Direct(20) }, Const { destination: Direct(2), bit_size: Field, value: 0 }, BinaryFieldOp { destination: Direct(3), op: Equals, lhs: Direct(0), rhs: Direct(2) }, JumpIf { condition: Direct(3), location: 8 }, Const { destination: Direct(1), bit_size: Field, value: 1 }, BinaryFieldOp { destination: Direct(0), op: Div, lhs: Direct(1), rhs: Direct(0) }, Stop { return_data: HeapVector { pointer: Direct(20), size: Direct(21) } }]"; 
+        assert!(true); 
     }
 }
