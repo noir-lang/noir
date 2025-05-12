@@ -73,7 +73,7 @@ impl CompareInterpreted {
     }
 
     pub fn exec(&self) -> eyre::Result<CompareInterpretedResult> {
-        // println!("program: \n{}\n", DisplayAstAsNoir(&self.program));
+        // println!("program: \n{}\n", crate::DisplayAstAsNoir(&self.program));
         // println!(
         //     "input map: \n{}\n",
         //     noirc_abi::input_parser::Format::Toml.serialize(&self.input_map, &self.abi).unwrap()
@@ -123,38 +123,32 @@ impl CompareError for ssa::interpreter::errors::InterpreterError {
 
 /// Convert the ABI encoded inputs to what the SSA interpreter expects.
 fn input_values_to_ssa(abi: &Abi, input_map: &InputMap) -> Vec<ssa::interpreter::value::Value> {
-    use ssa::interpreter::value::{ArrayValue, Value};
     let mut inputs = Vec::new();
     for param in &abi.parameters {
         let input = &input_map
             .get(&param.name)
             .unwrap_or_else(|| panic!("parameter not found in input: {}", param.name));
-        let input = input_value_to_ssa(&param.typ, input);
 
-        // Top level tuples are passed as separate fields.
-        if matches!(param.typ, AbiType::Tuple { .. }) {
-            let Value::ArrayOrSlice(ArrayValue { elements, .. }) = input else {
-                panic!("unexpected input value for tuple: {input:?}");
-            };
-            inputs.extend(elements.unwrap_or_clone());
-        } else {
-            inputs.push(input);
-        }
+        inputs.extend(input_value_to_ssa(&param.typ, input));
     }
     inputs
 }
 
 /// Convert one ABI encoded input to what the SSA interpreter expects.
-fn input_value_to_ssa(typ: &AbiType, input: &InputValue) -> ssa::interpreter::value::Value {
+///
+/// Tuple types are returned flattened.
+fn input_value_to_ssa(typ: &AbiType, input: &InputValue) -> Vec<ssa::interpreter::value::Value> {
     use ssa::interpreter::value::{ArrayValue, NumericValue, Value};
     use ssa::ir::types::Type;
-    let array_value = |elements, types| {
-        Value::ArrayOrSlice(ArrayValue {
+    let array_value = |elements: Vec<Vec<Value>>, types: Vec<Type>| {
+        let elements = elements.into_iter().flatten().collect();
+        let arr = Value::ArrayOrSlice(ArrayValue {
             elements: Shared::new(elements),
             rc: Shared::new(1),
             element_types: Arc::new(types),
             is_slice: false,
-        })
+        });
+        vec![arr]
     };
     match input {
         InputValue::Field(f) => {
@@ -169,28 +163,30 @@ fn input_value_to_ssa(typ: &AbiType, input: &InputValue) -> ssa::interpreter::va
                 }
                 other => panic!("unexpected ABY type for Field input: {other:?}"),
             };
-            Value::Numeric(NumericValue::from_constant(*f, num_typ))
+            vec![Value::Numeric(NumericValue::from_constant(*f, num_typ))]
         }
         InputValue::String(s) => array_value(
-            vecmap(s.as_bytes(), |b| Value::Numeric(NumericValue::U8(*b))),
+            vec![vecmap(s.as_bytes(), |b| Value::Numeric(NumericValue::U8(*b)))],
             vec![Type::unsigned(8)],
         ),
         InputValue::Vec(input_values) => match typ {
             AbiType::Array { length, typ } => {
                 assert_eq!(*length as usize, input_values.len(), "array length != input length");
-                array_value(
-                    vecmap(input_values, |input| input_value_to_ssa(typ, input)),
-                    vec![input_type_to_ssa(typ)],
-                )
+                let elements = vecmap(input_values, |input| input_value_to_ssa(typ, input));
+                array_value(elements, vec![input_type_to_ssa(typ)])
             }
             AbiType::Tuple { fields } => {
                 assert_eq!(fields.len(), input_values.len(), "tuple size != input length");
-                array_value(
-                    vecmap(fields.iter().zip(input_values), |(typ, input)| {
-                        input_value_to_ssa(typ, input)
-                    }),
-                    vecmap(fields, input_type_to_ssa),
-                )
+
+                let elements = vecmap(fields.iter().zip(input_values), |(typ, input)| {
+                    input_value_to_ssa(typ, input)
+                })
+                .into_iter()
+                .flatten()
+                .collect();
+
+                // Tuples are not wrapped into arrays, they are returned as a vector.
+                elements
             }
             other => {
                 panic!("unexpected ABI type for vector input: {other:?}")
@@ -199,13 +195,11 @@ fn input_value_to_ssa(typ: &AbiType, input: &InputValue) -> ssa::interpreter::va
         InputValue::Struct(field_values) => match typ {
             AbiType::Struct { path: _, fields } => {
                 assert_eq!(fields.len(), field_values.len(), "struct size != input length");
-                array_value(
-                    vecmap(fields, |(name, typ)| {
-                        let input = &field_values[name];
-                        input_value_to_ssa(typ, input)
-                    }),
-                    vecmap(fields.iter().map(|(_, typ)| typ), input_type_to_ssa),
-                )
+                let elements = vecmap(fields, |(name, typ)| {
+                    let input = &field_values[name];
+                    input_value_to_ssa(typ, input)
+                });
+                array_value(elements, vecmap(fields.iter().map(|(_, typ)| typ), input_type_to_ssa))
             }
             other => {
                 panic!("unexpected ABI type for map input: {other:?}")
