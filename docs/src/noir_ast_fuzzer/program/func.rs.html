@@ -1924,7 +1924,7 @@
         <span class="comment">// Generate a type or choose an existing one.
         </span><span class="kw">let </span>max_depth = <span class="self">self</span>.max_depth();
         <span class="kw">let </span>comptime_friendly = <span class="self">self</span>.is_comptime_friendly();
-        <span class="kw">let </span>typ = <span class="self">self</span>.ctx.gen_type(u, max_depth, <span class="bool-val">false</span>, <span class="bool-val">true</span>, comptime_friendly)<span class="question-mark">?</span>;
+        <span class="kw">let </span>typ = <span class="self">self</span>.ctx.gen_type(u, max_depth, <span class="bool-val">false</span>, <span class="bool-val">false</span>, <span class="bool-val">true</span>, comptime_friendly)<span class="question-mark">?</span>;
         <span class="kw">let </span>expr = <span class="self">self</span>.gen_expr(u, <span class="kw-2">&amp;</span>typ, max_depth, Flags::TOP)<span class="question-mark">?</span>;
         <span class="kw">let </span>mutable = bool::arbitrary(u)<span class="question-mark">?</span>;
         <span class="prelude-val">Ok</span>(<span class="self">self</span>.let_var(mutable, typ, expr, <span class="bool-val">true</span>))
