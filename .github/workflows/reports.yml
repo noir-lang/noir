@@ -508,16 +508,10 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Download initial compilation report
-        uses: actions/download-artifact@v4
-        with:
-          name: in_progress_compilation_report
-          path: ./reports
-
       - name: Download matrix compilation reports
         uses: actions/download-artifact@v4
         with:
-          pattern: compilation_report_*
+          pattern: external_report_*
           path: ./reports
           merge-multiple: true
 
@@ -727,57 +721,6 @@ jobs:
           name: "Execution Memory"
           tool: "customSmallerIsBetter"
           output-file-path: ./memory_bench.json
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-          # We want this to only run on master to avoid garbage data from PRs being added.
-          auto-push: ${{ github.ref == 'refs/heads/master' }}
-          alert-threshold: "120%"
-          comment-on-alert: true
-          comment-always: ${{ contains( github.event.pull_request.labels.*.name, 'bench-show') }}
-          fail-on-alert: false
-          alert-comment-cc-users: "@TomAFrench"
-          max-items-in-chart: 50
-
-  upload_execution_report:
-    name: Upload execution report
-    needs: [generate_compilation_and_execution_report, external_repo_compilation_and_execution_report]
-    timeout-minutes: 5
-    # We want this job to run even if one variation of the matrix in `external_repo_compilation_and_execution_report` fails
-    if: always()
-    runs-on: ubuntu-22.04
-    permissions:
-      pull-requests: write
-      # deployments permission to deploy GitHub pages website
-      deployments: write
-      # contents permission to update benchmark contents in gh-pages branch
-      contents: write
-
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Download initial execution report
-        uses: actions/download-artifact@v4
-        with:
-          name: in_progress_execution_report
-
-      - name: Download matrix execution reports
-        uses: actions/download-artifact@v4
-        with:
-          pattern: execution_report_*
-          path: ./reports
-          merge-multiple: true
-
-      - name: Merge execution reports using jq
-        run: |
-          # Github actions seems to not expand "**" in globs by default.
-          shopt -s globstar
-          jq --slurp '. | flatten' ./reports/* | tee time_bench.json
-
-      - name: Store benchmark result
-        uses: benchmark-action/github-action-benchmark@4de1bed97a47495fc4c5404952da0499e31f5c29
-        with:
-          name: "Execution Time"
-          tool: "customSmallerIsBetter"
-          output-file-path: ./time_bench.json
           github-token: ${{ secrets.GITHUB_TOKEN }}
           # We want this to only run on master to avoid garbage data from PRs being added.
           auto-push: ${{ github.ref == 'refs/heads/master' }}
