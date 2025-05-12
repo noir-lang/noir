@@ -89,14 +89,6 @@ fn fuzz_basic() {
     run_snippet_proptest(program.to_string(), false, strategy);
 }
 
-fn field_vec_strategy(len: usize) -> impl Strategy<Value = Vec<FieldElement>> {
-    // Generate Field elements from random 32 byte vectors.
-    let field = prop::collection::vec(any::<u8>(), 32)
-        .prop_map(|bytes| FieldElement::from_be_bytes_reduce(&bytes));
-
-    prop::collection::vec(field, len)
-}
-
 fn make_field_cast_test(size: u32, signed: bool) -> String {
     if signed {
         format!(
