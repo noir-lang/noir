@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1747057748779,
+  "lastUpdate": 1747057750709,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -3705,95 +3705,6 @@ window.BENCHMARK_DATA = {
       }
     ],
     "Compilation Time": [
-      {
-        "commit": {
-          "author": {
-            "email": "asterite@gmail.com",
-            "name": "Ary Borenszweig",
-            "username": "asterite"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "f31097d0e09b6ac39842ee0e821ad62e70ebd1ba",
-          "message": "chore: add snapshosts for nargo expand tests (#8318)",
-          "timestamp": "2025-05-05T17:13:44Z",
-          "tree_id": "1fbf0e1fe1cadcad1453b950839a6083c09bfe0b",
-          "url": "https://github.com/noir-lang/noir/commit/f31097d0e09b6ac39842ee0e821ad62e70ebd1ba"
-        },
-        "date": 1746467023701,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "regression_4709",
-            "value": 0.693,
-            "unit": "s"
-          },
-          {
-            "name": "ram_blowup_regression",
-            "value": 13,
-            "unit": "s"
-          },
-          {
-            "name": "global_var_regression_entry_points",
-            "value": 0.501,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-inner",
-            "value": 2.21,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 6.92,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 1.11,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 17.74,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 13.5,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root-empty",
-            "value": 1.3,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root-single-tx",
-            "value": 123,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 128,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 1.076,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-root",
-            "value": 1.564,
-            "unit": "s"
-          }
-        ]
-      },
       {
         "commit": {
           "author": {
@@ -8016,6 +7927,80 @@ window.BENCHMARK_DATA = {
           {
             "name": "rollup-root",
             "value": 1.654,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "mvezenov@gmail.com",
+            "name": "Maxim Vezenov",
+            "username": "vezenovm"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "1b593f68c3e91a6fafb5c7c819a4efc8bf6636ea",
+          "message": "chore(tests): Add regression for now passing test (#8441)",
+          "timestamp": "2025-05-12T13:24:48Z",
+          "tree_id": "ea9dabcd233964d38720cf2d05356804f0ac6fa4",
+          "url": "https://github.com/noir-lang/noir/commit/1b593f68c3e91a6fafb5c7c819a4efc8bf6636ea"
+        },
+        "date": 1747057740902,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 2.376,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 6.612,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 1.046,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 16,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 12.82,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-empty",
+            "value": 1.348,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-single-tx",
+            "value": 126,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 131,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 1.074,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-root",
+            "value": 1.64,
             "unit": "s"
           }
         ]
