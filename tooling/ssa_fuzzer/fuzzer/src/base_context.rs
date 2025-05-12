@@ -1,4 +1,5 @@
 use crate::block_context::BlockContext;
+use crate::instruction::Instruction;
 use crate::instruction::InstructionBlock;
 use crate::options::{ContextOptions, SsaBlockOptions};
 use acvm::FieldElement;
@@ -65,6 +66,7 @@ pub(crate) struct FuzzerContext {
     /// Whether the program is executed in constants
     is_constant: bool,
     context_options: ContextOptions,
+    inserted_instructions_count: usize,
 }
 
 impl FuzzerContext {
@@ -105,6 +107,7 @@ impl FuzzerContext {
             stored_blocks: HashMap::new(),
             is_constant: false,
             context_options,
+            inserted_instructions_count: 0,
         }
     }
 
@@ -153,6 +156,7 @@ impl FuzzerContext {
             stored_blocks: HashMap::new(),
             is_constant: true,
             context_options,
+            inserted_instructions_count: 0,
         }
     }
 
@@ -279,22 +283,31 @@ impl FuzzerContext {
             FuzzerCommand::InsertSimpleInstructionBlock { instruction_block_idx } => {
                 let instruction_block =
                     &self.instruction_blocks[instruction_block_idx % self.instruction_blocks.len()];
+                // TODO: HACK
+                if self.inserted_instructions_count + instruction_block.instructions.len() > 250 {
+                    return;
+                }
                 self.current_block.context.insert_instructions(
                     &mut self.acir_builder,
                     &mut self.brillig_builder,
                     &instruction_block.instructions,
                 );
+                self.inserted_instructions_count += instruction_block.instructions.len();
             }
             FuzzerCommand::MergeInstructionBlocks { first_block_idx, second_block_idx } => {
                 let first_idx = first_block_idx % self.instruction_blocks.len();
                 let second_idx = second_block_idx % self.instruction_blocks.len();
 
-                let combined_instructions = self.instruction_blocks[first_idx]
+                let combined_instructions: Vec<Instruction> = self.instruction_blocks[first_idx]
                     .instructions
                     .iter()
                     .chain(&self.instruction_blocks[second_idx].instructions)
                     .cloned()
                     .collect();
+                // TODO: HACK
+                if combined_instructions.len() > 100 {
+                    return;
+                }
 
                 self.instruction_blocks
                     .push(InstructionBlock { instructions: combined_instructions });

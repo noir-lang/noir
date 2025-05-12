@@ -1,26 +1,25 @@
 #![no_main]
 
+mod base_context;
+mod block_context;
+mod fuzzer;
+mod instruction;
+mod options;
+
+use crate::base_context::FuzzerCommand;
+use crate::fuzzer::Fuzzer;
+use crate::instruction::InstructionBlock;
+use crate::options::FuzzerOptions;
 use acvm::FieldElement;
 use acvm::acir::native_types::{Witness, WitnessMap};
 use libfuzzer_sys::arbitrary;
 use libfuzzer_sys::arbitrary::Arbitrary;
 use noir_ssa_fuzzer::config;
 use noir_ssa_fuzzer::typed_value::ValueType;
-mod base_context;
-use crate::base_context::FuzzerCommand;
-mod fuzzer;
-mod instruction;
-use crate::fuzzer::Fuzzer;
-use crate::instruction::InstructionBlock;
-use crate::options::FuzzerOptions;
-
-mod block_context;
-mod options;
-
 /// Field modulus has 254 bits, and FieldElement::from supports u128, so we use two unsigneds to represent a field element
 /// field = low + high * 2^128
 #[derive(Debug, Clone, Hash, Arbitrary)]
-struct FieldRepresentation {
+pub(crate) struct FieldRepresentation {
     high: u128,
     low: u128,
 }
@@ -34,7 +33,7 @@ impl From<&FieldRepresentation> for FieldElement {
 }
 
 #[derive(Debug, Clone, Hash, Arbitrary)]
-enum WitnessValue {
+pub(crate) enum WitnessValue {
     Field(FieldRepresentation),
     U64(u64),
     Boolean(bool),
@@ -44,15 +43,14 @@ enum WitnessValue {
 /// `methods` - sequence of instructions to be added to the program
 /// `initial_witness` - initial witness values for the program as `FieldRepresentation`
 #[derive(Arbitrary, Debug)]
-struct FuzzerData {
+pub(crate) struct FuzzerData {
     blocks: Vec<InstructionBlock>,
     commands: Vec<FuzzerCommand>,
     initial_witness: [WitnessValue; (config::NUMBER_OF_VARIABLES_INITIAL - 1) as usize],
     return_instruction_block_idx: usize,
 }
 
-// main fuzz loop
-libfuzzer_sys::fuzz_target!(|data: FuzzerData| {
+pub(crate) fn fuzz_target(data: FuzzerData) {
     // init logger and initialize witness map
     let _ = env_logger::try_init();
     let mut witness_map = WitnessMap::new();
@@ -97,4 +95,9 @@ libfuzzer_sys::fuzz_target!(|data: FuzzerData| {
         fuzzer.process_fuzzer_command(command);
     }
     fuzzer.run(initial_witness, data.return_instruction_block_idx);
+}
+
+// main fuzz loop
+libfuzzer_sys::fuzz_target!(|data: FuzzerData| {
+    fuzz_target(data);
 });
