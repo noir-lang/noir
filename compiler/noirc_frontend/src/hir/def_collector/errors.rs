@@ -73,6 +73,12 @@ pub enum DefCollectorErrorKind {
     TestOnAssociatedFunction { location: Location },
     #[error("The `#[export]` attribute may only be used on a non-associated function")]
     ExportOnAssociatedFunction { location: Location },
+    #[error(
+        "The `#[test(only_fail_with = \"..\")] attribute may only be used on functions with parameters"
+    )]
+    TestOnlyFailWithWithoutParameters { location: Location },
+    #[error("The `#[fuzz] attribute may only be used on functions with parameters")]
+    FuzzingHarnessWithoutParameters { location: Location },
 }
 
 impl DefCollectorErrorKind {
@@ -104,7 +110,9 @@ impl DefCollectorErrorKind {
             | DefCollectorErrorKind::ModuleOriginallyDefined { location, .. }
             | DefCollectorErrorKind::TraitImplOrphaned { location }
             | DefCollectorErrorKind::TraitMissingMethod { trait_impl_location: location, .. }
-            | DefCollectorErrorKind::ForeignImpl { location, .. } => *location,
+            | DefCollectorErrorKind::ForeignImpl { location, .. }
+            | DefCollectorErrorKind::TestOnlyFailWithWithoutParameters { location }
+            | DefCollectorErrorKind::FuzzingHarnessWithoutParameters { location } => *location,
             DefCollectorErrorKind::NotATrait { not_a_trait_name: path }
             | DefCollectorErrorKind::TraitNotFound { trait_path: path } => path.location,
             DefCollectorErrorKind::UnsupportedNumericGenericType(
@@ -276,6 +284,16 @@ impl<'a> From<&'a DefCollectorErrorKind> for Diagnostic {
             ),
             DefCollectorErrorKind::ExportOnAssociatedFunction { location } => Diagnostic::simple_error(
                 "The `#[export]` attribute is disallowed on `impl` methods".into(),
+                String::new(),
+                *location,
+            ),
+            DefCollectorErrorKind::TestOnlyFailWithWithoutParameters { location } => Diagnostic::simple_error(
+                "The `#[test(only_fail_with = \"..\")] attribute may only be used on functions with parameters".into(),
+                String::new(),
+                *location,
+            ),
+            DefCollectorErrorKind::FuzzingHarnessWithoutParameters { location } => Diagnostic::simple_error(
+                "The `#[fuzz] attribute may only be used on functions with parameters".into(),
                 String::new(),
                 *location,
             ),

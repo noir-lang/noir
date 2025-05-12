@@ -818,14 +818,31 @@ impl Attributes {
     }
 
     pub fn is_test_function(&self) -> bool {
-        matches!(self.function().map(|attr| &attr.kind), Some(FunctionAttributeKind::Test(_)))
+        self.as_test_function().is_some()
+    }
+
+    pub fn as_test_function(&self) -> Option<(&TestScope, Location)> {
+        self.function().and_then(|attr| {
+            if let FunctionAttributeKind::Test(scope) = &attr.kind {
+                Some((scope, attr.location))
+            } else {
+                None
+            }
+        })
     }
 
     pub fn is_fuzzing_harness(&self) -> bool {
-        matches!(
-            self.function().map(|attr| &attr.kind),
-            Some(FunctionAttributeKind::FuzzingHarness(_))
-        )
+        self.as_fuzzing_harness().is_some()
+    }
+
+    pub fn as_fuzzing_harness(&self) -> Option<(&FuzzingScope, Location)> {
+        self.function().and_then(|attr| {
+            if let FunctionAttributeKind::FuzzingHarness(scope) = &attr.kind {
+                Some((scope, attr.location))
+            } else {
+                None
+            }
+        })
     }
 
     /// True if these attributes mean the given function is an entry point function if it was
