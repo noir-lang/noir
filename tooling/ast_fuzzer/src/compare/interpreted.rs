@@ -123,13 +123,23 @@ impl CompareError for ssa::interpreter::errors::InterpreterError {
 
 /// Convert the ABI encoded inputs to what the SSA interpreter expects.
 fn input_values_to_ssa(abi: &Abi, input_map: &InputMap) -> Vec<ssa::interpreter::value::Value> {
+    use ssa::interpreter::value::{ArrayValue, Value};
     let mut inputs = Vec::new();
     for param in &abi.parameters {
         let input = &input_map
             .get(&param.name)
             .unwrap_or_else(|| panic!("parameter not found in input: {}", param.name));
         let input = input_value_to_ssa(&param.typ, input);
-        inputs.push(input);
+
+        // Top level tuples are passed as separate fields.
+        if matches!(param.typ, AbiType::Tuple { .. }) {
+            let Value::ArrayOrSlice(ArrayValue { elements, .. }) = input else {
+                panic!("unexpected input value for tuple: {input:?}");
+            };
+            inputs.extend(elements.unwrap_or_clone());
+        } else {
+            inputs.push(input);
+        }
     }
     inputs
 }
