@@ -8,6 +8,7 @@ pub enum PrimitiveType {
     CtString,
     Expr,
     Field,
+    FunctionDefinition,
 }
 
 impl PrimitiveType {
@@ -17,6 +18,7 @@ impl PrimitiveType {
             "CtString" => Some(Self::CtString),
             "Expr" => Some(Self::Expr),
             "Field" => Some(Self::Field),
+            "FunctionDefinition" => Some(Self::FunctionDefinition),
             _ => None,
         }
     }
@@ -27,13 +29,14 @@ impl PrimitiveType {
             Self::CtString => Type::Quoted(QuotedType::CtString),
             Self::Expr => Type::Quoted(QuotedType::Expr),
             Self::Field => Type::FieldElement,
+            Self::FunctionDefinition => Type::Quoted(QuotedType::FunctionDefinition),
         }
     }
 
     pub fn to_integer_or_field(self) -> Option<Type> {
         match self {
             Self::Field => Some(Type::FieldElement),
-            Self::Bool | Self::CtString | Self::Expr => None,
+            Self::Bool | Self::CtString | Self::Expr | Self::FunctionDefinition => None,
         }
     }
 }

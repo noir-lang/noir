@@ -230,9 +230,6 @@ impl Parser<'_> {
         if self.eat_keyword(Keyword::UnresolvedType) {
             return Some(UnresolvedTypeData::Quoted(QuotedType::UnresolvedType));
         }
-        if self.eat_keyword(Keyword::FunctionDefinition) {
-            return Some(UnresolvedTypeData::Quoted(QuotedType::FunctionDefinition));
-        }
         if self.eat_keyword(Keyword::Module) {
             return Some(UnresolvedTypeData::Quoted(QuotedType::Module));
         }
