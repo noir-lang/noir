@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1747070150158,
+  "lastUpdate": 1747076516047,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -17965,48 +17965,6 @@ window.BENCHMARK_DATA = {
             "name": "GitHub",
             "username": "web-flow"
           },
-          "distinct": false,
-          "id": "7296f8aaece5bf4c4dcf6e33bf4d3764e283a554",
-          "message": "chore: remove unsafe code from greybox fuzzer (#8315)\n\nCo-authored-by: AztecBot <tech@aztecprotocol.com>",
-          "timestamp": "2025-05-06T12:18:25Z",
-          "tree_id": "c6f6e3b8b8fc7eabd1c058a4363ebb700c890427",
-          "url": "https://github.com/noir-lang/noir/commit/7296f8aaece5bf4c4dcf6e33bf4d3764e283a554"
-        },
-        "date": 1746535034637,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 254590,
-            "range": "± 771",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 230540,
-            "range": "± 2345",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 3222240,
-            "range": "± 26517",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
-            "email": "15848336+TomAFrench@users.noreply.github.com",
-            "name": "Tom French",
-            "username": "TomAFrench"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
           "distinct": true,
           "id": "ff795cf63e6f84670f9f7743b268baa9cf087a5c",
           "message": "chore: redo typo PR by GarmashAlex (#8364)\n\nCo-authored-by: AztecBot <tech@aztecprotocol.com>",
@@ -20049,6 +20007,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 3601207,
             "range": "± 23942",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "aakoshh@gmail.com",
+            "name": "Akosh Farkash",
+            "username": "aakoshh"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "21d9ffdc802d11aa66c15e708222dc8f845f0353",
+          "message": "chore(fuzz): Do not use zero length types in the main input output (#8465)",
+          "timestamp": "2025-05-12T18:43:23Z",
+          "tree_id": "4f4d167bc948ca3066d838c19e520af2f04fc0a5",
+          "url": "https://github.com/noir-lang/noir/commit/21d9ffdc802d11aa66c15e708222dc8f845f0353"
+        },
+        "date": 1747076507306,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 270586,
+            "range": "± 513",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 242162,
+            "range": "± 3845",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 3234170,
+            "range": "± 13137",
             "unit": "ns/iter"
           }
         ]
