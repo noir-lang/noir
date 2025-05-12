@@ -248,7 +248,7 @@ fn remove_if_else_post_check(func: &Function) -> bool {
         }
     }
 
-    return true;
+    true
 }
 
 #[cfg(test)]

@@ -371,7 +371,7 @@ fn remove_bit_shifts_post_check(func: &Function) -> bool {
         }
     }
 
-    return true;
+    true
 }
 
 #[cfg(test)]
