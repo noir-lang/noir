@@ -34,10 +34,10 @@ error: The numeric generic is not of type `u32`
   │
 
 error: The numeric generic is not of type `u32`
-  ┌─ src/main.nr:9:21
+  ┌─ src/main.nr:9:28
   │
 9 │             let _c: fmtstr<FMT_STR_LEN, _> = f"hi";
-  │                     ---------------------- expected `u32`, found `Field`
+  │                            ----------- expected `u32`, found `Field`
   │
 
 Aborting due to 6 previous errors
