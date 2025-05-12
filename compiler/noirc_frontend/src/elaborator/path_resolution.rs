@@ -1,7 +1,7 @@
 use iter_extended::vecmap;
-use noirc_errors::Location;
+use noirc_errors::{Located, Location, Span};
 
-use crate::ast::{Ident, Path, PathKind, UnresolvedType};
+use crate::ast::{Ident, PathKind};
 use crate::hir::def_map::{ModuleData, ModuleDefId, ModuleId, PerNs};
 use crate::hir::resolution::import::{PathResolutionError, resolve_path_kind};
 
@@ -75,7 +75,7 @@ impl PathResolutionItem {
 
 #[derive(Debug, Clone)]
 pub struct Turbofish {
-    pub generics: Vec<UnresolvedType>,
+    pub generics: Vec<Located<Type>>,
     pub location: Location,
 }
 
@@ -151,10 +151,134 @@ pub(super) enum PathResolutionTarget {
     Value,
 }
 
+/// Like a [`crate::ast::Path`] but each segment has resolved turbofish types.
+#[derive(Debug, PartialEq, Eq, Clone, Hash)]
+pub struct TypedPath {
+    pub segments: Vec<TypedPathSegment>,
+    pub kind: PathKind,
+    pub location: Location,
+    // The location of `kind` (this is the same as `location` for plain kinds)
+    pub kind_location: Location,
+}
+
+impl TypedPath {
+    pub fn plain(segments: Vec<TypedPathSegment>, location: Location) -> Self {
+        Self { segments, location, kind: PathKind::Plain, kind_location: location }
+    }
+
+    pub fn pop(&mut self) -> TypedPathSegment {
+        self.segments.pop().unwrap()
+    }
+
+    /// Construct a PathKind::Plain from this single
+    pub fn from_single(name: String, location: Location) -> TypedPath {
+        let segment = Ident::from(Located::from(location, name));
+        TypedPath::from_ident(segment)
+    }
+
+    pub fn from_ident(name: Ident) -> TypedPath {
+        let segment =
+            TypedPathSegment { ident: name.clone(), generics: None, location: name.location() };
+        let location = name.location();
+        TypedPath::plain(vec![segment], location)
+    }
+
+    pub fn span(&self) -> Span {
+        self.location.span
+    }
+
+    pub fn last_segment(&self) -> TypedPathSegment {
+        assert!(!self.segments.is_empty());
+        self.segments.last().unwrap().clone()
+    }
+
+    pub fn last_ident(&self) -> Ident {
+        self.last_segment().ident
+    }
+
+    pub fn first_name(&self) -> Option<&str> {
+        self.segments.first().map(|segment| segment.ident.as_str())
+    }
+
+    pub fn last_name(&self) -> &str {
+        assert!(!self.segments.is_empty());
+        self.segments.last().unwrap().ident.as_str()
+    }
+
+    pub fn as_single_segment(&self) -> Option<&TypedPathSegment> {
+        if self.kind == PathKind::Plain && self.segments.len() == 1 {
+            self.segments.first()
+        } else {
+            None
+        }
+    }
+}
+
+impl std::fmt::Display for TypedPath {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let segments = vecmap(&self.segments, ToString::to_string);
+        if self.kind == PathKind::Plain {
+            write!(f, "{}", segments.join("::"))
+        } else {
+            write!(f, "{}::{}", self.kind, segments.join("::"))
+        }
+    }
+}
+
+/// Like a [`crate::ast::PathSegment`] but with resolved turbofish types.
+#[derive(Debug, PartialEq, Eq, Clone, Hash)]
+pub struct TypedPathSegment {
+    pub ident: Ident,
+    pub generics: Option<Vec<Located<Type>>>,
+    pub location: Location,
+}
+
+impl TypedPathSegment {
+    /// Returns the span where turbofish happen. For example:
+    ///
+    /// ```noir
+    ///    foo::<T>
+    ///       ~^^^^
+    /// ```
+    ///
+    /// Returns an empty span at the end of `foo` if there's no turbofish.
+    pub fn turbofish_span(&self) -> Span {
+        if self.ident.location().file == self.location.file {
+            Span::from(self.ident.span().end()..self.location.span.end())
+        } else {
+            self.location.span
+        }
+    }
+
+    pub fn turbofish_location(&self) -> Location {
+        Location::new(self.turbofish_span(), self.location.file)
+    }
+
+    pub fn turbofish(&self) -> Option<Turbofish> {
+        self.generics.as_ref().map(|generics| Turbofish {
+            location: self.turbofish_location(),
+            generics: generics.clone(),
+        })
+    }
+}
+
+impl std::fmt::Display for TypedPathSegment {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        self.ident.fmt(f)?;
+
+        if let Some(generics) = &self.generics {
+            let generics = vecmap(generics, |generic| generic.contents.to_string());
+            write!(f, "::<{}>", generics.join(", "))?;
+        }
+
+        Ok(())
+    }
+}
+
 impl Elaborator<'_> {
     pub(super) fn resolve_path_or_error(
         &mut self,
-        path: Path,
+        path: TypedPath,
         target: PathResolutionTarget,
     ) -> Result<PathResolutionItem, ResolverError> {
         self.resolve_path_or_error_inner(path, target, PathResolutionMode::MarkAsReferenced)
@@ -162,7 +286,7 @@ impl Elaborator<'_> {
 
     pub(super) fn use_path_or_error(
         &mut self,
-        path: Path,
+        path: TypedPath,
         target: PathResolutionTarget,
     ) -> Result<PathResolutionItem, ResolverError> {
         self.resolve_path_or_error_inner(path, target, PathResolutionMode::MarkAsUsed)
@@ -170,7 +294,7 @@ impl Elaborator<'_> {
 
     pub(super) fn resolve_path_or_error_inner(
         &mut self,
-        path: Path,
+        path: TypedPath,
         target: PathResolutionTarget,
         mode: PathResolutionMode,
     ) -> Result<PathResolutionItem, ResolverError> {
@@ -183,7 +307,7 @@ impl Elaborator<'_> {
         Ok(path_resolution.item)
     }
 
-    pub(super) fn resolve_path_as_type(&mut self, path: Path) -> PathResolutionResult {
+    pub(super) fn resolve_path_as_type(&mut self, path: TypedPath) -> PathResolutionResult {
         self.resolve_path_inner(
             path,
             PathResolutionTarget::Type,
@@ -191,7 +315,7 @@ impl Elaborator<'_> {
         )
     }
 
-    pub(super) fn use_path_as_type(&mut self, path: Path) -> PathResolutionResult {
+    pub(super) fn use_path_as_type(&mut self, path: TypedPath) -> PathResolutionResult {
         self.resolve_path_inner(path, PathResolutionTarget::Type, PathResolutionMode::MarkAsUsed)
     }
 
@@ -201,7 +325,7 @@ impl Elaborator<'_> {
     /// is not accessible from the current module (e.g. because it's private).
     pub(super) fn resolve_path_inner(
         &mut self,
-        mut path: Path,
+        mut path: TypedPath,
         target: PathResolutionTarget,
         mode: PathResolutionMode,
     ) -> PathResolutionResult {
@@ -224,14 +348,48 @@ impl Elaborator<'_> {
             }
         }
 
-        self.resolve_path_in_module(path, module_id, intermediate_item, target, mode)
+        let last_segment_turbofish_location = path
+            .segments
+            .last()
+            .and_then(|segment| segment.generics.as_ref().map(|_| segment.turbofish_location()));
+
+        let result = self.resolve_path_in_module(path, module_id, intermediate_item, target, mode);
+        let Some(last_segment_turbofish_location) = last_segment_turbofish_location else {
+            return result;
+        };
+
+        result.map(|mut resolution| {
+            match resolution.item {
+                PathResolutionItem::Global(..) => {
+                    resolution.errors.push(PathResolutionError::TurbofishNotAllowedOnItem {
+                        item: "globals".to_string(),
+                        location: last_segment_turbofish_location,
+                    });
+                }
+                PathResolutionItem::Module(..) => {
+                    resolution.errors.push(PathResolutionError::TurbofishNotAllowedOnItem {
+                        item: "modules".to_string(),
+                        location: last_segment_turbofish_location,
+                    });
+                }
+                PathResolutionItem::Type(..)
+                | PathResolutionItem::TypeAlias(..)
+                | PathResolutionItem::Trait(..)
+                | PathResolutionItem::ModuleFunction(..)
+                | PathResolutionItem::Method(..)
+                | PathResolutionItem::SelfMethod(..)
+                | PathResolutionItem::TypeAliasFunction(..)
+                | PathResolutionItem::TraitFunction(..) => (),
+            }
+            resolution
+        })
     }
 
     /// Resolves a path in `current_module`.
     /// `importing_module` is the module where the lookup originally started.
     fn resolve_path_in_module(
         &mut self,
-        path: Path,
+        path: TypedPath,
         importing_module: ModuleId,
         intermediate_item: IntermediatePathResolutionItem,
         target: PathResolutionTarget,
@@ -258,7 +416,7 @@ impl Elaborator<'_> {
     /// `importing_module` is the module where the lookup originally started.
     fn resolve_name_in_module(
         &mut self,
-        path: Path,
+        path: TypedPath,
         starting_module: ModuleId,
         importing_module: ModuleId,
         mut intermediate_item: IntermediatePathResolutionItem,
@@ -466,7 +624,7 @@ impl Elaborator<'_> {
     #[allow(clippy::too_many_arguments)]
     fn per_ns_item_to_path_resolution_item(
         &mut self,
-        path: Path,
+        path: TypedPath,
         importing_module: ModuleId,
         intermediate_item: IntermediatePathResolutionItem,
         current_module_id: ModuleId,
