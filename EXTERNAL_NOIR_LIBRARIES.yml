@@ -50,8 +50,6 @@ libraries:
     critical: true
   noir_rsa:
     repo: noir-lang/noir_rsa
-    # Branch using fixed bignum version. Remove once updated to bignum 0.7.0
-    ref: ee7cfb6192e95142e80127e196a50ad2d2d6cd9a
     timeout: 4
     critical: true
   noir_json_parser:
