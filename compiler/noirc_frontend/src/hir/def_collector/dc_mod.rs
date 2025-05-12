@@ -903,6 +903,7 @@ impl ModCollector<'_> {
                         // TODO: check generics
                         match primitive_type {
                             PrimitiveType::Field => return Type::FieldElement,
+                            PrimitiveType::CtString => (),
                         }
                     }
                 }

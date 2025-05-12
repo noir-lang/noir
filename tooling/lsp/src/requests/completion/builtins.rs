@@ -198,7 +198,6 @@ pub(super) fn builtin_integer_types() -> [&'static str; 9] {
 pub(super) fn keyword_builtin_type(keyword: &Keyword) -> Option<&'static str> {
     match keyword {
         Keyword::Bool => Some("bool"),
-        Keyword::CtString => Some("CtString"),
         Keyword::EnumDefinition => Some("EnumDefinition"),
         Keyword::Expr => Some("Expr"),
         Keyword::FunctionDefinition => Some("FunctionDefinition"),
@@ -287,7 +286,6 @@ pub(super) fn keyword_builtin_function(keyword: &Keyword) -> Option<BuiltInFunct
         | Keyword::Continue
         | Keyword::Contract
         | Keyword::Crate
-        | Keyword::CtString
         | Keyword::Dep
         | Keyword::Else
         | Keyword::Enum

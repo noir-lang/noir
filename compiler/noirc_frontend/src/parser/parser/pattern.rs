@@ -229,7 +229,6 @@ impl Parser<'_> {
             Token::Bool(..)
                 | Token::IntType(..)
                 | Token::Keyword(Keyword::Bool)
-                | Token::Keyword(Keyword::CtString)
                 | Token::Keyword(Keyword::Expr)
                 | Token::Keyword(Keyword::FunctionDefinition)
                 | Token::Keyword(Keyword::Module)

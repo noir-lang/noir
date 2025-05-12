@@ -251,9 +251,6 @@ impl Parser<'_> {
         if self.eat_keyword(Keyword::Module) {
             return Some(UnresolvedTypeData::Quoted(QuotedType::Module));
         }
-        if self.eat_keyword(Keyword::CtString) {
-            return Some(UnresolvedTypeData::Quoted(QuotedType::CtString));
-        }
         None
     }
 
