@@ -2843,6 +2843,46 @@ impl Type {
             _ => None,
         }
     }
+
+    /// Substitute any [`Kind::Any`] in this type, for types that hold kinds (like [`Type::Constant`])
+    /// with the given `kind`.
+    pub(crate) fn substitute_kind_any_with_kind(self, kind: &Kind) -> Type {
+        match self {
+            Type::CheckedCast { from, to } => Type::CheckedCast {
+                from: Box::new(from.substitute_kind_any_with_kind(kind)),
+                to: Box::new(to.substitute_kind_any_with_kind(kind)),
+            },
+            Type::Constant(value, constant_kind) => {
+                let kind = if let Kind::Any = constant_kind { kind.clone() } else { constant_kind };
+                Type::Constant(value, kind)
+            }
+            Type::InfixExpr(lhs, op, rhs, inverse) => Type::InfixExpr(
+                Box::new(lhs.substitute_kind_any_with_kind(kind)),
+                op,
+                Box::new(rhs.substitute_kind_any_with_kind(kind)),
+                inverse,
+            ),
+            Type::FieldElement
+            | Type::Array(..)
+            | Type::Slice(..)
+            | Type::Integer(..)
+            | Type::Bool
+            | Type::String(..)
+            | Type::FmtString(..)
+            | Type::Unit
+            | Type::Tuple(..)
+            | Type::DataType(..)
+            | Type::Alias(..)
+            | Type::TypeVariable(..)
+            | Type::TraitAsType(..)
+            | Type::NamedGeneric(..)
+            | Type::Function(..)
+            | Type::Reference(..)
+            | Type::Quoted(..)
+            | Type::Forall(..)
+            | Type::Error => self,
+        }
+    }
 }
 
 /// Wraps a given `expression` in `expression.as_slice()`

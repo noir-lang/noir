@@ -2,6 +2,7 @@ use std::collections::BTreeSet;
 use std::rc::Rc;
 
 use acvm::FieldElement;
+use iter_extended::vecmap;
 use noirc_errors::CustomDiagnostic as Diagnostic;
 use noirc_errors::Location;
 use thiserror::Error;
@@ -249,6 +250,8 @@ pub enum TypeCheckError {
     /// This error is used for types like integers which have too many variants to enumerate
     #[error("Missing cases: `{typ}` is non-empty")]
     MissingManyCases { typ: String, location: Location },
+    #[error("Expected a tuple with {} elements, found one with {} elements", tuple_types.len(), actual_count)]
+    TupleMismatch { tuple_types: Vec<Type>, actual_count: usize, location: Location },
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -340,7 +343,8 @@ impl TypeCheckError {
             | TypeCheckError::UnreachableCase { location }
             | TypeCheckError::MissingCases { location, .. }
             | TypeCheckError::MissingManyCases { location, .. }
-            | TypeCheckError::NestedUnsafeBlock { location } => *location,
+            | TypeCheckError::NestedUnsafeBlock { location }
+            | TypeCheckError::TupleMismatch { location, .. } => *location,
 
             TypeCheckError::DuplicateNamedTypeArg { name: ident, .. }
             | TypeCheckError::NoSuchNamedTypeArg { name: ident, .. } => ident.location(),
@@ -726,6 +730,15 @@ impl<'a> From<&'a TypeCheckError> for Diagnostic {
                 let secondary = "Try adding a match-all pattern: `_`".to_string();
                 Diagnostic::simple_error(msg, secondary, *location)
             },
+            TypeCheckError::TupleMismatch { tuple_types, actual_count, location } => {
+                let msg = format!(
+                    "Expected a tuple with {} elements, found one with {} elements",
+                    tuple_types.len(),
+                    actual_count
+                );
+                let secondary = format!("The expression the tuple is assigned to has type `({})`", vecmap(tuple_types, ToString::to_string).join(","));
+                Diagnostic::simple_error(msg, secondary, *location)
+            }
         }
     }
 }
