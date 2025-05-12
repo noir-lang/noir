@@ -228,7 +228,7 @@ impl NumericValue {
         }
     }
 
-    pub(crate) fn from_constant(constant: FieldElement, typ: NumericType) -> NumericValue {
+    pub fn from_constant(constant: FieldElement, typ: NumericType) -> NumericValue {
         match typ {
             NumericType::NativeField => Self::Field(constant),
             NumericType::Unsigned { bit_size: 1 } => Self::U1(constant.is_one()),

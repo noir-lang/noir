@@ -7,10 +7,10 @@ use arbitrary::Unstructured;
 use color_eyre::eyre;
 use iter_extended::vecmap;
 use noirc_abi::{Abi, AbiType, InputMap, Sign, input_parser::InputValue};
-use noirc_evaluator::ssa::{self, ssa_gen::Ssa};
+use noirc_evaluator::ssa::{self, ir::types::NumericType, ssa_gen::Ssa};
 use noirc_frontend::{Shared, monomorphization::ast::Program};
 
-use crate::{Config, DisplayAstAsNoir, arb_program, input::arb_inputs_from_ssa, program_abi};
+use crate::{Config, arb_program, input::arb_inputs_from_ssa, program_abi};
 
 use super::{CompareError, CompareOptions, CompareResult, ExecOutput};
 
@@ -137,7 +137,20 @@ fn input_value_to_ssa(typ: &AbiType, input: &InputValue) -> ssa::interpreter::va
         })
     };
     match input {
-        InputValue::Field(f) => Value::Numeric(NumericValue::Field(*f)),
+        InputValue::Field(f) => {
+            let num_typ = match typ {
+                AbiType::Field => NumericType::NativeField,
+                AbiType::Boolean => NumericType::Unsigned { bit_size: 1 },
+                AbiType::Integer { sign: Sign::Signed, width } => {
+                    NumericType::Signed { bit_size: *width }
+                }
+                AbiType::Integer { sign: Sign::Unsigned, width } => {
+                    NumericType::Unsigned { bit_size: *width }
+                }
+                other => panic!("unexpected ABY type for Field input: {other:?}"),
+            };
+            Value::Numeric(NumericValue::from_constant(*f, num_typ))
+        }
         InputValue::String(s) => array_value(
             vecmap(s.as_bytes(), |b| Value::Numeric(NumericValue::U8(*b))),
             vec![Type::unsigned(8)],
