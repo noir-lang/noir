@@ -1,7 +1,6 @@
 use acvm::{AcirField, FieldElement};
 
 use crate::{
-    QuotedType,
     ast::{UnresolvedType, UnresolvedTypeData, UnresolvedTypeExpression},
     parser::{ParserErrorReason, labels::ParsingRuleLabel},
     token::{Keyword, Token, TokenKind},
@@ -93,10 +92,6 @@ impl Parser<'_> {
         }
 
         if let Some(typ) = self.parse_fmtstr_type() {
-            return Some(typ);
-        }
-
-        if let Some(typ) = self.parse_comptime_type() {
             return Some(typ);
         }
 
@@ -194,13 +189,6 @@ impl Parser<'_> {
         self.eat_or_error(Token::Greater);
 
         Some(UnresolvedTypeData::FormatString(expr, Box::new(typ)))
-    }
-
-    fn parse_comptime_type(&mut self) -> Option<UnresolvedTypeData> {
-        if self.eat_keyword(Keyword::UnresolvedType) {
-            return Some(UnresolvedTypeData::Quoted(QuotedType::UnresolvedType));
-        }
-        None
     }
 
     fn parse_function_type(&mut self) -> Option<UnresolvedTypeData> {

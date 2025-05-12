@@ -2,7 +2,7 @@ use noirc_errors::Located;
 
 use crate::{QuotedType, Type};
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, strum_macros::EnumIter)]
 pub enum PrimitiveType {
     Bool,
     CtString,
@@ -17,6 +17,7 @@ pub enum PrimitiveType {
     TypeDefinition,
     TypedExpr,
     Type,
+    UnresolvedType,
 }
 
 impl PrimitiveType {
@@ -35,6 +36,7 @@ impl PrimitiveType {
             "TypeDefinition" => Some(Self::TypeDefinition),
             "TypedExpr" => Some(Self::TypedExpr),
             "Type" => Some(Self::Type),
+            "UnresolvedType" => Some(Self::UnresolvedType),
             _ => None,
         }
     }
@@ -54,6 +56,7 @@ impl PrimitiveType {
             Self::TypeDefinition => Type::Quoted(QuotedType::TypeDefinition),
             Self::TypedExpr => Type::Quoted(QuotedType::TypedExpr),
             Self::Type => Type::Quoted(QuotedType::Type),
+            Self::UnresolvedType => Type::Quoted(QuotedType::UnresolvedType),
         }
     }
 
@@ -71,7 +74,27 @@ impl PrimitiveType {
             | Self::TraitImpl
             | Self::TypeDefinition
             | Self::TypedExpr
-            | Self::Type => None,
+            | Self::Type
+            | Self::UnresolvedType => None,
+        }
+    }
+
+    pub fn name(&self) -> &'static str {
+        match self {
+            Self::Bool => "bool",
+            Self::CtString => "CtString",
+            Self::Expr => "Expr",
+            Self::Field => "Field",
+            Self::FunctionDefinition => "FunctionDefinition",
+            Self::Module => "Module",
+            Self::Quoted => "Quoted",
+            Self::TraitConstraint => "TraitConstraint",
+            Self::TraitDefinition => "TraitDefinition",
+            Self::TraitImpl => "TraitImpl",
+            Self::TypeDefinition => "TypeDefinition",
+            Self::TypedExpr => "TypedExpr",
+            Self::Type => "Type",
+            Self::UnresolvedType => "UnresolvedType",
         }
     }
 }

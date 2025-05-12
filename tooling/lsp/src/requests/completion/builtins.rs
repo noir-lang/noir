@@ -1,5 +1,5 @@
 use async_lsp::lsp_types::CompletionItemKind;
-use noirc_frontend::{ast::AttributeTarget, token::Keyword};
+use noirc_frontend::{ast::AttributeTarget, elaborator::PrimitiveType, token::Keyword};
 use strum::IntoEnumIterator;
 
 use super::{
@@ -63,15 +63,14 @@ impl NodeFinder<'_> {
     }
 
     pub(super) fn builtin_types_completion(&mut self, prefix: &str) {
-        for keyword in Keyword::iter() {
-            if let Some(typ) = keyword_builtin_type(&keyword) {
-                if name_matches(typ, prefix) {
-                    self.completion_items.push(simple_completion_item(
-                        typ,
-                        CompletionItemKind::STRUCT,
-                        Some(typ.to_string()),
-                    ));
-                }
+        for primitive_type in PrimitiveType::iter() {
+            let name = primitive_type.name();
+            if name_matches(name, prefix) {
+                self.completion_items.push(simple_completion_item(
+                    name,
+                    CompletionItemKind::STRUCT,
+                    Some(name.to_string()),
+                ));
             }
         }
 
@@ -194,53 +193,6 @@ pub(super) fn builtin_integer_types() -> [&'static str; 9] {
     ["i8", "i16", "i32", "i64", "u8", "u16", "u32", "u64", "u128"]
 }
 
-/// If a keyword corresponds to a built-in type, returns that type's name.
-pub(super) fn keyword_builtin_type(keyword: &Keyword) -> Option<&'static str> {
-    match keyword {
-        Keyword::UnresolvedType => Some("UnresolvedType"),
-
-        Keyword::As
-        | Keyword::Assert
-        | Keyword::AssertEq
-        | Keyword::Break
-        | Keyword::CallData
-        | Keyword::Comptime
-        | Keyword::Constrain
-        | Keyword::Continue
-        | Keyword::Contract
-        | Keyword::Crate
-        | Keyword::Dep
-        | Keyword::Else
-        | Keyword::Enum
-        | Keyword::Fn
-        | Keyword::For
-        | Keyword::FormatString
-        | Keyword::Global
-        | Keyword::If
-        | Keyword::Impl
-        | Keyword::In
-        | Keyword::Let
-        | Keyword::Loop
-        | Keyword::Match
-        | Keyword::Mod
-        | Keyword::Mut
-        | Keyword::Pub
-        | Keyword::Return
-        | Keyword::ReturnData
-        | Keyword::String
-        | Keyword::Struct
-        | Keyword::Super
-        | Keyword::Trait
-        | Keyword::Type
-        | Keyword::Unchecked
-        | Keyword::Unconstrained
-        | Keyword::Unsafe
-        | Keyword::Use
-        | Keyword::Where
-        | Keyword::While => None,
-    }
-}
-
 pub(super) struct BuiltInFunction {
     pub(super) name: &'static str,
     pub(super) parameters: &'static str,
@@ -294,7 +246,6 @@ pub(super) fn keyword_builtin_function(keyword: &Keyword) -> Option<BuiltInFunct
         | Keyword::Type
         | Keyword::Unchecked
         | Keyword::Unconstrained
-        | Keyword::UnresolvedType
         | Keyword::Unsafe
         | Keyword::Use
         | Keyword::Where
