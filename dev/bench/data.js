@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1747040060588,
+  "lastUpdate": 1747040064762,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -11242,70 +11242,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "jfecher11@gmail.com",
-            "name": "jfecher",
-            "username": "jfecher"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "b2d3a42c638536ad982ebdea0dbe2ac63e5f6e8b",
-          "message": "chore: Replace all SSA interpreter panics with error variants (#8311)\n\nCo-authored-by: Jake Fecher <jake@aztecprotocol.com>",
-          "timestamp": "2025-05-02T18:21:00Z",
-          "tree_id": "f197b26281030251f2b3157e75ba4b5933c976dd",
-          "url": "https://github.com/noir-lang/noir/commit/b2d3a42c638536ad982ebdea0dbe2ac63e5f6e8b"
-        },
-        "date": 1746211758726,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 232.94,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 256.56,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 210.97,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 541.5,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 533.67,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 1440,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 362.58,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-root",
-            "value": 368.5,
-            "unit": "MB"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "mvezenov@gmail.com",
             "name": "Maxim Vezenov",
             "username": "vezenovm"
@@ -14435,6 +14371,70 @@ window.BENCHMARK_DATA = {
           {
             "name": "rollup-root",
             "value": 369.59,
+            "unit": "MB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "163862677+noirwhal@users.noreply.github.com",
+            "name": "noirwhal",
+            "username": "noirwhal"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "6accfc609ebe83ab6eb870e96ece9d650023d712",
+          "message": "chore: bump external pinned commits (#8445)\n\nCo-authored-by: noirwhal <tomfrench@aztecprotocol.com>",
+          "timestamp": "2025-05-12T08:24:15Z",
+          "tree_id": "f59e8329b00de3e88b1c002024cb05a2d004d1b9",
+          "url": "https://github.com/noir-lang/noir/commit/6accfc609ebe83ab6eb870e96ece9d650023d712"
+        },
+        "date": 1747040055023,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 236.06,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 258.32,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 211.56,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 542.42,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 534.87,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 1440,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 363.94,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-root",
+            "value": 369.86,
             "unit": "MB"
           }
         ]
