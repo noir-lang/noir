@@ -117,7 +117,7 @@ const TESTS_WITH_EXPECTED_WARNINGS: [&str; 4] = [
 /// might not be worth it.
 /// Others are ignored because of existing bugs in `nargo expand`.
 /// As the bugs are fixed these tests should be removed from this list.
-const IGNORED_NARGO_EXPAND_EXECUTION_TESTS: [&str; 8] = [
+const IGNORED_NARGO_EXPAND_EXECUTION_TESTS: [&str; 9] = [
     // There's nothing special about this program but making it work with a custom entry would involve
     // having to parse the Nargo.toml file, etc., which is not worth it
     "custom_entry",
@@ -135,6 +135,8 @@ const IGNORED_NARGO_EXPAND_EXECUTION_TESTS: [&str; 8] = [
     "workspace",
     // There's no "src/main.nr" here so it's trickier to make this work
     "workspace_default_member",
+    // bug
+    "nested_trait_associated_type_regression_8252"
 ];
 
 /// Tests for which we don't check that stdout matches the expected output.
