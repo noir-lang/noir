@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1746821056433,
+  "lastUpdate": 1747039434391,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -18091,48 +18091,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "jfecher11@gmail.com",
-            "name": "jfecher",
-            "username": "jfecher"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "b2d3a42c638536ad982ebdea0dbe2ac63e5f6e8b",
-          "message": "chore: Replace all SSA interpreter panics with error variants (#8311)\n\nCo-authored-by: Jake Fecher <jake@aztecprotocol.com>",
-          "timestamp": "2025-05-02T18:21:00Z",
-          "tree_id": "f197b26281030251f2b3157e75ba4b5933c976dd",
-          "url": "https://github.com/noir-lang/noir/commit/b2d3a42c638536ad982ebdea0dbe2ac63e5f6e8b"
-        },
-        "date": 1746211158421,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 253193,
-            "range": "± 974",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 225564,
-            "range": "± 3796",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 3571807,
-            "range": "± 10305",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "mvezenov@gmail.com",
             "name": "Maxim Vezenov",
             "username": "vezenovm"
@@ -20184,6 +20142,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 3601012,
             "range": "± 19618",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "163862677+noirwhal@users.noreply.github.com",
+            "name": "noirwhal",
+            "username": "noirwhal"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "6accfc609ebe83ab6eb870e96ece9d650023d712",
+          "message": "chore: bump external pinned commits (#8445)\n\nCo-authored-by: noirwhal <tomfrench@aztecprotocol.com>",
+          "timestamp": "2025-05-12T08:24:15Z",
+          "tree_id": "f59e8329b00de3e88b1c002024cb05a2d004d1b9",
+          "url": "https://github.com/noir-lang/noir/commit/6accfc609ebe83ab6eb870e96ece9d650023d712"
+        },
+        "date": 1747039426302,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 273154,
+            "range": "± 520",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 242514,
+            "range": "± 1689",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 3243264,
+            "range": "± 18047",
             "unit": "ns/iter"
           }
         ]
