@@ -161,7 +161,7 @@ pub fn build_arithmetic_expression<F: AcirField>(instruction: Instruction) -> Re
     let mut mul_terms: Vec<(F, Witness, Witness)> = Vec::new();
     let mut linear_terms: Vec<(F, Witness)> = Vec::new();
     let mut q_c: F = F::zero(); 
-
+    //first we split the instruction body to 
     let expression = Expression{mul_terms: mul_terms, linear_combinations: linear_terms, q_c: q_c}; 
     Ok(expression)
 }
