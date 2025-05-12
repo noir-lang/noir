@@ -117,7 +117,7 @@ const TESTS_WITH_EXPECTED_WARNINGS: [&str; 4] = [
 /// might not be worth it.
 /// Others are ignored because of existing bugs in `nargo expand`.
 /// As the bugs are fixed these tests should be removed from this list.
-const IGNORED_NARGO_EXPAND_EXECUTION_TESTS: [&str; 9] = [
+const IGNORED_NARGO_EXPAND_EXECUTION_TESTS: [&str; 8] = [
     // There's nothing special about this program but making it work with a custom entry would involve
     // having to parse the Nargo.toml file, etc., which is not worth it
     "custom_entry",
@@ -135,8 +135,6 @@ const IGNORED_NARGO_EXPAND_EXECUTION_TESTS: [&str; 9] = [
     "workspace",
     // There's no "src/main.nr" here so it's trickier to make this work
     "workspace_default_member",
-    // bug
-    "nested_trait_associated_type_regression_8252",
 ];
 
 /// Tests for which we don't check that stdout matches the expected output.
@@ -145,7 +143,7 @@ const TESTS_WITHOUT_STDOUT_CHECK: [&str; 0] = [];
 /// These tests are ignored because of existing bugs in `nargo expand`.
 /// As the bugs are fixed these tests should be removed from this list.
 /// (some are ignored on purpose for the same reason as `IGNORED_NARGO_EXPAND_EXECUTION_TESTS`)
-const IGNORED_NARGO_EXPAND_COMPILE_SUCCESS_EMPTY_TESTS: [&str; 15] = [
+const IGNORED_NARGO_EXPAND_COMPILE_SUCCESS_EMPTY_TESTS: [&str; 16] = [
     // bug
     "enums",
     // There's no "src/main.nr" here so it's trickier to make this work
@@ -176,6 +174,8 @@ const IGNORED_NARGO_EXPAND_COMPILE_SUCCESS_EMPTY_TESTS: [&str; 15] = [
     "trait_static_methods",
     // There's no "src/main.nr" here so it's trickier to make this work
     "workspace_reexport_bug",
+    // bug
+    "nested_trait_associated_type_regression_8252",
 ];
 
 /// These tests are ignored because of existing bugs in `nargo expand`.
