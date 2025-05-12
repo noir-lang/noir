@@ -789,7 +789,7 @@ impl Elaborator<'_> {
             } else {
                 let trait_ids = vecmap(trait_methods, |(_, trait_id)| trait_id);
                 if trait_ids.is_empty() {
-                    return None;
+                    return Some(Err(PathResolutionError::Unresolved(method_name_ident.clone())));
                 } else {
                     let traits = vecmap(trait_ids, |trait_id| {
                         let trait_ = self.interner.get_trait(trait_id);
