@@ -141,6 +141,7 @@ pub(crate) enum ParsedInstruction {
         elements: Vec<ParsedValue>,
         typ: Type,
     },
+    Nop,
     Not {
         target: Identifier,
         value: ParsedValue,

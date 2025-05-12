@@ -239,4 +239,16 @@ mod tests {
             @"BLACKBOX::XOR [(_0, 32), (_1, 32)] [_3]"
         );
     }
+
+    #[test]
+    fn range_display_snapshot() {
+        let range: Opcode<FieldElement> = Opcode::BlackBoxFuncCall(BlackBoxFuncCall::RANGE {
+            input: FunctionInput::witness(0.into(), 32),
+        });
+
+        insta::assert_snapshot!(
+            range.to_string(),
+            @"BLACKBOX::RANGE [(_0, 32)] []"
+        );
+    }
 }

@@ -5,9 +5,12 @@ use std::{
 };
 
 use async_lsp::ResponseError;
+use async_lsp::lsp_types;
+use async_lsp::lsp_types::{
+    SymbolKind, Url, WorkspaceSymbol, WorkspaceSymbolParams, WorkspaceSymbolResponse,
+};
 use fm::{FileManager, FileMap};
 use fuzzy_matcher::{FuzzyMatcher, skim::SkimMatcherV2};
-use lsp_types::{SymbolKind, Url, WorkspaceSymbol, WorkspaceSymbolParams, WorkspaceSymbolResponse};
 use nargo::{insert_all_files_under_path_into_file_manager, parse_all};
 use noirc_errors::{Location, Span};
 use noirc_frontend::{
@@ -234,7 +237,7 @@ impl Visitor for WorkspaceSymbolGatherer<'_> {
 
 #[cfg(test)]
 mod tests {
-    use lsp_types::{
+    use async_lsp::lsp_types::{
         PartialResultParams, SymbolKind, WorkDoneProgressParams, WorkspaceSymbolParams,
         WorkspaceSymbolResponse,
     };

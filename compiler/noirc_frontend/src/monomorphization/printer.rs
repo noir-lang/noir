@@ -1,6 +1,6 @@
 //! This module implements printing of the monomorphized AST, for debugging purposes.
 
-use crate::{ast::UnaryOp, monomorphization::ast::Ident, shared::Visibility};
+use crate::{ast::UnaryOp, monomorphization::ast::Ident};
 
 use super::ast::{
     Definition, Expression, FuncId, Function, GlobalId, LValue, LocalId, Program, Type, While,
@@ -8,16 +8,26 @@ use super::ast::{
 use iter_extended::vecmap;
 use std::fmt::{Display, Formatter};
 
+#[derive(Default)]
+pub struct FunctionPrintOptions {
+    /// Wraps function body in a `comptime` block. Used to make
+    /// comptime function callers in fuzzing.
+    pub comptime_wrap_body: bool,
+    /// Marks function as comptime. Used in fuzzing.
+    pub comptime: bool,
+}
+
 #[derive(Debug)]
 pub struct AstPrinter {
     indent_level: u32,
     in_unconstrained: bool,
     pub show_id: bool,
+    pub show_clone_and_drop: bool,
 }
 
 impl Default for AstPrinter {
     fn default() -> Self {
-        Self { indent_level: 0, in_unconstrained: false, show_id: true }
+        Self { indent_level: 0, in_unconstrained: false, show_id: true, show_clone_and_drop: true }
     }
 }
 
@@ -43,8 +53,8 @@ impl AstPrinter {
             self.print_global(id, global, f)?;
         }
         for function in &program.functions {
-            let vis = (function.id == Program::main_id()).then_some(program.return_visibility);
-            self.print_function(function, vis, f)?;
+            let fpo = FunctionPrintOptions::default();
+            self.print_function(function, f, fpo)?;
         }
         Ok(())
     }
@@ -64,32 +74,45 @@ impl AstPrinter {
     pub fn print_function(
         &mut self,
         function: &Function,
-        return_visibility: Option<Visibility>,
         f: &mut Formatter,
+        options: FunctionPrintOptions,
     ) -> std::fmt::Result {
-        let params = vecmap(&function.parameters, |(id, mutable, name, typ)| {
-            format!("{}{}: {}", if *mutable { "mut " } else { "" }, self.fmt_local(name, *id), typ)
+        let params = vecmap(&function.parameters, |(id, mutable, name, typ, visibility)| {
+            let vis = visibility.to_string();
+            let vis = if vis.is_empty() { vis } else { format!("{vis} ") };
+            format!(
+                "{}{}{}: {}",
+                vis,
+                if *mutable { "mut " } else { "" },
+                self.fmt_local(name, *id),
+                typ
+            )
         })
         .join(", ");
 
-        let vis = return_visibility
-            .map(|vis| match vis {
-                Visibility::Private => "".to_string(),
-                Visibility::Public => "pub ".to_string(),
-                Visibility::ReturnData => "return_data ".to_string(),
-                Visibility::CallData(i) => format!("call_data({i}) "),
-            })
-            .unwrap_or_default();
+        let vis = function.return_visibility.to_string();
+        let vis = if vis.is_empty() { vis } else { format!("{vis} ") };
 
         let unconstrained = if function.unconstrained { "unconstrained " } else { "" };
+        let comptime = if options.comptime { "comptime " } else { "" };
         let name = self.fmt_func(&function.name, function.id);
         let return_type = &function.return_type;
 
-        write!(f, "{unconstrained}fn {name}({params}) -> {vis}{return_type} {{",)?;
+        write!(f, "{comptime}{unconstrained}fn {name}({params}) -> {vis}{return_type} {{",)?;
         self.in_unconstrained = function.unconstrained;
+        if options.comptime_wrap_body {
+            self.indent_level += 1;
+            self.next_line(f)?;
+            write!(f, "comptime {{")?;
+        }
         self.indent_level += 1;
         self.print_expr_expect_block(&function.body, f)?;
         self.indent_level -= 1;
+        if options.comptime_wrap_body {
+            self.next_line(f)?;
+            self.indent_level -= 1;
+            write!(f, "}}")?;
+        }
         self.in_unconstrained = false;
         self.next_line(f)?;
         writeln!(f, "}}")?;
@@ -153,11 +176,17 @@ impl AstPrinter {
             Expression::Continue => write!(f, "continue"),
             Expression::Clone(expr) => {
                 self.print_expr(expr, f)?;
-                write!(f, ".clone()")
+                if self.show_clone_and_drop {
+                    write!(f, ".clone()")?;
+                }
+                Ok(())
             }
             Expression::Drop(expr) => {
                 self.print_expr(expr, f)?;
-                write!(f, ".drop()")
+                if self.show_clone_and_drop {
+                    write!(f, ".drop()")?;
+                }
+                Ok(())
             }
         }
     }

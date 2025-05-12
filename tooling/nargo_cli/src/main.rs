@@ -7,7 +7,7 @@
 //! This name was used because it sounds like `cargo` and
 //! Noir Package Manager abbreviated is npm, which is already taken.
 
-mod cli;
+pub mod cli;
 mod errors;
 
 use std::env;
@@ -19,6 +19,8 @@ use tracing_subscriber::{EnvFilter, fmt::format::FmtSpan};
 
 // TODO: Currently only used by benches.
 use noir_artifact_cli as _;
+// NOTE: Currently only used for fuzzing.
+use nargo_cli as _;
 
 const PANIC_MESSAGE: &str = "This is a bug. We may have already fixed this in newer versions of Nargo so try searching for similar issues at https://github.com/noir-lang/noir/issues/.\nIf there isn't an open issue for this bug, consider opening one at https://github.com/noir-lang/noir/issues/new?labels=bug&template=bug_report.yml";
 
