@@ -60,8 +60,6 @@ pub struct Config {
     pub avoid_large_int_literals: bool,
     /// Avoid using loop control (break/continue).
     pub avoid_loop_control: bool,
-    // Avoid databus parameters.
-    pub avoid_calldata: bool,
     /// Only use comptime friendly expressions.
     pub comptime_friendly: bool,
 }
@@ -119,7 +117,6 @@ impl Default for Config {
             avoid_large_int_literals: false,
             avoid_negative_int_literals: false,
             avoid_loop_control: false,
-            avoid_calldata: false,
             comptime_friendly: false,
         }
     }

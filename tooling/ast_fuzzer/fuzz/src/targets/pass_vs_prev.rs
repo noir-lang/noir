@@ -13,11 +13,7 @@ use noirc_evaluator::ssa::ssa_gen::Ssa;
 use noirc_evaluator::ssa::{SsaPass, primary_passes, ssa_gen};
 
 pub fn fuzz(u: &mut Unstructured) -> eyre::Result<()> {
-    let config = Config {
-        // TODO #8451 and #8439: enable this when fixed.
-        avoid_calldata: true,
-        ..Default::default()
-    };
+    let config = Config::default();
 
     let inputs = CompareInterpreted::arb(u, config, |u, program| {
         let options = CompareOptions::arbitrary(u)?;

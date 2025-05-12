@@ -298,6 +298,6 @@ mod tests {
             v_ = not v_
             jmpif v_ then: b_, else: b_
         "#
-        );
+        )
     }
 }
