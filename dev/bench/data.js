@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1747076773642,
+  "lastUpdate": 1747076777948,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -3705,95 +3705,6 @@ window.BENCHMARK_DATA = {
       }
     ],
     "Compilation Time": [
-      {
-        "commit": {
-          "author": {
-            "email": "15848336+TomAFrench@users.noreply.github.com",
-            "name": "Tom French",
-            "username": "TomAFrench"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "7296f8aaece5bf4c4dcf6e33bf4d3764e283a554",
-          "message": "chore: remove unsafe code from greybox fuzzer (#8315)\n\nCo-authored-by: AztecBot <tech@aztecprotocol.com>",
-          "timestamp": "2025-05-06T12:18:25Z",
-          "tree_id": "c6f6e3b8b8fc7eabd1c058a4363ebb700c890427",
-          "url": "https://github.com/noir-lang/noir/commit/7296f8aaece5bf4c4dcf6e33bf4d3764e283a554"
-        },
-        "date": 1746535374862,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "regression_4709",
-            "value": 0.661,
-            "unit": "s"
-          },
-          {
-            "name": "ram_blowup_regression",
-            "value": 12.7,
-            "unit": "s"
-          },
-          {
-            "name": "global_var_regression_entry_points",
-            "value": 0.474,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-inner",
-            "value": 2.236,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 6.478,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 1.114,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 17.56,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 12.9,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root-empty",
-            "value": 1.238,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root-single-tx",
-            "value": 120,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 121,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 1.026,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-root",
-            "value": 1.608,
-            "unit": "s"
-          }
-        ]
-      },
       {
         "commit": {
           "author": {
@@ -7911,6 +7822,80 @@ window.BENCHMARK_DATA = {
           {
             "name": "rollup-root",
             "value": 1.596,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "aakoshh@gmail.com",
+            "name": "Akosh Farkash",
+            "username": "aakoshh"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "21d9ffdc802d11aa66c15e708222dc8f845f0353",
+          "message": "chore(fuzz): Do not use zero length types in the main input output (#8465)",
+          "timestamp": "2025-05-12T18:43:23Z",
+          "tree_id": "4f4d167bc948ca3066d838c19e520af2f04fc0a5",
+          "url": "https://github.com/noir-lang/noir/commit/21d9ffdc802d11aa66c15e708222dc8f845f0353"
+        },
+        "date": 1747076767980,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 2.34,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 6.646,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 1.074,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 16.1,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 13.02,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-empty",
+            "value": 1.336,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-single-tx",
+            "value": 132,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 130,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 1.074,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-root",
+            "value": 1.61,
             "unit": "s"
           }
         ]
