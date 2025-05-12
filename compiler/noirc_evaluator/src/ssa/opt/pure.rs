@@ -49,8 +49,21 @@ impl Ssa {
             function.dfg.set_function_purities(purities.clone());
         }
 
+        purity_analysis_post_check(&self);
+
         self
     }
+}
+
+/// Post-check condition for [Function::remove_bit_shifts].
+///
+/// Returns `true` if:
+///   - all functions have a purity status attached to it.
+///
+/// Otherwise returns `false`.
+fn purity_analysis_post_check(ssa: &Ssa) -> bool {
+    // TODO: We have N different copies of the purity hashmap (one per function), ideally this would be deduplicated.
+    ssa.functions.iter().all(|(id, function)| function.dfg.purity_of(*id).is_some())
 }
 
 pub(crate) type FunctionPurities = HashMap<FunctionId, Purity>;

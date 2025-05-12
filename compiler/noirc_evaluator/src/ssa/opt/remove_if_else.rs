@@ -43,6 +43,7 @@ impl Function {
         } else {
             Context::default().remove_if_else(self);
         }
+        debug_assert!(remove_if_else_post_check(self));
     }
 }
 
@@ -222,6 +223,32 @@ fn slice_capacity_change(
         | Intrinsic::SliceRefCount
         | Intrinsic::FieldLessThan => SizeChange::None,
     }
+}
+
+/// Post-check condition for [Function::remove_if_else].
+///
+/// Returns `true` if:
+///   - `func` is a Brillig function, OR
+///   - `func` does not contain any if-else instructions.
+///
+/// Otherwise returns `false`.
+fn remove_if_else_post_check(func: &Function) -> bool {
+    // Brillig functions should be unaffected.
+    if func.runtime().is_brillig() {
+        return true;
+    }
+
+    // Otherwise there should be no shift-left or shift-right instructions in any reachable block.
+    for block_id in func.reachable_blocks() {
+        let instruction_ids = func.dfg[block_id].instructions();
+        for instruction_id in instruction_ids {
+            if matches!(func.dfg[*instruction_id], Instruction::IfElse { .. }) {
+                return false;
+            }
+        }
+    }
+
+    return true;
 }
 
 #[cfg(test)]
