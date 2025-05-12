@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1747039687628,
+  "lastUpdate": 1747039695478,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -3705,95 +3705,6 @@ window.BENCHMARK_DATA = {
       }
     ],
     "Compilation Time": [
-      {
-        "commit": {
-          "author": {
-            "email": "jfecher11@gmail.com",
-            "name": "jfecher",
-            "username": "jfecher"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "b2d3a42c638536ad982ebdea0dbe2ac63e5f6e8b",
-          "message": "chore: Replace all SSA interpreter panics with error variants (#8311)\n\nCo-authored-by: Jake Fecher <jake@aztecprotocol.com>",
-          "timestamp": "2025-05-02T18:21:00Z",
-          "tree_id": "f197b26281030251f2b3157e75ba4b5933c976dd",
-          "url": "https://github.com/noir-lang/noir/commit/b2d3a42c638536ad982ebdea0dbe2ac63e5f6e8b"
-        },
-        "date": 1746211394213,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "regression_4709",
-            "value": 0.673,
-            "unit": "s"
-          },
-          {
-            "name": "ram_blowup_regression",
-            "value": 12.7,
-            "unit": "s"
-          },
-          {
-            "name": "global_var_regression_entry_points",
-            "value": 0.478,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-inner",
-            "value": 2.256,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 6.466,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 1.284,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 16.94,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 13,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root-empty",
-            "value": 1.286,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root-single-tx",
-            "value": 123,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 126,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 1.024,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-root",
-            "value": 1.578,
-            "unit": "s"
-          }
-        ]
-      },
       {
         "commit": {
           "author": {
@@ -8046,6 +7957,80 @@ window.BENCHMARK_DATA = {
           {
             "name": "rollup-root",
             "value": 1.63,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "163862677+noirwhal@users.noreply.github.com",
+            "name": "noirwhal",
+            "username": "noirwhal"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "6accfc609ebe83ab6eb870e96ece9d650023d712",
+          "message": "chore: bump external pinned commits (#8445)\n\nCo-authored-by: noirwhal <tomfrench@aztecprotocol.com>",
+          "timestamp": "2025-05-12T08:24:15Z",
+          "tree_id": "f59e8329b00de3e88b1c002024cb05a2d004d1b9",
+          "url": "https://github.com/noir-lang/noir/commit/6accfc609ebe83ab6eb870e96ece9d650023d712"
+        },
+        "date": 1747039686881,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 2.292,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 6.254,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 1.102,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 16.16,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 12.64,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-empty",
+            "value": 1.276,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-single-tx",
+            "value": 123,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 131,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 1.024,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-root",
+            "value": 1.654,
             "unit": "s"
           }
         ]
