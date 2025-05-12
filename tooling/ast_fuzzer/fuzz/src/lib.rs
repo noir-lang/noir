@@ -174,7 +174,7 @@ pub fn compare_results_interpreted(
 
         // Show the SSA inputs as well so we can see any discrepancy in encoding.
         eprintln!(
-            "---\nSSA Inputs:\n {:?}",
+            "---\nSSA Inputs:\n{}",
             inputs
                 .input_values
                 .iter()
