@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1747066638631,
+  "lastUpdate": 1747066642346,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -3705,95 +3705,6 @@ window.BENCHMARK_DATA = {
       }
     ],
     "Compilation Time": [
-      {
-        "commit": {
-          "author": {
-            "email": "163862677+noirwhal@users.noreply.github.com",
-            "name": "noirwhal",
-            "username": "noirwhal"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "054d3d78d8f4e4035260b30d6ed7a165621b3347",
-          "message": "chore: bump external pinned commits (#8334)\n\nCo-authored-by: noirwhal <tomfrench@aztecprotocol.com>",
-          "timestamp": "2025-05-06T11:14:28Z",
-          "tree_id": "fea0f3e7841bba80316ce3e31e1cb9b72f99bba7",
-          "url": "https://github.com/noir-lang/noir/commit/054d3d78d8f4e4035260b30d6ed7a165621b3347"
-        },
-        "date": 1746532377919,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "regression_4709",
-            "value": 0.681,
-            "unit": "s"
-          },
-          {
-            "name": "ram_blowup_regression",
-            "value": 12.7,
-            "unit": "s"
-          },
-          {
-            "name": "global_var_regression_entry_points",
-            "value": 0.476,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-inner",
-            "value": 2.258,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 6.32,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 1.228,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 16.64,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 12.94,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root-empty",
-            "value": 1.276,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root-single-tx",
-            "value": 127,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 123,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 1.084,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-root",
-            "value": 1.598,
-            "unit": "s"
-          }
-        ]
-      },
       {
         "commit": {
           "author": {
@@ -7941,6 +7852,80 @@ window.BENCHMARK_DATA = {
           {
             "name": "rollup-root",
             "value": 1.704,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "47281315+guipublic@users.noreply.github.com",
+            "name": "guipublic",
+            "username": "guipublic"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "ef582a683eb4bf492f415d538a8695644e964db2",
+          "message": "chore: blackbox functions for ssa intepreter (#8375)",
+          "timestamp": "2025-05-12T15:51:30Z",
+          "tree_id": "2f2b2026651e79ba06d0f624965454bd618fe529",
+          "url": "https://github.com/noir-lang/noir/commit/ef582a683eb4bf492f415d538a8695644e964db2"
+        },
+        "date": 1747066633361,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 2.382,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 6.842,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 1.072,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 16.08,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 12.7,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-empty",
+            "value": 1.32,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-single-tx",
+            "value": 126,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 123,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 1.104,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-root",
+            "value": 1.638,
             "unit": "s"
           }
         ]
