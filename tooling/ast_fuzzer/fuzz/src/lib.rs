@@ -1,7 +1,7 @@
 use acir::circuit::ExpressionWidth;
 use color_eyre::eyre;
 use noir_ast_fuzzer::DisplayAstAsNoir;
-use noir_ast_fuzzer::compare::{CompareComptime, CompareResult, CompareSsa, HasPrograms};
+use noir_ast_fuzzer::compare::{CompareCompiled, CompareComptime, CompareResult, HasPrograms};
 use noirc_abi::input_parser::Format;
 use noirc_evaluator::brillig::Brillig;
 use noirc_evaluator::ssa::{SsaPass, primary_passes, secondary_passes};
@@ -34,6 +34,7 @@ pub fn default_ssa_options() -> SsaEvaluatorOptions {
         enable_brillig_constraints_check_lookback: false,
         inliner_aggressiveness: 0,
         max_bytecode_increase_percent: None,
+        skip_passes: Default::default(),
     }
 }
 
@@ -78,9 +79,9 @@ where
 }
 
 /// Compare the execution result and print the inputs if the result is a failure.
-pub fn compare_results<P>(inputs: &CompareSsa<P>, result: &CompareResult) -> eyre::Result<()>
+pub fn compare_results<P>(inputs: &CompareCompiled<P>, result: &CompareResult) -> eyre::Result<()>
 where
-    CompareSsa<P>: HasPrograms,
+    CompareCompiled<P>: HasPrograms,
 {
     let res = result.return_value_or_err();
 

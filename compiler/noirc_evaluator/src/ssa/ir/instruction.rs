@@ -386,6 +386,8 @@ impl Instruction {
             Instruction::Call { func, .. } => match dfg[*func] {
                 Value::Function(id) => !matches!(dfg.purity_of(id), Some(Purity::Pure)),
                 Value::Intrinsic(intrinsic) => {
+                    // These utilize `noirc_evaluator::acir::Context::get_flattened_index` internally
+                    // which uses the side effects predicate.
                     matches!(intrinsic, Intrinsic::SliceInsert | Intrinsic::SliceRemove)
                 }
                 _ => false,
@@ -796,6 +798,26 @@ impl TerminatorInstruction {
             Return { return_values, .. } => {
                 for return_value in return_values {
                     f(*return_value);
+                }
+            }
+        }
+    }
+
+    /// Apply a function to each value along with its index
+    pub(crate) fn for_eachi_value<T>(&self, mut f: impl FnMut(usize, ValueId) -> T) {
+        use TerminatorInstruction::*;
+        match self {
+            JmpIf { condition, .. } => {
+                f(0, *condition);
+            }
+            Jmp { arguments, .. } => {
+                for (index, argument) in arguments.iter().enumerate() {
+                    f(index, *argument);
+                }
+            }
+            Return { return_values, .. } => {
+                for (index, return_value) in return_values.iter().enumerate() {
+                    f(index, *return_value);
                 }
             }
         }

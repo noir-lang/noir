@@ -84,6 +84,10 @@ pub struct CompileOptions {
     #[arg(long, hide = true)]
     pub show_contract_fn: Option<String>,
 
+    /// Skip SSA passes whose name contains the provided string(s).
+    #[arg(long, hide = true)]
+    pub skip_ssa_pass: Vec<String>,
+
     /// Emit the unoptimized SSA IR to file.
     /// The IR will be dumped into the workspace target directory,
     /// under `[compiled-package].ssa.json`.
@@ -780,6 +784,7 @@ pub fn compile_no_check(
             && options.skip_brillig_constraints_check,
         inliner_aggressiveness: options.inliner_aggressiveness,
         max_bytecode_increase_percent: options.max_bytecode_increase_percent,
+        skip_passes: options.skip_ssa_pass.clone(),
     };
 
     let SsaProgramArtifact { program, debug, warnings, names, brillig_names, error_types, .. } =
