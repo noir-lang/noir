@@ -49,7 +49,7 @@ impl Ssa {
             function.dfg.set_function_purities(purities.clone());
         }
 
-        purity_analysis_post_check(&self);
+        debug_assert!(purity_analysis_post_check(&self));
 
         self
     }
