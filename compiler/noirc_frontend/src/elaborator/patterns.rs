@@ -11,7 +11,10 @@ use crate::{
     hir::{
         def_collector::dc_crate::CompilationError,
         resolution::{errors::ResolverError, import::PathResolutionError},
-        type_check::{Source, TypeCheckError},
+        type_check::{
+            Source, TypeCheckError,
+            generics::{Generic, StrPrimitiveType},
+        },
     },
     hir_def::{
         expr::{HirExpression, HirIdent, HirMethodReference, ImplKind, TraitMethod},
@@ -765,8 +768,22 @@ impl Elaborator<'_> {
                         Vec::new()
                     }
                     PrimitiveType::Str => {
-                        // TODO
-                        Vec::new()
+                        if let Some(turbofish) = turbofish {
+                            let item_generic_kinds =
+                                StrPrimitiveType {}.generic_kinds(self.interner);
+                            let kind = item_generic_kinds[0].clone();
+                            let generics = vec![self.interner.next_type_variable_with_kind(kind)];
+                            self.resolve_item_turbofish_generics(
+                                "primitive type",
+                                "str",
+                                item_generic_kinds,
+                                generics,
+                                Some(turbofish.generics),
+                                turbofish.location,
+                            )
+                        } else {
+                            Vec::new()
+                        }
                     }
                 }
             }
