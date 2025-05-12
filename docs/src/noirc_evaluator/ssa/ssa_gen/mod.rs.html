@@ -1189,7 +1189,7 @@
     <span class="comment">// see which parameter has call_data/return_data attribute
     </span><span class="kw">let </span>is_databus = DataBusBuilder::is_databus(<span class="kw-2">&amp;</span>program.main_function_signature);
 
-    <span class="kw">let </span>is_return_data = <span class="macro">matches!</span>(program.return_visibility, Visibility::ReturnData);
+    <span class="kw">let </span>is_return_data = <span class="macro">matches!</span>(program.return_visibility(), Visibility::ReturnData);
 
     <span class="kw">let </span>return_location = program.return_location;
     <span class="kw">let </span><span class="kw-2">mut </span>context = SharedContext::new(program);

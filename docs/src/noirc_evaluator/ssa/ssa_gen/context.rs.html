@@ -1264,7 +1264,7 @@
     /// The returned parameter type list will be flattened, so any struct parameters will
     /// be returned as one entry for each field (recursively).
     </span><span class="kw">fn </span>add_parameters_to_scope(<span class="kw-2">&amp;mut </span><span class="self">self</span>, parameters: <span class="kw-2">&amp;</span>Parameters) {
-        <span class="kw">for </span>(id, mutable, <span class="kw">_</span>, typ) <span class="kw">in </span>parameters {
+        <span class="kw">for </span>(id, mutable, <span class="kw">_</span>, typ, _visibility) <span class="kw">in </span>parameters {
             <span class="self">self</span>.add_parameter_to_scope(<span class="kw-2">*</span>id, typ, <span class="kw-2">*</span>mutable);
         }
     }

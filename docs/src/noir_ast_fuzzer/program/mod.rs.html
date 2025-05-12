@@ -484,13 +484,7 @@
 <a href="#483" id="483">483</a>
 <a href="#484" id="484">484</a>
 <a href="#485" id="485">485</a>
-<a href="#486" id="486">486</a>
-<a href="#487" id="487">487</a>
-<a href="#488" id="488">488</a>
-<a href="#489" id="489">489</a>
-<a href="#490" id="490">490</a>
-<a href="#491" id="491">491</a>
-<a href="#492" id="492">492</a></pre></div><pre class="rust"><code><span class="doccomment">//! Module responsible for generating arbitrary [Program] ASTs.
+<a href="#486" id="486">486</a></pre></div><pre class="rust"><code><span class="doccomment">//! Module responsible for generating arbitrary [Program] ASTs.
 </span><span class="kw">use </span>std::collections::{BTreeMap, BTreeSet}; <span class="comment">// Using BTree for deterministic enumeration, for repeatability.
 
 </span><span class="kw">use </span>func::{FunctionContext, FunctionDeclaration};
@@ -549,7 +543,6 @@
         name: <span class="string">"main"</span>.into(),
         params: <span class="macro">vec!</span>[],
         return_type: decl_inner.return_type.clone(),
-        param_visibilities: <span class="macro">vec!</span>[],
         return_visibility: Visibility::Public,
         inline_type: InlineType::default(),
         unconstrained: <span class="bool-val">false</span>,
@@ -610,11 +603,6 @@
         <span class="self">self</span>.function_declarations.insert(id, decl);
     }
 
-    <span class="doccomment">/// Get the main function declaration.
-    </span><span class="kw">fn </span>main_decl(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="kw-2">&amp;</span>FunctionDeclaration {
-        <span class="self">self</span>.function_declarations.get(<span class="kw-2">&amp;</span>Program::main_id()).expect(<span class="string">"main should exist"</span>)
-    }
-
     <span class="doccomment">/// Generate random global definitions.
     </span><span class="kw">fn </span>gen_globals(<span class="kw-2">&amp;mut </span><span class="self">self</span>, u: <span class="kw-2">&amp;mut </span>Unstructured) -&gt; arbitrary::Result&lt;()&gt; {
         <span class="kw">let </span>num_globals = u.int_in_range(<span class="number">0</span>..=<span class="self">self</span>.config.max_globals)<span class="question-mark">?</span>;
@@ -662,7 +650,6 @@
         <span class="kw">let </span>num_params = u.int_in_range(<span class="number">0</span>..=<span class="self">self</span>.config.max_function_args)<span class="question-mark">?</span>;
 
         <span class="kw">let </span><span class="kw-2">mut </span>params = Vec::new();
-        <span class="kw">let </span><span class="kw-2">mut </span>param_visibilities = Vec::new();
         <span class="kw">for </span>p <span class="kw">in </span><span class="number">0</span>..num_params {
             <span class="kw">let </span>id = LocalId(p <span class="kw">as </span>u32);
             <span class="kw">let </span>name = make_name(p, <span class="bool-val">false</span>);
@@ -674,9 +661,8 @@
                 <span class="bool-val">false</span>,
                 <span class="self">self</span>.config.comptime_friendly,
             )<span class="question-mark">?</span>;
-            params.push((id, is_mutable, name, typ));
 
-            param_visibilities.push(<span class="kw">if </span>is_main {
+            <span class="kw">let </span>visibility = <span class="kw">if </span>is_main {
                 <span class="kw">match </span>u.choose_index(<span class="number">5</span>)<span class="question-mark">? </span>{
                     <span class="number">0 </span>| <span class="number">1 </span>=&gt; Visibility::Public,
                     <span class="number">2 </span>| <span class="number">3 </span>=&gt; Visibility::Private,
@@ -684,7 +670,9 @@
                 }
             } <span class="kw">else </span>{
                 Visibility::Private
-            });
+            };
+
+            params.push((id, is_mutable, name, typ, visibility));
         }
 
         <span class="kw">let </span>return_type =
@@ -704,7 +692,6 @@
         <span class="kw">let </span>decl = FunctionDeclaration {
             name: <span class="kw">if </span>is_main { <span class="string">"main"</span>.to_string() } <span class="kw">else </span>{ <span class="macro">format!</span>(<span class="string">"func_{i}"</span>) },
             params,
-            param_visibilities,
             return_type,
             return_visibility,
             inline_type: <span class="kw">if </span>is_main {
@@ -755,6 +742,7 @@
             parameters: decl.params.clone(),
             body,
             return_type: decl.return_type.clone(),
+            return_visibility: decl.return_visibility,
             unconstrained: decl.unconstrained,
             inline_type: decl.inline_type,
             func_sig: decl.signature(),
@@ -770,7 +758,6 @@
 
     <span class="doccomment">/// Return the generated [Program].
     </span><span class="kw">fn </span>finalize(<span class="self">self</span>) -&gt; Program {
-        <span class="kw">let </span>return_visibility = <span class="self">self</span>.main_decl().return_visibility;
         <span class="kw">let </span>functions = <span class="self">self</span>.functions.into_values().collect::&lt;Vec&lt;<span class="kw">_</span>&gt;&gt;();
 
         <span class="comment">// The signatures should only contain entry functions. Currently that's just `main`.
@@ -786,7 +773,6 @@
             function_signatures,
             main_function_signature,
             return_location: <span class="prelude-val">None</span>,
-            return_visibility,
             globals,
             debug_variables: Default::default(),
             debug_functions: Default::default(),
@@ -972,12 +958,14 @@
         printer.show_id = <span class="bool-val">false</span>;
         printer.show_clone_and_drop = <span class="bool-val">false</span>;
         <span class="kw">for </span>function <span class="kw">in </span><span class="kw-2">&amp;</span><span class="self">self</span>.<span class="number">0</span>.functions {
-            <span class="kw">let </span><span class="kw-2">mut </span>fpo = FunctionPrintOptions::default();
             <span class="kw">if </span>function.id == Program::main_id() {
-                fpo.comptime_wrap_body = <span class="bool-val">true</span>;
-                fpo.return_visibility = <span class="prelude-val">Some</span>(Visibility::Public);
+                <span class="kw">let </span><span class="kw-2">mut </span>function = function.clone();
+                function.return_visibility = Visibility::Public;
+                <span class="kw">let </span>fpo = FunctionPrintOptions { comptime_wrap_body: <span class="bool-val">true</span>, ..Default::default() };
+                printer.print_function(<span class="kw-2">&amp;</span>function, f, fpo)<span class="question-mark">?</span>;
+            } <span class="kw">else </span>{
+                printer.print_function(function, f, FunctionPrintOptions::default())<span class="question-mark">?</span>;
             }
-            printer.print_function(function, f, fpo)<span class="question-mark">?</span>;
         }
         <span class="prelude-val">Ok</span>(())
     }

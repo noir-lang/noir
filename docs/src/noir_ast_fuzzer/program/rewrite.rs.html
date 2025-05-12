@@ -301,7 +301,20 @@
 <a href="#300" id="300">300</a>
 <a href="#301" id="301">301</a>
 <a href="#302" id="302">302</a>
-<a href="#303" id="303">303</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::collections::BTreeMap;
+<a href="#303" id="303">303</a>
+<a href="#304" id="304">304</a>
+<a href="#305" id="305">305</a>
+<a href="#306" id="306">306</a>
+<a href="#307" id="307">307</a>
+<a href="#308" id="308">308</a>
+<a href="#309" id="309">309</a>
+<a href="#310" id="310">310</a>
+<a href="#311" id="311">311</a>
+<a href="#312" id="312">312</a>
+<a href="#313" id="313">313</a>
+<a href="#314" id="314">314</a>
+<a href="#315" id="315">315</a>
+<a href="#316" id="316">316</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::collections::BTreeMap;
 
 <span class="kw">use </span>arbitrary::Unstructured;
 <span class="kw">use </span>im::HashMap;
@@ -311,6 +324,7 @@
     monomorphization::ast::{
         Call, Definition, Expression, FuncId, Function, Ident, IdentId, LocalId, Program, Type,
     },
+    shared::Visibility,
 };
 
 <span class="kw">use super</span>::{
@@ -395,7 +409,13 @@
             <span class="comment">// In non-main we look at the limit and return a random value if it's zero,
             // otherwise decrease it by one and continue with the original body.
             </span><span class="kw">let </span>limit_type = types::ref_mut(types::U32);
-            func.parameters.push((limit_id, <span class="bool-val">false</span>, limit_name.clone(), limit_type.clone()));
+            func.parameters.push((
+                limit_id,
+                <span class="bool-val">false</span>,
+                limit_name.clone(),
+                limit_type.clone(),
+                Visibility::Private,
+            ));
 
             <span class="comment">// Generate a random value to return.
             </span><span class="kw">let </span>default_return = expr::gen_literal(u, <span class="kw-2">&amp;</span>func.return_type)<span class="question-mark">?</span>;
@@ -432,7 +452,13 @@
 
         <span class="comment">// Add the non-reference version of the parameter to the proxy function.
         </span><span class="kw">if let </span><span class="prelude-val">Some</span>(proxy) = proxy_functions.get_mut(func_id) {
-            proxy.parameters.push((limit_id, <span class="bool-val">true</span>, limit_name.clone(), types::U32));
+            proxy.parameters.push((
+                limit_id,
+                <span class="bool-val">true</span>,
+                limit_name.clone(),
+                types::U32,
+                Visibility::Private,
+            ));
             <span class="comment">// The body is just a call the the non-proxy function.
             </span>proxy.body = Expression::Call(Call {
                 func: Box::new(Expression::Ident(Ident {
@@ -451,7 +477,7 @@
                 arguments: proxy
                     .parameters
                     .iter()
-                    .map(|(id, mutable, name, typ)| {
+                    .map(|(id, mutable, name, typ, _visibility)| {
                         <span class="kw">if </span><span class="kw-2">*</span>id == limit_id {
                             <span class="comment">// Pass mutable reference to the limit.
                             </span>expr::ref_mut(

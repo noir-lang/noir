@@ -2583,7 +2583,16 @@
 <a href="#2582" id="2582">2582</a>
 <a href="#2583" id="2583">2583</a>
 <a href="#2584" id="2584">2584</a>
-<a href="#2585" id="2585">2585</a></pre></div><pre class="rust"><code><span class="doccomment">//! Coming after type checking, monomorphization is the last pass in Noir's frontend.
+<a href="#2585" id="2585">2585</a>
+<a href="#2586" id="2586">2586</a>
+<a href="#2587" id="2587">2587</a>
+<a href="#2588" id="2588">2588</a>
+<a href="#2589" id="2589">2589</a>
+<a href="#2590" id="2590">2590</a>
+<a href="#2591" id="2591">2591</a>
+<a href="#2592" id="2592">2592</a>
+<a href="#2593" id="2593">2593</a>
+<a href="#2594" id="2594">2594</a></pre></div><pre class="rust"><code><span class="doccomment">//! Coming after type checking, monomorphization is the last pass in Noir's frontend.
 //! It accepts the type checked HIR as input and produces a monomorphized AST as output.
 //! This file implements the pass itself, while the AST is defined in the ast module.
 //!
@@ -2606,7 +2615,7 @@
     debug::DebugInstrumenter,
     hir_def::{
         expr::<span class="kw-2">*</span>,
-        function::{FuncMeta, FunctionSignature, Parameters},
+        function::{FunctionSignature, Parameters},
         stmt::{HirAssignStatement, HirLValue, HirLetStatement, HirPattern, HirStatement},
         types,
     },
@@ -2770,7 +2779,6 @@
         .collect();
 
     <span class="kw">let </span>functions = vecmap(monomorphizer.finished_functions, |(<span class="kw">_</span>, f)| f);
-    <span class="kw">let </span>FuncMeta { return_visibility, .. } = monomorphizer.interner.function_meta(<span class="kw-2">&amp;</span>main);
 
     <span class="kw">let </span>globals = monomorphizer.finished_globals.into_iter().collect::&lt;BTreeMap&lt;<span class="kw">_</span>, <span class="kw">_</span>&gt;&gt;();
 
@@ -2782,7 +2790,6 @@
         func_sigs,
         function_sig,
         monomorphizer.return_location,
-        <span class="kw-2">*</span>return_visibility,
         globals,
         debug_variables,
         debug_functions,
@@ -2978,6 +2985,7 @@
         // call site after instantiating this function's type. So show the error there
         // instead of at the function definition.
         </span><span class="kw">let </span>return_type = <span class="self">Self</span>::convert_type(return_type, location)<span class="question-mark">?</span>;
+        <span class="kw">let </span>return_visibility = meta.return_visibility;
         <span class="kw">let </span>unconstrained = <span class="self">self</span>.in_unconstrained_function;
 
         <span class="kw">let </span>attributes = <span class="self">self</span>.interner.function_attributes(<span class="kw-2">&amp;</span>f);
@@ -2991,6 +2999,7 @@
             parameters,
             body,
             return_type,
+            return_visibility,
             unconstrained,
             inline_type,
             func_sig,
@@ -3007,13 +3016,15 @@
 
     <span class="doccomment">/// Monomorphize each parameter, expanding tuple/struct patterns into multiple parameters
     /// and binding any generic types found.
+    </span><span class="attr">#[allow(clippy::type_complexity)]
     </span><span class="kw">fn </span>parameters(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
         params: <span class="kw-2">&amp;</span>Parameters,
-    ) -&gt; <span class="prelude-ty">Result</span>&lt;Vec&lt;(ast::LocalId, bool, String, ast::Type)&gt;, MonomorphizationError&gt; {
+    ) -&gt; <span class="prelude-ty">Result</span>&lt;Vec&lt;(ast::LocalId, bool, String, ast::Type, Visibility)&gt;, MonomorphizationError&gt;
+    {
         <span class="kw">let </span><span class="kw-2">mut </span>new_params = Vec::with_capacity(params.len());
-        <span class="kw">for </span>(parameter, typ, <span class="kw">_</span>) <span class="kw">in </span><span class="kw-2">&amp;</span>params.<span class="number">0 </span>{
-            <span class="self">self</span>.parameter(parameter, typ, <span class="kw-2">&amp;mut </span>new_params)<span class="question-mark">?</span>;
+        <span class="kw">for </span>(parameter, typ, visibility) <span class="kw">in </span><span class="kw-2">&amp;</span>params.<span class="number">0 </span>{
+            <span class="self">self</span>.parameter(parameter, typ, visibility, <span class="kw-2">&amp;mut </span>new_params)<span class="question-mark">?</span>;
         }
         <span class="prelude-val">Ok</span>(new_params)
     }
@@ -3022,7 +3033,8 @@
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
         param: <span class="kw-2">&amp;</span>HirPattern,
         typ: <span class="kw-2">&amp;</span>HirType,
-        new_params: <span class="kw-2">&amp;mut </span>Vec&lt;(ast::LocalId, bool, String, ast::Type)&gt;,
+        visibility: <span class="kw-2">&amp;</span>Visibility,
+        new_params: <span class="kw-2">&amp;mut </span>Vec&lt;(ast::LocalId, bool, String, ast::Type, Visibility)&gt;,
     ) -&gt; <span class="prelude-ty">Result</span>&lt;(), MonomorphizationError&gt; {
         <span class="kw">match </span>param {
             HirPattern::Identifier(ident) =&gt; {
@@ -3030,15 +3042,17 @@
                 <span class="kw">let </span>definition = <span class="self">self</span>.interner.definition(ident.id);
                 <span class="kw">let </span>name = definition.name.clone();
                 <span class="kw">let </span>typ = <span class="self">Self</span>::convert_type(typ, ident.location)<span class="question-mark">?</span>;
-                new_params.push((new_id, definition.mutable, name, typ));
+                new_params.push((new_id, definition.mutable, name, typ, <span class="kw-2">*</span>visibility));
                 <span class="self">self</span>.define_local(ident.id, new_id);
             }
-            HirPattern::Mutable(pattern, <span class="kw">_</span>) =&gt; <span class="self">self</span>.parameter(pattern, typ, new_params)<span class="question-mark">?</span>,
+            HirPattern::Mutable(pattern, <span class="kw">_</span>) =&gt; {
+                <span class="self">self</span>.parameter(pattern, typ, visibility, new_params)<span class="question-mark">?</span>;
+            }
             HirPattern::Tuple(fields, <span class="kw">_</span>) =&gt; {
                 <span class="kw">let </span>tuple_field_types = unwrap_tuple_type(typ);
 
                 <span class="kw">for </span>(field, typ) <span class="kw">in </span>fields.iter().zip(tuple_field_types) {
-                    <span class="self">self</span>.parameter(field, <span class="kw-2">&amp;</span>typ, new_params)<span class="question-mark">?</span>;
+                    <span class="self">self</span>.parameter(field, <span class="kw-2">&amp;</span>typ, visibility, new_params)<span class="question-mark">?</span>;
                 }
             }
             HirPattern::Struct(<span class="kw">_</span>, fields, location) =&gt; {
@@ -3054,7 +3068,7 @@
                         <span class="macro">unreachable!</span>(<span class="string">"Expected a field named '{field_name}' in the struct pattern"</span>)
                     });
 
-                    <span class="self">self</span>.parameter(field, <span class="kw-2">&amp;</span>field_type, new_params)<span class="question-mark">?</span>;
+                    <span class="self">self</span>.parameter(field, <span class="kw-2">&amp;</span>field_type, visibility, new_params)<span class="question-mark">?</span>;
                 }
             }
         }
@@ -4567,6 +4581,7 @@
             parameters,
             body,
             return_type: ret_type.clone(),
+            return_visibility: Visibility::Private,
             unconstrained: <span class="self">self</span>.in_unconstrained_function,
             inline_type: InlineType::default(),
             func_sig: FunctionSignature::default(),
@@ -4694,7 +4709,8 @@
             id: <span class="self">self</span>.next_ident_id(),
         });
 
-        <span class="kw">let </span><span class="kw-2">mut </span>parameters = <span class="macro">vec!</span>[(env_local_id, <span class="bool-val">true</span>, env_name.to_string(), env_typ.clone())];
+        <span class="kw">let </span><span class="kw-2">mut </span>parameters =
+            <span class="macro">vec!</span>[(env_local_id, <span class="bool-val">true</span>, env_name.to_string(), env_typ.clone(), Visibility::Private)];
         parameters.append(<span class="kw-2">&amp;mut </span>converted_parameters);
 
         <span class="kw">let </span>function = ast::Function {
@@ -4703,6 +4719,7 @@
             parameters,
             body,
             return_type,
+            return_visibility: Visibility::Private,
             unconstrained: <span class="self">self</span>.in_unconstrained_function,
             inline_type: InlineType::default(),
             func_sig: FunctionSignature::default(),
@@ -4878,7 +4895,7 @@
         <span class="kw">let </span>lambda_name = <span class="string">"zeroed_lambda"</span>;
 
         <span class="kw">let </span>parameters = vecmap(parameter_types, |parameter_type| {
-            (<span class="self">self</span>.next_local_id(), <span class="bool-val">false</span>, <span class="string">"_"</span>.into(), parameter_type.clone())
+            (<span class="self">self</span>.next_local_id(), <span class="bool-val">false</span>, <span class="string">"_"</span>.into(), parameter_type.clone(), Visibility::Private)
         });
 
         <span class="kw">let </span>body = <span class="self">self</span>.zeroed_value_of_type(ret_type, location);
@@ -4893,6 +4910,7 @@
             parameters,
             body,
             return_type,
+            return_visibility: Visibility::Private,
             unconstrained,
             inline_type: InlineType::default(),
             func_sig: FunctionSignature::default(),

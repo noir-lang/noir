@@ -1207,9 +1207,7 @@
 <a href="#1206" id="1206">1206</a>
 <a href="#1207" id="1207">1207</a>
 <a href="#1208" id="1208">1208</a>
-<a href="#1209" id="1209">1209</a>
-<a href="#1210" id="1210">1210</a>
-<a href="#1211" id="1211">1211</a></pre></div><pre class="rust"><code><span class="kw">use </span>nargo::errors::Location;
+<a href="#1209" id="1209">1209</a></pre></div><pre class="rust"><code><span class="kw">use </span>nargo::errors::Location;
 <span class="kw">use </span>std::{
     collections::{BTreeMap, BTreeSet, HashSet},
     fmt::Debug,
@@ -1244,7 +1242,6 @@
 </span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">struct </span>FunctionDeclaration {
     <span class="kw">pub </span>name: String,
     <span class="kw">pub </span>params: Parameters,
-    <span class="kw">pub </span>param_visibilities: Vec&lt;Visibility&gt;,
     <span class="kw">pub </span>return_type: Type,
     <span class="kw">pub </span>return_visibility: Visibility,
     <span class="kw">pub </span>inline_type: InlineType,
@@ -1257,8 +1254,7 @@
         <span class="kw">let </span>param_types = <span class="self">self
             </span>.params
             .iter()
-            .zip(<span class="self">self</span>.param_visibilities.iter())
-            .map(|((_id, mutable, _name, typ), vis)| hir_param(<span class="kw-2">*</span>mutable, typ, <span class="kw-2">*</span>vis))
+            .map(|(_id, mutable, _name, typ, vis)| hir_param(<span class="kw-2">*</span>mutable, typ, <span class="kw-2">*</span>vis))
             .collect();
 
         <span class="kw">let </span>return_type =
@@ -1365,7 +1361,7 @@
         <span class="kw">let </span>locals = ScopeStack::new(
             decl.params
                 .iter()
-                .map(|(id, mutable, name, typ)| (<span class="kw-2">*</span>id, <span class="kw-2">*</span>mutable, name.clone(), typ.clone())),
+                .map(|(id, mutable, name, typ, _vis)| (<span class="kw-2">*</span>id, <span class="kw-2">*</span>mutable, name.clone(), typ.clone())),
         );
 
         <span class="comment">// Collect all the functions we can call from this one.

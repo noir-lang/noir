@@ -509,7 +509,10 @@
 <a href="#508" id="508">508</a>
 <a href="#509" id="509">509</a>
 <a href="#510" id="510">510</a>
-<a href="#511" id="511">511</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::{collections::BTreeMap, fmt::Display};
+<a href="#511" id="511">511</a>
+<a href="#512" id="512">512</a>
+<a href="#513" id="513">513</a>
+<a href="#514" id="514">514</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::{collections::BTreeMap, fmt::Display};
 
 <span class="kw">use </span>iter_extended::vecmap;
 <span class="kw">use </span>noirc_errors::{
@@ -764,7 +767,8 @@
     Dereference { reference: Box&lt;LValue&gt;, element_type: Type },
 }
 
-<span class="kw">pub type </span>Parameters = Vec&lt;(LocalId, <span class="comment">/*mutable:*/ </span>bool, <span class="comment">/*name:*/ </span>String, Type)&gt;;
+<span class="kw">pub type </span>Parameters =
+    Vec&lt;(LocalId, <span class="comment">/*mutable:*/ </span>bool, <span class="comment">/*name:*/ </span>String, Type, Visibility)&gt;;
 
 <span class="doccomment">/// Represents how an Acir function should be inlined.
 /// This type is only relevant for ACIR functions as we do not inline any Brillig functions
@@ -833,6 +837,7 @@
     <span class="kw">pub </span>body: Expression,
 
     <span class="kw">pub </span>return_type: Type,
+    <span class="kw">pub </span>return_visibility: Visibility,
     <span class="kw">pub </span>unconstrained: bool,
     <span class="kw">pub </span>inline_type: InlineType,
     <span class="kw">pub </span>func_sig: FunctionSignature,
@@ -886,7 +891,6 @@
     <span class="kw">pub </span>function_signatures: Vec&lt;FunctionSignature&gt;,
     <span class="kw">pub </span>main_function_signature: FunctionSignature,
     <span class="kw">pub </span>return_location: <span class="prelude-ty">Option</span>&lt;Location&gt;,
-    <span class="kw">pub </span>return_visibility: Visibility,
     <span class="kw">pub </span>globals: BTreeMap&lt;GlobalId, (String, Type, Expression)&gt;,
     <span class="kw">pub </span>debug_variables: DebugVariables,
     <span class="kw">pub </span>debug_functions: DebugFunctions,
@@ -900,7 +904,6 @@
         function_signatures: Vec&lt;FunctionSignature&gt;,
         main_function_signature: FunctionSignature,
         return_location: <span class="prelude-ty">Option</span>&lt;Location&gt;,
-        return_visibility: Visibility,
         globals: BTreeMap&lt;GlobalId, (String, Type, Expression)&gt;,
         debug_variables: DebugVariables,
         debug_functions: DebugFunctions,
@@ -911,7 +914,6 @@
             function_signatures,
             main_function_signature,
             return_location,
-            return_visibility,
             globals,
             debug_variables,
             debug_functions,
@@ -944,6 +946,10 @@
         <span class="kw">let </span>function_definition = <span class="kw-2">&amp;mut </span><span class="self">self</span>[function];
         <span class="kw">let </span>replacement = Expression::Block(<span class="macro">vec!</span>[]);
         std::mem::replace(<span class="kw-2">&amp;mut </span>function_definition.body, replacement)
+    }
+
+    <span class="kw">pub fn </span>return_visibility(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; Visibility {
+        <span class="self">self</span>.main().return_visibility
     }
 }
 

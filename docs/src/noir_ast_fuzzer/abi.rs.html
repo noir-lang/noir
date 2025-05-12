@@ -81,9 +81,7 @@
 <a href="#80" id="80">80</a>
 <a href="#81" id="81">81</a>
 <a href="#82" id="82">82</a>
-<a href="#83" id="83">83</a>
-<a href="#84" id="84">84</a>
-<a href="#85" id="85">85</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::collections::BTreeMap;
+<a href="#83" id="83">83</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::collections::BTreeMap;
 
 <span class="kw">use </span>noirc_abi::{Abi, AbiParameter, AbiReturnType, AbiType, AbiVisibility, Sign};
 <span class="kw">use </span>noirc_frontend::{
@@ -94,13 +92,11 @@
 <span class="doccomment">/// Generate the [Abi] interface of a [Program].
 </span><span class="kw">pub fn </span>program_abi(program: <span class="kw-2">&amp;</span>Program) -&gt; Abi {
     <span class="kw">let </span>main = program.main();
-    <span class="kw">let </span>param_vis = program.main_function_signature.<span class="number">0</span>.iter().map(|(<span class="kw">_</span>, <span class="kw">_</span>, vis)| vis);
 
     <span class="kw">let </span>parameters = main
         .parameters
         .iter()
-        .zip(param_vis)
-        .map(|((_id, _is_mutable, name, typ), vis)| AbiParameter {
+        .map(|(_id, _is_mutable, name, typ, vis)| AbiParameter {
             name: name.clone(),
             typ: to_abi_type(typ),
             visibility: to_abi_visibility(vis),
@@ -111,7 +107,7 @@
         Type::Unit =&gt; <span class="prelude-val">None</span>,
         typ =&gt; <span class="prelude-val">Some</span>(AbiReturnType {
             abi_type: to_abi_type(typ),
-            visibility: to_abi_visibility(<span class="kw-2">&amp;</span>program.return_visibility),
+            visibility: to_abi_visibility(<span class="kw-2">&amp;</span>program.return_visibility()),
         }),
     };
 

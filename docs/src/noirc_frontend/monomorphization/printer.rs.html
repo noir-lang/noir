@@ -488,11 +488,9 @@
 <a href="#487" id="487">487</a>
 <a href="#488" id="488">488</a>
 <a href="#489" id="489">489</a>
-<a href="#490" id="490">490</a>
-<a href="#491" id="491">491</a>
-<a href="#492" id="492">492</a></pre></div><pre class="rust"><code><span class="doccomment">//! This module implements printing of the monomorphized AST, for debugging purposes.
+<a href="#490" id="490">490</a></pre></div><pre class="rust"><code><span class="doccomment">//! This module implements printing of the monomorphized AST, for debugging purposes.
 
-</span><span class="kw">use crate</span>::{ast::UnaryOp, monomorphization::ast::Ident, shared::Visibility};
+</span><span class="kw">use crate</span>::{ast::UnaryOp, monomorphization::ast::Ident};
 
 <span class="kw">use </span><span class="kw">super</span>::ast::{
     Definition, Expression, FuncId, Function, GlobalId, LValue, LocalId, Program, Type, While,
@@ -502,7 +500,6 @@
 
 <span class="attr">#[derive(Default)]
 </span><span class="kw">pub struct </span>FunctionPrintOptions {
-    <span class="kw">pub </span>return_visibility: <span class="prelude-ty">Option</span>&lt;Visibility&gt;,
     <span class="doccomment">/// Wraps function body in a `comptime` block. Used to make
     /// comptime function callers in fuzzing.
     </span><span class="kw">pub </span>comptime_wrap_body: bool,
@@ -546,9 +543,7 @@
             <span class="self">self</span>.print_global(id, global, f)<span class="question-mark">?</span>;
         }
         <span class="kw">for </span>function <span class="kw">in </span><span class="kw-2">&amp;</span>program.functions {
-            <span class="kw">let </span>return_visibility =
-                (function.id == Program::main_id()).then_some(program.return_visibility);
-            <span class="kw">let </span>fpo = FunctionPrintOptions { return_visibility, ..Default::default() };
+            <span class="kw">let </span>fpo = FunctionPrintOptions::default();
             <span class="self">self</span>.print_function(function, f, fpo)<span class="question-mark">?</span>;
         }
         <span class="prelude-val">Ok</span>(())
@@ -572,20 +567,21 @@
         f: <span class="kw-2">&amp;mut </span>Formatter,
         options: FunctionPrintOptions,
     ) -&gt; std::fmt::Result {
-        <span class="kw">let </span>params = vecmap(<span class="kw-2">&amp;</span>function.parameters, |(id, mutable, name, typ)| {
-            <span class="macro">format!</span>(<span class="string">"{}{}: {}"</span>, <span class="kw">if </span><span class="kw-2">*</span>mutable { <span class="string">"mut " </span>} <span class="kw">else </span>{ <span class="string">"" </span>}, <span class="self">self</span>.fmt_local(name, <span class="kw-2">*</span>id), typ)
+        <span class="kw">let </span>params = vecmap(<span class="kw-2">&amp;</span>function.parameters, |(id, mutable, name, typ, visibility)| {
+            <span class="kw">let </span>vis = visibility.to_string();
+            <span class="kw">let </span>vis = <span class="kw">if </span>vis.is_empty() { vis } <span class="kw">else </span>{ <span class="macro">format!</span>(<span class="string">"{vis} "</span>) };
+            <span class="macro">format!</span>(
+                <span class="string">"{}{}{}: {}"</span>,
+                vis,
+                <span class="kw">if </span><span class="kw-2">*</span>mutable { <span class="string">"mut " </span>} <span class="kw">else </span>{ <span class="string">"" </span>},
+                <span class="self">self</span>.fmt_local(name, <span class="kw-2">*</span>id),
+                typ
+            )
         })
         .join(<span class="string">", "</span>);
 
-        <span class="kw">let </span>vis = options
-            .return_visibility
-            .map(|vis| <span class="kw">match </span>vis {
-                Visibility::Private =&gt; <span class="string">""</span>.to_string(),
-                Visibility::Public =&gt; <span class="string">"pub "</span>.to_string(),
-                Visibility::ReturnData =&gt; <span class="string">"return_data "</span>.to_string(),
-                Visibility::CallData(i) =&gt; <span class="macro">format!</span>(<span class="string">"call_data({i}) "</span>),
-            })
-            .unwrap_or_default();
+        <span class="kw">let </span>vis = function.return_visibility.to_string();
+        <span class="kw">let </span>vis = <span class="kw">if </span>vis.is_empty() { vis } <span class="kw">else </span>{ <span class="macro">format!</span>(<span class="string">"{vis} "</span>) };
 
         <span class="kw">let </span>unconstrained = <span class="kw">if </span>function.unconstrained { <span class="string">"unconstrained " </span>} <span class="kw">else </span>{ <span class="string">"" </span>};
         <span class="kw">let </span>comptime = <span class="kw">if </span>options.comptime { <span class="string">"comptime " </span>} <span class="kw">else </span>{ <span class="string">"" </span>};
