@@ -227,7 +227,6 @@ impl Parser<'_> {
         matches!(
             self.token.token(),
             Token::IntType(..)
-                | Token::Keyword(Keyword::Module)
                 | Token::Keyword(Keyword::Quoted)
                 | Token::Keyword(Keyword::StructDefinition)
                 | Token::Keyword(Keyword::TraitConstraint)
