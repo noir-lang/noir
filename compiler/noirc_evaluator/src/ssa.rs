@@ -129,6 +129,14 @@ impl<'a> SsaPass<'a> {
     {
         Self { msg, run: Box::new(f) }
     }
+
+    pub fn msg(&self) -> &str {
+        self.msg
+    }
+
+    pub fn run(&self, ssa: Ssa) -> Result<Ssa, RuntimeError> {
+        (self.run)(ssa)
+    }
 }
 
 pub struct SsaPassBuilder<'a> {
@@ -813,7 +821,7 @@ impl SsaBuilder {
     /// Run a list of SSA passes.
     fn run_passes(mut self, passes: &[SsaPass]) -> Result<Self, RuntimeError> {
         for pass in passes {
-            self = self.try_run_pass(|ssa| (pass.run)(ssa), pass.msg)?;
+            self = self.try_run_pass(|ssa| pass.run(ssa), pass.msg)?;
         }
         Ok(self)
     }
