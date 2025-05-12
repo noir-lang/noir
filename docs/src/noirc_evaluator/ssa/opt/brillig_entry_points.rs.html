@@ -938,8 +938,7 @@
 <a href="#937" id="937">937</a>
 <a href="#938" id="938">938</a>
 <a href="#939" id="939">939</a>
-<a href="#940" id="940">940</a>
-<a href="#941" id="941">941</a></pre></div><pre class="rust"><code><span class="doccomment">//! The purpose of this pass is to perform function specialization of Brillig functions based upon
+<a href="#940" id="940">940</a></pre></div><pre class="rust"><code><span class="doccomment">//! The purpose of this pass is to perform function specialization of Brillig functions based upon
 //! a function's entry points. Function specialization is performed through duplication of functions.
 //!
 //! This pass is done due to how globals are initialized for Brillig generation.
@@ -1007,13 +1006,12 @@
 <span class="kw">use </span><span class="kw">crate</span>::ssa::{
     Ssa,
     ir::{
+        call_graph::called_functions_vec,
         function::{Function, FunctionId},
         instruction::{Instruction, InstructionId},
         value::{Value, ValueId},
     },
 };
-
-<span class="kw">use </span><span class="kw">super</span>::inlining::called_functions_vec;
 
 <span class="kw">impl </span>Ssa {
     <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>brillig_entry_point_analysis(<span class="kw-2">mut </span><span class="self">self</span>) -&gt; Ssa {

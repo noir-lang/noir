@@ -1063,36 +1063,11 @@
 <a href="#1062" id="1062">1062</a>
 <a href="#1063" id="1063">1063</a>
 <a href="#1064" id="1064">1064</a>
-<a href="#1065" id="1065">1065</a>
-<a href="#1066" id="1066">1066</a>
-<a href="#1067" id="1067">1067</a>
-<a href="#1068" id="1068">1068</a>
-<a href="#1069" id="1069">1069</a>
-<a href="#1070" id="1070">1070</a>
-<a href="#1071" id="1071">1071</a>
-<a href="#1072" id="1072">1072</a>
-<a href="#1073" id="1073">1073</a>
-<a href="#1074" id="1074">1074</a>
-<a href="#1075" id="1075">1075</a>
-<a href="#1076" id="1076">1076</a>
-<a href="#1077" id="1077">1077</a>
-<a href="#1078" id="1078">1078</a>
-<a href="#1079" id="1079">1079</a>
-<a href="#1080" id="1080">1080</a>
-<a href="#1081" id="1081">1081</a>
-<a href="#1082" id="1082">1082</a>
-<a href="#1083" id="1083">1083</a>
-<a href="#1084" id="1084">1084</a>
-<a href="#1085" id="1085">1085</a>
-<a href="#1086" id="1086">1086</a>
-<a href="#1087" id="1087">1087</a>
-<a href="#1088" id="1088">1088</a>
-<a href="#1089" id="1089">1089</a>
-<a href="#1090" id="1090">1090</a></pre></div><pre class="rust"><code><span class="doccomment">//! This module defines the function inlining pass for the SSA IR.
+<a href="#1065" id="1065">1065</a></pre></div><pre class="rust"><code><span class="doccomment">//! This module defines the function inlining pass for the SSA IR.
 //! The purpose of this pass is to inline the instructions of each function call
 //! within the function caller. If all function calls are known, there will only
 //! be a single function remaining when the pass finishes.
-</span><span class="kw">use </span>std::collections::{BTreeSet, HashSet, VecDeque};
+</span><span class="kw">use </span>std::collections::{HashSet, VecDeque};
 
 <span class="kw">use </span>acvm::acir::AcirField;
 <span class="kw">use </span>im::HashMap;
@@ -1245,31 +1220,6 @@
     </span>inlining_entry: bool,
 
     globals: <span class="kw-2">&amp;</span><span class="lifetime">'function </span>GlobalsGraph,
-}
-
-<span class="doccomment">/// Utility function to find out the direct calls of a function.
-///
-/// Returns the function IDs from all `Call` instructions without deduplication.
-</span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>called_functions_vec(func: <span class="kw-2">&amp;</span>Function) -&gt; Vec&lt;FunctionId&gt; {
-    <span class="kw">let </span><span class="kw-2">mut </span>called_function_ids = Vec::new();
-    <span class="kw">for </span>block_id <span class="kw">in </span>func.reachable_blocks() {
-        <span class="kw">for </span>instruction_id <span class="kw">in </span>func.dfg[block_id].instructions() {
-            <span class="kw">let </span>Instruction::Call { func: called_value_id, .. } = <span class="kw-2">&amp;</span>func.dfg[<span class="kw-2">*</span>instruction_id] <span class="kw">else </span>{
-                <span class="kw">continue</span>;
-            };
-
-            <span class="kw">if let </span>Value::Function(function_id) = func.dfg[<span class="kw-2">*</span>called_value_id] {
-                called_function_ids.push(function_id);
-            }
-        }
-    }
-
-    called_function_ids
-}
-
-<span class="doccomment">/// Utility function to find out the deduplicated direct calls made from a function.
-</span><span class="kw">fn </span>called_functions(func: <span class="kw-2">&amp;</span>Function) -&gt; BTreeSet&lt;FunctionId&gt; {
-    called_functions_vec(func).into_iter().collect()
 }
 
 <span class="kw">impl </span>InlineContext {
