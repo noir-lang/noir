@@ -1,7 +1,7 @@
 use acvm::{AcirField, FieldElement};
 
 use crate::{
-    ast::{UnresolvedType, UnresolvedTypeData, UnresolvedTypeExpression},
+    ast::{GenericTypeArgs, UnresolvedType, UnresolvedTypeData, UnresolvedTypeExpression},
     parser::labels::ParsingRuleLabel,
     token::{Keyword, Token, TokenKind},
 };
@@ -10,7 +10,19 @@ use super::{Parser, parse_many::separated_by_comma_until_right_paren};
 
 impl Parser<'_> {
     pub(crate) fn parse_type_or_error(&mut self) -> UnresolvedType {
-        if let Some(typ) = self.parse_type() {
+        self.parse_type_or_error_impl(
+            true, // allow generics
+        )
+    }
+
+    pub(crate) fn parse_type_or_error_without_generics(&mut self) -> UnresolvedType {
+        self.parse_type_or_error_impl(
+            false, // allow generics
+        )
+    }
+
+    pub(crate) fn parse_type_or_error_impl(&mut self, allow_generics: bool) -> UnresolvedType {
+        if let Some(typ) = self.parse_type_allowing_generics(allow_generics) {
             typ
         } else {
             self.expected_label(ParsingRuleLabel::Type);
@@ -39,13 +51,22 @@ impl Parser<'_> {
     }
 
     pub(crate) fn parse_type(&mut self) -> Option<UnresolvedType> {
+        self.parse_type_allowing_generics(
+            true, // allow generics
+        )
+    }
+
+    pub(crate) fn parse_type_allowing_generics(
+        &mut self,
+        allow_generics: bool,
+    ) -> Option<UnresolvedType> {
         let start_location = self.current_token_location;
-        let typ = self.parse_unresolved_type_data()?;
+        let typ = self.parse_unresolved_type_data(allow_generics)?;
         let location = self.location_since(start_location);
         Some(UnresolvedType { typ, location })
     }
 
-    fn parse_unresolved_type_data(&mut self) -> Option<UnresolvedTypeData> {
+    fn parse_unresolved_type_data(&mut self, allow_generics: bool) -> Option<UnresolvedTypeData> {
         if let Some(typ) = self.parse_primitive_type() {
             return Some(typ);
         }
@@ -75,7 +96,11 @@ impl Parser<'_> {
         }
 
         if let Some(path) = self.parse_path_no_turbofish() {
-            let generics = self.parse_generic_type_args();
+            let generics = if allow_generics {
+                self.parse_generic_type_args()
+            } else {
+                GenericTypeArgs::default()
+            };
             return Some(UnresolvedTypeData::Named(path, generics, false));
         }
 
