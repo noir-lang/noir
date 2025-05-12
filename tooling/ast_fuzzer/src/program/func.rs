@@ -42,7 +42,7 @@ pub(super) struct FunctionDeclaration {
 
 impl FunctionDeclaration {
     /// Generate a HIR function signature.
-    pub fn signature(&self) -> hir_def::function::FunctionSignature {
+    pub(super) fn signature(&self) -> hir_def::function::FunctionSignature {
         let param_types = self
             .params
             .iter()
@@ -140,7 +140,7 @@ pub(super) struct FunctionContext<'a> {
 }
 
 impl<'a> FunctionContext<'a> {
-    pub fn new(ctx: &'a mut Context, id: FuncId) -> Self {
+    pub(super) fn new(ctx: &'a mut Context, id: FuncId) -> Self {
         let decl = ctx.function_decl(id);
         let next_local_id = decl.params.iter().map(|p| p.0.0 + 1).max().unwrap_or_default();
         let budget = ctx.config.max_function_size;
@@ -206,7 +206,7 @@ impl<'a> FunctionContext<'a> {
     }
 
     /// Generate the function body.
-    pub fn gen_body(mut self, u: &mut Unstructured) -> arbitrary::Result<Expression> {
+    pub(super) fn gen_body(mut self, u: &mut Unstructured) -> arbitrary::Result<Expression> {
         // If we don't limit the budget according to the available data,
         // it gives us a lot of `false` and 0 and we end up with deep `!(!false)` if expressions.
         self.budget = self.budget.min(u.len());
@@ -220,7 +220,7 @@ impl<'a> FunctionContext<'a> {
 
     /// Generate the function body, wrapping a function call with literal arguments.
     /// This is used to test comptime functions, which can only take those.
-    pub fn gen_body_with_lit_call(
+    pub(super) fn gen_body_with_lit_call(
         mut self,
         u: &mut Unstructured,
         callee_id: FuncId,
@@ -247,6 +247,11 @@ impl<'a> FunctionContext<'a> {
     /// complexity of expressions such as binary ones, array indexes, etc.
     fn max_depth(&self) -> usize {
         self.ctx.config.max_depth
+    }
+
+    /// Is the program supposed to be comptime friendly?
+    fn is_comptime_friendly(&self) -> bool {
+        self.ctx.config.comptime_friendly
     }
 
     /// Get and increment the next local ID.
@@ -541,8 +546,13 @@ impl<'a> FunctionContext<'a> {
         max_depth: usize,
     ) -> arbitrary::Result<Option<Expression>> {
         // Collect the operations can return the expected type.
-        let ops =
-            BinaryOp::iter().filter(|op| types::can_binary_op_return(op, typ)).collect::<Vec<_>>();
+        let ops = BinaryOp::iter()
+            .filter(|op| {
+                types::can_binary_op_return(op, typ)
+                    && (!self.ctx.config.avoid_overflow || !types::can_binary_op_overflow(op))
+                    && (!self.ctx.config.avoid_err_by_zero || !types::can_binary_op_err_by_zero(op))
+            })
+            .collect::<Vec<_>>();
 
         // Ideally we checked that the target type can be returned, but just in case.
         if ops.is_empty() {
@@ -555,6 +565,7 @@ impl<'a> FunctionContext<'a> {
         // Find a type we can produce in the current scope which we can pass as input
         // to the operations we selected, and it returns the desired output.
         fn collect_input_types<'a, K: Ord>(
+            this: &FunctionContext,
             op: BinaryOp,
             type_out: &Type,
             scope: &'a Scope<K>,
@@ -562,15 +573,16 @@ impl<'a> FunctionContext<'a> {
             scope
                 .types_produced()
                 .filter(|type_in| types::can_binary_op_return_from_input(&op, type_in, type_out))
+                .filter(|type_in| !this.ctx.should_avoid_literals(type_in))
                 .collect::<Vec<_>>()
         }
 
         // Try local variables first.
-        let mut lhs_opts = collect_input_types(op, typ, self.locals.current());
+        let mut lhs_opts = collect_input_types(self, op, typ, self.locals.current());
 
         // If the locals don't have any type compatible with `op`, try the globals.
         if lhs_opts.is_empty() {
-            lhs_opts = collect_input_types(op, typ, &self.globals);
+            lhs_opts = collect_input_types(self, op, typ, &self.globals);
         }
 
         // We might not have any input that works for this operation.
@@ -589,6 +601,7 @@ impl<'a> FunctionContext<'a> {
         // Generate expressions for LHS and RHS.
         let lhs_expr = self.gen_expr(u, &lhs_type, max_depth.saturating_sub(1), Flags::NESTED)?;
         let rhs_expr = self.gen_expr(u, rhs_type, max_depth.saturating_sub(1), Flags::NESTED)?;
+
         let mut expr = expr::binary(lhs_expr, op, rhs_expr);
 
         // If we have chosen e.g. u8 and need u32 we need to cast.
@@ -628,7 +641,7 @@ impl<'a> FunctionContext<'a> {
         if types::is_unit(typ) && u.ratio(4, 5)? {
             // ending a unit block with `<stmt>;` looks better than a `()` but both are valid.
             // NB the AST printer puts a `;` between all statements, including after `if` and `for`.
-            stmts.push(Expression::Semi(Box::new(self.gen_stmt(u)?)))
+            stmts.push(Expression::Semi(Box::new(self.gen_stmt(u)?)));
         } else {
             stmts.push(self.gen_expr(u, typ, max_depth, Flags::TOP)?);
         }
@@ -681,11 +694,11 @@ impl<'a> FunctionContext<'a> {
                 return self.gen_while(u);
             }
 
-            if freq.enabled_when("break", self.in_loop) {
+            if freq.enabled_when("break", self.in_loop && !self.ctx.config.avoid_loop_control) {
                 return Ok(Expression::Break);
             }
 
-            if freq.enabled_when("continue", self.in_loop) {
+            if freq.enabled_when("continue", self.in_loop && !self.ctx.config.avoid_loop_control) {
                 return Ok(Expression::Continue);
             }
         }
@@ -703,7 +716,8 @@ impl<'a> FunctionContext<'a> {
     fn gen_let(&mut self, u: &mut Unstructured) -> arbitrary::Result<Expression> {
         // Generate a type or choose an existing one.
         let max_depth = self.max_depth();
-        let typ = self.ctx.gen_type(u, max_depth, false)?;
+        let comptime_friendly = self.is_comptime_friendly();
+        let typ = self.ctx.gen_type(u, max_depth, false, true, comptime_friendly)?;
         let expr = self.gen_expr(u, &typ, max_depth, Flags::TOP)?;
         let mutable = bool::arbitrary(u)?;
         Ok(self.let_var(mutable, typ, expr, true))
@@ -731,6 +745,11 @@ impl<'a> FunctionContext<'a> {
     }
 
     /// Drop a local variable, if we have anything to drop.
+    ///
+    /// The `ownership` module has a comment saying it will be the only one inserting `Clone` and `Drop`,
+    /// so this shouldn't be needed unless a user can do it via a `drop`-like method.
+    ///
+    /// Leaving it here for reference, but its frequency is adjusted to be 0.
     fn gen_drop(&mut self, u: &mut Unstructured) -> arbitrary::Result<Option<Expression>> {
         if self.locals.current().is_empty() {
             return Ok(None);
@@ -835,17 +854,27 @@ impl<'a> FunctionContext<'a> {
 
     /// Generate a `for` loop.
     fn gen_for(&mut self, u: &mut Unstructured) -> arbitrary::Result<Expression> {
-        // The index can be signed or unsigned int, 8 to 128 bits, except i128.
-        let bit_size =
-            u.choose(&[8, 16, 32, 64, 128]).map(|s| IntegerBitSize::try_from(*s).unwrap())?;
-        let idx_type = Type::Integer(
-            if bit_size == IntegerBitSize::HundredTwentyEight || bool::arbitrary(u)? {
-                Signedness::Unsigned
+        // The index can be signed or unsigned int, 8 to 128 bits, except i128,
+        // but currently the frontend expects it to be u32 unless it's declared as a separate variable.
+        let idx_type = {
+            let bit_size = if self.ctx.config.avoid_large_int_literals {
+                IntegerBitSize::ThirtyTwo
             } else {
-                Signedness::Signed
-            },
-            bit_size,
-        );
+                u.choose(&[8, 16, 32, 64, 128]).map(|s| IntegerBitSize::try_from(*s).unwrap())?
+            };
+
+            Type::Integer(
+                if bit_size == IntegerBitSize::HundredTwentyEight
+                    || self.ctx.config.avoid_negative_int_literals
+                    || bool::arbitrary(u)?
+                {
+                    Signedness::Unsigned
+                } else {
+                    Signedness::Signed
+                },
+                bit_size,
+            )
+        };
 
         let (start_range, end_range) = if self.unconstrained() && bool::arbitrary(u)? {
             // Choosing a maximum range size because changing it immediately brought out some bug around modulo.

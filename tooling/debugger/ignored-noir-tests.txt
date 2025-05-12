@@ -10,3 +10,5 @@ test_pow
 test_pow_and_show
 test_add
 test_add_and_show
+test_sort
+test_sort_comptime

@@ -23,6 +23,7 @@ noirc_printable_type.workspace = true
 iter-extended.workspace = true
 jsonrpsee.workspace = true
 rayon.workspace = true
+tempfile.workspace = true
 thiserror.workspace = true
 tracing.workspace = true
 serde.workspace = true

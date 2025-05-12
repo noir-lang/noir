@@ -1344,9 +1344,11 @@ fn break_and_continue_in_constrained_fn() {
 #[test]
 fn break_and_continue_outside_loop() {
     let src = r#"
-        unconstrained fn main() {
+        pub unconstrained fn foo() {
             continue;
             ^^^^^^^^^ continue is only allowed within loops
+        }
+        pub unconstrained fn bar() {
             break;
             ^^^^^^ break is only allowed within loops
         }
@@ -4642,4 +4644,74 @@ fn resolves_generic_type_argument_via_self() {
     }
     ";
     check_monomorphization_error!(src);
+}
+
+#[named]
+#[test]
+fn attempt_to_add_with_overflow_at_comptime() {
+    let src = r#"
+        fn main() -> pub u8 {
+            comptime {
+                255 as u8 + 1 as u8
+                ^^^^^^^^^^^^^^^^^^^ Attempt to add with overflow
+            }
+        }
+
+        "#;
+    check_errors!(src);
+}
+
+#[named]
+#[test]
+fn attempt_to_divide_by_zero_at_comptime() {
+    let src = r#"
+        fn main() -> pub u8 {
+            comptime {
+                255 as u8 / 0
+                ^^^^^^^^^^^^^ Attempt to divide by zero
+            }
+        }
+
+        "#;
+    check_errors!(src);
+}
+
+#[named]
+#[test]
+fn same_name_in_types_and_values_namespace_works() {
+    let src = "
+    struct foo {}
+
+    fn foo(x: foo) -> foo {
+        x
+    }
+
+    fn main() {
+        let x: foo = foo {};
+        let _ = foo(x);
+    }
+    ";
+    assert_no_errors!(src);
+}
+
+#[named]
+#[test]
+fn only_one_private_error_when_name_in_types_and_values_namespace_collides() {
+    let src = "
+    mod moo {
+        struct foo {}
+
+        fn foo() {}
+    }
+
+    fn main() {
+        let _ = moo::foo {};
+                     ^^^ foo is private and not visible from the current module
+                     ~~~ foo is private
+        x
+        ^ cannot find `x` in this scope
+        ~ not found in this scope
+    }
+    ";
+    check_errors!(src);
 }
