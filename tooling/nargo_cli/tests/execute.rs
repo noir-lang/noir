@@ -1,8 +1,13 @@
 #[allow(unused_imports)]
 #[cfg(test)]
 mod tests {
+    use acvm::FieldElement;
+    use acvm::acir::circuit::Program;
     // Some of these imports are consumed by the injected tests
     use assert_cmd::prelude::*;
+    use base64::Engine;
+    use insta::assert_snapshot;
+    use insta::internals::Content;
     use insta::internals::Redaction;
     use noirc_artifacts::contract::ContractArtifact;
     use noirc_artifacts::program::ProgramArtifact;
@@ -133,8 +138,8 @@ mod tests {
         force_brillig: ForceBrillig,
         inliner: Inliner,
     ) {
-        let target_dir = test_program_dir
-            .join(format!("target_force_brillig_{}_inliner_{}", force_brillig.0, inliner.0));
+        let target_dir = tempfile::tempdir().unwrap().into_path();
+
         nargo.arg(format!("--target-dir={}", target_dir.to_string_lossy()));
 
         nargo.assert().success();
@@ -362,6 +367,16 @@ mod tests {
         let expanded_code = nargo.output().unwrap();
         let expanded_code: String = String::from_utf8(expanded_code.stdout).unwrap();
 
+        let test_name = test_program_dir.file_name().unwrap().to_string_lossy().to_string();
+        let snapshot_name = "expanded";
+        insta::with_settings!(
+        {
+            snapshot_path => format!("./snapshots/expand/execution_success/{test_name}")
+        },
+        {
+            insta::assert_snapshot!(snapshot_name, expanded_code)
+        });
+
         // Create a new directory where we'll put the expanded code
         let temp_dir = tempfile::tempdir().unwrap().into_path();
 
@@ -397,7 +412,7 @@ mod tests {
         assert_eq!(original_output, expanded_output);
     }
 
-    fn nargo_expand_compile(test_program_dir: PathBuf) {
+    fn nargo_expand_compile(test_program_dir: PathBuf, prefix: &'static str) {
         let mut nargo = Command::cargo_bin("nargo").unwrap();
         nargo.arg("--program-dir").arg(test_program_dir.clone());
         nargo.arg("expand").arg("--force").arg("--disable-comptime-printing");
@@ -412,6 +427,16 @@ mod tests {
 
         let expanded_code = nargo.output().unwrap();
         let expanded_code: String = String::from_utf8(expanded_code.stdout).unwrap();
+
+        let test_name = test_program_dir.file_name().unwrap().to_string_lossy().to_string();
+        let snapshot_name = "expanded";
+        insta::with_settings!(
+        {
+            snapshot_path => format!("./snapshots/expand/{prefix}/{test_name}")
+        },
+        {
+            insta::assert_snapshot!(snapshot_name, expanded_code)
+        });
 
         // Create a new directory where we'll put the expanded code
         let temp_dir = tempfile::tempdir().unwrap().into_path();
@@ -477,6 +502,15 @@ mod tests {
             insta::assert_json_snapshot!(snapshot_name, artifact, {
                 ".noir_version" => "[noir_version]",
                 ".hash" => "[hash]",
+                ".bytecode" => insta::dynamic_redaction(|value, _path| {
+                    // assert that the value looks like a uuid here
+                    let bytecode_b64 = value.as_str().unwrap();
+                    let bytecode = base64::engine::general_purpose::STANDARD
+                        .decode(bytecode_b64)
+                        .unwrap();
+                    let program = Program::<FieldElement>::deserialize_program(&bytecode).unwrap();
+                    Content::Seq(program.to_string().split("\n").filter(|line: &&str| !line.is_empty()).map(Content::from).collect::<Vec<Content>>())
+                }),
                 ".file_map.**.path" => file_map_path_redaction(),
             })
         })

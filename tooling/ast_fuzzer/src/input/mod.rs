@@ -77,7 +77,7 @@ fn arb_value_from_abi_type(
             IntStrategy::new(width as usize)
                 .prop_map(move |mut int| {
                     if int < 0 {
-                        int += shift
+                        int += shift;
                     }
                     InputValue::Field(int.into())
                 })

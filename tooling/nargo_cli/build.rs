@@ -144,12 +144,12 @@ const TESTS_WITHOUT_STDOUT_CHECK: [&str; 0] = [];
 /// As the bugs are fixed these tests should be removed from this list.
 /// (some are ignored on purpose for the same reason as `IGNORED_NARGO_EXPAND_EXECUTION_TESTS`)
 const IGNORED_NARGO_EXPAND_COMPILE_SUCCESS_EMPTY_TESTS: [&str; 15] = [
+    // bug
+    "enums",
     // There's no "src/main.nr" here so it's trickier to make this work
     "overlapping_dep_and_mod",
     // bug
     "reexports",
-    // bug
-    "regression_4436",
     // bug
     "regression_7038",
     // bug
@@ -757,7 +757,7 @@ mod nargo_expand_{test_type} {{
     #[test]
     fn test_{test_name}() {{
         let test_program_dir = PathBuf::from("{test_dir}");
-        nargo_expand_compile(test_program_dir);
+        nargo_expand_compile(test_program_dir, "{test_type}");
     }}
     "#
         )

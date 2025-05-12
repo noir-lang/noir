@@ -1,0 +1,25 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: expanded_code
+---
+comptime mut global COUNTER: Field = 2;
+
+comptime fn get_unique_id() -> Field {
+    let id: Field = COUNTER;
+    COUNTER = COUNTER + 1;
+    id
+}
+
+fn id1() -> Field {
+    0
+}
+
+fn id2() -> Field {
+    1
+}
+
+fn main() {
+    let id1: Field = id1();
+    let id2: Field = id2();
+    assert(id1 != id2);
+}
