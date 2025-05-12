@@ -47,7 +47,13 @@ impl TestStatus {
     }
 }
 
+pub struct FuzzConfig {
+    pub folder_config: FuzzFolderConfig,
+    pub execution_config: FuzzExecutionConfig,
+}
+
 /// Runs a test function. This will either run the test or fuzz it, depending on whether the function has arguments.
+#[allow(clippy::too_many_arguments)]
 pub fn run_or_fuzz_test<'a, W, B, F, E>(
     blackbox_solver: &B,
     context: &mut Context,
@@ -55,6 +61,7 @@ pub fn run_or_fuzz_test<'a, W, B, F, E>(
     output: W,
     package_name: String,
     config: &CompileOptions,
+    fuzz_config: FuzzConfig,
     build_foreign_call_executor: F,
 ) -> TestStatus
 where
@@ -69,6 +76,7 @@ where
             test_function,
             package_name,
             config,
+            fuzz_config,
             build_foreign_call_executor,
         )
     } else {
@@ -186,6 +194,7 @@ pub fn fuzz_test<'a, B, F, E>(
     test_function: &TestFunction,
     package_name: String,
     config: &CompileOptions,
+    fuzz_config: FuzzConfig,
     build_foreign_call_executor: F,
 ) -> TestStatus
 where
@@ -199,6 +208,7 @@ where
             test_function,
             package_name,
             config,
+            fuzz_config,
             build_foreign_call_executor,
         ),
         Err(err) => test_status_program_compile_fail(err, test_function),
@@ -210,6 +220,7 @@ fn fuzz_test_impl<'a, B, F, E>(
     test_function: &TestFunction,
     package_name: String,
     config: &CompileOptions,
+    fuzz_config: FuzzConfig,
     build_foreign_call_executor: F,
 ) -> TestStatus
 where
@@ -227,18 +238,28 @@ where
     let location = test_function.location;
     let fuzzing_harness = FuzzingHarness { id, scope, location };
 
-    let corpus_dir = tempfile::tempdir().expect("Couldn't create temporary directory");
-    let fuzzing_failure_dir = tempfile::tempdir().expect("Couldn't create temporary directory");
+    let mut temporary_dirs_to_delete = Vec::new();
 
-    // TODO: allow configuring this. See https://github.com/noir-lang/noir/issues/8214
-    let fuzz_folder_config = FuzzFolderConfig {
-        corpus_dir: Some(corpus_dir.path().to_string_lossy().to_string()),
-        minimized_corpus_dir: None,
-        fuzzing_failure_dir: Some(fuzzing_failure_dir.path().to_string_lossy().to_string()),
+    let mut config_or_temporary_dir = |dir: Option<String>| match dir {
+        Some(ref dir) => PathBuf::from(dir),
+        None => {
+            let corpus_dir = tempfile::tempdir().expect("Couldn't create temporary directory");
+            let corpus_dir = corpus_dir.into_path();
+            temporary_dirs_to_delete.push(corpus_dir.clone());
+            corpus_dir
+        }
     };
-    // TODO: allow configuring this. See https://github.com/noir-lang/noir/issues/8214
-    let fuzz_execution_config =
-        FuzzExecutionConfig { timeout: 1, num_threads: 1, show_progress: false };
+
+    let corpus_dir = config_or_temporary_dir(fuzz_config.folder_config.corpus_dir);
+    let fuzzing_failure_dir =
+        config_or_temporary_dir(fuzz_config.folder_config.fuzzing_failure_dir);
+
+    let fuzz_folder_config = FuzzFolderConfig {
+        corpus_dir: Some(corpus_dir.to_string_lossy().to_string()),
+        fuzzing_failure_dir: Some(fuzzing_failure_dir.to_string_lossy().to_string()),
+        minimized_corpus_dir: fuzz_config.folder_config.minimized_corpus_dir,
+    };
+    let fuzz_execution_config = fuzz_config.execution_config;
 
     // TODO: show output?
     let show_output = false;
@@ -252,6 +273,11 @@ where
         &fuzz_execution_config,
         build_foreign_call_executor,
     );
+
+    for temporary_dir_to_delete in temporary_dirs_to_delete {
+        // Not a big deal if we can't delete a temporary directory
+        let _ = std::fs::remove_dir_all(temporary_dir_to_delete);
+    }
 
     match fuzz_result {
         FuzzingRunStatus::ExecutionPass | FuzzingRunStatus::MinimizationPass => TestStatus::Pass,

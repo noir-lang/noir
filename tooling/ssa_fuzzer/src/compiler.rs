@@ -2,7 +2,7 @@ use acvm::{
     FieldElement,
     acir::circuit::{AcirOpcodeLocation, Circuit, ExpressionWidth, OpcodeLocation},
 };
-use std::collections::{BTreeMap, BTreeSet, HashMap};
+use std::collections::{BTreeMap, BTreeSet};
 
 use crate::config::NUMBER_OF_VARIABLES_INITIAL;
 use acvm::acir::circuit::PublicInputs;
@@ -35,12 +35,7 @@ fn optimize_into_acir(
     let ssa = builder.finish();
     log::debug!("SSA: {}", ssa);
     // change to SsaLogging::All to see triage final ssa.
-    let builder = SsaBuilder {
-        ssa,
-        ssa_logging: SsaLogging::All,
-        print_codegen_timings: false,
-        passed: HashMap::new(),
-    };
+    let builder = SsaBuilder::from_ssa(ssa, SsaLogging::All, false);
     let previous_hook = std::panic::take_hook();
     let panic_message = std::sync::Arc::new(std::sync::Mutex::new(String::new()));
     let hook_message = panic_message.clone();
@@ -233,6 +228,7 @@ pub fn compile(
         max_bytecode_increase_percent: options.max_bytecode_increase_percent,
         brillig_options: BrilligOptions::default(),
         enable_brillig_constraints_check_lookback: false,
+        skip_passes: Default::default(),
     };
     let SsaProgramArtifact { program, debug, warnings, names, brillig_names, .. } =
         create_program(builder, ssa_evaluator_options)?;

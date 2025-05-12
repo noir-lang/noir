@@ -70,10 +70,13 @@ use noirc_errors::{Located, Location};
 pub(crate) use options::ElaboratorOptions;
 pub use options::{FrontendOptions, UnstableFeature};
 pub use path_resolution::Turbofish;
-use path_resolution::{PathResolution, PathResolutionItem, PathResolutionMode};
+use path_resolution::{
+    PathResolution, PathResolutionItem, PathResolutionMode, PathResolutionTarget,
+};
 use types::bind_ordered_generics;
 
 use self::traits::check_trait_impl_method_matches_declaration;
+pub(crate) use path_resolution::{TypedPath, TypedPathSegment};
 
 /// ResolverMetas are tagged onto each definition to track how many times they are used
 #[derive(Debug, PartialEq, Eq)]
@@ -787,17 +790,19 @@ impl<'context> Elaborator<'context> {
         }
     }
 
-    pub fn resolve_module_by_path(&mut self, path: Path) -> Option<ModuleId> {
-        match self.resolve_path(path.clone()) {
-            Ok(PathResolution { item: PathResolutionItem::Module(module_id), errors }) => {
-                if errors.is_empty() { Some(module_id) } else { None }
+    pub(crate) fn resolve_module_by_path(&mut self, path: TypedPath) -> Option<ModuleId> {
+        match self.resolve_path_as_type(path) {
+            Ok(PathResolution { item: PathResolutionItem::Module(module_id), errors })
+                if errors.is_empty() =>
+            {
+                Some(module_id)
             }
             _ => None,
         }
     }
 
-    fn resolve_trait_by_path(&mut self, path: Path) -> Option<TraitId> {
-        let error = match self.resolve_path(path.clone()) {
+    fn resolve_trait_by_path(&mut self, path: TypedPath) -> Option<TraitId> {
+        let error = match self.resolve_path_as_type(path.clone()) {
             Ok(PathResolution { item: PathResolutionItem::Trait(trait_id), errors }) => {
                 for error in errors {
                     self.push_err(error);
@@ -862,12 +867,11 @@ impl<'context> Elaborator<'context> {
         bound: &mut TraitBound,
     ) -> Vec<ResolvedGeneric> {
         let mut added_generics = Vec::new();
+        let trait_path = self.validate_path(bound.trait_path.clone());
 
-        let Ok(item) = self.resolve_path_or_error(bound.trait_path.clone()) else {
-            return Vec::new();
-        };
-
-        let PathResolutionItem::Trait(trait_id) = item else {
+        let Ok(PathResolutionItem::Trait(trait_id)) =
+            self.resolve_path_or_error(trait_path, PathResolutionTarget::Type)
+        else {
             return Vec::new();
         };
 
@@ -944,7 +948,8 @@ impl<'context> Elaborator<'context> {
         bound: &TraitBound,
         mode: PathResolutionMode,
     ) -> Option<ResolvedTraitBound> {
-        let the_trait = self.lookup_trait_or_error(bound.trait_path.clone())?;
+        let trait_path = self.validate_path(bound.trait_path.clone());
+        let the_trait = self.lookup_trait_or_error(trait_path)?;
         let trait_id = the_trait.id;
         let location = bound.trait_path.location;
 
@@ -1573,10 +1578,12 @@ impl<'context> Elaborator<'context> {
 
             let resolved_trait_impl = Shared::new(TraitImpl {
                 ident,
+                location,
                 typ: self_type.clone(),
                 trait_id,
                 trait_generics,
                 file: trait_impl.file_id,
+                crate_id: self.crate_id,
                 where_clause,
                 methods,
             });
@@ -2105,8 +2112,10 @@ impl<'context> Elaborator<'context> {
 
             let (trait_id, mut trait_generics, path_location) = match &trait_impl.r#trait.typ {
                 UnresolvedTypeData::Named(trait_path, trait_generics, _) => {
-                    let trait_id = self.resolve_trait_by_path(trait_path.clone());
-                    (trait_id, trait_generics.clone(), trait_path.location)
+                    let location = trait_path.location;
+                    let trait_path = self.validate_path(trait_path.clone());
+                    let trait_id = self.resolve_trait_by_path(trait_path);
+                    (trait_id, trait_generics.clone(), location)
                 }
                 UnresolvedTypeData::Resolved(quoted_type_id) => {
                     let typ = self.interner.get_quoted_type(*quoted_type_id);

@@ -1017,9 +1017,8 @@ mod tests {
         builder.insert_constrain(v9, two, None);
         let v11 = builder.insert_load(v2, v2_type);
         let v12 = builder.insert_load(v11, Type::field());
-        let _ = builder.insert_binary(v12, BinaryOp::Eq, two);
 
-        builder.insert_constrain(v11, two, None);
+        builder.insert_constrain(v12, two, None);
         builder.terminate_with_return(vec![]);
 
         let ssa = builder.finish();

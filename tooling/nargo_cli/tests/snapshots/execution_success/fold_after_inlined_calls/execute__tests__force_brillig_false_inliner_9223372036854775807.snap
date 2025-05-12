@@ -18,10 +18,32 @@ expression: artifact
       }
     ],
     "return_type": null,
-    "error_types": {}
+    "error_types": {
+      "5019202896831570965": {
+        "error_kind": "string",
+        "string": "attempt to add with overflow"
+      }
+    }
   },
-  "bytecode": "H4sIAAAAAAAA/62PXQqAQAiE+71HR9BVW33rKi1t9z9CLQgFUQ/VB8OgD+PYVAeNe72rdS8Mu3qf6+rKZTe5wzewBHd3R254Kjj91OucRTAy5xgyEs4QLKkASxoVFUVlCUqUlTVasgiGTBlXMVo97M2PhQ26Wz5GuQEAAA==",
-  "debug_symbols": "zZDPCoMwDMbfJeceqsPBfJUhUmuUQmlLbQdD+u5LxW7uMNhhh53y58svJN8KIw5x7pWZ7ALtdYXBK63V3GsrRVDWUHdNDErZB49ILTjoRDnh0QRoTdSawU3ouA0tTpgtBuFJ5QzQjBRp4aQ05iyxF80/o1Vz2uGquTzxhviOKiGVf7sYKhpMeZ1XYtC4fzFFIw9PhbsrSnnbeStxjB7zuk3LB/6pKTUvcM3PX5jCf2dKlx4=",
+  "bytecode": [
+    "func 0",
+    "current witness index : _1",
+    "private parameters indices : [_0]",
+    "public parameters indices : []",
+    "return value indices : []",
+    "BLACKBOX::RANGE [(_0, 32)] []",
+    "EXPR [ (1, _0) (-1, _1) 1 ]",
+    "BLACKBOX::RANGE [(_1, 32)] []",
+    "CALL func 1: PREDICATE = EXPR [ 1 ]",
+    "inputs: [Witness(0)], outputs: []",
+    "func 1",
+    "current witness index : _0",
+    "private parameters indices : [_0]",
+    "public parameters indices : []",
+    "return value indices : []",
+    "EXPR [ (1, _0) -1 ]"
+  ],
+  "debug_symbols": "zZHBDoMgDIbfpWcOgGPLfJVlMah1ISFoEJYsxndfNbLpwWWHHXahtD9fS/4OUGMZb4VxTdtDfhmg9MZacytsW+lgWkfVYWSQ0iJ4RCrBSieq0x5dgNxFaxnctY3zo77Tbo5Be1I5A3Q1RWrYGIvTbWRvmu+jQqoFFtnphastL/Z5eTguvFRij/80X2Vpvjpv+CtlujJ+4xgIGsRAzmcGeTZOrb3RpcXF0Sa6amVweHRJSSvofFthHT1OrWdt+uyfLkjyBEt+/MIgTk7+yJTr+AQ=",
   "file_map": {
     "50": {
       "source": "fn main(x: u32) {\n    // We want to call a foldable function after a call to a function that is set to be inlined\n    assert(increment(x) == x + 1);\n    foo(x);\n}\n\n#[fold]\nfn foo(x: u32) {\n    assert(x == 1);\n}\n\nfn increment(x: u32) -> u32 {\n    x + 1\n}\n",

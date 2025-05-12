@@ -1,0 +1,14 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: expanded_code
+---
+struct Foo {
+    a: u64,
+}
+
+fn main() {
+    let _: Field = 42;
+    let _: Field = 42;
+    let Foo { a: _ }: Foo = Foo { a: 42 };
+    let _regression_2786: [Foo; 8] = [Foo { a: 1 }; 8];
+}

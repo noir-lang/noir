@@ -27,8 +27,8 @@ noir_ast_fuzzer = { path = ".." }
 arbtest.workspace = true
 
 [[bin]]
-name = "init_vs_final"
-path = "fuzz_targets/init_vs_final.rs"
+name = "min_vs_full"
+path = "fuzz_targets/min_vs_full.rs"
 test = false
 doc = false
 bench = false
@@ -41,8 +41,15 @@ doc = false
 bench = false
 
 [[bin]]
-name = "orig_vs_mutant"
-path = "fuzz_targets/orig_vs_mutant.rs"
+name = "comptime_vs_brillig"
+path = "fuzz_targets/comptime_vs_brillig.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "orig_vs_morph"
+path = "fuzz_targets/orig_vs_morph.rs"
 test = false
 doc = false
 bench = false

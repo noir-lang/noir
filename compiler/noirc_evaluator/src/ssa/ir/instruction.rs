@@ -374,28 +374,7 @@ impl Instruction {
     /// If true the instruction will depend on `enable_side_effects` context during acir-gen.
     pub(crate) fn requires_acir_gen_predicate(&self, dfg: &DataFlowGraph) -> bool {
         match self {
-            Instruction::Binary(binary) => {
-                match binary.operator {
-                    BinaryOp::Add { unchecked: false }
-                    | BinaryOp::Sub { unchecked: false }
-                    | BinaryOp::Mul { unchecked: false } => {
-                        // Some binary math can overflow or underflow, but this is only the case
-                        // for unsigned types (here we assume the type of binary.lhs is the same)
-                        dfg.type_of_value(binary.rhs).is_unsigned()
-                    }
-                    BinaryOp::Div | BinaryOp::Mod => true,
-                    BinaryOp::Add { unchecked: true }
-                    | BinaryOp::Sub { unchecked: true }
-                    | BinaryOp::Mul { unchecked: true }
-                    | BinaryOp::Eq
-                    | BinaryOp::Lt
-                    | BinaryOp::And
-                    | BinaryOp::Or
-                    | BinaryOp::Xor
-                    | BinaryOp::Shl
-                    | BinaryOp::Shr => false,
-                }
-            }
+            Instruction::Binary(binary) => binary.requires_acir_gen_predicate(dfg),
 
             Instruction::ArrayGet { array, index } => {
                 // `ArrayGet`s which read from "known good" indices from an array should not need a predicate.
@@ -407,6 +386,8 @@ impl Instruction {
             Instruction::Call { func, .. } => match dfg[*func] {
                 Value::Function(id) => !matches!(dfg.purity_of(id), Some(Purity::Pure)),
                 Value::Intrinsic(intrinsic) => {
+                    // These utilize `noirc_evaluator::acir::Context::get_flattened_index` internally
+                    // which uses the side effects predicate.
                     matches!(intrinsic, Intrinsic::SliceInsert | Intrinsic::SliceRemove)
                 }
                 _ => false,
@@ -666,6 +647,31 @@ impl Instruction {
     }
 }
 
+impl Binary {
+    pub(crate) fn requires_acir_gen_predicate(&self, dfg: &DataFlowGraph) -> bool {
+        match self.operator {
+            BinaryOp::Add { unchecked: false }
+            | BinaryOp::Sub { unchecked: false }
+            | BinaryOp::Mul { unchecked: false } => {
+                // Some binary math can overflow or underflow, but this is only the case
+                // for unsigned types (here we assume the type of binary.lhs is the same)
+                dfg.type_of_value(self.rhs).is_unsigned()
+            }
+            BinaryOp::Div | BinaryOp::Mod => true,
+            BinaryOp::Add { unchecked: true }
+            | BinaryOp::Sub { unchecked: true }
+            | BinaryOp::Mul { unchecked: true }
+            | BinaryOp::Eq
+            | BinaryOp::Lt
+            | BinaryOp::And
+            | BinaryOp::Or
+            | BinaryOp::Xor
+            | BinaryOp::Shl
+            | BinaryOp::Shr => false,
+        }
+    }
+}
+
 #[derive(Debug, PartialEq, Eq, Hash, Clone)]
 pub enum ErrorType {
     String(String),
@@ -792,6 +798,26 @@ impl TerminatorInstruction {
             Return { return_values, .. } => {
                 for return_value in return_values {
                     f(*return_value);
+                }
+            }
+        }
+    }
+
+    /// Apply a function to each value along with its index
+    pub(crate) fn for_eachi_value<T>(&self, mut f: impl FnMut(usize, ValueId) -> T) {
+        use TerminatorInstruction::*;
+        match self {
+            JmpIf { condition, .. } => {
+                f(0, *condition);
+            }
+            Jmp { arguments, .. } => {
+                for (index, argument) in arguments.iter().enumerate() {
+                    f(index, *argument);
+                }
+            }
+            Return { return_values, .. } => {
+                for (index, return_value) in return_values.iter().enumerate() {
+                    f(index, *return_value);
                 }
             }
         }

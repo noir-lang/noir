@@ -66,13 +66,12 @@ use fxhash::{FxHashMap as HashMap, FxHashSet as HashSet};
 use crate::ssa::{
     Ssa,
     ir::{
+        call_graph::called_functions_vec,
         function::{Function, FunctionId},
         instruction::{Instruction, InstructionId},
         value::{Value, ValueId},
     },
 };
-
-use super::inlining::called_functions_vec;
 
 impl Ssa {
     pub(crate) fn brillig_entry_point_analysis(mut self) -> Ssa {

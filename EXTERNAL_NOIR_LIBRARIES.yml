@@ -1,4 +1,4 @@
-define: &AZ_COMMIT d0dccf50800b33605b7525cc31b171ff434ab1d8
+define: &AZ_COMMIT b67afe429d431c7516b95f9c6d1b6e358907ef33
 libraries:
   noir_check_shuffle:
     repo: noir-lang/noir_check_shuffle
@@ -76,13 +76,13 @@ libraries:
     repo: AztecProtocol/aztec-packages
     ref: *AZ_COMMIT
     path: noir-projects/aztec-nr
-    timeout: 60
+    timeout: 70
     critical: false
   noir_contracts:
     repo: AztecProtocol/aztec-packages
     ref: *AZ_COMMIT
     path: noir-projects/noir-contracts
-    timeout: 100
+    timeout: 120
     critical: false
   blob:
     repo: AztecProtocol/aztec-packages
@@ -135,12 +135,12 @@ libraries:
     critical: false
   noir_jwt:
     repo: zkemail/noir-jwt
-    ref: d461d01b24432c42c17a149e7075974b2a7bce3d
+    ref: 899ff2ca9ec196bc80be6dbe87fcb8ed721695b7
     timeout: 20
     critical: false
   zkemail:
     repo: zkemail/zkemail.nr
-    ref: 07053e865447b3167b670f9167f256e971fdb5c8
+    ref: 0a2cc39293fea71cdd0beaff8928abf54e555a36
     path: lib
     timeout: 20
     critical: false
