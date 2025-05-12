@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1747048784844,
+  "lastUpdate": 1747048787433,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -20698,6 +20698,80 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/noir-lang/noir/commit/6accfc609ebe83ab6eb870e96ece9d650023d712"
         },
         "date": 1747039679084,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 1125.7,
+            "unit": "KB"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 2049.6,
+            "unit": "KB"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 581.7,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 5122.2,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 3940.9,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-block-root-empty",
+            "value": 256.9,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-block-root-single-tx",
+            "value": 25679.6,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 25706.5,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 181.7,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-root",
+            "value": 472,
+            "unit": "KB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "15848336+TomAFrench@users.noreply.github.com",
+            "name": "Tom French",
+            "username": "TomAFrench"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "f8c6943b023a9993b1733ce59a056f1e4a53f390",
+          "message": "chore: use human-readable bytecode in snapshots (#8164)\n\nCo-authored-by: AztecBot <tech@aztecprotocol.com>",
+          "timestamp": "2025-05-12T10:50:23Z",
+          "tree_id": "c18b0a232a8d52fb0d64b702fc821a60e9520886",
+          "url": "https://github.com/noir-lang/noir/commit/f8c6943b023a9993b1733ce59a056f1e4a53f390"
+        },
+        "date": 1747048775882,
         "tool": "customSmallerIsBetter",
         "benches": [
           {
