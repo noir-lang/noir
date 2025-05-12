@@ -214,7 +214,18 @@ fn generate_abi() -> Abi {
 pub fn compile(
     builder: FunctionBuilder,
     options: &CompileOptions,
+
+    // TODO
+    skip_unreachable: bool,
 ) -> Result<CompiledProgram, CompileError> {
+
+    // TODO
+    let skip_passes = if skip_unreachable {
+        vec!["Removing Unreachable Functions".to_string()]
+    } else {
+        vec![]
+    };
+
     let ssa_evaluator_options = SsaEvaluatorOptions {
         ssa_logging: match &options.show_ssa_pass {
             Some(string) => SsaLogging::Contains(string.clone()),
@@ -235,7 +246,9 @@ pub fn compile(
         max_bytecode_increase_percent: options.max_bytecode_increase_percent,
         brillig_options: BrilligOptions::default(),
         enable_brillig_constraints_check_lookback: false,
-        skip_passes: Default::default(),
+
+        // TODO
+        skip_passes,
     };
     let SsaProgramArtifact { program, debug, warnings, names, brillig_names, .. } =
         create_program(builder, ssa_evaluator_options)?;
