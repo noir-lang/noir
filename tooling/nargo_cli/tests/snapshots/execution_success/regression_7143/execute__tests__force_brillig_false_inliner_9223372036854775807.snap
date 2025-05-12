@@ -41,7 +41,17 @@ expression: artifact
       }
     }
   },
-  "bytecode": "H4sIAAAAAAAA/61RSQrDMAy0nZxLnyJZUizd+o7eaupc+s32Xw3UAdfkFg8M2mAYNN79EDbOtfcbp1p3ttjnW61wDjhQC1qfYbBPP1ArNFoEC3NJsSDhA6JlFWDJi6KiqDyjEhVlTZYtgSFTwVWM1io2dTn1/dz9w7n/TH1zP95fL/f36+M6fAG3NfcwPAIAAA==",
+  "bytecode": [
+    "func 0",
+    "current witness index : _2",
+    "private parameters indices : [_0, _1]",
+    "public parameters indices : []",
+    "return value indices : [_2]",
+    "BLACKBOX::RANGE [(_1, 1)] []",
+    "EXPR [ (1, _0) 0 ]",
+    "EXPR [ (1, _1) (1, _2) -1 ]",
+    "INIT CALLDATA 0 (id: 1, len: 1, witnesses: [_1])"
+  ],
   "debug_symbols": "jZDdCoMwDIXfJde9mPtR8FXGkFqjFEJbYjsY4rsvit30YrCrNDn9TsiZoMM2DY11vR+hvk/QsiWyQ0Pe6Gi9k+k0K8htExlRRrDThQqa0UWoXSJS8NSU1k9j0G6tUbOoJwXoOqli2FvC5TWrL336jVbnja0uH/j2N12Wmb4e6Id02lg+XAsF1MW8mLHVLeGWQJ+c2QUSXyErObLA3mCXGBe7VZMFbw==",
   "file_map": {
     "50": {

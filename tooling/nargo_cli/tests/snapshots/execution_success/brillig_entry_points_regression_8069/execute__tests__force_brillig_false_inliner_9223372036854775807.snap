@@ -15,7 +15,14 @@ expression: artifact
     },
     "error_types": {}
   },
-  "bytecode": "H4sIAAAAAAAA/63OsQkAQAgDwAR+IH+D33+qR1As1EqvCaQIIQKRefcsZeYubol+O6gRvQ9x7LRQ9AAAAA==",
+  "bytecode": [
+    "func 0",
+    "current witness index : _0",
+    "private parameters indices : []",
+    "public parameters indices : []",
+    "return value indices : [_0]",
+    "EXPR [ (1, _0) 0 ]"
+  ],
   "debug_symbols": "pdPvasMgEADwd/FzPvjftK8yRjCJKYKYYLUwQt99NnhdNxiM2ydzXn53KrqT2Y3lMvi4rFdyftvJmHwI/jKEdbLZr7HO7veOQDjk5FydIi/5qjabXMzkHEsIHbnZUI6frpuNx5htqlnaERfnOtaCiw/u8XXvvjT9nQp1algY8eTqz15y1bwUPcYbBr5nGK9F84r+10uMl3B+immE18w0rwVm/fokmzfUILzhPXiF6W/Y02vM/dFKw/4V5v4wCf2Z4hhPOXj+vf97jezk088Xe7PJ2zG4Fi4lTi/Z/LFBBl78ltbJzSW5R6UjV2t/Ag==",
   "file_map": {},
   "names": [

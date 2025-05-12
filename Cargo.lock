@@ -3232,6 +3232,7 @@ dependencies = [
  "assert_cmd",
  "assert_fs",
  "async-lsp",
+ "base64 0.21.7",
  "bn254_blackbox_solver",
  "build-data",
  "clap",
