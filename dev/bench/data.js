@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1747059705588,
+  "lastUpdate": 1747060344360,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -18016,48 +18016,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "jfecher11@gmail.com",
-            "name": "jfecher",
-            "username": "jfecher"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "a2dd9cf061dd7af0c2cf6f04f614d04a45f07e14",
-          "message": "fix: Fix evaluation order of assignments with side-effects in their rhs (#8342)",
-          "timestamp": "2025-05-05T19:39:35Z",
-          "tree_id": "0057f2a8514e41ec0bc56ede334d4062354454e7",
-          "url": "https://github.com/noir-lang/noir/commit/a2dd9cf061dd7af0c2cf6f04f614d04a45f07e14"
-        },
-        "date": 1746475296288,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 252159,
-            "range": "± 548",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 227460,
-            "range": "± 4367",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 3589564,
-            "range": "± 6181",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "asterite@gmail.com",
             "name": "Ary Borenszweig",
             "username": "asterite"
@@ -20109,6 +20067,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 3244325,
             "range": "± 5667",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "mvezenov@gmail.com",
+            "name": "Maxim Vezenov",
+            "username": "vezenovm"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "6d6aca93ce27809c1f433672526943e9269366b4",
+          "message": "fix(ssa): Mark mutually recursive simple functions (#8447)",
+          "timestamp": "2025-05-12T14:13:10Z",
+          "tree_id": "5ce899abdaabca9f313f845d1d842c8ff0c11254",
+          "url": "https://github.com/noir-lang/noir/commit/6d6aca93ce27809c1f433672526943e9269366b4"
+        },
+        "date": 1747060335419,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 275042,
+            "range": "± 3239",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 246073,
+            "range": "± 3021",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 3600125,
+            "range": "± 18945",
             "unit": "ns/iter"
           }
         ]
