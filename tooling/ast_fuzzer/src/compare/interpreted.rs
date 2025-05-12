@@ -1,7 +1,7 @@
 //! Compare an arbitrary AST compiled into SSA and executed with the
 //! SSA interpreter at some stage of the SSA pipeline.
 
-use std::sync::Arc;
+use std::sync::{Arc, OnceLock};
 
 use arbitrary::Unstructured;
 use color_eyre::eyre;
@@ -9,6 +9,7 @@ use iter_extended::vecmap;
 use noirc_abi::{Abi, AbiType, InputMap, Sign, input_parser::InputValue};
 use noirc_evaluator::ssa::{self, ir::types::NumericType, ssa_gen::Ssa};
 use noirc_frontend::{Shared, monomorphization::ast::Program};
+use regex::Regex;
 
 use crate::{Config, arb_program, input::arb_inputs_from_ssa, program_abi};
 
@@ -107,7 +108,16 @@ impl CompareInterpretedResult {
 
 impl CompareError for ssa::interpreter::errors::InterpreterError {
     fn equivalent(e1: &Self, e2: &Self) -> bool {
-        e1 == e2
+        use ssa::interpreter::errors::InterpreterError::*;
+        if matches!(e1, Internal(_)) || matches!(e2, Internal(_)) {
+            // We should not get, or ignore, internal errors.
+            return false;
+        }
+        // The format strings contain SSA instructions,
+        // where the only difference might be the value ID.
+        let s1 = format!("{e1}");
+        let s2 = format!("{e2}");
+        sanitize_ssa(&s1) == sanitize_ssa(&s2)
     }
 }
 
@@ -213,5 +223,58 @@ fn input_type_to_ssa(typ: &AbiType) -> ssa::ir::types::Type {
             Type::Array(Arc::new(vecmap(fields, input_type_to_ssa)), fields.len() as u32)
         }
         AbiType::String { length } => Type::Array(Arc::new(vec![Type::unsigned(8)]), *length),
+    }
+}
+
+/// Remove identifiers from the SSA, so we can compare the structure without
+/// worrying about trivial differences like changing IDs of the same variable
+/// between one pass to the next.
+fn sanitize_ssa(ssa: &str) -> String {
+    static RE: OnceLock<Regex> = OnceLock::new();
+    // Capture function ID, value IDs, global IDs.
+    let re = RE.get_or_init(|| Regex::new(r#"(f|b|v|g)\d+"#).expect("ID regex failed"));
+    re.replace_all(ssa, "${1}_").into_owned()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::sanitize_ssa;
+
+    #[test]
+    fn test_sanitize_ssa() {
+        let src = r#"
+        g1 = make_array [i8 114, u32 2354179802, i8 37, i8 179, u32 1465519558, i8 87] : [(i8, u32, i8); 2]
+
+        acir(inline) fn main f0 {
+        b0(v7: i8, v8: u32, v9: i8, v10: [(i8, i8, u1, u1, [u8; 0]); 2]):
+            v17 = allocate -> &mut u32
+            store u32 25 at v17
+            v19 = cast v9 as i64
+            v29 = array_get v10, index u32 9 -> [u8; 0]
+            v30 = cast v23 as i64
+            v31 = lt v30, v19
+            v32 = not v31
+            jmpif v32 then: b1, else: b2
+        "#;
+
+        let ssa = sanitize_ssa(src);
+
+        similar_asserts::assert_eq!(
+            ssa,
+            r#"
+        g_ = make_array [i8 114, u32 2354179802, i8 37, i8 179, u32 1465519558, i8 87] : [(i8, u32, i8); 2]
+
+        acir(inline) fn main f_ {
+        b_(v_: i8, v_: u32, v_: i8, v_: [(i8, i8, u1, u1, [u8; 0]); 2]):
+            v_ = allocate -> &mut u32
+            store u32 25 at v_
+            v_ = cast v_ as i64
+            v_ = array_get v_, index u32 9 -> [u8; 0]
+            v_ = cast v_ as i64
+            v_ = lt v_, v_
+            v_ = not v_
+            jmpif v_ then: b_, else: b_
+        "#
+        )
     }
 }

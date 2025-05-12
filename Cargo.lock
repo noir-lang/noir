@@ -3418,6 +3418,8 @@ dependencies = [
  "noirc_frontend",
  "proptest",
  "rand 0.8.5",
+ "regex",
+ "similar-asserts",
  "strum",
 ]
 
