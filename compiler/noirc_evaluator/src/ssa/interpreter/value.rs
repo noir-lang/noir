@@ -7,6 +7,7 @@ use noirc_frontend::Shared;
 use crate::ssa::ir::{
     function::FunctionId,
     instruction::Intrinsic,
+    integer::IntegerConstant,
     types::{CompositeType, NumericType, Type},
     value::ValueId,
 };
@@ -231,34 +232,24 @@ impl NumericValue {
         match typ {
             NumericType::NativeField => Self::Field(constant),
             NumericType::Unsigned { bit_size: 1 } => Self::U1(constant.is_one()),
-            NumericType::Unsigned { bit_size: 8 } => {
-                Self::U8(constant.try_into_u128().unwrap().try_into().unwrap())
-            }
-            NumericType::Unsigned { bit_size: 16 } => {
-                Self::U16(constant.try_into_u128().unwrap().try_into().unwrap())
-            }
-            NumericType::Unsigned { bit_size: 32 } => {
-                Self::U32(constant.try_into_u128().unwrap().try_into().unwrap())
-            }
-            NumericType::Unsigned { bit_size: 64 } => {
-                Self::U64(constant.try_into_u128().unwrap().try_into().unwrap())
-            }
-            NumericType::Unsigned { bit_size: 128 } => {
-                Self::U128(constant.try_into_u128().unwrap())
-            }
-            NumericType::Signed { bit_size: 8 } => {
-                Self::I8(constant.try_into_i128().unwrap().try_into().unwrap())
-            }
-            NumericType::Signed { bit_size: 16 } => {
-                Self::I16(constant.try_into_i128().unwrap().try_into().unwrap())
-            }
-            NumericType::Signed { bit_size: 32 } => {
-                Self::I32(constant.try_into_i128().unwrap().try_into().unwrap())
-            }
-            NumericType::Signed { bit_size: 64 } => {
-                Self::I64(constant.try_into_i128().unwrap().try_into().unwrap())
-            }
-            other => panic!("Unsupported numeric type: {other}"),
+            typ => match IntegerConstant::from_numeric_constant(constant, typ) {
+                Some(IntegerConstant::Unsigned { value, bit_size }) => match bit_size {
+                    8 => Self::U8(value.try_into().expect("not u8")),
+                    16 => Self::U16(value.try_into().expect("not u16")),
+                    32 => Self::U32(value.try_into().expect("not u32")),
+                    64 => Self::U64(value.try_into().expect("not u64")),
+                    128 => Self::U128(value),
+                    bs => panic!("Unsupported numeric type: u{bs}"),
+                },
+                Some(IntegerConstant::Signed { value, bit_size }) => match bit_size {
+                    8 => Self::I8(value.try_into().expect("not i8")),
+                    16 => Self::I16(value.try_into().expect("not i16")),
+                    32 => Self::I32(value.try_into().expect("not i32")),
+                    64 => Self::I64(value.try_into().expect("not i64")),
+                    bs => panic!("Unsupported numeric type: i{bs}"),
+                },
+                None => unreachable!("unsupported numeric type: {typ}"),
+            },
         }
     }
 

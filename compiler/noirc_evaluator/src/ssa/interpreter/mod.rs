@@ -117,7 +117,7 @@ impl<'ssa> Interpreter<'ssa> {
     fn interpret_globals(&mut self) -> IResult<()> {
         let globals = &self.ssa.main().dfg.globals;
         for (global_id, global) in globals.values_iter() {
-            let value = match dbg!(global) {
+            let value = match global {
                 super::ir::value::Value::Instruction { instruction, .. } => {
                     let instruction = &globals[*instruction];
                     self.interpret_instruction(instruction, &[global_id])?;
