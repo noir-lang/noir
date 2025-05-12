@@ -206,9 +206,6 @@ impl Parser<'_> {
         if self.eat_keyword(Keyword::TypeDefinition) {
             return Some(UnresolvedTypeData::Quoted(QuotedType::TypeDefinition));
         }
-        if self.eat_keyword(Keyword::TraitImpl) {
-            return Some(UnresolvedTypeData::Quoted(QuotedType::TraitImpl));
-        }
         if self.eat_keyword(Keyword::UnresolvedType) {
             return Some(UnresolvedTypeData::Quoted(QuotedType::UnresolvedType));
         }
