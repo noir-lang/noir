@@ -894,20 +894,17 @@ impl ModCollector<'_> {
         errors: &mut Vec<CompilationError>,
     ) -> Type {
         // TODO: delay this to the Elaborator
-        match &typ.typ {
-            UnresolvedTypeData::Named(path, _generics, _) => {
-                if path.segments.len() == 1 {
-                    if let Some(primitive_type) =
-                        PrimitiveType::lookup_by_name(path.segments[0].ident.as_str())
-                    {
-                        // TODO: check generics
-                        if let Some(typ) = primitive_type.to_integer_or_field() {
-                            return typ;
-                        }
+        if let UnresolvedTypeData::Named(path, _generics, _) = &typ.typ {
+            if path.segments.len() == 1 {
+                if let Some(primitive_type) =
+                    PrimitiveType::lookup_by_name(path.segments[0].ident.as_str())
+                {
+                    // TODO: check generics
+                    if let Some(typ) = primitive_type.to_integer_or_field() {
+                        return typ;
                     }
                 }
             }
-            _ => (),
         }
 
         let error = ResolverError::AssociatedConstantsMustBeNumeric { location: typ.location };

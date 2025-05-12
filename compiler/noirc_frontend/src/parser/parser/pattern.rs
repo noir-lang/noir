@@ -125,9 +125,7 @@ impl Parser<'_> {
             return Some(pattern);
         }
 
-        let Some(mut path) = self.parse_path() else {
-            return None;
-        };
+        let mut path = self.parse_path()?;
 
         if self.eat_left_brace() {
             return Some(self.parse_struct_pattern(path, start_location));
