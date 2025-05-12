@@ -372,32 +372,33 @@ mod tests {
 
     use super::compute_inline_infos;
 
-    // This panic is a regression that will need to be updating by fixing the inline infos computation.
+    // This panic is a regression that will need to be updated by fixing the inline infos computation.
+    // https://github.com/noir-lang/noir/issues/8448
     #[test]
     #[should_panic]
     fn mark_mutually_recursive_functions() {
         let src = "
-      acir(inline) fn main f0 {
-        b0():
-          call f1()
-          return
-      }
-      brillig(inline) fn starter f1 {
-        b0():
-          call f2()
-          return
-      }
-      brillig(inline) fn ping f2 {
-        b0():
-          call f3()
-          return
-      }
-      brillig(inline) fn pong f3 {
-        b0():
-          call f2()
-          return
-      }
-      ";
+        acir(inline) fn main f0 {
+          b0():
+            call f1()
+            return
+        }
+        brillig(inline) fn starter f1 {
+          b0():
+            call f2()
+            return
+        }
+        brillig(inline) fn ping f2 {
+          b0():
+            call f3()
+            return
+        }
+        brillig(inline) fn pong f3 {
+          b0():
+            call f2()
+            return
+        }
+        ";
 
         let ssa = Ssa::from_str(src).unwrap();
         let inline_infos = compute_inline_infos(&ssa, false, i64::MAX);
