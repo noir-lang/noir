@@ -732,6 +732,9 @@ pub enum TestScope {
     /// if it fails with the specified reason. If the reason is None, then
     /// the test must unconditionally fail
     ShouldFailWith { reason: Option<String> },
+    /// If a test has a scope of OnlyFailWith, then it can only fail
+    /// if it fails with the specified reason.
+    OnlyFailWith { reason: String },
     /// No scope is applied and so the test must pass
     None,
 }
@@ -744,6 +747,9 @@ impl fmt::Display for TestScope {
                 Some(failure_reason) => write!(f, "(should_fail_with = {failure_reason:?})"),
                 None => write!(f, "(should_fail)"),
             },
+            TestScope::OnlyFailWith { reason } => {
+                write!(f, "(only_fail_with = {reason:?})")
+            }
         }
     }
 }
