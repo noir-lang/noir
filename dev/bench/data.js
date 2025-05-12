@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1747059015880,
+  "lastUpdate": 1747059409979,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -3705,95 +3705,6 @@ window.BENCHMARK_DATA = {
       }
     ],
     "Compilation Time": [
-      {
-        "commit": {
-          "author": {
-            "email": "asterite@gmail.com",
-            "name": "Ary Borenszweig",
-            "username": "asterite"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "f81925d6a4b7b216877da2c4db18f24bff196b27",
-          "message": "fix: let comptime Field value carry the field's sign (#8343)\n\nCo-authored-by: Maxim Vezenov <mvezenov@gmail.com>\nCo-authored-by: jfecher <jfecher11@gmail.com>",
-          "timestamp": "2025-05-05T18:53:56Z",
-          "tree_id": "0b34821e1dce85e3ed160c31d06208551c5de804",
-          "url": "https://github.com/noir-lang/noir/commit/f81925d6a4b7b216877da2c4db18f24bff196b27"
-        },
-        "date": 1746473125408,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "regression_4709",
-            "value": 0.667,
-            "unit": "s"
-          },
-          {
-            "name": "ram_blowup_regression",
-            "value": 12.7,
-            "unit": "s"
-          },
-          {
-            "name": "global_var_regression_entry_points",
-            "value": 0.489,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-inner",
-            "value": 2.362,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 6.468,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 1.186,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 18.62,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 13.2,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root-empty",
-            "value": 1.218,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root-single-tx",
-            "value": 128,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 124,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 1.096,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-root",
-            "value": 1.608,
-            "unit": "s"
-          }
-        ]
-      },
       {
         "commit": {
           "author": {
@@ -7986,6 +7897,80 @@ window.BENCHMARK_DATA = {
           {
             "name": "rollup-root",
             "value": 1.638,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "jfecher11@gmail.com",
+            "name": "jfecher",
+            "username": "jfecher"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "2d727b149ce6c85d7b79687e7709436b1b03783f",
+          "message": "fix: Fix nested trait dispatch with associated types (#8440)\n\nCo-authored-by: AztecBot <tech@aztecprotocol.com>\nCo-authored-by: Jake Fecher <jake@aztecprotocol.com>",
+          "timestamp": "2025-05-12T13:49:55Z",
+          "tree_id": "3291c047c51a0b6388e3338b70c841aa59ea8771",
+          "url": "https://github.com/noir-lang/noir/commit/2d727b149ce6c85d7b79687e7709436b1b03783f"
+        },
+        "date": 1747059401759,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 2.468,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 6.482,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 1.082,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 16.34,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 12.32,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-empty",
+            "value": 1.324,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-single-tx",
+            "value": 128,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 124,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 1.112,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-root",
+            "value": 1.6,
             "unit": "s"
           }
         ]
