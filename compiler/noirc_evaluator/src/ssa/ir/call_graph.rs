@@ -16,7 +16,6 @@ use super::{
 
 pub(crate) struct CallGraph {
     graph: DiGraph<FunctionId, ()>,
-    #[allow(dead_code)]
     ids_to_indices: HashMap<FunctionId, PetGraphIndex>,
     indices_to_ids: HashMap<PetGraphIndex, FunctionId>,
 }
@@ -35,7 +34,7 @@ impl CallGraph {
         Self::new_from_deps(function_deps)
     }
 
-    fn new_from_deps(dependencies: HashMap<FunctionId, BTreeSet<FunctionId>>) -> Self {
+    pub(crate) fn new_from_deps(dependencies: HashMap<FunctionId, BTreeSet<FunctionId>>) -> Self {
         let mut graph = DiGraph::new();
         let mut ids_to_indices = HashMap::default();
         let mut indices_to_ids = HashMap::default();
@@ -78,6 +77,18 @@ impl CallGraph {
             }
         }
         recursive_functions
+    }
+
+    pub(crate) fn graph(&self) -> &DiGraph<FunctionId, ()> {
+        &self.graph
+    }
+
+    pub(crate) fn ids_to_indices(&self) -> &HashMap<FunctionId, PetGraphIndex> {
+        &self.ids_to_indices
+    }
+
+    pub(crate) fn indices_to_ids(&self) -> &HashMap<PetGraphIndex, FunctionId> {
+        &self.indices_to_ids
     }
 }
 

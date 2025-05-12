@@ -3,11 +3,12 @@ use std::collections::{BTreeMap, HashSet, VecDeque};
 use im::HashMap;
 
 use crate::ssa::{
-    ir::function::{Function, FunctionId},
+    ir::{
+        call_graph::{called_functions, called_functions_vec},
+        function::{Function, FunctionId},
+    },
     ssa_gen::Ssa,
 };
-
-use super::{called_functions, called_functions_vec};
 
 /// Information about a function to aid the decision about whether to inline it or not.
 /// The final decision depends on what we're inlining it into.
