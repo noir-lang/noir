@@ -462,7 +462,9 @@ impl Type {
             // this to ignore this case since it shouldn't be needed anyway.
             Type::Forall(_, typ) => return typ.to_display_ast(),
             Type::Constant(..) => panic!("Type::Constant where a type was expected: {self:?}"),
-            Type::Quoted(quoted_type) => UnresolvedTypeData::Quoted(*quoted_type),
+            Type::Quoted(quoted_type) => {
+                UnresolvedTypeData::quoted(*quoted_type, Location::dummy())
+            }
             Type::Error => UnresolvedTypeData::Error,
             Type::InfixExpr(lhs, op, rhs, _) => {
                 let lhs = Box::new(lhs.to_type_expression());

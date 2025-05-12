@@ -2,7 +2,7 @@ use acvm::FieldElement;
 use noirc_errors::Span;
 
 use crate::{
-    BinaryTypeOperator, ParsedModule, QuotedType,
+    BinaryTypeOperator, ParsedModule,
     ast::{
         ArrayLiteral, AsTraitPath, AssignStatement, BlockExpression, CallExpression,
         CastExpression, ConstrainExpression, ConstructorExpression, Expression, ExpressionKind,
@@ -438,8 +438,6 @@ pub trait Visitor {
     }
 
     fn visit_unspecified_type(&mut self, _: Span) {}
-
-    fn visit_quoted_type(&mut self, _: &QuotedType, _: Span) {}
 
     fn visit_unit_type(&mut self, _: Span) {}
 
@@ -1472,7 +1470,6 @@ impl UnresolvedType {
                 }
             }
             UnresolvedTypeData::Unspecified => visitor.visit_unspecified_type(self.location.span),
-            UnresolvedTypeData::Quoted(typ) => visitor.visit_quoted_type(typ, self.location.span),
             UnresolvedTypeData::Unit => visitor.visit_unit_type(self.location.span),
             UnresolvedTypeData::Resolved(id) => {
                 visitor.visit_resolved_type(*id, self.location.span);

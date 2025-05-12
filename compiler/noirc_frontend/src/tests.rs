@@ -4417,19 +4417,6 @@ fn immutable_references_without_ownership_feature() {
 
 #[named]
 #[test]
-fn errors_on_invalid_integer_bit_size() {
-    let src = r#"
-    fn main() {
-        let _: u42 = 4;
-               ^^^ Use of invalid bit size 42
-               ~~~ Allowed bit sizes for integers are 1, 8, 16, 32, 64, 128
-    }
-    "#;
-    check_errors!(src);
-}
-
-#[named]
-#[test]
 fn mutable_reference_to_array_element_as_func_arg() {
     let src = r#"
     fn foo(x: &mut u32) {

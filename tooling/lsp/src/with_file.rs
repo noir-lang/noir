@@ -503,8 +503,7 @@ fn unresolved_type_data_with_file(typ: UnresolvedTypeData, file: FileId) -> Unre
         UnresolvedTypeData::AsTraitPath(as_trait_path) => {
             UnresolvedTypeData::AsTraitPath(Box::new(as_trait_path_with_file(*as_trait_path, file)))
         }
-        UnresolvedTypeData::Quoted(..)
-        | UnresolvedTypeData::Resolved(..)
+        UnresolvedTypeData::Resolved(..)
         | UnresolvedTypeData::Interned(..)
         | UnresolvedTypeData::Unit
         | UnresolvedTypeData::Unspecified

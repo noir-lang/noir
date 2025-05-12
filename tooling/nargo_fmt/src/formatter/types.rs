@@ -151,9 +151,6 @@ impl Formatter<'_> {
                     self.format_type(*return_type);
                 }
             }
-            UnresolvedTypeData::Quoted(..) => {
-                self.write_current_token_and_bump();
-            }
             UnresolvedTypeData::AsTraitPath(as_trait_path) => {
                 self.format_as_trait_path(*as_trait_path);
             }

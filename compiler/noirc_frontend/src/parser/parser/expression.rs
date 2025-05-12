@@ -1982,30 +1982,6 @@ mod tests {
     }
 
     #[test]
-    fn parses_type_path() {
-        let src = "i32::foo";
-        let expr = parse_expression_no_errors(src);
-        let ExpressionKind::TypePath(type_path) = expr.kind else {
-            panic!("Expected type_path");
-        };
-        assert_eq!(type_path.typ.to_string(), "i32");
-        assert_eq!(type_path.item.to_string(), "foo");
-        assert!(type_path.turbofish.is_none());
-    }
-
-    #[test]
-    fn parses_type_path_with_generics() {
-        let src = "i32::foo::<T>";
-        let expr = parse_expression_no_errors(src);
-        let ExpressionKind::TypePath(type_path) = expr.kind else {
-            panic!("Expected type_path");
-        };
-        assert_eq!(type_path.typ.to_string(), "i32");
-        assert_eq!(type_path.item.to_string(), "foo");
-        assert!(type_path.turbofish.is_some());
-    }
-
-    #[test]
     fn parses_type_path_with_tuple() {
         let src = "<()>::foo";
         let expr = parse_expression_no_errors(src);

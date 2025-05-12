@@ -73,16 +73,6 @@ impl NodeFinder<'_> {
                 ));
             }
         }
-
-        for typ in builtin_integer_types() {
-            if name_matches(typ, prefix) {
-                self.completion_items.push(simple_completion_item(
-                    typ,
-                    CompletionItemKind::STRUCT,
-                    Some(typ.to_string()),
-                ));
-            }
-        }
     }
 
     pub(super) fn suggest_builtin_attributes(&mut self, prefix: &str, target: AttributeTarget) {
@@ -187,10 +177,6 @@ impl NodeFinder<'_> {
             ));
         }
     }
-}
-
-pub(super) fn builtin_integer_types() -> [&'static str; 9] {
-    ["i8", "i16", "i32", "i64", "u8", "u16", "u32", "u64", "u128"]
 }
 
 pub(super) struct BuiltInFunction {

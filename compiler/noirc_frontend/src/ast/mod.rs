@@ -33,6 +33,7 @@ pub use structure::*;
 pub use traits::*;
 pub use type_alias::*;
 
+use crate::QuotedType;
 use crate::{
     BinaryTypeOperator,
     node_interner::{InternedUnresolvedTypeData, QuotedTypeId},
@@ -148,9 +149,6 @@ pub enum UnresolvedTypeData {
         /*env:*/ Box<UnresolvedType>,
         /*unconstrained:*/ bool,
     ),
-
-    /// The type of quoted code for metaprogramming
-    Quoted(crate::QuotedType),
 
     /// An "as Trait" path leading to an associated type.
     /// E.g. `<Foo as Trait>::Bar`
@@ -308,7 +306,6 @@ impl std::fmt::Display for UnresolvedTypeData {
             }
             Reference(element, false) => write!(f, "&{element}"),
             Reference(element, true) => write!(f, "&mut {element}"),
-            Quoted(quoted) => write!(f, "{}", quoted),
             Unit => write!(f, "()"),
             Error => write!(f, "error"),
             Unspecified => write!(f, "unspecified"),
@@ -375,12 +372,8 @@ impl UnresolvedType {
 }
 
 impl UnresolvedTypeData {
-    pub fn field(location: Location) -> Self {
-        Self::named("Field", location)
-    }
-
     pub fn bool(location: Location) -> Self {
-        Self::named("bool", location)
+        Self::named("bool".to_string(), location)
     }
 
     pub fn integer(signedness: Signedness, size: IntegerBitSize, location: Location) -> Self {
@@ -402,11 +395,19 @@ impl UnresolvedTypeData {
                 IntegerBitSize::HundredTwentyEight => "u128",
             },
         };
-        Self::named(name, location)
+        Self::named(name.to_string(), location)
     }
 
-    fn named(name: &'static str, location: Location) -> Self {
-        let ident = Ident::new(name.to_string(), location);
+    pub fn field(location: Location) -> Self {
+        Self::named("Field".to_string(), location)
+    }
+
+    pub fn quoted(quoted: QuotedType, location: Location) -> Self {
+        Self::named(quoted.to_string(), location)
+    }
+
+    fn named(name: String, location: Location) -> Self {
+        let ident = Ident::new(name, location);
         let path = Path::from_ident(ident);
         Self::Named(path, GenericTypeArgs::default(), false)
     }
@@ -449,7 +450,6 @@ impl UnresolvedTypeData {
             UnresolvedTypeData::Unspecified => true,
 
             UnresolvedTypeData::Unit
-            | UnresolvedTypeData::Quoted(_)
             | UnresolvedTypeData::AsTraitPath(_)
             | UnresolvedTypeData::Resolved(_)
             | UnresolvedTypeData::Interned(_)

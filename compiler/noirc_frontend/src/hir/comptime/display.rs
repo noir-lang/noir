@@ -919,7 +919,6 @@ fn remove_interned_in_unresolved_type_data(
         UnresolvedTypeData::Unit
         | UnresolvedTypeData::String(_)
         | UnresolvedTypeData::Resolved(_)
-        | UnresolvedTypeData::Quoted(_)
         | UnresolvedTypeData::Expression(_)
         | UnresolvedTypeData::Unspecified
         | UnresolvedTypeData::Error => typ,

@@ -129,15 +129,6 @@ impl Elaborator<'_> {
                 let fields = self.resolve_type_with_kind_inner(*fields, kind, mode);
                 Type::FmtString(Box::new(resolved_size), Box::new(fields))
             }
-            Quoted(quoted) => {
-                let in_function = matches!(self.current_item, Some(DependencyId::Function(_)));
-                if in_function && !self.in_comptime_context() {
-                    let location = typ.location;
-                    let typ = quoted.to_string();
-                    self.push_err(ResolverError::ComptimeTypeInRuntimeCode { location, typ });
-                }
-                Type::Quoted(quoted)
-            }
             Unit => Type::Unit,
             Unspecified => {
                 let location = typ.location;
@@ -350,6 +341,18 @@ impl Elaborator<'_> {
             }
             Err(err) => {
                 if let Some(typ) = self.resolve_primitive_type(path) {
+                    if let Type::Quoted(quoted) = typ {
+                        let in_function =
+                            matches!(self.current_item, Some(DependencyId::Function(_)));
+                        if in_function && !self.in_comptime_context() {
+                            let typ = quoted.to_string();
+                            self.push_err(ResolverError::ComptimeTypeInRuntimeCode {
+                                location,
+                                typ,
+                            });
+                        }
+                    }
+
                     return typ;
                 }
 
