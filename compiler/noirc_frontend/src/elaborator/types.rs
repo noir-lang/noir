@@ -20,7 +20,7 @@ use crate::{
         resolution::{errors::ResolverError, import::PathResolutionError},
         type_check::{
             NoMatchingImplFoundError, Source, TypeCheckError,
-            generics::{Generic, StrPrimitiveType, TraitGenerics},
+            generics::{FmtstrPrimitiveType, Generic, StrPrimitiveType, TraitGenerics},
         },
     },
     hir_def::{
@@ -120,11 +120,6 @@ impl Elaborator<'_> {
                 Type::Slice(elem)
             }
             Expression(expr) => self.convert_expression_type(expr, kind, location),
-            FormatString(size, fields) => {
-                let resolved_size = self.convert_expression_type(size, &Kind::u32(), location);
-                let fields = self.resolve_type_with_kind_inner(*fields, kind, mode);
-                Type::FmtString(Box::new(resolved_size), Box::new(fields))
-            }
             Unit => Type::Unit,
             Unspecified => {
                 let location = typ.location;
@@ -414,7 +409,21 @@ impl Elaborator<'_> {
                     PathResolutionMode::MarkAsReferenced,
                 );
                 assert_eq!(args.len(), 1);
-                return Some(Type::String(Box::new(args.remove(0))));
+                let length = args.pop().unwrap();
+                return Some(Type::String(Box::new(length)));
+            }
+            PrimitiveType::Fmtstr => {
+                let item = FmtstrPrimitiveType;
+                let (mut args, _) = self.resolve_type_args_inner(
+                    args,
+                    item,
+                    location,
+                    PathResolutionMode::MarkAsReferenced,
+                );
+                assert_eq!(args.len(), 2);
+                let element = args.pop().unwrap();
+                let length = args.pop().unwrap();
+                return Some(Type::FmtString(Box::new(length), Box::new(element)));
             }
         }
 

@@ -30,15 +30,6 @@ impl Formatter<'_> {
             UnresolvedTypeData::Expression(type_expr) => {
                 self.format_type_expression(type_expr);
             }
-            UnresolvedTypeData::FormatString(type_expr, typ) => {
-                self.write_keyword(Keyword::FormatString);
-                self.write_token(Token::Less);
-                self.format_type_expression(type_expr);
-                self.write_comma();
-                self.write_space();
-                self.format_type(*typ);
-                self.write_token(Token::Greater);
-            }
             UnresolvedTypeData::Parenthesized(typ) => {
                 self.write_left_paren();
                 self.format_type(*typ);

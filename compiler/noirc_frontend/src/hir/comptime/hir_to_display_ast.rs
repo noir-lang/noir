@@ -392,12 +392,12 @@ impl Type {
             Type::Bool => UnresolvedTypeData::bool(Location::dummy()),
             Type::String(length) => {
                 let length = length.to_type_expression();
-                UnresolvedTypeData::string(length, Location::dummy())
+                UnresolvedTypeData::str(length, Location::dummy())
             }
             Type::FmtString(length, element) => {
                 let length = length.to_type_expression();
-                let element = Box::new(element.to_display_ast());
-                UnresolvedTypeData::FormatString(length, element)
+                let element = element.to_display_ast();
+                UnresolvedTypeData::fmtstr(length, element, Location::dummy())
             }
             Type::Unit => UnresolvedTypeData::Unit,
             Type::Tuple(fields) => {

@@ -1,7 +1,5 @@
-use acvm::{AcirField, FieldElement};
-
 use crate::{
-    ast::{GenericTypeArgs, UnresolvedType, UnresolvedTypeData, UnresolvedTypeExpression},
+    ast::{GenericTypeArgs, UnresolvedType, UnresolvedTypeData},
     parser::labels::ParsingRuleLabel,
     token::{Keyword, Token, TokenKind},
 };
@@ -108,10 +106,6 @@ impl Parser<'_> {
     }
 
     pub(super) fn parse_primitive_type(&mut self) -> Option<UnresolvedTypeData> {
-        if let Some(typ) = self.parse_fmtstr_type() {
-            return Some(typ);
-        }
-
         if let Some(typ) = self.parse_resolved_type() {
             return Some(typ);
         }
@@ -121,44 +115,6 @@ impl Parser<'_> {
         }
 
         None
-    }
-
-    fn parse_fmtstr_type(&mut self) -> Option<UnresolvedTypeData> {
-        if !self.eat_keyword(Keyword::FormatString) {
-            return None;
-        }
-
-        if !self.eat_less() {
-            self.expected_token(Token::Less);
-            let expr = UnresolvedTypeExpression::Constant(
-                FieldElement::zero(),
-                self.current_token_location,
-            );
-            let typ =
-                UnresolvedTypeData::Error.with_location(self.location_at_previous_token_end());
-            return Some(UnresolvedTypeData::FormatString(expr, Box::new(typ)));
-        }
-
-        let expr = match self.parse_type_expression() {
-            Ok(expr) => expr,
-            Err(error) => {
-                self.errors.push(error);
-                UnresolvedTypeExpression::Constant(
-                    FieldElement::zero(),
-                    self.current_token_location,
-                )
-            }
-        };
-
-        if !self.eat_commas() {
-            self.expected_token(Token::Comma);
-        }
-
-        let typ = self.parse_type_or_error();
-
-        self.eat_or_error(Token::Greater);
-
-        Some(UnresolvedTypeData::FormatString(expr, Box::new(typ)))
     }
 
     fn parse_function_type(&mut self) -> Option<UnresolvedTypeData> {
@@ -397,11 +353,7 @@ mod tests {
     fn parses_fmtstr_type() {
         let src = "fmtstr<10, T>";
         let typ = parse_type_no_errors(src);
-        let UnresolvedTypeData::FormatString(expr, typ) = typ.typ else {
-            panic!("Expected a format string type")
-        };
-        assert_eq!(expr.to_string(), "10");
-        assert_eq!(typ.to_string(), "T");
+        assert_eq!(typ.to_string(), "fmtstr<10, T>");
     }
 
     #[test]

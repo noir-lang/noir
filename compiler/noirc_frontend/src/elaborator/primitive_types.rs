@@ -6,6 +6,7 @@ pub enum PrimitiveType {
     CtString,
     Expr,
     Field,
+    Fmtstr,
     FunctionDefinition,
     I8,
     I16,
@@ -35,6 +36,7 @@ impl PrimitiveType {
             "bool" => Some(Self::Bool),
             "CtString" => Some(Self::CtString),
             "Expr" => Some(Self::Expr),
+            "fmtstr" => Some(Self::Fmtstr),
             "Field" => Some(Self::Field),
             "FunctionDefinition" => Some(Self::FunctionDefinition),
             "i8" => Some(Self::I8),
@@ -66,6 +68,7 @@ impl PrimitiveType {
             Self::Bool => Type::Bool,
             Self::CtString => Type::Quoted(QuotedType::CtString),
             Self::Expr => Type::Quoted(QuotedType::Expr),
+            Self::Fmtstr => Type::FmtString(Box::new(Type::Error), Box::new(Type::Error)),
             Self::Field => Type::FieldElement,
             Self::FunctionDefinition => Type::Quoted(QuotedType::FunctionDefinition),
             Self::I8 => Type::Integer(Signedness::Signed, IntegerBitSize::Eight),
@@ -109,6 +112,7 @@ impl PrimitiveType {
             Self::Bool
             | Self::CtString
             | Self::Expr
+            | Self::Fmtstr
             | Self::FunctionDefinition
             | Self::Module
             | Self::Quoted
@@ -129,6 +133,7 @@ impl PrimitiveType {
             Self::CtString => "CtString",
             Self::Expr => "Expr",
             Self::Field => "Field",
+            Self::Fmtstr => "fmtstr",
             Self::FunctionDefinition => "FunctionDefinition",
             Self::I8 => "i8",
             Self::I16 => "i16",

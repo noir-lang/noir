@@ -377,17 +377,6 @@ impl<'a> Parser<'a> {
         self.eat(Token::Comma)
     }
 
-    fn eat_commas(&mut self) -> bool {
-        if self.eat_comma() {
-            while self.eat_comma() {
-                self.push_error(ParserErrorReason::UnexpectedComma, self.previous_token_location);
-            }
-            true
-        } else {
-            false
-        }
-    }
-
     fn eat_semicolon(&mut self) -> bool {
         self.eat(Token::Semicolon)
     }

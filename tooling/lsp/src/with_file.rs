@@ -463,10 +463,6 @@ fn unresolved_type_data_with_file(typ: UnresolvedTypeData, file: FileId) -> Unre
         UnresolvedTypeData::Expression(expr) => {
             UnresolvedTypeData::Expression(unresolved_type_expression_with_file(expr, file))
         }
-        UnresolvedTypeData::FormatString(expr, typ) => UnresolvedTypeData::FormatString(
-            unresolved_type_expression_with_file(expr, file),
-            Box::new(unresolved_type_with_file(*typ, file)),
-        ),
         UnresolvedTypeData::Parenthesized(typ) => {
             UnresolvedTypeData::Parenthesized(Box::new(unresolved_type_with_file(*typ, file)))
         }

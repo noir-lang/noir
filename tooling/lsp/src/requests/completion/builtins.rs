@@ -212,7 +212,6 @@ pub(super) fn keyword_builtin_function(keyword: &Keyword) -> Option<BuiltInFunct
         | Keyword::Enum
         | Keyword::Fn
         | Keyword::For
-        | Keyword::FormatString
         | Keyword::Global
         | Keyword::If
         | Keyword::Impl

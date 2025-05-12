@@ -138,10 +138,36 @@ impl Generic for StrPrimitiveType {
     }
 
     fn generic_kinds(&self, _interner: &NodeInterner) -> Vec<Kind> {
-        vec![Kind::Numeric(Box::new(Type::Integer(
-            Signedness::Unsigned,
-            IntegerBitSize::ThirtyTwo,
-        )))]
+        let length =
+            Kind::Numeric(Box::new(Type::Integer(Signedness::Unsigned, IntegerBitSize::ThirtyTwo)));
+        vec![length]
+    }
+
+    fn accepts_named_type_args(&self) -> bool {
+        false
+    }
+
+    fn named_generics(&self, _interner: &NodeInterner) -> Vec<ResolvedGeneric> {
+        Vec::new()
+    }
+}
+
+pub struct FmtstrPrimitiveType;
+
+impl Generic for FmtstrPrimitiveType {
+    fn item_kind(&self) -> &'static str {
+        "primitive type"
+    }
+
+    fn item_name(&self, _interner: &NodeInterner) -> String {
+        "fmtstr".to_string()
+    }
+
+    fn generic_kinds(&self, _interner: &NodeInterner) -> Vec<Kind> {
+        let length =
+            Kind::Numeric(Box::new(Type::Integer(Signedness::Unsigned, IntegerBitSize::ThirtyTwo)));
+        let element = Kind::Normal;
+        vec![length, element]
     }
 
     fn accepts_named_type_args(&self) -> bool {

@@ -870,10 +870,6 @@ fn remove_interned_in_unresolved_type_data(
         UnresolvedTypeData::Slice(typ) => {
             UnresolvedTypeData::Slice(Box::new(remove_interned_in_unresolved_type(interner, *typ)))
         }
-        UnresolvedTypeData::FormatString(expr, typ) => UnresolvedTypeData::FormatString(
-            expr,
-            Box::new(remove_interned_in_unresolved_type(interner, *typ)),
-        ),
         UnresolvedTypeData::Parenthesized(typ) => UnresolvedTypeData::Parenthesized(Box::new(
             remove_interned_in_unresolved_type(interner, *typ),
         )),

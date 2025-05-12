@@ -13,7 +13,7 @@ use crate::{
         resolution::{errors::ResolverError, import::PathResolutionError},
         type_check::{
             Source, TypeCheckError,
-            generics::{Generic, StrPrimitiveType},
+            generics::{FmtstrPrimitiveType, Generic, StrPrimitiveType},
         },
     },
     hir_def::{
@@ -769,13 +769,31 @@ impl Elaborator<'_> {
                     }
                     PrimitiveType::Str => {
                         if let Some(turbofish) = turbofish {
+                            let item = StrPrimitiveType;
+                            let item_generic_kinds = item.generic_kinds(self.interner);
+                            let kind = item_generic_kinds[0].clone();
+                            let generics = vec![self.interner.next_type_variable_with_kind(kind)];
+                            self.resolve_item_turbofish_generics(
+                                item.item_kind(),
+                                &item.item_name(self.interner),
+                                item_generic_kinds,
+                                generics,
+                                Some(turbofish.generics),
+                                turbofish.location,
+                            )
+                        } else {
+                            Vec::new()
+                        }
+                    }
+                    PrimitiveType::Fmtstr => {
+                        if let Some(turbofish) = turbofish {
                             let item_generic_kinds =
-                                StrPrimitiveType {}.generic_kinds(self.interner);
+                                FmtstrPrimitiveType {}.generic_kinds(self.interner);
                             let kind = item_generic_kinds[0].clone();
                             let generics = vec![self.interner.next_type_variable_with_kind(kind)];
                             self.resolve_item_turbofish_generics(
                                 "primitive type",
-                                "str",
+                                "fmtstr",
                                 item_generic_kinds,
                                 generics,
                                 Some(turbofish.generics),
