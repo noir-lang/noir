@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1747077526007,
+  "lastUpdate": 1747077764807,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -3705,95 +3705,6 @@ window.BENCHMARK_DATA = {
       }
     ],
     "Compilation Time": [
-      {
-        "commit": {
-          "author": {
-            "email": "15848336+TomAFrench@users.noreply.github.com",
-            "name": "Tom French",
-            "username": "TomAFrench"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "ff795cf63e6f84670f9f7743b268baa9cf087a5c",
-          "message": "chore: redo typo PR by GarmashAlex (#8364)\n\nCo-authored-by: AztecBot <tech@aztecprotocol.com>",
-          "timestamp": "2025-05-06T12:20:09Z",
-          "tree_id": "8854f4fcf73c7d7968a0356556d9bce563e309ad",
-          "url": "https://github.com/noir-lang/noir/commit/ff795cf63e6f84670f9f7743b268baa9cf087a5c"
-        },
-        "date": 1746535648666,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "regression_4709",
-            "value": 0.693,
-            "unit": "s"
-          },
-          {
-            "name": "ram_blowup_regression",
-            "value": 13.6,
-            "unit": "s"
-          },
-          {
-            "name": "global_var_regression_entry_points",
-            "value": 0.504,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-inner",
-            "value": 2.254,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 6.344,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 1.18,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 17.38,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 13.6,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root-empty",
-            "value": 1.198,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root-single-tx",
-            "value": 120,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 123,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 1.03,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-root",
-            "value": 1.748,
-            "unit": "s"
-          }
-        ]
-      },
       {
         "commit": {
           "author": {
@@ -7896,6 +7807,80 @@ window.BENCHMARK_DATA = {
           {
             "name": "rollup-root",
             "value": 1.61,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "47281315+guipublic@users.noreply.github.com",
+            "name": "guipublic",
+            "username": "guipublic"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "29f93d51d59695ad9847fd8a28a3516fcbaf65fe",
+          "message": "fix: sign extend in signed cast (#8264)\n\nCo-authored-by: AztecBot <tech@aztecprotocol.com>\nCo-authored-by: Tom French <15848336+TomAFrench@users.noreply.github.com>",
+          "timestamp": "2025-05-12T18:58:41Z",
+          "tree_id": "d57bf26a3c7a906dfbff897f49a83c39c291014e",
+          "url": "https://github.com/noir-lang/noir/commit/29f93d51d59695ad9847fd8a28a3516fcbaf65fe"
+        },
+        "date": 1747077755760,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 2.284,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 6.486,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 1.046,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 16.16,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 13.8,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-empty",
+            "value": 1.28,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-single-tx",
+            "value": 127,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 121,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 1.118,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-root",
+            "value": 1.69,
             "unit": "s"
           }
         ]
