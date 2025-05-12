@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1747064196483,
+  "lastUpdate": 1747066285219,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -17986,48 +17986,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "163862677+noirwhal@users.noreply.github.com",
-            "name": "noirwhal",
-            "username": "noirwhal"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "054d3d78d8f4e4035260b30d6ed7a165621b3347",
-          "message": "chore: bump external pinned commits (#8334)\n\nCo-authored-by: noirwhal <tomfrench@aztecprotocol.com>",
-          "timestamp": "2025-05-06T11:14:28Z",
-          "tree_id": "fea0f3e7841bba80316ce3e31e1cb9b72f99bba7",
-          "url": "https://github.com/noir-lang/noir/commit/054d3d78d8f4e4035260b30d6ed7a165621b3347"
-        },
-        "date": 1746531975803,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 256310,
-            "range": "± 1417",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 231347,
-            "range": "± 6530",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 3573989,
-            "range": "± 3407",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "asterite@gmail.com",
             "name": "Ary Borenszweig",
             "username": "asterite"
@@ -20079,6 +20037,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 3253503,
             "range": "± 7245",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "47281315+guipublic@users.noreply.github.com",
+            "name": "guipublic",
+            "username": "guipublic"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "ef582a683eb4bf492f415d538a8695644e964db2",
+          "message": "chore: blackbox functions for ssa intepreter (#8375)",
+          "timestamp": "2025-05-12T15:51:30Z",
+          "tree_id": "2f2b2026651e79ba06d0f624965454bd618fe529",
+          "url": "https://github.com/noir-lang/noir/commit/ef582a683eb4bf492f415d538a8695644e964db2"
+        },
+        "date": 1747066275879,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 272766,
+            "range": "± 582",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 242763,
+            "range": "± 707",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 3245107,
+            "range": "± 10915",
             "unit": "ns/iter"
           }
         ]
