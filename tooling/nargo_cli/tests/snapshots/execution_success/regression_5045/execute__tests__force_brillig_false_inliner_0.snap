@@ -18,7 +18,26 @@ expression: artifact
     "return_type": null,
     "error_types": {}
   },
-  "bytecode": "H4sIAAAAAAAA/7WW227DIAyGSbOu7dq7te9hh0Pgrq+CA7z/E1RLVZAYi7SLGkuWaaA/n3+RwyBecVnznMfDmmOuoqoldrnec5VglIrzFFGih8mR1aA0GYsWtdVhslJGq+zsyM3gUMmISTuZ4BWcWkOlBe8F1j0PzD3v+DihJ+fIx6mfbKfM+Oz/UZ21Mq7zvzUfa+7X/My/j3ksGg8w2EhKztZLClFhBDLeeRsWChPSnJJbNFIIZvEol+is80SUHIQkjTGPRg8MzKuFUmqVptXO9e8hkAdyKgZYYpI6LdYa1NG4uGCyWpLGSLPzk/LQ9iEYz8KDV09veS5490BmZm4PuvAd8nk9id8xNnu9e/9+MPpwYOT6YvSznMn2PVVf4/KAk7vmPfcEPnfQvQjeD4AefV8qg5l0u7CKTqz1A3vr5mijrDk19VbNM34QYNG/9tGHw0aPt2p8bfrcVXN3JoaiVx7se/E3ds1cWXts+AZ+PmxZxo29Snzneq2uFT9/AA5T6VhJDAAA",
+  "bytecode": [
+    "func 0",
+    "current witness index : _12",
+    "private parameters indices : [_0]",
+    "public parameters indices : []",
+    "return value indices : []",
+    "BLACKBOX::RANGE [(_0, 1)] []",
+    "EXPR [ (-1, _0) (-1, _1) 1 ]",
+    "EXPR [ (-1, _2) 0 ]",
+    "EXPR [ (-1, _3) 5 ]",
+    "BLACKBOX::EMBEDDED_CURVE_ADD [(_2, 254), (_3, 254), (_1, 1), (_2, 254), (_3, 254), (_1, 1)] [_4, _5, _6]",
+    "BLACKBOX::MULTI_SCALAR_MUL [(-8519034168028805793603472410045416908800114122389094750979358290384607299995, 254), (2726875754519434671146873023426441956600113087238248464305840046775215989920, 254), (_1, 1), (0, 254), (5, 254), (_1, 1), (1, 254), (0, 254), (1, 254), (0, 254)] [_7, _8, _9]",
+    "EXPR [ (-1, _4) (1, _7) (-1, _10) 0 ]",
+    "BRILLIG CALL func 0: inputs: [Single(Expression { mul_terms: [], linear_combinations: [(1, Witness(10))], q_c: 0 })], outputs: [Simple(Witness(11))]",
+    "EXPR [ (1, _10, _11) (1, _12) -1 ]",
+    "EXPR [ (1, _10, _12) 0 ]",
+    "EXPR [ (1, _0, _12) 0 ]",
+    "unconstrained func 0",
+    "[Const { destination: Direct(21), bit_size: Integer(U32), value: 1 }, Const { destination: Direct(20), bit_size: Integer(U32), value: 0 }, CalldataCopy { destination_address: Direct(0), size_address: Direct(21), offset_address: Direct(20) }, Const { destination: Direct(2), bit_size: Field, value: 0 }, BinaryFieldOp { destination: Direct(3), op: Equals, lhs: Direct(0), rhs: Direct(2) }, JumpIf { condition: Direct(3), location: 8 }, Const { destination: Direct(1), bit_size: Field, value: 1 }, BinaryFieldOp { destination: Direct(0), op: Div, lhs: Direct(1), rhs: Direct(0) }, Stop { return_data: HeapVector { pointer: Direct(20), size: Direct(21) } }]"
+  ],
   "debug_symbols": "rZTNboQgFIXfhbUL/oV5laYxqDghIWgYbdIY372IYscFpp3MhiNcvpN7ueAMWl1P98q4rn+A28cMam+sNffK9o0aTe/C6rwUIE2r0WsdlsBTPFCD8tqN4OYmawvwpewUNz0G5aKOyocoLIB2bdBg2Bmr16+l+KVhHqUc7zAt8YGzM4/yPMdo5zlDB4/4icd5XkCWEhBQljkHkndAUAq5WyAECX8lCwJTGYJQnHNgb8jiHx4y53HRT06PftBsP6/ug8RHP3mOlxc8kzRdKE5hroI/O5BXzqAkqQZBTjV8hplqjD+9QoDCxgLgOJI40jiytSUF4EHCoZSbiE3kJgiuuqy5eKNqq/dn3U2ueXrl4/eQIuk/MPi+0e3k9ZpLjIXsfgA=",
   "file_map": {
     "16": {
