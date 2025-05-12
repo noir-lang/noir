@@ -236,7 +236,6 @@ pub(super) fn keyword_builtin_type(keyword: &Keyword) -> Option<&'static str> {
         | Keyword::String
         | Keyword::Struct
         | Keyword::Super
-        | Keyword::TopLevelItem
         | Keyword::Trait
         | Keyword::Type
         | Keyword::Unchecked
@@ -297,7 +296,6 @@ pub(super) fn keyword_builtin_function(keyword: &Keyword) -> Option<BuiltInFunct
         | Keyword::String
         | Keyword::Struct
         | Keyword::Super
-        | Keyword::TopLevelItem
         | Keyword::Trait
         | Keyword::TraitConstraint
         | Keyword::TraitDefinition
