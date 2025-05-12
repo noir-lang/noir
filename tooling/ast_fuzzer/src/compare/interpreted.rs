@@ -87,7 +87,7 @@ impl CompareInterpreted {
         //         .collect::<Vec<_>>()
         //         .join("\n")
         // );
-        // println!("SSA:\n{}\n", self.ssa1.ssa);
+        // println!("SSA after step {} ({}):\n{}\n", self.ssa1.step, self.ssa1.msg, self.ssa1.ssa);
         let res1 = self.ssa1.ssa.interpret(self.input_values.clone());
         let res2 = self.ssa2.ssa.interpret(self.input_values.clone());
         Ok(CompareInterpretedResult::new(res1, res2))
