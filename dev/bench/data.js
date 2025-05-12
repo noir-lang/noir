@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1747060876932,
+  "lastUpdate": 1747060956508,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -11167,70 +11167,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "jfecher11@gmail.com",
-            "name": "jfecher",
-            "username": "jfecher"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "a2dd9cf061dd7af0c2cf6f04f614d04a45f07e14",
-          "message": "fix: Fix evaluation order of assignments with side-effects in their rhs (#8342)",
-          "timestamp": "2025-05-05T19:39:35Z",
-          "tree_id": "0057f2a8514e41ec0bc56ede334d4062354454e7",
-          "url": "https://github.com/noir-lang/noir/commit/a2dd9cf061dd7af0c2cf6f04f614d04a45f07e14"
-        },
-        "date": 1746475987225,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 234.1,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 256.58,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 212.44,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 541.5,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 533.67,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 1440,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 362.58,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-root",
-            "value": 368.5,
-            "unit": "MB"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "163862677+noirwhal@users.noreply.github.com",
             "name": "noirwhal",
             "username": "noirwhal"
@@ -14320,6 +14256,70 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/noir-lang/noir/commit/2d727b149ce6c85d7b79687e7709436b1b03783f"
         },
         "date": 1747059687599,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 236.15,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 258.41,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 211.65,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 542.69,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 535.14,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 1440,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 364.19,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-root",
+            "value": 370.11,
+            "unit": "MB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "mvezenov@gmail.com",
+            "name": "Maxim Vezenov",
+            "username": "vezenovm"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "6d6aca93ce27809c1f433672526943e9269366b4",
+          "message": "fix(ssa): Mark mutually recursive simple functions (#8447)",
+          "timestamp": "2025-05-12T14:13:10Z",
+          "tree_id": "5ce899abdaabca9f313f845d1d842c8ff0c11254",
+          "url": "https://github.com/noir-lang/noir/commit/6d6aca93ce27809c1f433672526943e9269366b4"
+        },
+        "date": 1747060947766,
         "tool": "customSmallerIsBetter",
         "benches": [
           {
