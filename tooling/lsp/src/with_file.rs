@@ -507,7 +507,6 @@ fn unresolved_type_data_with_file(typ: UnresolvedTypeData, file: FileId) -> Unre
         | UnresolvedTypeData::Resolved(..)
         | UnresolvedTypeData::Interned(..)
         | UnresolvedTypeData::Unit
-        | UnresolvedTypeData::Integer(..)
         | UnresolvedTypeData::Unspecified
         | UnresolvedTypeData::Error => typ,
     }

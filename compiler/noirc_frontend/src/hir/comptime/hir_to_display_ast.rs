@@ -386,7 +386,9 @@ impl Type {
                 let element = Box::new(element.to_display_ast());
                 UnresolvedTypeData::Slice(element)
             }
-            Type::Integer(sign, bit_size) => UnresolvedTypeData::Integer(*sign, *bit_size),
+            Type::Integer(sign, bit_size) => {
+                UnresolvedTypeData::integer(*sign, *bit_size, Location::dummy())
+            }
             Type::Bool => UnresolvedTypeData::bool(Location::dummy()),
             Type::String(length) => {
                 let length = length.to_type_expression();

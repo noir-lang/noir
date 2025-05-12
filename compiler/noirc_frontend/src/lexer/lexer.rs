@@ -2,7 +2,7 @@ use crate::token::DocStyle;
 
 use super::{
     errors::LexerErrorKind,
-    token::{FmtStrFragment, IntType, Keyword, LocatedToken, SpannedToken, Token, Tokens},
+    token::{FmtStrFragment, Keyword, LocatedToken, SpannedToken, Token, Tokens},
 };
 use acvm::{AcirField, FieldElement};
 use fm::FileId;
@@ -396,15 +396,6 @@ impl<'a> Lexer<'a> {
         // Check if word either an identifier or a keyword
         if let Some(keyword_token) = Keyword::lookup_keyword(&word) {
             return Ok(keyword_token.into_span(start, end));
-        }
-
-        // Check if word an int type
-        // if no error occurred, then it is either a valid integer type or it is not an int type
-        let parsed_token = IntType::lookup_int_type(&word);
-
-        // Check if it is an int type
-        if let Some(int_type) = parsed_token {
-            return Ok(Token::IntType(int_type).into_span(start, end));
         }
 
         // Else it is just an identifier
@@ -996,26 +987,6 @@ mod tests {
 
         let token = lexer.next_token().unwrap();
         assert_eq!(token.token(), &Token::AttributeStart { is_inner: true, is_tag: true });
-    }
-
-    #[test]
-    fn test_int_type() {
-        let input = "u16 i16 i108 u104.5";
-
-        let expected = vec![
-            Token::IntType(IntType::Unsigned(16)),
-            Token::IntType(IntType::Signed(16)),
-            Token::IntType(IntType::Signed(108)),
-            Token::IntType(IntType::Unsigned(104)),
-            Token::Dot,
-            Token::Int(5_i128.into()),
-        ];
-
-        let mut lexer = Lexer::new_with_dummy_file(input);
-        for token in expected.into_iter() {
-            let got = lexer.next_token().unwrap();
-            assert_eq!(got, token);
-        }
     }
 
     #[test]

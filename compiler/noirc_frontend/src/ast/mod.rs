@@ -38,7 +38,6 @@ use crate::{
     node_interner::{InternedUnresolvedTypeData, QuotedTypeId},
     parser::{ParserError, ParserErrorReason},
     shared::Signedness,
-    token::IntType,
 };
 
 use acvm::acir::AcirField;
@@ -124,7 +123,6 @@ impl core::fmt::Display for IntegerBitSize {
 pub enum UnresolvedTypeData {
     Array(UnresolvedTypeExpression, Box<UnresolvedType>), // [Field; 4] = Array(4, Field)
     Slice(Box<UnresolvedType>),
-    Integer(Signedness, IntegerBitSize), // u32 = Integer(unsigned, ThirtyTwo)
     Expression(UnresolvedTypeExpression),
     String(UnresolvedTypeExpression),
     FormatString(UnresolvedTypeExpression, Box<UnresolvedType>),
@@ -281,10 +279,6 @@ impl std::fmt::Display for UnresolvedTypeData {
         match self {
             Array(len, typ) => write!(f, "[{typ}; {len}]"),
             Slice(typ) => write!(f, "[{typ}]"),
-            Integer(sign, num_bits) => match sign {
-                Signedness::Signed => write!(f, "i{num_bits}"),
-                Signedness::Unsigned => write!(f, "u{num_bits}"),
-            },
             Named(s, args, _) => write!(f, "{s}{args}"),
             TraitAsType(s, args) => write!(f, "impl {s}{args}"),
             Tuple(elements) => {
@@ -389,30 +383,32 @@ impl UnresolvedTypeData {
         Self::named("bool", location)
     }
 
+    pub fn integer(signedness: Signedness, size: IntegerBitSize, location: Location) -> Self {
+        let name = match signedness {
+            Signedness::Signed => match size {
+                IntegerBitSize::One => "i1",
+                IntegerBitSize::Eight => "i8",
+                IntegerBitSize::Sixteen => "i16",
+                IntegerBitSize::ThirtyTwo => "i32",
+                IntegerBitSize::SixtyFour => "i64",
+                IntegerBitSize::HundredTwentyEight => "i128",
+            },
+            Signedness::Unsigned => match size {
+                IntegerBitSize::One => "u1",
+                IntegerBitSize::Eight => "u8",
+                IntegerBitSize::Sixteen => "u16",
+                IntegerBitSize::ThirtyTwo => "u32",
+                IntegerBitSize::SixtyFour => "u64",
+                IntegerBitSize::HundredTwentyEight => "u128",
+            },
+        };
+        Self::named(name, location)
+    }
+
     fn named(name: &'static str, location: Location) -> Self {
         let ident = Ident::new(name.to_string(), location);
         let path = Path::from_ident(ident);
         Self::Named(path, GenericTypeArgs::default(), false)
-    }
-
-    pub fn from_int_token(
-        token: IntType,
-    ) -> Result<UnresolvedTypeData, InvalidIntegerBitSizeError> {
-        use {IntType::*, UnresolvedTypeData::Integer};
-        match token {
-            Signed(num_bits) => {
-                if num_bits == 128 {
-                    Err(InvalidIntegerBitSizeError(128))
-                } else if num_bits == 1 {
-                    Err(InvalidIntegerBitSizeError(1))
-                } else {
-                    Ok(Integer(Signedness::Signed, IntegerBitSize::try_from(num_bits)?))
-                }
-            }
-            Unsigned(num_bits) => {
-                Ok(Integer(Signedness::Unsigned, IntegerBitSize::try_from(num_bits)?))
-            }
-        }
     }
 
     pub fn with_location(&self, location: Location) -> UnresolvedType {
@@ -452,8 +448,7 @@ impl UnresolvedTypeData {
             }
             UnresolvedTypeData::Unspecified => true,
 
-            UnresolvedTypeData::Integer(_, _)
-            | UnresolvedTypeData::Unit
+            UnresolvedTypeData::Unit
             | UnresolvedTypeData::Quoted(_)
             | UnresolvedTypeData::AsTraitPath(_)
             | UnresolvedTypeData::Resolved(_)

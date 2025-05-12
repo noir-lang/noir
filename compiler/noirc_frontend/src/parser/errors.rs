@@ -58,8 +58,6 @@ pub enum ParserErrorReason {
 
     #[error("Unexpected '{0}', expected a field name or number")]
     ExpectedFieldName(Token),
-    #[error("Expected a pattern but found a type - {0}")]
-    ExpectedPatternButFoundType(Token),
     #[error("Expected a ; separating these two statements")]
     MissingSeparatingSemi,
     #[error("Expected a ; after `let` statement")]
@@ -94,8 +92,6 @@ pub enum ParserErrorReason {
     InvalidBitSize(u32),
     #[error("{0}")]
     Lexer(LexerErrorKind),
-    #[error("The only supported numeric generic types are `u1`, `u8`, `u16`, and `u32`")]
-    ForbiddenNumericGenericType,
     #[error("Invalid call data identifier, must be a number. E.g `call_data(0)`")]
     InvalidCallDataIdentifier,
     #[error("Associated types are not allowed in paths")]
@@ -288,11 +284,6 @@ impl<'a> From<&'a ParserError> for Diagnostic {
                 ParserErrorReason::TraitImplVisibilityIgnored => {
                     Diagnostic::simple_warning(reason.to_string(), "".into(), error.location())
                 }
-                ParserErrorReason::ExpectedPatternButFoundType(ty) => Diagnostic::simple_error(
-                    format!("Expected a pattern but found a type - {ty}"),
-                    format!("{ty} is a type and cannot be used as a variable name"),
-                    error.location(),
-                ),
                 ParserErrorReason::Lexer(error) => error.into(),
                 ParserErrorReason::ExpectedMutAfterAmpersand { found } => Diagnostic::simple_error(
                     format!("Expected `mut` after `&`, found `{found}`"),

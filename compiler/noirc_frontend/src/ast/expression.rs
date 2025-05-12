@@ -118,7 +118,7 @@ impl UnresolvedGeneric {
         typ: &UnresolvedType,
     ) -> Result<Type, UnsupportedNumericGenericType> {
         // TODO: this should be done with resolved types
-        use crate::ast::UnresolvedTypeData::{Integer, Named};
+        use crate::ast::UnresolvedTypeData::Named;
 
         match &typ.typ {
             Named(path, _generics, _) => {
@@ -133,7 +133,6 @@ impl UnresolvedGeneric {
                     }
                 }
             }
-            Integer(sign, bits) => return Ok(Type::Integer(*sign, *bits)),
             _ => (),
         }
 

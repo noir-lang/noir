@@ -349,10 +349,7 @@ mod tests {
     use insta::assert_snapshot;
 
     use crate::{
-        ast::{
-            ExpressionKind, IntegerBitSize, ItemVisibility, NoirFunction, StatementKind,
-            UnresolvedTypeData,
-        },
+        ast::{ExpressionKind, ItemVisibility, NoirFunction, StatementKind},
         parse_program_with_dummy_file,
         parser::{
             ItemKind, Parser, ParserErrorReason,
@@ -361,7 +358,7 @@ mod tests {
                 get_source_with_error_span,
             },
         },
-        shared::{Signedness, Visibility},
+        shared::Visibility,
     };
 
     fn parse_function_no_error(src: &str) -> NoirFunction {
@@ -588,14 +585,8 @@ mod tests {
         let params = noir_function.parameters();
         assert_eq!(params.len(), 2);
 
-        assert_eq!(
-            params[0].typ.typ,
-            UnresolvedTypeData::Integer(Signedness::Signed, IntegerBitSize::ThirtyTwo)
-        );
-        assert_eq!(
-            params[1].typ.typ,
-            UnresolvedTypeData::Integer(Signedness::Signed, IntegerBitSize::SixtyFour)
-        );
+        assert_eq!(params[0].typ.typ.to_string(), "i32",);
+        assert_eq!(params[1].typ.typ.to_string(), "i64",);
     }
 
     #[test]

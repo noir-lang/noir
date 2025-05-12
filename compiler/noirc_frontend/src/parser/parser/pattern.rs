@@ -126,12 +126,6 @@ impl Parser<'_> {
         }
 
         let Some(mut path) = self.parse_path() else {
-            if self.at_built_in_type() {
-                self.push_error(
-                    ParserErrorReason::ExpectedPatternButFoundType(self.token.token().clone()),
-                    self.current_token_location,
-                );
-            }
             return None;
         };
 
@@ -221,10 +215,6 @@ impl Parser<'_> {
         } else {
             (ident.clone(), Pattern::Identifier(ident))
         })
-    }
-
-    fn at_built_in_type(&self) -> bool {
-        matches!(self.token.token(), Token::IntType(..))
     }
 }
 

@@ -907,7 +907,6 @@ impl ModCollector<'_> {
                     }
                 }
             }
-            UnresolvedTypeData::Integer(sign, bits) => return Type::Integer(*sign, *bits),
             _ => (),
         }
 

@@ -2,7 +2,7 @@ use acvm::{AcirField, FieldElement};
 
 use crate::{
     ast::{UnresolvedType, UnresolvedTypeData, UnresolvedTypeExpression},
-    parser::{ParserErrorReason, labels::ParsingRuleLabel},
+    parser::labels::ParsingRuleLabel,
     token::{Keyword, Token, TokenKind},
 };
 
@@ -83,10 +83,6 @@ impl Parser<'_> {
     }
 
     pub(super) fn parse_primitive_type(&mut self) -> Option<UnresolvedTypeData> {
-        if let Some(typ) = self.parse_int_type() {
-            return Some(typ);
-        }
-
         if let Some(typ) = self.parse_str_type() {
             return Some(typ);
         }
@@ -101,23 +97,6 @@ impl Parser<'_> {
 
         if let Some(typ) = self.parse_interned_type() {
             return Some(typ);
-        }
-
-        None
-    }
-
-    fn parse_int_type(&mut self) -> Option<UnresolvedTypeData> {
-        if let Some(int_type) = self.eat_int_type() {
-            return Some(match UnresolvedTypeData::from_int_token(int_type) {
-                Ok(typ) => typ,
-                Err(err) => {
-                    self.push_error(
-                        ParserErrorReason::InvalidBitSize(err.0),
-                        self.previous_token_location,
-                    );
-                    UnresolvedTypeData::Error
-                }
-            });
         }
 
         None
@@ -392,18 +371,14 @@ impl Parser<'_> {
 
 #[cfg(test)]
 mod tests {
-    use std::collections::BTreeMap;
-
     use insta::assert_snapshot;
-    use proptest::prelude::*;
 
     use crate::{
-        ast::{IntegerBitSize, UnresolvedType, UnresolvedTypeData},
+        ast::{UnresolvedType, UnresolvedTypeData},
         parser::{
-            Parser, ParserErrorReason,
+            Parser,
             parser::tests::{expect_no_errors, get_single_error, get_source_with_error_span},
         },
-        shared::Signedness,
     };
 
     fn parse_type_no_errors(src: &str) -> UnresolvedType {
@@ -418,53 +393,6 @@ mod tests {
         let src = "()";
         let typ = parse_type_no_errors(src);
         assert!(matches!(typ.typ, UnresolvedTypeData::Unit));
-    }
-
-    #[test]
-    fn parses_int_type() {
-        let src = "u32";
-        let typ = parse_type_no_errors(src);
-        assert!(matches!(
-            typ.typ,
-            UnresolvedTypeData::Integer(Signedness::Unsigned, IntegerBitSize::ThirtyTwo)
-        ));
-    }
-
-    proptest! {
-        #[test]
-        fn parses_only_expected_types(sign in proptest::prop_oneof![Just('u'), Just('i')], width: u8) {
-            let accepted_types = BTreeMap::from([
-                ("u1", UnresolvedTypeData::Integer(Signedness::Unsigned, IntegerBitSize::One)),
-                ("u8", UnresolvedTypeData::Integer(Signedness::Unsigned, IntegerBitSize::Eight)),
-                ("u16", UnresolvedTypeData::Integer(Signedness::Unsigned, IntegerBitSize::Sixteen)),
-                ("u32", UnresolvedTypeData::Integer(Signedness::Unsigned, IntegerBitSize::ThirtyTwo)),
-                ("u64", UnresolvedTypeData::Integer(Signedness::Unsigned, IntegerBitSize::SixtyFour)),
-                (
-                    "u128",
-                    UnresolvedTypeData::Integer(
-                        Signedness::Unsigned,
-                        IntegerBitSize::HundredTwentyEight,
-                    ),
-                ),
-                ("i8", UnresolvedTypeData::Integer(Signedness::Signed, IntegerBitSize::Eight)),
-                ("i16", UnresolvedTypeData::Integer(Signedness::Signed, IntegerBitSize::Sixteen)),
-                ("i32", UnresolvedTypeData::Integer(Signedness::Signed, IntegerBitSize::ThirtyTwo)),
-                ("i64", UnresolvedTypeData::Integer(Signedness::Signed, IntegerBitSize::SixtyFour)),
-            ]);
-
-            let src = format!("{sign}{width}");
-            let mut parser = Parser::for_str_with_dummy_file(&src);
-            let typ = parser.parse_type_or_error();
-
-            if let Some(expected_typ) = accepted_types.get(&src.as_str()) {
-                assert_eq!(&typ.typ, expected_typ);
-            } else {
-                assert_eq!(typ.typ, UnresolvedTypeData::Error);
-                assert_eq!(parser.errors.len(), 1);
-                let error = &parser.errors[0];
-                assert!(matches!(error.reason(), Some(ParserErrorReason::InvalidBitSize(..))));
-            }
-        }
     }
 
     #[test]

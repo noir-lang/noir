@@ -208,11 +208,7 @@ impl<'interner> TokenPrettyPrinter<'interner> {
                 let value = Value::TypedExpr(TypedExpr::ExprId(*id));
                 self.print_value(&value, last_was_alphanumeric, f)
             }
-            Token::Keyword(..)
-            | Token::Ident(..)
-            | Token::IntType(..)
-            | Token::Int(..)
-            | Token::Bool(..) => {
+            Token::Keyword(..) | Token::Ident(..) | Token::Int(..) | Token::Bool(..) => {
                 if last_was_alphanumeric {
                     write!(f, " ")?;
                 }
@@ -920,8 +916,7 @@ fn remove_interned_in_unresolved_type_data(
             }))
         }
         UnresolvedTypeData::Interned(id) => interner.get_unresolved_type_data(id).clone(),
-        UnresolvedTypeData::Integer(_, _)
-        | UnresolvedTypeData::Unit
+        UnresolvedTypeData::Unit
         | UnresolvedTypeData::String(_)
         | UnresolvedTypeData::Resolved(_)
         | UnresolvedTypeData::Quoted(_)

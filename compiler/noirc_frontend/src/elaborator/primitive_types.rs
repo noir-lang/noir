@@ -1,6 +1,6 @@
 use noirc_errors::Located;
 
-use crate::{QuotedType, Type};
+use crate::{QuotedType, Type, ast::IntegerBitSize, shared::Signedness};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, strum_macros::EnumIter)]
 pub enum PrimitiveType {
@@ -9,6 +9,16 @@ pub enum PrimitiveType {
     Expr,
     Field,
     FunctionDefinition,
+    I8,
+    I16,
+    I32,
+    I64,
+    U1,
+    U8,
+    U16,
+    U32,
+    U64,
+    U128,
     Module,
     Quoted,
     TraitConstraint,
@@ -28,6 +38,16 @@ impl PrimitiveType {
             "Expr" => Some(Self::Expr),
             "Field" => Some(Self::Field),
             "FunctionDefinition" => Some(Self::FunctionDefinition),
+            "i8" => Some(Self::I8),
+            "i16" => Some(Self::I16),
+            "i32" => Some(Self::I32),
+            "i64" => Some(Self::I64),
+            "u1" => Some(Self::U1),
+            "u8" => Some(Self::U8),
+            "u16" => Some(Self::U16),
+            "u32" => Some(Self::U32),
+            "u64" => Some(Self::U64),
+            "u128" => Some(Self::U128),
             "Module" => Some(Self::Module),
             "Quoted" => Some(Self::Quoted),
             "TraitConstraint" => Some(Self::TraitConstraint),
@@ -48,6 +68,16 @@ impl PrimitiveType {
             Self::Expr => Type::Quoted(QuotedType::Expr),
             Self::Field => Type::FieldElement,
             Self::FunctionDefinition => Type::Quoted(QuotedType::FunctionDefinition),
+            Self::I8 => Type::Integer(Signedness::Signed, IntegerBitSize::Eight),
+            Self::I16 => Type::Integer(Signedness::Signed, IntegerBitSize::Sixteen),
+            Self::I32 => Type::Integer(Signedness::Signed, IntegerBitSize::ThirtyTwo),
+            Self::I64 => Type::Integer(Signedness::Signed, IntegerBitSize::SixtyFour),
+            Self::U1 => Type::Integer(Signedness::Unsigned, IntegerBitSize::One),
+            Self::U8 => Type::Integer(Signedness::Unsigned, IntegerBitSize::Eight),
+            Self::U16 => Type::Integer(Signedness::Unsigned, IntegerBitSize::Sixteen),
+            Self::U32 => Type::Integer(Signedness::Unsigned, IntegerBitSize::ThirtyTwo),
+            Self::U64 => Type::Integer(Signedness::Unsigned, IntegerBitSize::SixtyFour),
+            Self::U128 => Type::Integer(Signedness::Unsigned, IntegerBitSize::HundredTwentyEight),
             Self::Module => Type::Quoted(QuotedType::Module),
             Self::Quoted => Type::Quoted(QuotedType::Quoted),
             Self::TraitConstraint => Type::Quoted(QuotedType::TraitConstraint),
@@ -62,7 +92,17 @@ impl PrimitiveType {
 
     pub fn to_integer_or_field(self) -> Option<Type> {
         match self {
-            Self::Field => Some(Type::FieldElement),
+            Self::I8
+            | Self::I16
+            | Self::I32
+            | Self::I64
+            | Self::U1
+            | Self::U8
+            | Self::U16
+            | Self::U32
+            | Self::U64
+            | Self::U128
+            | Self::Field => Some(self.to_type(&None)),
             Self::Bool
             | Self::CtString
             | Self::Expr
@@ -86,6 +126,16 @@ impl PrimitiveType {
             Self::Expr => "Expr",
             Self::Field => "Field",
             Self::FunctionDefinition => "FunctionDefinition",
+            Self::I8 => "i8",
+            Self::I16 => "i16",
+            Self::I32 => "i32",
+            Self::I64 => "i64",
+            Self::U1 => "u1",
+            Self::U8 => "u8",
+            Self::U16 => "u16",
+            Self::U32 => "u32",
+            Self::U64 => "u64",
+            Self::U128 => "u128",
             Self::Module => "Module",
             Self::Quoted => "Quoted",
             Self::TraitConstraint => "TraitConstraint",

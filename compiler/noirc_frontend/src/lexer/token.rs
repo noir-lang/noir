@@ -25,7 +25,6 @@ pub enum BorrowedToken<'input> {
     RawStr(&'input str, u8),
     FmtStr(&'input [FmtStrFragment], u32 /* length */),
     Keyword(Keyword),
-    IntType(IntType),
     AttributeStart {
         is_inner: bool,
         is_tag: bool,
@@ -140,7 +139,6 @@ pub enum Token {
     RawStr(String, u8),
     FmtStr(Vec<FmtStrFragment>, u32 /* length */),
     Keyword(Keyword),
-    IntType(IntType),
     AttributeStart {
         is_inner: bool,
         is_tag: bool,
@@ -280,7 +278,6 @@ pub fn token_to_borrowed_token(token: &Token) -> BorrowedToken<'_> {
         Token::InternedLValue(id) => BorrowedToken::InternedLValue(*id),
         Token::InternedUnresolvedTypeData(id) => BorrowedToken::InternedUnresolvedTypeData(*id),
         Token::InternedPattern(id) => BorrowedToken::InternedPattern(*id),
-        Token::IntType(i) => BorrowedToken::IntType(i.clone()),
         Token::Less => BorrowedToken::Less,
         Token::LessEqual => BorrowedToken::LessEqual,
         Token::Greater => BorrowedToken::Greater,
@@ -517,7 +514,6 @@ impl fmt::Display for Token {
                 write!(f, "(expr)")
             }
             Token::InternedUnresolvedTypeData(_) => write!(f, "(type)"),
-            Token::IntType(ref i) => write!(f, "{i}"),
             Token::Less => write!(f, "<"),
             Token::LessEqual => write!(f, "<="),
             Token::Greater => write!(f, ">"),

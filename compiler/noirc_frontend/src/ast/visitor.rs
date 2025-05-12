@@ -25,10 +25,10 @@ use crate::{
 };
 
 use super::{
-    ForBounds, FunctionReturnType, GenericTypeArgs, IntegerBitSize, ItemVisibility,
-    MatchExpression, NoirEnumeration, Pattern, Signedness, TraitBound, TraitImplItemKind, TypePath,
-    UnresolvedGeneric, UnresolvedGenerics, UnresolvedTraitConstraint, UnresolvedType,
-    UnresolvedTypeData, UnresolvedTypeExpression, UnsafeExpression,
+    ForBounds, FunctionReturnType, GenericTypeArgs, ItemVisibility, MatchExpression,
+    NoirEnumeration, Pattern, TraitBound, TraitImplItemKind, TypePath, UnresolvedGeneric,
+    UnresolvedGenerics, UnresolvedTraitConstraint, UnresolvedType, UnresolvedTypeData,
+    UnresolvedTypeExpression, UnsafeExpression,
 };
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
@@ -440,8 +440,6 @@ pub trait Visitor {
     fn visit_unspecified_type(&mut self, _: Span) {}
 
     fn visit_quoted_type(&mut self, _: &QuotedType, _: Span) {}
-
-    fn visit_integer_type(&mut self, _: Signedness, _: IntegerBitSize, _: Span) {}
 
     fn visit_unit_type(&mut self, _: Span) {}
 
@@ -1475,9 +1473,6 @@ impl UnresolvedType {
             }
             UnresolvedTypeData::Unspecified => visitor.visit_unspecified_type(self.location.span),
             UnresolvedTypeData::Quoted(typ) => visitor.visit_quoted_type(typ, self.location.span),
-            UnresolvedTypeData::Integer(signdness, size) => {
-                visitor.visit_integer_type(*signdness, *size, self.location.span);
-            }
             UnresolvedTypeData::Unit => visitor.visit_unit_type(self.location.span),
             UnresolvedTypeData::Resolved(id) => {
                 visitor.visit_resolved_type(*id, self.location.span);

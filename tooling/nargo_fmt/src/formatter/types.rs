@@ -14,9 +14,6 @@ impl Formatter<'_> {
                 self.write_left_paren();
                 self.write_right_paren();
             }
-            UnresolvedTypeData::Integer(..) => {
-                self.write_current_token_and_bump();
-            }
             UnresolvedTypeData::Array(type_expr, typ) => {
                 self.write_left_bracket();
                 self.format_type(*typ);
