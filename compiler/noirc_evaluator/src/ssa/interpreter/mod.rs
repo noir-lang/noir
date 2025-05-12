@@ -991,11 +991,12 @@ impl Interpreter<'_> {
                             typ: "Field",
                         }));
                     }
-                    U1(_) => {
-                        return Err(internal(InternalError::UnsupportedOperatorForType {
-                            operator: "<<",
-                            typ: "u1",
-                        }));
+                    U1(value) => {
+                        if rhs == 0 {
+                            U1(value)
+                        } else {
+                            return Err(overflow());
+                        }
                     }
                     U8(value) => U8(value.checked_shl(rhs).ok_or_else(overflow)?),
                     U16(value) => U16(value.checked_shl(rhs).ok_or_else(overflow)?),
@@ -1028,11 +1029,12 @@ impl Interpreter<'_> {
                             typ: "Field",
                         }));
                     }
-                    U1(_) => {
-                        return Err(internal(InternalError::UnsupportedOperatorForType {
-                            operator: ">>",
-                            typ: "u1",
-                        }));
+                    U1(value) => {
+                        if rhs == 0 {
+                            U1(value)
+                        } else {
+                            zero()
+                        }
                     }
                     U8(value) => value.checked_shr(rhs).map(U8).unwrap_or_else(zero),
                     U16(value) => value.checked_shr(rhs).map(U16).unwrap_or_else(zero),
