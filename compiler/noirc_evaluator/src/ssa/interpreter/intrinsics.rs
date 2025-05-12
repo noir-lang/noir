@@ -1,5 +1,7 @@
-use acvm::{BlackBoxFunctionSolver, BlackBoxResolutionError, FieldElement};
+use acvm::{AcirField, BlackBoxFunctionSolver, BlackBoxResolutionError, FieldElement};
+use bn254_blackbox_solver::derive_generators;
 use iter_extended::vecmap;
+use num_bigint::BigUint;
 
 use crate::ssa::{
     interpreter::NumericValue,
@@ -371,7 +373,35 @@ impl Interpreter<'_> {
                 Ok(vec![Value::bool(self.in_unconstrained_context())])
             }
             Intrinsic::DerivePedersenGenerators => {
-                unreachable!("Intrinsic::DerivePedersenGenerators should have been simplified");
+                check_argument_count(args, 2, intrinsic)?;
+                let inputs =
+                    self.lookup_bytes(args[0], "call DerivePedersenGenerators BlackBox")?;
+                let index = self.lookup_u32(args[1], "call DerivePedersenGenerators BlackBox")?;
+                let generators = derive_generators(&inputs, inputs.len() as u32, index);
+                let mut result = Vec::with_capacity(inputs.len());
+                for generator in generators.iter() {
+                    let x_big: BigUint = generator.x.into();
+                    let x = FieldElement::from_le_bytes_reduce(&x_big.to_bytes_le());
+                    let y_big: BigUint = generator.y.into();
+                    let y = FieldElement::from_le_bytes_reduce(&y_big.to_bytes_le());
+                    let generator_slice = Value::array_from_slice(
+                        &[x, y, generator.infinity.into()],
+                        NumericType::NativeField,
+                    );
+                    result.push(generator_slice);
+                }
+                let results = Value::array(
+                    result,
+                    vec![Type::Array(
+                        std::sync::Arc::new(vec![
+                            Type::Numeric(NumericType::NativeField),
+                            Type::Numeric(NumericType::NativeField),
+                            Type::Numeric(NumericType::NativeField),
+                        ]),
+                        3,
+                    )],
+                );
+                Ok(vec![results])
             }
             Intrinsic::FieldLessThan => {
                 if !self.in_unconstrained_context() {

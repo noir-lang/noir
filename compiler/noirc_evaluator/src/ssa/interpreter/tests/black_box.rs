@@ -3,7 +3,7 @@ use acvm::AcirField;
 use crate::ssa::{
     interpreter::{
         Value,
-        tests::{expect_values_with_args, from_u32_slice},
+        tests::{expect_values, expect_values_with_args, from_u32_slice},
     },
     ir::types::NumericType,
 };
@@ -47,6 +47,20 @@ fn test_ec_add() {
     assert!(values.len() == 1);
 }
 
+#[test]
+fn test_pedersen() {
+    let src = r#"
+  acir(inline) fn main f0  {
+    b0():
+      separator = make_array b"DEFAULT_DOMAIN_SEPARATOR"
+      v1 = call derive_pedersen_generators(separator, u32 0) -> [(Field, Field, u1); 1]
+      return v1
+  }
+      "#;
+    let values = expect_values(src);
+    let result = values[0].as_array_or_slice().unwrap();
+    assert!(result.elements.borrow().len() == 24);
+}
 #[test]
 fn test_aes() {
     let src = "
