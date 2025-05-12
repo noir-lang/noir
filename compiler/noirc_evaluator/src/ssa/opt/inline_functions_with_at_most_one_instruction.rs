@@ -1,53 +1,21 @@
 //! This modules defines an SSA pass that inlines calls to functions with at most one instruction.
 //! That is, the contents of the called function is put directly into the caller's body.
 //! Functions are still restricted to not be inlined if they are recursive or marked with no predicates.
-use fxhash::FxHashSet as HashSet;
 use iter_extended::btree_map;
-use petgraph::algo::kosaraju_scc;
 
 use crate::ssa::{
     ir::{
+        call_graph::CallGraph,
         function::{Function, RuntimeType},
-        instruction::Instruction,
-        value::Value,
     },
-    opt::inlining::{called_functions, called_functions_vec},
     ssa_gen::Ssa,
 };
 
 impl Ssa {
     /// See the [`inline_functions_with_at_most_one_instruction`][self] module for more information.
     pub(crate) fn inline_functions_with_at_most_one_instruction(mut self: Ssa) -> Ssa {
-        let function_deps = self
-            .functions
-            .iter()
-            .map(|(id, func)| {
-                let called_functions = called_functions(func);
-                (*id, called_functions)
-            })
-            .collect();
-
-        let (graph, _, indices_to_ids) = super::pure::build_call_graph(function_deps);
-
-        // SCCs are Vec<Vec<NodeIndex>> where each inner Vec is a strongly connected component.
-        let sccs = kosaraju_scc(&graph);
-
-        let mut recursive_functions = HashSet::default();
-
-        for scc in sccs {
-            if scc.len() > 1 {
-                // Mutual recursion
-                for idx in scc {
-                    recursive_functions.insert(indices_to_ids[&idx]);
-                }
-            } else {
-                // Check for self-recursion
-                let idx = scc[0];
-                if graph.neighbors(idx).any(|n| n == idx) {
-                    recursive_functions.insert(indices_to_ids[&idx]);
-                }
-            }
-        }
+        let call_graph = CallGraph::new_from_ssa(&self);
+        let recursive_functions = call_graph.get_recursive_functions();
 
         let should_inline_call = |callee: &Function| {
             if let RuntimeType::Acir(_) = callee.runtime() {
