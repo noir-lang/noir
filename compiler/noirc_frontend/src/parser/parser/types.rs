@@ -197,9 +197,6 @@ impl Parser<'_> {
     }
 
     fn parse_comptime_type(&mut self) -> Option<UnresolvedTypeData> {
-        if self.eat_keyword(Keyword::Expr) {
-            return Some(UnresolvedTypeData::Quoted(QuotedType::Expr));
-        }
         if self.eat_keyword(Keyword::Quoted) {
             return Some(UnresolvedTypeData::Quoted(QuotedType::Quoted));
         }

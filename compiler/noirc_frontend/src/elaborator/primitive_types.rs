@@ -6,6 +6,7 @@ use crate::{QuotedType, Type};
 pub enum PrimitiveType {
     Bool,
     CtString,
+    Expr,
     Field,
 }
 
@@ -14,6 +15,7 @@ impl PrimitiveType {
         match name {
             "bool" => Some(Self::Bool),
             "CtString" => Some(Self::CtString),
+            "Expr" => Some(Self::Expr),
             "Field" => Some(Self::Field),
             _ => None,
         }
@@ -23,6 +25,7 @@ impl PrimitiveType {
         match self {
             Self::Bool => Type::Bool,
             Self::CtString => Type::Quoted(QuotedType::CtString),
+            Self::Expr => Type::Quoted(QuotedType::Expr),
             Self::Field => Type::FieldElement,
         }
     }
@@ -30,7 +33,7 @@ impl PrimitiveType {
     pub fn to_integer_or_field(self) -> Option<Type> {
         match self {
             Self::Field => Some(Type::FieldElement),
-            Self::Bool | Self::CtString => None,
+            Self::Bool | Self::CtString | Self::Expr => None,
         }
     }
 }
