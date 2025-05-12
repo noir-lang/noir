@@ -1,7 +1,0 @@
-
-            [package]
-            name = "noirc_frontend_tests_imports_warns_on_use_of_private_exported_item"
-            type = "bin"
-            authors = [""]
-            
-            [dependencies]

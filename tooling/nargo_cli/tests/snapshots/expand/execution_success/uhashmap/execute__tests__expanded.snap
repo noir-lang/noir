@@ -2,7 +2,8 @@
 source: tooling/nargo_cli/tests/execute.rs
 expression: expanded_code
 ---
-use std::{collections::umap::UHashMap, hash::{BuildHasherDefault, poseidon2::Poseidon2Hasher}};
+use poseidon::poseidon2::Poseidon2Hasher;
+use std::{collections::umap::UHashMap, hash::BuildHasherDefault};
 
 type K = Field;
 
