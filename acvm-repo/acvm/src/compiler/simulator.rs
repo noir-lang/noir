@@ -300,7 +300,6 @@ mod tests {
                         },
                         Witness(2),
                     ),
-                    predicate: None,
                 },
             ],
             BTreeSet::from([Witness(1)]),
