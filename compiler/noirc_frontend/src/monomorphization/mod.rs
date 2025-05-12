@@ -2563,8 +2563,8 @@ pub fn resolve_trait_method(
                 &trait_generics.ordered,
                 &trait_generics.named,
             ) {
-                Ok(TraitImplKind::Normal(impl_id)) => impl_id,
-                Ok(TraitImplKind::Assumed { .. }) => {
+                Ok((TraitImplKind::Normal(impl_id), _instantiation_bindings)) => impl_id,
+                Ok((TraitImplKind::Assumed { .. }, _instantiation_bindings)) => {
                     return Err(InterpreterError::NoImpl { location });
                 }
                 Err(ImplSearchErrorKind::TypeAnnotationsNeededOnObjectType) => {
