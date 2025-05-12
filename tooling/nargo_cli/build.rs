@@ -136,7 +136,7 @@ const IGNORED_NARGO_EXPAND_EXECUTION_TESTS: [&str; 9] = [
     // There's no "src/main.nr" here so it's trickier to make this work
     "workspace_default_member",
     // bug
-    "nested_trait_associated_type_regression_8252"
+    "nested_trait_associated_type_regression_8252",
 ];
 
 /// Tests for which we don't check that stdout matches the expected output.
