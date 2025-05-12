@@ -1,5 +1,3 @@
-use noirc_errors::Located;
-
 use crate::{QuotedType, Type, ast::IntegerBitSize, shared::Signedness};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, strum_macros::EnumIter)]
@@ -61,7 +59,7 @@ impl PrimitiveType {
         }
     }
 
-    pub fn to_type(self, _generics: &Option<Vec<Located<Type>>>) -> Type {
+    pub fn to_type(self) -> Type {
         match self {
             Self::Bool => Type::Bool,
             Self::CtString => Type::Quoted(QuotedType::CtString),
@@ -102,7 +100,7 @@ impl PrimitiveType {
             | Self::U32
             | Self::U64
             | Self::U128
-            | Self::Field => Some(self.to_type(&None)),
+            | Self::Field => Some(self.to_type()),
             Self::Bool
             | Self::CtString
             | Self::Expr

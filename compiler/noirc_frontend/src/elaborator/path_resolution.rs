@@ -40,7 +40,7 @@ pub(crate) enum PathResolutionItem {
     SelfMethod(FuncId),
     TypeAliasFunction(TypeAliasId, Option<Turbofish>, FuncId),
     TraitFunction(TraitId, Option<Turbofish>, FuncId),
-    PrimitiveFunction(FuncId),
+    PrimitiveFunction(PrimitiveType, Option<Turbofish>, FuncId),
 }
 
 impl PathResolutionItem {
@@ -51,7 +51,7 @@ impl PathResolutionItem {
             | PathResolutionItem::SelfMethod(func_id)
             | PathResolutionItem::TypeAliasFunction(_, _, func_id)
             | PathResolutionItem::TraitFunction(_, _, func_id)
-            | PathResolutionItem::PrimitiveFunction(func_id) => Some(*func_id),
+            | PathResolutionItem::PrimitiveFunction(_, _, func_id) => Some(*func_id),
             PathResolutionItem::Module(..)
             | PathResolutionItem::Type(..)
             | PathResolutionItem::TypeAlias(..)
@@ -744,14 +744,15 @@ impl Elaborator<'_> {
         }
 
         let object_name = path.segments[0].ident.as_str();
+        let turbofish = path.segments[0].turbofish();
         let method_name_ident = &path.segments[1].ident;
         let method_name = method_name_ident.as_str();
         let primitive_type = PrimitiveType::lookup_by_name(object_name)?;
-        let typ = primitive_type.to_type(&path.segments[0].generics);
+        let typ = primitive_type.to_type();
 
         if let Some(func_id) = self.interner.lookup_direct_method(&typ, method_name, false) {
             return Some(Ok(PathResolution {
-                item: PathResolutionItem::PrimitiveFunction(func_id),
+                item: PathResolutionItem::PrimitiveFunction(primitive_type, turbofish, func_id),
                 errors: vec![],
             }));
         }
@@ -778,7 +779,11 @@ impl Elaborator<'_> {
                     trait_name,
                 };
                 return Some(Ok(PathResolution {
-                    item: PathResolutionItem::PrimitiveFunction(*func_id),
+                    item: PathResolutionItem::PrimitiveFunction(
+                        primitive_type,
+                        turbofish,
+                        *func_id,
+                    ),
                     errors: vec![error],
                 }));
             } else {
@@ -813,7 +818,7 @@ impl Elaborator<'_> {
 
         let (_, func_id, _) = results.remove(0);
         Some(Ok(PathResolution {
-            item: PathResolutionItem::PrimitiveFunction(func_id),
+            item: PathResolutionItem::PrimitiveFunction(primitive_type, turbofish, func_id),
             errors: vec![],
         }))
     }

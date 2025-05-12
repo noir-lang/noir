@@ -340,7 +340,7 @@ impl Elaborator<'_> {
                 }
             }
             Err(err) => {
-                if let Some(typ) = self.resolve_primitive_type(path) {
+                if let Some(typ) = self.resolve_primitive_type(path, args) {
                     if let Type::Quoted(quoted) = typ {
                         let in_function =
                             matches!(self.current_item, Some(DependencyId::Function(_)));
@@ -363,15 +363,55 @@ impl Elaborator<'_> {
         }
     }
 
-    fn resolve_primitive_type(&self, path: TypedPath) -> Option<Type> {
+    fn resolve_primitive_type(&mut self, path: TypedPath, args: GenericTypeArgs) -> Option<Type> {
         if path.segments.len() != 1 {
             return None;
         }
 
         let segment = path.last_segment();
+        let location = segment.location;
         let ident = segment.ident;
         let primitive_type = PrimitiveType::lookup_by_name(ident.as_str())?;
-        Some(primitive_type.to_type(&segment.generics))
+        match primitive_type {
+            PrimitiveType::Bool
+            | PrimitiveType::CtString
+            | PrimitiveType::Expr
+            | PrimitiveType::Field
+            | PrimitiveType::FunctionDefinition
+            | PrimitiveType::I8
+            | PrimitiveType::I16
+            | PrimitiveType::I32
+            | PrimitiveType::I64
+            | PrimitiveType::U1
+            | PrimitiveType::U8
+            | PrimitiveType::U16
+            | PrimitiveType::U32
+            | PrimitiveType::U64
+            | PrimitiveType::U128
+            | PrimitiveType::Module
+            | PrimitiveType::Quoted
+            | PrimitiveType::TraitConstraint
+            | PrimitiveType::TraitDefinition
+            | PrimitiveType::TraitImpl
+            | PrimitiveType::TypeDefinition
+            | PrimitiveType::TypedExpr
+            | PrimitiveType::Type
+            | PrimitiveType::UnresolvedType => {
+                if !args.is_empty() {
+                    let found = args.ordered_args.len() + args.named_args.len();
+                    self.push_err(CompilationError::TypeError(
+                        TypeCheckError::GenericCountMismatch {
+                            item: primitive_type.name().to_string(),
+                            expected: 0,
+                            found,
+                            location,
+                        },
+                    ));
+                }
+            }
+        }
+
+        Some(primitive_type.to_type())
     }
 
     fn resolve_trait_as_type(

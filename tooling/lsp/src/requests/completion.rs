@@ -327,7 +327,7 @@ impl<'a> NodeFinder<'a> {
                     else {
                         return;
                     };
-                    let typ = primitive_type.to_type(&None);
+                    let typ = primitive_type.to_type();
                     self.complete_type_methods(
                         &typ,
                         &prefix,

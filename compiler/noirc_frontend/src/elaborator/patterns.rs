@@ -23,7 +23,7 @@ use crate::{
 };
 
 use super::{
-    Elaborator, ResolverMeta,
+    Elaborator, PrimitiveType, ResolverMeta,
     path_resolution::{PathResolutionItem, TypedPath, TypedPathSegment},
 };
 
@@ -726,6 +726,46 @@ impl Elaborator<'_> {
                     generics.location,
                 )
             }
+            PathResolutionItem::PrimitiveFunction(primitive_type, turbofish, _func_id) => {
+                match primitive_type {
+                    PrimitiveType::Bool
+                    | PrimitiveType::CtString
+                    | PrimitiveType::Expr
+                    | PrimitiveType::Field
+                    | PrimitiveType::FunctionDefinition
+                    | PrimitiveType::I8
+                    | PrimitiveType::I16
+                    | PrimitiveType::I32
+                    | PrimitiveType::I64
+                    | PrimitiveType::U1
+                    | PrimitiveType::U8
+                    | PrimitiveType::U16
+                    | PrimitiveType::U32
+                    | PrimitiveType::U64
+                    | PrimitiveType::U128
+                    | PrimitiveType::Module
+                    | PrimitiveType::Quoted
+                    | PrimitiveType::TraitConstraint
+                    | PrimitiveType::TraitDefinition
+                    | PrimitiveType::TraitImpl
+                    | PrimitiveType::TypeDefinition
+                    | PrimitiveType::TypedExpr
+                    | PrimitiveType::Type
+                    | PrimitiveType::UnresolvedType => {
+                        if let Some(turbofish) = turbofish {
+                            self.push_err(CompilationError::TypeError(
+                                TypeCheckError::GenericCountMismatch {
+                                    item: primitive_type.name().to_string(),
+                                    expected: 0,
+                                    found: turbofish.generics.len(),
+                                    location: turbofish.location,
+                                },
+                            ));
+                        }
+                        Vec::new()
+                    }
+                }
+            }
             PathResolutionItem::Method(_, None, _)
             | PathResolutionItem::TraitFunction(_, None, _)
             | PathResolutionItem::Module(..)
@@ -733,8 +773,7 @@ impl Elaborator<'_> {
             | PathResolutionItem::TypeAlias(..)
             | PathResolutionItem::Trait(..)
             | PathResolutionItem::Global(..)
-            | PathResolutionItem::ModuleFunction(..)
-            | PathResolutionItem::PrimitiveFunction(_) => Vec::new(),
+            | PathResolutionItem::ModuleFunction(..) => Vec::new(),
         }
     }
 
