@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1747040064762,
+  "lastUpdate": 1747048483948,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -18076,48 +18076,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "mvezenov@gmail.com",
-            "name": "Maxim Vezenov",
-            "username": "vezenovm"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "b8d04d6f1c5dd0bd304df970bf433f5fa60d826a",
-          "message": "fix(ownership): Clone global arrays  (#8328)",
-          "timestamp": "2025-05-02T20:38:57Z",
-          "tree_id": "b5dd1c3082af4cc48d0d466e2db4cadbbaaa18c5",
-          "url": "https://github.com/noir-lang/noir/commit/b8d04d6f1c5dd0bd304df970bf433f5fa60d826a"
-        },
-        "date": 1746219436508,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 252735,
-            "range": "± 1142",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 226364,
-            "range": "± 1423",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 3589027,
-            "range": "± 16557",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "asterite@gmail.com",
             "name": "Ary Borenszweig",
             "username": "asterite"
@@ -20169,6 +20127,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 3243264,
             "range": "± 18047",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "15848336+TomAFrench@users.noreply.github.com",
+            "name": "Tom French",
+            "username": "TomAFrench"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "f8c6943b023a9993b1733ce59a056f1e4a53f390",
+          "message": "chore: use human-readable bytecode in snapshots (#8164)\n\nCo-authored-by: AztecBot <tech@aztecprotocol.com>",
+          "timestamp": "2025-05-12T10:50:23Z",
+          "tree_id": "c18b0a232a8d52fb0d64b702fc821a60e9520886",
+          "url": "https://github.com/noir-lang/noir/commit/f8c6943b023a9993b1733ce59a056f1e4a53f390"
+        },
+        "date": 1747048475636,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 272343,
+            "range": "± 831",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 240844,
+            "range": "± 14528",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 3242661,
+            "range": "± 8621",
             "unit": "ns/iter"
           }
         ]
