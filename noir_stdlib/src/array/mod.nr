@@ -341,9 +341,6 @@ mod test {
         assert(sorted == expected);
     }
 
-    #[test]
-    fn test_sort_local_single_element() {}
-
     global arr_0: [u32; 1] = [0];
     #[test]
     fn test_sort_global_and_local_single_element() {
