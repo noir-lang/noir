@@ -241,25 +241,7 @@ impl Elaborator<'_> {
 
         // Check if the path is a type variable first. We currently disallow generics on type
         // variables since we do not support higher-kinded types.
-        if path.segments.len() == 1 {
-            let name = path.last_name();
-
-            if name == SELF_TYPE_NAME {
-                if let Some(self_type) = self.self_type.clone() {
-                    if !args.is_empty() {
-                        self.push_err(ResolverError::GenericsOnSelfType {
-                            location: path.location,
-                        });
-                    }
-                    return self_type;
-                }
-            } else if name == WILDCARD_TYPE {
-                return self.interner.next_type_variable_with_kind(Kind::Any);
-            }
-        } else if let Some(typ) = self.lookup_associated_type_on_self(&path) {
-            if !args.is_empty() {
-                self.push_err(ResolverError::GenericsOnAssociatedType { location: path.location });
-            }
+        if let Some(typ) = self.lookup_type_variable(&path, &args) {
             return typ;
         }
 
@@ -351,6 +333,25 @@ impl Elaborator<'_> {
 
                 Type::Error
             }
+        }
+    }
+
+    fn lookup_type_variable(&mut self, path: &TypedPath, args: &GenericTypeArgs) -> Option<Type> {
+        if path.segments.len() != 1 {
+            return None;
+        }
+
+        let name = path.last_name();
+        match name {
+            SELF_TYPE_NAME => {
+                let self_type = self.self_type.clone()?;
+                if !args.is_empty() {
+                    self.push_err(ResolverError::GenericsOnSelfType { location: path.location });
+                }
+                Some(self_type)
+            }
+            WILDCARD_TYPE => Some(self.interner.next_type_variable_with_kind(Kind::Any)),
+            _ => None,
         }
     }
 
