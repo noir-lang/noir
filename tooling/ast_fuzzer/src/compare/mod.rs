@@ -1,9 +1,12 @@
-use std::fmt::{Debug, Display};
+use std::{
+    fmt::{Debug, Display},
+    ops::Deref,
+};
 
 use arbitrary::{Arbitrary, Unstructured};
 use color_eyre::eyre::{self, bail};
 use noirc_evaluator::ssa::SsaEvaluatorOptions;
-use noirc_frontend::monomorphization::ast::Program;
+use noirc_frontend::{Shared, monomorphization::ast::Program};
 
 mod compiled;
 mod comptime;
@@ -56,6 +59,24 @@ pub trait Comparable {
 impl<T: Comparable> Comparable for Vec<T> {
     fn equivalent(a: &Self, b: &Self) -> bool {
         a.len() == b.len() && a.iter().zip(b).all(|(a, b)| Comparable::equivalent(a, b))
+    }
+}
+
+impl<T: Comparable> Comparable for Option<T> {
+    fn equivalent(a: &Self, b: &Self) -> bool {
+        match (a, b) {
+            (Some(a), Some(b)) => Comparable::equivalent(a, b),
+            (None, None) => true,
+            _ => false,
+        }
+    }
+}
+
+impl<T: Comparable> Comparable for Shared<T> {
+    fn equivalent(a: &Self, b: &Self) -> bool {
+        let a = a.borrow();
+        let b = b.borrow();
+        Comparable::equivalent(a.deref(), b.deref())
     }
 }
 

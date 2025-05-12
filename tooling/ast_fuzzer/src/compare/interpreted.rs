@@ -128,12 +128,12 @@ impl Comparable for ssa::interpreter::value::Value {
             (Value::ArrayOrSlice(a), Value::ArrayOrSlice(b)) => {
                 // Ignore the RC
                 a.element_types == b.element_types
-                    && a.elements == b.elements
+                    && Comparable::equivalent(&a.elements, &b.elements)
                     && a.is_slice == b.is_slice
             }
             (Value::Reference(a), Value::Reference(b)) => {
                 // Ignore the original ID
-                a.element_type == b.element_type && a.element == b.element
+                a.element_type == b.element_type && Comparable::equivalent(&a.element, &b.element)
             }
             (a, b) => a == b,
         }
