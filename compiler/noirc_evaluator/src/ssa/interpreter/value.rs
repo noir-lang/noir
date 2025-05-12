@@ -6,7 +6,7 @@ use noirc_frontend::Shared;
 
 use crate::ssa::ir::{
     function::FunctionId,
-    instruction::Intrinsic,
+    instruction::{Intrinsic, binary::convert_signed_integer_to_field_element},
     integer::IntegerConstant,
     types::{CompositeType, NumericType, Type},
     value::ValueId,
@@ -239,16 +239,16 @@ impl NumericValue {
                     32 => Self::U32(value.try_into().expect("not u32")),
                     64 => Self::U64(value.try_into().expect("not u64")),
                     128 => Self::U128(value),
-                    bs => panic!("Unsupported numeric type: u{bs}"),
+                    bs => panic!("Unsupported unsigned type: u{bs}"),
                 },
                 Some(IntegerConstant::Signed { value, bit_size }) => match bit_size {
                     8 => Self::I8(value.try_into().expect("not i8")),
                     16 => Self::I16(value.try_into().expect("not i16")),
                     32 => Self::I32(value.try_into().expect("not i32")),
                     64 => Self::I64(value.try_into().expect("not i64")),
-                    bs => panic!("Unsupported numeric type: i{bs}"),
+                    bs => panic!("Unsupported signed type: i{bs}"),
                 },
-                None => unreachable!("unsupported numeric type: {typ}"),
+                None => unreachable!("Unsupported numeric type or value: {typ}, {constant}"),
             },
         }
     }
@@ -263,10 +263,10 @@ impl NumericValue {
             NumericValue::U32(value) => FieldElement::from(*value),
             NumericValue::U64(value) => FieldElement::from(*value),
             NumericValue::U128(value) => FieldElement::from(*value),
-            NumericValue::I8(value) => FieldElement::from(*value as i128),
-            NumericValue::I16(value) => FieldElement::from(*value as i128),
-            NumericValue::I32(value) => FieldElement::from(*value as i128),
-            NumericValue::I64(value) => FieldElement::from(*value as i128),
+            NumericValue::I8(value) => convert_signed_integer_to_field_element(*value as i128, 8),
+            NumericValue::I16(value) => convert_signed_integer_to_field_element(*value as i128, 16),
+            NumericValue::I32(value) => convert_signed_integer_to_field_element(*value as i128, 32),
+            NumericValue::I64(value) => convert_signed_integer_to_field_element(*value as i128, 64),
         }
     }
 }
