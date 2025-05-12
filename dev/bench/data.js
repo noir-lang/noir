@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1747057515223,
+  "lastUpdate": 1747057663844,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -18061,48 +18061,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "sirasistant@gmail.com",
-            "name": "Álvaro Rodríguez",
-            "username": "sirasistant"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "bbfac92ac129fde7c35706932530cd5c15ac4276",
-          "message": "fix: Ordering of items in callstacks (#8338)\n\nCo-authored-by: Maxim Vezenov <mvezenov@gmail.com>",
-          "timestamp": "2025-05-05T18:36:02Z",
-          "tree_id": "dd3e95716fe8777863824acedc030e720a2964ae",
-          "url": "https://github.com/noir-lang/noir/commit/bbfac92ac129fde7c35706932530cd5c15ac4276"
-        },
-        "date": 1746471426466,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 255922,
-            "range": "± 715",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 230161,
-            "range": "± 710",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 3220530,
-            "range": "± 149757",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "asterite@gmail.com",
             "name": "Ary Borenszweig",
             "username": "asterite"
@@ -20154,6 +20112,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 3590446,
             "range": "± 25471",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "asterite@gmail.com",
+            "name": "Ary Borenszweig",
+            "username": "asterite"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "0e414ec5af5e74e3621a548c26952054b20dace1",
+          "message": "chore: carry visibilities in monomorphized AST (#8439)",
+          "timestamp": "2025-05-12T13:28:04Z",
+          "tree_id": "7d25c6a8d069d022978e665837011df3b44f0294",
+          "url": "https://github.com/noir-lang/noir/commit/0e414ec5af5e74e3621a548c26952054b20dace1"
+        },
+        "date": 1747057655715,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 266892,
+            "range": "± 1377",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 236860,
+            "range": "± 1954",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 3258565,
+            "range": "± 12074",
             "unit": "ns/iter"
           }
         ]
