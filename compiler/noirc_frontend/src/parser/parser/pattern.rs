@@ -224,12 +224,7 @@ impl Parser<'_> {
     }
 
     fn at_built_in_type(&self) -> bool {
-        matches!(
-            self.token.token(),
-            Token::IntType(..)
-                | Token::Keyword(Keyword::TypeType)
-                | Token::Keyword(Keyword::UnresolvedType)
-        )
+        matches!(self.token.token(), Token::IntType(..) | Token::Keyword(Keyword::UnresolvedType))
     }
 }
 
