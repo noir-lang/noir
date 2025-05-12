@@ -117,8 +117,6 @@ pub enum ParserErrorReason {
     MissingSafetyComment,
     #[error("Missing parameters for function definition")]
     MissingParametersForFunctionDefinition,
-    #[error("`StructDefinition` is deprecated. It has been renamed to `TypeDefinition`")]
-    StructDefinitionDeprecated,
     #[error("Missing angle brackets surrounding type in associated item path")]
     MissingAngleBrackets,
     #[error("Expected value, found built-in type `{typ}`")]
@@ -317,9 +315,6 @@ impl<'a> From<&'a ParserError> for Diagnostic {
                     let primary = "This doc comment doesn't document anything".to_string();
                     let secondary = "Consider changing it to a regular `//` comment".to_string();
                     Diagnostic::simple_warning(primary, secondary, error.location())
-                }
-                ParserErrorReason::StructDefinitionDeprecated => {
-                    Diagnostic::simple_warning(format!("{reason}"), String::new(), error.location())
                 }
                 ParserErrorReason::MissingAngleBrackets => {
                     let secondary = "Types that don't start with an identifier need to be surrounded with angle brackets: `<`, `>`".to_string();

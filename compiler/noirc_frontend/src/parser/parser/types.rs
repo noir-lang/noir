@@ -206,12 +206,6 @@ impl Parser<'_> {
         if self.eat_keyword(Keyword::TypedExpr) {
             return Some(UnresolvedTypeData::Quoted(QuotedType::TypedExpr));
         }
-
-        let location = self.current_token_location;
-        if self.eat_keyword(Keyword::StructDefinition) {
-            self.push_error(ParserErrorReason::StructDefinitionDeprecated, location);
-            return Some(UnresolvedTypeData::Quoted(QuotedType::TypeDefinition));
-        }
         if self.eat_keyword(Keyword::TypeDefinition) {
             return Some(UnresolvedTypeData::Quoted(QuotedType::TypeDefinition));
         }
