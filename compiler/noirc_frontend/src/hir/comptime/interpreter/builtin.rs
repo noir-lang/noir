@@ -838,6 +838,7 @@ fn quoted_as_module(
         parse(interpreter.elaborator, argument, Parser::parse_path_no_turbofish_or_error, "a path")
             .ok();
     let option_value = path.and_then(|path| {
+        let path = interpreter.elaborator.validate_path(path);
         let reason = Some(ElaborateReason::EvaluatingComptimeCall("Quoted::as_module", location));
         let module =
             interpreter.elaborate_in_function(interpreter.current_function, reason, |elaborator| {
@@ -1178,7 +1179,7 @@ fn type_get_trait_impl(
         &generics.ordered,
         &generics.named,
     ) {
-        Ok(TraitImplKind::Normal(trait_impl_id)) => Some(Value::TraitImpl(trait_impl_id)),
+        Ok((TraitImplKind::Normal(trait_impl_id), _)) => Some(Value::TraitImpl(trait_impl_id)),
         _ => None,
     };
 

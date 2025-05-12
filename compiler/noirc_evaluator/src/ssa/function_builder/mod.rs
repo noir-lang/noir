@@ -363,7 +363,6 @@ impl FunctionBuilder {
             .first()
     }
 
-    #[cfg(test)]
     pub fn insert_mutable_array_set(
         &mut self,
         array: ValueId,

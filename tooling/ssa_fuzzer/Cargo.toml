@@ -21,6 +21,14 @@ noirc_abi.workspace = true
 acvm.workspace = true
 bn254_blackbox_solver.workspace = true
 im.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+serde_with = "3.2.0"
+tracing.workspace = true
+chrono = "0.4.37"
+rayon.workspace = true
+cfg-if.workspace = true
+noir_ssa_executor.workspace = true
 thiserror.workspace = true
 nargo = { path = "../nargo", features = ["rpc"] }
 libfuzzer-sys = { version = "0.4.0", features = ["arbitrary-derive"] }
