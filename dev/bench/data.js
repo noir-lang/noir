@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1747067073407,
+  "lastUpdate": 1747069534504,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -17971,48 +17971,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "asterite@gmail.com",
-            "name": "Ary Borenszweig",
-            "username": "asterite"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "873380cc1d999b6273c4f4ddb8fa020a1130afc2",
-          "message": "feat: add `--fuzz-timeout` to `nargo test` options (#8326)",
-          "timestamp": "2025-05-06T11:28:05Z",
-          "tree_id": "02875a2e30621834e18a19b3cef94f8a528010da",
-          "url": "https://github.com/noir-lang/noir/commit/873380cc1d999b6273c4f4ddb8fa020a1130afc2"
-        },
-        "date": 1746532514844,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 256718,
-            "range": "± 621",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 231063,
-            "range": "± 8060",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 3579393,
-            "range": "± 24703",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "15848336+TomAFrench@users.noreply.github.com",
             "name": "Tom French",
             "username": "TomAFrench"
@@ -20064,6 +20022,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 3245107,
             "range": "± 10915",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "15848336+TomAFrench@users.noreply.github.com",
+            "name": "Tom French",
+            "username": "TomAFrench"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "5302490985807cdf0938602508c1112d163077cd",
+          "message": "chore: fix visibility issues in test suite (#8454)\n\nCo-authored-by: AztecBot <tech@aztecprotocol.com>",
+          "timestamp": "2025-05-12T16:44:00Z",
+          "tree_id": "0e38345d5ef8cdb8dd2c4f309e974e5104d72858",
+          "url": "https://github.com/noir-lang/noir/commit/5302490985807cdf0938602508c1112d163077cd"
+        },
+        "date": 1747069525844,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 271891,
+            "range": "± 479",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 243806,
+            "range": "± 1058",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 3601207,
+            "range": "± 23942",
             "unit": "ns/iter"
           }
         ]
