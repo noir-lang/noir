@@ -40,8 +40,7 @@ fn parse_str_to_field<F: AcirField>(value: &str) -> Result<F, String> {
     } else {
         BigUint::from_str_radix(unsigned_value_string, 10)
     };
-    println!("is_negative:{:?}", is_negative);
-    println!("big_num:{:?}", big_num);
+
     big_num.map_err(|_| "could not convert string to field".to_string()).map(|num| {
         if is_negative {
             -F::from_be_bytes_reduce(&num.to_bytes_be())
@@ -236,7 +235,6 @@ pub fn parse_arithmetic_expression<F: AcirField>(
                 // this is a mul term of form (constant, witness , witness)
                 // we first get the witness indices
                 let first_index = temp[1].strip_prefix("_").unwrap().parse::<u32>().unwrap();
-                println!("second_index: {:?}", temp[2]);
                 let second_index = temp[2].strip_prefix("_").unwrap().parse::<u32>().unwrap();
                 let coeff = parse_str_to_field(temp[0]).unwrap();
                 mul_terms.push((coeff, Witness(first_index), Witness(second_index)))
@@ -275,7 +273,29 @@ mod test {
         return value indices : [_1]
         EXPR [ (-2, _0) (1, _1) 0 ]";
 
-        println!("serialized input: {:?}", serialize_acir(acir_string))
+        let expected = [
+            Instruction {
+                instruction_type: InstructionType::CurrentWitnessIndex,
+                instruction_body: "_1",
+            },
+            Instruction {
+                instruction_type: InstructionType::PrivateParametersIndices,
+                instruction_body: "[_0]",
+            },
+            Instruction {
+                instruction_type: InstructionType::PublicParametersIndices,
+                instruction_body: "[]",
+            },
+            Instruction {
+                instruction_type: InstructionType::ReturnValueIndices,
+                instruction_body: "[_1]",
+            },
+            Instruction {
+                instruction_type: InstructionType::Expr,
+                instruction_body: "[ (-2, _0) (1, _1) 0 ]",
+            },
+        ];
+        assert_eq!(serialize_acir(acir_string), expected);
     }
 
     #[test]
@@ -287,7 +307,29 @@ mod test {
         return value indices : [_3]
         EXPR [ (-1, _0, _2) (-1, _1, _2) (1, _3) 0 ]";
 
-        println!("serialized input: {:?}", serialize_acir(acir_string));
+        let expected = [
+            Instruction {
+                instruction_type: InstructionType::CurrentWitnessIndex,
+                instruction_body: "_3",
+            },
+            Instruction {
+                instruction_type: InstructionType::PrivateParametersIndices,
+                instruction_body: "[_0, _1, _2]",
+            },
+            Instruction {
+                instruction_type: InstructionType::PublicParametersIndices,
+                instruction_body: "[]",
+            },
+            Instruction {
+                instruction_type: InstructionType::ReturnValueIndices,
+                instruction_body: "[_3]",
+            },
+            Instruction {
+                instruction_type: InstructionType::Expr,
+                instruction_body: "[ (-1, _0, _2) (-1, _1, _2) (1, _3) 0 ]",
+            },
+        ];
+        assert_eq!(serialize_acir(acir_string), expected);
     }
 
     #[test]
@@ -305,8 +347,8 @@ mod test {
         let indices_string = "[_0, _1, _2]";
         let indices = parse_indices(indices_string);
         let indices_2 = parse_indices(indices_string_2);
-        println!("{:?}", indices);
-        println!("{:?}", indices_2);
+        assert_eq!(indices, vec![0, 1, 2]);
+        assert_eq!(indices_2, vec![0]);
     }
 
     #[test]
@@ -319,7 +361,10 @@ mod test {
         EXPR [ (-2, _0) (1, _1) 0 ]";
         let serialized_acir = serialize_acir(acir_string);
         let circuit_description = get_circuit_description(&serialized_acir);
-        println!("circuit_description{:?}", circuit_description)
+        assert_eq!(circuit_description.current_witness_index, 1);
+        assert_eq!(circuit_description.private_parameters, BTreeSet::from([Witness(0)]));
+        assert_eq!(circuit_description.public_parameters, PublicInputs(BTreeSet::new()));
+        assert_eq!(circuit_description.return_values, PublicInputs(BTreeSet::from([Witness(1)])));
     }
 
     #[test]
@@ -332,28 +377,26 @@ mod test {
         EXPR [ (-1, _0, _2) (-1, _1, _2) (1, _3) 0 ]";
         let serialized_acir = serialize_acir(acir_string);
         let circuit_description = get_circuit_description(&serialized_acir);
-        println!("circuit_description{:?}", circuit_description)
+        assert_eq!(circuit_description.current_witness_index, 3);
+        assert_eq!(
+            circuit_description.private_parameters,
+            BTreeSet::from([Witness(0), Witness(1), Witness(2)])
+        );
+        assert_eq!(circuit_description.public_parameters, PublicInputs(BTreeSet::new()));
+        assert_eq!(circuit_description.return_values, PublicInputs(BTreeSet::from([Witness(3)])));
     }
 
     #[test]
     fn test_parsing_expression() {
         let expression_body = "[ (-1, _0, _2) (-1, _1, _2) (1, _3) 0 ]";
-
-        // Remove brackets and trim
         let cleaned =
             expression_body.trim().strip_prefix("[").unwrap().strip_suffix("]").unwrap().trim();
-
-        // Create regex to match terms in parentheses
         let re = Regex::new(r"\(([^)]+)\)").unwrap();
-
-        // Collect all matches (terms in parentheses)
         let terms: Vec<&str> = re.find_iter(cleaned).map(|m| m.as_str()).collect();
-
-        // Get the constant term (if any) by splitting on whitespace and taking the last term
         let constant = cleaned.split_whitespace().last().unwrap();
 
-        println!("Terms: {:?}", terms); // Will print: ["(-1, _0, _2)", "(-1, _1, _2)", "(1, _3)"]
-        println!("Constant: {:?}", constant); // Will print: "0"
+        assert_eq!(terms, ["(-1, _0, _2)", "(-1, _1, _2)", "(1, _3)"]);
+        assert_eq!(constant, "0");
     }
 
     #[test]
@@ -364,6 +407,16 @@ mod test {
         };
         let expression =
             parse_arithmetic_expression::<FieldElement>(arithmetic_expression).unwrap();
-        println!("expression: {:?}", expression);
+        assert_eq!(
+            expression,
+            Expression {
+                mul_terms: vec![
+                    (-FieldElement::one(), Witness(0), Witness(2)),
+                    (-FieldElement::one(), Witness(1), Witness(2))
+                ],
+                linear_combinations: vec![(FieldElement::one(), Witness(3))],
+                q_c: FieldElement::zero()
+            }
+        );
     }
 }
