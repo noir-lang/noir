@@ -200,9 +200,6 @@ impl Parser<'_> {
         if self.eat_keyword(Keyword::TypeType) {
             return Some(UnresolvedTypeData::Quoted(QuotedType::Type));
         }
-        if self.eat_keyword(Keyword::TypedExpr) {
-            return Some(UnresolvedTypeData::Quoted(QuotedType::TypedExpr));
-        }
         if self.eat_keyword(Keyword::UnresolvedType) {
             return Some(UnresolvedTypeData::Quoted(QuotedType::UnresolvedType));
         }

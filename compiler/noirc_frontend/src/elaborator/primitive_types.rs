@@ -15,6 +15,7 @@ pub enum PrimitiveType {
     TraitDefinition,
     TraitImpl,
     TypeDefinition,
+    TypedExpr,
 }
 
 impl PrimitiveType {
@@ -31,6 +32,7 @@ impl PrimitiveType {
             "TraitDefinition" => Some(Self::TraitDefinition),
             "TraitImpl" => Some(Self::TraitImpl),
             "TypeDefinition" => Some(Self::TypeDefinition),
+            "TypedExpr" => Some(Self::TypedExpr),
             _ => None,
         }
     }
@@ -48,6 +50,7 @@ impl PrimitiveType {
             Self::TraitDefinition => Type::Quoted(QuotedType::TraitDefinition),
             Self::TraitImpl => Type::Quoted(QuotedType::TraitImpl),
             Self::TypeDefinition => Type::Quoted(QuotedType::TypeDefinition),
+            Self::TypedExpr => Type::Quoted(QuotedType::TypedExpr),
         }
     }
 
@@ -63,7 +66,8 @@ impl PrimitiveType {
             | Self::TraitConstraint
             | Self::TraitDefinition
             | Self::TraitImpl
-            | Self::TypeDefinition => None,
+            | Self::TypeDefinition
+            | Self::TypedExpr => None,
         }
     }
 }
