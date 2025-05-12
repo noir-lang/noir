@@ -13,7 +13,7 @@ use regex::Regex;
 
 use crate::{Config, arb_program, input::arb_inputs_from_ssa, program_abi};
 
-use super::{CompareError, CompareOptions, CompareResult, ExecOutput};
+use super::{Comparable, CompareOptions, CompareResult, ExecOutput};
 
 /// The state of the SSA after a particular pass in the pipeline.
 pub struct ComparePass {
@@ -106,7 +106,7 @@ impl CompareInterpretedResult {
     }
 }
 
-impl CompareError for ssa::interpreter::errors::InterpreterError {
+impl Comparable for ssa::interpreter::errors::InterpreterError {
     fn equivalent(e1: &Self, e2: &Self) -> bool {
         use ssa::interpreter::errors::InterpreterError::*;
         if matches!(e1, Internal(_)) || matches!(e2, Internal(_)) {
@@ -118,6 +118,25 @@ impl CompareError for ssa::interpreter::errors::InterpreterError {
         let s1 = format!("{e1}");
         let s2 = format!("{e2}");
         sanitize_ssa(&s1) == sanitize_ssa(&s2)
+    }
+}
+
+impl Comparable for ssa::interpreter::value::Value {
+    fn equivalent(a: &Self, b: &Self) -> bool {
+        use ssa::interpreter::value::Value;
+        match (a, b) {
+            (Value::ArrayOrSlice(a), Value::ArrayOrSlice(b)) => {
+                // Ignore the RC
+                a.element_types == b.element_types
+                    && a.elements == b.elements
+                    && a.is_slice == b.is_slice
+            }
+            (Value::Reference(a), Value::Reference(b)) => {
+                // Ignore the original ID
+                a.element_type == b.element_type && a.element == b.element
+            }
+            (a, b) => a == b,
+        }
     }
 }
 

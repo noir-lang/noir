@@ -48,9 +48,15 @@ impl CompareOptions {
     }
 }
 
-/// Help ignore errors we find equivalent between executions.
-pub trait CompareError: Display + Debug {
-    fn equivalent(e1: &Self, e2: &Self) -> bool;
+/// Help ignore results and errors we find equivalent between executions.
+pub trait Comparable {
+    fn equivalent(a: &Self, b: &Self) -> bool;
+}
+
+impl<T: Comparable> Comparable for Vec<T> {
+    fn equivalent(a: &Self, b: &Self) -> bool {
+        a.len() == b.len() && a.iter().zip(b).all(|(a, b)| Comparable::equivalent(a, b))
+    }
 }
 
 /// Possible outcomes of the differential execution of two equivalent programs.
@@ -66,8 +72,8 @@ pub enum CompareResult<T, E> {
 
 impl<T, E> CompareResult<T, E>
 where
-    E: CompareError,
-    T: PartialEq + Debug,
+    E: Comparable + Display + Debug,
+    T: Comparable + Debug,
 {
     /// Check that two programs agree on a return value.
     ///
@@ -75,7 +81,7 @@ where
     pub fn return_value_or_err(&self) -> eyre::Result<Option<&T>> {
         match self {
             CompareResult::BothFailed(e1, e2) => {
-                if CompareError::equivalent(e1, e2) {
+                if Comparable::equivalent(e1, e2) {
                     // Both programs failed the same way.
                     Ok(None)
                 } else {
@@ -88,23 +94,27 @@ where
             CompareResult::RightFailed(_, e) => {
                 bail!("second program failed: {e}\n{e:?}")
             }
-            CompareResult::BothPassed(o1, o2) => {
-                if o1.return_value != o2.return_value {
-                    bail!(
-                        "programs disagree on return value:\n{:?}\n!=\n{:?}",
-                        o1.return_value,
-                        o2.return_value
-                    )
-                } else if o1.print_output != o2.print_output {
-                    bail!(
-                        "programs disagree on printed output:\n---\n{}\n\n---\n{}\n",
-                        o1.print_output,
-                        o2.print_output
-                    )
-                } else {
-                    Ok(o1.return_value.as_ref())
+            CompareResult::BothPassed(o1, o2) => match (&o1.return_value, &o2.return_value) {
+                (Some(r1), Some(r2)) if !Comparable::equivalent(r1, r2) => {
+                    bail!("programs disagree on return value:\n{r1:?}\n!=\n{r2:?}",)
                 }
-            }
+                (Some(r1), None) => {
+                    bail!("only the first program returned a value: {r1:?}",)
+                }
+                (None, Some(r2)) => {
+                    bail!("only the second program returned a value: {r2:?}",)
+                }
+                (r1, _) => {
+                    if o1.print_output != o2.print_output {
+                        bail!(
+                            "programs disagree on printed output:\n---\n{}\n\n---\n{}\n",
+                            o1.print_output,
+                            o2.print_output
+                        )
+                    }
+                    Ok(r1.as_ref())
+                }
+            },
         }
     }
 }

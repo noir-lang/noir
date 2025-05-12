@@ -11,7 +11,7 @@ use noirc_frontend::monomorphization::ast::Program;
 
 use crate::{Config, arb_inputs, arb_program, program_abi};
 
-use super::{CompareError, CompareOptions, CompareResult, ExecOutput, HasPrograms};
+use super::{Comparable, CompareOptions, CompareResult, ExecOutput, HasPrograms};
 
 pub struct CompareArtifact {
     pub options: CompareOptions,
@@ -67,7 +67,7 @@ impl CompareCompiledResult {
     }
 }
 
-impl CompareError for NargoError<FieldElement> {
+impl Comparable for NargoError<FieldElement> {
     fn equivalent(e1: &Self, e2: &Self) -> bool {
         use ExecutionError::*;
 
@@ -91,6 +91,12 @@ impl CompareError for NargoError<FieldElement> {
                 _ => false,
             },
         }
+    }
+}
+
+impl Comparable for InputValue {
+    fn equivalent(a: &Self, b: &Self) -> bool {
+        a == b
     }
 }
 
