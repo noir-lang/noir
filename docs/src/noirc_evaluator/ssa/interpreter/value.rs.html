@@ -330,7 +330,21 @@
 <a href="#329" id="329">329</a>
 <a href="#330" id="330">330</a>
 <a href="#331" id="331">331</a>
-<a href="#332" id="332">332</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::sync::Arc;
+<a href="#332" id="332">332</a>
+<a href="#333" id="333">333</a>
+<a href="#334" id="334">334</a>
+<a href="#335" id="335">335</a>
+<a href="#336" id="336">336</a>
+<a href="#337" id="337">337</a>
+<a href="#338" id="338">338</a>
+<a href="#339" id="339">339</a>
+<a href="#340" id="340">340</a>
+<a href="#341" id="341">341</a>
+<a href="#342" id="342">342</a>
+<a href="#343" id="343">343</a>
+<a href="#344" id="344">344</a>
+<a href="#345" id="345">345</a>
+<a href="#346" id="346">346</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::sync::Arc;
 
 <span class="kw">use </span>acvm::{AcirField, FieldElement};
 <span class="kw">use </span>iter_extended::vecmap;
@@ -436,6 +450,13 @@
         }
     }
 
+    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>as_u64(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="prelude-ty">Option</span>&lt;u64&gt; {
+        <span class="kw">match </span><span class="self">self </span>{
+            Value::Numeric(NumericValue::U64(value)) =&gt; <span class="prelude-val">Some</span>(<span class="kw-2">*</span>value),
+            <span class="kw">_ </span>=&gt; <span class="prelude-val">None</span>,
+        }
+    }
+
     <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>as_numeric(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="prelude-ty">Option</span>&lt;NumericValue&gt; {
         <span class="kw">match </span><span class="self">self </span>{
             Value::Numeric(value) =&gt; <span class="prelude-val">Some</span>(<span class="kw-2">*</span>value),
@@ -459,6 +480,13 @@
 
     <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>from_constant(constant: FieldElement, typ: NumericType) -&gt; <span class="self">Self </span>{
         <span class="self">Self</span>::Numeric(NumericValue::from_constant(constant, typ))
+    }
+
+    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>array_from_slice(slice: <span class="kw-2">&amp;</span>[FieldElement], typ: NumericType) -&gt; <span class="self">Self </span>{
+        <span class="kw">let </span>values =
+            slice.iter().map(|v| Value::Numeric(NumericValue::from_constant(<span class="kw-2">*</span>v, typ))).collect();
+        <span class="kw">let </span>types = slice.iter().map(|<span class="kw">_</span>| Type::Numeric(typ)).collect();
+        <span class="self">Self</span>::array(values, types)
     }
 
     <span class="comment">// This is used in tests but shouldn't be cfg(test) only

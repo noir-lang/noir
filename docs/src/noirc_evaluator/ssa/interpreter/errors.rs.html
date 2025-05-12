@@ -137,7 +137,13 @@
 <a href="#136" id="136">136</a>
 <a href="#137" id="137">137</a>
 <a href="#138" id="138">138</a>
-<a href="#139" id="139">139</a></pre></div><pre class="rust"><code><span class="kw">use </span><span class="kw">crate</span>::ssa::ir::{
+<a href="#139" id="139">139</a>
+<a href="#140" id="140">140</a>
+<a href="#141" id="141">141</a>
+<a href="#142" id="142">142</a>
+<a href="#143" id="143">143</a>
+<a href="#144" id="144">144</a>
+<a href="#145" id="145">145</a></pre></div><pre class="rust"><code><span class="kw">use </span><span class="kw">crate</span>::ssa::ir::{
     basic_block::BasicBlockId,
     instruction::{BinaryOp, Intrinsic},
     value::ValueId,
@@ -195,6 +201,8 @@
     </span>PoppedFromEmptySlice { slice: ValueId, instruction: <span class="kw-2">&amp;</span><span class="lifetime">'static </span>str },
     <span class="attr">#[error(<span class="string">"Unable to convert `{field_id} = {field}` to radix {radix}"</span>)]
     </span>ToRadixFailed { field_id: ValueId, field: FieldElement, radix: u32 },
+    <span class="attr">#[error(<span class="string">"Failed to solve blackbox function {name}: {reason}"</span>)]
+    </span>BlackBoxError { name: String, reason: String },
 }
 
 <span class="doccomment">/// These errors can only result from interpreting malformed SSA
@@ -275,5 +283,9 @@
         actual_length: usize,
         element_types: Vec&lt;String&gt;,
     },
+    <span class="attr">#[error(<span class="string">"Unexpected instruction: `{reason}`"</span>)]
+    </span>UnexpectedInstruction { reason: <span class="kw-2">&amp;</span><span class="lifetime">'static </span>str },
+    <span class="attr">#[error(<span class="string">"Expected array of {expected_size} elements, got {size}"</span>)]
+    </span>InvalidInputSize { expected_size: usize, size: usize },
 }
 </code></pre></div></section></main></body></html>
