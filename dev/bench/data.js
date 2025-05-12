@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1747057663844,
+  "lastUpdate": 1747057748779,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -20772,6 +20772,80 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/noir-lang/noir/commit/f8c6943b023a9993b1733ce59a056f1e4a53f390"
         },
         "date": 1747048775882,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 1125.7,
+            "unit": "KB"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 2049.6,
+            "unit": "KB"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 581.7,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 5122.2,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 3940.9,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-block-root-empty",
+            "value": 256.9,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-block-root-single-tx",
+            "value": 25679.6,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 25706.5,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 181.7,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-root",
+            "value": 472,
+            "unit": "KB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "mvezenov@gmail.com",
+            "name": "Maxim Vezenov",
+            "username": "vezenovm"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "1b593f68c3e91a6fafb5c7c819a4efc8bf6636ea",
+          "message": "chore(tests): Add regression for now passing test (#8441)",
+          "timestamp": "2025-05-12T13:24:48Z",
+          "tree_id": "ea9dabcd233964d38720cf2d05356804f0ac6fa4",
+          "url": "https://github.com/noir-lang/noir/commit/1b593f68c3e91a6fafb5c7c819a4efc8bf6636ea"
+        },
+        "date": 1747057740751,
         "tool": "customSmallerIsBetter",
         "benches": [
           {
