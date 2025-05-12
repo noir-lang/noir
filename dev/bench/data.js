@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1747069534504,
+  "lastUpdate": 1747069772941,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -3705,95 +3705,6 @@ window.BENCHMARK_DATA = {
       }
     ],
     "Compilation Time": [
-      {
-        "commit": {
-          "author": {
-            "email": "asterite@gmail.com",
-            "name": "Ary Borenszweig",
-            "username": "asterite"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "873380cc1d999b6273c4f4ddb8fa020a1130afc2",
-          "message": "feat: add `--fuzz-timeout` to `nargo test` options (#8326)",
-          "timestamp": "2025-05-06T11:28:05Z",
-          "tree_id": "02875a2e30621834e18a19b3cef94f8a528010da",
-          "url": "https://github.com/noir-lang/noir/commit/873380cc1d999b6273c4f4ddb8fa020a1130afc2"
-        },
-        "date": 1746532782685,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "regression_4709",
-            "value": 0.666,
-            "unit": "s"
-          },
-          {
-            "name": "ram_blowup_regression",
-            "value": 12.7,
-            "unit": "s"
-          },
-          {
-            "name": "global_var_regression_entry_points",
-            "value": 0.48,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-inner",
-            "value": 2.262,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 6.584,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 1.116,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 17.06,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 13.18,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root-empty",
-            "value": 1.262,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root-single-tx",
-            "value": 121,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 136,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 1.212,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-root",
-            "value": 1.59,
-            "unit": "s"
-          }
-        ]
-      },
       {
         "commit": {
           "author": {
@@ -7926,6 +7837,80 @@ window.BENCHMARK_DATA = {
           {
             "name": "rollup-root",
             "value": 1.638,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "15848336+TomAFrench@users.noreply.github.com",
+            "name": "Tom French",
+            "username": "TomAFrench"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "5302490985807cdf0938602508c1112d163077cd",
+          "message": "chore: fix visibility issues in test suite (#8454)\n\nCo-authored-by: AztecBot <tech@aztecprotocol.com>",
+          "timestamp": "2025-05-12T16:44:00Z",
+          "tree_id": "0e38345d5ef8cdb8dd2c4f309e974e5104d72858",
+          "url": "https://github.com/noir-lang/noir/commit/5302490985807cdf0938602508c1112d163077cd"
+        },
+        "date": 1747069763820,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 2.454,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 6.544,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 0.99,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 17.2,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 12.42,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-empty",
+            "value": 1.296,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-single-tx",
+            "value": 124,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 133,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 1.054,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-root",
+            "value": 1.596,
             "unit": "s"
           }
         ]
