@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1747066936951,
+  "lastUpdate": 1747067072344,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -11146,70 +11146,6 @@ window.BENCHMARK_DATA = {
             "name": "GitHub",
             "username": "web-flow"
           },
-          "distinct": false,
-          "id": "4e064ba13616d584cc6bae1e67acabffe3967b0f",
-          "message": "fix(expand): try to use \"Self\" in function calls (#8353)",
-          "timestamp": "2025-05-06T11:14:10Z",
-          "tree_id": "b5c9992f8d1dfc7a1b8737be5f8e90566af4fe4f",
-          "url": "https://github.com/noir-lang/noir/commit/4e064ba13616d584cc6bae1e67acabffe3967b0f"
-        },
-        "date": 1746532737333,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 234.1,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 256.58,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 212.44,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 541.5,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 533.67,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 1440,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 362.58,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-root",
-            "value": 368.5,
-            "unit": "MB"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
-            "email": "asterite@gmail.com",
-            "name": "Ary Borenszweig",
-            "username": "asterite"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
           "distinct": true,
           "id": "873380cc1d999b6273c4f4ddb8fa020a1130afc2",
           "message": "feat: add `--fuzz-timeout` to `nargo test` options (#8326)",
@@ -14290,6 +14226,70 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/noir-lang/noir/commit/5e3a04eea96bde4403b291dfb8c326f47770b6da"
         },
         "date": 1747064185737,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 236.15,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 258.41,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 211.65,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 542.69,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 535.14,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 1440,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 364.19,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-root",
+            "value": 370.11,
+            "unit": "MB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "47281315+guipublic@users.noreply.github.com",
+            "name": "guipublic",
+            "username": "guipublic"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "ef582a683eb4bf492f415d538a8695644e964db2",
+          "message": "chore: blackbox functions for ssa intepreter (#8375)",
+          "timestamp": "2025-05-12T15:51:30Z",
+          "tree_id": "2f2b2026651e79ba06d0f624965454bd618fe529",
+          "url": "https://github.com/noir-lang/noir/commit/ef582a683eb4bf492f415d538a8695644e964db2"
+        },
+        "date": 1747067063669,
         "tool": "customSmallerIsBetter",
         "benches": [
           {
