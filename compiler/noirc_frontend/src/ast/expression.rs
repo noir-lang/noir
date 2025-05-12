@@ -7,6 +7,7 @@ use crate::ast::{
     Ident, ItemVisibility, Path, Pattern, Statement, StatementKind, UnresolvedTraitConstraint,
     UnresolvedType, UnresolvedTypeData,
 };
+use crate::elaborator::PrimitiveType;
 use crate::node_interner::{ExprId, InternedExpressionKind, InternedStatementKind, QuotedTypeId};
 use crate::shared::Visibility;
 use crate::signed_field::SignedField;
@@ -116,17 +117,28 @@ impl UnresolvedGeneric {
         &self,
         typ: &UnresolvedType,
     ) -> Result<Type, UnsupportedNumericGenericType> {
-        use crate::ast::UnresolvedTypeData::{FieldElement, Integer};
+        // TODO: this should be done with resolved types
+        use crate::ast::UnresolvedTypeData::{Integer, Named};
 
-        match typ.typ {
-            FieldElement => Ok(Type::FieldElement),
-            Integer(sign, bits) => Ok(Type::Integer(sign, bits)),
-            // Only fields and integers are supported for numeric kinds
-            _ => Err(UnsupportedNumericGenericType {
-                ident: self.ident().clone(),
-                typ: typ.typ.clone(),
-            }),
+        match &typ.typ {
+            Named(path, _generics, _) => {
+                if path.segments.len() == 1 {
+                    if let Some(primitive_type) =
+                        PrimitiveType::lookup_by_name(path.segments[0].ident.as_str())
+                    {
+                        // TODO: check generics
+                        match primitive_type {
+                            PrimitiveType::Field => return Ok(Type::FieldElement),
+                        }
+                    }
+                }
+            }
+            Integer(sign, bits) => return Ok(Type::Integer(*sign, *bits)),
+            _ => (),
         }
+
+        // Only fields and integers are supported for numeric kinds
+        Err(UnsupportedNumericGenericType { ident: self.ident().clone(), typ: typ.typ.clone() })
     }
 
     pub(crate) fn ident(&self) -> &Ident {

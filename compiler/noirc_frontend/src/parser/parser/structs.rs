@@ -214,7 +214,7 @@ mod tests {
 
         let field = noir_struct.fields.remove(0).item;
         assert_eq!("y", field.name.to_string());
-        assert!(matches!(field.typ.typ, UnresolvedTypeData::FieldElement));
+        assert_eq!(field.typ.typ.to_string(), "Field");
     }
 
     #[test]

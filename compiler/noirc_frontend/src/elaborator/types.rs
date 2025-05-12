@@ -44,6 +44,7 @@ use crate::{
 use super::{
     Elaborator, FunctionContext, PathResolutionTarget, UnsafeBlockStatus, lints,
     path_resolution::{PathResolutionItem, PathResolutionMode, TypedPath},
+    primitive_types::PrimitiveType,
 };
 
 pub const SELF_TYPE_NAME: &str = "Self";
@@ -109,7 +110,6 @@ impl Elaborator<'_> {
             };
 
         let resolved_type = match typ.typ {
-            FieldElement => Type::FieldElement,
             Array(size, elem) => {
                 let elem = Box::new(self.resolve_type_with_kind_inner(*elem, kind, mode));
                 let size = self.convert_expression_type(size, &Kind::u32(), location);
@@ -305,40 +305,72 @@ impl Elaborator<'_> {
             return Type::Alias(type_alias, args);
         }
 
-        match self.lookup_datatype_or_error(path, mode) {
-            Some(data_type) => {
-                if self.resolving_ids.contains(&data_type.borrow().id) {
-                    self.push_err(ResolverError::SelfReferentialType {
-                        location: data_type.borrow().name.location(),
+        let location = path.location;
+        match self.resolve_path_or_error_inner(path.clone(), PathResolutionTarget::Type, mode) {
+            Ok(item) => {
+                if let PathResolutionItem::Type(type_id) = item {
+                    let data_type = self.get_type(type_id);
+
+                    if self.resolving_ids.contains(&data_type.borrow().id) {
+                        self.push_err(ResolverError::SelfReferentialType {
+                            location: data_type.borrow().name.location(),
+                        });
+
+                        return Type::Error;
+                    }
+
+                    if !self.in_contract()
+                        && self
+                            .interner
+                            .type_attributes(&data_type.borrow().id)
+                            .iter()
+                            .any(|attr| matches!(attr.kind, SecondaryAttributeKind::Abi(_)))
+                    {
+                        self.push_err(ResolverError::AbiAttributeOutsideContract {
+                            location: data_type.borrow().name.location(),
+                        });
+                    }
+
+                    let (args, _) =
+                        self.resolve_type_args_inner(args, data_type.borrow(), location, mode);
+
+                    if let Some(current_item) = self.current_item {
+                        let dependency_id = data_type.borrow().id;
+                        self.interner.add_type_dependency(current_item, dependency_id);
+                    }
+
+                    Type::DataType(data_type, args)
+                } else {
+                    self.push_err(ResolverError::Expected {
+                        expected: "type",
+                        got: item.description(),
+                        location,
                     });
 
-                    return Type::Error;
+                    Type::Error
                 }
-
-                if !self.in_contract()
-                    && self
-                        .interner
-                        .type_attributes(&data_type.borrow().id)
-                        .iter()
-                        .any(|attr| matches!(attr.kind, SecondaryAttributeKind::Abi(_)))
-                {
-                    self.push_err(ResolverError::AbiAttributeOutsideContract {
-                        location: data_type.borrow().name.location(),
-                    });
-                }
-
-                let (args, _) =
-                    self.resolve_type_args_inner(args, data_type.borrow(), location, mode);
-
-                if let Some(current_item) = self.current_item {
-                    let dependency_id = data_type.borrow().id;
-                    self.interner.add_type_dependency(current_item, dependency_id);
-                }
-
-                Type::DataType(data_type, args)
             }
-            None => Type::Error,
+            Err(err) => {
+                if let Some(typ) = self.resolve_primitive_type(path) {
+                    return typ;
+                }
+
+                self.push_err(err);
+
+                Type::Error
+            }
         }
+    }
+
+    fn resolve_primitive_type(&self, path: TypedPath) -> Option<Type> {
+        if path.segments.len() != 1 {
+            return None;
+        }
+
+        let segment = path.last_segment();
+        let ident = segment.ident;
+        let primitive_type = PrimitiveType::lookup_by_name(ident.as_str())?;
+        Some(primitive_type.to_type(&segment.generics))
     }
 
     fn resolve_trait_as_type(

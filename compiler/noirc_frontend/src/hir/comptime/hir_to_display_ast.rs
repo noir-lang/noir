@@ -376,7 +376,7 @@ impl Type {
     /// Convert to AST for display (some details lost)
     fn to_display_ast(&self) -> UnresolvedType {
         let typ = match self {
-            Type::FieldElement => UnresolvedTypeData::FieldElement,
+            Type::FieldElement => UnresolvedTypeData::field(Location::dummy()),
             Type::Array(length, element) => {
                 let length = length.to_type_expression();
                 let element = Box::new(element.to_display_ast());

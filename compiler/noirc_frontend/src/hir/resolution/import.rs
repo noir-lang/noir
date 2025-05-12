@@ -334,7 +334,9 @@ impl<'def_maps, 'usage_tracker, 'references_tracker>
             let current_ident = &current_segment.ident;
 
             let (typ, visibility) = match current_ns.types {
-                None => return Err(PathResolutionError::Unresolved(last_ident.clone())),
+                None => {
+                    return Err(PathResolutionError::Unresolved(last_ident.clone()));
+                }
                 Some((typ, visibility, _)) => (typ, visibility),
             };
 

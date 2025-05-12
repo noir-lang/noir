@@ -194,7 +194,7 @@ mod tests {
         let variant = noir_enum.variants.remove(0).item;
         assert_eq!("y", variant.name.to_string());
         let parameters = variant.parameters.as_ref().unwrap();
-        assert!(matches!(parameters[0].typ, UnresolvedTypeData::FieldElement));
+        assert_eq!(parameters[0].typ.to_string(), "Field");
         assert!(matches!(parameters[1].typ, UnresolvedTypeData::Integer(..)));
 
         let variant = noir_enum.variants.remove(0).item;

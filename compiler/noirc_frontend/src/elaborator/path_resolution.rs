@@ -13,6 +13,7 @@ use crate::node_interner::{FuncId, GlobalId, TraitId, TypeAliasId, TypeId};
 use crate::{Shared, Type, TypeAlias};
 
 use super::Elaborator;
+use super::primitive_types::PrimitiveType;
 use super::types::SELF_TYPE_NAME;
 
 #[derive(Debug)]
@@ -39,6 +40,7 @@ pub(crate) enum PathResolutionItem {
     SelfMethod(FuncId),
     TypeAliasFunction(TypeAliasId, Option<Turbofish>, FuncId),
     TraitFunction(TraitId, Option<Turbofish>, FuncId),
+    PrimitiveFunction(FuncId),
 }
 
 impl PathResolutionItem {
@@ -48,7 +50,8 @@ impl PathResolutionItem {
             | PathResolutionItem::Method(_, _, func_id)
             | PathResolutionItem::SelfMethod(func_id)
             | PathResolutionItem::TypeAliasFunction(_, _, func_id)
-            | PathResolutionItem::TraitFunction(_, _, func_id) => Some(*func_id),
+            | PathResolutionItem::TraitFunction(_, _, func_id)
+            | PathResolutionItem::PrimitiveFunction(func_id) => Some(*func_id),
             PathResolutionItem::Module(..)
             | PathResolutionItem::Type(..)
             | PathResolutionItem::TypeAlias(..)
@@ -68,7 +71,8 @@ impl PathResolutionItem {
             | PathResolutionItem::Method(..)
             | PathResolutionItem::SelfMethod(..)
             | PathResolutionItem::TypeAliasFunction(..)
-            | PathResolutionItem::TraitFunction(..) => "function",
+            | PathResolutionItem::TraitFunction(..)
+            | PathResolutionItem::PrimitiveFunction(..) => "function",
         }
     }
 }
@@ -379,7 +383,8 @@ impl Elaborator<'_> {
                 | PathResolutionItem::Method(..)
                 | PathResolutionItem::SelfMethod(..)
                 | PathResolutionItem::TypeAliasFunction(..)
-                | PathResolutionItem::TraitFunction(..) => (),
+                | PathResolutionItem::TraitFunction(..)
+                | PathResolutionItem::PrimitiveFunction(..) => (),
             }
             resolution
         })
@@ -400,16 +405,25 @@ impl Elaborator<'_> {
         } else {
             None
         };
-        let (path, module_id, _) =
-            resolve_path_kind(path, importing_module, self.def_maps, references_tracker)?;
-        self.resolve_name_in_module(
-            path,
-            module_id,
-            importing_module,
-            intermediate_item,
-            target,
-            mode,
-        )
+        let res =
+            resolve_path_kind(path.clone(), importing_module, self.def_maps, references_tracker);
+        match res {
+            Ok((path, module_id, _)) => self.resolve_name_in_module(
+                path,
+                module_id,
+                importing_module,
+                intermediate_item,
+                target,
+                mode,
+            ),
+            Err(PathResolutionError::Unresolved(err)) => {
+                if let Some(resultion) = self.resolve_primitive_function(path, importing_module) {
+                    return resultion;
+                }
+                Err(PathResolutionError::Unresolved(err))
+            }
+            Err(error) => Err(error),
+        }
     }
 
     /// Resolves a Path assuming we are inside `starting_module`.
@@ -718,6 +732,90 @@ impl Elaborator<'_> {
         let (_, name, item) = results.remove(0);
         let per_ns = PerNs { types: None, values: Some(*item) };
         MethodLookupResult::FoundTraitMethod(per_ns, name.clone())
+    }
+
+    fn resolve_primitive_function(
+        &mut self,
+        path: TypedPath,
+        importing_module_id: ModuleId,
+    ) -> Option<PathResolutionResult> {
+        if path.segments.len() != 2 {
+            return None;
+        }
+
+        let object_name = path.segments[0].ident.as_str();
+        let method_name_ident = &path.segments[1].ident;
+        let method_name = method_name_ident.as_str();
+        let primitive_type = PrimitiveType::lookup_by_name(object_name)?;
+        let typ = primitive_type.to_type(&path.segments[0].generics);
+
+        if let Some(func_id) = self.interner.lookup_direct_method(&typ, method_name, false) {
+            return Some(Ok(PathResolution {
+                item: PathResolutionItem::PrimitiveFunction(func_id),
+                errors: vec![],
+            }));
+        }
+
+        let starting_module = self.get_module(importing_module_id);
+
+        let trait_methods = self.interner.lookup_trait_methods(&typ, method_name, false);
+
+        let mut results = Vec::new();
+        for (func_id, trait_id) in &trait_methods {
+            if let Some(name) = starting_module.find_trait_in_scope(*trait_id) {
+                results.push((*trait_id, *func_id, name));
+            };
+        }
+
+        if results.is_empty() {
+            if trait_methods.len() == 1 {
+                // This is the backwards-compatible case where there's a single trait method but it's not in scope
+                let (func_id, trait_id) = trait_methods.first().expect("Expected an item");
+                let trait_ = self.interner.get_trait(*trait_id);
+                let trait_name = self.fully_qualified_trait_path(trait_);
+                let error = PathResolutionError::TraitMethodNotInScope {
+                    ident: method_name_ident.clone(),
+                    trait_name,
+                };
+                return Some(Ok(PathResolution {
+                    item: PathResolutionItem::PrimitiveFunction(*func_id),
+                    errors: vec![error],
+                }));
+            } else {
+                let trait_ids = vecmap(trait_methods, |(_, trait_id)| trait_id);
+                if trait_ids.is_empty() {
+                    return None;
+                } else {
+                    let traits = vecmap(trait_ids, |trait_id| {
+                        let trait_ = self.interner.get_trait(trait_id);
+                        self.fully_qualified_trait_path(trait_)
+                    });
+                    return Some(Err(PathResolutionError::UnresolvedWithPossibleTraitsToImport {
+                        ident: method_name_ident.clone(),
+                        traits,
+                    }));
+                }
+            }
+        }
+
+        if results.len() > 1 {
+            let trait_ids = vecmap(results, |(trait_id, _, name)| (trait_id, name.clone()));
+            let traits = vecmap(trait_ids, |(trait_id, name)| {
+                let trait_ = self.interner.get_trait(trait_id);
+                self.usage_tracker.mark_as_used(importing_module_id, &name);
+                self.fully_qualified_trait_path(trait_)
+            });
+            return Some(Err(PathResolutionError::MultipleTraitsInScope {
+                ident: method_name_ident.clone(),
+                traits,
+            }));
+        }
+
+        let (_, func_id, _) = results.remove(0);
+        Some(Ok(PathResolution {
+            item: PathResolutionItem::PrimitiveFunction(func_id),
+            errors: vec![],
+        }))
     }
 }
 

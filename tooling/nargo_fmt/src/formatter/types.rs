@@ -17,7 +17,7 @@ impl Formatter<'_> {
             UnresolvedTypeData::Bool => {
                 self.write_keyword(Keyword::Bool);
             }
-            UnresolvedTypeData::Integer(..) | UnresolvedTypeData::FieldElement => {
+            UnresolvedTypeData::Integer(..) => {
                 self.write_current_token_and_bump();
             }
             UnresolvedTypeData::Array(type_expr, typ) => {

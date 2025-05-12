@@ -1423,7 +1423,7 @@ mod tests {
             Token::Keyword(Keyword::Let),
             Token::Ident("ten".to_string()),
             Token::Colon,
-            Token::Keyword(Keyword::Field),
+            Token::Ident("Field".to_string()),
             Token::Assign,
             Token::Int(10_i128.into()),
             Token::Semicolon,

@@ -710,7 +710,8 @@ impl Elaborator<'_> {
             | PathResolutionItem::Trait(_)
             | PathResolutionItem::ModuleFunction(_)
             | PathResolutionItem::TypeAliasFunction(_, _, _)
-            | PathResolutionItem::TraitFunction(_, _, _) => {
+            | PathResolutionItem::TraitFunction(_, _, _)
+            | PathResolutionItem::PrimitiveFunction(..) => {
                 // This variable refers to an existing item
                 if let Some(name) = name {
                     // If name is set, shadow the existing item

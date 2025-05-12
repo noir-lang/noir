@@ -509,7 +509,6 @@ fn unresolved_type_data_with_file(typ: UnresolvedTypeData, file: FileId) -> Unre
         | UnresolvedTypeData::Unit
         | UnresolvedTypeData::Bool
         | UnresolvedTypeData::Integer(..)
-        | UnresolvedTypeData::FieldElement
         | UnresolvedTypeData::Unspecified
         | UnresolvedTypeData::Error => typ,
     }

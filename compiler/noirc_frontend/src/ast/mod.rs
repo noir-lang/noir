@@ -122,7 +122,6 @@ impl core::fmt::Display for IntegerBitSize {
 /// for structs within, but are otherwise identical to Types.
 #[derive(Debug, PartialEq, Eq, Clone, Hash)]
 pub enum UnresolvedTypeData {
-    FieldElement,
     Array(UnresolvedTypeExpression, Box<UnresolvedType>), // [Field; 4] = Array(4, Field)
     Slice(Box<UnresolvedType>),
     Integer(Signedness, IntegerBitSize), // u32 = Integer(unsigned, ThirtyTwo)
@@ -281,7 +280,6 @@ impl std::fmt::Display for UnresolvedTypeData {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         use UnresolvedTypeData::*;
         match self {
-            FieldElement => write!(f, "Field"),
             Array(len, typ) => write!(f, "[{typ}; {len}]"),
             Slice(typ) => write!(f, "[{typ}]"),
             Integer(sign, num_bits) => match sign {
@@ -385,6 +383,12 @@ impl UnresolvedType {
 }
 
 impl UnresolvedTypeData {
+    pub fn field(location: Location) -> Self {
+        let ident = Ident::new("Field".to_string(), location);
+        let path = Path::from_ident(ident);
+        Self::Named(path, GenericTypeArgs::default(), false)
+    }
+
     pub fn from_int_token(
         token: IntType,
     ) -> Result<UnresolvedTypeData, InvalidIntegerBitSizeError> {
@@ -442,8 +446,7 @@ impl UnresolvedTypeData {
             }
             UnresolvedTypeData::Unspecified => true,
 
-            UnresolvedTypeData::FieldElement
-            | UnresolvedTypeData::Integer(_, _)
+            UnresolvedTypeData::Integer(_, _)
             | UnresolvedTypeData::Bool
             | UnresolvedTypeData::Unit
             | UnresolvedTypeData::Quoted(_)

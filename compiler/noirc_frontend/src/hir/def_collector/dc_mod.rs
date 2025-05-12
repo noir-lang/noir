@@ -16,6 +16,7 @@ use crate::ast::{
     NoirTypeAlias, Pattern, TraitImplItemKind, TraitItem, TypeImpl, UnresolvedType,
     UnresolvedTypeData, desugar_generic_trait_bounds,
 };
+use crate::elaborator::PrimitiveType;
 use crate::hir::resolution::errors::ResolverError;
 use crate::node_interner::{ModuleAttributes, NodeInterner, ReferenceId, TypeId};
 use crate::token::SecondaryAttribute;
@@ -892,16 +893,27 @@ impl ModCollector<'_> {
         typ: &UnresolvedType,
         errors: &mut Vec<CompilationError>,
     ) -> Type {
+        // TODO: delay this to the Elaborator
         match &typ.typ {
-            UnresolvedTypeData::FieldElement => Type::FieldElement,
-            UnresolvedTypeData::Integer(sign, bits) => Type::Integer(*sign, *bits),
-            _ => {
-                let error =
-                    ResolverError::AssociatedConstantsMustBeNumeric { location: typ.location };
-                errors.push(error.into());
-                Type::Error
+            UnresolvedTypeData::Named(path, _generics, _) => {
+                if path.segments.len() == 1 {
+                    if let Some(primitive_type) =
+                        PrimitiveType::lookup_by_name(path.segments[0].ident.as_str())
+                    {
+                        // TODO: check generics
+                        match primitive_type {
+                            PrimitiveType::Field => return Type::FieldElement,
+                        }
+                    }
+                }
             }
+            UnresolvedTypeData::Integer(sign, bits) => return Type::Integer(*sign, *bits),
+            _ => (),
         }
+
+        let error = ResolverError::AssociatedConstantsMustBeNumeric { location: typ.location };
+        errors.push(error.into());
+        Type::Error
     }
 }
 

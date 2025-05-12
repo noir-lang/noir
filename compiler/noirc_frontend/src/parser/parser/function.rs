@@ -445,7 +445,7 @@ mod tests {
         let src = "fn foo() -> Field {}";
         let noir_function = parse_function_no_error(src);
         assert_eq!(noir_function.def.return_visibility, Visibility::Private);
-        assert_eq!(noir_function.return_type().typ, UnresolvedTypeData::FieldElement);
+        assert_eq!(noir_function.return_type().typ.to_string(), "Field");
     }
 
     #[test]
@@ -453,7 +453,7 @@ mod tests {
         let src = "fn foo() -> pub Field {}";
         let noir_function = parse_function_no_error(src);
         assert_eq!(noir_function.def.return_visibility, Visibility::Public);
-        assert_eq!(noir_function.return_type().typ, UnresolvedTypeData::FieldElement);
+        assert_eq!(noir_function.return_type().typ.to_string(), "Field");
     }
 
     #[test]

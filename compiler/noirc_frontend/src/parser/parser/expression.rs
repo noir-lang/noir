@@ -1943,7 +1943,7 @@ mod tests {
 
         let (pattern, typ) = lambda.parameters.remove(0);
         assert_eq!(pattern.to_string(), "y");
-        assert!(matches!(typ.typ, UnresolvedTypeData::FieldElement));
+        assert_eq!(typ.typ.to_string(), "Field");
     }
 
     #[test]
@@ -1955,7 +1955,7 @@ mod tests {
         };
         assert!(lambda.parameters.is_empty());
         assert_eq!(lambda.body.to_string(), "1");
-        assert!(matches!(lambda.return_type.typ, UnresolvedTypeData::FieldElement));
+        assert_eq!(lambda.return_type.typ.to_string(), "Field");
     }
 
     #[test]
@@ -1983,24 +1983,24 @@ mod tests {
 
     #[test]
     fn parses_type_path() {
-        let src = "Field::foo";
+        let src = "i32::foo";
         let expr = parse_expression_no_errors(src);
         let ExpressionKind::TypePath(type_path) = expr.kind else {
             panic!("Expected type_path");
         };
-        assert_eq!(type_path.typ.to_string(), "Field");
+        assert_eq!(type_path.typ.to_string(), "i32");
         assert_eq!(type_path.item.to_string(), "foo");
         assert!(type_path.turbofish.is_none());
     }
 
     #[test]
     fn parses_type_path_with_generics() {
-        let src = "Field::foo::<T>";
+        let src = "i32::foo::<T>";
         let expr = parse_expression_no_errors(src);
         let ExpressionKind::TypePath(type_path) = expr.kind else {
             panic!("Expected type_path");
         };
-        assert_eq!(type_path.typ.to_string(), "Field");
+        assert_eq!(type_path.typ.to_string(), "i32");
         assert_eq!(type_path.item.to_string(), "foo");
         assert!(type_path.turbofish.is_some());
     }
@@ -2080,22 +2080,6 @@ mod tests {
 
         let reason = get_single_error_reason(&parser.errors, span);
         assert!(matches!(reason, ParserErrorReason::MissingAngleBrackets));
-    }
-
-    #[test]
-    fn parses_primitive_type_errors() {
-        let src = "
-        Field
-        ^^^^^
-        ";
-        let (src, span) = get_source_with_error_span(src);
-        let mut parser = Parser::for_str_with_dummy_file(&src);
-        let expr = parser.parse_expression_or_error();
-        let ExpressionKind::Error = expr.kind else {
-            panic!("Expected error");
-        };
-        let reason = get_single_error_reason(&parser.errors, span);
-        assert_eq!(reason.to_string(), "Expected value, found built-in type `Field`");
     }
 
     #[test]

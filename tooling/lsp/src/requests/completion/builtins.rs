@@ -201,7 +201,6 @@ pub(super) fn keyword_builtin_type(keyword: &Keyword) -> Option<&'static str> {
         Keyword::CtString => Some("CtString"),
         Keyword::EnumDefinition => Some("EnumDefinition"),
         Keyword::Expr => Some("Expr"),
-        Keyword::Field => Some("Field"),
         Keyword::FunctionDefinition => Some("FunctionDefinition"),
         Keyword::Module => Some("Module"),
         Keyword::Quoted => Some("Quoted"),
@@ -294,7 +293,6 @@ pub(super) fn keyword_builtin_function(keyword: &Keyword) -> Option<BuiltInFunct
         | Keyword::Enum
         | Keyword::EnumDefinition
         | Keyword::Expr
-        | Keyword::Field
         | Keyword::Fn
         | Keyword::For
         | Keyword::FormatString

@@ -733,7 +733,8 @@ impl Elaborator<'_> {
             | PathResolutionItem::TypeAlias(..)
             | PathResolutionItem::Trait(..)
             | PathResolutionItem::Global(..)
-            | PathResolutionItem::ModuleFunction(..) => Vec::new(),
+            | PathResolutionItem::ModuleFunction(..)
+            | PathResolutionItem::PrimitiveFunction(_) => Vec::new(),
         }
     }
 
@@ -743,61 +744,61 @@ impl Elaborator<'_> {
                 self.push_err(error);
             }
 
-            (
+            return (
                 HirIdent {
                     location: path.location,
                     id: self.interner.trait_method_id(trait_path_resolution.method.method_id),
                     impl_kind: ImplKind::TraitMethod(trait_path_resolution.method),
                 },
                 trait_path_resolution.item,
-            )
-        } else {
-            // If the Path is being used as an Expression, then it is referring to a global from a separate module
-            // Otherwise, then it is referring to an Identifier
-            // This lookup allows support of such statements: let x = foo::bar::SOME_GLOBAL + 10;
-            // If the expression is a singular indent, we search the resolver's current scope as normal.
-            let location = path.location;
-            let ((hir_ident, var_scope_index), item) = self.get_ident_from_path(path);
+            );
+        }
 
-            if hir_ident.id != DefinitionId::dummy_id() {
-                match self.interner.definition(hir_ident.id).kind {
-                    DefinitionKind::Function(func_id) => {
-                        if let Some(current_item) = self.current_item {
-                            self.interner.add_function_dependency(current_item, func_id);
-                        }
+        // If the Path is being used as an Expression, then it is referring to a global from a separate module
+        // Otherwise, then it is referring to an Identifier
+        // This lookup allows support of such statements: let x = foo::bar::SOME_GLOBAL + 10;
+        // If the expression is a singular indent, we search the resolver's current scope as normal.
+        let location = path.location;
+        let ((hir_ident, var_scope_index), item) = self.get_ident_from_path(path);
 
-                        self.interner.add_function_reference(func_id, hir_ident.location);
+        if hir_ident.id != DefinitionId::dummy_id() {
+            match self.interner.definition(hir_ident.id).kind {
+                DefinitionKind::Function(func_id) => {
+                    if let Some(current_item) = self.current_item {
+                        self.interner.add_function_dependency(current_item, func_id);
                     }
-                    DefinitionKind::Global(global_id) => {
-                        self.elaborate_global_if_unresolved(&global_id);
-                        if let Some(current_item) = self.current_item {
-                            self.interner.add_global_dependency(current_item, global_id);
-                        }
 
-                        self.interner.add_global_reference(global_id, hir_ident.location);
+                    self.interner.add_function_reference(func_id, hir_ident.location);
+                }
+                DefinitionKind::Global(global_id) => {
+                    self.elaborate_global_if_unresolved(&global_id);
+                    if let Some(current_item) = self.current_item {
+                        self.interner.add_global_dependency(current_item, global_id);
                     }
-                    DefinitionKind::NumericGeneric(_, ref numeric_typ) => {
-                        // Initialize numeric generics to a polymorphic integer type in case
-                        // they're used in expressions. We must do this here since type_check_variable
-                        // does not check definition kinds and otherwise expects parameters to
-                        // already be typed.
-                        if self.interner.definition_type(hir_ident.id) == Type::Error {
-                            let type_var_kind = Kind::Numeric(numeric_typ.clone());
-                            let typ = self.type_variable_with_kind(type_var_kind);
-                            self.interner.push_definition_type(hir_ident.id, typ);
-                        }
-                    }
-                    DefinitionKind::Local(_) => {
-                        // only local variables can be captured by closures.
-                        self.resolve_local_variable(hir_ident.clone(), var_scope_index);
 
-                        self.interner.add_local_reference(hir_ident.id, location);
+                    self.interner.add_global_reference(global_id, hir_ident.location);
+                }
+                DefinitionKind::NumericGeneric(_, ref numeric_typ) => {
+                    // Initialize numeric generics to a polymorphic integer type in case
+                    // they're used in expressions. We must do this here since type_check_variable
+                    // does not check definition kinds and otherwise expects parameters to
+                    // already be typed.
+                    if self.interner.definition_type(hir_ident.id) == Type::Error {
+                        let type_var_kind = Kind::Numeric(numeric_typ.clone());
+                        let typ = self.type_variable_with_kind(type_var_kind);
+                        self.interner.push_definition_type(hir_ident.id, typ);
                     }
                 }
-            }
+                DefinitionKind::Local(_) => {
+                    // only local variables can be captured by closures.
+                    self.resolve_local_variable(hir_ident.clone(), var_scope_index);
 
-            (hir_ident, item)
+                    self.interner.add_local_reference(hir_ident.id, location);
+                }
+            }
         }
+
+        (hir_ident, item)
     }
 
     pub(crate) fn type_check_variable(
