@@ -16,22 +16,3 @@ pub use acir::{AcirField, FieldElement};
 pub use brillig_vm;
 // re-export blackbox solver
 pub use acvm_blackbox_solver as blackbox_solver;
-
-pub fn serialize_acir(acir_inp: String) -> Vec<String>{
-
-    vec!["".to_string()]
-}
-
-
-#[test]
-fn test_serialize_acir(){
-    let input = 
-    "func 0
-current witness index : _1
-private parameters indices : [_0]
-public parameters indices : []
-return value indices : [_1]
-EXPR [ (-2, _0) (1, _1) 0 ]".to_string(); 
-    let serialized_output = serialize_acir(input); 
-    println!("serialized_output: {:?}", serialized_output); 
-}
