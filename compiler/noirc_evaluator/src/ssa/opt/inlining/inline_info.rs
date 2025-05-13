@@ -6,7 +6,9 @@ use petgraph::graph::NodeIndex as PetGraphIndex;
 
 use crate::ssa::{
     ir::{
-        call_graph::{called_functions, called_functions_vec, CallGraph}, dfg::DataFlowGraph, function::{Function, FunctionId}
+        call_graph::{CallGraph, called_functions, called_functions_vec},
+        dfg::DataFlowGraph,
+        function::{Function, FunctionId},
     },
     ssa_gen::Ssa,
 };
