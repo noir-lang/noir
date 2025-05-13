@@ -268,11 +268,7 @@ impl<F: Clone + std::fmt::Debug> BrilligArtifact<F> {
 
     /// Returns true if the opcode is a jump instruction
     fn is_jmp_instruction(instruction: &BrilligOpcode<F>) -> bool {
-        matches!(
-            instruction,
-                BrilligOpcode::JumpIf { .. }
-                | BrilligOpcode::Jump { .. }
-        )
+        matches!(instruction, BrilligOpcode::JumpIf { .. } | BrilligOpcode::Jump { .. })
     }
 
     /// Adds a label in the bytecode to specify where this block's

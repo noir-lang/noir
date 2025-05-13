@@ -1149,7 +1149,11 @@ mod tests {
                 rhs: MemoryAddress::direct(1),
                 destination: MemoryAddress::direct(2),
             },
-            Opcode::Not { destination: MemoryAddress::direct(2), source: MemoryAddress::direct(2), bit_size: IntegerBitSize::U32 },
+            Opcode::Not {
+                destination: MemoryAddress::direct(2),
+                source: MemoryAddress::direct(2),
+                bit_size: IntegerBitSize::U32,
+            },
             Opcode::JumpIf { condition: MemoryAddress::direct(2), location: 4 },
             Opcode::BinaryFieldOp {
                 op: BinaryFieldOp::Add,
