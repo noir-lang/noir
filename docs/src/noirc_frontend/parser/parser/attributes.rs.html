@@ -774,7 +774,24 @@
 <a href="#773" id="773">773</a>
 <a href="#774" id="774">774</a>
 <a href="#775" id="775">775</a>
-<a href="#776" id="776">776</a></pre></div><pre class="rust"><code><span class="kw">use </span>noirc_errors::Location;
+<a href="#776" id="776">776</a>
+<a href="#777" id="777">777</a>
+<a href="#778" id="778">778</a>
+<a href="#779" id="779">779</a>
+<a href="#780" id="780">780</a>
+<a href="#781" id="781">781</a>
+<a href="#782" id="782">782</a>
+<a href="#783" id="783">783</a>
+<a href="#784" id="784">784</a>
+<a href="#785" id="785">785</a>
+<a href="#786" id="786">786</a>
+<a href="#787" id="787">787</a>
+<a href="#788" id="788">788</a>
+<a href="#789" id="789">789</a>
+<a href="#790" id="790">790</a>
+<a href="#791" id="791">791</a>
+<a href="#792" id="792">792</a>
+<a href="#793" id="793">793</a></pre></div><pre class="rust"><code><span class="kw">use </span>noirc_errors::Location;
 
 <span class="kw">use </span><span class="kw">crate</span>::ast::{Expression, ExpressionKind, Ident, Literal, Path};
 <span class="kw">use </span><span class="kw">crate</span>::lexer::errors::LexerErrorKind;
@@ -1108,6 +1125,15 @@
                         } <span class="kw">else </span>{
                             <span class="prelude-val">Some</span>(TestScope::ShouldFailWith { reason: <span class="prelude-val">None </span>})
                         }
+                    }
+                    <span class="string">"only_fail_with" </span>=&gt; {
+                        <span class="self">self</span>.eat_or_error(Token::Assign);
+                        <span class="kw">if let </span><span class="prelude-val">Some</span>(reason) = <span class="self">self</span>.eat_str() {
+                            <span class="prelude-val">Some</span>(TestScope::OnlyFailWith { reason })
+                        } <span class="kw">else </span>{
+                            <span class="self">self</span>.expected_string();
+                            <span class="prelude-val">None
+                        </span>}
                     }
                     <span class="kw">_ </span>=&gt; <span class="prelude-val">None</span>,
                 }
@@ -1460,6 +1486,14 @@
         <span class="kw">let </span>src = <span class="string">"#[test(should_fail_with = \"reason\")]"</span>;
         <span class="kw">let </span>reason = <span class="prelude-val">Some</span>(<span class="string">"reason"</span>.to_string());
         <span class="kw">let </span>expected = FunctionAttributeKind::Test(TestScope::ShouldFailWith { reason });
+        parse_function_attribute_no_errors(src, expected);
+    }
+
+    <span class="attr">#[test]
+    </span><span class="kw">fn </span>parses_attribute_test_only_fail_with() {
+        <span class="kw">let </span>src = <span class="string">"#[test(only_fail_with = \"reason\")]"</span>;
+        <span class="kw">let </span>reason = <span class="string">"reason"</span>.to_string();
+        <span class="kw">let </span>expected = FunctionAttributeKind::Test(TestScope::OnlyFailWith { reason });
         parse_function_attribute_no_errors(src, expected);
     }
 

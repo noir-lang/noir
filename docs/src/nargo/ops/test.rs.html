@@ -443,7 +443,8 @@
 <a href="#442" id="442">442</a>
 <a href="#443" id="443">443</a>
 <a href="#444" id="444">444</a>
-<a href="#445" id="445">445</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::{fs::OpenOptions, path::PathBuf};
+<a href="#445" id="445">445</a>
+<a href="#446" id="446">446</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::{fs::OpenOptions, path::PathBuf};
 
 <span class="kw">use </span>acvm::{
     AcirField, BlackBoxFunctionSolver, FieldElement,
@@ -678,6 +679,7 @@
         TestScope::ShouldFailWith { reason } =&gt; {
             FuzzingScope::ShouldFailWith { reason: reason.clone() }
         }
+        TestScope::OnlyFailWith { reason } =&gt; FuzzingScope::OnlyFailWith { reason: reason.clone() },
         TestScope::None =&gt; FuzzingScope::None,
     };
     <span class="kw">let </span>location = test_function.location;

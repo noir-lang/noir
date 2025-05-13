@@ -1446,7 +1446,9 @@
 <a href="#1445" id="1445">1445</a>
 <a href="#1446" id="1446">1446</a>
 <a href="#1447" id="1447">1447</a>
-<a href="#1448" id="1448">1448</a></pre></div><pre class="rust"><code><span class="kw">use </span>acvm::{AcirField, FieldElement};
+<a href="#1448" id="1448">1448</a>
+<a href="#1449" id="1449">1449</a>
+<a href="#1450" id="1450">1450</a></pre></div><pre class="rust"><code><span class="kw">use </span>acvm::{AcirField, FieldElement};
 <span class="kw">use </span>iter_extended::vecmap;
 <span class="kw">use </span>noirc_errors::{Located, Location};
 <span class="kw">use </span>rustc_hash::FxHashSet <span class="kw">as </span>HashSet;
@@ -1777,29 +1779,31 @@
 
         <span class="kw">for </span>fragment <span class="kw">in </span><span class="kw-2">&amp;</span>fragments {
             <span class="kw">if let </span>FmtStrFragment::Interpolation(ident_name, location) = fragment {
-                <span class="kw">let </span>scope_tree = <span class="self">self</span>.scopes.current_scope_tree();
-                <span class="kw">let </span>variable = scope_tree.find(ident_name);
+                <span class="kw">let </span>ident = Ident::new(ident_name.clone(), <span class="kw-2">*</span>location);
 
-                <span class="kw">let </span>hir_ident = <span class="kw">if let </span><span class="prelude-val">Some</span>((old_value, <span class="kw">_</span>)) = variable {
-                    old_value.num_times_used += <span class="number">1</span>;
-                    old_value.ident.clone()
-                } <span class="kw">else if let </span><span class="prelude-val">Ok</span>((definition_id, <span class="kw">_</span>)) =
-                    <span class="self">self</span>.lookup_global(TypedPath::from_single(ident_name.to_string(), <span class="kw-2">*</span>location))
-                {
-                    HirIdent::non_trait_method(definition_id, <span class="kw-2">*</span>location)
-                } <span class="kw">else </span>{
-                    <span class="self">self</span>.push_err(ResolverError::VariableNotDeclared {
-                        name: ident_name.to_owned(),
-                        location: <span class="kw-2">*</span>location,
-                    });
-                    <span class="kw">continue</span>;
-                };
+                <span class="kw">let </span>(hir_ident, var_scope_index) =
+                    <span class="kw">if let </span><span class="prelude-val">Ok</span>((ident, var_scope_index)) = <span class="self">self</span>.use_variable(<span class="kw-2">&amp;</span>ident) {
+                        (ident, var_scope_index)
+                    } <span class="kw">else if let </span><span class="prelude-val">Ok</span>((definition_id, <span class="kw">_</span>)) = <span class="self">self
+                        </span>.lookup_global(TypedPath::from_single(ident_name.to_string(), <span class="kw-2">*</span>location))
+                    {
+                        (HirIdent::non_trait_method(definition_id, <span class="kw-2">*</span>location), <span class="number">0</span>)
+                    } <span class="kw">else </span>{
+                        <span class="self">self</span>.push_err(ResolverError::VariableNotDeclared {
+                            name: ident_name.to_owned(),
+                            location: <span class="kw-2">*</span>location,
+                        });
+                        <span class="kw">continue</span>;
+                    };
+
+                <span class="self">self</span>.handle_hir_ident(<span class="kw-2">&amp;</span>hir_ident, var_scope_index, <span class="kw-2">*</span>location);
 
                 <span class="kw">let </span>hir_expr = HirExpression::Ident(hir_ident.clone(), <span class="prelude-val">None</span>);
                 <span class="kw">let </span>expr_id = <span class="self">self</span>.interner.push_expr(hir_expr);
                 <span class="self">self</span>.interner.push_expr_location(expr_id, <span class="kw-2">*</span>location);
                 <span class="kw">let </span>typ = <span class="self">self</span>.type_check_variable(hir_ident, expr_id, <span class="prelude-val">None</span>);
                 <span class="self">self</span>.interner.push_expr_type(expr_id, typ.clone());
+
                 capture_types.push(typ);
                 fmt_str_idents.push(expr_id);
             }

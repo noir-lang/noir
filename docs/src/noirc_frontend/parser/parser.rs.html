@@ -649,7 +649,11 @@
 <a href="#648" id="648">648</a>
 <a href="#649" id="649">649</a>
 <a href="#650" id="650">650</a>
-<a href="#651" id="651">651</a></pre></div><pre class="rust"><code><span class="kw">use </span>acvm::FieldElement;
+<a href="#651" id="651">651</a>
+<a href="#652" id="652">652</a>
+<a href="#653" id="653">653</a>
+<a href="#654" id="654">654</a>
+<a href="#655" id="655">655</a></pre></div><pre class="rust"><code><span class="kw">use </span>acvm::FieldElement;
 <span class="kw">use </span>fm::FileId;
 <span class="kw">use </span>modifiers::Modifiers;
 <span class="kw">use </span>noirc_errors::{Location, Span};
@@ -1193,6 +1197,10 @@
 
     <span class="kw">fn </span>expected_identifier(<span class="kw-2">&amp;mut </span><span class="self">self</span>) {
         <span class="self">self</span>.expected_label(ParsingRuleLabel::Identifier);
+    }
+
+    <span class="kw">fn </span>expected_string(<span class="kw-2">&amp;mut </span><span class="self">self</span>) {
+        <span class="self">self</span>.expected_label(ParsingRuleLabel::String);
     }
 
     <span class="kw">fn </span>expected_token(<span class="kw-2">&amp;mut </span><span class="self">self</span>, token: Token) {

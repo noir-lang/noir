@@ -129,7 +129,81 @@
 <a href="#128" id="128">128</a>
 <a href="#129" id="129">129</a>
 <a href="#130" id="130">130</a>
-<a href="#131" id="131">131</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::collections::BTreeMap;
+<a href="#131" id="131">131</a>
+<a href="#132" id="132">132</a>
+<a href="#133" id="133">133</a>
+<a href="#134" id="134">134</a>
+<a href="#135" id="135">135</a>
+<a href="#136" id="136">136</a>
+<a href="#137" id="137">137</a>
+<a href="#138" id="138">138</a>
+<a href="#139" id="139">139</a>
+<a href="#140" id="140">140</a>
+<a href="#141" id="141">141</a>
+<a href="#142" id="142">142</a>
+<a href="#143" id="143">143</a>
+<a href="#144" id="144">144</a>
+<a href="#145" id="145">145</a>
+<a href="#146" id="146">146</a>
+<a href="#147" id="147">147</a>
+<a href="#148" id="148">148</a>
+<a href="#149" id="149">149</a>
+<a href="#150" id="150">150</a>
+<a href="#151" id="151">151</a>
+<a href="#152" id="152">152</a>
+<a href="#153" id="153">153</a>
+<a href="#154" id="154">154</a>
+<a href="#155" id="155">155</a>
+<a href="#156" id="156">156</a>
+<a href="#157" id="157">157</a>
+<a href="#158" id="158">158</a>
+<a href="#159" id="159">159</a>
+<a href="#160" id="160">160</a>
+<a href="#161" id="161">161</a>
+<a href="#162" id="162">162</a>
+<a href="#163" id="163">163</a>
+<a href="#164" id="164">164</a>
+<a href="#165" id="165">165</a>
+<a href="#166" id="166">166</a>
+<a href="#167" id="167">167</a>
+<a href="#168" id="168">168</a>
+<a href="#169" id="169">169</a>
+<a href="#170" id="170">170</a>
+<a href="#171" id="171">171</a>
+<a href="#172" id="172">172</a>
+<a href="#173" id="173">173</a>
+<a href="#174" id="174">174</a>
+<a href="#175" id="175">175</a>
+<a href="#176" id="176">176</a>
+<a href="#177" id="177">177</a>
+<a href="#178" id="178">178</a>
+<a href="#179" id="179">179</a>
+<a href="#180" id="180">180</a>
+<a href="#181" id="181">181</a>
+<a href="#182" id="182">182</a>
+<a href="#183" id="183">183</a>
+<a href="#184" id="184">184</a>
+<a href="#185" id="185">185</a>
+<a href="#186" id="186">186</a>
+<a href="#187" id="187">187</a>
+<a href="#188" id="188">188</a>
+<a href="#189" id="189">189</a>
+<a href="#190" id="190">190</a>
+<a href="#191" id="191">191</a>
+<a href="#192" id="192">192</a>
+<a href="#193" id="193">193</a>
+<a href="#194" id="194">194</a>
+<a href="#195" id="195">195</a>
+<a href="#196" id="196">196</a>
+<a href="#197" id="197">197</a>
+<a href="#198" id="198">198</a>
+<a href="#199" id="199">199</a>
+<a href="#200" id="200">200</a>
+<a href="#201" id="201">201</a>
+<a href="#202" id="202">202</a>
+<a href="#203" id="203">203</a>
+<a href="#204" id="204">204</a>
+<a href="#205" id="205">205</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::collections::BTreeMap;
 <span class="kw">use </span>std::path::Path;
 
 <span class="kw">use </span>arbitrary::Unstructured;
@@ -258,6 +332,80 @@
 <span class="kw">impl </span>HasPrograms <span class="kw">for </span>CompareComptime {
     <span class="kw">fn </span>programs(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; Vec&lt;<span class="kw-2">&amp;</span>Program&gt; {
         <span class="macro">vec!</span>[<span class="kw-2">&amp;</span><span class="self">self</span>.program]
+    }
+}
+
+<span class="attr">#[cfg(test)]
+</span><span class="kw">mod </span>tests {
+    <span class="kw">use </span><span class="kw">super</span>::prepare_and_compile_snippet;
+
+    <span class="doccomment">/// Comptime compilation can fail with stack overflow because of how the interpreter is evaluating instructions.
+    /// We could apply `#[inline(always)]` on some of the `Interpreter::elaborate_` functions to make it go further,
+    /// at the cost of compilation speed. Instead, we just need to make sure that compile tests have lower loop and
+    /// recursion limits.
+    </span><span class="attr">#[test]
+    </span><span class="kw">fn </span>test_prepare_and_compile_snippet() {
+        <span class="kw">let </span>src = <span class="string">r#"
+fn main() -&gt; pub ((str&lt;2&gt;, str&lt;2&gt;, bool, str&lt;2&gt;), bool, [str&lt;2&gt;; 3]) {
+    comptime {
+        let mut ctx_limit = 10;
+        unsafe { func_1_proxy(ctx_limit) }
+    }
+}
+unconstrained fn func_1(ctx_limit: &amp;mut u32) -&gt; ((str&lt;2&gt;, str&lt;2&gt;, bool, str&lt;2&gt;), bool, [str&lt;2&gt;; 3]) {
+    if ((*ctx_limit) == 0) {
+        (("BD", "GT", false, "EV"), false, ["LJ", "BB", "CE"])
+    } else {
+        *ctx_limit = ((*ctx_limit) - 1);
+        let g = if true {
+            let f = {
+                {
+                    let mut idx_a = 0;
+                    loop {
+                        if (idx_a == 4) {
+                            break
+                        } else {
+                            idx_a = (idx_a + 1);
+                            let mut e = if true {
+                                if func_1(ctx_limit).0.2 {
+                                    {
+                                        let b = 38;
+                                        {
+                                            let mut c = false;
+                                            let d = if c {
+                                                c = false;
+                                                [("ZO", "AF", false, "NY"), ("HJ", "NF", c, "RV"), ("SN", "VK", true, "QJ")]
+                                            } else {
+                                                [("SN", "YR", (b != (27 &gt;&gt; b)), "LS"), ("SW", "ZQ", false, "TQ"), ("AD", "YD", c, "EF")]
+                                            };
+                                            (d[1].3, d[1].1, (!c), "LO")
+                                        }
+                                    }
+                                } else {
+                                    ("HF", "WQ", true, "FZ")
+                                }
+                            } else {
+                                ("YP", "CH", true, "ZG")
+                            };
+                            e = (e.1, "NU", e.2, e.0);
+                        }
+                    }
+                };
+                true
+            };
+            (("HW", "EI", true, "IY"), (!false), ["TO", "WI", "PC"])
+        } else {
+            (("OX", "CE", true, "OV"), false, ["OS", "DT", "CH"])
+        };
+        g
+    }
+}
+unconstrained fn func_1_proxy(mut ctx_limit: u32) -&gt; ((str&lt;2&gt;, str&lt;2&gt;, bool, str&lt;2&gt;), bool, [str&lt;2&gt;; 3]) {
+    func_1((&amp;mut ctx_limit))
+}
+        "#</span>;
+
+        <span class="kw">let _ </span>= prepare_and_compile_snippet(src.to_string(), <span class="bool-val">false</span>);
     }
 }
 </code></pre></div></section></main></body></html>

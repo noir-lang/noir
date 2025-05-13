@@ -439,7 +439,8 @@
 <a href="#438" id="438">438</a>
 <a href="#439" id="439">439</a>
 <a href="#440" id="440">440</a>
-<a href="#441" id="441">441</a></pre></div><pre class="rust"><code><span class="kw">use </span><span class="kw">crate</span>::elaborator::FrontendOptions;
+<a href="#441" id="441">441</a>
+<a href="#442" id="442">442</a></pre></div><pre class="rust"><code><span class="kw">use </span><span class="kw">crate</span>::elaborator::FrontendOptions;
 <span class="kw">use </span><span class="kw">crate</span>::graph::{CrateGraph, CrateId};
 <span class="kw">use </span><span class="kw">crate</span>::hir::Context;
 <span class="kw">use </span><span class="kw">crate</span>::hir::def_collector::dc_crate::{CompilationError, DefCollector};
@@ -828,7 +829,7 @@
     </span><span class="kw">pub fn </span>should_fail(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; bool {
         <span class="kw">match </span><span class="self">self</span>.scope {
             TestScope::ShouldFailWith { .. } =&gt; <span class="bool-val">true</span>,
-            TestScope::None =&gt; <span class="bool-val">false</span>,
+            TestScope::OnlyFailWith { .. } | TestScope::None =&gt; <span class="bool-val">false</span>,
         }
     }
 
@@ -838,6 +839,7 @@
         <span class="kw">match </span><span class="kw-2">&amp;</span><span class="self">self</span>.scope {
             TestScope::None =&gt; <span class="prelude-val">None</span>,
             TestScope::ShouldFailWith { reason } =&gt; reason.as_deref(),
+            TestScope::OnlyFailWith { reason } =&gt; <span class="prelude-val">Some</span>(reason.as_str()),
         }
     }
 }

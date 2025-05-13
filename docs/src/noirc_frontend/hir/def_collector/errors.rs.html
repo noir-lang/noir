@@ -282,7 +282,25 @@
 <a href="#281" id="281">281</a>
 <a href="#282" id="282">282</a>
 <a href="#283" id="283">283</a>
-<a href="#284" id="284">284</a></pre></div><pre class="rust"><code><span class="kw">use </span><span class="kw">crate</span>::ast::{Ident, ItemVisibility, UnsupportedNumericGenericType};
+<a href="#284" id="284">284</a>
+<a href="#285" id="285">285</a>
+<a href="#286" id="286">286</a>
+<a href="#287" id="287">287</a>
+<a href="#288" id="288">288</a>
+<a href="#289" id="289">289</a>
+<a href="#290" id="290">290</a>
+<a href="#291" id="291">291</a>
+<a href="#292" id="292">292</a>
+<a href="#293" id="293">293</a>
+<a href="#294" id="294">294</a>
+<a href="#295" id="295">295</a>
+<a href="#296" id="296">296</a>
+<a href="#297" id="297">297</a>
+<a href="#298" id="298">298</a>
+<a href="#299" id="299">299</a>
+<a href="#300" id="300">300</a>
+<a href="#301" id="301">301</a>
+<a href="#302" id="302">302</a></pre></div><pre class="rust"><code><span class="kw">use </span><span class="kw">crate</span>::ast::{Ident, ItemVisibility, UnsupportedNumericGenericType};
 <span class="kw">use </span><span class="kw">crate</span>::elaborator::TypedPath;
 <span class="kw">use </span><span class="kw">crate</span>::hir::resolution::import::PathResolutionError;
 <span class="kw">use </span><span class="kw">crate</span>::hir::type_check::generics::TraitGenerics;
@@ -357,6 +375,12 @@
     </span>TestOnAssociatedFunction { location: Location },
     <span class="attr">#[error(<span class="string">"The `#[export]` attribute may only be used on a non-associated function"</span>)]
     </span>ExportOnAssociatedFunction { location: Location },
+    <span class="attr">#[error(
+        <span class="string">"The `#[test(only_fail_with = \"..\")]` attribute may only be used on functions with parameters"
+    </span>)]
+    </span>TestOnlyFailWithWithoutParameters { location: Location },
+    <span class="attr">#[error(<span class="string">"The `#[fuzz]` attribute may only be used on functions with parameters"</span>)]
+    </span>FuzzingHarnessWithoutParameters { location: Location },
 }
 
 <span class="kw">impl </span>DefCollectorErrorKind {
@@ -388,7 +412,9 @@
             | DefCollectorErrorKind::ModuleOriginallyDefined { location, .. }
             | DefCollectorErrorKind::TraitImplOrphaned { location }
             | DefCollectorErrorKind::TraitMissingMethod { trait_impl_location: location, .. }
-            | DefCollectorErrorKind::ForeignImpl { location, .. } =&gt; <span class="kw-2">*</span>location,
+            | DefCollectorErrorKind::ForeignImpl { location, .. }
+            | DefCollectorErrorKind::TestOnlyFailWithWithoutParameters { location }
+            | DefCollectorErrorKind::FuzzingHarnessWithoutParameters { location } =&gt; <span class="kw-2">*</span>location,
             DefCollectorErrorKind::NotATrait { not_a_trait_name: path }
             | DefCollectorErrorKind::TraitNotFound { trait_path: path } =&gt; path.location,
             DefCollectorErrorKind::UnsupportedNumericGenericType(
@@ -560,6 +586,16 @@
             ),
             DefCollectorErrorKind::ExportOnAssociatedFunction { location } =&gt; Diagnostic::simple_error(
                 <span class="string">"The `#[export]` attribute is disallowed on `impl` methods"</span>.into(),
+                String::new(),
+                <span class="kw-2">*</span>location,
+            ),
+            DefCollectorErrorKind::TestOnlyFailWithWithoutParameters { location } =&gt; Diagnostic::simple_error(
+                <span class="string">"The `#[test(only_fail_with = \"..\")]` attribute may only be used on functions with parameters"</span>.into(),
+                String::new(),
+                <span class="kw-2">*</span>location,
+            ),
+            DefCollectorErrorKind::FuzzingHarnessWithoutParameters { location } =&gt; Diagnostic::simple_error(
+                <span class="string">"The `#[fuzz]` attribute may only be used on functions with parameters"</span>.into(),
                 String::new(),
                 <span class="kw-2">*</span>location,
             ),

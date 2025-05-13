@@ -1028,7 +1028,18 @@
 <a href="#1027" id="1027">1027</a>
 <a href="#1028" id="1028">1028</a>
 <a href="#1029" id="1029">1029</a>
-<a href="#1030" id="1030">1030</a></pre></div><pre class="rust"><code><span class="kw">use </span>iter_extended::vecmap;
+<a href="#1030" id="1030">1030</a>
+<a href="#1031" id="1031">1031</a>
+<a href="#1032" id="1032">1032</a>
+<a href="#1033" id="1033">1033</a>
+<a href="#1034" id="1034">1034</a>
+<a href="#1035" id="1035">1035</a>
+<a href="#1036" id="1036">1036</a>
+<a href="#1037" id="1037">1037</a>
+<a href="#1038" id="1038">1038</a>
+<a href="#1039" id="1039">1039</a>
+<a href="#1040" id="1040">1040</a>
+<a href="#1041" id="1041">1041</a></pre></div><pre class="rust"><code><span class="kw">use </span>iter_extended::vecmap;
 <span class="kw">use </span>noirc_errors::{Located, Location};
 <span class="kw">use </span>rustc_hash::FxHashSet <span class="kw">as </span>HashSet;
 
@@ -1789,44 +1800,55 @@
             </span><span class="kw">let </span>location = path.location;
             <span class="kw">let </span>((hir_ident, var_scope_index), item) = <span class="self">self</span>.get_ident_from_path(path);
 
-            <span class="kw">if </span>hir_ident.id != DefinitionId::dummy_id() {
-                <span class="kw">match </span><span class="self">self</span>.interner.definition(hir_ident.id).kind {
-                    DefinitionKind::Function(func_id) =&gt; {
-                        <span class="kw">if let </span><span class="prelude-val">Some</span>(current_item) = <span class="self">self</span>.current_item {
-                            <span class="self">self</span>.interner.add_function_dependency(current_item, func_id);
-                        }
-
-                        <span class="self">self</span>.interner.add_function_reference(func_id, hir_ident.location);
-                    }
-                    DefinitionKind::Global(global_id) =&gt; {
-                        <span class="self">self</span>.elaborate_global_if_unresolved(<span class="kw-2">&amp;</span>global_id);
-                        <span class="kw">if let </span><span class="prelude-val">Some</span>(current_item) = <span class="self">self</span>.current_item {
-                            <span class="self">self</span>.interner.add_global_dependency(current_item, global_id);
-                        }
-
-                        <span class="self">self</span>.interner.add_global_reference(global_id, hir_ident.location);
-                    }
-                    DefinitionKind::NumericGeneric(<span class="kw">_</span>, <span class="kw-2">ref </span>numeric_typ) =&gt; {
-                        <span class="comment">// Initialize numeric generics to a polymorphic integer type in case
-                        // they're used in expressions. We must do this here since type_check_variable
-                        // does not check definition kinds and otherwise expects parameters to
-                        // already be typed.
-                        </span><span class="kw">if </span><span class="self">self</span>.interner.definition_type(hir_ident.id) == Type::Error {
-                            <span class="kw">let </span>type_var_kind = Kind::Numeric(numeric_typ.clone());
-                            <span class="kw">let </span>typ = <span class="self">self</span>.type_variable_with_kind(type_var_kind);
-                            <span class="self">self</span>.interner.push_definition_type(hir_ident.id, typ);
-                        }
-                    }
-                    DefinitionKind::Local(<span class="kw">_</span>) =&gt; {
-                        <span class="comment">// only local variables can be captured by closures.
-                        </span><span class="self">self</span>.resolve_local_variable(hir_ident.clone(), var_scope_index);
-
-                        <span class="self">self</span>.interner.add_local_reference(hir_ident.id, location);
-                    }
-                }
-            }
+            <span class="self">self</span>.handle_hir_ident(<span class="kw-2">&amp;</span>hir_ident, var_scope_index, location);
 
             (hir_ident, item)
+        }
+    }
+
+    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>handle_hir_ident(
+        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
+        hir_ident: <span class="kw-2">&amp;</span>HirIdent,
+        var_scope_index: usize,
+        location: Location,
+    ) {
+        <span class="kw">if </span>hir_ident.id == DefinitionId::dummy_id() {
+            <span class="kw">return</span>;
+        }
+
+        <span class="kw">match </span><span class="self">self</span>.interner.definition(hir_ident.id).kind {
+            DefinitionKind::Function(func_id) =&gt; {
+                <span class="kw">if let </span><span class="prelude-val">Some</span>(current_item) = <span class="self">self</span>.current_item {
+                    <span class="self">self</span>.interner.add_function_dependency(current_item, func_id);
+                }
+
+                <span class="self">self</span>.interner.add_function_reference(func_id, hir_ident.location);
+            }
+            DefinitionKind::Global(global_id) =&gt; {
+                <span class="self">self</span>.elaborate_global_if_unresolved(<span class="kw-2">&amp;</span>global_id);
+                <span class="kw">if let </span><span class="prelude-val">Some</span>(current_item) = <span class="self">self</span>.current_item {
+                    <span class="self">self</span>.interner.add_global_dependency(current_item, global_id);
+                }
+
+                <span class="self">self</span>.interner.add_global_reference(global_id, hir_ident.location);
+            }
+            DefinitionKind::NumericGeneric(<span class="kw">_</span>, <span class="kw-2">ref </span>numeric_typ) =&gt; {
+                <span class="comment">// Initialize numeric generics to a polymorphic integer type in case
+                // they're used in expressions. We must do this here since type_check_variable
+                // does not check definition kinds and otherwise expects parameters to
+                // already be typed.
+                </span><span class="kw">if </span><span class="self">self</span>.interner.definition_type(hir_ident.id) == Type::Error {
+                    <span class="kw">let </span>type_var_kind = Kind::Numeric(numeric_typ.clone());
+                    <span class="kw">let </span>typ = <span class="self">self</span>.type_variable_with_kind(type_var_kind);
+                    <span class="self">self</span>.interner.push_definition_type(hir_ident.id, typ);
+                }
+            }
+            DefinitionKind::Local(<span class="kw">_</span>) =&gt; {
+                <span class="comment">// only local variables can be captured by closures.
+                </span><span class="self">self</span>.resolve_local_variable(hir_ident.clone(), var_scope_index);
+
+                <span class="self">self</span>.interner.add_local_reference(hir_ident.id, location);
+            }
         }
     }
 
