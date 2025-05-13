@@ -186,8 +186,7 @@ impl Field {
         bytes
     }
 
-    // docs:start:to_le_radix
-    pub fn to_le_radix<let N: u32>(self: Self, radix: u32) -> [u8; N] {
+    fn to_le_radix<let N: u32>(self: Self, radix: u32) -> [u8; N] {
         // Brillig does not need an immediate radix
         if !crate::runtime::is_unconstrained() {
             static_assert(1 < radix, "radix must be greater than 1");
@@ -196,18 +195,17 @@ impl Field {
         }
         self.__to_le_radix(radix)
     }
-    // docs:end:to_le_radix
-
-    // docs:start:to_be_radix
-    pub fn to_be_radix<let N: u32>(self: Self, radix: u32) -> [u8; N] {
+    
+    fn to_be_radix<let N: u32>(self: Self, radix: u32) -> [u8; N] {
         // Brillig does not need an immediate radix
         if !crate::runtime::is_unconstrained() {
-            crate::assert_constant(radix);
+            static_assert(1 < radix, "radix must be greater than 1");
+            static_assert(radix <= 256, "radix must be less than or equal to 256");
+            static_assert(radix & (radix - 1) == 0, "radix must be a power of 2");
         }
         self.__to_be_radix(radix)
     }
-    // docs:end:to_be_radix
-
+    
     // `_radix` must be less than 256
     #[builtin(to_le_radix)]
     fn __to_le_radix<let N: u32>(self, radix: u32) -> [u8; N] {}
