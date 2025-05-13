@@ -200,6 +200,7 @@
         "pedersen",
         "peekable",
         "petgraph",
+        "pino",
         "PKCS",
         "plonkc",
         "PLONKish",
