@@ -238,7 +238,7 @@ fn remove_if_else_post_check(func: &Function) -> bool {
         return true;
     }
 
-    // Otherwise there should be no shift-left or shift-right instructions in any reachable block.
+    // Otherwise there should be no if-else instructions in any reachable block.
     for block_id in func.reachable_blocks() {
         let instruction_ids = func.dfg[block_id].instructions();
         for instruction_id in instruction_ids {
