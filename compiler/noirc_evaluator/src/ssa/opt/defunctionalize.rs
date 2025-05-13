@@ -101,12 +101,17 @@ impl Ssa {
 
         // Run defunctionalization over all functions in the SSA
         context.defunctionalize_all(&mut self);
+
+        // Check that we have established the properties expected from this pass.
+        #[cfg(debug_assertions)]
+        self.functions.values().for_each(defunctionalize_post_check);
+
         self
     }
 }
 
 impl DefunctionalizationContext {
-    /// Defunctionalize all functions in the Ssa
+    /// Defunctionalize all functions in the SSA
     fn defunctionalize_all(mut self, ssa: &mut Ssa) {
         for function in ssa.functions.values_mut() {
             self.defunctionalize(function);
@@ -532,6 +537,31 @@ fn build_return_block(builder: &mut FunctionBuilder, passed_types: &[Type]) -> B
     let params = vecmap(passed_types, |typ| builder.add_block_parameter(return_block, typ.clone()));
     builder.terminate_with_return(params);
     return_block
+}
+
+/// Check post-execution properties:
+/// * All blocks which took function parameters should receive a discriminator instead
+#[cfg(debug_assertions)]
+fn defunctionalize_post_check(func: &Function) {
+    fn is_function(typ: &Type) -> bool {
+        match typ {
+            Type::Function => true,
+            Type::Reference(typ) => is_function(typ),
+            _ => false,
+        }
+    }
+    for block_id in func.reachable_blocks() {
+        for param in func.dfg[block_id].parameters() {
+            let value = &func.dfg[*param];
+            let Value::Param { typ, .. } = value else {
+                panic!("unexpected parameter value: {value:?}");
+            };
+            assert!(
+                !is_function(typ),
+                "Blocks are not expected to take function parameters any more."
+            );
+        }
+    }
 }
 
 #[cfg(test)]
