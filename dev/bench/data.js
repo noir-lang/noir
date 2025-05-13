@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1747158726183,
+  "lastUpdate": 1747158729207,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -11062,70 +11062,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "asterite@gmail.com",
-            "name": "Ary Borenszweig",
-            "username": "asterite"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "a68685690bd65c204260944087214b3ca0899a59",
-          "message": "fix: warn on and discard unreachable statements after break and continue (#8382)",
-          "timestamp": "2025-05-07T14:35:18Z",
-          "tree_id": "c6dbc24b3cca64872a27ae945a45f09a10a58312",
-          "url": "https://github.com/noir-lang/noir/commit/a68685690bd65c204260944087214b3ca0899a59"
-        },
-        "date": 1746630668587,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 234.1,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 256.58,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 212.44,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 541.5,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 533.68,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 1440,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 362.58,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-root",
-            "value": 368.5,
-            "unit": "MB"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "isennovskiy@gmail.com",
             "name": "Innokentii Sennovskii",
             "username": "Rumata888"
@@ -14260,6 +14196,75 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/noir-lang/noir/commit/35ff3264b5f9badbd272f6b7aa042095d31b632d"
         },
         "date": 1747158484376,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 236.2,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 258.45,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 211.69,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 542.76,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 535.21,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 1440,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 364.27,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-root",
+            "value": 370.19,
+            "unit": "MB"
+          },
+          {
+            "name": "semaphore_depth_10",
+            "value": 90.71,
+            "unit": "MB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "asterite@gmail.com",
+            "name": "Ary Borenszweig",
+            "username": "asterite"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "8863c6a93a2e9bad81d0168ba15184e994e8df8b",
+          "message": "fix: allowing accessing associated constants via `Self::...` (#8403)",
+          "timestamp": "2025-05-13T17:06:41Z",
+          "tree_id": "159c7bb6b3791fe3b7f85505a6e7cc0826d72a33",
+          "url": "https://github.com/noir-lang/noir/commit/8863c6a93a2e9bad81d0168ba15184e994e8df8b"
+        },
+        "date": 1747158719561,
         "tool": "customSmallerIsBetter",
         "benches": [
           {
