@@ -81,10 +81,10 @@ impl AstPrinter {
             let vis = visibility.to_string();
             let vis = if vis.is_empty() { vis } else { format!("{vis} ") };
             format!(
-                "{}{}{}: {}",
-                vis,
+                "{}{}: {}{}",
                 if *mutable { "mut " } else { "" },
                 self.fmt_local(name, *id),
+                vis,
                 typ
             )
         })
