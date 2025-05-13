@@ -355,14 +355,16 @@ fn cast() {
           b0():
             v0 = cast u32 2 as Field
             v1 = cast u32 3 as u8
-            v2 = cast i8 255 as i32  // -1
-            return v0, v1, v2
+            v2 = cast i8 255 as i32   // -1
+            v3 = cast i8 255 as u128
+            return v0, v1, v2, v3
         }
     ",
     );
     assert_eq!(values[0], from_constant(2_u128.into(), NumericType::NativeField));
     assert_eq!(values[1], from_constant(3_u128.into(), NumericType::unsigned(8)));
     assert_eq!(values[2], from_constant(u32::MAX.into(), NumericType::signed(32)));
+    assert_eq!(values[3], from_constant(u128::MAX.into(), NumericType::unsigned(128)));
 }
 
 #[test]
