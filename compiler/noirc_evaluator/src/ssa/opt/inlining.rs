@@ -66,7 +66,10 @@ impl Ssa {
         inline_no_predicates_functions: bool,
     ) -> Ssa {
         let inline_targets =
-            inline_infos.iter().filter_map(|(id, info)| info.is_inline_target().then_some(*id));
+            inline_infos.iter().filter_map(|(id, info)| {
+                let dfg = &self.functions[id].dfg;
+                info.is_inline_target(dfg).then_some(*id)
+            });
 
         let should_inline_call = |callee: &Function| -> bool {
             match callee.runtime() {

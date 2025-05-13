@@ -6,8 +6,7 @@ use petgraph::graph::NodeIndex as PetGraphIndex;
 
 use crate::ssa::{
     ir::{
-        call_graph::{CallGraph, called_functions, called_functions_vec},
-        function::{Function, FunctionId},
+        call_graph::{called_functions, called_functions_vec, CallGraph}, dfg::DataFlowGraph, function::{Function, FunctionId}
     },
     ssa_gen::Ssa,
 };
@@ -26,10 +25,12 @@ pub(crate) struct InlineInfo {
 
 impl InlineInfo {
     /// Functions which are to be retained, not inlined.
-    pub(crate) fn is_inline_target(&self) -> bool {
+    pub(crate) fn is_inline_target(&self, dfg: &DataFlowGraph) -> bool {
         self.is_brillig_entry_point
             || self.is_acir_entry_point
-            || self.is_recursive
+            // We still want to attempt inlining recursive ACIR functions in case
+            // they have a compile-time completion point. 
+            || (self.is_recursive && !dfg.runtime().is_acir())
             || !self.should_inline
     }
 
