@@ -345,7 +345,7 @@ impl Context {
                 .types
                 .iter()
                 .filter(|typ| !is_global || types::can_be_global(typ))
-                .filter(|typ| !is_main || !types::can_be_main(typ))
+                .filter(|typ| !is_main || types::can_be_main(typ))
                 .filter(|typ| types::type_depth(typ) <= max_depth)
                 .filter(|typ| !is_frontend_friendly || !self.should_avoid_literals(typ))
                 .collect::<Vec<_>>();
