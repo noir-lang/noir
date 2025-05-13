@@ -363,6 +363,13 @@ impl Elaborator<'_> {
         let location = segment.location;
         let ident = segment.ident;
         let primitive_type = PrimitiveType::lookup_by_name(ident.as_str())?;
+
+        if primitive_type == PrimitiveType::StructDefinition {
+            self.push_err(CompilationError::ResolverError(ResolverError::PathResolutionError(
+                PathResolutionError::StructDefinitionDeprecated { location },
+            )));
+        }
+
         match primitive_type {
             PrimitiveType::Bool
             | PrimitiveType::CtString
@@ -381,6 +388,7 @@ impl Elaborator<'_> {
             | PrimitiveType::U128
             | PrimitiveType::Module
             | PrimitiveType::Quoted
+            | PrimitiveType::StructDefinition
             | PrimitiveType::TraitConstraint
             | PrimitiveType::TraitDefinition
             | PrimitiveType::TraitImpl

@@ -749,6 +749,13 @@ impl Elaborator<'_> {
         let method_name = method_name_ident.as_str();
         let primitive_type = PrimitiveType::lookup_by_name(object_name)?;
         let typ = primitive_type.to_type();
+        let mut errors = Vec::new();
+
+        if primitive_type == PrimitiveType::StructDefinition {
+            errors.push(PathResolutionError::StructDefinitionDeprecated {
+                location: path.segments[0].ident.location(),
+            });
+        }
 
         // Note: the logic here is similar to that of resolve_method, except that that one works by
         // searching through modules, and this one works by searching through primitive types.
@@ -758,7 +765,7 @@ impl Elaborator<'_> {
 
         if let Some(func_id) = self.interner.lookup_direct_method(&typ, method_name, false) {
             let item = PathResolutionItem::PrimitiveFunction(primitive_type, turbofish, func_id);
-            return Some(Ok(PathResolution { item, errors: vec![] }));
+            return Some(Ok(PathResolution { item, errors }));
         }
 
         let starting_module = self.get_module(importing_module_id);
@@ -779,10 +786,10 @@ impl Elaborator<'_> {
                 let trait_ = self.interner.get_trait(*trait_id);
                 let trait_name = self.fully_qualified_trait_path(trait_);
                 let ident = method_name_ident.clone();
-                let error = PathResolutionError::TraitMethodNotInScope { ident, trait_name };
+                errors.push(PathResolutionError::TraitMethodNotInScope { ident, trait_name });
                 let item =
                     PathResolutionItem::PrimitiveFunction(primitive_type, turbofish, *func_id);
-                return Some(Ok(PathResolution { item, errors: vec![error] }));
+                return Some(Ok(PathResolution { item, errors }));
             } else {
                 let trait_ids = vecmap(trait_methods, |(_, trait_id)| trait_id);
                 if trait_ids.is_empty() {
@@ -814,7 +821,7 @@ impl Elaborator<'_> {
         let (_, func_id, _) = results.remove(0);
         Some(Ok(PathResolution {
             item: PathResolutionItem::PrimitiveFunction(primitive_type, turbofish, func_id),
-            errors: vec![],
+            errors,
         }))
     }
 }

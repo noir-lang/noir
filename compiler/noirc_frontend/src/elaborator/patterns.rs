@@ -815,6 +815,7 @@ impl Elaborator<'_> {
                     | PrimitiveType::U128
                     | PrimitiveType::Module
                     | PrimitiveType::Quoted
+                    | PrimitiveType::StructDefinition
                     | PrimitiveType::TraitConstraint
                     | PrimitiveType::TraitDefinition
                     | PrimitiveType::TraitImpl

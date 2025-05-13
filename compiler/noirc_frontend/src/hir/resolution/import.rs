@@ -58,13 +58,16 @@ pub enum PathResolutionError {
     UnresolvedWithPossibleTraitsToImport { ident: Ident, traits: Vec<String> },
     #[error("Multiple applicable items in scope")]
     MultipleTraitsInScope { ident: Ident, traits: Vec<String> },
+    #[error("`StructDefinition` is deprecated. It has been renamed to `TypeDefinition`")]
+    StructDefinitionDeprecated { location: Location },
 }
 
 impl PathResolutionError {
     pub fn location(&self) -> Location {
         match self {
             PathResolutionError::NoSuper(location)
-            | PathResolutionError::TurbofishNotAllowedOnItem { location, .. } => *location,
+            | PathResolutionError::TurbofishNotAllowedOnItem { location, .. }
+            | PathResolutionError::StructDefinitionDeprecated { location } => *location,
             PathResolutionError::Unresolved(ident)
             | PathResolutionError::Private(ident)
             | PathResolutionError::NotAModule { ident, .. }
@@ -137,6 +140,14 @@ impl<'a> From<&'a PathResolutionError> for CustomDiagnostic {
                         traits.join(", ")
                     ),
                     ident.location(),
+                )
+            }
+            PathResolutionError::StructDefinitionDeprecated { location } => {
+                CustomDiagnostic::simple_warning(
+                    "`StructDefinition` is deprecated. It has been renamed to `TypeDefinition`"
+                        .to_string(),
+                    String::new(),
+                    *location,
                 )
             }
         }
