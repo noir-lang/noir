@@ -119,7 +119,7 @@ impl CallGraph {
         let mut ids_to_indices = HashMap::default();
         let mut indices_to_ids = HashMap::default();
 
-        // Step 1: Add all non-recursive nodes
+        // Add all non-recursive nodes
         for (&function, _) in self.ids_to_indices.iter() {
             if recursive_functions.contains(&function) {
                 continue;
@@ -129,7 +129,7 @@ impl CallGraph {
             indices_to_ids.insert(index, function);
         }
 
-        // Step 2: Add edges between non-recursive nodes
+        // Create edges from caller -> called between non-recursive nodes
         for (&func_id, &old_idx) in self.ids_to_indices.iter() {
             if recursive_functions.contains(&func_id) {
                 continue;
