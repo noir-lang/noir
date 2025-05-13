@@ -1030,6 +1030,15 @@ pub fn collect_function(
         interner.register_function(func_id, &function.def);
     }
 
+    if is_entry_point_function {
+        if let Some(generic) = function.def.generics.first() {
+            let name = name.to_string();
+            let location = generic.location();
+            let error = DefCollectorErrorKind::EntryPointWithGenerics { name, location };
+            errors.push(error.into());
+        }
+    }
+
     if !is_test
         && !is_fuzzing_harness
         && !is_entry_point_function

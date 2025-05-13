@@ -1,0 +1,8 @@
+error: `main` entry-point function is not allowed to have generic parameters
+  ┌─ src/main.nr:1:13
+  │
+1 │ fn main<let F: u32>(x: [Field; F]) {
+  │             ------
+  │
+
+Aborting due to 1 previous error

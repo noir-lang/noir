@@ -79,6 +79,8 @@ pub enum DefCollectorErrorKind {
     TestOnlyFailWithWithoutParameters { location: Location },
     #[error("The `#[fuzz]` attribute may only be used on functions with parameters")]
     FuzzingHarnessWithoutParameters { location: Location },
+    #[error("`{name}` entry-point function is not allowed to have generic parameters")]
+    EntryPointWithGenerics { name: String, location: Location },
 }
 
 impl DefCollectorErrorKind {
@@ -112,7 +114,8 @@ impl DefCollectorErrorKind {
             | DefCollectorErrorKind::TraitMissingMethod { trait_impl_location: location, .. }
             | DefCollectorErrorKind::ForeignImpl { location, .. }
             | DefCollectorErrorKind::TestOnlyFailWithWithoutParameters { location }
-            | DefCollectorErrorKind::FuzzingHarnessWithoutParameters { location } => *location,
+            | DefCollectorErrorKind::FuzzingHarnessWithoutParameters { location }
+            | DefCollectorErrorKind::EntryPointWithGenerics { location, .. } => *location,
             DefCollectorErrorKind::NotATrait { not_a_trait_name: path }
             | DefCollectorErrorKind::TraitNotFound { trait_path: path } => path.location,
             DefCollectorErrorKind::UnsupportedNumericGenericType(
@@ -294,6 +297,11 @@ impl<'a> From<&'a DefCollectorErrorKind> for Diagnostic {
             ),
             DefCollectorErrorKind::FuzzingHarnessWithoutParameters { location } => Diagnostic::simple_error(
                 "The `#[fuzz]` attribute may only be used on functions with parameters".into(),
+                String::new(),
+                *location,
+            ),
+            DefCollectorErrorKind::EntryPointWithGenerics { name, location } => Diagnostic::simple_error(
+                format!("`{name}` entry-point function is not allowed to have generic parameters"),
                 String::new(),
                 *location,
             ),
