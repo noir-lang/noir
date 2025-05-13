@@ -6,7 +6,7 @@ use noirc_frontend::Shared;
 use crate::ssa::{
     interpreter::{
         InterpreterError, NumericValue, Value,
-        tests::{expect_value, expect_values, expect_values_with_args},
+        tests::{expect_value, expect_values, expect_values_with_args, from_constant},
         value::ReferenceValue,
     },
     ir::{
@@ -78,7 +78,7 @@ fn sub_underflow() {
         "
         acir(inline) fn main f0 {
           b0():
-            v0 = sub i8 -120, i8 10
+            v0 = sub i8 136, i8 10  // -120 - 10
             return v0
         }
     ",
@@ -220,11 +220,11 @@ fn lt() {
           b0():
             v0 = lt u32 3, u32 7
             v1 = lt i32 3, i32 7
-            v2 = lt i32 3, i32 -3
+            v2 = lt i32 3, i32 4294967293   // 3 < -3  (false)
 
-            v3 = lt i32 -3, i32 -2
-            v4 = lt i32 -3, i32 -3
-            v5 = lt i32 -3, i32 -4
+            v3 = lt i32 4294967293, i32 4294967294  // -3 < -2
+            v4 = lt i32 4294967293, i32 4294967293  // -3 < -3
+            v5 = lt i32 4294967293, i32 4294967292  // -3 < -4
             return v0, v1, v2, v3, v4, v5
         }
     ",
@@ -250,7 +250,7 @@ fn and() {
     ",
     );
     assert_eq!(values[0], Value::bool(false));
-    assert_eq!(values[1], Value::from_constant(1_u128.into(), NumericType::unsigned(8)));
+    assert_eq!(values[1], from_constant(1_u128.into(), NumericType::unsigned(8)));
 }
 
 #[test]
@@ -266,7 +266,7 @@ fn or() {
     ",
     );
     assert_eq!(values[0], Value::bool(true));
-    assert_eq!(values[1], Value::from_constant(7_u128.into(), NumericType::unsigned(8)));
+    assert_eq!(values[1], from_constant(7_u128.into(), NumericType::unsigned(8)));
 }
 
 #[test]
@@ -282,7 +282,7 @@ fn xor() {
     ",
     );
     assert_eq!(values[0], Value::bool(true));
-    assert_eq!(values[1], Value::from_constant(6_u128.into(), NumericType::unsigned(8)));
+    assert_eq!(values[1], from_constant(6_u128.into(), NumericType::unsigned(8)));
 }
 
 #[test]
@@ -296,7 +296,7 @@ fn shl() {
         }
     ",
     );
-    assert_eq!(value, Value::from_constant(12_u128.into(), NumericType::signed(8)));
+    assert_eq!(value, from_constant(12_u128.into(), NumericType::signed(8)));
 }
 
 /// shl should overflow if the rhs is greater than the bit count
@@ -327,9 +327,9 @@ fn shr() {
         }
     ",
     );
-    assert_eq!(values[0], Value::from_constant(3_u128.into(), NumericType::unsigned(16)));
-    assert_eq!(values[1], Value::from_constant(2_u128.into(), NumericType::unsigned(16)));
-    assert_eq!(values[2], Value::from_constant(0_u128.into(), NumericType::unsigned(16)));
+    assert_eq!(values[0], from_constant(3_u128.into(), NumericType::unsigned(16)));
+    assert_eq!(values[1], from_constant(2_u128.into(), NumericType::unsigned(16)));
+    assert_eq!(values[2], from_constant(0_u128.into(), NumericType::unsigned(16)));
 }
 
 #[test]
@@ -344,7 +344,7 @@ fn shr_overflow() {
         }
     ",
     );
-    assert_eq!(value, Value::from_constant(0_u128.into(), NumericType::unsigned(8)));
+    assert_eq!(value, from_constant(0_u128.into(), NumericType::unsigned(8)));
 }
 
 #[test]
@@ -355,14 +355,14 @@ fn cast() {
           b0():
             v0 = cast u32 2 as Field
             v1 = cast u32 3 as u8
-            v2 = cast i8 -1 as i32
+            v2 = cast i8 255 as i32  // -1
             return v0, v1, v2
         }
     ",
     );
-    assert_eq!(values[0], Value::from_constant(2_u128.into(), NumericType::NativeField));
-    assert_eq!(values[1], Value::from_constant(3_u128.into(), NumericType::unsigned(8)));
-    assert_eq!(values[2], Value::from_constant((-1_i128).into(), NumericType::signed(32)));
+    assert_eq!(values[0], from_constant(2_u128.into(), NumericType::NativeField));
+    assert_eq!(values[1], from_constant(3_u128.into(), NumericType::unsigned(8)));
+    assert_eq!(values[2], from_constant(255_i128.into(), NumericType::signed(32)));
 }
 
 #[test]
@@ -382,7 +382,7 @@ fn not() {
     assert_eq!(values[1], Value::bool(false));
 
     let not_constant = !136_u8 as u128;
-    assert_eq!(values[2], Value::from_constant(not_constant.into(), NumericType::unsigned(8)));
+    assert_eq!(values[2], from_constant(not_constant.into(), NumericType::unsigned(8)));
 }
 
 #[test]
@@ -397,7 +397,7 @@ fn truncate() {
     ",
     );
     let constant = 257_u16 as u8 as u128;
-    assert_eq!(value, Value::from_constant(constant.into(), NumericType::unsigned(32)));
+    assert_eq!(value, from_constant(constant.into(), NumericType::unsigned(32)));
 }
 
 #[test]
@@ -516,7 +516,7 @@ fn call() {
         }
     ",
     );
-    assert_eq!(value, Value::from_constant(16_u32.into(), NumericType::NativeField));
+    assert_eq!(value, from_constant(16_u32.into(), NumericType::NativeField));
 }
 
 #[test]
@@ -594,7 +594,7 @@ fn enable_side_effects() {
         }
     ",
     );
-    let field_zero = Value::from_constant(0u128.into(), NumericType::NativeField);
+    let field_zero = from_constant(0u128.into(), NumericType::NativeField);
     let expected = Value::Reference(ReferenceValue {
         original_id: ValueId::test_new(1),
         element: Shared::new(Some(field_zero.clone())),
@@ -616,7 +616,7 @@ fn array_get() {
         }
     "#,
     );
-    assert_eq!(value, Value::from_constant(2_u32.into(), NumericType::NativeField));
+    assert_eq!(value, from_constant(2_u32.into(), NumericType::NativeField));
 }
 
 #[test]
@@ -632,7 +632,7 @@ fn array_get_disabled_by_enable_side_effects() {
         }
     "#,
     );
-    assert_eq!(value, Value::from_constant(0_u32.into(), NumericType::NativeField));
+    assert_eq!(value, from_constant(0_u32.into(), NumericType::NativeField));
 }
 
 #[test]
@@ -658,10 +658,10 @@ fn array_set() {
     assert_eq!(*v1.rc.borrow(), 1);
     assert_eq!(*v2.rc.borrow(), 1);
 
-    let one = Value::from_constant(1u32.into(), NumericType::NativeField);
-    let two = Value::from_constant(2u32.into(), NumericType::NativeField);
-    let four = Value::from_constant(4u32.into(), NumericType::NativeField);
-    let five = Value::from_constant(5u32.into(), NumericType::NativeField);
+    let one = from_constant(1u32.into(), NumericType::NativeField);
+    let two = from_constant(2u32.into(), NumericType::NativeField);
+    let four = from_constant(4u32.into(), NumericType::NativeField);
+    let five = from_constant(5u32.into(), NumericType::NativeField);
 
     // v0 was forcibly mutated via the last `array_set mut`
     assert_eq!(*v0.elements.borrow(), vec![four.clone(), two.clone()]);
@@ -696,8 +696,8 @@ fn array_set_disabled_by_enable_side_effects() {
     assert_eq!(*v1.rc.borrow(), 1);
     assert_eq!(*v2.rc.borrow(), 1);
 
-    let one = Value::from_constant(1u32.into(), NumericType::NativeField);
-    let two = Value::from_constant(2u32.into(), NumericType::NativeField);
+    let one = from_constant(1u32.into(), NumericType::NativeField);
+    let two = from_constant(2u32.into(), NumericType::NativeField);
     let expected = vec![one, two];
 
     // No changes are made in case an index is out of bounds
@@ -787,9 +787,9 @@ fn if_else() {
         }
     ",
     );
-    assert_eq!(values[0], Value::from_constant(2_u32.into(), NumericType::unsigned(8)));
-    assert_eq!(values[1], Value::from_constant(3_u32.into(), NumericType::unsigned(8)));
-    assert_eq!(values[2], Value::from_constant(0_u32.into(), NumericType::unsigned(8)));
+    assert_eq!(values[0], from_constant(2_u32.into(), NumericType::unsigned(8)));
+    assert_eq!(values[1], from_constant(3_u32.into(), NumericType::unsigned(8)));
+    assert_eq!(values[2], from_constant(0_u32.into(), NumericType::unsigned(8)));
 }
 
 #[test]
@@ -807,14 +807,13 @@ fn make_array() {
     "#,
     );
     let one_two = vec![
-        Value::from_constant(1u128.into(), NumericType::NativeField),
-        Value::from_constant(2u128.into(), NumericType::NativeField),
+        from_constant(1u128.into(), NumericType::NativeField),
+        from_constant(2u128.into(), NumericType::NativeField),
     ];
     assert_eq!(values[0], Value::array(one_two.clone(), vec![Type::field()]));
     assert_eq!(values[1], Value::slice(one_two, Arc::new(vec![Type::field()])));
 
-    let hello =
-        vecmap(b"Hello", |char| Value::from_constant((*char as u32).into(), NumericType::char()));
+    let hello = vecmap(b"Hello", |char| from_constant((*char as u32).into(), NumericType::char()));
     assert_eq!(values[2], Value::array(hello.clone(), vec![Type::char()]));
     assert_eq!(values[3], Value::slice(hello, Arc::new(vec![Type::char()])));
 }
@@ -863,8 +862,8 @@ fn test_range_and_xor_bb() {
     let values = expect_values_with_args(
         src,
         vec![
-            Value::from_constant(1_u128.into(), NumericType::NativeField),
-            Value::from_constant(12_u128.into(), NumericType::NativeField),
+            from_constant(1_u128.into(), NumericType::NativeField),
+            from_constant(12_u128.into(), NumericType::NativeField),
         ],
     );
     assert!(values.is_empty());
