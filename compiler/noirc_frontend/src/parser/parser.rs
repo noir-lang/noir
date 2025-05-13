@@ -520,6 +520,10 @@ impl<'a> Parser<'a> {
         self.expected_label(ParsingRuleLabel::Identifier);
     }
 
+    fn expected_string(&mut self) {
+        self.expected_label(ParsingRuleLabel::String);
+    }
+
     fn expected_token(&mut self, token: Token) {
         self.errors.push(ParserError::expected_token(
             token,
