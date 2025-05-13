@@ -385,7 +385,11 @@ impl Display for ValuePrinter<'_, '_> {
             Value::Closure(..) => write!(f, "(closure)"),
             Value::Tuple(fields) => {
                 let fields = vecmap(fields, |field| field.display(self.interner).to_string());
-                write!(f, "({})", fields.join(", "))
+                if fields.len() == 1 {
+                    write!(f, "({},)", fields[0])
+                } else {
+                    write!(f, "({})", fields.join(", "))
+                }
             }
             Value::Struct(fields, typ) => {
                 let typename = match typ.follow_bindings() {
