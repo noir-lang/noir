@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1747157585669,
+  "lastUpdate": 1747157592108,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -11071,70 +11071,6 @@ window.BENCHMARK_DATA = {
             "name": "GitHub",
             "username": "web-flow"
           },
-          "distinct": false,
-          "id": "385f7c797200ca63d06d414b2c0f9e1e751f3980",
-          "message": "chore: move acirgen tests into separate file (#8376)\n\nCo-authored-by: AztecBot <tech@aztecprotocol.com>",
-          "timestamp": "2025-05-07T14:16:18Z",
-          "tree_id": "f02d648406ac0e4c34ec49a7e6575c45d2dfb28b",
-          "url": "https://github.com/noir-lang/noir/commit/385f7c797200ca63d06d414b2c0f9e1e751f3980"
-        },
-        "date": 1746629061044,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 234.1,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 256.58,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 212.44,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 541.5,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 533.68,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 1440,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 362.58,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-root",
-            "value": 368.5,
-            "unit": "MB"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
-            "email": "15848336+TomAFrench@users.noreply.github.com",
-            "name": "Tom French",
-            "username": "TomAFrench"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
           "distinct": true,
           "id": "85241deaef7eaab9cc1526e7a3031a3dcb0c6eb3",
           "message": "fix: add handling for u128 infix ops in interpreter (#8392)\n\nCo-authored-by: AztecBot <tech@aztecprotocol.com>",
@@ -14250,6 +14186,75 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/noir-lang/noir/commit/a21ac4588a2500a06481d6555717f1f32f8dec7a"
         },
         "date": 1747154226970,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 236.2,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 258.45,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 211.69,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 542.77,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 535.21,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 1440,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 364.27,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-root",
+            "value": 370.2,
+            "unit": "MB"
+          },
+          {
+            "name": "semaphore_depth_10",
+            "value": 90.71,
+            "unit": "MB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "asterite@gmail.com",
+            "name": "Ary Borenszweig",
+            "username": "asterite"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "e5bac4e512e8cd021d2d674873a3ef1f837a768e",
+          "message": "fix: disallow generics on entry points (#8490)",
+          "timestamp": "2025-05-13T16:58:10Z",
+          "tree_id": "6add356c9ed835530484ddd1fac5a8378e11a6a5",
+          "url": "https://github.com/noir-lang/noir/commit/e5bac4e512e8cd021d2d674873a3ef1f837a768e"
+        },
+        "date": 1747157582072,
         "tool": "customSmallerIsBetter",
         "benches": [
           {
