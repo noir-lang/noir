@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1747167306182,
+  "lastUpdate": 1747168226282,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -17966,48 +17966,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "jfecher11@gmail.com",
-            "name": "jfecher",
-            "username": "jfecher"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "ea71a0e769fc691053d430eb854f445fd5e03950",
-          "message": "fix: Fix sequencing of side-effects in lvalue (#8384)\n\nCo-authored-by: Maxim Vezenov <mvezenov@gmail.com>",
-          "timestamp": "2025-05-07T15:57:07Z",
-          "tree_id": "4319b518aba03eeca1a7cfeb236760a00d83def5",
-          "url": "https://github.com/noir-lang/noir/commit/ea71a0e769fc691053d430eb854f445fd5e03950"
-        },
-        "date": 1746634702354,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 273329,
-            "range": "± 572",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 244338,
-            "range": "± 6188",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 3227104,
-            "range": "± 11745",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "asterite@gmail.com",
             "name": "Ary Borenszweig",
             "username": "asterite"
@@ -20059,6 +20017,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 3588004,
             "range": "± 6480",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "asterite@gmail.com",
+            "name": "Ary Borenszweig",
+            "username": "asterite"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "b657b076bdcfcf627a318237276a917d8e067e0f",
+          "message": "fix: pass Field to ToBits intrinsic in remove_bit_shifts optimization (#8493)",
+          "timestamp": "2025-05-13T20:10:21Z",
+          "tree_id": "fe15a1582a8a7cc51b45946fcfd59ebf12293169",
+          "url": "https://github.com/noir-lang/noir/commit/b657b076bdcfcf627a318237276a917d8e067e0f"
+        },
+        "date": 1747168216313,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 265998,
+            "range": "± 788",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 237818,
+            "range": "± 2938",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 3579447,
+            "range": "± 51259",
             "unit": "ns/iter"
           }
         ]
