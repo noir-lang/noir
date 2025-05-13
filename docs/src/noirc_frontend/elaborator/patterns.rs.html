@@ -1039,7 +1039,74 @@
 <a href="#1038" id="1038">1038</a>
 <a href="#1039" id="1039">1039</a>
 <a href="#1040" id="1040">1040</a>
-<a href="#1041" id="1041">1041</a></pre></div><pre class="rust"><code><span class="kw">use </span>iter_extended::vecmap;
+<a href="#1041" id="1041">1041</a>
+<a href="#1042" id="1042">1042</a>
+<a href="#1043" id="1043">1043</a>
+<a href="#1044" id="1044">1044</a>
+<a href="#1045" id="1045">1045</a>
+<a href="#1046" id="1046">1046</a>
+<a href="#1047" id="1047">1047</a>
+<a href="#1048" id="1048">1048</a>
+<a href="#1049" id="1049">1049</a>
+<a href="#1050" id="1050">1050</a>
+<a href="#1051" id="1051">1051</a>
+<a href="#1052" id="1052">1052</a>
+<a href="#1053" id="1053">1053</a>
+<a href="#1054" id="1054">1054</a>
+<a href="#1055" id="1055">1055</a>
+<a href="#1056" id="1056">1056</a>
+<a href="#1057" id="1057">1057</a>
+<a href="#1058" id="1058">1058</a>
+<a href="#1059" id="1059">1059</a>
+<a href="#1060" id="1060">1060</a>
+<a href="#1061" id="1061">1061</a>
+<a href="#1062" id="1062">1062</a>
+<a href="#1063" id="1063">1063</a>
+<a href="#1064" id="1064">1064</a>
+<a href="#1065" id="1065">1065</a>
+<a href="#1066" id="1066">1066</a>
+<a href="#1067" id="1067">1067</a>
+<a href="#1068" id="1068">1068</a>
+<a href="#1069" id="1069">1069</a>
+<a href="#1070" id="1070">1070</a>
+<a href="#1071" id="1071">1071</a>
+<a href="#1072" id="1072">1072</a>
+<a href="#1073" id="1073">1073</a>
+<a href="#1074" id="1074">1074</a>
+<a href="#1075" id="1075">1075</a>
+<a href="#1076" id="1076">1076</a>
+<a href="#1077" id="1077">1077</a>
+<a href="#1078" id="1078">1078</a>
+<a href="#1079" id="1079">1079</a>
+<a href="#1080" id="1080">1080</a>
+<a href="#1081" id="1081">1081</a>
+<a href="#1082" id="1082">1082</a>
+<a href="#1083" id="1083">1083</a>
+<a href="#1084" id="1084">1084</a>
+<a href="#1085" id="1085">1085</a>
+<a href="#1086" id="1086">1086</a>
+<a href="#1087" id="1087">1087</a>
+<a href="#1088" id="1088">1088</a>
+<a href="#1089" id="1089">1089</a>
+<a href="#1090" id="1090">1090</a>
+<a href="#1091" id="1091">1091</a>
+<a href="#1092" id="1092">1092</a>
+<a href="#1093" id="1093">1093</a>
+<a href="#1094" id="1094">1094</a>
+<a href="#1095" id="1095">1095</a>
+<a href="#1096" id="1096">1096</a>
+<a href="#1097" id="1097">1097</a>
+<a href="#1098" id="1098">1098</a>
+<a href="#1099" id="1099">1099</a>
+<a href="#1100" id="1100">1100</a>
+<a href="#1101" id="1101">1101</a>
+<a href="#1102" id="1102">1102</a>
+<a href="#1103" id="1103">1103</a>
+<a href="#1104" id="1104">1104</a>
+<a href="#1105" id="1105">1105</a>
+<a href="#1106" id="1106">1106</a>
+<a href="#1107" id="1107">1107</a>
+<a href="#1108" id="1108">1108</a></pre></div><pre class="rust"><code><span class="kw">use </span>iter_extended::vecmap;
 <span class="kw">use </span>noirc_errors::{Located, Location};
 <span class="kw">use </span>rustc_hash::FxHashSet <span class="kw">as </span>HashSet;
 
@@ -1055,12 +1122,14 @@
         type_check::{Source, TypeCheckError},
     },
     hir_def::{
-        expr::{HirExpression, HirIdent, HirMethodReference, ImplKind, TraitMethod},
+        expr::{HirExpression, HirIdent, HirLiteral, HirMethodReference, ImplKind, TraitMethod},
         stmt::HirPattern,
+        traits::NamedType,
     },
     node_interner::{
         DefinitionId, DefinitionInfo, DefinitionKind, ExprId, FuncId, GlobalId, TraitImplKind,
     },
+    signed_field::SignedField,
 };
 
 <span class="kw">use super</span>::{
@@ -1595,22 +1664,12 @@
     }
 
     <span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>elaborate_variable(<span class="kw-2">&amp;mut </span><span class="self">self</span>, variable: Path) -&gt; (ExprId, Type) {
-        <span class="kw">let </span><span class="kw-2">mut </span>variable = <span class="self">self</span>.validate_path(variable);
+        <span class="kw">let </span>variable = <span class="self">self</span>.validate_path(variable);
 
-        <span class="comment">// Check if this is `Self::method_name` when we are inside a trait impl and `Self`
-        // resolves to a primitive type. In that case we elaborate this as if it were a TypePath
-        // (for example, if `Self` is `u32` then we consider this the same as `u32::method_name`).
-        // A regular path lookup won't work here for the same reason `TypePath` exists.
-        </span><span class="kw">if let </span><span class="prelude-val">Some</span>(self_type) = <span class="kw-2">&amp;</span><span class="self">self</span>.self_type {
-            <span class="kw">if </span><span class="self">self</span>.current_trait_impl.is_some()
-                &amp;&amp; variable.segments.len() == <span class="number">2
-                </span>&amp;&amp; variable.segments[<span class="number">0</span>].ident.is_self_type_name()
-                &amp;&amp; !<span class="macro">matches!</span>(<span class="self">self</span>.self_type, <span class="prelude-val">Some</span>(Type::DataType(..)))
-            {
-                <span class="kw">let </span>ident = variable.segments.remove(<span class="number">1</span>).ident;
-                <span class="kw">let </span>typ_location = variable.segments[<span class="number">0</span>].location;
-                <span class="kw">return </span><span class="self">self</span>.elaborate_type_path_impl(self_type.clone(), ident, <span class="prelude-val">None</span>, typ_location);
-            }
+        <span class="kw">if let </span><span class="prelude-val">Some</span>((expr_id, typ)) =
+            <span class="self">self</span>.elaborate_variable_as_self_method_or_associated_constant(<span class="kw-2">&amp;</span>variable)
+        {
+            <span class="kw">return </span>(expr_id, typ);
         }
 
         <span class="kw">let </span>resolved_turbofish = variable.segments.last().unwrap().generics.clone();
@@ -1674,6 +1733,68 @@
         }
     }
 
+    <span class="doccomment">/// Checks whether `variable` is `Self::method_name` or `Self::AssociatedConstant` when we are inside a trait impl and `Self`
+    /// resolves to a primitive type.
+    ///
+    /// In the first case we elaborate this as if it were a TypePath
+    /// (for example, if `Self` is `u32` then we consider this the same as `u32::method_name`).
+    /// A regular path lookup won't work here for the same reason `TypePath` exists.
+    ///
+    /// In the second case we solve the associated constant by looking up its value, later
+    /// turning it into a literal.
+    </span><span class="kw">fn </span>elaborate_variable_as_self_method_or_associated_constant(
+        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
+        variable: <span class="kw-2">&amp;</span>TypedPath,
+    ) -&gt; <span class="prelude-ty">Option</span>&lt;(ExprId, Type)&gt; {
+        <span class="kw">if </span>!(variable.segments.len() == <span class="number">2 </span>&amp;&amp; variable.segments[<span class="number">0</span>].ident.is_self_type_name()) {
+            <span class="kw">return </span><span class="prelude-val">None</span>;
+        }
+
+        <span class="kw">let </span>name = variable.segments[<span class="number">1</span>].ident.as_str();
+
+        <span class="comment">// Check the `Self::AssociatedConstant` case when inside a trait
+        </span><span class="kw">if let </span><span class="prelude-val">Some</span>(trait_id) = <span class="kw-2">&amp;</span><span class="self">self</span>.current_trait {
+            <span class="kw">let </span>trait_ = <span class="self">self</span>.interner.get_trait(<span class="kw-2">*</span>trait_id);
+            <span class="kw">if let </span><span class="prelude-val">Some</span>(associated_type) = trait_.get_associated_type(name) {
+                <span class="kw">if let </span>Kind::Numeric(numeric_type) = associated_type.kind() {
+                    <span class="comment">// We can produce any value here because this trait method is never going to
+                    // produce code (only trait impl methods do)
+                    </span><span class="kw">let </span>numeric_type: Type = <span class="kw-2">*</span>numeric_type.clone();
+                    <span class="kw">let </span>value = SignedField::zero();
+                    <span class="kw">return </span><span class="prelude-val">Some</span>(<span class="self">self</span>.constant_integer(numeric_type, value, variable.location));
+                }
+            }
+        }
+
+        <span class="kw">let </span><span class="prelude-val">Some</span>(self_type) = <span class="kw-2">&amp;</span><span class="self">self</span>.self_type <span class="kw">else </span>{
+            <span class="kw">return </span><span class="prelude-val">None</span>;
+        };
+
+        <span class="kw">let </span><span class="prelude-val">Some</span>(trait_impl_id) = <span class="kw-2">&amp;</span><span class="self">self</span>.current_trait_impl <span class="kw">else </span>{
+            <span class="kw">return </span><span class="prelude-val">None</span>;
+        };
+
+        <span class="comment">// Check the `Self::AssociatedConstant` case when inside a trait impl
+        </span><span class="kw">let </span>associated_types = <span class="self">self</span>.interner.get_associated_types_for_impl(<span class="kw-2">*</span>trait_impl_id);
+        <span class="kw">let </span>associated_type = associated_types.iter().find(|typ| typ.name.as_str() == name);
+        <span class="kw">if let </span><span class="prelude-val">Some</span>(NamedType { typ: Type::Constant(field, Kind::Numeric(numeric_type)), .. }) =
+            associated_type
+        {
+            <span class="kw">let </span>numeric_type: Type = <span class="kw-2">*</span>numeric_type.clone();
+            <span class="kw">let </span>value = SignedField::positive(<span class="kw-2">*</span>field);
+            <span class="kw">return </span><span class="prelude-val">Some</span>(<span class="self">self</span>.constant_integer(numeric_type, value, variable.location));
+        }
+
+        <span class="comment">// Check the `Self::method_name` case when `Self` is a primitive type
+        </span><span class="kw">if </span><span class="macro">matches!</span>(<span class="self">self</span>.self_type, <span class="prelude-val">Some</span>(Type::DataType(..))) {
+            <span class="kw">return </span><span class="prelude-val">None</span>;
+        }
+
+        <span class="kw">let </span>ident = variable.segments[<span class="number">1</span>].ident.clone();
+        <span class="kw">let </span>typ_location = variable.segments[<span class="number">0</span>].location;
+        <span class="prelude-val">Some</span>(<span class="self">self</span>.elaborate_type_path_impl(self_type.clone(), ident, <span class="prelude-val">None</span>, typ_location))
+    }
+
     <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>validate_path(<span class="kw-2">&amp;mut </span><span class="self">self</span>, path: Path) -&gt; TypedPath {
         <span class="kw">let </span><span class="kw-2">mut </span>segments = vecmap(path.segments, |segment| <span class="self">self</span>.validate_path_segment(segment));
 
@@ -1700,6 +1821,19 @@
             })
         });
         TypedPathSegment { ident: segment.ident, generics, location: segment.location }
+    }
+
+    <span class="kw">fn </span>constant_integer(
+        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
+        numeric_type: Type,
+        value: SignedField,
+        location: Location,
+    ) -&gt; (ExprId, Type) {
+        <span class="kw">let </span>hir_expr = HirExpression::Literal(HirLiteral::Integer(value));
+        <span class="kw">let </span>id = <span class="self">self</span>.interner.push_expr(hir_expr);
+        <span class="self">self</span>.interner.push_expr_location(id, location);
+        <span class="self">self</span>.interner.push_expr_type(id, numeric_type.clone());
+        (id, numeric_type)
     }
 
     <span class="doccomment">/// Solve any generics that are part of the path before the function, for example:
