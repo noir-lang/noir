@@ -3,8 +3,10 @@
 require 'fileutils'
 
 output_dirs = [
-  "outputs",
-  "outputs2",
+  # TODO: re-enable?
+  # "outputs",
+  # "outputs2",
+  "outputs3",
 ]
 
 collected_output_dir = ARGV[0]

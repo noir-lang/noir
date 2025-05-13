@@ -3,7 +3,7 @@
 require 'fileutils'
 
 num_removed = 0
-Dir['./inputs/*.ssa'].each do |input_path|
+Dir['./inline_simple_inputs/*.ssa'].each do |input_path|
   if File.read(input_path).length > 1024
     puts "removing #{input_path}"
     FileUtils.rm input_path

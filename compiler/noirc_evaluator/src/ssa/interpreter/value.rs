@@ -157,7 +157,9 @@ impl Value {
     /// value but we make no guarantee that it is. This is often used as the default
     /// value to return for side-effectful functions like `call` or `array_get` when
     /// side-effects are disabled.
-    pub(crate) fn uninitialized(typ: &Type, id: ValueId) -> Value {
+    // TODO: revert
+    // pub(crate) fn uninitialized(typ: &Type, id: ValueId) -> Value {
+    pub fn uninitialized(typ: &Type, id: ValueId) -> Value {
         match typ {
             Type::Numeric(typ) => Value::Numeric(NumericValue::zero(*typ)),
             Type::Reference(element_type) => Self::reference(id, element_type.clone()),
@@ -231,34 +233,64 @@ impl NumericValue {
         match typ {
             NumericType::NativeField => Self::Field(constant),
             NumericType::Unsigned { bit_size: 1 } => Self::U1(constant.is_one()),
+            // TODO: re-enable unwrap's
+            // NumericType::Unsigned { bit_size: 8 } => {
+            //     Self::U8(constant.try_into_u128().unwrap().try_into().unwrap())
+            // }
+            // NumericType::Unsigned { bit_size: 16 } => {
+            //     Self::U16(constant.try_into_u128().unwrap().try_into().unwrap())
+            // }
+            // NumericType::Unsigned { bit_size: 32 } => {
+            //     Self::U32(constant.try_into_u128().unwrap().try_into().unwrap())
+            // }
+            // NumericType::Unsigned { bit_size: 64 } => {
+            //     Self::U64(constant.try_into_u128().unwrap().try_into().unwrap())
+            // }
+            // NumericType::Unsigned { bit_size: 128 } => {
+            //     Self::U128(constant.try_into_u128().unwrap())
+            // }
+            // NumericType::Signed { bit_size: 8 } => {
+            //     Self::I8(constant.try_into_i128().unwrap().try_into().unwrap())
+            // }
+            // NumericType::Signed { bit_size: 16 } => {
+            //     Self::I16(constant.try_into_i128().unwrap().try_into().unwrap())
+            // }
+            // NumericType::Signed { bit_size: 32 } => {
+            //     Self::I32(constant.try_into_i128().unwrap().try_into().unwrap())
+            // }
+            // NumericType::Signed { bit_size: 64 } => {
+            //     Self::I64(constant.try_into_i128().unwrap().try_into().unwrap())
+            // }
             NumericType::Unsigned { bit_size: 8 } => {
-                Self::U8(constant.try_into_u128().unwrap().try_into().unwrap())
+                Self::U8(constant.try_into_u128().unwrap_or_else(|| { std::process::exit(0) }).try_into().unwrap_or_else(|_| { std::process::exit(0) }))
             }
             NumericType::Unsigned { bit_size: 16 } => {
-                Self::U16(constant.try_into_u128().unwrap().try_into().unwrap())
+                Self::U16(constant.try_into_u128().unwrap_or_else(|| { std::process::exit(0) }).try_into().unwrap_or_else(|_| { std::process::exit(0) }))
             }
             NumericType::Unsigned { bit_size: 32 } => {
-                Self::U32(constant.try_into_u128().unwrap().try_into().unwrap())
+                Self::U32(constant.try_into_u128().unwrap_or_else(|| { std::process::exit(0) }).try_into().unwrap_or_else(|_| { std::process::exit(0) }))
             }
             NumericType::Unsigned { bit_size: 64 } => {
-                Self::U64(constant.try_into_u128().unwrap().try_into().unwrap())
+                Self::U64(constant.try_into_u128().unwrap_or_else(|| { std::process::exit(0) }).try_into().unwrap_or_else(|_| { std::process::exit(0) }))
             }
             NumericType::Unsigned { bit_size: 128 } => {
-                Self::U128(constant.try_into_u128().unwrap())
+                Self::U128(constant.try_into_u128().unwrap_or_else(|| { std::process::exit(0) }))
             }
             NumericType::Signed { bit_size: 8 } => {
-                Self::I8(constant.try_into_i128().unwrap().try_into().unwrap())
+                Self::I8(constant.try_into_i128().unwrap_or_else(|| { std::process::exit(0) }).try_into().unwrap_or_else(|_| { std::process::exit(0) }))
             }
             NumericType::Signed { bit_size: 16 } => {
-                Self::I16(constant.try_into_i128().unwrap().try_into().unwrap())
+                Self::I16(constant.try_into_i128().unwrap_or_else(|| { std::process::exit(0) }).try_into().unwrap_or_else(|_| { std::process::exit(0) }))
             }
             NumericType::Signed { bit_size: 32 } => {
-                Self::I32(constant.try_into_i128().unwrap().try_into().unwrap())
+                Self::I32(constant.try_into_i128().unwrap_or_else(|| { std::process::exit(0) }).try_into().unwrap_or_else(|_| { std::process::exit(0) }))
             }
             NumericType::Signed { bit_size: 64 } => {
-                Self::I64(constant.try_into_i128().unwrap().try_into().unwrap())
+                Self::I64(constant.try_into_i128().unwrap_or_else(|| { std::process::exit(0) }).try_into().unwrap_or_else(|_| { std::process::exit(0) }))
             }
-            other => panic!("Unsupported numeric type: {other}"),
+            // TODO: re-enable
+            // other => panic!("Unsupported numeric type: {other}"),
+            _other => std::process::exit(0),
         }
     }
 

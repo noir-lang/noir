@@ -64,7 +64,9 @@ impl Ssa {
     }
 
     /// Returns the entry-point function of the program
-    pub(crate) fn main(&self) -> &Function {
+    // TODO: revert?
+    // pub(crate) fn main(&self) -> &Function {
+    pub fn main(&self) -> &Function {
         &self.functions[&self.main_id]
     }
 

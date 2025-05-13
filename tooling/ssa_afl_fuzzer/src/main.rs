@@ -4,6 +4,7 @@ extern crate noirc_evaluator;
 
 use std::str::FromStr;
 
+use noirc_evaluator::ssa::interpreter::value::Value;
 use noirc_evaluator::ssa::ssa_gen::Ssa;
 
 fn main() {
@@ -12,10 +13,21 @@ fn main() {
             if let Ok(ssa) = Ssa::from_str(src) {
                 // re-parsing is easier than cloning
                 let other_ssa = Ssa::from_str(src).expect("expected repeated SSA parsing to succeed");
-                let other_ssa = other_ssa.remove_unreachable_functions();
+                // TODO: enable both after fuzzing inline_functions_with_at_most_one_instruction
+                // let other_ssa = other_ssa.remove_unreachable_functions();
+                let other_ssa = other_ssa.inline_functions_with_at_most_one_instruction();
 
-                let result = ssa.interpret(Vec::new());
-                let other_result = other_ssa.interpret(Vec::new());
+                let main_fn = ssa.main();
+                let parameter_ids = main_fn.parameters();
+                let parameter_types = main_fn.signature().params;
+                assert_eq!(parameter_ids.len(), parameter_types.len());
+
+                let parameters: Vec<_> = parameter_types.iter().zip(parameter_ids).map(|(param_typ, param_id)| { 
+                    Value::uninitialized(param_typ, *param_id)
+                }).collect();
+
+                let result = ssa.interpret(parameters.clone());
+                let other_result = other_ssa.interpret(parameters);
 
                 // ensure both pass with the same result or both fail with the same error variant
                 match (result, other_result) {

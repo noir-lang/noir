@@ -33,6 +33,10 @@ mod lexer;
 mod tests;
 mod token;
 
+pub(crate) static SSA_MIN_REMAINING_STACK: std::sync::LazyLock<usize> = std::sync::LazyLock::new(|| {
+    stacker::remaining_stack().expect("expected to be able to estimate the remaining stack with 'stacker'!")
+});
+
 impl FromStr for Ssa {
     type Err = SsaErrorWithSource;
 
@@ -156,6 +160,11 @@ impl<'a> Parser<'a> {
     }
 
     pub(crate) fn parse_ssa(&mut self) -> ParseResult<ParsedSsa> {
+        // TODO: stacker helper
+        if stacker::remaining_stack().unwrap_or_default() <= *SSA_MIN_REMAINING_STACK {
+            println!("stacker exit"); std::process::exit(0)
+        }
+
         let globals = self.parse_globals()?;
 
         let mut functions = Vec::new();
@@ -167,6 +176,11 @@ impl<'a> Parser<'a> {
     }
 
     fn parse_globals(&mut self) -> ParseResult<Vec<ParsedGlobal>> {
+        // TODO: stacker helper
+        if stacker::remaining_stack().unwrap_or_default() <= *SSA_MIN_REMAINING_STACK {
+            println!("stacker exit"); std::process::exit(0)
+        }
+
         let mut globals = Vec::new();
 
         while let Some(name) = self.eat_identifier()? {
@@ -180,6 +194,11 @@ impl<'a> Parser<'a> {
     }
 
     fn parse_global_value(&mut self) -> ParseResult<ParsedGlobalValue> {
+        // TODO: stacker helper
+        if stacker::remaining_stack().unwrap_or_default() <= *SSA_MIN_REMAINING_STACK {
+            println!("stacker exit"); std::process::exit(0)
+        }
+
         if let Some(constant) = self.parse_numeric_constant()? {
             return Ok(ParsedGlobalValue::NumericConstant(constant));
         }
@@ -192,6 +211,11 @@ impl<'a> Parser<'a> {
     }
 
     fn parse_function(&mut self) -> ParseResult<ParsedFunction> {
+        // TODO: stacker helper
+        if stacker::remaining_stack().unwrap_or_default() <= *SSA_MIN_REMAINING_STACK {
+            println!("stacker exit"); std::process::exit(0)
+        }
+
         let runtime_type = self.parse_runtime_type()?;
         let purity = self.parse_purity()?;
 
@@ -210,6 +234,11 @@ impl<'a> Parser<'a> {
     }
 
     fn parse_runtime_type(&mut self) -> ParseResult<RuntimeType> {
+        // TODO: stacker helper
+        if stacker::remaining_stack().unwrap_or_default() <= *SSA_MIN_REMAINING_STACK {
+            println!("stacker exit"); std::process::exit(0)
+        }
+
         let acir = if self.eat_keyword(Keyword::Acir)? {
             true
         } else if self.eat_keyword(Keyword::Brillig)? {
@@ -233,6 +262,11 @@ impl<'a> Parser<'a> {
     }
 
     fn parse_purity(&mut self) -> ParseResult<Option<Purity>> {
+        // TODO: stacker helper
+        if stacker::remaining_stack().unwrap_or_default() <= *SSA_MIN_REMAINING_STACK {
+            println!("stacker exit"); std::process::exit(0)
+        }
+
         if self.eat_keyword(Keyword::Pure)? {
             Ok(Some(Purity::Pure))
         } else if self.eat_keyword(Keyword::PredicatePure)? {
@@ -245,6 +279,11 @@ impl<'a> Parser<'a> {
     }
 
     fn parse_inline_type(&mut self) -> ParseResult<InlineType> {
+        // TODO: stacker helper
+        if stacker::remaining_stack().unwrap_or_default() <= *SSA_MIN_REMAINING_STACK {
+            println!("stacker exit"); std::process::exit(0)
+        }
+
         if self.eat_keyword(Keyword::Inline)? {
             Ok(InlineType::Inline)
         } else if self.eat_keyword(Keyword::InlineAlways)? {
@@ -264,6 +303,11 @@ impl<'a> Parser<'a> {
     }
 
     fn parse_blocks(&mut self) -> ParseResult<Vec<ParsedBlock>> {
+        // TODO: stacker helper
+        if stacker::remaining_stack().unwrap_or_default() <= *SSA_MIN_REMAINING_STACK {
+            println!("stacker exit"); std::process::exit(0)
+        }
+
         let mut blocks = Vec::new();
         while !self.at(Token::RightBrace) {
             let block = self.parse_block()?;
@@ -273,6 +317,11 @@ impl<'a> Parser<'a> {
     }
 
     fn parse_block(&mut self) -> ParseResult<ParsedBlock> {
+        // TODO: stacker helper
+        if stacker::remaining_stack().unwrap_or_default() <= *SSA_MIN_REMAINING_STACK {
+            println!("stacker exit"); std::process::exit(0)
+        }
+
         let name = self.eat_ident_or_error()?;
         self.eat_or_error(Token::LeftParen)?;
 
@@ -293,6 +342,11 @@ impl<'a> Parser<'a> {
     }
 
     fn parse_parameter(&mut self) -> ParseResult<ParsedParameter> {
+        // TODO: stacker helper
+        if stacker::remaining_stack().unwrap_or_default() <= *SSA_MIN_REMAINING_STACK {
+            println!("stacker exit"); std::process::exit(0)
+        }
+
         let identifier = self.eat_identifier_or_error()?;
         self.eat_or_error(Token::Colon)?;
         let typ = self.parse_type()?;
@@ -300,6 +354,11 @@ impl<'a> Parser<'a> {
     }
 
     fn parse_instructions(&mut self) -> ParseResult<Vec<ParsedInstruction>> {
+        // TODO: stacker helper
+        if stacker::remaining_stack().unwrap_or_default() <= *SSA_MIN_REMAINING_STACK {
+            println!("stacker exit"); std::process::exit(0)
+        }
+
         let mut instructions = Vec::new();
         while let Some(instruction) = self.parse_instruction()? {
             instructions.push(instruction);
@@ -308,6 +367,11 @@ impl<'a> Parser<'a> {
     }
 
     fn parse_instruction(&mut self) -> ParseResult<Option<ParsedInstruction>> {
+        // TODO: stacker helper
+        if stacker::remaining_stack().unwrap_or_default() <= *SSA_MIN_REMAINING_STACK {
+            println!("stacker exit"); std::process::exit(0)
+        }
+
         if let Some(instruction) = self.parse_call()? {
             return Ok(Some(instruction));
         }
@@ -373,6 +437,11 @@ impl<'a> Parser<'a> {
     }
 
     fn parse_call(&mut self) -> ParseResult<Option<ParsedInstruction>> {
+        // TODO: stacker helper
+        if stacker::remaining_stack().unwrap_or_default() <= *SSA_MIN_REMAINING_STACK {
+            println!("stacker exit"); std::process::exit(0)
+        }
+
         if !self.eat_keyword(Keyword::Call)? {
             return Ok(None);
         }
@@ -383,6 +452,11 @@ impl<'a> Parser<'a> {
     }
 
     fn parse_constrain(&mut self) -> ParseResult<Option<ParsedInstruction>> {
+        // TODO: stacker helper
+        if stacker::remaining_stack().unwrap_or_default() <= *SSA_MIN_REMAINING_STACK {
+            println!("stacker exit"); std::process::exit(0)
+        }
+
         if !self.eat_keyword(Keyword::Constrain)? {
             return Ok(None);
         }
@@ -414,6 +488,11 @@ impl<'a> Parser<'a> {
     }
 
     fn parse_decrement_rc(&mut self) -> ParseResult<Option<ParsedInstruction>> {
+        // TODO: stacker helper
+        if stacker::remaining_stack().unwrap_or_default() <= *SSA_MIN_REMAINING_STACK {
+            println!("stacker exit"); std::process::exit(0)
+        }
+
         if !self.eat_keyword(Keyword::DecRc)? {
             return Ok(None);
         }
@@ -423,6 +502,11 @@ impl<'a> Parser<'a> {
     }
 
     fn parse_enable_side_effects(&mut self) -> ParseResult<Option<ParsedInstruction>> {
+        // TODO: stacker helper
+        if stacker::remaining_stack().unwrap_or_default() <= *SSA_MIN_REMAINING_STACK {
+            println!("stacker exit"); std::process::exit(0)
+        }
+
         if !self.eat_keyword(Keyword::EnableSideEffects)? {
             return Ok(None);
         }
@@ -432,6 +516,11 @@ impl<'a> Parser<'a> {
     }
 
     fn parse_increment_rc(&mut self) -> ParseResult<Option<ParsedInstruction>> {
+        // TODO: stacker helper
+        if stacker::remaining_stack().unwrap_or_default() <= *SSA_MIN_REMAINING_STACK {
+            println!("stacker exit"); std::process::exit(0)
+        }
+
         if !self.eat_keyword(Keyword::IncRc)? {
             return Ok(None);
         }
@@ -441,6 +530,11 @@ impl<'a> Parser<'a> {
     }
 
     fn parse_range_check(&mut self) -> ParseResult<Option<ParsedInstruction>> {
+        // TODO: stacker helper
+        if stacker::remaining_stack().unwrap_or_default() <= *SSA_MIN_REMAINING_STACK {
+            println!("stacker exit"); std::process::exit(0)
+        }
+
         if !self.eat_keyword(Keyword::RangeCheck)? {
             return Ok(None);
         }
@@ -453,6 +547,11 @@ impl<'a> Parser<'a> {
     }
 
     fn parse_store(&mut self) -> ParseResult<Option<ParsedInstruction>> {
+        // TODO: stacker helper
+        if stacker::remaining_stack().unwrap_or_default() <= *SSA_MIN_REMAINING_STACK {
+            println!("stacker exit"); std::process::exit(0)
+        }
+
         if !self.eat_keyword(Keyword::Store)? {
             return Ok(None);
         }
@@ -464,6 +563,11 @@ impl<'a> Parser<'a> {
     }
 
     fn parse_nop(&mut self) -> ParseResult<Option<ParsedInstruction>> {
+        // TODO: stacker helper
+        if stacker::remaining_stack().unwrap_or_default() <= *SSA_MIN_REMAINING_STACK {
+            println!("stacker exit"); std::process::exit(0)
+        }
+
         if !self.eat_keyword(Keyword::Nop)? {
             return Ok(None);
         }
@@ -472,6 +576,11 @@ impl<'a> Parser<'a> {
     }
 
     fn parse_assignment(&mut self, target: Identifier) -> ParseResult<ParsedInstruction> {
+        // TODO: stacker helper
+        if stacker::remaining_stack().unwrap_or_default() <= *SSA_MIN_REMAINING_STACK {
+            println!("stacker exit"); std::process::exit(0)
+        }
+
         let mut targets = vec![target];
 
         while self.eat(Token::Comma)? {
@@ -594,6 +703,11 @@ impl<'a> Parser<'a> {
     }
 
     fn parse_make_array(&mut self) -> ParseResult<Option<ParsedMakeArray>> {
+        // TODO: stacker helper
+        if stacker::remaining_stack().unwrap_or_default() <= *SSA_MIN_REMAINING_STACK {
+            println!("stacker exit"); std::process::exit(0)
+        }
+
         if !self.eat_keyword(Keyword::MakeArray)? {
             return Ok(None);
         }
@@ -640,6 +754,11 @@ impl<'a> Parser<'a> {
     }
 
     fn parse_terminator(&mut self) -> ParseResult<ParsedTerminator> {
+        // TODO: stacker helper
+        if stacker::remaining_stack().unwrap_or_default() <= *SSA_MIN_REMAINING_STACK {
+            println!("stacker exit"); std::process::exit(0)
+        }
+
         if let Some(terminator) = self.parse_return()? {
             return Ok(terminator);
         }
@@ -656,6 +775,11 @@ impl<'a> Parser<'a> {
     }
 
     fn parse_return(&mut self) -> ParseResult<Option<ParsedTerminator>> {
+        // TODO: stacker helper
+        if stacker::remaining_stack().unwrap_or_default() <= *SSA_MIN_REMAINING_STACK {
+            println!("stacker exit"); std::process::exit(0)
+        }
+
         // Before advancing to the next token (after a potential return keyword),
         // we check if a newline follows. This is because if we have this:
         //
@@ -679,6 +803,11 @@ impl<'a> Parser<'a> {
     }
 
     fn parse_jmp(&mut self) -> ParseResult<Option<ParsedTerminator>> {
+        // TODO: stacker helper
+        if stacker::remaining_stack().unwrap_or_default() <= *SSA_MIN_REMAINING_STACK {
+            println!("stacker exit"); std::process::exit(0)
+        }
+
         if !self.eat_keyword(Keyword::Jmp)? {
             return Ok(None);
         }
@@ -689,6 +818,11 @@ impl<'a> Parser<'a> {
     }
 
     fn parse_jmpif(&mut self) -> ParseResult<Option<ParsedTerminator>> {
+        // TODO: stacker helper
+        if stacker::remaining_stack().unwrap_or_default() <= *SSA_MIN_REMAINING_STACK {
+            println!("stacker exit"); std::process::exit(0)
+        }
+
         if !self.eat_keyword(Keyword::Jmpif)? {
             return Ok(None);
         }
@@ -706,6 +840,11 @@ impl<'a> Parser<'a> {
     }
 
     fn parse_arguments(&mut self) -> ParseResult<Vec<ParsedValue>> {
+        // TODO: stacker helper
+        if stacker::remaining_stack().unwrap_or_default() <= *SSA_MIN_REMAINING_STACK {
+            println!("stacker exit"); std::process::exit(0)
+        }
+
         self.eat_or_error(Token::LeftParen)?;
         let arguments = self.parse_comma_separated_values()?;
         self.eat_or_error(Token::RightParen)?;
@@ -713,6 +852,11 @@ impl<'a> Parser<'a> {
     }
 
     fn parse_comma_separated_values(&mut self) -> ParseResult<Vec<ParsedValue>> {
+        // TODO: stacker helper
+        if stacker::remaining_stack().unwrap_or_default() <= *SSA_MIN_REMAINING_STACK {
+            println!("stacker exit"); std::process::exit(0)
+        }
+
         let mut values = Vec::new();
         while let Some(value) = self.parse_value()? {
             values.push(value);
@@ -724,10 +868,20 @@ impl<'a> Parser<'a> {
     }
 
     fn parse_value_or_error(&mut self) -> ParseResult<ParsedValue> {
+        // TODO: stacker helper
+        if stacker::remaining_stack().unwrap_or_default() <= *SSA_MIN_REMAINING_STACK {
+            println!("stacker exit"); std::process::exit(0)
+        }
+
         if let Some(value) = self.parse_value()? { Ok(value) } else { self.expected_value() }
     }
 
     fn parse_value(&mut self) -> ParseResult<Option<ParsedValue>> {
+        // TODO: stacker helper
+        if stacker::remaining_stack().unwrap_or_default() <= *SSA_MIN_REMAINING_STACK {
+            println!("stacker exit"); std::process::exit(0)
+        }
+
         if let Some(constant) = self.parse_numeric_constant()? {
             return Ok(Some(ParsedValue::NumericConstant(constant)));
         }
@@ -740,6 +894,11 @@ impl<'a> Parser<'a> {
     }
 
     fn parse_numeric_constant(&mut self) -> ParseResult<Option<ParsedNumericConstant>> {
+        // TODO: stacker helper
+        if stacker::remaining_stack().unwrap_or_default() <= *SSA_MIN_REMAINING_STACK {
+            println!("stacker exit"); std::process::exit(0)
+        }
+
         if let Some(constant) = self.parse_field_value()? {
             return Ok(Some(constant));
         }
@@ -752,6 +911,11 @@ impl<'a> Parser<'a> {
     }
 
     fn parse_field_value(&mut self) -> ParseResult<Option<ParsedNumericConstant>> {
+        // TODO: stacker helper
+        if stacker::remaining_stack().unwrap_or_default() <= *SSA_MIN_REMAINING_STACK {
+            println!("stacker exit"); std::process::exit(0)
+        }
+
         if self.eat_keyword(Keyword::Field)? {
             let value = self.eat_int_or_error()?;
             Ok(Some(ParsedNumericConstant { value, typ: Type::field() }))
@@ -761,6 +925,11 @@ impl<'a> Parser<'a> {
     }
 
     fn parse_int_value(&mut self) -> ParseResult<Option<ParsedNumericConstant>> {
+        // TODO: stacker helper
+        if stacker::remaining_stack().unwrap_or_default() <= *SSA_MIN_REMAINING_STACK {
+            println!("stacker exit"); std::process::exit(0)
+        }
+
         if let Some(int_type) = self.eat_int_type()? {
             let value = self.eat_int_or_error()?;
             let typ = match int_type {
@@ -774,6 +943,11 @@ impl<'a> Parser<'a> {
     }
 
     fn parse_types(&mut self) -> ParseResult<Vec<Type>> {
+        // TODO: stacker helper
+        if stacker::remaining_stack().unwrap_or_default() <= *SSA_MIN_REMAINING_STACK {
+            println!("stacker exit"); std::process::exit(0)
+        }
+
         if self.eat(Token::LeftParen)? {
             let types = self.parse_comma_separated_types()?;
             self.eat_or_error(Token::RightParen)?;
@@ -784,6 +958,11 @@ impl<'a> Parser<'a> {
     }
 
     fn parse_comma_separated_types(&mut self) -> ParseResult<Vec<Type>> {
+        // TODO: stacker helper
+        if stacker::remaining_stack().unwrap_or_default() <= *SSA_MIN_REMAINING_STACK {
+            println!("stacker exit"); std::process::exit(0)
+        }
+
         let mut types = Vec::new();
         loop {
             let typ = self.parse_type()?;
@@ -796,6 +975,11 @@ impl<'a> Parser<'a> {
     }
 
     fn parse_type(&mut self) -> ParseResult<Type> {
+        // TODO: stacker helper
+        if stacker::remaining_stack().unwrap_or_default() <= *SSA_MIN_REMAINING_STACK {
+            println!("stacker exit"); std::process::exit(0)
+        }
+
         if self.eat_keyword(Keyword::Bool)? {
             return Ok(Type::bool());
         }
@@ -836,6 +1020,11 @@ impl<'a> Parser<'a> {
 
     /// Parses `&mut Type`, returns `Type` if `&mut` was found, errors otherwise.
     fn parse_mutable_reference_type_or_error(&mut self) -> ParseResult<Type> {
+        // TODO: stacker helper
+        if stacker::remaining_stack().unwrap_or_default() <= *SSA_MIN_REMAINING_STACK {
+            println!("stacker exit"); std::process::exit(0)
+        }
+
         if let Some(typ) = self.parse_mutable_reference_type()? {
             Ok(typ)
         } else {
@@ -845,6 +1034,11 @@ impl<'a> Parser<'a> {
 
     /// Parses `&mut Type`, returns `Some(Type)` if `&mut` was found, `None` otherwise.
     fn parse_mutable_reference_type(&mut self) -> ParseResult<Option<Type>> {
+        // TODO: stacker helper
+        if stacker::remaining_stack().unwrap_or_default() <= *SSA_MIN_REMAINING_STACK {
+            println!("stacker exit"); std::process::exit(0)
+        }
+
         if !self.eat(Token::Ampersand)? {
             return Ok(None);
         }

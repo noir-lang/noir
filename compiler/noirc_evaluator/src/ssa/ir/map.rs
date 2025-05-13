@@ -196,6 +196,10 @@ impl<T> DenseMap<T> {
         let ids_iter = (0..self.storage.len() as u32).map(|idx| Id::new(idx));
         ids_iter.zip(self.storage.iter())
     }
+
+    pub(crate) fn get(&self, id: Id<T>) -> Option<&T> {
+        self.storage.get(id.index as usize)
+    }
 }
 
 impl<T> Default for DenseMap<T> {
