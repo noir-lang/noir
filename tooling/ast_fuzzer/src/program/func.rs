@@ -53,14 +53,6 @@ impl FunctionDeclaration {
 
         (param_types, return_type)
     }
-
-    fn is_acir(&self) -> bool {
-        !self.unconstrained
-    }
-
-    fn is_brillig(&self) -> bool {
-        self.unconstrained
-    }
 }
 
 /// HIR representation of a function parameter.
@@ -83,6 +75,43 @@ pub(crate) fn hir_param(
     let typ = types::to_hir_type(typ);
 
     (pat, typ, vis)
+}
+
+/// Help avoid infinite recursion by limiting which function can call which other one.
+pub(super) fn can_call(
+    caller_id: FuncId,
+    caller_unconstrained: bool,
+    callee_id: FuncId,
+    callee_unconstrained: bool,
+) -> bool {
+    // We can't call `main`.
+    if callee_id == Program::main_id() {
+        return false;
+    }
+
+    // From an ACIR function we can call any Brillig function,
+    // but we avoid creating infinite recursive ACIR calls by
+    // only calling functions with lower IDs than ours,
+    // otherwise the inliner could get stuck.
+    if !caller_unconstrained && !callee_unconstrained {
+        // Higher calls lower, so we can use this rule to pick function parameters
+        // as we create the declarations: we can pass functions already declared.
+        return callee_id < caller_id;
+    }
+
+    // From a Brillig function we restrict ourselves to only call
+    // other Brillig functions. That's because the `Monomorphizer`
+    // would make an unconstrained copy of any ACIR function called
+    // from Brillig, and this is expected by the inliner for example,
+    // but if we did similarly in the generator after we know who
+    // calls who, we would incur two drawbacks:
+    // 1) it would make programs bigger for little benefit
+    // 2) it would skew calibration frequencies as ACIR freqs would overlay Brillig ones
+    if caller_unconstrained && !callee_unconstrained {
+        return false;
+    }
+
+    true
 }
 
 /// Control what kind of expressions we can generate, depending on the surrounding context.
@@ -160,31 +189,9 @@ impl<'a> FunctionContext<'a> {
             .function_declarations
             .iter()
             .filter_map(|(callee_id, callee_decl)| {
-                // We can't call `main`.
-                if *callee_id == Program::main_id() {
+                if !can_call(id, decl.unconstrained, *callee_id, callee_decl.unconstrained) {
                     return None;
                 }
-
-                // From an ACIR function we can call any Brillig function,
-                // but we avoid creating infinite recursive ACIR calls by
-                // only calling functions with higher IDs than ours,
-                // otherwise the inliner could get stuck.
-                if decl.is_acir() && callee_decl.is_acir() && *callee_id <= id {
-                    return None;
-                }
-
-                // From a Brillig function we restrict ourselves to only call
-                // other Brillig functions. That's because the `Monomorphizer`
-                // would make an unconstrained copy of any ACIR function called
-                // from Brillig, and this is expected by the inliner for example,
-                // but if we did similarly in the generator after we know who
-                // calls who, we would incur two drawbacks:
-                // 1) it would make programs bigger for little benefit
-                // 2) it would skew calibration frequencies as ACIR freqs would overlay Brillig ones
-                if decl.is_brillig() && !callee_decl.is_brillig() {
-                    return None;
-                }
-
                 Some((*callee_id, types::types_produced(&callee_decl.return_type)))
             })
             .collect();
@@ -306,6 +313,8 @@ impl<'a> FunctionContext<'a> {
         u: &mut Unstructured,
         typ: &Type,
         max_depth: usize,
+        // ID of the function if we are generating an expression for a function call.
+        callee_id: Option<FuncId>,
         flags: Flags,
     ) -> arbitrary::Result<Expression> {
         let mut freq = Freq::new(u, &self.ctx.config.expr_freqs)?;
@@ -335,12 +344,12 @@ impl<'a> FunctionContext<'a> {
         // if-then-else returning a value
         // Unlike blocks/loops it can appear in nested expressions.
         if freq.enabled_when("if", allow_if_then) {
-            return self.gen_if(u, typ, max_depth, flags);
+            return self.gen_if(u, typ, max_depth, callee_id, flags);
         }
 
         // Block of statements returning a value
         if freq.enabled_when("block", allow_blocks) {
-            return self.gen_block(u, typ);
+            return self.gen_block(u, typ, callee_id);
         }
 
         // Function calls returning a value.
@@ -353,10 +362,12 @@ impl<'a> FunctionContext<'a> {
 
         // We can always try to just derive a value from the variables we have.
         if freq.enabled("vars") {
-            if let Some(expr) = self.gen_expr_from_vars(u, typ, max_depth)? {
+            if let Some(expr) = self.gen_expr_from_vars(u, typ, max_depth, callee_id)? {
                 return Ok(expr);
             }
         }
+
+        // TODO:If we need to pass a function, find all that can be called by the target.
 
         // TODO(#7926): Match
 
@@ -370,6 +381,7 @@ impl<'a> FunctionContext<'a> {
         u: &mut Unstructured,
         typ: &Type,
         max_depth: usize,
+        callee_id: Option<FuncId>,
     ) -> arbitrary::Result<Option<Expression>> {
         if let Some(id) = self.choose_producer(u, typ)? {
             let (mutable, src_name, src_type) = self.get_variable(&id).clone();
@@ -387,7 +399,8 @@ impl<'a> FunctionContext<'a> {
                         typ: typ.clone(),
                     };
                     for _ in 0..*len {
-                        let item = self.gen_expr(u, item_type, max_depth, Flags::NESTED)?;
+                        let item =
+                            self.gen_expr(u, item_type, max_depth, callee_id, Flags::NESTED)?;
                         arr.contents.push(item);
                     }
                     return Ok(Some(Expression::Literal(Literal::Array(arr))));
@@ -395,7 +408,8 @@ impl<'a> FunctionContext<'a> {
                 Type::Tuple(items) => {
                     let mut values = Vec::with_capacity(items.len());
                     for item_type in items {
-                        let item = self.gen_expr(u, item_type, max_depth, Flags::NESTED)?;
+                        let item =
+                            self.gen_expr(u, item_type, max_depth, callee_id, Flags::NESTED)?;
                         values.push(item);
                     }
                     return Ok(Some(Expression::Tuple(values)));
@@ -459,16 +473,16 @@ impl<'a> FunctionContext<'a> {
                     location: Location::dummy(),
                 });
                 // Produce the target type from the item.
-                self.gen_expr_from_source(u, item_expr, item_typ, tgt_type, max_depth)
+                self.gen_expr_from_source(u, item_expr, item_typ, tgt_type, max_depth, callee_id)
             }
             (Type::Tuple(items), _) => {
                 // Any of the items might be able to produce the target type.
                 let mut opts = Vec::new();
                 for (i, item_type) in items.iter().enumerate() {
                     let item_expr = Expression::ExtractTupleField(Box::new(src_expr.clone()), i);
-                    if let Some(expr) =
-                        self.gen_expr_from_source(u, item_expr, item_type, tgt_type, max_depth)?
-                    {
+                    if let Some(expr) = self.gen_expr_from_source(
+                        u, item_expr, item_type, tgt_type, max_depth, callee_id,
+                    )? {
                         opts.push(expr);
                     }
                 }
@@ -507,7 +521,8 @@ impl<'a> FunctionContext<'a> {
     ) -> arbitrary::Result<Expression> {
         assert!(len > 0, "cannot index empty array");
         if max_depth > 0 && u.ratio(1, 3)? {
-            let idx = self.gen_expr(u, &types::U32, max_depth.saturating_sub(1), Flags::NESTED)?;
+            let idx =
+                self.gen_expr(u, &types::U32, max_depth.saturating_sub(1), None, Flags::NESTED)?;
             Ok(expr::index_modulo(idx, len))
         } else {
             let idx = u.choose_index(len as usize)?;
@@ -523,7 +538,7 @@ impl<'a> FunctionContext<'a> {
         max_depth: usize,
     ) -> arbitrary::Result<Option<Expression>> {
         let mut make_unary = |op| {
-            self.gen_expr(u, typ, max_depth.saturating_sub(1), Flags::NESTED)
+            self.gen_expr(u, typ, max_depth.saturating_sub(1), None, Flags::NESTED)
                 .map(|rhs| Some(expr::unary(op, rhs, typ.clone())))
         };
         if types::is_numeric(typ) {
@@ -597,8 +612,10 @@ impl<'a> FunctionContext<'a> {
         };
 
         // Generate expressions for LHS and RHS.
-        let lhs_expr = self.gen_expr(u, &lhs_type, max_depth.saturating_sub(1), Flags::NESTED)?;
-        let rhs_expr = self.gen_expr(u, rhs_type, max_depth.saturating_sub(1), Flags::NESTED)?;
+        let lhs_expr =
+            self.gen_expr(u, &lhs_type, max_depth.saturating_sub(1), None, Flags::NESTED)?;
+        let rhs_expr =
+            self.gen_expr(u, rhs_type, max_depth.saturating_sub(1), None, Flags::NESTED)?;
 
         let mut expr = expr::binary(lhs_expr, op, rhs_expr);
 
@@ -613,14 +630,19 @@ impl<'a> FunctionContext<'a> {
     /// Generate a block of statements, finally returning a target type.
     ///
     /// This should always succeed, as we can always create a literal in the end.
-    fn gen_block(&mut self, u: &mut Unstructured, typ: &Type) -> arbitrary::Result<Expression> {
+    fn gen_block(
+        &mut self,
+        u: &mut Unstructured,
+        typ: &Type,
+        callee_id: Option<FuncId>,
+    ) -> arbitrary::Result<Expression> {
         // The `max_depth` resets here, because that's only relevant in complex expressions.
         let max_depth = self.max_depth();
         let max_size = self.ctx.config.max_block_size.min(self.budget);
 
         // If we want blocks to be empty, or we don't have a budget for statements, just return an expression.
         if max_size == 0 {
-            return self.gen_expr(u, typ, max_depth, Flags::TOP);
+            return self.gen_expr(u, typ, max_depth, callee_id, Flags::TOP);
         }
 
         // Choose a positive number of statements.
@@ -641,7 +663,7 @@ impl<'a> FunctionContext<'a> {
             // NB the AST printer puts a `;` between all statements, including after `if` and `for`.
             stmts.push(Expression::Semi(Box::new(self.gen_stmt(u)?)));
         } else {
-            stmts.push(self.gen_expr(u, typ, max_depth, Flags::TOP)?);
+            stmts.push(self.gen_expr(u, typ, max_depth, callee_id, Flags::TOP)?);
         }
         self.locals.exit();
 
@@ -669,7 +691,7 @@ impl<'a> FunctionContext<'a> {
 
         // Require a positive budget, so that we have some for the block itself and its contents.
         if freq.enabled_when("if", self.budget > 1) {
-            return self.gen_if(u, &Type::Unit, self.max_depth(), Flags::TOP);
+            return self.gen_if(u, &Type::Unit, self.max_depth(), None, Flags::TOP);
         }
 
         if freq.enabled_when("for", self.budget > 1) {
@@ -716,7 +738,7 @@ impl<'a> FunctionContext<'a> {
         let max_depth = self.max_depth();
         let comptime_friendly = self.is_comptime_friendly();
         let typ = self.ctx.gen_type(u, max_depth, false, false, true, comptime_friendly)?;
-        let expr = self.gen_expr(u, &typ, max_depth, Flags::TOP)?;
+        let expr = self.gen_expr(u, &typ, max_depth, None, Flags::TOP)?;
         let mutable = bool::arbitrary(u)?;
         Ok(self.let_var(mutable, typ, expr, true))
     }
@@ -809,7 +831,7 @@ impl<'a> FunctionContext<'a> {
         };
 
         // Generate the assigned value.
-        let expr = self.gen_expr(u, &typ, self.max_depth(), Flags::TOP)?;
+        let expr = self.gen_expr(u, &typ, self.max_depth(), None, Flags::TOP)?;
 
         Ok(Some(Expression::Assign(Assign { lvalue, expression: Box::new(expr) })))
     }
@@ -820,18 +842,19 @@ impl<'a> FunctionContext<'a> {
         u: &mut Unstructured,
         typ: &Type,
         max_depth: usize,
+        callee_id: Option<FuncId>,
         flags: Flags,
     ) -> arbitrary::Result<Expression> {
         // Decrease the budget so we avoid a potential infinite nesting of if expressions in the arms.
         self.decrease_budget(1);
 
-        let condition = self.gen_expr(u, &Type::Bool, max_depth, Flags::CONDITION)?;
+        let condition = self.gen_expr(u, &Type::Bool, max_depth, callee_id, Flags::CONDITION)?;
 
         let consequence = {
             if flags.allow_blocks {
-                self.gen_block(u, typ)?
+                self.gen_block(u, typ, callee_id)?
             } else {
-                self.gen_expr(u, typ, max_depth, flags)?
+                self.gen_expr(u, typ, max_depth, callee_id, flags)?
             }
         };
 
@@ -840,9 +863,9 @@ impl<'a> FunctionContext<'a> {
         } else {
             self.decrease_budget(1);
             let expr = if flags.allow_blocks {
-                self.gen_block(u, typ)?
+                self.gen_block(u, typ, callee_id)?
             } else {
-                self.gen_expr(u, typ, max_depth, flags)?
+                self.gen_expr(u, typ, max_depth, callee_id, flags)?
             };
             Some(expr)
         };
@@ -878,8 +901,8 @@ impl<'a> FunctionContext<'a> {
             // Choosing a maximum range size because changing it immediately brought out some bug around modulo.
             let max_size = u.int_in_range(1..=self.ctx.config.max_loop_size)?;
             // Generate random expression.
-            let s = self.gen_expr(u, &idx_type, self.max_depth(), Flags::RANGE)?;
-            let e = self.gen_expr(u, &idx_type, self.max_depth(), Flags::RANGE)?;
+            let s = self.gen_expr(u, &idx_type, self.max_depth(), None, Flags::RANGE)?;
+            let e = self.gen_expr(u, &idx_type, self.max_depth(), None, Flags::RANGE)?;
             // The random expressions might end up being huge to be practical for execution,
             // so take the modulo maximum range on both ends.
             let s = expr::range_modulo(s, idx_type.clone(), max_size);
@@ -907,7 +930,7 @@ impl<'a> FunctionContext<'a> {
         self.decrease_budget(1);
 
         let was_in_loop = std::mem::replace(&mut self.in_loop, true);
-        let block = self.gen_block(u, &Type::Unit)?;
+        let block = self.gen_block(u, &Type::Unit, None)?;
         self.in_loop = was_in_loop;
 
         let expr = Expression::For(For {
@@ -957,7 +980,7 @@ impl<'a> FunctionContext<'a> {
 
         let mut args = Vec::new();
         for typ in &param_types {
-            args.push(self.gen_expr(u, typ, max_depth, Flags::CALL)?);
+            args.push(self.gen_expr(u, typ, max_depth, Some(callee_id), Flags::CALL)?);
         }
 
         let call_expr = Expression::Call(Call {

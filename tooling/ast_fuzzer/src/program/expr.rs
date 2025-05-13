@@ -92,7 +92,7 @@ pub fn gen_literal(u: &mut Unstructured, typ: &Type) -> arbitrary::Result<Expres
             }
             Expression::Tuple(values)
         }
-        _ => unreachable!("unexpected literal type: {typ}"),
+        _ => unreachable!("unexpected type to generate a literal for: {typ}"),
     };
     Ok(expr)
 }

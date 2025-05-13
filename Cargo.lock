@@ -3410,6 +3410,7 @@ dependencies = [
  "color-eyre",
  "im",
  "insta",
+ "iter-extended",
  "nargo",
  "noir_greybox_fuzzer",
  "noirc_abi",

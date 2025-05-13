@@ -1,6 +1,7 @@
 use std::collections::HashSet;
 
 use acir::FieldElement;
+use iter_extended::vecmap;
 use noirc_frontend::{
     ast::{BinaryOpKind, IntegerBitSize},
     hir_def,
@@ -151,10 +152,14 @@ pub(crate) fn to_hir_type(typ: &Type) -> hir_def::types::Type {
         Type::String(size) => HirType::String(size_const(*size)),
         Type::Array(size, typ) => HirType::Array(size_const(*size), Box::new(to_hir_type(typ))),
         Type::Tuple(items) => HirType::Tuple(items.iter().map(to_hir_type).collect()),
-        Type::FmtString(_, _)
-        | Type::Slice(_)
-        | Type::Reference(_, _)
-        | Type::Function(_, _, _, _) => {
+        Type::Function(param_types, return_type, env_type, unconstrained) => HirType::Function(
+            vecmap(param_types, to_hir_type),
+            Box::new(to_hir_type(&return_type)),
+            Box::new(to_hir_type(&env_type)),
+            *unconstrained,
+        ),
+        Type::Reference(_, _) => todo!("map reference type to HIR"),
+        Type::FmtString(_, _) | Type::Slice(_) => {
             unreachable!("unexpected type converting to HIR: {}", typ)
         }
     }
