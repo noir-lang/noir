@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1747158756097,
+  "lastUpdate": 1747166477247,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -17961,48 +17961,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "isennovskiy@gmail.com",
-            "name": "Innokentii Sennovskii",
-            "username": "Rumata888"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "40ecdb2bb1a5180e21e88a6bb4e31550b754e0bc",
-          "message": "feat(greybox_fuzzer): Maximum executions parameter added (#8390)\n\nCo-authored-by: Tom French <15848336+TomAFrench@users.noreply.github.com>",
-          "timestamp": "2025-05-07T15:22:20Z",
-          "tree_id": "a07c4757df6c217b0c96e5179a2f8cce64fecda2",
-          "url": "https://github.com/noir-lang/noir/commit/40ecdb2bb1a5180e21e88a6bb4e31550b754e0bc"
-        },
-        "date": 1746632642970,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 265624,
-            "range": "± 3380",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 236113,
-            "range": "± 3281",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 3576778,
-            "range": "± 14442",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "jfecher11@gmail.com",
             "name": "jfecher",
             "username": "jfecher"
@@ -20054,6 +20012,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 3233944,
             "range": "± 27788",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "asterite@gmail.com",
+            "name": "Ary Borenszweig",
+            "username": "asterite"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "9c5393624ca5accc1573b965f9c42cf1e5312101",
+          "message": "fix: don't produce `index Field` in value merger (#8492)",
+          "timestamp": "2025-05-13T19:41:31Z",
+          "tree_id": "e851845918bd42870a7d456c472d2c452e6fa5be",
+          "url": "https://github.com/noir-lang/noir/commit/9c5393624ca5accc1573b965f9c42cf1e5312101"
+        },
+        "date": 1747166467761,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 267743,
+            "range": "± 418",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 237526,
+            "range": "± 2406",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 3588004,
+            "range": "± 6480",
             "unit": "ns/iter"
           }
         ]
