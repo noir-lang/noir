@@ -134,12 +134,16 @@ impl HasPrograms for CompareComptime {
 mod tests {
     use super::prepare_and_compile_snippet;
 
+    /// Comptime compilation can fail with stack overflow because of how the interpreter is evaluating instructions.
+    /// We could apply `#[inline(always)]` on some of the `Interpreter::elaborate_` functions to make it go further,
+    /// at the cost of compilation speed. Instead, we just need to make sure that compile tests have lower loop and
+    /// recursion limits.
     #[test]
     fn test_prepare_and_compile_snippet() {
         let src = r#"
 fn main() -> pub ((str<2>, str<2>, bool, str<2>), bool, [str<2>; 3]) {
     comptime {
-        let mut ctx_limit = 25;
+        let mut ctx_limit = 10;
         unsafe { func_1_proxy(ctx_limit) }
     }
 }
