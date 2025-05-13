@@ -6,7 +6,8 @@ output_dirs = [
   # TODO: re-enable?
   # "outputs",
   # "outputs2",
-  "outputs3",
+  # "outputs3",
+  "outputs8",
 ]
 
 collected_output_dir = ARGV[0]

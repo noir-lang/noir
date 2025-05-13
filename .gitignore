@@ -63,3 +63,36 @@ codegen
 
 mutants.out
 mutants.out.old
+
+
+# TODO: remove
+tooling/nargo_cli/counter.txt
+tooling/nargo_cli/kill_tests_if_out_of_space.rb.*
+tooling/nargo_fuzz_target/*inputs
+tooling/nargo_fuzz_target/collected_outputs/
+tooling/nargo_fuzz_target/outputs*
+tooling/nargo_fuzz_target/tmp/
+tooling/nargo_fuzz_target/unique_crashes/
+tooling/ssa_afl_fuzzer/collected_outputs/
+tooling/ssa_afl_fuzzer/combined_inputs/
+tooling/ssa_afl_fuzzer/defunctionalize_inputs/
+tooling/ssa_afl_fuzzer/fuzzer*.log
+tooling/ssa_afl_fuzzer/inline_simple_inputs/
+tooling/ssa_afl_fuzzer/outputs/
+tooling/ssa_afl_fuzzer/outputs2/
+tooling/ssa_afl_fuzzer/outputs3/
+tooling/ssa_afl_fuzzer/outputs4/
+tooling/ssa_afl_fuzzer/outputs5/
+tooling/ssa_afl_fuzzer/outputs6/
+tooling/ssa_afl_fuzzer/outputs7/
+tooling/ssa_afl_fuzzer/outputs8/
+tooling/ssa_afl_fuzzer/remove_unreachable_functions_inputs/
+tooling/ssa_afl_fuzzer/screen_sessions_at_fuzzer01_etc
+tooling/ssa_afl_fuzzer/tt.txt
+tooling/ssa_afl_fuzzer/unique_crashes/
+tooling/ssa_fuzzer/crash0.log
+tooling/ssa_fuzzer/crash1.log
+tooling/ssa_fuzzer/fuzz-*.log
+tooling/ssa_fuzzer/nohup.out
+tooling/unique_crashes
+

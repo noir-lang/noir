@@ -12,10 +12,32 @@ fn main() {
         if let Ok(src) = std::str::from_utf8(data) {
             if let Ok(ssa) = Ssa::from_str(src) {
                 // re-parsing is easier than cloning
-                let other_ssa = Ssa::from_str(src).expect("expected repeated SSA parsing to succeed");
-                // TODO: enable both after fuzzing inline_functions_with_at_most_one_instruction
-                // let other_ssa = other_ssa.remove_unreachable_functions();
-                let other_ssa = other_ssa.inline_functions_with_at_most_one_instruction();
+                let mut other_ssa = Ssa::from_str(src).expect("expected repeated SSA parsing to succeed");
+
+                let src_header_byte = if let Some(src_with_header) = src.strip_prefix("// ") {
+                    if let Some(src_header_char) = src_with_header.chars().next() {
+                        u32::from(src_header_char)
+                    } else {
+                        // enable no passes (empty file)
+                        0
+                    }
+                } else {
+                    // enable all passes
+                    1 + 2 + 4
+                };
+
+                // if first bit is set, 'remove_unreachable_functions'
+                if src_header_byte % 2 == 1 {
+                    other_ssa = other_ssa.remove_unreachable_functions();
+                }
+                // if second bit is set, 'inline_functions_with_at_most_one_instruction'
+                if (src_header_byte / 2) % 2 == 1 {
+                    other_ssa = other_ssa.inline_functions_with_at_most_one_instruction();
+                }
+                // if third bit is set, 'defunctionalize'
+                if (src_header_byte / 4) % 2 == 1 {
+                    other_ssa = other_ssa.defunctionalize();
+                }
 
                 let main_fn = ssa.main();
                 let parameter_ids = main_fn.parameters();

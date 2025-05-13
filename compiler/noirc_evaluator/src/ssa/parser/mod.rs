@@ -34,7 +34,7 @@ mod tests;
 mod token;
 
 pub(crate) static SSA_MIN_REMAINING_STACK: std::sync::LazyLock<usize> = std::sync::LazyLock::new(|| {
-    stacker::remaining_stack().expect("expected to be able to estimate the remaining stack with 'stacker'!")
+    stacker::remaining_stack().expect("expected to be able to estimate the remaining stack with 'stacker'!") / 10
 });
 
 impl FromStr for Ssa {
