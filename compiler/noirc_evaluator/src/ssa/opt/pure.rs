@@ -209,7 +209,7 @@ fn analyze_call_graph(
     starting_purities: FunctionPurities,
     main: FunctionId,
 ) -> FunctionPurities {
-    let call_graph = CallGraph::new_from_deps(dependencies);
+    let call_graph = CallGraph::from_deps(dependencies);
 
     // Now we can analyze it: a function is only as pure as all of
     // its called functions

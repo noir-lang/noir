@@ -47,6 +47,7 @@ impl Ssa {
             }
         }
 
+        // dbg!(&reachable_functions);
         // Discard all functions not marked as reachable
         self.functions.retain(|id, _| reachable_functions.contains(id));
         self

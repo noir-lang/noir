@@ -41,7 +41,9 @@ impl Ssa {
             // Here we want to treat the functions which will be inlined into them.
             let is_target =
                 inline_infos.get(&id).map(|info| info.is_inline_target()).unwrap_or_default();
-
+            // dbg!(is_target);
+            // dbg!(id);
+            // dbg!(is_heavy);
             if is_heavy || is_target {
                 continue;
             }

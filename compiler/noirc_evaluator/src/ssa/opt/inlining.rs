@@ -91,6 +91,7 @@ impl Ssa {
             let new_function = function.inlined(&self, &should_inline_call);
             (entry_point, new_function)
         });
+
         self
     }
 }
@@ -727,14 +728,9 @@ impl<'function> PerFunctionContext<'function> {
 
 #[cfg(test)]
 mod test {
-    use std::cmp::max;
-
     use crate::{
         assert_ssa_snapshot,
-        ssa::{
-            Ssa,
-            opt::{assert_normalized_ssa_equals, inlining::inline_info::compute_bottom_up_order},
-        },
+        ssa::{Ssa, opt::assert_normalized_ssa_equals},
     };
 
     #[test]
@@ -970,96 +966,5 @@ mod test {
             return v0
         }
         ");
-    }
-
-    #[test]
-    fn bottom_up_order_and_weights() {
-        let src = "
-          brillig(inline) fn main f0 {
-            b0(v0: u32, v1: u1):
-              v3 = call f2(v0) -> u1
-              v4 = eq v3, v1
-              constrain v3 == v1
-              return
-          }
-          brillig(inline) fn is_even f1 {
-            b0(v0: u32):
-              v3 = eq v0, u32 0
-              jmpif v3 then: b2, else: b1
-            b1():
-              v5 = call f3(v0) -> u32
-              v7 = call f2(v5) -> u1
-              jmp b3(v7)
-            b2():
-              jmp b3(u1 1)
-            b3(v1: u1):
-              return v1
-          }
-          brillig(inline) fn is_odd f2 {
-            b0(v0: u32):
-              v3 = eq v0, u32 0
-              jmpif v3 then: b2, else: b1
-            b1():
-              v5 = call f3(v0) -> u32
-              v7 = call f1(v5) -> u1
-              jmp b3(v7)
-            b2():
-              jmp b3(u1 0)
-            b3(v1: u1):
-              return v1
-          }
-          brillig(inline) fn decrement f3 {
-            b0(v0: u32):
-              v2 = sub v0, u32 1
-              return v2
-          }
-        ";
-        // main
-        //   |
-        //   V
-        // is_odd <-> is_even
-        //      |     |
-        //      V     V
-        //      decrement
-
-        let ssa = Ssa::from_str(src).unwrap();
-        let order = compute_bottom_up_order(&ssa);
-
-        assert_eq!(order.len(), 4);
-        let (ids, ws): (Vec<_>, Vec<_>) = order.into_iter().map(|(id, w)| (id.to_u32(), w)).unzip();
-        let (ows, tws): (Vec<_>, Vec<_>) = ws.into_iter().unzip();
-
-        // Check order
-        assert_eq!(ids[0], 3, "decrement: first, it doesn't call anything");
-        assert_eq!(ids[1], 1, "is_even: called by is_odd; removing first avoids cutting the graph");
-        assert_eq!(ids[2], 2, "is_odd: called by is_odd and main");
-        assert_eq!(ids[3], 0, "main: last, it's the entry");
-
-        // Check own weights
-        assert_eq!(ows, [2, 7, 7, 4]);
-
-        // Check transitive weights
-        assert_eq!(tws[0], ows[0], "decrement");
-        assert_eq!(
-            tws[1],
-            ows[1] + // own
-            tws[0] + // pushed from decrement
-            (ows[2] + tws[0]), // pulled from is_odd at the time is_even is emitted
-            "is_even"
-        );
-        assert_eq!(
-            tws[2],
-            ows[2] + // own
-            tws[0] + // pushed from decrement
-            tws[1], // pushed from is_even
-            "is_odd"
-        );
-        assert_eq!(
-            tws[3],
-            ows[3] + // own
-            tws[2], // pushed from is_odd
-            "main"
-        );
-        assert!(tws[3] > max(tws[1], tws[2]), "ideally 'main' has the most weight");
     }
 }
