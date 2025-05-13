@@ -100,7 +100,7 @@ projects:
   semaphore-depth-10:
     repo: noir-lang/noir
     path: test_programs/benchmarks/semaphore_depth_10
-    num_runs: 5
+    num_runs: 20
     timeout: 300
     compilation-timeout: 2
     execution-timeout: 0.6
