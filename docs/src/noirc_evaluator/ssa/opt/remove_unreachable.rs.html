@@ -177,7 +177,44 @@
 <a href="#176" id="176">176</a>
 <a href="#177" id="177">177</a>
 <a href="#178" id="178">178</a>
-<a href="#179" id="179">179</a></pre></div><pre class="rust"><code><span class="doccomment">//! Removes any unreachable functions from the code. These can result from
+<a href="#179" id="179">179</a>
+<a href="#180" id="180">180</a>
+<a href="#181" id="181">181</a>
+<a href="#182" id="182">182</a>
+<a href="#183" id="183">183</a>
+<a href="#184" id="184">184</a>
+<a href="#185" id="185">185</a>
+<a href="#186" id="186">186</a>
+<a href="#187" id="187">187</a>
+<a href="#188" id="188">188</a>
+<a href="#189" id="189">189</a>
+<a href="#190" id="190">190</a>
+<a href="#191" id="191">191</a>
+<a href="#192" id="192">192</a>
+<a href="#193" id="193">193</a>
+<a href="#194" id="194">194</a>
+<a href="#195" id="195">195</a>
+<a href="#196" id="196">196</a>
+<a href="#197" id="197">197</a>
+<a href="#198" id="198">198</a>
+<a href="#199" id="199">199</a>
+<a href="#200" id="200">200</a>
+<a href="#201" id="201">201</a>
+<a href="#202" id="202">202</a>
+<a href="#203" id="203">203</a>
+<a href="#204" id="204">204</a>
+<a href="#205" id="205">205</a>
+<a href="#206" id="206">206</a>
+<a href="#207" id="207">207</a>
+<a href="#208" id="208">208</a>
+<a href="#209" id="209">209</a>
+<a href="#210" id="210">210</a>
+<a href="#211" id="211">211</a>
+<a href="#212" id="212">212</a>
+<a href="#213" id="213">213</a>
+<a href="#214" id="214">214</a>
+<a href="#215" id="215">215</a>
+<a href="#216" id="216">216</a></pre></div><pre class="rust"><code><span class="doccomment">//! Removes any unreachable functions from the code. These can result from
 //! optimizations making existing functions unreachable, e.g. `if false { foo() }`,
 //! or even from monomorphizing an unconstrained version of a constrained function
 //! where the original constrained version ends up never being used.
@@ -217,7 +254,8 @@
         <span class="comment">// Go through all the functions, and if we have an entry point, extend the set of all
         // functions which are reachable.
         </span><span class="kw">for </span>(id, function) <span class="kw">in </span><span class="self">self</span>.functions.iter() {
-            <span class="comment">// XXX: `self.is_entry_point(*id)` could leave Brillig functions that nobody calls in the SSA.
+            <span class="comment">// Not using `Ssa::is_entry_point` because it could leave Brillig functions that nobody calls in the SSA,
+            // because it considers every Brillig function as an entry point.
             </span><span class="kw">let </span>is_entry_point = function.id() == <span class="self">self</span>.main_id
                 || function.runtime().is_acir() &amp;&amp; function.runtime().is_entry_point();
 
@@ -309,7 +347,7 @@
 
 <span class="attr">#[cfg(test)]
 </span><span class="kw">mod </span>tests {
-    <span class="kw">use </span><span class="kw">crate</span>::assert_ssa_snapshot;
+    <span class="kw">use crate</span>::{assert_ssa_snapshot, ssa::opt::assert_normalized_ssa_equals};
 
     <span class="kw">use </span><span class="kw">super</span>::Ssa;
 
@@ -354,6 +392,42 @@
             return v2
         }
         "</span>);
+    }
+
+    <span class="attr">#[test]
+    </span><span class="kw">fn </span>keep_stored_function() {
+        <span class="comment">// Initial SSA from the `function_ref` integration test.
+        </span><span class="kw">let </span>src = <span class="string">r#"
+        acir(inline) fn main f0 {
+            b0(v0: u1):
+              v1 = allocate -&gt; &amp;mut function
+              store f1 at v1
+              jmpif v0 then: b1, else: b2
+            b1():
+              store f2 at v1
+              jmp b2()
+            b2():
+              v4 = load v1 -&gt; function
+              v5 = call v4() -&gt; [u8; 3]
+              return v5
+          }
+          acir(inline) fn foo f1 {
+            b0():
+              v2 = make_array b"foo"
+              return v2
+          }
+          acir(inline) fn bar f2 {
+            b0():
+              v3 = make_array b"bar"
+              return v3
+          }
+        "#</span>;
+
+        <span class="kw">let </span>ssa = Ssa::from_str(src).unwrap();
+        <span class="kw">let </span>ssa = ssa.remove_unreachable_functions();
+
+        <span class="comment">// It should not remove anything.
+        </span>assert_normalized_ssa_equals(ssa, src);
     }
 }
 </code></pre></div></section></main></body></html>

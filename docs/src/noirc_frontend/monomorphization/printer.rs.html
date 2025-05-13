@@ -571,10 +571,10 @@
             <span class="kw">let </span>vis = visibility.to_string();
             <span class="kw">let </span>vis = <span class="kw">if </span>vis.is_empty() { vis } <span class="kw">else </span>{ <span class="macro">format!</span>(<span class="string">"{vis} "</span>) };
             <span class="macro">format!</span>(
-                <span class="string">"{}{}{}: {}"</span>,
-                vis,
+                <span class="string">"{}{}: {}{}"</span>,
                 <span class="kw">if </span><span class="kw-2">*</span>mutable { <span class="string">"mut " </span>} <span class="kw">else </span>{ <span class="string">"" </span>},
                 <span class="self">self</span>.fmt_local(name, <span class="kw-2">*</span>id),
+                vis,
                 typ
             )
         })
