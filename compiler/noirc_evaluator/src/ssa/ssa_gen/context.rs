@@ -658,17 +658,24 @@ impl<'a> FunctionContext<'a> {
                             NumericType::unsigned(*incoming_type_size),
                             location,
                         );
+                        eprintln!("pow 1: 2^{}", incoming_type_size - 1);
                         let half_width = self.builder.numeric_constant(
-                            FieldElement::from(2_i128.pow(incoming_type_size - 1)),
+                            FieldElement::from(2_u128.pow(incoming_type_size - 1)),
                             NumericType::unsigned(*incoming_type_size),
                         );
                         // value_sign is 1 if the value is positive, 0 otherwise
                         let value_sign =
                             self.builder.insert_binary(value_as_unsigned, BinaryOp::Lt, half_width);
+
+                        eprintln!("pow 2: 2^{target_type_size}");
+                        let a = 2_u128.pow(target_type_size);
+
+                        eprintln!("pow 3: 2^{incoming_type_size}");
+                        let b = 2_u128.pow(*incoming_type_size);
+                        eprintln!("done");
+
                         let patch = self.builder.numeric_constant(
-                            FieldElement::from(
-                                2_i128.pow(target_type_size) - 2_i128.pow(*incoming_type_size),
-                            ),
+                            FieldElement::from(a - b),
                             NumericType::unsigned(target_type_size),
                         );
                         let mut is_negative_predicate = self.builder.insert_not(value_sign);
