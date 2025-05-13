@@ -1595,3 +1595,44 @@ fn signed_integer_casting() {
     let value = expect_value(src);
     assert_eq!(value, Value::Numeric(NumericValue::I8(0)));
 }
+
+#[test]
+fn signed_integer_casting_2() {
+    // fn main() -> pub i64 {
+    //     (-(func_4() as i64))
+    // }
+    // fn func_4() -> i8 {
+    //     -89
+    // }
+    let src = r#"
+      acir(inline) fn main f0 {
+        b0():
+          v16 = call f1() -> i8
+          v17 = cast v16 as u8
+          v19 = lt v17, u8 128
+          v21 = not v19
+          v22 = cast v21 as u64
+          v23 = unchecked_mul u64 18446744073709551360, v22
+          v24 = cast v16 as u64
+          v25 = unchecked_add v23, v24
+          v26 = cast v25 as i64
+          v28 = sub i64 0, v26
+          v29 = truncate v28 to 64 bits, max_bit_size: 65
+          v30 = cast v29 as u64
+          v33 = cast v25 as u64
+          v35 = lt v33, u64 9223372036854775808
+          v36 = not v35
+          v37 = lt v30, u64 9223372036854775808
+          v38 = unchecked_mul v37, v36
+          constrain v38 == v36, "attempt to subtract with overflow"
+          v39 = cast v29 as i64
+          return v39
+      }
+      acir(inline_always) fn func_4 f1 {
+        b0():
+          return i8 167
+      }
+      "#;
+    let value = expect_value(src);
+    assert_eq!(value, Value::Numeric(NumericValue::I64(89)));
+}
