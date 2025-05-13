@@ -1162,7 +1162,7 @@ mod test {
             ";
         let expected = "
             acir(inline) fn main f0 {
-              b0(v0: [Field; 4], v1: u32, v2: u1, v3: u1):
+              b0(v0: [Field; 4], v1: u32, v2: bool, v3: bool):
                 enable_side_effects v2
                 v5 = array_get v0, index u32 0 -> Field
                 v6 = array_get v0, index v1 -> Field

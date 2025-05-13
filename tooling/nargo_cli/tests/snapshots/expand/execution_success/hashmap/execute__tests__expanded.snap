@@ -2,7 +2,8 @@
 source: tooling/nargo_cli/tests/execute.rs
 expression: expanded_code
 ---
-use std::{collections::map::HashMap, hash::{BuildHasherDefault, poseidon2::Poseidon2Hasher}};
+use poseidon::poseidon2::Poseidon2Hasher;
+use std::{collections::map::HashMap, hash::BuildHasherDefault};
 use utils::cut;
 
 type K = Field;

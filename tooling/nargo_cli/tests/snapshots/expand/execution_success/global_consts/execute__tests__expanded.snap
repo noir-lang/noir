@@ -11,19 +11,17 @@ mod baz {
 }
 
 mod foo {
-    mod bar {
-        global N: u32 = 5;
+    pub(crate) mod bar {
+        pub(crate) global N: u32 = 5;
 
         pub fn from_bar(x: Field) -> Field {
             x * (N as Field)
         }
     }
 
-    global N: u32 = 5;
+    pub(crate) global MAGIC_NUMBER: u32 = 3;
 
-    global MAGIC_NUMBER: u32 = 3;
-
-    global TYPE_INFERRED: u32 = 42;
+    pub(crate) global TYPE_INFERRED: u32 = 42;
 
     pub fn from_foo(x: [Field; 5]) {
         for i in 0..bar::N {
@@ -109,13 +107,7 @@ fn arrays_neq(a: [Field; 32], b: [Field; 32]) {
 }
 
 mod my_submodule {
-    global N: u32 = 10;
-
-    global L: Field = 50;
-
-    fn my_bool_or(x: u1, y: u1) {
-        assert((x | y) == 1);
-    }
+    pub(crate) global N: u32 = 10;
 
     pub fn my_helper() -> Field {
         let N: u32 = 15;

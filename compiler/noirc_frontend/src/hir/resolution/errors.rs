@@ -6,6 +6,7 @@ use thiserror::Error;
 use crate::{
     Kind, Type,
     ast::{Ident, UnsupportedNumericGenericType},
+    elaborator::TypedPath,
     hir::{
         comptime::{InterpreterError, Value},
         type_check::TypeCheckError,
@@ -61,7 +62,7 @@ pub enum ResolverError {
     #[error("Integer too large to be evaluated in an array length context")]
     IntegerTooLarge { location: Location },
     #[error("No global or generic type parameter found with the given name")]
-    NoSuchNumericTypeVariable { path: crate::ast::Path },
+    NoSuchNumericTypeVariable { path: TypedPath },
     #[error("Closures cannot capture mutable variables")]
     CapturedMutableVariable { location: Location },
     #[error("Test functions are not allowed to have any parameters")]

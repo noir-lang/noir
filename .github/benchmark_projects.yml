@@ -1,4 +1,4 @@
-define: &AZ_COMMIT 278661f67ce4d444b068b331971a5bb3e2a2461f
+define: &AZ_COMMIT b67afe429d431c7516b95f9c6d1b6e358907ef33
 projects:
   private-kernel-inner:
     repo: AztecProtocol/aztec-packages
@@ -92,6 +92,15 @@ projects:
     ref: *AZ_COMMIT
     path: noir-projects/noir-protocol-circuits/crates/rollup-root
     num_runs: 5
+    timeout: 300
+    compilation-timeout: 2
+    execution-timeout: 0.6
+    compilation-memory-limit: 450
+    execution-memory-limit: 400
+  semaphore-depth-10:
+    repo: noir-lang/noir
+    path: test_programs/benchmarks/semaphore_depth_10
+    num_runs: 20
     timeout: 300
     compilation-timeout: 2
     execution-timeout: 0.6

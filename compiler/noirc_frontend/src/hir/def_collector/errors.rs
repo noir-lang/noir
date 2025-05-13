@@ -1,4 +1,5 @@
-use crate::ast::{Ident, ItemVisibility, Path, UnsupportedNumericGenericType};
+use crate::ast::{Ident, ItemVisibility, UnsupportedNumericGenericType};
+use crate::elaborator::TypedPath;
 use crate::hir::resolution::import::PathResolutionError;
 use crate::hir::type_check::generics::TraitGenerics;
 
@@ -46,9 +47,9 @@ pub enum DefCollectorErrorKind {
     #[error("Method is not defined in trait")]
     MethodNotInTrait { trait_name: Ident, impl_method: Ident },
     #[error("Only traits can be implemented")]
-    NotATrait { not_a_trait_name: Path },
+    NotATrait { not_a_trait_name: TypedPath },
     #[error("Trait not found")]
-    TraitNotFound { trait_path: Path },
+    TraitNotFound { trait_path: TypedPath },
     #[error("Missing Trait method implementation")]
     TraitMissingMethod { trait_name: Ident, method_name: Ident, trait_impl_location: Location },
     #[error("Module is already part of the crate")]
