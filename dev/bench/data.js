@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1747157629622,
+  "lastUpdate": 1747158026034,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -7815,70 +7815,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "15848336+TomAFrench@users.noreply.github.com",
-            "name": "Tom French",
-            "username": "TomAFrench"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "85241deaef7eaab9cc1526e7a3031a3dcb0c6eb3",
-          "message": "fix: add handling for u128 infix ops in interpreter (#8392)\n\nCo-authored-by: AztecBot <tech@aztecprotocol.com>",
-          "timestamp": "2025-05-07T14:17:55Z",
-          "tree_id": "c4d35417a615b197b90e6259a75461583e977c3b",
-          "url": "https://github.com/noir-lang/noir/commit/85241deaef7eaab9cc1526e7a3031a3dcb0c6eb3"
-        },
-        "date": 1746628936070,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 0.028,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 0.163,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 0.016,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 0.331,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 0.211,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 11.2,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 0.004,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-root",
-            "value": 0.013,
-            "unit": "s"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "asterite@gmail.com",
             "name": "Ary Borenszweig",
             "username": "asterite"
@@ -11053,6 +10989,75 @@ window.BENCHMARK_DATA = {
           {
             "name": "semaphore-depth-10",
             "value": 0.02,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "asterite@gmail.com",
+            "name": "Ary Borenszweig",
+            "username": "asterite"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "35ff3264b5f9badbd272f6b7aa042095d31b632d",
+          "message": "fix: remove unused generic in static_assert (#8488)\n\nCo-authored-by: Tom French <15848336+TomAFrench@users.noreply.github.com>",
+          "timestamp": "2025-05-13T17:02:24Z",
+          "tree_id": "db4f3c0ddefa76688a53583a9ee2facc5c7da020",
+          "url": "https://github.com/noir-lang/noir/commit/35ff3264b5f9badbd272f6b7aa042095d31b632d"
+        },
+        "date": 1747158017770,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 0.029,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 0.162,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 0.011,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 0.308,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 0.194,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 11.1,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 0.004,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-root",
+            "value": 0.014,
+            "unit": "s"
+          },
+          {
+            "name": "semaphore-depth-10",
+            "value": 0.019,
             "unit": "s"
           }
         ]
