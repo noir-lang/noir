@@ -233,6 +233,7 @@ where
         TestScope::ShouldFailWith { reason } => {
             FuzzingScope::ShouldFailWith { reason: reason.clone() }
         }
+        TestScope::OnlyFailWith { reason } => FuzzingScope::OnlyFailWith { reason: reason.clone() },
         TestScope::None => FuzzingScope::None,
     };
     let location = test_function.location;
