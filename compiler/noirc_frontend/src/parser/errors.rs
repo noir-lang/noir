@@ -127,6 +127,8 @@ pub enum ParserErrorReason {
     LogicalAnd,
     #[error("Trait bounds are not allowed here")]
     TraitBoundsNotAllowedHere,
+    #[error("Missing double colon before generic arguments")]
+    MissingDoubleColon,
 }
 
 /// Represents a parsing error, or a parsing error in the making.
@@ -324,6 +326,10 @@ impl<'a> From<&'a ParserError> for Diagnostic {
                 ParserErrorReason::MissingAngleBrackets => {
                     let secondary = "Types that don't start with an identifier need to be surrounded with angle brackets: `<`, `>`".to_string();
                     Diagnostic::simple_error(format!("{reason}"), secondary, error.location())
+                }
+                ParserErrorReason::MissingDoubleColon => {
+                    let secondary = String::new();
+                    Diagnostic::simple_warning(format!("{reason}"), secondary, error.location())
                 }
                 ParserErrorReason::LogicalAnd => {
                     let primary = "Noir has no logical-and (&&) operator since short-circuiting is much less efficient when compiling to circuits".to_string();
