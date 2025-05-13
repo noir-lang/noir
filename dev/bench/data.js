@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1747157281169,
+  "lastUpdate": 1747157282683,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -3745,95 +3745,6 @@ window.BENCHMARK_DATA = {
       }
     ],
     "Compilation Time": [
-      {
-        "commit": {
-          "author": {
-            "email": "15848336+TomAFrench@users.noreply.github.com",
-            "name": "Tom French",
-            "username": "TomAFrench"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "385f7c797200ca63d06d414b2c0f9e1e751f3980",
-          "message": "chore: move acirgen tests into separate file (#8376)\n\nCo-authored-by: AztecBot <tech@aztecprotocol.com>",
-          "timestamp": "2025-05-07T14:16:18Z",
-          "tree_id": "f02d648406ac0e4c34ec49a7e6575c45d2dfb28b",
-          "url": "https://github.com/noir-lang/noir/commit/385f7c797200ca63d06d414b2c0f9e1e751f3980"
-        },
-        "date": 1746628839323,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "regression_4709",
-            "value": 0.689,
-            "unit": "s"
-          },
-          {
-            "name": "ram_blowup_regression",
-            "value": 12.8,
-            "unit": "s"
-          },
-          {
-            "name": "global_var_regression_entry_points",
-            "value": 0.499,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-inner",
-            "value": 2.286,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 6.564,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 1.114,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 16.86,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 13.04,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root-empty",
-            "value": 1.218,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root-single-tx",
-            "value": 120,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 122,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 1.026,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-root",
-            "value": 1.678,
-            "unit": "s"
-          }
-        ]
-      },
       {
         "commit": {
           "author": {
@@ -7811,6 +7722,85 @@ window.BENCHMARK_DATA = {
           {
             "name": "semaphore-depth-10",
             "value": 0.811,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "asterite@gmail.com",
+            "name": "Ary Borenszweig",
+            "username": "asterite"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "e5bac4e512e8cd021d2d674873a3ef1f837a768e",
+          "message": "fix: disallow generics on entry points (#8490)",
+          "timestamp": "2025-05-13T16:58:10Z",
+          "tree_id": "6add356c9ed835530484ddd1fac5a8378e11a6a5",
+          "url": "https://github.com/noir-lang/noir/commit/e5bac4e512e8cd021d2d674873a3ef1f837a768e"
+        },
+        "date": 1747157272073,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 2.338,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 6.646,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 1.094,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 15.92,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 12.72,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-empty",
+            "value": 1.312,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-single-tx",
+            "value": 122,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 123,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 1.074,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-root",
+            "value": 1.632,
+            "unit": "s"
+          },
+          {
+            "name": "semaphore-depth-10",
+            "value": 0.843,
             "unit": "s"
           }
         ]
