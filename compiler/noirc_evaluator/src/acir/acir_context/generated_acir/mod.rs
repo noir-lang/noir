@@ -179,6 +179,7 @@ impl<F: AcirField> GeneratedAcir<F> {
         function_inputs: &[Vec<FunctionInput<F>>],
         constant_inputs: Vec<F>,
         constant_outputs: Vec<F>,
+        num_bits: Option<u32>,
         outputs: Vec<Witness>,
     ) -> Result<(), InternalError> {
         let input_count = function_inputs.iter().fold(0usize, |sum, val| sum + val.len());
@@ -197,9 +198,22 @@ impl<F: AcirField> GeneratedAcir<F> {
                     .expect("Compiler should generate correct size inputs"),
                 outputs,
             },
-            BlackBoxFunc::AND | BlackBoxFunc::XOR | BlackBoxFunc::RANGE => {
-                unreachable!("missing num_bits")
-            }
+            BlackBoxFunc::AND => BlackBoxFuncCall::AND {
+                lhs: function_inputs[0][0],
+                rhs: function_inputs[1][0],
+                num_bits: num_bits.expect("missing num_bits"),
+                output: outputs[0],
+            },
+            BlackBoxFunc::XOR => BlackBoxFuncCall::XOR {
+                lhs: function_inputs[0][0],
+                rhs: function_inputs[1][0],
+                num_bits: num_bits.expect("missing num_bits"),
+                output: outputs[0],
+            },
+            BlackBoxFunc::RANGE => BlackBoxFuncCall::RANGE {
+                input: function_inputs[0][0],
+                num_bits: num_bits.expect("missing num_bits"),
+            },
             BlackBoxFunc::Blake2s => BlackBoxFuncCall::Blake2s {
                 inputs: function_inputs[0].clone(),
                 outputs: outputs.try_into().expect("Compiler should generate correct size outputs"),

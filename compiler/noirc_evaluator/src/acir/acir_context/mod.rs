@@ -386,7 +386,7 @@ impl<F: AcirField, B: BlackBoxFunctionSolver<F>> AcirContext<F, B> {
             self.add_mul_var(sum, -F::from(2_u128), prod)
         } else {
             let inputs = vec![AcirValue::Var(lhs, typ.clone()), AcirValue::Var(rhs, typ)];
-            let outputs = self.black_box_function(BlackBoxFunc::XOR, inputs, 1)?;
+            let outputs = self.black_box_function(BlackBoxFunc::XOR, inputs, Some(bit_size), 1)?;
             Ok(outputs[0])
         }
     }
@@ -416,7 +416,7 @@ impl<F: AcirField, B: BlackBoxFunctionSolver<F>> AcirContext<F, B> {
             self.mul_var(lhs, rhs)
         } else {
             let inputs = vec![AcirValue::Var(lhs, typ.clone()), AcirValue::Var(rhs, typ)];
-            let outputs = self.black_box_function(BlackBoxFunc::AND, inputs, 1)?;
+            let outputs = self.black_box_function(BlackBoxFunc::AND, inputs, Some(bit_size), 1)?;
             Ok(outputs[0])
         }
     }

@@ -16,6 +16,7 @@ impl<F: AcirField, B: BlackBoxFunctionSolver<F>> AcirContext<F, B> {
         &mut self,
         name: BlackBoxFunc,
         mut inputs: Vec<AcirValue>,
+        num_bits: Option<u32>,
         mut output_count: usize,
     ) -> Result<Vec<AcirVar>, RuntimeError> {
         // Separate out any arguments that should be constants
@@ -186,6 +187,7 @@ impl<F: AcirField, B: BlackBoxFunctionSolver<F>> AcirContext<F, B> {
             &inputs,
             constant_inputs,
             constant_outputs,
+            num_bits,
             output_witnesses,
         )?;
 

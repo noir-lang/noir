@@ -1232,7 +1232,8 @@ impl<'a> Context<'a> {
                     sum + dfg.type_of_value(*result_id).flattened_size() as usize
                 });
 
-                let vars = self.acir_context.black_box_function(black_box, inputs, output_count)?;
+                let vars =
+                    self.acir_context.black_box_function(black_box, inputs, None, output_count)?;
 
                 Ok(self.convert_vars_to_values(vars, dfg, result_ids))
             }
