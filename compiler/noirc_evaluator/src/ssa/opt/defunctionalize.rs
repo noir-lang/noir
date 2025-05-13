@@ -689,4 +689,89 @@ mod tests {
         assert!(applies.iter().any(|f| f.runtime().is_acir()));
         assert!(applies.iter().any(|f| f.runtime().is_brillig()));
     }
+
+    #[test]
+    fn apply_created_for_stored_functions() {
+        let src = "
+        acir(inline) fn main f0 {
+          b0(v0: u1):
+            v1 = allocate -> &mut function
+            store f1 at v1
+            jmpif v0 then: b1, else: b2
+          b1():
+            store f2 at v1
+            jmp b2()
+          b2():
+            v4 = load v1 -> function
+            v6 = call f3(v4) -> u32
+            return v6
+        }
+        acir(inline) fn foo f1 {
+          b0():
+            return u32 1
+        }
+        acir(inline) fn bar f2 {
+          b0():
+            return u32 2
+        }
+        acir(inline) fn caller f3 {
+          b0(v0: function):
+            v1 = call v0() -> u32
+            v2 = call v0() -> u32
+            v3 = add v1, v2
+            return v3
+        }
+        ";
+
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.defunctionalize();
+
+        assert_ssa_snapshot!(
+            ssa,
+            @r"
+        acir(inline) fn main f0 {
+          b0(v0: u1):
+            v1 = allocate -> &mut function
+            store Field 1 at v1
+            jmpif v0 then: b1, else: b2
+          b1():
+            store Field 2 at v1
+            jmp b2()
+          b2():
+            v4 = load v1 -> Field
+            v6 = call f3(v4) -> u32
+            return v6
+        }
+        acir(inline) fn foo f1 {
+          b0():
+            return u32 1
+        }
+        acir(inline) fn bar f2 {
+          b0():
+            return u32 2
+        }
+        acir(inline) fn caller f3 {
+          b0(v0: Field):
+            v2 = call f4(v0) -> u32
+            v3 = call f4(v0) -> u32
+            v4 = add v2, v3
+            return v4
+        }
+        acir(inline_always) fn apply f4 {
+          b0(v0: Field):
+            v3 = eq v0, Field 1
+            jmpif v3 then: b3, else: b2
+          b1(v1: u32):
+            return v1
+          b2():
+            constrain v0 == Field 2
+            v8 = call f2() -> u32
+            jmp b1(v8)
+          b3():
+            v5 = call f1() -> u32
+            jmp b1(v5)
+        }
+        "
+        );
+    }
 }
