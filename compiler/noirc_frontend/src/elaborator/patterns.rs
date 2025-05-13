@@ -14,12 +14,14 @@ use crate::{
         type_check::{Source, TypeCheckError},
     },
     hir_def::{
-        expr::{HirExpression, HirIdent, HirMethodReference, ImplKind, TraitMethod},
+        expr::{HirExpression, HirIdent, HirLiteral, HirMethodReference, ImplKind, TraitMethod},
         stmt::HirPattern,
+        traits::NamedType,
     },
     node_interner::{
         DefinitionId, DefinitionInfo, DefinitionKind, ExprId, FuncId, GlobalId, TraitImplKind,
     },
+    signed_field::SignedField,
 };
 
 use super::{
@@ -554,22 +556,12 @@ impl Elaborator<'_> {
     }
 
     pub(super) fn elaborate_variable(&mut self, variable: Path) -> (ExprId, Type) {
-        let mut variable = self.validate_path(variable);
+        let variable = self.validate_path(variable);
 
-        // Check if this is `Self::method_name` when we are inside a trait impl and `Self`
-        // resolves to a primitive type. In that case we elaborate this as if it were a TypePath
-        // (for example, if `Self` is `u32` then we consider this the same as `u32::method_name`).
-        // A regular path lookup won't work here for the same reason `TypePath` exists.
-        if let Some(self_type) = &self.self_type {
-            if self.current_trait_impl.is_some()
-                && variable.segments.len() == 2
-                && variable.segments[0].ident.is_self_type_name()
-                && !matches!(self.self_type, Some(Type::DataType(..)))
-            {
-                let ident = variable.segments.remove(1).ident;
-                let typ_location = variable.segments[0].location;
-                return self.elaborate_type_path_impl(self_type.clone(), ident, None, typ_location);
-            }
+        if let Some((expr_id, typ)) =
+            self.elaborate_variable_as_self_method_or_associated_constant(&variable)
+        {
+            return (expr_id, typ);
         }
 
         let resolved_turbofish = variable.segments.last().unwrap().generics.clone();
@@ -633,6 +625,68 @@ impl Elaborator<'_> {
         }
     }
 
+    /// Checks whether `variable` is `Self::method_name` or `Self::AssociatedConstant` when we are inside a trait impl and `Self`
+    /// resolves to a primitive type.
+    ///
+    /// In the first case we elaborate this as if it were a TypePath
+    /// (for example, if `Self` is `u32` then we consider this the same as `u32::method_name`).
+    /// A regular path lookup won't work here for the same reason `TypePath` exists.
+    ///
+    /// In the second case we solve the associated constant by looking up its value, later
+    /// turning it into a literal.
+    fn elaborate_variable_as_self_method_or_associated_constant(
+        &mut self,
+        variable: &TypedPath,
+    ) -> Option<(ExprId, Type)> {
+        if !(variable.segments.len() == 2 && variable.segments[0].ident.is_self_type_name()) {
+            return None;
+        }
+
+        let name = variable.segments[1].ident.as_str();
+
+        // Check the `Self::AssociatedConstant` case when inside a trait
+        if let Some(trait_id) = &self.current_trait {
+            let trait_ = self.interner.get_trait(*trait_id);
+            if let Some(associated_type) = trait_.get_associated_type(name) {
+                if let Kind::Numeric(numeric_type) = associated_type.kind() {
+                    // We can produce any value here because this trait method is never going to
+                    // produce code (only trait impl methods do)
+                    let numeric_type: Type = *numeric_type.clone();
+                    let value = SignedField::zero();
+                    return Some(self.constant_integer(numeric_type, value, variable.location));
+                }
+            }
+        }
+
+        let Some(self_type) = &self.self_type else {
+            return None;
+        };
+
+        let Some(trait_impl_id) = &self.current_trait_impl else {
+            return None;
+        };
+
+        // Check the `Self::AssociatedConstant` case when inside a trait impl
+        let associated_types = self.interner.get_associated_types_for_impl(*trait_impl_id);
+        let associated_type = associated_types.iter().find(|typ| typ.name.as_str() == name);
+        if let Some(NamedType { typ: Type::Constant(field, Kind::Numeric(numeric_type)), .. }) =
+            associated_type
+        {
+            let numeric_type: Type = *numeric_type.clone();
+            let value = SignedField::positive(*field);
+            return Some(self.constant_integer(numeric_type, value, variable.location));
+        }
+
+        // Check the `Self::method_name` case when `Self` is a primitive type
+        if matches!(self.self_type, Some(Type::DataType(..))) {
+            return None;
+        }
+
+        let ident = variable.segments[1].ident.clone();
+        let typ_location = variable.segments[0].location;
+        Some(self.elaborate_type_path_impl(self_type.clone(), ident, None, typ_location))
+    }
+
     pub(crate) fn validate_path(&mut self, path: Path) -> TypedPath {
         let mut segments = vecmap(path.segments, |segment| self.validate_path_segment(segment));
 
@@ -659,6 +713,19 @@ impl Elaborator<'_> {
             })
         });
         TypedPathSegment { ident: segment.ident, generics, location: segment.location }
+    }
+
+    fn constant_integer(
+        &mut self,
+        numeric_type: Type,
+        value: SignedField,
+        location: Location,
+    ) -> (ExprId, Type) {
+        let hir_expr = HirExpression::Literal(HirLiteral::Integer(value));
+        let id = self.interner.push_expr(hir_expr);
+        self.interner.push_expr_location(id, location);
+        self.interner.push_expr_type(id, numeric_type.clone());
+        (id, numeric_type)
     }
 
     /// Solve any generics that are part of the path before the function, for example:
