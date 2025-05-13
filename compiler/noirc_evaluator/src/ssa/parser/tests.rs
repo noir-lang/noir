@@ -90,6 +90,19 @@ fn test_make_composite_array() {
 }
 
 #[test]
+fn test_make_composite_slice() {
+    let src = "
+        acir(inline) predicate_pure fn main f0 {
+          b0():
+            v2 = make_array [Field 2, Field 3] : [Field; 2]
+            v4 = make_array [Field 1, v2] : [(Field, [Field; 2])]
+            return v4
+        }
+        ";
+    assert_ssa_roundtrip(src);
+}
+
+#[test]
 fn test_make_byte_array_with_string_literal() {
     let src = "
         acir(inline) fn main f0 {

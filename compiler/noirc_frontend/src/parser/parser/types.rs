@@ -47,7 +47,9 @@ impl Parser<'_> {
     }
 
     fn parse_unresolved_type_data(&mut self) -> Option<UnresolvedTypeData> {
-        if let Some(typ) = self.parse_primitive_type() {
+        if let Some(typ) = self.parse_primitive_type(
+            false, // require colons
+        ) {
             return Some(typ);
         }
 
@@ -83,7 +85,10 @@ impl Parser<'_> {
         None
     }
 
-    pub(super) fn parse_primitive_type(&mut self) -> Option<UnresolvedTypeData> {
+    pub(super) fn parse_primitive_type(
+        &mut self,
+        require_colons: bool,
+    ) -> Option<UnresolvedTypeData> {
         if let Some(typ) = self.parse_field_type() {
             return Some(typ);
         }
@@ -96,11 +101,11 @@ impl Parser<'_> {
             return Some(typ);
         }
 
-        if let Some(typ) = self.parse_str_type() {
+        if let Some(typ) = self.parse_str_type(require_colons) {
             return Some(typ);
         }
 
-        if let Some(typ) = self.parse_fmtstr_type() {
+        if let Some(typ) = self.parse_fmtstr_type(require_colons) {
             return Some(typ);
         }
 
@@ -152,9 +157,16 @@ impl Parser<'_> {
         None
     }
 
-    fn parse_str_type(&mut self) -> Option<UnresolvedTypeData> {
+    fn parse_str_type(&mut self, require_colons: bool) -> Option<UnresolvedTypeData> {
         if !self.eat_keyword(Keyword::String) {
             return None;
+        }
+
+        if require_colons {
+            let location = self.current_token_location;
+            if !self.eat_double_colon() {
+                self.push_error(ParserErrorReason::MissingDoubleColon, location);
+            }
         }
 
         if !self.eat_less() {
@@ -182,9 +194,16 @@ impl Parser<'_> {
         Some(UnresolvedTypeData::String(expr))
     }
 
-    fn parse_fmtstr_type(&mut self) -> Option<UnresolvedTypeData> {
+    fn parse_fmtstr_type(&mut self, require_colons: bool) -> Option<UnresolvedTypeData> {
         if !self.eat_keyword(Keyword::FormatString) {
             return None;
+        }
+
+        if require_colons {
+            let location = self.current_token_location;
+            if !self.eat_double_colon() {
+                self.push_error(ParserErrorReason::MissingDoubleColon, location);
+            }
         }
 
         if !self.eat_less() {

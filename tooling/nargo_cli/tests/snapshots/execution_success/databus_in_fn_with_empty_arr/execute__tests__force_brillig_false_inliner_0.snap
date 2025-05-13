@@ -47,7 +47,19 @@ expression: artifact
       }
     }
   },
-  "bytecode": "H4sIAAAAAAAA/61SQQoCMQxsu+IPPHjzCUnTbtObHnyIxe7dV/kX3+FDXDGHUFxY2A6ECZMQhiHW/ODm2ktv5xqEvzg1mhVNwwmfhWEbUN8iGEOoyVckvIHPhSOEWEZGxsjx7pmocuCUS06QMVDFKWaa5Jjr6Evn4FbksNW77ei9Yw6gf8H86XdNHkbNzYI2CB/el+Pj9by2ux+CDwjRrAIAAA==",
+  "bytecode": [
+    "func 0",
+    "current witness index : _2",
+    "private parameters indices : [_0, _1]",
+    "public parameters indices : []",
+    "return value indices : []",
+    "BLACKBOX::RANGE [(_0, 32)] []",
+    "BLACKBOX::RANGE [(_1, 32)] []",
+    "EXPR [ (1, _0) (-1, _2) 1 ]",
+    "BLACKBOX::RANGE [(_2, 32)] []",
+    "EXPR [ (-1, _1) (1, _2) 0 ]",
+    "INIT CALLDATA 0 (id: 1, len: 1, witnesses: [_1])"
+  ],
   "debug_symbols": "lZDBCoMwDIbfJece3HSw+SpjSK1RCqEtsR0M8d0Xi2562GGXpsmf7y/9J+iwTUNjXe9HqO8TtGyJ7NCQNzpa72Q6zQq2tomMKCPY6UIFzegi1C4RKXhqSnlpDNrlGjWLWihA10kVw94SLrdZfeniN3otV/ZWfeDL//SpKA/4QzptLB++C2dZVFDms4L6PC/ObHVLuMbRJ2d26cRX2JQtv8DeYJcYF+usyWNv",
   "file_map": {
     "50": {

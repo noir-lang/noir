@@ -6,6 +6,7 @@ use thiserror::Error;
 use crate::{
     Kind, Type,
     ast::{Ident, UnsupportedNumericGenericType},
+    elaborator::TypedPath,
     hir::{
         comptime::{InterpreterError, Value},
         type_check::TypeCheckError,
@@ -61,7 +62,7 @@ pub enum ResolverError {
     #[error("Integer too large to be evaluated in an array length context")]
     IntegerTooLarge { location: Location },
     #[error("No global or generic type parameter found with the given name")]
-    NoSuchNumericTypeVariable { path: crate::ast::Path },
+    NoSuchNumericTypeVariable { path: TypedPath },
     #[error("Closures cannot capture mutable variables")]
     CapturedMutableVariable { location: Location },
     #[error("Test functions are not allowed to have any parameters")]
@@ -200,6 +201,8 @@ pub enum ResolverError {
         "The type parameter `{ident}` is not constrained by the impl trait, self type, or predicates"
     )]
     UnconstrainedTypeParameter { ident: Ident },
+    #[error("Unreachable statement")]
+    UnreachableStatement { location: Location, break_or_continue_location: Location },
 }
 
 impl ResolverError {
@@ -268,7 +271,8 @@ impl ResolverError {
             | ResolverError::NoPredicatesAttributeOnUnconstrained { location, .. }
             | ResolverError::FoldAttributeOnUnconstrained { location, .. }
             | ResolverError::OracleMarkedAsConstrained { location, .. }
-            | ResolverError::LowLevelFunctionOutsideOfStdlib { location } => *location,
+            | ResolverError::LowLevelFunctionOutsideOfStdlib { location }
+            | ResolverError::UnreachableStatement { location, .. } => *location,
             ResolverError::UnusedVariable { ident }
             | ResolverError::UnusedItem { ident, .. }
             | ResolverError::DuplicateField { field: ident }
@@ -826,6 +830,15 @@ impl<'a> From<&'a ResolverError> for Diagnostic {
                     format!("Hint: remove the `{ident}` type parameter"),
                     ident.location(),
                 )
+            }
+            ResolverError::UnreachableStatement { location, break_or_continue_location} => {
+                let mut diagnostic = Diagnostic::simple_warning(
+                    "Unreachable statement".to_string(),
+                    "Unreachable statement".to_string(),
+                    *location,
+                );
+                diagnostic.add_secondary("Any code following this expression is unreachable".to_string(), *break_or_continue_location);
+                diagnostic
             }
         }
     }

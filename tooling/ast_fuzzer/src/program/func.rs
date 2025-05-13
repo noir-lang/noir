@@ -33,7 +33,6 @@ use super::{
 pub(super) struct FunctionDeclaration {
     pub name: String,
     pub params: Parameters,
-    pub param_visibilities: Vec<Visibility>,
     pub return_type: Type,
     pub return_visibility: Visibility,
     pub inline_type: InlineType,
@@ -46,8 +45,7 @@ impl FunctionDeclaration {
         let param_types = self
             .params
             .iter()
-            .zip(self.param_visibilities.iter())
-            .map(|((_id, mutable, _name, typ), vis)| hir_param(*mutable, typ, *vis))
+            .map(|(_id, mutable, _name, typ, vis)| hir_param(*mutable, typ, *vis))
             .collect();
 
         let return_type =
@@ -154,7 +152,7 @@ impl<'a> FunctionContext<'a> {
         let locals = ScopeStack::new(
             decl.params
                 .iter()
-                .map(|(id, mutable, name, typ)| (*id, *mutable, name.clone(), typ.clone())),
+                .map(|(id, mutable, name, typ, _vis)| (*id, *mutable, name.clone(), typ.clone())),
         );
 
         // Collect all the functions we can call from this one.
@@ -247,6 +245,11 @@ impl<'a> FunctionContext<'a> {
     /// complexity of expressions such as binary ones, array indexes, etc.
     fn max_depth(&self) -> usize {
         self.ctx.config.max_depth
+    }
+
+    /// Is the program supposed to be comptime friendly?
+    fn is_comptime_friendly(&self) -> bool {
+        self.ctx.config.comptime_friendly
     }
 
     /// Get and increment the next local ID.
@@ -596,6 +599,7 @@ impl<'a> FunctionContext<'a> {
         // Generate expressions for LHS and RHS.
         let lhs_expr = self.gen_expr(u, &lhs_type, max_depth.saturating_sub(1), Flags::NESTED)?;
         let rhs_expr = self.gen_expr(u, rhs_type, max_depth.saturating_sub(1), Flags::NESTED)?;
+
         let mut expr = expr::binary(lhs_expr, op, rhs_expr);
 
         // If we have chosen e.g. u8 and need u32 we need to cast.
@@ -688,11 +692,11 @@ impl<'a> FunctionContext<'a> {
                 return self.gen_while(u);
             }
 
-            if freq.enabled_when("break", self.in_loop) {
+            if freq.enabled_when("break", self.in_loop && !self.ctx.config.avoid_loop_control) {
                 return Ok(Expression::Break);
             }
 
-            if freq.enabled_when("continue", self.in_loop) {
+            if freq.enabled_when("continue", self.in_loop && !self.ctx.config.avoid_loop_control) {
                 return Ok(Expression::Continue);
             }
         }
@@ -710,7 +714,8 @@ impl<'a> FunctionContext<'a> {
     fn gen_let(&mut self, u: &mut Unstructured) -> arbitrary::Result<Expression> {
         // Generate a type or choose an existing one.
         let max_depth = self.max_depth();
-        let typ = self.ctx.gen_type(u, max_depth, false, true)?;
+        let comptime_friendly = self.is_comptime_friendly();
+        let typ = self.ctx.gen_type(u, max_depth, false, false, true, comptime_friendly)?;
         let expr = self.gen_expr(u, &typ, max_depth, Flags::TOP)?;
         let mutable = bool::arbitrary(u)?;
         Ok(self.let_var(mutable, typ, expr, true))

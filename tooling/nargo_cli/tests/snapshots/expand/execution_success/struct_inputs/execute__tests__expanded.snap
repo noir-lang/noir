@@ -3,17 +3,17 @@ source: tooling/nargo_cli/tests/execute.rs
 expression: expanded_code
 ---
 mod foo {
-    mod bar {
+    pub(crate) mod bar {
         global N: Field = 2;
 
-        struct barStruct {
+        pub(crate) struct barStruct {
             val: Field,
             array: [Field; 2],
             message: str<5>,
         }
     }
 
-    struct fooStruct {
+    pub(crate) struct fooStruct {
         bar_struct: bar::barStruct,
         baz: Field,
     }

@@ -58,6 +58,10 @@ pub struct Config {
     pub avoid_negative_int_literals: bool,
     /// Avoid using large integer literals where the frontend expects 32 bits.
     pub avoid_large_int_literals: bool,
+    /// Avoid using loop control (break/continue).
+    pub avoid_loop_control: bool,
+    /// Only use comptime friendly expressions.
+    pub comptime_friendly: bool,
 }
 
 impl Default for Config {
@@ -112,6 +116,8 @@ impl Default for Config {
             avoid_err_by_zero: false,
             avoid_large_int_literals: false,
             avoid_negative_int_literals: false,
+            avoid_loop_control: false,
+            comptime_friendly: false,
         }
     }
 }
