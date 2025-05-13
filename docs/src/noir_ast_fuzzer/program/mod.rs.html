@@ -853,7 +853,7 @@
                 </span>.types
                 .iter()
                 .filter(|typ| !is_global || types::can_be_global(typ))
-                .filter(|typ| !is_main || !types::can_be_main(typ))
+                .filter(|typ| !is_main || types::can_be_main(typ))
                 .filter(|typ| types::type_depth(typ) &lt;= max_depth)
                 .filter(|typ| !is_frontend_friendly || !<span class="self">self</span>.should_avoid_literals(typ))
                 .collect::&lt;Vec&lt;<span class="kw">_</span>&gt;&gt;();
