@@ -349,7 +349,7 @@ mod tests {
     use crate::{assert_ssa_snapshot, ssa::ssa_gen::Ssa};
 
     #[test]
-    fn removes_shl() {
+    fn removes_shl_with_constant_rhs() {
         let src = "
         acir(inline) fn main f0 {
           b0(v0: u32):
@@ -369,6 +369,106 @@ mod tests {
             v5 = cast v4 as u32
             v6 = truncate v5 to 32 bits, max_bit_size: 33
             return v5
+        }
+        ");
+    }
+
+    #[test]
+    fn removes_shl_with_non_constant_rhs() {
+        let src = "
+        acir(inline) fn main f0 {
+          b0(v0: u32, v1: u8):
+            v2 = shl v0, v1
+            v3 = truncate v2 to 32 bits, max_bit_size: 33
+            return v2
+        }
+        ";
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.remove_bit_shifts();
+        assert_ssa_snapshot!(ssa, @r"
+        acir(inline) fn main f0 {
+          b0(v0: u32, v1: u8):
+            v3 = lt v1, u8 32
+            v4 = cast v3 as u32
+            v6 = call to_le_bits(v1) -> [u1; 8]
+            v8 = array_get v6, index Field 7 -> u1
+            v9 = not v8
+            v10 = cast v8 as Field
+            v11 = cast v9 as Field
+            v13 = mul Field 2, v10
+            v14 = add v11, v13
+            v16 = array_get v6, index Field 6 -> u1
+            v17 = not v16
+            v18 = cast v16 as Field
+            v19 = cast v17 as Field
+            v20 = mul v14, v14
+            v21 = mul v20, v19
+            v22 = mul v20, Field 2
+            v23 = mul v22, v18
+            v24 = add v21, v23
+            v26 = array_get v6, index Field 5 -> u1
+            v27 = not v26
+            v28 = cast v26 as Field
+            v29 = cast v27 as Field
+            v30 = mul v24, v24
+            v31 = mul v30, v29
+            v32 = mul v30, Field 2
+            v33 = mul v32, v28
+            v34 = add v31, v33
+            v36 = array_get v6, index Field 4 -> u1
+            v37 = not v36
+            v38 = cast v36 as Field
+            v39 = cast v37 as Field
+            v40 = mul v34, v34
+            v41 = mul v40, v39
+            v42 = mul v40, Field 2
+            v43 = mul v42, v38
+            v44 = add v41, v43
+            v46 = array_get v6, index Field 3 -> u1
+            v47 = not v46
+            v48 = cast v46 as Field
+            v49 = cast v47 as Field
+            v50 = mul v44, v44
+            v51 = mul v50, v49
+            v52 = mul v50, Field 2
+            v53 = mul v52, v48
+            v54 = add v51, v53
+            v55 = array_get v6, index Field 2 -> u1
+            v56 = not v55
+            v57 = cast v55 as Field
+            v58 = cast v56 as Field
+            v59 = mul v54, v54
+            v60 = mul v59, v58
+            v61 = mul v59, Field 2
+            v62 = mul v61, v57
+            v63 = add v60, v62
+            v65 = array_get v6, index Field 1 -> u1
+            v66 = not v65
+            v67 = cast v65 as Field
+            v68 = cast v66 as Field
+            v69 = mul v63, v63
+            v70 = mul v69, v68
+            v71 = mul v69, Field 2
+            v72 = mul v71, v67
+            v73 = add v70, v72
+            v75 = array_get v6, index Field 0 -> u1
+            v76 = not v75
+            v77 = cast v75 as Field
+            v78 = cast v76 as Field
+            v79 = mul v73, v73
+            v80 = mul v79, v78
+            v81 = mul v79, Field 2
+            v82 = mul v81, v77
+            v83 = add v80, v82
+            v84 = cast v83 as u32
+            v85 = unchecked_mul v4, v84
+            v86 = cast v0 as Field
+            v87 = cast v85 as Field
+            v88 = mul v86, v87
+            v89 = truncate v88 to 32 bits, max_bit_size: 254
+            v90 = cast v89 as u32
+            v91 = truncate v90 to 32 bits, max_bit_size: 33
+            return v90
         }
         ");
     }
