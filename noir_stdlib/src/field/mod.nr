@@ -195,7 +195,7 @@ impl Field {
         }
         self.__to_le_radix(radix)
     }
-    
+
     fn to_be_radix<let N: u32>(self: Self, radix: u32) -> [u8; N] {
         // Brillig does not need an immediate radix
         if !crate::runtime::is_unconstrained() {
@@ -205,7 +205,7 @@ impl Field {
         }
         self.__to_be_radix(radix)
     }
-    
+
     // `_radix` must be less than 256
     #[builtin(to_le_radix)]
     fn __to_le_radix<let N: u32>(self, radix: u32) -> [u8; N] {}
