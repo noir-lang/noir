@@ -38,7 +38,8 @@ impl Ssa {
         // Go through all the functions, and if we have an entry point, extend the set of all
         // functions which are reachable.
         for (id, function) in self.functions.iter() {
-            // XXX: `self.is_entry_point(*id)` could leave Brillig functions that nobody calls in the SSA.
+            // Not using `Ssa::is_entry_point` because it could leave Brillig functions that nobody calls in the SSA,
+            // because it considers every Brillig function as an entry point.
             let is_entry_point = function.id() == self.main_id
                 || function.runtime().is_acir() && function.runtime().is_entry_point();
 
@@ -130,7 +131,7 @@ fn used_functions(func: &Function) -> BTreeSet<FunctionId> {
 
 #[cfg(test)]
 mod tests {
-    use crate::assert_ssa_snapshot;
+    use crate::{assert_ssa_snapshot, ssa::opt::assert_normalized_ssa_equals};
 
     use super::Ssa;
 
@@ -175,5 +176,41 @@ mod tests {
             return v2
         }
         ");
+    }
+
+    #[test]
+    fn keep_stored_function() {
+        // Initial SSA from the `function_ref` integration test.
+        let src = r#"
+        acir(inline) fn main f0 {
+            b0(v0: u1):
+              v1 = allocate -> &mut function
+              store f1 at v1
+              jmpif v0 then: b1, else: b2
+            b1():
+              store f2 at v1
+              jmp b2()
+            b2():
+              v4 = load v1 -> function
+              v5 = call v4() -> [u8; 3]
+              return v5
+          }
+          acir(inline) fn foo f1 {
+            b0():
+              v2 = make_array b"foo"
+              return v2
+          }
+          acir(inline) fn bar f2 {
+            b0():
+              v3 = make_array b"bar"
+              return v3
+          }
+        "#;
+
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.remove_unreachable_functions();
+
+        // It should not remove anything.
+        assert_normalized_ssa_equals(ssa, src);
     }
 }
