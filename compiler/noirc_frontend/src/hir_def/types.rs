@@ -1268,16 +1268,18 @@ impl Type {
         match self {
             // Type::Error is allowed as usual since it indicates an error was already issued and
             // we don't need to issue further errors about this likely unresolved type
+            // TypeVariable and Generic are allowed here too as they can only result from
+            // generics being declared on the function itself, but we produce a different error in that case.
             Type::FieldElement
             | Type::Integer(_, _)
             | Type::Bool
             | Type::Unit
             | Type::Constant(_, _)
+            | Type::TypeVariable(_)
+            | Type::NamedGeneric(_)
             | Type::Error => true,
 
             Type::FmtString(_, _)
-            | Type::TypeVariable(_)
-            | Type::NamedGeneric(_)
             | Type::Function(_, _, _, _)
             | Type::Reference(..)
             | Type::Forall(_, _)
