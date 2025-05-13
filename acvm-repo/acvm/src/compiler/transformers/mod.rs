@@ -3,7 +3,7 @@ use acir::{
     circuit::{
         Circuit, ExpressionWidth, Opcode,
         brillig::{BrilligInputs, BrilligOutputs},
-        opcodes::{BlackBoxFuncCall, ConstantOrWitnessEnum, FunctionInput, MemOp},
+        opcodes::{BlackBoxFuncCall, FunctionInput, MemOp},
     },
     native_types::{Expression, Witness},
 };
@@ -382,25 +382,25 @@ where
                 self.fold_inputs(key.as_slice());
                 self.fold_many(outputs.iter());
             }
-            BlackBoxFuncCall::AND { lhs, rhs, output } => {
-                self.fold_function_input(lhs);
-                self.fold_function_input(rhs);
+            BlackBoxFuncCall::AND { lhs, rhs, output, .. } => {
+                self.fold_input(lhs);
+                self.fold_input(rhs);
                 self.fold(*output);
             }
-            BlackBoxFuncCall::XOR { lhs, rhs, output } => {
-                self.fold_function_input(lhs);
-                self.fold_function_input(rhs);
+            BlackBoxFuncCall::XOR { lhs, rhs, output, .. } => {
+                self.fold_input(lhs);
+                self.fold_input(rhs);
                 self.fold(*output);
             }
-            BlackBoxFuncCall::RANGE { input } => {
-                self.fold_function_input(input);
+            BlackBoxFuncCall::RANGE { input, .. } => {
+                self.fold_input(input);
             }
             BlackBoxFuncCall::Blake2s { inputs, outputs } => {
-                self.fold_function_inputs(inputs.as_slice());
+                self.fold_inputs(inputs.as_slice());
                 self.fold_many(outputs.iter());
             }
             BlackBoxFuncCall::Blake3 { inputs, outputs } => {
-                self.fold_function_inputs(inputs.as_slice());
+                self.fold_inputs(inputs.as_slice());
                 self.fold_many(outputs.iter());
             }
             BlackBoxFuncCall::EcdsaSecp256k1 {
@@ -483,24 +483,14 @@ where
         }
     }
 
-    fn fold_function_input<F: AcirField>(&mut self, input: &FunctionInput<F>) {
-        self.fold_input(&input.input());
-    }
-
-    fn fold_function_inputs<F: AcirField>(&mut self, inputs: &[FunctionInput<F>]) {
-        for input in inputs {
-            self.fold_function_input(input);
-        }
-    }
-
-    fn fold_inputs<F: AcirField>(&mut self, inputs: &[ConstantOrWitnessEnum<F>]) {
+    fn fold_inputs<F: AcirField>(&mut self, inputs: &[FunctionInput<F>]) {
         for input in inputs {
             self.fold_input(input);
         }
     }
 
-    fn fold_input<F: AcirField>(&mut self, input: &ConstantOrWitnessEnum<F>) {
-        if let ConstantOrWitnessEnum::Witness(witness) = input {
+    fn fold_input<F: AcirField>(&mut self, input: &FunctionInput<F>) {
+        if let FunctionInput::Witness(witness) = input {
             self.fold(*witness);
         }
     }

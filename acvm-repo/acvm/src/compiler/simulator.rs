@@ -3,7 +3,7 @@ use acir::{
     circuit::{
         Circuit, Opcode,
         brillig::{BrilligInputs, BrilligOutputs},
-        opcodes::{BlockId, ConstantOrWitnessEnum},
+        opcodes::{BlockId, FunctionInput},
     },
     native_types::{Expression, Witness},
 };
@@ -147,8 +147,8 @@ impl CircuitSimulator {
         self.solvable_witness.insert(witness);
     }
 
-    pub fn can_solve_function_input<F: AcirField>(&self, input: &ConstantOrWitnessEnum<F>) -> bool {
-        if let ConstantOrWitnessEnum::Witness(w) = input {
+    pub fn can_solve_function_input<F: AcirField>(&self, input: &FunctionInput<F>) -> bool {
+        if let FunctionInput::Witness(w) = input {
             return self.solvable_witness.contains(w);
         }
         true

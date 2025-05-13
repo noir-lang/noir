@@ -1,0 +1,12 @@
+{"run_id":"1747134277-653479813","line":249,"new":{"module_name":"acir__circuit__opcodes__tests","snapshot_name":"range_display_snapshot","metadata":{"source":"acvm-repo/acir/src/circuit/opcodes.rs","assertion_line":249,"expression":"range.to_string()"},"snapshot":"BLACKBOX::RANGE [0] []"},"old":{"module_name":"acir__circuit__opcodes__tests","metadata":{},"snapshot":"BLACKBOX::RANGE [(_0, 32)] []"}}
+{"run_id":"1747134277-653479813","line":236,"new":{"module_name":"acir__circuit__opcodes__tests","snapshot_name":"blackbox_snapshot","metadata":{"source":"acvm-repo/acir/src/circuit/opcodes.rs","assertion_line":236,"expression":"xor.to_string()"},"snapshot":"BLACKBOX::XOR [0, 1] [_3]"},"old":{"module_name":"acir__circuit__opcodes__tests","metadata":{},"snapshot":"BLACKBOX::XOR [(_0, 32), (_1, 32)] [_3]"}}
+{"run_id":"1747134667-548126910","line":249,"new":{"module_name":"acir__circuit__opcodes__tests","snapshot_name":"range_display_snapshot","metadata":{"source":"acvm-repo/acir/src/circuit/opcodes.rs","assertion_line":249,"expression":"range.to_string()"},"snapshot":"BLACKBOX::RANGE [0],32 bits []"},"old":{"module_name":"acir__circuit__opcodes__tests","metadata":{},"snapshot":"BLACKBOX::RANGE [(_0, 32)] []"}}
+{"run_id":"1747134954-855905665","line":221,"new":null,"old":null}
+{"run_id":"1747134954-855905665","line":236,"new":{"module_name":"acir__circuit__opcodes__tests","snapshot_name":"blackbox_snapshot","metadata":{"source":"acvm-repo/acir/src/circuit/opcodes.rs","assertion_line":236,"expression":"xor.to_string()"},"snapshot":"BLACKBOX::XOR [0, 1]:32 bits [_3]"},"old":{"module_name":"acir__circuit__opcodes__tests","metadata":{},"snapshot":"BLACKBOX::XOR [(_0, 32), (_1, 32)] [_3]"}}
+{"run_id":"1747134954-855905665","line":249,"new":{"module_name":"acir__circuit__opcodes__tests","snapshot_name":"range_display_snapshot","metadata":{"source":"acvm-repo/acir/src/circuit/opcodes.rs","assertion_line":249,"expression":"range.to_string()"},"snapshot":"BLACKBOX::RANGE [0]:32 bits []"},"old":{"module_name":"acir__circuit__opcodes__tests","metadata":{},"snapshot":"BLACKBOX::RANGE [_0]:32 bits []"}}
+{"run_id":"1747135092-356512288","line":249,"new":null,"old":null}
+{"run_id":"1747135151-620360528","line":236,"new":null,"old":null}
+{"run_id":"1747135165-255617992","line":221,"new":null,"old":null}
+{"run_id":"1747135174-179602660","line":221,"new":null,"old":null}
+{"run_id":"1747135174-179602660","line":236,"new":null,"old":null}
+{"run_id":"1747135174-179602660","line":249,"new":null,"old":null}

@@ -1,6 +1,6 @@
 use acir::{
     AcirField,
-    circuit::opcodes::{BlackBoxFuncCall, ConstantOrWitnessEnum},
+    circuit::opcodes::{BlackBoxFuncCall, FunctionInput},
     native_types::{Witness, WitnessMap},
 };
 use acvm_blackbox_solver::{blake2s, blake3, keccakf1600};
@@ -34,10 +34,10 @@ use signature::ecdsa::{secp256k1_prehashed, secp256r1_prehashed};
 /// Returns the first missing assignment if any are missing
 fn first_missing_assignment<F>(
     witness_assignments: &WitnessMap<F>,
-    inputs: &[ConstantOrWitnessEnum<F>],
+    inputs: &[FunctionInput<F>],
 ) -> Option<Witness> {
     inputs.iter().find_map(|input| {
-        if let ConstantOrWitnessEnum::Witness(witness) = input {
+        if let FunctionInput::Witness(witness) = input {
             if witness_assignments.contains_key(witness) { None } else { Some(*witness) }
         } else {
             None
@@ -48,7 +48,7 @@ fn first_missing_assignment<F>(
 /// Check if all of the inputs to the function have assignments
 fn contains_all_inputs<F>(
     witness_assignments: &WitnessMap<F>,
-    inputs: &[ConstantOrWitnessEnum<F>],
+    inputs: &[FunctionInput<F>],
 ) -> bool {
     first_missing_assignment(witness_assignments, inputs).is_none()
 }
@@ -85,23 +85,20 @@ pub(crate) fn solve<F: AcirField>(
         BlackBoxFuncCall::AES128Encrypt { inputs, iv, key, outputs } => {
             solve_aes128_encryption_opcode(initial_witness, inputs, iv, key, outputs)
         }
-        BlackBoxFuncCall::AND { lhs, rhs, output } => {
-            and(initial_witness, lhs, rhs, output, backend.pedantic_solving())
+        BlackBoxFuncCall::AND { lhs, rhs, num_bits, output } => {
+            and(initial_witness, lhs, rhs, *num_bits, output, backend.pedantic_solving())
         }
-        BlackBoxFuncCall::XOR { lhs, rhs, output } => {
-            xor(initial_witness, lhs, rhs, output, backend.pedantic_solving())
+        BlackBoxFuncCall::XOR { lhs, rhs, num_bits, output } => {
+            xor(initial_witness, lhs, rhs, *num_bits, output, backend.pedantic_solving())
         }
-        BlackBoxFuncCall::RANGE { input } => {
-            solve_range_opcode(initial_witness, input, backend.pedantic_solving())
+        BlackBoxFuncCall::RANGE { input, num_bits } => {
+            solve_range_opcode(initial_witness, input, *num_bits)
         }
         BlackBoxFuncCall::Blake2s { outputs, .. } => {
             let inputs = bb_func.get_inputs_vec();
             solve_generic_256_hash_opcode(initial_witness, &inputs, None, outputs, blake2s)
         }
-        BlackBoxFuncCall::Blake3 { inputs, outputs } => {
-            for input in inputs.iter() {
-                assert!(input.num_bits() == 8);
-            }
+        BlackBoxFuncCall::Blake3 { outputs, .. } => {
             let inputs = bb_func.get_inputs_vec();
             solve_generic_256_hash_opcode(initial_witness, &inputs, None, outputs, blake3)
         }

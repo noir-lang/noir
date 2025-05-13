@@ -1,22 +1,28 @@
 use crate::{
     OpcodeResolutionError,
-    pwg::{ErrorLocation, function_input_to_value},
+    pwg::{ErrorLocation, input_to_value},
 };
-use acir::{AcirField, circuit::opcodes::FunctionInput, native_types::WitnessMap};
+use acir::{
+    AcirField, InvalidInputBitSize, circuit::opcodes::FunctionInput, native_types::WitnessMap,
+};
 
 pub(crate) fn solve_range_opcode<F: AcirField>(
     initial_witness: &WitnessMap<F>,
     input: &FunctionInput<F>,
-    pedantic_solving: bool,
+    num_bits: u32,
 ) -> Result<(), OpcodeResolutionError<F>> {
-    // TODO(https://github.com/noir-lang/noir/issues/5985):
-    // re-enable bitsize checks by default
-    let skip_bitsize_checks = !pedantic_solving;
-    let w_value = function_input_to_value(initial_witness, *input, skip_bitsize_checks)?;
-    if w_value.num_bits() > input.num_bits() {
-        return Err(OpcodeResolutionError::UnsatisfiedConstrain {
+    let w_value = input_to_value(initial_witness, *input)?;
+
+    if w_value.num_bits() > num_bits {
+        let value_num_bits = w_value.num_bits();
+        let value = w_value.to_string();
+        return Err(OpcodeResolutionError::InvalidInputBitSize {
             opcode_location: ErrorLocation::Unresolved,
-            payload: None,
+            invalid_input_bit_size: InvalidInputBitSize {
+                value,
+                value_num_bits,
+                max_bits: num_bits,
+            },
         });
     }
     Ok(())

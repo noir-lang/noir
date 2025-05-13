@@ -15,7 +15,7 @@ use acir::{
     circuit::{
         Circuit, Opcode, Program, PublicInputs,
         brillig::{BrilligBytecode, BrilligFunctionId, BrilligInputs, BrilligOutputs},
-        opcodes::{AcirFunctionId, BlackBoxFuncCall, BlockId, ConstantOrWitnessEnum, MemOp},
+        opcodes::{AcirFunctionId, BlackBoxFuncCall, BlockId, FunctionInput, MemOp},
     },
     native_types::{Expression, Witness},
 };
@@ -67,14 +67,11 @@ fn multi_scalar_mul_circuit() {
     let multi_scalar_mul: Opcode<FieldElement> =
         Opcode::BlackBoxFuncCall(BlackBoxFuncCall::MultiScalarMul {
             points: vec![
-                ConstantOrWitnessEnum::Witness(Witness(1)),
-                ConstantOrWitnessEnum::Witness(Witness(2)),
-                ConstantOrWitnessEnum::Witness(Witness(3)),
+                FunctionInput::Witness(Witness(1)),
+                FunctionInput::Witness(Witness(2)),
+                FunctionInput::Witness(Witness(3)),
             ],
-            scalars: vec![
-                ConstantOrWitnessEnum::Witness(Witness(4)),
-                ConstantOrWitnessEnum::Witness(Witness(5)),
-            ],
+            scalars: vec![FunctionInput::Witness(Witness(4)), FunctionInput::Witness(Witness(5))],
             outputs: (Witness(6), Witness(7), Witness(8)),
         });
 

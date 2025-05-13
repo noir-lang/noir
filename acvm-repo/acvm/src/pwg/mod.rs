@@ -8,9 +8,7 @@ use acir::{
     circuit::{
         AssertionPayload, ErrorSelector, ExpressionOrMemory, Opcode, OpcodeLocation,
         brillig::{BrilligBytecode, BrilligFunctionId},
-        opcodes::{
-            AcirFunctionId, BlockId, ConstantOrWitnessEnum, FunctionInput, InvalidInputBitSize,
-        },
+        opcodes::{AcirFunctionId, BlockId, FunctionInput, InvalidInputBitSize},
     },
     native_types::{Expression, Witness, WitnessMap},
 };
@@ -751,34 +749,32 @@ pub fn witness_to_value<F>(
 // remove skip_bitsize_checks
 pub fn input_to_value<F: AcirField>(
     initial_witness: &WitnessMap<F>,
-    input: ConstantOrWitnessEnum<F>,
+    input: FunctionInput<F>,
 ) -> Result<F, OpcodeResolutionError<F>> {
     match input {
-        ConstantOrWitnessEnum::Witness(witness) => {
+        FunctionInput::Witness(witness) => {
             let initial_value = *witness_to_value(initial_witness, witness)?;
             Ok(initial_value)
         }
-        ConstantOrWitnessEnum::Constant(value) => Ok(value),
+        FunctionInput::Constant(value) => Ok(value),
     }
 }
 
-pub fn function_input_to_value<F: AcirField>(
-    initial_witness: &WitnessMap<F>,
-    input: FunctionInput<F>,
-    skip_bitsize_checks: bool,
-) -> Result<F, OpcodeResolutionError<F>> {
-    let value = input_to_value(initial_witness, input.input())?;
-    if skip_bitsize_checks || value.num_bits() <= input.num_bits() {
-        Ok(value)
+pub fn check_bit_size<F: AcirField>(
+    value: F,
+    num_bits: u32,
+) -> Result<(), OpcodeResolutionError<F>> {
+    if value.num_bits() <= num_bits {
+        Ok(())
     } else {
-        let value_num_bits = input.num_bits();
+        let value_num_bits = value.num_bits();
         let value = value.to_string();
         Err(OpcodeResolutionError::InvalidInputBitSize {
             opcode_location: ErrorLocation::Unresolved,
             invalid_input_bit_size: InvalidInputBitSize {
                 value,
                 value_num_bits,
-                max_bits: input.num_bits(),
+                max_bits: num_bits,
             },
         })
     }

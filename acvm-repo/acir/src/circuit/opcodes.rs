@@ -13,9 +13,7 @@ use serde::{Deserialize, Serialize};
 mod black_box_function_call;
 mod memory_operation;
 
-pub use black_box_function_call::{
-    BlackBoxFuncCall, ConstantOrWitnessEnum, FunctionInput, InvalidInputBitSize,
-};
+pub use black_box_function_call::{BlackBoxFuncCall, FunctionInput, InvalidInputBitSize};
 pub use memory_operation::{BlockId, MemOp};
 
 /// Type for a memory block
@@ -229,26 +227,28 @@ mod tests {
     #[test]
     fn blackbox_snapshot() {
         let xor: Opcode<FieldElement> = Opcode::BlackBoxFuncCall(BlackBoxFuncCall::XOR {
-            lhs: FunctionInput::witness(0.into(), 32),
-            rhs: FunctionInput::witness(1.into(), 32),
+            lhs: FunctionInput::Witness(0.into()),
+            rhs: FunctionInput::Witness(1.into()),
+            num_bits: 32,
             output: Witness(3),
         });
 
         insta::assert_snapshot!(
             xor.to_string(),
-            @"BLACKBOX::XOR [(_0, 32), (_1, 32)] [_3]"
+            @"BLACKBOX::XOR [_0, _1]:32 bits [_3]"
         );
     }
 
     #[test]
     fn range_display_snapshot() {
         let range: Opcode<FieldElement> = Opcode::BlackBoxFuncCall(BlackBoxFuncCall::RANGE {
-            input: FunctionInput::witness(0.into(), 32),
+            input: FunctionInput::Witness(0.into()),
+            num_bits: 32,
         });
 
         insta::assert_snapshot!(
             range.to_string(),
-            @"BLACKBOX::RANGE [(_0, 32)] []"
+            @"BLACKBOX::RANGE [_0]:32 bits []"
         );
     }
 }

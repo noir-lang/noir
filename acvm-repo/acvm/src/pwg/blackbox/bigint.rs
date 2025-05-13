@@ -1,7 +1,7 @@
 use crate::pwg::input_to_value;
 use acir::{
     AcirField, BlackBoxFunc,
-    circuit::opcodes::ConstantOrWitnessEnum,
+    circuit::opcodes::FunctionInput,
     native_types::{Witness, WitnessMap},
 };
 use acvm_blackbox_solver::BigIntSolver;
@@ -24,7 +24,7 @@ impl AcvmBigIntSolver {
 
     pub(crate) fn bigint_from_bytes<F: AcirField>(
         &mut self,
-        inputs: &[ConstantOrWitnessEnum<F>],
+        inputs: &[FunctionInput<F>],
         modulus: &[u8],
         output: u32,
         initial_witness: &mut WitnessMap<F>,

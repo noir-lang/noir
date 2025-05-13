@@ -1,6 +1,6 @@
 use acir::{
     AcirField,
-    circuit::opcodes::ConstantOrWitnessEnum,
+    circuit::opcodes::FunctionInput,
     native_types::{Witness, WitnessMap},
 };
 use acvm_blackbox_solver::BlackBoxFunctionSolver;
@@ -10,8 +10,8 @@ use crate::pwg::{OpcodeResolutionError, input_to_value, insert_value};
 pub(super) fn multi_scalar_mul<F: AcirField>(
     backend: &impl BlackBoxFunctionSolver<F>,
     initial_witness: &mut WitnessMap<F>,
-    points: &[ConstantOrWitnessEnum<F>],
-    scalars: &[ConstantOrWitnessEnum<F>],
+    points: &[FunctionInput<F>],
+    scalars: &[FunctionInput<F>],
     outputs: (Witness, Witness, Witness),
 ) -> Result<(), OpcodeResolutionError<F>> {
     let points: Result<Vec<_>, _> =
@@ -43,8 +43,8 @@ pub(super) fn multi_scalar_mul<F: AcirField>(
 pub(super) fn embedded_curve_add<F: AcirField>(
     backend: &impl BlackBoxFunctionSolver<F>,
     initial_witness: &mut WitnessMap<F>,
-    input1: [ConstantOrWitnessEnum<F>; 3],
-    input2: [ConstantOrWitnessEnum<F>; 3],
+    input1: [FunctionInput<F>; 3],
+    input2: [FunctionInput<F>; 3],
     outputs: (Witness, Witness, Witness),
 ) -> Result<(), OpcodeResolutionError<F>> {
     let input1_x = input_to_value(initial_witness, input1[0])?;

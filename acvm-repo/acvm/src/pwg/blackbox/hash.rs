@@ -1,6 +1,6 @@
 use acir::{
     AcirField,
-    circuit::opcodes::ConstantOrWitnessEnum,
+    circuit::opcodes::FunctionInput,
     native_types::{Witness, WitnessMap},
 };
 use acvm_blackbox_solver::{BlackBoxFunctionSolver, BlackBoxResolutionError, sha256_compression};
@@ -13,8 +13,8 @@ use crate::pwg::{input_to_value, insert_value};
 pub(super) fn solve_generic_256_hash_opcode<F: AcirField>(
     initial_witness: &mut WitnessMap<F>,
     #[allow(clippy::ptr_arg)] //Clippy mistakenly believes that it can be replaced by &[..]
-    inputs: &Vec<ConstantOrWitnessEnum<F>>,
-    var_message_size: Option<&ConstantOrWitnessEnum<F>>,
+    inputs: &Vec<FunctionInput<F>>,
+    var_message_size: Option<&FunctionInput<F>>,
     outputs: &[Witness; 32],
     hash_function: fn(data: &[u8]) -> Result<[u8; 32], BlackBoxResolutionError>,
 ) -> Result<(), OpcodeResolutionError<F>> {
@@ -27,8 +27,8 @@ pub(super) fn solve_generic_256_hash_opcode<F: AcirField>(
 /// Reads the hash function input from a [`WitnessMap`].
 fn get_hash_input<F: AcirField>(
     initial_witness: &WitnessMap<F>,
-    inputs: &[ConstantOrWitnessEnum<F>],
-    message_size: Option<&ConstantOrWitnessEnum<F>>,
+    inputs: &[FunctionInput<F>],
+    message_size: Option<&FunctionInput<F>>,
     num_bits: usize,
 ) -> Result<Vec<u8>, OpcodeResolutionError<F>> {
     // Read witness assignments.
@@ -78,7 +78,7 @@ fn write_digest_to_outputs<F: AcirField>(
 
 fn to_u32_array<const N: usize, F: AcirField>(
     initial_witness: &WitnessMap<F>,
-    inputs: &[ConstantOrWitnessEnum<F>; N],
+    inputs: &[FunctionInput<F>; N],
 ) -> Result<[u32; N], OpcodeResolutionError<F>> {
     let mut result = [0; N];
     for (it, input) in result.iter_mut().zip(inputs) {
@@ -90,8 +90,8 @@ fn to_u32_array<const N: usize, F: AcirField>(
 
 pub(crate) fn solve_sha_256_permutation_opcode<F: AcirField>(
     initial_witness: &mut WitnessMap<F>,
-    inputs: &[ConstantOrWitnessEnum<F>; 16],
-    hash_values: &[ConstantOrWitnessEnum<F>; 8],
+    inputs: &[FunctionInput<F>; 16],
+    hash_values: &[FunctionInput<F>; 8],
     outputs: &[Witness; 8],
 ) -> Result<(), OpcodeResolutionError<F>> {
     let message = to_u32_array(initial_witness, inputs)?;
@@ -109,7 +109,7 @@ pub(crate) fn solve_sha_256_permutation_opcode<F: AcirField>(
 pub(crate) fn solve_poseidon2_permutation_opcode<F: AcirField>(
     backend: &impl BlackBoxFunctionSolver<F>,
     initial_witness: &mut WitnessMap<F>,
-    inputs: &[ConstantOrWitnessEnum<F>],
+    inputs: &[FunctionInput<F>],
     outputs: &[Witness],
     len: u32,
 ) -> Result<(), OpcodeResolutionError<F>> {

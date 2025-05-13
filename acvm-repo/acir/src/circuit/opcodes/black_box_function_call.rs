@@ -5,8 +5,8 @@
 
 use std::collections::BTreeSet;
 
+use crate::BlackBoxFunc;
 use crate::native_types::Witness;
-use crate::{AcirField, BlackBoxFunc};
 
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use thiserror::Error;
@@ -14,63 +14,39 @@ use thiserror::Error;
 /// Enumeration for black box function inputs
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, Hash)]
 #[cfg_attr(feature = "arb", derive(proptest_derive::Arbitrary))]
-pub enum ConstantOrWitnessEnum<F> {
+pub enum FunctionInput<F> {
     /// A constant field element
     Constant(F),
     /// A witness element, representing dynamic inputs
     Witness(Witness),
 }
 
-impl<F: std::fmt::Display> std::fmt::Display for ConstantOrWitnessEnum<F> {
+impl<F: std::fmt::Display> std::fmt::Display for FunctionInput<F> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match &self {
-            ConstantOrWitnessEnum::Constant(constant) => {
+            FunctionInput::Constant(constant) => {
                 write!(f, "{constant}")
             }
-            ConstantOrWitnessEnum::Witness(witness) => {
-                write!(f, "{}", witness.0)
+            FunctionInput::Witness(witness) => {
+                write!(f, "_{}", witness.0)
             }
         }
     }
-}
-/// Input to a black box call
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, Hash)]
-#[cfg_attr(feature = "arb", derive(proptest_derive::Arbitrary))]
-pub struct FunctionInput<F> {
-    /// The actual input value
-    input: ConstantOrWitnessEnum<F>,
-    /// A constant representing the bit size of the input value
-    /// Some functions will not use all of the witness
-    /// So we need to supply how many bits of the witness is needed
-    num_bits: u32,
 }
 
 impl<F> FunctionInput<F> {
-    pub fn to_witness(&self) -> Witness {
-        match self.input {
-            ConstantOrWitnessEnum::Constant(_) => unreachable!("ICE - Expected Witness"),
-            ConstantOrWitnessEnum::Witness(witness) => witness,
+    pub fn is_constant(&self) -> bool {
+        match self {
+            FunctionInput::Constant(_) => true,
+            FunctionInput::Witness(_) => false,
         }
     }
 
-    pub fn input(self) -> ConstantOrWitnessEnum<F> {
-        self.input
-    }
-
-    pub fn input_ref(&self) -> &ConstantOrWitnessEnum<F> {
-        &self.input
-    }
-
-    pub fn num_bits(&self) -> u32 {
-        self.num_bits
-    }
-
-    pub fn witness(witness: Witness, num_bits: u32) -> FunctionInput<F> {
-        FunctionInput { input: ConstantOrWitnessEnum::Witness(witness), num_bits }
-    }
-
-    pub fn is_constant(&self) -> bool {
-        matches!(self.input, ConstantOrWitnessEnum::Constant(_))
+    pub fn to_witness(&self) -> Witness {
+        match self {
+            FunctionInput::Constant(_) => unreachable!("ICE - Expected Witness"),
+            FunctionInput::Witness(witness) => *witness,
+        }
     }
 }
 
@@ -80,31 +56,6 @@ pub struct InvalidInputBitSize {
     pub value: String,
     pub value_num_bits: u32,
     pub max_bits: u32,
-}
-
-impl<F: AcirField> FunctionInput<F> {
-    pub fn constant(value: F, max_bits: u32) -> Result<FunctionInput<F>, InvalidInputBitSize> {
-        if value.num_bits() <= max_bits {
-            Ok(FunctionInput { input: ConstantOrWitnessEnum::Constant(value), num_bits: max_bits })
-        } else {
-            let value_num_bits = value.num_bits();
-            let value = format!("{}", value);
-            Err(InvalidInputBitSize { value, value_num_bits, max_bits })
-        }
-    }
-}
-
-impl<F: std::fmt::Display> std::fmt::Display for FunctionInput<F> {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match &self.input {
-            ConstantOrWitnessEnum::Constant(constant) => {
-                write!(f, "({constant}, {})", self.num_bits)
-            }
-            ConstantOrWitnessEnum::Witness(witness) => {
-                write!(f, "(_{}, {})", witness.0, self.num_bits)
-            }
-        }
-    }
 }
 
 /// These opcodes represent a specialized computation.
@@ -121,9 +72,9 @@ pub enum BlackBoxFuncCall<F> {
     /// - key: user key `[u8; 16]`
     /// - outputs: byte vector `[u8]` of length `input.len() + (16 - input.len() % 16)`
     AES128Encrypt {
-        inputs: Vec<ConstantOrWitnessEnum<F>>,
-        iv: Box<[ConstantOrWitnessEnum<F>; 16]>,
-        key: Box<[ConstantOrWitnessEnum<F>; 16]>,
+        inputs: Vec<FunctionInput<F>>,
+        iv: Box<[FunctionInput<F>; 16]>,
+        key: Box<[FunctionInput<F>; 16]>,
         outputs: Vec<Witness>,
     },
     /// Performs the bitwise AND of `lhs` and `rhs`. `bit_size` must be the same for
@@ -132,18 +83,18 @@ pub enum BlackBoxFuncCall<F> {
     /// - rhs: (witness, bit_size)
     /// - output: a witness whose value is constrained to be lhs AND rhs, as
     ///   bit_size bit integers
-    AND { lhs: FunctionInput<F>, rhs: FunctionInput<F>, output: Witness },
+    AND { lhs: FunctionInput<F>, rhs: FunctionInput<F>, num_bits: u32, output: Witness },
     /// Performs the bitwise XOR of `lhs` and `rhs`. `bit_size` must be the same for
     /// both inputs.
     /// - lhs: (witness, bit_size)
     /// - rhs: (witness, bit_size)
     /// - output: a witness whose value is constrained to be lhs XOR rhs, as
     ///   bit_size bit integers
-    XOR { lhs: FunctionInput<F>, rhs: FunctionInput<F>, output: Witness },
+    XOR { lhs: FunctionInput<F>, rhs: FunctionInput<F>, num_bits: u32, output: Witness },
     /// Range constraint to ensure that a witness
     /// can be represented in the specified number of bits.
     /// - input: (witness, bit_size)
-    RANGE { input: FunctionInput<F> },
+    RANGE { input: FunctionInput<F>, num_bits: u32 },
     /// Computes the Blake2s hash of the inputs, as specified in
     /// <https://tools.ietf.org/html/rfc7693>
     /// - inputs are a byte array, i.e a vector of (witness, 8)
@@ -171,28 +122,28 @@ pub enum BlackBoxFuncCall<F> {
     ///     - the hash of the message, as a vector of bytes
     /// - output: 0 for failure and 1 for success
     EcdsaSecp256k1 {
-        public_key_x: Box<[ConstantOrWitnessEnum<F>; 32]>,
-        public_key_y: Box<[ConstantOrWitnessEnum<F>; 32]>,
+        public_key_x: Box<[FunctionInput<F>; 32]>,
+        public_key_y: Box<[FunctionInput<F>; 32]>,
         #[serde(
             serialize_with = "serialize_big_array",
             deserialize_with = "deserialize_big_array_into_box"
         )]
-        signature: Box<[ConstantOrWitnessEnum<F>; 64]>,
-        hashed_message: Box<[ConstantOrWitnessEnum<F>; 32]>,
+        signature: Box<[FunctionInput<F>; 64]>,
+        hashed_message: Box<[FunctionInput<F>; 32]>,
         output: Witness,
     },
     /// Verifies a ECDSA signature over the secp256r1 curve.
     ///
     /// Same as EcdsaSecp256k1, but done over another curve.
     EcdsaSecp256r1 {
-        public_key_x: Box<[ConstantOrWitnessEnum<F>; 32]>,
-        public_key_y: Box<[ConstantOrWitnessEnum<F>; 32]>,
+        public_key_x: Box<[FunctionInput<F>; 32]>,
+        public_key_y: Box<[FunctionInput<F>; 32]>,
         #[serde(
             serialize_with = "serialize_big_array",
             deserialize_with = "deserialize_big_array_into_box"
         )]
-        signature: Box<[ConstantOrWitnessEnum<F>; 64]>,
-        hashed_message: Box<[ConstantOrWitnessEnum<F>; 32]>,
+        signature: Box<[FunctionInput<F>; 64]>,
+        hashed_message: Box<[FunctionInput<F>; 32]>,
         output: Witness,
     },
     /// Multiple scalar multiplication (MSM) with a variable base/input point
@@ -212,8 +163,8 @@ pub enum BlackBoxFuncCall<F> {
     /// provide 2 ACIR fields representing the low and high parts of the Grumpkin
     /// scalar $a$: `a=low+high*2^{128}`, with `low, high < 2^{128}`
     MultiScalarMul {
-        points: Vec<ConstantOrWitnessEnum<F>>,
-        scalars: Vec<ConstantOrWitnessEnum<F>>,
+        points: Vec<FunctionInput<F>>,
+        scalars: Vec<FunctionInput<F>>,
         outputs: (Witness, Witness, Witness),
     },
     /// Addition over the embedded curve on which the witness is defined
@@ -226,14 +177,14 @@ pub enum BlackBoxFuncCall<F> {
     /// If not, it assumes that the points' x-coordinates are not equal.
     /// It also assumes neither point is the infinity point.
     EmbeddedCurveAdd {
-        input1: Box<[ConstantOrWitnessEnum<F>; 3]>,
-        input2: Box<[ConstantOrWitnessEnum<F>; 3]>,
+        input1: Box<[FunctionInput<F>; 3]>,
+        input2: Box<[FunctionInput<F>; 3]>,
         outputs: (Witness, Witness, Witness),
     },
     /// Keccak Permutation function of width 1600
     /// - inputs: An array of 25 64-bit Keccak lanes that represent a keccak sponge of 1600 bits
     /// - outputs: The result of a keccak f1600 permutation on the input state. Also an array of 25 Keccak lanes.
-    Keccakf1600 { inputs: Box<[ConstantOrWitnessEnum<F>; 25]>, outputs: Box<[Witness; 25]> },
+    Keccakf1600 { inputs: Box<[FunctionInput<F>; 25]>, outputs: Box<[Witness; 25]> },
     /// Computes a recursive aggregation object when verifying a proof inside
     /// another circuit.
     /// The outputted aggregation object will then be either checked in a
@@ -258,16 +209,16 @@ pub enum BlackBoxFuncCall<F> {
     /// ultimately fail.
     RecursiveAggregation {
         /// Verification key of the circuit being verified
-        verification_key: Vec<ConstantOrWitnessEnum<F>>,
-        proof: Vec<ConstantOrWitnessEnum<F>>,
+        verification_key: Vec<FunctionInput<F>>,
+        proof: Vec<FunctionInput<F>>,
         /// These represent the public inputs of the proof we are verifying
         /// They should be checked against in the circuit after construction
         /// of a new aggregation state
-        public_inputs: Vec<ConstantOrWitnessEnum<F>>,
+        public_inputs: Vec<FunctionInput<F>>,
         /// A key hash is used to check the validity of the verification key.
         /// The circuit implementing this opcode can use this hash to ensure that the
         /// key provided to the circuit matches the key produced by the circuit creator
-        key_hash: ConstantOrWitnessEnum<F>,
+        key_hash: FunctionInput<F>,
         /// Backend-specific proof type constant.
         /// The proof field is agnostic and can come from witness inputs.
         /// However, a backend may have many different verifiers which affect
@@ -285,14 +236,14 @@ pub enum BlackBoxFuncCall<F> {
     /// BigInt division
     BigIntDiv { lhs: u32, rhs: u32, output: u32 },
     /// BigInt from le bytes
-    BigIntFromLeBytes { inputs: Vec<ConstantOrWitnessEnum<F>>, modulus: Vec<u8>, output: u32 },
+    BigIntFromLeBytes { inputs: Vec<FunctionInput<F>>, modulus: Vec<u8>, output: u32 },
     /// BigInt to le bytes
     BigIntToLeBytes { input: u32, outputs: Vec<Witness> },
     /// Applies the Poseidon2 permutation function to the given state,
     /// outputting the permuted state.
     Poseidon2Permutation {
         /// Input state for the permutation of Poseidon2
-        inputs: Vec<ConstantOrWitnessEnum<F>>,
+        inputs: Vec<FunctionInput<F>>,
         /// Permuted state
         outputs: Vec<Witness>,
         /// State length (in number of field elements)
@@ -308,9 +259,9 @@ pub enum BlackBoxFuncCall<F> {
     /// * `outputs` - result of the input compressed into 256 bits
     Sha256Compression {
         /// 512 bits of the input message, represented by 16 u32s
-        inputs: Box<[ConstantOrWitnessEnum<F>; 16]>,
+        inputs: Box<[FunctionInput<F>; 16]>,
         /// Vector of 8 u32s used to compress the input
-        hash_values: Box<[ConstantOrWitnessEnum<F>; 8]>,
+        hash_values: Box<[FunctionInput<F>; 8]>,
         /// Output of the compression, represented by 8 u32s
         outputs: Box<[Witness; 8]>,
     },
@@ -344,6 +295,15 @@ impl<F> BlackBoxFuncCall<F> {
 
     pub fn name(&self) -> &str {
         self.get_black_box_func().name()
+    }
+
+    pub fn bit_size(&self) -> Option<u32> {
+        match self {
+            BlackBoxFuncCall::AND { num_bits, .. }
+            | BlackBoxFuncCall::XOR { num_bits, .. }
+            | BlackBoxFuncCall::RANGE { num_bits, .. } => Some(*num_bits),
+            _ => None,
+        }
     }
 
     pub fn get_outputs_vec(&self) -> Vec<Witness> {
@@ -381,30 +341,29 @@ impl<F> BlackBoxFuncCall<F> {
 }
 
 impl<F: Copy> BlackBoxFuncCall<F> {
-    pub fn get_inputs_vec(&self) -> Vec<ConstantOrWitnessEnum<F>> {
+    pub fn get_inputs_vec(&self) -> Vec<FunctionInput<F>> {
         match self {
             BlackBoxFuncCall::AES128Encrypt { inputs, .. }
             | BlackBoxFuncCall::BigIntFromLeBytes { inputs, .. }
-            | BlackBoxFuncCall::Poseidon2Permutation { inputs, .. } => inputs.to_vec(),
-            BlackBoxFuncCall::Blake2s { inputs, .. } | BlackBoxFuncCall::Blake3 { inputs, .. } => {
-                inputs.iter().map(|i| i.input()).collect()
-            }
-            BlackBoxFuncCall::Keccakf1600 { inputs, .. } => inputs.to_vec(),
+            | BlackBoxFuncCall::Poseidon2Permutation { inputs, .. }
+            | BlackBoxFuncCall::Blake2s { inputs, .. }
+            | BlackBoxFuncCall::Blake3 { inputs, .. } => inputs.clone(),
+            BlackBoxFuncCall::Keccakf1600 { inputs, .. } => (*inputs).to_vec(),
 
             BlackBoxFuncCall::Sha256Compression { inputs, hash_values, .. } => {
                 inputs.iter().chain(hash_values.as_ref()).copied().collect()
             }
             BlackBoxFuncCall::AND { lhs, rhs, .. } | BlackBoxFuncCall::XOR { lhs, rhs, .. } => {
-                vec![lhs.input(), rhs.input()]
+                vec![*lhs, *rhs]
             }
-            BlackBoxFuncCall::RANGE { input } => vec![input.input()],
+            BlackBoxFuncCall::RANGE { input, .. } => vec![*input],
             BlackBoxFuncCall::BigIntAdd { .. }
             | BlackBoxFuncCall::BigIntSub { .. }
             | BlackBoxFuncCall::BigIntMul { .. }
             | BlackBoxFuncCall::BigIntDiv { .. }
             | BlackBoxFuncCall::BigIntToLeBytes { .. } => Vec::new(),
             BlackBoxFuncCall::MultiScalarMul { points, scalars, .. } => {
-                let mut inputs: Vec<ConstantOrWitnessEnum<F>> =
+                let mut inputs: Vec<FunctionInput<F>> =
                     Vec::with_capacity(points.len() + scalars.len());
                 inputs.extend(points.iter().copied());
                 inputs.extend(scalars.iter().copied());
@@ -471,7 +430,7 @@ impl<F: Copy> BlackBoxFuncCall<F> {
     pub fn get_input_witnesses(&self) -> BTreeSet<Witness> {
         let mut result = BTreeSet::new();
         for input in self.get_inputs_vec() {
-            if let ConstantOrWitnessEnum::Witness(w) = input {
+            if let FunctionInput::Witness(w) = input {
                 result.insert(w);
             }
         }
@@ -493,7 +452,9 @@ impl<F: std::fmt::Display + Copy> std::fmt::Display for BlackBoxFuncCall<F> {
             .join(", ");
 
         write!(f, "[{inputs_str}]")?;
-
+        if let Some(bit_size) = self.bit_size() {
+            write!(f, ":{bit_size} bits")?;
+        }
         write!(f, " ")?;
 
         // OUTPUTS
@@ -516,7 +477,7 @@ impl<F: std::fmt::Display + Copy> std::fmt::Debug for BlackBoxFuncCall<F> {
 }
 
 fn serialize_big_array<S, F: Serialize>(
-    big_array: &[ConstantOrWitnessEnum<F>; 64],
+    big_array: &[FunctionInput<F>; 64],
     s: S,
 ) -> Result<S::Ok, S::Error>
 where
@@ -529,13 +490,13 @@ where
 
 fn deserialize_big_array_into_box<'de, D, F: Deserialize<'de>>(
     deserializer: D,
-) -> Result<Box<[ConstantOrWitnessEnum<F>; 64]>, D::Error>
+) -> Result<Box<[FunctionInput<F>; 64]>, D::Error>
 where
     D: Deserializer<'de>,
 {
     use serde_big_array::BigArray;
 
-    let big_array: [ConstantOrWitnessEnum<F>; 64] = BigArray::deserialize(deserializer)?;
+    let big_array: [FunctionInput<F>; 64] = BigArray::deserialize(deserializer)?;
     Ok(Box::new(big_array))
 }
 
@@ -545,12 +506,11 @@ mod tests {
     use crate::{circuit::Opcode, native_types::Witness};
     use acir_field::{AcirField, FieldElement};
 
-    use super::{BlackBoxFuncCall, ConstantOrWitnessEnum};
+    use super::{BlackBoxFuncCall, FunctionInput};
 
     fn keccakf1600_opcode<F: AcirField>() -> Opcode<F> {
-        let inputs: Box<[ConstantOrWitnessEnum<F>; 25]> = Box::new(std::array::from_fn(|i| {
-            ConstantOrWitnessEnum::Witness(Witness(i as u32 + 1))
-        }));
+        let inputs: Box<[FunctionInput<F>; 25]> =
+            Box::new(std::array::from_fn(|i| FunctionInput::Witness(Witness(i as u32 + 1))));
         let outputs: Box<[Witness; 25]> = Box::new(std::array::from_fn(|i| Witness(i as u32 + 26)));
 
         Opcode::BlackBoxFuncCall(BlackBoxFuncCall::Keccakf1600 { inputs, outputs })
@@ -572,7 +532,7 @@ mod arb {
 
     use crate::native_types::Witness;
 
-    use super::{BlackBoxFuncCall, ConstantOrWitnessEnum, FunctionInput};
+    use super::{BlackBoxFuncCall, FunctionInput};
 
     // Implementing this separately because trying to derive leads to stack overflow.
     impl<F> Arbitrary for BlackBoxFuncCall<F>
@@ -583,16 +543,14 @@ mod arb {
         type Strategy = BoxedStrategy<Self>;
 
         fn arbitrary_with(_args: Self::Parameters) -> Self::Strategy {
-            let input = any::<ConstantOrWitnessEnum<F>>();
-            let function_input = any::<FunctionInput<F>>();
-            let input_vec = any::<Vec<ConstantOrWitnessEnum<F>>>();
-            let function_inputs = any::<Vec<FunctionInput<F>>>();
-            let input_arr_3 = any::<Box<[ConstantOrWitnessEnum<F>; 3]>>();
-            let input_arr_8 = any::<Box<[ConstantOrWitnessEnum<F>; 8]>>();
-            let input_arr_16 = any::<Box<[ConstantOrWitnessEnum<F>; 16]>>();
-            let input_arr_25 = any::<Box<[ConstantOrWitnessEnum<F>; 25]>>();
-            let input_arr_32 = any::<Box<[ConstantOrWitnessEnum<F>; 32]>>();
-            let input_arr_64 = any::<Box<[ConstantOrWitnessEnum<F>; 64]>>();
+            let input = any::<FunctionInput<F>>();
+            let input_vec = any::<Vec<FunctionInput<F>>>();
+            let input_arr_3 = any::<Box<[FunctionInput<F>; 3]>>();
+            let input_arr_8 = any::<Box<[FunctionInput<F>; 8]>>();
+            let input_arr_16 = any::<Box<[FunctionInput<F>; 16]>>();
+            let input_arr_25 = any::<Box<[FunctionInput<F>; 25]>>();
+            let input_arr_32 = any::<Box<[FunctionInput<F>; 32]>>();
+            let input_arr_64 = any::<Box<[FunctionInput<F>; 64]>>();
             let witness = any::<Witness>();
             let witness_vec = any::<Vec<Witness>>();
             let witness_arr_8 = any::<Box<[Witness; 8]>>();
@@ -609,20 +567,38 @@ mod arb {
                     BlackBoxFuncCall::AES128Encrypt { inputs, iv, key, outputs }
                 });
 
-            let case_and = (function_input.clone(), function_input.clone(), witness.clone())
-                .prop_map(|(lhs, rhs, output)| BlackBoxFuncCall::AND { lhs, rhs, output });
+            let case_and = (input_arr_3.clone(), input_arr_8.clone(), witness.clone()).prop_map(
+                |(lhs, rhs, output)| BlackBoxFuncCall::AND {
+                    lhs: lhs[0],
+                    rhs: rhs[1],
+                    num_bits: 8,
+                    output,
+                },
+            );
 
-            let case_xor = (function_input.clone(), function_input.clone(), witness.clone())
-                .prop_map(|(lhs, rhs, output)| BlackBoxFuncCall::XOR { lhs, rhs, output });
+            let case_xor = (input_arr_3.clone(), input_arr_8.clone(), witness.clone()).prop_map(
+                |(lhs, rhs, output)| BlackBoxFuncCall::XOR {
+                    lhs: lhs[0],
+                    rhs: rhs[1],
+                    num_bits: 8,
+                    output,
+                },
+            );
 
-            let case_range =
-                function_input.clone().prop_map(|input| BlackBoxFuncCall::RANGE { input });
+            let case_range = witness.clone().prop_map(|witness| BlackBoxFuncCall::RANGE {
+                input: FunctionInput::Witness(witness),
+                num_bits: 32,
+            });
 
-            let case_blake2s = (function_inputs.clone(), witness_arr_32.clone())
-                .prop_map(|(inputs, outputs)| BlackBoxFuncCall::Blake2s { inputs, outputs });
+            let case_blake2s =
+                (input_arr_8.clone(), witness_arr_32.clone()).prop_map(|(inputs, outputs)| {
+                    BlackBoxFuncCall::Blake2s { inputs: inputs.to_vec(), outputs }
+                });
 
-            let case_blake3 = (function_inputs.clone(), witness_arr_32.clone())
-                .prop_map(|(inputs, outputs)| BlackBoxFuncCall::Blake3 { inputs, outputs });
+            let case_blake3 =
+                (input_arr_8.clone(), witness_arr_32.clone()).prop_map(|(inputs, outputs)| {
+                    BlackBoxFuncCall::Blake3 { inputs: inputs.to_vec(), outputs }
+                });
 
             let case_ecdsa_secp256k1 = (
                 input_arr_32.clone(),
