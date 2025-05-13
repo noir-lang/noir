@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1747136032335,
+  "lastUpdate": 1747138748541,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -17931,48 +17931,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "15848336+TomAFrench@users.noreply.github.com",
-            "name": "Tom French",
-            "username": "TomAFrench"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "04b0ee716ab4413619f86cf7ac6ce3a2fca688f4",
-          "message": "chore: avoid need to rebuild after running tests (#8379)\n\nCo-authored-by: AztecBot <tech@aztecprotocol.com>",
-          "timestamp": "2025-05-06T18:35:50Z",
-          "tree_id": "38ab23e05d890c05ff35e09bee0e74ce2a1fc93d",
-          "url": "https://github.com/noir-lang/noir/commit/04b0ee716ab4413619f86cf7ac6ce3a2fca688f4"
-        },
-        "date": 1746557678416,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 257139,
-            "range": "± 916",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 229999,
-            "range": "± 12560",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 3219162,
-            "range": "± 10189",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "asterite@gmail.com",
             "name": "Ary Borenszweig",
             "username": "asterite"
@@ -20024,6 +19982,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 3600978,
             "range": "± 9206",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "15848336+TomAFrench@users.noreply.github.com",
+            "name": "Tom French",
+            "username": "TomAFrench"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "9366563418b5dd6980533a36dc440c50c184f0f0",
+          "message": "chore: add depth 10 semaphore circuit to benchmarks (#8480)\n\nCo-authored-by: AztecBot <tech@aztecprotocol.com>",
+          "timestamp": "2025-05-13T11:54:13Z",
+          "tree_id": "077ead0dcfa7659110feaddab63bd1546ee78ff7",
+          "url": "https://github.com/noir-lang/noir/commit/9366563418b5dd6980533a36dc440c50c184f0f0"
+        },
+        "date": 1747138739673,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 285177,
+            "range": "± 3167",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 252405,
+            "range": "± 10085",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 3615178,
+            "range": "± 23078",
             "unit": "ns/iter"
           }
         ]
