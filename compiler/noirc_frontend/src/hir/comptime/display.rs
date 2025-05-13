@@ -952,21 +952,25 @@ fn remove_interned_in_generic_type_args(
 fn remove_interned_in_pattern(interner: &NodeInterner, pattern: Pattern) -> Pattern {
     match pattern {
         Pattern::Identifier(_) => pattern,
-        Pattern::Mutable(pattern, span, is_synthesized) => Pattern::Mutable(
+        Pattern::Mutable(pattern, location, is_synthesized) => Pattern::Mutable(
             Box::new(remove_interned_in_pattern(interner, *pattern)),
-            span,
+            location,
             is_synthesized,
         ),
-        Pattern::Tuple(patterns, span) => Pattern::Tuple(
+        Pattern::Tuple(patterns, location) => Pattern::Tuple(
             vecmap(patterns, |pattern| remove_interned_in_pattern(interner, pattern)),
-            span,
+            location,
         ),
-        Pattern::Struct(path, patterns, span) => {
+        Pattern::Struct(path, patterns, location) => {
             let patterns = vecmap(patterns, |(name, pattern)| {
                 (name, remove_interned_in_pattern(interner, pattern))
             });
-            Pattern::Struct(path, patterns, span)
+            Pattern::Struct(path, patterns, location)
         }
+        Pattern::Parenthesized(pattern, location) => Pattern::Parenthesized(
+            Box::new(remove_interned_in_pattern(interner, *pattern)),
+            location,
+        ),
         Pattern::Interned(id, _) => interner.get_pattern(id).clone(),
     }
 }

@@ -126,6 +126,10 @@ fn pattern_with_file(pattern: Pattern, file: FileId) -> Pattern {
             }),
             location_with_file(location, file),
         ),
+        Pattern::Parenthesized(pattern, location) => Pattern::Parenthesized(
+            Box::new(pattern_with_file(*pattern, file)),
+            location_with_file(location, file),
+        ),
         Pattern::Interned(interned_pattern, location) => {
             Pattern::Interned(interned_pattern, location_with_file(location, file))
         }
