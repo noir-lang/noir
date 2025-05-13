@@ -826,44 +826,55 @@ impl Elaborator<'_> {
             let location = path.location;
             let ((hir_ident, var_scope_index), item) = self.get_ident_from_path(path);
 
-            if hir_ident.id != DefinitionId::dummy_id() {
-                match self.interner.definition(hir_ident.id).kind {
-                    DefinitionKind::Function(func_id) => {
-                        if let Some(current_item) = self.current_item {
-                            self.interner.add_function_dependency(current_item, func_id);
-                        }
-
-                        self.interner.add_function_reference(func_id, hir_ident.location);
-                    }
-                    DefinitionKind::Global(global_id) => {
-                        self.elaborate_global_if_unresolved(&global_id);
-                        if let Some(current_item) = self.current_item {
-                            self.interner.add_global_dependency(current_item, global_id);
-                        }
-
-                        self.interner.add_global_reference(global_id, hir_ident.location);
-                    }
-                    DefinitionKind::NumericGeneric(_, ref numeric_typ) => {
-                        // Initialize numeric generics to a polymorphic integer type in case
-                        // they're used in expressions. We must do this here since type_check_variable
-                        // does not check definition kinds and otherwise expects parameters to
-                        // already be typed.
-                        if self.interner.definition_type(hir_ident.id) == Type::Error {
-                            let type_var_kind = Kind::Numeric(numeric_typ.clone());
-                            let typ = self.type_variable_with_kind(type_var_kind);
-                            self.interner.push_definition_type(hir_ident.id, typ);
-                        }
-                    }
-                    DefinitionKind::Local(_) => {
-                        // only local variables can be captured by closures.
-                        self.resolve_local_variable(hir_ident.clone(), var_scope_index);
-
-                        self.interner.add_local_reference(hir_ident.id, location);
-                    }
-                }
-            }
+            self.handle_hir_ident(&hir_ident, var_scope_index, location);
 
             (hir_ident, item)
+        }
+    }
+
+    pub(crate) fn handle_hir_ident(
+        &mut self,
+        hir_ident: &HirIdent,
+        var_scope_index: usize,
+        location: Location,
+    ) {
+        if hir_ident.id == DefinitionId::dummy_id() {
+            return;
+        }
+
+        match self.interner.definition(hir_ident.id).kind {
+            DefinitionKind::Function(func_id) => {
+                if let Some(current_item) = self.current_item {
+                    self.interner.add_function_dependency(current_item, func_id);
+                }
+
+                self.interner.add_function_reference(func_id, hir_ident.location);
+            }
+            DefinitionKind::Global(global_id) => {
+                self.elaborate_global_if_unresolved(&global_id);
+                if let Some(current_item) = self.current_item {
+                    self.interner.add_global_dependency(current_item, global_id);
+                }
+
+                self.interner.add_global_reference(global_id, hir_ident.location);
+            }
+            DefinitionKind::NumericGeneric(_, ref numeric_typ) => {
+                // Initialize numeric generics to a polymorphic integer type in case
+                // they're used in expressions. We must do this here since type_check_variable
+                // does not check definition kinds and otherwise expects parameters to
+                // already be typed.
+                if self.interner.definition_type(hir_ident.id) == Type::Error {
+                    let type_var_kind = Kind::Numeric(numeric_typ.clone());
+                    let typ = self.type_variable_with_kind(type_var_kind);
+                    self.interner.push_definition_type(hir_ident.id, typ);
+                }
+            }
+            DefinitionKind::Local(_) => {
+                // only local variables can be captured by closures.
+                self.resolve_local_variable(hir_ident.clone(), var_scope_index);
+
+                self.interner.add_local_reference(hir_ident.id, location);
+            }
         }
     }
 

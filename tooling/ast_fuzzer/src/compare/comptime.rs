@@ -129,3 +129,77 @@ impl HasPrograms for CompareComptime {
         vec![&self.program]
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::prepare_and_compile_snippet;
+
+    /// Comptime compilation can fail with stack overflow because of how the interpreter is evaluating instructions.
+    /// We could apply `#[inline(always)]` on some of the `Interpreter::elaborate_` functions to make it go further,
+    /// at the cost of compilation speed. Instead, we just need to make sure that compile tests have lower loop and
+    /// recursion limits.
+    #[test]
+    fn test_prepare_and_compile_snippet() {
+        let src = r#"
+fn main() -> pub ((str<2>, str<2>, bool, str<2>), bool, [str<2>; 3]) {
+    comptime {
+        let mut ctx_limit = 10;
+        unsafe { func_1_proxy(ctx_limit) }
+    }
+}
+unconstrained fn func_1(ctx_limit: &mut u32) -> ((str<2>, str<2>, bool, str<2>), bool, [str<2>; 3]) {
+    if ((*ctx_limit) == 0) {
+        (("BD", "GT", false, "EV"), false, ["LJ", "BB", "CE"])
+    } else {
+        *ctx_limit = ((*ctx_limit) - 1);
+        let g = if true {
+            let f = {
+                {
+                    let mut idx_a = 0;
+                    loop {
+                        if (idx_a == 4) {
+                            break
+                        } else {
+                            idx_a = (idx_a + 1);
+                            let mut e = if true {
+                                if func_1(ctx_limit).0.2 {
+                                    {
+                                        let b = 38;
+                                        {
+                                            let mut c = false;
+                                            let d = if c {
+                                                c = false;
+                                                [("ZO", "AF", false, "NY"), ("HJ", "NF", c, "RV"), ("SN", "VK", true, "QJ")]
+                                            } else {
+                                                [("SN", "YR", (b != (27 >> b)), "LS"), ("SW", "ZQ", false, "TQ"), ("AD", "YD", c, "EF")]
+                                            };
+                                            (d[1].3, d[1].1, (!c), "LO")
+                                        }
+                                    }
+                                } else {
+                                    ("HF", "WQ", true, "FZ")
+                                }
+                            } else {
+                                ("YP", "CH", true, "ZG")
+                            };
+                            e = (e.1, "NU", e.2, e.0);
+                        }
+                    }
+                };
+                true
+            };
+            (("HW", "EI", true, "IY"), (!false), ["TO", "WI", "PC"])
+        } else {
+            (("OX", "CE", true, "OV"), false, ["OS", "DT", "CH"])
+        };
+        g
+    }
+}
+unconstrained fn func_1_proxy(mut ctx_limit: u32) -> ((str<2>, str<2>, bool, str<2>), bool, [str<2>; 3]) {
+    func_1((&mut ctx_limit))
+}
+        "#;
+
+        let _ = prepare_and_compile_snippet(src.to_string(), false);
+    }
+}

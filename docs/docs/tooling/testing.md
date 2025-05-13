@@ -89,7 +89,7 @@ fn test_basic(a: Field, b: Field) {
 }
 ```
 The test above is not expected to fail. By default, the fuzzer will run for 1 second and use 100000 executions (whichever comes first). All available threads will be used for each fuzz test.
-The fuzz tests also work with `#[test(should_fail)]` and `#[test(should_fail_with = "<the reason for failure>")]`. For example:
+The fuzz tests also work with `#[test(should_fail)]`, `#[test(should_fail_with = "<the reason for failure>")]` and `#[test(only_fail_with = "<the reason for failure>")]`. For example:
 
 ```rust
 #[test(should_fail)]
@@ -105,13 +105,20 @@ or
 
 ```rust
 #[test(should_fail_with = "This is the message that will be checked for")]
-fn fuzz_should_fail_with(a: [bool; 32]) {
+fn test_should_fail_with(a: [bool; 32]) {
     let mut or_sum= false;
     for i in 0..32 {
         or_sum=or_sum|(a[i]==((i&1)as bool));
     }
     assert(or_sum);
     assert(false, "This is the message that will be checked for");
+}
+```
+
+```rust
+#[test(only_fail_with = "This is the message that will be checked for")]
+fn test_add(a: u64, b: u64) {
+    assert((a+b-15)!=(a-b+30), "This is the message that will be checked for");
 }
 ```
 

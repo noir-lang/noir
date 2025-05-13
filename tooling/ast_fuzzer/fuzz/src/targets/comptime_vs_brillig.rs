@@ -27,6 +27,9 @@ pub fn fuzz(u: &mut Unstructured) -> eyre::Result<()> {
         comptime_friendly: true,
         // Force brillig
         force_brillig: true,
+        // Use lower limits because of the interpreter.
+        max_loop_size: 5,
+        max_recursive_calls: 5,
         ..Default::default()
     };
 

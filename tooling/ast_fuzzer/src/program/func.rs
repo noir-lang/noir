@@ -33,7 +33,6 @@ use super::{
 pub(super) struct FunctionDeclaration {
     pub name: String,
     pub params: Parameters,
-    pub param_visibilities: Vec<Visibility>,
     pub return_type: Type,
     pub return_visibility: Visibility,
     pub inline_type: InlineType,
@@ -46,8 +45,7 @@ impl FunctionDeclaration {
         let param_types = self
             .params
             .iter()
-            .zip(self.param_visibilities.iter())
-            .map(|((_id, mutable, _name, typ), vis)| hir_param(*mutable, typ, *vis))
+            .map(|(_id, mutable, _name, typ, vis)| hir_param(*mutable, typ, *vis))
             .collect();
 
         let return_type =
@@ -154,7 +152,7 @@ impl<'a> FunctionContext<'a> {
         let locals = ScopeStack::new(
             decl.params
                 .iter()
-                .map(|(id, mutable, name, typ)| (*id, *mutable, name.clone(), typ.clone())),
+                .map(|(id, mutable, name, typ, _vis)| (*id, *mutable, name.clone(), typ.clone())),
         );
 
         // Collect all the functions we can call from this one.
@@ -717,7 +715,7 @@ impl<'a> FunctionContext<'a> {
         // Generate a type or choose an existing one.
         let max_depth = self.max_depth();
         let comptime_friendly = self.is_comptime_friendly();
-        let typ = self.ctx.gen_type(u, max_depth, false, true, comptime_friendly)?;
+        let typ = self.ctx.gen_type(u, max_depth, false, false, true, comptime_friendly)?;
         let expr = self.gen_expr(u, &typ, max_depth, Flags::TOP)?;
         let mutable = bool::arbitrary(u)?;
         Ok(self.let_var(mutable, typ, expr, true))
