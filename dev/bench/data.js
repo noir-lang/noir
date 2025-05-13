@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1747158027574,
+  "lastUpdate": 1747158029858,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -3750,95 +3750,6 @@ window.BENCHMARK_DATA = {
       }
     ],
     "Compilation Time": [
-      {
-        "commit": {
-          "author": {
-            "email": "15848336+TomAFrench@users.noreply.github.com",
-            "name": "Tom French",
-            "username": "TomAFrench"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "85241deaef7eaab9cc1526e7a3031a3dcb0c6eb3",
-          "message": "fix: add handling for u128 infix ops in interpreter (#8392)\n\nCo-authored-by: AztecBot <tech@aztecprotocol.com>",
-          "timestamp": "2025-05-07T14:17:55Z",
-          "tree_id": "c4d35417a615b197b90e6259a75461583e977c3b",
-          "url": "https://github.com/noir-lang/noir/commit/85241deaef7eaab9cc1526e7a3031a3dcb0c6eb3"
-        },
-        "date": 1746628938345,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "regression_4709",
-            "value": 0.685,
-            "unit": "s"
-          },
-          {
-            "name": "ram_blowup_regression",
-            "value": 12.9,
-            "unit": "s"
-          },
-          {
-            "name": "global_var_regression_entry_points",
-            "value": 0.495,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-inner",
-            "value": 2.356,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 6.824,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 1.122,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 16.82,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 13,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root-empty",
-            "value": 1.28,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root-single-tx",
-            "value": 123,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 119,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 1.084,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-root",
-            "value": 1.574,
-            "unit": "s"
-          }
-        ]
-      },
       {
         "commit": {
           "author": {
@@ -7806,6 +7717,85 @@ window.BENCHMARK_DATA = {
           {
             "name": "semaphore-depth-10",
             "value": 0.843,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "asterite@gmail.com",
+            "name": "Ary Borenszweig",
+            "username": "asterite"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "35ff3264b5f9badbd272f6b7aa042095d31b632d",
+          "message": "fix: remove unused generic in static_assert (#8488)\n\nCo-authored-by: Tom French <15848336+TomAFrench@users.noreply.github.com>",
+          "timestamp": "2025-05-13T17:02:24Z",
+          "tree_id": "db4f3c0ddefa76688a53583a9ee2facc5c7da020",
+          "url": "https://github.com/noir-lang/noir/commit/35ff3264b5f9badbd272f6b7aa042095d31b632d"
+        },
+        "date": 1747158019426,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 2.416,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 6.548,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 1.03,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 16.7,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 12.72,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-empty",
+            "value": 1.274,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-single-tx",
+            "value": 123,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 120,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 1.108,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-root",
+            "value": 1.812,
+            "unit": "s"
+          },
+          {
+            "name": "semaphore-depth-10",
+            "value": 0.821,
             "unit": "s"
           }
         ]
