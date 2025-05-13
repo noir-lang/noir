@@ -666,7 +666,9 @@ impl Parser<'_> {
     /// TypePathExpression = PrimitiveType '::' identifier ( '::' GenericTypeArgs )?
     fn parse_type_path_expr(&mut self) -> Option<ExpressionKind> {
         let start_location = self.current_token_location;
-        let typ = self.parse_primitive_type()?;
+        let typ = self.parse_primitive_type(
+            true, // require_colons
+        )?;
         let location = self.location_since(start_location);
         let typ = UnresolvedType { typ, location };
 
@@ -2003,6 +2005,72 @@ mod tests {
         assert_eq!(type_path.typ.to_string(), "Field");
         assert_eq!(type_path.item.to_string(), "foo");
         assert!(type_path.turbofish.is_some());
+    }
+
+    #[test]
+    fn parses_type_path_with_str_no_colons() {
+        let src = "
+          str<N>::foo
+             ^
+        ";
+        let (src, span) = get_source_with_error_span(src);
+        let mut parser = Parser::for_str_with_dummy_file(&src);
+        let expr = parser.parse_expression_or_error();
+
+        let ExpressionKind::TypePath(type_path) = expr.kind else {
+            panic!("Expected type_path");
+        };
+        assert_eq!(type_path.typ.to_string(), "str<N>");
+        assert_eq!(type_path.item.to_string(), "foo");
+        assert!(type_path.turbofish.is_none());
+
+        let reason = get_single_error_reason(&parser.errors, span);
+        assert!(matches!(reason, ParserErrorReason::MissingDoubleColon));
+    }
+
+    #[test]
+    fn parses_type_path_with_str_and_colons() {
+        let src = "str::<N>::foo";
+        let expr = parse_expression_no_errors(src);
+        let ExpressionKind::TypePath(type_path) = expr.kind else {
+            panic!("Expected type_path");
+        };
+        assert_eq!(type_path.typ.to_string(), "str<N>");
+        assert_eq!(type_path.item.to_string(), "foo");
+        assert!(type_path.turbofish.is_none());
+    }
+
+    #[test]
+    fn parses_type_path_with_fmtstr_no_colons() {
+        let src = "
+          fmtstr<A, B>::foo
+                ^
+        ";
+        let (src, span) = get_source_with_error_span(src);
+        let mut parser = Parser::for_str_with_dummy_file(&src);
+        let expr = parser.parse_expression_or_error();
+
+        let ExpressionKind::TypePath(type_path) = expr.kind else {
+            panic!("Expected type_path");
+        };
+        assert_eq!(type_path.typ.to_string(), "fmtstr<A, B>");
+        assert_eq!(type_path.item.to_string(), "foo");
+        assert!(type_path.turbofish.is_none());
+
+        let reason = get_single_error_reason(&parser.errors, span);
+        assert!(matches!(reason, ParserErrorReason::MissingDoubleColon));
+    }
+
+    #[test]
+    fn parses_type_path_with_fmtstr_and_colons() {
+        let src = "fmtstr::<A, B>::foo";
+        let expr = parse_expression_no_errors(src);
+        let ExpressionKind::TypePath(type_path) = expr.kind else {
+            panic!("Expected type_path");
+        };
+        assert_eq!(type_path.typ.to_string(), "fmtstr<A, B>");
+        assert_eq!(type_path.item.to_string(), "foo");
+        assert!(type_path.turbofish.is_none());
     }
 
     #[test]
