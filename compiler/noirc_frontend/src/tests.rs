@@ -1344,9 +1344,11 @@ fn break_and_continue_in_constrained_fn() {
 #[test]
 fn break_and_continue_outside_loop() {
     let src = r#"
-        unconstrained fn main() {
+        pub unconstrained fn foo() {
             continue;
             ^^^^^^^^^ continue is only allowed within loops
+        }
+        pub unconstrained fn bar() {
             break;
             ^^^^^^ break is only allowed within loops
         }
@@ -4700,4 +4702,44 @@ fn cannot_determine_type_of_generic_argument_in_function_call_when_it_is_a_numer
     "#;
     let features = vec![UnstableFeature::Enums];
     check_monomorphization_error_using_features!(src, &features);
+}
+
+#[named]
+#[test]
+fn same_name_in_types_and_values_namespace_works() {
+    let src = "
+    struct foo {}
+
+    fn foo(x: foo) -> foo {
+        x
+    }
+
+    fn main() {
+        let x: foo = foo {};
+        let _ = foo(x);
+    }
+    ";
+    assert_no_errors!(src);
+}
+
+#[named]
+#[test]
+fn only_one_private_error_when_name_in_types_and_values_namespace_collides() {
+    let src = "
+    mod moo {
+        struct foo {}
+
+        fn foo() {}
+    }
+
+    fn main() {
+        let _ = moo::foo {};
+                     ^^^ foo is private and not visible from the current module
+                     ~~~ foo is private
+        x
+        ^ cannot find `x` in this scope
+        ~ not found in this scope
+    }
+    ";
+    check_errors!(src);
 }

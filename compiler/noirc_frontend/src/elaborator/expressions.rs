@@ -9,9 +9,9 @@ use crate::{
         ArrayLiteral, AsTraitPath, BinaryOpKind, BlockExpression, CallExpression, CastExpression,
         ConstrainExpression, ConstrainKind, ConstructorExpression, Expression, ExpressionKind,
         Ident, IfExpression, IndexExpression, InfixExpression, ItemVisibility, Lambda, Literal,
-        MatchExpression, MemberAccessExpression, MethodCallExpression, Path, PathSegment,
-        PrefixExpression, StatementKind, TraitBound, UnaryOp, UnresolvedTraitConstraint,
-        UnresolvedTypeData, UnresolvedTypeExpression, UnsafeExpression,
+        MatchExpression, MemberAccessExpression, MethodCallExpression, PrefixExpression,
+        StatementKind, TraitBound, UnaryOp, UnresolvedTraitConstraint, UnresolvedTypeData,
+        UnresolvedTypeExpression, UnsafeExpression,
     },
     hir::{
         comptime::{self, InterpreterError},
@@ -38,7 +38,10 @@ use crate::{
     token::{FmtStrFragment, Tokens},
 };
 
-use super::{Elaborator, LambdaContext, UnsafeBlockStatus, UnstableFeature};
+use super::{
+    Elaborator, LambdaContext, UnsafeBlockStatus, UnstableFeature,
+    path_resolution::{TypedPath, TypedPathSegment},
+};
 
 impl Elaborator<'_> {
     pub(crate) fn elaborate_expression(&mut self, expr: Expression) -> (ExprId, Type) {
@@ -151,13 +154,25 @@ impl Elaborator<'_> {
         let statements_len = block.statements.len();
         let mut statements = Vec::with_capacity(statements_len);
 
+        // If we found a break or continue statement, this holds its location (only for the first one)
+        let mut break_or_continue_location = None;
+        // When encountering a statement after a break or continue we'll error saying it's unreachable,
+        // but we only want to error for the first statement.
+        let mut errored_unreachable = false;
+
         for (i, statement) in block.statements.into_iter().enumerate() {
+            let location = statement.location;
             let statement_target_type = if i == statements_len - 1 { target_type } else { None };
             let (id, stmt_type) =
                 self.elaborate_statement_with_target_type(statement, statement_target_type);
-            statements.push(id);
 
-            if let HirStatement::Semi(expr) = self.interner.statement(&id) {
+            if break_or_continue_location.is_none() {
+                statements.push(id);
+            }
+
+            let stmt = self.interner.statement(&id);
+
+            if let HirStatement::Semi(expr) = stmt {
                 let inner_expr_type = self.interner.id_type(expr);
                 let location = self.interner.expr_location(&expr);
 
@@ -167,7 +182,18 @@ impl Elaborator<'_> {
                 });
             }
 
-            if i + 1 == statements.len() {
+            if let Some(break_or_continue_location) = break_or_continue_location {
+                if !errored_unreachable {
+                    self.push_err(ResolverError::UnreachableStatement {
+                        location,
+                        break_or_continue_location,
+                    });
+                    errored_unreachable = true;
+                }
+            } else if matches!(stmt, HirStatement::Break | HirStatement::Continue) {
+                break_or_continue_location = Some(location);
+                block_type = stmt_type;
+            } else if i + 1 == statements.len() {
                 block_type = stmt_type;
             }
         }
@@ -310,7 +336,7 @@ impl Elaborator<'_> {
                     old_value.num_times_used += 1;
                     old_value.ident.clone()
                 } else if let Ok((definition_id, _)) =
-                    self.lookup_global(Path::from_single(ident_name.to_string(), *location))
+                    self.lookup_global(TypedPath::from_single(ident_name.to_string(), *location))
                 {
                     HirIdent::non_trait_method(definition_id, *location)
                 } else {
@@ -544,12 +570,15 @@ impl Elaborator<'_> {
                         &mut object_type,
                         &mut object,
                     );
-
-                    self.resolve_function_turbofish_generics(
-                        &func_id,
-                        method_call.generics,
-                        location,
-                    )
+                    let generics = method_call.generics;
+                    let generics = generics.map(|generics| {
+                        vecmap(generics, |generic| {
+                            let location = generic.location;
+                            let typ = self.use_type_with_kind(generic, &Kind::Any);
+                            Located::from(location, typ)
+                        })
+                    });
+                    self.resolve_function_turbofish_generics(&func_id, generics, location)
                 } else {
                     None
                 };
@@ -763,6 +792,7 @@ impl Elaborator<'_> {
             last_segment.generics = Some(generics.ordered_args);
         }
 
+        let path = self.validate_path(path);
         let last_segment = path.last_segment();
 
         let Some(typ) = self.lookup_type_or_error(path) else {
@@ -777,7 +807,7 @@ impl Elaborator<'_> {
         typ: Type,
         fields: Vec<(Ident, Expression)>,
         location: Location,
-        last_segment: Option<PathSegment>,
+        last_segment: Option<TypedPathSegment>,
     ) -> (HirExpression, Type) {
         let typ = typ.follow_bindings_shallow();
         let (r#type, generics) = match typ.as_ref() {

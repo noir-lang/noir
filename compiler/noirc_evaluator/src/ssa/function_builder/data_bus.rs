@@ -156,6 +156,11 @@ impl FunctionBuilder {
                         let index_var = FieldElement::from(index as i128);
                         let index_var =
                             self.current_function.dfg.make_constant(index_var, length_type);
+                        // If we do not check for an empty array we will have an unused array get
+                        // as an array of length zero will not be actually added to the databus' values.
+                        if let Type::Array(_, 0) = subitem_typ {
+                            continue;
+                        }
                         let element = self.insert_array_get(value, index_var, subitem_typ.clone());
                         index += match subitem_typ {
                             Type::Array(_, _) | Type::Slice(_) => subitem_typ.element_size(),
@@ -230,6 +235,7 @@ impl FunctionBuilder {
                 }
             }
         }
+
         // create the call-data-bus from the filtered lists
         let mut result = Vec::new();
         for id in databus_param.keys() {
