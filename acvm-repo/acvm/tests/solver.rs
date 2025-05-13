@@ -1,6 +1,8 @@
+use core::num;
 use std::collections::{BTreeMap, HashSet};
 use std::sync::Arc;
 
+use acir::InvalidInputBitSize;
 use acir::brillig::{BitSize, HeapVector, IntegerBitSize};
 use acir::{
     AcirField, FieldElement,
@@ -822,8 +824,8 @@ fn memory_operations() {
 type ConstantOrWitness = (FieldElement, bool);
 
 // For each ConstantOrWitness,
-// - If use_constant, then convert to a FunctionInput::constant
-// - Otherwise, convert to FunctionInput::witness
+// - If use_constant, then convert to a FunctionInput::Constant
+// - Otherwise, convert to FunctionInput::Witness
 //   + With the Witness index as (input_index + offset)
 fn constant_or_witness_to_function_inputs(
     xs: Vec<ConstantOrWitness>,
@@ -835,9 +837,19 @@ fn constant_or_witness_to_function_inputs(
         .enumerate()
         .map(|(i, (x, use_constant))| {
             if use_constant {
-                FunctionInput::constant(x, num_bits).map_err(From::from)
+                if x.num_bits() > num_bits {
+                    return Err(OpcodeResolutionError::InvalidInputBitSize {
+                        opcode_location: ErrorLocation::Unresolved,
+                        invalid_input_bit_size: InvalidInputBitSize {
+                            value: x.to_string(),
+                            value_num_bits: x.num_bits(),
+                            max_bits: num_bits,
+                        },
+                    });
+                }
+                Ok(FunctionInput::Constant(x))
             } else {
-                Ok(FunctionInput::witness(Witness((i + offset) as u32), num_bits))
+                Ok(FunctionInput::Witness(Witness((i + offset) as u32)))
             }
         })
         .collect()
@@ -992,12 +1004,8 @@ fn bigint_solve_binary_op_opt(
         .collect();
     let initial_witness = WitnessMap::from(BTreeMap::from_iter(initial_witness_vec));
 
-    let lhs: Vec<_> =
-        constant_or_witness_to_function_inputs(lhs, 0, None)?.iter().map(|i| i.input()).collect();
-    let rhs: Vec<_> = constant_or_witness_to_function_inputs(rhs, lhs.len(), None)?
-        .iter()
-        .map(|i| i.input())
-        .collect();
+    let lhs: Vec<_> = constant_or_witness_to_function_inputs(lhs, 0, None)?;
+    let rhs: Vec<_> = constant_or_witness_to_function_inputs(rhs, lhs.len(), None)?;
 
     let to_op_input = if middle_op.is_some() { 2 } else { 0 };
 
@@ -1039,12 +1047,14 @@ fn solve_blackbox_func_call(
     blackbox_func_call: impl Fn(
         Option<FieldElement>,
         Option<FieldElement>,
+        Option<u32>,
     ) -> Result<
         BlackBoxFuncCall<FieldElement>,
         OpcodeResolutionError<FieldElement>,
     >,
     lhs: (FieldElement, bool), // if false, use a Witness
     rhs: (FieldElement, bool), // if false, use a Witness
+    num_bits: Option<u32>,
 ) -> Result<FieldElement, OpcodeResolutionError<FieldElement>> {
     let solver = StubbedBlackBoxSolver::default();
     let (lhs, lhs_constant) = lhs;
@@ -1063,7 +1073,7 @@ fn solve_blackbox_func_call(
         rhs_opt = Some(rhs);
     }
 
-    let op = Opcode::BlackBoxFuncCall(blackbox_func_call(lhs_opt, rhs_opt)?);
+    let op = Opcode::BlackBoxFuncCall(blackbox_func_call(lhs_opt, rhs_opt, num_bits)?);
     let opcodes = vec![op];
     let unconstrained_functions = vec![];
     let mut acvm = ACVM::new(&solver, &opcodes, initial_witness, &unconstrained_functions, &[]);
@@ -1104,9 +1114,8 @@ fn keccakf1600_op(
     function_inputs_and_outputs: (Vec<FunctionInput<FieldElement>>, Vec<Witness>),
 ) -> Result<BlackBoxFuncCall<FieldElement>, OpcodeResolutionError<FieldElement>> {
     let (function_inputs, outputs) = function_inputs_and_outputs;
-    let inputs = function_inputs.iter().map(|input| input.input()).collect::<Vec<_>>();
     Ok(BlackBoxFuncCall::Keccakf1600 {
-        inputs: inputs.try_into().expect("Keccakf1600 expects 25 inputs"),
+        inputs: function_inputs.try_into().expect("Keccakf1600 expects 25 inputs"),
         outputs: outputs.try_into().expect("Keccakf1600 returns 25 outputs"),
     })
 }
@@ -1117,7 +1126,7 @@ fn poseidon2_permutation_op(
     function_inputs_and_outputs: (Vec<FunctionInput<FieldElement>>, Vec<Witness>),
 ) -> Result<BlackBoxFuncCall<FieldElement>, OpcodeResolutionError<FieldElement>> {
     let (inputs, outputs) = function_inputs_and_outputs;
-    let inputs = inputs.iter().map(|input| input.input()).collect::<Vec<_>>();
+    // let inputs = inputs.iter().map(|input| input.input()).collect::<Vec<_>>();
     let len = inputs.len() as u32;
     Ok(BlackBoxFuncCall::Poseidon2Permutation { inputs, outputs, len })
 }
@@ -1128,7 +1137,6 @@ fn poseidon2_permutation_invalid_len_op(
     function_inputs_and_outputs: (Vec<FunctionInput<FieldElement>>, Vec<Witness>),
 ) -> Result<BlackBoxFuncCall<FieldElement>, OpcodeResolutionError<FieldElement>> {
     let (inputs, outputs) = function_inputs_and_outputs;
-    let inputs = inputs.iter().map(|input| input.input()).collect::<Vec<_>>();
     let len = (inputs.len() as u32) + 1;
     Ok(BlackBoxFuncCall::Poseidon2Permutation { inputs, outputs, len })
 }
@@ -1139,8 +1147,7 @@ fn sha256_compression_op(
     function_inputs_and_outputs: (Vec<FunctionInput<FieldElement>>, Vec<Witness>),
 ) -> Result<BlackBoxFuncCall<FieldElement>, OpcodeResolutionError<FieldElement>> {
     let (function_inputs, outputs) = function_inputs_and_outputs;
-    let function_inputs = function_inputs.into_iter();
-    let mut function_inputs = function_inputs.map(|input| input.input());
+    let mut function_inputs = function_inputs.into_iter();
     let inputs = core::array::from_fn(|_| function_inputs.next().unwrap());
     let hash_values = core::array::from_fn(|_| function_inputs.next().unwrap());
     Ok(BlackBoxFuncCall::Sha256Compression {
@@ -1292,57 +1299,64 @@ fn function_input_from_option(
     opt_constant: Option<FieldElement>,
 ) -> Result<FunctionInput<FieldElement>, OpcodeResolutionError<FieldElement>> {
     opt_constant
-        .map(|constant| {
-            FunctionInput::constant(constant, FieldElement::max_num_bits()).map_err(From::from)
-        })
-        .unwrap_or(Ok(FunctionInput::witness(witness, FieldElement::max_num_bits())))
+        .map(|constant| Ok(FunctionInput::Constant(constant)))
+        .unwrap_or(Ok(FunctionInput::Witness(witness)))
 }
 
 fn and_op(
     x: Option<FieldElement>,
     y: Option<FieldElement>,
+    num_bits: Option<u32>,
 ) -> Result<BlackBoxFuncCall<FieldElement>, OpcodeResolutionError<FieldElement>> {
     let lhs = function_input_from_option(Witness(1), x)?;
     let rhs = function_input_from_option(Witness(2), y)?;
-    Ok(BlackBoxFuncCall::AND { lhs, rhs, output: Witness(3) })
+    Ok(BlackBoxFuncCall::AND { lhs, rhs, num_bits: num_bits.unwrap(), output: Witness(3) })
 }
 
 fn xor_op(
     x: Option<FieldElement>,
     y: Option<FieldElement>,
+    num_bits: Option<u32>,
 ) -> Result<BlackBoxFuncCall<FieldElement>, OpcodeResolutionError<FieldElement>> {
     let lhs = function_input_from_option(Witness(1), x)?;
     let rhs = function_input_from_option(Witness(2), y)?;
-    Ok(BlackBoxFuncCall::XOR { lhs, rhs, output: Witness(3) })
+    Ok(BlackBoxFuncCall::XOR { lhs, rhs, num_bits: num_bits.unwrap(), output: Witness(3) })
 }
 
 fn prop_assert_commutative(
     op: impl Fn(
         Option<FieldElement>,
         Option<FieldElement>,
+        Option<u32>,
     ) -> Result<BlackBoxFuncCall<FieldElement>, OpcodeResolutionError<FieldElement>>,
     x: (FieldElement, bool),
     y: (FieldElement, bool),
+    num_bits: Option<u32>,
 ) -> (FieldElement, FieldElement) {
-    (solve_blackbox_func_call(&op, x, y).unwrap(), solve_blackbox_func_call(&op, y, x).unwrap())
+    (
+        solve_blackbox_func_call(&op, x, y, num_bits).unwrap(),
+        solve_blackbox_func_call(&op, y, x, num_bits).unwrap(),
+    )
 }
 
 fn prop_assert_associative(
     op: impl Fn(
         Option<FieldElement>,
         Option<FieldElement>,
+        Option<u32>,
     ) -> Result<BlackBoxFuncCall<FieldElement>, OpcodeResolutionError<FieldElement>>,
     x: (FieldElement, bool),
     y: (FieldElement, bool),
     z: (FieldElement, bool),
     use_constant_xy: bool,
     use_constant_yz: bool,
+    num_bits: Option<u32>,
 ) -> (FieldElement, FieldElement) {
-    let f_xy = (solve_blackbox_func_call(&op, x, y).unwrap(), use_constant_xy);
-    let f_f_xy_z = solve_blackbox_func_call(&op, f_xy, z).unwrap();
+    let f_xy = (solve_blackbox_func_call(&op, x, y, num_bits).unwrap(), use_constant_xy);
+    let f_f_xy_z = solve_blackbox_func_call(&op, f_xy, z, num_bits).unwrap();
 
-    let f_yz = (solve_blackbox_func_call(&op, y, z).unwrap(), use_constant_yz);
-    let f_x_f_yz = solve_blackbox_func_call(&op, x, f_yz).unwrap();
+    let f_yz = (solve_blackbox_func_call(&op, y, z, num_bits).unwrap(), use_constant_yz);
+    let f_x_f_yz = solve_blackbox_func_call(&op, x, f_yz, num_bits).unwrap();
 
     (f_f_xy_z, f_x_f_yz)
 }
@@ -1351,22 +1365,26 @@ fn prop_assert_identity_l(
     op: impl Fn(
         Option<FieldElement>,
         Option<FieldElement>,
+        Option<u32>,
     ) -> Result<BlackBoxFuncCall<FieldElement>, OpcodeResolutionError<FieldElement>>,
     op_identity: (FieldElement, bool),
     x: (FieldElement, bool),
+    num_bits: Option<u32>,
 ) -> (FieldElement, FieldElement) {
-    (solve_blackbox_func_call(op, op_identity, x).unwrap(), x.0)
+    (solve_blackbox_func_call(op, op_identity, x, num_bits).unwrap(), x.0)
 }
 
 fn prop_assert_zero_l(
     op: impl Fn(
         Option<FieldElement>,
         Option<FieldElement>,
+        Option<u32>,
     ) -> Result<BlackBoxFuncCall<FieldElement>, OpcodeResolutionError<FieldElement>>,
     op_zero: (FieldElement, bool),
     x: (FieldElement, bool),
+    num_bits: Option<u32>,
 ) -> (FieldElement, FieldElement) {
-    (solve_blackbox_func_call(op, op_zero, x).unwrap(), FieldElement::zero())
+    (solve_blackbox_func_call(op, op_zero, x, num_bits).unwrap(), FieldElement::zero())
 }
 
 // Test that varying one of the inputs produces a different result
@@ -1581,19 +1599,29 @@ proptest! {
 
     #[test]
     fn and_commutative(x in field_element(), y in field_element()) {
-        let (lhs, rhs) = prop_assert_commutative(and_op, x, y);
+        let  max_num_bits = if y.0.num_bits() > x.0.num_bits() {
+            y.0.num_bits()
+        } else {
+            x.0.num_bits()
+        };
+        let (lhs, rhs) = prop_assert_commutative(and_op, x, y, Some(max_num_bits));
         prop_assert_eq!(lhs, rhs);
     }
 
     #[test]
     fn xor_commutative(x in field_element(), y in field_element()) {
-        let (lhs, rhs) = prop_assert_commutative(xor_op, x, y);
+        let  max_num_bits = if y.0.num_bits() > x.0.num_bits() {
+            y.0.num_bits()
+        } else {
+            x.0.num_bits()
+        };
+        let (lhs, rhs) = prop_assert_commutative(xor_op, x, y,Some(max_num_bits));
         prop_assert_eq!(lhs, rhs);
     }
 
     #[test]
-    fn and_associative(x in field_element(), y in field_element(), z in field_element(), use_constant_xy: bool, use_constant_yz: bool) {
-        let (lhs, rhs) = prop_assert_associative(and_op, x, y, z, use_constant_xy, use_constant_yz);
+    fn and_associative(x in field_element(), y in field_element(), z in field_element(), use_constant_xy: bool, use_constant_yz: bool, num_bits: Option<u32>) {
+        let (lhs, rhs) = prop_assert_associative(and_op, x, y, z, use_constant_xy, use_constant_yz, num_bits);
         prop_assert_eq!(lhs, rhs);
     }
 
@@ -1601,26 +1629,31 @@ proptest! {
     // TODO(https://github.com/noir-lang/noir/issues/5638)
     #[should_panic(expected = "assertion failed: `(left == right)`")]
     fn xor_associative(x in field_element(), y in field_element(), z in field_element(), use_constant_xy: bool, use_constant_yz: bool) {
-        let (lhs, rhs) = prop_assert_associative(xor_op, x, y, z, use_constant_xy, use_constant_yz);
+        let max_num_bits = if y.0.num_bits() > x.0.num_bits() {
+            y.0.num_bits()
+        } else {
+            x.0.num_bits()
+        };
+        let (lhs, rhs) = prop_assert_associative(xor_op, x, y, z, use_constant_xy, use_constant_yz, Some(max_num_bits));
         prop_assert_eq!(lhs, rhs);
     }
 
     // test that AND(x, x) == x
     #[test]
     fn and_self_identity(x in field_element()) {
-        prop_assert_eq!(solve_blackbox_func_call(and_op, x, x).unwrap(), x.0);
+        prop_assert_eq!(solve_blackbox_func_call(and_op, x, x, Some(x.0.num_bits())).unwrap(), x.0);
     }
 
     // test that XOR(x, x) == 0
     #[test]
     fn xor_self_zero(x in field_element()) {
-        prop_assert_eq!(solve_blackbox_func_call(xor_op, x, x).unwrap(), FieldElement::zero());
+        prop_assert_eq!(solve_blackbox_func_call(xor_op, x, x, Some(x.0.num_bits())).unwrap(), FieldElement::zero());
     }
 
     #[test]
     fn and_identity_l(x in field_element(), ones_constant: bool) {
         let ones = (field_element_ones(), ones_constant);
-        let (lhs, rhs) = prop_assert_identity_l(and_op, ones, x);
+        let (lhs, rhs) = prop_assert_identity_l(and_op, ones, x, Some(x.0.num_bits()));
         if x <= ones {
             prop_assert_eq!(lhs, rhs);
         } else {
@@ -1631,14 +1664,14 @@ proptest! {
     #[test]
     fn xor_identity_l(x in field_element(), zero_constant: bool) {
         let zero = (FieldElement::zero(), zero_constant);
-        let (lhs, rhs) = prop_assert_identity_l(xor_op, zero, x);
+        let (lhs, rhs) = prop_assert_identity_l(xor_op, zero, x, Some(x.0.num_bits()));
         prop_assert_eq!(lhs, rhs);
     }
 
     #[test]
     fn and_zero_l(x in field_element(), ones_constant: bool) {
         let zero = (FieldElement::zero(), ones_constant);
-        let (lhs, rhs) = prop_assert_zero_l(and_op, zero, x);
+        let (lhs, rhs) = prop_assert_zero_l(and_op, zero, x, Some(x.0.num_bits()));
         prop_assert_eq!(lhs, rhs);
     }
 

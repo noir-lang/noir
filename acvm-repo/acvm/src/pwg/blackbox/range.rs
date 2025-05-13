@@ -44,8 +44,8 @@ mod tests {
     fn rejects_too_large_inputs() {
         let witness_map =
             WitnessMap::from(BTreeMap::from([(Witness(0), FieldElement::from(256u32))]));
-        let input: FunctionInput<FieldElement> = FunctionInput::witness(Witness(0), 8);
-        assert!(solve_range_opcode(&witness_map, &input, false).is_err());
+        let input: FunctionInput<FieldElement> = FunctionInput::Witness(Witness(0));
+        assert!(solve_range_opcode(&witness_map, &input, 8).is_err());
     }
 
     #[test]
@@ -55,8 +55,8 @@ mod tests {
         for value in values {
             let witness_map =
                 WitnessMap::from(BTreeMap::from([(Witness(0), FieldElement::from(value))]));
-            let input: FunctionInput<FieldElement> = FunctionInput::witness(Witness(0), 8);
-            assert!(solve_range_opcode(&witness_map, &input, false).is_ok());
+            let input: FunctionInput<FieldElement> = FunctionInput::Witness(Witness(0));
+            assert!(solve_range_opcode(&witness_map, &input, 8).is_ok());
         }
     }
 }
