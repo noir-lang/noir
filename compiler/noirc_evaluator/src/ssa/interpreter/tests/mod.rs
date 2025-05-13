@@ -187,7 +187,7 @@ fn loads_passed_to_a_call() {
     acir(inline) fn foo f1 {
       b0(v0: &mut Field):
         return
-    }  
+    }
     ";
 
     let value = expect_value(src);
@@ -1537,4 +1537,61 @@ fn signed_integer_conversions() {
         }
     "#;
     executes_with_no_errors(src);
+}
+
+#[test]
+fn signed_integer_casting() {
+    //  fn main() -> pub i8 {
+    //      let a: i8 = 28;
+    //      let b = (1, -a, 0);
+    //      let mut c = (a + (((b.1 as i64) << (b.2 as u8)) as i8));
+    //      c = -c;
+    //      c
+    //  }
+
+    let src = r#"
+      acir(inline) fn main f0 {
+        b0():
+          v1 = cast u8 228 as i8
+          v2 = cast u8 228 as u8
+          v4 = lt v2, u8 128
+          v5 = not v4
+          v6 = cast v5 as u64
+          v8 = unchecked_mul u64 18446744073709551360, v6
+          v9 = cast u8 228 as u64
+          v10 = unchecked_add v8, v9
+          v11 = cast v10 as i64
+          v13 = shl v11, u8 0
+          v14 = truncate v13 to 64 bits, max_bit_size: 65
+          v15 = truncate v14 to 8 bits, max_bit_size: 64
+          v16 = cast v15 as i8
+          v18 = add i8 28, v16
+          v19 = truncate v18 to 8 bits, max_bit_size: 9
+          v20 = cast v19 as u8
+          v21 = cast v15 as u8
+          v22 = lt v21, u8 128
+          v23 = lt v20, u8 128
+          v24 = unchecked_mul v23, v22
+          constrain v24 == v22, "attempt to add with overflow"
+          v25 = cast v19 as i8
+          v26 = allocate -> &mut i8
+          store v25 at v26
+          v27 = load v26 -> i8
+          v29 = sub i8 0, v27
+          v30 = truncate v29 to 8 bits, max_bit_size: 9
+          v31 = cast v30 as u8
+          v32 = cast v27 as u8
+          v33 = lt v32, u8 128
+          v34 = not v33
+          v35 = lt v31, u8 128
+          v36 = unchecked_mul v35, v34
+          constrain v36 == v34, "attempt to subtract with overflow"
+          v37 = cast v30 as i8
+          store v37 at v26
+          v38 = load v26 -> i8
+          return v38
+      }
+      "#;
+    let value = expect_value(src);
+    assert_eq!(value, Value::Numeric(NumericValue::I8(0)));
 }
