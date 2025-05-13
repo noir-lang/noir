@@ -97,3 +97,12 @@ projects:
     execution-timeout: 0.6
     compilation-memory-limit: 450
     execution-memory-limit: 400
+  semaphore-depth-10:
+    repo: noir-lang/noir
+    path: test_programs/benchmarks/semaphore_depth_10
+    num_runs: 5
+    timeout: 300
+    compilation-timeout: 2
+    execution-timeout: 0.6
+    compilation-memory-limit: 450
+    execution-memory-limit: 400
