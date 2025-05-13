@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1747149860786,
+  "lastUpdate": 1747152651941,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -17961,48 +17961,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "15848336+TomAFrench@users.noreply.github.com",
-            "name": "Tom French",
-            "username": "TomAFrench"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "4a942786b7580f3f12b34bb0989603db47800dc2",
-          "message": "chore: apply lints to `ast_fuzzer` (#8386)\n\nCo-authored-by: AztecBot <tech@aztecprotocol.com>",
-          "timestamp": "2025-05-07T10:00:16Z",
-          "tree_id": "205cc043245c273803a9d78babc493b3624ad9f5",
-          "url": "https://github.com/noir-lang/noir/commit/4a942786b7580f3f12b34bb0989603db47800dc2"
-        },
-        "date": 1746613169320,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 265497,
-            "range": "± 3317",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 238762,
-            "range": "± 6557",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 3578503,
-            "range": "± 23025",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "rkarabut@users.noreply.github.com",
             "name": "Ratmir Karabut",
             "username": "rkarabut"
@@ -20054,6 +20012,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 3230288,
             "range": "± 14883",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "asterite@gmail.com",
+            "name": "Ary Borenszweig",
+            "username": "asterite"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "47755840374a1e413bc206abf838a017d5526246",
+          "message": "feat: `#[test(only_fail_with = \"...\")]` (#8460)\n\nCo-authored-by: Innokentii Sennovskii <isennovskiy@gmail.com>",
+          "timestamp": "2025-05-13T15:49:08Z",
+          "tree_id": "d3df944e9a9fec1ce554f9af77f7d86a5bdad78c",
+          "url": "https://github.com/noir-lang/noir/commit/47755840374a1e413bc206abf838a017d5526246"
+        },
+        "date": 1747152643162,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 267300,
+            "range": "± 692",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 238234,
+            "range": "± 4097",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 3233192,
+            "range": "± 2449",
             "unit": "ns/iter"
           }
         ]
