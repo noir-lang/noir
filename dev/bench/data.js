@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1747139434886,
+  "lastUpdate": 1747142679403,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -17946,48 +17946,6 @@ window.BENCHMARK_DATA = {
             "username": "web-flow"
           },
           "distinct": false,
-          "id": "05df1c470e1592e6361d687487b6a4c77b71cf72",
-          "message": "fix(expand): output safety comment before statements (#8378)\n\nCo-authored-by: Tom French <15848336+TomAFrench@users.noreply.github.com>",
-          "timestamp": "2025-05-06T18:51:13Z",
-          "tree_id": "d0ac9f1fb3520232665f8cccee5ffb3cbcf0f39b",
-          "url": "https://github.com/noir-lang/noir/commit/05df1c470e1592e6361d687487b6a4c77b71cf72"
-        },
-        "date": 1746558844304,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 262597,
-            "range": "± 583",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 236821,
-            "range": "± 4843",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 3594152,
-            "range": "± 21891",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
-            "email": "asterite@gmail.com",
-            "name": "Ary Borenszweig",
-            "username": "asterite"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
           "id": "cc3fa6fbed97f054d84f9fdbfaee3305afc1f15d",
           "message": "feat: let static_assert accept any type for its message (#8322)",
           "timestamp": "2025-05-06T19:11:22Z",
@@ -20029,6 +19987,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 3615178,
             "range": "± 23078",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "asterite@gmail.com",
+            "name": "Ary Borenszweig",
+            "username": "asterite"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "27941c993754c784de9e6a0bec5b3ef991c8a730",
+          "message": "fix: incorrect parameter visibility location in monomorphized AST pri… (#8453)",
+          "timestamp": "2025-05-13T13:02:58Z",
+          "tree_id": "8657549ecb4c6b15398ad9aa31270e4879d338f7",
+          "url": "https://github.com/noir-lang/noir/commit/27941c993754c784de9e6a0bec5b3ef991c8a730"
+        },
+        "date": 1747142669977,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 269209,
+            "range": "± 723",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 240189,
+            "range": "± 2810",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 3234896,
+            "range": "± 6246",
             "unit": "ns/iter"
           }
         ]
