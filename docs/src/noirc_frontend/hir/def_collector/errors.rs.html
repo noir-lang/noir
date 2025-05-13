@@ -300,7 +300,15 @@
 <a href="#299" id="299">299</a>
 <a href="#300" id="300">300</a>
 <a href="#301" id="301">301</a>
-<a href="#302" id="302">302</a></pre></div><pre class="rust"><code><span class="kw">use </span><span class="kw">crate</span>::ast::{Ident, ItemVisibility, UnsupportedNumericGenericType};
+<a href="#302" id="302">302</a>
+<a href="#303" id="303">303</a>
+<a href="#304" id="304">304</a>
+<a href="#305" id="305">305</a>
+<a href="#306" id="306">306</a>
+<a href="#307" id="307">307</a>
+<a href="#308" id="308">308</a>
+<a href="#309" id="309">309</a>
+<a href="#310" id="310">310</a></pre></div><pre class="rust"><code><span class="kw">use </span><span class="kw">crate</span>::ast::{Ident, ItemVisibility, UnsupportedNumericGenericType};
 <span class="kw">use </span><span class="kw">crate</span>::elaborator::TypedPath;
 <span class="kw">use </span><span class="kw">crate</span>::hir::resolution::import::PathResolutionError;
 <span class="kw">use </span><span class="kw">crate</span>::hir::type_check::generics::TraitGenerics;
@@ -381,6 +389,8 @@
     </span>TestOnlyFailWithWithoutParameters { location: Location },
     <span class="attr">#[error(<span class="string">"The `#[fuzz]` attribute may only be used on functions with parameters"</span>)]
     </span>FuzzingHarnessWithoutParameters { location: Location },
+    <span class="attr">#[error(<span class="string">"`{name}` entry-point function is not allowed to have generic parameters"</span>)]
+    </span>EntryPointWithGenerics { name: String, location: Location },
 }
 
 <span class="kw">impl </span>DefCollectorErrorKind {
@@ -414,7 +424,8 @@
             | DefCollectorErrorKind::TraitMissingMethod { trait_impl_location: location, .. }
             | DefCollectorErrorKind::ForeignImpl { location, .. }
             | DefCollectorErrorKind::TestOnlyFailWithWithoutParameters { location }
-            | DefCollectorErrorKind::FuzzingHarnessWithoutParameters { location } =&gt; <span class="kw-2">*</span>location,
+            | DefCollectorErrorKind::FuzzingHarnessWithoutParameters { location }
+            | DefCollectorErrorKind::EntryPointWithGenerics { location, .. } =&gt; <span class="kw-2">*</span>location,
             DefCollectorErrorKind::NotATrait { not_a_trait_name: path }
             | DefCollectorErrorKind::TraitNotFound { trait_path: path } =&gt; path.location,
             DefCollectorErrorKind::UnsupportedNumericGenericType(
@@ -596,6 +607,11 @@
             ),
             DefCollectorErrorKind::FuzzingHarnessWithoutParameters { location } =&gt; Diagnostic::simple_error(
                 <span class="string">"The `#[fuzz]` attribute may only be used on functions with parameters"</span>.into(),
+                String::new(),
+                <span class="kw-2">*</span>location,
+            ),
+            DefCollectorErrorKind::EntryPointWithGenerics { name, location } =&gt; Diagnostic::simple_error(
+                <span class="macro">format!</span>(<span class="string">"`{name}` entry-point function is not allowed to have generic parameters"</span>),
                 String::new(),
                 <span class="kw-2">*</span>location,
             ),

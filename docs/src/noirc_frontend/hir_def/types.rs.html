@@ -3356,7 +3356,9 @@
 <a href="#3355" id="3355">3355</a>
 <a href="#3356" id="3356">3356</a>
 <a href="#3357" id="3357">3357</a>
-<a href="#3358" id="3358">3358</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::{
+<a href="#3358" id="3358">3358</a>
+<a href="#3359" id="3359">3359</a>
+<a href="#3360" id="3360">3360</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::{
     borrow::Cow,
     cell::RefCell,
     collections::{BTreeSet, HashMap},
@@ -4626,16 +4628,18 @@
         <span class="kw">match </span><span class="self">self </span>{
             <span class="comment">// Type::Error is allowed as usual since it indicates an error was already issued and
             // we don't need to issue further errors about this likely unresolved type
+            // TypeVariable and Generic are allowed here too as they can only result from
+            // generics being declared on the function itself, but we produce a different error in that case.
             </span>Type::FieldElement
             | Type::Integer(<span class="kw">_</span>, <span class="kw">_</span>)
             | Type::Bool
             | Type::Unit
             | Type::Constant(<span class="kw">_</span>, <span class="kw">_</span>)
+            | Type::TypeVariable(<span class="kw">_</span>)
+            | Type::NamedGeneric(<span class="kw">_</span>)
             | Type::Error =&gt; <span class="bool-val">true</span>,
 
             Type::FmtString(<span class="kw">_</span>, <span class="kw">_</span>)
-            | Type::TypeVariable(<span class="kw">_</span>)
-            | Type::NamedGeneric(<span class="kw">_</span>)
             | Type::Function(<span class="kw">_</span>, <span class="kw">_</span>, <span class="kw">_</span>, <span class="kw">_</span>)
             | Type::Reference(..)
             | Type::Forall(<span class="kw">_</span>, <span class="kw">_</span>)
