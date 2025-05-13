@@ -1,3 +1,6 @@
+// Implementation taken from https://github.com/hashcloak/semaphore-noir/blob/d14e0475ad93b5f70ad16a0dafbc8b5b0519c4c5/packages/circuits-noir/src/main.nr
+// Used under MIT licence.
+
 use ec::bjj::BabyJubJubParams;
 use ec::{Curve, CurveTrait};
 use ec::scalar_field::ScalarField;
