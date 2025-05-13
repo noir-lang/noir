@@ -142,7 +142,7 @@ impl<'a> ValueMerger<'a> {
             for (element_index, element_type) in element_types.iter().enumerate() {
                 let index =
                     ((i * element_types.len() as u32 + element_index as u32) as u128).into();
-                let index = self.dfg.make_constant(index, NumericType::unsigned(32));
+                let index = self.dfg.make_constant(index, NumericType::length_type());
 
                 let typevars = Some(vec![element_type.clone()]);
 
