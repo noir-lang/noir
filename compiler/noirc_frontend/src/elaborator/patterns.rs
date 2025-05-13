@@ -16,6 +16,7 @@ use crate::{
     hir_def::{
         expr::{HirExpression, HirIdent, HirLiteral, HirMethodReference, ImplKind, TraitMethod},
         stmt::HirPattern,
+        traits::NamedType,
     },
     node_interner::{
         DefinitionId, DefinitionInfo, DefinitionKind, ExprId, FuncId, GlobalId, TraitImplKind,
@@ -668,12 +669,12 @@ impl Elaborator<'_> {
         // Check the `Self::AssociatedConstant` case when inside a trait impl
         let associated_types = self.interner.get_associated_types_for_impl(*trait_impl_id);
         let associated_type = associated_types.iter().find(|typ| typ.name.as_str() == name);
-        if let Some(associated_type) = associated_type {
-            if let Type::Constant(field, Kind::Numeric(numeric_type)) = &associated_type.typ {
-                let numeric_type: Type = *numeric_type.clone();
-                let value = SignedField::positive(*field);
-                return Some(self.constant_integer(numeric_type, value, variable.location));
-            }
+        if let Some(NamedType { typ: Type::Constant(field, Kind::Numeric(numeric_type)), .. }) =
+            associated_type
+        {
+            let numeric_type: Type = *numeric_type.clone();
+            let value = SignedField::positive(*field);
+            return Some(self.constant_integer(numeric_type, value, variable.location));
         }
 
         // Check the `Self::method_name` case when `Self` is a primitive type
