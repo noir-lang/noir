@@ -370,7 +370,7 @@ mod tests {
 
         let ssa = Ssa::from_str(src).unwrap();
         let inline_infos = compute_inline_infos(&ssa, false, i64::MAX);
-        dbg!(&inline_infos);
+
         let func_0 = inline_infos.get(&Id::test_new(0)).expect("Should have computed inline info");
         assert!(!func_0.is_recursive);
 

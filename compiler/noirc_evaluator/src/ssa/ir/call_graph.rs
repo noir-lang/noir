@@ -162,7 +162,6 @@ pub(crate) fn called_functions_vec(func: &Function) -> Vec<FunctionId> {
             };
 
             if let Value::Function(function_id) = func.dfg[*called_value_id] {
-                // dbg!(&function_id);
                 called_function_ids.push(function_id);
             }
         }
