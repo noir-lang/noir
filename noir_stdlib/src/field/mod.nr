@@ -14,39 +14,8 @@ impl Field {
             BIT_SIZE < modulus_num_bits() as u32,
             "BIT_SIZE must be less than modulus_num_bits",
         );
-        self.__assert_max_bit_size(BIT_SIZE);
-    }
-
-    #[builtin(apply_range_constraint)]
-    fn __assert_max_bit_size(self, bit_size: u32) {}
-
-    /// Decomposes `self` into its little endian bit decomposition as a `[u1; N]` array.
-    /// This slice will be zero padded should not all bits be necessary to represent `self`.
-    ///
-    /// # Failures
-    /// Causes a constraint failure for `Field` values exceeding `2^N` as the resulting slice will not
-    /// be able to represent the original `Field`.
-    ///
-    /// # Safety
-    /// Values of `N` equal to or greater than the number of bits necessary to represent the `Field` modulus
-    /// (e.g. 254 for the BN254 field) allow for multiple bit decompositions. This is due to how the `Field` will
-    /// wrap around due to overflow when verifying the decomposition.
-    #[builtin(to_le_bits)]
-    fn _to_le_bits<let N: u32>(self: Self) -> [u1; N] {}
-
-    /// Decomposes `self` into its big endian bit decomposition as a `[u1; N]` array.
-    /// This array will be zero padded should not all bits be necessary to represent `self`.
-    ///
-    /// # Failures
-    /// Causes a constraint failure for `Field` values exceeding `2^N` as the resulting slice will not
-    /// be able to represent the original `Field`.
-    ///
-    /// # Safety
-    /// Values of `N` equal to or greater than the number of bits necessary to represent the `Field` modulus
-    /// (e.g. 254 for the BN254 field) allow for multiple bit decompositions. This is due to how the `Field` will
-    /// wrap around due to overflow when verifying the decomposition.
-    #[builtin(to_be_bits)]
-    fn _to_be_bits<let N: u32>(self: Self) -> [u1; N] {}
+        __assert_max_bit_size(self, BIT_SIZE);
+    }   
 
     /// Decomposes `self` into its little endian bit decomposition as a `[u1; N]` array.
     /// This slice will be zero padded should not all bits be necessary to represent `self`.
@@ -194,7 +163,7 @@ impl Field {
             static_assert(radix <= 256, "radix must be less than or equal to 256");
             static_assert(radix & (radix - 1) == 0, "radix must be a power of 2");
         }
-        self.__to_le_radix(radix)
+        __to_le_radix(self, radix)
     }
     // docs:end:to_le_radix
 
@@ -204,17 +173,9 @@ impl Field {
         if !crate::runtime::is_unconstrained() {
             crate::assert_constant(radix);
         }
-        self.__to_be_radix(radix)
+        __to_be_radix(self, radix)
     }
     // docs:end:to_be_radix
-
-    // `_radix` must be less than 256
-    #[builtin(to_le_radix)]
-    fn __to_le_radix<let N: u32>(self, radix: u32) -> [u8; N] {}
-
-    // `_radix` must be less than 256
-    #[builtin(to_be_radix)]
-    fn __to_be_radix<let N: u32>(self, radix: u32) -> [u8; N] {}
 
     // Returns self to the power of the given exponent value.
     // Caution: we assume the exponent fits into 32 bits
@@ -273,6 +234,45 @@ impl Field {
         result
     }
 }
+
+#[builtin(apply_range_constraint)]
+fn __assert_max_bit_size(value: Field, bit_size: u32) {}
+
+// `_radix` must be less than 256
+#[builtin(to_le_radix)]
+fn __to_le_radix<let N: u32>(value: Field, radix: u32) -> [u8; N] {}
+
+// `_radix` must be less than 256
+#[builtin(to_be_radix)]
+fn __to_be_radix<let N: u32>(value: Field, radix: u32) -> [u8; N] {}
+
+/// Decomposes `self` into its little endian bit decomposition as a `[u1; N]` array.
+/// This slice will be zero padded should not all bits be necessary to represent `self`.
+///
+/// # Failures
+/// Causes a constraint failure for `Field` values exceeding `2^N` as the resulting slice will not
+/// be able to represent the original `Field`.
+///
+/// # Safety
+/// Values of `N` equal to or greater than the number of bits necessary to represent the `Field` modulus
+/// (e.g. 254 for the BN254 field) allow for multiple bit decompositions. This is due to how the `Field` will
+/// wrap around due to overflow when verifying the decomposition.
+#[builtin(to_le_bits)]
+fn __to_le_bits<let N: u32>(value: Field) -> [u1; N] {}
+
+/// Decomposes `self` into its big endian bit decomposition as a `[u1; N]` array.
+/// This array will be zero padded should not all bits be necessary to represent `self`.
+///
+/// # Failures
+/// Causes a constraint failure for `Field` values exceeding `2^N` as the resulting slice will not
+/// be able to represent the original `Field`.
+///
+/// # Safety
+/// Values of `N` equal to or greater than the number of bits necessary to represent the `Field` modulus
+/// (e.g. 254 for the BN254 field) allow for multiple bit decompositions. This is due to how the `Field` will
+/// wrap around due to overflow when verifying the decomposition.
+#[builtin(to_be_bits)]
+fn __to_be_bits<let N: u32>(value: Field) -> [u1; N] {}
 
 #[builtin(modulus_num_bits)]
 pub comptime fn modulus_num_bits() -> u64 {}
