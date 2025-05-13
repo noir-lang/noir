@@ -12,6 +12,7 @@ use crate::{
 };
 
 const ARROW: &str = "▶\u{fe0e}";
+const GEAR: &str = "⚙";
 const TEST_COMMAND: &str = "nargo.test";
 const TEST_CODELENS_TITLE: &str = "Run Test";
 const COMPILE_COMMAND: &str = "nargo.compile";
@@ -22,6 +23,8 @@ const EXECUTE_COMMAND: &str = "nargo.execute";
 const EXECUTE_CODELENS_TITLE: &str = "Execute";
 const DEBUG_COMMAND: &str = "nargo.debug.dap";
 const DEBUG_CODELENS_TITLE: &str = "Debug";
+const DEBUG_TEST_COMMAND: &str = "nargo.debug.test";
+const DEBUG_TEST_CODELENS_TITLE: &str = "Debug test";
 
 fn with_arrow(title: &str) -> String {
     format!("{ARROW} {title}")
@@ -97,7 +100,7 @@ pub(crate) fn collect_lenses_for_package(
     let tests =
         context.get_all_test_functions_in_crate_matching(&crate_id, &FunctionNameMatch::Anything);
     for (func_name, test_function) in tests {
-        let location = context.function_meta(&test_function.get_id()).name.location;
+        let location = context.function_meta(&test_function.id).name.location;
         let file_id = location.file;
 
         // Ignore diagnostics for any file that wasn't the file we saved
@@ -116,7 +119,7 @@ pub(crate) fn collect_lenses_for_package(
             arguments: Some(
                 [
                     package_selection_args(workspace, package),
-                    vec!["--exact".into(), "--show-output".into(), func_name.into()],
+                    vec!["--exact".into(), "--show-output".into(), func_name.clone().into()],
                 ]
                 .concat(),
             ),
@@ -125,6 +128,22 @@ pub(crate) fn collect_lenses_for_package(
         let test_lens = CodeLens { range, command: Some(test_command), data: None };
 
         lenses.push(test_lens);
+
+        let debug_test_command = Command {
+            title: format!("{GEAR} {DEBUG_TEST_CODELENS_TITLE}"),
+            command: DEBUG_TEST_COMMAND.into(),
+            arguments: Some(
+                [
+                    package_selection_args(workspace, package),
+                    vec!["--exact".into(), func_name.into()],
+                ]
+                .concat(),
+            ),
+        };
+
+        let debug_test_lens = CodeLens { range, command: Some(debug_test_command), data: None };
+
+        lenses.push(debug_test_lens);
     }
 
     if package.is_binary() {

@@ -1,15 +1,15 @@
+use fxhash::FxHashMap as HashMap;
+use noirc_errors::call_stack::CallStackId;
 use std::{collections::VecDeque, sync::Arc};
 
 use acvm::{AcirField as _, FieldElement, acir::BlackBoxFunc};
 use bn254_blackbox_solver::derive_generators;
-use fxhash::FxHashMap as HashMap;
 use iter_extended::vecmap;
 use num_bigint::BigUint;
 
 use crate::ssa::{
     ir::{
         basic_block::BasicBlockId,
-        call_stack::CallStackId,
         dfg::DataFlowGraph,
         instruction::{Binary, BinaryOp, Endian, Hint, Instruction, Intrinsic},
         types::{NumericType, Type},
@@ -57,7 +57,7 @@ pub(super) fn simplify_call(
                 } else {
                     unreachable!("ICE: Intrinsic::ToRadix return type must be array")
                 };
-                constant_to_radix(endian, field, 2, limb_count, |values| {
+                simplify_constant_to_radix(endian, field, 2, limb_count, |values| {
                     make_constant_array(
                         dfg,
                         values.into_iter(),
@@ -80,7 +80,7 @@ pub(super) fn simplify_call(
                 } else {
                     unreachable!("ICE: Intrinsic::ToRadix return type must be array")
                 };
-                constant_to_radix(endian, field, radix, limb_count, |values| {
+                simplify_constant_to_radix(endian, field, radix, limb_count, |values| {
                     make_constant_array(
                         dfg,
                         values.into_iter(),
@@ -288,7 +288,7 @@ pub(super) fn simplify_call(
             }
         }
         Intrinsic::StaticAssert => {
-            if arguments.len() != 2 {
+            if arguments.len() < 2 {
                 panic!("ICE: static_assert called with wrong number of arguments")
             }
 
@@ -365,20 +365,32 @@ pub(super) fn simplify_call(
 }
 
 /// Returns a slice (represented by a tuple (len, slice)) of constants corresponding to the limbs of the radix decomposition.
-fn constant_to_radix(
+fn simplify_constant_to_radix(
     endian: Endian,
     field: FieldElement,
     radix: u32,
     limb_count: u32,
     mut make_array: impl FnMut(Vec<FieldElement>) -> ValueId,
 ) -> SimplifyResult {
+    match constant_to_radix(endian, field, radix, limb_count) {
+        Some(result) => SimplifyResult::SimplifiedTo(make_array(result)),
+        None => SimplifyResult::None,
+    }
+}
+
+pub(crate) fn constant_to_radix(
+    endian: Endian,
+    field: FieldElement,
+    radix: u32,
+    limb_count: u32,
+) -> Option<Vec<FieldElement>> {
     let bit_size = u32::BITS - (radix - 1).leading_zeros();
     let radix_big = BigUint::from(radix);
     let radix_range = BigUint::from(2u128)..=BigUint::from(256u128);
     if !radix_range.contains(&radix_big) || BigUint::from(2u128).pow(bit_size) != radix_big {
         // NOTE: expect an error to be thrown later in
         // acir::generated_acir::radix_le_decompose
-        return SimplifyResult::None;
+        return None;
     }
     let big_integer = BigUint::from_bytes_be(&field.to_be_bytes());
 
@@ -387,7 +399,7 @@ fn constant_to_radix(
     if limb_count < decomposed_integer.len() as u32 {
         // `field` cannot be represented as `limb_count` bits.
         // defer error to acir_gen.
-        SimplifyResult::None
+        None
     } else {
         let mut limbs = vecmap(0..limb_count, |i| match decomposed_integer.get(i as usize) {
             Some(digit) => FieldElement::from_be_bytes_reduce(&[*digit]),
@@ -396,8 +408,7 @@ fn constant_to_radix(
         if endian == Endian::Big {
             limbs.reverse();
         }
-        let result_array = make_array(limbs);
-        SimplifyResult::SimplifiedTo(result_array)
+        Some(limbs)
     }
 }
 
@@ -505,9 +516,7 @@ fn simplify_slice_push_back(
     slice_sizes.insert(set_last_slice_value, slice_size / element_size);
     slice_sizes.insert(new_slice, slice_size / element_size);
 
-    let unknown = &mut HashMap::default();
-    let mut value_merger =
-        ValueMerger::new(dfg, block, &mut slice_sizes, unknown, None, call_stack);
+    let mut value_merger = ValueMerger::new(dfg, block, &mut slice_sizes, call_stack);
 
     let new_slice = value_merger.merge_values(
         len_not_equals_capacity,

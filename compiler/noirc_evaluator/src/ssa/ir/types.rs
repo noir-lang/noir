@@ -315,7 +315,11 @@ impl std::fmt::Display for Type {
             }
             Type::Slice(element) => {
                 let elements = vecmap(element.iter(), |element| element.to_string());
-                write!(f, "[{}]", elements.join(", "))
+                if elements.len() == 1 {
+                    write!(f, "[{}]", elements.join(", "))
+                } else {
+                    write!(f, "[({})]", elements.join(", "))
+                }
             }
             Type::Function => write!(f, "function"),
         }

@@ -8,11 +8,12 @@
 //!
 //! An Error of the latter is an error in the implementation of the compiler
 use iter_extended::vecmap;
-use noirc_errors::{CustomDiagnostic, Location};
+use noirc_errors::{CustomDiagnostic, Location, call_stack::CallStack};
+
 use noirc_frontend::signed_field::SignedField;
 use thiserror::Error;
 
-use crate::ssa::ir::{call_stack::CallStack, types::NumericType};
+use crate::ssa::ir::types::NumericType;
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, PartialEq, Eq, Clone, Error)]
@@ -49,8 +50,10 @@ pub enum RuntimeError {
     AssertConstantFailed { call_stack: CallStack },
     #[error("The static_assert message is not constant")]
     StaticAssertDynamicMessage { call_stack: CallStack },
-    #[error("Argument is dynamic")]
-    StaticAssertDynamicPredicate { call_stack: CallStack },
+    #[error(
+        "Failed because the predicate is dynamic:\n{message}\nThe predicate must be known at compile time to be evaluated."
+    )]
+    StaticAssertDynamicPredicate { message: String, call_stack: CallStack },
     #[error("{message}")]
     StaticAssertFailed { message: String, call_stack: CallStack },
     #[error("Nested slices, i.e. slices within an array or slice, are not supported")]
@@ -167,7 +170,7 @@ impl RuntimeError {
             | RuntimeError::UnknownLoopBound { call_stack }
             | RuntimeError::AssertConstantFailed { call_stack }
             | RuntimeError::StaticAssertDynamicMessage { call_stack }
-            | RuntimeError::StaticAssertDynamicPredicate { call_stack }
+            | RuntimeError::StaticAssertDynamicPredicate { call_stack, .. }
             | RuntimeError::StaticAssertFailed { call_stack, .. }
             | RuntimeError::IntegerOutOfBounds { call_stack, .. }
             | RuntimeError::UnsupportedIntegerSize { call_stack, .. }

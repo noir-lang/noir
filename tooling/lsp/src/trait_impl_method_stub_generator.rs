@@ -1,7 +1,7 @@
 use std::collections::BTreeMap;
 
 use noirc_frontend::{
-    Kind, ResolvedGeneric, Type,
+    Kind, NamedGeneric, ResolvedGeneric, Type,
     ast::{NoirTraitImpl, UnresolvedTypeData},
     graph::CrateId,
     hir::{
@@ -9,10 +9,9 @@ use noirc_frontend::{
         type_check::generics::TraitGenerics,
     },
     hir_def::{function::FuncMeta, stmt::HirPattern, traits::Trait},
+    modules::relative_module_id_path,
     node_interner::{FunctionModifiers, NodeInterner, ReferenceId},
 };
-
-use crate::modules::relative_module_id_path;
 
 pub(crate) struct TraitImplMethodStubGenerator<'a> {
     name: &'a str,
@@ -324,8 +323,8 @@ impl<'a> TraitImplMethodStubGenerator<'a> {
 
                 self.string.push_str("error");
             }
-            Type::NamedGeneric(typevar, _name) => {
-                self.append_type(&Type::TypeVariable(typevar.clone()));
+            Type::NamedGeneric(NamedGeneric { type_var, .. }) => {
+                self.append_type(&Type::TypeVariable(type_var.clone()));
             }
             Type::Function(args, ret, env, unconstrained) => {
                 if *unconstrained {

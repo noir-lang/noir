@@ -20,8 +20,15 @@ expression: artifact
     "return_type": null,
     "error_types": {}
   },
-  "bytecode": "H4sIAAAAAAAA/6XOQQqAMAwEQAs+KGmSdnPzKxbT/z9BREVB9OJcFvawbBouaXg6u+lIoaIaNQcLz5S9wUitFTDYYEuGSEBRvXklZ5Xgbi6ddvct+ke3b+PH9zcrS3zcEvQAAAA=",
-  "debug_symbols": "TYzLCoMwEEX/ZdYuVNpF8yulSB4TGQiTMEkKJfjvjaLg8tzDPQ0cmrouxD5mUO8GIVpdKHKnBuMx5aR5p1y0FFDT6zEAsgM1z9M2gKeAoJ7j9ulghEKgdbln+vzVQtoEPNFXtjdbfuky1z9JtOiq4F46XM//AQ==",
+  "bytecode": [
+    "func 0",
+    "current witness index : _0",
+    "private parameters indices : [_0]",
+    "public parameters indices : []",
+    "return value indices : []",
+    "EXPR [ (-1, _0) 4 ]"
+  ],
+  "debug_symbols": "jZDBCoMwDIbfJecerNsO81XGkFqjFEJbYjsY4rsvim56GHhKkz/fX/KP0GKT+9r5LgxQPUZo2BG5vqZgTXLBy3ScFGxtnRhRRrDThYqG0SeofCZS8DKUl6UhGr/UZFjUQgH6VqoYdo5wfk3qRxf/Ua3LFdYX/cVv5/n7deXL8sg/pTPW8eFiKGRxmu3YmYZwTaHL3u5CSe+4KVtskYPFNjPOdosmH3wA",
   "file_map": {
     "50": {
       "source": "fn main(four_as_u32: u32) {\n    let four_as_u8: u8 = 4;\n    let not_four_as_u8: u8 = !four_as_u8;\n    assert_eq(not_four_as_u8, 251);\n\n    let not_four_as_u32: u32 = !four_as_u32;\n    assert_eq(not_four_as_u32, 4294967291);\n}\n",

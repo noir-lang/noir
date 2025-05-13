@@ -2,6 +2,7 @@ use fm::FileId;
 use iter_extended::vecmap;
 use noirc_errors::{Located, Location, Span};
 
+use crate::NamedGeneric;
 use crate::ast::{
     ArrayLiteral, AssignStatement, BlockExpression, CallExpression, CastExpression, ConstrainKind,
     ConstructorExpression, ExpressionKind, ForLoopStatement, ForRange, GenericTypeArgs, Ident,
@@ -438,7 +439,7 @@ impl Type {
                 let name = Path::from_single(name.as_ref().clone(), Location::dummy());
                 UnresolvedTypeData::TraitAsType(name, generics)
             }
-            Type::NamedGeneric(_var, name) => {
+            Type::NamedGeneric(NamedGeneric { name, .. }) => {
                 let name = Path::from_single(name.as_ref().clone(), Location::dummy());
                 UnresolvedTypeData::Named(name, GenericTypeArgs::default(), true)
             }
@@ -479,7 +480,7 @@ impl Type {
 
         match self.follow_bindings() {
             Type::Constant(length, _kind) => UnresolvedTypeExpression::Constant(length, location),
-            Type::NamedGeneric(_var, name) => {
+            Type::NamedGeneric(NamedGeneric { name, .. }) => {
                 let path = Path::from_single(name.as_ref().clone(), location);
                 UnresolvedTypeExpression::Variable(path)
             }
@@ -503,7 +504,7 @@ impl HirLValue {
                 let index = index.to_display_ast(interner);
                 LValue::Index { array, index, location: *location }
             }
-            HirLValue::Dereference { lvalue, element_type: _, location } => {
+            HirLValue::Dereference { lvalue, element_type: _, location, implicitly_added: _ } => {
                 let lvalue = Box::new(lvalue.to_display_ast(interner));
                 LValue::Dereference(lvalue, *location)
             }
