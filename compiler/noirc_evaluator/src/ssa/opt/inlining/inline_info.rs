@@ -3,11 +3,12 @@ use std::collections::{BTreeMap, HashSet, VecDeque};
 use im::HashMap;
 
 use crate::ssa::{
-    ir::function::{Function, FunctionId},
+    ir::{
+        call_graph::{called_functions, called_functions_vec},
+        function::{Function, FunctionId},
+    },
     ssa_gen::Ssa,
 };
-
-use super::{called_functions, called_functions_vec};
 
 /// Information about a function to aid the decision about whether to inline it or not.
 /// The final decision depends on what we're inlining it into.
@@ -363,5 +364,56 @@ fn mark_brillig_functions_to_retain(
             im::HashSet::default(),
             entry_point,
         );
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::ssa::{ir::map::Id, ssa_gen::Ssa};
+
+    use super::compute_inline_infos;
+
+    // This panic is a regression that will need to be updated by fixing the inline infos computation.
+    // https://github.com/noir-lang/noir/issues/8448
+    #[test]
+    #[should_panic(expected = "func_3.is_recursive")]
+    fn mark_mutually_recursive_functions() {
+        let src = "
+        acir(inline) fn main f0 {
+          b0():
+            call f1()
+            return
+        }
+        brillig(inline) fn starter f1 {
+          b0():
+            call f2()
+            return
+        }
+        brillig(inline) fn ping f2 {
+          b0():
+            call f3()
+            return
+        }
+        brillig(inline) fn pong f3 {
+          b0():
+            call f2()
+            return
+        }
+        ";
+
+        let ssa = Ssa::from_str(src).unwrap();
+        let inline_infos = compute_inline_infos(&ssa, false, i64::MAX);
+
+        let func_0 = inline_infos.get(&Id::test_new(0)).expect("Should have computed inline info");
+        assert!(!func_0.is_recursive);
+
+        let func_1 = inline_infos.get(&Id::test_new(1)).expect("Should have computed inline info");
+        assert!(!func_1.is_recursive);
+
+        let func_2 = inline_infos.get(&Id::test_new(2)).expect("Should have computed inline info");
+        assert!(func_2.is_recursive);
+
+        let func_3 = inline_infos.get(&Id::test_new(3)).expect("Should have computed inline info");
+        assert!(func_3.is_recursive);
     }
 }

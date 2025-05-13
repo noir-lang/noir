@@ -57,7 +57,6 @@ pub fn arb_program_comptime(u: &mut Unstructured, config: Config) -> arbitrary::
         name: "main".into(),
         params: vec![],
         return_type: decl_inner.return_type.clone(),
-        param_visibilities: vec![],
         return_visibility: Visibility::Public,
         inline_type: InlineType::default(),
         unconstrained: false,
@@ -118,11 +117,6 @@ impl Context {
         self.function_declarations.insert(id, decl);
     }
 
-    /// Get the main function declaration.
-    fn main_decl(&self) -> &FunctionDeclaration {
-        self.function_declarations.get(&Program::main_id()).expect("main should exist")
-    }
-
     /// Generate random global definitions.
     fn gen_globals(&mut self, u: &mut Unstructured) -> arbitrary::Result<()> {
         let num_globals = u.int_in_range(0..=self.config.max_globals)?;
@@ -139,8 +133,14 @@ impl Context {
         u: &mut Unstructured,
         i: usize,
     ) -> arbitrary::Result<(Name, Type, Expression)> {
-        let typ =
-            self.gen_type(u, self.config.max_depth, true, false, self.config.comptime_friendly)?;
+        let typ = self.gen_type(
+            u,
+            self.config.max_depth,
+            true,
+            false,
+            false,
+            self.config.comptime_friendly,
+        )?;
         // By the time we get to the monomorphized AST the compiler will have already turned
         // complex global expressions into literals.
         let val = expr::gen_literal(u, &typ)?;
@@ -170,7 +170,6 @@ impl Context {
         let num_params = u.int_in_range(0..=self.config.max_function_args)?;
 
         let mut params = Vec::new();
-        let mut param_visibilities = Vec::new();
         for p in 0..num_params {
             let id = LocalId(p as u32);
             let name = make_name(p, false);
@@ -179,12 +178,12 @@ impl Context {
                 u,
                 self.config.max_depth,
                 false,
+                is_main,
                 false,
                 self.config.comptime_friendly,
             )?;
-            params.push((id, is_mutable, name, typ));
 
-            param_visibilities.push(if is_main {
+            let visibility = if is_main {
                 match u.choose_index(5)? {
                     0 | 1 => Visibility::Public,
                     2 | 3 => Visibility::Private,
@@ -192,11 +191,20 @@ impl Context {
                 }
             } else {
                 Visibility::Private
-            });
+            };
+
+            params.push((id, is_mutable, name, typ, visibility));
         }
 
-        let return_type =
-            self.gen_type(u, self.config.max_depth, false, false, self.config.comptime_friendly)?;
+        let return_type = self.gen_type(
+            u,
+            self.config.max_depth,
+            false,
+            is_main,
+            false,
+            self.config.comptime_friendly,
+        )?;
+
         let return_visibility = if is_main {
             if types::is_unit(&return_type) {
                 Visibility::Private
@@ -212,7 +220,6 @@ impl Context {
         let decl = FunctionDeclaration {
             name: if is_main { "main".to_string() } else { format!("func_{i}") },
             params,
-            param_visibilities,
             return_type,
             return_visibility,
             inline_type: if is_main {
@@ -263,6 +270,7 @@ impl Context {
             parameters: decl.params.clone(),
             body,
             return_type: decl.return_type.clone(),
+            return_visibility: decl.return_visibility,
             unconstrained: decl.unconstrained,
             inline_type: decl.inline_type,
             func_sig: decl.signature(),
@@ -278,7 +286,6 @@ impl Context {
 
     /// Return the generated [Program].
     fn finalize(self) -> Program {
-        let return_visibility = self.main_decl().return_visibility;
         let functions = self.functions.into_values().collect::<Vec<_>>();
 
         // The signatures should only contain entry functions. Currently that's just `main`.
@@ -294,7 +301,6 @@ impl Context {
             function_signatures,
             main_function_signature,
             return_location: None,
-            return_visibility,
             globals,
             debug_variables: Default::default(),
             debug_functions: Default::default(),
@@ -329,6 +335,7 @@ impl Context {
         u: &mut Unstructured,
         max_depth: usize,
         is_global: bool,
+        is_main: bool,
         is_frontend_friendly: bool,
         is_comptime_friendly: bool,
     ) -> arbitrary::Result<Type> {
@@ -338,6 +345,7 @@ impl Context {
                 .types
                 .iter()
                 .filter(|typ| !is_global || types::can_be_global(typ))
+                .filter(|typ| !is_main || !types::can_be_main(typ))
                 .filter(|typ| types::type_depth(typ) <= max_depth)
                 .filter(|typ| !is_frontend_friendly || !self.should_avoid_literals(typ))
                 .collect::<Vec<_>>();
@@ -386,6 +394,7 @@ impl Context {
                                 u,
                                 max_depth - 1,
                                 is_global,
+                                is_main,
                                 is_frontend_friendly,
                                 is_comptime_friendly,
                             )
@@ -400,6 +409,7 @@ impl Context {
                         u,
                         max_depth - 1,
                         is_global,
+                        is_main,
                         is_frontend_friendly,
                         is_comptime_friendly,
                     )?;
@@ -407,7 +417,11 @@ impl Context {
                 }
                 _ => unreachable!("unexpected arbitrary type index"),
             };
-            if !is_global || types::can_be_global(&typ) {
+            // Looping is kinda dangerous, we could get stuck if we run out of randomness,
+            // so we have to make sure the first type on the list is acceptable.
+            if is_global && !types::can_be_global(&typ) || is_main && !types::can_be_main(&typ) {
+                continue;
+            } else {
                 break;
             }
         }
@@ -480,12 +494,14 @@ impl std::fmt::Display for DisplayAstAsNoirComptime<'_> {
         printer.show_id = false;
         printer.show_clone_and_drop = false;
         for function in &self.0.functions {
-            let mut fpo = FunctionPrintOptions::default();
             if function.id == Program::main_id() {
-                fpo.comptime_wrap_body = true;
-                fpo.return_visibility = Some(Visibility::Public);
+                let mut function = function.clone();
+                function.return_visibility = Visibility::Public;
+                let fpo = FunctionPrintOptions { comptime_wrap_body: true, ..Default::default() };
+                printer.print_function(&function, f, fpo)?;
+            } else {
+                printer.print_function(function, f, FunctionPrintOptions::default())?;
             }
-            printer.print_function(function, f, fpo)?;
         }
         Ok(())
     }

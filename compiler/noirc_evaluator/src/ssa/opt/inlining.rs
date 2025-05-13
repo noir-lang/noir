@@ -2,7 +2,7 @@
 //! The purpose of this pass is to inline the instructions of each function call
 //! within the function caller. If all function calls are known, there will only
 //! be a single function remaining when the pass finishes.
-use std::collections::{BTreeSet, HashSet, VecDeque};
+use std::collections::{HashSet, VecDeque};
 
 use acvm::acir::AcirField;
 use im::HashMap;
@@ -155,31 +155,6 @@ struct PerFunctionContext<'function> {
     inlining_entry: bool,
 
     globals: &'function GlobalsGraph,
-}
-
-/// Utility function to find out the direct calls of a function.
-///
-/// Returns the function IDs from all `Call` instructions without deduplication.
-pub(crate) fn called_functions_vec(func: &Function) -> Vec<FunctionId> {
-    let mut called_function_ids = Vec::new();
-    for block_id in func.reachable_blocks() {
-        for instruction_id in func.dfg[block_id].instructions() {
-            let Instruction::Call { func: called_value_id, .. } = &func.dfg[*instruction_id] else {
-                continue;
-            };
-
-            if let Value::Function(function_id) = func.dfg[*called_value_id] {
-                called_function_ids.push(function_id);
-            }
-        }
-    }
-
-    called_function_ids
-}
-
-/// Utility function to find out the deduplicated direct calls made from a function.
-fn called_functions(func: &Function) -> BTreeSet<FunctionId> {
-    called_functions_vec(func).into_iter().collect()
 }
 
 impl InlineContext {
