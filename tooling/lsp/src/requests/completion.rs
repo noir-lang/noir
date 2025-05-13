@@ -1104,7 +1104,7 @@ impl<'a> NodeFinder<'a> {
                 }
             }
             Pattern::Mutable(pattern, ..) | Pattern::Parenthesized(pattern, _) => {
-                self.try_set_self_type(pattern)
+                self.try_set_self_type(pattern);
             }
             Pattern::Tuple(..) | Pattern::Struct(..) | Pattern::Interned(..) => (),
         }
