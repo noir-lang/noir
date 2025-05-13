@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1747152651941,
+  "lastUpdate": 1747153181404,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -17961,48 +17961,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "rkarabut@users.noreply.github.com",
-            "name": "Ratmir Karabut",
-            "username": "rkarabut"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "d57382caa4e9603f5d0bdfac60e6a2f793b07982",
-          "message": "feat(fuzz): initial version of comptime vs brillig target for AST fuzzer (#8335)",
-          "timestamp": "2025-05-07T13:27:55Z",
-          "tree_id": "6efd7810f7ec4b704fc6f4481dd0a707fceffd7e",
-          "url": "https://github.com/noir-lang/noir/commit/d57382caa4e9603f5d0bdfac60e6a2f793b07982"
-        },
-        "date": 1746625712093,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 273970,
-            "range": "± 569",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 246577,
-            "range": "± 2449",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 3229440,
-            "range": "± 3394",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "15848336+TomAFrench@users.noreply.github.com",
             "name": "Tom French",
             "username": "TomAFrench"
@@ -20054,6 +20012,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 3233192,
             "range": "± 2449",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "aakoshh@gmail.com",
+            "name": "Akosh Farkash",
+            "username": "aakoshh"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "a21ac4588a2500a06481d6555717f1f32f8dec7a",
+          "message": "chore(test): Replicate comptime stack overflow in a test (#8473)",
+          "timestamp": "2025-05-13T15:52:35Z",
+          "tree_id": "79bd0284295967ccb489f49bfdbffd7217867744",
+          "url": "https://github.com/noir-lang/noir/commit/a21ac4588a2500a06481d6555717f1f32f8dec7a"
+        },
+        "date": 1747153171640,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 267854,
+            "range": "± 794",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 237352,
+            "range": "± 3049",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 3234770,
+            "range": "± 4983",
             "unit": "ns/iter"
           }
         ]
