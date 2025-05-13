@@ -396,7 +396,7 @@ impl<'ssa> Interpreter<'ssa> {
             // Cast in SSA changes the type without altering the value
             Instruction::Cast(value, numeric_type) => {
                 let value = self.lookup_numeric(*value, "cast")?;
-                let field = value.convert_to_field();
+                let field = value.convert_to_field(numeric_type.bit_size());
                 let result = Value::from_constant(field, *numeric_type)?;
                 self.define(results[0], result);
                 Ok(())

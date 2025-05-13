@@ -362,7 +362,7 @@ fn cast() {
     );
     assert_eq!(values[0], from_constant(2_u128.into(), NumericType::NativeField));
     assert_eq!(values[1], from_constant(3_u128.into(), NumericType::unsigned(8)));
-    assert_eq!(values[2], from_constant(255_i128.into(), NumericType::signed(32)));
+    assert_eq!(values[2], from_constant(u32::MAX.into(), NumericType::signed(32)));
 }
 
 #[test]

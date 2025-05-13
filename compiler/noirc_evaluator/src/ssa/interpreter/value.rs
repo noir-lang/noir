@@ -282,7 +282,7 @@ impl NumericValue {
         }
     }
 
-    pub(crate) fn convert_to_field(&self) -> FieldElement {
+    pub(crate) fn convert_to_field(&self, target_bit_size: u32) -> FieldElement {
         let signed = convert_signed_integer_to_field_element;
         match self {
             NumericValue::Field(field) => *field,
@@ -293,10 +293,10 @@ impl NumericValue {
             NumericValue::U32(value) => FieldElement::from(*value),
             NumericValue::U64(value) => FieldElement::from(*value),
             NumericValue::U128(value) => FieldElement::from(*value),
-            NumericValue::I8(value) => FieldElement::from(signed(*value as i128, 8)),
-            NumericValue::I16(value) => FieldElement::from(signed(*value as i128, 16)),
-            NumericValue::I32(value) => FieldElement::from(signed(*value as i128, 32)),
-            NumericValue::I64(value) => FieldElement::from(signed(*value as i128, 64)),
+            NumericValue::I8(value) => FieldElement::from(signed(*value as i128, target_bit_size)),
+            NumericValue::I16(value) => FieldElement::from(signed(*value as i128, target_bit_size)),
+            NumericValue::I32(value) => FieldElement::from(signed(*value as i128, target_bit_size)),
+            NumericValue::I64(value) => FieldElement::from(signed(*value as i128, target_bit_size)),
         }
     }
 }
