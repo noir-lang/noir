@@ -760,7 +760,7 @@ fn unchecked_mul_should_not_have_range_check() {
     let opcodes = acir_functions[0].take_opcodes();
 
     for opcode in opcodes {
-        if let Opcode::BlackBoxFuncCall(BlackBoxFuncCall::RANGE { input }) = opcode {
+        if let Opcode::BlackBoxFuncCall(BlackBoxFuncCall::RANGE { input, .. }) = opcode {
             assert!(
                 input.to_witness().0 <= 1,
                 "only input witnesses should have range checks: {opcode:?}"
