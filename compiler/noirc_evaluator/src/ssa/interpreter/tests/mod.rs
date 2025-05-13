@@ -17,7 +17,9 @@ mod instructions;
 #[track_caller]
 fn executes_with_no_errors(src: &str) {
     let ssa = Ssa::from_str(src).unwrap();
-    assert!(ssa.interpret(Vec::new()).is_ok());
+    if let Err(error) = ssa.interpret(Vec::new()) {
+        panic!("{error}");
+    }
 }
 
 #[track_caller]
@@ -75,7 +77,7 @@ fn return_all_numeric_constant_types() {
     let src = "
         acir(inline) fn main f0 {
           b0():
-            return Field 0, u1 1, u8 2, u16 3, u32 4, u64 5, u128 6, i8 -1, i16 -2, i32 -3, i64 -4
+            return Field 0, u1 1, u8 2, u16 3, u32 4, u64 5, u128 6, i8 255, i16 65534, i32 4294967293, i64 18446744073709551612
         }
     ";
     let returns = expect_values(src);
@@ -1505,4 +1507,34 @@ acir(inline) fn eq f31 {
         ],
     );
     assert!(values.is_empty());
+}
+
+#[test]
+fn signed_integer_conversions() {
+    // fn main() -> pub i16 {
+    //   foo() as i16
+    // }
+    // fn foo() -> i8 {
+    //   -65
+    // }
+    let src = r#"
+        acir(inline) fn main f0 {
+          b0():
+            v1 = call f1() -> i8
+            v2 = cast v1 as u8
+            v4 = lt v2, u8 128
+            v5 = not v4
+            v6 = cast v5 as u16
+            v8 = unchecked_mul u16 65280, v6
+            v9 = cast v1 as u16
+            v10 = unchecked_add v8, v9
+            v11 = cast v10 as i16
+            return v11
+        }
+        acir(inline) fn foo f1 {
+          b0():
+            return i8 191
+        }
+    "#;
+    executes_with_no_errors(src);
 }

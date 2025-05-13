@@ -7,6 +7,7 @@ use noirc_frontend::Shared;
 use crate::ssa::ir::{
     function::FunctionId,
     instruction::{Intrinsic, binary::convert_signed_integer_to_field_element},
+    integer::IntegerConstant,
     types::{CompositeType, NumericType, Type},
     value::ValueId,
 };
@@ -248,60 +249,36 @@ impl NumericValue {
         use super::InternalError::{ConstantDoesNotFitInType, UnsupportedNumericType};
         use super::InterpreterError::Internal;
 
+        let does_not_fit = Internal(ConstantDoesNotFitInType { constant, typ });
+        let unsupported_type = Internal(UnsupportedNumericType { typ });
+
         match typ {
             NumericType::NativeField => Ok(Self::Field(constant)),
             NumericType::Unsigned { bit_size: 1 } => {
                 if constant.is_zero() || constant.is_one() {
                     Ok(Self::U1(constant.is_one()))
                 } else {
-                    Err(Internal(ConstantDoesNotFitInType { constant, typ }))
+                    Err(does_not_fit)
                 }
             }
-            NumericType::Unsigned { bit_size: 8 } => constant
-                .try_into_u128()
-                .and_then(|x| x.try_into().ok())
-                .map(Self::U8)
-                .ok_or_else(|| Internal(ConstantDoesNotFitInType { constant, typ })),
-            NumericType::Unsigned { bit_size: 16 } => constant
-                .try_into_u128()
-                .and_then(|x| x.try_into().ok())
-                .map(Self::U16)
-                .ok_or_else(|| Internal(ConstantDoesNotFitInType { constant, typ })),
-            NumericType::Unsigned { bit_size: 32 } => constant
-                .try_into_u128()
-                .and_then(|x| x.try_into().ok())
-                .map(Self::U32)
-                .ok_or_else(|| Internal(ConstantDoesNotFitInType { constant, typ })),
-            NumericType::Unsigned { bit_size: 64 } => constant
-                .try_into_u128()
-                .and_then(|x| x.try_into().ok())
-                .map(Self::U64)
-                .ok_or_else(|| Internal(ConstantDoesNotFitInType { constant, typ })),
-            NumericType::Unsigned { bit_size: 128 } => constant
-                .try_into_u128()
-                .map(Self::U128)
-                .ok_or_else(|| Internal(ConstantDoesNotFitInType { constant, typ })),
-            NumericType::Signed { bit_size: 8 } => constant
-                .try_into_i128()
-                .and_then(|x| x.try_into().ok())
-                .map(Self::I8)
-                .ok_or_else(|| Internal(ConstantDoesNotFitInType { constant, typ })),
-            NumericType::Signed { bit_size: 16 } => constant
-                .try_into_i128()
-                .and_then(|x| x.try_into().ok())
-                .map(Self::I16)
-                .ok_or_else(|| Internal(ConstantDoesNotFitInType { constant, typ })),
-            NumericType::Signed { bit_size: 32 } => constant
-                .try_into_i128()
-                .and_then(|x| x.try_into().ok())
-                .map(Self::I32)
-                .ok_or_else(|| Internal(ConstantDoesNotFitInType { constant, typ })),
-            NumericType::Signed { bit_size: 64 } => constant
-                .try_into_i128()
-                .and_then(|x| x.try_into().ok())
-                .map(Self::I64)
-                .ok_or_else(|| Internal(ConstantDoesNotFitInType { constant, typ })),
-            typ => Err(Internal(UnsupportedNumericType { typ })),
+            _ => match IntegerConstant::from_numeric_constant(constant, typ) {
+                Some(IntegerConstant::Unsigned { value, bit_size }) => match bit_size {
+                    8 => value.try_into().map(Self::U8).map_err(|_| does_not_fit),
+                    16 => value.try_into().map(Self::U16).map_err(|_| does_not_fit),
+                    32 => value.try_into().map(Self::U32).map_err(|_| does_not_fit),
+                    64 => value.try_into().map(Self::U64).map_err(|_| does_not_fit),
+                    128 => Ok(Self::U128(value)),
+                    _ => Err(unsupported_type),
+                },
+                Some(IntegerConstant::Signed { value, bit_size }) => match bit_size {
+                    8 => value.try_into().map(Self::I8).map_err(|_| does_not_fit),
+                    16 => value.try_into().map(Self::I16).map_err(|_| does_not_fit),
+                    32 => value.try_into().map(Self::I32).map_err(|_| does_not_fit),
+                    64 => value.try_into().map(Self::I64).map_err(|_| does_not_fit),
+                    _ => Err(unsupported_type),
+                },
+                None => Err(does_not_fit),
+            },
         }
     }
 

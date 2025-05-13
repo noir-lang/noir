@@ -78,7 +78,7 @@ fn sub_underflow() {
         "
         acir(inline) fn main f0 {
           b0():
-            v0 = sub i8 -120, i8 10
+            v0 = sub i8 136, i8 10  // -120 - 10
             return v0
         }
     ",
@@ -220,11 +220,11 @@ fn lt() {
           b0():
             v0 = lt u32 3, u32 7
             v1 = lt i32 3, i32 7
-            v2 = lt i32 3, i32 -3
+            v2 = lt i32 3, i32 4294967293   // 3 < -3  (false)
 
-            v3 = lt i32 -3, i32 -2
-            v4 = lt i32 -3, i32 -3
-            v5 = lt i32 -3, i32 -4
+            v3 = lt i32 4294967293, i32 4294967294  // -3 < -2
+            v4 = lt i32 4294967293, i32 4294967293  // -3 < -3
+            v5 = lt i32 4294967293, i32 4294967292  // -3 < -4
             return v0, v1, v2, v3, v4, v5
         }
     ",
@@ -355,14 +355,14 @@ fn cast() {
           b0():
             v0 = cast u32 2 as Field
             v1 = cast u32 3 as u8
-            v2 = cast i8 -1 as i32
+            v2 = cast i8 255 as i32  // -1
             return v0, v1, v2
         }
     ",
     );
     assert_eq!(values[0], from_constant(2_u128.into(), NumericType::NativeField));
     assert_eq!(values[1], from_constant(3_u128.into(), NumericType::unsigned(8)));
-    assert_eq!(values[2], from_constant((-1_i128).into(), NumericType::signed(32)));
+    assert_eq!(values[2], from_constant(255_i128.into(), NumericType::signed(32)));
 }
 
 #[test]
