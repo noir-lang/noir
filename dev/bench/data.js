@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1747146616122,
+  "lastUpdate": 1747146619610,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -3715,95 +3715,6 @@ window.BENCHMARK_DATA = {
       }
     ],
     "Compilation Time": [
-      {
-        "commit": {
-          "author": {
-            "email": "asterite@gmail.com",
-            "name": "Ary Borenszweig",
-            "username": "asterite"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "61156aaa8dad4e9b9a706ef42eecfc88b1bd5d15",
-          "message": "fix: comptime shift-right overflow is zero (#8380)",
-          "timestamp": "2025-05-06T19:51:59Z",
-          "tree_id": "4725927783fc60987ce04ade8435e57521ff0250",
-          "url": "https://github.com/noir-lang/noir/commit/61156aaa8dad4e9b9a706ef42eecfc88b1bd5d15"
-        },
-        "date": 1746562457856,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "regression_4709",
-            "value": 0.68,
-            "unit": "s"
-          },
-          {
-            "name": "ram_blowup_regression",
-            "value": 12.8,
-            "unit": "s"
-          },
-          {
-            "name": "global_var_regression_entry_points",
-            "value": 0.493,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-inner",
-            "value": 2.304,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 6.318,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 1.22,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 17.18,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 13.42,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root-empty",
-            "value": 1.314,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root-single-tx",
-            "value": 131,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 121,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 1.032,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-root",
-            "value": 1.6,
-            "unit": "s"
-          }
-        ]
-      },
       {
         "commit": {
           "author": {
@@ -7831,6 +7742,85 @@ window.BENCHMARK_DATA = {
           {
             "name": "semaphore-depth-10",
             "value": 0.831,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "aakoshh@gmail.com",
+            "name": "Akosh Farkash",
+            "username": "aakoshh"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "9463889c9fc5db8af52f9155a36ef6b60c38ca30",
+          "message": "chore(test): Add more tests for the removal of unused functions (#8479)",
+          "timestamp": "2025-05-13T14:05:37Z",
+          "tree_id": "db98ffa195d8182bbc1ecdf3a70f420cb3d7fa39",
+          "url": "https://github.com/noir-lang/noir/commit/9463889c9fc5db8af52f9155a36ef6b60c38ca30"
+        },
+        "date": 1747146610396,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 2.448,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 6.306,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 1.074,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 16.1,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 12.36,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-empty",
+            "value": 1.334,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-single-tx",
+            "value": 128,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 122,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 1.086,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-root",
+            "value": 1.63,
+            "unit": "s"
+          },
+          {
+            "name": "semaphore-depth-10",
+            "value": 0.819,
             "unit": "s"
           }
         ]
