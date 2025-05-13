@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1747148127424,
+  "lastUpdate": 1747148589492,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -17966,48 +17966,6 @@ window.BENCHMARK_DATA = {
             "username": "web-flow"
           },
           "distinct": false,
-          "id": "6c9588bfe1049af16c46cabf553015f7c5edcc6a",
-          "message": "chore: add note on AI generated PRs in `CONTRIBUTING.md` (#8385)",
-          "timestamp": "2025-05-07T09:58:03Z",
-          "tree_id": "47f0da0bb57315e9608e5dd9f3a9c64fc294add7",
-          "url": "https://github.com/noir-lang/noir/commit/6c9588bfe1049af16c46cabf553015f7c5edcc6a"
-        },
-        "date": 1746612995979,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 256321,
-            "range": "± 3035",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 228007,
-            "range": "± 9384",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 3236552,
-            "range": "± 8050",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
-            "email": "15848336+TomAFrench@users.noreply.github.com",
-            "name": "Tom French",
-            "username": "TomAFrench"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
           "id": "4a942786b7580f3f12b34bb0989603db47800dc2",
           "message": "chore: apply lints to `ast_fuzzer` (#8386)\n\nCo-authored-by: AztecBot <tech@aztecprotocol.com>",
           "timestamp": "2025-05-07T10:00:16Z",
@@ -20049,6 +20007,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 3239524,
             "range": "± 45272",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "aakoshh@gmail.com",
+            "name": "Akosh Farkash",
+            "username": "aakoshh"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "75875553b4de134b3570e664e180165d08ad5458",
+          "message": "chore(test): Add more tests for defunctionalization (#8481)",
+          "timestamp": "2025-05-13T14:30:08Z",
+          "tree_id": "7f41672effa33cf0e05c347b49f9704d45c27ddc",
+          "url": "https://github.com/noir-lang/noir/commit/75875553b4de134b3570e664e180165d08ad5458"
+        },
+        "date": 1747148579987,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 267771,
+            "range": "± 890",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 238297,
+            "range": "± 1670",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 3230288,
+            "range": "± 14883",
             "unit": "ns/iter"
           }
         ]
