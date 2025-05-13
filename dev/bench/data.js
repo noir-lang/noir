@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1747168450520,
+  "lastUpdate": 1747168452608,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -22429,6 +22429,85 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/noir-lang/noir/commit/9c5393624ca5accc1573b965f9c42cf1e5312101"
         },
         "date": 1747166751229,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 1125.7,
+            "unit": "KB"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 2049.6,
+            "unit": "KB"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 581.7,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 5121.8,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 3940.4,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-block-root-empty",
+            "value": 256.9,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-block-root-single-tx",
+            "value": 25679,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 25706.3,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 181.7,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-root",
+            "value": 472,
+            "unit": "KB"
+          },
+          {
+            "name": "semaphore-depth-10",
+            "value": 636.4,
+            "unit": "KB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "asterite@gmail.com",
+            "name": "Ary Borenszweig",
+            "username": "asterite"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "b657b076bdcfcf627a318237276a917d8e067e0f",
+          "message": "fix: pass Field to ToBits intrinsic in remove_bit_shifts optimization (#8493)",
+          "timestamp": "2025-05-13T20:10:21Z",
+          "tree_id": "fe15a1582a8a7cc51b45946fcfd59ebf12293169",
+          "url": "https://github.com/noir-lang/noir/commit/b657b076bdcfcf627a318237276a917d8e067e0f"
+        },
+        "date": 1747168442344,
         "tool": "customSmallerIsBetter",
         "benches": [
           {
