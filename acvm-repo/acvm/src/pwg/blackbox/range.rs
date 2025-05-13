@@ -2,9 +2,7 @@ use crate::{
     OpcodeResolutionError,
     pwg::{ErrorLocation, input_to_value},
 };
-use acir::{
-    AcirField, InvalidInputBitSize, circuit::opcodes::FunctionInput, native_types::WitnessMap,
-};
+use acir::{AcirField, circuit::opcodes::FunctionInput, native_types::WitnessMap};
 
 pub(crate) fn solve_range_opcode<F: AcirField>(
     initial_witness: &WitnessMap<F>,
@@ -14,15 +12,9 @@ pub(crate) fn solve_range_opcode<F: AcirField>(
     let w_value = input_to_value(initial_witness, *input)?;
 
     if w_value.num_bits() > num_bits {
-        let value_num_bits = w_value.num_bits();
-        let value = w_value.to_string();
-        return Err(OpcodeResolutionError::InvalidInputBitSize {
+        return Err(OpcodeResolutionError::UnsatisfiedConstrain {
             opcode_location: ErrorLocation::Unresolved,
-            invalid_input_bit_size: InvalidInputBitSize {
-                value,
-                value_num_bits,
-                max_bits: num_bits,
-            },
+            payload: None,
         });
     }
     Ok(())

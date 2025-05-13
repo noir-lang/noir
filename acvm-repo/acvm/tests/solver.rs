@@ -1619,14 +1619,22 @@ proptest! {
     }
 
     #[test]
-    fn and_associative(x in field_element(), y in field_element(), z in field_element(), use_constant_xy: bool, use_constant_yz: bool, num_bits: Option<u32>) {
-        let (lhs, rhs) = prop_assert_associative(and_op, x, y, z, use_constant_xy, use_constant_yz, num_bits);
+    fn and_associative(x in field_element(), y in field_element(), z in field_element(), use_constant_xy: bool, use_constant_yz: bool) {
+        let mut num_bits = if y.0.num_bits() > x.0.num_bits() {
+            y.0.num_bits()
+        } else {
+            x.0.num_bits()
+        };
+        if num_bits < z.0.num_bits() {
+            num_bits = z.0.num_bits();
+        }
+        let (lhs, rhs) = prop_assert_associative(and_op, x, y, z, use_constant_xy, use_constant_yz, Some(num_bits));
         prop_assert_eq!(lhs, rhs);
     }
 
     #[test]
     // TODO(https://github.com/noir-lang/noir/issues/5638)
-    #[should_panic(expected = "assertion failed: `(left == right)`")]
+    #[should_panic(expected = "assertion `left == right` failed")]
     fn xor_associative(x in field_element(), y in field_element(), z in field_element(), use_constant_xy: bool, use_constant_yz: bool) {
         let max_num_bits = if y.0.num_bits() > x.0.num_bits() {
             y.0.num_bits()
