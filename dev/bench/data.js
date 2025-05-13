@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1747146893859,
+  "lastUpdate": 1747146981378,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -17941,48 +17941,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "47281315+guipublic@users.noreply.github.com",
-            "name": "guipublic",
-            "username": "guipublic"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "6e7dc911a4f94c1f29f31a0b1deca3ad5ff7e4b1",
-          "message": "chore: document flattening pass (#8312)\n\nCo-authored-by: jfecher <jfecher11@gmail.com>\nCo-authored-by: Tom French <15848336+TomAFrench@users.noreply.github.com>",
-          "timestamp": "2025-05-07T08:26:09Z",
-          "tree_id": "8f5cb29fcd466538f76839f93737635b3758b51b",
-          "url": "https://github.com/noir-lang/noir/commit/6e7dc911a4f94c1f29f31a0b1deca3ad5ff7e4b1"
-        },
-        "date": 1746607466191,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 255486,
-            "range": "± 718",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 227606,
-            "range": "± 2125",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 3574753,
-            "range": "± 20266",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "15848336+TomAFrench@users.noreply.github.com",
             "name": "Tom French",
             "username": "TomAFrench"
@@ -20034,6 +19992,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 3253113,
             "range": "± 26678",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "asterite@gmail.com",
+            "name": "Ary Borenszweig",
+            "username": "asterite"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "c41a5177cbcdf8b807463071203f9c3a9c667b9a",
+          "message": "fix: warn if no double colon on generic type in type path (#8471)",
+          "timestamp": "2025-05-13T14:15:52Z",
+          "tree_id": "8788dbf1c659701c0efa6ed2c894ac4df5c458d8",
+          "url": "https://github.com/noir-lang/noir/commit/c41a5177cbcdf8b807463071203f9c3a9c667b9a"
+        },
+        "date": 1747146972471,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 269167,
+            "range": "± 2099",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 243065,
+            "range": "± 3887",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 3239524,
+            "range": "± 45272",
             "unit": "ns/iter"
           }
         ]
