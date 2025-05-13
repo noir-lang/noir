@@ -459,15 +459,6 @@ impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>> VM<'a, F, B> {
                 self.fuzzing_trace_branching(self.program_counter + 1);
                 self.increment_program_counter()
             }
-            Opcode::JumpIfNot { condition, location: destination } => {
-                let condition_value = self.memory.read(*condition);
-                if condition_value.expect_u1().expect("condition value is not a boolean") {
-                    self.fuzzing_trace_branching(self.program_counter + 1);
-                    return self.increment_program_counter();
-                }
-                self.fuzzing_trace_branching(*destination);
-                self.set_program_counter(*destination)
-            }
             Opcode::CalldataCopy { destination_address, size_address, offset_address } => {
                 let size = self.memory.read(*size_address).to_usize();
                 let offset = self.memory.read(*offset_address).to_usize();
@@ -1158,7 +1149,8 @@ mod tests {
                 rhs: MemoryAddress::direct(1),
                 destination: MemoryAddress::direct(2),
             },
-            Opcode::JumpIfNot { condition: MemoryAddress::direct(2), location: 4 },
+            Opcode::Not { destination: MemoryAddress::direct(2), source: MemoryAddress::direct(2), bit_size: IntegerBitSize::U32 },
+            Opcode::JumpIf { condition: MemoryAddress::direct(2), location: 4 },
             Opcode::BinaryFieldOp {
                 op: BinaryFieldOp::Add,
                 lhs: MemoryAddress::direct(0),

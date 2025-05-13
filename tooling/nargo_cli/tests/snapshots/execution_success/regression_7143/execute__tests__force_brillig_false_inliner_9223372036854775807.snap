@@ -47,7 +47,7 @@ expression: artifact
     "private parameters indices : [_0, _1]",
     "public parameters indices : []",
     "return value indices : [_2]",
-    "BLACKBOX::RANGE [(_1, 1)] []",
+    "BLACKBOX::RANGE [_1]:1 bits []",
     "EXPR [ (1, _0) 0 ]",
     "EXPR [ (1, _1) (1, _2) -1 ]",
     "INIT CALLDATA 0 (id: 1, len: 1, witnesses: [_1])"
