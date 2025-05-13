@@ -1,5 +1,5 @@
 [package]
-name = "circuit"
+name = "semaphore_depth_10"
 type = "bin"
 authors = [""]
 
