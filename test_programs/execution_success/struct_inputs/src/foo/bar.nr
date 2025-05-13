@@ -1,7 +1,7 @@
 global N: Field = 2;
 
-struct barStruct {
-    val: Field,
-    array: [Field; 2],
-    message: str<5>,
+pub(crate) struct barStruct {
+    pub(crate) val: Field,
+    pub(crate) array: [Field; 2],
+    pub(crate) message: str<5>,
 }
