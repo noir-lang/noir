@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1747132149899,
+  "lastUpdate": 1747132151657,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -3705,95 +3705,6 @@ window.BENCHMARK_DATA = {
       }
     ],
     "Compilation Time": [
-      {
-        "commit": {
-          "author": {
-            "email": "aakoshh@gmail.com",
-            "name": "Akosh Farkash",
-            "username": "aakoshh"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "82cf77921add97141bf4d9ef6d96bd05390bd7c5",
-          "message": "chore: Add GITHUB_TOKEN to cross build (#8370)",
-          "timestamp": "2025-05-06T15:40:58Z",
-          "tree_id": "e0aeb252378b31248fb1e0fca3e7a6498eb8ad24",
-          "url": "https://github.com/noir-lang/noir/commit/82cf77921add97141bf4d9ef6d96bd05390bd7c5"
-        },
-        "date": 1746547617101,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "regression_4709",
-            "value": 0.679,
-            "unit": "s"
-          },
-          {
-            "name": "ram_blowup_regression",
-            "value": 12.9,
-            "unit": "s"
-          },
-          {
-            "name": "global_var_regression_entry_points",
-            "value": 0.491,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-inner",
-            "value": 2.802,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 6.3,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 1.11,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 16.7,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 13,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root-empty",
-            "value": 1.226,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root-single-tx",
-            "value": 121,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 124,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 1.044,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-root",
-            "value": 1.606,
-            "unit": "s"
-          }
-        ]
-      },
       {
         "commit": {
           "author": {
@@ -7881,6 +7792,80 @@ window.BENCHMARK_DATA = {
           {
             "name": "rollup-root",
             "value": 1.69,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "15848336+TomAFrench@users.noreply.github.com",
+            "name": "Tom French",
+            "username": "TomAFrench"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "b152a4d29c489a586faed6f13732f7b063478ba3",
+          "message": "chore: use insta for serialization tests (#8466)\n\nCo-authored-by: AztecBot <tech@aztecprotocol.com>",
+          "timestamp": "2025-05-13T10:02:14Z",
+          "tree_id": "b81fb196029e07cbdef3441afedb6d11be6f64ba",
+          "url": "https://github.com/noir-lang/noir/commit/b152a4d29c489a586faed6f13732f7b063478ba3"
+        },
+        "date": 1747132141195,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 2.286,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 6.388,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 1.058,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 17.76,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 12.44,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-empty",
+            "value": 1.286,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-single-tx",
+            "value": 125,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 127,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 1.056,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-root",
+            "value": 1.614,
             "unit": "s"
           }
         ]
