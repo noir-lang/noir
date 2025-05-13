@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1747135710436,
+  "lastUpdate": 1747135717685,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -21382,6 +21382,80 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/noir-lang/noir/commit/b152a4d29c489a586faed6f13732f7b063478ba3"
         },
         "date": 1747132149786,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 1125.7,
+            "unit": "KB"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 2049.6,
+            "unit": "KB"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 581.7,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 5122.1,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 3940.9,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-block-root-empty",
+            "value": 256.9,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-block-root-single-tx",
+            "value": 25679.6,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 25706.5,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 181.7,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-root",
+            "value": 472,
+            "unit": "KB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "aakoshh@gmail.com",
+            "name": "Akosh Farkash",
+            "username": "aakoshh"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "05ae1f3ced2bc3afc894830e97e76cef779d81b7",
+          "message": "fix: Typo in filtering of types that can be used in `main` (#8477)",
+          "timestamp": "2025-05-13T11:01:05Z",
+          "tree_id": "866f32cd263da69baef24e9c354e59e02015521e",
+          "url": "https://github.com/noir-lang/noir/commit/05ae1f3ced2bc3afc894830e97e76cef779d81b7"
+        },
+        "date": 1747135708619,
         "tool": "customSmallerIsBetter",
         "benches": [
           {
