@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1747154270359,
+  "lastUpdate": 1747156708958,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -17980,48 +17980,6 @@ window.BENCHMARK_DATA = {
             "name": "GitHub",
             "username": "web-flow"
           },
-          "distinct": false,
-          "id": "385f7c797200ca63d06d414b2c0f9e1e751f3980",
-          "message": "chore: move acirgen tests into separate file (#8376)\n\nCo-authored-by: AztecBot <tech@aztecprotocol.com>",
-          "timestamp": "2025-05-07T14:16:18Z",
-          "tree_id": "f02d648406ac0e4c34ec49a7e6575c45d2dfb28b",
-          "url": "https://github.com/noir-lang/noir/commit/385f7c797200ca63d06d414b2c0f9e1e751f3980"
-        },
-        "date": 1746628490261,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 265670,
-            "range": "± 742",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 236229,
-            "range": "± 2020",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 3226063,
-            "range": "± 14738",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
-            "email": "15848336+TomAFrench@users.noreply.github.com",
-            "name": "Tom French",
-            "username": "TomAFrench"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
           "distinct": true,
           "id": "85241deaef7eaab9cc1526e7a3031a3dcb0c6eb3",
           "message": "fix: add handling for u128 infix ops in interpreter (#8392)\n\nCo-authored-by: AztecBot <tech@aztecprotocol.com>",
@@ -20064,6 +20022,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 3234770,
             "range": "± 4983",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "asterite@gmail.com",
+            "name": "Ary Borenszweig",
+            "username": "asterite"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "e5bac4e512e8cd021d2d674873a3ef1f837a768e",
+          "message": "fix: disallow generics on entry points (#8490)",
+          "timestamp": "2025-05-13T16:58:10Z",
+          "tree_id": "6add356c9ed835530484ddd1fac5a8378e11a6a5",
+          "url": "https://github.com/noir-lang/noir/commit/e5bac4e512e8cd021d2d674873a3ef1f837a768e"
+        },
+        "date": 1747156700520,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 275609,
+            "range": "± 1519",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 244169,
+            "range": "± 2481",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 3601851,
+            "range": "± 9192",
             "unit": "ns/iter"
           }
         ]
