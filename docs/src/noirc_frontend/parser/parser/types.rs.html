@@ -833,7 +833,26 @@
 <a href="#832" id="832">832</a>
 <a href="#833" id="833">833</a>
 <a href="#834" id="834">834</a>
-<a href="#835" id="835">835</a></pre></div><pre class="rust"><code><span class="kw">use </span>acvm::{AcirField, FieldElement};
+<a href="#835" id="835">835</a>
+<a href="#836" id="836">836</a>
+<a href="#837" id="837">837</a>
+<a href="#838" id="838">838</a>
+<a href="#839" id="839">839</a>
+<a href="#840" id="840">840</a>
+<a href="#841" id="841">841</a>
+<a href="#842" id="842">842</a>
+<a href="#843" id="843">843</a>
+<a href="#844" id="844">844</a>
+<a href="#845" id="845">845</a>
+<a href="#846" id="846">846</a>
+<a href="#847" id="847">847</a>
+<a href="#848" id="848">848</a>
+<a href="#849" id="849">849</a>
+<a href="#850" id="850">850</a>
+<a href="#851" id="851">851</a>
+<a href="#852" id="852">852</a>
+<a href="#853" id="853">853</a>
+<a href="#854" id="854">854</a></pre></div><pre class="rust"><code><span class="kw">use </span>acvm::{AcirField, FieldElement};
 
 <span class="kw">use crate</span>::{
     QuotedType,
@@ -882,7 +901,9 @@
     }
 
     <span class="kw">fn </span>parse_unresolved_type_data(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; <span class="prelude-ty">Option</span>&lt;UnresolvedTypeData&gt; {
-        <span class="kw">if let </span><span class="prelude-val">Some</span>(typ) = <span class="self">self</span>.parse_primitive_type() {
+        <span class="kw">if let </span><span class="prelude-val">Some</span>(typ) = <span class="self">self</span>.parse_primitive_type(
+            <span class="bool-val">false</span>, <span class="comment">// require colons
+        </span>) {
             <span class="kw">return </span><span class="prelude-val">Some</span>(typ);
         }
 
@@ -918,7 +939,10 @@
         <span class="prelude-val">None
     </span>}
 
-    <span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>parse_primitive_type(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; <span class="prelude-ty">Option</span>&lt;UnresolvedTypeData&gt; {
+    <span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>parse_primitive_type(
+        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
+        require_colons: bool,
+    ) -&gt; <span class="prelude-ty">Option</span>&lt;UnresolvedTypeData&gt; {
         <span class="kw">if let </span><span class="prelude-val">Some</span>(typ) = <span class="self">self</span>.parse_field_type() {
             <span class="kw">return </span><span class="prelude-val">Some</span>(typ);
         }
@@ -931,11 +955,11 @@
             <span class="kw">return </span><span class="prelude-val">Some</span>(typ);
         }
 
-        <span class="kw">if let </span><span class="prelude-val">Some</span>(typ) = <span class="self">self</span>.parse_str_type() {
+        <span class="kw">if let </span><span class="prelude-val">Some</span>(typ) = <span class="self">self</span>.parse_str_type(require_colons) {
             <span class="kw">return </span><span class="prelude-val">Some</span>(typ);
         }
 
-        <span class="kw">if let </span><span class="prelude-val">Some</span>(typ) = <span class="self">self</span>.parse_fmtstr_type() {
+        <span class="kw">if let </span><span class="prelude-val">Some</span>(typ) = <span class="self">self</span>.parse_fmtstr_type(require_colons) {
             <span class="kw">return </span><span class="prelude-val">Some</span>(typ);
         }
 
@@ -987,9 +1011,16 @@
         <span class="prelude-val">None
     </span>}
 
-    <span class="kw">fn </span>parse_str_type(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; <span class="prelude-ty">Option</span>&lt;UnresolvedTypeData&gt; {
+    <span class="kw">fn </span>parse_str_type(<span class="kw-2">&amp;mut </span><span class="self">self</span>, require_colons: bool) -&gt; <span class="prelude-ty">Option</span>&lt;UnresolvedTypeData&gt; {
         <span class="kw">if </span>!<span class="self">self</span>.eat_keyword(Keyword::String) {
             <span class="kw">return </span><span class="prelude-val">None</span>;
+        }
+
+        <span class="kw">if </span>require_colons {
+            <span class="kw">let </span>location = <span class="self">self</span>.current_token_location;
+            <span class="kw">if </span>!<span class="self">self</span>.eat_double_colon() {
+                <span class="self">self</span>.push_error(ParserErrorReason::MissingDoubleColon, location);
+            }
         }
 
         <span class="kw">if </span>!<span class="self">self</span>.eat_less() {
@@ -1017,9 +1048,16 @@
         <span class="prelude-val">Some</span>(UnresolvedTypeData::String(expr))
     }
 
-    <span class="kw">fn </span>parse_fmtstr_type(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; <span class="prelude-ty">Option</span>&lt;UnresolvedTypeData&gt; {
+    <span class="kw">fn </span>parse_fmtstr_type(<span class="kw-2">&amp;mut </span><span class="self">self</span>, require_colons: bool) -&gt; <span class="prelude-ty">Option</span>&lt;UnresolvedTypeData&gt; {
         <span class="kw">if </span>!<span class="self">self</span>.eat_keyword(Keyword::FormatString) {
             <span class="kw">return </span><span class="prelude-val">None</span>;
+        }
+
+        <span class="kw">if </span>require_colons {
+            <span class="kw">let </span>location = <span class="self">self</span>.current_token_location;
+            <span class="kw">if </span>!<span class="self">self</span>.eat_double_colon() {
+                <span class="self">self</span>.push_error(ParserErrorReason::MissingDoubleColon, location);
+            }
         }
 
         <span class="kw">if </span>!<span class="self">self</span>.eat_less() {

@@ -874,7 +874,7 @@
             Expression(expression) =&gt; expression.fmt(f),
             Bool =&gt; <span class="macro">write!</span>(f, <span class="string">"bool"</span>),
             String(len) =&gt; <span class="macro">write!</span>(f, <span class="string">"str&lt;{len}&gt;"</span>),
-            FormatString(len, elements) =&gt; <span class="macro">write!</span>(f, <span class="string">"fmt&lt;{len}, {elements}"</span>),
+            FormatString(len, elements) =&gt; <span class="macro">write!</span>(f, <span class="string">"fmtstr&lt;{len}, {elements}&gt;"</span>),
             Function(args, ret, env, unconstrained) =&gt; {
                 <span class="kw">if </span><span class="kw-2">*</span>unconstrained {
                     <span class="macro">write!</span>(f, <span class="string">"unconstrained "</span>)<span class="question-mark">?</span>;
