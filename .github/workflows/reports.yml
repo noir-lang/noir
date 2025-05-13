@@ -126,10 +126,13 @@ jobs:
       - name: Download nargo binary
         uses: ./.github/actions/download-nargo
 
+      - name: Build Noir circuits
+        working-directory: ./test_programs
+        run: ./rebuild.sh
+
       - name: Generate gates report
         working-directory: ./test_programs
         run: |
-          ./rebuild.sh
           ./gates_report.sh
           mv gates_report.json ../gates_report.json
 
