@@ -74,10 +74,10 @@ pub enum DefCollectorErrorKind {
     #[error("The `#[export]` attribute may only be used on a non-associated function")]
     ExportOnAssociatedFunction { location: Location },
     #[error(
-        "The `#[test(only_fail_with = \"..\")] attribute may only be used on functions with parameters"
+        "The `#[test(only_fail_with = \"..\")]` attribute may only be used on functions with parameters"
     )]
     TestOnlyFailWithWithoutParameters { location: Location },
-    #[error("The `#[fuzz] attribute may only be used on functions with parameters")]
+    #[error("The `#[fuzz]` attribute may only be used on functions with parameters")]
     FuzzingHarnessWithoutParameters { location: Location },
 }
 
@@ -288,12 +288,12 @@ impl<'a> From<&'a DefCollectorErrorKind> for Diagnostic {
                 *location,
             ),
             DefCollectorErrorKind::TestOnlyFailWithWithoutParameters { location } => Diagnostic::simple_error(
-                "The `#[test(only_fail_with = \"..\")] attribute may only be used on functions with parameters".into(),
+                "The `#[test(only_fail_with = \"..\")]` attribute may only be used on functions with parameters".into(),
                 String::new(),
                 *location,
             ),
             DefCollectorErrorKind::FuzzingHarnessWithoutParameters { location } => Diagnostic::simple_error(
-                "The `#[fuzz] attribute may only be used on functions with parameters".into(),
+                "The `#[fuzz]` attribute may only be used on functions with parameters".into(),
                 String::new(),
                 *location,
             ),
