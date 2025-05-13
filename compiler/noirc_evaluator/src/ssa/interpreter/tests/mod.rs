@@ -237,9 +237,7 @@ fn without_defunctionalize() {
       ";
     let values = expect_values_with_args(
         src,
-        vec![
-            Value::from_constant(0_u128.into(), NumericType::bool()),
-        ],
+        vec![Value::from_constant(0_u128.into(), NumericType::bool())],
     );
 
     assert!(values.len() == 0);
