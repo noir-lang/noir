@@ -29,7 +29,7 @@ impl Field {
     // docs:start:to_le_bits
     pub fn to_le_bits<let N: u32>(self: Self) -> [u1; N] {
         // docs:end:to_le_bits
-        let bits = self._to_le_bits();
+        let bits = __to_le_bits(self);
 
         if !is_unconstrained() {
             // Ensure that the byte decomposition does not overflow the modulus
@@ -61,7 +61,7 @@ impl Field {
     // docs:start:to_be_bits
     pub fn to_be_bits<let N: u32>(self: Self) -> [u1; N] {
         // docs:end:to_be_bits
-        let bits = self._to_be_bits();
+        let bits = __to_be_bits(self);
 
         if !is_unconstrained() {
             // Ensure that the decomposition does not overflow the modulus
