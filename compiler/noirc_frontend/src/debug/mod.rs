@@ -108,8 +108,7 @@ impl DebugInstrumenter {
 
     fn walk_fn(&mut self, func: &mut ast::FunctionDefinition) {
         let func_name = func.name.to_string();
-        let func_args =
-            func.parameters.iter().map(|param| pattern_to_string(&param.pattern)).collect();
+        let func_args = func.parameters.iter().map(|param| param.pattern.to_string()).collect();
         let fn_id = self.insert_function(func_name, func_args);
         let enter_stmt = build_debug_call_stmt("enter", fn_id, func.location);
         self.scope.push(HashMap::default());
@@ -733,38 +732,10 @@ fn pattern_vars(pattern: &ast::Pattern) -> Vec<(ast::Ident, bool)> {
             ast::Pattern::Parenthesized(pattern, _) => {
                 stack.push_back((pattern, false));
             }
-            ast::Pattern::Interned(_, _) => (),
+            ast::Pattern::DoubleDot(_) | ast::Pattern::Interned(_, _) => (),
         }
     }
     vars
-}
-
-fn pattern_to_string(pattern: &ast::Pattern) -> String {
-    match pattern {
-        ast::Pattern::Identifier(id) => id.to_string(),
-        ast::Pattern::Mutable(mpat, _, _) => format!("mut {}", pattern_to_string(mpat.as_ref())),
-        ast::Pattern::Tuple(elements, _) => format!(
-            "({})",
-            elements.iter().map(pattern_to_string).collect::<Vec<String>>().join(", ")
-        ),
-        ast::Pattern::Struct(name, fields, _) => {
-            format!(
-                "{} {{ {} }}",
-                name,
-                fields
-                    .iter()
-                    .map(|(field_ident, field_pattern)| {
-                        format!("{}: {}", field_ident, pattern_to_string(field_pattern))
-                    })
-                    .collect::<Vec<_>>()
-                    .join(", "),
-            )
-        }
-        ast::Pattern::Parenthesized(pattern, _) => {
-            format!("({})", pattern_to_string(pattern.as_ref()))
-        }
-        ast::Pattern::Interned(_, _) => "?Interned".to_string(),
-    }
 }
 
 fn ident(s: &str, location: Location) -> ast::Ident {
