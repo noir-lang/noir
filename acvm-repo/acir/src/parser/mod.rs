@@ -3,21 +3,22 @@ use num_traits::Num;
 use regex::Regex;
 use std::collections::BTreeSet;
 
-pub mod brillig_call_parser;
+mod arithmetic_parser;
+mod black_box_parser;
+mod brillig_call_parser;
 
 use crate::circuit::opcodes::{BlackBoxFuncCall, FunctionInput};
-use crate::circuit::{AssertionPayload, Opcode, OpcodeLocation, PublicInputs, opcodes};
+use crate::circuit::{Opcode, PublicInputs, opcodes};
 use crate::native_types::{Expression, Witness};
 use crate::proto::acir::circuit::opcode::{BrilligCall, Call, MemoryInit, MemoryOp};
 use crate::proto::acir::circuit::{Circuit, ExpressionWidth};
-pub use acir_field;
-pub use acir_field::AcirField;
-pub use brillig;
+use acir_field::AcirField;
 
-pub use super::circuit::black_box_functions::BlackBoxFunc;
-pub use super::circuit::opcodes::InvalidInputBitSize;
-pub use brillig_call_parser::BrilligCallParser;
-
+use super::circuit::black_box_functions::BlackBoxFunc;
+use super::circuit::opcodes::InvalidInputBitSize;
+use arithmetic_parser::ArithmeticParser;
+use black_box_parser::BlackBoxParser;
+use brillig_call_parser::BrilligCallParser;
 #[derive(Debug, Clone, PartialEq)]
 pub enum InstructionType {
     Expr,
@@ -126,7 +127,7 @@ pub fn serialize_acir(input: &str) -> Vec<Instruction> {
 }
 
 #[derive(Debug, Clone, PartialEq)]
-pub struct CircuitDescription {
+struct CircuitDescription {
     pub current_witness_index: u32,
     pub expression_width: ExpressionWidth,
     pub private_parameters: BTreeSet<Witness>,
@@ -146,7 +147,7 @@ impl CircuitDescription {
     }
 }
 
-pub fn get_circuit_description(serialized_acir: &Vec<Instruction>) -> CircuitDescription {
+fn get_circuit_description(serialized_acir: &Vec<Instruction>) -> CircuitDescription {
     /// the description part of the circuit starts with one of the following options
     /// current witness index: _u32, the largest index of a witness  
     /// private parameters indices: list of witness indices of private parameters
@@ -209,213 +210,6 @@ pub enum ExpressionTerm<F> {
     MulTerm(F, Witness, Witness),
     LinearTerm(F, Witness),
     Constant(F),
-}
-
-pub fn parse_black_box_function_call<F: AcirField>(
-    instruction: Instruction,
-) -> Result<opcodes::BlackBoxFuncCall<F>, String>
-where
-    F: AcirField,
-{
-    /// Format is like BLACKBOX::RANGE [(_4, 222)] []
-    /// the different types of black box functions are:
-    /// - AES128Encrypt
-    /// - AND
-    /// - XOR
-    /// - RANGE
-    /// - Blake2s
-    /// - Blake3
-    /// - EcdsaSecp256k1
-    /// - EcdsaSecp256r1
-    /// - MultiScalarMul
-    /// - EmbeddedCurveAdd
-    /// - Keccakf1600
-    /// - RecursiveAggregation
-    /// - BigIntAdd
-    /// - BigIntSub
-    /// - BigIntMul
-    /// - BigIntDiv
-    /// - BigIntFromLeBytes
-    /// - BigIntToLeBytes
-    /// - Poseidon2Permutation
-    /// - SHA256Compression  
-    ///
-    if instruction.instruction_type != InstructionType::BlackBoxFuncCall {
-        return Err(format!("Expected Expr instruction, got {:?}", instruction.instruction_type));
-    }
-    let expression_body = instruction.instruction_body;
-    let mut trimmed = "";
-    // get the black box function type
-    let black_box_type = match expression_body {
-        s if s.trim().starts_with("AES128Encrypt") => {
-            trimmed = s.trim().strip_prefix("AES128Encrypt").unwrap().trim();
-            BlackBoxFunc::AES128Encrypt
-        }
-        s if s.trim().starts_with("AND") => {
-            trimmed = s.trim().strip_prefix("AND").unwrap().trim();
-            BlackBoxFunc::AND
-        }
-        s if s.trim().starts_with("XOR") => {
-            trimmed = s.trim().strip_prefix("XOR").unwrap().trim();
-            BlackBoxFunc::XOR
-        }
-        s if s.trim().starts_with("RANGE") => {
-            trimmed = s.trim().strip_prefix("RANGE").unwrap().trim();
-            BlackBoxFunc::RANGE
-        }
-        s if s.trim().starts_with("Blake2s") => {
-            trimmed = s.trim().strip_prefix("Blake2s").unwrap().trim();
-            BlackBoxFunc::Blake2s
-        }
-        s if s.trim().starts_with("Blake3") => {
-            trimmed = s.trim().strip_prefix("Blake3").unwrap().trim();
-            BlackBoxFunc::Blake3
-        }
-        s if s.trim().starts_with("EcdsaSecp256k1") => {
-            trimmed = s.trim().strip_prefix("EcdsaSecp256k1").unwrap().trim();
-            BlackBoxFunc::EcdsaSecp256k1
-        }
-        s if s.trim().starts_with("EcdsaSecp256r1") => {
-            trimmed = s.trim().strip_prefix("EcdsaSecp256r1").unwrap().trim();
-            BlackBoxFunc::EcdsaSecp256r1
-        }
-        s if s.trim().starts_with("MultiScalarMul") => {
-            trimmed = s.trim().strip_prefix("MultiScalarMul").unwrap().trim();
-            BlackBoxFunc::MultiScalarMul
-        }
-        s if s.trim().starts_with("EmbeddedCurveAdd") => {
-            trimmed = s.trim().strip_prefix("EmbeddedCurveAdd").unwrap().trim();
-            BlackBoxFunc::EmbeddedCurveAdd
-        }
-        s if s.trim().starts_with("Keccakf1600") => {
-            trimmed = s.trim().strip_prefix("Keccakf1600").unwrap().trim();
-            BlackBoxFunc::Keccakf1600
-        }
-        s if s.trim().starts_with("RecursiveAggregation") => {
-            trimmed = s.trim().strip_prefix("RecursiveAggregation").unwrap().trim();
-            BlackBoxFunc::RecursiveAggregation
-        }
-        s if s.trim().starts_with("BigIntAdd") => {
-            trimmed = s.trim().strip_prefix("BigIntAdd").unwrap().trim();
-            BlackBoxFunc::BigIntAdd
-        }
-        s if s.trim().starts_with("BigIntSub") => {
-            trimmed = s.trim().strip_prefix("BigIntSub").unwrap().trim();
-            BlackBoxFunc::BigIntSub
-        }
-        s if s.trim().starts_with("BigIntMul") => {
-            trimmed = s.trim().strip_prefix("BigIntMul").unwrap().trim();
-            BlackBoxFunc::BigIntMul
-        }
-        s if s.trim().starts_with("BigIntDiv") => {
-            trimmed = s.trim().strip_prefix("BigIntDiv").unwrap().trim();
-            BlackBoxFunc::BigIntDiv
-        }
-        s if s.trim().starts_with("BigIntFromLeBytes") => {
-            trimmed = s.trim().strip_prefix("BigIntFromLeBytes").unwrap().trim();
-            BlackBoxFunc::BigIntFromLeBytes
-        }
-        s if s.trim().starts_with("BigIntToLeBytes") => {
-            trimmed = s.trim().strip_prefix("BigIntToLeBytes").unwrap().trim();
-            BlackBoxFunc::BigIntToLeBytes
-        }
-        s if s.trim().starts_with("Poseidon2Permutation") => {
-            trimmed = s.trim().strip_prefix("Poseidon2Permutation").unwrap().trim();
-            BlackBoxFunc::Poseidon2Permutation
-        }
-        s if s.trim().starts_with("Poseidon2HashCompression") => {
-            trimmed = s.trim().strip_prefix("Poseidon2HashCompression").unwrap().trim();
-            BlackBoxFunc::Sha256Compression
-        }
-        _ => return Err(format!("Unknown black box function type in: {}", expression_body)),
-    };
-
-    match black_box_type {
-        BlackBoxFunc::RANGE => {
-            // the format is like BLACKBOX::RANGE [(_4, 222)] []
-            let re = Regex::new(r"\[?\(_([0-9]+),\s*([0-9]+)\)\]?\s*\[\]").unwrap();
-            let captures = re.captures(trimmed).unwrap();
-            let witness_index = captures.get(1).unwrap().as_str().parse::<u32>().unwrap();
-            let bit_size = captures.get(2).unwrap().as_str().parse::<u32>().unwrap();
-            // now we build a FunctionInput struct out of the witness index and bit size
-            let function_input: FunctionInput<F> =
-                FunctionInput::witness(Witness(witness_index), bit_size);
-            return Ok(BlackBoxFuncCall::RANGE { input: function_input });
-        }
-        _ => return Err(format!("Unknown black box function type in: {}", expression_body)),
-    }
-
-    //     }
-    //     BlackBoxFunc::AES128Encrypt => {
-    //         // the inputs of the AES128Encrypt are the following:
-    //         // input: FunctionInput<F>
-    //         // iv: Box<[FunctionInput<F>; 16]>
-    //         // key: Box<[FunctionInput<F>; 16]>
-    //         // outputs: Vec<Witness>
-    //         return Err(format!("AES128Encrypt is not supported yet"));
-
-    //     }
-    //     _ => return Err(format!("Unknown black box function type in: {}", expression_body)),
-    // }
-}
-
-pub fn parse_arithmetic_expression<F: AcirField>(
-    instruction: Instruction,
-) -> Result<Expression<F>, String> {
-    if instruction.instruction_type != InstructionType::Expr {
-        return Err(format!("Expected Expr instruction, got {:?}", instruction.instruction_type));
-    }
-    let expression_body = instruction.instruction_body;
-    /// the expression body is of form [ (-1, _0, _2) (-1, _1, _2) (1, _3) 0 ]
-    /// which corresponds to expression 0 - w0 * w2 - w1 * w2 + w_3 = 0
-    /// the elements with 3 elements are mul_terms and the elements with 1 element are linear terms   
-    let mut mul_terms: Vec<(F, Witness, Witness)> = Vec::new();
-    let mut linear_terms: Vec<(F, Witness)> = Vec::new();
-    let mut q_c: F = F::zero();
-    //first we split the instruction body to a vector of ExpressionTerm values
-    let cleaned =
-        expression_body.trim().strip_prefix("[").unwrap().strip_suffix("]").unwrap().trim();
-
-    let re = Regex::new(r"\(([^)]+)\)").unwrap();
-    // Collect all matches (terms in parentheses)
-    let terms: Vec<&str> = re.find_iter(cleaned).map(|m| m.as_str()).collect();
-
-    // Get the constant term (if any) by splitting on whitespace and taking the last term
-    let constant = cleaned.split_whitespace().last().unwrap();
-    for term in terms {
-        let temp: Vec<&str> = term
-            .strip_suffix(")")
-            .unwrap()
-            .strip_prefix("(")
-            .unwrap()
-            .trim()
-            .split(",")
-            .into_iter()
-            .map(|a| a.trim())
-            .collect();
-        match temp.len() {
-            3 => {
-                // this is a mul term of form (constant, witness , witness)
-                // we first get the witness indices
-                let first_index = temp[1].strip_prefix("_").unwrap().parse::<u32>().unwrap();
-                let second_index = temp[2].strip_prefix("_").unwrap().parse::<u32>().unwrap();
-                let coeff = parse_str_to_field(temp[0]).unwrap();
-                mul_terms.push((coeff, Witness(first_index), Witness(second_index)));
-            }
-            2 => {
-                // this is a linear_combination term of form (constant, witness)
-                let index = temp[1].strip_prefix("_").unwrap().parse::<u32>().unwrap();
-                let coeff: F = parse_str_to_field(temp[0]).unwrap();
-                linear_terms.push((coeff, Witness(index)));
-            }
-            _ => {
-                return Err("the expression has incorrect terms".to_string());
-            }
-        }
-    }
-
-    let q_c = parse_str_to_field(constant).unwrap();
-    Ok(Expression { mul_terms: mul_terms, linear_combinations: linear_terms, q_c: q_c })
 }
 
 pub fn parse_memory_init(instruction: Instruction) -> Result<MemoryInit, String> {
@@ -549,10 +343,10 @@ mod test {
     #[test]
     fn test_get_circuit_description() {
         let acir_string = "func 0
-current witness index : _1
-private parameters indices : [_0]
-public parameters indices : []
-return value indices : [_1]
+    current witness index : _1
+    private parameters indices : [_0]
+    public parameters indices : []
+    return value indices : [_1]
         EXPR [ (-2, _0) (1, _1) 0 ]";
         let serialized_acir = serialize_acir(acir_string);
         let circuit_description = get_circuit_description(&serialized_acir);
@@ -582,40 +376,6 @@ return value indices : [_1]
     }
 
     #[test]
-    fn test_parsing_expression() {
-        let expression_body = "[ (-1, _0, _2) (-1, _1, _2) (1, _3) 0 ]";
-        let cleaned =
-            expression_body.trim().strip_prefix("[").unwrap().strip_suffix("]").unwrap().trim();
-        let re = Regex::new(r"\(([^)]+)\)").unwrap();
-        let terms: Vec<&str> = re.find_iter(cleaned).map(|m| m.as_str()).collect();
-        let constant = cleaned.split_whitespace().last().unwrap();
-
-        assert_eq!(terms, ["(-1, _0, _2)", "(-1, _1, _2)", "(1, _3)"]);
-        assert_eq!(constant, "0");
-    }
-
-    #[test]
-    fn test_parse_arithmetic_expression() {
-        let arithmetic_expression: Instruction = Instruction {
-            instruction_type: InstructionType::Expr,
-            instruction_body: "[ (-1, _0, _2) (-1, _1, _2) (1, _3) 0 ]",
-        };
-        let expression =
-            parse_arithmetic_expression::<FieldElement>(arithmetic_expression).unwrap();
-        assert_eq!(
-            expression,
-            Expression {
-                mul_terms: vec![
-                    (-FieldElement::one(), Witness(0), Witness(2)),
-                    (-FieldElement::one(), Witness(1), Witness(2))
-                ],
-                linear_combinations: vec![(FieldElement::one(), Witness(3))],
-                q_c: FieldElement::zero()
-            }
-        );
-    }
-
-    #[test]
     fn test_range_regex() {
         let trimmed = "[(_4, 222)] []";
 
@@ -625,21 +385,6 @@ return value indices : [_1]
         let bit_size = captures.get(2).unwrap().as_str().parse::<u32>().unwrap();
         assert_eq!(witness_index, 4);
         assert_eq!(bit_size, 222);
-    }
-
-    #[test]
-    fn test_parse_range_blackbox() {
-        let range_constraint = "RANGE [(_6, 222)] []";
-        let instruction = Instruction {
-            instruction_type: InstructionType::BlackBoxFuncCall,
-            instruction_body: range_constraint,
-        };
-        let black_box_func_call =
-            parse_black_box_function_call::<FieldElement>(instruction).unwrap();
-        assert_eq!(
-            black_box_func_call,
-            BlackBoxFuncCall::RANGE { input: FunctionInput::witness(Witness(6), 222) }
-        );
     }
 
     #[test]
@@ -687,12 +432,14 @@ return value indices : [_1]
             match instruction.instruction_type {
                 InstructionType::BlackBoxFuncCall => {
                     let black_box_func_call =
-                        parse_black_box_function_call::<FieldElement>(instruction).unwrap();
+                        BlackBoxParser::parse_black_box_function_call::<FieldElement>(instruction)
+                            .unwrap();
                     println!("{:?}", black_box_func_call);
                 }
                 InstructionType::Expr => {
                     let expression =
-                        parse_arithmetic_expression::<FieldElement>(instruction).unwrap();
+                        ArithmeticParser::parse_arithmetic_instruction::<FieldElement>(instruction)
+                            .unwrap();
                     println!("{:?}", expression);
                 }
                 _ => {}
