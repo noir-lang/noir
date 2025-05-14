@@ -26,6 +26,7 @@ use noirc_frontend::{
         Statement, TraitBound, TraitImplItemKind, TypeImpl, TypePath, UnresolvedGeneric,
         UnresolvedGenerics, UnresolvedType, UnresolvedTypeData, UseTree, UseTreeKind, Visitor,
     },
+    elaborator::PrimitiveType,
     graph::{CrateId, Dependency},
     hir::{
         def_map::{CrateDefMap, LocalModuleId, ModuleDefId, ModuleId},
@@ -319,7 +320,22 @@ impl<'a> NodeFinder<'a> {
         if idents.is_empty() {
             module_id = self.module_id;
         } else {
-            let Some(module_def_id) = self.resolve_path(idents) else {
+            let Some(module_def_id) = self.resolve_path(idents.clone()) else {
+                // Check if the first segment refers to a primitive type
+                if idents.len() != 1 {
+                    return;
+                }
+                let Some(primitive_type) = PrimitiveType::lookup_by_name(idents[0].as_str()) else {
+                    return;
+                };
+                let typ = primitive_type.to_type();
+                self.complete_type_methods(
+                    &typ,
+                    &prefix,
+                    FunctionKind::Any,
+                    FunctionCompletionKind::NameAndParameters,
+                    false, // self_prefix
+                );
                 return;
             };
 

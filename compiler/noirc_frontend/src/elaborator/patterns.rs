@@ -11,7 +11,10 @@ use crate::{
     hir::{
         def_collector::dc_crate::CompilationError,
         resolution::{errors::ResolverError, import::PathResolutionError},
-        type_check::{Source, TypeCheckError},
+        type_check::{
+            Source, TypeCheckError,
+            generics::{FmtstrPrimitiveType, Generic, StrPrimitiveType},
+        },
     },
     hir_def::{
         expr::{HirExpression, HirIdent, HirLiteral, HirMethodReference, ImplKind, TraitMethod},
@@ -25,7 +28,7 @@ use crate::{
 };
 
 use super::{
-    Elaborator, ResolverMeta,
+    Elaborator, PrimitiveType, ResolverMeta,
     path_resolution::{PathResolutionItem, TypedPath, TypedPathSegment},
 };
 
@@ -801,11 +804,89 @@ impl Elaborator<'_> {
                     generics.location,
                 )
             }
+            PathResolutionItem::PrimitiveFunction(primitive_type, turbofish, _func_id) => {
+                match primitive_type {
+                    PrimitiveType::Bool
+                    | PrimitiveType::CtString
+                    | PrimitiveType::Expr
+                    | PrimitiveType::Field
+                    | PrimitiveType::FunctionDefinition
+                    | PrimitiveType::I8
+                    | PrimitiveType::I16
+                    | PrimitiveType::I32
+                    | PrimitiveType::I64
+                    | PrimitiveType::U1
+                    | PrimitiveType::U8
+                    | PrimitiveType::U16
+                    | PrimitiveType::U32
+                    | PrimitiveType::U64
+                    | PrimitiveType::U128
+                    | PrimitiveType::Module
+                    | PrimitiveType::Quoted
+                    | PrimitiveType::StructDefinition
+                    | PrimitiveType::TraitConstraint
+                    | PrimitiveType::TraitDefinition
+                    | PrimitiveType::TraitImpl
+                    | PrimitiveType::TypeDefinition
+                    | PrimitiveType::TypedExpr
+                    | PrimitiveType::Type
+                    | PrimitiveType::UnresolvedType => {
+                        if let Some(turbofish) = turbofish {
+                            self.push_err(CompilationError::TypeError(
+                                TypeCheckError::GenericCountMismatch {
+                                    item: primitive_type.name().to_string(),
+                                    expected: 0,
+                                    found: turbofish.generics.len(),
+                                    location: turbofish.location,
+                                },
+                            ));
+                        }
+                        Vec::new()
+                    }
+                    PrimitiveType::Str => {
+                        if let Some(turbofish) = turbofish {
+                            let item = StrPrimitiveType;
+                            let item_generic_kinds = item.generic_kinds(self.interner);
+                            let kind = item_generic_kinds[0].clone();
+                            let generics = vec![self.interner.next_type_variable_with_kind(kind)];
+                            self.resolve_item_turbofish_generics(
+                                item.item_kind(),
+                                &item.item_name(self.interner),
+                                item_generic_kinds,
+                                generics,
+                                Some(turbofish.generics),
+                                turbofish.location,
+                            )
+                        } else {
+                            Vec::new()
+                        }
+                    }
+                    PrimitiveType::Fmtstr => {
+                        if let Some(turbofish) = turbofish {
+                            let item_generic_kinds =
+                                FmtstrPrimitiveType {}.generic_kinds(self.interner);
+                            let kind = item_generic_kinds[0].clone();
+                            let generics = vec![self.interner.next_type_variable_with_kind(kind)];
+                            self.resolve_item_turbofish_generics(
+                                "primitive type",
+                                "fmtstr",
+                                item_generic_kinds,
+                                generics,
+                                Some(turbofish.generics),
+                                turbofish.location,
+                            )
+                        } else {
+                            Vec::new()
+                        }
+                    }
+                }
+            }
             PathResolutionItem::Method(_, None, _)
             | PathResolutionItem::TraitFunction(_, None, _)
             | PathResolutionItem::Module(..)
             | PathResolutionItem::Type(..)
             | PathResolutionItem::TypeAlias(..)
+            | PathResolutionItem::PrimitiveType(..)
             | PathResolutionItem::Trait(..)
             | PathResolutionItem::Global(..)
             | PathResolutionItem::ModuleFunction(..) => Vec::new(),
@@ -818,26 +899,26 @@ impl Elaborator<'_> {
                 self.push_err(error);
             }
 
-            (
+            return (
                 HirIdent {
                     location: path.location,
                     id: self.interner.trait_method_id(trait_path_resolution.method.method_id),
                     impl_kind: ImplKind::TraitMethod(trait_path_resolution.method),
                 },
                 trait_path_resolution.item,
-            )
-        } else {
-            // If the Path is being used as an Expression, then it is referring to a global from a separate module
-            // Otherwise, then it is referring to an Identifier
-            // This lookup allows support of such statements: let x = foo::bar::SOME_GLOBAL + 10;
-            // If the expression is a singular indent, we search the resolver's current scope as normal.
-            let location = path.location;
-            let ((hir_ident, var_scope_index), item) = self.get_ident_from_path(path);
-
-            self.handle_hir_ident(&hir_ident, var_scope_index, location);
-
-            (hir_ident, item)
+            );
         }
+
+        // If the Path is being used as an Expression, then it is referring to a global from a separate module
+        // Otherwise, then it is referring to an Identifier
+        // This lookup allows support of such statements: let x = foo::bar::SOME_GLOBAL + 10;
+        // If the expression is a singular indent, we search the resolver's current scope as normal.
+        let location = path.location;
+        let ((hir_ident, var_scope_index), item) = self.get_ident_from_path(path);
+
+        self.handle_hir_ident(&hir_ident, var_scope_index, location);
+
+        (hir_ident, item)
     }
 
     pub(crate) fn handle_hir_ident(
