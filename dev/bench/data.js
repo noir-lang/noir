@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1747229777897,
+  "lastUpdate": 1747229780737,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -3800,95 +3800,6 @@ window.BENCHMARK_DATA = {
       }
     ],
     "Compilation Time": [
-      {
-        "commit": {
-          "author": {
-            "email": "asterite@gmail.com",
-            "name": "Ary Borenszweig",
-            "username": "asterite"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "3a01a276e18ec2f7a157808db285e818c6a739e3",
-          "message": "fix: print slice composite types surrounded by parentheses (#8412)",
-          "timestamp": "2025-05-08T13:25:17Z",
-          "tree_id": "a7d922745120140edaaced2236a6911af6a7133c",
-          "url": "https://github.com/noir-lang/noir/commit/3a01a276e18ec2f7a157808db285e818c6a739e3"
-        },
-        "date": 1746712277484,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "regression_4709",
-            "value": 0.67,
-            "unit": "s"
-          },
-          {
-            "name": "ram_blowup_regression",
-            "value": 12.9,
-            "unit": "s"
-          },
-          {
-            "name": "global_var_regression_entry_points",
-            "value": 0.486,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-inner",
-            "value": 2.278,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 6.382,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 1.228,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 16.9,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 13.54,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root-empty",
-            "value": 1.222,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root-single-tx",
-            "value": 117,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 120,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 1.076,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-root",
-            "value": 1.646,
-            "unit": "s"
-          }
-        ]
-      },
       {
         "commit": {
           "author": {
@@ -7756,6 +7667,85 @@ window.BENCHMARK_DATA = {
           {
             "name": "semaphore-depth-10",
             "value": 0.833,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "asterite@gmail.com",
+            "name": "Ary Borenszweig",
+            "username": "asterite"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "6f544928d9a9cac1ffd42082625fbea263964ff5",
+          "message": "feat: primitive types are no longer keywords (#8470)\n\nCo-authored-by: AztecBot <tech@aztecprotocol.com>\nCo-authored-by: Tom French <15848336+TomAFrench@users.noreply.github.com>",
+          "timestamp": "2025-05-14T13:11:25Z",
+          "tree_id": "4940b0a5e699cb2f6b4323259d81a8965b399bbc",
+          "url": "https://github.com/noir-lang/noir/commit/6f544928d9a9cac1ffd42082625fbea263964ff5"
+        },
+        "date": 1747229769174,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 2.606,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 6.966,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 1.064,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 17.4,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 12.74,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-empty",
+            "value": 1.33,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-single-tx",
+            "value": 122,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 132,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 1.11,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-root",
+            "value": 1.64,
+            "unit": "s"
+          },
+          {
+            "name": "semaphore-depth-10",
+            "value": 0.828,
             "unit": "s"
           }
         ]
