@@ -316,6 +316,14 @@ impl<'a> FunctionContext<'a> {
         max_depth: usize,
         flags: Flags,
     ) -> arbitrary::Result<Expression> {
+        // For now if we need a function, return one without further nesting,
+        // e.g. avoid `if <cond> { func_1 } else { func_2 }`, because it makes rewriting
+        // harder when we need to deal with proxies.
+        if matches!(typ, Type::Function(_, _, _, _)) {
+            // Local variables we should consider in `gen_expr_from_vars`, so here we just look through global functions.
+            return self.find_function_with_signature(u, typ);
+        }
+
         let mut freq = Freq::new(u, &self.ctx.config.expr_freqs)?;
 
         // Stop nesting if we reached the bottom.
@@ -364,12 +372,6 @@ impl<'a> FunctionContext<'a> {
             if let Some(expr) = self.gen_expr_from_vars(u, typ, max_depth)? {
                 return Ok(expr);
             }
-        }
-
-        // Find a function we can call.
-        if matches!(typ, Type::Function(_, _, _, _)) {
-            // Local variables we should consider in `gen_expr_from_vars`, so here we just look through global functions.
-            return self.find_function_with_signature(u, typ);
         }
 
         // TODO(#7926): Match
@@ -1179,6 +1181,7 @@ impl<'a> FunctionContext<'a> {
             .ctx
             .function_declarations
             .iter()
+            .skip(1) // Can't call main.
             .filter_map(|(func_id, func)| {
                 let matches = func.return_type == *return_type.as_ref()
                     && func.unconstrained == *unconstrained
@@ -1190,7 +1193,6 @@ impl<'a> FunctionContext<'a> {
             .collect::<Vec<_>>();
 
         if candidates.is_empty() {
-            println!("FUNCTION TYPES: {:?}", self.ctx.function_declarations);
             panic!("No candidate found for function type: {typ}");
         }
 

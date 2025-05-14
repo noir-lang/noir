@@ -378,6 +378,14 @@ pub fn callees(expr: &Expression) -> HashSet<FuncId> {
                     callees.insert(func_id);
                 }
             }
+            // Consider functions passed as arguments as at least callable.
+            for arg in &call.arguments {
+                if let Expression::Ident(ident) = arg {
+                    if let Definition::Function(func_id) = ident.definition {
+                        callees.insert(func_id);
+                    }
+                }
+            }
         }
         true
     });

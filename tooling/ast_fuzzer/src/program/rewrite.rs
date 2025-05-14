@@ -323,14 +323,20 @@ pub(crate) fn add_recursion_limit(
                         if !types::is_reference(&typ) {
                             let arg = &mut call.arguments[i];
                             let Expression::Ident(func_param_ident) = arg else {
-                                unreachable!("functions are passed by ident");
+                                unreachable!("functions are passed by ident; got {arg}");
                             };
                             let Definition::Function(func_param_id) = func_param_ident.definition
                             else {
-                                unreachable!("function definition expected");
+                                unreachable!(
+                                    "function definition expected; got {}",
+                                    func_param_ident.definition
+                                );
                             };
                             let Some(proxy) = proxy_functions.get(&func_param_id) else {
-                                unreachable!("expected to have a proxy for the function pointer");
+                                unreachable!(
+                                    "expected to have a proxy for the function pointer: {func_param_id}; got some for {:?}",
+                                    proxy_functions.keys().collect::<Vec<_>>()
+                                );
                             };
                             func_param_ident.name = proxy.name.clone();
                             func_param_ident.definition = Definition::Function(proxy.id);
