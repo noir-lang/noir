@@ -43,8 +43,11 @@ pub(crate) fn can_be_global(typ: &Type) -> bool {
 /// as well as part of the databus. They are not expected in real programs as they don't do anything useful.
 pub(crate) fn can_be_main(typ: &Type) -> bool {
     match typ {
-        Type::Array(size, _) | Type::String(size) => *size > 0,
-        _ => true,
+        Type::String(size) => *size > 0,
+        Type::Array(size, typ) => *size > 0 && can_be_main(typ),
+        Type::Tuple(types) => types.iter().all(can_be_main),
+        Type::Bool | Type::Field | Type::Integer(_, _) => true,
+        _ => false,
     }
 }
 
@@ -154,8 +157,8 @@ pub(crate) fn to_hir_type(typ: &Type) -> hir_def::types::Type {
         Type::Tuple(items) => HirType::Tuple(items.iter().map(to_hir_type).collect()),
         Type::Function(param_types, return_type, env_type, unconstrained) => HirType::Function(
             vecmap(param_types, to_hir_type),
-            Box::new(to_hir_type(&return_type)),
-            Box::new(to_hir_type(&env_type)),
+            Box::new(to_hir_type(return_type)),
+            Box::new(to_hir_type(env_type)),
             *unconstrained,
         ),
         Type::Reference(_, _) => todo!("map reference type to HIR"),

@@ -168,11 +168,21 @@ impl Context {
     ) -> arbitrary::Result<FunctionDeclaration> {
         let id = FuncId(i as u32);
         let is_main = i == 0;
-        let unconstrained = self.config.force_brillig || bool::arbitrary(u)?;
         let num_params = u.int_in_range(0..=self.config.max_function_args)?;
 
+        // If `main` is unconstrained, it won't call ACIR, so no point generating ACIR functions.
+        let unconstrained = self.config.force_brillig
+            || (!is_main
+                && self
+                    .functions
+                    .get(&Program::main_id())
+                    .map(|func| func.unconstrained)
+                    .unwrap_or_default())
+            || bool::arbitrary(u)?;
+
+        // Which existing functions we could receive as parameters.
         let func_param_candidates: Vec<FuncId> = if is_main {
-            // We cannot pass functions to main.
+            // Main cannot receive function parameters from outside.
             vec![]
         } else {
             self.function_declarations
@@ -184,13 +194,15 @@ impl Context {
                 .collect()
         };
 
+        // Choose parameter types.
         let mut params = Vec::new();
         for p in 0..num_params {
             let id = LocalId(p as u32);
             let name = make_name(p, false);
             let is_mutable = !is_main && bool::arbitrary(u)?;
 
-            let typ = if func_param_candidates.is_empty() || u.ratio(4, 5)? {
+            let typ = if func_param_candidates.is_empty() || u.ratio(9, 10)? {
+                // Take some kind of data type.
                 self.gen_type(
                     u,
                     self.config.max_depth,
@@ -200,6 +212,7 @@ impl Context {
                     self.config.comptime_friendly,
                 )?
             } else {
+                // Take a function type.
                 let callee_id = u.choose_iter(&func_param_candidates)?;
                 let callee = &self.function_declarations[callee_id];
                 let param_types = callee.params.iter().map(|p| p.3.clone()).collect::<Vec<_>>();
@@ -224,6 +237,7 @@ impl Context {
             params.push((id, is_mutable, name, typ, visibility));
         }
 
+        // We could return a function as well.
         let return_type = self.gen_type(
             u,
             self.config.max_depth,
