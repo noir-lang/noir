@@ -239,9 +239,7 @@ pub(crate) fn overflowing_int(
                 let is_negative = value.is_negative();
                 let abs = value.absolute_value();
 
-                if (is_negative && abs > min.into())
-                    || (!is_negative && abs > max.into())
-                {
+                if (is_negative && abs > min.into()) || (!is_negative && abs > max.into()) {
                     errors.push(TypeCheckError::OverflowingAssignment {
                         expr: value,
                         ty: annotated_type.clone(),

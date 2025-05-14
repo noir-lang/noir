@@ -1140,7 +1140,9 @@ impl Elaborator<'_> {
 
         use HirExpression::Literal;
         let from_value_opt = match self.interner.expression(from_expr_id) {
-            Literal(HirLiteral::Integer(field)) if !field.is_negative() => Some(field.absolute_value()),
+            Literal(HirLiteral::Integer(field)) if !field.is_negative() => {
+                Some(field.absolute_value())
+            }
 
             // TODO(https://github.com/noir-lang/noir/issues/6247):
             // handle negative literals
