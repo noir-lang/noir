@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1747230311771,
+  "lastUpdate": 1747230766340,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -11057,70 +11057,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "15848336+TomAFrench@users.noreply.github.com",
-            "name": "Tom French",
-            "username": "TomAFrench"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "8ab59da0020d6d84ecb06d72f0f3ca073bf11f70",
-          "message": "chore: add minor docs for interpreter (#8397)\n\nCo-authored-by: AztecBot <tech@aztecprotocol.com>\nCo-authored-by: jfecher <jfecher11@gmail.com>",
-          "timestamp": "2025-05-08T15:56:29Z",
-          "tree_id": "0a8ab8ac45d2237a33cb9abeef5b38d9e48d77c3",
-          "url": "https://github.com/noir-lang/noir/commit/8ab59da0020d6d84ecb06d72f0f3ca073bf11f70"
-        },
-        "date": 1746721648081,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 234.12,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 256.59,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 212.44,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 541.54,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 533.71,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 1440,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 362.58,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-root",
-            "value": 368.5,
-            "unit": "MB"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "aakoshh@gmail.com",
             "name": "Akosh Farkash",
             "username": "aakoshh"
@@ -14350,6 +14286,75 @@ window.BENCHMARK_DATA = {
           {
             "name": "semaphore_depth_10",
             "value": 91.49,
+            "unit": "MB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "15848336+TomAFrench@users.noreply.github.com",
+            "name": "Tom French",
+            "username": "TomAFrench"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "f4078e1e175b6003ed25215fb870639ee9900cb7",
+          "message": "fix: remove private builtins from `Field` impl (#8496)\n\nCo-authored-by: AztecBot <tech@aztecprotocol.com>",
+          "timestamp": "2025-05-14T13:14:16Z",
+          "tree_id": "b80fae0b42de17fc222513ceae20f8d534d0e002",
+          "url": "https://github.com/noir-lang/noir/commit/f4078e1e175b6003ed25215fb870639ee9900cb7"
+        },
+        "date": 1747230757121,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 238.07,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 260.32,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 213.56,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 544.98,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 537.43,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 1440,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 366.5,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-root",
+            "value": 372.43,
+            "unit": "MB"
+          },
+          {
+            "name": "semaphore_depth_10",
+            "value": 91.5,
             "unit": "MB"
           }
         ]
