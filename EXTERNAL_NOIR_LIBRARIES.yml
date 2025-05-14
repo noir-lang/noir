@@ -112,7 +112,7 @@ libraries:
     repo: AztecProtocol/aztec-packages
     ref: *AZ_COMMIT
     path: noir-projects/noir-protocol-circuits/crates/types
-    timeout: 60
+    timeout: 70
     critical: false
   protocol_circuits_rollup_lib:
     repo: AztecProtocol/aztec-packages

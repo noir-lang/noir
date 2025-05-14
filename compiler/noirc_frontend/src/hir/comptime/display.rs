@@ -208,11 +208,7 @@ impl<'interner> TokenPrettyPrinter<'interner> {
                 let value = Value::TypedExpr(TypedExpr::ExprId(*id));
                 self.print_value(&value, last_was_alphanumeric, f)
             }
-            Token::Keyword(..)
-            | Token::Ident(..)
-            | Token::IntType(..)
-            | Token::Int(..)
-            | Token::Bool(..) => {
+            Token::Keyword(..) | Token::Ident(..) | Token::Int(..) | Token::Bool(..) => {
                 if last_was_alphanumeric {
                     write!(f, " ")?;
                 }
@@ -878,10 +874,6 @@ fn remove_interned_in_unresolved_type_data(
         UnresolvedTypeData::Slice(typ) => {
             UnresolvedTypeData::Slice(Box::new(remove_interned_in_unresolved_type(interner, *typ)))
         }
-        UnresolvedTypeData::FormatString(expr, typ) => UnresolvedTypeData::FormatString(
-            expr,
-            Box::new(remove_interned_in_unresolved_type(interner, *typ)),
-        ),
         UnresolvedTypeData::Parenthesized(typ) => UnresolvedTypeData::Parenthesized(Box::new(
             remove_interned_in_unresolved_type(interner, *typ),
         )),
@@ -924,13 +916,8 @@ fn remove_interned_in_unresolved_type_data(
             }))
         }
         UnresolvedTypeData::Interned(id) => interner.get_unresolved_type_data(id).clone(),
-        UnresolvedTypeData::FieldElement
-        | UnresolvedTypeData::Integer(_, _)
-        | UnresolvedTypeData::Bool
-        | UnresolvedTypeData::Unit
-        | UnresolvedTypeData::String(_)
+        UnresolvedTypeData::Unit
         | UnresolvedTypeData::Resolved(_)
-        | UnresolvedTypeData::Quoted(_)
         | UnresolvedTypeData::Expression(_)
         | UnresolvedTypeData::Unspecified
         | UnresolvedTypeData::Error => typ,

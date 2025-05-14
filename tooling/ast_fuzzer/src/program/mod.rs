@@ -169,6 +169,16 @@ impl Context {
         let is_main = i == 0;
         let num_params = u.int_in_range(0..=self.config.max_function_args)?;
 
+        // If `main` is unconstrained, it won't call ACIR, so no point generating ACIR functions.
+        let unconstrained = self.config.force_brillig
+            || (!is_main
+                && self
+                    .functions
+                    .get(&Program::main_id())
+                    .map(|func| func.unconstrained)
+                    .unwrap_or_default())
+            || bool::arbitrary(u)?;
+
         let mut params = Vec::new();
         for p in 0..num_params {
             let id = LocalId(p as u32);
@@ -227,7 +237,7 @@ impl Context {
             } else {
                 *u.choose(&[InlineType::Inline, InlineType::InlineAlways])?
             },
-            unconstrained: self.config.force_brillig || bool::arbitrary(u)?,
+            unconstrained,
         };
 
         Ok(decl)

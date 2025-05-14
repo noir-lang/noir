@@ -58,8 +58,6 @@ pub enum ParserErrorReason {
 
     #[error("Unexpected '{0}', expected a field name or number")]
     ExpectedFieldName(Token),
-    #[error("Expected a pattern but found a type - {0}")]
-    ExpectedPatternButFoundType(Token),
     #[error("Expected a ; separating these two statements")]
     MissingSeparatingSemi,
     #[error("Expected a ; after `let` statement")]
@@ -94,8 +92,6 @@ pub enum ParserErrorReason {
     InvalidBitSize(u32),
     #[error("{0}")]
     Lexer(LexerErrorKind),
-    #[error("The only supported numeric generic types are `u1`, `u8`, `u16`, and `u32`")]
-    ForbiddenNumericGenericType,
     #[error("Invalid call data identifier, must be a number. E.g `call_data(0)`")]
     InvalidCallDataIdentifier,
     #[error("Associated types are not allowed in paths")]
@@ -117,8 +113,6 @@ pub enum ParserErrorReason {
     MissingSafetyComment,
     #[error("Missing parameters for function definition")]
     MissingParametersForFunctionDefinition,
-    #[error("`StructDefinition` is deprecated. It has been renamed to `TypeDefinition`")]
-    StructDefinitionDeprecated,
     #[error("Missing angle brackets surrounding type in associated item path")]
     MissingAngleBrackets,
     #[error("Expected value, found built-in type `{typ}`")]
@@ -127,8 +121,6 @@ pub enum ParserErrorReason {
     LogicalAnd,
     #[error("Trait bounds are not allowed here")]
     TraitBoundsNotAllowedHere,
-    #[error("Missing double colon before generic arguments")]
-    MissingDoubleColon,
 }
 
 /// Represents a parsing error, or a parsing error in the making.
@@ -292,11 +284,6 @@ impl<'a> From<&'a ParserError> for Diagnostic {
                 ParserErrorReason::TraitImplVisibilityIgnored => {
                     Diagnostic::simple_warning(reason.to_string(), "".into(), error.location())
                 }
-                ParserErrorReason::ExpectedPatternButFoundType(ty) => Diagnostic::simple_error(
-                    format!("Expected a pattern but found a type - {ty}"),
-                    format!("{ty} is a type and cannot be used as a variable name"),
-                    error.location(),
-                ),
                 ParserErrorReason::Lexer(error) => error.into(),
                 ParserErrorReason::ExpectedMutAfterAmpersand { found } => Diagnostic::simple_error(
                     format!("Expected `mut` after `&`, found `{found}`"),
@@ -320,16 +307,9 @@ impl<'a> From<&'a ParserError> for Diagnostic {
                     let secondary = "Consider changing it to a regular `//` comment".to_string();
                     Diagnostic::simple_warning(primary, secondary, error.location())
                 }
-                ParserErrorReason::StructDefinitionDeprecated => {
-                    Diagnostic::simple_warning(format!("{reason}"), String::new(), error.location())
-                }
                 ParserErrorReason::MissingAngleBrackets => {
                     let secondary = "Types that don't start with an identifier need to be surrounded with angle brackets: `<`, `>`".to_string();
                     Diagnostic::simple_error(format!("{reason}"), secondary, error.location())
-                }
-                ParserErrorReason::MissingDoubleColon => {
-                    let secondary = String::new();
-                    Diagnostic::simple_warning(format!("{reason}"), secondary, error.location())
                 }
                 ParserErrorReason::LogicalAnd => {
                     let primary = "Noir has no logical-and (&&) operator since short-circuiting is much less efficient when compiling to circuits".to_string();

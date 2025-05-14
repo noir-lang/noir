@@ -2,7 +2,7 @@ use acvm::FieldElement;
 use noirc_errors::Span;
 
 use crate::{
-    BinaryTypeOperator, ParsedModule, QuotedType,
+    BinaryTypeOperator, ParsedModule,
     ast::{
         ArrayLiteral, AsTraitPath, AssignStatement, BlockExpression, CallExpression,
         CastExpression, ConstrainExpression, ConstructorExpression, Expression, ExpressionKind,
@@ -25,10 +25,10 @@ use crate::{
 };
 
 use super::{
-    ForBounds, FunctionReturnType, GenericTypeArgs, IntegerBitSize, ItemVisibility,
-    MatchExpression, NoirEnumeration, Pattern, Signedness, TraitBound, TraitImplItemKind, TypePath,
-    UnresolvedGeneric, UnresolvedGenerics, UnresolvedTraitConstraint, UnresolvedType,
-    UnresolvedTypeData, UnresolvedTypeExpression, UnsafeExpression,
+    ForBounds, FunctionReturnType, GenericTypeArgs, ItemVisibility, MatchExpression,
+    NoirEnumeration, Pattern, TraitBound, TraitImplItemKind, TypePath, UnresolvedGeneric,
+    UnresolvedGenerics, UnresolvedTraitConstraint, UnresolvedType, UnresolvedTypeData,
+    UnresolvedTypeExpression, UnsafeExpression,
 };
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
@@ -424,28 +424,7 @@ pub trait Visitor {
         true
     }
 
-    fn visit_format_string_type(
-        &mut self,
-        _: &UnresolvedTypeExpression,
-        _: &UnresolvedType,
-        _: Span,
-    ) -> bool {
-        true
-    }
-
-    fn visit_string_type(&mut self, _: &UnresolvedTypeExpression, _: Span) -> bool {
-        true
-    }
-
     fn visit_unspecified_type(&mut self, _: Span) {}
-
-    fn visit_quoted_type(&mut self, _: &QuotedType, _: Span) {}
-
-    fn visit_field_element_type(&mut self, _: Span) {}
-
-    fn visit_integer_type(&mut self, _: Signedness, _: IntegerBitSize, _: Span) {}
-
-    fn visit_bool_type(&mut self, _: Span) {}
 
     fn visit_unit_type(&mut self, _: Span) {}
 
@@ -1470,26 +1449,7 @@ impl UnresolvedType {
                     expr.accept(visitor);
                 }
             }
-            UnresolvedTypeData::FormatString(expr, typ) => {
-                if visitor.visit_format_string_type(expr, typ, self.location.span) {
-                    expr.accept(visitor);
-                    typ.accept(visitor);
-                }
-            }
-            UnresolvedTypeData::String(expr) => {
-                if visitor.visit_string_type(expr, self.location.span) {
-                    expr.accept(visitor);
-                }
-            }
             UnresolvedTypeData::Unspecified => visitor.visit_unspecified_type(self.location.span),
-            UnresolvedTypeData::Quoted(typ) => visitor.visit_quoted_type(typ, self.location.span),
-            UnresolvedTypeData::FieldElement => {
-                visitor.visit_field_element_type(self.location.span);
-            }
-            UnresolvedTypeData::Integer(signdness, size) => {
-                visitor.visit_integer_type(*signdness, *size, self.location.span);
-            }
-            UnresolvedTypeData::Bool => visitor.visit_bool_type(self.location.span),
             UnresolvedTypeData::Unit => visitor.visit_unit_type(self.location.span),
             UnresolvedTypeData::Resolved(id) => {
                 visitor.visit_resolved_type(*id, self.location.span);
