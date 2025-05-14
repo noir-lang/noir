@@ -425,6 +425,9 @@ impl Context {
                 break;
             }
         }
+        if is_main {
+            println!("TYPE FOR MAIN: {typ}");
+        }
         self.types.insert(typ.clone());
 
         Ok(typ)
