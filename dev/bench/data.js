@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1747257911188,
+  "lastUpdate": 1747257918983,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -7745,70 +7745,6 @@ window.BENCHMARK_DATA = {
             "username": "web-flow"
           },
           "distinct": true,
-          "id": "a593e48c6a9339f38291029d0aac949be77dd0d3",
-          "message": "fix(ssa_gen): Do not code gen fetching of empty arrays when initializing the data bus (#8426)",
-          "timestamp": "2025-05-08T19:53:53Z",
-          "tree_id": "2e796b9ce202f239c7f07cbf04b86a01b7581e0f",
-          "url": "https://github.com/noir-lang/noir/commit/a593e48c6a9339f38291029d0aac949be77dd0d3"
-        },
-        "date": 1746735861302,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 0.027,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 0.163,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 0.016,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 0.333,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 0.212,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 11.6,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 0.004,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-root",
-            "value": 0.013,
-            "unit": "s"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
-            "email": "mvezenov@gmail.com",
-            "name": "Maxim Vezenov",
-            "username": "vezenovm"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
           "id": "29025036dadfb837985ad25726407fb922c3ca1b",
           "message": "feat(ssa): Mark transitively dead parameters during DIE (#8254)\n\nCo-authored-by: AztecBot <tech@aztecprotocol.com>",
           "timestamp": "2025-05-08T21:56:02Z",
@@ -11043,6 +10979,75 @@ window.BENCHMARK_DATA = {
           {
             "name": "semaphore-depth-10",
             "value": 0.019,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "163862677+noirwhal@users.noreply.github.com",
+            "name": "noirwhal",
+            "username": "noirwhal"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "e796dfd67726cbc28eb9991782533b211025928d",
+          "message": "chore: Release Noir(1.0.0-beta.6) (#8438)\n\nCo-authored-by: noirwhal <tomfrench@aztecprotocol.com>",
+          "timestamp": "2025-05-14T20:57:27Z",
+          "tree_id": "1cefca22bd36aeb909b1fc20186ded4361abbff2",
+          "url": "https://github.com/noir-lang/noir/commit/e796dfd67726cbc28eb9991782533b211025928d"
+        },
+        "date": 1747257908452,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 0.028,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 0.159,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 0.011,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 0.302,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 0.194,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 10.9,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 0.004,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-root",
+            "value": 0.013,
+            "unit": "s"
+          },
+          {
+            "name": "semaphore-depth-10",
+            "value": 0.02,
             "unit": "s"
           }
         ]
