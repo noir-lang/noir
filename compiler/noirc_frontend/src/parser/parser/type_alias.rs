@@ -1,7 +1,7 @@
 use noirc_errors::Location;
 
 use crate::{
-    ast::{Ident, ItemVisibility, NoirTypeAlias, UnresolvedType, UnresolvedTypeData},
+    ast::{ItemVisibility, NoirTypeAlias, UnresolvedType, UnresolvedTypeData},
     token::Token,
 };
 
@@ -16,11 +16,12 @@ impl Parser<'_> {
     ) -> NoirTypeAlias {
         let Some(name) = self.eat_ident() else {
             self.expected_identifier();
+            let location = self.location_at_previous_token_end();
             return NoirTypeAlias {
                 visibility,
-                name: Ident::default(),
+                name: self.unknown_ident_at_previous_token_end(),
                 generics: Vec::new(),
-                typ: UnresolvedType { typ: UnresolvedTypeData::Error, location: Location::dummy() },
+                typ: UnresolvedType { typ: UnresolvedTypeData::Error, location },
                 location: start_location,
             };
         };
@@ -37,16 +38,17 @@ impl Parser<'_> {
                 visibility,
                 name,
                 generics,
-                typ: UnresolvedType { typ: UnresolvedTypeData::Error, location: Location::dummy() },
+                typ: UnresolvedType {
+                    typ: UnresolvedTypeData::Error,
+                    location: self.location_at_previous_token_end(),
+                },
                 location,
             };
         }
 
         let typ = self.parse_type_or_error();
         let location = self.location_since(start_location);
-        if !self.eat_semicolons() {
-            self.expected_token(Token::Semicolon);
-        }
+        self.eat_semicolon_or_error();
 
         NoirTypeAlias { visibility, name, generics, typ, location }
     }

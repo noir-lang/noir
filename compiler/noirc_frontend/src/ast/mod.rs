@@ -297,7 +297,7 @@ impl std::fmt::Display for UnresolvedTypeData {
             Expression(expression) => expression.fmt(f),
             Bool => write!(f, "bool"),
             String(len) => write!(f, "str<{len}>"),
-            FormatString(len, elements) => write!(f, "fmt<{len}, {elements}"),
+            FormatString(len, elements) => write!(f, "fmtstr<{len}, {elements}>"),
             Function(args, ret, env, unconstrained) => {
                 if *unconstrained {
                     write!(f, "unconstrained ")?;
@@ -393,6 +393,8 @@ impl UnresolvedTypeData {
             Signed(num_bits) => {
                 if num_bits == 128 {
                     Err(InvalidIntegerBitSizeError(128))
+                } else if num_bits == 1 {
+                    Err(InvalidIntegerBitSizeError(1))
                 } else {
                     Ok(Integer(Signedness::Signed, IntegerBitSize::try_from(num_bits)?))
                 }

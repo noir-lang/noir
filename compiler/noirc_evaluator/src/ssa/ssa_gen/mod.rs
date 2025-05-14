@@ -45,11 +45,11 @@ pub(crate) const SSA_WORD_SIZE: u32 = 32;
 /// Generates SSA for the given monomorphized program.
 ///
 /// This function will generate the SSA but does not perform any optimizations on it.
-pub(crate) fn generate_ssa(program: Program) -> Result<Ssa, RuntimeError> {
+pub fn generate_ssa(program: Program) -> Result<Ssa, RuntimeError> {
     // see which parameter has call_data/return_data attribute
     let is_databus = DataBusBuilder::is_databus(&program.main_function_signature);
 
-    let is_return_data = matches!(program.return_visibility, Visibility::ReturnData);
+    let is_return_data = matches!(program.return_visibility(), Visibility::ReturnData);
 
     let return_location = program.return_location;
     let mut context = SharedContext::new(program);
@@ -534,10 +534,11 @@ impl FunctionContext<'_> {
         self.builder.set_location(for_expr.end_range_location);
         let end_index = self.codegen_non_tuple_expression(&for_expr.end_range)?;
 
-        if let (Some(start_constant), Some(end_constant)) = (
-            self.builder.current_function.dfg.get_numeric_constant(start_index),
-            self.builder.current_function.dfg.get_numeric_constant(end_index),
-        ) {
+        let range_bound = |id| self.builder.current_function.dfg.get_integer_constant(id);
+
+        if let (Some(start_constant), Some(end_constant)) =
+            (range_bound(start_index), range_bound(end_index))
+        {
             // If we can determine that the loop contains zero iterations then there's no need to codegen the loop.
             if start_constant >= end_constant {
                 return Ok(Self::unit_value());
@@ -625,7 +626,7 @@ impl FunctionContext<'_> {
     ///   jmp while_entry()
     /// while_entry:
     ///   v0 = ... codegen cond ...
-    ///   jmpif v0, then: while_body, else: while_end  
+    ///   jmpif v0, then: while_body, else: while_end
     /// while_body():
     ///   v3 = ... codegen body ...
     ///   jmp while_entry()
@@ -1082,8 +1083,10 @@ impl FunctionContext<'_> {
     }
 
     fn codegen_assign(&mut self, assign: &ast::Assign) -> Result<Values, RuntimeError> {
-        let lhs = self.extract_current_value(&assign.lvalue)?;
+        // Evaluate the rhs first - when we load the expression in the lvalue we want that
+        // to reflect any mutations from evaluating the rhs.
         let rhs = self.codegen_expression(&assign.expression)?;
+        let lhs = self.extract_current_value(&assign.lvalue)?;
 
         self.assign_new_value(lhs, rhs);
         Ok(Self::unit_value())

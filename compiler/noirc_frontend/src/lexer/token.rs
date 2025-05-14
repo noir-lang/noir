@@ -732,6 +732,9 @@ pub enum TestScope {
     /// if it fails with the specified reason. If the reason is None, then
     /// the test must unconditionally fail
     ShouldFailWith { reason: Option<String> },
+    /// If a test has a scope of OnlyFailWith, then it can only fail
+    /// if it fails with the specified reason.
+    OnlyFailWith { reason: String },
     /// No scope is applied and so the test must pass
     None,
 }
@@ -744,6 +747,9 @@ impl fmt::Display for TestScope {
                 Some(failure_reason) => write!(f, "(should_fail_with = {failure_reason:?})"),
                 None => write!(f, "(should_fail)"),
             },
+            TestScope::OnlyFailWith { reason } => {
+                write!(f, "(only_fail_with = {reason:?})")
+            }
         }
     }
 }
@@ -751,6 +757,12 @@ impl fmt::Display for TestScope {
 /// FuzzingScopr is used to specify additional annotations for fuzzing harnesses
 #[derive(PartialEq, Eq, Hash, Debug, Clone, PartialOrd, Ord)]
 pub enum FuzzingScope {
+    /// If the fuzzing harness has a scope of ShouldFailWith, then it should only pass
+    /// if it fails with the specified reason. If the reason is None, then
+    /// the harness must unconditionally fail
+    ShouldFailWith {
+        reason: Option<String>,
+    },
     /// If a fuzzing harness has a scope of OnlyFailWith, then it will only detect an assert
     /// if it fails with the specified reason.
     OnlyFailWith {
@@ -764,6 +776,10 @@ impl fmt::Display for FuzzingScope {
         match self {
             FuzzingScope::None => write!(f, ""),
             FuzzingScope::OnlyFailWith { reason } => write!(f, "(only_fail_with = {reason:?})"),
+            FuzzingScope::ShouldFailWith { reason } => match reason {
+                Some(failure_reason) => write!(f, "(should_fail_with = {failure_reason:?})"),
+                None => write!(f, "(should_fail)"),
+            },
         }
     }
 }
@@ -802,14 +818,31 @@ impl Attributes {
     }
 
     pub fn is_test_function(&self) -> bool {
-        matches!(self.function().map(|attr| &attr.kind), Some(FunctionAttributeKind::Test(_)))
+        self.as_test_function().is_some()
+    }
+
+    pub fn as_test_function(&self) -> Option<(&TestScope, Location)> {
+        self.function().and_then(|attr| {
+            if let FunctionAttributeKind::Test(scope) = &attr.kind {
+                Some((scope, attr.location))
+            } else {
+                None
+            }
+        })
     }
 
     pub fn is_fuzzing_harness(&self) -> bool {
-        matches!(
-            self.function().map(|attr| &attr.kind),
-            Some(FunctionAttributeKind::FuzzingHarness(_))
-        )
+        self.as_fuzzing_harness().is_some()
+    }
+
+    pub fn as_fuzzing_harness(&self) -> Option<(&FuzzingScope, Location)> {
+        self.function().and_then(|attr| {
+            if let FunctionAttributeKind::FuzzingHarness(scope) = &attr.kind {
+                Some((scope, attr.location))
+            } else {
+                None
+            }
+        })
     }
 
     /// True if these attributes mean the given function is an entry point function if it was

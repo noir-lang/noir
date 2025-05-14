@@ -11,7 +11,6 @@ use super::{
     MethodCallExpression, UnresolvedType,
 };
 use crate::ast::UnresolvedTypeData;
-use crate::elaborator::Turbofish;
 use crate::elaborator::types::SELF_TYPE_NAME;
 use crate::node_interner::{
     InternedExpressionKind, InternedPattern, InternedStatementKind, NodeInterner,
@@ -179,7 +178,7 @@ impl StatementKind {
     }
 }
 
-#[derive(Eq, Debug, Clone, Default)]
+#[derive(Eq, Debug, Clone)]
 pub struct Ident(Located<String>);
 
 impl PartialEq<Ident> for Ident {
@@ -476,38 +475,12 @@ impl Path {
         self.segments.first().map(|segment| &segment.ident)
     }
 
-    pub fn to_ident(&self) -> Option<Ident> {
-        if !self.is_ident() {
-            return None;
-        }
-        self.segments.first().cloned().map(|segment| segment.ident)
-    }
-
     pub(crate) fn is_wildcard(&self) -> bool {
         if let Some(ident) = self.as_ident() { ident.as_str() == WILDCARD_TYPE } else { false }
     }
 
     pub fn is_empty(&self) -> bool {
         self.segments.is_empty() && self.kind == PathKind::Plain
-    }
-
-    pub fn as_string(&self) -> String {
-        let mut string = String::new();
-
-        let mut segments = self.segments.iter();
-        match segments.next() {
-            None => panic!("empty segment"),
-            Some(seg) => {
-                string.push_str(seg.ident.as_str());
-            }
-        }
-
-        for segment in segments {
-            string.push_str("::");
-            string.push_str(segment.ident.as_str());
-        }
-
-        string
     }
 }
 
@@ -537,13 +510,6 @@ impl PathSegment {
 
     pub fn turbofish_location(&self) -> Location {
         Location::new(self.turbofish_span(), self.location.file)
-    }
-
-    pub fn turbofish(&self) -> Option<Turbofish> {
-        self.generics.as_ref().map(|generics| Turbofish {
-            location: self.turbofish_location(),
-            generics: generics.clone(),
-        })
     }
 }
 

@@ -1,10 +1,10 @@
 use std::future::{self, Future};
 
 use async_lsp::ResponseError;
+use async_lsp::lsp_types::{Hover, HoverParams};
 use fm::PathString;
 use from_reference::hover_from_reference;
 use from_visitor::hover_from_visitor;
-use lsp_types::{Hover, HoverParams};
 
 use crate::LspState;
 
@@ -34,7 +34,7 @@ mod hover_tests {
     use crate::test_utils;
 
     use super::*;
-    use lsp_types::{
+    use async_lsp::lsp_types::{
         HoverContents, Position, TextDocumentIdentifier, TextDocumentPositionParams, Url,
         WorkDoneProgressParams,
     };

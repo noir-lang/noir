@@ -47,7 +47,9 @@ impl Parser<'_> {
     }
 
     fn parse_unresolved_type_data(&mut self) -> Option<UnresolvedTypeData> {
-        if let Some(typ) = self.parse_primitive_type() {
+        if let Some(typ) = self.parse_primitive_type(
+            false, // require colons
+        ) {
             return Some(typ);
         }
 
@@ -83,7 +85,10 @@ impl Parser<'_> {
         None
     }
 
-    pub(super) fn parse_primitive_type(&mut self) -> Option<UnresolvedTypeData> {
+    pub(super) fn parse_primitive_type(
+        &mut self,
+        require_colons: bool,
+    ) -> Option<UnresolvedTypeData> {
         if let Some(typ) = self.parse_field_type() {
             return Some(typ);
         }
@@ -96,11 +101,11 @@ impl Parser<'_> {
             return Some(typ);
         }
 
-        if let Some(typ) = self.parse_str_type() {
+        if let Some(typ) = self.parse_str_type(require_colons) {
             return Some(typ);
         }
 
-        if let Some(typ) = self.parse_fmtstr_type() {
+        if let Some(typ) = self.parse_fmtstr_type(require_colons) {
             return Some(typ);
         }
 
@@ -152,9 +157,16 @@ impl Parser<'_> {
         None
     }
 
-    fn parse_str_type(&mut self) -> Option<UnresolvedTypeData> {
+    fn parse_str_type(&mut self, require_colons: bool) -> Option<UnresolvedTypeData> {
         if !self.eat_keyword(Keyword::String) {
             return None;
+        }
+
+        if require_colons {
+            let location = self.current_token_location;
+            if !self.eat_double_colon() {
+                self.push_error(ParserErrorReason::MissingDoubleColon, location);
+            }
         }
 
         if !self.eat_less() {
@@ -182,9 +194,16 @@ impl Parser<'_> {
         Some(UnresolvedTypeData::String(expr))
     }
 
-    fn parse_fmtstr_type(&mut self) -> Option<UnresolvedTypeData> {
+    fn parse_fmtstr_type(&mut self, require_colons: bool) -> Option<UnresolvedTypeData> {
         if !self.eat_keyword(Keyword::FormatString) {
             return None;
+        }
+
+        if require_colons {
+            let location = self.current_token_location;
+            if !self.eat_double_colon() {
+                self.push_error(ParserErrorReason::MissingDoubleColon, location);
+            }
         }
 
         if !self.eat_less() {
@@ -470,6 +489,10 @@ impl Parser<'_> {
 
 #[cfg(test)]
 mod tests {
+    use std::collections::BTreeMap;
+
+    use insta::assert_snapshot;
+    use proptest::prelude::*;
     use strum::IntoEnumIterator;
 
     use crate::{
@@ -513,26 +536,41 @@ mod tests {
         ));
     }
 
-    #[test]
-    fn errors_on_invalid_bit_size() {
-        let src = "u31";
-        let mut parser = Parser::for_str_with_dummy_file(src);
-        let typ = parser.parse_type_or_error();
-        assert_eq!(typ.typ, UnresolvedTypeData::Error);
-        assert_eq!(parser.errors.len(), 1);
-        let error = &parser.errors[0];
-        assert!(matches!(error.reason(), Some(ParserErrorReason::InvalidBitSize(..))));
-    }
+    proptest! {
+        #[test]
+        fn parses_only_expected_types(sign in proptest::prop_oneof![Just('u'), Just('i')], width: u8) {
+            let accepted_types = BTreeMap::from([
+                ("u1", UnresolvedTypeData::Integer(Signedness::Unsigned, IntegerBitSize::One)),
+                ("u8", UnresolvedTypeData::Integer(Signedness::Unsigned, IntegerBitSize::Eight)),
+                ("u16", UnresolvedTypeData::Integer(Signedness::Unsigned, IntegerBitSize::Sixteen)),
+                ("u32", UnresolvedTypeData::Integer(Signedness::Unsigned, IntegerBitSize::ThirtyTwo)),
+                ("u64", UnresolvedTypeData::Integer(Signedness::Unsigned, IntegerBitSize::SixtyFour)),
+                (
+                    "u128",
+                    UnresolvedTypeData::Integer(
+                        Signedness::Unsigned,
+                        IntegerBitSize::HundredTwentyEight,
+                    ),
+                ),
+                ("i8", UnresolvedTypeData::Integer(Signedness::Signed, IntegerBitSize::Eight)),
+                ("i16", UnresolvedTypeData::Integer(Signedness::Signed, IntegerBitSize::Sixteen)),
+                ("i32", UnresolvedTypeData::Integer(Signedness::Signed, IntegerBitSize::ThirtyTwo)),
+                ("i64", UnresolvedTypeData::Integer(Signedness::Signed, IntegerBitSize::SixtyFour)),
+            ]);
 
-    #[test]
-    fn errors_on_i128() {
-        let src = "i128";
-        let mut parser = Parser::for_str_with_dummy_file(src);
-        let typ = parser.parse_type_or_error();
-        assert_eq!(typ.typ, UnresolvedTypeData::Error);
-        assert_eq!(parser.errors.len(), 1);
-        let error = &parser.errors[0];
-        assert!(matches!(error.reason(), Some(ParserErrorReason::InvalidBitSize(..))));
+            let src = format!("{sign}{width}");
+            let mut parser = Parser::for_str_with_dummy_file(&src);
+            let typ = parser.parse_type_or_error();
+
+            if let Some(expected_typ) = accepted_types.get(&src.as_str()) {
+                assert_eq!(&typ.typ, expected_typ);
+            } else {
+                assert_eq!(typ.typ, UnresolvedTypeData::Error);
+                assert_eq!(parser.errors.len(), 1);
+                let error = &parser.errors[0];
+                assert!(matches!(error.reason(), Some(ParserErrorReason::InvalidBitSize(..))));
+            }
+        }
     }
 
     #[test]
@@ -689,7 +727,7 @@ mod tests {
         let mut parser = Parser::for_str_with_dummy_file(&src);
         parser.parse_type();
         let error = get_single_error(&parser.errors, span);
-        assert_eq!(error.to_string(), "Expected a ']' but found end of input");
+        assert_snapshot!(error.to_string(), @"Expected a ']' but found end of input");
     }
 
     #[test]

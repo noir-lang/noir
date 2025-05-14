@@ -7,7 +7,7 @@ use std::path::PathBuf;
 use thiserror::Error;
 
 #[derive(Debug, Error)]
-pub(crate) enum CliError {
+pub enum CliError {
     #[error("{0}")]
     Generic(String),
 
@@ -16,6 +16,9 @@ pub(crate) enum CliError {
 
     #[error("Invalid package name {0}. Did you mean to use `--name`?")]
     InvalidPackageName(String),
+
+    #[error("`--debug-compile-stdin` is incompatible with `--watch`")]
+    CantWatchStdin,
 
     /// Artifact CLI error
     #[error(transparent)]

@@ -1,0 +1,3 @@
+[package]
+name = "partial_witness_should_fail"
+type = "bin"

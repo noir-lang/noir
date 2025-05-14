@@ -16,11 +16,11 @@ members = [
     "tooling/ast_fuzzer",
     "tooling/ast_fuzzer/fuzz",
     "tooling/greybox_fuzzer",
-    "tooling/fuzzer",
     "tooling/nargo",
     "tooling/nargo_fmt",
     "tooling/nargo_cli",
     "tooling/nargo_toml",
+    "tooling/nargo_fuzz_target",
     "tooling/noirc_artifacts",
     "tooling/noirc_artifacts_info",
     "tooling/noirc_abi",
@@ -56,7 +56,7 @@ resolver = "2"
 
 [workspace.package]
 # x-release-please-start-version
-version = "1.0.0-beta.4"
+version = "1.0.0-beta.5"
 # x-release-please-end
 authors = ["The Noir Team <team@noir-lang.org>"]
 edition = "2024"
@@ -73,13 +73,13 @@ unused_qualifications = "warn"
 [workspace.dependencies]
 
 # ACVM workspace dependencies
-acir_field = { version = "1.0.0-beta.4", path = "acvm-repo/acir_field", default-features = false }
-acir = { version = "1.0.0-beta.4", path = "acvm-repo/acir", default-features = false }
-acvm = { version = "1.0.0-beta.4", path = "acvm-repo/acvm" }
-brillig = { version = "1.0.0-beta.4", path = "acvm-repo/brillig", default-features = false }
-brillig_vm = { version = "1.0.0-beta.4", path = "acvm-repo/brillig_vm", default-features = false }
-acvm_blackbox_solver = { version = "1.0.0-beta.4", path = "acvm-repo/blackbox_solver", default-features = false }
-bn254_blackbox_solver = { version = "1.0.0-beta.4", path = "acvm-repo/bn254_blackbox_solver", default-features = false }
+acir_field = { version = "1.0.0-beta.5", path = "acvm-repo/acir_field", default-features = false }
+acir = { version = "1.0.0-beta.5", path = "acvm-repo/acir", default-features = false }
+acvm = { version = "1.0.0-beta.5", path = "acvm-repo/acvm" }
+brillig = { version = "1.0.0-beta.5", path = "acvm-repo/brillig", default-features = false }
+brillig_vm = { version = "1.0.0-beta.5", path = "acvm-repo/brillig_vm", default-features = false }
+acvm_blackbox_solver = { version = "1.0.0-beta.5", path = "acvm-repo/blackbox_solver", default-features = false }
+bn254_blackbox_solver = { version = "1.0.0-beta.5", path = "acvm-repo/bn254_blackbox_solver", default-features = false }
 
 # Noir compiler workspace dependencies
 fm = { path = "compiler/fm" }
@@ -92,8 +92,8 @@ noirc_printable_type = { path = "compiler/noirc_printable_type" }
 
 # Noir tooling workspace dependencies
 noir_greybox_fuzzer = { path = "tooling/greybox_fuzzer" }
-noir_fuzzer = { path = "tooling/fuzzer" }
 nargo = { path = "tooling/nargo" }
+nargo_cli = { path = "tooling/nargo_cli" }
 nargo_fmt = { path = "tooling/nargo_fmt" }
 nargo_toml = { path = "tooling/nargo_toml" }
 noir_lsp = { path = "tooling/lsp" }
@@ -120,9 +120,8 @@ ark-std = { version = "^0.5.0", default-features = false }
 iter-extended = { path = "utils/iter-extended" }
 
 # LSP
-async-lsp = { version = "0.1.0", default-features = false }
-lsp-types = "0.94.1"
-tower = "0.4"
+async-lsp = { version = "0.2.2", default-features = false }
+tower = "0.5"
 
 # Wasm
 wasm-bindgen = { version = "=0.2.100", features = ["serde-serialize"] }
@@ -161,7 +160,7 @@ cfg-if = "1.0.0"
 dirs = "4"
 serde = { version = "1.0.136", features = ["derive"] }
 serde_json = "1.0"
-smol_str = { version = "0.1.17", features = ["serde"] }
+smol_str = { version = "0.3.2", features = ["serde"] }
 thiserror = "1.0.21"
 toml = "0.7.2"
 url = "2.5.4"
@@ -175,10 +174,13 @@ lazy_static = "1.4"
 libfuzzer-sys = "0.4"
 num-bigint = "0.4"
 num-traits = "0.2"
+num-integer = "0.1"
+regex = "1.11"
+similar = "2.7.0"
 similar-asserts = "1.5.0"
 tempfile = "3.6.0"
 test-case = "3.3.1"
-jsonrpsee = { version = "0.24.7", features = ["client-core"] }
+jsonrpsee = { version = "0.25.1", features = ["client-core"] }
 flate2 = "1.0.24"
 color-eyre = "0.6.2"
 rand = "0.8.5"
