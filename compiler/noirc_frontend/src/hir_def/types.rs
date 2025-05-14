@@ -1318,18 +1318,18 @@ impl Type {
         }
     }
 
-    /// Empty arrays and strings (which are arrays under the hood) are disallowed 
-    /// as input to program entry points. 
+    /// Empty arrays and strings (which are arrays under the hood) are disallowed
+    /// as input to program entry points.
     ///
-    /// The point of inputs to entry points is to process input data. 
+    /// The point of inputs to entry points is to process input data.
     /// Thus, passing empty arrays is pointless and adds extra complexity to the compiler
     /// for handling them.
     fn array_or_string_len_is_not_zero(&self) -> bool {
         match self {
             Type::Array(length, _) | Type::String(length) => {
                 let length = length
-                .evaluate_to_u32(Location::dummy())
-                .expect("Cannot have variable sized arrays as a parameter to main");
+                    .evaluate_to_u32(Location::dummy())
+                    .expect("Cannot have variable sized arrays as a parameter to main");
                 length != 0
             }
             _ => panic!("ICE: Expected an array or string type"),
