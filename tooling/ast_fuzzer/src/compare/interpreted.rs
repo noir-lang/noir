@@ -110,15 +110,33 @@ impl CompareInterpretedResult {
 impl Comparable for ssa::interpreter::errors::InterpreterError {
     fn equivalent(e1: &Self, e2: &Self) -> bool {
         use ssa::interpreter::errors::InterpreterError::*;
-        if matches!(e1, Internal(_)) || matches!(e2, Internal(_)) {
-            // We should not get, or ignore, internal errors.
-            return false;
+
+        match (e1, e2) {
+            (Internal(_), _) | (_, Internal(_)) => {
+                // We should not get, or ignore, internal errors.
+                // They mean the interpreter got something unexpected that we need to fix.
+                false
+            }
+            (Overflow { instruction: i1 }, Overflow { instruction: i2 }) => {
+                // Overflows can occur or uncomparable instructions, but in a parentheses it contains the values that caused it.
+                fn details(s: &str) -> Option<&str> {
+                    let start = s.find("(")?;
+                    let end = s.find(")")?;
+                    (start < end).then(|| &s[start..=end])
+                }
+                fn details_or_sanitize(s: &str) -> String {
+                    details(s).map(|s| s.to_string()).unwrap_or_else(|| sanitize_ssa(s))
+                }
+                details_or_sanitize(&i1) == details_or_sanitize(&i2)
+            }
+            (e1, e2) => {
+                // The format strings contain SSA instructions,
+                // where the only difference might be the value ID.
+                let s1 = format!("{e1}");
+                let s2 = format!("{e2}");
+                sanitize_ssa(&s1) == sanitize_ssa(&s2)
+            }
         }
-        // The format strings contain SSA instructions,
-        // where the only difference might be the value ID.
-        let s1 = format!("{e1}");
-        let s2 = format!("{e2}");
-        sanitize_ssa(&s1) == sanitize_ssa(&s2)
     }
 }
 
