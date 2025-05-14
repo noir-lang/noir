@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1747219937700,
+  "lastUpdate": 1747220715264,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -17991,48 +17991,6 @@ window.BENCHMARK_DATA = {
             "username": "web-flow"
           },
           "distinct": false,
-          "id": "d8e4de40d05efe79b970055f42bd72f061f6aae6",
-          "message": "chore: redo typo PR by shystrui1199 (#8405)\n\nCo-authored-by: AztecBot <tech@aztecprotocol.com>",
-          "timestamp": "2025-05-07T19:52:31Z",
-          "tree_id": "77dcf986e22b230402c792be4e322d04c5aa9357",
-          "url": "https://github.com/noir-lang/noir/commit/d8e4de40d05efe79b970055f42bd72f061f6aae6"
-        },
-        "date": 1746648809743,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 273939,
-            "range": "± 1356",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 245006,
-            "range": "± 3511",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 3581768,
-            "range": "± 6824",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
-            "email": "15848336+TomAFrench@users.noreply.github.com",
-            "name": "Tom French",
-            "username": "TomAFrench"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
           "id": "c41ba19891333b72b518166286caddb51d91ad6a",
           "message": "chore: bumping external libraries (#8406)\n\nCo-authored-by: AztecBot <tech@aztecprotocol.com>",
           "timestamp": "2025-05-08T11:23:51Z",
@@ -20074,6 +20032,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 3587871,
             "range": "± 3796",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "michaeljklein@users.noreply.github.com",
+            "name": "Michael J Klein",
+            "username": "michaeljklein"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "80c08aec1ed3fb4c1d2edef2255c671eb69ac2e0",
+          "message": "chore: add SSA interpreter test for higher order functions (#8486)\n\nCo-authored-by: AztecBot <tech@aztecprotocol.com>",
+          "timestamp": "2025-05-14T10:44:01Z",
+          "tree_id": "277112cee309a140cd1e89e154835428e7c59f15",
+          "url": "https://github.com/noir-lang/noir/commit/80c08aec1ed3fb4c1d2edef2255c671eb69ac2e0"
+        },
+        "date": 1747220706252,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 267525,
+            "range": "± 710",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 238355,
+            "range": "± 2182",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 3232042,
+            "range": "± 25238",
             "unit": "ns/iter"
           }
         ]
