@@ -42,7 +42,9 @@ impl<T> Id<T> {
     /// be used for testing. Obtaining Ids in this way should be avoided
     /// as unlike DenseMap::push and SparseMap::push, the Ids created
     /// here are likely invalid for any particularly map.
-    #[cfg(test)]
+
+    // TODO: used for fuzzing
+    // #[cfg(test)]
     pub(crate) fn test_new(index: u32) -> Self {
         Self::new(index)
     }
@@ -193,6 +195,10 @@ impl<T> DenseMap<T> {
     pub(crate) fn iter(&self) -> impl DoubleEndedIterator<Item = (Id<T>, &T)> {
         let ids_iter = (0..self.storage.len() as u32).map(|idx| Id::new(idx));
         ids_iter.zip(self.storage.iter())
+    }
+
+    pub(crate) fn get(&self, id: Id<T>) -> Option<&T> {
+        self.storage.get(id.index as usize)
     }
 }
 

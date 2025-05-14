@@ -20,6 +20,9 @@ use super::{
     ParsedSsa, ParsedTerminator, ParsedValue, RuntimeType, Ssa, SsaError, Type, ast::AssertMessage,
 };
 
+// TODO: stacker quick-fix
+use crate::ssa::parser::SSA_MIN_REMAINING_STACK;
+
 impl ParsedSsa {
     pub(crate) fn into_ssa(self, simplify: bool) -> Result<Ssa, SsaError> {
         Translator::translate(self, simplify)
@@ -64,6 +67,11 @@ impl Translator {
         // Note that the `new` call above removed the main function,
         // so all we are left with are non-main functions.
         for function in parsed_ssa.functions {
+            // TODO: stacker helper
+            if stacker::remaining_stack().unwrap_or_default() <= *SSA_MIN_REMAINING_STACK {
+                println!("stacker exit"); std::process::exit(0)
+            }
+
             translator.translate_non_main_function(function)?;
         }
 
@@ -75,7 +83,13 @@ impl Translator {
 
         // A FunctionBuilder must be created with a main Function, so here wer remove it
         // from the parsed SSA to avoid adding it twice later on.
-        let main_function = parsed_ssa.functions.remove(0);
+        // TODO: re-enable
+        // let main_function = parsed_ssa.functions.remove(0);
+        let main_function = if parsed_ssa.functions.get(0).is_some() {
+            parsed_ssa.functions.remove(0)
+        } else {
+            std::process::exit(0)
+        };
         let main_id = FunctionId::test_new(0);
         let mut builder = FunctionBuilder::new(main_function.external_name.clone(), main_id);
         builder.set_runtime(main_function.runtime_type);
@@ -129,6 +143,11 @@ impl Translator {
     }
 
     fn translate_non_main_function(&mut self, function: ParsedFunction) -> Result<(), SsaError> {
+        // TODO: stacker helper
+        if stacker::remaining_stack().unwrap_or_default() <= *SSA_MIN_REMAINING_STACK {
+            println!("stacker exit"); std::process::exit(0)
+        }
+
         let function_id = self.functions[&function.internal_name];
         let external_name = function.external_name.clone();
 
@@ -147,6 +166,11 @@ impl Translator {
     }
 
     fn translate_function_body(&mut self, function: ParsedFunction) -> Result<(), SsaError> {
+        // TODO: stacker helper
+        if stacker::remaining_stack().unwrap_or_default() <= *SSA_MIN_REMAINING_STACK {
+            println!("stacker exit"); std::process::exit(0)
+        }
+
         self.builder.set_globals(self.globals_graph.clone());
 
         // First define all blocks so that they are known (a block might jump to a block that comes next)
@@ -169,6 +193,11 @@ impl Translator {
     }
 
     fn translate_block(&mut self, block: ParsedBlock) -> Result<(), SsaError> {
+        // TODO: stacker helper
+        if stacker::remaining_stack().unwrap_or_default() <= *SSA_MIN_REMAINING_STACK {
+            println!("stacker exit"); std::process::exit(0)
+        }
+
         let block_id = self.blocks[&self.current_function_id()][&block.name];
         self.builder.switch_to_block(block_id);
 
@@ -203,6 +232,11 @@ impl Translator {
     }
 
     fn translate_instruction(&mut self, instruction: ParsedInstruction) -> Result<(), SsaError> {
+        // TODO: stacker helper
+        if stacker::remaining_stack().unwrap_or_default() <= *SSA_MIN_REMAINING_STACK {
+            println!("stacker exit"); std::process::exit(0)
+        }
+
         match instruction {
             ParsedInstruction::Allocate { target, typ } => {
                 let value_id = self.builder.insert_allocate(typ);
@@ -346,6 +380,11 @@ impl Translator {
     }
 
     fn translate_values(&mut self, values: Vec<ParsedValue>) -> Result<Vec<ValueId>, SsaError> {
+        // TODO: stacker helper
+        if stacker::remaining_stack().unwrap_or_default() <= *SSA_MIN_REMAINING_STACK {
+            println!("stacker exit"); std::process::exit(0)
+        }
+
         let mut translated_values = Vec::with_capacity(values.len());
         for value in values {
             translated_values.push(self.translate_value(value)?);
@@ -354,6 +393,11 @@ impl Translator {
     }
 
     fn translate_value(&mut self, value: ParsedValue) -> Result<ValueId, SsaError> {
+        // TODO: stacker helper
+        if stacker::remaining_stack().unwrap_or_default() <= *SSA_MIN_REMAINING_STACK {
+            println!("stacker exit"); std::process::exit(0)
+        }
+
         match value {
             ParsedValue::NumericConstant(constant) => {
                 Ok(self.builder.numeric_constant(constant.value, constant.typ.unwrap_numeric()))
@@ -370,6 +414,11 @@ impl Translator {
     }
 
     fn translate_globals(&mut self, globals: Vec<ParsedGlobal>) -> Result<(), SsaError> {
+        // TODO: stacker helper
+        if stacker::remaining_stack().unwrap_or_default() <= *SSA_MIN_REMAINING_STACK {
+            println!("stacker exit"); std::process::exit(0)
+        }
+
         for global in globals {
             self.translate_global(global)?;
         }
@@ -377,6 +426,11 @@ impl Translator {
     }
 
     fn translate_global(&mut self, global: ParsedGlobal) -> Result<(), SsaError> {
+        // TODO: stacker helper
+        if stacker::remaining_stack().unwrap_or_default() <= *SSA_MIN_REMAINING_STACK {
+            println!("stacker exit"); std::process::exit(0)
+        }
+
         let value_id = match global.value {
             ParsedGlobalValue::NumericConstant(constant) => self
                 .globals_function

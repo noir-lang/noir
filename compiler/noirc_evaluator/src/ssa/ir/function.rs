@@ -159,7 +159,9 @@ impl Function {
 
     /// Returns the parameters of this function.
     /// The parameters will always match that of this function's entry block.
-    pub(crate) fn parameters(&self) -> &[ValueId] {
+    // TODO: revert
+    // pub(crate) fn parameters(&self) -> &[ValueId] {
+    pub fn parameters(&self) -> &[ValueId] {
         self.dfg.block_parameters(self.entry_block)
     }
 
@@ -191,7 +193,9 @@ impl Function {
         blocks
     }
 
-    pub(crate) fn signature(&self) -> Signature {
+    // TODO revert
+    // pub(crate) fn signature(&self) -> Signature {
+    pub fn signature(&self) -> Signature {
         let params = vecmap(self.parameters(), |param| self.dfg.type_of_value(*param));
         let returns = vecmap(self.returns(), |ret| self.dfg.type_of_value(*ret));
         Signature { params, returns }
@@ -241,8 +245,12 @@ impl std::fmt::Display for RuntimeType {
 pub(crate) type FunctionId = Id<Function>;
 
 #[derive(Debug, Default, Clone, PartialEq, Eq, Hash, Ord, PartialOrd)]
-pub(crate) struct Signature {
-    pub(crate) params: Vec<Type>,
+// TODO revert
+// pub(crate) struct Signature {
+pub struct Signature {
+    // TODO revert
+    // pub(crate) params: Vec<Type>,
+    pub params: Vec<Type>,
     pub(crate) returns: Vec<Type>,
 }
 
