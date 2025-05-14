@@ -234,7 +234,10 @@ impl Context<'_, '_, '_> {
         if let Type::Numeric(NumericType::Unsigned { bit_size }) = typ {
             let to_bits = self.context.dfg.import_intrinsic(Intrinsic::ToBits(Endian::Little));
             let result_types = vec![Type::Array(Arc::new(vec![Type::bool()]), bit_size)];
-            let rhs_bits = self.insert_call(to_bits, vec![rhs], result_types);
+
+            // A call to ToBits can only be done with a field argument (rhs is always u8 here)
+            let rhs_as_field = self.insert_cast(rhs, NumericType::NativeField);
+            let rhs_bits = self.insert_call(to_bits, vec![rhs_as_field], result_types);
 
             let rhs_bits = rhs_bits[0];
             let one = self.field_constant(FieldElement::one());
@@ -349,7 +352,7 @@ mod tests {
     use crate::{assert_ssa_snapshot, ssa::ssa_gen::Ssa};
 
     #[test]
-    fn removes_shl() {
+    fn removes_shl_with_constant_rhs() {
         let src = "
         acir(inline) fn main f0 {
           b0(v0: u32):
@@ -369,6 +372,107 @@ mod tests {
             v5 = cast v4 as u32
             v6 = truncate v5 to 32 bits, max_bit_size: 33
             return v5
+        }
+        ");
+    }
+
+    #[test]
+    fn removes_shl_with_non_constant_rhs() {
+        let src = "
+        acir(inline) fn main f0 {
+          b0(v0: u32, v1: u8):
+            v2 = shl v0, v1
+            v3 = truncate v2 to 32 bits, max_bit_size: 33
+            return v2
+        }
+        ";
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.remove_bit_shifts();
+        assert_ssa_snapshot!(ssa, @r"
+        acir(inline) fn main f0 {
+          b0(v0: u32, v1: u8):
+            v3 = lt v1, u8 32
+            v4 = cast v3 as u32
+            v5 = cast v1 as Field
+            v7 = call to_le_bits(v5) -> [u1; 8]
+            v9 = array_get v7, index Field 7 -> u1
+            v10 = not v9
+            v11 = cast v9 as Field
+            v12 = cast v10 as Field
+            v14 = mul Field 2, v11
+            v15 = add v12, v14
+            v17 = array_get v7, index Field 6 -> u1
+            v18 = not v17
+            v19 = cast v17 as Field
+            v20 = cast v18 as Field
+            v21 = mul v15, v15
+            v22 = mul v21, v20
+            v23 = mul v21, Field 2
+            v24 = mul v23, v19
+            v25 = add v22, v24
+            v27 = array_get v7, index Field 5 -> u1
+            v28 = not v27
+            v29 = cast v27 as Field
+            v30 = cast v28 as Field
+            v31 = mul v25, v25
+            v32 = mul v31, v30
+            v33 = mul v31, Field 2
+            v34 = mul v33, v29
+            v35 = add v32, v34
+            v37 = array_get v7, index Field 4 -> u1
+            v38 = not v37
+            v39 = cast v37 as Field
+            v40 = cast v38 as Field
+            v41 = mul v35, v35
+            v42 = mul v41, v40
+            v43 = mul v41, Field 2
+            v44 = mul v43, v39
+            v45 = add v42, v44
+            v47 = array_get v7, index Field 3 -> u1
+            v48 = not v47
+            v49 = cast v47 as Field
+            v50 = cast v48 as Field
+            v51 = mul v45, v45
+            v52 = mul v51, v50
+            v53 = mul v51, Field 2
+            v54 = mul v53, v49
+            v55 = add v52, v54
+            v56 = array_get v7, index Field 2 -> u1
+            v57 = not v56
+            v58 = cast v56 as Field
+            v59 = cast v57 as Field
+            v60 = mul v55, v55
+            v61 = mul v60, v59
+            v62 = mul v60, Field 2
+            v63 = mul v62, v58
+            v64 = add v61, v63
+            v66 = array_get v7, index Field 1 -> u1
+            v67 = not v66
+            v68 = cast v66 as Field
+            v69 = cast v67 as Field
+            v70 = mul v64, v64
+            v71 = mul v70, v69
+            v72 = mul v70, Field 2
+            v73 = mul v72, v68
+            v74 = add v71, v73
+            v76 = array_get v7, index Field 0 -> u1
+            v77 = not v76
+            v78 = cast v76 as Field
+            v79 = cast v77 as Field
+            v80 = mul v74, v74
+            v81 = mul v80, v79
+            v82 = mul v80, Field 2
+            v83 = mul v82, v78
+            v84 = add v81, v83
+            v85 = cast v84 as u32
+            v86 = unchecked_mul v4, v85
+            v87 = cast v0 as Field
+            v88 = cast v86 as Field
+            v89 = mul v87, v88
+            v90 = truncate v89 to 32 bits, max_bit_size: 254
+            v91 = cast v90 as u32
+            v92 = truncate v91 to 32 bits, max_bit_size: 33
+            return v91
         }
         ");
     }
