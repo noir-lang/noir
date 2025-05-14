@@ -1327,9 +1327,7 @@ impl Type {
     fn array_or_string_len_is_not_zero(&self) -> bool {
         match self {
             Type::Array(length, _) | Type::String(length) => {
-                let length = length
-                    .evaluate_to_u32(Location::dummy())
-                    .unwrap_or(0);
+                let length = length.evaluate_to_u32(Location::dummy()).unwrap_or(0);
                 length != 0
             }
             _ => panic!("ICE: Expected an array or string type"),
