@@ -1607,26 +1607,26 @@ fn signed_integer_casting_2() {
     let src = r#"
       acir(inline) fn main f0 {
         b0():
-          v16 = call f1() -> i8
-          v17 = cast v16 as u8
-          v19 = lt v17, u8 128
-          v21 = not v19
-          v22 = cast v21 as u64
-          v23 = unchecked_mul u64 18446744073709551360, v22
-          v24 = cast v16 as u64
-          v25 = unchecked_add v23, v24
-          v26 = cast v25 as i64
-          v28 = sub i64 0, v26
-          v29 = truncate v28 to 64 bits, max_bit_size: 65
-          v30 = cast v29 as u64
-          v33 = cast v25 as u64
-          v35 = lt v33, u64 9223372036854775808
-          v36 = not v35
-          v37 = lt v30, u64 9223372036854775808
-          v38 = unchecked_mul v37, v36
-          constrain v38 == v36, "attempt to subtract with overflow"
-          v39 = cast v29 as i64
-          return v39
+          v1 = call f1() -> i8
+          v2 = cast v1 as u8
+          v4 = lt v2, u8 128
+          v5 = not v4
+          v6 = cast v5 as u64
+          v8 = unchecked_mul u64 18446744073709551360, v6
+          v9 = cast v1 as u64
+          v10 = unchecked_add v8, v9
+          v11 = cast v10 as i64
+          v13 = sub i64 0, v11
+          v14 = truncate v13 to 64 bits, max_bit_size: 65
+          v15 = cast v14 as u64
+          v16 = cast v10 as u64
+          v18 = lt v16, u64 9223372036854775808
+          v19 = not v18
+          v20 = lt v15, u64 9223372036854775808
+          v21 = unchecked_mul v20, v19
+          constrain v21 == v19, "attempt to subtract with overflow"
+          v22 = cast v14 as i64
+          return v22
       }
       acir(inline_always) fn func_4 f1 {
         b0():

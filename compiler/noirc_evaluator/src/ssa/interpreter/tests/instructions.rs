@@ -355,16 +355,18 @@ fn cast() {
           b0():
             v0 = cast u32 2 as Field
             v1 = cast u32 3 as u8
-            v2 = cast i8 255 as i32   // -1
-            v3 = cast i8 255 as u128
+            v2 = cast i8 255 as i32   // -1, remains as 255
+            v3 = cast i8 255 as u128  // also zero-extended, remains 255
+                                      // casts like this should be sign-extended in Noir
+                                      // but we rely on other SSA instructions to manually do this.
             return v0, v1, v2, v3
         }
     ",
     );
-    assert_eq!(values[0], from_constant(2_u128.into(), NumericType::NativeField));
-    assert_eq!(values[1], from_constant(3_u128.into(), NumericType::unsigned(8)));
-    assert_eq!(values[2], from_constant(u32::MAX.into(), NumericType::signed(32)));
-    assert_eq!(values[3], from_constant(u128::MAX.into(), NumericType::unsigned(128)));
+    assert_eq!(values[0], from_constant(2_u32.into(), NumericType::NativeField));
+    assert_eq!(values[1], from_constant(3_u32.into(), NumericType::unsigned(8)));
+    assert_eq!(values[2], from_constant(255_u32.into(), NumericType::signed(32)));
+    assert_eq!(values[3], from_constant(255_u32.into(), NumericType::unsigned(128)));
 }
 
 #[test]
