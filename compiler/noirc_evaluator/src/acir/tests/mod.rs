@@ -1105,6 +1105,11 @@ fn test_u32() {
     ];
     let inputs = [FieldElement::from(2_usize), FieldElement::from(1_usize)];
     test_operators(&operators, "u32", &inputs);
+
+    let operators =
+        ["unchecked_add", "unchecked_sub", "unchecked_mul", "range_check 8", "truncate 8 32"];
+    let inputs = [FieldElement::from(300_usize), FieldElement::from(500_usize)];
+    test_operators(&operators, "u32", &inputs);
 }
 
 #[test]
