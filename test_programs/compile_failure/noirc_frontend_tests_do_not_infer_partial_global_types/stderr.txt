@@ -16,7 +16,7 @@ error: Globals must have a specified type
   ┌─ src/main.nr:8:20
   │
 8 │         pub global FMT_STR: fmtstr<_, _> = f"hi {FORMATTED_VALUE}";
-  │                    -------                 ----------------------- Inferred type is `fmtstr<20, (str<5>)>`
+  │                    -------                 ----------------------- Inferred type is `fmtstr<20, (str<5>,)>`
   │
 
 error: Globals must have a specified type
