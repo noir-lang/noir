@@ -355,7 +355,7 @@
 <span class="kw">impl </span>Ssa {
     <span class="doccomment">/// See the [`inline_functions_with_at_most_one_instruction`][self] module for more information.
     </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>inline_functions_with_at_most_one_instruction(<span class="kw-2">mut </span><span class="self">self</span>: Ssa) -&gt; Ssa {
-        <span class="kw">let </span>call_graph = CallGraph::new_from_ssa(<span class="kw-2">&amp;</span><span class="self">self</span>);
+        <span class="kw">let </span>call_graph = CallGraph::from_ssa(<span class="kw-2">&amp;</span><span class="self">self</span>);
         <span class="kw">let </span>recursive_functions = call_graph.get_recursive_functions();
 
         <span class="kw">let </span>should_inline_call = |callee: <span class="kw-2">&amp;</span>Function| {

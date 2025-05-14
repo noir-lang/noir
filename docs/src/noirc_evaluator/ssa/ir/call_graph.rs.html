@@ -136,7 +136,44 @@
 <a href="#135" id="135">135</a>
 <a href="#136" id="136">136</a>
 <a href="#137" id="137">137</a>
-<a href="#138" id="138">138</a></pre></div><pre class="rust"><code><span class="doccomment">//! Call graph analysis
+<a href="#138" id="138">138</a>
+<a href="#139" id="139">139</a>
+<a href="#140" id="140">140</a>
+<a href="#141" id="141">141</a>
+<a href="#142" id="142">142</a>
+<a href="#143" id="143">143</a>
+<a href="#144" id="144">144</a>
+<a href="#145" id="145">145</a>
+<a href="#146" id="146">146</a>
+<a href="#147" id="147">147</a>
+<a href="#148" id="148">148</a>
+<a href="#149" id="149">149</a>
+<a href="#150" id="150">150</a>
+<a href="#151" id="151">151</a>
+<a href="#152" id="152">152</a>
+<a href="#153" id="153">153</a>
+<a href="#154" id="154">154</a>
+<a href="#155" id="155">155</a>
+<a href="#156" id="156">156</a>
+<a href="#157" id="157">157</a>
+<a href="#158" id="158">158</a>
+<a href="#159" id="159">159</a>
+<a href="#160" id="160">160</a>
+<a href="#161" id="161">161</a>
+<a href="#162" id="162">162</a>
+<a href="#163" id="163">163</a>
+<a href="#164" id="164">164</a>
+<a href="#165" id="165">165</a>
+<a href="#166" id="166">166</a>
+<a href="#167" id="167">167</a>
+<a href="#168" id="168">168</a>
+<a href="#169" id="169">169</a>
+<a href="#170" id="170">170</a>
+<a href="#171" id="171">171</a>
+<a href="#172" id="172">172</a>
+<a href="#173" id="173">173</a>
+<a href="#174" id="174">174</a>
+<a href="#175" id="175">175</a></pre></div><pre class="rust"><code><span class="doccomment">//! Call graph analysis
 //!
 //! This module provides a `CallGraph` structure that builds a directed call graph from SSA functions.
 //!
@@ -173,7 +210,7 @@
 
 <span class="kw">impl </span>CallGraph {
     <span class="doccomment">/// Construct a [CallGraph] from the [Ssa]
-    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>new_from_ssa(ssa: <span class="kw-2">&amp;</span>Ssa) -&gt; <span class="self">Self </span>{
+    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>from_ssa(ssa: <span class="kw-2">&amp;</span>Ssa) -&gt; <span class="self">Self </span>{
         <span class="kw">let </span>function_deps = ssa
             .functions
             .iter()
@@ -183,11 +220,11 @@
             })
             .collect();
 
-        <span class="self">Self</span>::new_from_deps(function_deps)
+        <span class="self">Self</span>::from_deps(function_deps)
     }
 
     <span class="doccomment">/// Construct a [CallGraph] from an explicit dependency mapping of (caller -&gt; callees)
-    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>new_from_deps(dependencies: HashMap&lt;FunctionId, BTreeSet&lt;FunctionId&gt;&gt;) -&gt; <span class="self">Self </span>{
+    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>from_deps(dependencies: HashMap&lt;FunctionId, BTreeSet&lt;FunctionId&gt;&gt;) -&gt; <span class="self">Self </span>{
         <span class="kw">let </span><span class="kw-2">mut </span>graph = DiGraph::new();
         <span class="kw">let </span><span class="kw-2">mut </span>ids_to_indices = HashMap::default();
         <span class="kw">let </span><span class="kw-2">mut </span>indices_to_ids = HashMap::default();
@@ -201,7 +238,6 @@
         <span class="comment">// Create edges from caller -&gt; called
         </span><span class="kw">for </span>(function, dependencies) <span class="kw">in </span>dependencies {
             <span class="kw">let </span>function_index = ids_to_indices[<span class="kw-2">&amp;</span>function];
-
             <span class="kw">for </span>dependency <span class="kw">in </span>dependencies {
                 <span class="kw">let </span>dependency_index = ids_to_indices[<span class="kw-2">&amp;</span>dependency];
                 graph.add_edge(function_index, dependency_index, ());
@@ -247,6 +283,44 @@
 
     <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>indices_to_ids(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="kw-2">&amp;</span>HashMap&lt;PetGraphIndex, FunctionId&gt; {
         <span class="kw-2">&amp;</span><span class="self">self</span>.indices_to_ids
+    }
+
+    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>build_acyclic_subgraph(
+        <span class="kw-2">&amp;</span><span class="self">self</span>,
+        recursive_functions: <span class="kw-2">&amp;</span>HashSet&lt;FunctionId&gt;,
+    ) -&gt; CallGraph {
+        <span class="kw">let </span><span class="kw-2">mut </span>graph = DiGraph::new();
+        <span class="kw">let </span><span class="kw-2">mut </span>ids_to_indices = HashMap::default();
+        <span class="kw">let </span><span class="kw-2">mut </span>indices_to_ids = HashMap::default();
+
+        <span class="comment">// Add all non-recursive nodes
+        </span><span class="kw">for </span>(<span class="kw-2">&amp;</span>function, <span class="kw">_</span>) <span class="kw">in </span><span class="self">self</span>.ids_to_indices.iter() {
+            <span class="kw">if </span>recursive_functions.contains(<span class="kw-2">&amp;</span>function) {
+                <span class="kw">continue</span>;
+            }
+            <span class="kw">let </span>index = graph.add_node(function);
+            ids_to_indices.insert(function, index);
+            indices_to_ids.insert(index, function);
+        }
+
+        <span class="comment">// Create edges from caller -&gt; called between non-recursive nodes
+        </span><span class="kw">for </span>(<span class="kw-2">&amp;</span>func_id, <span class="kw-2">&amp;</span>old_idx) <span class="kw">in </span><span class="self">self</span>.ids_to_indices.iter() {
+            <span class="kw">if </span>recursive_functions.contains(<span class="kw-2">&amp;</span>func_id) {
+                <span class="kw">continue</span>;
+            }
+            <span class="kw">let </span>new_src = ids_to_indices[<span class="kw-2">&amp;</span>func_id];
+            <span class="kw">for </span>neighbor <span class="kw">in </span><span class="self">self</span>.graph.neighbors(old_idx) {
+                <span class="kw">let </span>callee_id = <span class="self">self</span>.indices_to_ids[<span class="kw-2">&amp;</span>neighbor];
+                <span class="kw">if </span>recursive_functions.contains(<span class="kw-2">&amp;</span>callee_id) {
+                    <span class="kw">continue</span>;
+                }
+                <span class="kw">if let </span><span class="prelude-val">Some</span>(<span class="kw-2">&amp;</span>new_dst) = ids_to_indices.get(<span class="kw-2">&amp;</span>callee_id) {
+                    graph.add_edge(new_src, new_dst, ());
+                }
+            }
+        }
+
+        <span class="self">Self </span>{ graph, ids_to_indices, indices_to_ids }
     }
 }
 

@@ -128,7 +128,9 @@
 <a href="#127" id="127">127</a>
 <a href="#128" id="128">128</a>
 <a href="#129" id="129">129</a>
-<a href="#130" id="130">130</a></pre></div><pre class="rust"><code><span class="doccomment">//! Pre-process functions before inlining them into others.
+<a href="#130" id="130">130</a>
+<a href="#131" id="131">131</a>
+<a href="#132" id="132">132</a></pre></div><pre class="rust"><code><span class="doccomment">//! Pre-process functions before inlining them into others.
 
 </span><span class="kw">use </span><span class="kw">crate</span>::ssa::{
     Ssa,
@@ -169,8 +171,10 @@
 
             <span class="comment">// Functions which are inline targets will be processed in later passes.
             // Here we want to treat the functions which will be inlined into them.
-            </span><span class="kw">let </span>is_target =
-                inline_infos.get(<span class="kw-2">&amp;</span>id).map(|info| info.is_inline_target()).unwrap_or_default();
+            </span><span class="kw">let </span>is_target = inline_infos
+                .get(<span class="kw-2">&amp;</span>id)
+                .map(|info| info.is_inline_target(<span class="kw-2">&amp;</span>function.dfg))
+                .unwrap_or_default();
 
             <span class="kw">if </span>is_heavy || is_target {
                 <span class="kw">continue</span>;
