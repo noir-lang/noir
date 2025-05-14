@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1747217419969,
+  "lastUpdate": 1747217481093,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -11057,70 +11057,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "asterite@gmail.com",
-            "name": "Ary Borenszweig",
-            "username": "asterite"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "f2ff1696923a84a900bd54fee020d22edc5a32a6",
-          "message": "fix: allow names to collide in the values/types namespaces (#8286)",
-          "timestamp": "2025-05-07T17:48:39Z",
-          "tree_id": "4098aac31c5595fe868a303a62a086e5d976093d",
-          "url": "https://github.com/noir-lang/noir/commit/f2ff1696923a84a900bd54fee020d22edc5a32a6"
-        },
-        "date": 1746642471829,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 234.12,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 256.59,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 212.44,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 541.54,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 533.71,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 1440,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 362.58,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-root",
-            "value": 368.5,
-            "unit": "MB"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "michaeljklein@users.noreply.github.com",
             "name": "Michael J Klein",
             "username": "michaeljklein"
@@ -14315,6 +14251,75 @@ window.BENCHMARK_DATA = {
           {
             "name": "semaphore_depth_10",
             "value": 90.71,
+            "unit": "MB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "15848336+TomAFrench@users.noreply.github.com",
+            "name": "Tom French",
+            "username": "TomAFrench"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "4519387fa4e3cd00136b1069a06c3d7e5ee072d1",
+          "message": "fix!: remove `to_be_radix` and `to_le_radix` from stdlib interface (#8495)\n\nCo-authored-by: AztecBot <tech@aztecprotocol.com>",
+          "timestamp": "2025-05-14T09:40:04Z",
+          "tree_id": "2416a1607b8bc20480ff21b609fc8edb734e0570",
+          "url": "https://github.com/noir-lang/noir/commit/4519387fa4e3cd00136b1069a06c3d7e5ee072d1"
+        },
+        "date": 1747217472079,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 236.21,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 258.47,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 211.71,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 542.78,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 535.23,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 1440,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 364.28,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-root",
+            "value": 370.21,
+            "unit": "MB"
+          },
+          {
+            "name": "semaphore_depth_10",
+            "value": 90.72,
             "unit": "MB"
           }
         ]
