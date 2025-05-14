@@ -340,6 +340,7 @@ impl HirPattern {
                 let path = Path::from_single(name, *location);
                 Pattern::Struct(path, patterns, *location)
             }
+            HirPattern::DoubleDot(location) => Pattern::DoubleDot(*location),
         }
     }
 }

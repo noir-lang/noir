@@ -8,7 +8,7 @@ use noirc_errors::Location;
 use rustc_hash::FxHashMap as HashMap;
 
 use crate::TypeVariable;
-use crate::ast::{BinaryOpKind, FunctionKind, IntegerBitSize, UnaryOp};
+use crate::ast::{BinaryOpKind, FunctionKind, Ident, IntegerBitSize, UnaryOp};
 use crate::elaborator::{ElaborateReason, Elaborator};
 use crate::graph::CrateId;
 use crate::hir::def_map::ModuleId;
@@ -400,63 +400,104 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
                 self.define_pattern(pattern, typ, argument, location)
             }
             HirPattern::Tuple(pattern_fields, _) => {
-                let typ = &typ.follow_bindings();
-
-                match (argument, typ) {
-                    (Value::Tuple(fields), Type::Tuple(type_fields))
-                        if fields.len() == pattern_fields.len() =>
-                    {
-                        for ((pattern, typ), argument) in
-                            pattern_fields.iter().zip(type_fields).zip(fields)
-                        {
-                            self.define_pattern(pattern, typ, argument, location)?;
-                        }
-                        Ok(())
-                    }
-                    (value, _) => {
-                        let actual = value.get_type().into_owned();
-                        Err(InterpreterError::TypeMismatch {
-                            expected: typ.clone(),
-                            actual,
-                            location,
-                        })
-                    }
-                }
+                self.define_tuple_pattern(pattern_fields, typ, argument, location)
             }
             HirPattern::Struct(struct_type, pattern_fields, _) => {
-                self.push_scope();
-
-                let res = match argument {
-                    Value::Struct(fields, struct_type) if fields.len() == pattern_fields.len() => {
-                        for (field_name, field_pattern) in pattern_fields {
-                            let field = fields.get(field_name.as_string()).ok_or_else(|| {
-                                InterpreterError::ExpectedStructToHaveField {
-                                    typ: struct_type.clone(),
-                                    field_name: field_name.to_string(),
-                                    location,
-                                }
-                            })?;
-
-                            let field_type = field.get_type().into_owned();
-                            self.define_pattern(
-                                field_pattern,
-                                &field_type,
-                                field.clone(),
-                                location,
-                            )?;
-                        }
-                        Ok(())
-                    }
-                    value => Err(InterpreterError::TypeMismatch {
-                        expected: typ.clone(),
-                        actual: value.get_type().into_owned(),
-                        location,
-                    }),
-                };
-                self.pop_scope();
-                res
+                self.define_struct_pattern(struct_type, pattern_fields, typ, argument, location)
+            }
+            HirPattern::DoubleDot(_) => {
+                unreachable!(
+                    "DoubleDot pattern should have been handled when defining tuple patterns"
+                )
             }
         }
+    }
+
+    fn define_tuple_pattern(
+        &mut self,
+        pattern_fields: &[HirPattern],
+        typ: &Type,
+        argument: Value,
+        location: Location,
+    ) -> IResult<()> {
+        let typ = &typ.follow_bindings();
+
+        match (argument, typ) {
+            (Value::Tuple(fields), Type::Tuple(type_fields)) => {
+                let double_dot_index = pattern_fields
+                    .iter()
+                    .position(|pattern| matches!(pattern, HirPattern::DoubleDot(_)));
+
+                if let Some(double_dot_index) = double_dot_index {
+                    let pattern_fields_lhs = &pattern_fields[0..double_dot_index];
+                    let pattern_fields_rhs = &pattern_fields[double_dot_index + 1..];
+                    let rhs_len = pattern_fields_rhs.len();
+                    let fields_lhs = &fields[0..double_dot_index];
+                    let fields_rhs = &fields[fields.len() - rhs_len..];
+                    let type_fields_lhs = &type_fields[0..double_dot_index];
+                    let type_fields_rhs = &type_fields[type_fields.len() - rhs_len..];
+
+                    for ((pattern, typ), argument) in
+                        pattern_fields_lhs.iter().zip(type_fields_lhs).zip(fields_lhs)
+                    {
+                        self.define_pattern(pattern, typ, argument.clone(), location)?;
+                    }
+
+                    for ((pattern, typ), argument) in
+                        pattern_fields_rhs.iter().zip(type_fields_rhs).zip(fields_rhs)
+                    {
+                        self.define_pattern(pattern, typ, argument.clone(), location)?;
+                    }
+                } else {
+                    for ((pattern, typ), argument) in
+                        pattern_fields.iter().zip(type_fields).zip(fields)
+                    {
+                        self.define_pattern(pattern, typ, argument, location)?;
+                    }
+                }
+                Ok(())
+            }
+            (value, _) => {
+                let actual = value.get_type().into_owned();
+                Err(InterpreterError::TypeMismatch { expected: typ.clone(), actual, location })
+            }
+        }
+    }
+
+    fn define_struct_pattern(
+        &mut self,
+        struct_type: &Type,
+        pattern_fields: &[(Ident, HirPattern)],
+        typ: &Type,
+        argument: Value,
+        location: Location,
+    ) -> IResult<()> {
+        self.push_scope();
+
+        let res = match argument {
+            Value::Struct(fields, struct_type) if fields.len() == pattern_fields.len() => {
+                for (field_name, field_pattern) in pattern_fields {
+                    let field = fields.get(field_name.as_string()).ok_or_else(|| {
+                        InterpreterError::ExpectedStructToHaveField {
+                            typ: struct_type.clone(),
+                            field_name: field_name.to_string(),
+                            location,
+                        }
+                    })?;
+
+                    let field_type = field.get_type().into_owned();
+                    self.define_pattern(field_pattern, &field_type, field.clone(), location)?;
+                }
+                Ok(())
+            }
+            value => Err(InterpreterError::TypeMismatch {
+                expected: typ.clone(),
+                actual: value.get_type().into_owned(),
+                location,
+            }),
+        };
+        self.pop_scope();
+        res
     }
 
     /// Define a new variable in the current scope

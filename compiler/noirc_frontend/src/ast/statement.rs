@@ -568,6 +568,7 @@ pub enum Pattern {
     Tuple(Vec<Pattern>, Location),
     Struct(Path, Vec<(Ident, Pattern)>, Location),
     Parenthesized(Box<Pattern>, Location),
+    DoubleDot(Location),
     Interned(InternedPattern, Location),
 }
 
@@ -582,6 +583,7 @@ impl Pattern {
             | Pattern::Tuple(_, location)
             | Pattern::Struct(_, _, location)
             | Pattern::Parenthesized(_, location)
+            | Pattern::DoubleDot(location)
             | Pattern::Interned(_, location) => *location,
         }
     }
@@ -627,6 +629,7 @@ impl Pattern {
                 })
             }
             Pattern::Parenthesized(pattern, _) => pattern.try_as_expression(interner),
+            Pattern::DoubleDot(_) => None,
             Pattern::Interned(id, _) => interner.get_pattern(*id).try_as_expression(interner),
         }
     }
@@ -995,6 +998,9 @@ impl Display for Pattern {
             }
             Pattern::Parenthesized(pattern, _) => {
                 write!(f, "({})", pattern)
+            }
+            Pattern::DoubleDot(_) => {
+                write!(f, "..")
             }
             Pattern::Interned(_, _) => {
                 write!(f, "?Interned")

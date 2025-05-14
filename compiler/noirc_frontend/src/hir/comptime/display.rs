@@ -962,6 +962,7 @@ fn remove_interned_in_pattern(interner: &NodeInterner, pattern: Pattern) -> Patt
             Box::new(remove_interned_in_pattern(interner, *pattern)),
             location,
         ),
+        Pattern::DoubleDot(location) => Pattern::DoubleDot(location),
         Pattern::Interned(id, _) => interner.get_pattern(id).clone(),
     }
 }

@@ -56,8 +56,11 @@ impl ChunkFormatter<'_, '_> {
             Pattern::Tuple(..)
             | Pattern::Struct(..)
             | Pattern::Parenthesized(..)
+            | Pattern::DoubleDot(..)
             | Pattern::Interned(..) => {
-                unreachable!("Global pattern cannot be a tuple, struct, parenthesized or interned")
+                unreachable!(
+                    "Global pattern cannot be a tuple, struct, parenthesized, double dot or interned"
+                )
             }
         };
 

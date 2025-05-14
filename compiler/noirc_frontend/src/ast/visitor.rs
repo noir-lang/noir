@@ -502,6 +502,8 @@ pub trait Visitor {
         true
     }
 
+    fn visit_double_dot_pattern(&mut self, _: Span) {}
+
     fn visit_interned_pattern(&mut self, _: &InternedPattern, _: Span) {}
 
     fn visit_secondary_attribute(
@@ -1592,6 +1594,9 @@ impl Pattern {
                 if visitor.visit_parenthesized_pattern(pattern, location.span) {
                     pattern.accept(visitor);
                 }
+            }
+            Pattern::DoubleDot(location) => {
+                visitor.visit_double_dot_pattern(location.span);
             }
             Pattern::Interned(id, location) => {
                 visitor.visit_interned_pattern(id, location.span);

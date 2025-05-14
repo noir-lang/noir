@@ -172,9 +172,11 @@ impl Parser<'_> {
             Self::parse_tuple_pattern_element,
         );
 
+        let double_dot = patterns.iter().any(|pattern| matches!(pattern, Pattern::DoubleDot(_)));
+
         let location = self.location_since(start_location);
 
-        Some(if patterns.len() == 1 && !has_trailing_comma {
+        Some(if !double_dot && patterns.len() == 1 && !has_trailing_comma {
             Pattern::Parenthesized(Box::new(patterns.remove(0)), location)
         } else {
             Pattern::Tuple(patterns, location)
@@ -182,7 +184,9 @@ impl Parser<'_> {
     }
 
     fn parse_tuple_pattern_element(&mut self) -> Option<Pattern> {
-        if let Some(pattern) = self.parse_pattern() {
+        if self.eat(Token::DoubleDot) {
+            Some(Pattern::DoubleDot(self.previous_token_location))
+        } else if let Some(pattern) = self.parse_pattern() {
             Some(pattern)
         } else {
             self.expected_label(ParsingRuleLabel::Pattern);
@@ -300,6 +304,29 @@ mod tests {
         let pattern = patterns.remove(0);
         let Pattern::Identifier(ident) = pattern else { panic!("Expected an identifier pattern") };
         assert_eq!(ident.to_string(), "bar");
+    }
+
+    #[test]
+    fn parses_empty_tuple_pattern_with_double_dot() {
+        let src = "(..)";
+        let pattern = parse_pattern_no_errors(src);
+        let Pattern::Tuple(mut patterns, _) = pattern else { panic!("Expected a tuple pattern") };
+        assert_eq!(patterns.len(), 1);
+
+        let pattern = patterns.remove(0);
+        assert!(matches!(pattern, Pattern::DoubleDot(_)));
+    }
+
+    #[test]
+    fn parses_tuple_pattern_with_double_dot_in_the_middle() {
+        let src = "(x, .., y)";
+        let pattern = parse_pattern_no_errors(src);
+        let Pattern::Tuple(patterns, _) = pattern else { panic!("Expected a tuple pattern") };
+        assert_eq!(patterns.len(), 3);
+
+        assert_eq!(patterns[0].to_string(), "x");
+        assert_eq!(patterns[1].to_string(), "..");
+        assert_eq!(patterns[2].to_string(), "y");
     }
 
     #[test]

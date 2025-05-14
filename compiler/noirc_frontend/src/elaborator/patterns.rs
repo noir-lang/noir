@@ -81,31 +81,14 @@ impl Elaborator<'_> {
         warn_if_unused: bool,
     ) -> HirPattern {
         match pattern {
-            Pattern::Identifier(name) => {
-                // If this definition is mutable, do not store the rhs because it will
-                // not always refer to the correct value of the variable
-                let definition = match (mutable, definition) {
-                    (Some(_), DefinitionKind::Local(_)) => DefinitionKind::Local(None),
-                    (_, other) => other,
-                };
-                let ident = if let DefinitionKind::Global(global_id) = definition {
-                    // Globals don't need to be added to scope, they're already in the def_maps
-                    let id = self.interner.get_global(global_id).definition_id;
-                    let location = name.location();
-                    HirIdent::non_trait_method(id, location)
-                } else {
-                    self.add_variable_decl(
-                        name,
-                        mutable.is_some(),
-                        true, // allow_shadowing
-                        warn_if_unused,
-                        definition,
-                    )
-                };
-                self.interner.push_definition_type(ident.id, expected_type);
-                new_definitions.push(ident.clone());
-                HirPattern::Identifier(ident)
-            }
+            Pattern::Identifier(name) => self.elaborate_identifier_pattern(
+                expected_type,
+                definition,
+                mutable,
+                new_definitions,
+                warn_if_unused,
+                name,
+            ),
             Pattern::Mutable(pattern, location, _) => {
                 if let Some(first_mut) = mutable {
                     self.push_err(ResolverError::UnnecessaryMut {
@@ -124,45 +107,15 @@ impl Elaborator<'_> {
                 );
                 HirPattern::Mutable(Box::new(pattern), location)
             }
-            Pattern::Tuple(fields, location) => {
-                let field_types = match expected_type.follow_bindings() {
-                    Type::Tuple(fields) => fields,
-                    Type::Error => Vec::new(),
-                    expected_type => {
-                        let tuple =
-                            Type::Tuple(vecmap(&fields, |_| self.interner.next_type_variable()));
-
-                        self.push_err(TypeCheckError::TypeMismatchWithSource {
-                            expected: expected_type,
-                            actual: tuple,
-                            location,
-                            source: Source::Assignment,
-                        });
-                        Vec::new()
-                    }
-                };
-
-                if fields.len() != field_types.len() {
-                    self.push_err(TypeCheckError::TupleMismatch {
-                        tuple_types: field_types.clone(),
-                        actual_count: fields.len(),
-                        location,
-                    });
-                }
-
-                let fields = vecmap(fields.into_iter().enumerate(), |(i, field)| {
-                    let field_type = field_types.get(i).cloned().unwrap_or(Type::Error);
-                    self.elaborate_pattern_mut(
-                        field,
-                        field_type,
-                        definition.clone(),
-                        mutable,
-                        new_definitions,
-                        warn_if_unused,
-                    )
-                });
-                HirPattern::Tuple(fields, location)
-            }
+            Pattern::Tuple(fields, location) => self.elaborate_tuple_pattern(
+                &expected_type,
+                &definition,
+                mutable,
+                new_definitions,
+                warn_if_unused,
+                fields,
+                location,
+            ),
             Pattern::Struct(name, fields, location) => {
                 let name = self.validate_path(name);
                 self.elaborate_struct_pattern(
@@ -183,6 +136,11 @@ impl Elaborator<'_> {
                 new_definitions,
                 warn_if_unused,
             ),
+            Pattern::DoubleDot(_) => {
+                unreachable!(
+                    "DoubleDot pattern should have been removed when elaborating tuple patterns"
+                )
+            }
             Pattern::Interned(id, _) => {
                 let pattern = self.interner.get_pattern(id).clone();
                 self.elaborate_pattern_mut(
@@ -195,6 +153,143 @@ impl Elaborator<'_> {
                 )
             }
         }
+    }
+
+    fn elaborate_identifier_pattern(
+        &mut self,
+        expected_type: Type,
+        definition: DefinitionKind,
+        mutable: Option<Location>,
+        new_definitions: &mut Vec<HirIdent>,
+        warn_if_unused: bool,
+        name: Ident,
+    ) -> HirPattern {
+        // If this definition is mutable, do not store the rhs because it will
+        // not always refer to the correct value of the variable
+        let definition = match (mutable, definition) {
+            (Some(_), DefinitionKind::Local(_)) => DefinitionKind::Local(None),
+            (_, other) => other,
+        };
+        let ident = if let DefinitionKind::Global(global_id) = definition {
+            // Globals don't need to be added to scope, they're already in the def_maps
+            let id = self.interner.get_global(global_id).definition_id;
+            let location = name.location();
+            HirIdent::non_trait_method(id, location)
+        } else {
+            self.add_variable_decl(
+                name,
+                mutable.is_some(),
+                true, // allow_shadowing
+                warn_if_unused,
+                definition,
+            )
+        };
+        self.interner.push_definition_type(ident.id, expected_type);
+        new_definitions.push(ident.clone());
+        HirPattern::Identifier(ident)
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    fn elaborate_tuple_pattern(
+        &mut self,
+        expected_type: &Type,
+        definition: &DefinitionKind,
+        mutable: Option<Location>,
+        new_definitions: &mut Vec<HirIdent>,
+        warn_if_unused: bool,
+        fields: Vec<Pattern>,
+        location: Location,
+    ) -> HirPattern {
+        let field_types = match expected_type.follow_bindings() {
+            Type::Tuple(fields) => fields,
+            Type::Error => vecmap(0..fields.len(), |_| Type::Error),
+            expected_type => {
+                let tuple = Type::Tuple(vecmap(&fields, |_| self.interner.next_type_variable()));
+
+                self.push_err(TypeCheckError::TypeMismatchWithSource {
+                    expected: expected_type,
+                    actual: tuple,
+                    location,
+                    source: Source::Assignment,
+                });
+                vecmap(0..fields.len(), |_| Type::Error)
+            }
+        };
+
+        let double_dot = fields
+            .iter()
+            .enumerate()
+            .find(|(_, field)| matches!(field, Pattern::DoubleDot(_)))
+            .map(|(index, pattern)| (index, pattern.location()));
+
+        let (fields, field_types) = if let Some((double_dot_index, _)) = double_dot {
+            let before = &fields[0..double_dot_index];
+            let after = &fields[double_dot_index + 1..];
+            let (mut before, mut after) = (before.to_vec(), after.to_vec());
+
+            // There could be multiple double dots: report them as error and remove them
+            after.retain(|pattern| {
+                if matches!(pattern, Pattern::DoubleDot(_)) {
+                    self.push_err(ResolverError::DoubleDotCanOnlyAppearOncePerTuplePattern {
+                        location: pattern.location(),
+                    });
+                    false
+                } else {
+                    true
+                }
+            });
+
+            let before_len = before.len();
+            let after_len = after.len();
+
+            before.extend(after);
+            let fields = before;
+
+            if fields.len() > field_types.len() {
+                self.push_err(TypeCheckError::TupleMismatch {
+                    tuple_types: field_types.clone(),
+                    actual_count: fields.len(),
+                    location,
+                });
+            }
+
+            let mut field_types_before = field_types[0..before_len].to_vec();
+            let field_types_after =
+                field_types[field_types.len().saturating_sub(after_len)..].to_vec();
+            field_types_before.extend(field_types_after);
+            let field_types = field_types_before;
+
+            (fields, field_types)
+        } else {
+            if fields.len() != field_types.len() {
+                self.push_err(TypeCheckError::TupleMismatch {
+                    tuple_types: field_types.clone(),
+                    actual_count: fields.len(),
+                    location,
+                });
+            }
+
+            (fields, field_types)
+        };
+
+        let mut fields = vecmap(fields.into_iter().enumerate(), |(i, field)| {
+            let field_type = field_types.get(i).cloned().unwrap_or(Type::Error);
+            self.elaborate_pattern_mut(
+                field,
+                field_type,
+                definition.clone(),
+                mutable,
+                new_definitions,
+                warn_if_unused,
+            )
+        });
+
+        if let Some((double_dot_index, location)) = double_dot {
+            // TODO: use correct location
+            fields.insert(double_dot_index, HirPattern::DoubleDot(location));
+        }
+
+        HirPattern::Tuple(fields, location)
     }
 
     #[allow(clippy::too_many_arguments)]

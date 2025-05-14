@@ -1,3 +1,17 @@
+warning: unused variable y
+  ┌─ src/main.nr:4:17
+  │
+4 │     let (x, .., y, ..) = (1, 2, 3);
+  │                 - unused variable
+  │
+
+warning: unused variable x
+  ┌─ src/main.nr:4:10
+  │
+4 │     let (x, .., y, ..) = (1, 2, 3);
+  │          - unused variable
+  │
+
 error: Expected a tuple with 3 elements, found one with 2 elements
   ┌─ src/main.nr:2:9
   │
@@ -5,4 +19,18 @@ error: Expected a tuple with 3 elements, found one with 2 elements
   │         -------- The expression the tuple is assigned to has type `(Field,Field,Field)`
   │
 
-Aborting due to 1 previous error
+error: Expected a tuple with 2 elements, found one with 3 elements
+  ┌─ src/main.nr:3:9
+  │
+3 │     let (_x, _y, .., _z) = (1, 2);
+  │         ---------------- The expression the tuple is assigned to has type `(Field,Field)`
+  │
+
+error: `..` can only be used once per tuple pattern
+  ┌─ src/main.nr:4:20
+  │
+4 │     let (x, .., y, ..) = (1, 2, 3);
+  │                    --
+  │
+
+Aborting due to 3 previous errors

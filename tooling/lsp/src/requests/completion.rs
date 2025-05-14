@@ -565,7 +565,7 @@ impl<'a> NodeFinder<'a> {
             Pattern::Parenthesized(pattern, _) => {
                 self.collect_local_variables(pattern);
             }
-            Pattern::Interned(..) => (),
+            Pattern::DoubleDot(..) | Pattern::Interned(..) => (),
         }
     }
 
@@ -1122,7 +1122,10 @@ impl<'a> NodeFinder<'a> {
             Pattern::Mutable(pattern, ..) | Pattern::Parenthesized(pattern, _) => {
                 self.try_set_self_type(pattern);
             }
-            Pattern::Tuple(..) | Pattern::Struct(..) | Pattern::Interned(..) => (),
+            Pattern::Tuple(..)
+            | Pattern::Struct(..)
+            | Pattern::DoubleDot(..)
+            | Pattern::Interned(..) => (),
         }
     }
 

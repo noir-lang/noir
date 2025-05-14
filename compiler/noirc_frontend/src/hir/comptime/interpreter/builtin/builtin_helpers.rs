@@ -469,6 +469,9 @@ fn gather_hir_pattern_tokens(
             }
             tokens.push(Token::RightBrace);
         }
+        HirPattern::DoubleDot(_) => {
+            tokens.push(Token::DoubleDot);
+        }
     }
 }
 

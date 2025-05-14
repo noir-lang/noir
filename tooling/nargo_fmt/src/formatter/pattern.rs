@@ -99,6 +99,9 @@ impl Formatter<'_> {
                 self.format_pattern(*pattern);
                 self.write_right_paren();
             }
+            Pattern::DoubleDot(..) => {
+                self.write_token(Token::DoubleDot);
+            }
             Pattern::Interned(..) => {
                 unreachable!("Should not be present in the AST")
             }

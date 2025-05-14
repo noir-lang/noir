@@ -46,3 +46,16 @@ fn main() {
     let eight = tup.3;
 }
 ```
+
+When destructuring via pattern matching, `..` can be used to exclude a range of elements:
+
+```rust
+fn main() {
+   let tupl = (1, 2, 3, 4, 5, 6, 7, 8);
+
+   let (one, two, .., six, seven, eight) = tupl;
+   let (one, two, ..) = tupl;
+   let (.., five, six, seven, eight) = tupl;
+   let (..) = tupl;
+}
+```

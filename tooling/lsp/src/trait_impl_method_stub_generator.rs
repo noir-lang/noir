@@ -151,6 +151,10 @@ impl<'a> TraitImplMethodStubGenerator<'a> {
                 self.string.push_str(" }");
                 true
             }
+            HirPattern::DoubleDot(..) => {
+                self.string.push_str("..");
+                true
+            }
         }
     }
 

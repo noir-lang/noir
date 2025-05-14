@@ -673,6 +673,9 @@ impl ItemPrinter<'_, '_, '_> {
                 self.write_indent();
                 self.push('}');
             }
+            HirPattern::DoubleDot(_) => {
+                self.push_str("..");
+            }
         }
     }
 
