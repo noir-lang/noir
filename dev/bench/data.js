@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1747226712476,
+  "lastUpdate": 1747226977227,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -22938,6 +22938,85 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/noir-lang/noir/commit/7be8f5693adc3047156598781d08ac874c56050f"
         },
         "date": 1747223378784,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 1125.8,
+            "unit": "KB"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 2049.7,
+            "unit": "KB"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 581.7,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 5121.9,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 3940.5,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-block-root-empty",
+            "value": 256.9,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-block-root-single-tx",
+            "value": 25679.1,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 25706.3,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 181.8,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-root",
+            "value": 472.1,
+            "unit": "KB"
+          },
+          {
+            "name": "semaphore-depth-10",
+            "value": 636.5,
+            "unit": "KB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "asterite@gmail.com",
+            "name": "Ary Borenszweig",
+            "username": "asterite"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "8cf48fc155fc4d7db6125a50545a45d461fb898a",
+          "message": "fix: parenthesized pattern, and correct 1-element tuple printing (#8482)",
+          "timestamp": "2025-05-14T12:25:14Z",
+          "tree_id": "f03e0e4edd7ca9fe2d3f714dcb6d55a1865bec3a",
+          "url": "https://github.com/noir-lang/noir/commit/8cf48fc155fc4d7db6125a50545a45d461fb898a"
+        },
+        "date": 1747226967762,
         "tool": "customSmallerIsBetter",
         "benches": [
           {
