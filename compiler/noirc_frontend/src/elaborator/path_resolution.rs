@@ -421,10 +421,10 @@ impl Elaborator<'_> {
                 mode,
             ),
             Err(PathResolutionError::Unresolved(err)) => {
-                if let Some(resultion) =
+                if let Some(result) =
                     self.resolve_primitive_type_or_function(path, importing_module)
                 {
-                    return resultion;
+                    return result;
                 }
                 Err(PathResolutionError::Unresolved(err))
             }
