@@ -8,6 +8,7 @@ use crate::elaborator::Elaborator;
 use crate::hir::comptime::display::tokens_to_string;
 use crate::hir::comptime::value::unwrap_rc;
 use crate::hir::def_collector::dc_crate::CompilationError;
+use crate::hir_def::stmt::HirPatternOrDoubleDot;
 use crate::lexer::Lexer;
 use crate::parser::{Parser, ParserError};
 use crate::signed_field::SignedField;
@@ -425,13 +426,21 @@ fn gather_hir_pattern_tokens(
             tokens.push(Token::Keyword(crate::token::Keyword::Mut));
             gather_hir_pattern_tokens(interner, pattern, tokens);
         }
-        HirPattern::Tuple(patterns, _) => {
+        HirPattern::Tuple(patterns, double_dot, _) => {
+            let patterns = HirPatternOrDoubleDot::new_vec(patterns, double_dot);
             tokens.push(Token::LeftParen);
             for (index, pattern) in patterns.iter().enumerate() {
                 if index != 0 {
                     tokens.push(Token::Comma);
                 }
-                gather_hir_pattern_tokens(interner, pattern, tokens);
+                match pattern {
+                    HirPatternOrDoubleDot::Pattern(hir_pattern) => {
+                        gather_hir_pattern_tokens(interner, hir_pattern, tokens);
+                    }
+                    HirPatternOrDoubleDot::DoubleDot(_) => {
+                        tokens.push(Token::DoubleDot);
+                    }
+                }
             }
             tokens.push(Token::RightParen);
         }
@@ -468,9 +477,6 @@ fn gather_hir_pattern_tokens(
                 }
             }
             tokens.push(Token::RightBrace);
-        }
-        HirPattern::DoubleDot(_) => {
-            tokens.push(Token::DoubleDot);
         }
     }
 }

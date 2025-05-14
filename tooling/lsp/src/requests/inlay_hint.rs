@@ -269,7 +269,7 @@ impl<'a> InlayHintCollector<'a> {
                 Some(definition.name.clone())
             }
             HirPattern::Mutable(pattern, _location) => self.get_pattern_name(pattern),
-            HirPattern::Tuple(..) | HirPattern::Struct(..) | HirPattern::DoubleDot(..) => None,
+            HirPattern::Tuple(..) | HirPattern::Struct(..) => None,
         }
     }
 
@@ -297,7 +297,7 @@ impl<'a> InlayHintCollector<'a> {
                 definition_info.name == "self"
             }
             HirPattern::Mutable(pattern, _location) => self.is_self_parameter(pattern),
-            HirPattern::Tuple(..) | HirPattern::Struct(..) | HirPattern::DoubleDot(..) => false,
+            HirPattern::Tuple(..) | HirPattern::Struct(..) => false,
         }
     }
 

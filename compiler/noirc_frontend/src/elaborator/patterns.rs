@@ -18,7 +18,7 @@ use crate::{
     },
     hir_def::{
         expr::{HirExpression, HirIdent, HirLiteral, HirMethodReference, ImplKind, TraitMethod},
-        stmt::HirPattern,
+        stmt::{DoubleDotPattern, HirPattern},
         traits::NamedType,
     },
     node_interner::{
@@ -272,7 +272,7 @@ impl Elaborator<'_> {
             (fields, field_types)
         };
 
-        let mut fields = vecmap(fields.into_iter().enumerate(), |(i, field)| {
+        let fields = vecmap(fields.into_iter().enumerate(), |(i, field)| {
             let field_type = field_types.get(i).cloned().unwrap_or(Type::Error);
             self.elaborate_pattern_mut(
                 field,
@@ -284,11 +284,9 @@ impl Elaborator<'_> {
             )
         });
 
-        if let Some((double_dot_index, location)) = double_dot {
-            fields.insert(double_dot_index, HirPattern::DoubleDot(location));
-        }
+        let double_dot = double_dot.map(|(index, location)| DoubleDotPattern { index, location });
 
-        HirPattern::Tuple(fields, location)
+        HirPattern::Tuple(fields, double_dot, location)
     }
 
     #[allow(clippy::too_many_arguments)]

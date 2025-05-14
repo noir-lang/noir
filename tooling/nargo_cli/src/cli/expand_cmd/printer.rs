@@ -11,7 +11,7 @@ use noirc_frontend::{
     },
     hir_def::{
         expr::HirExpression,
-        stmt::{HirLetStatement, HirPattern},
+        stmt::{HirLetStatement, HirPattern, HirPatternOrDoubleDot},
         traits::{ResolvedTraitBound, TraitConstraint},
     },
     modules::{module_def_id_to_reference_id, relative_module_full_path},
@@ -722,16 +722,24 @@ impl<'interner, 'def_map, 'string> ItemPrinter<'interner, 'def_map, 'string> {
                 self.push_str("mut ");
                 self.show_pattern(pattern);
             }
-            HirPattern::Tuple(patterns, _) => {
+            HirPattern::Tuple(patterns, double_dot, _) => {
+                let patterns = HirPatternOrDoubleDot::new_vec(patterns, double_dot);
                 let len = patterns.len();
                 self.push('(');
                 for (index, pattern) in patterns.iter().enumerate() {
                     if index != 0 {
                         self.push_str(", ");
                     }
-                    self.show_pattern(pattern);
+                    match pattern {
+                        HirPatternOrDoubleDot::Pattern(hir_pattern) => {
+                            self.show_pattern(hir_pattern);
+                        }
+                        HirPatternOrDoubleDot::DoubleDot(_) => {
+                            self.push_str("..");
+                        }
+                    }
                 }
-                if len == 1 {
+                if len == 1 && double_dot.is_none() {
                     self.push(',');
                 }
                 self.push(')');
@@ -749,9 +757,6 @@ impl<'interner, 'def_map, 'string> ItemPrinter<'interner, 'def_map, 'string> {
                 }
 
                 self.push_str(" }");
-            }
-            HirPattern::DoubleDot(..) => {
-                self.push_str("..");
             }
         }
     }
@@ -1063,7 +1068,7 @@ impl<'interner, 'def_map, 'string> ItemPrinter<'interner, 'def_map, 'string> {
                 definition.name == "self"
             }
             HirPattern::Mutable(pattern, _) => self.pattern_is_self(pattern),
-            HirPattern::Tuple(..) | HirPattern::Struct(..) | HirPattern::DoubleDot(..) => false,
+            HirPattern::Tuple(..) | HirPattern::Struct(..) => false,
         }
     }
 

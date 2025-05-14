@@ -8,7 +8,11 @@ use noirc_frontend::{
         def_map::{CrateDefMap, ModuleDefId, ModuleId},
         type_check::generics::TraitGenerics,
     },
-    hir_def::{function::FuncMeta, stmt::HirPattern, traits::Trait},
+    hir_def::{
+        function::FuncMeta,
+        stmt::{HirPattern, HirPatternOrDoubleDot},
+        traits::Trait,
+    },
     modules::relative_module_id_path,
     node_interner::{FunctionModifiers, NodeInterner, ReferenceId},
 };
@@ -128,13 +132,21 @@ impl<'a> TraitImplMethodStubGenerator<'a> {
                 self.string.push_str("mut ");
                 self.append_pattern(pattern)
             }
-            HirPattern::Tuple(patterns, _) => {
+            HirPattern::Tuple(patterns, double_dot, _) => {
+                let patterns = HirPatternOrDoubleDot::new_vec(patterns, double_dot);
                 self.string.push('(');
                 for (index, pattern) in patterns.iter().enumerate() {
                     if index > 0 {
                         self.string.push_str(", ");
                     }
-                    self.append_pattern(pattern);
+                    match pattern {
+                        HirPatternOrDoubleDot::Pattern(hir_pattern) => {
+                            self.append_pattern(hir_pattern);
+                        }
+                        HirPatternOrDoubleDot::DoubleDot(_) => {
+                            self.string.push_str("..");
+                        }
+                    }
                 }
                 self.string.push(')');
                 true
@@ -149,10 +161,6 @@ impl<'a> TraitImplMethodStubGenerator<'a> {
                     self.string.push_str(name.as_str());
                 }
                 self.string.push_str(" }");
-                true
-            }
-            HirPattern::DoubleDot(..) => {
-                self.string.push_str("..");
                 true
             }
         }

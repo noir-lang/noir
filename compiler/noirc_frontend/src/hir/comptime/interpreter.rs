@@ -13,6 +13,7 @@ use crate::elaborator::{ElaborateReason, Elaborator};
 use crate::graph::CrateId;
 use crate::hir::def_map::ModuleId;
 use crate::hir::type_check::TypeCheckError;
+use crate::hir_def::stmt::DoubleDotPattern;
 use crate::monomorphization::{
     perform_impl_bindings, perform_instantiation_bindings, resolve_trait_method,
     undo_instantiation_bindings,
@@ -399,16 +400,11 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
                 let argument = Value::Pointer(Shared::new(argument), true, true);
                 self.define_pattern(pattern, typ, argument, location)
             }
-            HirPattern::Tuple(pattern_fields, _) => {
-                self.define_tuple_pattern(pattern_fields, typ, argument, location)
+            HirPattern::Tuple(pattern_fields, double_dot, _) => {
+                self.define_tuple_pattern(pattern_fields, double_dot, typ, argument, location)
             }
             HirPattern::Struct(struct_type, pattern_fields, _) => {
                 self.define_struct_pattern(struct_type, pattern_fields, typ, argument, location)
-            }
-            HirPattern::DoubleDot(_) => {
-                unreachable!(
-                    "DoubleDot pattern should have been handled when defining tuple patterns"
-                )
             }
         }
     }
@@ -416,6 +412,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
     fn define_tuple_pattern(
         &mut self,
         pattern_fields: &[HirPattern],
+        double_dot: &Option<DoubleDotPattern>,
         typ: &Type,
         argument: Value,
         location: Location,
@@ -424,13 +421,10 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
 
         match (argument, typ) {
             (Value::Tuple(fields), Type::Tuple(type_fields)) => {
-                let double_dot_index = pattern_fields
-                    .iter()
-                    .position(|pattern| matches!(pattern, HirPattern::DoubleDot(_)));
-
-                if let Some(double_dot_index) = double_dot_index {
-                    let pattern_fields_lhs = &pattern_fields[0..double_dot_index];
-                    let pattern_fields_rhs = &pattern_fields[double_dot_index + 1..];
+                if let Some(double_dot) = double_dot {
+                    let double_dot_index = double_dot.index;
+                    let (pattern_fields_lhs, pattern_fields_rhs) =
+                        pattern_fields.split_at(double_dot_index);
                     let rhs_len = pattern_fields_rhs.len();
                     let fields_lhs = &fields[0..double_dot_index];
                     let fields_rhs = &fields[fields.len() - rhs_len..];

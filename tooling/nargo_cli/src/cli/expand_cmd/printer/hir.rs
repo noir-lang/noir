@@ -7,7 +7,7 @@ use noirc_frontend::{
             Constructor, HirArrayLiteral, HirBlockExpression, HirCallExpression, HirExpression,
             HirIdent, HirLambda, HirLiteral, HirMatch, ImplKind,
         },
-        stmt::{HirLValue, HirPattern, HirStatement},
+        stmt::{HirLValue, HirPattern, HirPatternOrDoubleDot, HirStatement},
     },
     node_interner::{DefinitionId, DefinitionKind, ExprId, StmtId},
     token::FmtStrFragment,
@@ -64,7 +64,7 @@ impl ItemPrinter<'_, '_, '_> {
     pub(super) fn show_hir_expression(&mut self, hir_expr: HirExpression) {
         match hir_expr {
             HirExpression::Ident(hir_ident, generics) => {
-                self.show_hir_ident(hir_ident);
+                self.show_hir_ident(&hir_ident);
                 if let Some(generics) = generics {
                     let use_colons = true;
                     self.show_generic_types(&generics, use_colons);
@@ -243,7 +243,7 @@ impl ItemPrinter<'_, '_, '_> {
     pub(super) fn show_hir_lambda(&mut self, hir_lambda: HirLambda) {
         self.push('|');
         self.show_separated_by_comma(&hir_lambda.parameters, |this, (parameter, typ)| {
-            this.show_hir_pattern(parameter.clone());
+            this.show_hir_pattern(parameter);
             this.push_str(": ");
             this.show_type(typ);
         });
@@ -498,7 +498,7 @@ impl ItemPrinter<'_, '_, '_> {
         match statement {
             HirStatement::Let(hir_let_statement) => {
                 self.push_str("let ");
-                self.show_hir_pattern(hir_let_statement.pattern);
+                self.show_hir_pattern(&hir_let_statement.pattern);
                 self.push_str(": ");
                 self.show_type(&hir_let_statement.r#type);
                 self.push_str(" = ");
@@ -513,7 +513,7 @@ impl ItemPrinter<'_, '_, '_> {
             }
             HirStatement::For(hir_for_statement) => {
                 self.push_str("for ");
-                self.show_hir_ident(hir_for_statement.identifier);
+                self.show_hir_ident(&hir_for_statement.identifier);
                 self.push_str(" in ");
                 self.show_hir_expression_id(hir_for_statement.start_range);
                 self.push_str("..");
@@ -614,7 +614,7 @@ impl ItemPrinter<'_, '_, '_> {
     fn show_hir_lvalue(&mut self, lvalue: HirLValue) {
         match lvalue {
             HirLValue::Ident(hir_ident, _) => {
-                self.show_hir_ident(hir_ident);
+                self.show_hir_ident(&hir_ident);
             }
             HirLValue::MemberAccess { object, field_name, field_index: _, typ: _, location: _ } => {
                 self.show_hir_lvalue(*object);
@@ -641,18 +641,24 @@ impl ItemPrinter<'_, '_, '_> {
         }
     }
 
-    fn show_hir_pattern(&mut self, pattern: HirPattern) {
+    fn show_hir_pattern(&mut self, pattern: &HirPattern) {
         match pattern {
             HirPattern::Identifier(hir_ident) => self.show_hir_ident(hir_ident),
             HirPattern::Mutable(hir_pattern, _) => {
                 self.push_str("mut ");
-                self.show_hir_pattern(*hir_pattern);
+                self.show_hir_pattern(hir_pattern);
             }
-            HirPattern::Tuple(hir_patterns, _location) => {
-                let len = hir_patterns.len();
+            HirPattern::Tuple(patterns, double_dot, _location) => {
+                let patterns = HirPatternOrDoubleDot::new_vec(patterns, double_dot);
+                let len = patterns.len();
                 self.push('(');
-                self.show_separated_by_comma(&hir_patterns, |this, pattern| {
-                    this.show_hir_pattern(pattern.clone());
+                self.show_separated_by_comma(&patterns, |this, pattern| match pattern {
+                    HirPatternOrDoubleDot::Pattern(pattern) => {
+                        this.show_hir_pattern(pattern);
+                    }
+                    HirPatternOrDoubleDot::DoubleDot(_) => {
+                        this.push_str("..");
+                    }
                 });
                 if len == 1 {
                     self.push(',');
@@ -660,21 +666,18 @@ impl ItemPrinter<'_, '_, '_> {
                 self.push(')');
             }
             HirPattern::Struct(typ, items, _location) => {
-                self.show_type_name_as_data_type(&typ);
+                self.show_type_name_as_data_type(typ);
                 self.push_str(" {\n");
                 self.increase_indent();
-                self.show_separated_by_comma(&items, |this, (name, pattern)| {
+                self.show_separated_by_comma(items, |this, (name, pattern)| {
                     this.push_str(&name.to_string());
                     this.push_str(": ");
-                    this.show_hir_pattern(pattern.clone());
+                    this.show_hir_pattern(pattern);
                 });
                 self.push('\n');
                 self.decrease_indent();
                 self.write_indent();
                 self.push('}');
-            }
-            HirPattern::DoubleDot(_) => {
-                self.push_str("..");
             }
         }
     }
@@ -682,10 +685,10 @@ impl ItemPrinter<'_, '_, '_> {
     fn show_definition_id(&mut self, definition_id: DefinitionId) {
         let location = self.interner.definition(definition_id).location;
         let ident = HirIdent::non_trait_method(definition_id, location);
-        self.show_hir_ident(ident);
+        self.show_hir_ident(&ident);
     }
 
-    fn show_hir_ident(&mut self, ident: HirIdent) {
+    fn show_hir_ident(&mut self, ident: &HirIdent) {
         let definition = self.interner.definition(ident.id);
         match definition.kind {
             DefinitionKind::Function(func_id) => {
