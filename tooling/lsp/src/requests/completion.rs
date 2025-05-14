@@ -322,20 +322,20 @@ impl<'a> NodeFinder<'a> {
         } else {
             let Some(module_def_id) = self.resolve_path(idents.clone()) else {
                 // Check if the first segment refers to a primitive type
-                if idents.len() == 1 {
-                    let Some(primitive_type) = PrimitiveType::lookup_by_name(idents[0].as_str())
-                    else {
-                        return;
-                    };
-                    let typ = primitive_type.to_type();
-                    self.complete_type_methods(
-                        &typ,
-                        &prefix,
-                        FunctionKind::Any,
-                        FunctionCompletionKind::NameAndParameters,
-                        false, // self_prefix
-                    );
+                if idents.len() != 1 {
+                    return;
                 }
+                let Some(primitive_type) = PrimitiveType::lookup_by_name(idents[0].as_str()) else {
+                    return;
+                };
+                let typ = primitive_type.to_type();
+                self.complete_type_methods(
+                    &typ,
+                    &prefix,
+                    FunctionKind::Any,
+                    FunctionCompletionKind::NameAndParameters,
+                    false, // self_prefix
+                );
                 return;
             };
 
