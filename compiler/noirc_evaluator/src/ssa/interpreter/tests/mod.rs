@@ -240,7 +240,7 @@ fn without_defunctionalize() {
         vec![Value::from_constant(0_u128.into(), NumericType::bool())],
     );
 
-    assert!(values.len() == 0);
+    assert!(values.is_empty());
 }
 
 #[test]
