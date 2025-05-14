@@ -65,7 +65,7 @@ mutants.out
 mutants.out.old
 
 
-# TODO: remove
+# TODO: remove unused
 tooling/nargo_cli/counter.txt
 tooling/nargo_cli/kill_tests_if_out_of_space.rb.*
 tooling/nargo_fuzz_target/*inputs
@@ -89,10 +89,10 @@ tooling/ssa_afl_fuzzer/outputs8/
 tooling/ssa_afl_fuzzer/remove_unreachable_functions_inputs/
 tooling/ssa_afl_fuzzer/screen_sessions_at_fuzzer01_etc
 tooling/ssa_afl_fuzzer/tt.txt
+tooling/ssa_afl_fuzzer/unique_crash_location_representatives/
 tooling/ssa_afl_fuzzer/unique_crashes/
 tooling/ssa_fuzzer/crash0.log
 tooling/ssa_fuzzer/crash1.log
 tooling/ssa_fuzzer/fuzz-*.log
 tooling/ssa_fuzzer/nohup.out
 tooling/unique_crashes
-
