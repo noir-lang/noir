@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1747243802767,
+  "lastUpdate": 1747243806409,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -23244,6 +23244,85 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/noir-lang/noir/commit/d919e6afcd7bc4ebf07e8b355c48ee4439ecd52b"
         },
         "date": 1747235129484,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 1127.1,
+            "unit": "KB"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 2051,
+            "unit": "KB"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 583.1,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 5123.2,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 3941.9,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-block-root-empty",
+            "value": 256.8,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-block-root-single-tx",
+            "value": 25679,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 25706.2,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 181.7,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-root",
+            "value": 473.4,
+            "unit": "KB"
+          },
+          {
+            "name": "semaphore-depth-10",
+            "value": 636.4,
+            "unit": "KB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "aakoshh@gmail.com",
+            "name": "Akosh Farkash",
+            "username": "aakoshh"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "0abbe113d60d5251ae505386e4cbef1f0d64b526",
+          "message": "chore(fuzz): AST generator to add `ctx_limit` to all functions (#8507)",
+          "timestamp": "2025-05-14T17:06:36Z",
+          "tree_id": "cd9722472880a7f81de9fa9ef03ed506c6d98b67",
+          "url": "https://github.com/noir-lang/noir/commit/0abbe113d60d5251ae505386e4cbef1f0d64b526"
+        },
+        "date": 1747243796597,
         "tool": "customSmallerIsBetter",
         "benches": [
           {
