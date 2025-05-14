@@ -1711,7 +1711,16 @@
 <a href="#1710" id="1710">1710</a>
 <a href="#1711" id="1711">1711</a>
 <a href="#1712" id="1712">1712</a>
-<a href="#1713" id="1713">1713</a></pre></div><pre class="rust"><code><span class="kw">use </span>acvm::FieldElement;
+<a href="#1713" id="1713">1713</a>
+<a href="#1714" id="1714">1714</a>
+<a href="#1715" id="1715">1715</a>
+<a href="#1716" id="1716">1716</a>
+<a href="#1717" id="1717">1717</a>
+<a href="#1718" id="1718">1718</a>
+<a href="#1719" id="1719">1719</a>
+<a href="#1720" id="1720">1720</a>
+<a href="#1721" id="1721">1721</a>
+<a href="#1722" id="1722">1722</a></pre></div><pre class="rust"><code><span class="kw">use </span>acvm::FieldElement;
 <span class="kw">use </span>noirc_errors::Span;
 
 <span class="kw">use crate</span>::{
@@ -2229,6 +2238,10 @@
     </span>}
 
     <span class="kw">fn </span>visit_struct_pattern(<span class="kw-2">&amp;mut </span><span class="self">self</span>, <span class="kw">_</span>: <span class="kw-2">&amp;</span>Path, <span class="kw">_</span>: <span class="kw-2">&amp;</span>[(Ident, Pattern)], <span class="kw">_</span>: Span) -&gt; bool {
+        <span class="bool-val">true
+    </span>}
+
+    <span class="kw">fn </span>visit_parenthesized_pattern(<span class="kw-2">&amp;mut </span><span class="self">self</span>, <span class="kw">_</span>: <span class="kw-2">&amp;</span>Pattern, <span class="kw">_</span>: Span) -&gt; bool {
         <span class="bool-val">true
     </span>}
 
@@ -3335,6 +3348,11 @@
                     <span class="kw">for </span>(<span class="kw">_</span>, pattern) <span class="kw">in </span>fields {
                         pattern.accept(visitor);
                     }
+                }
+            }
+            Pattern::Parenthesized(pattern, location) =&gt; {
+                <span class="kw">if </span>visitor.visit_parenthesized_pattern(pattern, location.span) {
+                    pattern.accept(visitor);
                 }
             }
             Pattern::Interned(id, location) =&gt; {

@@ -501,7 +501,35 @@
 <a href="#500" id="500">500</a>
 <a href="#501" id="501">501</a>
 <a href="#502" id="502">502</a>
-<a href="#503" id="503">503</a></pre></div><pre class="rust"><code><span class="attr">#![forbid(unsafe_code)]
+<a href="#503" id="503">503</a>
+<a href="#504" id="504">504</a>
+<a href="#505" id="505">505</a>
+<a href="#506" id="506">506</a>
+<a href="#507" id="507">507</a>
+<a href="#508" id="508">508</a>
+<a href="#509" id="509">509</a>
+<a href="#510" id="510">510</a>
+<a href="#511" id="511">511</a>
+<a href="#512" id="512">512</a>
+<a href="#513" id="513">513</a>
+<a href="#514" id="514">514</a>
+<a href="#515" id="515">515</a>
+<a href="#516" id="516">516</a>
+<a href="#517" id="517">517</a>
+<a href="#518" id="518">518</a>
+<a href="#519" id="519">519</a>
+<a href="#520" id="520">520</a>
+<a href="#521" id="521">521</a>
+<a href="#522" id="522">522</a>
+<a href="#523" id="523">523</a>
+<a href="#524" id="524">524</a>
+<a href="#525" id="525">525</a>
+<a href="#526" id="526">526</a>
+<a href="#527" id="527">527</a>
+<a href="#528" id="528">528</a>
+<a href="#529" id="529">529</a>
+<a href="#530" id="530">530</a>
+<a href="#531" id="531">531</a></pre></div><pre class="rust"><code><span class="attr">#![forbid(unsafe_code)]
 #![warn(unused_crate_dependencies, unused_extern_crates)]
 #![warn(unreachable_pub)]
 #![warn(clippy::semicolon_if_nothing_returned)]
@@ -689,6 +717,9 @@
                 <span class="kw">if </span>elems.peek().is_some() {
                     output.push_str(<span class="string">", "</span>);
                 }
+            }
+            <span class="kw">if </span>types.len() == <span class="number">1 </span>{
+                output.push(<span class="string">','</span>);
             }
             output.push(<span class="string">')'</span>);
         }
@@ -990,6 +1021,31 @@
         <span class="kw">let </span>display =
             PrintableValueDisplay::&lt;FieldElement&gt;::FmtString(template.to_string(), values);
         <span class="macro">assert_eq!</span>(display.to_string(), expected);
+    }
+
+    <span class="attr">#[test]
+    </span><span class="kw">fn </span>one_element_tuple_to_string() {
+        <span class="kw">let </span>value = PrintableValue::&lt;FieldElement&gt;::Vec {
+            array_elements: <span class="macro">vec!</span>[PrintableValue::Field(<span class="number">1_u128</span>.into())],
+            is_slice: <span class="bool-val">false</span>,
+        };
+        <span class="kw">let </span>typ = PrintableType::Tuple { types: <span class="macro">vec!</span>[PrintableType::Field] };
+        <span class="kw">let </span>string = to_string(<span class="kw-2">&amp;</span>value, <span class="kw-2">&amp;</span>typ);
+        <span class="macro">assert_eq!</span>(string.unwrap(), <span class="string">"(0x01,)"</span>);
+    }
+
+    <span class="attr">#[test]
+    </span><span class="kw">fn </span>two_elements_tuple_to_string() {
+        <span class="kw">let </span>value = PrintableValue::&lt;FieldElement&gt;::Vec {
+            array_elements: <span class="macro">vec!</span>[
+                PrintableValue::Field(<span class="number">1_u128</span>.into()),
+                PrintableValue::Field(<span class="number">2_u128</span>.into()),
+            ],
+            is_slice: <span class="bool-val">false</span>,
+        };
+        <span class="kw">let </span>typ = PrintableType::Tuple { types: <span class="macro">vec!</span>[PrintableType::Field, PrintableType::Field] };
+        <span class="kw">let </span>string = to_string(<span class="kw-2">&amp;</span>value, <span class="kw-2">&amp;</span>typ);
+        <span class="macro">assert_eq!</span>(string.unwrap(), <span class="string">"(0x01, 0x02)"</span>);
     }
 
     <span class="macro">proptest!</span> {

@@ -1014,7 +1014,13 @@
 <a href="#1013" id="1013">1013</a>
 <a href="#1014" id="1014">1014</a>
 <a href="#1015" id="1015">1015</a>
-<a href="#1016" id="1016">1016</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::fmt::Display;
+<a href="#1016" id="1016">1016</a>
+<a href="#1017" id="1017">1017</a>
+<a href="#1018" id="1018">1018</a>
+<a href="#1019" id="1019">1019</a>
+<a href="#1020" id="1020">1020</a>
+<a href="#1021" id="1021">1021</a>
+<a href="#1022" id="1022">1022</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::fmt::Display;
 
 <span class="kw">use </span>acvm::FieldElement;
 <span class="kw">use </span>acvm::acir::AcirField;
@@ -1583,6 +1589,7 @@
     Mutable(Box&lt;Pattern&gt;, Location, <span class="comment">/*is_synthesized*/ </span>bool),
     Tuple(Vec&lt;Pattern&gt;, Location),
     Struct(Path, Vec&lt;(Ident, Pattern)&gt;, Location),
+    Parenthesized(Box&lt;Pattern&gt;, Location),
     Interned(InternedPattern, Location),
 }
 
@@ -1596,6 +1603,7 @@
             Pattern::Mutable(<span class="kw">_</span>, location, <span class="kw">_</span>)
             | Pattern::Tuple(<span class="kw">_</span>, location)
             | Pattern::Struct(<span class="kw">_</span>, <span class="kw">_</span>, location)
+            | Pattern::Parenthesized(<span class="kw">_</span>, location)
             | Pattern::Interned(<span class="kw">_</span>, location) =&gt; <span class="kw-2">*</span>location,
         }
     }
@@ -1640,6 +1648,7 @@
                     location: <span class="kw-2">*</span>location,
                 })
             }
+            Pattern::Parenthesized(pattern, <span class="kw">_</span>) =&gt; pattern.try_as_expression(interner),
             Pattern::Interned(id, <span class="kw">_</span>) =&gt; interner.get_pattern(<span class="kw-2">*</span>id).try_as_expression(interner),
         }
     }
@@ -2005,6 +2014,9 @@
             Pattern::Struct(typename, fields, <span class="kw">_</span>) =&gt; {
                 <span class="kw">let </span>fields = vecmap(fields, |(name, pattern)| <span class="macro">format!</span>(<span class="string">"{name}: {pattern}"</span>));
                 <span class="macro">write!</span>(f, <span class="string">"{} {{ {} }}"</span>, typename, fields.join(<span class="string">", "</span>))
+            }
+            Pattern::Parenthesized(pattern, <span class="kw">_</span>) =&gt; {
+                <span class="macro">write!</span>(f, <span class="string">"({})"</span>, pattern)
             }
             Pattern::Interned(<span class="kw">_</span>, <span class="kw">_</span>) =&gt; {
                 <span class="macro">write!</span>(f, <span class="string">"?Interned"</span>)

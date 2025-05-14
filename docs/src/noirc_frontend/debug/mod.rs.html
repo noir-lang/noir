@@ -786,7 +786,13 @@
 <a href="#785" id="785">785</a>
 <a href="#786" id="786">786</a>
 <a href="#787" id="787">787</a>
-<a href="#788" id="788">788</a></pre></div><pre class="rust"><code><span class="kw">use </span><span class="kw">crate</span>::ast::PathSegment;
+<a href="#788" id="788">788</a>
+<a href="#789" id="789">789</a>
+<a href="#790" id="790">790</a>
+<a href="#791" id="791">791</a>
+<a href="#792" id="792">792</a>
+<a href="#793" id="793">793</a>
+<a href="#794" id="794">794</a></pre></div><pre class="rust"><code><span class="kw">use </span><span class="kw">crate</span>::ast::PathSegment;
 <span class="kw">use </span><span class="kw">crate</span>::parse_program;
 <span class="kw">use </span><span class="kw">crate</span>::parser::{ParsedModule, ParsedSubModule};
 <span class="kw">use </span><span class="kw">crate</span>::signed_field::SignedField;
@@ -1518,6 +1524,9 @@
                 stack.extend(pids.iter().map(|(<span class="kw">_</span>, pattern)| (pattern, is_mut)));
                 vars.extend(pids.iter().map(|(id, <span class="kw">_</span>)| (id.clone(), <span class="bool-val">false</span>)));
             }
+            ast::Pattern::Parenthesized(pattern, <span class="kw">_</span>) =&gt; {
+                stack.push_back((pattern, <span class="bool-val">false</span>));
+            }
             ast::Pattern::Interned(<span class="kw">_</span>, <span class="kw">_</span>) =&gt; (),
         }
     }
@@ -1544,6 +1553,9 @@
                     .collect::&lt;Vec&lt;<span class="kw">_</span>&gt;&gt;()
                     .join(<span class="string">", "</span>),
             )
+        }
+        ast::Pattern::Parenthesized(pattern, <span class="kw">_</span>) =&gt; {
+            <span class="macro">format!</span>(<span class="string">"({})"</span>, pattern_to_string(pattern.as_ref()))
         }
         ast::Pattern::Interned(<span class="kw">_</span>, <span class="kw">_</span>) =&gt; <span class="string">"?Interned"</span>.to_string(),
     }

@@ -1106,7 +1106,15 @@
 <a href="#1105" id="1105">1105</a>
 <a href="#1106" id="1106">1106</a>
 <a href="#1107" id="1107">1107</a>
-<a href="#1108" id="1108">1108</a></pre></div><pre class="rust"><code><span class="kw">use </span>iter_extended::vecmap;
+<a href="#1108" id="1108">1108</a>
+<a href="#1109" id="1109">1109</a>
+<a href="#1110" id="1110">1110</a>
+<a href="#1111" id="1111">1111</a>
+<a href="#1112" id="1112">1112</a>
+<a href="#1113" id="1113">1113</a>
+<a href="#1114" id="1114">1114</a>
+<a href="#1115" id="1115">1115</a>
+<a href="#1116" id="1116">1116</a></pre></div><pre class="rust"><code><span class="kw">use </span>iter_extended::vecmap;
 <span class="kw">use </span>noirc_errors::{Located, Location};
 <span class="kw">use </span>rustc_hash::FxHashSet <span class="kw">as </span>HashSet;
 
@@ -1280,6 +1288,14 @@
                     new_definitions,
                 )
             }
+            Pattern::Parenthesized(pattern, <span class="kw">_</span>) =&gt; <span class="self">self</span>.elaborate_pattern_mut(
+                <span class="kw-2">*</span>pattern,
+                expected_type,
+                definition,
+                mutable,
+                new_definitions,
+                warn_if_unused,
+            ),
             Pattern::Interned(id, <span class="kw">_</span>) =&gt; {
                 <span class="kw">let </span>pattern = <span class="self">self</span>.interner.get_pattern(id).clone();
                 <span class="self">self</span>.elaborate_pattern_mut(

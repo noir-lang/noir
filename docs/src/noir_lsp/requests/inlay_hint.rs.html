@@ -1068,7 +1068,10 @@
 <a href="#1067" id="1067">1067</a>
 <a href="#1068" id="1068">1068</a>
 <a href="#1069" id="1069">1069</a>
-<a href="#1070" id="1070">1070</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::future::{<span class="self">self</span>, Future};
+<a href="#1070" id="1070">1070</a>
+<a href="#1071" id="1071">1071</a>
+<a href="#1072" id="1072">1072</a>
+<a href="#1073" id="1073">1073</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::future::{<span class="self">self</span>, Future};
 
 <span class="kw">use </span>async_lsp::ResponseError;
 <span class="kw">use </span>async_lsp::lsp_types;
@@ -1534,6 +1537,9 @@
                 <span class="kw">if </span>index != types.len() - <span class="number">1 </span>{
                     parts.push(string_part(<span class="string">", "</span>));
                 }
+            }
+            <span class="kw">if </span>types.len() == <span class="number">1 </span>{
+                parts.push(string_part(<span class="string">","</span>));
             }
             parts.push(string_part(<span class="string">")"</span>));
         }

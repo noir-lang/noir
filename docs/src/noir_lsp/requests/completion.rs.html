@@ -2024,7 +2024,12 @@
 <a href="#2023" id="2023">2023</a>
 <a href="#2024" id="2024">2024</a>
 <a href="#2025" id="2025">2025</a>
-<a href="#2026" id="2026">2026</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::{
+<a href="#2026" id="2026">2026</a>
+<a href="#2027" id="2027">2027</a>
+<a href="#2028" id="2028">2028</a>
+<a href="#2029" id="2029">2029</a>
+<a href="#2030" id="2030">2030</a>
+<a href="#2031" id="2031">2031</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::{
     collections::{BTreeMap, HashMap, HashSet},
     future::{<span class="self">self</span>, Future},
     ops::Deref,
@@ -2571,6 +2576,9 @@
                 <span class="kw">for </span>(<span class="kw">_</span>, pattern) <span class="kw">in </span>patterns {
                     <span class="self">self</span>.collect_local_variables(pattern);
                 }
+            }
+            Pattern::Parenthesized(pattern, <span class="kw">_</span>) =&gt; {
+                <span class="self">self</span>.collect_local_variables(pattern);
             }
             Pattern::Interned(..) =&gt; (),
         }
@@ -3126,7 +3134,9 @@
                     }
                 }
             }
-            Pattern::Mutable(pattern, ..) =&gt; <span class="self">self</span>.try_set_self_type(pattern),
+            Pattern::Mutable(pattern, ..) | Pattern::Parenthesized(pattern, <span class="kw">_</span>) =&gt; {
+                <span class="self">self</span>.try_set_self_type(pattern);
+            }
             Pattern::Tuple(..) | Pattern::Struct(..) | Pattern::Interned(..) =&gt; (),
         }
     }
