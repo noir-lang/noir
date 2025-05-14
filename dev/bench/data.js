@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1747230306587,
+  "lastUpdate": 1747230311771,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -7750,70 +7750,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "15848336+TomAFrench@users.noreply.github.com",
-            "name": "Tom French",
-            "username": "TomAFrench"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "8ab59da0020d6d84ecb06d72f0f3ca073bf11f70",
-          "message": "chore: add minor docs for interpreter (#8397)\n\nCo-authored-by: AztecBot <tech@aztecprotocol.com>\nCo-authored-by: jfecher <jfecher11@gmail.com>",
-          "timestamp": "2025-05-08T15:56:29Z",
-          "tree_id": "0a8ab8ac45d2237a33cb9abeef5b38d9e48d77c3",
-          "url": "https://github.com/noir-lang/noir/commit/8ab59da0020d6d84ecb06d72f0f3ca073bf11f70"
-        },
-        "date": 1746721353086,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 0.029,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 0.162,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 0.017,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 0.33,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 0.209,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 12.3,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 0.004,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-root",
-            "value": 0.013,
-            "unit": "s"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "aakoshh@gmail.com",
             "name": "Akosh Farkash",
             "username": "aakoshh"
@@ -11028,6 +10964,75 @@ window.BENCHMARK_DATA = {
           {
             "name": "rollup-block-root",
             "value": 11.3,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 0.004,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-root",
+            "value": 0.013,
+            "unit": "s"
+          },
+          {
+            "name": "semaphore-depth-10",
+            "value": 0.019,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "15848336+TomAFrench@users.noreply.github.com",
+            "name": "Tom French",
+            "username": "TomAFrench"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "f4078e1e175b6003ed25215fb870639ee9900cb7",
+          "message": "fix: remove private builtins from `Field` impl (#8496)\n\nCo-authored-by: AztecBot <tech@aztecprotocol.com>",
+          "timestamp": "2025-05-14T13:14:16Z",
+          "tree_id": "b80fae0b42de17fc222513ceae20f8d534d0e002",
+          "url": "https://github.com/noir-lang/noir/commit/f4078e1e175b6003ed25215fb870639ee9900cb7"
+        },
+        "date": 1747230301882,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 0.028,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 0.159,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 0.011,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 0.306,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 0.192,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 11,
             "unit": "s"
           },
           {
