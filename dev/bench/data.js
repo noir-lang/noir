@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1747235138739,
+  "lastUpdate": 1747235140277,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -3810,95 +3810,6 @@ window.BENCHMARK_DATA = {
       }
     ],
     "Compilation Time": [
-      {
-        "commit": {
-          "author": {
-            "email": "aakoshh@gmail.com",
-            "name": "Akosh Farkash",
-            "username": "aakoshh"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "9dc9cf64b8765875e622cdbe17594fe298baae19",
-          "message": "chore(test): Add more unit tests for `inline_functions_with_at_most_one_instruction` (#8418)",
-          "timestamp": "2025-05-08T18:14:18Z",
-          "tree_id": "c996703c9d8913722f8abc6b2a1205c38aea8073",
-          "url": "https://github.com/noir-lang/noir/commit/9dc9cf64b8765875e622cdbe17594fe298baae19"
-        },
-        "date": 1746729490182,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "regression_4709",
-            "value": 0.684,
-            "unit": "s"
-          },
-          {
-            "name": "ram_blowup_regression",
-            "value": 12.7,
-            "unit": "s"
-          },
-          {
-            "name": "global_var_regression_entry_points",
-            "value": 0.488,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-inner",
-            "value": 2.432,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 6.7,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 1.198,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 17.52,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 12.94,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root-empty",
-            "value": 1.224,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root-single-tx",
-            "value": 117,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 124,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 1.028,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-root",
-            "value": 1.652,
-            "unit": "s"
-          }
-        ]
-      },
       {
         "commit": {
           "author": {
@@ -7746,6 +7657,85 @@ window.BENCHMARK_DATA = {
           {
             "name": "semaphore-depth-10",
             "value": 0.821,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "mvezenov@gmail.com",
+            "name": "Maxim Vezenov",
+            "username": "vezenovm"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "d919e6afcd7bc4ebf07e8b355c48ee4439ecd52b",
+          "message": "fix(inlining): Use centralized CallGraph structure for inline info computation  (#8489)\n\nCo-authored-by: Tom French <15848336+TomAFrench@users.noreply.github.com>",
+          "timestamp": "2025-05-14T14:39:53Z",
+          "tree_id": "7c6816dc169e601725e586f74b5d2800e9f168b5",
+          "url": "https://github.com/noir-lang/noir/commit/d919e6afcd7bc4ebf07e8b355c48ee4439ecd52b"
+        },
+        "date": 1747235129901,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 2.35,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 6.598,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 1.064,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 16.44,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 13.5,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-empty",
+            "value": 1.348,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-single-tx",
+            "value": 129,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 130,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 1.096,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-root",
+            "value": 1.82,
+            "unit": "s"
+          },
+          {
+            "name": "semaphore-depth-10",
+            "value": 0.843,
             "unit": "s"
           }
         ]
