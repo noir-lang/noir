@@ -707,6 +707,7 @@ impl Elaborator<'_> {
             PathResolutionItem::Module(_)
             | PathResolutionItem::Type(_)
             | PathResolutionItem::TypeAlias(_)
+            | PathResolutionItem::PrimitiveType(_)
             | PathResolutionItem::Trait(_)
             | PathResolutionItem::ModuleFunction(_)
             | PathResolutionItem::TypeAliasFunction(_, _, _)

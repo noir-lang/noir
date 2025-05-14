@@ -31,6 +31,7 @@ pub(crate) enum PathResolutionItem {
     Module(ModuleId),
     Type(TypeId),
     TypeAlias(TypeAliasId),
+    PrimitiveType(PrimitiveType),
     Trait(TraitId),
 
     // These are values
@@ -55,6 +56,7 @@ impl PathResolutionItem {
             PathResolutionItem::Module(..)
             | PathResolutionItem::Type(..)
             | PathResolutionItem::TypeAlias(..)
+            | PathResolutionItem::PrimitiveType(..)
             | PathResolutionItem::Trait(..)
             | PathResolutionItem::Global(..) => None,
         }
@@ -65,6 +67,7 @@ impl PathResolutionItem {
             PathResolutionItem::Module(..) => "module",
             PathResolutionItem::Type(..) => "type",
             PathResolutionItem::TypeAlias(..) => "type alias",
+            PathResolutionItem::PrimitiveType(..) => "primitive type",
             PathResolutionItem::Trait(..) => "trait",
             PathResolutionItem::Global(..) => "global",
             PathResolutionItem::ModuleFunction(..)
@@ -378,6 +381,7 @@ impl Elaborator<'_> {
                 }
                 PathResolutionItem::Type(..)
                 | PathResolutionItem::TypeAlias(..)
+                | PathResolutionItem::PrimitiveType(..)
                 | PathResolutionItem::Trait(..)
                 | PathResolutionItem::ModuleFunction(..)
                 | PathResolutionItem::Method(..)
@@ -417,7 +421,9 @@ impl Elaborator<'_> {
                 mode,
             ),
             Err(PathResolutionError::Unresolved(err)) => {
-                if let Some(resultion) = self.resolve_primitive_function(path, importing_module) {
+                if let Some(resultion) =
+                    self.resolve_primitive_type_or_function(path, importing_module)
+                {
                     return resultion;
                 }
                 Err(PathResolutionError::Unresolved(err))
@@ -734,19 +740,17 @@ impl Elaborator<'_> {
         MethodLookupResult::FoundTraitMethod(per_ns, name.clone())
     }
 
-    fn resolve_primitive_function(
+    fn resolve_primitive_type_or_function(
         &mut self,
         path: TypedPath,
         importing_module_id: ModuleId,
     ) -> Option<PathResolutionResult> {
-        if path.segments.len() != 2 {
+        if path.segments.len() != 1 && path.segments.len() != 2 {
             return None;
         }
 
         let object_name = path.segments[0].ident.as_str();
         let turbofish = path.segments[0].turbofish();
-        let method_name_ident = &path.segments[1].ident;
-        let method_name = method_name_ident.as_str();
         let primitive_type = PrimitiveType::lookup_by_name(object_name)?;
         let typ = primitive_type.to_type();
         let mut errors = Vec::new();
@@ -756,6 +760,14 @@ impl Elaborator<'_> {
                 location: path.segments[0].ident.location(),
             });
         }
+
+        if path.segments.len() == 1 {
+            let item = PathResolutionItem::PrimitiveType(primitive_type);
+            return Some(Ok(PathResolution { item, errors }));
+        }
+
+        let method_name_ident = &path.segments[1].ident;
+        let method_name = method_name_ident.as_str();
 
         // Note: the logic here is similar to that of resolve_method, except that that one works by
         // searching through modules, and this one works by searching through primitive types.

@@ -302,6 +302,17 @@ impl Elaborator<'_> {
 
                 Type::DataType(data_type, args)
             }
+            Ok(PathResolutionItem::PrimitiveType(primitive_type)) => {
+                let typ = self.instantiate_primitive_type(primitive_type, args, location);
+                if let Type::Quoted(quoted) = typ {
+                    let in_function = matches!(self.current_item, Some(DependencyId::Function(_)));
+                    if in_function && !self.in_comptime_context() {
+                        let typ = quoted.to_string();
+                        self.push_err(ResolverError::ComptimeTypeInRuntimeCode { location, typ });
+                    }
+                }
+                typ
+            }
             Ok(item) => {
                 self.push_err(ResolverError::Expected {
                     expected: "type",
@@ -312,22 +323,6 @@ impl Elaborator<'_> {
                 Type::Error
             }
             Err(err) => {
-                if let Some(typ) = self.resolve_primitive_type(path, args) {
-                    if let Type::Quoted(quoted) = typ {
-                        let in_function =
-                            matches!(self.current_item, Some(DependencyId::Function(_)));
-                        if in_function && !self.in_comptime_context() {
-                            let typ = quoted.to_string();
-                            self.push_err(ResolverError::ComptimeTypeInRuntimeCode {
-                                location,
-                                typ,
-                            });
-                        }
-                    }
-
-                    return typ;
-                }
-
                 self.push_err(err);
 
                 Type::Error
@@ -354,22 +349,12 @@ impl Elaborator<'_> {
         }
     }
 
-    fn resolve_primitive_type(&mut self, path: TypedPath, args: GenericTypeArgs) -> Option<Type> {
-        if path.segments.len() != 1 {
-            return None;
-        }
-
-        let segment = path.last_segment();
-        let location = segment.location;
-        let ident = segment.ident;
-        let primitive_type = PrimitiveType::lookup_by_name(ident.as_str())?;
-
-        if primitive_type == PrimitiveType::StructDefinition {
-            self.push_err(CompilationError::ResolverError(ResolverError::PathResolutionError(
-                PathResolutionError::StructDefinitionDeprecated { location },
-            )));
-        }
-
+    fn instantiate_primitive_type(
+        &mut self,
+        primitive_type: PrimitiveType,
+        args: GenericTypeArgs,
+        location: Location,
+    ) -> Type {
         match primitive_type {
             PrimitiveType::Bool
             | PrimitiveType::CtString
@@ -418,7 +403,7 @@ impl Elaborator<'_> {
                 );
                 assert_eq!(args.len(), 1);
                 let length = args.pop().unwrap();
-                return Some(Type::String(Box::new(length)));
+                return Type::String(Box::new(length));
             }
             PrimitiveType::Fmtstr => {
                 let item = FmtstrPrimitiveType;
@@ -431,11 +416,11 @@ impl Elaborator<'_> {
                 assert_eq!(args.len(), 2);
                 let element = args.pop().unwrap();
                 let length = args.pop().unwrap();
-                return Some(Type::FmtString(Box::new(length), Box::new(element)));
+                return Type::FmtString(Box::new(length), Box::new(element));
             }
         }
 
-        Some(primitive_type.to_type())
+        primitive_type.to_type()
     }
 
     fn resolve_trait_as_type(
