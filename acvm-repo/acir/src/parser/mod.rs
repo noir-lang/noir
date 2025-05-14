@@ -3,9 +3,12 @@ use num_traits::Num;
 use regex::Regex;
 use std::collections::BTreeSet;
 
+pub mod brillig_call_parser;
+
 use crate::circuit::opcodes::{BlackBoxFuncCall, FunctionInput};
 use crate::circuit::{AssertionPayload, Opcode, OpcodeLocation, PublicInputs, opcodes};
 use crate::native_types::{Expression, Witness};
+use crate::proto::acir::circuit::opcode::{BrilligCall, Call, MemoryInit, MemoryOp};
 use crate::proto::acir::circuit::{Circuit, ExpressionWidth};
 pub use acir_field;
 pub use acir_field::AcirField;
@@ -13,11 +16,13 @@ pub use brillig;
 
 pub use super::circuit::black_box_functions::BlackBoxFunc;
 pub use super::circuit::opcodes::InvalidInputBitSize;
+pub use brillig_call_parser::BrilligCallParser;
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum InstructionType {
     Expr,
     BlackBoxFuncCall,
+    BrilligCall,
     CurrentWitnessIndex,
     PrivateParametersIndices,
     PublicParametersIndices,
@@ -413,6 +418,38 @@ pub fn parse_arithmetic_expression<F: AcirField>(
     Ok(Expression { mul_terms: mul_terms, linear_combinations: linear_terms, q_c: q_c })
 }
 
+pub fn parse_memory_init(instruction: Instruction) -> Result<MemoryInit, String> {
+    todo!()
+}
+
+pub fn parse_memory_op(instruction: Instruction) -> Result<MemoryOp, String> {
+    todo!()
+}
+
+pub fn parse_brillig_call(instruction: Instruction) -> Result<BrilligCall, String> {
+    // BRILLIG CALL func id: inputs: [Single/Array/MemoryArray(Expression/Vec<Expression/BlockId> { mul_terms: [], linear_combinations: [(1, Witness(2))], q_c: 0 }), Single(Expression { mul_terms: [], linear_combinations: [], q_c: 4294967296 })] outputs: [Simple(Witness(10)), Simple(Witness(11))]
+    if instruction.instruction_type != InstructionType::BrilligCall {
+        return Err(format!(
+            "Expected BrilligCall instruction, got {:?}",
+            instruction.instruction_type
+        ));
+    }
+    let instruction_body = instruction.instruction_body;
+    let re = Regex::new(r"BRILLIG CALL func .: inputs: \[(.*?)\] outputs: \[(.*?)\]").unwrap();
+    let captures = re.captures(instruction_body).unwrap();
+    let id = captures.get(1).unwrap().as_str();
+    let inputs = captures.get(2).unwrap().as_str();
+    let outputs = captures.get(3).unwrap().as_str();
+    println!("id: {:?}", id);
+    println!("inputs: {:?}", inputs);
+    println!("outputs: {:?}", outputs);
+    todo!()
+}
+
+pub fn parse_call(instruction: Instruction) -> Result<Call, String> {
+    todo!()
+}
+
 // pub fn build_circuit<F>(serialized_acir: Vec<(&str, &str)>) -> Circuit<F> where F: AcirField{
 //     // Circuit::empty()
 // }
@@ -603,6 +640,30 @@ return value indices : [_1]
             black_box_func_call,
             BlackBoxFuncCall::RANGE { input: FunctionInput::witness(Witness(6), 222) }
         );
+    }
+
+    #[test]
+    fn test_brillig_call_regex() {
+        let instruction = Instruction {
+            instruction_type: InstructionType::BrilligCall,
+            instruction_body: "func 0: inputs: [Single(Expression { mul_terms: [], linear_combinations: [(1, Witness(0)), (1, Witness(1))], q_c: 0 }), Single(Expression { mul_terms: [], linear_combinations: [], q_c: 4294967296 })] outputs: [Simple(Witness(11)), Array([Witness(12), Witness(13), Witness(14)])]",
+        };
+        let (inputs, outputs, id) =
+            BrilligCallParser::serialize_brillig_call(&instruction).unwrap();
+        println!("inputs: {:?}", inputs);
+        println!("outputs: {:?}", outputs);
+        println!("id: {:?}", id);
+    }
+
+    #[test]
+    fn test_brillig_inputs_parser() {
+        let inputs = "Single(Expression { mul_terms: [], linear_combinations: [(1, Witness(0)), (1, Witness(1))], q_c: 0 }), Single(Expression { mul_terms: [(1 , Witness(0) , Witness(1)) , (1 , Witness(2) , Witness(3))], linear_combinations: [], q_c: 4294967296 }), [Array([Expression { mul_terms: [], linear_combinations: [(1, Witness(0))], q_c: 0 }, Expression { mul_terms: [], linear_combinations: [(1, Witness(1))], q_c: 0 }, Expression { mul_terms: [], linear_combinations: [(1, Witness(2))], q_c: 0 }])";
+
+        let (single_inputs, array_inputs, memory_array_inputs) =
+            BrilligCallParser::parse_brillig_inputs::<FieldElement>(inputs).unwrap();
+        println!("single_inputs: {:?}", single_inputs);
+        println!("array_inputs: {:?}", array_inputs);
+        println!("memory_array_inputs: {:?}", memory_array_inputs);
     }
 
     #[test]
