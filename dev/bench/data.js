@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1747168830447,
+  "lastUpdate": 1747216862043,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -17971,48 +17971,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "asterite@gmail.com",
-            "name": "Ary Borenszweig",
-            "username": "asterite"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "f2ff1696923a84a900bd54fee020d22edc5a32a6",
-          "message": "fix: allow names to collide in the values/types namespaces (#8286)",
-          "timestamp": "2025-05-07T17:48:39Z",
-          "tree_id": "4098aac31c5595fe868a303a62a086e5d976093d",
-          "url": "https://github.com/noir-lang/noir/commit/f2ff1696923a84a900bd54fee020d22edc5a32a6"
-        },
-        "date": 1746641786442,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 273098,
-            "range": "± 921",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 244839,
-            "range": "± 6123",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 3226060,
-            "range": "± 5462",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "michaeljklein@users.noreply.github.com",
             "name": "Michael J Klein",
             "username": "michaeljklein"
@@ -20064,6 +20022,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 3579447,
             "range": "± 51259",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "15848336+TomAFrench@users.noreply.github.com",
+            "name": "Tom French",
+            "username": "TomAFrench"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "4519387fa4e3cd00136b1069a06c3d7e5ee072d1",
+          "message": "fix!: remove `to_be_radix` and `to_le_radix` from stdlib interface (#8495)\n\nCo-authored-by: AztecBot <tech@aztecprotocol.com>",
+          "timestamp": "2025-05-14T09:40:04Z",
+          "tree_id": "2416a1607b8bc20480ff21b609fc8edb734e0570",
+          "url": "https://github.com/noir-lang/noir/commit/4519387fa4e3cd00136b1069a06c3d7e5ee072d1"
+        },
+        "date": 1747216853119,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 276168,
+            "range": "± 547",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 246681,
+            "range": "± 8029",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 3265326,
+            "range": "± 68587",
             "unit": "ns/iter"
           }
         ]
