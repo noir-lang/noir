@@ -8,7 +8,7 @@
 //!
 //! The entry point to this pass is the `monomorphize` function which, starting from a given
 //! function, will monomorphize the entire reachable program.
-use crate::ast::{FunctionKind, IntegerBitSize, UnaryOp};
+use crate::ast::{FunctionKind, IntegerBitSize, ItemVisibility, UnaryOp};
 use crate::hir::comptime::{InterpreterError, Value};
 use crate::hir::type_check::{NoMatchingImplFoundError, TypeCheckError};
 use crate::node_interner::{ExprId, GlobalValue, ImplSearchErrorKind};
@@ -469,7 +469,7 @@ impl<'interner> Monomorphizer<'interner> {
 
                 // Iterate over `struct_field_types` since `unwrap_struct_type` will always
                 // return the fields in the order defined by the struct type.
-                for (field_name, field_type) in struct_field_types {
+                for (field_name, field_type, _) in struct_field_types {
                     let field = fields.remove(&field_name).unwrap_or_else(|| {
                         unreachable!("Expected a field named '{field_name}' in the struct pattern")
                     });
@@ -755,7 +755,8 @@ impl<'interner> Monomorphizer<'interner> {
         let typ = self.interner.id_type(id);
         let field_types = unwrap_struct_type(&typ, location)?;
 
-        let field_type_map = btree_map(&field_types, |x| x.clone());
+        let field_type_map =
+            btree_map(&field_types, |(name, typ, _)| (name.to_string(), typ.clone()));
 
         // Create let bindings for each field value first to preserve evaluation order before
         // they are reordered and packed into the resulting tuple
@@ -782,7 +783,7 @@ impl<'interner> Monomorphizer<'interner> {
         // We must ensure the tuple created from the variables here matches the order
         // of the fields as defined in the type. To do this, we iterate over field_types,
         // rather than field_type_map which is a sorted BTreeMap.
-        let field_idents = vecmap(field_types, |(name, _)| {
+        let field_idents = vecmap(field_types, |(name, _, _)| {
             let (id, typ) = field_vars.remove(&name).unwrap_or_else(|| {
                 unreachable!("Expected field {name} to be present in constructor for {typ}")
             });
@@ -886,7 +887,7 @@ impl<'interner> Monomorphizer<'interner> {
                     btree_map(patterns, |(name, pattern)| (name.into_string(), pattern));
 
                 // We iterate through the type's fields to match the order defined in the struct type
-                let patterns_iter = fields.into_iter().map(|(field_name, field_type)| {
+                let patterns_iter = fields.into_iter().map(|(field_name, field_type, _)| {
                     let pattern = patterns.remove(&field_name).unwrap();
                     (pattern, field_type)
                 });
@@ -1284,7 +1285,7 @@ impl<'interner> Monomorphizer<'interner> {
 
                 let def = def.borrow();
                 if let Some(fields) = def.get_fields(args) {
-                    let fields = try_vecmap(fields, |(_, field)| {
+                    let fields = try_vecmap(fields, |(_, field, _)| {
                         Self::convert_type_helper(&field, location, seen_types)
                     })?;
 
@@ -2434,7 +2435,7 @@ fn unwrap_tuple_type(typ: &HirType) -> Vec<HirType> {
 fn unwrap_struct_type(
     typ: &HirType,
     location: Location,
-) -> Result<Vec<(String, HirType)>, MonomorphizationError> {
+) -> Result<Vec<(String, HirType, ItemVisibility)>, MonomorphizationError> {
     match typ.follow_bindings() {
         HirType::DataType(def, args) => {
             // Some of args might not be mentioned in fields, so we need to check that they aren't unbound.

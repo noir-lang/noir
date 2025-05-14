@@ -114,7 +114,7 @@ pub(super) fn abi_type_from_hir_type(context: &Context, typ: &Type) -> AbiType {
             let struct_type = def.borrow();
             let fields = struct_type.get_fields(args).unwrap_or_default();
             let fields =
-                vecmap(fields, |(name, typ)| (name, abi_type_from_hir_type(context, &typ)));
+                vecmap(fields, |(name, typ, _)| (name, abi_type_from_hir_type(context, &typ)));
             // For the ABI, we always want to resolve the struct paths from the root crate
             let path = context.fully_qualified_struct_path(context.root_crate_id(), struct_type.id);
             AbiType::Struct { fields, path }
