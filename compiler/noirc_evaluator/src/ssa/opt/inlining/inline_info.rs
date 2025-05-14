@@ -32,8 +32,10 @@ impl InlineInfo {
             || self.is_acir_entry_point
             // We still want to attempt inlining recursive ACIR functions in case
             // they have a compile-time completion point. 
-            || (self.is_recursive && !dfg.runtime().is_acir())
-            || !self.should_inline
+            // A recursive function is going to set `should_inline` to false as well,
+            // so we need to determine whether a function is an inline target 
+            // with auxiliary runtime information.
+            || ((self.is_recursive || !self.should_inline) && !dfg.runtime().is_acir())
     }
 
     pub(crate) fn should_inline(inline_infos: &InlineInfos, called_func_id: FunctionId) -> bool {
@@ -174,14 +176,18 @@ fn compute_function_should_be_inlined(
     let runtime = ssa.functions[&func_id].runtime();
     let info = inline_infos.entry(func_id).or_default();
 
-    let should_inline = ((net_cost < aggressiveness)
-        || runtime.is_inline_always()
-        || (runtime.is_no_predicates() && inline_no_predicates_functions))
-        && !info.is_recursive;
-
-    info.should_inline = should_inline;
     info.weight = total_weight;
     info.cost = net_cost;
+
+    if info.is_recursive {
+        return;
+    }
+
+    let should_inline = (net_cost < aggressiveness)
+        || runtime.is_inline_always()
+        || (runtime.is_no_predicates() && inline_no_predicates_functions);
+
+    info.should_inline = should_inline;
 }
 
 /// Compute the time each function is called from any other function.
