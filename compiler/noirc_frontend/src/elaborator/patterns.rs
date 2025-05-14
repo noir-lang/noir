@@ -172,6 +172,14 @@ impl Elaborator<'_> {
                     new_definitions,
                 )
             }
+            Pattern::Parenthesized(pattern, _) => self.elaborate_pattern_mut(
+                *pattern,
+                expected_type,
+                definition,
+                mutable,
+                new_definitions,
+                warn_if_unused,
+            ),
             Pattern::Interned(id, _) => {
                 let pattern = self.interner.get_pattern(id).clone();
                 self.elaborate_pattern_mut(

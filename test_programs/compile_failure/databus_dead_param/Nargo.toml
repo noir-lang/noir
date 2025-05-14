@@ -1,0 +1,6 @@
+[package]
+name = "databus_dead_param"
+type = "bin"
+authors = [""]
+
+[dependencies]

@@ -519,6 +519,10 @@ pub trait Visitor {
         true
     }
 
+    fn visit_parenthesized_pattern(&mut self, _: &Pattern, _: Span) -> bool {
+        true
+    }
+
     fn visit_interned_pattern(&mut self, _: &InternedPattern, _: Span) {}
 
     fn visit_secondary_attribute(
@@ -1622,6 +1626,11 @@ impl Pattern {
                     for (_, pattern) in fields {
                         pattern.accept(visitor);
                     }
+                }
+            }
+            Pattern::Parenthesized(pattern, location) => {
+                if visitor.visit_parenthesized_pattern(pattern, location.span) {
+                    pattern.accept(visitor);
                 }
             }
             Pattern::Interned(id, location) => {

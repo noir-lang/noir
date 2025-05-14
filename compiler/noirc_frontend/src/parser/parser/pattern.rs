@@ -109,6 +109,7 @@ impl Parser<'_> {
 
     /// PatternNoMut
     ///     = InternedPattern
+    ///     | ParenthesizedPattern
     ///     | TuplePattern
     ///     | StructPattern
     ///     | IdentifierPattern
@@ -121,7 +122,7 @@ impl Parser<'_> {
             return Some(pattern);
         }
 
-        if let Some(pattern) = self.parse_tuple_pattern() {
+        if let Some(pattern) = self.parse_parenthesized_or_tuple_pattern() {
             return Some(pattern);
         }
 
@@ -162,23 +163,30 @@ impl Parser<'_> {
         }
     }
 
+    /// ParenthesizedPattern = '(' Pattern ')'
     /// TuplePattern = '(' PatternList? ')'
     ///
     /// PatternList = Pattern ( ',' Pattern )* ','?
-    fn parse_tuple_pattern(&mut self) -> Option<Pattern> {
+    fn parse_parenthesized_or_tuple_pattern(&mut self) -> Option<Pattern> {
         let start_location = self.current_token_location;
 
         if !self.eat_left_paren() {
             return None;
         }
 
-        let patterns = self.parse_many(
+        let (mut patterns, has_trailing_comma) = self.parse_many_return_trailing_separator_if_any(
             "tuple elements",
             separated_by_comma_until_right_paren(),
             Self::parse_tuple_pattern_element,
         );
 
-        Some(Pattern::Tuple(patterns, self.location_since(start_location)))
+        let location = self.location_since(start_location);
+
+        Some(if patterns.len() == 1 && !has_trailing_comma {
+            Pattern::Parenthesized(Box::new(patterns.remove(0)), location)
+        } else {
+            Pattern::Tuple(patterns, location)
+        })
     }
 
     fn parse_tuple_pattern_element(&mut self) -> Option<Pattern> {
@@ -289,7 +297,31 @@ mod tests {
     }
 
     #[test]
-    fn parses_tuple_pattern() {
+    fn parses_parenthesized_pattern() {
+        let src = "(foo)";
+        let pattern = parse_pattern_no_errors(src);
+        let Pattern::Parenthesized(pattern, _) = pattern else {
+            panic!("Expected a tuple pattern")
+        };
+
+        let Pattern::Identifier(ident) = *pattern else { panic!("Expected an identifier pattern") };
+        assert_eq!(ident.to_string(), "foo");
+    }
+
+    #[test]
+    fn parses_tuple_pattern_one_element() {
+        let src = "(foo,)";
+        let pattern = parse_pattern_no_errors(src);
+        let Pattern::Tuple(mut patterns, _) = pattern else { panic!("Expected a tuple pattern") };
+        assert_eq!(patterns.len(), 1);
+
+        let pattern = patterns.remove(0);
+        let Pattern::Identifier(ident) = pattern else { panic!("Expected an identifier pattern") };
+        assert_eq!(ident.to_string(), "foo");
+    }
+
+    #[test]
+    fn parses_tuple_pattern_two_elements() {
         let src = "(foo, bar)";
         let pattern = parse_pattern_no_errors(src);
         let Pattern::Tuple(mut patterns, _) = pattern else { panic!("Expected a tuple pattern") };

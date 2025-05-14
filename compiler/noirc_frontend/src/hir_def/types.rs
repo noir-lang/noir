@@ -1027,7 +1027,11 @@ impl std::fmt::Display for Type {
             }
             Type::Tuple(elements) => {
                 let elements = vecmap(elements, ToString::to_string);
-                write!(f, "({})", elements.join(", "))
+                if elements.len() == 1 {
+                    write!(f, "({},)", elements[0])
+                } else {
+                    write!(f, "({})", elements.join(", "))
+                }
             }
             Type::Bool => write!(f, "bool"),
             Type::String(len) => write!(f, "str<{len}>"),
@@ -1301,9 +1305,13 @@ impl Type {
             }
 
             Type::Array(length, element) => {
-                length.is_valid_for_program_input() && element.is_valid_for_program_input()
+                self.array_or_string_len_is_not_zero()
+                    && length.is_valid_for_program_input()
+                    && element.is_valid_for_program_input()
             }
-            Type::String(length) => length.is_valid_for_program_input(),
+            Type::String(length) => {
+                self.array_or_string_len_is_not_zero() && length.is_valid_for_program_input()
+            }
             Type::Tuple(elements) => elements.iter().all(|elem| elem.is_valid_for_program_input()),
             Type::DataType(definition, generics) => {
                 if let Some(fields) = definition.borrow().get_fields(generics) {
@@ -1317,6 +1325,22 @@ impl Type {
             Type::InfixExpr(lhs, _, rhs, _) => {
                 lhs.is_valid_for_program_input() && rhs.is_valid_for_program_input()
             }
+        }
+    }
+
+    /// Empty arrays and strings (which are arrays under the hood) are disallowed
+    /// as input to program entry points.
+    ///
+    /// The point of inputs to entry points is to process input data.
+    /// Thus, passing empty arrays is pointless and adds extra complexity to the compiler
+    /// for handling them.
+    fn array_or_string_len_is_not_zero(&self) -> bool {
+        match self {
+            Type::Array(length, _) | Type::String(length) => {
+                let length = length.evaluate_to_u32(Location::dummy()).unwrap_or(0);
+                length != 0
+            }
+            _ => panic!("ICE: Expected an array or string type"),
         }
     }
 
