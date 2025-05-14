@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1747219457463,
+  "lastUpdate": 1747219462403,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -3775,95 +3775,6 @@ window.BENCHMARK_DATA = {
       }
     ],
     "Compilation Time": [
-      {
-        "commit": {
-          "author": {
-            "email": "michaeljklein@users.noreply.github.com",
-            "name": "Michael J Klein",
-            "username": "michaeljklein"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "3a9ff197364336e6760c49f5f5dcf5d879765e3d",
-          "message": "feat(test): add `nargo_fuzz_target` (#8308)",
-          "timestamp": "2025-05-07T18:40:29Z",
-          "tree_id": "2807aa6f7468c83ebc3ecef54661dd5b8915849a",
-          "url": "https://github.com/noir-lang/noir/commit/3a9ff197364336e6760c49f5f5dcf5d879765e3d"
-        },
-        "date": 1746644912935,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "regression_4709",
-            "value": 0.656,
-            "unit": "s"
-          },
-          {
-            "name": "ram_blowup_regression",
-            "value": 12.7,
-            "unit": "s"
-          },
-          {
-            "name": "global_var_regression_entry_points",
-            "value": 0.491,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-inner",
-            "value": 2.21,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 6.53,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 1.2,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 17.34,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 13.24,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root-empty",
-            "value": 1.23,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root-single-tx",
-            "value": 114,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 118,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 1.042,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-root",
-            "value": 1.614,
-            "unit": "s"
-          }
-        ]
-      },
       {
         "commit": {
           "author": {
@@ -7781,6 +7692,85 @@ window.BENCHMARK_DATA = {
           {
             "name": "semaphore-depth-10",
             "value": 0.835,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "mvezenov@gmail.com",
+            "name": "Maxim Vezenov",
+            "username": "vezenovm"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "648b7537e7d4388f0f90a24d881dfb6fd8c80345",
+          "message": "fix(frontend)!: Ban zero sized arrays and strings as program input (#8491)",
+          "timestamp": "2025-05-14T10:17:43Z",
+          "tree_id": "ca841b697a272c3930220f37588d50fc535c86e3",
+          "url": "https://github.com/noir-lang/noir/commit/648b7537e7d4388f0f90a24d881dfb6fd8c80345"
+        },
+        "date": 1747219452640,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 2.55,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 6.684,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 1.104,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 17.08,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 12.86,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-empty",
+            "value": 1.276,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-single-tx",
+            "value": 124,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 125,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 1.068,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-root",
+            "value": 1.612,
+            "unit": "s"
+          },
+          {
+            "name": "semaphore-depth-10",
+            "value": 0.814,
             "unit": "s"
           }
         ]
