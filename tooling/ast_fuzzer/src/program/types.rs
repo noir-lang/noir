@@ -183,6 +183,10 @@ pub(crate) fn is_bool(typ: &Type) -> bool {
     matches!(typ, Type::Bool)
 }
 
+pub(crate) fn is_reference(typ: &Type) -> bool {
+    matches!(typ, Type::Reference(_, _))
+}
+
 /// Can the type be returned by some `UnaryOp`.
 pub(crate) fn can_unary_return(typ: &Type) -> bool {
     match typ {

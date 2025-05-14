@@ -366,7 +366,11 @@ impl<'a> FunctionContext<'a> {
             }
         }
 
-        // TODO:If we need to pass a function, find all that can be called by the target.
+        // Find a function we can call.
+        if matches!(typ, Type::Function(_, _, _, _)) {
+            // Local variables we should consider in `gen_expr_from_vars`, so here we just look through global functions.
+            return self.find_function_with_signature(u, typ);
+        }
 
         // TODO(#7926): Match
 
@@ -949,6 +953,7 @@ impl<'a> FunctionContext<'a> {
         self.decrease_budget(1);
 
         // TODO: Look for callables in the parameters as well.
+
         let opts = self
             .call_targets
             .iter()
@@ -963,6 +968,8 @@ impl<'a> FunctionContext<'a> {
         self.has_call = true;
 
         let callee_id = *u.choose_iter(opts)?;
+        let callee_ident = self.function_ident(callee_id);
+
         let callee = self.ctx.function_decl(callee_id).clone();
         let param_types = callee.params.iter().map(|p| p.3.clone()).collect::<Vec<_>>();
 
@@ -973,19 +980,7 @@ impl<'a> FunctionContext<'a> {
         }
 
         let call_expr = Expression::Call(Call {
-            func: Box::new(Expression::Ident(Ident {
-                location: None,
-                definition: Definition::Function(callee_id),
-                mutable: false,
-                name: callee.name.clone(),
-                typ: Type::Function(
-                    param_types,
-                    Box::new(callee.return_type.clone()),
-                    Box::new(Type::Unit),
-                    callee.unconstrained,
-                ),
-                id: self.next_ident_id(),
-            })),
+            func: Box::new(callee_ident),
             arguments: args,
             return_type: callee.return_type.clone(),
             location: Location::dummy(),
@@ -1165,6 +1160,62 @@ impl<'a> FunctionContext<'a> {
             }
         }
         Ok(None)
+    }
+
+    /// Find a global function matching a type signature.
+    fn find_function_with_signature(
+        &mut self,
+        u: &mut Unstructured,
+        typ: &Type,
+    ) -> arbitrary::Result<Expression> {
+        let Type::Function(param_types, return_type, _, unconstrained) = typ else {
+            unreachable!(
+                "find_function_with_signature should only called with Type::Function; got {typ}"
+            );
+        };
+
+        // TODO: Take the callee ID into account, so we don't create a problem inlining ACIR.
+        let candidates = self
+            .ctx
+            .function_declarations
+            .iter()
+            .filter_map(|(func_id, func)| {
+                let matches = func.return_type == *return_type.as_ref()
+                    && func.unconstrained == *unconstrained
+                    && func.params.len() == param_types.len()
+                    && func.params.iter().zip(param_types).all(|((_, _, _, a, _), b)| a == b);
+
+                matches.then_some(*func_id)
+            })
+            .collect::<Vec<_>>();
+
+        if candidates.is_empty() {
+            println!("FUNCTION TYPES: {:?}", self.ctx.function_declarations);
+            panic!("No candidate found for function type: {typ}");
+        }
+
+        let callee_id = u.choose_iter(candidates)?;
+
+        Ok(self.function_ident(callee_id))
+    }
+
+    /// Generate an identifier for calling a global function.
+    fn function_ident(&mut self, callee_id: FuncId) -> Expression {
+        let callee = self.ctx.function_decl(callee_id).clone();
+        let param_types = callee.params.iter().map(|p| p.3.clone()).collect::<Vec<_>>();
+        Expression::Ident(Ident {
+            location: None,
+            definition: Definition::Function(callee_id),
+            mutable: false,
+            name: callee.name.clone(),
+            typ: Type::Function(
+                param_types,
+                Box::new(callee.return_type.clone()),
+                Box::new(Type::Unit),
+                callee.unconstrained,
+            ),
+            id: self.next_ident_id(),
+        })
     }
 }
 

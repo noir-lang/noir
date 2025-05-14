@@ -201,7 +201,7 @@ impl Context {
             let name = make_name(p, false);
             let is_mutable = !is_main && bool::arbitrary(u)?;
 
-            let typ = if func_param_candidates.is_empty() || u.ratio(9, 10)? {
+            let typ = if func_param_candidates.is_empty() || u.ratio(5, 10)? {
                 // Take some kind of data type.
                 self.gen_type(
                     u,
