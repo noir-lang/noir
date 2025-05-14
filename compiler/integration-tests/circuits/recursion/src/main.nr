@@ -1,8 +1,9 @@
 global HONK_PROOF_SIZE: u32 = 456;
 global HONK_IDENTIFIER: u32 = 1;
+global HONK_VERIFICATION_KEY_LENGTH_IN_FIELDS: u32 = 112;
 
 fn main(
-    verification_key: [Field; 128],
+    verification_key: [Field; HONK_VERIFICATION_KEY_LENGTH_IN_FIELDS],
     proof: [Field; HONK_PROOF_SIZE],
     public_inputs: [Field; 2]
 ) {
