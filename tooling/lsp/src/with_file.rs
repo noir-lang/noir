@@ -5,14 +5,14 @@ use noirc_frontend::{
     ParsedModule,
     ast::{
         ArrayLiteral, AsTraitPath, AssignStatement, BlockExpression, CallExpression,
-        CastExpression, ConstrainExpression, ConstructorExpression, Documented, EnumVariant,
-        Expression, ExpressionKind, ForBounds, ForLoopStatement, ForRange, FunctionDefinition,
-        FunctionReturnType, GenericTypeArgs, Ident, IfExpression, IndexExpression, InfixExpression,
-        LValue, Lambda, LetStatement, Literal, MatchExpression, MemberAccessExpression,
-        MethodCallExpression, ModuleDeclaration, NoirEnumeration, NoirFunction, NoirStruct,
-        NoirTrait, NoirTraitImpl, NoirTypeAlias, Param, Path, PathSegment, Pattern,
-        PrefixExpression, Statement, StatementKind, StructField, TraitBound, TraitImplItem,
-        TraitImplItemKind, TraitItem, TypeImpl, TypePath, UnresolvedGeneric,
+        CastExpression, ConstrainExpression, ConstructorExpression, Documented, DoubleDotPattern,
+        EnumVariant, Expression, ExpressionKind, ForBounds, ForLoopStatement, ForRange,
+        FunctionDefinition, FunctionReturnType, GenericTypeArgs, Ident, IfExpression,
+        IndexExpression, InfixExpression, LValue, Lambda, LetStatement, Literal, MatchExpression,
+        MemberAccessExpression, MethodCallExpression, ModuleDeclaration, NoirEnumeration,
+        NoirFunction, NoirStruct, NoirTrait, NoirTraitImpl, NoirTypeAlias, Param, Path,
+        PathSegment, Pattern, PrefixExpression, Statement, StatementKind, StructField, TraitBound,
+        TraitImplItem, TraitImplItemKind, TraitItem, TypeImpl, TypePath, UnresolvedGeneric,
         UnresolvedTraitConstraint, UnresolvedType, UnresolvedTypeData, UnresolvedTypeExpression,
         UnsafeExpression, UseTree, UseTreeKind, WhileStatement,
     },
@@ -116,8 +116,13 @@ fn pattern_with_file(pattern: Pattern, file: FileId) -> Pattern {
             location_with_file(location, file),
             synthesized,
         ),
-        Pattern::Tuple(patterns, location) => {
-            Pattern::Tuple(patterns_with_file(patterns, file), location_with_file(location, file))
+        Pattern::Tuple(patterns, double_dot, location) => {
+            let double_dot = double_dot.map(|double_dot| DoubleDotPattern {
+                index: double_dot.index,
+                location: location_with_file(double_dot.location, file),
+            });
+            let patterns = patterns_with_file(patterns, file);
+            Pattern::Tuple(patterns, double_dot, location_with_file(location, file))
         }
         Pattern::Struct(path, items, location) => Pattern::Struct(
             path_with_file(path, file),
@@ -130,7 +135,6 @@ fn pattern_with_file(pattern: Pattern, file: FileId) -> Pattern {
             Box::new(pattern_with_file(*pattern, file)),
             location_with_file(location, file),
         ),
-        Pattern::DoubleDot(location) => Pattern::DoubleDot(location_with_file(location, file)),
         Pattern::Interned(interned_pattern, location) => {
             Pattern::Interned(interned_pattern, location_with_file(location, file))
         }

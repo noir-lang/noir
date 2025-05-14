@@ -1,9 +1,8 @@
 use super::expr::HirIdent;
 use crate::Type;
-use crate::ast::Ident;
+use crate::ast::{DoubleDotPattern, Ident};
 use crate::node_interner::{ExprId, StmtId};
 use crate::token::SecondaryAttribute;
-use iter_extended::vecmap;
 use noirc_errors::{Location, Span};
 
 /// A HirStatement is the result of performing name resolution on
@@ -87,12 +86,6 @@ pub enum HirPattern {
     Struct(Type, Vec<(Ident, HirPattern)>, Location),
 }
 
-#[derive(Debug, Clone, Hash, PartialEq, Eq)]
-pub struct DoubleDotPattern {
-    pub index: usize,
-    pub location: Location,
-}
-
 impl HirPattern {
     pub fn span(&self) -> Span {
         self.location().span
@@ -105,26 +98,6 @@ impl HirPattern {
             | HirPattern::Tuple(_, _, location)
             | HirPattern::Struct(_, _, location) => *location,
         }
-    }
-}
-
-/// Helper type to represent a HirPattern or a double dot pattern,
-/// for uniformly representing patterns in a tuple.
-pub enum HirPatternOrDoubleDot<'a> {
-    Pattern(&'a HirPattern),
-    DoubleDot(Location),
-}
-
-impl<'a> HirPatternOrDoubleDot<'a> {
-    pub fn new_vec(
-        patterns: &'a [HirPattern],
-        double_dot: &'a Option<DoubleDotPattern>,
-    ) -> Vec<Self> {
-        let mut patterns = vecmap(patterns, Self::Pattern);
-        if let Some(double_dot) = double_dot {
-            patterns.insert(double_dot.index, Self::DoubleDot(double_dot.location));
-        }
-        patterns
     }
 }
 

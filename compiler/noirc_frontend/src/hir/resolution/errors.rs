@@ -203,8 +203,6 @@ pub enum ResolverError {
     UnconstrainedTypeParameter { ident: Ident },
     #[error("Unreachable statement")]
     UnreachableStatement { location: Location, break_or_continue_location: Location },
-    #[error("`..` can only appear once per tuple pattern")]
-    DoubleDotCanOnlyAppearOncePerTuplePattern { location: Location },
 }
 
 impl ResolverError {
@@ -274,8 +272,7 @@ impl ResolverError {
             | ResolverError::FoldAttributeOnUnconstrained { location, .. }
             | ResolverError::OracleMarkedAsConstrained { location, .. }
             | ResolverError::LowLevelFunctionOutsideOfStdlib { location }
-            | ResolverError::UnreachableStatement { location, .. }
-            | ResolverError::DoubleDotCanOnlyAppearOncePerTuplePattern { location } => *location,
+            | ResolverError::UnreachableStatement { location, .. } => *location,
             ResolverError::UnusedVariable { ident }
             | ResolverError::UnusedItem { ident, .. }
             | ResolverError::DuplicateField { field: ident }
@@ -842,13 +839,6 @@ impl<'a> From<&'a ResolverError> for Diagnostic {
                 );
                 diagnostic.add_secondary("Any code following this expression is unreachable".to_string(), *break_or_continue_location);
                 diagnostic
-            }
-            ResolverError::DoubleDotCanOnlyAppearOncePerTuplePattern { location } => {
-                Diagnostic::simple_error(
-                    "`..` can only be used once per tuple pattern".to_string(),
-                    String::new(),
-                    *location,
-                )
             }
         }
     }

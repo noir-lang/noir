@@ -8,12 +8,11 @@ use noirc_errors::Location;
 use rustc_hash::FxHashMap as HashMap;
 
 use crate::TypeVariable;
-use crate::ast::{BinaryOpKind, FunctionKind, Ident, IntegerBitSize, UnaryOp};
+use crate::ast::{BinaryOpKind, DoubleDotPattern, FunctionKind, Ident, IntegerBitSize, UnaryOp};
 use crate::elaborator::{ElaborateReason, Elaborator};
 use crate::graph::CrateId;
 use crate::hir::def_map::ModuleId;
 use crate::hir::type_check::TypeCheckError;
-use crate::hir_def::stmt::DoubleDotPattern;
 use crate::monomorphization::{
     perform_impl_bindings, perform_instantiation_bindings, resolve_trait_method,
     undo_instantiation_bindings,

@@ -4,11 +4,11 @@ use std::{hash::Hasher, rc::Rc};
 use iter_extended::try_vecmap;
 use noirc_errors::Location;
 
+use crate::ast::PatternOrDoubleDot;
 use crate::elaborator::Elaborator;
 use crate::hir::comptime::display::tokens_to_string;
 use crate::hir::comptime::value::unwrap_rc;
 use crate::hir::def_collector::dc_crate::CompilationError;
-use crate::hir_def::stmt::HirPatternOrDoubleDot;
 use crate::lexer::Lexer;
 use crate::parser::{Parser, ParserError};
 use crate::signed_field::SignedField;
@@ -427,17 +427,17 @@ fn gather_hir_pattern_tokens(
             gather_hir_pattern_tokens(interner, pattern, tokens);
         }
         HirPattern::Tuple(patterns, double_dot, _) => {
-            let patterns = HirPatternOrDoubleDot::new_vec(patterns, double_dot);
+            let patterns = PatternOrDoubleDot::new_vec(patterns, double_dot);
             tokens.push(Token::LeftParen);
             for (index, pattern) in patterns.iter().enumerate() {
                 if index != 0 {
                     tokens.push(Token::Comma);
                 }
                 match pattern {
-                    HirPatternOrDoubleDot::Pattern(hir_pattern) => {
+                    PatternOrDoubleDot::Pattern(hir_pattern) => {
                         gather_hir_pattern_tokens(interner, hir_pattern, tokens);
                     }
-                    HirPatternOrDoubleDot::DoubleDot(_) => {
+                    PatternOrDoubleDot::DoubleDot(_) => {
                         tokens.push(Token::DoubleDot);
                     }
                 }

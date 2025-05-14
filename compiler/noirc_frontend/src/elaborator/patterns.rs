@@ -5,8 +5,8 @@ use rustc_hash::FxHashSet as HashSet;
 use crate::{
     DataType, Kind, Shared, Type, TypeAlias, TypeBindings,
     ast::{
-        ERROR_IDENT, Expression, ExpressionKind, GenericTypeArgs, Ident, ItemVisibility, Path,
-        PathSegment, Pattern, TypePath,
+        DoubleDotPattern, ERROR_IDENT, Expression, ExpressionKind, GenericTypeArgs, Ident,
+        ItemVisibility, Path, PathSegment, Pattern, TypePath,
     },
     hir::{
         def_collector::dc_crate::CompilationError,
@@ -18,7 +18,7 @@ use crate::{
     },
     hir_def::{
         expr::{HirExpression, HirIdent, HirLiteral, HirMethodReference, ImplKind, TraitMethod},
-        stmt::{DoubleDotPattern, HirPattern},
+        stmt::HirPattern,
         traits::NamedType,
     },
     node_interner::{
@@ -107,13 +107,14 @@ impl Elaborator<'_> {
                 );
                 HirPattern::Mutable(Box::new(pattern), location)
             }
-            Pattern::Tuple(fields, location) => self.elaborate_tuple_pattern(
+            Pattern::Tuple(fields, double_dot, location) => self.elaborate_tuple_pattern(
                 &expected_type,
                 &definition,
                 mutable,
                 new_definitions,
                 warn_if_unused,
                 fields,
+                double_dot,
                 location,
             ),
             Pattern::Struct(name, fields, location) => {
@@ -136,11 +137,6 @@ impl Elaborator<'_> {
                 new_definitions,
                 warn_if_unused,
             ),
-            Pattern::DoubleDot(_) => {
-                unreachable!(
-                    "DoubleDot pattern should have been removed when elaborating tuple patterns"
-                )
-            }
             Pattern::Interned(id, _) => {
                 let pattern = self.interner.get_pattern(id).clone();
                 self.elaborate_pattern_mut(
@@ -198,6 +194,7 @@ impl Elaborator<'_> {
         new_definitions: &mut Vec<HirIdent>,
         warn_if_unused: bool,
         fields: Vec<Pattern>,
+        double_dot: Option<DoubleDotPattern>,
         location: Location,
     ) -> HirPattern {
         let field_types = match expected_type.follow_bindings() {
@@ -216,28 +213,10 @@ impl Elaborator<'_> {
             }
         };
 
-        let double_dot = fields
-            .iter()
-            .enumerate()
-            .find(|(_, field)| matches!(field, Pattern::DoubleDot(_)))
-            .map(|(index, pattern)| (index, pattern.location()));
-
-        let (fields, field_types) = if let Some((double_dot_index, _)) = double_dot {
-            let before = &fields[0..double_dot_index];
-            let after = &fields[double_dot_index + 1..];
-            let (mut before, mut after) = (before.to_vec(), after.to_vec());
-
-            // There could be multiple double dots: report them as error and remove them
-            after.retain(|pattern| {
-                if matches!(pattern, Pattern::DoubleDot(_)) {
-                    self.push_err(ResolverError::DoubleDotCanOnlyAppearOncePerTuplePattern {
-                        location: pattern.location(),
-                    });
-                    false
-                } else {
-                    true
-                }
-            });
+        let (fields, field_types) = if let Some(double_dot) = &double_dot {
+            let double_dot_index = double_dot.index;
+            let (before, after) = fields.split_at(double_dot_index);
+            let (mut before, after) = (before.to_vec(), after.to_vec());
 
             let before_len = before.len();
             let after_len = after.len();
@@ -283,8 +262,6 @@ impl Elaborator<'_> {
                 warn_if_unused,
             )
         });
-
-        let double_dot = double_dot.map(|(index, location)| DoubleDotPattern { index, location });
 
         HirPattern::Tuple(fields, double_dot, location)
     }

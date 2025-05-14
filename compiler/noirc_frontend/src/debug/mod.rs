@@ -275,7 +275,11 @@ impl DebugInstrumenter {
 
         ast::Statement {
             kind: ast::StatementKind::new_let(
-                ast::Pattern::Tuple(vars_pattern, let_stmt.pattern.location()),
+                ast::Pattern::Tuple(
+                    vars_pattern,
+                    None, /* double dot */
+                    let_stmt.pattern.location(),
+                ),
                 ast::UnresolvedTypeData::Unspecified.with_dummy_location(),
                 ast::Expression {
                     kind: ast::ExpressionKind::Block(ast::BlockExpression {
@@ -722,7 +726,7 @@ fn pattern_vars(pattern: &ast::Pattern) -> Vec<(ast::Ident, bool)> {
             ast::Pattern::Mutable(pattern, _, _) => {
                 stack.push_back((pattern, true));
             }
-            ast::Pattern::Tuple(patterns, _) => {
+            ast::Pattern::Tuple(patterns, _, _) => {
                 stack.extend(patterns.iter().map(|pattern| (pattern, false)));
             }
             ast::Pattern::Struct(_, pids, _) => {
@@ -732,7 +736,7 @@ fn pattern_vars(pattern: &ast::Pattern) -> Vec<(ast::Ident, bool)> {
             ast::Pattern::Parenthesized(pattern, _) => {
                 stack.push_back((pattern, false));
             }
-            ast::Pattern::DoubleDot(_) | ast::Pattern::Interned(_, _) => (),
+            ast::Pattern::Interned(_, _) => (),
         }
     }
     vars

@@ -8,10 +8,9 @@
 //!
 //! The entry point to this pass is the `monomorphize` function which, starting from a given
 //! function, will monomorphize the entire reachable program.
-use crate::ast::{FunctionKind, IntegerBitSize, UnaryOp};
+use crate::ast::{DoubleDotPattern, FunctionKind, IntegerBitSize, UnaryOp};
 use crate::hir::comptime::{InterpreterError, Value};
 use crate::hir::type_check::{NoMatchingImplFoundError, TypeCheckError};
-use crate::hir_def::stmt::DoubleDotPattern;
 use crate::node_interner::{ExprId, GlobalValue, ImplSearchErrorKind};
 use crate::shared::{Signedness, Visibility};
 use crate::signed_field::SignedField;

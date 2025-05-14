@@ -948,8 +948,9 @@ fn remove_interned_in_pattern(interner: &NodeInterner, pattern: Pattern) -> Patt
             location,
             is_synthesized,
         ),
-        Pattern::Tuple(patterns, location) => Pattern::Tuple(
+        Pattern::Tuple(patterns, double_dot, location) => Pattern::Tuple(
             vecmap(patterns, |pattern| remove_interned_in_pattern(interner, pattern)),
+            double_dot,
             location,
         ),
         Pattern::Struct(path, patterns, location) => {
@@ -962,7 +963,6 @@ fn remove_interned_in_pattern(interner: &NodeInterner, pattern: Pattern) -> Patt
             Box::new(remove_interned_in_pattern(interner, *pattern)),
             location,
         ),
-        Pattern::DoubleDot(location) => Pattern::DoubleDot(location),
         Pattern::Interned(id, _) => interner.get_pattern(id).clone(),
     }
 }

@@ -565,11 +565,16 @@ pub enum LValue {
 pub enum Pattern {
     Identifier(Ident),
     Mutable(Box<Pattern>, Location, /*is_synthesized*/ bool),
-    Tuple(Vec<Pattern>, Location),
+    Tuple(Vec<Pattern>, Option<DoubleDotPattern>, Location),
     Struct(Path, Vec<(Ident, Pattern)>, Location),
     Parenthesized(Box<Pattern>, Location),
-    DoubleDot(Location),
     Interned(InternedPattern, Location),
+}
+
+#[derive(Debug, PartialEq, Eq, Copy, Clone, Hash)]
+pub struct DoubleDotPattern {
+    pub index: usize,
+    pub location: Location,
 }
 
 impl Pattern {
@@ -580,10 +585,9 @@ impl Pattern {
         match self {
             Pattern::Identifier(ident) => ident.location(),
             Pattern::Mutable(_, location, _)
-            | Pattern::Tuple(_, location)
+            | Pattern::Tuple(_, _, location)
             | Pattern::Struct(_, _, location)
             | Pattern::Parenthesized(_, location)
-            | Pattern::DoubleDot(location)
             | Pattern::Interned(_, location) => *location,
         }
     }
@@ -607,7 +611,11 @@ impl Pattern {
                 location: ident.location(),
             }),
             Pattern::Mutable(_, _, _) => None,
-            Pattern::Tuple(patterns, location) => {
+            Pattern::Tuple(patterns, double_dot_pattern, location) => {
+                if double_dot_pattern.is_some() {
+                    return None;
+                }
+
                 let mut expressions = Vec::new();
                 for pattern in patterns {
                     expressions.push(pattern.try_as_expression(interner)?);
@@ -629,8 +637,33 @@ impl Pattern {
                 })
             }
             Pattern::Parenthesized(pattern, _) => pattern.try_as_expression(interner),
-            Pattern::DoubleDot(_) => None,
             Pattern::Interned(id, _) => interner.get_pattern(*id).try_as_expression(interner),
+        }
+    }
+}
+
+/// Helper type to represent a Pattern or a double dot pattern,
+/// for uniformly representing patterns in a tuple.
+pub enum PatternOrDoubleDot<'a, P> {
+    Pattern(&'a P),
+    DoubleDot(Location),
+}
+
+impl<'a, P> PatternOrDoubleDot<'a, P> {
+    pub fn new_vec(patterns: &'a [P], double_dot: &'a Option<DoubleDotPattern>) -> Vec<Self> {
+        let mut patterns = vecmap(patterns, Self::Pattern);
+        if let Some(double_dot) = double_dot {
+            patterns.insert(double_dot.index, Self::DoubleDot(double_dot.location));
+        }
+        patterns
+    }
+}
+
+impl<P: Display> Display for PatternOrDoubleDot<'_, P> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            PatternOrDoubleDot::Pattern(pattern) => pattern.fmt(f),
+            PatternOrDoubleDot::DoubleDot(_) => write!(f, "(..)"),
         }
     }
 }
@@ -988,8 +1021,9 @@ impl Display for Pattern {
         match self {
             Pattern::Identifier(name) => name.fmt(f),
             Pattern::Mutable(name, _, _) => write!(f, "mut {name}"),
-            Pattern::Tuple(fields, _) => {
-                let fields = vecmap(fields, ToString::to_string);
+            Pattern::Tuple(fields, double_dot, _) => {
+                let fields = PatternOrDoubleDot::new_vec(fields, double_dot);
+                let fields = vecmap(fields, |field| field.to_string());
                 write!(f, "({})", fields.join(", "))
             }
             Pattern::Struct(typename, fields, _) => {
@@ -998,9 +1032,6 @@ impl Display for Pattern {
             }
             Pattern::Parenthesized(pattern, _) => {
                 write!(f, "({})", pattern)
-            }
-            Pattern::DoubleDot(_) => {
-                write!(f, "..")
             }
             Pattern::Interned(_, _) => {
                 write!(f, "?Interned")

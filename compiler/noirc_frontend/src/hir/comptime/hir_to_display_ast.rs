@@ -319,11 +319,8 @@ impl HirPattern {
                 Pattern::Mutable(pattern, *location, false)
             }
             HirPattern::Tuple(patterns, double_dot, location) => {
-                let mut patterns = vecmap(patterns, |pattern| pattern.to_display_ast(interner));
-                if let Some(double_dot) = double_dot {
-                    patterns.insert(double_dot.index, Pattern::DoubleDot(double_dot.location));
-                }
-                Pattern::Tuple(patterns, *location)
+                let patterns = vecmap(patterns, |pattern| pattern.to_display_ast(interner));
+                Pattern::Tuple(patterns, *double_dot, *location)
             }
             HirPattern::Struct(typ, patterns, location) => {
                 let patterns = vecmap(patterns, |(name, pattern)| {

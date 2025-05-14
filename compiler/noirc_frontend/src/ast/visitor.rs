@@ -25,10 +25,10 @@ use crate::{
 };
 
 use super::{
-    ForBounds, FunctionReturnType, GenericTypeArgs, ItemVisibility, MatchExpression,
-    NoirEnumeration, Pattern, TraitBound, TraitImplItemKind, TypePath, UnresolvedGeneric,
-    UnresolvedGenerics, UnresolvedTraitConstraint, UnresolvedType, UnresolvedTypeData,
-    UnresolvedTypeExpression, UnsafeExpression,
+    DoubleDotPattern, ForBounds, FunctionReturnType, GenericTypeArgs, ItemVisibility,
+    MatchExpression, NoirEnumeration, Pattern, TraitBound, TraitImplItemKind, TypePath,
+    UnresolvedGeneric, UnresolvedGenerics, UnresolvedTraitConstraint, UnresolvedType,
+    UnresolvedTypeData, UnresolvedTypeExpression, UnsafeExpression,
 };
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
@@ -490,7 +490,12 @@ pub trait Visitor {
         true
     }
 
-    fn visit_tuple_pattern(&mut self, _: &[Pattern], _: Span) -> bool {
+    fn visit_tuple_pattern(
+        &mut self,
+        _: &[Pattern],
+        _: &Option<DoubleDotPattern>,
+        _: Span,
+    ) -> bool {
         true
     }
 
@@ -501,8 +506,6 @@ pub trait Visitor {
     fn visit_parenthesized_pattern(&mut self, _: &Pattern, _: Span) -> bool {
         true
     }
-
-    fn visit_double_dot_pattern(&mut self, _: Span) {}
 
     fn visit_interned_pattern(&mut self, _: &InternedPattern, _: Span) {}
 
@@ -1575,8 +1578,8 @@ impl Pattern {
                     pattern.accept(visitor);
                 }
             }
-            Pattern::Tuple(patterns, location) => {
-                if visitor.visit_tuple_pattern(patterns, location.span) {
+            Pattern::Tuple(patterns, double_dot, location) => {
+                if visitor.visit_tuple_pattern(patterns, double_dot, location.span) {
                     for pattern in patterns {
                         pattern.accept(visitor);
                     }
@@ -1594,9 +1597,6 @@ impl Pattern {
                 if visitor.visit_parenthesized_pattern(pattern, location.span) {
                     pattern.accept(visitor);
                 }
-            }
-            Pattern::DoubleDot(location) => {
-                visitor.visit_double_dot_pattern(location.span);
             }
             Pattern::Interned(id, location) => {
                 visitor.visit_interned_pattern(id, location.span);

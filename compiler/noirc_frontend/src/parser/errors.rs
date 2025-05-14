@@ -121,6 +121,8 @@ pub enum ParserErrorReason {
     LogicalAnd,
     #[error("Trait bounds are not allowed here")]
     TraitBoundsNotAllowedHere,
+    #[error("`..` can only appear once per tuple pattern")]
+    DoubleDotCanOnlyAppearOncePerTuplePattern,
 }
 
 /// Represents a parsing error, or a parsing error in the making.

@@ -1,7 +1,7 @@
 use noirc_errors::Location;
 
 use crate::{
-    ast::{Ident, Path, Pattern},
+    ast::{DoubleDotPattern, Ident, Path, Pattern},
     parser::{ParserErrorReason, labels::ParsingRuleLabel},
     token::{Keyword, Token, TokenKind},
 };
@@ -20,6 +20,11 @@ pub(crate) enum PatternOrSelf {
 pub(crate) struct SelfPattern {
     pub(crate) reference: bool,
     pub(crate) mutable: bool,
+}
+
+enum PatternOrDoubleDot {
+    Pattern(Pattern),
+    DoubleDot(Location),
 }
 
 impl Parser<'_> {
@@ -166,28 +171,49 @@ impl Parser<'_> {
             return None;
         }
 
-        let (mut patterns, has_trailing_comma) = self.parse_many_return_trailing_separator_if_any(
-            "tuple elements",
-            separated_by_comma_until_right_paren(),
-            Self::parse_tuple_pattern_element,
-        );
+        let (pattern_or_double_dots, has_trailing_comma) = self
+            .parse_many_return_trailing_separator_if_any(
+                "tuple elements",
+                separated_by_comma_until_right_paren(),
+                Self::parse_tuple_pattern_element,
+            );
 
-        let double_dot = patterns.iter().any(|pattern| matches!(pattern, Pattern::DoubleDot(_)));
+        let mut double_dot: Option<DoubleDotPattern> = None;
+        let mut patterns = Vec::with_capacity(pattern_or_double_dots.len());
+
+        for (index, pattern_or_double_dot) in pattern_or_double_dots.into_iter().enumerate() {
+            match pattern_or_double_dot {
+                PatternOrDoubleDot::Pattern(pattern) => {
+                    patterns.push(pattern);
+                }
+                PatternOrDoubleDot::DoubleDot(location) => {
+                    if let Some(double_dot) = double_dot {
+                        self.push_error(
+                            ParserErrorReason::DoubleDotCanOnlyAppearOncePerTuplePattern,
+                            double_dot.location,
+                        );
+                    } else {
+                        double_dot = Some(DoubleDotPattern { index, location });
+                    }
+                }
+            }
+        }
 
         let location = self.location_since(start_location);
-
-        Some(if !double_dot && patterns.len() == 1 && !has_trailing_comma {
-            Pattern::Parenthesized(Box::new(patterns.remove(0)), location)
+        if let Some(double_dot) = double_dot {
+            Some(Pattern::Tuple(patterns, Some(double_dot), location))
+        } else if patterns.len() == 1 && !has_trailing_comma {
+            Some(Pattern::Parenthesized(Box::new(patterns.remove(0)), location))
         } else {
-            Pattern::Tuple(patterns, location)
-        })
+            Some(Pattern::Tuple(patterns, None, location))
+        }
     }
 
-    fn parse_tuple_pattern_element(&mut self) -> Option<Pattern> {
+    fn parse_tuple_pattern_element(&mut self) -> Option<PatternOrDoubleDot> {
         if self.eat(Token::DoubleDot) {
-            Some(Pattern::DoubleDot(self.previous_token_location))
+            Some(PatternOrDoubleDot::DoubleDot(self.previous_token_location))
         } else if let Some(pattern) = self.parse_pattern() {
-            Some(pattern)
+            Some(PatternOrDoubleDot::Pattern(pattern))
         } else {
             self.expected_label(ParsingRuleLabel::Pattern);
             None
@@ -282,8 +308,11 @@ mod tests {
     fn parses_tuple_pattern_one_element() {
         let src = "(foo,)";
         let pattern = parse_pattern_no_errors(src);
-        let Pattern::Tuple(mut patterns, _) = pattern else { panic!("Expected a tuple pattern") };
+        let Pattern::Tuple(mut patterns, double_dot, _) = pattern else {
+            panic!("Expected a tuple pattern")
+        };
         assert_eq!(patterns.len(), 1);
+        assert!(double_dot.is_none());
 
         let pattern = patterns.remove(0);
         let Pattern::Identifier(ident) = pattern else { panic!("Expected an identifier pattern") };
@@ -294,8 +323,11 @@ mod tests {
     fn parses_tuple_pattern_two_elements() {
         let src = "(foo, bar)";
         let pattern = parse_pattern_no_errors(src);
-        let Pattern::Tuple(mut patterns, _) = pattern else { panic!("Expected a tuple pattern") };
+        let Pattern::Tuple(mut patterns, double_dot, _) = pattern else {
+            panic!("Expected a tuple pattern")
+        };
         assert_eq!(patterns.len(), 2);
+        assert!(double_dot.is_none());
 
         let pattern = patterns.remove(0);
         let Pattern::Identifier(ident) = pattern else { panic!("Expected an identifier pattern") };
@@ -310,23 +342,25 @@ mod tests {
     fn parses_empty_tuple_pattern_with_double_dot() {
         let src = "(..)";
         let pattern = parse_pattern_no_errors(src);
-        let Pattern::Tuple(mut patterns, _) = pattern else { panic!("Expected a tuple pattern") };
-        assert_eq!(patterns.len(), 1);
-
-        let pattern = patterns.remove(0);
-        assert!(matches!(pattern, Pattern::DoubleDot(_)));
+        let Pattern::Tuple(patterns, double_dot, _) = pattern else {
+            panic!("Expected a tuple pattern")
+        };
+        assert_eq!(patterns.len(), 0);
+        assert!(double_dot.unwrap().index == 0);
     }
 
     #[test]
     fn parses_tuple_pattern_with_double_dot_in_the_middle() {
         let src = "(x, .., y)";
         let pattern = parse_pattern_no_errors(src);
-        let Pattern::Tuple(patterns, _) = pattern else { panic!("Expected a tuple pattern") };
-        assert_eq!(patterns.len(), 3);
+        let Pattern::Tuple(patterns, double_dot, _) = pattern else {
+            panic!("Expected a tuple pattern")
+        };
+        assert_eq!(patterns.len(), 2);
+        assert!(double_dot.unwrap().index == 1);
 
         assert_eq!(patterns[0].to_string(), "x");
-        assert_eq!(patterns[1].to_string(), "..");
-        assert_eq!(patterns[2].to_string(), "y");
+        assert_eq!(patterns[1].to_string(), "y");
     }
 
     #[test]
@@ -335,8 +369,11 @@ mod tests {
         let mut parser = Parser::for_str_with_dummy_file(src);
         let pattern = parser.parse_pattern_or_error();
         assert_eq!(parser.errors.len(), 1);
-        let Pattern::Tuple(patterns, _) = pattern else { panic!("Expected a tuple pattern") };
+        let Pattern::Tuple(patterns, double_dot, _) = pattern else {
+            panic!("Expected a tuple pattern")
+        };
         assert_eq!(patterns.len(), 1);
+        assert!(double_dot.is_none());
     }
 
     #[test]

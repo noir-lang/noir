@@ -3,7 +3,7 @@ use std::collections::{BTreeSet, HashMap};
 use noirc_driver::CrateId;
 use noirc_frontend::{
     DataType, Generics, Kind, NamedGeneric, Type,
-    ast::{Ident, ItemVisibility},
+    ast::{Ident, ItemVisibility, PatternOrDoubleDot},
     hir::{
         comptime::{Value, tokens_to_string_with_indent},
         def_map::{DefMaps, ModuleDefId, ModuleId},
@@ -11,7 +11,7 @@ use noirc_frontend::{
     },
     hir_def::{
         expr::HirExpression,
-        stmt::{HirLetStatement, HirPattern, HirPatternOrDoubleDot},
+        stmt::{HirLetStatement, HirPattern},
         traits::{ResolvedTraitBound, TraitConstraint},
     },
     modules::{module_def_id_to_reference_id, relative_module_full_path},
@@ -723,7 +723,7 @@ impl<'interner, 'def_map, 'string> ItemPrinter<'interner, 'def_map, 'string> {
                 self.show_pattern(pattern);
             }
             HirPattern::Tuple(patterns, double_dot, _) => {
-                let patterns = HirPatternOrDoubleDot::new_vec(patterns, double_dot);
+                let patterns = PatternOrDoubleDot::new_vec(patterns, double_dot);
                 let len = patterns.len();
                 self.push('(');
                 for (index, pattern) in patterns.iter().enumerate() {
@@ -731,10 +731,10 @@ impl<'interner, 'def_map, 'string> ItemPrinter<'interner, 'def_map, 'string> {
                         self.push_str(", ");
                     }
                     match pattern {
-                        HirPatternOrDoubleDot::Pattern(hir_pattern) => {
+                        PatternOrDoubleDot::Pattern(hir_pattern) => {
                             self.show_pattern(hir_pattern);
                         }
-                        HirPatternOrDoubleDot::DoubleDot(_) => {
+                        PatternOrDoubleDot::DoubleDot(_) => {
                             self.push_str("..");
                         }
                     }

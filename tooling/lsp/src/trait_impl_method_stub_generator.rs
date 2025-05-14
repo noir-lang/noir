@@ -2,17 +2,13 @@ use std::collections::BTreeMap;
 
 use noirc_frontend::{
     Kind, NamedGeneric, ResolvedGeneric, Type,
-    ast::{NoirTraitImpl, UnresolvedTypeData},
+    ast::{NoirTraitImpl, PatternOrDoubleDot, UnresolvedTypeData},
     graph::CrateId,
     hir::{
         def_map::{CrateDefMap, ModuleDefId, ModuleId},
         type_check::generics::TraitGenerics,
     },
-    hir_def::{
-        function::FuncMeta,
-        stmt::{HirPattern, HirPatternOrDoubleDot},
-        traits::Trait,
-    },
+    hir_def::{function::FuncMeta, stmt::HirPattern, traits::Trait},
     modules::relative_module_id_path,
     node_interner::{FunctionModifiers, NodeInterner, ReferenceId},
 };
@@ -133,17 +129,17 @@ impl<'a> TraitImplMethodStubGenerator<'a> {
                 self.append_pattern(pattern)
             }
             HirPattern::Tuple(patterns, double_dot, _) => {
-                let patterns = HirPatternOrDoubleDot::new_vec(patterns, double_dot);
+                let patterns = PatternOrDoubleDot::new_vec(patterns, double_dot);
                 self.string.push('(');
                 for (index, pattern) in patterns.iter().enumerate() {
                     if index > 0 {
                         self.string.push_str(", ");
                     }
                     match pattern {
-                        HirPatternOrDoubleDot::Pattern(hir_pattern) => {
+                        PatternOrDoubleDot::Pattern(hir_pattern) => {
                             self.append_pattern(hir_pattern);
                         }
-                        HirPatternOrDoubleDot::DoubleDot(_) => {
+                        PatternOrDoubleDot::DoubleDot(_) => {
                             self.string.push_str("..");
                         }
                     }

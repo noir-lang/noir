@@ -1,13 +1,13 @@
 use noirc_frontend::{
     NamedGeneric, Type, TypeBindings,
-    ast::UnaryOp,
+    ast::{PatternOrDoubleDot, UnaryOp},
     hir::def_map::ModuleDefId,
     hir_def::{
         expr::{
             Constructor, HirArrayLiteral, HirBlockExpression, HirCallExpression, HirExpression,
             HirIdent, HirLambda, HirLiteral, HirMatch, ImplKind,
         },
-        stmt::{HirLValue, HirPattern, HirPatternOrDoubleDot, HirStatement},
+        stmt::{HirLValue, HirPattern, HirStatement},
     },
     node_interner::{DefinitionId, DefinitionKind, ExprId, StmtId},
     token::FmtStrFragment,
@@ -649,14 +649,14 @@ impl ItemPrinter<'_, '_, '_> {
                 self.show_hir_pattern(hir_pattern);
             }
             HirPattern::Tuple(patterns, double_dot, _location) => {
-                let patterns = HirPatternOrDoubleDot::new_vec(patterns, double_dot);
+                let patterns = PatternOrDoubleDot::new_vec(patterns, double_dot);
                 let len = patterns.len();
                 self.push('(');
                 self.show_separated_by_comma(&patterns, |this, pattern| match pattern {
-                    HirPatternOrDoubleDot::Pattern(pattern) => {
+                    PatternOrDoubleDot::Pattern(pattern) => {
                         this.show_hir_pattern(pattern);
                     }
-                    HirPatternOrDoubleDot::DoubleDot(_) => {
+                    PatternOrDoubleDot::DoubleDot(_) => {
                         this.push_str("..");
                     }
                 });

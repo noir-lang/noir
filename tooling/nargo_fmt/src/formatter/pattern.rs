@@ -1,5 +1,5 @@
 use noirc_frontend::{
-    ast::{Ident, Pattern},
+    ast::{Ident, Pattern, PatternOrDoubleDot},
     token::{Keyword, Token},
 };
 
@@ -24,7 +24,9 @@ impl Formatter<'_> {
                 self.write_space();
                 self.format_pattern(*pattern);
             }
-            Pattern::Tuple(patterns, _span) => {
+            Pattern::Tuple(patterns, double_dot, _span) => {
+                let patterns = PatternOrDoubleDot::new_vec(&patterns, &double_dot);
+
                 let patterns_len = patterns.len();
 
                 self.write_left_paren();
@@ -33,7 +35,14 @@ impl Formatter<'_> {
                         self.write_comma();
                         self.write_space();
                     }
-                    self.format_pattern(pattern);
+                    match pattern {
+                        PatternOrDoubleDot::Pattern(pattern) => {
+                            self.format_pattern(pattern.clone());
+                        }
+                        PatternOrDoubleDot::DoubleDot(..) => {
+                            self.write_token(Token::DoubleDot);
+                        }
+                    }
                 }
 
                 // Check for trailing comma
@@ -98,9 +107,6 @@ impl Formatter<'_> {
                 self.write_left_paren();
                 self.format_pattern(*pattern);
                 self.write_right_paren();
-            }
-            Pattern::DoubleDot(..) => {
-                self.write_token(Token::DoubleDot);
             }
             Pattern::Interned(..) => {
                 unreachable!("Should not be present in the AST")
