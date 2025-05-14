@@ -94,7 +94,7 @@ impl Type {
     /// If this is a mutable reference type `&mut T`, returns the mutable type `T`.
     #[builtin(type_as_mutable_reference)]
     // docs:start:as_mutable_reference
-    comptime fn as_mutable_reference(self) -> Option<Type> {}
+    pub comptime fn as_mutable_reference(self) -> Option<Type> {}
     // docs:end:as_mutable_reference
 
     /// If this is a slice type, return the element type of the slice.
@@ -187,7 +187,7 @@ impl Type {
     /// Returns `true` if this type is the unit `()` type.
     #[builtin(type_is_unit)]
     // docs:start:is_unit
-    comptime fn is_unit(self) -> bool {}
+    pub comptime fn is_unit(self) -> bool {}
     // docs:end:is_unit
 }
 

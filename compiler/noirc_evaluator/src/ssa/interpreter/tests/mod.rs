@@ -195,6 +195,58 @@ fn loads_passed_to_a_call() {
 }
 
 #[test]
+fn without_defunctionalize() {
+    let src = "
+  acir(inline) fn main f0 {
+    b0(v0: u1):
+      v1 = allocate -> &mut function
+      store f1 at v1
+      jmpif v0 then: b1, else: b2
+    b1():
+      call f2(v1, f1)
+      jmp b3()
+    b2():
+      call f2(v1, f3)
+      jmp b3()
+    b3():
+      v5 = load v1 -> function
+      v7 = call f4(v5) -> u1
+      constrain v7 == u1 1
+      return
+  }
+  acir(inline) fn f f1 {
+    b0(v0: u8):
+      v2 = eq v0, u8 0
+      return v2
+  }
+  acir(inline) fn bar f2 {
+    b0(v0: &mut function, v1: function):
+      store v1 at v0
+      return
+  }
+  acir(inline) fn g f3 {
+    b0(v0: u8):
+      v2 = eq v0, u8 1
+      return v2
+  }
+  acir(inline) fn foo f4 {
+    b0(v0: function):
+      v2 = call v0(u8 0) -> u1
+      v4 = call v0(u8 1) -> u1
+      v5 = eq v2, v4
+      v6 = not v5
+      return v6
+  }
+      ";
+    let values = expect_values_with_args(
+        src,
+        vec![Value::from_constant(0_u128.into(), NumericType::bool())],
+    );
+
+    assert!(values.is_empty());
+}
+
+#[test]
 fn keep_repeat_loads_with_alias_store() {
     let src = "
     acir(inline) fn main f0 {
