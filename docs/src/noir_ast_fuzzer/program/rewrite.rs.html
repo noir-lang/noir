@@ -314,10 +314,39 @@
 <a href="#313" id="313">313</a>
 <a href="#314" id="314">314</a>
 <a href="#315" id="315">315</a>
-<a href="#316" id="316">316</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::collections::BTreeMap;
+<a href="#316" id="316">316</a>
+<a href="#317" id="317">317</a>
+<a href="#318" id="318">318</a>
+<a href="#319" id="319">319</a>
+<a href="#320" id="320">320</a>
+<a href="#321" id="321">321</a>
+<a href="#322" id="322">322</a>
+<a href="#323" id="323">323</a>
+<a href="#324" id="324">324</a>
+<a href="#325" id="325">325</a>
+<a href="#326" id="326">326</a>
+<a href="#327" id="327">327</a>
+<a href="#328" id="328">328</a>
+<a href="#329" id="329">329</a>
+<a href="#330" id="330">330</a>
+<a href="#331" id="331">331</a>
+<a href="#332" id="332">332</a>
+<a href="#333" id="333">333</a>
+<a href="#334" id="334">334</a>
+<a href="#335" id="335">335</a>
+<a href="#336" id="336">336</a>
+<a href="#337" id="337">337</a>
+<a href="#338" id="338">338</a>
+<a href="#339" id="339">339</a>
+<a href="#340" id="340">340</a>
+<a href="#341" id="341">341</a>
+<a href="#342" id="342">342</a>
+<a href="#343" id="343">343</a>
+<a href="#344" id="344">344</a>
+<a href="#345" id="345">345</a>
+<a href="#346" id="346">346</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::collections::{HashMap, HashSet};
 
 <span class="kw">use </span>arbitrary::Unstructured;
-<span class="kw">use </span>im::HashMap;
 <span class="kw">use </span>nargo::errors::Location;
 <span class="kw">use </span>noirc_frontend::{
     ast::BinaryOpKind,
@@ -332,44 +361,66 @@
     visitor::{visit_expr, visit_expr_mut},
 };
 
-<span class="doccomment">/// Find recursive functions and add a `ctx_limit: &amp;mut u32` parameter to them,
-/// which we use to limit the number of recursive calls. This is complicated by
-/// the fact that we cannot pass mutable references from ACIR to Brillig. To
-/// overcome that, we create a proxy function for unconstrained functions that
-/// take `mut ctx_limit: u32` instead, and pass it on as a mutable ref.
+<span class="doccomment">/// To avoid the potential of infinite recursion at runtime, add a `ctx_limit: &amp;mut u32`
+/// parameter to all functions, which we use to limit the number of recursive calls.
+///
+/// This is complicated by the fact that we cannot pass mutable references from ACIR to Brillig.
+/// To overcome that, we create a proxy function for unconstrained functions that take
+/// `mut ctx_limit: u32` instead, and pass it on as a mutable ref.
+///
+/// Originally only actually recursive functions (ie. one that called something else)
+/// received this extra parameters, but in order to support higher order functions
+/// which can be passed a recursive or a non-recursive function as an argument,
+/// all functions get the extra parameter.
 </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>add_recursion_limit(
     ctx: <span class="kw-2">&amp;mut </span>Context,
     u: <span class="kw-2">&amp;mut </span>Unstructured,
 ) -&gt; arbitrary::Result&lt;()&gt; {
     <span class="comment">// Collect recursive functions, ie. the ones which call other functions.
-    // Remember if they are unconstrained; those need proxies as well.
     </span><span class="kw">let </span>recursive_functions = ctx
         .functions
         .iter()
-        .filter_map(|(id, func)| expr::has_call(<span class="kw-2">&amp;</span>func.body).then_some((<span class="kw-2">*</span>id, func.unconstrained)))
-        .collect::&lt;BTreeMap&lt;<span class="kw">_</span>, <span class="kw">_</span>&gt;&gt;();
+        .filter_map(|(id, func)| expr::has_call(<span class="kw-2">&amp;</span>func.body).then_some(<span class="kw-2">*</span>id))
+        .collect::&lt;HashSet&lt;<span class="kw">_</span>&gt;&gt;();
 
-    <span class="comment">// Create proxies for unconstrained recursive functions.
-    // We could check whether they are called from ACIR, but that would require further traversals.
+    <span class="comment">// Collect functions called from ACIR; they will need proxy functions.
+    </span><span class="kw">let </span>called_from_acir = ctx.functions.values().filter(|func| !func.unconstrained).fold(
+        HashSet::&lt;FuncId&gt;::new(),
+        |<span class="kw-2">mut </span>acc, func| {
+            acc.extend(expr::callees(<span class="kw-2">&amp;</span>func.body));
+            acc
+        },
+    );
+
+    <span class="kw">let </span>unconstrained_functions = ctx
+        .functions
+        .iter()
+        .filter_map(|(id, func)| func.unconstrained.then_some(<span class="kw-2">*</span>id))
+        .collect::&lt;HashSet&lt;<span class="kw">_</span>&gt;&gt;();
+
+    <span class="comment">// Create proxies for unconstrained functions called from ACIR.
     </span><span class="kw">let </span><span class="kw-2">mut </span>proxy_functions = HashMap::new();
     <span class="kw">let </span><span class="kw-2">mut </span>next_func_id = FuncId(ctx.functions.len() <span class="kw">as </span>u32);
 
-    <span class="kw">for </span>(func_id, unconstrained) <span class="kw">in </span><span class="kw-2">&amp;</span>recursive_functions {
-        <span class="kw">if </span>!<span class="kw-2">*</span>unconstrained || <span class="kw-2">*</span>func_id == Program::main_id() {
+    <span class="kw">for </span>(func_id, func) <span class="kw">in </span><span class="kw-2">&amp;</span>ctx.functions {
+        <span class="kw">if </span>!func.unconstrained
+            || <span class="kw-2">*</span>func_id == Program::main_id()
+            || !called_from_acir.contains(func_id)
+        {
             <span class="kw">continue</span>;
         }
-        <span class="kw">let </span><span class="kw-2">mut </span>proxy = ctx.functions[func_id].clone();
+        <span class="kw">let </span><span class="kw-2">mut </span>proxy = func.clone();
         proxy.id = next_func_id;
         proxy.name = <span class="macro">format!</span>(<span class="string">"{}_proxy"</span>, proxy.name);
-        <span class="comment">// We will replace the body and update the params later.
+        <span class="comment">// We will replace the body, update the params, and append the function later.
         </span>proxy_functions.insert(<span class="kw-2">*</span>func_id, proxy);
         next_func_id = FuncId(next_func_id.<span class="number">0 </span>+ <span class="number">1</span>);
     }
 
-    <span class="comment">// Rewrite recursive functions.
-    </span><span class="kw">for </span>(func_id, unconstrained) <span class="kw">in </span>recursive_functions.iter() {
-        <span class="kw">let </span>func = ctx.functions.get_mut(func_id).unwrap();
+    <span class="comment">// Rewrite functions.
+    </span><span class="kw">for </span>(func_id, func) <span class="kw">in </span>ctx.functions.iter_mut() {
         <span class="kw">let </span>is_main = <span class="kw-2">*</span>func_id == Program::main_id();
+        <span class="kw">let </span>is_recursive = recursive_functions.contains(func_id);
 
         <span class="comment">// We'll need a new ID for variables or parameters. We could speed this up by
         // 1) caching this value in a "function meta" construct, or
@@ -405,7 +456,7 @@
                 expr::u32_literal(ctx.config.max_recursive_calls <span class="kw">as </span>u32),
             );
             expr::prepend(<span class="kw-2">&amp;mut </span>func.body, init_limit);
-        } <span class="kw">else </span>{
+        } <span class="kw">else if </span>is_recursive {
             <span class="comment">// In non-main we look at the limit and return a random value if it's zero,
             // otherwise decrease it by one and continue with the original body.
             </span><span class="kw">let </span>limit_type = types::ref_mut(types::U32);
@@ -448,6 +499,18 @@
                     func.return_type.clone(),
                 )
             });
+        } <span class="kw">else </span>{
+            <span class="comment">// For non-recursive functions just add an unused parameter.
+            // In non-main we look at the limit and return a random value if it's zero,
+            // otherwise decrease it by one and continue with the original body.
+            </span><span class="kw">let </span>limit_type = types::ref_mut(types::U32);
+            func.parameters.push((
+                limit_id,
+                <span class="bool-val">false</span>,
+                <span class="macro">format!</span>(<span class="string">"_{limit_name}"</span>),
+                limit_type.clone(),
+                Visibility::Private,
+            ));
         }
 
         <span class="comment">// Add the non-reference version of the parameter to the proxy function.
@@ -510,26 +573,23 @@
         <span class="comment">// Update calls to pass along the limit and call the proxy if necessary.
         </span>visit_expr_mut(<span class="kw-2">&amp;mut </span>func.body, <span class="kw-2">&amp;mut </span>|expr: <span class="kw-2">&amp;mut </span>Expression| {
             <span class="kw">if let </span>Expression::Call(call) = expr {
-                <span class="kw">let </span>Expression::Ident(func) = call.func.as_mut() <span class="kw">else </span>{
+                <span class="kw">let </span>Expression::Ident(ident) = call.func.as_mut() <span class="kw">else </span>{
                     <span class="macro">unreachable!</span>(<span class="string">"functions are called by ident"</span>);
                 };
-                <span class="kw">let </span>Definition::Function(func_id) = func.definition <span class="kw">else </span>{
+                <span class="kw">let </span>Definition::Function(callee_id) = ident.definition <span class="kw">else </span>{
                     <span class="macro">unreachable!</span>(<span class="string">"function definition expected"</span>);
                 };
-                <span class="comment">// If the callee isn't recursive, it won't have the extra parameter.
-                </span><span class="kw">let </span><span class="prelude-val">Some</span>(callee_unconstrained) = recursive_functions.get(<span class="kw-2">&amp;</span>func_id) <span class="kw">else </span>{
-                    <span class="kw">return </span><span class="bool-val">true</span>;
-                };
-                <span class="kw">let </span>Type::Function(param_types, <span class="kw">_</span>, <span class="kw">_</span>, <span class="kw">_</span>) = <span class="kw-2">&amp;mut </span>func.typ <span class="kw">else </span>{
+                <span class="kw">let </span>Type::Function(param_types, <span class="kw">_</span>, <span class="kw">_</span>, <span class="kw">_</span>) = <span class="kw-2">&amp;mut </span>ident.typ <span class="kw">else </span>{
                     <span class="macro">unreachable!</span>(<span class="string">"function type expected"</span>);
                 };
-                <span class="kw">if </span><span class="kw-2">*</span>callee_unconstrained &amp;&amp; !unconstrained {
+                <span class="kw">let </span>callee_unconstrained = unconstrained_functions.contains(<span class="kw-2">&amp;</span>callee_id);
+                <span class="kw">if </span>callee_unconstrained &amp;&amp; !func.unconstrained {
                     <span class="comment">// Calling Brillig from ACIR: call the proxy.
-                    </span><span class="kw">let </span><span class="prelude-val">Some</span>(proxy) = proxy_functions.get(<span class="kw-2">&amp;</span>func_id) <span class="kw">else </span>{
+                    </span><span class="kw">let </span><span class="prelude-val">Some</span>(proxy) = proxy_functions.get(<span class="kw-2">&amp;</span>callee_id) <span class="kw">else </span>{
                         <span class="macro">unreachable!</span>(<span class="string">"expected to have a proxy"</span>);
                     };
-                    func.name = proxy.name.clone();
-                    func.definition = Definition::Function(proxy.id);
+                    ident.name = proxy.name.clone();
+                    ident.definition = Definition::Function(proxy.id);
                     <span class="comment">// Pass the limit by value.
                     </span><span class="kw">let </span>limit_expr = <span class="kw">if </span>is_main {
                         expr::ident(
