@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1747219886278,
+  "lastUpdate": 1747219937700,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -11062,70 +11062,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "michaeljklein@users.noreply.github.com",
-            "name": "Michael J Klein",
-            "username": "michaeljklein"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "3a9ff197364336e6760c49f5f5dcf5d879765e3d",
-          "message": "feat(test): add `nargo_fuzz_target` (#8308)",
-          "timestamp": "2025-05-07T18:40:29Z",
-          "tree_id": "2807aa6f7468c83ebc3ecef54661dd5b8915849a",
-          "url": "https://github.com/noir-lang/noir/commit/3a9ff197364336e6760c49f5f5dcf5d879765e3d"
-        },
-        "date": 1746645249240,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 234.12,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 256.59,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 212.44,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 541.54,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 533.71,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 1440,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 362.58,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-root",
-            "value": 368.5,
-            "unit": "MB"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "15848336+TomAFrench@users.noreply.github.com",
             "name": "Tom French",
             "username": "TomAFrench"
@@ -14280,6 +14216,75 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/noir-lang/noir/commit/4519387fa4e3cd00136b1069a06c3d7e5ee072d1"
         },
         "date": 1747217472079,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 236.21,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 258.47,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 211.71,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 542.78,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 535.23,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 1440,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 364.28,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-root",
+            "value": 370.21,
+            "unit": "MB"
+          },
+          {
+            "name": "semaphore_depth_10",
+            "value": 90.72,
+            "unit": "MB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "mvezenov@gmail.com",
+            "name": "Maxim Vezenov",
+            "username": "vezenovm"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "648b7537e7d4388f0f90a24d881dfb6fd8c80345",
+          "message": "fix(frontend)!: Ban zero sized arrays and strings as program input (#8491)",
+          "timestamp": "2025-05-14T10:17:43Z",
+          "tree_id": "ca841b697a272c3930220f37588d50fc535c86e3",
+          "url": "https://github.com/noir-lang/noir/commit/648b7537e7d4388f0f90a24d881dfb6fd8c80345"
+        },
+        "date": 1747219928813,
         "tool": "customSmallerIsBetter",
         "benches": [
           {
