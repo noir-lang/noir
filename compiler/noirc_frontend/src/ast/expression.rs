@@ -118,6 +118,7 @@ impl UnresolvedGeneric {
         typ: &UnresolvedType,
     ) -> Result<Type, UnsupportedNumericGenericType> {
         // TODO: this should be done with resolved types
+        // See https://github.com/noir-lang/noir/issues/8504
         use crate::ast::UnresolvedTypeData::Named;
 
         if let Named(path, _generics, _) = &typ.typ {
@@ -125,7 +126,6 @@ impl UnresolvedGeneric {
                 if let Some(primitive_type) =
                     PrimitiveType::lookup_by_name(path.segments[0].ident.as_str())
                 {
-                    // TODO: check generics
                     if let Some(typ) = primitive_type.to_integer_or_field() {
                         return Ok(typ);
                     }

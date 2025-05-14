@@ -1367,6 +1367,7 @@ fn unresolved_type_is_bool(
     let typ = get_unresolved_type(interner, self_argument)?;
 
     // TODO: we should resolve the type here instead of just checking the name
+    // See https://github.com/noir-lang/noir/issues/8505
     let UnresolvedTypeData::Named(path, generics, _) = typ else {
         return Ok(Value::Bool(false));
     };
@@ -1392,6 +1393,7 @@ fn unresolved_type_is_field(
     let typ = get_unresolved_type(interner, self_argument)?;
 
     // TODO: we should resolve the type here instead of just checking the name
+    // See https://github.com/noir-lang/noir/issues/8505
     let UnresolvedTypeData::Named(path, generics, _) = typ else {
         return Ok(Value::Bool(false));
     };
