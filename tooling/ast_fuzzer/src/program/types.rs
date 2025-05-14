@@ -42,8 +42,11 @@ pub(crate) fn can_be_global(typ: &Type) -> bool {
 /// as well as part of the databus. They are not expected in real programs as they don't do anything useful.
 pub(crate) fn can_be_main(typ: &Type) -> bool {
     match typ {
-        Type::Array(size, _) | Type::String(size) => *size > 0,
-        _ => true,
+        Type::String(size) => *size > 0,
+        Type::Array(size, typ) => *size > 0 && can_be_main(typ),
+        Type::Tuple(types) => types.iter().all(can_be_main),
+        Type::Bool | Type::Field | Type::Integer(_, _) => true,
+        _ => false,
     }
 }
 
