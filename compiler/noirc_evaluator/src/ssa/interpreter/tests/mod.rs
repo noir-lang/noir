@@ -238,10 +238,8 @@ fn without_defunctionalize() {
       return v6
   }
       ";
-    let values = expect_values_with_args(
-        src,
-        vec![Value::from_constant(0_u128.into(), NumericType::bool())],
-    );
+    let values =
+        expect_values_with_args(src, vec![from_constant(0_u128.into(), NumericType::bool())]);
 
     assert!(values.is_empty());
 }
