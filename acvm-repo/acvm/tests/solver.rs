@@ -1660,7 +1660,12 @@ proptest! {
     #[test]
     fn and_identity_l(x in field_element(), ones_constant: bool) {
         let ones = (field_element_ones(), ones_constant);
-        let (lhs, rhs) = prop_assert_identity_l(and_op, ones, x, Some(x.0.num_bits()));
+        let max_num_bits = if x.0.num_bits() > ones.0.num_bits() {
+            x.0.num_bits()
+        } else {
+            ones.0.num_bits()
+        };
+        let (lhs, rhs) = prop_assert_identity_l(and_op, ones, x, Some(max_num_bits));
         if x <= ones {
             prop_assert_eq!(lhs, rhs);
         } else {
