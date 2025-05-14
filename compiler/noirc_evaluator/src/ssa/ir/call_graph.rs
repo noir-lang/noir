@@ -45,7 +45,6 @@ impl CallGraph {
             })
             .collect();
 
-        // println!("{}", ssa);
         Self::from_deps(function_deps)
     }
 
