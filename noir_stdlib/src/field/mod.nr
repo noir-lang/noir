@@ -15,7 +15,7 @@ impl Field {
             "BIT_SIZE must be less than modulus_num_bits",
         );
         __assert_max_bit_size(self, BIT_SIZE);
-    }   
+    }
 
     /// Decomposes `self` into its little endian bit decomposition as a `[u1; N]` array.
     /// This slice will be zero padded should not all bits be necessary to represent `self`.
