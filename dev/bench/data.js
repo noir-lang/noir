@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1747244231378,
+  "lastUpdate": 1747257667741,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -18006,48 +18006,6 @@ window.BENCHMARK_DATA = {
             "username": "web-flow"
           },
           "distinct": true,
-          "id": "a593e48c6a9339f38291029d0aac949be77dd0d3",
-          "message": "fix(ssa_gen): Do not code gen fetching of empty arrays when initializing the data bus (#8426)",
-          "timestamp": "2025-05-08T19:53:53Z",
-          "tree_id": "2e796b9ce202f239c7f07cbf04b86a01b7581e0f",
-          "url": "https://github.com/noir-lang/noir/commit/a593e48c6a9339f38291029d0aac949be77dd0d3"
-        },
-        "date": 1746735493099,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 264740,
-            "range": "± 520",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 234841,
-            "range": "± 3881",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 3221519,
-            "range": "± 4324",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
-            "email": "mvezenov@gmail.com",
-            "name": "Maxim Vezenov",
-            "username": "vezenovm"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
           "id": "29025036dadfb837985ad25726407fb922c3ca1b",
           "message": "feat(ssa): Mark transitively dead parameters during DIE (#8254)\n\nCo-authored-by: AztecBot <tech@aztecprotocol.com>",
           "timestamp": "2025-05-08T21:56:02Z",
@@ -20089,6 +20047,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 3231037,
             "range": "± 18748",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "163862677+noirwhal@users.noreply.github.com",
+            "name": "noirwhal",
+            "username": "noirwhal"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "e796dfd67726cbc28eb9991782533b211025928d",
+          "message": "chore: Release Noir(1.0.0-beta.6) (#8438)\n\nCo-authored-by: noirwhal <tomfrench@aztecprotocol.com>",
+          "timestamp": "2025-05-14T20:57:27Z",
+          "tree_id": "1cefca22bd36aeb909b1fc20186ded4361abbff2",
+          "url": "https://github.com/noir-lang/noir/commit/e796dfd67726cbc28eb9991782533b211025928d"
+        },
+        "date": 1747257658416,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 262591,
+            "range": "± 1354",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 235048,
+            "range": "± 5720",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 3217811,
+            "range": "± 4723",
             "unit": "ns/iter"
           }
         ]
