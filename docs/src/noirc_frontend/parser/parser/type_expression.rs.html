@@ -605,19 +605,7 @@
 <a href="#604" id="604">604</a>
 <a href="#605" id="605">605</a>
 <a href="#606" id="606">606</a>
-<a href="#607" id="607">607</a>
-<a href="#608" id="608">608</a>
-<a href="#609" id="609">609</a>
-<a href="#610" id="610">610</a>
-<a href="#611" id="611">611</a>
-<a href="#612" id="612">612</a>
-<a href="#613" id="613">613</a>
-<a href="#614" id="614">614</a>
-<a href="#615" id="615">615</a>
-<a href="#616" id="616">616</a>
-<a href="#617" id="617">617</a>
-<a href="#618" id="618">618</a>
-<a href="#619" id="619">619</a></pre></div><pre class="rust"><code><span class="kw">use crate</span>::{
+<a href="#607" id="607">607</a></pre></div><pre class="rust"><code><span class="kw">use crate</span>::{
     BinaryTypeOperator,
     ast::{GenericTypeArgs, UnresolvedType, UnresolvedTypeData, UnresolvedTypeExpression},
     parser::{ParserError, labels::ParsingRuleLabel},
@@ -1152,9 +1140,7 @@
         <span class="kw">let </span>UnresolvedTypeData::Parenthesized(typ) = typ.typ <span class="kw">else </span>{
             <span class="macro">panic!</span>(<span class="string">"Expected parenthesized type"</span>);
         };
-        <span class="kw">let </span>UnresolvedTypeData::FieldElement = typ.typ <span class="kw">else </span>{
-            <span class="macro">panic!</span>(<span class="string">"Expected field type"</span>);
-        };
+        <span class="macro">assert_eq!</span>(typ.typ.to_string(), <span class="string">"Field"</span>);
     }
 
     <span class="attr">#[test]
@@ -1174,12 +1160,8 @@
         <span class="kw">let </span>UnresolvedTypeData::Tuple(types) = typ.typ <span class="kw">else </span>{
             <span class="macro">panic!</span>(<span class="string">"Expected tuple type"</span>);
         };
-        <span class="kw">let </span>UnresolvedTypeData::FieldElement = types[<span class="number">0</span>].typ <span class="kw">else </span>{
-            <span class="macro">panic!</span>(<span class="string">"Expected field type"</span>);
-        };
-        <span class="kw">let </span>UnresolvedTypeData::Bool = types[<span class="number">1</span>].typ <span class="kw">else </span>{
-            <span class="macro">panic!</span>(<span class="string">"Expected bool type"</span>);
-        };
+        <span class="macro">assert_eq!</span>(types[<span class="number">0</span>].typ.to_string(), <span class="string">"Field"</span>);
+        <span class="macro">assert_eq!</span>(types[<span class="number">1</span>].typ.to_string(), <span class="string">"bool"</span>);
     }
 
     <span class="attr">#[test]
@@ -1203,12 +1185,8 @@
         <span class="kw">let </span>UnresolvedTypeData::Tuple(types) = typ.typ <span class="kw">else </span>{
             <span class="macro">panic!</span>(<span class="string">"Expected tuple type"</span>);
         };
-        <span class="kw">let </span>UnresolvedTypeData::FieldElement = types[<span class="number">0</span>].typ <span class="kw">else </span>{
-            <span class="macro">panic!</span>(<span class="string">"Expected field type"</span>);
-        };
-        <span class="kw">let </span>UnresolvedTypeData::Bool = types[<span class="number">1</span>].typ <span class="kw">else </span>{
-            <span class="macro">panic!</span>(<span class="string">"Expected bool type"</span>);
-        };
+        <span class="macro">assert_eq!</span>(types[<span class="number">0</span>].typ.to_string(), <span class="string">"Field"</span>);
+        <span class="macro">assert_eq!</span>(types[<span class="number">1</span>].typ.to_string(), <span class="string">"bool"</span>);
     }
 
     <span class="attr">#[test]
@@ -1221,9 +1199,7 @@
             <span class="macro">panic!</span>(<span class="string">"Expected tuple type"</span>);
         };
         <span class="macro">assert_eq!</span>(types.len(), <span class="number">1</span>);
-        <span class="kw">let </span>UnresolvedTypeData::FieldElement = types[<span class="number">0</span>].typ <span class="kw">else </span>{
-            <span class="macro">panic!</span>(<span class="string">"Expected field type"</span>);
-        };
+        <span class="macro">assert_eq!</span>(types[<span class="number">0</span>].typ.to_string(), <span class="string">"Field"</span>);
     }
 
     <span class="attr">#[test]

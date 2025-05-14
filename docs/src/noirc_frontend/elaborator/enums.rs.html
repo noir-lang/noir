@@ -1394,7 +1394,9 @@
 <a href="#1393" id="1393">1393</a>
 <a href="#1394" id="1394">1394</a>
 <a href="#1395" id="1395">1395</a>
-<a href="#1396" id="1396">1396</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::collections::{BTreeMap, BTreeSet};
+<a href="#1396" id="1396">1396</a>
+<a href="#1397" id="1397">1397</a>
+<a href="#1398" id="1398">1398</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::collections::{BTreeMap, BTreeSet};
 
 <span class="kw">use </span>fxhash::FxHashMap <span class="kw">as </span>HashMap;
 <span class="kw">use </span>iter_extended::{btree_map, try_vecmap, vecmap};
@@ -2103,10 +2105,12 @@
             PathResolutionItem::Module(<span class="kw">_</span>)
             | PathResolutionItem::Type(<span class="kw">_</span>)
             | PathResolutionItem::TypeAlias(<span class="kw">_</span>)
+            | PathResolutionItem::PrimitiveType(<span class="kw">_</span>)
             | PathResolutionItem::Trait(<span class="kw">_</span>)
             | PathResolutionItem::ModuleFunction(<span class="kw">_</span>)
             | PathResolutionItem::TypeAliasFunction(<span class="kw">_</span>, <span class="kw">_</span>, <span class="kw">_</span>)
-            | PathResolutionItem::TraitFunction(<span class="kw">_</span>, <span class="kw">_</span>, <span class="kw">_</span>) =&gt; {
+            | PathResolutionItem::TraitFunction(<span class="kw">_</span>, <span class="kw">_</span>, <span class="kw">_</span>)
+            | PathResolutionItem::PrimitiveFunction(..) =&gt; {
                 <span class="comment">// This variable refers to an existing item
                 </span><span class="kw">if let </span><span class="prelude-val">Some</span>(name) = name {
                     <span class="comment">// If name is set, shadow the existing item

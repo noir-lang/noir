@@ -575,7 +575,40 @@
 <a href="#574" id="574">574</a>
 <a href="#575" id="575">575</a>
 <a href="#576" id="576">576</a>
-<a href="#577" id="577">577</a></pre></div><pre class="rust"><code><span class="doccomment">//! The submodules of this module define the various data types required to
+<a href="#577" id="577">577</a>
+<a href="#578" id="578">578</a>
+<a href="#579" id="579">579</a>
+<a href="#580" id="580">580</a>
+<a href="#581" id="581">581</a>
+<a href="#582" id="582">582</a>
+<a href="#583" id="583">583</a>
+<a href="#584" id="584">584</a>
+<a href="#585" id="585">585</a>
+<a href="#586" id="586">586</a>
+<a href="#587" id="587">587</a>
+<a href="#588" id="588">588</a>
+<a href="#589" id="589">589</a>
+<a href="#590" id="590">590</a>
+<a href="#591" id="591">591</a>
+<a href="#592" id="592">592</a>
+<a href="#593" id="593">593</a>
+<a href="#594" id="594">594</a>
+<a href="#595" id="595">595</a>
+<a href="#596" id="596">596</a>
+<a href="#597" id="597">597</a>
+<a href="#598" id="598">598</a>
+<a href="#599" id="599">599</a>
+<a href="#600" id="600">600</a>
+<a href="#601" id="601">601</a>
+<a href="#602" id="602">602</a>
+<a href="#603" id="603">603</a>
+<a href="#604" id="604">604</a>
+<a href="#605" id="605">605</a>
+<a href="#606" id="606">606</a>
+<a href="#607" id="607">607</a>
+<a href="#608" id="608">608</a>
+<a href="#609" id="609">609</a>
+<a href="#610" id="610">610</a></pre></div><pre class="rust"><code><span class="doccomment">//! The submodules of this module define the various data types required to
 //! represent Noir's Ast. Of particular importance are ExpressionKind and Statement
 //! which can be found in expression.rs and statement.rs respectively.
 //!
@@ -610,12 +643,12 @@
 <span class="kw">pub use </span>traits::<span class="kw-2">*</span>;
 <span class="kw">pub use </span>type_alias::<span class="kw-2">*</span>;
 
+<span class="kw">use </span><span class="kw">crate</span>::QuotedType;
 <span class="kw">use crate</span>::{
     BinaryTypeOperator,
     node_interner::{InternedUnresolvedTypeData, QuotedTypeId},
     parser::{ParserError, ParserErrorReason},
     shared::Signedness,
-    token::IntType,
 };
 
 <span class="kw">use </span>acvm::acir::AcirField;
@@ -699,14 +732,9 @@
 /// for structs within, but are otherwise identical to Types.
 </span><span class="attr">#[derive(Debug, PartialEq, Eq, Clone, Hash)]
 </span><span class="kw">pub enum </span>UnresolvedTypeData {
-    FieldElement,
     Array(UnresolvedTypeExpression, Box&lt;UnresolvedType&gt;), <span class="comment">// [Field; 4] = Array(4, Field)
     </span>Slice(Box&lt;UnresolvedType&gt;),
-    Integer(Signedness, IntegerBitSize), <span class="comment">// u32 = Integer(unsigned, ThirtyTwo)
-    </span>Bool,
     Expression(UnresolvedTypeExpression),
-    String(UnresolvedTypeExpression),
-    FormatString(UnresolvedTypeExpression, Box&lt;UnresolvedType&gt;),
     Unit,
 
     Parenthesized(Box&lt;UnresolvedType&gt;),
@@ -729,9 +757,6 @@
         <span class="comment">/*env:*/ </span>Box&lt;UnresolvedType&gt;,
         <span class="comment">/*unconstrained:*/ </span>bool,
     ),
-
-    <span class="doccomment">/// The type of quoted code for metaprogramming
-    </span>Quoted(<span class="kw">crate</span>::QuotedType),
 
     <span class="doccomment">/// An "as Trait" path leading to an associated type.
     /// E.g. `&lt;Foo as Trait&gt;::Bar`
@@ -858,13 +883,8 @@
     <span class="kw">fn </span>fmt(<span class="kw-2">&amp;</span><span class="self">self</span>, f: <span class="kw-2">&amp;mut </span>std::fmt::Formatter&lt;<span class="lifetime">'_</span>&gt;) -&gt; std::fmt::Result {
         <span class="kw">use </span>UnresolvedTypeData::<span class="kw-2">*</span>;
         <span class="kw">match </span><span class="self">self </span>{
-            FieldElement =&gt; <span class="macro">write!</span>(f, <span class="string">"Field"</span>),
             Array(len, typ) =&gt; <span class="macro">write!</span>(f, <span class="string">"[{typ}; {len}]"</span>),
             Slice(typ) =&gt; <span class="macro">write!</span>(f, <span class="string">"[{typ}]"</span>),
-            Integer(sign, num_bits) =&gt; <span class="kw">match </span>sign {
-                Signedness::Signed =&gt; <span class="macro">write!</span>(f, <span class="string">"i{num_bits}"</span>),
-                Signedness::Unsigned =&gt; <span class="macro">write!</span>(f, <span class="string">"u{num_bits}"</span>),
-            },
             Named(s, args, <span class="kw">_</span>) =&gt; <span class="macro">write!</span>(f, <span class="string">"{s}{args}"</span>),
             TraitAsType(s, args) =&gt; <span class="macro">write!</span>(f, <span class="string">"impl {s}{args}"</span>),
             Tuple(elements) =&gt; {
@@ -872,9 +892,6 @@
                 <span class="macro">write!</span>(f, <span class="string">"({})"</span>, elements.join(<span class="string">", "</span>))
             }
             Expression(expression) =&gt; expression.fmt(f),
-            Bool =&gt; <span class="macro">write!</span>(f, <span class="string">"bool"</span>),
-            String(len) =&gt; <span class="macro">write!</span>(f, <span class="string">"str&lt;{len}&gt;"</span>),
-            FormatString(len, elements) =&gt; <span class="macro">write!</span>(f, <span class="string">"fmtstr&lt;{len}, {elements}&gt;"</span>),
             Function(args, ret, env, unconstrained) =&gt; {
                 <span class="kw">if </span><span class="kw-2">*</span>unconstrained {
                     <span class="macro">write!</span>(f, <span class="string">"unconstrained "</span>)<span class="question-mark">?</span>;
@@ -895,7 +912,6 @@
             }
             Reference(element, <span class="bool-val">false</span>) =&gt; <span class="macro">write!</span>(f, <span class="string">"&amp;{element}"</span>),
             Reference(element, <span class="bool-val">true</span>) =&gt; <span class="macro">write!</span>(f, <span class="string">"&amp;mut {element}"</span>),
-            Quoted(quoted) =&gt; <span class="macro">write!</span>(f, <span class="string">"{}"</span>, quoted),
             Unit =&gt; <span class="macro">write!</span>(f, <span class="string">"()"</span>),
             Error =&gt; <span class="macro">write!</span>(f, <span class="string">"error"</span>),
             Unspecified =&gt; <span class="macro">write!</span>(f, <span class="string">"unspecified"</span>),
@@ -962,24 +978,82 @@
 }
 
 <span class="kw">impl </span>UnresolvedTypeData {
-    <span class="kw">pub fn </span>from_int_token(
-        token: IntType,
-    ) -&gt; <span class="prelude-ty">Result</span>&lt;UnresolvedTypeData, InvalidIntegerBitSizeError&gt; {
-        <span class="kw">use </span>{IntType::<span class="kw-2">*</span>, UnresolvedTypeData::Integer};
-        <span class="kw">match </span>token {
-            Signed(num_bits) =&gt; {
-                <span class="kw">if </span>num_bits == <span class="number">128 </span>{
-                    <span class="prelude-val">Err</span>(InvalidIntegerBitSizeError(<span class="number">128</span>))
-                } <span class="kw">else if </span>num_bits == <span class="number">1 </span>{
-                    <span class="prelude-val">Err</span>(InvalidIntegerBitSizeError(<span class="number">1</span>))
-                } <span class="kw">else </span>{
-                    <span class="prelude-val">Ok</span>(Integer(Signedness::Signed, IntegerBitSize::try_from(num_bits)<span class="question-mark">?</span>))
-                }
-            }
-            Unsigned(num_bits) =&gt; {
-                <span class="prelude-val">Ok</span>(Integer(Signedness::Unsigned, IntegerBitSize::try_from(num_bits)<span class="question-mark">?</span>))
-            }
-        }
+    <span class="kw">pub fn </span>bool(location: Location) -&gt; <span class="self">Self </span>{
+        <span class="self">Self</span>::named(<span class="string">"bool"</span>.to_string(), location)
+    }
+
+    <span class="kw">pub fn </span>integer(signedness: Signedness, size: IntegerBitSize, location: Location) -&gt; <span class="self">Self </span>{
+        <span class="kw">let </span>name = <span class="kw">match </span>signedness {
+            Signedness::Signed =&gt; <span class="kw">match </span>size {
+                IntegerBitSize::One =&gt; <span class="string">"i1"</span>,
+                IntegerBitSize::Eight =&gt; <span class="string">"i8"</span>,
+                IntegerBitSize::Sixteen =&gt; <span class="string">"i16"</span>,
+                IntegerBitSize::ThirtyTwo =&gt; <span class="string">"i32"</span>,
+                IntegerBitSize::SixtyFour =&gt; <span class="string">"i64"</span>,
+                IntegerBitSize::HundredTwentyEight =&gt; <span class="string">"i128"</span>,
+            },
+            Signedness::Unsigned =&gt; <span class="kw">match </span>size {
+                IntegerBitSize::One =&gt; <span class="string">"u1"</span>,
+                IntegerBitSize::Eight =&gt; <span class="string">"u8"</span>,
+                IntegerBitSize::Sixteen =&gt; <span class="string">"u16"</span>,
+                IntegerBitSize::ThirtyTwo =&gt; <span class="string">"u32"</span>,
+                IntegerBitSize::SixtyFour =&gt; <span class="string">"u64"</span>,
+                IntegerBitSize::HundredTwentyEight =&gt; <span class="string">"u128"</span>,
+            },
+        };
+        <span class="self">Self</span>::named(name.to_string(), location)
+    }
+
+    <span class="kw">pub fn </span>field(location: Location) -&gt; <span class="self">Self </span>{
+        <span class="self">Self</span>::named(<span class="string">"Field"</span>.to_string(), location)
+    }
+
+    <span class="kw">pub fn </span>quoted(quoted: QuotedType, location: Location) -&gt; <span class="self">Self </span>{
+        <span class="self">Self</span>::named(quoted.to_string(), location)
+    }
+
+    <span class="kw">pub fn </span>str(length: UnresolvedTypeExpression, location: Location) -&gt; <span class="self">Self </span>{
+        <span class="kw">let </span>ident = Ident::new(<span class="string">"str"</span>.to_string(), location);
+        <span class="kw">let </span>path = Path::from_ident(ident);
+        <span class="self">Self</span>::Named(
+            path,
+            GenericTypeArgs {
+                ordered_args: <span class="macro">vec!</span>[UnresolvedType {
+                    typ: UnresolvedTypeData::Expression(length),
+                    location,
+                }],
+                named_args: <span class="macro">vec!</span>[],
+                kinds: <span class="macro">vec!</span>[GenericTypeArgKind::Ordered],
+            },
+            <span class="bool-val">false</span>,
+        )
+    }
+
+    <span class="kw">pub fn </span>fmtstr(
+        length: UnresolvedTypeExpression,
+        element: UnresolvedType,
+        location: Location,
+    ) -&gt; <span class="self">Self </span>{
+        <span class="kw">let </span>ident = Ident::new(<span class="string">"str"</span>.to_string(), location);
+        <span class="kw">let </span>path = Path::from_ident(ident);
+        <span class="self">Self</span>::Named(
+            path,
+            GenericTypeArgs {
+                ordered_args: <span class="macro">vec!</span>[
+                    UnresolvedType { typ: UnresolvedTypeData::Expression(length), location },
+                    element,
+                ],
+                named_args: <span class="macro">vec!</span>[],
+                kinds: <span class="macro">vec!</span>[GenericTypeArgKind::Ordered],
+            },
+            <span class="bool-val">false</span>,
+        )
+    }
+
+    <span class="kw">fn </span>named(name: String, location: Location) -&gt; <span class="self">Self </span>{
+        <span class="kw">let </span>ident = Ident::new(name, location);
+        <span class="kw">let </span>path = Path::from_ident(ident);
+        <span class="self">Self</span>::Named(path, GenericTypeArgs::default(), <span class="bool-val">false</span>)
     }
 
     <span class="kw">pub fn </span>with_location(<span class="kw-2">&amp;</span><span class="self">self</span>, location: Location) -&gt; UnresolvedType {
@@ -997,10 +1071,6 @@
             }
             UnresolvedTypeData::Slice(typ) =&gt; typ.contains_unspecified(),
             UnresolvedTypeData::Expression(expr) =&gt; expr.contains_unspecified(),
-            UnresolvedTypeData::String(length) =&gt; length.contains_unspecified(),
-            UnresolvedTypeData::FormatString(typ, length) =&gt; {
-                typ.contains_unspecified() || length.contains_unspecified()
-            }
             UnresolvedTypeData::Parenthesized(typ) =&gt; typ.contains_unspecified(),
             UnresolvedTypeData::Named(path, args, _is_synthesized) =&gt; {
                 <span class="comment">// '_' is unspecified
@@ -1019,11 +1089,7 @@
             }
             UnresolvedTypeData::Unspecified =&gt; <span class="bool-val">true</span>,
 
-            UnresolvedTypeData::FieldElement
-            | UnresolvedTypeData::Integer(<span class="kw">_</span>, <span class="kw">_</span>)
-            | UnresolvedTypeData::Bool
-            | UnresolvedTypeData::Unit
-            | UnresolvedTypeData::Quoted(<span class="kw">_</span>)
+            UnresolvedTypeData::Unit
             | UnresolvedTypeData::AsTraitPath(<span class="kw">_</span>)
             | UnresolvedTypeData::Resolved(<span class="kw">_</span>)
             | UnresolvedTypeData::Interned(<span class="kw">_</span>)

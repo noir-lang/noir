@@ -1724,7 +1724,15 @@
 <a href="#1723" id="1723">1723</a>
 <a href="#1724" id="1724">1724</a>
 <a href="#1725" id="1725">1725</a>
-<a href="#1726" id="1726">1726</a></pre></div><pre class="rust"><code><span class="kw">use </span>core::str;
+<a href="#1726" id="1726">1726</a>
+<a href="#1727" id="1727">1727</a>
+<a href="#1728" id="1728">1728</a>
+<a href="#1729" id="1729">1729</a>
+<a href="#1730" id="1730">1730</a>
+<a href="#1731" id="1731">1731</a>
+<a href="#1732" id="1732">1732</a>
+<a href="#1733" id="1733">1733</a>
+<a href="#1734" id="1734">1734</a></pre></div><pre class="rust"><code><span class="kw">use </span>core::str;
 <span class="kw">use </span>std::path::Path;
 <span class="kw">use </span>std::rc::Rc;
 <span class="kw">use </span>std::vec;
@@ -1742,6 +1750,7 @@
     NoirTypeAlias, Pattern, TraitImplItemKind, TraitItem, TypeImpl, UnresolvedType,
     UnresolvedTypeData, desugar_generic_trait_bounds,
 };
+<span class="kw">use </span><span class="kw">crate</span>::elaborator::PrimitiveType;
 <span class="kw">use </span><span class="kw">crate</span>::hir::resolution::errors::ResolverError;
 <span class="kw">use </span><span class="kw">crate</span>::node_interner::{ModuleAttributes, NodeInterner, ReferenceId, TypeId};
 <span class="kw">use </span><span class="kw">crate</span>::token::{SecondaryAttribute, TestScope};
@@ -2618,16 +2627,23 @@
         typ: <span class="kw-2">&amp;</span>UnresolvedType,
         errors: <span class="kw-2">&amp;mut </span>Vec&lt;CompilationError&gt;,
     ) -&gt; Type {
-        <span class="kw">match </span><span class="kw-2">&amp;</span>typ.typ {
-            UnresolvedTypeData::FieldElement =&gt; Type::FieldElement,
-            UnresolvedTypeData::Integer(sign, bits) =&gt; Type::Integer(<span class="kw-2">*</span>sign, <span class="kw-2">*</span>bits),
-            <span class="kw">_ </span>=&gt; {
-                <span class="kw">let </span>error =
-                    ResolverError::AssociatedConstantsMustBeNumeric { location: typ.location };
-                errors.push(error.into());
-                Type::Error
+        <span class="comment">// TODO: delay this to the Elaborator
+        // See https://github.com/noir-lang/noir/issues/8504
+        </span><span class="kw">if let </span>UnresolvedTypeData::Named(path, _generics, <span class="kw">_</span>) = <span class="kw-2">&amp;</span>typ.typ {
+            <span class="kw">if </span>path.segments.len() == <span class="number">1 </span>{
+                <span class="kw">if let </span><span class="prelude-val">Some</span>(primitive_type) =
+                    PrimitiveType::lookup_by_name(path.segments[<span class="number">0</span>].ident.as_str())
+                {
+                    <span class="kw">if let </span><span class="prelude-val">Some</span>(typ) = primitive_type.to_integer_or_field() {
+                        <span class="kw">return </span>typ;
+                    }
+                }
             }
         }
+
+        <span class="kw">let </span>error = ResolverError::AssociatedConstantsMustBeNumeric { location: typ.location };
+        errors.push(error.into());
+        Type::Error
     }
 }
 

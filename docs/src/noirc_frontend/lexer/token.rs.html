@@ -1301,71 +1301,7 @@
 <a href="#1300" id="1300">1300</a>
 <a href="#1301" id="1301">1301</a>
 <a href="#1302" id="1302">1302</a>
-<a href="#1303" id="1303">1303</a>
-<a href="#1304" id="1304">1304</a>
-<a href="#1305" id="1305">1305</a>
-<a href="#1306" id="1306">1306</a>
-<a href="#1307" id="1307">1307</a>
-<a href="#1308" id="1308">1308</a>
-<a href="#1309" id="1309">1309</a>
-<a href="#1310" id="1310">1310</a>
-<a href="#1311" id="1311">1311</a>
-<a href="#1312" id="1312">1312</a>
-<a href="#1313" id="1313">1313</a>
-<a href="#1314" id="1314">1314</a>
-<a href="#1315" id="1315">1315</a>
-<a href="#1316" id="1316">1316</a>
-<a href="#1317" id="1317">1317</a>
-<a href="#1318" id="1318">1318</a>
-<a href="#1319" id="1319">1319</a>
-<a href="#1320" id="1320">1320</a>
-<a href="#1321" id="1321">1321</a>
-<a href="#1322" id="1322">1322</a>
-<a href="#1323" id="1323">1323</a>
-<a href="#1324" id="1324">1324</a>
-<a href="#1325" id="1325">1325</a>
-<a href="#1326" id="1326">1326</a>
-<a href="#1327" id="1327">1327</a>
-<a href="#1328" id="1328">1328</a>
-<a href="#1329" id="1329">1329</a>
-<a href="#1330" id="1330">1330</a>
-<a href="#1331" id="1331">1331</a>
-<a href="#1332" id="1332">1332</a>
-<a href="#1333" id="1333">1333</a>
-<a href="#1334" id="1334">1334</a>
-<a href="#1335" id="1335">1335</a>
-<a href="#1336" id="1336">1336</a>
-<a href="#1337" id="1337">1337</a>
-<a href="#1338" id="1338">1338</a>
-<a href="#1339" id="1339">1339</a>
-<a href="#1340" id="1340">1340</a>
-<a href="#1341" id="1341">1341</a>
-<a href="#1342" id="1342">1342</a>
-<a href="#1343" id="1343">1343</a>
-<a href="#1344" id="1344">1344</a>
-<a href="#1345" id="1345">1345</a>
-<a href="#1346" id="1346">1346</a>
-<a href="#1347" id="1347">1347</a>
-<a href="#1348" id="1348">1348</a>
-<a href="#1349" id="1349">1349</a>
-<a href="#1350" id="1350">1350</a>
-<a href="#1351" id="1351">1351</a>
-<a href="#1352" id="1352">1352</a>
-<a href="#1353" id="1353">1353</a>
-<a href="#1354" id="1354">1354</a>
-<a href="#1355" id="1355">1355</a>
-<a href="#1356" id="1356">1356</a>
-<a href="#1357" id="1357">1357</a>
-<a href="#1358" id="1358">1358</a>
-<a href="#1359" id="1359">1359</a>
-<a href="#1360" id="1360">1360</a>
-<a href="#1361" id="1361">1361</a>
-<a href="#1362" id="1362">1362</a>
-<a href="#1363" id="1363">1363</a>
-<a href="#1364" id="1364">1364</a>
-<a href="#1365" id="1365">1365</a>
-<a href="#1366" id="1366">1366</a>
-<a href="#1367" id="1367">1367</a></pre></div><pre class="rust"><code><span class="kw">use </span>acvm::FieldElement;
+<a href="#1303" id="1303">1303</a></pre></div><pre class="rust"><code><span class="kw">use </span>acvm::FieldElement;
 <span class="kw">use </span>noirc_errors::{Located, Location, Position, Span, Spanned};
 <span class="kw">use </span>std::fmt::{<span class="self">self</span>, Display};
 
@@ -1392,7 +1328,6 @@
     </span>RawStr(<span class="kw-2">&amp;</span><span class="lifetime">'input </span>str, u8),
     FmtStr(<span class="kw-2">&amp;</span><span class="lifetime">'input </span>[FmtStrFragment], u32 <span class="comment">/* length */</span>),
     Keyword(Keyword),
-    IntType(IntType),
     AttributeStart {
         is_inner: bool,
         is_tag: bool,
@@ -1507,7 +1442,6 @@
     </span>RawStr(String, u8),
     FmtStr(Vec&lt;FmtStrFragment&gt;, u32 <span class="comment">/* length */</span>),
     Keyword(Keyword),
-    IntType(IntType),
     AttributeStart {
         is_inner: bool,
         is_tag: bool,
@@ -1647,7 +1581,6 @@
         Token::InternedLValue(id) =&gt; BorrowedToken::InternedLValue(<span class="kw-2">*</span>id),
         Token::InternedUnresolvedTypeData(id) =&gt; BorrowedToken::InternedUnresolvedTypeData(<span class="kw-2">*</span>id),
         Token::InternedPattern(id) =&gt; BorrowedToken::InternedPattern(<span class="kw-2">*</span>id),
-        Token::IntType(i) =&gt; BorrowedToken::IntType(i.clone()),
         Token::Less =&gt; BorrowedToken::Less,
         Token::LessEqual =&gt; BorrowedToken::LessEqual,
         Token::Greater =&gt; BorrowedToken::Greater,
@@ -1884,7 +1817,6 @@
                 <span class="macro">write!</span>(f, <span class="string">"(expr)"</span>)
             }
             Token::InternedUnresolvedTypeData(<span class="kw">_</span>) =&gt; <span class="macro">write!</span>(f, <span class="string">"(type)"</span>),
-            Token::IntType(<span class="kw-2">ref </span>i) =&gt; <span class="macro">write!</span>(f, <span class="string">"{i}"</span>),
             Token::Less =&gt; <span class="macro">write!</span>(f, <span class="string">"&lt;"</span>),
             Token::LessEqual =&gt; <span class="macro">write!</span>(f, <span class="string">"&lt;="</span>),
             Token::Greater =&gt; <span class="macro">write!</span>(f, <span class="string">"&gt;"</span>),
@@ -2516,26 +2448,18 @@
     As,
     Assert,
     AssertEq,
-    Bool,
     Break,
     CallData,
-    Char,
     Comptime,
     Constrain,
     Continue,
     Contract,
     Crate,
-    CtString,
     Dep,
     Else,
     Enum,
-    EnumDefinition,
-    Expr,
-    Field,
     Fn,
     For,
-    FormatString,
-    FunctionDefinition,
     Global,
     If,
     Impl,
@@ -2544,28 +2468,16 @@
     Loop,
     Match,
     Mod,
-    Module,
     Mut,
     Pub,
-    Quoted,
     Return,
     ReturnData,
-    String,
     Struct,
-    StructDefinition,
     Super,
-    TopLevelItem,
     Trait,
-    TraitConstraint,
-    TraitDefinition,
-    TraitImpl,
     Type,
-    TypeDefinition,
-    TypedExpr,
-    TypeType,
     Unchecked,
     Unconstrained,
-    UnresolvedType,
     Unsafe,
     Use,
     Where,
@@ -2578,26 +2490,18 @@
             Keyword::As =&gt; <span class="macro">write!</span>(f, <span class="string">"as"</span>),
             Keyword::Assert =&gt; <span class="macro">write!</span>(f, <span class="string">"assert"</span>),
             Keyword::AssertEq =&gt; <span class="macro">write!</span>(f, <span class="string">"assert_eq"</span>),
-            Keyword::Bool =&gt; <span class="macro">write!</span>(f, <span class="string">"bool"</span>),
             Keyword::Break =&gt; <span class="macro">write!</span>(f, <span class="string">"break"</span>),
-            Keyword::Char =&gt; <span class="macro">write!</span>(f, <span class="string">"char"</span>),
             Keyword::CallData =&gt; <span class="macro">write!</span>(f, <span class="string">"call_data"</span>),
             Keyword::Comptime =&gt; <span class="macro">write!</span>(f, <span class="string">"comptime"</span>),
             Keyword::Constrain =&gt; <span class="macro">write!</span>(f, <span class="string">"constrain"</span>),
             Keyword::Continue =&gt; <span class="macro">write!</span>(f, <span class="string">"continue"</span>),
             Keyword::Contract =&gt; <span class="macro">write!</span>(f, <span class="string">"contract"</span>),
             Keyword::Crate =&gt; <span class="macro">write!</span>(f, <span class="string">"crate"</span>),
-            Keyword::CtString =&gt; <span class="macro">write!</span>(f, <span class="string">"CtString"</span>),
             Keyword::Dep =&gt; <span class="macro">write!</span>(f, <span class="string">"dep"</span>),
             Keyword::Else =&gt; <span class="macro">write!</span>(f, <span class="string">"else"</span>),
             Keyword::Enum =&gt; <span class="macro">write!</span>(f, <span class="string">"enum"</span>),
-            Keyword::EnumDefinition =&gt; <span class="macro">write!</span>(f, <span class="string">"EnumDefinition"</span>),
-            Keyword::Expr =&gt; <span class="macro">write!</span>(f, <span class="string">"Expr"</span>),
-            Keyword::Field =&gt; <span class="macro">write!</span>(f, <span class="string">"Field"</span>),
             Keyword::Fn =&gt; <span class="macro">write!</span>(f, <span class="string">"fn"</span>),
             Keyword::For =&gt; <span class="macro">write!</span>(f, <span class="string">"for"</span>),
-            Keyword::FormatString =&gt; <span class="macro">write!</span>(f, <span class="string">"fmtstr"</span>),
-            Keyword::FunctionDefinition =&gt; <span class="macro">write!</span>(f, <span class="string">"FunctionDefinition"</span>),
             Keyword::Global =&gt; <span class="macro">write!</span>(f, <span class="string">"global"</span>),
             Keyword::If =&gt; <span class="macro">write!</span>(f, <span class="string">"if"</span>),
             Keyword::Impl =&gt; <span class="macro">write!</span>(f, <span class="string">"impl"</span>),
@@ -2606,28 +2510,16 @@
             Keyword::Loop =&gt; <span class="macro">write!</span>(f, <span class="string">"loop"</span>),
             Keyword::Match =&gt; <span class="macro">write!</span>(f, <span class="string">"match"</span>),
             Keyword::Mod =&gt; <span class="macro">write!</span>(f, <span class="string">"mod"</span>),
-            Keyword::Module =&gt; <span class="macro">write!</span>(f, <span class="string">"Module"</span>),
             Keyword::Mut =&gt; <span class="macro">write!</span>(f, <span class="string">"mut"</span>),
             Keyword::Pub =&gt; <span class="macro">write!</span>(f, <span class="string">"pub"</span>),
-            Keyword::Quoted =&gt; <span class="macro">write!</span>(f, <span class="string">"Quoted"</span>),
             Keyword::Return =&gt; <span class="macro">write!</span>(f, <span class="string">"return"</span>),
             Keyword::ReturnData =&gt; <span class="macro">write!</span>(f, <span class="string">"return_data"</span>),
-            Keyword::String =&gt; <span class="macro">write!</span>(f, <span class="string">"str"</span>),
             Keyword::Struct =&gt; <span class="macro">write!</span>(f, <span class="string">"struct"</span>),
-            Keyword::StructDefinition =&gt; <span class="macro">write!</span>(f, <span class="string">"StructDefinition"</span>),
             Keyword::Super =&gt; <span class="macro">write!</span>(f, <span class="string">"super"</span>),
-            Keyword::TopLevelItem =&gt; <span class="macro">write!</span>(f, <span class="string">"TopLevelItem"</span>),
             Keyword::Trait =&gt; <span class="macro">write!</span>(f, <span class="string">"trait"</span>),
-            Keyword::TraitConstraint =&gt; <span class="macro">write!</span>(f, <span class="string">"TraitConstraint"</span>),
-            Keyword::TraitDefinition =&gt; <span class="macro">write!</span>(f, <span class="string">"TraitDefinition"</span>),
-            Keyword::TraitImpl =&gt; <span class="macro">write!</span>(f, <span class="string">"TraitImpl"</span>),
             Keyword::Type =&gt; <span class="macro">write!</span>(f, <span class="string">"type"</span>),
-            Keyword::TypeDefinition =&gt; <span class="macro">write!</span>(f, <span class="string">"TypeDefinition"</span>),
-            Keyword::TypedExpr =&gt; <span class="macro">write!</span>(f, <span class="string">"TypedExpr"</span>),
-            Keyword::TypeType =&gt; <span class="macro">write!</span>(f, <span class="string">"Type"</span>),
             Keyword::Unchecked =&gt; <span class="macro">write!</span>(f, <span class="string">"unchecked"</span>),
             Keyword::Unconstrained =&gt; <span class="macro">write!</span>(f, <span class="string">"unconstrained"</span>),
-            Keyword::UnresolvedType =&gt; <span class="macro">write!</span>(f, <span class="string">"UnresolvedType"</span>),
             Keyword::Unsafe =&gt; <span class="macro">write!</span>(f, <span class="string">"unsafe"</span>),
             Keyword::Use =&gt; <span class="macro">write!</span>(f, <span class="string">"use"</span>),
             Keyword::Where =&gt; <span class="macro">write!</span>(f, <span class="string">"where"</span>),
@@ -2643,26 +2535,18 @@
             <span class="string">"as" </span>=&gt; Keyword::As,
             <span class="string">"assert" </span>=&gt; Keyword::Assert,
             <span class="string">"assert_eq" </span>=&gt; Keyword::AssertEq,
-            <span class="string">"bool" </span>=&gt; Keyword::Bool,
             <span class="string">"break" </span>=&gt; Keyword::Break,
             <span class="string">"call_data" </span>=&gt; Keyword::CallData,
-            <span class="string">"char" </span>=&gt; Keyword::Char,
             <span class="string">"comptime" </span>=&gt; Keyword::Comptime,
             <span class="string">"constrain" </span>=&gt; Keyword::Constrain,
             <span class="string">"continue" </span>=&gt; Keyword::Continue,
             <span class="string">"contract" </span>=&gt; Keyword::Contract,
             <span class="string">"crate" </span>=&gt; Keyword::Crate,
-            <span class="string">"CtString" </span>=&gt; Keyword::CtString,
             <span class="string">"dep" </span>=&gt; Keyword::Dep,
             <span class="string">"else" </span>=&gt; Keyword::Else,
             <span class="string">"enum" </span>=&gt; Keyword::Enum,
-            <span class="string">"EnumDefinition" </span>=&gt; Keyword::EnumDefinition,
-            <span class="string">"Expr" </span>=&gt; Keyword::Expr,
-            <span class="string">"Field" </span>=&gt; Keyword::Field,
             <span class="string">"fn" </span>=&gt; Keyword::Fn,
             <span class="string">"for" </span>=&gt; Keyword::For,
-            <span class="string">"fmtstr" </span>=&gt; Keyword::FormatString,
-            <span class="string">"FunctionDefinition" </span>=&gt; Keyword::FunctionDefinition,
             <span class="string">"global" </span>=&gt; Keyword::Global,
             <span class="string">"if" </span>=&gt; Keyword::If,
             <span class="string">"impl" </span>=&gt; Keyword::Impl,
@@ -2671,28 +2555,16 @@
             <span class="string">"loop" </span>=&gt; Keyword::Loop,
             <span class="string">"match" </span>=&gt; Keyword::Match,
             <span class="string">"mod" </span>=&gt; Keyword::Mod,
-            <span class="string">"Module" </span>=&gt; Keyword::Module,
             <span class="string">"mut" </span>=&gt; Keyword::Mut,
             <span class="string">"pub" </span>=&gt; Keyword::Pub,
-            <span class="string">"Quoted" </span>=&gt; Keyword::Quoted,
             <span class="string">"return" </span>=&gt; Keyword::Return,
             <span class="string">"return_data" </span>=&gt; Keyword::ReturnData,
-            <span class="string">"str" </span>=&gt; Keyword::String,
             <span class="string">"struct" </span>=&gt; Keyword::Struct,
             <span class="string">"super" </span>=&gt; Keyword::Super,
-            <span class="string">"TopLevelItem" </span>=&gt; Keyword::TopLevelItem,
             <span class="string">"trait" </span>=&gt; Keyword::Trait,
-            <span class="string">"TraitConstraint" </span>=&gt; Keyword::TraitConstraint,
-            <span class="string">"TraitDefinition" </span>=&gt; Keyword::TraitDefinition,
-            <span class="string">"TraitImpl" </span>=&gt; Keyword::TraitImpl,
             <span class="string">"type" </span>=&gt; Keyword::Type,
-            <span class="string">"Type" </span>=&gt; Keyword::TypeType,
-            <span class="string">"TypeDefinition" </span>=&gt; Keyword::TypeDefinition,
-            <span class="string">"TypedExpr" </span>=&gt; Keyword::TypedExpr,
-            <span class="string">"StructDefinition" </span>=&gt; Keyword::StructDefinition,
             <span class="string">"unchecked" </span>=&gt; Keyword::Unchecked,
             <span class="string">"unconstrained" </span>=&gt; Keyword::Unconstrained,
-            <span class="string">"UnresolvedType" </span>=&gt; Keyword::UnresolvedType,
             <span class="string">"unsafe" </span>=&gt; Keyword::Unsafe,
             <span class="string">"use" </span>=&gt; Keyword::Use,
             <span class="string">"where" </span>=&gt; Keyword::Where,

@@ -149,7 +149,7 @@
 <span class="attr">#[cfg(test)]
 </span><span class="kw">mod </span>tests {
     <span class="kw">use crate</span>::{
-        ast::{NoirTypeAlias, UnresolvedTypeData},
+        ast::NoirTypeAlias,
         parse_program_with_dummy_file,
         parser::{ItemKind, parser::tests::expect_no_errors},
     };
@@ -171,7 +171,7 @@
         <span class="kw">let </span>alias = parse_type_alias_no_errors(src);
         <span class="macro">assert_eq!</span>(<span class="string">"Foo"</span>, alias.name.to_string());
         <span class="macro">assert!</span>(alias.generics.is_empty());
-        <span class="macro">assert_eq!</span>(alias.typ.typ, UnresolvedTypeData::FieldElement);
+        <span class="macro">assert_eq!</span>(alias.typ.typ.to_string(), <span class="string">"Field"</span>);
     }
 
     <span class="attr">#[test]

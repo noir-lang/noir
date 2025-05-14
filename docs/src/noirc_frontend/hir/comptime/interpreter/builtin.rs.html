@@ -3109,7 +3109,37 @@
 <a href="#3108" id="3108">3108</a>
 <a href="#3109" id="3109">3109</a>
 <a href="#3110" id="3110">3110</a>
-<a href="#3111" id="3111">3111</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::rc::Rc;
+<a href="#3111" id="3111">3111</a>
+<a href="#3112" id="3112">3112</a>
+<a href="#3113" id="3113">3113</a>
+<a href="#3114" id="3114">3114</a>
+<a href="#3115" id="3115">3115</a>
+<a href="#3116" id="3116">3116</a>
+<a href="#3117" id="3117">3117</a>
+<a href="#3118" id="3118">3118</a>
+<a href="#3119" id="3119">3119</a>
+<a href="#3120" id="3120">3120</a>
+<a href="#3121" id="3121">3121</a>
+<a href="#3122" id="3122">3122</a>
+<a href="#3123" id="3123">3123</a>
+<a href="#3124" id="3124">3124</a>
+<a href="#3125" id="3125">3125</a>
+<a href="#3126" id="3126">3126</a>
+<a href="#3127" id="3127">3127</a>
+<a href="#3128" id="3128">3128</a>
+<a href="#3129" id="3129">3129</a>
+<a href="#3130" id="3130">3130</a>
+<a href="#3131" id="3131">3131</a>
+<a href="#3132" id="3132">3132</a>
+<a href="#3133" id="3133">3133</a>
+<a href="#3134" id="3134">3134</a>
+<a href="#3135" id="3135">3135</a>
+<a href="#3136" id="3136">3136</a>
+<a href="#3137" id="3137">3137</a>
+<a href="#3138" id="3138">3138</a>
+<a href="#3139" id="3139">3139</a>
+<a href="#3140" id="3140">3140</a>
+<a href="#3141" id="3141">3141</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::rc::Rc;
 
 <span class="kw">use </span>acvm::{AcirField, FieldElement};
 <span class="kw">use </span>builtin_helpers::{
@@ -3135,7 +3165,7 @@
         Pattern, Statement, StatementKind, UnaryOp, UnresolvedType, UnresolvedTypeData,
         UnsafeExpression,
     },
-    elaborator::{ElaborateReason, Elaborator},
+    elaborator::{ElaborateReason, Elaborator, PrimitiveType},
     hir::{
         comptime::{
             InterpreterError, Value,
@@ -4476,7 +4506,22 @@
 ) -&gt; IResult&lt;Value&gt; {
     <span class="kw">let </span>self_argument = check_one_argument(arguments, location)<span class="question-mark">?</span>;
     <span class="kw">let </span>typ = get_unresolved_type(interner, self_argument)<span class="question-mark">?</span>;
-    <span class="prelude-val">Ok</span>(Value::Bool(<span class="macro">matches!</span>(typ, UnresolvedTypeData::Bool)))
+
+    <span class="comment">// TODO: we should resolve the type here instead of just checking the name
+    // See https://github.com/noir-lang/noir/issues/8505
+    </span><span class="kw">let </span>UnresolvedTypeData::Named(path, generics, <span class="kw">_</span>) = typ <span class="kw">else </span>{
+        <span class="kw">return </span><span class="prelude-val">Ok</span>(Value::Bool(<span class="bool-val">false</span>));
+    };
+    <span class="kw">if </span>!generics.is_empty() {
+        <span class="kw">return </span><span class="prelude-val">Ok</span>(Value::Bool(<span class="bool-val">false</span>));
+    }
+    <span class="kw">let </span><span class="prelude-val">Some</span>(ident) = path.as_ident() <span class="kw">else </span>{
+        <span class="kw">return </span><span class="prelude-val">Ok</span>(Value::Bool(<span class="bool-val">false</span>));
+    };
+    <span class="kw">let </span><span class="prelude-val">Some</span>(primitive_type) = PrimitiveType::lookup_by_name(ident.as_str()) <span class="kw">else </span>{
+        <span class="kw">return </span><span class="prelude-val">Ok</span>(Value::Bool(<span class="bool-val">false</span>));
+    };
+    <span class="prelude-val">Ok</span>(Value::Bool(primitive_type == PrimitiveType::Bool))
 }
 
 <span class="comment">// fn is_field(self) -&gt; bool
@@ -4487,7 +4532,22 @@
 ) -&gt; IResult&lt;Value&gt; {
     <span class="kw">let </span>self_argument = check_one_argument(arguments, location)<span class="question-mark">?</span>;
     <span class="kw">let </span>typ = get_unresolved_type(interner, self_argument)<span class="question-mark">?</span>;
-    <span class="prelude-val">Ok</span>(Value::Bool(<span class="macro">matches!</span>(typ, UnresolvedTypeData::FieldElement)))
+
+    <span class="comment">// TODO: we should resolve the type here instead of just checking the name
+    // See https://github.com/noir-lang/noir/issues/8505
+    </span><span class="kw">let </span>UnresolvedTypeData::Named(path, generics, <span class="kw">_</span>) = typ <span class="kw">else </span>{
+        <span class="kw">return </span><span class="prelude-val">Ok</span>(Value::Bool(<span class="bool-val">false</span>));
+    };
+    <span class="kw">if </span>!generics.is_empty() {
+        <span class="kw">return </span><span class="prelude-val">Ok</span>(Value::Bool(<span class="bool-val">false</span>));
+    }
+    <span class="kw">let </span><span class="prelude-val">Some</span>(ident) = path.as_ident() <span class="kw">else </span>{
+        <span class="kw">return </span><span class="prelude-val">Ok</span>(Value::Bool(<span class="bool-val">false</span>));
+    };
+    <span class="kw">let </span><span class="prelude-val">Some</span>(primitive_type) = PrimitiveType::lookup_by_name(ident.as_str()) <span class="kw">else </span>{
+        <span class="kw">return </span><span class="prelude-val">Ok</span>(Value::Bool(<span class="bool-val">false</span>));
+    };
+    <span class="prelude-val">Ok</span>(Value::Bool(primitive_type == PrimitiveType::Field))
 }
 
 <span class="comment">// fn is_unit(self) -&gt; bool

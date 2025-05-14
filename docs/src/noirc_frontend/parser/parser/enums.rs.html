@@ -256,14 +256,7 @@
 <a href="#255" id="255">255</a>
 <a href="#256" id="256">256</a>
 <a href="#257" id="257">257</a>
-<a href="#258" id="258">258</a>
-<a href="#259" id="259">259</a>
-<a href="#260" id="260">260</a>
-<a href="#261" id="261">261</a>
-<a href="#262" id="262">262</a>
-<a href="#263" id="263">263</a>
-<a href="#264" id="264">264</a>
-<a href="#265" id="265">265</a></pre></div><pre class="rust"><code><span class="kw">use </span>noirc_errors::Location;
+<a href="#258" id="258">258</a></pre></div><pre class="rust"><code><span class="kw">use </span>noirc_errors::Location;
 
 <span class="kw">use crate</span>::{
     ast::{Documented, EnumVariant, Ident, ItemVisibility, NoirEnumeration, UnresolvedGenerics},
@@ -387,13 +380,12 @@
     <span class="kw">use </span>insta::assert_snapshot;
 
     <span class="kw">use crate</span>::{
-        ast::{IntegerBitSize, NoirEnumeration, UnresolvedGeneric, UnresolvedTypeData},
+        ast::{NoirEnumeration, UnresolvedGeneric},
         parse_program_with_dummy_file,
         parser::{
             ItemKind, ParserErrorReason,
             parser::tests::{expect_no_errors, get_source_with_error_span},
         },
-        shared::Signedness,
     };
 
     <span class="kw">fn </span>parse_enum_no_errors(src: <span class="kw-2">&amp;</span>str) -&gt; NoirEnumeration {
@@ -436,10 +428,7 @@
             <span class="macro">panic!</span>(<span class="string">"Expected generic numeric"</span>);
         };
         <span class="macro">assert_eq!</span>(<span class="string">"B"</span>, ident.to_string());
-        <span class="macro">assert_eq!</span>(
-            typ.typ,
-            UnresolvedTypeData::Integer(Signedness::Unsigned, IntegerBitSize::ThirtyTwo)
-        );
+        <span class="macro">assert_eq!</span>(typ.typ.to_string(), <span class="string">"u32"</span>);
     }
 
     <span class="attr">#[test]
@@ -451,16 +440,13 @@
 
         <span class="kw">let </span>variant = noir_enum.variants.remove(<span class="number">0</span>).item;
         <span class="macro">assert_eq!</span>(<span class="string">"X"</span>, variant.name.to_string());
-        <span class="macro">assert!</span>(<span class="macro">matches!</span>(
-            variant.parameters.as_ref().unwrap()[<span class="number">0</span>].typ,
-            UnresolvedTypeData::Integer(Signedness::Signed, IntegerBitSize::ThirtyTwo)
-        ));
+        <span class="macro">assert_eq!</span>(variant.parameters.as_ref().unwrap()[<span class="number">0</span>].typ.to_string(), <span class="string">"i32"</span>);
 
         <span class="kw">let </span>variant = noir_enum.variants.remove(<span class="number">0</span>).item;
         <span class="macro">assert_eq!</span>(<span class="string">"y"</span>, variant.name.to_string());
         <span class="kw">let </span>parameters = variant.parameters.as_ref().unwrap();
-        <span class="macro">assert!</span>(<span class="macro">matches!</span>(parameters[<span class="number">0</span>].typ, UnresolvedTypeData::FieldElement));
-        <span class="macro">assert!</span>(<span class="macro">matches!</span>(parameters[<span class="number">1</span>].typ, UnresolvedTypeData::Integer(..)));
+        <span class="macro">assert_eq!</span>(parameters[<span class="number">0</span>].typ.to_string(), <span class="string">"Field"</span>);
+        <span class="macro">assert_eq!</span>(parameters[<span class="number">1</span>].typ.to_string(), <span class="string">"u32"</span>);
 
         <span class="kw">let </span>variant = noir_enum.variants.remove(<span class="number">0</span>).item;
         <span class="macro">assert_eq!</span>(<span class="string">"Z"</span>, variant.name.to_string());

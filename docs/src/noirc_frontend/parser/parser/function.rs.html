@@ -698,16 +698,7 @@
 <a href="#697" id="697">697</a>
 <a href="#698" id="698">698</a>
 <a href="#699" id="699">699</a>
-<a href="#700" id="700">700</a>
-<a href="#701" id="701">701</a>
-<a href="#702" id="702">702</a>
-<a href="#703" id="703">703</a>
-<a href="#704" id="704">704</a>
-<a href="#705" id="705">705</a>
-<a href="#706" id="706">706</a>
-<a href="#707" id="707">707</a>
-<a href="#708" id="708">708</a>
-<a href="#709" id="709">709</a></pre></div><pre class="rust"><code><span class="kw">use </span><span class="kw">crate</span>::ast::{
+<a href="#700" id="700">700</a></pre></div><pre class="rust"><code><span class="kw">use </span><span class="kw">crate</span>::ast::{
     BlockExpression, GenericTypeArgs, Ident, Path, Pattern, UnresolvedTraitConstraint,
     UnresolvedType,
 };
@@ -1058,10 +1049,7 @@
     <span class="kw">use </span>insta::assert_snapshot;
 
     <span class="kw">use crate</span>::{
-        ast::{
-            ExpressionKind, IntegerBitSize, ItemVisibility, NoirFunction, StatementKind,
-            UnresolvedTypeData,
-        },
+        ast::{ExpressionKind, ItemVisibility, NoirFunction, StatementKind},
         parse_program_with_dummy_file,
         parser::{
             ItemKind, Parser, ParserErrorReason,
@@ -1070,7 +1058,7 @@
                 get_source_with_error_span,
             },
         },
-        shared::{Signedness, Visibility},
+        shared::Visibility,
     };
 
     <span class="kw">fn </span>parse_function_no_error(src: <span class="kw-2">&amp;</span>str) -&gt; NoirFunction {
@@ -1154,7 +1142,7 @@
         <span class="kw">let </span>src = <span class="string">"fn foo() -&gt; Field {}"</span>;
         <span class="kw">let </span>noir_function = parse_function_no_error(src);
         <span class="macro">assert_eq!</span>(noir_function.def.return_visibility, Visibility::Private);
-        <span class="macro">assert_eq!</span>(noir_function.return_type().typ, UnresolvedTypeData::FieldElement);
+        <span class="macro">assert_eq!</span>(noir_function.return_type().typ.to_string(), <span class="string">"Field"</span>);
     }
 
     <span class="attr">#[test]
@@ -1162,7 +1150,7 @@
         <span class="kw">let </span>src = <span class="string">"fn foo() -&gt; pub Field {}"</span>;
         <span class="kw">let </span>noir_function = parse_function_no_error(src);
         <span class="macro">assert_eq!</span>(noir_function.def.return_visibility, Visibility::Public);
-        <span class="macro">assert_eq!</span>(noir_function.return_type().typ, UnresolvedTypeData::FieldElement);
+        <span class="macro">assert_eq!</span>(noir_function.return_type().typ.to_string(), <span class="string">"Field"</span>);
     }
 
     <span class="attr">#[test]
@@ -1297,14 +1285,8 @@
         <span class="kw">let </span>params = noir_function.parameters();
         <span class="macro">assert_eq!</span>(params.len(), <span class="number">2</span>);
 
-        <span class="macro">assert_eq!</span>(
-            params[<span class="number">0</span>].typ.typ,
-            UnresolvedTypeData::Integer(Signedness::Signed, IntegerBitSize::ThirtyTwo)
-        );
-        <span class="macro">assert_eq!</span>(
-            params[<span class="number">1</span>].typ.typ,
-            UnresolvedTypeData::Integer(Signedness::Signed, IntegerBitSize::SixtyFour)
-        );
+        <span class="macro">assert_eq!</span>(params[<span class="number">0</span>].typ.typ.to_string(), <span class="string">"i32"</span>,);
+        <span class="macro">assert_eq!</span>(params[<span class="number">1</span>].typ.typ.to_string(), <span class="string">"i64"</span>,);
     }
 
     <span class="attr">#[test]

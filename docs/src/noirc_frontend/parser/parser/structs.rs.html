@@ -270,14 +270,7 @@
 <a href="#269" id="269">269</a>
 <a href="#270" id="270">270</a>
 <a href="#271" id="271">271</a>
-<a href="#272" id="272">272</a>
-<a href="#273" id="273">273</a>
-<a href="#274" id="274">274</a>
-<a href="#275" id="275">275</a>
-<a href="#276" id="276">276</a>
-<a href="#277" id="277">277</a>
-<a href="#278" id="278">278</a>
-<a href="#279" id="279">279</a></pre></div><pre class="rust"><code><span class="kw">use </span>noirc_errors::Location;
+<a href="#272" id="272">272</a></pre></div><pre class="rust"><code><span class="kw">use </span>noirc_errors::Location;
 
 <span class="kw">use crate</span>::{
     ast::{Documented, Ident, ItemVisibility, NoirStruct, StructField, UnresolvedGenerics},
@@ -410,7 +403,7 @@
     <span class="kw">use </span>insta::assert_snapshot;
 
     <span class="kw">use crate</span>::{
-        ast::{IntegerBitSize, NoirStruct, UnresolvedGeneric, UnresolvedTypeData},
+        ast::{NoirStruct, UnresolvedGeneric},
         parse_program_with_dummy_file,
         parser::{
             ItemKind, ParserErrorReason,
@@ -419,7 +412,6 @@
                 get_source_with_error_span,
             },
         },
-        shared::Signedness,
     };
 
     <span class="kw">fn </span>parse_struct_no_errors(src: <span class="kw-2">&amp;</span>str) -&gt; NoirStruct {
@@ -471,10 +463,7 @@
             <span class="macro">panic!</span>(<span class="string">"Expected generic numeric"</span>);
         };
         <span class="macro">assert_eq!</span>(<span class="string">"B"</span>, ident.to_string());
-        <span class="macro">assert_eq!</span>(
-            typ.typ,
-            UnresolvedTypeData::Integer(Signedness::Unsigned, IntegerBitSize::ThirtyTwo)
-        );
+        <span class="macro">assert_eq!</span>(typ.typ.to_string(), <span class="string">"u32"</span>);
     }
 
     <span class="attr">#[test]
@@ -486,14 +475,11 @@
 
         <span class="kw">let </span>field = noir_struct.fields.remove(<span class="number">0</span>).item;
         <span class="macro">assert_eq!</span>(<span class="string">"x"</span>, field.name.to_string());
-        <span class="macro">assert!</span>(<span class="macro">matches!</span>(
-            field.typ.typ,
-            UnresolvedTypeData::Integer(Signedness::Signed, IntegerBitSize::ThirtyTwo)
-        ));
+        <span class="macro">assert_eq!</span>(field.typ.typ.to_string(), <span class="string">"i32"</span>);
 
         <span class="kw">let </span>field = noir_struct.fields.remove(<span class="number">0</span>).item;
         <span class="macro">assert_eq!</span>(<span class="string">"y"</span>, field.name.to_string());
-        <span class="macro">assert!</span>(<span class="macro">matches!</span>(field.typ.typ, UnresolvedTypeData::FieldElement));
+        <span class="macro">assert_eq!</span>(field.typ.typ.to_string(), <span class="string">"Field"</span>);
     }
 
     <span class="attr">#[test]

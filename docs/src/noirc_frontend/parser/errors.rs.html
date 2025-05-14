@@ -338,27 +338,7 @@
 <a href="#337" id="337">337</a>
 <a href="#338" id="338">338</a>
 <a href="#339" id="339">339</a>
-<a href="#340" id="340">340</a>
-<a href="#341" id="341">341</a>
-<a href="#342" id="342">342</a>
-<a href="#343" id="343">343</a>
-<a href="#344" id="344">344</a>
-<a href="#345" id="345">345</a>
-<a href="#346" id="346">346</a>
-<a href="#347" id="347">347</a>
-<a href="#348" id="348">348</a>
-<a href="#349" id="349">349</a>
-<a href="#350" id="350">350</a>
-<a href="#351" id="351">351</a>
-<a href="#352" id="352">352</a>
-<a href="#353" id="353">353</a>
-<a href="#354" id="354">354</a>
-<a href="#355" id="355">355</a>
-<a href="#356" id="356">356</a>
-<a href="#357" id="357">357</a>
-<a href="#358" id="358">358</a>
-<a href="#359" id="359">359</a>
-<a href="#360" id="360">360</a></pre></div><pre class="rust"><code><span class="kw">use </span><span class="kw">crate</span>::ast::{Expression, IntegerBitSize, ItemVisibility, UnresolvedType};
+<a href="#340" id="340">340</a></pre></div><pre class="rust"><code><span class="kw">use </span><span class="kw">crate</span>::ast::{Expression, IntegerBitSize, ItemVisibility, UnresolvedType};
 <span class="kw">use </span><span class="kw">crate</span>::lexer::errors::LexerErrorKind;
 <span class="kw">use </span><span class="kw">crate</span>::lexer::token::Token;
 <span class="kw">use </span><span class="kw">crate</span>::token::TokenKind;
@@ -418,8 +398,6 @@
 
     <span class="attr">#[error(<span class="string">"Unexpected '{0}', expected a field name or number"</span>)]
     </span>ExpectedFieldName(Token),
-    <span class="attr">#[error(<span class="string">"Expected a pattern but found a type - {0}"</span>)]
-    </span>ExpectedPatternButFoundType(Token),
     <span class="attr">#[error(<span class="string">"Expected a ; separating these two statements"</span>)]
     </span>MissingSeparatingSemi,
     <span class="attr">#[error(<span class="string">"Expected a ; after `let` statement"</span>)]
@@ -454,8 +432,6 @@
     </span>InvalidBitSize(u32),
     <span class="attr">#[error(<span class="string">"{0}"</span>)]
     </span>Lexer(LexerErrorKind),
-    <span class="attr">#[error(<span class="string">"The only supported numeric generic types are `u1`, `u8`, `u16`, and `u32`"</span>)]
-    </span>ForbiddenNumericGenericType,
     <span class="attr">#[error(<span class="string">"Invalid call data identifier, must be a number. E.g `call_data(0)`"</span>)]
     </span>InvalidCallDataIdentifier,
     <span class="attr">#[error(<span class="string">"Associated types are not allowed in paths"</span>)]
@@ -477,8 +453,6 @@
     </span>MissingSafetyComment,
     <span class="attr">#[error(<span class="string">"Missing parameters for function definition"</span>)]
     </span>MissingParametersForFunctionDefinition,
-    <span class="attr">#[error(<span class="string">"`StructDefinition` is deprecated. It has been renamed to `TypeDefinition`"</span>)]
-    </span>StructDefinitionDeprecated,
     <span class="attr">#[error(<span class="string">"Missing angle brackets surrounding type in associated item path"</span>)]
     </span>MissingAngleBrackets,
     <span class="attr">#[error(<span class="string">"Expected value, found built-in type `{typ}`"</span>)]
@@ -487,8 +461,6 @@
     </span>LogicalAnd,
     <span class="attr">#[error(<span class="string">"Trait bounds are not allowed here"</span>)]
     </span>TraitBoundsNotAllowedHere,
-    <span class="attr">#[error(<span class="string">"Missing double colon before generic arguments"</span>)]
-    </span>MissingDoubleColon,
 }
 
 <span class="doccomment">/// Represents a parsing error, or a parsing error in the making.
@@ -652,11 +624,6 @@
                 ParserErrorReason::TraitImplVisibilityIgnored =&gt; {
                     Diagnostic::simple_warning(reason.to_string(), <span class="string">""</span>.into(), error.location())
                 }
-                ParserErrorReason::ExpectedPatternButFoundType(ty) =&gt; Diagnostic::simple_error(
-                    <span class="macro">format!</span>(<span class="string">"Expected a pattern but found a type - {ty}"</span>),
-                    <span class="macro">format!</span>(<span class="string">"{ty} is a type and cannot be used as a variable name"</span>),
-                    error.location(),
-                ),
                 ParserErrorReason::Lexer(error) =&gt; error.into(),
                 ParserErrorReason::ExpectedMutAfterAmpersand { found } =&gt; Diagnostic::simple_error(
                     <span class="macro">format!</span>(<span class="string">"Expected `mut` after `&amp;`, found `{found}`"</span>),
@@ -680,16 +647,9 @@
                     <span class="kw">let </span>secondary = <span class="string">"Consider changing it to a regular `//` comment"</span>.to_string();
                     Diagnostic::simple_warning(primary, secondary, error.location())
                 }
-                ParserErrorReason::StructDefinitionDeprecated =&gt; {
-                    Diagnostic::simple_warning(<span class="macro">format!</span>(<span class="string">"{reason}"</span>), String::new(), error.location())
-                }
                 ParserErrorReason::MissingAngleBrackets =&gt; {
                     <span class="kw">let </span>secondary = <span class="string">"Types that don't start with an identifier need to be surrounded with angle brackets: `&lt;`, `&gt;`"</span>.to_string();
                     Diagnostic::simple_error(<span class="macro">format!</span>(<span class="string">"{reason}"</span>), secondary, error.location())
-                }
-                ParserErrorReason::MissingDoubleColon =&gt; {
-                    <span class="kw">let </span>secondary = String::new();
-                    Diagnostic::simple_warning(<span class="macro">format!</span>(<span class="string">"{reason}"</span>), secondary, error.location())
                 }
                 ParserErrorReason::LogicalAnd =&gt; {
                     <span class="kw">let </span>primary = <span class="string">"Noir has no logical-and (&amp;&amp;) operator since short-circuiting is much less efficient when compiling to circuits"</span>.to_string();

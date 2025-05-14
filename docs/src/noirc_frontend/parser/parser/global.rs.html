@@ -187,14 +187,7 @@
 <a href="#186" id="186">186</a>
 <a href="#187" id="187">187</a>
 <a href="#188" id="188">188</a>
-<a href="#189" id="189">189</a>
-<a href="#190" id="190">190</a>
-<a href="#191" id="191">191</a>
-<a href="#192" id="192">192</a>
-<a href="#193" id="193">193</a>
-<a href="#194" id="194">194</a>
-<a href="#195" id="195">195</a>
-<a href="#196" id="196">196</a></pre></div><pre class="rust"><code><span class="kw">use </span>noirc_errors::Location;
+<a href="#189" id="189">189</a></pre></div><pre class="rust"><code><span class="kw">use </span>noirc_errors::Location;
 
 <span class="kw">use crate</span>::{
     ast::{
@@ -268,10 +261,7 @@
     <span class="kw">use </span>insta::assert_snapshot;
 
     <span class="kw">use crate</span>::{
-        ast::{
-            ExpressionKind, IntegerBitSize, ItemVisibility, LetStatement, Literal, Pattern,
-            UnresolvedTypeData,
-        },
+        ast::{ExpressionKind, ItemVisibility, LetStatement, Literal, Pattern, UnresolvedTypeData},
         parse_program_with_dummy_file,
         parser::{
             ItemKind, ParserErrorReason,
@@ -280,7 +270,6 @@
                 get_source_with_error_span,
             },
         },
-        shared::Signedness,
     };
 
     <span class="kw">fn </span>parse_global_no_errors(src: <span class="kw-2">&amp;</span>str) -&gt; (LetStatement, ItemVisibility) {
@@ -316,10 +305,7 @@
             <span class="macro">panic!</span>(<span class="string">"Expected identifier pattern"</span>);
         };
         <span class="macro">assert_eq!</span>(<span class="string">"foo"</span>, name.to_string());
-        <span class="macro">assert!</span>(<span class="macro">matches!</span>(
-            let_statement.r#type.typ,
-            UnresolvedTypeData::Integer(Signedness::Signed, IntegerBitSize::ThirtyTwo)
-        ));
+        <span class="macro">assert_eq!</span>(let_statement.r#type.typ.to_string(), <span class="string">"i32"</span>);
     }
 
     <span class="attr">#[test]

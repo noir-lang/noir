@@ -2310,7 +2310,9 @@
 <a href="#2309" id="2309">2309</a>
 <a href="#2310" id="2310">2310</a>
 <a href="#2311" id="2311">2311</a>
-<a href="#2312" id="2312">2312</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::{
+<a href="#2312" id="2312">2312</a>
+<a href="#2313" id="2313">2313</a>
+<a href="#2314" id="2314">2314</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::{
     collections::{BTreeMap, BTreeSet},
     rc::Rc,
 };
@@ -2369,6 +2371,7 @@
 <span class="kw">mod </span>options;
 <span class="kw">mod </span>path_resolution;
 <span class="kw">mod </span>patterns;
+<span class="kw">mod </span>primitive_types;
 <span class="kw">mod </span>scope;
 <span class="kw">mod </span>statements;
 <span class="kw">mod </span>trait_impls;
@@ -2389,6 +2392,7 @@
 
 <span class="kw">use </span><span class="self">self</span>::traits::check_trait_impl_method_matches_declaration;
 <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">use </span>path_resolution::{TypedPath, TypedPathSegment};
+<span class="kw">pub use </span>primitive_types::PrimitiveType;
 
 <span class="doccomment">/// ResolverMetas are tagged onto each definition to track how many times they are used
 </span><span class="attr">#[derive(Debug, PartialEq, Eq)]

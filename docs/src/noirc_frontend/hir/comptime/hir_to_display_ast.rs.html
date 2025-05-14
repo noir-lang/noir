@@ -545,7 +545,11 @@
 <a href="#544" id="544">544</a>
 <a href="#545" id="545">545</a>
 <a href="#546" id="546">546</a>
-<a href="#547" id="547">547</a></pre></div><pre class="rust"><code><span class="kw">use </span>fm::FileId;
+<a href="#547" id="547">547</a>
+<a href="#548" id="548">548</a>
+<a href="#549" id="549">549</a>
+<a href="#550" id="550">550</a>
+<a href="#551" id="551">551</a></pre></div><pre class="rust"><code><span class="kw">use </span>fm::FileId;
 <span class="kw">use </span>iter_extended::vecmap;
 <span class="kw">use </span>noirc_errors::{Located, Location, Span};
 
@@ -923,7 +927,7 @@
     <span class="doccomment">/// Convert to AST for display (some details lost)
     </span><span class="kw">fn </span>to_display_ast(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; UnresolvedType {
         <span class="kw">let </span>typ = <span class="kw">match </span><span class="self">self </span>{
-            Type::FieldElement =&gt; UnresolvedTypeData::FieldElement,
+            Type::FieldElement =&gt; UnresolvedTypeData::field(Location::dummy()),
             Type::Array(length, element) =&gt; {
                 <span class="kw">let </span>length = length.to_type_expression();
                 <span class="kw">let </span>element = Box::new(element.to_display_ast());
@@ -933,16 +937,18 @@
                 <span class="kw">let </span>element = Box::new(element.to_display_ast());
                 UnresolvedTypeData::Slice(element)
             }
-            Type::Integer(sign, bit_size) =&gt; UnresolvedTypeData::Integer(<span class="kw-2">*</span>sign, <span class="kw-2">*</span>bit_size),
-            Type::Bool =&gt; UnresolvedTypeData::Bool,
+            Type::Integer(sign, bit_size) =&gt; {
+                UnresolvedTypeData::integer(<span class="kw-2">*</span>sign, <span class="kw-2">*</span>bit_size, Location::dummy())
+            }
+            Type::Bool =&gt; UnresolvedTypeData::bool(Location::dummy()),
             Type::String(length) =&gt; {
                 <span class="kw">let </span>length = length.to_type_expression();
-                UnresolvedTypeData::String(length)
+                UnresolvedTypeData::str(length, Location::dummy())
             }
             Type::FmtString(length, element) =&gt; {
                 <span class="kw">let </span>length = length.to_type_expression();
-                <span class="kw">let </span>element = Box::new(element.to_display_ast());
-                UnresolvedTypeData::FormatString(length, element)
+                <span class="kw">let </span>element = element.to_display_ast();
+                UnresolvedTypeData::fmtstr(length, element, Location::dummy())
             }
             Type::Unit =&gt; UnresolvedTypeData::Unit,
             Type::Tuple(fields) =&gt; {
@@ -1007,7 +1013,9 @@
             // this to ignore this case since it shouldn't be needed anyway.
             </span>Type::Forall(<span class="kw">_</span>, typ) =&gt; <span class="kw">return </span>typ.to_display_ast(),
             Type::Constant(..) =&gt; <span class="macro">panic!</span>(<span class="string">"Type::Constant where a type was expected: {self:?}"</span>),
-            Type::Quoted(quoted_type) =&gt; UnresolvedTypeData::Quoted(<span class="kw-2">*</span>quoted_type),
+            Type::Quoted(quoted_type) =&gt; {
+                UnresolvedTypeData::quoted(<span class="kw-2">*</span>quoted_type, Location::dummy())
+            }
             Type::Error =&gt; UnresolvedTypeData::Error,
             Type::InfixExpr(lhs, op, rhs, <span class="kw">_</span>) =&gt; {
                 <span class="kw">let </span>lhs = Box::new(lhs.to_type_expression());

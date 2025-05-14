@@ -1016,18 +1016,7 @@
 <a href="#1015" id="1015">1015</a>
 <a href="#1016" id="1016">1016</a>
 <a href="#1017" id="1017">1017</a>
-<a href="#1018" id="1018">1018</a>
-<a href="#1019" id="1019">1019</a>
-<a href="#1020" id="1020">1020</a>
-<a href="#1021" id="1021">1021</a>
-<a href="#1022" id="1022">1022</a>
-<a href="#1023" id="1023">1023</a>
-<a href="#1024" id="1024">1024</a>
-<a href="#1025" id="1025">1025</a>
-<a href="#1026" id="1026">1026</a>
-<a href="#1027" id="1027">1027</a>
-<a href="#1028" id="1028">1028</a>
-<a href="#1029" id="1029">1029</a></pre></div><pre class="rust"><code><span class="kw">use </span>fm::FileId;
+<a href="#1018" id="1018">1018</a></pre></div><pre class="rust"><code><span class="kw">use </span>fm::FileId;
 <span class="kw">use </span>iter_extended::vecmap;
 <span class="kw">use </span>noirc_errors::Location;
 <span class="kw">use </span>noirc_frontend::{
@@ -1496,13 +1485,6 @@
         UnresolvedTypeData::Expression(expr) =&gt; {
             UnresolvedTypeData::Expression(unresolved_type_expression_with_file(expr, file))
         }
-        UnresolvedTypeData::String(expr) =&gt; {
-            UnresolvedTypeData::String(unresolved_type_expression_with_file(expr, file))
-        }
-        UnresolvedTypeData::FormatString(expr, typ) =&gt; UnresolvedTypeData::FormatString(
-            unresolved_type_expression_with_file(expr, file),
-            Box::new(unresolved_type_with_file(<span class="kw-2">*</span>typ, file)),
-        ),
         UnresolvedTypeData::Parenthesized(typ) =&gt; {
             UnresolvedTypeData::Parenthesized(Box::new(unresolved_type_with_file(<span class="kw-2">*</span>typ, file)))
         }
@@ -1536,13 +1518,9 @@
         UnresolvedTypeData::AsTraitPath(as_trait_path) =&gt; {
             UnresolvedTypeData::AsTraitPath(Box::new(as_trait_path_with_file(<span class="kw-2">*</span>as_trait_path, file)))
         }
-        UnresolvedTypeData::Quoted(..)
-        | UnresolvedTypeData::Resolved(..)
+        UnresolvedTypeData::Resolved(..)
         | UnresolvedTypeData::Interned(..)
         | UnresolvedTypeData::Unit
-        | UnresolvedTypeData::Bool
-        | UnresolvedTypeData::Integer(..)
-        | UnresolvedTypeData::FieldElement
         | UnresolvedTypeData::Unspecified
         | UnresolvedTypeData::Error =&gt; typ,
     }
