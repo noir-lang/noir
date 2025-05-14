@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1747223368963,
+  "lastUpdate": 1747223380834,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -3790,95 +3790,6 @@ window.BENCHMARK_DATA = {
       }
     ],
     "Compilation Time": [
-      {
-        "commit": {
-          "author": {
-            "email": "47281315+guipublic@users.noreply.github.com",
-            "name": "guipublic",
-            "username": "guipublic"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "9e1e0fe6e6a734bf55c426a172da956a1cc27713",
-          "message": "fix: disable range constraints using the predicate (#8396)",
-          "timestamp": "2025-05-08T12:08:23Z",
-          "tree_id": "237b01229ca4bc43537fbba886cf3e0ee7873706",
-          "url": "https://github.com/noir-lang/noir/commit/9e1e0fe6e6a734bf55c426a172da956a1cc27713"
-        },
-        "date": 1746707586010,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "regression_4709",
-            "value": 0.71,
-            "unit": "s"
-          },
-          {
-            "name": "ram_blowup_regression",
-            "value": 13.1,
-            "unit": "s"
-          },
-          {
-            "name": "global_var_regression_entry_points",
-            "value": 0.511,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-inner",
-            "value": 2.488,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 6.39,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 1.174,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 17.24,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 13.02,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root-empty",
-            "value": 1.226,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root-single-tx",
-            "value": 118,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 120,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 1.048,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-root",
-            "value": 1.592,
-            "unit": "s"
-          }
-        ]
-      },
       {
         "commit": {
           "author": {
@@ -7766,6 +7677,85 @@ window.BENCHMARK_DATA = {
           {
             "name": "semaphore-depth-10",
             "value": 0.835,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "15848336+TomAFrench@users.noreply.github.com",
+            "name": "Tom French",
+            "username": "TomAFrench"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "7be8f5693adc3047156598781d08ac874c56050f",
+          "message": "fix: fix visibility of methods in `std::meta` (#8497)\n\nCo-authored-by: AztecBot <tech@aztecprotocol.com>",
+          "timestamp": "2025-05-14T11:14:30Z",
+          "tree_id": "9fb9708cb0f0fd914735216dd15fcec2ea7f3079",
+          "url": "https://github.com/noir-lang/noir/commit/7be8f5693adc3047156598781d08ac874c56050f"
+        },
+        "date": 1747223371987,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 2.24,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 6.876,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 1.092,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 16.74,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 12.9,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-empty",
+            "value": 1.238,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-single-tx",
+            "value": 126,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 123,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 1.068,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-root",
+            "value": 1.646,
+            "unit": "s"
+          },
+          {
+            "name": "semaphore-depth-10",
+            "value": 0.814,
             "unit": "s"
           }
         ]
