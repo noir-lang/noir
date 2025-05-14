@@ -285,7 +285,6 @@ impl Elaborator<'_> {
         });
 
         if let Some((double_dot_index, location)) = double_dot {
-            // TODO: use correct location
             fields.insert(double_dot_index, HirPattern::DoubleDot(location));
         }
 
