@@ -41,6 +41,8 @@ mod tests {
     /// cargo test -p noir_ast_fuzzer_fuzz acir_vs_brillig
     /// ```
     pub fn fuzz_with_arbtest(f: impl Fn(&mut Unstructured) -> eyre::Result<()>) {
+        let _ = env_logger::try_init();
+
         if should_ignore_on_ci() {
             return;
         }

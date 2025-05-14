@@ -73,21 +73,22 @@ impl CompareInterpreted {
     }
 
     pub fn exec(&self) -> eyre::Result<CompareInterpretedResult> {
-        // println!("program: \n{}\n", crate::DisplayAstAsNoir(&self.program));
-        // println!(
-        //     "input map: \n{}\n",
-        //     noirc_abi::input_parser::Format::Toml.serialize(&self.input_map, &self.abi).unwrap()
-        // );
-        // println!(
-        //     "input values:\n{}\n",
-        //     self.input_values
-        //         .iter()
-        //         .enumerate()
-        //         .map(|(i, v)| format!("{i}: {v}"))
-        //         .collect::<Vec<_>>()
-        //         .join("\n")
-        // );
-        // println!("SSA after step {} ({}):\n{}\n", self.ssa1.step, self.ssa1.msg, self.ssa1.ssa);
+        // Debug prints up fron tin case the interpreter panics. Turn them on with `RUST_LOG=debug cargo test ...`
+        log::debug!("program: \n{}\n", crate::DisplayAstAsNoir(&self.program));
+        log::debug!(
+            "input map: \n{}\n",
+            noirc_abi::input_parser::Format::Toml.serialize(&self.input_map, &self.abi).unwrap()
+        );
+        log::debug!(
+            "input values:\n{}\n",
+            self.input_values
+                .iter()
+                .enumerate()
+                .map(|(i, v)| format!("{i}: {v}"))
+                .collect::<Vec<_>>()
+                .join("\n")
+        );
+        log::debug!("SSA after step {} ({}):\n{}\n", self.ssa1.step, self.ssa1.msg, self.ssa1.ssa);
         let res1 = self.ssa1.ssa.interpret(self.input_values.clone());
         let res2 = self.ssa2.ssa.interpret(self.input_values.clone());
         Ok(CompareInterpretedResult::new(res1, res2))
