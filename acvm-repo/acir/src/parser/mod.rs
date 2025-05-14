@@ -643,30 +643,6 @@ return value indices : [_1]
     }
 
     #[test]
-    fn test_brillig_call_regex() {
-        let instruction = Instruction {
-            instruction_type: InstructionType::BrilligCall,
-            instruction_body: "func 0: inputs: [Single(Expression { mul_terms: [], linear_combinations: [(1, Witness(0)), (1, Witness(1))], q_c: 0 }), Single(Expression { mul_terms: [], linear_combinations: [], q_c: 4294967296 })] outputs: [Simple(Witness(11)), Array([Witness(12), Witness(13), Witness(14)])]",
-        };
-        let (inputs, outputs, id) =
-            BrilligCallParser::serialize_brillig_call(&instruction).unwrap();
-        println!("inputs: {:?}", inputs);
-        println!("outputs: {:?}", outputs);
-        println!("id: {:?}", id);
-    }
-
-    #[test]
-    fn test_brillig_inputs_parser() {
-        let inputs = "Single(Expression { mul_terms: [], linear_combinations: [(1, Witness(0)), (1, Witness(1))], q_c: 0 }), Single(Expression { mul_terms: [(1 , Witness(0) , Witness(1)) , (1 , Witness(2) , Witness(3))], linear_combinations: [], q_c: 4294967296 }), [Array([Expression { mul_terms: [], linear_combinations: [(1, Witness(0))], q_c: 0 }, Expression { mul_terms: [], linear_combinations: [(1, Witness(1))], q_c: 0 }, Expression { mul_terms: [], linear_combinations: [(1, Witness(2))], q_c: 0 }])";
-
-        let (single_inputs, array_inputs, memory_array_inputs) =
-            BrilligCallParser::parse_brillig_inputs::<FieldElement>(inputs).unwrap();
-        println!("single_inputs: {:?}", single_inputs);
-        println!("array_inputs: {:?}", array_inputs);
-        println!("memory_array_inputs: {:?}", memory_array_inputs);
-    }
-
-    #[test]
     fn test_parse_acir() {
         let acir_string = "
         Compiled ACIR for main (unoptimized):
