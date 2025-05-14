@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1747223638981,
+  "lastUpdate": 1747226712476,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -17996,48 +17996,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "aakoshh@gmail.com",
-            "name": "Akosh Farkash",
-            "username": "aakoshh"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "27345365ac2be310b5ae32af902d683709c11cb0",
-          "message": "feat: Skip SSA passes that contain any of the given messages (#8416)",
-          "timestamp": "2025-05-08T13:14:45Z",
-          "tree_id": "16b8d2bb542b82926fe0a14820a52e94f32976f0",
-          "url": "https://github.com/noir-lang/noir/commit/27345365ac2be310b5ae32af902d683709c11cb0"
-        },
-        "date": 1746711213851,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 267040,
-            "range": "± 1993",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 237419,
-            "range": "± 5647",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 3575595,
-            "range": "± 14112",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "asterite@gmail.com",
             "name": "Ary Borenszweig",
             "username": "asterite"
@@ -20089,6 +20047,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 3247485,
             "range": "± 20966",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "asterite@gmail.com",
+            "name": "Ary Borenszweig",
+            "username": "asterite"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "8cf48fc155fc4d7db6125a50545a45d461fb898a",
+          "message": "fix: parenthesized pattern, and correct 1-element tuple printing (#8482)",
+          "timestamp": "2025-05-14T12:25:14Z",
+          "tree_id": "f03e0e4edd7ca9fe2d3f714dcb6d55a1865bec3a",
+          "url": "https://github.com/noir-lang/noir/commit/8cf48fc155fc4d7db6125a50545a45d461fb898a"
+        },
+        "date": 1747226703347,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 281385,
+            "range": "± 542",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 251431,
+            "range": "± 9913",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 3603747,
+            "range": "± 5528",
             "unit": "ns/iter"
           }
         ]
