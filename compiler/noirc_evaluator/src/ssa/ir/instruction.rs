@@ -673,7 +673,7 @@ impl ArrayGetOffset {
             Self::None => 0,
             // Arrays in brillig are represented as [RC, ...items]
             Self::Array => 1,
-            // Slices in brillig are represented as [RC, Size, Capacity
+            // Slices in brillig are represented as [RC, Size, Capacity, ...items]
             Self::Slice => 3,
         }
     }
