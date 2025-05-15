@@ -1,12 +1,12 @@
 use crate::ssa::ir::{
     basic_block::BasicBlockId,
     instruction::{BinaryOp, Intrinsic},
+    types::NumericType,
     value::ValueId,
 };
 use acvm::FieldElement;
 use thiserror::Error;
 
-pub(super) const MAX_SIGNED_BIT_SIZE: u32 = 64;
 pub(super) const MAX_UNSIGNED_BIT_SIZE: u32 = 128;
 
 #[derive(Debug, Error)]
@@ -93,14 +93,12 @@ pub(crate) enum InternalError {
     },
     #[error("Unsupported operator `{operator}` for type `{typ}`")]
     UnsupportedOperatorForType { operator: &'static str, typ: &'static str },
+    #[error("Unsupported numeric type `{typ}`")]
+    UnsupportedNumericType { typ: NumericType },
     #[error(
         "Invalid bit size of `{bit_size}` given to truncate, maximum size allowed for unsigned values is {MAX_UNSIGNED_BIT_SIZE}"
     )]
     InvalidUnsignedTruncateBitSize { bit_size: u32 },
-    #[error(
-        "Invalid bit size of `{bit_size}` given to truncate, maximum size allowed for signed values is {MAX_SIGNED_BIT_SIZE}"
-    )]
-    InvalidSignedTruncateBitSize { bit_size: u32 },
     #[error("Rhs of `{operator}` should be a u8 but found `{rhs_id} = {rhs}`")]
     RhsOfBitShiftShouldBeU8 { operator: &'static str, rhs_id: ValueId, rhs: String },
     #[error(
@@ -142,4 +140,6 @@ pub(crate) enum InternalError {
     UnexpectedInstruction { reason: &'static str },
     #[error("Expected array of {expected_size} elements, got {size}")]
     InvalidInputSize { expected_size: usize, size: usize },
+    #[error("Constant `{constant}` does not fit in type `{typ}`")]
+    ConstantDoesNotFitInType { constant: FieldElement, typ: NumericType },
 }

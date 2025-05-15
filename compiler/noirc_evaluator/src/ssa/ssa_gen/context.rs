@@ -659,15 +659,16 @@ impl<'a> FunctionContext<'a> {
                             location,
                         );
                         let half_width = self.builder.numeric_constant(
-                            FieldElement::from(2_i128.pow(incoming_type_size - 1)),
+                            FieldElement::from(2_u128.pow(incoming_type_size - 1)),
                             NumericType::unsigned(*incoming_type_size),
                         );
                         // value_sign is 1 if the value is positive, 0 otherwise
                         let value_sign =
                             self.builder.insert_binary(value_as_unsigned, BinaryOp::Lt, half_width);
+
                         let patch = self.builder.numeric_constant(
                             FieldElement::from(
-                                2_i128.pow(target_type_size) - 2_i128.pow(*incoming_type_size),
+                                2_u128.pow(target_type_size) - 2_u128.pow(*incoming_type_size),
                             ),
                             NumericType::unsigned(target_type_size),
                         );
