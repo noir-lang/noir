@@ -1032,7 +1032,7 @@ fn test_operators(
         'u' => NumericType::Unsigned { bit_size: typ[1..].parse().unwrap() },
         _ => unreachable!("invalid numeric type"),
     };
-    let inputs_int = Value::array_from_slice(inputs, num_type);
+    let inputs_int = Value::array_from_iter(inputs.iter().cloned(), num_type).unwrap();
     let inputs =
         inputs.iter().enumerate().map(|(i, f)| (Witness(i as u32), *f)).collect::<BTreeMap<_, _>>();
     let len = inputs.len() as u32;
