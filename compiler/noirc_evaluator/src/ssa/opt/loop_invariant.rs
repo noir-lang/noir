@@ -404,7 +404,7 @@ impl<'f> LoopInvariantContext<'f> {
             Binary(binary) => self.can_evaluate_binary_op(binary),
             Constrain(..) | ConstrainNotEqual(..) | RangeCheck { .. } => {
                 // If we know the loop will be executed we can still only hoist if we are in a non control dependent block.
-                self.does_loop_body_execute() && !self.current_block_control_dependent
+                !self.current_block_control_dependent && self.does_loop_body_execute()
             }
             Call { func, .. } => {
                 let purity = match self.inserter.function.dfg[*func] {
@@ -414,8 +414,8 @@ impl<'f> LoopInvariantContext<'f> {
                 };
                 // If we know the loop will be executed we can still only hoist if we are in a non control dependent block.
                 matches!(purity, Some(Purity::PureWithPredicate))
-                    && self.does_loop_body_execute()
                     && !self.current_block_control_dependent
+                    && self.does_loop_body_execute()
             }
             _ => false,
         }
