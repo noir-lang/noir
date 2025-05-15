@@ -4661,13 +4661,13 @@
             </span>Type::FieldElement
             | Type::Integer(<span class="kw">_</span>, <span class="kw">_</span>)
             | Type::Bool
-            | Type::Unit
             | Type::Constant(<span class="kw">_</span>, <span class="kw">_</span>)
             | Type::TypeVariable(<span class="kw">_</span>)
             | Type::NamedGeneric(<span class="kw">_</span>)
             | Type::Error =&gt; <span class="bool-val">true</span>,
 
-            Type::FmtString(<span class="kw">_</span>, <span class="kw">_</span>)
+            Type::Unit
+            | Type::FmtString(<span class="kw">_</span>, <span class="kw">_</span>)
             | Type::Function(<span class="kw">_</span>, <span class="kw">_</span>, <span class="kw">_</span>, <span class="kw">_</span>)
             | Type::Reference(..)
             | Type::Forall(<span class="kw">_</span>, <span class="kw">_</span>)
