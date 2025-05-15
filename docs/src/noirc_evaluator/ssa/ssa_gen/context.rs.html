@@ -1223,7 +1223,8 @@
 <a href="#1222" id="1222">1222</a>
 <a href="#1223" id="1223">1223</a>
 <a href="#1224" id="1224">1224</a>
-<a href="#1225" id="1225">1225</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::collections::BTreeMap;
+<a href="#1225" id="1225">1225</a>
+<a href="#1226" id="1226">1226</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::collections::BTreeMap;
 <span class="kw">use </span>std::sync::{Arc, Mutex, RwLock};
 
 <span class="kw">use </span>acvm::{FieldElement, acir::AcirField};
@@ -1884,15 +1885,16 @@
                             location,
                         );
                         <span class="kw">let </span>half_width = <span class="self">self</span>.builder.numeric_constant(
-                            FieldElement::from(<span class="number">2_i128</span>.pow(incoming_type_size - <span class="number">1</span>)),
+                            FieldElement::from(<span class="number">2_u128</span>.pow(incoming_type_size - <span class="number">1</span>)),
                             NumericType::unsigned(<span class="kw-2">*</span>incoming_type_size),
                         );
                         <span class="comment">// value_sign is 1 if the value is positive, 0 otherwise
                         </span><span class="kw">let </span>value_sign =
                             <span class="self">self</span>.builder.insert_binary(value_as_unsigned, BinaryOp::Lt, half_width);
+
                         <span class="kw">let </span>patch = <span class="self">self</span>.builder.numeric_constant(
                             FieldElement::from(
-                                <span class="number">2_i128</span>.pow(target_type_size) - <span class="number">2_i128</span>.pow(<span class="kw-2">*</span>incoming_type_size),
+                                <span class="number">2_u128</span>.pow(target_type_size) - <span class="number">2_u128</span>.pow(<span class="kw-2">*</span>incoming_type_size),
                             ),
                             NumericType::unsigned(target_type_size),
                         );

@@ -346,7 +346,10 @@
 <a href="#345" id="345">345</a>
 <a href="#346" id="346">346</a>
 <a href="#347" id="347">347</a>
-<a href="#348" id="348">348</a></pre></div><pre class="rust"><code><span class="kw">use </span>acvm::{FieldElement, acir::AcirField};
+<a href="#348" id="348">348</a>
+<a href="#349" id="349">349</a>
+<a href="#350" id="350">350</a>
+<a href="#351" id="351">351</a></pre></div><pre class="rust"><code><span class="kw">use </span>acvm::{FieldElement, acir::AcirField};
 <span class="kw">use </span>num_traits::ToPrimitive <span class="kw">as _</span>;
 <span class="kw">use </span>serde::{Deserialize, Serialize};
 
@@ -530,9 +533,12 @@
 <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>convert_signed_integer_to_field_element(int: i128, bit_size: u32) -&gt; FieldElement {
     <span class="kw">if </span>int &gt;= <span class="number">0 </span>{
         FieldElement::from(int)
+    } <span class="kw">else if </span>bit_size == <span class="number">128 </span>{
+        <span class="comment">// signed to u128 conversion
+        </span>FieldElement::from(int <span class="kw">as </span>u128)
     } <span class="kw">else </span>{
         <span class="comment">// We add an offset of `bit_size` bits to shift the negative values into the range [2^(bitsize-1), 2^bitsize)
-        </span><span class="macro">assert!</span>(bit_size &lt; <span class="number">128</span>);
+        </span><span class="macro">assert!</span>(bit_size &lt; <span class="number">128</span>, <span class="string">"{bit_size} is too large"</span>);
         <span class="kw">let </span>offset_int = (<span class="number">1i128 </span>&lt;&lt; bit_size) + int;
         FieldElement::from(offset_int)
     }

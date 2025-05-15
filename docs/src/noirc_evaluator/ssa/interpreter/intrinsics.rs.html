@@ -611,11 +611,9 @@
 <a href="#610" id="610">610</a>
 <a href="#611" id="611">611</a>
 <a href="#612" id="612">612</a>
-<a href="#613" id="613">613</a>
-<a href="#614" id="614">614</a>
-<a href="#615" id="615">615</a></pre></div><pre class="rust"><code><span class="kw">use </span>acvm::{AcirField, BlackBoxFunctionSolver, BlackBoxResolutionError, FieldElement};
+<a href="#613" id="613">613</a></pre></div><pre class="rust"><code><span class="kw">use </span>acvm::{AcirField, BlackBoxFunctionSolver, BlackBoxResolutionError, FieldElement};
 <span class="kw">use </span>bn254_blackbox_solver::derive_generators;
-<span class="kw">use </span>iter_extended::vecmap;
+<span class="kw">use </span>iter_extended::{try_vecmap, vecmap};
 <span class="kw">use </span>num_bigint::BigUint;
 
 <span class="kw">use </span><span class="kw">crate</span>::ssa::{
@@ -646,7 +644,7 @@
             }
             Intrinsic::ArrayAsStrUnchecked =&gt; {
                 check_argument_count(args, <span class="number">1</span>, intrinsic)<span class="question-mark">?</span>;
-                <span class="prelude-val">Ok</span>(<span class="macro">vec!</span>[<span class="self">self</span>.lookup(args[<span class="number">0</span>])])
+                <span class="prelude-val">Ok</span>(<span class="macro">vec!</span>[<span class="self">self</span>.lookup(args[<span class="number">0</span>])<span class="question-mark">?</span>])
             }
             Intrinsic::AsSlice =&gt; {
                 check_argument_count(args, <span class="number">1</span>, intrinsic)<span class="question-mark">?</span>;
@@ -688,7 +686,7 @@
             <span class="comment">// Both of these are no-ops
             </span>Intrinsic::StrAsBytes | Intrinsic::AsWitness =&gt; {
                 check_argument_count(args, <span class="number">1</span>, intrinsic)<span class="question-mark">?</span>;
-                <span class="prelude-val">Ok</span>(<span class="macro">vec!</span>[<span class="self">self</span>.lookup(args[<span class="number">0</span>])])
+                <span class="prelude-val">Ok</span>(<span class="macro">vec!</span>[<span class="self">self</span>.lookup(args[<span class="number">0</span>])<span class="question-mark">?</span>])
             }
             Intrinsic::ToBits(endian) =&gt; {
                 check_argument_count(args, <span class="number">1</span>, intrinsic)<span class="question-mark">?</span>;
@@ -724,9 +722,8 @@
                     <span class="kw">let </span>result =
                         acvm::blackbox_solver::aes128_encrypt(<span class="kw-2">&amp;</span>inputs, iv_array, key_array)
                             .map_err(<span class="self">Self</span>::convert_error)<span class="question-mark">?</span>;
-                    <span class="kw">let </span>result: Vec&lt;FieldElement&gt; =
-                        result.iter().map(|v| (<span class="kw-2">*</span>v <span class="kw">as </span>u128).into()).collect();
-                    <span class="kw">let </span>result = Value::array_from_slice(<span class="kw-2">&amp;</span>result, NumericType::NativeField);
+                    <span class="kw">let </span>result = result.iter().map(|v| (<span class="kw-2">*</span>v <span class="kw">as </span>u128).into());
+                    <span class="kw">let </span>result = Value::array_from_iter(result, NumericType::NativeField)<span class="question-mark">?</span>;
                     <span class="prelude-val">Ok</span>(<span class="macro">vec!</span>[result])
                 }
                 acvm::acir::BlackBoxFunc::AND =&gt; {
@@ -749,9 +746,8 @@
                     <span class="kw">let </span>inputs = <span class="self">self</span>.lookup_bytes(args[<span class="number">0</span>], <span class="string">"call Blake2s BlackBox"</span>)<span class="question-mark">?</span>;
                     <span class="kw">let </span>result =
                         acvm::blackbox_solver::blake2s(<span class="kw-2">&amp;</span>inputs).map_err(<span class="self">Self</span>::convert_error)<span class="question-mark">?</span>;
-                    <span class="kw">let </span>result: Vec&lt;FieldElement&gt; =
-                        result.iter().map(|e| (<span class="kw-2">*</span>e <span class="kw">as </span>u128).into()).collect();
-                    <span class="kw">let </span>result = Value::array_from_slice(<span class="kw-2">&amp;</span>result, NumericType::NativeField);
+                    <span class="kw">let </span>result = result.iter().map(|e| (<span class="kw-2">*</span>e <span class="kw">as </span>u128).into());
+                    <span class="kw">let </span>result = Value::array_from_iter(result, NumericType::NativeField)<span class="question-mark">?</span>;
                     <span class="prelude-val">Ok</span>(<span class="macro">vec!</span>[result])
                 }
                 acvm::acir::BlackBoxFunc::Blake3 =&gt; {
@@ -759,9 +755,8 @@
                     <span class="kw">let </span>inputs = <span class="self">self</span>.lookup_bytes(args[<span class="number">0</span>], <span class="string">"call Blake3 BlackBox"</span>)<span class="question-mark">?</span>;
                     <span class="kw">let </span>results =
                         acvm::blackbox_solver::blake3(<span class="kw-2">&amp;</span>inputs).map_err(<span class="self">Self</span>::convert_error)<span class="question-mark">?</span>;
-                    <span class="kw">let </span>results: Vec&lt;FieldElement&gt; =
-                        results.iter().map(|e| (<span class="kw-2">*</span>e <span class="kw">as </span>u128).into()).collect();
-                    <span class="kw">let </span>results = Value::array_from_slice(<span class="kw-2">&amp;</span>results, NumericType::NativeField);
+                    <span class="kw">let </span>results = results.iter().map(|e| (<span class="kw-2">*</span>e <span class="kw">as </span>u128).into());
+                    <span class="kw">let </span>results = Value::array_from_iter(results, NumericType::NativeField)<span class="question-mark">?</span>;
                     <span class="prelude-val">Ok</span>(<span class="macro">vec!</span>[results])
                 }
                 acvm::acir::BlackBoxFunc::EcdsaSecp256k1 =&gt; {
@@ -798,7 +793,7 @@
                     <span class="prelude-val">Ok</span>(<span class="macro">vec!</span>[Value::from_constant(
                         result.into(),
                         NumericType::Unsigned { bit_size: <span class="number">1 </span>},
-                    )])
+                    )<span class="question-mark">?</span>])
                 }
                 acvm::acir::BlackBoxFunc::EcdsaSecp256r1 =&gt; {
                     check_argument_count(args, <span class="number">4</span>, intrinsic)<span class="question-mark">?</span>;
@@ -834,7 +829,7 @@
                     <span class="prelude-val">Ok</span>(<span class="macro">vec!</span>[Value::from_constant(
                         result.into(),
                         NumericType::Unsigned { bit_size: <span class="number">1 </span>},
-                    )])
+                    )<span class="question-mark">?</span>])
                 }
                 acvm::acir::BlackBoxFunc::MultiScalarMul =&gt; {
                     check_argument_count(args, <span class="number">2</span>, intrinsic)<span class="question-mark">?</span>;
@@ -891,7 +886,7 @@
                     <span class="kw">let </span>solver = bn254_blackbox_solver::Bn254BlackBoxSolver(<span class="bool-val">false</span>);
                     <span class="kw">let </span>result = solver.multi_scalar_mul(<span class="kw-2">&amp;</span>points, <span class="kw-2">&amp;</span>scalars_lo, <span class="kw-2">&amp;</span>scalars_hi);
                     <span class="kw">let </span>(a, b, c) = result.map_err(<span class="self">Self</span>::convert_error)<span class="question-mark">?</span>;
-                    <span class="kw">let </span>result = Value::array_from_slice(<span class="kw-2">&amp;</span>[a, b, c], NumericType::NativeField);
+                    <span class="kw">let </span>result = Value::array_from_iter([a, b, c], NumericType::NativeField)<span class="question-mark">?</span>;
                     <span class="prelude-val">Ok</span>(<span class="macro">vec!</span>[result])
                 }
                 acvm::acir::BlackBoxFunc::Keccakf1600 =&gt; {
@@ -906,10 +901,9 @@
                     })<span class="question-mark">?</span>;
                     <span class="kw">let </span>results = acvm::blackbox_solver::keccakf1600(inputs_array)
                         .map_err(<span class="self">Self</span>::convert_error)<span class="question-mark">?</span>;
-                    <span class="kw">let </span>results: Vec&lt;FieldElement&gt; =
-                        results.iter().map(|e| (<span class="kw-2">*</span>e <span class="kw">as </span>u128).into()).collect();
+                    <span class="kw">let </span>results = results.iter().map(|e| (<span class="kw-2">*</span>e <span class="kw">as </span>u128).into());
                     <span class="kw">let </span>results =
-                        Value::array_from_slice(<span class="kw-2">&amp;</span>results, NumericType::Unsigned { bit_size: <span class="number">64 </span>});
+                        Value::array_from_iter(results, NumericType::Unsigned { bit_size: <span class="number">64 </span>})<span class="question-mark">?</span>;
                     <span class="prelude-val">Ok</span>(<span class="macro">vec!</span>[results])
                 }
                 acvm::acir::BlackBoxFunc::RecursiveAggregation =&gt; {
@@ -933,7 +927,7 @@
                     <span class="kw">let </span>result =
                         solver.ec_add(<span class="kw-2">&amp;</span>lhs.<span class="number">0</span>, <span class="kw-2">&amp;</span>lhs.<span class="number">1</span>, <span class="kw-2">&amp;</span>lhs.<span class="number">2</span>.into(), <span class="kw-2">&amp;</span>rhs.<span class="number">0</span>, <span class="kw-2">&amp;</span>rhs.<span class="number">1</span>, <span class="kw-2">&amp;</span>rhs.<span class="number">2</span>.into());
                     <span class="kw">let </span>(x, y, inf) = result.map_err(<span class="self">Self</span>::convert_error)<span class="question-mark">?</span>;
-                    <span class="kw">let </span>result = Value::array_from_slice(<span class="kw-2">&amp;</span>[x, y, inf], NumericType::NativeField);
+                    <span class="kw">let </span>result = Value::array_from_iter([x, y, inf], NumericType::NativeField)<span class="question-mark">?</span>;
                     <span class="prelude-val">Ok</span>(<span class="macro">vec!</span>[result])
                 }
                 acvm::acir::BlackBoxFunc::BigIntAdd
@@ -954,7 +948,7 @@
                     <span class="kw">let </span>result = solver
                         .poseidon2_permutation(<span class="kw-2">&amp;</span>inputs, inputs.len() <span class="kw">as </span>u32)
                         .map_err(<span class="self">Self</span>::convert_error)<span class="question-mark">?</span>;
-                    <span class="kw">let </span>result = Value::array_from_slice(<span class="kw-2">&amp;</span>result, NumericType::NativeField);
+                    <span class="kw">let </span>result = Value::array_from_iter(result, NumericType::NativeField)<span class="question-mark">?</span>;
                     <span class="prelude-val">Ok</span>(<span class="macro">vec!</span>[result])
                 }
                 acvm::acir::BlackBoxFunc::Sha256Compression =&gt; {
@@ -976,13 +970,12 @@
                         })
                     })<span class="question-mark">?</span>;
                     acvm::blackbox_solver::sha256_compression(<span class="kw-2">&amp;mut </span>state, <span class="kw-2">&amp;</span>inputs);
-                    <span class="kw">let </span>result: Vec&lt;FieldElement&gt; =
-                        state.iter().map(|e| (<span class="kw-2">*</span>e <span class="kw">as </span>u128).into()).collect();
-                    <span class="kw">let </span>result = Value::array_from_slice(<span class="kw-2">&amp;</span>result, NumericType::NativeField);
+                    <span class="kw">let </span>result = state.iter().map(|e| (<span class="kw-2">*</span>e <span class="kw">as </span>u128).into());
+                    <span class="kw">let </span>result = Value::array_from_iter(result, NumericType::NativeField)<span class="question-mark">?</span>;
                     <span class="prelude-val">Ok</span>(<span class="macro">vec!</span>[result])
                 }
             },
-            Intrinsic::Hint(<span class="kw">_</span>) =&gt; <span class="prelude-val">Ok</span>(<span class="self">self</span>.lookup_all(args)),
+            Intrinsic::Hint(<span class="kw">_</span>) =&gt; <span class="self">self</span>.lookup_all(args),
             Intrinsic::IsUnconstrained =&gt; {
                 check_argument_count(args, <span class="number">0</span>, intrinsic)<span class="question-mark">?</span>;
                 <span class="prelude-val">Ok</span>(<span class="macro">vec!</span>[Value::bool(<span class="self">self</span>.in_unconstrained_context())])
@@ -999,10 +992,10 @@
                     <span class="kw">let </span>x = FieldElement::from_le_bytes_reduce(<span class="kw-2">&amp;</span>x_big.to_bytes_le());
                     <span class="kw">let </span>y_big: BigUint = generator.y.into();
                     <span class="kw">let </span>y = FieldElement::from_le_bytes_reduce(<span class="kw-2">&amp;</span>y_big.to_bytes_le());
-                    <span class="kw">let </span>generator_slice = Value::array_from_slice(
-                        <span class="kw-2">&amp;</span>[x, y, generator.infinity.into()],
+                    <span class="kw">let </span>generator_slice = Value::array_from_iter(
+                        [x, y, generator.infinity.into()],
                         NumericType::NativeField,
-                    );
+                    )<span class="question-mark">?</span>;
                     result.push(generator_slice);
                 }
                 <span class="kw">let </span>results = Value::array(
@@ -1032,7 +1025,7 @@
             Intrinsic::ArrayRefCount | Intrinsic::SliceRefCount =&gt; {
                 <span class="kw">let </span>array = <span class="self">self</span>.lookup_array_or_slice(args[<span class="number">0</span>], <span class="string">"array/slice ref count"</span>)<span class="question-mark">?</span>;
                 <span class="kw">let </span>rc = <span class="kw-2">*</span>array.rc.borrow();
-                <span class="prelude-val">Ok</span>(<span class="macro">vec!</span>[Value::from_constant(rc.into(), NumericType::unsigned(<span class="number">32</span>))])
+                <span class="prelude-val">Ok</span>(<span class="macro">vec!</span>[Value::from_constant(rc.into(), NumericType::unsigned(<span class="number">32</span>))<span class="question-mark">?</span>])
             }
         }
     }
@@ -1064,7 +1057,8 @@
             <span class="kw">return </span><span class="prelude-val">Err</span>(InterpreterError::ToRadixFailed { field_id, field, radix });
         };
 
-        <span class="kw">let </span>elements = vecmap(limbs, |limb| Value::from_constant(limb, NumericType::unsigned(<span class="number">8</span>)));
+        <span class="kw">let </span>elements =
+            try_vecmap(limbs, |limb| Value::from_constant(limb, NumericType::unsigned(<span class="number">8</span>)))<span class="question-mark">?</span>;
         <span class="prelude-val">Ok</span>(<span class="macro">vec!</span>[Value::array(elements, <span class="macro">vec!</span>[Type::unsigned(<span class="number">8</span>)])])
     }
 
@@ -1078,7 +1072,9 @@
         </span><span class="kw">let </span><span class="kw-2">mut </span>new_elements = slice.elements.borrow().to_vec();
         <span class="kw">let </span>element_types = slice.element_types.clone();
 
-        new_elements.extend(args.iter().skip(<span class="number">2</span>).map(|arg| <span class="self">self</span>.lookup(<span class="kw-2">*</span>arg)));
+        <span class="kw">for </span>arg <span class="kw">in </span>args.iter().skip(<span class="number">2</span>) {
+            new_elements.push(<span class="self">self</span>.lookup(<span class="kw-2">*</span>arg)<span class="question-mark">?</span>);
+        }
 
         <span class="kw">let </span>new_length = Value::Numeric(NumericValue::U32(length + <span class="number">1</span>));
         <span class="kw">let </span>new_slice = Value::slice(new_elements, element_types);
@@ -1092,7 +1088,7 @@
         <span class="kw">let </span>slice_elements = slice.elements.clone();
         <span class="kw">let </span>element_types = slice.element_types.clone();
 
-        <span class="kw">let </span><span class="kw-2">mut </span>new_elements = vecmap(args.iter().skip(<span class="number">2</span>), |arg| <span class="self">self</span>.lookup(<span class="kw-2">*</span>arg));
+        <span class="kw">let </span><span class="kw-2">mut </span>new_elements = try_vecmap(args.iter().skip(<span class="number">2</span>), |arg| <span class="self">self</span>.lookup(<span class="kw-2">*</span>arg))<span class="question-mark">?</span>;
         new_elements.extend_from_slice(<span class="kw-2">&amp;</span>slice_elements.borrow());
 
         <span class="kw">let </span>new_length = Value::Numeric(NumericValue::U32(length + <span class="number">1</span>));
@@ -1158,7 +1154,7 @@
 
         <span class="kw">let </span><span class="kw-2">mut </span>index = index <span class="kw">as </span>usize * element_types.len();
         <span class="kw">for </span>arg <span class="kw">in </span>args.iter().skip(<span class="number">3</span>) {
-            slice_elements.insert(index, <span class="self">self</span>.lookup(<span class="kw-2">*</span>arg));
+            slice_elements.insert(index, <span class="self">self</span>.lookup(<span class="kw-2">*</span>arg)<span class="question-mark">?</span>);
             index += <span class="number">1</span>;
         }
 

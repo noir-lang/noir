@@ -344,10 +344,45 @@
 <a href="#343" id="343">343</a>
 <a href="#344" id="344">344</a>
 <a href="#345" id="345">345</a>
-<a href="#346" id="346">346</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::sync::Arc;
+<a href="#346" id="346">346</a>
+<a href="#347" id="347">347</a>
+<a href="#348" id="348">348</a>
+<a href="#349" id="349">349</a>
+<a href="#350" id="350">350</a>
+<a href="#351" id="351">351</a>
+<a href="#352" id="352">352</a>
+<a href="#353" id="353">353</a>
+<a href="#354" id="354">354</a>
+<a href="#355" id="355">355</a>
+<a href="#356" id="356">356</a>
+<a href="#357" id="357">357</a>
+<a href="#358" id="358">358</a>
+<a href="#359" id="359">359</a>
+<a href="#360" id="360">360</a>
+<a href="#361" id="361">361</a>
+<a href="#362" id="362">362</a>
+<a href="#363" id="363">363</a>
+<a href="#364" id="364">364</a>
+<a href="#365" id="365">365</a>
+<a href="#366" id="366">366</a>
+<a href="#367" id="367">367</a>
+<a href="#368" id="368">368</a>
+<a href="#369" id="369">369</a>
+<a href="#370" id="370">370</a>
+<a href="#371" id="371">371</a>
+<a href="#372" id="372">372</a>
+<a href="#373" id="373">373</a>
+<a href="#374" id="374">374</a>
+<a href="#375" id="375">375</a>
+<a href="#376" id="376">376</a>
+<a href="#377" id="377">377</a>
+<a href="#378" id="378">378</a>
+<a href="#379" id="379">379</a>
+<a href="#380" id="380">380</a>
+<a href="#381" id="381">381</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::sync::Arc;
 
 <span class="kw">use </span>acvm::{AcirField, FieldElement};
-<span class="kw">use </span>iter_extended::vecmap;
+<span class="kw">use </span>iter_extended::{try_vecmap, vecmap};
 <span class="kw">use </span>noirc_frontend::Shared;
 
 <span class="kw">use </span><span class="kw">crate</span>::ssa::ir::{
@@ -356,6 +391,8 @@
     types::{CompositeType, NumericType, Type},
     value::ValueId,
 };
+
+<span class="kw">use </span><span class="kw">super</span>::IResult;
 
 <span class="attr">#[derive(Debug, Clone, PartialEq, Eq)]
 </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">enum </span>Value {
@@ -478,15 +515,16 @@
         }
     }
 
-    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>from_constant(constant: FieldElement, typ: NumericType) -&gt; <span class="self">Self </span>{
-        <span class="self">Self</span>::Numeric(NumericValue::from_constant(constant, typ))
+    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>from_constant(constant: FieldElement, typ: NumericType) -&gt; IResult&lt;<span class="self">Self</span>&gt; {
+        NumericValue::from_constant(constant, typ).map(<span class="self">Self</span>::Numeric)
     }
 
-    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>array_from_slice(slice: <span class="kw-2">&amp;</span>[FieldElement], typ: NumericType) -&gt; <span class="self">Self </span>{
-        <span class="kw">let </span>values =
-            slice.iter().map(|v| Value::Numeric(NumericValue::from_constant(<span class="kw-2">*</span>v, typ))).collect();
-        <span class="kw">let </span>types = slice.iter().map(|<span class="kw">_</span>| Type::Numeric(typ)).collect();
-        <span class="self">Self</span>::array(values, types)
+    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>array_from_iter(
+        iter: <span class="kw">impl </span>IntoIterator&lt;Item = FieldElement&gt;,
+        typ: NumericType,
+    ) -&gt; IResult&lt;<span class="self">Self</span>&gt; {
+        <span class="kw">let </span>values = try_vecmap(iter, |v| Value::from_constant(v, typ))<span class="question-mark">?</span>;
+        <span class="prelude-val">Ok</span>(<span class="self">Self</span>::array(values, <span class="macro">vec!</span>[Type::Numeric(typ)]))
     }
 
     <span class="comment">// This is used in tests but shouldn't be cfg(test) only
@@ -563,7 +601,7 @@
     }
 
     <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>zero(typ: NumericType) -&gt; <span class="self">Self </span>{
-        <span class="self">Self</span>::from_constant(FieldElement::zero(), typ)
+        <span class="self">Self</span>::from_constant(FieldElement::zero(), typ).expect(<span class="string">"zero should fit in every type"</span>)
     }
 
     <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>as_field(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="prelude-ty">Option</span>&lt;FieldElement&gt; {
@@ -587,38 +625,68 @@
         }
     }
 
-    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>from_constant(constant: FieldElement, typ: NumericType) -&gt; NumericValue {
+    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>from_constant(constant: FieldElement, typ: NumericType) -&gt; IResult&lt;NumericValue&gt; {
+        <span class="kw">use </span><span class="kw">super</span>::InternalError::{ConstantDoesNotFitInType, UnsupportedNumericType};
+        <span class="kw">use </span><span class="kw">super</span>::InterpreterError::Internal;
+
+        <span class="kw">let </span>does_not_fit = Internal(ConstantDoesNotFitInType { constant, typ });
+
         <span class="kw">match </span>typ {
-            NumericType::NativeField =&gt; <span class="self">Self</span>::Field(constant),
-            NumericType::Unsigned { bit_size: <span class="number">1 </span>} =&gt; <span class="self">Self</span>::U1(constant.is_one()),
-            NumericType::Unsigned { bit_size: <span class="number">8 </span>} =&gt; {
-                <span class="self">Self</span>::U8(constant.try_into_u128().unwrap().try_into().unwrap())
+            NumericType::NativeField =&gt; <span class="prelude-val">Ok</span>(<span class="self">Self</span>::Field(constant)),
+            NumericType::Unsigned { bit_size: <span class="number">1 </span>} =&gt; {
+                <span class="kw">if </span>constant.is_zero() || constant.is_one() {
+                    <span class="prelude-val">Ok</span>(<span class="self">Self</span>::U1(constant.is_one()))
+                } <span class="kw">else </span>{
+                    <span class="prelude-val">Err</span>(does_not_fit)
+                }
             }
-            NumericType::Unsigned { bit_size: <span class="number">16 </span>} =&gt; {
-                <span class="self">Self</span>::U16(constant.try_into_u128().unwrap().try_into().unwrap())
-            }
-            NumericType::Unsigned { bit_size: <span class="number">32 </span>} =&gt; {
-                <span class="self">Self</span>::U32(constant.try_into_u128().unwrap().try_into().unwrap())
-            }
-            NumericType::Unsigned { bit_size: <span class="number">64 </span>} =&gt; {
-                <span class="self">Self</span>::U64(constant.try_into_u128().unwrap().try_into().unwrap())
-            }
+            NumericType::Unsigned { bit_size: <span class="number">8 </span>} =&gt; constant
+                .try_into_u128()
+                .and_then(|x| x.try_into().ok())
+                .map(<span class="self">Self</span>::U8)
+                .ok_or(does_not_fit),
+            NumericType::Unsigned { bit_size: <span class="number">16 </span>} =&gt; constant
+                .try_into_u128()
+                .and_then(|x| x.try_into().ok())
+                .map(<span class="self">Self</span>::U16)
+                .ok_or(does_not_fit),
+            NumericType::Unsigned { bit_size: <span class="number">32 </span>} =&gt; constant
+                .try_into_u128()
+                .and_then(|x| x.try_into().ok())
+                .map(<span class="self">Self</span>::U32)
+                .ok_or(does_not_fit),
+            NumericType::Unsigned { bit_size: <span class="number">64 </span>} =&gt; constant
+                .try_into_u128()
+                .and_then(|x| x.try_into().ok())
+                .map(<span class="self">Self</span>::U64)
+                .ok_or(does_not_fit),
             NumericType::Unsigned { bit_size: <span class="number">128 </span>} =&gt; {
-                <span class="self">Self</span>::U128(constant.try_into_u128().unwrap())
+                constant.try_into_u128().map(<span class="self">Self</span>::U128).ok_or(does_not_fit)
             }
-            NumericType::Signed { bit_size: <span class="number">8 </span>} =&gt; {
-                <span class="self">Self</span>::I8(constant.try_into_i128().unwrap().try_into().unwrap())
-            }
-            NumericType::Signed { bit_size: <span class="number">16 </span>} =&gt; {
-                <span class="self">Self</span>::I16(constant.try_into_i128().unwrap().try_into().unwrap())
-            }
-            NumericType::Signed { bit_size: <span class="number">32 </span>} =&gt; {
-                <span class="self">Self</span>::I32(constant.try_into_i128().unwrap().try_into().unwrap())
-            }
-            NumericType::Signed { bit_size: <span class="number">64 </span>} =&gt; {
-                <span class="self">Self</span>::I64(constant.try_into_i128().unwrap().try_into().unwrap())
-            }
-            other =&gt; <span class="macro">panic!</span>(<span class="string">"Unsupported numeric type: {other}"</span>),
+            <span class="comment">// Signed cases are a bit weird. We want to allow all values in the corresponding
+            // unsigned range so we have to cast to the unsigned type first to see if it fits.
+            // If it does, any values `&gt;= 2^N / 2` for `iN` are interpreted as negative.
+            </span>NumericType::Signed { bit_size: <span class="number">8 </span>} =&gt; constant
+                .try_into_u128()
+                .and_then(|x| u8::try_from(x).ok())
+                .map(|x| <span class="self">Self</span>::I8(x <span class="kw">as </span>i8))
+                .ok_or(does_not_fit),
+            NumericType::Signed { bit_size: <span class="number">16 </span>} =&gt; constant
+                .try_into_u128()
+                .and_then(|x| u16::try_from(x).ok())
+                .map(|x| <span class="self">Self</span>::I16(x <span class="kw">as </span>i16))
+                .ok_or(does_not_fit),
+            NumericType::Signed { bit_size: <span class="number">32 </span>} =&gt; constant
+                .try_into_u128()
+                .and_then(|x| u32::try_from(x).ok())
+                .map(|x| <span class="self">Self</span>::I32(x <span class="kw">as </span>i32))
+                .ok_or(does_not_fit),
+            NumericType::Signed { bit_size: <span class="number">64 </span>} =&gt; constant
+                .try_into_u128()
+                .and_then(|x| u64::try_from(x).ok())
+                .map(|x| <span class="self">Self</span>::I64(x <span class="kw">as </span>i64))
+                .ok_or(does_not_fit),
+            typ =&gt; <span class="prelude-val">Err</span>(Internal(UnsupportedNumericType { typ })),
         }
     }
 
@@ -632,10 +700,12 @@
             NumericValue::U32(value) =&gt; FieldElement::from(<span class="kw-2">*</span>value),
             NumericValue::U64(value) =&gt; FieldElement::from(<span class="kw-2">*</span>value),
             NumericValue::U128(value) =&gt; FieldElement::from(<span class="kw-2">*</span>value),
-            NumericValue::I8(value) =&gt; FieldElement::from(<span class="kw-2">*</span>value <span class="kw">as </span>i128),
-            NumericValue::I16(value) =&gt; FieldElement::from(<span class="kw-2">*</span>value <span class="kw">as </span>i128),
-            NumericValue::I32(value) =&gt; FieldElement::from(<span class="kw-2">*</span>value <span class="kw">as </span>i128),
-            NumericValue::I64(value) =&gt; FieldElement::from(<span class="kw-2">*</span>value <span class="kw">as </span>i128),
+            <span class="comment">// Need to cast possibly negative values to the unsigned variants
+            // first to ensure they are zero-extended rather than sign-extended
+            </span>NumericValue::I8(value) =&gt; FieldElement::from(<span class="kw-2">*</span>value <span class="kw">as </span>u8 <span class="kw">as </span>i128),
+            NumericValue::I16(value) =&gt; FieldElement::from(<span class="kw-2">*</span>value <span class="kw">as </span>u16 <span class="kw">as </span>i128),
+            NumericValue::I32(value) =&gt; FieldElement::from(<span class="kw-2">*</span>value <span class="kw">as </span>u32 <span class="kw">as </span>i128),
+            NumericValue::I64(value) =&gt; FieldElement::from(<span class="kw-2">*</span>value <span class="kw">as </span>u64 <span class="kw">as </span>i128),
         }
     }
 }

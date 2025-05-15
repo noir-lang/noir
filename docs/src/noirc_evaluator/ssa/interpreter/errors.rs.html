@@ -146,12 +146,12 @@
 <a href="#145" id="145">145</a></pre></div><pre class="rust"><code><span class="kw">use </span><span class="kw">crate</span>::ssa::ir::{
     basic_block::BasicBlockId,
     instruction::{BinaryOp, Intrinsic},
+    types::NumericType,
     value::ValueId,
 };
 <span class="kw">use </span>acvm::FieldElement;
 <span class="kw">use </span>thiserror::Error;
 
-<span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">const </span>MAX_SIGNED_BIT_SIZE: u32 = <span class="number">64</span>;
 <span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">const </span>MAX_UNSIGNED_BIT_SIZE: u32 = <span class="number">128</span>;
 
 <span class="attr">#[derive(Debug, Error)]
@@ -238,14 +238,12 @@
     },
     <span class="attr">#[error(<span class="string">"Unsupported operator `{operator}` for type `{typ}`"</span>)]
     </span>UnsupportedOperatorForType { operator: <span class="kw-2">&amp;</span><span class="lifetime">'static </span>str, typ: <span class="kw-2">&amp;</span><span class="lifetime">'static </span>str },
+    <span class="attr">#[error(<span class="string">"Unsupported numeric type `{typ}`"</span>)]
+    </span>UnsupportedNumericType { typ: NumericType },
     <span class="attr">#[error(
         <span class="string">"Invalid bit size of `{bit_size}` given to truncate, maximum size allowed for unsigned values is {MAX_UNSIGNED_BIT_SIZE}"
     </span>)]
     </span>InvalidUnsignedTruncateBitSize { bit_size: u32 },
-    <span class="attr">#[error(
-        <span class="string">"Invalid bit size of `{bit_size}` given to truncate, maximum size allowed for signed values is {MAX_SIGNED_BIT_SIZE}"
-    </span>)]
-    </span>InvalidSignedTruncateBitSize { bit_size: u32 },
     <span class="attr">#[error(<span class="string">"Rhs of `{operator}` should be a u8 but found `{rhs_id} = {rhs}`"</span>)]
     </span>RhsOfBitShiftShouldBeU8 { operator: <span class="kw-2">&amp;</span><span class="lifetime">'static </span>str, rhs_id: ValueId, rhs: String },
     <span class="attr">#[error(
@@ -287,5 +285,7 @@
     </span>UnexpectedInstruction { reason: <span class="kw-2">&amp;</span><span class="lifetime">'static </span>str },
     <span class="attr">#[error(<span class="string">"Expected array of {expected_size} elements, got {size}"</span>)]
     </span>InvalidInputSize { expected_size: usize, size: usize },
+    <span class="attr">#[error(<span class="string">"Constant `{constant}` does not fit in type `{typ}`"</span>)]
+    </span>ConstantDoesNotFitInType { constant: FieldElement, typ: NumericType },
 }
 </code></pre></div></section></main></body></html>
