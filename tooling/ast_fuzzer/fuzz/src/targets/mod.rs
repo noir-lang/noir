@@ -25,9 +25,8 @@ mod tests {
     /// ```ignore
     /// cargo test -p noir_ast_fuzzer_fuzz
     /// ```
-    pub fn should_ignore_on_ci() -> bool {
-        // TODO: Enable on CI once the following are fixed:
-        // #8229, #8230, #8231, #8236, #8261, #8262
+    #[allow(unused)]
+    pub fn is_running_in_ci() -> bool {
         std::env::var("CI").is_ok()
     }
 
@@ -43,9 +42,6 @@ mod tests {
     pub fn fuzz_with_arbtest(f: impl Fn(&mut Unstructured) -> eyre::Result<()>) {
         let _ = env_logger::try_init();
 
-        if should_ignore_on_ci() {
-            return;
-        }
         let mut prop = arbtest::arbtest(|u| {
             f(u).unwrap();
             Ok(())
