@@ -1277,13 +1277,13 @@ impl Type {
             Type::FieldElement
             | Type::Integer(_, _)
             | Type::Bool
-            | Type::Unit
             | Type::Constant(_, _)
             | Type::TypeVariable(_)
             | Type::NamedGeneric(_)
             | Type::Error => true,
 
-            Type::FmtString(_, _)
+            Type::Unit
+            | Type::FmtString(_, _)
             | Type::Function(_, _, _, _)
             | Type::Reference(..)
             | Type::Forall(_, _)
