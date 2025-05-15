@@ -127,7 +127,7 @@ impl Comparable for ssa::interpreter::errors::InterpreterError {
                 fn details_or_sanitize(s: &str) -> String {
                     details(s).map(|s| s.to_string()).unwrap_or_else(|| sanitize_ssa(s))
                 }
-                details_or_sanitize(&i1) == details_or_sanitize(&i2)
+                details_or_sanitize(i1) == details_or_sanitize(i2)
             }
             (e1, e2) => {
                 // The format strings contain SSA instructions,
