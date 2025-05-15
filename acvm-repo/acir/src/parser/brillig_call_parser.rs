@@ -129,7 +129,9 @@ impl BrilligCallParser {
         Ok(outputs_array)
     }
 
-    fn parse_expression<F: AcirField>(expression_str: &str) -> Result<Expression<F>, String> {
+    pub(crate) fn parse_expression<F: AcirField>(
+        expression_str: &str,
+    ) -> Result<Expression<F>, String> {
         let single_input_regex = Regex::new(
             r"mul_terms:\s*\[(.*?)\],\s*linear_combinations:\s*\[(.*?)\],\s*q_c:\s*(\d+)",
         )
@@ -177,7 +179,9 @@ impl BrilligCallParser {
         Ok(expression)
     }
 
-    fn parse_predicate<F: AcirField>(predicate_str: &str) -> Result<Expression<F>, String> {
+    pub(crate) fn parse_predicate<F: AcirField>(
+        predicate_str: &str,
+    ) -> Result<Expression<F>, String> {
         let cleaned =
             predicate_str.trim().strip_prefix("PREDICATE = [").unwrap().strip_suffix("]").unwrap();
         let re = Regex::new(r"\(([^)]+)\)").unwrap();

@@ -4,6 +4,7 @@ use std::collections::BTreeSet;
 mod arithmetic_parser;
 mod black_box_parser;
 mod brillig_call_parser;
+mod call_parser;
 mod utils;
 
 use crate::circuit::opcodes::{BlackBoxFuncCall, FunctionInput};
@@ -25,6 +26,7 @@ pub enum InstructionType {
     Expr,
     BlackBoxFuncCall,
     BrilligCall,
+    Call,
     CurrentWitnessIndex,
     PrivateParametersIndices,
     PublicParametersIndices,
