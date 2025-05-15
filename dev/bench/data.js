@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1747338972507,
+  "lastUpdate": 1747339100847,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -18031,48 +18031,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "163862677+noirwhal@users.noreply.github.com",
-            "name": "noirwhal",
-            "username": "noirwhal"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "94e839d82c13c90e7f5989e9ab6cea73ab2ba403",
-          "message": "chore: bump external pinned commits (#8433)\n\nCo-authored-by: noirwhal <tomfrench@aztecprotocol.com>\nCo-authored-by: Tom French <15848336+TomAFrench@users.noreply.github.com>",
-          "timestamp": "2025-05-09T13:05:48Z",
-          "tree_id": "5a0956b0ed40f48e656f5a25b2e6ecd37785df25",
-          "url": "https://github.com/noir-lang/noir/commit/94e839d82c13c90e7f5989e9ab6cea73ab2ba403"
-        },
-        "date": 1746797258051,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 274406,
-            "range": "± 1526",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 245685,
-            "range": "± 3209",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 3232278,
-            "range": "± 6368",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "aakoshh@gmail.com",
             "name": "Akosh Farkash",
             "username": "aakoshh"
@@ -20124,6 +20082,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 3215753,
             "range": "± 8075",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "asterite@gmail.com",
+            "name": "Ary Borenszweig",
+            "username": "asterite"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "da0b3a2e722f3bd0ff42f67d221088b5c8f60ea4",
+          "message": "fix: add offset to ArrayGet (#8536)\n\nCo-authored-by: jfecher <jfecher11@gmail.com>",
+          "timestamp": "2025-05-15T19:37:49Z",
+          "tree_id": "fdca177b4ea1d746711e7273bc80f28d5e6d94ba",
+          "url": "https://github.com/noir-lang/noir/commit/da0b3a2e722f3bd0ff42f67d221088b5c8f60ea4"
+        },
+        "date": 1747339091582,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 262645,
+            "range": "± 1213",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 232538,
+            "range": "± 320",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 3572185,
+            "range": "± 2058",
             "unit": "ns/iter"
           }
         ]
