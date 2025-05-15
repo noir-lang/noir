@@ -4,7 +4,6 @@ use std::{hash::Hasher, rc::Rc};
 use iter_extended::try_vecmap;
 use noirc_errors::Location;
 
-use crate::ast::PatternOrDoubleDot;
 use crate::elaborator::Elaborator;
 use crate::hir::comptime::display::tokens_to_string;
 use crate::hir::comptime::value::unwrap_rc;
@@ -426,21 +425,31 @@ fn gather_hir_pattern_tokens(
             tokens.push(Token::Keyword(crate::token::Keyword::Mut));
             gather_hir_pattern_tokens(interner, pattern, tokens);
         }
-        HirPattern::Tuple(patterns, double_dot, _) => {
-            let patterns = PatternOrDoubleDot::new_vec(patterns, double_dot);
+        HirPattern::Tuple(patterns, _) => {
             tokens.push(Token::LeftParen);
             for (index, pattern) in patterns.iter().enumerate() {
                 if index != 0 {
                     tokens.push(Token::Comma);
                 }
-                match pattern {
-                    PatternOrDoubleDot::Pattern(hir_pattern) => {
-                        gather_hir_pattern_tokens(interner, hir_pattern, tokens);
-                    }
-                    PatternOrDoubleDot::DoubleDot(_) => {
-                        tokens.push(Token::DoubleDot);
-                    }
+                gather_hir_pattern_tokens(interner, pattern, tokens);
+            }
+            tokens.push(Token::RightParen);
+        }
+        HirPattern::TupleWithDoubleDot(tuple) => {
+            tokens.push(Token::LeftParen);
+            for (index, pattern) in tuple.before.iter().enumerate() {
+                if index != 0 {
+                    tokens.push(Token::Comma);
                 }
+                gather_hir_pattern_tokens(interner, pattern, tokens);
+            }
+            if !tuple.before.is_empty() {
+                tokens.push(Token::Comma);
+            }
+            tokens.push(Token::DoubleDot);
+            for pattern in &tuple.after {
+                tokens.push(Token::Comma);
+                gather_hir_pattern_tokens(interner, pattern, tokens);
             }
             tokens.push(Token::RightParen);
         }

@@ -1,5 +1,5 @@
 use noirc_frontend::{
-    ast::{Ident, Pattern, PatternOrDoubleDot},
+    ast::{Ident, Pattern},
     token::{Keyword, Token},
 };
 
@@ -24,9 +24,7 @@ impl Formatter<'_> {
                 self.write_space();
                 self.format_pattern(*pattern);
             }
-            Pattern::Tuple(patterns, double_dot, _span) => {
-                let patterns = PatternOrDoubleDot::new_vec(&patterns, &double_dot);
-
+            Pattern::Tuple(patterns, _span) => {
                 let patterns_len = patterns.len();
 
                 self.write_left_paren();
@@ -35,14 +33,7 @@ impl Formatter<'_> {
                         self.write_comma();
                         self.write_space();
                     }
-                    match pattern {
-                        PatternOrDoubleDot::Pattern(pattern) => {
-                            self.format_pattern(pattern.clone());
-                        }
-                        PatternOrDoubleDot::DoubleDot(..) => {
-                            self.write_token(Token::DoubleDot);
-                        }
-                    }
+                    self.format_pattern(pattern);
                 }
 
                 // Check for trailing comma
@@ -53,6 +44,38 @@ impl Formatter<'_> {
                     } else {
                         self.bump();
                     }
+                }
+
+                self.write_right_paren();
+            }
+            Pattern::TupleWithDoubleDot(tuple) => {
+                let has_before = !tuple.before.is_empty();
+
+                self.write_left_paren();
+                for (index, pattern) in tuple.before.into_iter().enumerate() {
+                    if index > 0 {
+                        self.write_comma();
+                        self.write_space();
+                    }
+                    self.format_pattern(pattern);
+                }
+
+                if has_before {
+                    self.write_comma();
+                    self.write_space();
+                }
+                self.write_token(Token::DoubleDot);
+
+                for pattern in tuple.after {
+                    self.write_comma();
+                    self.write_space();
+                    self.format_pattern(pattern);
+                }
+
+                // Check for trailing comma
+                self.skip_comments_and_whitespace();
+                if self.is_at(Token::Comma) {
+                    self.bump();
                 }
 
                 self.write_right_paren();

@@ -552,8 +552,16 @@ impl<'a> NodeFinder<'a> {
                 self.local_variables.insert(ident.to_string(), ident.span());
             }
             Pattern::Mutable(pattern, _, _) => self.collect_local_variables(pattern),
-            Pattern::Tuple(patterns, _, _) => {
+            Pattern::Tuple(patterns, _) => {
                 for pattern in patterns {
+                    self.collect_local_variables(pattern);
+                }
+            }
+            Pattern::TupleWithDoubleDot(tuple) => {
+                for pattern in &tuple.before {
+                    self.collect_local_variables(pattern);
+                }
+                for pattern in &tuple.after {
                     self.collect_local_variables(pattern);
                 }
             }
@@ -1122,7 +1130,10 @@ impl<'a> NodeFinder<'a> {
             Pattern::Mutable(pattern, ..) | Pattern::Parenthesized(pattern, _) => {
                 self.try_set_self_type(pattern);
             }
-            Pattern::Tuple(..) | Pattern::Struct(..) | Pattern::Interned(..) => (),
+            Pattern::Tuple(..)
+            | Pattern::TupleWithDoubleDot(..)
+            | Pattern::Struct(..)
+            | Pattern::Interned(..) => (),
         }
     }
 

@@ -7,8 +7,8 @@ use crate::ast::{
     ArrayLiteral, AssignStatement, BlockExpression, CallExpression, CastExpression, ConstrainKind,
     ConstructorExpression, ExpressionKind, ForLoopStatement, ForRange, GenericTypeArgs, Ident,
     IfExpression, IndexExpression, InfixExpression, LValue, Lambda, Literal, MatchExpression,
-    MemberAccessExpression, Path, PathSegment, Pattern, PrefixExpression, UnresolvedType,
-    UnresolvedTypeData, UnresolvedTypeExpression, UnsafeExpression, WhileStatement,
+    MemberAccessExpression, Path, PathSegment, Pattern, PrefixExpression, TupleWithDoubleDot,
+    UnresolvedType, UnresolvedTypeData, UnresolvedTypeExpression, UnsafeExpression, WhileStatement,
 };
 use crate::ast::{ConstrainExpression, Expression, Statement, StatementKind};
 use crate::hir_def::expr::{
@@ -318,9 +318,20 @@ impl HirPattern {
                 let pattern = Box::new(pattern.to_display_ast(interner));
                 Pattern::Mutable(pattern, *location, false)
             }
-            HirPattern::Tuple(patterns, double_dot, location) => {
+            HirPattern::Tuple(patterns, location) => {
                 let patterns = vecmap(patterns, |pattern| pattern.to_display_ast(interner));
-                Pattern::Tuple(patterns, *double_dot, *location)
+                Pattern::Tuple(patterns, *location)
+            }
+            HirPattern::TupleWithDoubleDot(tuple) => {
+                let before = vecmap(&tuple.before, |pattern| pattern.to_display_ast(interner));
+                let after = vecmap(&tuple.after, |pattern| pattern.to_display_ast(interner));
+                let tuple = TupleWithDoubleDot {
+                    before,
+                    double_dot_location: tuple.double_dot_location,
+                    after,
+                    location: tuple.location,
+                };
+                Pattern::TupleWithDoubleDot(tuple)
             }
             HirPattern::Struct(typ, patterns, location) => {
                 let patterns = vecmap(patterns, |(name, pattern)| {

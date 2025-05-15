@@ -8,7 +8,7 @@ use noirc_errors::Location;
 use rustc_hash::FxHashMap as HashMap;
 
 use crate::TypeVariable;
-use crate::ast::{BinaryOpKind, DoubleDotPattern, FunctionKind, Ident, IntegerBitSize, UnaryOp};
+use crate::ast::{BinaryOpKind, FunctionKind, Ident, IntegerBitSize, TupleWithDoubleDot, UnaryOp};
 use crate::elaborator::{ElaborateReason, Elaborator};
 use crate::graph::CrateId;
 use crate::hir::def_map::ModuleId;
@@ -399,8 +399,11 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
                 let argument = Value::Pointer(Shared::new(argument), true, true);
                 self.define_pattern(pattern, typ, argument, location)
             }
-            HirPattern::Tuple(pattern_fields, double_dot, _) => {
-                self.define_tuple_pattern(pattern_fields, double_dot, typ, argument, location)
+            HirPattern::Tuple(pattern_fields, _) => {
+                self.define_tuple_pattern(pattern_fields, typ, argument, location)
+            }
+            HirPattern::TupleWithDoubleDot(tuple) => {
+                self.define_tuple_with_double_dot_pattern(tuple, typ, argument)
             }
             HirPattern::Struct(struct_type, pattern_fields, _) => {
                 self.define_struct_pattern(struct_type, pattern_fields, typ, argument, location)
@@ -411,7 +414,6 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
     fn define_tuple_pattern(
         &mut self,
         pattern_fields: &[HirPattern],
-        double_dot: &Option<DoubleDotPattern>,
         typ: &Type,
         argument: Value,
         location: Location,
@@ -419,34 +421,48 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
         let typ = &typ.follow_bindings();
 
         match (argument, typ) {
+            (Value::Tuple(fields), Type::Tuple(type_fields))
+                if fields.len() == type_fields.len() =>
+            {
+                for ((pattern, typ), argument) in pattern_fields.iter().zip(type_fields).zip(fields)
+                {
+                    self.define_pattern(pattern, typ, argument, location)?;
+                }
+                Ok(())
+            }
+            (value, _) => {
+                let actual = value.get_type().into_owned();
+                Err(InterpreterError::TypeMismatch { expected: typ.clone(), actual, location })
+            }
+        }
+    }
+
+    fn define_tuple_with_double_dot_pattern(
+        &mut self,
+        tuple: &TupleWithDoubleDot<HirPattern>,
+        typ: &Type,
+        argument: Value,
+    ) -> IResult<()> {
+        let location = tuple.location;
+        let typ = &typ.follow_bindings();
+
+        match (argument, typ) {
             (Value::Tuple(fields), Type::Tuple(type_fields)) => {
-                if let Some(double_dot) = double_dot {
-                    let double_dot_index = double_dot.index;
-                    let (pattern_fields_lhs, pattern_fields_rhs) =
-                        pattern_fields.split_at(double_dot_index);
-                    let rhs_len = pattern_fields_rhs.len();
-                    let fields_lhs = &fields[0..double_dot_index];
-                    let fields_rhs = &fields[fields.len() - rhs_len..];
-                    let type_fields_lhs = &type_fields[0..double_dot_index];
-                    let type_fields_rhs = &type_fields[type_fields.len() - rhs_len..];
+                let pattern_fields_before = &tuple.before;
+                let pattern_fields_after = &tuple.after;
+                let (fields_before, _, fields_after) = tuple.split(&fields);
+                let (type_fields_before, _, type_fields_after) = tuple.split(type_fields);
 
-                    for ((pattern, typ), argument) in
-                        pattern_fields_lhs.iter().zip(type_fields_lhs).zip(fields_lhs)
-                    {
-                        self.define_pattern(pattern, typ, argument.clone(), location)?;
-                    }
+                for ((pattern, typ), argument) in
+                    pattern_fields_before.iter().zip(type_fields_before).zip(fields_before)
+                {
+                    self.define_pattern(pattern, typ, argument.clone(), location)?;
+                }
 
-                    for ((pattern, typ), argument) in
-                        pattern_fields_rhs.iter().zip(type_fields_rhs).zip(fields_rhs)
-                    {
-                        self.define_pattern(pattern, typ, argument.clone(), location)?;
-                    }
-                } else {
-                    for ((pattern, typ), argument) in
-                        pattern_fields.iter().zip(type_fields).zip(fields)
-                    {
-                        self.define_pattern(pattern, typ, argument, location)?;
-                    }
+                for ((pattern, typ), argument) in
+                    pattern_fields_after.iter().zip(type_fields_after).zip(fields_after)
+                {
+                    self.define_pattern(pattern, typ, argument.clone(), location)?;
                 }
                 Ok(())
             }

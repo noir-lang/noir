@@ -3,7 +3,7 @@ use std::collections::{BTreeSet, HashMap};
 use noirc_driver::CrateId;
 use noirc_frontend::{
     DataType, Generics, Kind, NamedGeneric, Type,
-    ast::{Ident, ItemVisibility, PatternOrDoubleDot},
+    ast::{Ident, ItemVisibility},
     hir::{
         comptime::{Value, tokens_to_string_with_indent},
         def_map::{DefMaps, ModuleDefId, ModuleId},
@@ -722,25 +722,35 @@ impl<'interner, 'def_map, 'string> ItemPrinter<'interner, 'def_map, 'string> {
                 self.push_str("mut ");
                 self.show_pattern(pattern);
             }
-            HirPattern::Tuple(patterns, double_dot, _) => {
-                let patterns = PatternOrDoubleDot::new_vec(patterns, double_dot);
+            HirPattern::Tuple(patterns, _) => {
                 let len = patterns.len();
                 self.push('(');
                 for (index, pattern) in patterns.iter().enumerate() {
                     if index != 0 {
                         self.push_str(", ");
                     }
-                    match pattern {
-                        PatternOrDoubleDot::Pattern(hir_pattern) => {
-                            self.show_pattern(hir_pattern);
-                        }
-                        PatternOrDoubleDot::DoubleDot(_) => {
-                            self.push_str("..");
-                        }
-                    }
+                    self.show_pattern(pattern);
                 }
-                if len == 1 && double_dot.is_none() {
+                if len == 1 {
                     self.push(',');
+                }
+                self.push(')');
+            }
+            HirPattern::TupleWithDoubleDot(tuple) => {
+                self.push('(');
+                for (index, pattern) in tuple.before.iter().enumerate() {
+                    if index != 0 {
+                        self.push_str(", ");
+                    }
+                    self.show_pattern(pattern);
+                }
+                if !tuple.before.is_empty() {
+                    self.push_str(", ");
+                }
+                self.push_str("..");
+                for pattern in &tuple.after {
+                    self.push_str(", ");
+                    self.show_pattern(pattern);
                 }
                 self.push(')');
             }
@@ -1068,7 +1078,9 @@ impl<'interner, 'def_map, 'string> ItemPrinter<'interner, 'def_map, 'string> {
                 definition.name == "self"
             }
             HirPattern::Mutable(pattern, _) => self.pattern_is_self(pattern),
-            HirPattern::Tuple(..) | HirPattern::Struct(..) => false,
+            HirPattern::Tuple(..) | HirPattern::TupleWithDoubleDot(..) | HirPattern::Struct(..) => {
+                false
+            }
         }
     }
 

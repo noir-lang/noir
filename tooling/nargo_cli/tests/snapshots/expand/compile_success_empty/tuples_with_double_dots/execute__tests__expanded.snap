@@ -41,7 +41,7 @@ fn main() {
     assert(x == 1);
     assert(y == true);
     ();
-    let (..,): (Field, Field, Field) = (1, 2, 3);
+    let (..): (Field, Field, Field) = (1, 2, 3);
     ()
 }
 

@@ -275,11 +275,7 @@ impl DebugInstrumenter {
 
         ast::Statement {
             kind: ast::StatementKind::new_let(
-                ast::Pattern::Tuple(
-                    vars_pattern,
-                    None, /* double dot */
-                    let_stmt.pattern.location(),
-                ),
+                ast::Pattern::Tuple(vars_pattern, let_stmt.pattern.location()),
                 ast::UnresolvedTypeData::Unspecified.with_dummy_location(),
                 ast::Expression {
                     kind: ast::ExpressionKind::Block(ast::BlockExpression {
@@ -719,15 +715,19 @@ fn pattern_vars(pattern: &ast::Pattern) -> Vec<(ast::Ident, bool)> {
     let mut stack = VecDeque::from([(pattern, false)]);
     while stack.front().is_some() {
         let (pattern, is_mut) = stack.pop_front().unwrap();
-        match pattern {
+        match &pattern {
             ast::Pattern::Identifier(id) => {
                 vars.push((id.clone(), is_mut));
             }
             ast::Pattern::Mutable(pattern, _, _) => {
                 stack.push_back((pattern, true));
             }
-            ast::Pattern::Tuple(patterns, _, _) => {
+            ast::Pattern::Tuple(patterns, _) => {
                 stack.extend(patterns.iter().map(|pattern| (pattern, false)));
+            }
+            &ast::Pattern::TupleWithDoubleDot(tuple) => {
+                stack.extend(tuple.before.iter().map(|pattern| (pattern, false)));
+                stack.extend(tuple.after.iter().map(|pattern| (pattern, false)));
             }
             ast::Pattern::Struct(_, pids, _) => {
                 stack.extend(pids.iter().map(|(_, pattern)| (pattern, is_mut)));

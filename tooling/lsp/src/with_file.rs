@@ -5,14 +5,14 @@ use noirc_frontend::{
     ParsedModule,
     ast::{
         ArrayLiteral, AsTraitPath, AssignStatement, BlockExpression, CallExpression,
-        CastExpression, ConstrainExpression, ConstructorExpression, Documented, DoubleDotPattern,
-        EnumVariant, Expression, ExpressionKind, ForBounds, ForLoopStatement, ForRange,
-        FunctionDefinition, FunctionReturnType, GenericTypeArgs, Ident, IfExpression,
-        IndexExpression, InfixExpression, LValue, Lambda, LetStatement, Literal, MatchExpression,
-        MemberAccessExpression, MethodCallExpression, ModuleDeclaration, NoirEnumeration,
-        NoirFunction, NoirStruct, NoirTrait, NoirTraitImpl, NoirTypeAlias, Param, Path,
-        PathSegment, Pattern, PrefixExpression, Statement, StatementKind, StructField, TraitBound,
-        TraitImplItem, TraitImplItemKind, TraitItem, TypeImpl, TypePath, UnresolvedGeneric,
+        CastExpression, ConstrainExpression, ConstructorExpression, Documented, EnumVariant,
+        Expression, ExpressionKind, ForBounds, ForLoopStatement, ForRange, FunctionDefinition,
+        FunctionReturnType, GenericTypeArgs, Ident, IfExpression, IndexExpression, InfixExpression,
+        LValue, Lambda, LetStatement, Literal, MatchExpression, MemberAccessExpression,
+        MethodCallExpression, ModuleDeclaration, NoirEnumeration, NoirFunction, NoirStruct,
+        NoirTrait, NoirTraitImpl, NoirTypeAlias, Param, Path, PathSegment, Pattern,
+        PrefixExpression, Statement, StatementKind, StructField, TraitBound, TraitImplItem,
+        TraitImplItemKind, TraitItem, TupleWithDoubleDot, TypeImpl, TypePath, UnresolvedGeneric,
         UnresolvedTraitConstraint, UnresolvedType, UnresolvedTypeData, UnresolvedTypeExpression,
         UnsafeExpression, UseTree, UseTreeKind, WhileStatement,
     },
@@ -116,13 +116,20 @@ fn pattern_with_file(pattern: Pattern, file: FileId) -> Pattern {
             location_with_file(location, file),
             synthesized,
         ),
-        Pattern::Tuple(patterns, double_dot, location) => {
-            let double_dot = double_dot.map(|double_dot| DoubleDotPattern {
-                index: double_dot.index,
-                location: location_with_file(double_dot.location, file),
-            });
+        Pattern::Tuple(patterns, location) => {
             let patterns = patterns_with_file(patterns, file);
-            Pattern::Tuple(patterns, double_dot, location_with_file(location, file))
+            Pattern::Tuple(patterns, location_with_file(location, file))
+        }
+        Pattern::TupleWithDoubleDot(tuple) => {
+            let before = patterns_with_file(tuple.before, file);
+            let after = patterns_with_file(tuple.after, file);
+            let tuple = TupleWithDoubleDot {
+                before,
+                double_dot_location: tuple.double_dot_location,
+                after,
+                location: tuple.location,
+            };
+            Pattern::TupleWithDoubleDot(tuple)
         }
         Pattern::Struct(path, items, location) => Pattern::Struct(
             path_with_file(path, file),

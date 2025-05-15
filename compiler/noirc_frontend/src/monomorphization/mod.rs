@@ -8,7 +8,7 @@
 //!
 //! The entry point to this pass is the `monomorphize` function which, starting from a given
 //! function, will monomorphize the entire reachable program.
-use crate::ast::{DoubleDotPattern, FunctionKind, IntegerBitSize, UnaryOp};
+use crate::ast::{FunctionKind, IntegerBitSize, TupleWithDoubleDot, UnaryOp};
 use crate::hir::comptime::{InterpreterError, Value};
 use crate::hir::type_check::{NoMatchingImplFoundError, TypeCheckError};
 use crate::node_interner::{ExprId, GlobalValue, ImplSearchErrorKind};
@@ -449,8 +449,11 @@ impl<'interner> Monomorphizer<'interner> {
             HirPattern::Mutable(pattern, _) => {
                 self.parameter(pattern, typ, visibility, new_params)?;
             }
-            HirPattern::Tuple(fields, double_dot, _) => {
-                self.tuple_parameter(typ, visibility, new_params, fields, double_dot)?;
+            HirPattern::Tuple(fields, _) => {
+                self.tuple_parameter(typ, visibility, new_params, fields)?;
+            }
+            HirPattern::TupleWithDoubleDot(tuple) => {
+                self.tuple_with_double_dot_parameter(typ, visibility, new_params, tuple)?;
             }
             HirPattern::Struct(_, fields, location) => {
                 self.struct_parameter(typ, visibility, new_params, fields, location)?;
@@ -486,33 +489,41 @@ impl<'interner> Monomorphizer<'interner> {
         visibility: &Visibility,
         new_params: &mut Vec<(LocalId, bool, String, ast::Type, Visibility)>,
         fields: &[HirPattern],
-        double_dot: &Option<DoubleDotPattern>,
     ) -> Result<(), MonomorphizationError> {
         let tuple_field_types = unwrap_tuple_type(typ);
 
-        if let Some(double_dot) = double_dot {
-            let double_dot_index = double_dot.index;
-            let double_dot_location = double_dot.location;
-            let (fields_lhs, fields_rhs) = fields.split_at(double_dot_index);
-            let rhs_len = fields_rhs.len();
-            let tuple_field_types_lhs = &tuple_field_types[0..double_dot_index];
-            let tuple_field_types_rhs = &tuple_field_types[tuple_field_types.len() - rhs_len..];
-            // Define parameters for what comes before `..`
-            for (field, typ) in fields_lhs.iter().zip(tuple_field_types_lhs) {
-                self.parameter(field, typ, visibility, new_params)?;
-            }
-            // Define ignored parameters for the `..`
-            for typ in &tuple_field_types[double_dot_index..tuple_field_types.len() - rhs_len] {
-                self.ignored_parameter(typ, visibility, double_dot_location, new_params)?;
-            }
-            // Define parameters for what comes after `..`
-            for (field, typ) in fields_rhs.iter().zip(tuple_field_types_rhs) {
-                self.parameter(field, typ, visibility, new_params)?;
-            }
-        } else {
-            for (field, typ) in fields.iter().zip(tuple_field_types) {
-                self.parameter(field, &typ, visibility, new_params)?;
-            }
+        for (field, typ) in fields.iter().zip(tuple_field_types) {
+            self.parameter(field, &typ, visibility, new_params)?;
+        }
+
+        Ok(())
+    }
+
+    fn tuple_with_double_dot_parameter(
+        &mut self,
+        typ: &Type,
+        visibility: &Visibility,
+        new_params: &mut Vec<(LocalId, bool, String, ast::Type, Visibility)>,
+        tuple: &TupleWithDoubleDot<HirPattern>,
+    ) -> Result<(), MonomorphizationError> {
+        let tuple_field_types = unwrap_tuple_type(typ);
+
+        let fields_before = &tuple.before;
+        let fields_after = &tuple.after;
+        let (tuple_field_types_before, tuple_field_types_at_double_dot, tuple_field_types_after) =
+            tuple.split(&tuple_field_types);
+
+        // Define parameters for what comes before `..`
+        for (field, typ) in fields_before.iter().zip(tuple_field_types_before) {
+            self.parameter(field, typ, visibility, new_params)?;
+        }
+        // Define ignored parameters for the `..`
+        for typ in tuple_field_types_at_double_dot {
+            self.ignored_parameter(typ, visibility, tuple.double_dot_location, new_params)?;
+        }
+        // Define parameters for what comes after `..`
+        for (field, typ) in fields_after.iter().zip(tuple_field_types_after) {
+            self.parameter(field, typ, visibility, new_params)?;
         }
 
         Ok(())
@@ -930,8 +941,9 @@ impl<'interner> Monomorphizer<'interner> {
         match pattern {
             HirPattern::Identifier(ident) => self.unpack_identifier_pattern(value, ident),
             HirPattern::Mutable(pattern, _) => self.unpack_pattern(*pattern, value, typ),
-            HirPattern::Tuple(patterns, double_dot, _) => {
-                self.unpack_tuple_pattern(value, typ, patterns, double_dot)
+            HirPattern::Tuple(patterns, _) => self.unpack_tuple_pattern(value, typ, patterns),
+            HirPattern::TupleWithDoubleDot(tuple) => {
+                self.unpack_tuple_with_double_dot_pattern(value, typ, tuple)
             }
             HirPattern::Struct(_, patterns, location) => {
                 self.unpack_struct_pattern(value, typ, patterns, location)
@@ -944,27 +956,32 @@ impl<'interner> Monomorphizer<'interner> {
         value: ast::Expression,
         typ: &Type,
         patterns: Vec<HirPattern>,
-        double_dot: Option<DoubleDotPattern>,
+    ) -> Result<ast::Expression, MonomorphizationError> {
+        let fields = unwrap_tuple_type(typ);
+        self.unpack_multiple_patterns(value, patterns.into_iter().map(Some).zip(fields), typ)
+    }
+
+    fn unpack_tuple_with_double_dot_pattern(
+        &mut self,
+        value: ast::Expression,
+        typ: &Type,
+        tuple: TupleWithDoubleDot<HirPattern>,
     ) -> Result<ast::Expression, MonomorphizationError> {
         let fields = unwrap_tuple_type(typ);
 
-        if let Some(double_dot) = double_dot {
-            // Here we extern replace the double dot pattern with `None` so the values are not extracted from the tuple
-            let double_dot_index = double_dot.index;
-            let (patterns_lhs, patterns_rhs) = patterns.split_at(double_dot_index);
-            let filler_length = fields.len() - patterns.len();
+        // Here we replace the double dot pattern with `None` so the values are not extracted from the tuple
+        let patterns_before = &tuple.before;
+        let patterns_after = &tuple.after;
+        let filler_length = fields.len() - tuple.patterns_len();
 
-            let mut new_patterns = Vec::with_capacity(fields.len());
-            new_patterns.extend(patterns_lhs.iter().map(|pattern| Some(pattern.clone())));
-            for _ in 0..filler_length {
-                new_patterns.push(None);
-            }
-            new_patterns.extend(patterns_rhs.iter().map(|pattern| Some(pattern.clone())));
-
-            self.unpack_multiple_patterns(value, new_patterns.into_iter().zip(fields), typ)
-        } else {
-            self.unpack_multiple_patterns(value, patterns.into_iter().map(Some).zip(fields), typ)
+        let mut new_patterns = Vec::with_capacity(fields.len());
+        new_patterns.extend(patterns_before.iter().map(|pattern| Some(pattern.clone())));
+        for _ in 0..filler_length {
+            new_patterns.push(None);
         }
+        new_patterns.extend(patterns_after.iter().map(|pattern| Some(pattern.clone())));
+
+        self.unpack_multiple_patterns(value, new_patterns.into_iter().zip(fields), typ)
     }
 
     fn unpack_struct_pattern(

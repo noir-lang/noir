@@ -5,8 +5,8 @@ use rustc_hash::FxHashSet as HashSet;
 use crate::{
     DataType, Kind, Shared, Type, TypeAlias, TypeBindings,
     ast::{
-        DoubleDotPattern, ERROR_IDENT, Expression, ExpressionKind, GenericTypeArgs, Ident,
-        ItemVisibility, Path, PathSegment, Pattern, TypePath,
+        ERROR_IDENT, Expression, ExpressionKind, GenericTypeArgs, Ident, ItemVisibility, Path,
+        PathSegment, Pattern, TupleWithDoubleDot, TypePath,
     },
     hir::{
         def_collector::dc_crate::CompilationError,
@@ -107,15 +107,22 @@ impl Elaborator<'_> {
                 );
                 HirPattern::Mutable(Box::new(pattern), location)
             }
-            Pattern::Tuple(fields, double_dot, location) => self.elaborate_tuple_pattern(
+            Pattern::Tuple(fields, location) => self.elaborate_tuple_pattern(
                 &expected_type,
                 &definition,
                 mutable,
                 new_definitions,
                 warn_if_unused,
                 fields,
-                double_dot,
                 location,
+            ),
+            Pattern::TupleWithDoubleDot(tuple) => self.elaborate_tuple_with_double_dot_pattern(
+                &expected_type,
+                &definition,
+                mutable,
+                new_definitions,
+                warn_if_unused,
+                tuple,
             ),
             Pattern::Struct(name, fields, location) => {
                 let name = self.validate_path(name);
@@ -194,7 +201,6 @@ impl Elaborator<'_> {
         new_definitions: &mut Vec<HirIdent>,
         warn_if_unused: bool,
         fields: Vec<Pattern>,
-        double_dot: Option<DoubleDotPattern>,
         location: Location,
     ) -> HirPattern {
         let field_types = match expected_type.follow_bindings() {
@@ -213,43 +219,13 @@ impl Elaborator<'_> {
             }
         };
 
-        let (fields, field_types) = if let Some(double_dot) = &double_dot {
-            let double_dot_index = double_dot.index;
-            let (before, after) = fields.split_at(double_dot_index);
-            let (mut before, after) = (before.to_vec(), after.to_vec());
-
-            let before_len = before.len();
-            let after_len = after.len();
-
-            before.extend(after);
-            let fields = before;
-
-            if fields.len() > field_types.len() {
-                self.push_err(TypeCheckError::TupleMismatch {
-                    tuple_types: field_types.clone(),
-                    actual_count: fields.len(),
-                    location,
-                });
-            }
-
-            let mut field_types_before = field_types[0..before_len].to_vec();
-            let field_types_after =
-                field_types[field_types.len().saturating_sub(after_len)..].to_vec();
-            field_types_before.extend(field_types_after);
-            let field_types = field_types_before;
-
-            (fields, field_types)
-        } else {
-            if fields.len() != field_types.len() {
-                self.push_err(TypeCheckError::TupleMismatch {
-                    tuple_types: field_types.clone(),
-                    actual_count: fields.len(),
-                    location,
-                });
-            }
-
-            (fields, field_types)
-        };
+        if fields.len() != field_types.len() {
+            self.push_err(TypeCheckError::TupleMismatch {
+                tuple_types: field_types.clone(),
+                actual_count: fields.len(),
+                location,
+            });
+        }
 
         let fields = vecmap(fields.into_iter().enumerate(), |(i, field)| {
             let field_type = field_types.get(i).cloned().unwrap_or(Type::Error);
@@ -263,7 +239,80 @@ impl Elaborator<'_> {
             )
         });
 
-        HirPattern::Tuple(fields, double_dot, location)
+        HirPattern::Tuple(fields, location)
+    }
+
+    fn elaborate_tuple_with_double_dot_pattern(
+        &mut self,
+        expected_type: &Type,
+        definition: &DefinitionKind,
+        mutable: Option<Location>,
+        new_definitions: &mut Vec<HirIdent>,
+        warn_if_unused: bool,
+        tuple: TupleWithDoubleDot<Pattern>,
+    ) -> HirPattern {
+        let location = tuple.location;
+
+        let field_types = match expected_type.follow_bindings() {
+            Type::Tuple(fields) => fields,
+            Type::Error => vecmap(0..tuple.patterns_len(), |_| Type::Error),
+            expected_type => {
+                let tuple_type = Type::Tuple(vecmap(0..tuple.patterns_len(), |_| {
+                    self.interner.next_type_variable()
+                }));
+
+                self.push_err(TypeCheckError::TypeMismatchWithSource {
+                    expected: expected_type,
+                    actual: tuple_type,
+                    location,
+                    source: Source::Assignment,
+                });
+                vecmap(0..tuple.patterns_len(), |_| Type::Error)
+            }
+        };
+
+        if tuple.patterns_len() > field_types.len() {
+            self.push_err(TypeCheckError::TupleMismatch {
+                tuple_types: field_types.clone(),
+                actual_count: tuple.patterns_len(),
+                location,
+            });
+        }
+
+        let (field_types_before, _, field_types_after) = tuple.split(&field_types);
+
+        let fields_before = vecmap(tuple.before.into_iter().enumerate(), |(i, field)| {
+            let field_type = field_types_before.get(i).cloned().unwrap_or(Type::Error);
+            self.elaborate_pattern_mut(
+                field,
+                field_type,
+                definition.clone(),
+                mutable,
+                new_definitions,
+                warn_if_unused,
+            )
+        });
+
+        let fields_after = vecmap(tuple.after.into_iter().enumerate(), |(i, field)| {
+            let field_type = field_types_after.get(i).cloned().unwrap_or(Type::Error);
+            self.elaborate_pattern_mut(
+                field,
+                field_type,
+                definition.clone(),
+                mutable,
+                new_definitions,
+                warn_if_unused,
+            )
+        });
+
+        let tuple = TupleWithDoubleDot {
+            before: fields_before,
+            double_dot_location: tuple.double_dot_location,
+            after: fields_after,
+            location: tuple.location,
+        };
+
+        HirPattern::TupleWithDoubleDot(tuple)
     }
 
     #[allow(clippy::too_many_arguments)]

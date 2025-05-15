@@ -1,6 +1,6 @@
 use super::expr::HirIdent;
 use crate::Type;
-use crate::ast::{DoubleDotPattern, Ident};
+use crate::ast::{Ident, TupleWithDoubleDot};
 use crate::node_interner::{ExprId, StmtId};
 use crate::token::SecondaryAttribute;
 use noirc_errors::{Location, Span};
@@ -82,7 +82,8 @@ pub struct HirAssignStatement {
 pub enum HirPattern {
     Identifier(HirIdent),
     Mutable(Box<HirPattern>, Location),
-    Tuple(Vec<HirPattern>, Option<DoubleDotPattern>, Location),
+    Tuple(Vec<HirPattern>, Location),
+    TupleWithDoubleDot(TupleWithDoubleDot<HirPattern>),
     Struct(Type, Vec<(Ident, HirPattern)>, Location),
 }
 
@@ -95,8 +96,9 @@ impl HirPattern {
         match self {
             HirPattern::Identifier(ident) => ident.location,
             HirPattern::Mutable(_, location)
-            | HirPattern::Tuple(_, _, location)
+            | HirPattern::Tuple(_, location)
             | HirPattern::Struct(_, _, location) => *location,
+            HirPattern::TupleWithDoubleDot(tuple) => tuple.location,
         }
     }
 }

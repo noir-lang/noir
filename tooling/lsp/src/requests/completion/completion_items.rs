@@ -515,7 +515,7 @@ impl NodeFinder<'_> {
                 text.push_str(self.interner.definition_name(hir_ident.id));
             }
             HirPattern::Mutable(pattern, _) => self.hir_pattern_to_argument(pattern, text),
-            HirPattern::Tuple(..) | HirPattern::Struct(..) => {
+            HirPattern::Tuple(..) | HirPattern::TupleWithDoubleDot(..) | HirPattern::Struct(..) => {
                 text.push('_');
             }
         }
@@ -528,7 +528,9 @@ impl NodeFinder<'_> {
                 name == "self" || name == "_self"
             }
             HirPattern::Mutable(pattern, _) => self.hir_pattern_is_self_type(pattern),
-            HirPattern::Tuple(..) | HirPattern::Struct(..) => false,
+            HirPattern::Tuple(..) | HirPattern::TupleWithDoubleDot(..) | HirPattern::Struct(..) => {
+                false
+            }
         }
     }
 }

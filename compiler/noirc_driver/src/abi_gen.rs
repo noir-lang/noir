@@ -166,7 +166,7 @@ fn get_param_name<'a>(pattern: &HirPattern, interner: &'a NodeInterner) -> Optio
     match pattern {
         HirPattern::Identifier(ident) => Some(interner.definition_name(ident.id)),
         HirPattern::Mutable(pattern, _) => get_param_name(pattern, interner),
-        HirPattern::Tuple(..) | HirPattern::Struct(..) => None,
+        HirPattern::Tuple(..) | HirPattern::TupleWithDoubleDot(..) | HirPattern::Struct(..) => None,
     }
 }
 

@@ -1,6 +1,6 @@
 use noirc_frontend::{
     NamedGeneric, Type, TypeBindings,
-    ast::{PatternOrDoubleDot, UnaryOp},
+    ast::UnaryOp,
     hir::def_map::ModuleDefId,
     hir_def::{
         expr::{
@@ -648,20 +648,29 @@ impl ItemPrinter<'_, '_, '_> {
                 self.push_str("mut ");
                 self.show_hir_pattern(hir_pattern);
             }
-            HirPattern::Tuple(patterns, double_dot, _location) => {
-                let patterns = PatternOrDoubleDot::new_vec(patterns, double_dot);
+            HirPattern::Tuple(patterns, _location) => {
                 let len = patterns.len();
                 self.push('(');
-                self.show_separated_by_comma(&patterns, |this, pattern| match pattern {
-                    PatternOrDoubleDot::Pattern(pattern) => {
-                        this.show_hir_pattern(pattern);
-                    }
-                    PatternOrDoubleDot::DoubleDot(_) => {
-                        this.push_str("..");
-                    }
+                self.show_separated_by_comma(patterns, |this, pattern| {
+                    this.show_hir_pattern(pattern);
                 });
                 if len == 1 {
                     self.push(',');
+                }
+                self.push(')');
+            }
+            HirPattern::TupleWithDoubleDot(tuple) => {
+                self.push('(');
+                self.show_separated_by_comma(&tuple.before, |this, pattern| {
+                    this.show_hir_pattern(pattern);
+                });
+                if !tuple.before.is_empty() {
+                    self.push_str(", ");
+                }
+                self.push_str("..");
+                for pattern in &tuple.after {
+                    self.push_str(", ");
+                    self.show_hir_pattern(pattern);
                 }
                 self.push(')');
             }

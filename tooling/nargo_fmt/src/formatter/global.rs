@@ -54,6 +54,7 @@ impl ChunkFormatter<'_, '_> {
                 *pattern
             }
             Pattern::Tuple(..)
+            | Pattern::TupleWithDoubleDot(..)
             | Pattern::Struct(..)
             | Pattern::Parenthesized(..)
             | Pattern::Interned(..) => {

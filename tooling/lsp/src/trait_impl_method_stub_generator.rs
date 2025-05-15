@@ -2,7 +2,7 @@ use std::collections::BTreeMap;
 
 use noirc_frontend::{
     Kind, NamedGeneric, ResolvedGeneric, Type,
-    ast::{NoirTraitImpl, PatternOrDoubleDot, UnresolvedTypeData},
+    ast::{NoirTraitImpl, UnresolvedTypeData},
     graph::CrateId,
     hir::{
         def_map::{CrateDefMap, ModuleDefId, ModuleId},
@@ -128,25 +128,41 @@ impl<'a> TraitImplMethodStubGenerator<'a> {
                 self.string.push_str("mut ");
                 self.append_pattern(pattern)
             }
-            HirPattern::Tuple(patterns, double_dot, _) => {
-                let patterns = PatternOrDoubleDot::new_vec(patterns, double_dot);
+            HirPattern::Tuple(patterns, _) => {
                 self.string.push('(');
                 for (index, pattern) in patterns.iter().enumerate() {
                     if index > 0 {
                         self.string.push_str(", ");
                     }
-                    match pattern {
-                        PatternOrDoubleDot::Pattern(hir_pattern) => {
-                            self.append_pattern(hir_pattern);
-                        }
-                        PatternOrDoubleDot::DoubleDot(_) => {
-                            self.string.push_str("..");
-                        }
-                    }
+                    self.append_pattern(pattern);
                 }
                 self.string.push(')');
                 true
             }
+            HirPattern::TupleWithDoubleDot(tuple) => {
+                self.string.push('(');
+
+                for (index, pattern) in tuple.before.iter().enumerate() {
+                    if index > 0 {
+                        self.string.push_str(", ");
+                    }
+                    self.append_pattern(pattern);
+                }
+
+                if !tuple.before.is_empty() {
+                    self.string.push_str(", ");
+                }
+                self.string.push_str("..");
+
+                for pattern in &tuple.after {
+                    self.string.push_str(", ");
+                    self.append_pattern(pattern);
+                }
+
+                self.string.push(')');
+                true
+            }
+
             HirPattern::Struct(typ, patterns, _) => {
                 self.append_type(typ);
                 self.string.push_str(" { ");
