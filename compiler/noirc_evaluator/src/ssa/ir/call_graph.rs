@@ -28,6 +28,8 @@ use super::{
 /// Represents a function call graph built from the SSA
 /// Internally, this is a directed graph where each node is a [FunctionId] and each edge
 /// represents a call from one function to another.
+/// Each edge has an associated weight representing the number of times a descendant node
+/// was called by an ancestor node.
 pub(crate) struct CallGraph {
     graph: DiGraph<FunctionId, usize>,
     ids_to_indices: HashMap<FunctionId, PetGraphIndex>,
@@ -46,7 +48,6 @@ impl CallGraph {
                 (*id, called_functions)
             })
             .collect();
-
         Self::from_deps(function_deps)
     }
 
@@ -57,9 +58,7 @@ impl CallGraph {
         Self::from_deps_weighted(dependencies)
     }
 
-    pub(crate) fn from_deps_weighted(
-        dependencies: BTreeMap<FunctionId, BTreeMap<FunctionId, usize>>,
-    ) -> Self {
+    fn from_deps_weighted(dependencies: BTreeMap<FunctionId, BTreeMap<FunctionId, usize>>) -> Self {
         let mut graph = DiGraph::new();
         let mut ids_to_indices = HashMap::default();
         let mut indices_to_ids = HashMap::default();
@@ -83,6 +82,7 @@ impl CallGraph {
     }
 
     /// Construct a [CallGraph] from an explicit dependency mapping of (caller -> callees)
+    /// The edges in this graph all have a weight of one. Thus, it is a pure dependency graph.
     pub(crate) fn from_deps(dependencies: HashMap<FunctionId, BTreeSet<FunctionId>>) -> Self {
         let mut graph = DiGraph::new();
         let mut ids_to_indices = HashMap::default();

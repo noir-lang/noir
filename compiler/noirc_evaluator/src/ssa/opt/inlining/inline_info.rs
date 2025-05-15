@@ -328,7 +328,7 @@ mod tests {
         ";
 
         let ssa = Ssa::from_str(src).unwrap();
-        let call_graph = CallGraph::from_ssa(&ssa);
+        let call_graph = CallGraph::from_ssa_weighted(&ssa);
         let inline_infos = compute_inline_infos(&ssa, &call_graph, false, i64::MAX);
 
         let func_0 = inline_infos.get(&Id::test_new(0)).expect("Should have computed inline info");
@@ -395,7 +395,7 @@ mod tests {
         //      decrement
 
         let ssa = Ssa::from_str(src).unwrap();
-        let call_graph = CallGraph::from_ssa(&ssa);
+        let call_graph = CallGraph::from_ssa_weighted(&ssa);
         let order = compute_bottom_up_order(&ssa, &call_graph);
 
         assert_eq!(order.len(), 4);
