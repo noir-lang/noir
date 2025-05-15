@@ -403,21 +403,38 @@ impl<'f> LoopInvariantContext<'f> {
             }
             Binary(binary) => self.can_evaluate_binary_op(binary),
             Constrain(..) | ConstrainNotEqual(..) | RangeCheck { .. } => {
-                // These instructions should not be hoisted if we know the loop will never be executed (an upper bound or zero or equal loop bounds)
-                // or we are unsure if the loop will ever be executed (dynamic loop bounds).
-                // If the instruction were to be hoisted out of a loop that never executes it could potentially cause the program to fail when it is not meant to fail.
-                let bounds = self.current_induction_variables.values().next().copied();
-                let does_loop_body_execute = bounds
-                    .and_then(|(lower_bound, upper_bound)| {
-                        upper_bound.reduce(lower_bound, |u, l| u > l, |u, l| u > l)
-                    })
-                    .unwrap_or(false);
-                // If we know the loop will be executed these instructions can still only be hoisted if the instructions
-                // are in a non control dependent block.
-                does_loop_body_execute && !self.current_block_control_dependent
+                // If we know the loop will be executed we can still only hoist if we are in a non control dependent block.
+                !self.current_block_control_dependent && self.does_loop_body_execute()
+            }
+            Call { func, .. } => {
+                let purity = match self.inserter.function.dfg[*func] {
+                    Value::Intrinsic(intrinsic) => Some(intrinsic.purity()),
+                    Value::Function(id) => self.inserter.function.dfg.purity_of(id),
+                    _ => None,
+                };
+                // If we know the loop will be executed we can still only hoist if we are in a non control dependent block.
+                matches!(purity, Some(Purity::PureWithPredicate))
+                    && !self.current_block_control_dependent
+                    && self.does_loop_body_execute()
             }
             _ => false,
         }
+    }
+
+    /// Determine whether the loop body is guaranteed to execute.
+    /// We know a loop body will execute if we have constant loop bounds where the upper bound
+    /// is greater than the lower bound.
+    fn does_loop_body_execute(&self) -> bool {
+        // The loop will never be executed if we have an upper bound of zero, equal loop bounds,
+        // or we are unsure if the loop will ever be executed (dynamic loop bounds).
+        // If certain instructions were to be hoisted out of a loop that never executed it
+        // could potentially cause the program to fail when it is not meant to fail.
+        let bounds = self.current_induction_variables.values().next().copied();
+        bounds
+            .and_then(|(lower_bound, upper_bound)| {
+                upper_bound.reduce(lower_bound, |u, l| u > l, |u, l| u > l)
+            })
+            .unwrap_or(false)
     }
 
     /// Some instructions can take advantage of that our induction variable has a fixed minimum/maximum,
@@ -1843,6 +1860,118 @@ mod control_dependence {
         ";
 
         assert_normalized_ssa_equals(ssa, expected);
+    }
+
+    #[test]
+    fn do_not_hoist_pure_with_predicate_call_in_non_executed_loop_body() {
+        // This test is the same as `hoist_safe_mul_that_is_non_control_dependent` except
+        // that the upper loop bound is dynamic and the constrain inside the loop body
+        // is replaced with a call to pure with predicates functions.
+        // We cannot guarantee that the loop body will be executed when we have dynamic bounds.
+        let src = "
+        brillig(inline) fn main f0 {
+          entry(v0: u32, v1: u32):
+            jmp loop(u32 0)
+          loop(v2: u32):
+            v3 = lt v2, v1
+            jmpif v3 then: loop_body, else: exit
+          loop_body():
+            v6 = mul v0, v1
+            v7 = mul v6, v0
+            call f1()
+            v10 = unchecked_add v2, u32 1
+            jmp loop(v10)
+          exit():
+            return
+        }
+        brillig(inline) fn foo f1 {
+          entry(v0: u32):
+            constrain v0 == u32 12
+            return
+        }
+        ";
+
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.purity_analysis();
+        let ssa = ssa.loop_invariant_code_motion();
+
+        assert_ssa_snapshot!(ssa, @r"
+        brillig(inline) predicate_pure fn main f0 {
+          b0(v0: u32, v1: u32):
+            v3 = mul v0, v1
+            v4 = mul v3, v0
+            jmp b1(u32 0)
+          b1(v2: u32):
+            v6 = lt v2, v1
+            jmpif v6 then: b2, else: b3
+          b2():
+            call f1()
+            v9 = unchecked_add v2, u32 1
+            jmp b1(v9)
+          b3():
+            return
+        }
+        brillig(inline) predicate_pure fn foo f1 {
+          b0(v0: u32):
+            constrain v0 == u32 12
+            return
+        }
+        ");
+    }
+
+    #[test]
+    fn hoist_pure_with_predicate_call_in_executed_loop_body() {
+        // This test is the same as `do_not_hoist_pure_with_predicate_call_in_non_executed_loop_body`
+        // except that the loop bounds are guaranteed to execute.
+        let src = "
+        brillig(inline) fn main f0 {
+          entry(v0: u32, v1: u32):
+            jmp loop(u32 0)
+          loop(v2: u32):
+            v3 = lt v2, u32 4
+            jmpif v3 then: loop_body, else: exit
+          loop_body():
+            v6 = mul v0, v1
+            v7 = mul v6, v0
+            call f1()
+            v10 = unchecked_add v2, u32 1
+            jmp loop(v10)
+          exit():
+            return
+        }
+        brillig(inline) fn foo f1 {
+          entry(v0: u32):
+            constrain v0 == u32 12
+            return
+        }
+        ";
+
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.purity_analysis();
+        let ssa = ssa.loop_invariant_code_motion();
+
+        assert_ssa_snapshot!(ssa, @r"
+        brillig(inline) predicate_pure fn main f0 {
+          b0(v0: u32, v1: u32):
+            v3 = mul v0, v1
+            v4 = mul v3, v0
+            call f1()
+            jmp b1(u32 0)
+          b1(v2: u32):
+            v8 = lt v2, u32 4
+            jmpif v8 then: b2, else: b3
+          b2():
+            v10 = unchecked_add v2, u32 1
+            jmp b1(v10)
+          b3():
+            return
+        }
+        brillig(inline) predicate_pure fn foo f1 {
+          b0(v0: u32):
+            constrain v0 == u32 12
+            return
+        }
+        ");
     }
 
     #[test]
