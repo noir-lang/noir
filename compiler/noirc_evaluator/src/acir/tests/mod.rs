@@ -21,6 +21,7 @@ use crate::{
     brillig::{Brillig, BrilligOptions, brillig_ir::artifact::GeneratedBrillig},
     ssa::{
         function_builder::FunctionBuilder,
+        interpreter::value::Value,
         ir::{
             function::FunctionId,
             instruction::BinaryOp,
@@ -956,17 +957,6 @@ fn execute_ssa(
     }
 }
 
-fn get_constant_main_src(lhs: FieldElement, rhs: FieldElement, typ: &str) -> String {
-    format!(
-        "acir(inline) fn main f0 {{
-            b0(inputs: [{typ}; 2]):
-             v6 = make_array [{typ} {lhs}, {typ} {rhs}] : [{typ}; 2]
-             lhs = array_get v6, index u32 0 -> {typ}
-             rhs = array_get v6, index u32 1 -> {typ}
-            "
-    )
-}
-
 fn get_main_src(typ: &str) -> String {
     format!(
         "acir(inline) fn main f0 {{
@@ -1036,7 +1026,13 @@ fn test_operators(
     inputs: &[FieldElement],
 ) {
     let main = get_main_src(typ);
-    let const_main = get_constant_main_src(inputs[0], inputs[1], typ);
+    let num_type = match typ.chars().next().unwrap() {
+        'F' => NumericType::NativeField,
+        'i' => NumericType::Signed { bit_size: typ[1..].parse().unwrap() },
+        'u' => NumericType::Unsigned { bit_size: typ[1..].parse().unwrap() },
+        _ => unreachable!("invalid numeric type"),
+    };
+    let inputs_int = Value::array_from_slice(inputs, num_type);
     let inputs =
         inputs.iter().enumerate().map(|(i, f)| (Witness(i as u32), *f)).collect::<BTreeMap<_, _>>();
     let len = inputs.len() as u32;
@@ -1046,17 +1042,24 @@ fn test_operators(
         let (src, with_output) = generate_test_instruction_from_operator(op);
         let output = if with_output { Some(Witness(len)) } else { None };
         let ssa = Ssa::from_str(&(main.to_owned() + &src)).unwrap();
-        let result = execute_ssa(ssa, initial_witness.clone(), output.as_ref());
-        let const_ssa = Ssa::from_str(&(const_main.to_owned() + &src)).unwrap();
-        let const_ssa = const_ssa.fold_constants();
-        let const_result = execute_ssa(const_ssa, initial_witness.clone(), output.as_ref());
-        match (result, const_result) {
-            ((ACVMStatus::Failure(_), _), (ACVMStatus::Failure(_), _)) => {
-                // Both execution failed, so it is the same behavior, as expected.
+        // ssa execution
+        let result = ssa.interpret(vec![inputs_int.clone()]);
+        // acir execution
+        let result2 = execute_ssa(ssa, initial_witness.clone(), output.as_ref());
+
+        match (result, result2) {
+            // Both execution failed, so it is the same behavior, as expected.
+            (Err(_), (ACVMStatus::Failure(_), _)) => (),
+            // Both execution succeeded and output the same value
+            (Ok(ssa_result), (ACVMStatus::Solved, acvm_result)) => {
+                let result = if let Some(result) = ssa_result.first() {
+                    result.as_numeric().map(|v| v.convert_to_field())
+                } else {
+                    None
+                };
+                assert_eq!(result, acvm_result)
             }
-            ((_, result_value), (_, const_value)) => {
-                assert_eq!(result_value, const_value);
-            }
+            _ => panic!("ssa and acvm execution should have the same result"),
         }
     }
 }
@@ -1070,8 +1073,10 @@ fn test_binary_on_field() {
         "mul",
         "div",
         "eq",
-        "and",
-        "xor",
+        // Bitwise operations are not allowed on field elements
+        // SSA interpreter will emit an error but not ACVM
+        // "and",
+        // "xor",
         "unchecked_add",
         "unchecked_sub",
         "unchecked_mul",
@@ -1106,8 +1111,10 @@ fn test_u32() {
     let inputs = [FieldElement::from(2_usize), FieldElement::from(1_usize)];
     test_operators(&operators, "u32", &inputs);
 
-    let operators =
-        ["unchecked_add", "unchecked_sub", "unchecked_mul", "range_check 8", "truncate 8 32"];
+    // "unchecked_sub" 300 - 500 is not a valid ssa instruction because it assumes no over/under flow.
+    // it is translated into 300 - 500 in ACVM, which gives -200
+    // it is translated into 300 - 500 2**64 in SSA interpreter
+    let operators = ["unchecked_add", "unchecked_mul", "range_check 8", "truncate 8 32"];
     let inputs = [FieldElement::from(300_usize), FieldElement::from(500_usize)];
     test_operators(&operators, "u32", &inputs);
 }
