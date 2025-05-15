@@ -1,10 +1,7 @@
 use acvm::AcirField;
 
 use crate::ssa::{
-    interpreter::{
-        Value,
-        tests::{expect_values, expect_values_with_args, from_u32_slice},
-    },
+    interpreter::tests::{expect_values, expect_values_with_args, from_constant, from_u32_slice},
     ir::types::NumericType,
 };
 
@@ -22,8 +19,8 @@ fn test_msm() {
     let values = expect_values_with_args(
         src,
         vec![
-            Value::from_constant(1_u128.into(), NumericType::NativeField),
-            Value::from_constant(0_u128.into(), NumericType::NativeField),
+            from_constant(1_u128.into(), NumericType::NativeField),
+            from_constant(0_u128.into(), NumericType::NativeField),
         ],
     );
 
@@ -39,10 +36,8 @@ fn test_ec_add() {
       return v1
   }
       ";
-    let values = expect_values_with_args(
-        src,
-        vec![Value::from_constant(1_u128.into(), NumericType::NativeField)],
-    );
+    let values =
+        expect_values_with_args(src, vec![from_constant(1_u128.into(), NumericType::NativeField)]);
 
     assert!(values.len() == 1);
 }
