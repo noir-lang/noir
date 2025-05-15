@@ -201,7 +201,8 @@ fn input_value_to_ssa(typ: &AbiType, input: &InputValue) -> Vec<ssa::interpreter
                 }
                 other => panic!("unexpected ABY type for Field input: {other:?}"),
             };
-            vec![Value::from_constant(*f, num_typ).expect("cannot create constant")]
+            let num_val = NumericValue::from_constant(*f, num_typ).expect("cannot create constant");
+            vec![Value::Numeric(num_val)]
         }
         InputValue::String(s) => array_value(
             vec![vecmap(s.as_bytes(), |b| Value::Numeric(NumericValue::U8(*b)))],

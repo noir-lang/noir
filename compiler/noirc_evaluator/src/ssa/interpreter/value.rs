@@ -134,7 +134,7 @@ impl Value {
         }
     }
 
-    pub fn from_constant(constant: FieldElement, typ: NumericType) -> IResult<Self> {
+    pub(crate) fn from_constant(constant: FieldElement, typ: NumericType) -> IResult<Self> {
         NumericValue::from_constant(constant, typ).map(Self::Numeric)
     }
 
@@ -244,7 +244,7 @@ impl NumericValue {
         }
     }
 
-    pub(crate) fn from_constant(constant: FieldElement, typ: NumericType) -> IResult<NumericValue> {
+    pub fn from_constant(constant: FieldElement, typ: NumericType) -> IResult<NumericValue> {
         use super::InternalError::{ConstantDoesNotFitInType, UnsupportedNumericType};
         use super::InterpreterError::Internal;
 
