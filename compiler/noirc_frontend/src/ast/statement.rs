@@ -1034,19 +1034,10 @@ impl Display for Pattern {
                 }
             }
             Pattern::TupleWithDoubleDot(tuple) => {
-                write!(f, "(")?;
-
-                for (index, pattern) in tuple.iter().enumerate() {
-                    if index != 0 {
-                        write!(f, ", ")?;
-                    }
-                    if let Some(pattern) = pattern {
-                        write!(f, "{pattern}")?;
-                    } else {
-                        write!(f, "..")?;
-                    }
-                }
-                write!(f, ")")
+                let fields = vecmap(tuple.iter(), |field| {
+                    field.map(ToString::to_string).unwrap_or_else(|| "..".to_string())
+                });
+                write!(f, "({})", fields.join(", "))
             }
             Pattern::Struct(typename, fields, _) => {
                 let fields = vecmap(fields, |(name, pattern)| format!("{name}: {pattern}"));
