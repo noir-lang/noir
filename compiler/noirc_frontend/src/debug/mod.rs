@@ -715,7 +715,7 @@ fn pattern_vars(pattern: &ast::Pattern) -> Vec<(ast::Ident, bool)> {
     let mut stack = VecDeque::from([(pattern, false)]);
     while stack.front().is_some() {
         let (pattern, is_mut) = stack.pop_front().unwrap();
-        match &pattern {
+        match pattern {
             ast::Pattern::Identifier(id) => {
                 vars.push((id.clone(), is_mut));
             }
@@ -725,7 +725,7 @@ fn pattern_vars(pattern: &ast::Pattern) -> Vec<(ast::Ident, bool)> {
             ast::Pattern::Tuple(patterns, _) => {
                 stack.extend(patterns.iter().map(|pattern| (pattern, false)));
             }
-            &ast::Pattern::TupleWithDoubleDot(tuple) => {
+            ast::Pattern::TupleWithDoubleDot(tuple) => {
                 stack.extend(tuple.before.iter().map(|pattern| (pattern, false)));
                 stack.extend(tuple.after.iter().map(|pattern| (pattern, false)));
             }
