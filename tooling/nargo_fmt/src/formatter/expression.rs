@@ -399,37 +399,7 @@ impl ChunkFormatter<'_, '_> {
                 formatter.write_token(Token::Less);
             }
 
-            // Special handling so that `str<N>::foo` is formatted as `str::<N>::foo` (and similarly for `fmtstr`)
-            match type_path.typ.typ {
-                UnresolvedTypeData::String(length) => {
-                    formatter.write_keyword(Keyword::String);
-                    formatter.skip_comments_and_whitespace();
-                    if formatter.is_at(Token::DoubleColon) {
-                        formatter.write_token(Token::DoubleColon);
-                    } else {
-                        formatter.write("::");
-                    }
-                    formatter.write_token(Token::Less);
-                    formatter.format_type_expression(length);
-                    formatter.write_token(Token::Greater);
-                }
-                UnresolvedTypeData::FormatString(length, element) => {
-                    formatter.write_keyword(Keyword::FormatString);
-                    formatter.skip_comments_and_whitespace();
-                    if formatter.is_at(Token::DoubleColon) {
-                        formatter.write_token(Token::DoubleColon);
-                    } else {
-                        formatter.write("::");
-                    }
-                    formatter.write_token(Token::Less);
-                    formatter.format_type_expression(length);
-                    formatter.write_token(Token::Comma);
-                    formatter.write_space();
-                    formatter.format_type(*element);
-                    formatter.write_token(Token::Greater);
-                }
-                _ => formatter.format_type(type_path.typ),
-            }
+            formatter.format_type(type_path.typ);
 
             if nameless {
                 formatter.write_token(Token::Greater);
@@ -2171,34 +2141,6 @@ global y = 1;
     fn format_type_path_with_array_type() {
         let src = "global x = < [ i32 ; 3 ] > :: max  ;";
         let expected = "global x = <[i32; 3]>::max;\n";
-        assert_format(src, expected);
-    }
-
-    #[test]
-    fn format_type_path_for_str_with_colons() {
-        let src = "global x = str :: < N > :: max  ;";
-        let expected = "global x = str::<N>::max;\n";
-        assert_format(src, expected);
-    }
-
-    #[test]
-    fn format_type_path_for_str_missing_colons() {
-        let src = "global x = str < N > :: max  ;";
-        let expected = "global x = str::<N>::max;\n";
-        assert_format(src, expected);
-    }
-
-    #[test]
-    fn format_type_path_for_fmtstr_with_colons() {
-        let src = "global x = fmtstr :: < A , B > :: max  ;";
-        let expected = "global x = fmtstr::<A, B>::max;\n";
-        assert_format(src, expected);
-    }
-
-    #[test]
-    fn format_type_path_for_fmtstr_missing_colons() {
-        let src = "global x = fmtstr < A , B > :: max  ;";
-        let expected = "global x = fmtstr::<A, B>::max;\n";
         assert_format(src, expected);
     }
 
