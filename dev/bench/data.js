@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1747319669648,
+  "lastUpdate": 1747321224814,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -18016,48 +18016,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "asterite@gmail.com",
-            "name": "Ary Borenszweig",
-            "username": "asterite"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "aceb4fc3e2f12a4914c7f9719cad0b99119dcebd",
-          "message": "fix!: error on tuple mismatch (#8424)\n\nCo-authored-by: Tom French <15848336+TomAFrench@users.noreply.github.com>",
-          "timestamp": "2025-05-08T23:38:04Z",
-          "tree_id": "fb4ae7853cbaa5ee44b64a7ba185788f1baf2aa6",
-          "url": "https://github.com/noir-lang/noir/commit/aceb4fc3e2f12a4914c7f9719cad0b99119dcebd"
-        },
-        "date": 1746748629779,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 268901,
-            "range": "± 1052",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 239326,
-            "range": "± 6531",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 3575527,
-            "range": "± 4938",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "aakoshh@gmail.com",
             "name": "Akosh Farkash",
             "username": "aakoshh"
@@ -20109,6 +20067,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 3220416,
             "range": "± 27866",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "asterite@gmail.com",
+            "name": "Ary Borenszweig",
+            "username": "asterite"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "bc002e0721c8b6847b182fdf2233e70dd86b16bf",
+          "message": "fix: don't overflow when casting signed value to u128 (#8526)",
+          "timestamp": "2025-05-15T14:40:36Z",
+          "tree_id": "2dbd09deb7e8e4c5def2cf26e604d02abc7ef4a4",
+          "url": "https://github.com/noir-lang/noir/commit/bc002e0721c8b6847b182fdf2233e70dd86b16bf"
+        },
+        "date": 1747321215489,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 261806,
+            "range": "± 559",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 231262,
+            "range": "± 4729",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 3570076,
+            "range": "± 1744",
             "unit": "ns/iter"
           }
         ]
