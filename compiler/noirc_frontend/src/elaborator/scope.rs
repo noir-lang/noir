@@ -157,33 +157,6 @@ impl Elaborator<'_> {
         }
     }
 
-    /// Lookup a given struct type by name.
-    pub(super) fn lookup_datatype_or_error(
-        &mut self,
-        path: TypedPath,
-        mode: PathResolutionMode,
-    ) -> Option<Shared<DataType>> {
-        let location = path.location;
-        match self.resolve_path_or_error_inner(path, PathResolutionTarget::Type, mode) {
-            Ok(item) => {
-                if let PathResolutionItem::Type(struct_id) = item {
-                    Some(self.get_type(struct_id))
-                } else {
-                    self.push_err(ResolverError::Expected {
-                        expected: "type",
-                        got: item.description(),
-                        location,
-                    });
-                    None
-                }
-            }
-            Err(err) => {
-                self.push_err(err);
-                None
-            }
-        }
-    }
-
     /// Looks up a given type by name.
     /// This will also instantiate any struct types found.
     pub(super) fn lookup_type_or_error(&mut self, path: TypedPath) -> Option<Type> {

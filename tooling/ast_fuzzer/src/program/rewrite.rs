@@ -1,7 +1,6 @@
-use std::collections::BTreeMap;
+use std::collections::{HashMap, HashSet};
 
 use arbitrary::Unstructured;
-use im::HashMap;
 use nargo::errors::Location;
 use noirc_frontend::{
     ast::BinaryOpKind,
@@ -16,44 +15,66 @@ use super::{
     visitor::{visit_expr, visit_expr_mut},
 };
 
-/// Find recursive functions and add a `ctx_limit: &mut u32` parameter to them,
-/// which we use to limit the number of recursive calls. This is complicated by
-/// the fact that we cannot pass mutable references from ACIR to Brillig. To
-/// overcome that, we create a proxy function for unconstrained functions that
-/// take `mut ctx_limit: u32` instead, and pass it on as a mutable ref.
+/// To avoid the potential of infinite recursion at runtime, add a `ctx_limit: &mut u32`
+/// parameter to all functions, which we use to limit the number of recursive calls.
+///
+/// This is complicated by the fact that we cannot pass mutable references from ACIR to Brillig.
+/// To overcome that, we create a proxy function for unconstrained functions that take
+/// `mut ctx_limit: u32` instead, and pass it on as a mutable ref.
+///
+/// Originally only actually recursive functions (ie. one that called something else)
+/// received this extra parameters, but in order to support higher order functions
+/// which can be passed a recursive or a non-recursive function as an argument,
+/// all functions get the extra parameter.
 pub(crate) fn add_recursion_limit(
     ctx: &mut Context,
     u: &mut Unstructured,
 ) -> arbitrary::Result<()> {
     // Collect recursive functions, ie. the ones which call other functions.
-    // Remember if they are unconstrained; those need proxies as well.
     let recursive_functions = ctx
         .functions
         .iter()
-        .filter_map(|(id, func)| expr::has_call(&func.body).then_some((*id, func.unconstrained)))
-        .collect::<BTreeMap<_, _>>();
+        .filter_map(|(id, func)| expr::has_call(&func.body).then_some(*id))
+        .collect::<HashSet<_>>();
 
-    // Create proxies for unconstrained recursive functions.
-    // We could check whether they are called from ACIR, but that would require further traversals.
+    // Collect functions called from ACIR; they will need proxy functions.
+    let called_from_acir = ctx.functions.values().filter(|func| !func.unconstrained).fold(
+        HashSet::<FuncId>::new(),
+        |mut acc, func| {
+            acc.extend(expr::callees(&func.body));
+            acc
+        },
+    );
+
+    let unconstrained_functions = ctx
+        .functions
+        .iter()
+        .filter_map(|(id, func)| func.unconstrained.then_some(*id))
+        .collect::<HashSet<_>>();
+
+    // Create proxies for unconstrained functions called from ACIR.
     let mut proxy_functions = HashMap::new();
     let mut next_func_id = FuncId(ctx.functions.len() as u32);
 
-    for (func_id, unconstrained) in &recursive_functions {
-        if !*unconstrained || *func_id == Program::main_id() {
+    for (func_id, func) in &ctx.functions {
+        if !func.unconstrained
+            || *func_id == Program::main_id()
+            || !called_from_acir.contains(func_id)
+        {
             continue;
         }
-        let mut proxy = ctx.functions[func_id].clone();
+        let mut proxy = func.clone();
         proxy.id = next_func_id;
         proxy.name = format!("{}_proxy", proxy.name);
-        // We will replace the body and update the params later.
+        // We will replace the body, update the params, and append the function later.
         proxy_functions.insert(*func_id, proxy);
         next_func_id = FuncId(next_func_id.0 + 1);
     }
 
-    // Rewrite recursive functions.
-    for (func_id, unconstrained) in recursive_functions.iter() {
-        let func = ctx.functions.get_mut(func_id).unwrap();
+    // Rewrite functions.
+    for (func_id, func) in ctx.functions.iter_mut() {
         let is_main = *func_id == Program::main_id();
+        let is_recursive = recursive_functions.contains(func_id);
 
         // We'll need a new ID for variables or parameters. We could speed this up by
         // 1) caching this value in a "function meta" construct, or
@@ -89,7 +110,7 @@ pub(crate) fn add_recursion_limit(
                 expr::u32_literal(ctx.config.max_recursive_calls as u32),
             );
             expr::prepend(&mut func.body, init_limit);
-        } else {
+        } else if is_recursive {
             // In non-main we look at the limit and return a random value if it's zero,
             // otherwise decrease it by one and continue with the original body.
             let limit_type = types::ref_mut(types::U32);
@@ -132,6 +153,18 @@ pub(crate) fn add_recursion_limit(
                     func.return_type.clone(),
                 )
             });
+        } else {
+            // For non-recursive functions just add an unused parameter.
+            // In non-main we look at the limit and return a random value if it's zero,
+            // otherwise decrease it by one and continue with the original body.
+            let limit_type = types::ref_mut(types::U32);
+            func.parameters.push((
+                limit_id,
+                false,
+                format!("_{limit_name}"),
+                limit_type.clone(),
+                Visibility::Private,
+            ));
         }
 
         // Add the non-reference version of the parameter to the proxy function.
@@ -194,26 +227,23 @@ pub(crate) fn add_recursion_limit(
         // Update calls to pass along the limit and call the proxy if necessary.
         visit_expr_mut(&mut func.body, &mut |expr: &mut Expression| {
             if let Expression::Call(call) = expr {
-                let Expression::Ident(func) = call.func.as_mut() else {
+                let Expression::Ident(ident) = call.func.as_mut() else {
                     unreachable!("functions are called by ident");
                 };
-                let Definition::Function(func_id) = func.definition else {
+                let Definition::Function(callee_id) = ident.definition else {
                     unreachable!("function definition expected");
                 };
-                // If the callee isn't recursive, it won't have the extra parameter.
-                let Some(callee_unconstrained) = recursive_functions.get(&func_id) else {
-                    return true;
-                };
-                let Type::Function(param_types, _, _, _) = &mut func.typ else {
+                let Type::Function(param_types, _, _, _) = &mut ident.typ else {
                     unreachable!("function type expected");
                 };
-                if *callee_unconstrained && !unconstrained {
+                let callee_unconstrained = unconstrained_functions.contains(&callee_id);
+                if callee_unconstrained && !func.unconstrained {
                     // Calling Brillig from ACIR: call the proxy.
-                    let Some(proxy) = proxy_functions.get(&func_id) else {
+                    let Some(proxy) = proxy_functions.get(&callee_id) else {
                         unreachable!("expected to have a proxy");
                     };
-                    func.name = proxy.name.clone();
-                    func.definition = Definition::Function(proxy.id);
+                    ident.name = proxy.name.clone();
+                    ident.definition = Definition::Function(proxy.id);
                     // Pass the limit by value.
                     let limit_expr = if is_main {
                         expr::ident(

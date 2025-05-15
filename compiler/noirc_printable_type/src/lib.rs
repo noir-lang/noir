@@ -187,6 +187,9 @@ fn to_string<F: AcirField>(value: &PrintableValue<F>, typ: &PrintableType) -> Op
                     output.push_str(", ");
                 }
             }
+            if types.len() == 1 {
+                output.push(',');
+            }
             output.push(')');
         }
 
@@ -487,6 +490,31 @@ mod tests {
         let display =
             PrintableValueDisplay::<FieldElement>::FmtString(template.to_string(), values);
         assert_eq!(display.to_string(), expected);
+    }
+
+    #[test]
+    fn one_element_tuple_to_string() {
+        let value = PrintableValue::<FieldElement>::Vec {
+            array_elements: vec![PrintableValue::Field(1_u128.into())],
+            is_slice: false,
+        };
+        let typ = PrintableType::Tuple { types: vec![PrintableType::Field] };
+        let string = to_string(&value, &typ);
+        assert_eq!(string.unwrap(), "(0x01,)");
+    }
+
+    #[test]
+    fn two_elements_tuple_to_string() {
+        let value = PrintableValue::<FieldElement>::Vec {
+            array_elements: vec![
+                PrintableValue::Field(1_u128.into()),
+                PrintableValue::Field(2_u128.into()),
+            ],
+            is_slice: false,
+        };
+        let typ = PrintableType::Tuple { types: vec![PrintableType::Field, PrintableType::Field] };
+        let string = to_string(&value, &typ);
+        assert_eq!(string.unwrap(), "(0x01, 0x02)");
     }
 
     proptest! {
