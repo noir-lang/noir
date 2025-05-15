@@ -1224,7 +1224,16 @@
 <a href="#1223" id="1223">1223</a>
 <a href="#1224" id="1224">1224</a>
 <a href="#1225" id="1225">1225</a>
-<a href="#1226" id="1226">1226</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::collections::BTreeMap;
+<a href="#1226" id="1226">1226</a>
+<a href="#1227" id="1227">1227</a>
+<a href="#1228" id="1228">1228</a>
+<a href="#1229" id="1229">1229</a>
+<a href="#1230" id="1230">1230</a>
+<a href="#1231" id="1231">1231</a>
+<a href="#1232" id="1232">1232</a>
+<a href="#1233" id="1233">1233</a>
+<a href="#1234" id="1234">1234</a>
+<a href="#1235" id="1235">1235</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::collections::BTreeMap;
 <span class="kw">use </span>std::sync::{Arc, Mutex, RwLock};
 
 <span class="kw">use </span>acvm::{FieldElement, acir::AcirField};
@@ -1891,10 +1900,19 @@
                         <span class="comment">// value_sign is 1 if the value is positive, 0 otherwise
                         </span><span class="kw">let </span>value_sign =
                             <span class="self">self</span>.builder.insert_binary(value_as_unsigned, BinaryOp::Lt, half_width);
-
+                        <span class="kw">let </span>max_for_incoming_type_size = <span class="kw">if </span><span class="kw-2">*</span>incoming_type_size == <span class="number">128 </span>{
+                            u128::MAX
+                        } <span class="kw">else </span>{
+                            <span class="number">2_u128</span>.pow(<span class="kw-2">*</span>incoming_type_size) - <span class="number">1
+                        </span>};
+                        <span class="kw">let </span>max_for_target_type_size = <span class="kw">if </span>target_type_size == <span class="number">128 </span>{
+                            u128::MAX
+                        } <span class="kw">else </span>{
+                            <span class="number">2_u128</span>.pow(target_type_size) - <span class="number">1
+                        </span>};
                         <span class="kw">let </span>patch = <span class="self">self</span>.builder.numeric_constant(
                             FieldElement::from(
-                                <span class="number">2_u128</span>.pow(target_type_size) - <span class="number">2_u128</span>.pow(<span class="kw-2">*</span>incoming_type_size),
+                                max_for_target_type_size - max_for_incoming_type_size,
                             ),
                             NumericType::unsigned(target_type_size),
                         );

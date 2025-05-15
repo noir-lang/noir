@@ -1157,10 +1157,10 @@
 <span class="kw">fn </span>validate_numeric_type(typ: <span class="kw-2">&amp;</span>NumericType) {
     <span class="kw">match </span><span class="kw-2">&amp;</span>typ {
         NumericType::Signed { bit_size } =&gt; <span class="kw">match </span>bit_size {
-            <span class="number">8 </span>| <span class="number">16 </span>| <span class="number">32 </span>| <span class="number">64 </span>=&gt; (),
+            <span class="number">8 </span>| <span class="number">16 </span>| <span class="number">32 </span>| <span class="number">64 </span>| <span class="number">128 </span>=&gt; (),
             <span class="kw">_ </span>=&gt; {
                 <span class="macro">panic!</span>(
-                    <span class="string">"Invalid bit size for signed numeric type: {bit_size}. Expected one of 8, 16, 32 or 64."
+                    <span class="string">"Invalid bit size for signed numeric type: {bit_size}. Expected one of 8, 16, 32, 64 or 128."
                 </span>);
             }
         },
