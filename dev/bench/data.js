@@ -1,82 +1,8 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1747303361446,
+  "lastUpdate": 1747303367936,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
-      {
-        "commit": {
-          "author": {
-            "email": "mvezenov@gmail.com",
-            "name": "Maxim Vezenov",
-            "username": "vezenovm"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "29025036dadfb837985ad25726407fb922c3ca1b",
-          "message": "feat(ssa): Mark transitively dead parameters during DIE (#8254)\n\nCo-authored-by: AztecBot <tech@aztecprotocol.com>",
-          "timestamp": "2025-05-08T21:56:02Z",
-          "tree_id": "37e2dccba6951e66726e4a2959b5dd76ef684d90",
-          "url": "https://github.com/noir-lang/noir/commit/29025036dadfb837985ad25726407fb922c3ca1b"
-        },
-        "date": 1746743023261,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 309.64,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 565.23,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 229.61,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 1440,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 1450,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-root-empty",
-            "value": 394.87,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-root-single-tx",
-            "value": 7890,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 7890,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 376.92,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-root",
-            "value": 437.82,
-            "unit": "MB"
-          }
-        ]
-      },
       {
         "commit": {
           "author": {
@@ -3814,6 +3740,85 @@ window.BENCHMARK_DATA = {
           {
             "name": "rollup-root",
             "value": 441.66,
+            "unit": "MB"
+          },
+          {
+            "name": "semaphore_depth_10",
+            "value": 126.94,
+            "unit": "MB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "jfecher11@gmail.com",
+            "name": "jfecher",
+            "username": "jfecher"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "d6eac5c65912f58aa472537140cfedc5681c2341",
+          "message": "chore: Add u1 ops to interpreter, convert Value panics to errors (#8469)\n\nCo-authored-by: Akosh Farkash <aakoshh@gmail.com>",
+          "timestamp": "2025-05-15T09:32:25Z",
+          "tree_id": "6e6458ebc3b550d3aff4df19742500763ddd29b4",
+          "url": "https://github.com/noir-lang/noir/commit/d6eac5c65912f58aa472537140cfedc5681c2341"
+        },
+        "date": 1747303358216,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 313.29,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 569.09,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 228.21,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 1440,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 1460,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root-empty",
+            "value": 398.69,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root-single-tx",
+            "value": 7890,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 7900,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 380.74,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-root",
+            "value": 441.64,
             "unit": "MB"
           },
           {
