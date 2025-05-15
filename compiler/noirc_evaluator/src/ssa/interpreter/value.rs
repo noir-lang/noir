@@ -14,7 +14,7 @@ use crate::ssa::ir::{
 use super::IResult;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub(crate) enum Value {
+pub enum Value {
     Numeric(NumericValue),
     Reference(ReferenceValue),
     ArrayOrSlice(ArrayValue),
@@ -24,7 +24,7 @@ pub(crate) enum Value {
 }
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
-pub(crate) enum NumericValue {
+pub enum NumericValue {
     Field(FieldElement),
 
     U1(bool),
@@ -41,7 +41,7 @@ pub(crate) enum NumericValue {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub(crate) struct ReferenceValue {
+pub struct ReferenceValue {
     /// This is included mostly for debugging to distinguish different
     /// ReferenceValues which store the same element.
     pub original_id: ValueId,
@@ -53,7 +53,7 @@ pub(crate) struct ReferenceValue {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub(crate) struct ArrayValue {
+pub struct ArrayValue {
     pub elements: Shared<Vec<Value>>,
 
     /// The `Shared` type contains its own reference count but we need to track
@@ -244,7 +244,7 @@ impl NumericValue {
         }
     }
 
-    pub(crate) fn from_constant(constant: FieldElement, typ: NumericType) -> IResult<NumericValue> {
+    pub fn from_constant(constant: FieldElement, typ: NumericType) -> IResult<NumericValue> {
         use super::InternalError::{ConstantDoesNotFitInType, UnsupportedNumericType};
         use super::InterpreterError::Internal;
 

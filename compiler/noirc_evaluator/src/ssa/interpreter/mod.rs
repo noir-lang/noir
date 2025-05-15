@@ -18,7 +18,7 @@ use iter_extended::{try_vecmap, vecmap};
 use noirc_frontend::Shared;
 use value::{ArrayValue, NumericValue, ReferenceValue};
 
-mod errors;
+pub mod errors;
 mod intrinsics;
 mod tests;
 pub mod value;
@@ -63,7 +63,7 @@ type IResults = IResult<Vec<Value>>;
 
 #[allow(unused)]
 impl Ssa {
-    pub(crate) fn interpret(&self, args: Vec<Value>) -> IResults {
+    pub fn interpret(&self, args: Vec<Value>) -> IResults {
         self.interpret_function(self.main_id, args)
     }
 
@@ -111,6 +111,7 @@ impl<'ssa> Interpreter<'ssa> {
     /// Define or redefine a value.
     /// Redefinitions are expected in the case of loops.
     fn define(&mut self, id: ValueId, value: Value) {
+        eprintln!("{id} := {value}");
         self.call_context_mut().scope.insert(id, value);
     }
 
