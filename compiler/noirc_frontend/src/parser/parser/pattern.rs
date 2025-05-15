@@ -187,10 +187,10 @@ impl Parser<'_> {
                     patterns.push(pattern);
                 }
                 PatternOrDoubleDot::DoubleDot(location) => {
-                    if let Some(double_dot) = double_dot {
+                    if double_dot.is_some() {
                         self.push_error(
-                            ParserErrorReason::DoubleDotCanOnlyAppearOncePerTuplePattern,
-                            double_dot.location,
+                            ParserErrorReason::DoubleDotCanOnlyBeUsedOncePerTuplePattern,
+                            location,
                         );
                     } else {
                         double_dot = Some(DoubleDotPattern { index, location });
