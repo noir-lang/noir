@@ -806,10 +806,8 @@ mod tests {
     }
 
     // Expected to panic like:
-    // thread 'main' panicked at compiler/noirc_evaluator/src/ssa/opt/defunctionalize.rs:376:9:
-    // ICE: at least one variant should exist for a dynamic call Signature { params: [Numeric(Unsigned { bit_size: 32 })], returns: [Numeric(Unsigned { bit_size: 32 })] }
-    // note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
     #[test]
+    #[should_panic(expected = "ICE: at least one variant should exist for a dynamic call Signature { params: [Numeric(Unsigned { bit_size: 32 })], returns: [Numeric(Unsigned { bit_size: 32 })] }")]
     fn missing_fn() {
         let src = "
           brillig(inline) fn main f0 {
