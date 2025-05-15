@@ -14,7 +14,7 @@ use crate::ssa::{
 impl Ssa {
     /// See the [`inline_functions_with_at_most_one_instruction`][self] module for more information.
     pub(crate) fn inline_functions_with_at_most_one_instruction(mut self: Ssa) -> Ssa {
-        let call_graph = CallGraph::new_from_ssa(&self);
+        let call_graph = CallGraph::from_ssa(&self);
         let recursive_functions = call_graph.get_recursive_functions();
 
         let should_inline_call = |callee: &Function| {
