@@ -45,6 +45,7 @@ mod reflection {
         BinaryFieldOp, BinaryIntOp, BitSize, BlackBoxOp, HeapValueType, IntegerBitSize,
         MemoryAddress, Opcode as BrilligOpcode, ValueOrArray,
     };
+    use regex::Regex;
     use serde::{Deserialize, Serialize};
     use serde_generate::CustomCode;
     use serde_reflection::{
@@ -163,6 +164,7 @@ mod reflection {
         replace_throw(&mut source);
         MsgPackCodeGenerator::add_preamble(&mut source);
         MsgPackCodeGenerator::add_helpers(&mut source, namespace);
+        MsgPackCodeGenerator::replace_array_with_shared_ptr(&mut source);
 
         if !should_overwrite() {
             if let Some(old_hash) = old_hash {
@@ -278,6 +280,18 @@ mod reflection {
     "#;
             let pos = source.find(&format!("namespace {namespace}")).expect("namespace");
             source.insert_str(pos, &format!("namespace {namespace} {{{helpers}}}\n\n"));
+        }
+
+        /// Reduce the opcode size in C++ by doing what Adam came up with in https://github.com/zefchain/serde-reflection/issues/75
+        fn replace_array_with_shared_ptr(source: &mut String) {
+            // Capture function ID, value IDs, global IDs.
+            let re = Regex::new(r#"std::array<\s*([^,<>]+?)\s*,\s*([0-9]+)\s*>"#)
+                .expect("failed to create regex");
+
+            let fixed =
+                re.replace_all(source, "std::shared_ptr<std::array<${1}, ${2}>>").into_owned();
+
+            *source = fixed;
         }
 
         fn generate(namespace: &str, registry: &Registry, code: CustomCode) -> CustomCode {
