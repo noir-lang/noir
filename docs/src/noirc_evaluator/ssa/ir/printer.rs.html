@@ -370,7 +370,15 @@
 <a href="#369" id="369">369</a>
 <a href="#370" id="370">370</a>
 <a href="#371" id="371">371</a>
-<a href="#372" id="372">372</a></pre></div><pre class="rust"><code><span class="doccomment">//! This file is for pretty-printing the SSA IR in a human-readable form for debugging.
+<a href="#372" id="372">372</a>
+<a href="#373" id="373">373</a>
+<a href="#374" id="374">374</a>
+<a href="#375" id="375">375</a>
+<a href="#376" id="376">376</a>
+<a href="#377" id="377">377</a>
+<a href="#378" id="378">378</a>
+<a href="#379" id="379">379</a>
+<a href="#380" id="380">380</a></pre></div><pre class="rust"><code><span class="doccomment">//! This file is for pretty-printing the SSA IR in a human-readable form for debugging.
 </span><span class="kw">use </span>std::fmt::{Display, Formatter, <span class="prelude-ty">Result</span>};
 
 <span class="kw">use </span>acvm::acir::AcirField;
@@ -379,7 +387,10 @@
 
 <span class="kw">use </span><span class="kw">crate</span>::ssa::{
     Ssa,
-    ir::types::{NumericType, Type},
+    ir::{
+        instruction::ArrayGetOffset,
+        types::{NumericType, Type},
+    },
 };
 
 <span class="kw">use super</span>::{
@@ -602,12 +613,17 @@
         Instruction::EnableSideEffectsIf { condition } =&gt; {
             <span class="macro">writeln!</span>(f, <span class="string">"enable_side_effects {}"</span>, show(<span class="kw-2">*</span>condition))
         }
-        Instruction::ArrayGet { array, index } =&gt; {
+        Instruction::ArrayGet { array, index, offset } =&gt; {
             <span class="macro">writeln!</span>(
                 f,
-                <span class="string">"array_get {}, index {}{}"</span>,
+                <span class="string">"array_get {}, index {}{}{}"</span>,
                 show(<span class="kw-2">*</span>array),
                 show(<span class="kw-2">*</span>index),
+                <span class="kw">match </span>offset {
+                    ArrayGetOffset::None =&gt; String::new(),
+                    ArrayGetOffset::Array | ArrayGetOffset::Slice =&gt;
+                        <span class="macro">format!</span>(<span class="string">" minus {}"</span>, offset.to_u32()),
+                },
                 result_types(dfg, results)
             )
         }

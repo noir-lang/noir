@@ -2617,7 +2617,7 @@
         <span class="kw">use </span>Instruction::<span class="kw-2">*</span>;
 
         <span class="kw">match </span>instruction {
-            ArrayGet { array, index } =&gt; {
+            ArrayGet { array, index, offset: <span class="kw">_ </span>} =&gt; {
                 <span class="kw">let </span>array_typ = <span class="self">self</span>.inserter.function.dfg.type_of_value(<span class="kw-2">*</span>array);
                 <span class="kw">let </span>upper_bound = <span class="self">self</span>.outer_induction_variables.get(index).map(|bounds| bounds.<span class="number">1</span>);
                 <span class="kw">if let </span>(Type::Array(<span class="kw">_</span>, len), <span class="prelude-val">Some</span>(upper_bound)) = (array_typ, upper_bound) {

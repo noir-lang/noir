@@ -477,7 +477,9 @@
 <a href="#476" id="476">476</a>
 <a href="#477" id="477">477</a>
 <a href="#478" id="478">478</a>
-<a href="#479" id="479">479</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::{borrow::Cow, sync::Arc};
+<a href="#479" id="479">479</a>
+<a href="#480" id="480">480</a>
+<a href="#481" id="481">481</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::{borrow::Cow, sync::Arc};
 
 <span class="kw">use </span>acvm::{FieldElement, acir::AcirField};
 <span class="kw">use </span>noirc_errors::call_stack::CallStackId;
@@ -486,7 +488,7 @@
     ir::{
         dfg::InsertInstructionResult,
         function::Function,
-        instruction::{Binary, BinaryOp, Endian, Instruction, Intrinsic},
+        instruction::{ArrayGetOffset, Binary, BinaryOp, Endian, Instruction, Intrinsic},
         types::{NumericType, Type},
         value::ValueId,
     },
@@ -809,7 +811,9 @@
         element_type: Type,
     ) -&gt; ValueId {
         <span class="kw">let </span>element_type = <span class="prelude-val">Some</span>(<span class="macro">vec!</span>[element_type]);
-        <span class="self">self</span>.insert_instruction(Instruction::ArrayGet { array, index }, element_type).first()
+        <span class="kw">let </span>offset = ArrayGetOffset::None;
+        <span class="kw">let </span>instruction = Instruction::ArrayGet { array, index, offset };
+        <span class="self">self</span>.insert_instruction(instruction, element_type).first()
     }
 
     <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>insert_instruction(

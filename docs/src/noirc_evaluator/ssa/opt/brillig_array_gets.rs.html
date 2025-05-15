@@ -148,7 +148,8 @@
 <a href="#147" id="147">147</a>
 <a href="#148" id="148">148</a>
 <a href="#149" id="149">149</a>
-<a href="#150" id="150">150</a></pre></div><pre class="rust"><code><span class="doccomment">//! In the Brillig runtime arrays are represented as [RC, ...items],
+<a href="#150" id="150">150</a>
+<a href="#151" id="151">151</a></pre></div><pre class="rust"><code><span class="doccomment">//! In the Brillig runtime arrays are represented as [RC, ...items],
 //! Certain operations such as array gets only utilize the items pointer.
 //! Without handling the items pointer offset in SSA, it is left to Brillig generation
 //! to offset the array pointer.
@@ -166,7 +167,7 @@
         Ssa,
         ir::{
             function::Function,
-            instruction::Instruction,
+            instruction::{ArrayGetOffset, Instruction},
             types::{NumericType, Type},
         },
     },
@@ -189,9 +190,12 @@
     <span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>brillig_array_gets(<span class="kw-2">&amp;mut </span><span class="self">self</span>) {
         <span class="self">self</span>.simple_reachable_blocks_optimization(|context| {
             <span class="kw">let </span>instruction = context.instruction();
-            <span class="kw">let </span>Instruction::ArrayGet { array, index } = instruction <span class="kw">else </span>{
+            <span class="kw">let </span>Instruction::ArrayGet { array, index, offset } = instruction <span class="kw">else </span>{
                 <span class="kw">return</span>;
             };
+
+            <span class="comment">// This pass should run at most once
+            </span><span class="macro">assert!</span>(<span class="kw-2">*</span>offset == ArrayGetOffset::None);
 
             <span class="kw">let </span>array = <span class="kw-2">*</span>array;
             <span class="kw">let </span>index = <span class="kw-2">*</span>index;
@@ -202,17 +206,15 @@
             <span class="kw">let </span>index_constant =
                 context.dfg.get_numeric_constant(index).expect(<span class="string">"ICE: Expected constant index"</span>);
             <span class="kw">let </span>offset = <span class="kw">if </span><span class="macro">matches!</span>(context.dfg.type_of_value(array), Type::Array(..)) {
-                <span class="comment">// Brillig arrays are [RC, ...items]
-                </span><span class="number">1u128
-            </span>} <span class="kw">else </span>{
-                <span class="comment">// Brillig vectors are [RC, Size, Capacity, ...items]
-                </span><span class="number">3u128
-            </span>};
+                ArrayGetOffset::Array
+            } <span class="kw">else </span>{
+                ArrayGetOffset::Slice
+            };
             <span class="kw">let </span>index = context.dfg.make_constant(
-                index_constant + offset.into(),
+                index_constant + offset.to_u32().into(),
                 NumericType::unsigned(BRILLIG_MEMORY_ADDRESSING_BIT_SIZE),
             );
-            <span class="kw">let </span>new_instruction = Instruction::ArrayGet { array, index };
+            <span class="kw">let </span>new_instruction = Instruction::ArrayGet { array, index, offset };
             context.replace_current_instruction_with(new_instruction);
         });
     }
@@ -240,7 +242,7 @@
         <span class="macro">assert_ssa_snapshot!</span>(ssa, @<span class="string">r"
         brillig(inline) fn main f0 {
           b0(v0: [Field; 3]):
-            v2 = array_get v0, index u32 1 -&gt; Field
+            v2 = array_get v0, index u32 1 minus 1 -&gt; Field
             return v2
         }
         "</span>);
@@ -292,7 +294,7 @@
         <span class="macro">assert_ssa_snapshot!</span>(ssa, @<span class="string">r"
         brillig(inline) fn main f0 {
           b0(v0: [Field]):
-            v2 = array_get v0, index u32 3 -&gt; Field
+            v2 = array_get v0, index u32 3 minus 3 -&gt; Field
             return v2
         }
         "</span>);

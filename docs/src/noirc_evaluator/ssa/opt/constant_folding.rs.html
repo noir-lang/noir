@@ -2018,7 +2018,9 @@
 <a href="#2017" id="2017">2017</a>
 <a href="#2018" id="2018">2018</a>
 <a href="#2019" id="2019">2019</a>
-<a href="#2020" id="2020">2020</a></pre></div><pre class="rust"><code><span class="doccomment">//! The goal of the constant folding optimization pass is to propagate any constants forwards into
+<a href="#2020" id="2020">2020</a>
+<a href="#2021" id="2021">2021</a>
+<a href="#2022" id="2022">2022</a></pre></div><pre class="rust"><code><span class="doccomment">//! The goal of the constant folding optimization pass is to propagate any constants forwards into
 //! later [`Instruction`]s to maximize the impact of [compile-time simplifications][crate::ssa::ir::dfg::simplify::simplify()].
 //!
 //! The pass works as follows:
@@ -2057,7 +2059,7 @@
             dfg::{DataFlowGraph, InsertInstructionResult},
             dom::DominatorTree,
             function::{Function, FunctionId, RuntimeType},
-            instruction::{BinaryOp, Instruction, InstructionId},
+            instruction::{ArrayGetOffset, BinaryOp, Instruction, InstructionId},
             types::{NumericType, Type},
             value::{Value, ValueId, ValueMapping},
         },
@@ -2498,7 +2500,9 @@
         </span><span class="kw">if let </span>Instruction::ArraySet { index, value, .. } = <span class="kw-2">&amp;</span>instruction {
             <span class="kw">let </span>predicate = <span class="self">self</span>.use_constraint_info.then_some(side_effects_enabled_var);
 
-            <span class="kw">let </span>array_get = Instruction::ArrayGet { array: instruction_results[<span class="number">0</span>], index: <span class="kw-2">*</span>index };
+            <span class="kw">let </span>offset = ArrayGetOffset::None;
+            <span class="kw">let </span>array_get =
+                Instruction::ArrayGet { array: instruction_results[<span class="number">0</span>], index: <span class="kw-2">*</span>index, offset };
 
             <span class="self">self</span>.cached_instruction_results
                 .entry(array_get)
@@ -2904,7 +2908,7 @@
         </span>Cast(<span class="kw">_</span>, <span class="kw">_</span>) | Not(<span class="kw">_</span>) | Truncate { .. } | IfElse { .. } =&gt; <span class="bool-val">false</span>,
 
         <span class="comment">// `ArrayGet`s which read from "known good" indices from an array have no side effects
-        </span>ArrayGet { array, index } =&gt; !dfg.is_safe_index(<span class="kw-2">*</span>index, <span class="kw-2">*</span>array),
+        </span>ArrayGet { array, index, offset: <span class="kw">_ </span>} =&gt; !dfg.is_safe_index(<span class="kw-2">*</span>index, <span class="kw-2">*</span>array),
 
         <span class="comment">// ArraySet has side effects
         </span>ArraySet { .. } =&gt; <span class="bool-val">true</span>,

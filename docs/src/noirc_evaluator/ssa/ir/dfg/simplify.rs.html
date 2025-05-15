@@ -495,7 +495,7 @@
     ir::{
         basic_block::BasicBlockId,
         instruction::{
-            Binary, BinaryOp, Instruction,
+            ArrayGetOffset, Binary, BinaryOp, Instruction,
             binary::{truncate, truncate_field},
         },
         types::Type,
@@ -603,7 +603,7 @@
             }
         }
         Instruction::ConstrainNotEqual(..) =&gt; <span class="prelude-val">None</span>,
-        Instruction::ArrayGet { array, index } =&gt; {
+        Instruction::ArrayGet { array, index, offset: <span class="kw">_ </span>} =&gt; {
             <span class="kw">if let </span><span class="prelude-val">Some</span>(index) = dfg.get_numeric_constant(<span class="kw-2">*</span>index) {
                 try_optimize_array_get_from_previous_set(dfg, <span class="kw-2">*</span>array, index)
             } <span class="kw">else </span>{
@@ -868,8 +868,8 @@
     target_value: ValueId,
 ) -&gt; SimplifyResult {
     <span class="kw">let </span>array_from_get = <span class="kw">match </span>dfg.get_local_or_global_instruction(target_value) {
-        <span class="prelude-val">Some</span>(Instruction::ArrayGet { array, index }) =&gt; {
-            <span class="kw">if </span><span class="kw-2">*</span>array == array_id &amp;&amp; <span class="kw-2">*</span>index == target_index {
+        <span class="prelude-val">Some</span>(Instruction::ArrayGet { array, index, offset }) =&gt; {
+            <span class="kw">if </span><span class="kw-2">*</span>offset == ArrayGetOffset::None &amp;&amp; <span class="kw-2">*</span>array == array_id &amp;&amp; <span class="kw-2">*</span>index == target_index {
                 <span class="comment">// If array and index match from the value, we can immediately simplify
                 </span><span class="kw">return </span>SimplifyResult::SimplifiedTo(array_id);
             } <span class="kw">else if </span><span class="kw-2">*</span>index == target_index {

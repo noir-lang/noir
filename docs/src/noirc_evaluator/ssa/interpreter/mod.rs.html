@@ -1309,14 +1309,16 @@
 <a href="#1308" id="1308">1308</a>
 <a href="#1309" id="1309">1309</a>
 <a href="#1310" id="1310">1310</a>
-<a href="#1311" id="1311">1311</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::cmp::Ordering;
+<a href="#1311" id="1311">1311</a>
+<a href="#1312" id="1312">1312</a>
+<a href="#1313" id="1313">1313</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::cmp::Ordering;
 
 <span class="kw">use super</span>::{
     Ssa,
     ir::{
         dfg::DataFlowGraph,
         function::{Function, FunctionId, RuntimeType},
-        instruction::{Binary, BinaryOp, Instruction, TerminatorInstruction},
+        instruction::{ArrayGetOffset, Binary, BinaryOp, Instruction, TerminatorInstruction},
         types::Type,
         value::ValueId,
     },
@@ -1754,8 +1756,8 @@
                 <span class="self">self</span>.side_effects_enabled = <span class="self">self</span>.lookup_bool(<span class="kw-2">*</span>condition, <span class="string">"enable_side_effects"</span>)<span class="question-mark">?</span>;
                 <span class="prelude-val">Ok</span>(())
             }
-            Instruction::ArrayGet { array, index } =&gt; {
-                <span class="self">self</span>.interpret_array_get(<span class="kw-2">*</span>array, <span class="kw-2">*</span>index, results[<span class="number">0</span>])
+            Instruction::ArrayGet { array, index, offset } =&gt; {
+                <span class="self">self</span>.interpret_array_get(<span class="kw-2">*</span>array, <span class="kw-2">*</span>index, <span class="kw-2">*</span>offset, results[<span class="number">0</span>])
             }
             Instruction::ArraySet { array, index, value, mutable } =&gt; {
                 <span class="self">self</span>.interpret_array_set(<span class="kw-2">*</span>array, <span class="kw-2">*</span>index, <span class="kw-2">*</span>value, <span class="kw-2">*</span>mutable, results[<span class="number">0</span>])
@@ -2047,11 +2049,13 @@
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
         array: ValueId,
         index: ValueId,
+        offset: ArrayGetOffset,
         result: ValueId,
     ) -&gt; IResult&lt;()&gt; {
         <span class="kw">let </span>element = <span class="kw">if </span><span class="self">self</span>.side_effects_enabled() {
             <span class="kw">let </span>array = <span class="self">self</span>.lookup_array_or_slice(array, <span class="string">"array get"</span>)<span class="question-mark">?</span>;
             <span class="kw">let </span>index = <span class="self">self</span>.lookup_u32(index, <span class="string">"array get index"</span>)<span class="question-mark">?</span>;
+            <span class="kw">let </span>index = index - offset.to_u32();
             array.elements.borrow()[index <span class="kw">as </span>usize].clone()
         } <span class="kw">else </span>{
             <span class="kw">let </span>typ = <span class="self">self</span>.dfg().type_of_value(result);

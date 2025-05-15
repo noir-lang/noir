@@ -2160,7 +2160,9 @@
 <a href="#2159" id="2159">2159</a>
 <a href="#2160" id="2160">2160</a>
 <a href="#2161" id="2161">2161</a>
-<a href="#2162" id="2162">2162</a></pre></div><pre class="rust"><code><span class="kw">use </span><span class="kw">crate</span>::brillig::brillig_ir::artifact::Label;
+<a href="#2162" id="2162">2162</a>
+<a href="#2163" id="2163">2163</a>
+<a href="#2164" id="2164">2164</a></pre></div><pre class="rust"><code><span class="kw">use </span><span class="kw">crate</span>::brillig::brillig_ir::artifact::Label;
 <span class="kw">use </span><span class="kw">crate</span>::brillig::brillig_ir::brillig_variable::{
     BrilligArray, BrilligVariable, BrilligVector, SingleAddrVariable, type_to_heap_value_type,
 };
@@ -2169,7 +2171,7 @@
 <span class="kw">use </span><span class="kw">crate</span>::brillig::brillig_ir::{
     BRILLIG_MEMORY_ADDRESSING_BIT_SIZE, BrilligBinaryOp, BrilligContext, ReservedRegisters,
 };
-<span class="kw">use </span><span class="kw">crate</span>::ssa::ir::instruction::{ConstrainError, Hint};
+<span class="kw">use </span><span class="kw">crate</span>::ssa::ir::instruction::{ArrayGetOffset, ConstrainError, Hint};
 <span class="kw">use </span><span class="kw">crate</span>::ssa::ir::{
     basic_block::BasicBlockId,
     dfg::DataFlowGraph,
@@ -2954,7 +2956,7 @@
                 <span class="kw">let </span>source_variable = <span class="self">self</span>.convert_ssa_single_addr_value(<span class="kw-2">*</span>value, dfg);
                 <span class="self">self</span>.convert_cast(destination_variable, source_variable);
             }
-            Instruction::ArrayGet { array, index } =&gt; {
+            Instruction::ArrayGet { array, index, offset } =&gt; {
                 <span class="kw">let </span>result_ids = dfg.instruction_results(instruction_id);
                 <span class="kw">let </span>destination_variable = <span class="self">self</span>.variables.define_variable(
                     <span class="self">self</span>.function_context,
@@ -2968,6 +2970,8 @@
                 <span class="kw">let </span>index_variable = <span class="self">self</span>.convert_ssa_single_addr_value(<span class="kw-2">*</span>index, dfg);
 
                 <span class="kw">if </span>dfg.is_constant(<span class="kw-2">*</span>index) {
+                    <span class="comment">// For constant indices it must be the case that they have been offseted during SSA
+                    </span><span class="macro">assert!</span>(<span class="kw-2">*</span>offset != ArrayGetOffset::None);
                     <span class="self">self</span>.brillig_context.codegen_load_with_offset(
                         array_variable.extract_register(),
                         index_variable,

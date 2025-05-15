@@ -725,7 +725,7 @@
             | Instruction::Store { .. }
             | Instruction::ArraySet { .. } =&gt; <span class="kw">return </span>u32::MAX,
 
-            Instruction::ArrayGet { array, index  } =&gt; {
+            Instruction::ArrayGet { array, index, offset: <span class="kw">_  </span>} =&gt; {
                 <span class="comment">// A get can fail because of out-of-bound index
                 </span><span class="kw">let </span><span class="kw-2">mut </span>in_bound = <span class="bool-val">false</span>;
                 <span class="comment">// check if index is in bound

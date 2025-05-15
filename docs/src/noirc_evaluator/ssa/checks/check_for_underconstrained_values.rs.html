@@ -1976,7 +1976,7 @@
                     <span class="comment">// For array get operations, we check the Brillig calls for
                     // results involving the array in question, to properly
                     // populate the array element tainted sets
-                    </span>Instruction::ArrayGet { array, index } =&gt; {
+                    </span>Instruction::ArrayGet { array, index, offset: <span class="kw">_ </span>} =&gt; {
                         <span class="self">self</span>.process_array_get(<span class="kw-2">*</span>array, <span class="kw-2">*</span>index, <span class="kw-2">&amp;</span>results, function);
                         <span class="comment">// Record all the used arguments as parents of the results
                         </span><span class="self">self</span>.update_children(<span class="kw-2">&amp;</span>arguments, <span class="kw-2">&amp;</span>results);
