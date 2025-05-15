@@ -218,13 +218,7 @@
 <a href="#217" id="217">217</a>
 <a href="#218" id="218">218</a>
 <a href="#219" id="219">219</a>
-<a href="#220" id="220">220</a>
-<a href="#221" id="221">221</a>
-<a href="#222" id="222">222</a>
-<a href="#223" id="223">223</a>
-<a href="#224" id="224">224</a>
-<a href="#225" id="225">225</a>
-<a href="#226" id="226">226</a></pre></div><pre class="rust"><code><span class="doccomment">//! Noir Evaluator has two types of errors
+<a href="#220" id="220">220</a></pre></div><pre class="rust"><code><span class="doccomment">//! Noir Evaluator has two types of errors
 //!
 //! [RuntimeError]s that should be displayed to the user
 //!
@@ -257,10 +251,6 @@
     },
     <span class="attr">#[error(<span class="string">"Expected array index to fit into a u64"</span>)]
     </span>TypeConversion { from: String, into: String, call_stack: CallStack },
-    <span class="attr">#[error(<span class="string">"{name:?} is not initialized"</span>)]
-    </span>UnInitialized { name: String, call_stack: CallStack },
-    <span class="attr">#[error(<span class="string">"Integer sized {num_bits:?} is over the max supported size of {max_num_bits:?}"</span>)]
-    </span>UnsupportedIntegerSize { num_bits: u32, max_num_bits: u32, call_stack: CallStack },
     <span class="attr">#[error(
         <span class="string">"Integer {value}, sized {num_bits:?}, is over the max supported size of {max_num_bits:?} for the blackbox function's inputs"
     </span>)]
@@ -392,14 +382,12 @@
             )
             | RuntimeError::InvalidRangeConstraint { call_stack, .. }
             | RuntimeError::TypeConversion { call_stack, .. }
-            | RuntimeError::UnInitialized { call_stack, .. }
             | RuntimeError::UnknownLoopBound { call_stack }
             | RuntimeError::AssertConstantFailed { call_stack }
             | RuntimeError::StaticAssertDynamicMessage { call_stack }
             | RuntimeError::StaticAssertDynamicPredicate { call_stack, .. }
             | RuntimeError::StaticAssertFailed { call_stack, .. }
             | RuntimeError::IntegerOutOfBounds { call_stack, .. }
-            | RuntimeError::UnsupportedIntegerSize { call_stack, .. }
             | RuntimeError::InvalidBlackBoxInputBitSize { call_stack, .. }
             | RuntimeError::NestedSlice { call_stack, .. }
             | RuntimeError::BigIntModulus { call_stack, .. }

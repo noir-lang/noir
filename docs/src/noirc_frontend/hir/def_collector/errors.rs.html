@@ -302,13 +302,7 @@
 <a href="#301" id="301">301</a>
 <a href="#302" id="302">302</a>
 <a href="#303" id="303">303</a>
-<a href="#304" id="304">304</a>
-<a href="#305" id="305">305</a>
-<a href="#306" id="306">306</a>
-<a href="#307" id="307">307</a>
-<a href="#308" id="308">308</a>
-<a href="#309" id="309">309</a>
-<a href="#310" id="310">310</a></pre></div><pre class="rust"><code><span class="kw">use </span><span class="kw">crate</span>::ast::{Ident, ItemVisibility, UnsupportedNumericGenericType};
+<a href="#304" id="304">304</a></pre></div><pre class="rust"><code><span class="kw">use </span><span class="kw">crate</span>::ast::{Ident, ItemVisibility, UnsupportedNumericGenericType};
 <span class="kw">use </span><span class="kw">crate</span>::elaborator::TypedPath;
 <span class="kw">use </span><span class="kw">crate</span>::hir::resolution::import::PathResolutionError;
 <span class="kw">use </span><span class="kw">crate</span>::hir::type_check::generics::TraitGenerics;
@@ -377,8 +371,6 @@
         trait_method_name: String,
         trait_method_location: Location,
     },
-    <span class="attr">#[error(<span class="string">"{0}"</span>)]
-    </span>UnsupportedNumericGenericType(<span class="attr">#[from] </span>UnsupportedNumericGenericType),
     <span class="attr">#[error(<span class="string">"The `#[test]` attribute may only be used on a non-associated function"</span>)]
     </span>TestOnAssociatedFunction { location: Location },
     <span class="attr">#[error(<span class="string">"The `#[export]` attribute may only be used on a non-associated function"</span>)]
@@ -428,9 +420,6 @@
             | DefCollectorErrorKind::EntryPointWithGenerics { location, .. } =&gt; <span class="kw-2">*</span>location,
             DefCollectorErrorKind::NotATrait { not_a_trait_name: path }
             | DefCollectorErrorKind::TraitNotFound { trait_path: path } =&gt; path.location,
-            DefCollectorErrorKind::UnsupportedNumericGenericType(
-                unsupported_numeric_generic_type,
-            ) =&gt; unsupported_numeric_generic_type.ident.location(),
         }
     }
 }
@@ -589,7 +578,6 @@
                 diag.add_secondary(<span class="macro">format!</span>(<span class="string">"definition of `{trait_method_name}` from trait"</span>), <span class="kw-2">*</span>trait_method_location);
                 diag
             }
-            DefCollectorErrorKind::UnsupportedNumericGenericType(err) =&gt; err.into(),
             DefCollectorErrorKind::TestOnAssociatedFunction { location } =&gt; Diagnostic::simple_error(
                 <span class="string">"The `#[test]` attribute is disallowed on `impl` methods"</span>.into(),
                 String::new(),

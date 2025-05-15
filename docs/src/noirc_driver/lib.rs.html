@@ -1062,7 +1062,7 @@
 }
 
 <span class="kw">impl </span>CompileOptions {
-    <span class="kw">pub fn </span>frontend_options(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; FrontendOptions {
+    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>frontend_options(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; FrontendOptions {
         FrontendOptions {
             debug_comptime_in_file: <span class="self">self</span>.debug_comptime_in_file.as_deref(),
             pedantic_solving: <span class="self">self</span>.pedantic_solving,

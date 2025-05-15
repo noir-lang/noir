@@ -891,126 +891,20 @@
 <a href="#890" id="890">890</a>
 <a href="#891" id="891">891</a>
 <a href="#892" id="892">892</a>
-<a href="#893" id="893">893</a>
-<a href="#894" id="894">894</a>
-<a href="#895" id="895">895</a>
-<a href="#896" id="896">896</a>
-<a href="#897" id="897">897</a>
-<a href="#898" id="898">898</a>
-<a href="#899" id="899">899</a>
-<a href="#900" id="900">900</a>
-<a href="#901" id="901">901</a>
-<a href="#902" id="902">902</a>
-<a href="#903" id="903">903</a>
-<a href="#904" id="904">904</a>
-<a href="#905" id="905">905</a>
-<a href="#906" id="906">906</a>
-<a href="#907" id="907">907</a>
-<a href="#908" id="908">908</a>
-<a href="#909" id="909">909</a>
-<a href="#910" id="910">910</a>
-<a href="#911" id="911">911</a>
-<a href="#912" id="912">912</a>
-<a href="#913" id="913">913</a>
-<a href="#914" id="914">914</a>
-<a href="#915" id="915">915</a>
-<a href="#916" id="916">916</a>
-<a href="#917" id="917">917</a>
-<a href="#918" id="918">918</a>
-<a href="#919" id="919">919</a>
-<a href="#920" id="920">920</a>
-<a href="#921" id="921">921</a>
-<a href="#922" id="922">922</a>
-<a href="#923" id="923">923</a>
-<a href="#924" id="924">924</a>
-<a href="#925" id="925">925</a>
-<a href="#926" id="926">926</a>
-<a href="#927" id="927">927</a>
-<a href="#928" id="928">928</a>
-<a href="#929" id="929">929</a>
-<a href="#930" id="930">930</a>
-<a href="#931" id="931">931</a>
-<a href="#932" id="932">932</a>
-<a href="#933" id="933">933</a>
-<a href="#934" id="934">934</a>
-<a href="#935" id="935">935</a>
-<a href="#936" id="936">936</a>
-<a href="#937" id="937">937</a>
-<a href="#938" id="938">938</a>
-<a href="#939" id="939">939</a>
-<a href="#940" id="940">940</a>
-<a href="#941" id="941">941</a>
-<a href="#942" id="942">942</a>
-<a href="#943" id="943">943</a>
-<a href="#944" id="944">944</a>
-<a href="#945" id="945">945</a>
-<a href="#946" id="946">946</a>
-<a href="#947" id="947">947</a>
-<a href="#948" id="948">948</a>
-<a href="#949" id="949">949</a>
-<a href="#950" id="950">950</a>
-<a href="#951" id="951">951</a>
-<a href="#952" id="952">952</a>
-<a href="#953" id="953">953</a>
-<a href="#954" id="954">954</a>
-<a href="#955" id="955">955</a>
-<a href="#956" id="956">956</a>
-<a href="#957" id="957">957</a>
-<a href="#958" id="958">958</a>
-<a href="#959" id="959">959</a>
-<a href="#960" id="960">960</a>
-<a href="#961" id="961">961</a>
-<a href="#962" id="962">962</a>
-<a href="#963" id="963">963</a>
-<a href="#964" id="964">964</a>
-<a href="#965" id="965">965</a>
-<a href="#966" id="966">966</a>
-<a href="#967" id="967">967</a>
-<a href="#968" id="968">968</a>
-<a href="#969" id="969">969</a>
-<a href="#970" id="970">970</a>
-<a href="#971" id="971">971</a>
-<a href="#972" id="972">972</a>
-<a href="#973" id="973">973</a>
-<a href="#974" id="974">974</a>
-<a href="#975" id="975">975</a>
-<a href="#976" id="976">976</a>
-<a href="#977" id="977">977</a>
-<a href="#978" id="978">978</a>
-<a href="#979" id="979">979</a>
-<a href="#980" id="980">980</a>
-<a href="#981" id="981">981</a>
-<a href="#982" id="982">982</a>
-<a href="#983" id="983">983</a>
-<a href="#984" id="984">984</a>
-<a href="#985" id="985">985</a>
-<a href="#986" id="986">986</a>
-<a href="#987" id="987">987</a>
-<a href="#988" id="988">988</a>
-<a href="#989" id="989">989</a>
-<a href="#990" id="990">990</a>
-<a href="#991" id="991">991</a>
-<a href="#992" id="992">992</a>
-<a href="#993" id="993">993</a>
-<a href="#994" id="994">994</a>
-<a href="#995" id="995">995</a>
-<a href="#996" id="996">996</a>
-<a href="#997" id="997">997</a>
-<a href="#998" id="998">998</a>
-<a href="#999" id="999">999</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::borrow::Cow;
+<a href="#893" id="893">893</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::borrow::Cow;
 <span class="kw">use </span>std::fmt::Display;
 
 <span class="kw">use </span>thiserror::Error;
 
 <span class="kw">use </span><span class="kw">crate</span>::ast::{
-    Ident, ItemVisibility, Path, Pattern, Statement, StatementKind, UnresolvedTraitConstraint,
-    UnresolvedType, UnresolvedTypeData,
+    Ident, ItemVisibility, Path, Pattern, Statement, UnresolvedTraitConstraint, UnresolvedType,
+    UnresolvedTypeData,
 };
 <span class="kw">use </span><span class="kw">crate</span>::elaborator::PrimitiveType;
 <span class="kw">use </span><span class="kw">crate</span>::node_interner::{ExprId, InternedExpressionKind, InternedStatementKind, QuotedTypeId};
 <span class="kw">use </span><span class="kw">crate</span>::shared::Visibility;
 <span class="kw">use </span><span class="kw">crate</span>::signed_field::SignedField;
-<span class="kw">use </span><span class="kw">crate</span>::token::{Attributes, FmtStrFragment, FunctionAttributeKind, Token, Tokens};
+<span class="kw">use </span><span class="kw">crate</span>::token::{Attributes, FmtStrFragment, Token, Tokens};
 <span class="kw">use crate</span>::{Kind, Type};
 <span class="kw">use </span>acvm::FieldElement;
 <span class="kw">use </span>iter_extended::vecmap;
@@ -1175,20 +1069,6 @@
 }
 
 <span class="kw">impl </span>ExpressionKind {
-    <span class="kw">pub fn </span>into_path(<span class="self">self</span>) -&gt; <span class="prelude-ty">Option</span>&lt;Path&gt; {
-        <span class="kw">match </span><span class="self">self </span>{
-            ExpressionKind::Variable(path) =&gt; <span class="prelude-val">Some</span>(path),
-            <span class="kw">_ </span>=&gt; <span class="prelude-val">None</span>,
-        }
-    }
-
-    <span class="kw">pub fn </span>into_infix(<span class="self">self</span>) -&gt; <span class="prelude-ty">Option</span>&lt;InfixExpression&gt; {
-        <span class="kw">match </span><span class="self">self </span>{
-            ExpressionKind::Infix(infix) =&gt; <span class="prelude-val">Some</span>(<span class="kw-2">*</span>infix),
-            <span class="kw">_ </span>=&gt; <span class="prelude-val">None</span>,
-        }
-    }
-
     <span class="kw">pub fn </span>prefix(operator: UnaryOp, rhs: Expression) -&gt; ExpressionKind {
         <span class="kw">match </span>(operator, <span class="kw-2">&amp;</span>rhs) {
             (
@@ -1197,28 +1077,6 @@
             ) =&gt; ExpressionKind::Literal(Literal::Integer(-<span class="kw-2">*</span>field)),
             <span class="kw">_ </span>=&gt; ExpressionKind::Prefix(Box::new(PrefixExpression { operator, rhs })),
         }
-    }
-
-    <span class="kw">pub fn </span>array(contents: Vec&lt;Expression&gt;) -&gt; ExpressionKind {
-        ExpressionKind::Literal(Literal::Array(ArrayLiteral::Standard(contents)))
-    }
-
-    <span class="kw">pub fn </span>repeated_array(repeated_element: Expression, length: Expression) -&gt; ExpressionKind {
-        ExpressionKind::Literal(Literal::Array(ArrayLiteral::Repeated {
-            repeated_element: Box::new(repeated_element),
-            length: Box::new(length),
-        }))
-    }
-
-    <span class="kw">pub fn </span>slice(contents: Vec&lt;Expression&gt;) -&gt; ExpressionKind {
-        ExpressionKind::Literal(Literal::Slice(ArrayLiteral::Standard(contents)))
-    }
-
-    <span class="kw">pub fn </span>repeated_slice(repeated_element: Expression, length: Expression) -&gt; ExpressionKind {
-        ExpressionKind::Literal(Literal::Slice(ArrayLiteral::Repeated {
-            repeated_element: Box::new(repeated_element),
-            length: Box::new(length),
-        }))
     }
 
     <span class="kw">pub fn </span>integer(contents: FieldElement) -&gt; ExpressionKind {
@@ -1239,12 +1097,6 @@
 
     <span class="kw">pub fn </span>format_string(fragments: Vec&lt;FmtStrFragment&gt;, length: u32) -&gt; ExpressionKind {
         ExpressionKind::Literal(Literal::FmtStr(fragments, length))
-    }
-
-    <span class="kw">pub fn </span>constructor(
-        (typ, fields): (UnresolvedType, Vec&lt;(Ident, Expression)&gt;),
-    ) -&gt; ExpressionKind {
-        ExpressionKind::Constructor(Box::new(ConstructorExpression { typ, fields }))
     }
 }
 
@@ -1381,48 +1233,6 @@
                 | BinaryOpKind::NotEqual
         )
     }
-
-    <span class="kw">pub fn </span>as_string(<span class="self">self</span>) -&gt; <span class="kw-2">&amp;</span><span class="lifetime">'static </span>str {
-        <span class="kw">match </span><span class="self">self </span>{
-            BinaryOpKind::Add =&gt; <span class="string">"+"</span>,
-            BinaryOpKind::Subtract =&gt; <span class="string">"-"</span>,
-            BinaryOpKind::Multiply =&gt; <span class="string">"*"</span>,
-            BinaryOpKind::Divide =&gt; <span class="string">"/"</span>,
-            BinaryOpKind::Equal =&gt; <span class="string">"=="</span>,
-            BinaryOpKind::NotEqual =&gt; <span class="string">"!="</span>,
-            BinaryOpKind::Less =&gt; <span class="string">"&lt;"</span>,
-            BinaryOpKind::LessEqual =&gt; <span class="string">"&lt;="</span>,
-            BinaryOpKind::Greater =&gt; <span class="string">"&gt;"</span>,
-            BinaryOpKind::GreaterEqual =&gt; <span class="string">"&gt;="</span>,
-            BinaryOpKind::And =&gt; <span class="string">"&amp;"</span>,
-            BinaryOpKind::Or =&gt; <span class="string">"|"</span>,
-            BinaryOpKind::Xor =&gt; <span class="string">"^"</span>,
-            BinaryOpKind::ShiftRight =&gt; <span class="string">"&gt;&gt;"</span>,
-            BinaryOpKind::ShiftLeft =&gt; <span class="string">"&lt;&lt;"</span>,
-            BinaryOpKind::Modulo =&gt; <span class="string">"%"</span>,
-        }
-    }
-
-    <span class="kw">pub fn </span>as_token(<span class="self">self</span>) -&gt; Token {
-        <span class="kw">match </span><span class="self">self </span>{
-            BinaryOpKind::Add =&gt; Token::Plus,
-            BinaryOpKind::Subtract =&gt; Token::Minus,
-            BinaryOpKind::Multiply =&gt; Token::Star,
-            BinaryOpKind::Divide =&gt; Token::Slash,
-            BinaryOpKind::Equal =&gt; Token::Equal,
-            BinaryOpKind::NotEqual =&gt; Token::NotEqual,
-            BinaryOpKind::Less =&gt; Token::Less,
-            BinaryOpKind::LessEqual =&gt; Token::LessEqual,
-            BinaryOpKind::Greater =&gt; Token::Greater,
-            BinaryOpKind::GreaterEqual =&gt; Token::GreaterEqual,
-            BinaryOpKind::And =&gt; Token::Ampersand,
-            BinaryOpKind::Or =&gt; Token::Pipe,
-            BinaryOpKind::Xor =&gt; Token::Caret,
-            BinaryOpKind::ShiftLeft =&gt; Token::ShiftLeft,
-            BinaryOpKind::ShiftRight =&gt; Token::ShiftRight,
-            BinaryOpKind::Modulo =&gt; Token::Percent,
-        }
-    }
 }
 
 <span class="attr">#[derive(PartialEq, PartialOrd, Eq, Ord, Hash, Debug, Copy, Clone)]
@@ -1531,20 +1341,6 @@
     <span class="kw">pub </span>return_visibility: Visibility,
 }
 
-<span class="kw">impl </span>FunctionDefinition {
-    <span class="kw">pub fn </span>is_private(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; bool {
-        <span class="self">self</span>.visibility == ItemVisibility::Private
-    }
-
-    <span class="kw">pub fn </span>is_test(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; bool {
-        <span class="kw">if let </span><span class="prelude-val">Some</span>(attribute) = <span class="self">self</span>.attributes.function() {
-            <span class="macro">matches!</span>(attribute.kind, FunctionAttributeKind::Test(..))
-        } <span class="kw">else </span>{
-            <span class="bool-val">false
-        </span>}
-    }
-}
-
 <span class="attr">#[derive(Debug, PartialEq, Eq, Clone)]
 </span><span class="kw">pub struct </span>Param {
     <span class="kw">pub </span>visibility: Visibility,
@@ -1608,14 +1404,6 @@
 }
 
 <span class="kw">impl </span>BlockExpression {
-    <span class="kw">pub fn </span>pop(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; <span class="prelude-ty">Option</span>&lt;StatementKind&gt; {
-        <span class="self">self</span>.statements.pop().map(|stmt| stmt.kind)
-    }
-
-    <span class="kw">pub fn </span>len(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; usize {
-        <span class="self">self</span>.statements.len()
-    }
-
     <span class="kw">pub fn </span>is_empty(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; bool {
         <span class="self">self</span>.statements.is_empty()
     }

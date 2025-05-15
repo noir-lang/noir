@@ -742,25 +742,7 @@
 <a href="#741" id="741">741</a>
 <a href="#742" id="742">742</a>
 <a href="#743" id="743">743</a>
-<a href="#744" id="744">744</a>
-<a href="#745" id="745">745</a>
-<a href="#746" id="746">746</a>
-<a href="#747" id="747">747</a>
-<a href="#748" id="748">748</a>
-<a href="#749" id="749">749</a>
-<a href="#750" id="750">750</a>
-<a href="#751" id="751">751</a>
-<a href="#752" id="752">752</a>
-<a href="#753" id="753">753</a>
-<a href="#754" id="754">754</a>
-<a href="#755" id="755">755</a>
-<a href="#756" id="756">756</a>
-<a href="#757" id="757">757</a>
-<a href="#758" id="758">758</a>
-<a href="#759" id="759">759</a>
-<a href="#760" id="760">760</a>
-<a href="#761" id="761">761</a>
-<a href="#762" id="762">762</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::fmt::Display;
+<a href="#744" id="744">744</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::fmt::Display;
 <span class="kw">use </span>std::rc::Rc;
 
 <span class="kw">use crate</span>::{
@@ -824,11 +806,6 @@
         message: <span class="prelude-ty">Option</span>&lt;String&gt;,
         location: Location,
         call_stack: im::Vector&lt;Location&gt;,
-    },
-    NoMethodFound {
-        name: String,
-        typ: Type,
-        location: Location,
     },
     NonIntegerUsedInLoop {
         typ: Type,
@@ -894,9 +871,6 @@
     },
     CastToNonNumericType {
         typ: Type,
-        location: Location,
-    },
-    QuoteInRuntimeCode {
         location: Location,
     },
     NonStructInConstructor {
@@ -1052,7 +1026,6 @@
             | InterpreterError::NonBoolUsedInWhile { location, .. }
             | InterpreterError::NonBoolUsedInConstrain { location, .. }
             | InterpreterError::FailingConstraint { location, .. }
-            | InterpreterError::NoMethodFound { location, .. }
             | InterpreterError::NonIntegerUsedInLoop { location, .. }
             | InterpreterError::NonPointerDereferenced { location, .. }
             | InterpreterError::NonTupleOrStructInMemberAccess { location, .. }
@@ -1068,7 +1041,6 @@
             | InterpreterError::InvalidValuesForBinary { location, .. }
             | InterpreterError::MathError { location, .. }
             | InterpreterError::CastToNonNumericType { location, .. }
-            | InterpreterError::QuoteInRuntimeCode { location, .. }
             | InterpreterError::NonStructInConstructor { location, .. }
             | InterpreterError::NonEnumInConstructor { location, .. }
             | InterpreterError::CannotInlineMacro { location, .. }
@@ -1189,10 +1161,6 @@
 
                 diagnostic.with_call_stack(call_stack.into_iter().copied().collect())
             }
-            InterpreterError::NoMethodFound { name, typ, location } =&gt; {
-                <span class="kw">let </span>msg = <span class="macro">format!</span>(<span class="string">"No method named `{name}` found for type `{typ}`"</span>);
-                CustomDiagnostic::simple_error(msg, String::new(), <span class="kw-2">*</span>location)
-            }
             InterpreterError::NonIntegerUsedInLoop { typ, location } =&gt; {
                 <span class="kw">let </span>msg = <span class="macro">format!</span>(<span class="string">"Non-integer type `{typ}` used in for loop"</span>);
                 <span class="kw">let </span>secondary = <span class="kw">if </span><span class="macro">matches!</span>(typ, Type::FieldElement) {
@@ -1281,10 +1249,6 @@
             }
             InterpreterError::CastToNonNumericType { typ, location } =&gt; {
                 <span class="kw">let </span>msg = <span class="macro">format!</span>(<span class="string">"Cannot cast to non-numeric type `{typ}`"</span>);
-                CustomDiagnostic::simple_error(msg, String::new(), <span class="kw-2">*</span>location)
-            }
-            InterpreterError::QuoteInRuntimeCode { location } =&gt; {
-                <span class="kw">let </span>msg = <span class="string">"`quote` may only be used in comptime code"</span>.into();
                 CustomDiagnostic::simple_error(msg, String::new(), <span class="kw-2">*</span>location)
             }
             InterpreterError::NonStructInConstructor { typ, location } =&gt; {

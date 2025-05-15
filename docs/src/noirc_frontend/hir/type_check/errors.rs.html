@@ -729,63 +729,7 @@
 <a href="#728" id="728">728</a>
 <a href="#729" id="729">729</a>
 <a href="#730" id="730">730</a>
-<a href="#731" id="731">731</a>
-<a href="#732" id="732">732</a>
-<a href="#733" id="733">733</a>
-<a href="#734" id="734">734</a>
-<a href="#735" id="735">735</a>
-<a href="#736" id="736">736</a>
-<a href="#737" id="737">737</a>
-<a href="#738" id="738">738</a>
-<a href="#739" id="739">739</a>
-<a href="#740" id="740">740</a>
-<a href="#741" id="741">741</a>
-<a href="#742" id="742">742</a>
-<a href="#743" id="743">743</a>
-<a href="#744" id="744">744</a>
-<a href="#745" id="745">745</a>
-<a href="#746" id="746">746</a>
-<a href="#747" id="747">747</a>
-<a href="#748" id="748">748</a>
-<a href="#749" id="749">749</a>
-<a href="#750" id="750">750</a>
-<a href="#751" id="751">751</a>
-<a href="#752" id="752">752</a>
-<a href="#753" id="753">753</a>
-<a href="#754" id="754">754</a>
-<a href="#755" id="755">755</a>
-<a href="#756" id="756">756</a>
-<a href="#757" id="757">757</a>
-<a href="#758" id="758">758</a>
-<a href="#759" id="759">759</a>
-<a href="#760" id="760">760</a>
-<a href="#761" id="761">761</a>
-<a href="#762" id="762">762</a>
-<a href="#763" id="763">763</a>
-<a href="#764" id="764">764</a>
-<a href="#765" id="765">765</a>
-<a href="#766" id="766">766</a>
-<a href="#767" id="767">767</a>
-<a href="#768" id="768">768</a>
-<a href="#769" id="769">769</a>
-<a href="#770" id="770">770</a>
-<a href="#771" id="771">771</a>
-<a href="#772" id="772">772</a>
-<a href="#773" id="773">773</a>
-<a href="#774" id="774">774</a>
-<a href="#775" id="775">775</a>
-<a href="#776" id="776">776</a>
-<a href="#777" id="777">777</a>
-<a href="#778" id="778">778</a>
-<a href="#779" id="779">779</a>
-<a href="#780" id="780">780</a>
-<a href="#781" id="781">781</a>
-<a href="#782" id="782">782</a>
-<a href="#783" id="783">783</a>
-<a href="#784" id="784">784</a>
-<a href="#785" id="785">785</a>
-<a href="#786" id="786">786</a>
-<a href="#787" id="787">787</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::collections::BTreeSet;
+<a href="#731" id="731">731</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::collections::BTreeSet;
 <span class="kw">use </span>std::rc::Rc;
 
 <span class="kw">use </span>acvm::FieldElement;
@@ -794,9 +738,8 @@
 <span class="kw">use </span>noirc_errors::Location;
 <span class="kw">use </span>thiserror::Error;
 
-<span class="kw">use </span><span class="kw">crate</span>::ast::{BinaryOpKind, ConstrainKind, FunctionReturnType, Ident, IntegerBitSize};
+<span class="kw">use </span><span class="kw">crate</span>::ast::{ConstrainKind, FunctionReturnType, Ident, IntegerBitSize};
 <span class="kw">use </span><span class="kw">crate</span>::hir::resolution::errors::ResolverError;
-<span class="kw">use </span><span class="kw">crate</span>::hir_def::expr::HirBinaryOp;
 <span class="kw">use </span><span class="kw">crate</span>::hir_def::traits::TraitConstraint;
 <span class="kw">use </span><span class="kw">crate</span>::hir_def::types::{BinaryTypeOperator, Kind, Type};
 <span class="kw">use </span><span class="kw">crate</span>::node_interner::NodeInterner;
@@ -812,24 +755,12 @@
     </span>Binary,
     <span class="attr">#[error(<span class="string">"Assignment"</span>)]
     </span>Assignment,
-    <span class="attr">#[error(<span class="string">"ArrayElements"</span>)]
-    </span>ArrayElements,
-    <span class="attr">#[error(<span class="string">"ArrayLen"</span>)]
-    </span>ArrayLen,
-    <span class="attr">#[error(<span class="string">"StringLen"</span>)]
-    </span>StringLen,
-    <span class="attr">#[error(<span class="string">"Comparison"</span>)]
-    </span>Comparison,
-    <span class="attr">#[error(<span class="string">"{0}"</span>)]
-    </span>BinOp(BinaryOpKind),
     <span class="attr">#[error(<span class="string">"Return"</span>)]
     </span>Return(FunctionReturnType, Location),
 }
 
 <span class="attr">#[derive(Error, Debug, Clone, PartialEq, Eq)]
 </span><span class="kw">pub enum </span>TypeCheckError {
-    <span class="attr">#[error(<span class="string">"Operator {op:?} cannot be used in a {place:?}"</span>)]
-    </span>OpCannotBeUsed { op: HirBinaryOp, place: <span class="kw-2">&amp;</span><span class="lifetime">'static </span>str, location: Location },
     <span class="attr">#[error(<span class="string">"Division by zero: {lhs} / {rhs}"</span>)]
     </span>DivisionByZero { lhs: FieldElement, rhs: FieldElement, location: Location },
     <span class="attr">#[error(<span class="string">"Modulo on Field elements: {lhs} % {rhs}"</span>)]
@@ -865,8 +796,6 @@
     },
     <span class="attr">#[error(<span class="string">"Expected {expected:?} found {found:?}"</span>)]
     </span>ArityMisMatch { expected: usize, found: usize, location: Location },
-    <span class="attr">#[error(<span class="string">"Return type in a function cannot be public"</span>)]
-    </span>PublicReturnType { typ: Type, location: Location },
     <span class="attr">#[error(<span class="string">"Cannot cast type {from}, 'as' is only for primitive field or integer types"</span>)]
     </span>InvalidCast { from: Type, location: Location, reason: String },
     <span class="attr">#[error(<span class="string">"Casting value of type {from} to a smaller type ({to})"</span>)]
@@ -907,20 +836,12 @@
     </span>IntegerSignedness { sign_x: Signedness, sign_y: Signedness, location: Location },
     <span class="attr">#[error(<span class="string">"Integers must have the same bit width LHS is {bit_width_x}, RHS is {bit_width_y}"</span>)]
     </span>IntegerBitWidth { bit_width_x: IntegerBitSize, bit_width_y: IntegerBitSize, location: Location },
-    <span class="attr">#[error(<span class="string">"{kind} cannot be used in an infix operation"</span>)]
-    </span>InvalidInfixOp { kind: <span class="kw-2">&amp;</span><span class="lifetime">'static </span>str, location: Location },
     <span class="attr">#[error(<span class="string">"{kind} cannot be used in a unary operation"</span>)]
     </span>InvalidUnaryOp { kind: String, location: Location },
     <span class="attr">#[error(
         <span class="string">"Bitwise operations are invalid on Field types. Try casting the operands to a sized integer type first."
     </span>)]
     </span>FieldBitwiseOp { location: Location },
-    <span class="attr">#[error(<span class="string">"Integer cannot be used with type {typ}"</span>)]
-    </span>IntegerTypeMismatch { typ: Type, location: Location },
-    <span class="attr">#[error(
-        <span class="string">"Cannot use an integer and a Field in a binary operation, try converting the Field into an integer first"
-    </span>)]
-    </span>IntegerAndFieldBinaryOperation { location: Location },
     <span class="attr">#[error(<span class="string">"Cannot do modulo on Fields, try casting to an integer first"</span>)]
     </span>FieldModulo { location: Location },
     <span class="attr">#[error(<span class="string">"Cannot do not (`!`) on Fields, try casting to an integer first"</span>)]
@@ -931,10 +852,6 @@
         <span class="string">"The bit count in a bit-shift operation must fit in a u8, try casting the right hand side into a u8 first"
     </span>)]
     </span>InvalidShiftSize { location: Location },
-    <span class="attr">#[error(
-        <span class="string">"The number of bits to use for this bitwise operation is ambiguous. Either the operand's type or return type should be specified"
-    </span>)]
-    </span>AmbiguousBitWidth { location: Location },
     <span class="attr">#[error(<span class="string">"Error with additional context"</span>)]
     </span>Context { err: Box&lt;TypeCheckError&gt;, ctx: <span class="kw-2">&amp;</span><span class="lifetime">'static </span>str },
     <span class="attr">#[error(<span class="string">"Array is not homogeneous"</span>)]
@@ -998,8 +915,6 @@
     </span>UnsafeFn { location: Location },
     <span class="attr">#[error(<span class="string">"Expected a constant, but found `{typ}`"</span>)]
     </span>NonConstantEvaluated { typ: Type, location: Location },
-    <span class="attr">#[error(<span class="string">"Slices must have constant length"</span>)]
-    </span>NonConstantSliceLength { location: Location },
     <span class="attr">#[error(<span class="string">"Only sized types may be used in the entry point to a program"</span>)]
     </span>InvalidTypeForEntryPoint { location: Location },
     <span class="attr">#[error(<span class="string">"Mismatched number of parameters in trait implementation"</span>)]
@@ -1058,8 +973,7 @@
 
     <span class="kw">pub fn </span>location(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; Location {
         <span class="kw">match </span><span class="self">self </span>{
-            TypeCheckError::OpCannotBeUsed { location, .. }
-            | TypeCheckError::DivisionByZero { location, .. }
+            TypeCheckError::DivisionByZero { location, .. }
             | TypeCheckError::ModuloOnFields { location, .. }
             | TypeCheckError::OverflowingAssignment { location, .. }
             | TypeCheckError::OverflowingConstant { location, .. }
@@ -1070,7 +984,6 @@
             | TypeCheckError::TypeKindMismatch { expr_location: location, .. }
             | TypeCheckError::TypeCanonicalizationMismatch { location, .. }
             | TypeCheckError::ArityMisMatch { location, .. }
-            | TypeCheckError::PublicReturnType { location, .. }
             | TypeCheckError::InvalidCast { location, .. }
             | TypeCheckError::DownsizingCast { location, .. }
             | TypeCheckError::ExpectedFunction { location, .. }
@@ -1089,16 +1002,12 @@
             | TypeCheckError::CannotInvokeStructFieldFunctionType { location, .. }
             | TypeCheckError::IntegerSignedness { location, .. }
             | TypeCheckError::IntegerBitWidth { location, .. }
-            | TypeCheckError::InvalidInfixOp { location, .. }
             | TypeCheckError::InvalidUnaryOp { location, .. }
             | TypeCheckError::FieldBitwiseOp { location }
-            | TypeCheckError::IntegerTypeMismatch { location, .. }
-            | TypeCheckError::IntegerAndFieldBinaryOperation { location }
             | TypeCheckError::FieldModulo { location }
             | TypeCheckError::FieldNot { location }
             | TypeCheckError::FieldComparison { location }
             | TypeCheckError::InvalidShiftSize { location }
-            | TypeCheckError::AmbiguousBitWidth { location }
             | TypeCheckError::NonHomogeneousArray { first_location: location, .. }
             | TypeCheckError::TypeAnnotationsNeededForMethodCall { location }
             | TypeCheckError::TypeAnnotationsNeededForFieldAccess { location }
@@ -1117,7 +1026,6 @@
             | TypeCheckError::Unsafe { location }
             | TypeCheckError::UnsafeFn { location }
             | TypeCheckError::NonConstantEvaluated { location, .. }
-            | TypeCheckError::NonConstantSliceLength { location }
             | TypeCheckError::InvalidTypeForEntryPoint { location }
             | TypeCheckError::MismatchTraitImplNumParameters { location, .. }
             | TypeCheckError::StringIndexAssign { location }
@@ -1158,11 +1066,6 @@
                 diag.add_note(ctx.to_string());
                 diag
             }
-            TypeCheckError::OpCannotBeUsed { op, place, location } =&gt; Diagnostic::simple_error(
-                <span class="macro">format!</span>(<span class="string">"The operator {op:?} cannot be used in a {place}"</span>),
-                String::new(),
-                <span class="kw-2">*</span>location,
-            ),
             TypeCheckError::DivisionByZero { lhs, rhs, location } =&gt; Diagnostic::simple_error(
                 <span class="macro">format!</span>(<span class="string">"Division by zero: {lhs} / {rhs}"</span>),
                 String::new(),
@@ -1293,13 +1196,9 @@
             | TypeCheckError::UnresolvedMethodCall { location, .. }
             | TypeCheckError::IntegerSignedness { location, .. }
             | TypeCheckError::IntegerBitWidth { location, .. }
-            | TypeCheckError::InvalidInfixOp { location, .. }
             | TypeCheckError::InvalidUnaryOp { location, .. }
             | TypeCheckError::FieldBitwiseOp { location, .. }
-            | TypeCheckError::IntegerTypeMismatch { location, .. }
             | TypeCheckError::FieldComparison { location, .. }
-            | TypeCheckError::AmbiguousBitWidth { location, .. }
-            | TypeCheckError::IntegerAndFieldBinaryOperation { location }
             | TypeCheckError::OverflowingAssignment { location, .. }
             | TypeCheckError::OverflowingConstant { location, .. }
             | TypeCheckError::FailingBinaryOp { location, .. }
@@ -1309,7 +1208,6 @@
             | TypeCheckError::UnconstrainedReferenceToConstrained { location }
             | TypeCheckError::UnconstrainedSliceReturnToConstrained { location }
             | TypeCheckError::NonConstantEvaluated { location, .. }
-            | TypeCheckError::NonConstantSliceLength { location }
             | TypeCheckError::StringIndexAssign { location }
             | TypeCheckError::InvalidShiftSize { location } =&gt; {
                 Diagnostic::simple_error(error.to_string(), String::new(), <span class="kw-2">*</span>location)
@@ -1322,11 +1220,6 @@
             TypeCheckError::MutableReferenceToArrayElement { location } =&gt; {
                 Diagnostic::simple_error(<span class="string">"Mutable references to array elements are currently unsupported"</span>.into(), <span class="string">"Try storing the element in a fresh variable first"</span>.into(), <span class="kw-2">*</span>location)
             },
-            TypeCheckError::PublicReturnType { typ, location } =&gt; Diagnostic::simple_error(
-                <span class="string">"Functions cannot declare a public return type"</span>.to_string(),
-                <span class="macro">format!</span>(<span class="string">"return type is {typ}"</span>),
-                <span class="kw-2">*</span>location,
-            ),
             TypeCheckError::TypeAnnotationsNeededForMethodCall { location } =&gt; {
                 <span class="kw">let </span><span class="kw-2">mut </span>error = Diagnostic::simple_error(
                     <span class="string">"Object type is unknown in method call"</span>.to_string(),
@@ -1361,11 +1254,6 @@
                     Source::Assignment =&gt; {
                         <span class="macro">format!</span>(<span class="string">"Cannot assign an expression of type {actual} to a value of type {expected}"</span>)
                     }
-                    Source::ArrayElements =&gt; <span class="macro">format!</span>(<span class="string">"Cannot compare {expected} and {actual}, the array element types differ"</span>),
-                    Source::ArrayLen =&gt; <span class="macro">format!</span>(<span class="string">"Can only compare arrays of the same length. Here LHS is of length {expected}, and RHS is {actual}"</span>),
-                    Source::StringLen =&gt; <span class="macro">format!</span>(<span class="string">"Can only compare strings of the same length. Here LHS is of length {expected}, and RHS is {actual}"</span>),
-                    Source::Comparison =&gt; <span class="macro">format!</span>(<span class="string">"Unsupported types for comparison: {expected} and {actual}"</span>),
-                    Source::BinOp(kind) =&gt; <span class="macro">format!</span>(<span class="string">"Unsupported types for operator `{kind}`: {expected} and {actual}"</span>),
                     Source::Return(ret_ty, expr_location) =&gt; {
                         <span class="kw">let </span>ret_ty_location = <span class="kw">match </span>ret_ty.clone() {
                             FunctionReturnType::Default(location) =&gt; location,

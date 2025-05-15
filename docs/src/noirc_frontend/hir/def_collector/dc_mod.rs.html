@@ -2768,7 +2768,7 @@
     <span class="kw">let </span>visibility = function.def.visibility;
     <span class="kw">let </span>location = function.location();
     interner.push_function(func_id, <span class="kw-2">&amp;</span>function.def, module, location);
-    <span class="kw">if </span>interner.is_in_lsp_mode() &amp;&amp; !function.def.is_test() {
+    <span class="kw">if </span>interner.is_in_lsp_mode() &amp;&amp; !function.def.attributes.is_test_function() {
         interner.register_function(func_id, <span class="kw-2">&amp;</span>function.def);
     }
 
@@ -3042,7 +3042,7 @@
         <span class="kw">let </span>func_id = interner.push_empty_fn();
         method.def.where_clause.extend(r#impl.where_clause.clone());
         desugar_generic_trait_bounds(<span class="kw-2">&amp;mut </span>method.def.generics, <span class="kw-2">&amp;mut </span>method.def.where_clause);
-        <span class="kw">let </span>location = Location::new(method.span(), file_id);
+        <span class="kw">let </span>location = method.location();
         interner.push_function(func_id, <span class="kw-2">&amp;</span>method.def, module_id, location);
         unresolved_functions.push_fn(module_id.local_id, func_id, method);
         interner.set_doc_comments(ReferenceId::Function(func_id), doc_comments);
@@ -3163,7 +3163,7 @@
                 </span>impl_method.def.visibility = ItemVisibility::Private;
 
                 <span class="kw">let </span>func_id = interner.push_empty_fn();
-                <span class="kw">let </span>location = Location::new(impl_method.span(), file_id);
+                <span class="kw">let </span>location = impl_method.location();
                 interner.push_function(func_id, <span class="kw-2">&amp;</span>impl_method.def, module, location);
                 interner.set_doc_comments(ReferenceId::Function(func_id), item.doc_comments);
                 desugar_generic_trait_bounds(
