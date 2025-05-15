@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1747321814635,
+  "lastUpdate": 1747323098213,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -18031,48 +18031,6 @@ window.BENCHMARK_DATA = {
             "username": "web-flow"
           },
           "distinct": true,
-          "id": "df3a540a0ca30dec0a2596d5e8ebc3c323278952",
-          "message": "chore(fuzz): Rename `init_vs_final` to `min_vs_full` (#8430)",
-          "timestamp": "2025-05-09T10:37:18Z",
-          "tree_id": "af39da8b521c41a18e0b9e7015546b0083b59b77",
-          "url": "https://github.com/noir-lang/noir/commit/df3a540a0ca30dec0a2596d5e8ebc3c323278952"
-        },
-        "date": 1746788221809,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 265607,
-            "range": "± 597",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 236293,
-            "range": "± 4734",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 3220345,
-            "range": "± 8323",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
-            "email": "aakoshh@gmail.com",
-            "name": "Akosh Farkash",
-            "username": "aakoshh"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
           "id": "cf1408a33d829ed2ec787a3306746da007d1d874",
           "message": "chore(fuzz): Break up the AST fuzzer `compare` module (#8431)",
           "timestamp": "2025-05-09T12:11:27Z",
@@ -20114,6 +20072,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 3570076,
             "range": "± 1744",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "jfecher11@gmail.com",
+            "name": "jfecher",
+            "username": "jfecher"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "ac7c9029faa766af172a50b49ba1ab5ea6accfb4",
+          "message": "chore: Remove println in ssa interpreter (#8528)\n\nCo-authored-by: Jake Fecher <jake@aztecprotocol.com>",
+          "timestamp": "2025-05-15T15:08:51Z",
+          "tree_id": "60a9936737aa945c978f925baa70f66b34bf4ef8",
+          "url": "https://github.com/noir-lang/noir/commit/ac7c9029faa766af172a50b49ba1ab5ea6accfb4"
+        },
+        "date": 1747323088664,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 262976,
+            "range": "± 856",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 234339,
+            "range": "± 11327",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 3218839,
+            "range": "± 17455",
             "unit": "ns/iter"
           }
         ]
