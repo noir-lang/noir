@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1747307032412,
+  "lastUpdate": 1747307214941,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -11057,70 +11057,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "mvezenov@gmail.com",
-            "name": "Maxim Vezenov",
-            "username": "vezenovm"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "b42264b75875f6edbb6f718408be104291c0de33",
-          "message": "chore(acir): Test whether the predicate has an effect on slice intrinsics (#8421)",
-          "timestamp": "2025-05-08T22:33:20Z",
-          "tree_id": "975e8a85a8d7d42a72d5098ed284cae3401647e2",
-          "url": "https://github.com/noir-lang/noir/commit/b42264b75875f6edbb6f718408be104291c0de33"
-        },
-        "date": 1746745466338,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 234.12,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 256.59,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 212.44,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 541.53,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 533.72,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 1440,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 362.58,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-root",
-            "value": 368.5,
-            "unit": "MB"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "163862677+noirwhal@users.noreply.github.com",
             "name": "noirwhal",
             "username": "noirwhal"
@@ -14330,6 +14266,75 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/noir-lang/noir/commit/d6eac5c65912f58aa472537140cfedc5681c2341"
         },
         "date": 1747303362363,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 238.07,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 260.32,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 213.56,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 544.98,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 537.43,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 1440,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 366.5,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-root",
+            "value": 372.43,
+            "unit": "MB"
+          },
+          {
+            "name": "semaphore_depth_10",
+            "value": 91.5,
+            "unit": "MB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "aakoshh@gmail.com",
+            "name": "Akosh Farkash",
+            "username": "aakoshh"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "bc6cf4fda9535584c41849a410f5ac546d01dc01",
+          "message": "feat(fuzz): AST fuzzing with SSA interpreter (#8436)\n\nCo-authored-by: Jake Fecher <jfecher11@gmail.com>",
+          "timestamp": "2025-05-15T10:34:26Z",
+          "tree_id": "e90117fafec6f8b0ac76a7408ebf58f0a04f057e",
+          "url": "https://github.com/noir-lang/noir/commit/bc6cf4fda9535584c41849a410f5ac546d01dc01"
+        },
+        "date": 1747307205743,
         "tool": "customSmallerIsBetter",
         "benches": [
           {
