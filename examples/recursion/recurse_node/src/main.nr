@@ -1,4 +1,4 @@
-global ULTRA_HONK_VK_SIZE: u32 = 128;
+global ULTRA_HONK_VK_SIZE: u32 = 112;
 global ULTRA_HONK_PROOF_SIZE: u32 = 456; // Number of fields when recursion is enabled
 global NUM_NON_ACCUMULATOR_PUBLIC_INPUTS: u32 = 4;
 global HONK_IDENTIFIER: u32 = 1;

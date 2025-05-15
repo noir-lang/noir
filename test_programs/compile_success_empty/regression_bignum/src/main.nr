@@ -11,7 +11,7 @@ fn main() {
 
 unconstrained fn __udiv_mod(remainder_u60: [u64; 6]) {
     let bit_difference = get_msb(remainder_u60);
-    let accumulator_u60: [u64; 6] = shl(bit_difference);
+    let _accumulator_u60: [u64; 6] = shl(bit_difference);
 }
 
 unconstrained fn __validate_gt_remainder(a_u60: [u64; 6]) -> [u64; 6] {

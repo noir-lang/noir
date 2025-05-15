@@ -1,7 +1,7 @@
 import { expect } from 'chai';
 import { ethers } from 'hardhat';
 import { CompiledCircuit, Noir } from '@noir-lang/noir_js';
-import { Barretenberg, RawBuffer, UltraHonkBackend } from '@aztec/bb.js';
+import { Barretenberg, RawBuffer, UltraHonkBackend, deflattenFields } from '@aztec/bb.js';
 
 import assertLtCircuit from '../../circuits/assert_lt/target/assert_lt.json' assert { type: 'json' };
 import recursionCircuit from '../../circuits/recursion/target/recursion.json' assert { type: 'json' };
@@ -18,7 +18,7 @@ it(`smart contract can verify a recursive proof`, async () => {
   // Generate intermediate proof
   const { witness: main_witness } = await inner.execute(innerInputs);
   const { proof: intermediateProof, publicInputs: intermediatePublicInputs } =
-    await innerBackend.generateProofForRecursiveAggregation(main_witness);
+    await innerBackend.generateProof(main_witness);
 
   // Get verification key for inner circuit as fields
   const innerCircuitVerificationKey = await innerBackend.getVerificationKey();
@@ -30,7 +30,7 @@ it(`smart contract can verify a recursive proof`, async () => {
   const recursiveBackend = new UltraHonkBackend(recursionCircuit.bytecode, { threads: 1 });
 
   const recursiveInputs = {
-    proof: intermediateProof,
+    proof: deflattenFields(intermediateProof),
     public_inputs: intermediatePublicInputs,
     verification_key: vkAsFields.map((field) => field.toString()),
   };

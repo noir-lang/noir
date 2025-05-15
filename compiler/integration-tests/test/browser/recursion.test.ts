@@ -3,7 +3,7 @@ import { TEST_LOG_LEVEL } from '../environment.js';
 import { Logger } from 'tslog';
 import { acvm, abi, Noir } from '@noir-lang/noir_js';
 
-import { Barretenberg, RawBuffer, UltraHonkBackend } from '@aztec/bb.js';
+import { Barretenberg, deflattenFields, RawBuffer, UltraHonkBackend } from '@aztec/bb.js';
 import { getFile } from './utils.js';
 import { InputMap } from '@noir-lang/noirc_abi';
 import { createFileManager, compile } from '@noir-lang/noir_wasm';
@@ -44,7 +44,7 @@ describe('It compiles noir program code, receiving circuit bytes and abi object.
     const { witness: main_witnessUint8Array } = await new Noir(main_program).execute(main_inputs);
 
     const { proof: intermediateProof, publicInputs: intermediatePublicInputs } =
-      await main_backend.generateProofForRecursiveAggregation(main_witnessUint8Array);
+      await main_backend.generateProof(main_witnessUint8Array);
 
     // Get verification key for inner circuit as fields
     const innerCircuitVerificationKey = await main_backend.getVerificationKey();
@@ -53,7 +53,7 @@ describe('It compiles noir program code, receiving circuit bytes and abi object.
 
     const recursion_inputs: InputMap = {
       verification_key: vkAsFields.map((field) => field.toString()),
-      proof: intermediateProof,
+      proof: deflattenFields(intermediateProof),
       public_inputs: intermediatePublicInputs,
     };
 
