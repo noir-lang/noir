@@ -211,6 +211,17 @@ over each token of a larger quoted value with `.tokens()`:
 
 #include_code concatenate-example noir_stdlib/src/meta/mod.nr rust
 
+### $crate
+
+A common case when we have a library exporting macro code is that if you quote `foo::my_function()`, whether the
+function can resolve will depend on the imports of where the macro code is used. It isn't enough to specify the
+full path either. `crate::foo::my_function()` will not work in external crates and `my_crate_name::foo::my_function()`
+will not work if the external crate renames the dependency `my_function` was defined in.
+
+For cases like this there is `$crate` which when used in a quote will always resolve to the crate the quote is in.
+So the library author can instead quote `$crate::foo::my_function()` and have it work in all cases as long as
+`foo` and `my_function` are both publically visible.
+
 ---
 
 ## Attributes
