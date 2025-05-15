@@ -792,7 +792,7 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
                 let source_variable = self.convert_ssa_single_addr_value(*value, dfg);
                 self.convert_cast(destination_variable, source_variable);
             }
-            Instruction::ArrayGet { array, index } => {
+            Instruction::ArrayGet { array, index, offset: _ } => {
                 let result_ids = dfg.instruction_results(instruction_id);
                 let destination_variable = self.variables.define_variable(
                     self.function_context,

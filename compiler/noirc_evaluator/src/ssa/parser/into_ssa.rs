@@ -208,10 +208,11 @@ impl Translator {
                 let value_id = self.builder.insert_allocate(typ);
                 self.define_variable(target, value_id)?;
             }
-            ParsedInstruction::ArrayGet { target, element_type, array, index } => {
+            ParsedInstruction::ArrayGet { target, element_type, array, index, offset } => {
                 let array = self.translate_value(array)?;
                 let index = self.translate_value(index)?;
-                let value_id = self.builder.insert_array_get(array, index, element_type);
+                let value_id =
+                    self.builder.insert_array_get_with_offset(array, index, offset, element_type);
                 self.define_variable(target, value_id)?;
             }
             ParsedInstruction::ArraySet { target, array, index, value, mutable } => {
