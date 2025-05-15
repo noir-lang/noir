@@ -807,7 +807,9 @@ mod tests {
 
     // Expected to panic like:
     #[test]
-    #[should_panic(expected = "ICE: at least one variant should exist for a dynamic call Signature { params: [Numeric(Unsigned { bit_size: 32 })], returns: [Numeric(Unsigned { bit_size: 32 })] }")]
+    #[should_panic(
+        expected = "ICE: at least one variant should exist for a dynamic call Signature { params: [Numeric(Unsigned { bit_size: 32 })], returns: [Numeric(Unsigned { bit_size: 32 })] }"
+    )]
     fn missing_fn() {
         let src = "
           brillig(inline) fn main f0 {
