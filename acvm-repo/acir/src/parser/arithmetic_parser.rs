@@ -5,10 +5,10 @@ use crate::parser::{Instruction, InstructionType};
 pub use acir_field::AcirField;
 use regex::Regex;
 
-pub struct ArithmeticParser {}
+pub(crate) struct ArithmeticParser {}
 
 impl ArithmeticParser {
-    pub fn parse_arithmetic_instruction<F: AcirField>(
+    pub(crate) fn parse_arithmetic_instruction<F: AcirField>(
         instruction: Instruction,
     ) -> Result<Opcode<F>, String> {
         if instruction.instruction_type != InstructionType::Expr {
@@ -18,12 +18,12 @@ impl ArithmeticParser {
             ));
         }
         let expression_body = instruction.instruction_body;
-        /// the expression body is of form [ (-1, _0, _2) (-1, _1, _2) (1, _3) 0 ]
-        /// which corresponds to expression 0 - w0 * w2 - w1 * w2 + w_3 = 0
-        /// the elements with 3 elements are mul_terms and the elements with 1 element are linear terms   
+        // the expression body is of form [ (-1, _0, _2) (-1, _1, _2) (1, _3) 0 ]
+        // which corresponds to expression 0 - w0 * w2 - w1 * w2 + w_3 = 0
+        // the elements with 3 elements are mul_terms and the elements with 1 element are linear terms
         let mut mul_terms: Vec<(F, Witness, Witness)> = Vec::new();
         let mut linear_terms: Vec<(F, Witness)> = Vec::new();
-        let mut q_c: F = F::zero();
+        let q_c: F = F::zero();
         //first we split the instruction body to a vector of ExpressionTerm values
         let cleaned =
             expression_body.trim().strip_prefix("[").unwrap().strip_suffix("]").unwrap().trim();
@@ -77,7 +77,7 @@ impl ArithmeticParser {
 
 mod test {
     use super::*;
-    use acir_field::FieldElement;
+    use crate::acir_field::FieldElement;
     #[test]
     fn test_parse_arithmetic_expression() {
         let arithmetic_expression: Instruction = Instruction {

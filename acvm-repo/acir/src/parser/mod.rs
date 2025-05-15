@@ -1,11 +1,10 @@
-use num_bigint::BigUint;
-use num_traits::Num;
 use regex::Regex;
 use std::collections::BTreeSet;
 
 mod arithmetic_parser;
 mod black_box_parser;
 mod brillig_call_parser;
+mod utils;
 
 use crate::circuit::opcodes::{BlackBoxFuncCall, FunctionInput};
 use crate::circuit::{Opcode, PublicInputs, opcodes};
@@ -19,6 +18,8 @@ use super::circuit::opcodes::InvalidInputBitSize;
 use arithmetic_parser::ArithmeticParser;
 use black_box_parser::BlackBoxParser;
 use brillig_call_parser::BrilligCallParser;
+use utils::parse_str_to_field;
+
 #[derive(Debug, Clone, PartialEq)]
 pub enum InstructionType {
     Expr,
@@ -37,93 +38,138 @@ pub struct Instruction<'a> {
     pub instruction_body: &'a str,
 }
 
-fn parse_str_to_field<F: AcirField>(value: &str) -> Result<F, String> {
-    // get the sign
-    let is_negative = value.trim().starts_with("-");
-    let unsigned_value_string =
-        if is_negative { value.strip_prefix("-").unwrap().trim() } else { value.trim() };
+pub struct AcirParser {}
 
-    let big_num = if let Some(hex) = unsigned_value_string.strip_prefix("0x") {
-        BigUint::from_str_radix(hex, 16)
-    } else {
-        BigUint::from_str_radix(unsigned_value_string, 10)
-    };
+impl AcirParser {
+    pub fn serialize_acir(input: &str) -> Vec<Instruction> {
+        let mut instructions: Vec<Instruction> = Vec::new();
+        for line in input.lines() {
+            let line = line.trim();
+            match line {
+                l if l.starts_with("BLACKBOX::") => {
+                    if let Some(stripped) = l.strip_prefix("BLACKBOX::").map(|s| s.trim()) {
+                        instructions.push(Instruction {
+                            instruction_type: InstructionType::BlackBoxFuncCall,
+                            instruction_body: stripped,
+                        });
+                    }
+                }
+                l if l.starts_with("EXPR") => {
+                    // Strip "EXPR" and any whitespace after it
+                    if let Some(stripped) = l.strip_prefix("EXPR").map(|s| s.trim()) {
+                        instructions.push(Instruction {
+                            instruction_type: InstructionType::Expr,
+                            instruction_body: stripped,
+                        });
+                    }
+                }
+                l if l.starts_with("current witness index :") => {
+                    if let Some(stripped) =
+                        l.strip_prefix("current witness index :").map(|s| s.trim())
+                    {
+                        instructions.push(Instruction {
+                            instruction_type: InstructionType::CurrentWitnessIndex,
+                            instruction_body: stripped,
+                        });
+                    }
+                }
+                l if l.starts_with("private parameters indices :") => {
+                    if let Some(stripped) =
+                        l.strip_prefix("private parameters indices :").map(|s| s.trim())
+                    {
+                        instructions.push(Instruction {
+                            instruction_type: InstructionType::PrivateParametersIndices,
+                            instruction_body: stripped,
+                        });
+                    }
+                }
+                l if l.starts_with("public parameters indices :") => {
+                    if let Some(stripped) =
+                        l.strip_prefix("public parameters indices :").map(|s| s.trim())
+                    {
+                        instructions.push(Instruction {
+                            instruction_type: InstructionType::PublicParametersIndices,
+                            instruction_body: stripped,
+                        });
+                    }
+                }
+                l if l.starts_with("return value indices :") => {
+                    if let Some(stripped) =
+                        l.strip_prefix("return value indices :").map(|s| s.trim())
+                    {
+                        instructions.push(Instruction {
+                            instruction_type: InstructionType::ReturnValueIndices,
+                            instruction_body: stripped,
+                        });
+                    }
+                }
 
-    big_num.map_err(|_| "could not convert string to field".to_string()).map(|num| {
-        if is_negative {
-            -F::from_be_bytes_reduce(&num.to_bytes_be())
-        } else {
-            F::from_be_bytes_reduce(&num.to_bytes_be())
+                _ => {
+                    continue;
+                }
+            }
         }
-    })
-}
+        instructions
+    }
 
-pub fn serialize_acir(input: &str) -> Vec<Instruction> {
-    let mut instructions: Vec<Instruction> = Vec::new();
-    for line in input.lines() {
-        let line = line.trim();
-        match line {
-            l if l.starts_with("BLACKBOX::") => {
-                if let Some(stripped) = l.strip_prefix("BLACKBOX::").map(|s| s.trim()) {
-                    instructions.push(Instruction {
-                        instruction_type: InstructionType::BlackBoxFuncCall,
-                        instruction_body: stripped,
-                    });
+    fn get_circuit_description(serialized_acir: &Vec<Instruction>) -> CircuitDescription {
+        /// the description part of the circuit starts with one of the following options
+        /// current witness index: _u32, the largest index of a witness  
+        /// private parameters indices: list of witness indices of private parameters
+        /// public parameters indices: list of witness indices of private public parameters
+        /// return value indices : the witness indices of the values returned by the function
+        let mut current_witness_index: u32 = 0;
+        let mut private_parameters: BTreeSet<Witness> = BTreeSet::new();
+        let mut public_parameters: BTreeSet<Witness> = BTreeSet::new();
+        let mut return_values: BTreeSet<Witness> = BTreeSet::new();
+        // we match the lines to fill headers up these values
+        for instruction in serialized_acir {
+            let parse_indices = |s: &str| -> Vec<u32> {
+                let elements = s.strip_prefix("[").unwrap().strip_suffix("]").unwrap();
+                if elements.is_empty() {
+                    return vec![];
                 }
-            }
-            l if l.starts_with("EXPR") => {
-                // Strip "EXPR" and any whitespace after it
-                if let Some(stripped) = l.strip_prefix("EXPR").map(|s| s.trim()) {
-                    instructions.push(Instruction {
-                        instruction_type: InstructionType::Expr,
-                        instruction_body: stripped,
-                    });
+                elements
+                    .split(',')
+                    .map(|s| s.trim().strip_prefix("_").unwrap().parse::<u32>().unwrap())
+                    .collect()
+            };
+            match instruction.instruction_type {
+                InstructionType::CurrentWitnessIndex => {
+                    // Extract witness index from "_X" format
+                    if let Some(index_str) = instruction.instruction_body.strip_prefix('_') {
+                        if let Ok(index) = index_str.parse::<u32>() {
+                            current_witness_index = index;
+                        }
+                    }
                 }
-            }
-            l if l.starts_with("current witness index :") => {
-                if let Some(stripped) = l.strip_prefix("current witness index :").map(|s| s.trim())
-                {
-                    instructions.push(Instruction {
-                        instruction_type: InstructionType::CurrentWitnessIndex,
-                        instruction_body: stripped,
-                    });
+                InstructionType::PrivateParametersIndices => {
+                    // the private parameter indices is a string of form [_0, _1, _2, ...]
+                    // we need to split these by comma and cast each to a u32
+                    let indices = parse_indices(instruction.instruction_body);
+                    private_parameters.extend(indices.into_iter().map(|i| Witness::from(i)));
                 }
-            }
-            l if l.starts_with("private parameters indices :") => {
-                if let Some(stripped) =
-                    l.strip_prefix("private parameters indices :").map(|s| s.trim())
-                {
-                    instructions.push(Instruction {
-                        instruction_type: InstructionType::PrivateParametersIndices,
-                        instruction_body: stripped,
-                    });
+                InstructionType::PublicParametersIndices => {
+                    // same as above
+                    let indices = parse_indices(instruction.instruction_body);
+                    public_parameters.extend(indices.into_iter().map(|i| Witness::from(i)));
                 }
-            }
-            l if l.starts_with("public parameters indices :") => {
-                if let Some(stripped) =
-                    l.strip_prefix("public parameters indices :").map(|s| s.trim())
-                {
-                    instructions.push(Instruction {
-                        instruction_type: InstructionType::PublicParametersIndices,
-                        instruction_body: stripped,
-                    });
+                InstructionType::ReturnValueIndices => {
+                    let indices = parse_indices(instruction.instruction_body);
+                    return_values.extend(indices.into_iter().map(|i| Witness::from(i)));
                 }
+                _ => continue,
             }
-            l if l.starts_with("return value indices :") => {
-                if let Some(stripped) = l.strip_prefix("return value indices :").map(|s| s.trim()) {
-                    instructions.push(Instruction {
-                        instruction_type: InstructionType::ReturnValueIndices,
-                        instruction_body: stripped,
-                    });
-                }
-            }
+        }
 
-            _ => {
-                continue;
-            }
+        CircuitDescription {
+            current_witness_index: current_witness_index,
+            expression_width: ExpressionWidth { value: None },
+            private_parameters: private_parameters,
+            public_parameters: PublicInputs(public_parameters),
+            return_values: PublicInputs(return_values),
         }
     }
-    instructions
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -147,65 +193,6 @@ impl CircuitDescription {
     }
 }
 
-fn get_circuit_description(serialized_acir: &Vec<Instruction>) -> CircuitDescription {
-    /// the description part of the circuit starts with one of the following options
-    /// current witness index: _u32, the largest index of a witness  
-    /// private parameters indices: list of witness indices of private parameters
-    /// public parameters indices: list of witness indices of private public parameters
-    /// return value indices : the witness indices of the values returned by the function
-    let mut current_witness_index: u32 = 0;
-    let mut private_parameters: BTreeSet<Witness> = BTreeSet::new();
-    let mut public_parameters: BTreeSet<Witness> = BTreeSet::new();
-    let mut return_values: BTreeSet<Witness> = BTreeSet::new();
-    // we match the lines to fill headers up these values
-    for instruction in serialized_acir {
-        let parse_indices = |s: &str| -> Vec<u32> {
-            let elements = s.strip_prefix("[").unwrap().strip_suffix("]").unwrap();
-            if elements.is_empty() {
-                return vec![];
-            }
-            elements
-                .split(',')
-                .map(|s| s.trim().strip_prefix("_").unwrap().parse::<u32>().unwrap())
-                .collect()
-        };
-        match instruction.instruction_type {
-            InstructionType::CurrentWitnessIndex => {
-                // Extract witness index from "_X" format
-                if let Some(index_str) = instruction.instruction_body.strip_prefix('_') {
-                    if let Ok(index) = index_str.parse::<u32>() {
-                        current_witness_index = index;
-                    }
-                }
-            }
-            InstructionType::PrivateParametersIndices => {
-                // the private parameter indices is a string of form [_0, _1, _2, ...]
-                // we need to split these by comma and cast each to a u32
-                let indices = parse_indices(instruction.instruction_body);
-                private_parameters.extend(indices.into_iter().map(|i| Witness::from(i)));
-            }
-            InstructionType::PublicParametersIndices => {
-                // same as above
-                let indices = parse_indices(instruction.instruction_body);
-                public_parameters.extend(indices.into_iter().map(|i| Witness::from(i)));
-            }
-            InstructionType::ReturnValueIndices => {
-                let indices = parse_indices(instruction.instruction_body);
-                return_values.extend(indices.into_iter().map(|i| Witness::from(i)));
-            }
-            _ => continue,
-        }
-    }
-
-    CircuitDescription {
-        current_witness_index: current_witness_index,
-        expression_width: ExpressionWidth { value: None },
-        private_parameters: private_parameters,
-        public_parameters: PublicInputs(public_parameters),
-        return_values: PublicInputs(return_values),
-    }
-}
-
 pub enum ExpressionTerm<F> {
     MulTerm(F, Witness, Witness),
     LinearTerm(F, Witness),
@@ -217,26 +204,6 @@ pub fn parse_memory_init(instruction: Instruction) -> Result<MemoryInit, String>
 }
 
 pub fn parse_memory_op(instruction: Instruction) -> Result<MemoryOp, String> {
-    todo!()
-}
-
-pub fn parse_brillig_call(instruction: Instruction) -> Result<BrilligCall, String> {
-    // BRILLIG CALL func id: inputs: [Single/Array/MemoryArray(Expression/Vec<Expression/BlockId> { mul_terms: [], linear_combinations: [(1, Witness(2))], q_c: 0 }), Single(Expression { mul_terms: [], linear_combinations: [], q_c: 4294967296 })] outputs: [Simple(Witness(10)), Simple(Witness(11))]
-    if instruction.instruction_type != InstructionType::BrilligCall {
-        return Err(format!(
-            "Expected BrilligCall instruction, got {:?}",
-            instruction.instruction_type
-        ));
-    }
-    let instruction_body = instruction.instruction_body;
-    let re = Regex::new(r"BRILLIG CALL func .: inputs: \[(.*?)\] outputs: \[(.*?)\]").unwrap();
-    let captures = re.captures(instruction_body).unwrap();
-    let id = captures.get(1).unwrap().as_str();
-    let inputs = captures.get(2).unwrap().as_str();
-    let outputs = captures.get(3).unwrap().as_str();
-    println!("id: {:?}", id);
-    println!("inputs: {:?}", inputs);
-    println!("outputs: {:?}", outputs);
     todo!()
 }
 
@@ -284,7 +251,7 @@ mod test {
                 instruction_body: "[ (-2, _0) (1, _1) 0 ]",
             },
         ];
-        assert_eq!(serialize_acir(acir_string), expected);
+        assert_eq!(AcirParser::serialize_acir(acir_string), expected);
     }
 
     #[test]
@@ -318,7 +285,7 @@ mod test {
                 instruction_body: "[ (-1, _0, _2) (-1, _1, _2) (1, _3) 0 ]",
             },
         ];
-        assert_eq!(serialize_acir(acir_string), expected);
+        assert_eq!(AcirParser::serialize_acir(acir_string), expected);
     }
 
     #[test]
@@ -348,8 +315,8 @@ mod test {
     public parameters indices : []
     return value indices : [_1]
         EXPR [ (-2, _0) (1, _1) 0 ]";
-        let serialized_acir = serialize_acir(acir_string);
-        let circuit_description = get_circuit_description(&serialized_acir);
+        let serialized_acir = AcirParser::serialize_acir(acir_string);
+        let circuit_description = AcirParser::get_circuit_description(&serialized_acir);
         assert_eq!(circuit_description.current_witness_index, 1);
         assert_eq!(circuit_description.private_parameters, BTreeSet::from([Witness(0)]));
         assert_eq!(circuit_description.public_parameters, PublicInputs(BTreeSet::new()));
@@ -364,8 +331,8 @@ mod test {
         public parameters indices : []
         return value indices : [_3]
         EXPR [ (-1, _0, _2) (-1, _1, _2) (1, _3) 0 ]";
-        let serialized_acir = serialize_acir(acir_string);
-        let circuit_description = get_circuit_description(&serialized_acir);
+        let serialized_acir = AcirParser::serialize_acir(acir_string);
+        let circuit_description = AcirParser::get_circuit_description(&serialized_acir);
         assert_eq!(circuit_description.current_witness_index, 3);
         assert_eq!(
             circuit_description.private_parameters,
@@ -427,7 +394,7 @@ mod test {
         unconstrained func 1
         [Const { destination: Direct(21), bit_size: Integer(U32), value: 1 }, Const { destination: Direct(20), bit_size: Integer(U32), value: 0 }, CalldataCopy { destination_address: Direct(0), size_address: Direct(21), offset_address: Direct(20) }, Const { destination: Direct(2), bit_size: Field, value: 0 }, BinaryFieldOp { destination: Direct(3), op: Equals, lhs: Direct(0), rhs: Direct(2) }, JumpIf { condition: Direct(3), location: 8 }, Const { destination: Direct(1), bit_size: Field, value: 1 }, BinaryFieldOp { destination: Direct(0), op: Div, lhs: Direct(1), rhs: Direct(0) }, Stop { return_data: HeapVector { pointer: Direct(20), size: Direct(21) } }]";
 
-        let serialized_acir = serialize_acir(acir_string);
+        let serialized_acir = AcirParser::serialize_acir(acir_string);
         for instruction in serialized_acir {
             match instruction.instruction_type {
                 InstructionType::BlackBoxFuncCall => {

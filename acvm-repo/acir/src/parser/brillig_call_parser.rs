@@ -12,7 +12,7 @@ pub struct BrilligCallParser {}
 impl BrilligCallParser {
     fn serialize_brillig_call<'a>(
         instruction: &'a Instruction<'a>,
-    ) -> Result<(&'a str, &'a str, u32), String> {
+    ) -> Result<(&'a str, &'a str, u32, Option<&'a str>), String> {
         if instruction.instruction_type != InstructionType::BrilligCall {
             return Err(format!(
                 "Expected BRILLIG_CALL instruction, got {:?}",
@@ -21,7 +21,7 @@ impl BrilligCallParser {
         }
 
         let instruction_body = instruction.instruction_body;
-        let re = Regex::new(r"func (\d+):\s*inputs:\s*\[(.*?)\]\s*outputs:\s*\[(.*?)\]").unwrap();
+        let re = Regex::new(r"func (\d+):\s*(?:(PREDICATE\s*=\s*\[.*?\]\s*))?\s*inputs:\s*\[(.*?)\]\s*outputs:\s*\[(.*?)\]").unwrap();
 
         let captures = re
             .captures(instruction_body)
@@ -29,9 +29,10 @@ impl BrilligCallParser {
         let id = captures.get(1).unwrap().as_str();
         // convert id to u32
         let id = id.parse::<u32>().unwrap();
-        let inputs = captures.get(2).unwrap().as_str();
-        let outputs = captures.get(3).unwrap().as_str();
-        Ok((inputs, outputs, id))
+        let predicate = captures.get(2).is_some().then(|| captures.get(2).unwrap().as_str());
+        let inputs = captures.get(3).unwrap().as_str();
+        let outputs = captures.get(4).unwrap().as_str();
+        Ok((inputs, outputs, id, predicate))
     }
 
     pub(crate) fn parse_brillig_inputs<F: AcirField>(
@@ -184,23 +185,75 @@ impl BrilligCallParser {
         Ok(expression)
     }
 
+    fn parse_predicate<F: AcirField>(predicate_str: &str) -> Result<Expression<F>, String> {
+        let cleaned =
+            predicate_str.trim().strip_prefix("PREDICATE = [").unwrap().strip_suffix("]").unwrap();
+        let re = Regex::new(r"\(([^)]+)\)").unwrap();
+        // Collect all matches (terms in parentheses)
+        let terms: Vec<&str> = re.find_iter(cleaned).map(|m| m.as_str()).collect();
+        // Get the constant term (if any) by splitting on whitespace and taking the last term
+        let constant = parse_str_to_field(cleaned.split_whitespace().last().unwrap()).unwrap();
+        let mut mul_terms: Vec<(F, Witness, Witness)> = Vec::new();
+        let mut linear_terms: Vec<(F, Witness)> = Vec::new();
+        for term in terms {
+            let temp: Vec<&str> = term
+                .strip_suffix(")")
+                .unwrap()
+                .strip_prefix("(")
+                .unwrap()
+                .trim()
+                .split(",")
+                .into_iter()
+                .map(|a| a.trim())
+                .collect();
+            match temp.len() {
+                3 => {
+                    // this is a mul term of form (constant, witness , witness)
+                    // we first get the witness indices
+                    let first_index = temp[1].strip_prefix("_").unwrap().parse::<u32>().unwrap();
+                    let second_index = temp[2].strip_prefix("_").unwrap().parse::<u32>().unwrap();
+                    let coeff = parse_str_to_field(temp[0]).unwrap();
+                    mul_terms.push((coeff, Witness(first_index), Witness(second_index)));
+                }
+                2 => {
+                    // this is a linear_combination term of form (constant, witness)
+                    let index = temp[1].strip_prefix("_").unwrap().parse::<u32>().unwrap();
+                    let coeff: F = parse_str_to_field(temp[0]).unwrap();
+                    linear_terms.push((coeff, Witness(index)));
+                }
+                _ => {
+                    return Err("the expression has incorrect terms".to_string());
+                }
+            }
+        }
+        let expression =
+            Expression { mul_terms: mul_terms, linear_combinations: linear_terms, q_c: constant };
+        Ok(expression)
+    }
+
     fn parse_brillig_call<F: AcirField>(
         brillig_call_instruction: &Instruction,
     ) -> Result<Opcode<F>, String> {
         // we first serialize the call string
-        let (brillig_input_string, brillig_output_string, brillig_id) =
+        let (brillig_input_string, brillig_output_string, brillig_id, predicate_string) =
             Self::serialize_brillig_call(brillig_call_instruction).map_err(|e| e.to_string())?;
         // now we parse the inputs
         let brillig_inputs =
             Self::parse_brillig_inputs::<F>(brillig_input_string).map_err(|e| e.to_string())?;
         // now we parse the outputs
         let outputs = Self::parse_brillig_outputs(brillig_output_string);
+        // now we parse the predicate
+        let mut predicate = None;
+        if let Some(predicate_string) = predicate_string {
+            predicate =
+                Some(Self::parse_predicate::<F>(predicate_string).map_err(|e| e.to_string())?);
+        }
         // now we create the BrilligCall
         Ok(Opcode::BrilligCall {
             id: BrilligFunctionId(brillig_id),
             inputs: brillig_inputs,
             outputs: outputs,
-            predicate: None,
+            predicate: predicate,
         })
     }
 }
@@ -224,11 +277,12 @@ mod test {
             instruction_type: InstructionType::BrilligCall,
             instruction_body: "func 0: inputs: [Single(Expression { mul_terms: [], linear_combinations: [(1, Witness(0)), (1, Witness(1))], q_c: 0 }), Single(Expression { mul_terms: [], linear_combinations: [], q_c: 4294967296 })] outputs: [Simple(Witness(11)), Array([Witness(12), Witness(13), Witness(14)])]",
         };
-        let (inputs, outputs, id) =
+        let (inputs, outputs, id, predicate) =
             BrilligCallParser::serialize_brillig_call(&instruction).unwrap();
         println!("inputs: {:?}", inputs);
         println!("outputs: {:?}", outputs);
         println!("id: {:?}", id);
+        println!("predicate: {:?}", predicate);
     }
 
     #[test]
@@ -256,7 +310,7 @@ mod test {
 
     #[test]
     fn test_brillig_call_parser() {
-        let brillig_call_string = "func 0: inputs: [Single(Expression { mul_terms: [], linear_combinations: [(1, Witness(0)), (1, Witness(1))], q_c: 0 }), Single(Expression { mul_terms: [], linear_combinations: [], q_c: 4294967296 })] outputs: [Simple(Witness(11)), Array([Witness(12), Witness(13), Witness(14)])]";
+        let brillig_call_string = "func 0: PREDICATE = [ (-1, _0, _2) (-1, _1, _2) (1, _3) 0 ] inputs: [Single(Expression { mul_terms: [], linear_combinations: [(1, Witness(0)), (1, Witness(1))], q_c: 0 }), Single(Expression { mul_terms: [], linear_combinations: [], q_c: 4294967296 })] outputs: [Simple(Witness(11)), Array([Witness(12), Witness(13), Witness(14)])]";
 
         let brillig_call_instruction = Instruction {
             instruction_type: InstructionType::BrilligCall,
@@ -266,5 +320,36 @@ mod test {
             BrilligCallParser::parse_brillig_call::<FieldElement>(&brillig_call_instruction)
                 .unwrap();
         println!("brillig_call: {:?}", brillig_call);
+    }
+
+    #[test]
+    fn test_predicate_parser() {
+        let brillig_call_string = "func 0: PREDICATE = [ (-1, _0, _2) (-1, _1, _2) (1, _3) 0 ] inputs: [Single(Expression { mul_terms: [], linear_combinations: [(1, Witness(0)), (1, Witness(1))], q_c: 0 }), Single(Expression { mul_terms: [], linear_combinations: [], q_c: 4294967296 })] outputs: [Simple(Witness(11)), Array([Witness(12), Witness(13), Witness(14)])]";
+
+        let brillig_call_string_no_predicate = "func 0: inputs: [Single(Expression { mul_terms: [], linear_combinations: [(1, Witness(0)), (1, Witness(1))], q_c: 0 }), Single(Expression { mul_terms: [], linear_combinations: [], q_c: 4294967296 })] outputs: [Simple(Witness(11)), Array([Witness(12), Witness(13), Witness(14)])]";
+
+        let re = Regex::new(r"func (\d+):\s*(?:(PREDICATE\s*=\s*\[.*?\]\s*))?\s*inputs:\s*\[(.*?)\]\s*outputs:\s*\[(.*?)\]").unwrap();
+        let captures = re.captures(brillig_call_string).unwrap();
+        let captures_no_predicate = re.captures(brillig_call_string_no_predicate).unwrap();
+
+        let id = captures.get(1).unwrap().as_str();
+        let id_no_predicate = captures_no_predicate.get(1).unwrap().as_str();
+        let predicate = captures.get(2).is_some().then(|| captures.get(2).unwrap().as_str());
+        let predicate_no_predicate = captures_no_predicate
+            .get(2)
+            .is_some()
+            .then(|| captures_no_predicate.get(2).unwrap().as_str());
+        let inputs = captures.get(3).unwrap().as_str();
+        let inputs_no_predicate = captures_no_predicate.get(3).unwrap().as_str();
+        let outputs = captures.get(4).unwrap().as_str();
+        let outputs_no_predicate = captures_no_predicate.get(4).unwrap().as_str();
+        println!("id: {:?}", id);
+        println!("id_no_predicate: {:?}", id_no_predicate);
+        println!("predicate: {:?}", predicate);
+        println!("predicate_no_predicate: {:?}", predicate_no_predicate);
+        println!("inputs: {:?}", inputs);
+        println!("inputs_no_predicate: {:?}", inputs_no_predicate);
+        println!("outputs: {:?}", outputs);
+        println!("outputs_no_predicate: {:?}", outputs_no_predicate);
     }
 }
