@@ -1,6 +1,6 @@
 use regex::Regex;
 
-pub use super::Instruction;
+use super::Instruction;
 use crate::circuit::Opcode;
 use crate::circuit::brillig::{BrilligFunctionId, BrilligInputs, BrilligOutputs};
 use crate::native_types::{Expression, Witness};

@@ -5,6 +5,7 @@ mod arithmetic_parser;
 mod black_box_parser;
 mod brillig_call_parser;
 mod call_parser;
+mod mem_init_parser;
 mod utils;
 
 use crate::circuit::opcodes::{BlackBoxFuncCall, FunctionInput};
@@ -22,11 +23,13 @@ use brillig_call_parser::BrilligCallParser;
 use utils::parse_str_to_field;
 
 #[derive(Debug, Clone, PartialEq)]
-pub enum InstructionType {
+pub(crate) enum InstructionType {
     Expr,
     BlackBoxFuncCall,
     BrilligCall,
     Call,
+    MemoryInit,
+    MemoryOp,
     CurrentWitnessIndex,
     PrivateParametersIndices,
     PublicParametersIndices,
@@ -35,12 +38,12 @@ pub enum InstructionType {
 }
 
 #[derive(Debug, Clone, PartialEq)]
-pub struct Instruction<'a> {
-    pub instruction_type: InstructionType,
-    pub instruction_body: &'a str,
+pub(crate) struct Instruction<'a> {
+    pub(crate) instruction_type: InstructionType,
+    pub(crate) instruction_body: &'a str,
 }
 
-pub struct AcirParser {}
+pub(crate) struct AcirParser {}
 
 impl AcirParser {
     pub fn serialize_acir(input: &str) -> Vec<Instruction> {
