@@ -3410,6 +3410,8 @@ dependencies = [
  "color-eyre",
  "im",
  "insta",
+ "iter-extended",
+ "log",
  "nargo",
  "noir_greybox_fuzzer",
  "noirc_abi",
@@ -3418,6 +3420,8 @@ dependencies = [
  "noirc_frontend",
  "proptest",
  "rand 0.8.5",
+ "regex",
+ "similar-asserts",
  "strum",
 ]
 
@@ -3429,6 +3433,7 @@ dependencies = [
  "arbitrary",
  "arbtest",
  "color-eyre",
+ "env_logger",
  "libfuzzer-sys",
  "noir_ast_fuzzer",
  "noirc_abi",
