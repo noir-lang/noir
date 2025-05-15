@@ -46,12 +46,6 @@ pub(crate) fn add_recursion_limit(
         },
     );
 
-    let unconstrained_functions = ctx
-        .functions
-        .iter()
-        .filter_map(|(id, func)| func.unconstrained.then_some(*id))
-        .collect::<HashSet<_>>();
-
     // Create proxies for unconstrained functions called from ACIR.
     let mut proxy_functions = HashMap::new();
     let mut next_func_id = FuncId(ctx.functions.len() as u32);
@@ -244,21 +238,23 @@ pub(crate) fn add_recursion_limit(
                 let Expression::Ident(ident) = call.func.as_mut() else {
                     unreachable!("functions are called by ident");
                 };
-                let Definition::Function(callee_id) = ident.definition else {
-                    unreachable!("function definition expected");
+
+                let proxy = match &ident.definition {
+                    Definition::Function(id) => proxy_functions.get(id),
+                    Definition::Local(_) => None,
+                    other => unreachable!("function or local definition expected; got {}", other),
                 };
-                let Type::Function(param_types, _, _, _) = &mut ident.typ else {
+
+                let Type::Function(param_types, _, _, callee_unconstrained) = &mut ident.typ else {
                     unreachable!("function type expected");
                 };
-                let callee_unconstrained = unconstrained_functions.contains(&callee_id);
 
-                if callee_unconstrained && !func.unconstrained {
-                    // Calling Brillig from ACIR: call the proxy.
-                    let Some(proxy) = proxy_functions.get(&callee_id) else {
-                        unreachable!("expected to have a proxy");
-                    };
-                    ident.name = proxy.name.clone();
-                    ident.definition = Definition::Function(proxy.id);
+                if *callee_unconstrained && !func.unconstrained {
+                    // Calling Brillig from ACIR: call the proxy if it's global.
+                    if let Some(proxy) = proxy {
+                        ident.name = proxy.name.clone();
+                        ident.definition = Definition::Function(proxy.id);
+                    }
                     // Pass the limit by value.
                     let limit_expr = if is_main {
                         expr::ident(
@@ -315,7 +311,7 @@ pub(crate) fn add_recursion_limit(
                     let param_type = &mut param_types[i];
                     if let Type::Function(param_types, _, _, param_unconstrained) = param_type {
                         let typ =
-                            limit_type_for_func_param(callee_unconstrained, *param_unconstrained);
+                            limit_type_for_func_param(*callee_unconstrained, *param_unconstrained);
 
                         // If we need to pass by value, then it's going to the proxy.
                         // We don't have to update when the value we pass on is an input parameter,
