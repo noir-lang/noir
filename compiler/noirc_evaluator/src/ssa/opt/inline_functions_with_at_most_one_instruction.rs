@@ -1,7 +1,7 @@
 //! This modules defines an SSA pass that inlines calls to simple functions.
 //! That is, the contents of the called function is put directly into the caller's body.
 //! Functions are still restricted to not be inlined if they are recursive or marked with no predicates.
-//! 
+//!
 //! A simple function is defined as the following:
 //! - Contains no more than 10 instructions
 //! - The function only has a single block (e.g. no control flow or conditional branches)
