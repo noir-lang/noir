@@ -2,7 +2,7 @@
 source: tooling/nargo_cli/tests/execute.rs
 expression: expanded_code
 ---
-use std::ops::arith::Add;
+use std::ops::Add;
 
 fn main(priv_key: Field, pub_x: pub Field, pub_y: pub Field) {
     let g1: std::embedded_curve_ops::EmbeddedCurvePoint =

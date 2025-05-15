@@ -85,9 +85,16 @@ fn get_expanded_package(
     let mut builder = ItemBuilder::new(crate_id, &context.def_interner, &context.def_maps);
     let item = builder.build_module(module_id);
 
+    let dependencies = &context.crate_graph[context.root_crate_id()].dependencies;
+
     let mut string = String::new();
-    let mut printer =
-        ItemPrinter::new(crate_id, &context.def_interner, &context.def_maps, &mut string);
+    let mut printer = ItemPrinter::new(
+        crate_id,
+        &context.def_interner,
+        &context.def_maps,
+        dependencies,
+        &mut string,
+    );
     printer.show_item(item);
 
     let (parsed_module, errors) = parse_program_with_dummy_file(&string);
