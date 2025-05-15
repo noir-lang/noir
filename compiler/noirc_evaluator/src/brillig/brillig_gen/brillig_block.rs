@@ -803,9 +803,24 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
 
                 let array_variable = self.convert_ssa_value(*array, dfg);
 
-                let index_variable = self.convert_ssa_single_addr_value(*index, dfg);
+                // If the index is a constant we can directly fetch the value from the brillig array or vector
+                // by skipping the `[RC, ...` (for arrays) or `[RC, Size, Capacity, ...` (for vectors) elements.
+                let index_constant = dfg.get_numeric_constant(*index);
+                let index_variable = if let Some(index_constant) = index_constant {
+                    let offset = if matches!(dfg.type_of_value(*array), Type::Array(..)) {
+                        // Brillig arrays are [RC, ...items]
+                        1u128
+                    } else {
+                        // Brillig vectors are [RC, Size, Capacity, ...items]
+                        3u128
+                    };
+                    let shifted_index = index_constant + offset.into();
+                    self.brillig_context.make_usize_constant_instruction(shifted_index)
+                } else {
+                    self.convert_ssa_single_addr_value(*index, dfg)
+                };
 
-                if dfg.is_constant(*index) {
+                if index_constant.is_some() {
                     self.brillig_context.codegen_load_with_offset(
                         array_variable.extract_register(),
                         index_variable,

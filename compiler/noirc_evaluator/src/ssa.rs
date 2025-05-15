@@ -204,13 +204,6 @@ pub fn primary_passes(options: &SsaEvaluatorOptions) -> Vec<SsaPass> {
         // Remove any potentially unnecessary duplication from the Brillig entry point analysis.
         SsaPass::new(Ssa::remove_unreachable_functions, "Removing Unreachable Functions"),
         SsaPass::new(Ssa::remove_truncate_after_range_check, "Removing Truncate after RangeCheck"),
-        // This pass makes transformations specific to Brillig generation.
-        // It must be the last pass to either alter or add new instructions before Brillig generation,
-        // as other semantics in the compiler can potentially break (e.g. inserting instructions).
-        // We can safely place the pass before DIE as that pass only removes instructions.
-        // We also need DIE's tracking of used globals in case the array get transformations
-        // end up using an existing constant from the globals space.
-        SsaPass::new(Ssa::brillig_array_gets, "Brillig Array Get Optimizations"),
         SsaPass::new(Ssa::dead_instruction_elimination, "Dead Instruction Elimination"),
         // A function can be potentially unreachable post-DIE if all calls to that function were removed.
         SsaPass::new(Ssa::remove_unreachable_functions, "Removing Unreachable Functions"),
@@ -247,8 +240,6 @@ pub fn minimal_passes() -> Vec<SsaPass<'static>> {
         SsaPass::new(Ssa::remove_unreachable_functions, "Removing Unreachable Functions"),
         // We need a DIE pass to populate `used_globals`, otherwise it will panic later.
         SsaPass::new(Ssa::dead_instruction_elimination, "Dead Instruction Elimination"),
-        // We need to add an offset to constant array indices in Brillig.
-        SsaPass::new(Ssa::brillig_array_gets, "Brillig Array Get Optimizations"),
     ]
 }
 
