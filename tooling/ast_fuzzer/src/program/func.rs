@@ -185,7 +185,7 @@ impl<'a> FunctionContext<'a> {
         );
 
         // Collect all the functions we can call from this one.
-        // TODO: Include functions in parameters.
+        // TODO(#8484): Look for call targets in function-valued arguments as well.
         let call_targets = ctx
             .function_declarations
             .iter()
@@ -954,8 +954,6 @@ impl<'a> FunctionContext<'a> {
         // Decrease the budget so we avoid a potential infinite nesting of calls.
         self.decrease_budget(1);
 
-        // TODO: Look for callables in the parameters as well.
-
         let opts = self
             .call_targets
             .iter()
@@ -1176,7 +1174,7 @@ impl<'a> FunctionContext<'a> {
             );
         };
 
-        // TODO: Take the callee ID into account, so we don't create a problem inlining ACIR.
+        // TODO(#8484): Take the callee ID into account, so we don't create a problem inlining ACIR.
         let candidates = self
             .ctx
             .function_declarations
