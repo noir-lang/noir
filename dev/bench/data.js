@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1747306714898,
+  "lastUpdate": 1747306724879,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -3833,95 +3833,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "mvezenov@gmail.com",
-            "name": "Maxim Vezenov",
-            "username": "vezenovm"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "b42264b75875f6edbb6f718408be104291c0de33",
-          "message": "chore(acir): Test whether the predicate has an effect on slice intrinsics (#8421)",
-          "timestamp": "2025-05-08T22:33:20Z",
-          "tree_id": "975e8a85a8d7d42a72d5098ed284cae3401647e2",
-          "url": "https://github.com/noir-lang/noir/commit/b42264b75875f6edbb6f718408be104291c0de33"
-        },
-        "date": 1746745086756,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "regression_4709",
-            "value": 0.652,
-            "unit": "s"
-          },
-          {
-            "name": "ram_blowup_regression",
-            "value": 12.6,
-            "unit": "s"
-          },
-          {
-            "name": "global_var_regression_entry_points",
-            "value": 0.346,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-inner",
-            "value": 2.244,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 6.384,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 1.142,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 17.36,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 13.2,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root-empty",
-            "value": 1.248,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root-single-tx",
-            "value": 119,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 128,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 1.06,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-root",
-            "value": 1.6,
-            "unit": "s"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "163862677+noirwhal@users.noreply.github.com",
             "name": "noirwhal",
             "username": "noirwhal"
@@ -7726,6 +7637,85 @@ window.BENCHMARK_DATA = {
           {
             "name": "semaphore-depth-10",
             "value": 0.819,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "aakoshh@gmail.com",
+            "name": "Akosh Farkash",
+            "username": "aakoshh"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "bc6cf4fda9535584c41849a410f5ac546d01dc01",
+          "message": "feat(fuzz): AST fuzzing with SSA interpreter (#8436)\n\nCo-authored-by: Jake Fecher <jfecher11@gmail.com>",
+          "timestamp": "2025-05-15T10:34:26Z",
+          "tree_id": "e90117fafec6f8b0ac76a7408ebf58f0a04f057e",
+          "url": "https://github.com/noir-lang/noir/commit/bc6cf4fda9535584c41849a410f5ac546d01dc01"
+        },
+        "date": 1747306715230,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 2.326,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 6.692,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 1.058,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 16.94,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 12.78,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-empty",
+            "value": 1.274,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-single-tx",
+            "value": 122,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 127,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 1.066,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-root",
+            "value": 1.65,
+            "unit": "s"
+          },
+          {
+            "name": "semaphore-depth-10",
+            "value": 0.813,
             "unit": "s"
           }
         ]
