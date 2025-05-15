@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1747324786281,
+  "lastUpdate": 1747338972507,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -18031,48 +18031,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "15848336+TomAFrench@users.noreply.github.com",
-            "name": "Tom French",
-            "username": "TomAFrench"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "2114ae222cb19936e1e85f211fdc447e86d0a5a4",
-          "message": "chore: separate benchmarking from github actions more (#7943)\n\nCo-authored-by: AztecBot <tech@aztecprotocol.com>",
-          "timestamp": "2025-05-09T12:44:43Z",
-          "tree_id": "ac185fd0a73155ba48721dadda658884f33a903d",
-          "url": "https://github.com/noir-lang/noir/commit/2114ae222cb19936e1e85f211fdc447e86d0a5a4"
-        },
-        "date": 1746795805281,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 290350,
-            "range": "± 668",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 260248,
-            "range": "± 838",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 3251640,
-            "range": "± 8266",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "163862677+noirwhal@users.noreply.github.com",
             "name": "noirwhal",
             "username": "noirwhal"
@@ -20124,6 +20082,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 3572682,
             "range": "± 1583",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "asterite@gmail.com",
+            "name": "Ary Borenszweig",
+            "username": "asterite"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "6549f7fc2faad8e431428d4600e1212b04367c83",
+          "message": "chore: remove some unused enum variants and functions (#8538)",
+          "timestamp": "2025-05-15T19:37:31Z",
+          "tree_id": "0f976e68026143402bb5ebeb7cd76639ea88714d",
+          "url": "https://github.com/noir-lang/noir/commit/6549f7fc2faad8e431428d4600e1212b04367c83"
+        },
+        "date": 1747338962389,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 262971,
+            "range": "± 893",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 232989,
+            "range": "± 10126",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 3215753,
+            "range": "± 8075",
             "unit": "ns/iter"
           }
         ]
