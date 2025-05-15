@@ -661,6 +661,15 @@ impl<Pattern> TupleWithDoubleDot<Pattern> {
         let elements_after = elements.get(right_index..).unwrap_or(&[]);
         (elements_before, elements_at_double_dot, elements_after)
     }
+
+    /// Returns an iterator over the patterns, where patterns before and after the `..`
+    /// will be `Some`, and the single `..` pattern will be `None`.
+    pub fn iter(&self) -> impl Iterator<Item = Option<&Pattern>> {
+        let before = self.before.iter().map(Some);
+        let double_dot = std::iter::once(None);
+        let after = self.after.iter().map(Some);
+        before.chain(double_dot).chain(after)
+    }
 }
 
 impl LValue {
@@ -1026,19 +1035,16 @@ impl Display for Pattern {
             }
             Pattern::TupleWithDoubleDot(tuple) => {
                 write!(f, "(")?;
-                for (index, pattern) in tuple.before.iter().enumerate() {
+
+                for (index, pattern) in tuple.iter().enumerate() {
                     if index != 0 {
                         write!(f, ", ")?;
                     }
-                    write!(f, "{pattern}")?;
-                }
-                if !tuple.before.is_empty() {
-                    write!(f, ", ")?;
-                }
-                write!(f, "..")?;
-                for pattern in &tuple.after {
-                    write!(f, ", ")?;
-                    write!(f, "{pattern}")?;
+                    if let Some(pattern) = pattern {
+                        write!(f, "{pattern}")?;
+                    } else {
+                        write!(f, "..")?;
+                    }
                 }
                 write!(f, ")")
             }

@@ -49,27 +49,18 @@ impl Formatter<'_> {
                 self.write_right_paren();
             }
             Pattern::TupleWithDoubleDot(tuple) => {
-                let has_before = !tuple.before.is_empty();
-
                 self.write_left_paren();
-                for (index, pattern) in tuple.before.into_iter().enumerate() {
+
+                for (index, pattern) in tuple.iter().enumerate() {
                     if index > 0 {
                         self.write_comma();
                         self.write_space();
                     }
-                    self.format_pattern(pattern);
-                }
-
-                if has_before {
-                    self.write_comma();
-                    self.write_space();
-                }
-                self.write_token(Token::DoubleDot);
-
-                for pattern in tuple.after {
-                    self.write_comma();
-                    self.write_space();
-                    self.format_pattern(pattern);
+                    if let Some(pattern) = pattern {
+                        self.format_pattern(pattern.clone());
+                    } else {
+                        self.write_token(Token::DoubleDot);
+                    }
                 }
 
                 // Check for trailing comma

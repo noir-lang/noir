@@ -738,19 +738,15 @@ impl<'interner, 'def_map, 'string> ItemPrinter<'interner, 'def_map, 'string> {
             }
             HirPattern::TupleWithDoubleDot(tuple) => {
                 self.push('(');
-                for (index, pattern) in tuple.before.iter().enumerate() {
+                for (index, pattern) in tuple.iter().enumerate() {
                     if index != 0 {
                         self.push_str(", ");
                     }
-                    self.show_pattern(pattern);
-                }
-                if !tuple.before.is_empty() {
-                    self.push_str(", ");
-                }
-                self.push_str("..");
-                for pattern in &tuple.after {
-                    self.push_str(", ");
-                    self.show_pattern(pattern);
+                    if let Some(pattern) = pattern {
+                        self.show_pattern(pattern);
+                    } else {
+                        self.push_str("..");
+                    }
                 }
                 self.push(')');
             }

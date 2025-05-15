@@ -661,17 +661,13 @@ impl ItemPrinter<'_, '_, '_> {
             }
             HirPattern::TupleWithDoubleDot(tuple) => {
                 self.push('(');
-                self.show_separated_by_comma(&tuple.before, |this, pattern| {
-                    this.show_hir_pattern(pattern);
+                self.show_separated_by_comma(&tuple.iter().collect::<Vec<_>>(), |this, pattern| {
+                    if let Some(pattern) = pattern {
+                        this.show_hir_pattern(pattern);
+                    } else {
+                        this.push_str("..");
+                    }
                 });
-                if !tuple.before.is_empty() {
-                    self.push_str(", ");
-                }
-                self.push_str("..");
-                for pattern in &tuple.after {
-                    self.push_str(", ");
-                    self.show_hir_pattern(pattern);
-                }
                 self.push(')');
             }
             HirPattern::Struct(typ, items, _location) => {

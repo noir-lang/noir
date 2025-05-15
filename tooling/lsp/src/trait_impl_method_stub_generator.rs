@@ -141,24 +141,16 @@ impl<'a> TraitImplMethodStubGenerator<'a> {
             }
             HirPattern::TupleWithDoubleDot(tuple) => {
                 self.string.push('(');
-
-                for (index, pattern) in tuple.before.iter().enumerate() {
+                for (index, pattern) in tuple.iter().enumerate() {
                     if index > 0 {
                         self.string.push_str(", ");
                     }
-                    self.append_pattern(pattern);
+                    if let Some(pattern) = pattern {
+                        self.append_pattern(pattern);
+                    } else {
+                        self.string.push_str("..");
+                    }
                 }
-
-                if !tuple.before.is_empty() {
-                    self.string.push_str(", ");
-                }
-                self.string.push_str("..");
-
-                for pattern in &tuple.after {
-                    self.string.push_str(", ");
-                    self.append_pattern(pattern);
-                }
-
                 self.string.push(')');
                 true
             }

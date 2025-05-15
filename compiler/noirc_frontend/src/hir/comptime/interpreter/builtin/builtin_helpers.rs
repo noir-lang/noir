@@ -437,19 +437,15 @@ fn gather_hir_pattern_tokens(
         }
         HirPattern::TupleWithDoubleDot(tuple) => {
             tokens.push(Token::LeftParen);
-            for (index, pattern) in tuple.before.iter().enumerate() {
+            for (index, pattern) in tuple.iter().enumerate() {
                 if index != 0 {
                     tokens.push(Token::Comma);
                 }
-                gather_hir_pattern_tokens(interner, pattern, tokens);
-            }
-            if !tuple.before.is_empty() {
-                tokens.push(Token::Comma);
-            }
-            tokens.push(Token::DoubleDot);
-            for pattern in &tuple.after {
-                tokens.push(Token::Comma);
-                gather_hir_pattern_tokens(interner, pattern, tokens);
+                if let Some(pattern) = pattern {
+                    gather_hir_pattern_tokens(interner, pattern, tokens);
+                } else {
+                    tokens.push(Token::DoubleDot);
+                }
             }
             tokens.push(Token::RightParen);
         }
