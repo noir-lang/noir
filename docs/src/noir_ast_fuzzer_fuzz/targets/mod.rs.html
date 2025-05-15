@@ -57,11 +57,11 @@
 <a href="#56" id="56">56</a>
 <a href="#57" id="57">57</a>
 <a href="#58" id="58">58</a>
-<a href="#59" id="59">59</a>
-<a href="#60" id="60">60</a></pre></div><pre class="rust"><code><span class="kw">pub mod </span>acir_vs_brillig;
+<a href="#59" id="59">59</a></pre></div><pre class="rust"><code><span class="kw">pub mod </span>acir_vs_brillig;
 <span class="kw">pub mod </span>comptime_vs_brillig;
 <span class="kw">pub mod </span>min_vs_full;
 <span class="kw">pub mod </span>orig_vs_morph;
+<span class="kw">pub mod </span>pass_vs_prev;
 
 <span class="attr">#[cfg(test)]
 </span><span class="kw">mod </span>tests {
@@ -84,10 +84,9 @@
     /// ```ignore
     /// cargo test -p noir_ast_fuzzer_fuzz
     /// ```
-    </span><span class="kw">pub fn </span>should_ignore_on_ci() -&gt; bool {
-        <span class="comment">// TODO: Enable on CI once the following are fixed:
-        // #8229, #8230, #8231, #8236, #8261, #8262
-        </span>std::env::var(<span class="string">"CI"</span>).is_ok()
+    </span><span class="attr">#[allow(unused)]
+    </span><span class="kw">pub fn </span>is_running_in_ci() -&gt; bool {
+        std::env::var(<span class="string">"CI"</span>).is_ok()
     }
 
     <span class="doccomment">/// `cargo fuzz` takes a long time to ramp up the complexity.
@@ -100,9 +99,8 @@
     /// cargo test -p noir_ast_fuzzer_fuzz acir_vs_brillig
     /// ```
     </span><span class="kw">pub fn </span>fuzz_with_arbtest(f: <span class="kw">impl </span>Fn(<span class="kw-2">&amp;mut </span>Unstructured) -&gt; eyre::Result&lt;()&gt;) {
-        <span class="kw">if </span>should_ignore_on_ci() {
-            <span class="kw">return</span>;
-        }
+        <span class="kw">let _ </span>= env_logger::try_init();
+
         <span class="kw">let </span><span class="kw-2">mut </span>prop = arbtest::arbtest(|u| {
             f(u).unwrap();
             <span class="prelude-val">Ok</span>(())

@@ -142,10 +142,7 @@
 <a href="#141" id="141">141</a>
 <a href="#142" id="142">142</a>
 <a href="#143" id="143">143</a>
-<a href="#144" id="144">144</a>
-<a href="#145" id="145">145</a>
-<a href="#146" id="146">146</a>
-<a href="#147" id="147">147</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::collections::BTreeMap;
+<a href="#144" id="144">144</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::collections::BTreeMap;
 
 <span class="kw">use </span>acvm::acir::circuit::ErrorSelector;
 <span class="kw">use </span>fxhash::{FxHashMap <span class="kw">as </span>HashMap, FxHashSet <span class="kw">as </span>HashSet};
@@ -186,10 +183,7 @@
 <span class="kw">impl </span>Ssa {
     <span class="doccomment">/// Create a new Ssa object from the given SSA functions.
     /// The first function in this vector is expected to be the main function.
-    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>new(
-        functions: Vec&lt;Function&gt;,
-        error_types: BTreeMap&lt;ErrorSelector, HirType&gt;,
-    ) -&gt; <span class="self">Self </span>{
+    </span><span class="kw">pub fn </span>new(functions: Vec&lt;Function&gt;, error_types: BTreeMap&lt;ErrorSelector, HirType&gt;) -&gt; <span class="self">Self </span>{
         <span class="kw">let </span>main_id = functions.first().expect(<span class="string">"Expected at least 1 SSA function"</span>).id();
         <span class="kw">let </span><span class="kw-2">mut </span>max_id = main_id;
 

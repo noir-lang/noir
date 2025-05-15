@@ -140,17 +140,93 @@
 <a href="#139" id="139">139</a>
 <a href="#140" id="140">140</a>
 <a href="#141" id="141">141</a>
-<a href="#142" id="142">142</a></pre></div><pre class="rust"><code><span class="kw">use </span>arbitrary::Unstructured;
+<a href="#142" id="142">142</a>
+<a href="#143" id="143">143</a>
+<a href="#144" id="144">144</a>
+<a href="#145" id="145">145</a>
+<a href="#146" id="146">146</a>
+<a href="#147" id="147">147</a>
+<a href="#148" id="148">148</a>
+<a href="#149" id="149">149</a>
+<a href="#150" id="150">150</a>
+<a href="#151" id="151">151</a>
+<a href="#152" id="152">152</a>
+<a href="#153" id="153">153</a>
+<a href="#154" id="154">154</a>
+<a href="#155" id="155">155</a>
+<a href="#156" id="156">156</a>
+<a href="#157" id="157">157</a>
+<a href="#158" id="158">158</a>
+<a href="#159" id="159">159</a>
+<a href="#160" id="160">160</a>
+<a href="#161" id="161">161</a>
+<a href="#162" id="162">162</a>
+<a href="#163" id="163">163</a>
+<a href="#164" id="164">164</a>
+<a href="#165" id="165">165</a>
+<a href="#166" id="166">166</a>
+<a href="#167" id="167">167</a>
+<a href="#168" id="168">168</a>
+<a href="#169" id="169">169</a>
+<a href="#170" id="170">170</a>
+<a href="#171" id="171">171</a>
+<a href="#172" id="172">172</a>
+<a href="#173" id="173">173</a>
+<a href="#174" id="174">174</a>
+<a href="#175" id="175">175</a>
+<a href="#176" id="176">176</a>
+<a href="#177" id="177">177</a>
+<a href="#178" id="178">178</a>
+<a href="#179" id="179">179</a>
+<a href="#180" id="180">180</a>
+<a href="#181" id="181">181</a>
+<a href="#182" id="182">182</a>
+<a href="#183" id="183">183</a>
+<a href="#184" id="184">184</a>
+<a href="#185" id="185">185</a>
+<a href="#186" id="186">186</a>
+<a href="#187" id="187">187</a>
+<a href="#188" id="188">188</a>
+<a href="#189" id="189">189</a>
+<a href="#190" id="190">190</a>
+<a href="#191" id="191">191</a>
+<a href="#192" id="192">192</a>
+<a href="#193" id="193">193</a>
+<a href="#194" id="194">194</a>
+<a href="#195" id="195">195</a>
+<a href="#196" id="196">196</a>
+<a href="#197" id="197">197</a>
+<a href="#198" id="198">198</a>
+<a href="#199" id="199">199</a>
+<a href="#200" id="200">200</a>
+<a href="#201" id="201">201</a>
+<a href="#202" id="202">202</a>
+<a href="#203" id="203">203</a>
+<a href="#204" id="204">204</a>
+<a href="#205" id="205">205</a>
+<a href="#206" id="206">206</a>
+<a href="#207" id="207">207</a>
+<a href="#208" id="208">208</a>
+<a href="#209" id="209">209</a>
+<a href="#210" id="210">210</a>
+<a href="#211" id="211">211</a>
+<a href="#212" id="212">212</a>
+<a href="#213" id="213">213</a>
+<a href="#214" id="214">214</a>
+<a href="#215" id="215">215</a></pre></div><pre class="rust"><code><span class="doccomment">//! Compare an arbitrary AST compiled into bytecode and executed with the VM.
+</span><span class="kw">use </span>acir::{FieldElement, native_types::WitnessStack};
+<span class="kw">use </span>acvm::pwg::{OpcodeResolutionError, ResolvedAssertionPayload};
+<span class="kw">use </span>arbitrary::Unstructured;
 <span class="kw">use </span>bn254_blackbox_solver::Bn254BlackBoxSolver;
 <span class="kw">use </span>color_eyre::eyre::{<span class="self">self</span>, WrapErr};
-<span class="kw">use </span>nargo::foreign_calls::DefaultForeignCallBuilder;
-<span class="kw">use </span>noirc_abi::{Abi, InputMap};
+<span class="kw">use </span>nargo::{NargoError, errors::ExecutionError, foreign_calls::DefaultForeignCallBuilder};
+<span class="kw">use </span>noirc_abi::{Abi, InputMap, input_parser::InputValue};
 <span class="kw">use </span>noirc_evaluator::ssa::SsaProgramArtifact;
 <span class="kw">use </span>noirc_frontend::monomorphization::ast::Program;
 
 <span class="kw">use crate</span>::{Config, arb_inputs, arb_program, program_abi};
 
-<span class="kw">use super</span>::{CompareOptions, CompareResult, HasPrograms};
+<span class="kw">use super</span>::{Comparable, CompareOptions, CompareResult, ExecOutput, HasPrograms};
 
 <span class="kw">pub struct </span>CompareArtifact {
     <span class="kw">pub </span>options: CompareOptions,
@@ -169,6 +245,76 @@
     }
 }
 
+<span class="doccomment">/// The execution result is the value returned from the circuit and any output from `println`.
+</span><span class="kw">type </span>ExecResult = (<span class="prelude-ty">Result</span>&lt;WitnessStack&lt;FieldElement&gt;, NargoError&lt;FieldElement&gt;&gt;, String);
+
+<span class="doccomment">/// The result of the execution of compiled programs, decoded by their ABI.
+</span><span class="kw">pub type </span>CompareCompiledResult = CompareResult&lt;InputValue, NargoError&lt;FieldElement&gt;&gt;;
+
+<span class="kw">impl </span>CompareCompiledResult {
+    <span class="kw">pub fn </span>new(
+        abi: <span class="kw-2">&amp;</span>Abi,
+        (res1, print1): ExecResult,
+        (res2, print2): ExecResult,
+    ) -&gt; eyre::Result&lt;<span class="self">Self</span>&gt; {
+        <span class="kw">let </span>decode = |ws: WitnessStack&lt;FieldElement&gt;| -&gt; eyre::Result&lt;<span class="prelude-ty">Option</span>&lt;InputValue&gt;&gt; {
+            <span class="kw">let </span>wm = <span class="kw-2">&amp;</span>ws.peek().expect(<span class="string">"there should be a main witness"</span>).witness;
+            <span class="kw">let </span>(<span class="kw">_</span>, r) = abi.decode(wm).wrap_err(<span class="string">"abi::decode"</span>)<span class="question-mark">?</span>;
+            <span class="prelude-val">Ok</span>(r)
+        };
+
+        <span class="kw">match </span>(res1, res2) {
+            (<span class="prelude-val">Err</span>(e1), <span class="prelude-val">Err</span>(e2)) =&gt; <span class="prelude-val">Ok</span>(CompareResult::BothFailed(e1, e2)),
+            (<span class="prelude-val">Err</span>(e1), <span class="prelude-val">Ok</span>(ws2)) =&gt; <span class="prelude-val">Ok</span>(CompareResult::LeftFailed(
+                e1,
+                ExecOutput { return_value: decode(ws2)<span class="question-mark">?</span>, print_output: print2 },
+            )),
+            (<span class="prelude-val">Ok</span>(ws1), <span class="prelude-val">Err</span>(e2)) =&gt; <span class="prelude-val">Ok</span>(CompareResult::RightFailed(
+                ExecOutput { return_value: decode(ws1)<span class="question-mark">?</span>, print_output: print1 },
+                e2,
+            )),
+            (<span class="prelude-val">Ok</span>(ws1), <span class="prelude-val">Ok</span>(ws2)) =&gt; {
+                <span class="kw">let </span>o1 = ExecOutput { return_value: decode(ws1)<span class="question-mark">?</span>, print_output: print1 };
+                <span class="kw">let </span>o2 = ExecOutput { return_value: decode(ws2)<span class="question-mark">?</span>, print_output: print2 };
+                <span class="prelude-val">Ok</span>(CompareResult::BothPassed(o1, o2))
+            }
+        }
+    }
+}
+
+<span class="kw">impl </span>Comparable <span class="kw">for </span>NargoError&lt;FieldElement&gt; {
+    <span class="kw">fn </span>equivalent(e1: <span class="kw-2">&amp;</span><span class="self">Self</span>, e2: <span class="kw-2">&amp;</span><span class="self">Self</span>) -&gt; bool {
+        <span class="kw">use </span>ExecutionError::<span class="kw-2">*</span>;
+
+        <span class="comment">// For now consider non-execution errors as failures we need to investigate.
+        </span><span class="kw">let </span>NargoError::ExecutionError(ee1) = e1 <span class="kw">else </span>{
+            <span class="kw">return </span><span class="bool-val">false</span>;
+        };
+        <span class="kw">let </span>NargoError::ExecutionError(ee2) = e2 <span class="kw">else </span>{
+            <span class="kw">return </span><span class="bool-val">false</span>;
+        };
+
+        <span class="kw">match </span>(ee1, ee2) {
+            (AssertionFailed(p1, <span class="kw">_</span>, <span class="kw">_</span>), AssertionFailed(p2, <span class="kw">_</span>, <span class="kw">_</span>)) =&gt; p1 == p2,
+            (SolvingError(s1, <span class="kw">_</span>), SolvingError(s2, <span class="kw">_</span>)) =&gt; <span class="macro">format!</span>(<span class="string">"{s1}"</span>) == <span class="macro">format!</span>(<span class="string">"{s2}"</span>),
+            (SolvingError(s, <span class="kw">_</span>), AssertionFailed(p, <span class="kw">_</span>, <span class="kw">_</span>))
+            | (AssertionFailed(p, <span class="kw">_</span>, <span class="kw">_</span>), SolvingError(s, <span class="kw">_</span>)) =&gt; <span class="kw">match </span>(s, p) {
+                (
+                    OpcodeResolutionError::UnsatisfiedConstrain { .. },
+                    ResolvedAssertionPayload::String(s),
+                ) =&gt; s == <span class="string">"Attempted to divide by zero"</span>,
+                <span class="kw">_ </span>=&gt; <span class="bool-val">false</span>,
+            },
+        }
+    }
+}
+
+<span class="kw">impl </span>Comparable <span class="kw">for </span>InputValue {
+    <span class="kw">fn </span>equivalent(a: <span class="kw-2">&amp;</span><span class="self">Self</span>, b: <span class="kw-2">&amp;</span><span class="self">Self</span>) -&gt; bool {
+        a == b
+    }
+}
+
 <span class="doccomment">/// Compare the execution of equivalent programs, compiled in different ways.
 </span><span class="kw">pub struct </span>CompareCompiled&lt;P&gt; {
     <span class="kw">pub </span>program: P,
@@ -180,7 +326,7 @@
 
 <span class="kw">impl</span>&lt;P&gt; CompareCompiled&lt;P&gt; {
     <span class="doccomment">/// Execute the two SSAs and compare the results.
-    </span><span class="kw">pub fn </span>exec(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; eyre::Result&lt;CompareResult&gt; {
+    </span><span class="kw">pub fn </span>exec(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; eyre::Result&lt;CompareCompiledResult&gt; {
         <span class="kw">let </span>blackbox_solver = Bn254BlackBoxSolver(<span class="bool-val">false</span>);
         <span class="kw">let </span>initial_witness = <span class="self">self</span>.abi.encode(<span class="kw-2">&amp;</span><span class="self">self</span>.input_map, <span class="prelude-val">None</span>).wrap_err(<span class="string">"abi::encode"</span>)<span class="question-mark">?</span>;
 
@@ -206,7 +352,7 @@
         <span class="kw">let </span>(res1, print1) = do_exec(<span class="kw-2">&amp;</span><span class="self">self</span>.ssa1.artifact.program);
         <span class="kw">let </span>(res2, print2) = do_exec(<span class="kw-2">&amp;</span><span class="self">self</span>.ssa2.artifact.program);
 
-        CompareResult::new(<span class="kw-2">&amp;</span><span class="self">self</span>.abi, (res1, print1), (res2, print2))
+        CompareCompiledResult::new(<span class="kw-2">&amp;</span><span class="self">self</span>.abi, (res1, print1), (res2, print2))
     }
 }
 

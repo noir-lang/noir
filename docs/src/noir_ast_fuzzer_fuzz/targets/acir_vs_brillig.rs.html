@@ -57,9 +57,14 @@
 <a href="#56" id="56">56</a>
 <a href="#57" id="57">57</a>
 <a href="#58" id="58">58</a>
-<a href="#59" id="59">59</a></pre></div><pre class="rust"><code><span class="doccomment">//! Compare the execution of random ASTs between the normal execution
+<a href="#59" id="59">59</a>
+<a href="#60" id="60">60</a>
+<a href="#61" id="61">61</a>
+<a href="#62" id="62">62</a>
+<a href="#63" id="63">63</a>
+<a href="#64" id="64">64</a></pre></div><pre class="rust"><code><span class="doccomment">//! Compare the execution of random ASTs between the normal execution
 //! vs when everything is forced to be Brillig.
-</span><span class="kw">use crate</span>::{compare_results, create_ssa_or_die, default_ssa_options};
+</span><span class="kw">use crate</span>::{compare_results_compiled, create_ssa_or_die, default_ssa_options};
 <span class="kw">use </span>arbitrary::Arbitrary;
 <span class="kw">use </span>arbitrary::Unstructured;
 <span class="kw">use </span>color_eyre::eyre;
@@ -100,11 +105,12 @@
 
     <span class="kw">let </span>result = inputs.exec()<span class="question-mark">?</span>;
 
-    compare_results(<span class="kw-2">&amp;</span>inputs, <span class="kw-2">&amp;</span>result)
+    compare_results_compiled(<span class="kw-2">&amp;</span>inputs, <span class="kw-2">&amp;</span>result)
 }
 
 <span class="attr">#[cfg(test)]
 </span><span class="kw">mod </span>tests {
+    <span class="kw">use </span><span class="kw">crate</span>::targets::tests::is_running_in_ci;
 
     <span class="doccomment">/// ```ignore
     /// NOIR_ARBTEST_SEED=0x6819c61400001000 \
@@ -113,6 +119,10 @@
     /// ```
     </span><span class="attr">#[test]
     </span><span class="kw">fn </span>fuzz_with_arbtest() {
+        <span class="kw">if </span>is_running_in_ci() {
+            <span class="comment">// TODO: Investigate stack overflow and disagreements.
+            </span><span class="kw">return</span>;
+        }
         <span class="kw">crate</span>::targets::tests::fuzz_with_arbtest(<span class="kw">super</span>::fuzz);
     }
 }

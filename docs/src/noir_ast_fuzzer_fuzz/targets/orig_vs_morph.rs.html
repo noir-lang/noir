@@ -369,7 +369,7 @@
 
 </span><span class="kw">use </span>std::collections::{HashSet, VecDeque};
 
-<span class="kw">use crate</span>::{compare_results, create_ssa_or_die, default_ssa_options};
+<span class="kw">use crate</span>::{compare_results_compiled, create_ssa_or_die, default_ssa_options};
 <span class="kw">use </span>arbitrary::{Arbitrary, Unstructured};
 <span class="kw">use </span>color_eyre::eyre;
 <span class="kw">use </span>noir_ast_fuzzer::compare::{CompareMorph, CompareOptions};
@@ -399,7 +399,7 @@
 
     <span class="kw">let </span>result = inputs.exec()<span class="question-mark">?</span>;
 
-    compare_results(<span class="kw-2">&amp;</span>inputs, <span class="kw-2">&amp;</span>result)
+    compare_results_compiled(<span class="kw-2">&amp;</span>inputs, <span class="kw-2">&amp;</span>result)
 }
 
 <span class="kw">fn </span>rewrite_program(

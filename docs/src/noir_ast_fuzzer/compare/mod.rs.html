@@ -139,43 +139,31 @@
 <a href="#138" id="138">138</a>
 <a href="#139" id="139">139</a>
 <a href="#140" id="140">140</a>
-<a href="#141" id="141">141</a>
-<a href="#142" id="142">142</a>
-<a href="#143" id="143">143</a>
-<a href="#144" id="144">144</a>
-<a href="#145" id="145">145</a>
-<a href="#146" id="146">146</a>
-<a href="#147" id="147">147</a>
-<a href="#148" id="148">148</a>
-<a href="#149" id="149">149</a>
-<a href="#150" id="150">150</a>
-<a href="#151" id="151">151</a>
-<a href="#152" id="152">152</a>
-<a href="#153" id="153">153</a>
-<a href="#154" id="154">154</a>
-<a href="#155" id="155">155</a>
-<a href="#156" id="156">156</a></pre></div><pre class="rust"><code><span class="kw">use </span>acir::{FieldElement, native_types::WitnessStack};
-<span class="kw">use </span>acvm::pwg::{OpcodeResolutionError, ResolvedAssertionPayload};
+<a href="#141" id="141">141</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::{
+    fmt::{Debug, Display},
+    ops::Deref,
+};
+
 <span class="kw">use </span>arbitrary::{Arbitrary, Unstructured};
-<span class="kw">use </span>color_eyre::eyre::{<span class="self">self</span>, WrapErr, bail};
-<span class="kw">use </span>nargo::{NargoError, errors::ExecutionError};
-<span class="kw">use </span>noirc_abi::{Abi, input_parser::InputValue};
+<span class="kw">use </span>color_eyre::eyre::{<span class="self">self</span>, bail};
 <span class="kw">use </span>noirc_evaluator::ssa::SsaEvaluatorOptions;
-<span class="kw">use </span>noirc_frontend::monomorphization::ast::Program;
+<span class="kw">use </span>noirc_frontend::{Shared, monomorphization::ast::Program};
 
 <span class="kw">mod </span>compiled;
 <span class="kw">mod </span>comptime;
+<span class="kw">mod </span>interpreted;
 
-<span class="kw">pub use </span>compiled::{CompareArtifact, CompareCompiled, CompareMorph, ComparePipelines};
+<span class="kw">pub use </span>compiled::{
+    CompareArtifact, CompareCompiled, CompareCompiledResult, CompareMorph, ComparePipelines,
+};
 <span class="kw">pub use </span>comptime::CompareComptime;
+<span class="kw">pub use </span>interpreted::{CompareInterpreted, CompareInterpretedResult, ComparePass};
 
 <span class="attr">#[derive(Clone, Debug, PartialEq)]
-</span><span class="kw">pub struct </span>ExecOutput {
-    <span class="kw">pub </span>return_value: <span class="prelude-ty">Option</span>&lt;InputValue&gt;,
+</span><span class="kw">pub struct </span>ExecOutput&lt;T&gt; {
+    <span class="kw">pub </span>return_value: <span class="prelude-ty">Option</span>&lt;T&gt;,
     <span class="kw">pub </span>print_output: String,
 }
-
-<span class="kw">type </span>ExecResult = (<span class="prelude-ty">Result</span>&lt;WitnessStack&lt;FieldElement&gt;, NargoError&lt;FieldElement&gt;&gt;, String);
 
 <span class="doccomment">/// Help iterate over the program(s) in the comparable artifact.
 </span><span class="kw">pub trait </span>HasPrograms {
@@ -204,54 +192,58 @@
     }
 }
 
+<span class="doccomment">/// Help ignore results and errors we find equivalent between executions.
+</span><span class="kw">pub trait </span>Comparable {
+    <span class="kw">fn </span>equivalent(a: <span class="kw-2">&amp;</span><span class="self">Self</span>, b: <span class="kw-2">&amp;</span><span class="self">Self</span>) -&gt; bool;
+}
+
+<span class="kw">impl</span>&lt;T: Comparable&gt; Comparable <span class="kw">for </span>Vec&lt;T&gt; {
+    <span class="kw">fn </span>equivalent(a: <span class="kw-2">&amp;</span><span class="self">Self</span>, b: <span class="kw-2">&amp;</span><span class="self">Self</span>) -&gt; bool {
+        a.len() == b.len() &amp;&amp; a.iter().zip(b).all(|(a, b)| Comparable::equivalent(a, b))
+    }
+}
+
+<span class="kw">impl</span>&lt;T: Comparable&gt; Comparable <span class="kw">for </span><span class="prelude-ty">Option</span>&lt;T&gt; {
+    <span class="kw">fn </span>equivalent(a: <span class="kw-2">&amp;</span><span class="self">Self</span>, b: <span class="kw-2">&amp;</span><span class="self">Self</span>) -&gt; bool {
+        <span class="kw">match </span>(a, b) {
+            (<span class="prelude-val">Some</span>(a), <span class="prelude-val">Some</span>(b)) =&gt; Comparable::equivalent(a, b),
+            (<span class="prelude-val">None</span>, <span class="prelude-val">None</span>) =&gt; <span class="bool-val">true</span>,
+            <span class="kw">_ </span>=&gt; <span class="bool-val">false</span>,
+        }
+    }
+}
+
+<span class="kw">impl</span>&lt;T: Comparable&gt; Comparable <span class="kw">for </span>Shared&lt;T&gt; {
+    <span class="kw">fn </span>equivalent(a: <span class="kw-2">&amp;</span><span class="self">Self</span>, b: <span class="kw-2">&amp;</span><span class="self">Self</span>) -&gt; bool {
+        <span class="kw">let </span>a = a.borrow();
+        <span class="kw">let </span>b = b.borrow();
+        Comparable::equivalent(a.deref(), b.deref())
+    }
+}
+
 <span class="doccomment">/// Possible outcomes of the differential execution of two equivalent programs.
 ///
 /// Use [CompareResult::return_value_or_err] to do the final comparison between
 /// the execution result.
-</span><span class="kw">pub enum </span>CompareResult {
-    BothFailed(NargoError&lt;FieldElement&gt;, NargoError&lt;FieldElement&gt;),
-    LeftFailed(NargoError&lt;FieldElement&gt;, ExecOutput),
-    RightFailed(ExecOutput, NargoError&lt;FieldElement&gt;),
-    BothPassed(ExecOutput, ExecOutput),
+</span><span class="kw">pub enum </span>CompareResult&lt;T, E&gt; {
+    BothFailed(E, E),
+    LeftFailed(E, ExecOutput&lt;T&gt;),
+    RightFailed(ExecOutput&lt;T&gt;, E),
+    BothPassed(ExecOutput&lt;T&gt;, ExecOutput&lt;T&gt;),
 }
 
-<span class="kw">impl </span>CompareResult {
-    <span class="kw">fn </span>new(
-        abi: <span class="kw-2">&amp;</span>Abi,
-        (res1, print1): ExecResult,
-        (res2, print2): ExecResult,
-    ) -&gt; eyre::Result&lt;<span class="self">Self</span>&gt; {
-        <span class="kw">let </span>decode = |ws: WitnessStack&lt;FieldElement&gt;| -&gt; eyre::Result&lt;<span class="prelude-ty">Option</span>&lt;InputValue&gt;&gt; {
-            <span class="kw">let </span>wm = <span class="kw-2">&amp;</span>ws.peek().expect(<span class="string">"there should be a main witness"</span>).witness;
-            <span class="kw">let </span>(<span class="kw">_</span>, r) = abi.decode(wm).wrap_err(<span class="string">"abi::decode"</span>)<span class="question-mark">?</span>;
-            <span class="prelude-val">Ok</span>(r)
-        };
-
-        <span class="kw">match </span>(res1, res2) {
-            (<span class="prelude-val">Err</span>(e1), <span class="prelude-val">Err</span>(e2)) =&gt; <span class="prelude-val">Ok</span>(CompareResult::BothFailed(e1, e2)),
-            (<span class="prelude-val">Err</span>(e1), <span class="prelude-val">Ok</span>(ws2)) =&gt; <span class="prelude-val">Ok</span>(CompareResult::LeftFailed(
-                e1,
-                ExecOutput { return_value: decode(ws2)<span class="question-mark">?</span>, print_output: print2 },
-            )),
-            (<span class="prelude-val">Ok</span>(ws1), <span class="prelude-val">Err</span>(e2)) =&gt; <span class="prelude-val">Ok</span>(CompareResult::RightFailed(
-                ExecOutput { return_value: decode(ws1)<span class="question-mark">?</span>, print_output: print1 },
-                e2,
-            )),
-            (<span class="prelude-val">Ok</span>(ws1), <span class="prelude-val">Ok</span>(ws2)) =&gt; {
-                <span class="kw">let </span>o1 = ExecOutput { return_value: decode(ws1)<span class="question-mark">?</span>, print_output: print1 };
-                <span class="kw">let </span>o2 = ExecOutput { return_value: decode(ws2)<span class="question-mark">?</span>, print_output: print2 };
-                <span class="prelude-val">Ok</span>(CompareResult::BothPassed(o1, o2))
-            }
-        }
-    }
-
-    <span class="doccomment">/// Check that the programs agree on a return value.
+<span class="kw">impl</span>&lt;T, E&gt; CompareResult&lt;T, E&gt;
+<span class="kw">where
+    </span>E: Comparable + Display + Debug,
+    T: Comparable + Debug,
+{
+    <span class="doccomment">/// Check that two programs agree on a return value.
     ///
     /// Returns an error if anything is different.
-    </span><span class="kw">pub fn </span>return_value_or_err(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; eyre::Result&lt;<span class="prelude-ty">Option</span>&lt;<span class="kw-2">&amp;</span>InputValue&gt;&gt; {
+    </span><span class="kw">pub fn </span>return_value_or_err(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; eyre::Result&lt;<span class="prelude-ty">Option</span>&lt;<span class="kw-2">&amp;</span>T&gt;&gt; {
         <span class="kw">match </span><span class="self">self </span>{
             CompareResult::BothFailed(e1, e2) =&gt; {
-                <span class="kw">if </span><span class="self">Self</span>::errors_match(e1, e2) {
+                <span class="kw">if </span>Comparable::equivalent(e1, e2) {
                     <span class="comment">// Both programs failed the same way.
                     </span><span class="prelude-val">Ok</span>(<span class="prelude-val">None</span>)
                 } <span class="kw">else </span>{
@@ -264,48 +256,26 @@
             CompareResult::RightFailed(<span class="kw">_</span>, e) =&gt; {
                 <span class="macro">bail!</span>(<span class="string">"second program failed: {e}\n{e:?}"</span>)
             }
-            CompareResult::BothPassed(o1, o2) =&gt; {
-                <span class="kw">if </span>o1.return_value != o2.return_value {
-                    <span class="macro">bail!</span>(
-                        <span class="string">"programs disagree on return value:\n{:?}\n!=\n{:?}"</span>,
-                        o1.return_value,
-                        o2.return_value
-                    )
-                } <span class="kw">else if </span>o1.print_output != o2.print_output {
-                    <span class="macro">bail!</span>(
-                        <span class="string">"programs disagree on printed output:\n---\n{}\n\n---\n{}\n"</span>,
-                        o1.print_output,
-                        o2.print_output
-                    )
-                } <span class="kw">else </span>{
-                    <span class="prelude-val">Ok</span>(o1.return_value.as_ref())
+            CompareResult::BothPassed(o1, o2) =&gt; <span class="kw">match </span>(<span class="kw-2">&amp;</span>o1.return_value, <span class="kw-2">&amp;</span>o2.return_value) {
+                (<span class="prelude-val">Some</span>(r1), <span class="prelude-val">Some</span>(r2)) <span class="kw">if </span>!Comparable::equivalent(r1, r2) =&gt; {
+                    <span class="macro">bail!</span>(<span class="string">"programs disagree on return value:\n{r1:?}\n!=\n{r2:?}"</span>,)
                 }
-            }
-        }
-    }
-
-    <span class="doccomment">/// Check whether two errors can be considered equivalent.
-    </span><span class="kw">fn </span>errors_match(e1: <span class="kw-2">&amp;</span>NargoError&lt;FieldElement&gt;, e2: <span class="kw-2">&amp;</span>NargoError&lt;FieldElement&gt;) -&gt; bool {
-        <span class="kw">use </span>ExecutionError::<span class="kw-2">*</span>;
-
-        <span class="comment">// For now consider non-execution errors as failures we need to investigate.
-        </span><span class="kw">let </span>NargoError::ExecutionError(ee1) = e1 <span class="kw">else </span>{
-            <span class="kw">return </span><span class="bool-val">false</span>;
-        };
-        <span class="kw">let </span>NargoError::ExecutionError(ee2) = e2 <span class="kw">else </span>{
-            <span class="kw">return </span><span class="bool-val">false</span>;
-        };
-
-        <span class="kw">match </span>(ee1, ee2) {
-            (AssertionFailed(p1, <span class="kw">_</span>, <span class="kw">_</span>), AssertionFailed(p2, <span class="kw">_</span>, <span class="kw">_</span>)) =&gt; p1 == p2,
-            (SolvingError(s1, <span class="kw">_</span>), SolvingError(s2, <span class="kw">_</span>)) =&gt; <span class="macro">format!</span>(<span class="string">"{s1}"</span>) == <span class="macro">format!</span>(<span class="string">"{s2}"</span>),
-            (SolvingError(s, <span class="kw">_</span>), AssertionFailed(p, <span class="kw">_</span>, <span class="kw">_</span>))
-            | (AssertionFailed(p, <span class="kw">_</span>, <span class="kw">_</span>), SolvingError(s, <span class="kw">_</span>)) =&gt; <span class="kw">match </span>(s, p) {
-                (
-                    OpcodeResolutionError::UnsatisfiedConstrain { .. },
-                    ResolvedAssertionPayload::String(s),
-                ) =&gt; s == <span class="string">"Attempted to divide by zero"</span>,
-                <span class="kw">_ </span>=&gt; <span class="bool-val">false</span>,
+                (<span class="prelude-val">Some</span>(r1), <span class="prelude-val">None</span>) =&gt; {
+                    <span class="macro">bail!</span>(<span class="string">"only the first program returned a value: {r1:?}"</span>,)
+                }
+                (<span class="prelude-val">None</span>, <span class="prelude-val">Some</span>(r2)) =&gt; {
+                    <span class="macro">bail!</span>(<span class="string">"only the second program returned a value: {r2:?}"</span>,)
+                }
+                (r1, <span class="kw">_</span>) =&gt; {
+                    <span class="kw">if </span>o1.print_output != o2.print_output {
+                        <span class="macro">bail!</span>(
+                            <span class="string">"programs disagree on printed output:\n---\n{}\n\n---\n{}\n"</span>,
+                            o1.print_output,
+                            o2.print_output
+                        )
+                    }
+                    <span class="prelude-val">Ok</span>(r1.as_ref())
+                }
             },
         }
     }

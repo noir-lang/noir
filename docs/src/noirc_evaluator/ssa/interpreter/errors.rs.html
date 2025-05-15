@@ -154,8 +154,8 @@
 
 <span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">const </span>MAX_UNSIGNED_BIT_SIZE: u32 = <span class="number">128</span>;
 
-<span class="attr">#[derive(Debug, Error)]
-</span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">enum </span>InterpreterError {
+<span class="attr">#[derive(Debug, Error, PartialEq, Eq)]
+</span><span class="kw">pub enum </span>InterpreterError {
     <span class="doccomment">/// These errors are all the result from malformed input SSA
     </span><span class="attr">#[error(<span class="string">"{0}"</span>)]
     </span>Internal(InternalError),
@@ -206,8 +206,8 @@
 }
 
 <span class="doccomment">/// These errors can only result from interpreting malformed SSA
-</span><span class="attr">#[derive(Debug, Error)]
-</span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">enum </span>InternalError {
+</span><span class="attr">#[derive(Debug, Error, PartialEq, Eq)]
+</span><span class="kw">pub enum </span>InternalError {
     <span class="attr">#[error(
         <span class="string">"Argument count {arguments} to block {block} does not match the expected parameter count {parameters}"
     </span>)]

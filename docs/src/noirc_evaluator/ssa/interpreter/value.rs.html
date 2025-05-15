@@ -395,7 +395,7 @@
 <span class="kw">use </span><span class="kw">super</span>::IResult;
 
 <span class="attr">#[derive(Debug, Clone, PartialEq, Eq)]
-</span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">enum </span>Value {
+</span><span class="kw">pub enum </span>Value {
     Numeric(NumericValue),
     Reference(ReferenceValue),
     ArrayOrSlice(ArrayValue),
@@ -405,7 +405,7 @@
 }
 
 <span class="attr">#[derive(Debug, Copy, Clone, PartialEq, Eq)]
-</span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">enum </span>NumericValue {
+</span><span class="kw">pub enum </span>NumericValue {
     Field(FieldElement),
 
     U1(bool),
@@ -422,7 +422,7 @@
 }
 
 <span class="attr">#[derive(Debug, Clone, PartialEq, Eq)]
-</span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">struct </span>ReferenceValue {
+</span><span class="kw">pub struct </span>ReferenceValue {
     <span class="doccomment">/// This is included mostly for debugging to distinguish different
     /// ReferenceValues which store the same element.
     </span><span class="kw">pub </span>original_id: ValueId,
@@ -434,7 +434,7 @@
 }
 
 <span class="attr">#[derive(Debug, Clone, PartialEq, Eq)]
-</span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">struct </span>ArrayValue {
+</span><span class="kw">pub struct </span>ArrayValue {
     <span class="kw">pub </span>elements: Shared&lt;Vec&lt;Value&gt;&gt;,
 
     <span class="doccomment">/// The `Shared` type contains its own reference count but we need to track
@@ -625,7 +625,7 @@
         }
     }
 
-    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>from_constant(constant: FieldElement, typ: NumericType) -&gt; IResult&lt;NumericValue&gt; {
+    <span class="kw">pub fn </span>from_constant(constant: FieldElement, typ: NumericType) -&gt; IResult&lt;NumericValue&gt; {
         <span class="kw">use </span><span class="kw">super</span>::InternalError::{ConstantDoesNotFitInType, UnsupportedNumericType};
         <span class="kw">use </span><span class="kw">super</span>::InterpreterError::Internal;
 

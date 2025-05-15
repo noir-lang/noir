@@ -1309,7 +1309,8 @@
 <a href="#1308" id="1308">1308</a>
 <a href="#1309" id="1309">1309</a>
 <a href="#1310" id="1310">1310</a>
-<a href="#1311" id="1311">1311</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::cmp::Ordering;
+<a href="#1311" id="1311">1311</a>
+<a href="#1312" id="1312">1312</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::cmp::Ordering;
 
 <span class="kw">use super</span>::{
     Ssa,
@@ -1329,7 +1330,7 @@
 <span class="kw">use </span>noirc_frontend::Shared;
 <span class="kw">use </span>value::{ArrayValue, NumericValue, ReferenceValue};
 
-<span class="kw">mod </span>errors;
+<span class="kw">pub mod </span>errors;
 <span class="kw">mod </span>intrinsics;
 <span class="kw">mod </span>tests;
 <span class="kw">pub mod </span>value;
@@ -1374,7 +1375,7 @@
 
 <span class="attr">#[allow(unused)]
 </span><span class="kw">impl </span>Ssa {
-    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>interpret(<span class="kw-2">&amp;</span><span class="self">self</span>, args: Vec&lt;Value&gt;) -&gt; IResults {
+    <span class="kw">pub fn </span>interpret(<span class="kw-2">&amp;</span><span class="self">self</span>, args: Vec&lt;Value&gt;) -&gt; IResults {
         <span class="self">self</span>.interpret_function(<span class="self">self</span>.main_id, args)
     }
 
@@ -1422,6 +1423,7 @@
     <span class="doccomment">/// Define or redefine a value.
     /// Redefinitions are expected in the case of loops.
     </span><span class="kw">fn </span>define(<span class="kw-2">&amp;mut </span><span class="self">self</span>, id: ValueId, value: Value) {
+        <span class="macro">eprintln!</span>(<span class="string">"{id} := {value}"</span>);
         <span class="self">self</span>.call_context_mut().scope.insert(id, value);
     }
 

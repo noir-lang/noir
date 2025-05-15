@@ -125,24 +125,51 @@
 <a href="#124" id="124">124</a>
 <a href="#125" id="125">125</a>
 <a href="#126" id="126">126</a>
-<a href="#127" id="127">127</a></pre></div><pre class="rust"><code><span class="kw">use </span>acvm::{AcirField, FieldElement};
+<a href="#127" id="127">127</a>
+<a href="#128" id="128">128</a>
+<a href="#129" id="129">129</a>
+<a href="#130" id="130">130</a>
+<a href="#131" id="131">131</a>
+<a href="#132" id="132">132</a>
+<a href="#133" id="133">133</a>
+<a href="#134" id="134">134</a>
+<a href="#135" id="135">135</a>
+<a href="#136" id="136">136</a>
+<a href="#137" id="137">137</a>
+<a href="#138" id="138">138</a>
+<a href="#139" id="139">139</a>
+<a href="#140" id="140">140</a>
+<a href="#141" id="141">141</a>
+<a href="#142" id="142">142</a>
+<a href="#143" id="143">143</a>
+<a href="#144" id="144">144</a>
+<a href="#145" id="145">145</a>
+<a href="#146" id="146">146</a>
+<a href="#147" id="147">147</a>
+<a href="#148" id="148">148</a>
+<a href="#149" id="149">149</a>
+<a href="#150" id="150">150</a>
+<a href="#151" id="151">151</a></pre></div><pre class="rust"><code><span class="kw">use </span>acvm::{AcirField, FieldElement};
 
 <span class="kw">use </span>arbitrary::Unstructured;
+<span class="kw">use </span>dictionary::build_dictionary_from_ssa;
 <span class="kw">use </span>noir_greybox_fuzzer::build_dictionary_from_program;
 <span class="kw">use </span>noirc_abi::{Abi, AbiType, InputMap, Sign, input_parser::InputValue};
+<span class="kw">use </span>noirc_evaluator::ssa::ssa_gen::Ssa;
 <span class="kw">use </span>proptest::{
     prelude::<span class="kw-2">*</span>,
     test_runner::{Config, RngAlgorithm, TestRng, TestRunner},
 };
-<span class="kw">use </span>std::collections::{BTreeMap, HashSet};
+<span class="kw">use </span>std::collections::{BTreeMap, BTreeSet};
 
+<span class="kw">mod </span>dictionary;
 <span class="kw">mod </span>int;
 <span class="kw">mod </span>uint;
 
 <span class="kw">use </span>int::IntStrategy;
 <span class="kw">use </span>uint::UintStrategy;
 
-<span class="doccomment">/// Generate an arbitrary input according to the ABI.
+<span class="doccomment">/// Generate arbitrary inputs for a compiled program according to the ABI.
 </span><span class="kw">pub fn </span>arb_inputs(
     u: <span class="kw-2">&amp;mut </span>Unstructured,
     program: <span class="kw-2">&amp;</span>acir::circuit::Program&lt;FieldElement&gt;,
@@ -150,7 +177,28 @@
 ) -&gt; arbitrary::Result&lt;InputMap&gt; {
     <span class="comment">// Reuse the proptest strategy in `noir_fuzzer` to generate random inputs.
     </span><span class="kw">let </span>dictionary = build_dictionary_from_program(program);
+    <span class="kw">let </span>dictionary = BTreeSet::from_iter(dictionary);
     <span class="kw">let </span>strategy = arb_input_map(abi, <span class="kw-2">&amp;</span>dictionary);
+    arb_value_tree(u, strategy)
+}
+
+<span class="doccomment">/// Generate arbitrary inputs for an SSA of a program, according to the ABI.
+</span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>arb_inputs_from_ssa(
+    u: <span class="kw-2">&amp;mut </span>Unstructured,
+    ssa: <span class="kw-2">&amp;</span>Ssa,
+    abi: <span class="kw-2">&amp;</span>Abi,
+) -&gt; arbitrary::Result&lt;InputMap&gt; {
+    <span class="comment">// Reuse the proptest strategy in `noir_fuzzer` to generate random inputs.
+    </span><span class="kw">let </span>dictionary = build_dictionary_from_ssa(ssa);
+    <span class="kw">let </span>strategy = arb_input_map(abi, <span class="kw-2">&amp;</span>dictionary);
+    arb_value_tree(u, strategy)
+}
+
+<span class="doccomment">/// Generate a seed and use it to generate an arbitrary value using the proptest strategy.
+</span><span class="kw">fn </span>arb_value_tree(
+    u: <span class="kw-2">&amp;mut </span>Unstructured,
+    strategy: BoxedStrategy&lt;InputMap&gt;,
+) -&gt; arbitrary::Result&lt;InputMap&gt; {
     <span class="comment">// The strategy needs a runner, although all it really uses is the RNG from it.
     </span><span class="kw">let </span>seed: [u8; <span class="number">16</span>] = u.arbitrary()<span class="question-mark">?</span>;
     <span class="kw">let </span>rng = TestRng::from_seed(RngAlgorithm::XorShift, <span class="kw-2">&amp;</span>seed);
@@ -162,7 +210,7 @@
 <span class="doccomment">/// Given the [Abi] description of a Noir program, generate random [InputValue]s for each circuit parameter.
 ///
 /// Use the `dictionary` to draw values from for numeric types.
-</span><span class="kw">fn </span>arb_input_map(abi: <span class="kw-2">&amp;</span>Abi, dictionary: <span class="kw-2">&amp;</span>HashSet&lt;FieldElement&gt;) -&gt; BoxedStrategy&lt;InputMap&gt; {
+</span><span class="kw">fn </span>arb_input_map(abi: <span class="kw-2">&amp;</span>Abi, dictionary: <span class="kw-2">&amp;</span>BTreeSet&lt;FieldElement&gt;) -&gt; BoxedStrategy&lt;InputMap&gt; {
     <span class="kw">let </span>values: Vec&lt;<span class="kw">_</span>&gt; = abi
         .parameters
         .iter()
@@ -182,7 +230,7 @@
 /// Uses the `dictionary` for unsigned integer types.
 </span><span class="kw">fn </span>arb_value_from_abi_type(
     abi_type: <span class="kw-2">&amp;</span>AbiType,
-    dictionary: <span class="kw-2">&amp;</span>HashSet&lt;FieldElement&gt;,
+    dictionary: <span class="kw-2">&amp;</span>BTreeSet&lt;FieldElement&gt;,
 ) -&gt; SBoxedStrategy&lt;InputValue&gt; {
     <span class="kw">match </span>abi_type {
         AbiType::Field =&gt; proptest::collection::vec(any::&lt;u8&gt;(), <span class="number">32</span>)

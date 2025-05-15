@@ -143,7 +143,7 @@
                     .map(|value| <span class="self">Self</span>::Signed { value, bit_size })
             }
             NumericType::Unsigned { bit_size } =&gt; {
-                <span class="prelude-val">Some</span>(<span class="self">Self</span>::Unsigned { value: field.to_u128(), bit_size })
+                field.try_into_u128().map(|value| <span class="self">Self</span>::Unsigned { value, bit_size })
             }
             NumericType::NativeField =&gt; <span class="prelude-val">None</span>,
         }
