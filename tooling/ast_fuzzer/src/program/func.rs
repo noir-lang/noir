@@ -316,11 +316,18 @@ impl<'a> FunctionContext<'a> {
         max_depth: usize,
         flags: Flags,
     ) -> arbitrary::Result<Expression> {
-        // For now if we need a function, return one without further nesting,
-        // e.g. avoid `if <cond> { func_1 } else { func_2 }`, because it makes rewriting
-        // harder when we need to deal with proxies.
+        // For now if we need a function, return one without further nesting, e.g. avoid `if <cond> { func_1 } else { func_2 }`,
+        // because it makes it harder to rewrite functions to add recursion limit: we would need to replace functions in the
+        // expressions to proxy version if we call Brillig from ACIR, but we would also need to keep track whether we are calling a function,
+        // For example if we could return function pointers, we could have something like this:
+        //  `acir_func_1(if c { brillig_func_2 } else { unsafe { brillig_func_3(brillig_func_4) } })`
+        // We could replace `brillig_func_2` with `brillig_func_2_proxy`, but we wouldn't replace `brillig_func_4` with `brillig_func_4_proxy`
+        // because that is a parameter of another call. But we would have to deal with the return value.
+        // For this reason we handle function parameters directly here.
         if matches!(typ, Type::Function(_, _, _, _)) {
-            // Local variables we should consider in `gen_expr_from_vars`, so here we just look through global functions.
+            if let Some(expr) = self.gen_expr_from_vars(u, typ, max_depth)? {
+                return Ok(expr);
+            }
             return self.find_function_with_signature(u, typ);
         }
 
