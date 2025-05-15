@@ -1057,7 +1057,7 @@ fn test_operators(
                 } else {
                     None
                 };
-                assert_eq!(result, acvm_result)
+                assert_eq!(result, acvm_result);
             }
             _ => panic!("ssa and acvm execution should have the same result"),
         }
