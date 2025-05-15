@@ -1,6 +1,11 @@
-//! This modules defines an SSA pass that inlines calls to functions with at most one instruction.
+//! This modules defines an SSA pass that inlines calls to simple functions.
 //! That is, the contents of the called function is put directly into the caller's body.
 //! Functions are still restricted to not be inlined if they are recursive or marked with no predicates.
+//! 
+//! A simple function is defined as the following:
+//! - Contains no more than 10 instructions
+//! - The function only has a single block (e.g. no control flow or conditional branches)
+//! - It is not marked with the no predicates [inline type][noirc_frontend::monomorphization::ast::InlineType]
 use iter_extended::btree_map;
 
 use crate::ssa::{
@@ -12,8 +17,8 @@ use crate::ssa::{
 };
 
 impl Ssa {
-    /// See the [`inline_functions_with_at_most_one_instruction`][self] module for more information.
-    pub(crate) fn inline_functions_with_at_most_one_instruction(mut self: Ssa) -> Ssa {
+    /// See the [`inline_simple_functions`][self] module for more information.
+    pub(crate) fn inline_simple_functions(mut self: Ssa) -> Ssa {
         let call_graph = CallGraph::from_ssa(&self);
         let recursive_functions = call_graph.get_recursive_functions();
 
@@ -34,8 +39,8 @@ impl Ssa {
                 return false;
             }
 
-            // Only inline functions with 0 or 1 instructions
-            if instructions.len() > 1 {
+            // Only inline functions with 10 or less instructions
+            if instructions.len() > 10 {
                 return false;
             }
 
@@ -69,7 +74,7 @@ mod test {
 
     fn assert_does_not_inline(src: &str) {
         let ssa = Ssa::from_str(src).unwrap();
-        let ssa = ssa.inline_functions_with_at_most_one_instruction();
+        let ssa = ssa.inline_simple_functions();
         assert_normalized_ssa_equals(ssa, src);
     }
 
@@ -91,7 +96,7 @@ mod test {
         ";
         let ssa = Ssa::from_str(src).unwrap();
 
-        let ssa = ssa.inline_functions_with_at_most_one_instruction();
+        let ssa = ssa.inline_simple_functions();
         assert_ssa_snapshot!(ssa, @r"
         acir(inline) fn main f0 {
           b0(v0: Field):
@@ -124,14 +129,22 @@ mod test {
           b0(v0: Field):
             v1 = call f1(v0) -> Field
             v2 = call f1(v0) -> Field
-            v3 = add v1, v2
-            return v3
+            v3 = call f1(v0) -> Field
+            v4 = call f1(v0) -> Field
+            v5 = call f1(v0) -> Field
+            v6 = call f1(v0) -> Field
+            v7 = call f1(v0) -> Field
+            v8 = call f1(v0) -> Field
+            v9 = call f1(v0) -> Field
+            v10 = call f1(v0) -> Field
+            v11 = add v1, v2
+            return v11
         }
         ";
         let ssa = Ssa::from_str(src).unwrap();
 
         // In the first pass it won't recognize that `main` could be simplified.
-        let mut ssa = ssa.inline_functions_with_at_most_one_instruction();
+        let mut ssa = ssa.inline_simple_functions();
         assert_ssa_snapshot!(&mut ssa, @r"
         acir(inline) fn main f0 {
           b0(v0: Field):
@@ -150,7 +163,7 @@ mod test {
         ");
 
         // After `bar` has been simplified, it does `main` as well.
-        ssa = ssa.inline_functions_with_at_most_one_instruction();
+        ssa = ssa.inline_simple_functions();
         assert_ssa_snapshot!(ssa, @r"
         acir(inline) fn main f0 {
           b0(v0: Field):
@@ -188,7 +201,7 @@ mod test {
         ";
         let ssa = Ssa::from_str(src).unwrap();
 
-        let ssa = ssa.inline_functions_with_at_most_one_instruction();
+        let ssa = ssa.inline_simple_functions();
         assert_ssa_snapshot!(ssa, @r"
         acir(inline) fn main f0 {
           b0(v0: Field):
@@ -256,7 +269,16 @@ mod test {
           b0(v0: Field):
             v1 = add v0, Field 1
             v2 = mul v1, Field 2
-            return v2
+            v3 = mul v2, Field 2
+            v4 = mul v3, Field 2
+            v5 = mul v4, Field 2
+            v6 = mul v5, Field 2
+            v7 = mul v6, Field 2
+            v8 = mul v7, Field 2
+            v9 = mul v8, Field 2
+            v10 = mul v9, Field 2
+            v11 = mul v10, Field 2
+            return v11
         }
         ";
         assert_does_not_inline(src);
