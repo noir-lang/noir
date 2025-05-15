@@ -17,7 +17,7 @@ mod defunctionalize;
 mod die;
 pub(crate) mod flatten_cfg;
 mod hint;
-mod inline_functions_with_at_most_one_instruction;
+mod inline_simple_functions;
 pub(crate) mod inlining;
 mod loop_invariant;
 mod make_constrain_not_equal;
