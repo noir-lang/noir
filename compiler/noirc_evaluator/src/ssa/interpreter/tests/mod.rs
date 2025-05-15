@@ -238,10 +238,8 @@ fn without_defunctionalize() {
       return v6
   }
       ";
-    let values = expect_values_with_args(
-        src,
-        vec![Value::from_constant(0_u128.into(), NumericType::bool())],
-    );
+    let values =
+        expect_values_with_args(src, vec![from_constant(0_u128.into(), NumericType::bool())]);
 
     assert!(values.is_empty());
 }
@@ -1646,4 +1644,45 @@ fn signed_integer_casting() {
       "#;
     let value = expect_value(src);
     assert_eq!(value, Value::Numeric(NumericValue::I8(0)));
+}
+
+#[test]
+fn signed_integer_casting_2() {
+    // fn main() -> pub i64 {
+    //     (-(func_4() as i64))
+    // }
+    // fn func_4() -> i8 {
+    //     -89
+    // }
+    let src = r#"
+      acir(inline) fn main f0 {
+        b0():
+          v1 = call f1() -> i8
+          v2 = cast v1 as u8
+          v4 = lt v2, u8 128
+          v5 = not v4
+          v6 = cast v5 as u64
+          v8 = unchecked_mul u64 18446744073709551360, v6
+          v9 = cast v1 as u64
+          v10 = unchecked_add v8, v9
+          v11 = cast v10 as i64
+          v13 = sub i64 0, v11
+          v14 = truncate v13 to 64 bits, max_bit_size: 65
+          v15 = cast v14 as u64
+          v16 = cast v10 as u64
+          v18 = lt v16, u64 9223372036854775808
+          v19 = not v18
+          v20 = lt v15, u64 9223372036854775808
+          v21 = unchecked_mul v20, v19
+          constrain v21 == v19, "attempt to subtract with overflow"
+          v22 = cast v14 as i64
+          return v22
+      }
+      acir(inline_always) fn func_4 f1 {
+        b0():
+          return i8 167
+      }
+      "#;
+    let value = expect_value(src);
+    assert_eq!(value, Value::Numeric(NumericValue::I64(89)));
 }

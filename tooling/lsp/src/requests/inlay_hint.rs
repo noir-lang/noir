@@ -465,6 +465,9 @@ fn push_type_parts(typ: &Type, parts: &mut Vec<InlayHintLabelPart>, files: &File
                     parts.push(string_part(", "));
                 }
             }
+            if types.len() == 1 {
+                parts.push(string_part(","));
+            }
             parts.push(string_part(")"));
         }
         Type::DataType(struct_type, generics) => {

@@ -567,6 +567,7 @@ pub enum Pattern {
     Mutable(Box<Pattern>, Location, /*is_synthesized*/ bool),
     Tuple(Vec<Pattern>, Location),
     Struct(Path, Vec<(Ident, Pattern)>, Location),
+    Parenthesized(Box<Pattern>, Location),
     Interned(InternedPattern, Location),
 }
 
@@ -580,6 +581,7 @@ impl Pattern {
             Pattern::Mutable(_, location, _)
             | Pattern::Tuple(_, location)
             | Pattern::Struct(_, _, location)
+            | Pattern::Parenthesized(_, location)
             | Pattern::Interned(_, location) => *location,
         }
     }
@@ -624,6 +626,7 @@ impl Pattern {
                     location: *location,
                 })
             }
+            Pattern::Parenthesized(pattern, _) => pattern.try_as_expression(interner),
             Pattern::Interned(id, _) => interner.get_pattern(*id).try_as_expression(interner),
         }
     }
@@ -989,6 +992,9 @@ impl Display for Pattern {
             Pattern::Struct(typename, fields, _) => {
                 let fields = vecmap(fields, |(name, pattern)| format!("{name}: {pattern}"));
                 write!(f, "{} {{ {} }}", typename, fields.join(", "))
+            }
+            Pattern::Parenthesized(pattern, _) => {
+                write!(f, "({})", pattern)
             }
             Pattern::Interned(_, _) => {
                 write!(f, "?Interned")

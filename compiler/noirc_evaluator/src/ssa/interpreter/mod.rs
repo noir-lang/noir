@@ -12,7 +12,7 @@ use super::{
 };
 use crate::ssa::ir::{instruction::binary::truncate_field, printer::display_binary};
 use acvm::{AcirField, FieldElement};
-use errors::{InternalError, InterpreterError, MAX_SIGNED_BIT_SIZE, MAX_UNSIGNED_BIT_SIZE};
+use errors::{InternalError, InterpreterError, MAX_UNSIGNED_BIT_SIZE};
 use fxhash::FxHashMap as HashMap;
 use iter_extended::{try_vecmap, vecmap};
 use noirc_frontend::Shared;
@@ -111,6 +111,7 @@ impl<'ssa> Interpreter<'ssa> {
     /// Define or redefine a value.
     /// Redefinitions are expected in the case of loops.
     fn define(&mut self, id: ValueId, value: Value) {
+        eprintln!("{id} := {value}");
         self.call_context_mut().scope.insert(id, value);
     }
 
@@ -396,7 +397,7 @@ impl<'ssa> Interpreter<'ssa> {
             // Cast in SSA changes the type without altering the value
             Instruction::Cast(value, numeric_type) => {
                 let value = self.lookup_numeric(*value, "cast")?;
-                let field = value.convert_to_field(numeric_type.bit_size());
+                let field = value.convert_to_field();
                 let result = Value::from_constant(field, *numeric_type)?;
                 self.define(results[0], result);
                 Ok(())
@@ -509,10 +510,18 @@ impl<'ssa> Interpreter<'ssa> {
             NumericValue::U32(value) => NumericValue::U32(truncate_unsigned(value, bit_size)?),
             NumericValue::U64(value) => NumericValue::U64(truncate_unsigned(value, bit_size)?),
             NumericValue::U128(value) => NumericValue::U128(truncate_unsigned(value, bit_size)?),
-            NumericValue::I8(value) => NumericValue::I8(truncate_signed(value, bit_size)?),
-            NumericValue::I16(value) => NumericValue::I16(truncate_signed(value, bit_size)?),
-            NumericValue::I32(value) => NumericValue::I32(truncate_signed(value, bit_size)?),
-            NumericValue::I64(value) => NumericValue::I64(truncate_signed(value, bit_size)?),
+            NumericValue::I8(value) => {
+                NumericValue::I8(truncate_unsigned(value as u8, bit_size)? as i8)
+            }
+            NumericValue::I16(value) => {
+                NumericValue::I16(truncate_unsigned(value as u16, bit_size)? as i16)
+            }
+            NumericValue::I32(value) => {
+                NumericValue::I32(truncate_unsigned(value as u32, bit_size)? as i32)
+            }
+            NumericValue::I64(value) => {
+                NumericValue::I64(truncate_unsigned(value as u64, bit_size)? as i64)
+            }
         };
 
         self.define(result, Value::Numeric(truncated));
@@ -1266,34 +1275,6 @@ where
     ))
 }
 
-fn truncate_signed<T>(value: T, bit_size: u32) -> IResult<T>
-where
-    i128: From<T>,
-    T: TryFrom<i128> + num_traits::Bounded,
-    <T as TryFrom<i128>>::Error: std::fmt::Debug,
-{
-    let mut value_i128 = i128::from(value);
-    if value_i128 < 0 {
-        let max = 1i128 << (bit_size - 1);
-        value_i128 += max;
-        if bit_size > MAX_SIGNED_BIT_SIZE {
-            return Err(internal(InternalError::InvalidSignedTruncateBitSize { bit_size }));
-        }
-
-        let mask = (1i128 << bit_size) - 1;
-        let result = (value_i128 & mask) - max;
-
-        Ok(T::try_from(result).expect(
-            "The truncated result should always be smaller than or equal to the original `value`",
-        ))
-    } else {
-        let result = truncate_unsigned::<u128>(value_i128 as u128, bit_size)? as i128;
-        Ok(T::try_from(result).expect(
-            "The truncated result should always be smaller than or equal to the original `value`",
-        ))
-    }
-}
-
 fn internal(error: InternalError) -> InterpreterError {
     InterpreterError::Internal(error)
 }
@@ -1311,18 +1292,21 @@ mod test {
 
     #[test]
     fn test_truncate_signed() {
-        assert_eq!(super::truncate_signed(57_i32, 8).unwrap(), 57);
-        assert_eq!(super::truncate_signed(257_i16, 8).unwrap(), 1);
-        assert_eq!(super::truncate_signed(130_i64, 7).unwrap(), 2);
-        assert_eq!(super::truncate_signed(i16::MAX, 16).unwrap(), i16::MAX);
+        // Signed values roundtrip through truncate_unsigned
+        assert_eq!(super::truncate_unsigned(57_i32 as u32, 8).unwrap() as i32, 57);
+        assert_eq!(super::truncate_unsigned(257_i16 as u16, 8).unwrap() as i16, 1);
+        assert_eq!(super::truncate_unsigned(130_i64 as u64, 7).unwrap() as i64, 2);
+        assert_eq!(super::truncate_unsigned(i16::MAX as u16, 16).unwrap() as i16, i16::MAX);
 
-        assert_eq!(super::truncate_signed(-57_i32, 8).unwrap(), -57);
-        assert_eq!(super::truncate_signed(-1_i64, 3).unwrap(), -1_i64);
-        assert_eq!(super::truncate_signed(-258_i16, 8).unwrap(), -2);
-        assert_eq!(super::truncate_signed(-130_i16, 7).unwrap(), -2);
-        assert_eq!(super::truncate_signed(i8::MIN, 8).unwrap(), i8::MIN);
-        assert_eq!(super::truncate_signed(-8_i8, 4).unwrap(), -8);
-        assert_eq!(super::truncate_signed(-8_i8, 3).unwrap(), 0);
-        assert_eq!(super::truncate_signed(-129_i32, 8).unwrap(), 127);
+        // For negatives we rely on the `as iN` cast at the end to convert large integers
+        // back into negatives. For this reason we don't test bit sizes other than 8, 16, 32, 64
+        // although we don't support other bit sizes anyway.
+        assert_eq!(super::truncate_unsigned(-57_i32 as u32, 8).unwrap() as i8, -57);
+        assert_eq!(super::truncate_unsigned(-258_i16 as u16, 8).unwrap() as i8, -2);
+        assert_eq!(super::truncate_unsigned(i8::MIN as u8, 8).unwrap() as i8, i8::MIN);
+        assert_eq!(super::truncate_unsigned(-129_i32 as u32, 8).unwrap() as i8, 127);
+
+        // underflow to i16::MAX
+        assert_eq!(super::truncate_unsigned(i16::MIN as u32 - 1, 16).unwrap() as i16, 32767);
     }
 }

@@ -16,6 +16,7 @@ use crate::ast::{
     NoirTypeAlias, Pattern, TraitImplItemKind, TraitItem, TypeImpl, UnresolvedType,
     UnresolvedTypeData, desugar_generic_trait_bounds,
 };
+use crate::elaborator::PrimitiveType;
 use crate::hir::resolution::errors::ResolverError;
 use crate::node_interner::{ModuleAttributes, NodeInterner, ReferenceId, TypeId};
 use crate::token::{SecondaryAttribute, TestScope};
@@ -892,16 +893,23 @@ impl ModCollector<'_> {
         typ: &UnresolvedType,
         errors: &mut Vec<CompilationError>,
     ) -> Type {
-        match &typ.typ {
-            UnresolvedTypeData::FieldElement => Type::FieldElement,
-            UnresolvedTypeData::Integer(sign, bits) => Type::Integer(*sign, *bits),
-            _ => {
-                let error =
-                    ResolverError::AssociatedConstantsMustBeNumeric { location: typ.location };
-                errors.push(error.into());
-                Type::Error
+        // TODO: delay this to the Elaborator
+        // See https://github.com/noir-lang/noir/issues/8504
+        if let UnresolvedTypeData::Named(path, _generics, _) = &typ.typ {
+            if path.segments.len() == 1 {
+                if let Some(primitive_type) =
+                    PrimitiveType::lookup_by_name(path.segments[0].ident.as_str())
+                {
+                    if let Some(typ) = primitive_type.to_integer_or_field() {
+                        return typ;
+                    }
+                }
             }
         }
+
+        let error = ResolverError::AssociatedConstantsMustBeNumeric { location: typ.location };
+        errors.push(error.into());
+        Type::Error
     }
 }
 

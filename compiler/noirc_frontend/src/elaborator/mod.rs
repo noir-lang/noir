@@ -57,6 +57,7 @@ mod lints;
 mod options;
 mod path_resolution;
 mod patterns;
+mod primitive_types;
 mod scope;
 mod statements;
 mod trait_impls;
@@ -77,6 +78,7 @@ use types::bind_ordered_generics;
 
 use self::traits::check_trait_impl_method_matches_declaration;
 pub(crate) use path_resolution::{TypedPath, TypedPathSegment};
+pub use primitive_types::PrimitiveType;
 
 /// ResolverMetas are tagged onto each definition to track how many times they are used
 #[derive(Debug, PartialEq, Eq)]
