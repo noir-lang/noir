@@ -185,21 +185,26 @@ impl<'a> FunctionContext<'a> {
         );
 
         // Collect all the functions we can call from this one.
-        let mut call_targets = ctx
-            .function_declarations
-            .iter()
-            .filter_map(|(callee_id, callee_decl)| {
-                if !can_call(id, decl.unconstrained, *callee_id, callee_decl.unconstrained) {
-                    return None;
-                }
-                Some((
-                    CallableId::Global(*callee_id),
-                    types::types_produced(&callee_decl.return_type),
-                ))
-            })
-            .collect();
+        let mut call_targets = BTreeMap::new();
 
-        // TODO: Also consider function pointers.
+        // Consider calling any allowed global function.
+        for (callee_id, callee_decl) in &ctx.function_declarations {
+            if !can_call(id, decl.unconstrained, *callee_id, callee_decl.unconstrained) {
+                continue;
+            }
+            call_targets.insert(
+                CallableId::Global(*callee_id),
+                types::types_produced(&callee_decl.return_type),
+            );
+        }
+
+        // Consider function pointers as callable; they are already filtered during construction.
+        for (callee_id, _, _, typ, _) in &decl.params {
+            let Type::Function(_, return_type, _, _) = typ else {
+                continue;
+            };
+            call_targets.insert(CallableId::Local(*callee_id), types::types_produced(&return_type));
+        }
 
         Self {
             ctx,
