@@ -77,6 +77,14 @@ pub(crate) enum VariableId {
     Global(GlobalId),
 }
 
+/// ID of a function we can call, either as a pointer in a local variable,
+/// or directly as a global function.
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
+pub(crate) enum CallableId {
+    Local(LocalId),
+    Global(FuncId),
+}
+
 /// Name of a variable.
 type Name = String;
 

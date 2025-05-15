@@ -19,7 +19,7 @@ use noirc_frontend::{
 };
 
 use super::{
-    Context, VariableId, expr,
+    CallableId, Context, VariableId, expr,
     freq::Freq,
     make_name,
     scope::{Scope, ScopeStack, Variable},
@@ -161,7 +161,7 @@ pub(super) struct FunctionContext<'a> {
     in_loop: bool,
     /// All the functions callable from this one, with the types we can
     /// produce from their return value.
-    call_targets: BTreeMap<FuncId, HashSet<Type>>,
+    call_targets: BTreeMap<CallableId, HashSet<Type>>,
     /// Indicate that we have generated a `Call`.
     has_call: bool,
 }
@@ -185,17 +185,21 @@ impl<'a> FunctionContext<'a> {
         );
 
         // Collect all the functions we can call from this one.
-        // TODO(#8484): Look for call targets in function-valued arguments as well.
-        let call_targets = ctx
+        let mut call_targets = ctx
             .function_declarations
             .iter()
             .filter_map(|(callee_id, callee_decl)| {
                 if !can_call(id, decl.unconstrained, *callee_id, callee_decl.unconstrained) {
                     return None;
                 }
-                Some((*callee_id, types::types_produced(&callee_decl.return_type)))
+                Some((
+                    CallableId::Global(*callee_id),
+                    types::types_produced(&callee_decl.return_type),
+                ))
             })
             .collect();
+
+        // TODO: Also consider function pointers.
 
         Self {
             ctx,
@@ -976,8 +980,8 @@ impl<'a> FunctionContext<'a> {
 
         let callee_id = *u.choose_iter(opts)?;
         let callee_ident = self.function_ident(callee_id);
-
-        let callee = self.ctx.function_decl(callee_id).clone();
+        let callee = self.function_decl(callee_id);
+        let return_type = callee.return_type.clone();
         let param_types = callee.params.iter().map(|p| p.3.clone()).collect::<Vec<_>>();
 
         // Generate an expression for each argument.
@@ -989,12 +993,12 @@ impl<'a> FunctionContext<'a> {
         let call_expr = Expression::Call(Call {
             func: Box::new(callee_ident),
             arguments: args,
-            return_type: callee.return_type.clone(),
+            return_type: return_type.clone(),
             location: Location::dummy(),
         });
 
         // Derive the final result from the call, e.g. by casting, or accessing a member.
-        self.gen_expr_from_source(u, call_expr, &callee.return_type, typ, self.max_depth())
+        self.gen_expr_from_source(u, call_expr, &return_type, typ, self.max_depth())
     }
 
     /// Generate a call to a specific function, with arbitrary literals
@@ -1182,6 +1186,7 @@ impl<'a> FunctionContext<'a> {
         };
 
         // TODO(#8484): Take the callee ID into account, so we don't create a problem inlining ACIR.
+        // TODO: Look for locals?
         let candidates = self
             .ctx
             .function_declarations
@@ -1203,26 +1208,40 @@ impl<'a> FunctionContext<'a> {
 
         let callee_id = u.choose_iter(candidates)?;
 
-        Ok(self.function_ident(callee_id))
+        Ok(self.function_ident(CallableId::Global(callee_id)))
     }
 
     /// Generate an identifier for calling a global function.
-    fn function_ident(&mut self, callee_id: FuncId) -> Expression {
-        let callee = self.ctx.function_decl(callee_id).clone();
-        let param_types = callee.params.iter().map(|p| p.3.clone()).collect::<Vec<_>>();
-        Expression::Ident(Ident {
-            location: None,
-            definition: Definition::Function(callee_id),
-            mutable: false,
-            name: callee.name.clone(),
-            typ: Type::Function(
-                param_types,
-                Box::new(callee.return_type.clone()),
-                Box::new(Type::Unit),
-                callee.unconstrained,
-            ),
-            id: self.next_ident_id(),
-        })
+    fn function_ident(&mut self, callee_id: CallableId) -> Expression {
+        match callee_id {
+            CallableId::Global(id) => {
+                let callee = self.ctx.function_decl(id).clone();
+                let param_types = callee.params.iter().map(|p| p.3.clone()).collect::<Vec<_>>();
+                Expression::Ident(Ident {
+                    location: None,
+                    definition: Definition::Function(id),
+                    mutable: false,
+                    name: callee.name.clone(),
+                    typ: Type::Function(
+                        param_types,
+                        Box::new(callee.return_type.clone()),
+                        Box::new(Type::Unit),
+                        callee.unconstrained,
+                    ),
+                    id: self.next_ident_id(),
+                })
+            }
+            CallableId::Local(id) => {
+                todo!("function_ident for local parameters")
+            }
+        }
+    }
+
+    fn function_decl(&self, callee_id: CallableId) -> &FunctionDeclaration {
+        match callee_id {
+            CallableId::Global(id) => self.ctx.function_decl(id),
+            CallableId::Local(id) => todo!("function_decl for local parameters"),
+        }
     }
 }
 
