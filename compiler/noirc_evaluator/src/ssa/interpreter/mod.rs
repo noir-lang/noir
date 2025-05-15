@@ -111,7 +111,6 @@ impl<'ssa> Interpreter<'ssa> {
     /// Define or redefine a value.
     /// Redefinitions are expected in the case of loops.
     fn define(&mut self, id: ValueId, value: Value) {
-        eprintln!("{id} := {value}");
         self.call_context_mut().scope.insert(id, value);
     }
 
