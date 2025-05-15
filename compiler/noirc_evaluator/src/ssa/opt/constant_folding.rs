@@ -37,7 +37,7 @@ use crate::{
             dfg::{DataFlowGraph, InsertInstructionResult},
             dom::DominatorTree,
             function::{Function, FunctionId, RuntimeType},
-            instruction::{BinaryOp, Instruction, InstructionId},
+            instruction::{ArrayGetOffset, BinaryOp, Instruction, InstructionId},
             types::{NumericType, Type},
             value::{Value, ValueId, ValueMapping},
         },
@@ -478,7 +478,9 @@ impl<'brillig> Context<'brillig> {
         if let Instruction::ArraySet { index, value, .. } = &instruction {
             let predicate = self.use_constraint_info.then_some(side_effects_enabled_var);
 
-            let array_get = Instruction::ArrayGet { array: instruction_results[0], index: *index };
+            let offset = ArrayGetOffset::None;
+            let array_get =
+                Instruction::ArrayGet { array: instruction_results[0], index: *index, offset };
 
             self.cached_instruction_results
                 .entry(array_get)
@@ -884,7 +886,7 @@ fn has_side_effects(instruction: &Instruction, dfg: &DataFlowGraph) -> bool {
         Cast(_, _) | Not(_) | Truncate { .. } | IfElse { .. } => false,
 
         // `ArrayGet`s which read from "known good" indices from an array have no side effects
-        ArrayGet { array, index } => !dfg.is_safe_index(*index, *array),
+        ArrayGet { array, index, offset: _ } => !dfg.is_safe_index(*index, *array),
 
         // ArraySet has side effects
         ArraySet { .. } => true,

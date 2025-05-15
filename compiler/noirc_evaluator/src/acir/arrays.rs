@@ -83,7 +83,7 @@ impl Context<'_> {
 
         // Pass the instruction between array methods rather than the internal fields themselves
         let (array, index, store_value) = match dfg[instruction] {
-            Instruction::ArrayGet { array, index } => (array, index, None),
+            Instruction::ArrayGet { array, index, offset: _ } => (array, index, None),
             Instruction::ArraySet { array, index, value, mutable } => {
                 mutable_array_set = mutable;
                 (array, index, Some(value))

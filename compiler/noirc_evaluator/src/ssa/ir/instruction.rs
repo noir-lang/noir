@@ -280,7 +280,8 @@ pub enum Instruction {
     EnableSideEffectsIf { condition: ValueId },
 
     /// Retrieve a value from an array at the given index
-    ArrayGet { array: ValueId, index: ValueId },
+    /// `offset` determines whether the index has been offseted by some offset.
+    ArrayGet { array: ValueId, index: ValueId, offset: ArrayGetOffset },
 
     /// Creates a new array with the new value at the given index. All other elements are identical
     /// to those in the given array. This will not modify the original array unless `mutable` is
@@ -376,7 +377,7 @@ impl Instruction {
         match self {
             Instruction::Binary(binary) => binary.requires_acir_gen_predicate(dfg),
 
-            Instruction::ArrayGet { array, index } => {
+            Instruction::ArrayGet { array, index, offset: _ } => {
                 // `ArrayGet`s which read from "known good" indices from an array should not need a predicate.
                 !dfg.is_safe_index(*index, *array)
             }
@@ -477,8 +478,8 @@ impl Instruction {
             Instruction::EnableSideEffectsIf { condition } => {
                 Instruction::EnableSideEffectsIf { condition: f(*condition) }
             }
-            Instruction::ArrayGet { array, index } => {
-                Instruction::ArrayGet { array: f(*array), index: f(*index) }
+            Instruction::ArrayGet { array, index, offset } => {
+                Instruction::ArrayGet { array: f(*array), index: f(*index), offset: *offset }
             }
             Instruction::ArraySet { array, index, value, mutable } => Instruction::ArraySet {
                 array: f(*array),
@@ -548,7 +549,7 @@ impl Instruction {
             Instruction::EnableSideEffectsIf { condition } => {
                 *condition = f(*condition);
             }
-            Instruction::ArrayGet { array, index } => {
+            Instruction::ArrayGet { array, index, offset: _ } => {
                 *array = f(*array);
                 *index = f(*index);
             }
@@ -614,7 +615,7 @@ impl Instruction {
                 f(*value);
             }
             Instruction::Allocate => (),
-            Instruction::ArrayGet { array, index } => {
+            Instruction::ArrayGet { array, index, offset: _ } => {
                 f(*array);
                 f(*index);
             }
@@ -643,6 +644,37 @@ impl Instruction {
                 }
             }
             Instruction::Noop => (),
+        }
+    }
+}
+
+/// Determines whether an ArrayGet index has been offseted by a given value.
+/// Offsets are set during `crate::ssa::opt::brillig_array_gets` for brillig arrays
+/// and vectors with constant indicces.
+#[derive(Debug, PartialEq, Eq, Hash, Copy, Clone, Serialize, Deserialize)]
+pub enum ArrayGetOffset {
+    None,
+    Array,
+    Slice,
+}
+
+impl ArrayGetOffset {
+    pub fn from_u32(value: u32) -> Option<Self> {
+        match value {
+            0 => Some(Self::None),
+            1 => Some(Self::Array),
+            3 => Some(Self::Slice),
+            _ => None,
+        }
+    }
+
+    pub fn to_u32(self) -> u32 {
+        match self {
+            Self::None => 0,
+            // Arrays in brillig are represented as [RC, ...items]
+            Self::Array => 1,
+            // Slices in brillig are represented as [RC, Size, Capacity, ...items]
+            Self::Slice => 3,
         }
     }
 }

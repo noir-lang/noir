@@ -624,6 +624,21 @@ fn array_get() {
 }
 
 #[test]
+fn array_get_with_offset() {
+    let value = expect_value(
+        r#"
+        acir(inline) fn main f0 {
+          b0():
+            v0 = make_array [Field 1, Field 2] : [Field; 2]
+            v1 = array_get v0, index u32 4 minus 3 -> Field
+            return v1
+        }
+    "#,
+    );
+    assert_eq!(value, from_constant(2_u32.into(), NumericType::NativeField));
+}
+
+#[test]
 fn array_get_disabled_by_enable_side_effects() {
     let value = expect_value(
         r#"

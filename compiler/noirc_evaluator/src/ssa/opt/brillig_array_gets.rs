@@ -16,7 +16,7 @@ use crate::{
         Ssa,
         ir::{
             function::Function,
-            instruction::Instruction,
+            instruction::{ArrayGetOffset, Instruction},
             types::{NumericType, Type},
         },
     },
@@ -39,9 +39,12 @@ impl Function {
     pub(super) fn brillig_array_gets(&mut self) {
         self.simple_reachable_blocks_optimization(|context| {
             let instruction = context.instruction();
-            let Instruction::ArrayGet { array, index } = instruction else {
+            let Instruction::ArrayGet { array, index, offset } = instruction else {
                 return;
             };
+
+            // This pass should run at most once
+            assert!(*offset == ArrayGetOffset::None);
 
             let array = *array;
             let index = *index;
@@ -52,17 +55,15 @@ impl Function {
             let index_constant =
                 context.dfg.get_numeric_constant(index).expect("ICE: Expected constant index");
             let offset = if matches!(context.dfg.type_of_value(array), Type::Array(..)) {
-                // Brillig arrays are [RC, ...items]
-                1u128
+                ArrayGetOffset::Array
             } else {
-                // Brillig vectors are [RC, Size, Capacity, ...items]
-                3u128
+                ArrayGetOffset::Slice
             };
             let index = context.dfg.make_constant(
-                index_constant + offset.into(),
+                index_constant + offset.to_u32().into(),
                 NumericType::unsigned(BRILLIG_MEMORY_ADDRESSING_BIT_SIZE),
             );
-            let new_instruction = Instruction::ArrayGet { array, index };
+            let new_instruction = Instruction::ArrayGet { array, index, offset };
             context.replace_current_instruction_with(new_instruction);
         });
     }
@@ -90,7 +91,7 @@ mod tests {
         assert_ssa_snapshot!(ssa, @r"
         brillig(inline) fn main f0 {
           b0(v0: [Field; 3]):
-            v2 = array_get v0, index u32 1 -> Field
+            v2 = array_get v0, index u32 1 minus 1 -> Field
             return v2
         }
         ");
@@ -142,7 +143,7 @@ mod tests {
         assert_ssa_snapshot!(ssa, @r"
         brillig(inline) fn main f0 {
           b0(v0: [Field]):
-            v2 = array_get v0, index u32 3 -> Field
+            v2 = array_get v0, index u32 3 minus 3 -> Field
             return v2
         }
         ");
