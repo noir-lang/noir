@@ -7,9 +7,8 @@ use noirc_errors::CustomDiagnostic as Diagnostic;
 use noirc_errors::Location;
 use thiserror::Error;
 
-use crate::ast::{BinaryOpKind, ConstrainKind, FunctionReturnType, Ident, IntegerBitSize};
+use crate::ast::{ConstrainKind, FunctionReturnType, Ident, IntegerBitSize};
 use crate::hir::resolution::errors::ResolverError;
-use crate::hir_def::expr::HirBinaryOp;
 use crate::hir_def::traits::TraitConstraint;
 use crate::hir_def::types::{BinaryTypeOperator, Kind, Type};
 use crate::node_interner::NodeInterner;
@@ -25,24 +24,12 @@ pub enum Source {
     Binary,
     #[error("Assignment")]
     Assignment,
-    #[error("ArrayElements")]
-    ArrayElements,
-    #[error("ArrayLen")]
-    ArrayLen,
-    #[error("StringLen")]
-    StringLen,
-    #[error("Comparison")]
-    Comparison,
-    #[error("{0}")]
-    BinOp(BinaryOpKind),
     #[error("Return")]
     Return(FunctionReturnType, Location),
 }
 
 #[derive(Error, Debug, Clone, PartialEq, Eq)]
 pub enum TypeCheckError {
-    #[error("Operator {op:?} cannot be used in a {place:?}")]
-    OpCannotBeUsed { op: HirBinaryOp, place: &'static str, location: Location },
     #[error("Division by zero: {lhs} / {rhs}")]
     DivisionByZero { lhs: FieldElement, rhs: FieldElement, location: Location },
     #[error("Modulo on Field elements: {lhs} % {rhs}")]
@@ -78,8 +65,6 @@ pub enum TypeCheckError {
     },
     #[error("Expected {expected:?} found {found:?}")]
     ArityMisMatch { expected: usize, found: usize, location: Location },
-    #[error("Return type in a function cannot be public")]
-    PublicReturnType { typ: Type, location: Location },
     #[error("Cannot cast type {from}, 'as' is only for primitive field or integer types")]
     InvalidCast { from: Type, location: Location, reason: String },
     #[error("Casting value of type {from} to a smaller type ({to})")]
@@ -120,20 +105,12 @@ pub enum TypeCheckError {
     IntegerSignedness { sign_x: Signedness, sign_y: Signedness, location: Location },
     #[error("Integers must have the same bit width LHS is {bit_width_x}, RHS is {bit_width_y}")]
     IntegerBitWidth { bit_width_x: IntegerBitSize, bit_width_y: IntegerBitSize, location: Location },
-    #[error("{kind} cannot be used in an infix operation")]
-    InvalidInfixOp { kind: &'static str, location: Location },
     #[error("{kind} cannot be used in a unary operation")]
     InvalidUnaryOp { kind: String, location: Location },
     #[error(
         "Bitwise operations are invalid on Field types. Try casting the operands to a sized integer type first."
     )]
     FieldBitwiseOp { location: Location },
-    #[error("Integer cannot be used with type {typ}")]
-    IntegerTypeMismatch { typ: Type, location: Location },
-    #[error(
-        "Cannot use an integer and a Field in a binary operation, try converting the Field into an integer first"
-    )]
-    IntegerAndFieldBinaryOperation { location: Location },
     #[error("Cannot do modulo on Fields, try casting to an integer first")]
     FieldModulo { location: Location },
     #[error("Cannot do not (`!`) on Fields, try casting to an integer first")]
@@ -144,10 +121,6 @@ pub enum TypeCheckError {
         "The bit count in a bit-shift operation must fit in a u8, try casting the right hand side into a u8 first"
     )]
     InvalidShiftSize { location: Location },
-    #[error(
-        "The number of bits to use for this bitwise operation is ambiguous. Either the operand's type or return type should be specified"
-    )]
-    AmbiguousBitWidth { location: Location },
     #[error("Error with additional context")]
     Context { err: Box<TypeCheckError>, ctx: &'static str },
     #[error("Array is not homogeneous")]
@@ -211,8 +184,6 @@ pub enum TypeCheckError {
     UnsafeFn { location: Location },
     #[error("Expected a constant, but found `{typ}`")]
     NonConstantEvaluated { typ: Type, location: Location },
-    #[error("Slices must have constant length")]
-    NonConstantSliceLength { location: Location },
     #[error("Only sized types may be used in the entry point to a program")]
     InvalidTypeForEntryPoint { location: Location },
     #[error("Mismatched number of parameters in trait implementation")]
@@ -271,8 +242,7 @@ impl TypeCheckError {
 
     pub fn location(&self) -> Location {
         match self {
-            TypeCheckError::OpCannotBeUsed { location, .. }
-            | TypeCheckError::DivisionByZero { location, .. }
+            TypeCheckError::DivisionByZero { location, .. }
             | TypeCheckError::ModuloOnFields { location, .. }
             | TypeCheckError::OverflowingAssignment { location, .. }
             | TypeCheckError::OverflowingConstant { location, .. }
@@ -283,7 +253,6 @@ impl TypeCheckError {
             | TypeCheckError::TypeKindMismatch { expr_location: location, .. }
             | TypeCheckError::TypeCanonicalizationMismatch { location, .. }
             | TypeCheckError::ArityMisMatch { location, .. }
-            | TypeCheckError::PublicReturnType { location, .. }
             | TypeCheckError::InvalidCast { location, .. }
             | TypeCheckError::DownsizingCast { location, .. }
             | TypeCheckError::ExpectedFunction { location, .. }
@@ -302,16 +271,12 @@ impl TypeCheckError {
             | TypeCheckError::CannotInvokeStructFieldFunctionType { location, .. }
             | TypeCheckError::IntegerSignedness { location, .. }
             | TypeCheckError::IntegerBitWidth { location, .. }
-            | TypeCheckError::InvalidInfixOp { location, .. }
             | TypeCheckError::InvalidUnaryOp { location, .. }
             | TypeCheckError::FieldBitwiseOp { location }
-            | TypeCheckError::IntegerTypeMismatch { location, .. }
-            | TypeCheckError::IntegerAndFieldBinaryOperation { location }
             | TypeCheckError::FieldModulo { location }
             | TypeCheckError::FieldNot { location }
             | TypeCheckError::FieldComparison { location }
             | TypeCheckError::InvalidShiftSize { location }
-            | TypeCheckError::AmbiguousBitWidth { location }
             | TypeCheckError::NonHomogeneousArray { first_location: location, .. }
             | TypeCheckError::TypeAnnotationsNeededForMethodCall { location }
             | TypeCheckError::TypeAnnotationsNeededForFieldAccess { location }
@@ -330,7 +295,6 @@ impl TypeCheckError {
             | TypeCheckError::Unsafe { location }
             | TypeCheckError::UnsafeFn { location }
             | TypeCheckError::NonConstantEvaluated { location, .. }
-            | TypeCheckError::NonConstantSliceLength { location }
             | TypeCheckError::InvalidTypeForEntryPoint { location }
             | TypeCheckError::MismatchTraitImplNumParameters { location, .. }
             | TypeCheckError::StringIndexAssign { location }
@@ -371,11 +335,6 @@ impl<'a> From<&'a TypeCheckError> for Diagnostic {
                 diag.add_note(ctx.to_string());
                 diag
             }
-            TypeCheckError::OpCannotBeUsed { op, place, location } => Diagnostic::simple_error(
-                format!("The operator {op:?} cannot be used in a {place}"),
-                String::new(),
-                *location,
-            ),
             TypeCheckError::DivisionByZero { lhs, rhs, location } => Diagnostic::simple_error(
                 format!("Division by zero: {lhs} / {rhs}"),
                 String::new(),
@@ -506,13 +465,9 @@ impl<'a> From<&'a TypeCheckError> for Diagnostic {
             | TypeCheckError::UnresolvedMethodCall { location, .. }
             | TypeCheckError::IntegerSignedness { location, .. }
             | TypeCheckError::IntegerBitWidth { location, .. }
-            | TypeCheckError::InvalidInfixOp { location, .. }
             | TypeCheckError::InvalidUnaryOp { location, .. }
             | TypeCheckError::FieldBitwiseOp { location, .. }
-            | TypeCheckError::IntegerTypeMismatch { location, .. }
             | TypeCheckError::FieldComparison { location, .. }
-            | TypeCheckError::AmbiguousBitWidth { location, .. }
-            | TypeCheckError::IntegerAndFieldBinaryOperation { location }
             | TypeCheckError::OverflowingAssignment { location, .. }
             | TypeCheckError::OverflowingConstant { location, .. }
             | TypeCheckError::FailingBinaryOp { location, .. }
@@ -522,7 +477,6 @@ impl<'a> From<&'a TypeCheckError> for Diagnostic {
             | TypeCheckError::UnconstrainedReferenceToConstrained { location }
             | TypeCheckError::UnconstrainedSliceReturnToConstrained { location }
             | TypeCheckError::NonConstantEvaluated { location, .. }
-            | TypeCheckError::NonConstantSliceLength { location }
             | TypeCheckError::StringIndexAssign { location }
             | TypeCheckError::InvalidShiftSize { location } => {
                 Diagnostic::simple_error(error.to_string(), String::new(), *location)
@@ -535,11 +489,6 @@ impl<'a> From<&'a TypeCheckError> for Diagnostic {
             TypeCheckError::MutableReferenceToArrayElement { location } => {
                 Diagnostic::simple_error("Mutable references to array elements are currently unsupported".into(), "Try storing the element in a fresh variable first".into(), *location)
             },
-            TypeCheckError::PublicReturnType { typ, location } => Diagnostic::simple_error(
-                "Functions cannot declare a public return type".to_string(),
-                format!("return type is {typ}"),
-                *location,
-            ),
             TypeCheckError::TypeAnnotationsNeededForMethodCall { location } => {
                 let mut error = Diagnostic::simple_error(
                     "Object type is unknown in method call".to_string(),
@@ -574,11 +523,6 @@ impl<'a> From<&'a TypeCheckError> for Diagnostic {
                     Source::Assignment => {
                         format!("Cannot assign an expression of type {actual} to a value of type {expected}")
                     }
-                    Source::ArrayElements => format!("Cannot compare {expected} and {actual}, the array element types differ"),
-                    Source::ArrayLen => format!("Can only compare arrays of the same length. Here LHS is of length {expected}, and RHS is {actual}"),
-                    Source::StringLen => format!("Can only compare strings of the same length. Here LHS is of length {expected}, and RHS is {actual}"),
-                    Source::Comparison => format!("Unsupported types for comparison: {expected} and {actual}"),
-                    Source::BinOp(kind) => format!("Unsupported types for operator `{kind}`: {expected} and {actual}"),
                     Source::Return(ret_ty, expr_location) => {
                         let ret_ty_location = match ret_ty.clone() {
                             FunctionReturnType::Default(location) => location,
