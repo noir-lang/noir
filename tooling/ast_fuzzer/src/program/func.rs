@@ -1172,7 +1172,7 @@ impl<'a> FunctionContext<'a> {
     ) -> arbitrary::Result<Expression> {
         let Type::Function(param_types, return_type, _, unconstrained) = typ else {
             unreachable!(
-                "find_function_with_signature should only called with Type::Function; got {typ}"
+                "find_function_with_signature should only be called with Type::Function; got {typ}"
             );
         };
 
