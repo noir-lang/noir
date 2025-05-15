@@ -334,10 +334,11 @@ impl<'a> FunctionContext<'a> {
         // because that is a parameter of another call. But we would have to deal with the return value.
         // For this reason we handle function parameters directly here.
         if matches!(typ, Type::Function(_, _, _, _)) {
-            if let Some(expr) = self.gen_expr_from_vars(u, typ, max_depth)? {
-                return Ok(expr);
-            }
-            return self.find_function_with_signature(u, typ);
+            // Prefer functions in variables over globals.
+            return match self.gen_expr_from_vars(u, typ, max_depth)? {
+                Some(expr) => Ok(expr),
+                None => self.find_global_function_with_signature(u, typ),
+            };
         }
 
         let mut freq = Freq::new(u, &self.ctx.config.expr_freqs)?;
@@ -985,9 +986,7 @@ impl<'a> FunctionContext<'a> {
 
         let callee_id = *u.choose_iter(opts)?;
         let callee_ident = self.function_ident(callee_id);
-        let callee = self.function_decl(callee_id);
-        let return_type = callee.return_type.clone();
-        let param_types = callee.params.iter().map(|p| p.3.clone()).collect::<Vec<_>>();
+        let (param_types, return_type) = self.function_types(callee_id);
 
         // Generate an expression for each argument.
         let mut args = Vec::new();
@@ -1179,7 +1178,9 @@ impl<'a> FunctionContext<'a> {
     }
 
     /// Find a global function matching a type signature.
-    fn find_function_with_signature(
+    ///
+    /// For local functions we use `gen_expr_from_vars`.
+    fn find_global_function_with_signature(
         &mut self,
         u: &mut Unstructured,
         typ: &Type,
@@ -1191,7 +1192,6 @@ impl<'a> FunctionContext<'a> {
         };
 
         // TODO(#8484): Take the callee ID into account, so we don't create a problem inlining ACIR.
-        // TODO: Look for locals?
         let candidates = self
             .ctx
             .function_declarations
@@ -1237,15 +1237,35 @@ impl<'a> FunctionContext<'a> {
                 })
             }
             CallableId::Local(id) => {
-                todo!("function_ident for local parameters")
+                let (mutable, name, typ) = self.locals.current().get_variable(&id);
+                Expression::Ident(Ident {
+                    location: None,
+                    definition: Definition::Local(id),
+                    mutable: *mutable,
+                    name: name.clone(),
+                    typ: typ.clone(),
+                    id: self.next_ident_id(),
+                })
             }
         }
     }
 
-    fn function_decl(&self, callee_id: CallableId) -> &FunctionDeclaration {
+    /// Get the parameter types and return type of a function.
+    fn function_types(&self, callee_id: CallableId) -> (Vec<Type>, Type) {
         match callee_id {
-            CallableId::Global(id) => self.ctx.function_decl(id),
-            CallableId::Local(id) => todo!("function_decl for local parameters"),
+            CallableId::Global(id) => {
+                let decl = self.ctx.function_decl(id);
+                let return_type = decl.return_type.clone();
+                let param_types = decl.params.iter().map(|p| p.3.clone()).collect::<Vec<_>>();
+                (param_types, return_type)
+            }
+            CallableId::Local(id) => {
+                let (_, _, typ) = self.locals.current().get_variable(&id);
+                let Type::Function(param_types, return_type, _, _) = typ else {
+                    unreachable!("function pointers should have function type; got {typ}")
+                };
+                (param_types.clone(), return_type.as_ref().clone())
+            }
         }
     }
 }
