@@ -40,20 +40,14 @@ impl BrilligCallParser {
     ) -> Result<Vec<BrilligInputs<F>>, String> {
         // the inputs are of 3 types: Single(Expression), Array(Vec<Expression>) and MemoryArray(BlockId)
         // we keep 3 different vectors to store each type
-        let mut single_inputs_expressions: Vec<BrilligInputs<F>> = Vec::new();
-        let single_input_regex = Regex::new(r"Single\(Expression\s*\{[^}]*\}\)").unwrap();
-        let single_inputs = single_input_regex
-            .find_iter(call_inputs_string)
-            .map(|m| m.as_str())
-            .collect::<Vec<&str>>();
 
-        let array_input_regex =
-            Regex::new(r"Array\(\[Expression\s*\{[^}]*\}(?:\s*,\s*Expression\s*\{[^}]*\})*\]\)")
-                .unwrap();
-        let array_inputs_str = array_input_regex
-            .find_iter(call_inputs_string)
-            .map(|m| m.as_str())
-            .collect::<Vec<&str>>();
+        // we don't want to be using two different array inputs because it's messing up the order of inputs
+        // so we want one regex for both array and single inputs and have a match statement to handle the different cases
+
+        let mut inputs_expressions: Vec<BrilligInputs<F>> = Vec::new();
+        let input_regex = Regex::new(r"Single\(Expression\s*\{[^}]*\}\)|Array\(\[Expression\s*\{[^}]*\}(?:\s*,\s*Expression\s*\{[^}]*\})*\]\)").unwrap();
+        let inputs =
+            input_regex.find_iter(call_inputs_string).map(|m| m.as_str()).collect::<Vec<&str>>();
 
         let memory_array_input_regex = Regex::new(r"MemoryArray\(([^)]+)\)").unwrap();
         let memory_array_inputs = memory_array_input_regex
@@ -63,78 +57,76 @@ impl BrilligCallParser {
 
         // now we have to split each of the inputs. let us start with the single inputs
         // we have to create an expression for each single input
-        for single_input in single_inputs.clone() {
-            let trimmed_input =
-                single_input.trim().strip_prefix("Single(").unwrap().strip_suffix(")").unwrap();
-            let expression =
-                Self::parse_expression::<F>(trimmed_input).map_err(|e| e.to_string())?;
-            single_inputs_expressions.push(BrilligInputs::Single(expression));
+        for input in inputs.clone() {
+            if input.starts_with("Single") {
+                let trimmed_input =
+                    input.trim().strip_prefix("Single(").unwrap().strip_suffix(")").unwrap();
+                let expression =
+                    Self::parse_expression::<F>(trimmed_input).map_err(|e| e.to_string())?;
+                inputs_expressions.push(BrilligInputs::Single(expression));
+            } else if input.starts_with("Array") {
+                let trimmed_input =
+                    input.trim().strip_prefix("Array(").unwrap().strip_suffix(")").unwrap();
+                // now we split the array of expressions into individual expressions
+                let expressions_array_regex = Regex::new(r"Expression\s*\{[^}]*\}\s*,\s*").unwrap();
+                // we iterate over each expression and parse it
+                let expressions = expressions_array_regex
+                    .find_iter(trimmed_input)
+                    .map(|m| m.as_str())
+                    .collect::<Vec<&str>>();
+                let mut expressions_array: Vec<Expression<F>> = Vec::new();
+                for expression in expressions {
+                    let expression =
+                        Self::parse_expression::<F>(expression).map_err(|e| e.to_string())?;
+                    expressions_array.push(expression);
+                }
+                inputs_expressions.push(BrilligInputs::Array(expressions_array));
+            } else {
+                return Err("Invalid input type".to_string());
+            }
         }
 
-        // now we parse the array inputs
-        // array inputs are an array of expressions, so we can use the same logic as before to parse them
-        let mut array_inputs: Vec<BrilligInputs<F>> = Vec::new();
-        for array_input in array_inputs_str.clone() {
-            // we remove the Array( and )
-            let trimmed_input =
-                array_input.trim().strip_prefix("Array(").unwrap().strip_suffix(")").unwrap();
-            // now we split the array of expressions into individual expressions
-            let expressions_array_regex = Regex::new(r"Expression\s*\{[^}]*\}\s*,\s*").unwrap();
-            // we iterate over each expression and parse it
-            let expressions = expressions_array_regex
-                .find_iter(trimmed_input)
-                .map(|m| m.as_str())
-                .collect::<Vec<&str>>();
-            let mut expressions_array: Vec<Expression<F>> = Vec::new();
-            for expression in expressions {
-                let expression =
-                    Self::parse_expression::<F>(expression).map_err(|e| e.to_string())?;
-                expressions_array.push(expression);
-            }
-            array_inputs.push(BrilligInputs::Array(expressions_array));
-        }
-        // now we make a vector of BrilligInputs from all the inputs we
-        let mut brillig_inputs: Vec<BrilligInputs<F>> = Vec::new();
-        brillig_inputs.extend(single_inputs_expressions);
-        brillig_inputs.extend(array_inputs);
-        Ok(brillig_inputs)
+        Ok(inputs_expressions)
     }
 
-    fn parse_brillig_outputs(call_string: &str) -> Vec<BrilligOutputs> {
+    fn parse_brillig_outputs(call_string: &str) -> Result<Vec<BrilligOutputs>, String> {
         // brillig outputs are of form Simple(Witness) or Array(Vec<Witness>)
-        let mut simple_outputs_array: Vec<BrilligOutputs> = Vec::new();
-        let mut array_outputs_array: Vec<BrilligOutputs> = Vec::new();
-        let simple_outputs_regex = Regex::new(r"Simple\((Witness\((\d+)\))").unwrap();
-        let captures = simple_outputs_regex.captures_iter(call_string).collect::<Vec<_>>();
+        let mut outputs_array: Vec<BrilligOutputs> = Vec::new();
+        let output_regex = Regex::new(r"(Simple|Array)\((Witness\((\d+)\))").unwrap();
+        let captures = output_regex.captures_iter(call_string).collect::<Vec<_>>();
         for capture in captures {
-            let w = capture.get(1).unwrap().as_str();
-            simple_outputs_array.push(BrilligOutputs::Simple(Witness(
-                w.strip_prefix("Witness(")
-                    .unwrap()
-                    .strip_suffix(")")
-                    .unwrap()
-                    .parse::<u32>()
-                    .unwrap(),
-            )));
-        }
-
-        let array_outputs_regex = Regex::new(r"Array\(\[([^\]]+)\]\)").unwrap();
-        let captures = array_outputs_regex.captures_iter(call_string).collect::<Vec<_>>();
-        for capture in captures {
-            let w = capture.get(1).unwrap().as_str();
-            // this is an array of witnesses, so we need to parse each witness
-            let mut witness_array: Vec<Witness> = Vec::new();
-            let witnesses_regex = Regex::new(r"Witness\((\d+)\)").unwrap();
-            let captures = witnesses_regex.captures_iter(w).collect::<Vec<_>>();
-            for capture in captures {
-                let witness = capture.get(1).unwrap().as_str();
-                witness_array.push(Witness(witness.parse::<u32>().unwrap()));
+            let output_type = capture.get(1).unwrap().as_str();
+            let content = capture.get(2).unwrap().as_str();
+            println!("type: {:?}", output_type);
+            println!("content: {:?}", content);
+            match output_type {
+                "Simple" => {
+                    outputs_array.push(BrilligOutputs::Simple(Witness(
+                        content
+                            .strip_prefix("Witness(")
+                            .unwrap()
+                            .strip_suffix(")")
+                            .unwrap()
+                            .parse::<u32>()
+                            .unwrap(),
+                    )));
+                }
+                "Array" => {
+                    let mut witness_array: Vec<Witness> = Vec::new();
+                    let witnesses_regex = Regex::new(r"Witness\((\d+)\)").unwrap();
+                    let captures = witnesses_regex.captures_iter(content).collect::<Vec<_>>();
+                    for capture in captures {
+                        let witness = capture.get(1).unwrap().as_str();
+                        witness_array.push(Witness(witness.parse::<u32>().unwrap()));
+                    }
+                    outputs_array.push(BrilligOutputs::Array(witness_array));
+                }
+                _ => {
+                    return Err("Invalid output type".to_string());
+                }
             }
-            // now we shove the witness array into the array_outputs_array
-            array_outputs_array.push(BrilligOutputs::Array(witness_array));
         }
-        simple_outputs_array.extend(array_outputs_array);
-        simple_outputs_array
+        Ok(outputs_array)
     }
 
     fn parse_expression<F: AcirField>(expression_str: &str) -> Result<Expression<F>, String> {
@@ -252,7 +244,7 @@ impl BrilligCallParser {
         Ok(Opcode::BrilligCall {
             id: BrilligFunctionId(brillig_id),
             inputs: brillig_inputs,
-            outputs: outputs,
+            outputs: outputs.map_err(|e| e.to_string())?,
             predicate: predicate,
         })
     }
@@ -264,7 +256,7 @@ mod test {
 
     #[test]
     fn test_brillig_inputs_parser() {
-        let inputs = "Single(Expression { mul_terms: [], linear_combinations: [(1, Witness(0)), (1, Witness(1))], q_c: 0 }), Single(Expression { mul_terms: [(1 , Witness(0) , Witness(1)) , (1 , Witness(2) , Witness(3))], linear_combinations: [], q_c: 4294967296 }), [Array([Expression { mul_terms: [], linear_combinations: [(1, Witness(0))], q_c: 0 }, Expression { mul_terms: [], linear_combinations: [(1, Witness(1))], q_c: 0 }, Expression { mul_terms: [], linear_combinations: [(1, Witness(2))], q_c: 0 }])";
+        let inputs = "Single(Expression { mul_terms: [], linear_combinations: [(1, Witness(0)), (1, Witness(1))], q_c: 0 }), Single(Expression { mul_terms: [(1 , Witness(0) , Witness(1)) , (1 , Witness(2) , Witness(3))], linear_combinations: [], q_c: 4294967296 }), Array([Expression { mul_terms: [], linear_combinations: [(1, Witness(0))], q_c: 0 }, Expression { mul_terms: [], linear_combinations: [(1, Witness(1))], q_c: 0 }, Expression { mul_terms: [], linear_combinations: [(1, Witness(2))], q_c: 0 }])";
 
         let brillig_inputs =
             BrilligCallParser::parse_brillig_inputs::<FieldElement>(inputs).unwrap();
@@ -310,7 +302,7 @@ mod test {
 
     #[test]
     fn test_brillig_call_parser() {
-        let brillig_call_string = "func 0: PREDICATE = [ (-1, _0, _2) (-1, _1, _2) (1, _3) 0 ] inputs: [Single(Expression { mul_terms: [], linear_combinations: [(1, Witness(0)), (1, Witness(1))], q_c: 0 }), Single(Expression { mul_terms: [], linear_combinations: [], q_c: 4294967296 })] outputs: [Simple(Witness(11)), Array([Witness(12), Witness(13), Witness(14)])]";
+        let brillig_call_string = "func 0: PREDICATE = [ (-1, _0, _2) (-1, _1, _2) (1, _3) 0 ] inputs: [Single(Expression { mul_terms: [], linear_combinations: [(1, Witness(0)), (1, Witness(1)), Array([Expression { mul_terms: [], linear_combinations: [(1, Witness(0))], q_c: 0 }, Expression { mul_terms: [], linear_combinations: [(1, Witness(1))], q_c: 0 }, Expression { mul_terms: [], linear_combinations: [(1, Witness(2))], q_c: 0 }]), Single(Expression { mul_terms: [], linear_combinations: [(1, Witness(0)), (1, Witness(1))], q_c: 0 }), Single(Expression { mul_terms: [], linear_combinations: [], q_c: 4294967296 })] outputs: [Simple(Witness(11)), Array([Witness(12), Witness(13), Witness(14)])]";
 
         let brillig_call_instruction = Instruction {
             instruction_type: InstructionType::BrilligCall,
