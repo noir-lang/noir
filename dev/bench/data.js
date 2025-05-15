@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1747339324101,
+  "lastUpdate": 1747339438959,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -20143,80 +20143,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "163862677+noirwhal@users.noreply.github.com",
-            "name": "noirwhal",
-            "username": "noirwhal"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "94e839d82c13c90e7f5989e9ab6cea73ab2ba403",
-          "message": "chore: bump external pinned commits (#8433)\n\nCo-authored-by: noirwhal <tomfrench@aztecprotocol.com>\nCo-authored-by: Tom French <15848336+TomAFrench@users.noreply.github.com>",
-          "timestamp": "2025-05-09T13:05:48Z",
-          "tree_id": "5a0956b0ed40f48e656f5a25b2e6ecd37785df25",
-          "url": "https://github.com/noir-lang/noir/commit/94e839d82c13c90e7f5989e9ab6cea73ab2ba403"
-        },
-        "date": 1746797817254,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 1110.6,
-            "unit": "KB"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 2034.4,
-            "unit": "KB"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 638.3,
-            "unit": "KB"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 5181.3,
-            "unit": "KB"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 3963.2,
-            "unit": "KB"
-          },
-          {
-            "name": "rollup-block-root-empty",
-            "value": 257.5,
-            "unit": "KB"
-          },
-          {
-            "name": "rollup-block-root-single-tx",
-            "value": 25674.3,
-            "unit": "KB"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 25708.7,
-            "unit": "KB"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 179.4,
-            "unit": "KB"
-          },
-          {
-            "name": "rollup-root",
-            "value": 470.7,
-            "unit": "KB"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "aakoshh@gmail.com",
             "name": "Akosh Farkash",
             "username": "aakoshh"
@@ -23936,6 +23862,85 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/noir-lang/noir/commit/6549f7fc2faad8e431428d4600e1212b04367c83"
         },
         "date": 1747339313512,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 1127.1,
+            "unit": "KB"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 2051,
+            "unit": "KB"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 583.1,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 5123.2,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 3941.9,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-block-root-empty",
+            "value": 256.8,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-block-root-single-tx",
+            "value": 25679,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 25706.2,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 181.7,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-root",
+            "value": 473.4,
+            "unit": "KB"
+          },
+          {
+            "name": "semaphore-depth-10",
+            "value": 636.4,
+            "unit": "KB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "asterite@gmail.com",
+            "name": "Ary Borenszweig",
+            "username": "asterite"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "da0b3a2e722f3bd0ff42f67d221088b5c8f60ea4",
+          "message": "fix: add offset to ArrayGet (#8536)\n\nCo-authored-by: jfecher <jfecher11@gmail.com>",
+          "timestamp": "2025-05-15T19:37:49Z",
+          "tree_id": "fdca177b4ea1d746711e7273bc80f28d5e6d94ba",
+          "url": "https://github.com/noir-lang/noir/commit/da0b3a2e722f3bd0ff42f67d221088b5c8f60ea4"
+        },
+        "date": 1747339429921,
         "tool": "customSmallerIsBetter",
         "benches": [
           {
