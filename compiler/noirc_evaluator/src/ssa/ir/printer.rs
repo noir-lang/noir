@@ -8,7 +8,7 @@ use iter_extended::vecmap;
 use crate::ssa::{
     Ssa,
     ir::{
-        instruction::ArrayGetOffset,
+        instruction::ArrayOffset,
         types::{NumericType, Type},
     },
 };
@@ -240,8 +240,8 @@ fn display_instruction_inner(
                 show(*array),
                 show(*index),
                 match offset {
-                    ArrayGetOffset::None => String::new(),
-                    ArrayGetOffset::Array | ArrayGetOffset::Slice =>
+                    ArrayOffset::None => String::new(),
+                    ArrayOffset::Array | ArrayOffset::Slice =>
                         format!(" minus {}", offset.to_u32()),
                 },
                 result_types(dfg, results)

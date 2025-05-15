@@ -5,7 +5,7 @@ use super::{
     ir::{
         dfg::DataFlowGraph,
         function::{Function, FunctionId, RuntimeType},
-        instruction::{ArrayGetOffset, Binary, BinaryOp, Instruction, TerminatorInstruction},
+        instruction::{ArrayOffset, Binary, BinaryOp, Instruction, TerminatorInstruction},
         types::Type,
         value::ValueId,
     },
@@ -736,7 +736,7 @@ impl<'ssa> Interpreter<'ssa> {
         &mut self,
         array: ValueId,
         index: ValueId,
-        offset: ArrayGetOffset,
+        offset: ArrayOffset,
         result: ValueId,
     ) -> IResult<()> {
         let element = if self.side_effects_enabled() {

@@ -7,7 +7,7 @@ use std::{
 use super::{
     Ssa,
     ir::{
-        instruction::{ArrayGetOffset, BinaryOp},
+        instruction::{ArrayOffset, BinaryOp},
         types::{NumericType, Type},
     },
     opt::pure::Purity,
@@ -511,8 +511,8 @@ impl<'a> Parser<'a> {
                 let token = self.token.token().clone();
                 let span = self.token.span();
                 let field = self.eat_int_or_error()?;
-                if let Some(offset) = field.try_to_u32().and_then(ArrayGetOffset::from_u32) {
-                    if offset == ArrayGetOffset::None {
+                if let Some(offset) = field.try_to_u32().and_then(ArrayOffset::from_u32) {
+                    if offset == ArrayOffset::None {
                         return self.unexpected_offset(token, span);
                     } else {
                         offset
@@ -521,7 +521,7 @@ impl<'a> Parser<'a> {
                     return self.unexpected_offset(token, span);
                 }
             } else {
-                ArrayGetOffset::None
+                ArrayOffset::None
             };
             self.eat_or_error(Token::Arrow)?;
             let element_type = self.parse_type()?;

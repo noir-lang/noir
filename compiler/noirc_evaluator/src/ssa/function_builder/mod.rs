@@ -23,7 +23,7 @@ use super::{
         basic_block::BasicBlock,
         dfg::{GlobalsGraph, InsertInstructionResult},
         function::RuntimeType,
-        instruction::{ArrayGetOffset, ConstrainError, InstructionId, Intrinsic},
+        instruction::{ArrayOffset, ConstrainError, InstructionId, Intrinsic},
         types::NumericType,
     },
     opt::pure::FunctionPurities,
@@ -353,7 +353,7 @@ impl FunctionBuilder {
         index: ValueId,
         element_type: Type,
     ) -> ValueId {
-        self.insert_array_get_with_offset(array, index, ArrayGetOffset::None, element_type)
+        self.insert_array_get_with_offset(array, index, ArrayOffset::None, element_type)
     }
 
     /// Insert an instruction to extract an element from an array
@@ -361,7 +361,7 @@ impl FunctionBuilder {
         &mut self,
         array: ValueId,
         index: ValueId,
-        offset: ArrayGetOffset,
+        offset: ArrayOffset,
         element_type: Type,
     ) -> ValueId {
         let element_type = Some(vec![element_type]);

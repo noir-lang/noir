@@ -281,7 +281,7 @@ pub enum Instruction {
 
     /// Retrieve a value from an array at the given index
     /// `offset` determines whether the index has been offseted by some offset.
-    ArrayGet { array: ValueId, index: ValueId, offset: ArrayGetOffset },
+    ArrayGet { array: ValueId, index: ValueId, offset: ArrayOffset },
 
     /// Creates a new array with the new value at the given index. All other elements are identical
     /// to those in the given array. This will not modify the original array unless `mutable` is
@@ -652,13 +652,13 @@ impl Instruction {
 /// Offsets are set during `crate::ssa::opt::brillig_array_gets` for brillig arrays
 /// and vectors with constant indicces.
 #[derive(Debug, PartialEq, Eq, Hash, Copy, Clone, Serialize, Deserialize)]
-pub enum ArrayGetOffset {
+pub enum ArrayOffset {
     None,
     Array,
     Slice,
 }
 
-impl ArrayGetOffset {
+impl ArrayOffset {
     pub fn from_u32(value: u32) -> Option<Self> {
         match value {
             0 => Some(Self::None),

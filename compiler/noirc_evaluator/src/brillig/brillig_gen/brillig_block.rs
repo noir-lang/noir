@@ -7,7 +7,7 @@ use crate::brillig::brillig_ir::registers::RegisterAllocator;
 use crate::brillig::brillig_ir::{
     BRILLIG_MEMORY_ADDRESSING_BIT_SIZE, BrilligBinaryOp, BrilligContext, ReservedRegisters,
 };
-use crate::ssa::ir::instruction::{ArrayGetOffset, ConstrainError, Hint};
+use crate::ssa::ir::instruction::{ArrayOffset, ConstrainError, Hint};
 use crate::ssa::ir::{
     basic_block::BasicBlockId,
     dfg::DataFlowGraph,
@@ -807,7 +807,7 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
 
                 if dfg.is_constant(*index) {
                     // For constant indices it must be the case that they have been offseted during SSA
-                    assert!(*offset != ArrayGetOffset::None);
+                    assert!(*offset != ArrayOffset::None);
                     self.brillig_context.codegen_load_with_offset(
                         array_variable.extract_register(),
                         index_variable,

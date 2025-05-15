@@ -6,7 +6,7 @@ use noirc_errors::Span;
 use crate::ssa::{
     ir::{
         function::RuntimeType,
-        instruction::{ArrayGetOffset, BinaryOp},
+        instruction::{ArrayOffset, BinaryOp},
         types::Type,
     },
     opt::pure::Purity,
@@ -88,7 +88,7 @@ pub(crate) enum ParsedInstruction {
         element_type: Type,
         array: ParsedValue,
         index: ParsedValue,
-        offset: ArrayGetOffset,
+        offset: ArrayOffset,
     },
     ArraySet {
         target: Identifier,

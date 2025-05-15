@@ -16,7 +16,7 @@ use crate::{
         Ssa,
         ir::{
             function::Function,
-            instruction::{ArrayGetOffset, Instruction},
+            instruction::{ArrayOffset, Instruction},
             types::{NumericType, Type},
         },
     },
@@ -24,11 +24,11 @@ use crate::{
 
 impl Ssa {
     #[tracing::instrument(level = "trace", skip(self))]
-    pub(crate) fn brillig_array_gets(mut self) -> Ssa {
+    pub(crate) fn brillig_array_get_and_set(mut self) -> Ssa {
         let brillig_functions =
             self.functions.values_mut().filter(|function| function.runtime().is_brillig());
         for function in brillig_functions {
-            function.brillig_array_gets();
+            function.brillig_array_get_and_set();
         }
 
         self
@@ -36,7 +36,7 @@ impl Ssa {
 }
 
 impl Function {
-    pub(super) fn brillig_array_gets(&mut self) {
+    pub(super) fn brillig_array_get_and_set(&mut self) {
         self.simple_reachable_blocks_optimization(|context| {
             let instruction = context.instruction();
             let Instruction::ArrayGet { array, index, offset } = instruction else {
@@ -44,7 +44,7 @@ impl Function {
             };
 
             // This pass should run at most once
-            assert!(*offset == ArrayGetOffset::None);
+            assert!(*offset == ArrayOffset::None);
 
             let array = *array;
             let index = *index;
@@ -55,9 +55,9 @@ impl Function {
             let index_constant =
                 context.dfg.get_numeric_constant(index).expect("ICE: Expected constant index");
             let offset = if matches!(context.dfg.type_of_value(array), Type::Array(..)) {
-                ArrayGetOffset::Array
+                ArrayOffset::Array
             } else {
-                ArrayGetOffset::Slice
+                ArrayOffset::Slice
             };
             let index = context.dfg.make_constant(
                 index_constant + offset.to_u32().into(),
@@ -86,7 +86,7 @@ mod tests {
         ";
 
         let ssa = Ssa::from_str(src).unwrap();
-        let ssa = ssa.brillig_array_gets();
+        let ssa = ssa.brillig_array_get_and_set();
 
         assert_ssa_snapshot!(ssa, @r"
         brillig(inline) fn main f0 {
@@ -108,7 +108,7 @@ mod tests {
         ";
 
         let ssa = Ssa::from_str(src).unwrap();
-        let ssa = ssa.brillig_array_gets();
+        let ssa = ssa.brillig_array_get_and_set();
         assert_normalized_ssa_equals(ssa, src);
     }
 
@@ -123,7 +123,7 @@ mod tests {
         ";
 
         let ssa = Ssa::from_str(src).unwrap();
-        let ssa = ssa.brillig_array_gets();
+        let ssa = ssa.brillig_array_get_and_set();
         assert_normalized_ssa_equals(ssa, src);
     }
 
@@ -138,7 +138,7 @@ mod tests {
         ";
 
         let ssa = Ssa::from_str(src).unwrap();
-        let ssa = ssa.brillig_array_gets();
+        let ssa = ssa.brillig_array_get_and_set();
 
         assert_ssa_snapshot!(ssa, @r"
         brillig(inline) fn main f0 {
