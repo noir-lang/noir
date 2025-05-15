@@ -4,4 +4,4 @@ type = "bin"
 authors = [""]
 
 [dependencies]
-lib = { path = "../library" }
+lib = { path = "../interned_crate_library" }
