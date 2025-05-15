@@ -1309,8 +1309,7 @@
 <a href="#1308" id="1308">1308</a>
 <a href="#1309" id="1309">1309</a>
 <a href="#1310" id="1310">1310</a>
-<a href="#1311" id="1311">1311</a>
-<a href="#1312" id="1312">1312</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::cmp::Ordering;
+<a href="#1311" id="1311">1311</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::cmp::Ordering;
 
 <span class="kw">use super</span>::{
     Ssa,
@@ -1423,7 +1422,6 @@
     <span class="doccomment">/// Define or redefine a value.
     /// Redefinitions are expected in the case of loops.
     </span><span class="kw">fn </span>define(<span class="kw-2">&amp;mut </span><span class="self">self</span>, id: ValueId, value: Value) {
-        <span class="macro">eprintln!</span>(<span class="string">"{id} := {value}"</span>);
         <span class="self">self</span>.call_context_mut().scope.insert(id, value);
     }
 
