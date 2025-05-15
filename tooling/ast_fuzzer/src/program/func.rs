@@ -192,10 +192,8 @@ impl<'a> FunctionContext<'a> {
             if !can_call(id, decl.unconstrained, *callee_id, callee_decl.unconstrained) {
                 continue;
             }
-            call_targets.insert(
-                CallableId::Global(*callee_id),
-                types::types_produced(&callee_decl.return_type),
-            );
+            let produces = types::types_produced(&callee_decl.return_type);
+            call_targets.insert(CallableId::Global(*callee_id), produces);
         }
 
         // Consider function pointers as callable; they are already filtered during construction.
@@ -203,7 +201,8 @@ impl<'a> FunctionContext<'a> {
             let Type::Function(_, return_type, _, _) = typ else {
                 continue;
             };
-            call_targets.insert(CallableId::Local(*callee_id), types::types_produced(&return_type));
+            let produces = types::types_produced(return_type);
+            call_targets.insert(CallableId::Local(*callee_id), produces);
         }
 
         Self {
