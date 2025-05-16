@@ -342,7 +342,7 @@ fn test_array_get() {
 }
 
 #[test]
-fn test_array_get_offseted_by_1() {
+fn test_array_get_with_index_minus_1() {
     let src: &'static str = "
         acir(inline) fn main f0 {
           b0(v0: [Field; 3]):
@@ -354,7 +354,7 @@ fn test_array_get_offseted_by_1() {
 }
 
 #[test]
-fn test_array_get_offseted_by_3() {
+fn test_array_get_with_index_minus_3() {
     let src: &'static str = "
         acir(inline) fn main f0 {
           b0(v0: [Field; 3]):
@@ -390,7 +390,7 @@ fn test_mutable_array_set() {
 }
 
 #[test]
-fn test_array_set_offseted_by_1() {
+fn test_array_set_with_index_minus_1() {
     let src = "
         acir(inline) fn main f0 {
           b0(v0: [Field; 3]):
@@ -402,7 +402,7 @@ fn test_array_set_offseted_by_1() {
 }
 
 #[test]
-fn test_array_set_offseted_by_3() {
+fn test_array_set_with_index_minus_3() {
     let src = "
         acir(inline) fn main f0 {
           b0(v0: [Field; 3]):

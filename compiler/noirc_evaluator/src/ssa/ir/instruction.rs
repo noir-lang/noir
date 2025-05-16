@@ -280,13 +280,13 @@ pub enum Instruction {
     EnableSideEffectsIf { condition: ValueId },
 
     /// Retrieve a value from an array at the given index
-    /// `offset` determines whether the index has been offseted by some offset.
+    /// `offset` determines whether the index has been shifted by some offset.
     ArrayGet { array: ValueId, index: ValueId, offset: ArrayOffset },
 
     /// Creates a new array with the new value at the given index. All other elements are identical
     /// to those in the given array. This will not modify the original array unless `mutable` is
     /// set. This flag is off by default and only enabled when optimizations determine it is safe.
-    /// `offset` determines whether the index has been offseted by some offset.
+    /// `offset` determines whether the index has been shifted by some offset.
     ArraySet { array: ValueId, index: ValueId, value: ValueId, mutable: bool, offset: ArrayOffset },
 
     /// An instruction to increment the reference count of a value.
@@ -652,7 +652,7 @@ impl Instruction {
     }
 }
 
-/// Determines whether an ArrayGet or ArraySet index has been offseted by a given value.
+/// Determines whether an ArrayGet or ArraySet index has been shifted by a given value.
 /// Offsets are set during `crate::ssa::opt::brillig_array_gets` for brillig arrays
 /// and vectors with constant indicces.
 #[derive(Debug, PartialEq, Eq, Hash, Copy, Clone, Serialize, Deserialize)]
