@@ -597,8 +597,6 @@ pub enum DefinitionKind {
     /// Generic types in functions (T, U in `fn foo<T, U>(...)` are declared as variables
     /// in scope in case they resolve to numeric generics later.
     NumericGeneric(TypeVariable, Box<Type>),
-
-    AssociatedConstant(TraitImplId, String),
 }
 
 impl DefinitionKind {
@@ -614,7 +612,6 @@ impl DefinitionKind {
             DefinitionKind::Global(_) => None,
             DefinitionKind::Local(id) => *id,
             DefinitionKind::NumericGeneric(_, _) => None,
-            DefinitionKind::AssociatedConstant(..) => None,
         }
     }
 }
@@ -2273,14 +2270,31 @@ impl NodeInterner {
         self.lsp_mode
     }
 
+    /// Sets the associated types for the given trait impl.
+    /// Each type in [`NamedType`] will be wrapped in a [`Type::TypeVariable`].
     pub fn set_associated_types_for_impl(
         &mut self,
         impl_id: TraitImplId,
-        associated_types: Vec<NamedType>,
+        mut associated_types: Vec<NamedType>,
     ) {
+        // Wrap the named generics in type variables to be able to refer them as type variables
+        for associated_type in &mut associated_types {
+            let mut wrapper = self.next_type_variable_with_kind(associated_type.typ.kind());
+            let Type::TypeVariable(type_variable) = &mut wrapper else {
+                unreachable!(
+                    "Expected `next_type_variable_with_kind` to create a `Type::TypeVariable`"
+                );
+            };
+            let named_generic_type = std::mem::replace(&mut associated_type.typ, Type::Error);
+            type_variable.bind(named_generic_type);
+            associated_type.typ = wrapper;
+        }
+
         self.trait_impl_associated_types.insert(impl_id, associated_types);
     }
 
+    /// Returns the associated types for the given trait impl.
+    /// The Type of each [`NamedType`] is guaranteed to be a [`Type::TypeVariable`]
     pub fn get_associated_types_for_impl(&self, impl_id: TraitImplId) -> &[NamedType] {
         &self.trait_impl_associated_types[&impl_id]
     }

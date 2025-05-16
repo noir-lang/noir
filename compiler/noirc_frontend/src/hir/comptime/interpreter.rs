@@ -636,9 +636,6 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
 
                 self.evaluate_integer(value.into(), id)
             }
-            DefinitionKind::AssociatedConstant(..) => {
-                todo!()
-            }
         }
     }
 
