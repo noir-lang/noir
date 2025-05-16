@@ -50,18 +50,6 @@ pub(crate) fn add_recursion_limit(
     let mut proxy_functions = HashMap::new();
     let mut next_func_id = FuncId(ctx.functions.len() as u32);
 
-    /// Decide how to pass the limit to function valued parameter passed to a function.
-    fn limit_type_for_func_param(callee_unconstrained: bool, param_unconstrained: bool) -> Type {
-        // If the function receiving the parameter is ACIR, and the function we pass
-        // to it is Brillig, it will have to pass the limit by value.
-        // Otherwise by ref should work. We don't pass ACIR to Brillig.
-        if !callee_unconstrained && param_unconstrained {
-            types::U32
-        } else {
-            types::ref_mut(types::U32)
-        }
-    }
-
     for (func_id, func) in &ctx.functions {
         if !func.unconstrained
             || *func_id == Program::main_id()
@@ -310,8 +298,10 @@ pub(crate) fn add_recursion_limit(
                 for i in 0..param_types.len() {
                     let param_type = &mut param_types[i];
                     if let Type::Function(param_types, _, _, param_unconstrained) = param_type {
-                        let typ =
-                            limit_type_for_func_param(*callee_unconstrained, *param_unconstrained);
+                        let typ = ctx_limit_type_for_func_param(
+                            *callee_unconstrained,
+                            *param_unconstrained,
+                        );
 
                         let pass_by_value = !types::is_reference(&typ);
 
@@ -358,13 +348,25 @@ pub(crate) fn add_recursion_limit(
     for func in ctx.functions.values_mut() {
         for param in func.parameters.iter_mut() {
             if let Type::Function(param_types, _, _, param_unconstrained) = &mut param.3 {
-                let typ = limit_type_for_func_param(func.unconstrained, *param_unconstrained);
+                let typ = ctx_limit_type_for_func_param(func.unconstrained, *param_unconstrained);
                 param_types.push(typ);
             }
         }
     }
 
     Ok(())
+}
+
+/// Decide how to pass the recursion limit to function: by value or by ref.
+fn ctx_limit_type_for_func_param(callee_unconstrained: bool, param_unconstrained: bool) -> Type {
+    // If the function receiving the parameter is ACIR, and the function we pass
+    // to it is Brillig, it will have to pass the limit by value.
+    // Otherwise by ref should work. We don't pass ACIR to Brillig.
+    if !callee_unconstrained && param_unconstrained {
+        types::U32
+    } else {
+        types::ref_mut(types::U32)
+    }
 }
 
 /// Find the next local ID and ident IDs (in that order) that we can use to add
