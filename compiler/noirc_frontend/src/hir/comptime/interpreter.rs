@@ -636,6 +636,9 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
 
                 self.evaluate_integer(value.into(), id)
             }
+            DefinitionKind::AssociatedConstant(..) => {
+                todo!("Implement accessing an associated constant in the comptime interpreter")
+            }
         }
     }
 

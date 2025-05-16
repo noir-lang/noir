@@ -716,7 +716,9 @@ impl ItemPrinter<'_, '_, '_> {
                 let use_import = true;
                 self.show_reference_to_module_def_id(ModuleDefId::GlobalId(*global_id), use_import);
             }
-            DefinitionKind::Local(..) | DefinitionKind::NumericGeneric(..) => {
+            DefinitionKind::Local(..)
+            | DefinitionKind::NumericGeneric(..)
+            | DefinitionKind::AssociatedConstant(..) => {
                 let name = self.interner.definition_name(ident.id);
 
                 // The compiler uses '$' for some internal identifiers.

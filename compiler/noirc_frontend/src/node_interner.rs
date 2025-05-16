@@ -146,9 +146,8 @@ pub struct NodeInterner {
     /// created, when resolving the type signature of each method in the impl.
     trait_impl_associated_types: HashMap<TraitImplId, Vec<NamedType>>,
 
-    /// Maps each type variable ID of each trait impl associated constant to it's definition,
-    /// whose kind is [`DefinitionKind::NumericGeneric`].
-    trait_impl_associated_constant_definition_ids: HashMap<TypeVariableId, DefinitionId>,
+    trait_impl_associated_constant_definition_ids:
+        HashMap<TraitImplId, HashMap<String, DefinitionId>>,
 
     /// Trait implementations on each type. This is expected to always have the same length as
     /// `self.trait_implementations`.
@@ -601,6 +600,8 @@ pub enum DefinitionKind {
     /// Generic types in functions (T, U in `fn foo<T, U>(...)` are declared as variables
     /// in scope in case they resolve to numeric generics later.
     NumericGeneric(TypeVariable, Box<Type>),
+
+    AssociatedConstant(TraitImplId, String),
 }
 
 impl DefinitionKind {
@@ -616,6 +617,7 @@ impl DefinitionKind {
             DefinitionKind::Global(_) => None,
             DefinitionKind::Local(id) => *id,
             DefinitionKind::NumericGeneric(_, _) => None,
+            DefinitionKind::AssociatedConstant(_, _) => None,
         }
     }
 }
@@ -2280,37 +2282,26 @@ impl NodeInterner {
     pub(crate) fn set_associated_types_for_impl(
         &mut self,
         impl_id: TraitImplId,
-        mut associated_types: Vec<NamedType>,
+        associated_types: Vec<NamedType>,
     ) {
         // Wrap the named generics in type variables to be able to refer them as type variables
-        for associated_type in &mut associated_types {
-            let Kind::Numeric(numeric_type) = associated_type.typ.kind() else {
+        for associated_type in &associated_types {
+            let Kind::Numeric(..) = associated_type.typ.kind() else {
                 continue;
             };
 
-            let mut wrapper =
-                self.next_type_variable_with_kind(Kind::Numeric(numeric_type.clone()));
-            let Type::TypeVariable(type_variable) = &mut wrapper else {
-                unreachable!(
-                    "Expected `next_type_variable_with_kind` to create a `Type::TypeVariable`"
-                );
-            };
-            let type_variable = type_variable.clone();
-            let type_variable_id = type_variable.id();
-
-            let named_generic_type = std::mem::replace(&mut associated_type.typ, Type::Error);
-            type_variable.bind(named_generic_type);
-            associated_type.typ = wrapper;
-
+            let name = associated_type.name.to_string();
             let definition_id = self.push_definition(
                 associated_type.name.to_string(),
                 false,
                 false,
-                DefinitionKind::NumericGeneric(type_variable, numeric_type),
+                DefinitionKind::AssociatedConstant(impl_id, name.clone()),
                 associated_type.name.location(),
             );
             self.trait_impl_associated_constant_definition_ids
-                .insert(type_variable_id, definition_id);
+                .entry(impl_id)
+                .or_default()
+                .insert(name, definition_id);
         }
 
         self.trait_impl_associated_types.insert(impl_id, associated_types);
@@ -2334,9 +2325,10 @@ impl NodeInterner {
     /// Returns the definition id for the associated constant of the given type variable.
     pub fn get_associated_constant_definition_id(
         &self,
-        type_variable_id: TypeVariableId,
+        impl_id: TraitImplId,
+        name: &str,
     ) -> DefinitionId {
-        self.trait_impl_associated_constant_definition_ids[&type_variable_id]
+        self.trait_impl_associated_constant_definition_ids[&impl_id][name]
     }
 
     /// Return a set of TypeBindings to bind types from the parent trait to those from the trait impl.
