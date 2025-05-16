@@ -985,7 +985,7 @@ impl<'a> FunctionContext<'a> {
 
         let callee_id = *u.choose_iter(opts)?;
         let callee_ident = self.function_ident(callee_id);
-        let (param_types, return_type) = self.function_types(callee_id);
+        let (param_types, return_type) = self.callable_signature(callee_id);
 
         // Generate an expression for each argument.
         let mut args = Vec::new();
@@ -1249,8 +1249,8 @@ impl<'a> FunctionContext<'a> {
         }
     }
 
-    /// Get the parameter types and return type of a function.
-    fn function_types(&self, callee_id: CallableId) -> (Vec<Type>, Type) {
+    /// Get the parameter types and return type of a callable function.
+    fn callable_signature(&self, callee_id: CallableId) -> (Vec<Type>, Type) {
         match callee_id {
             CallableId::Global(id) => {
                 let decl = self.ctx.function_decl(id);
