@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1747355943650,
+  "lastUpdate": 1747356270060,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -3868,80 +3868,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "aakoshh@gmail.com",
-            "name": "Akosh Farkash",
-            "username": "aakoshh"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "b6570a5057072f628f332582c6a7fc11bf5413cd",
-          "message": "feat: SSA pass impact report (#8393)",
-          "timestamp": "2025-05-09T14:47:40Z",
-          "tree_id": "31ba812a3b24ed44f31e71eb7fbf5e393478b585",
-          "url": "https://github.com/noir-lang/noir/commit/b6570a5057072f628f332582c6a7fc11bf5413cd"
-        },
-        "date": 1746803425681,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 2.326,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 6.788,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 1.18,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 17.14,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 13.04,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root-empty",
-            "value": 1.262,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root-single-tx",
-            "value": 125,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 122,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 1.036,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-root",
-            "value": 1.642,
-            "unit": "s"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "mvezenov@gmail.com",
             "name": "Maxim Vezenov",
             "username": "vezenovm"
@@ -7716,6 +7642,85 @@ window.BENCHMARK_DATA = {
           {
             "name": "rollup-root",
             "value": 1.662,
+            "unit": "s"
+          },
+          {
+            "name": "semaphore-depth-10",
+            "value": 0.836,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "jfecher11@gmail.com",
+            "name": "jfecher",
+            "username": "jfecher"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "ef6d8667c524cc07e02bdbd142ab16bee25f1581",
+          "message": "feat: Implement $crate (#8537)\n\nCo-authored-by: Jake Fecher <jake@aztecprotocol.com>",
+          "timestamp": "2025-05-16T00:18:40Z",
+          "tree_id": "d51ef506603debb177f56d3b68cf17410043db31",
+          "url": "https://github.com/noir-lang/noir/commit/ef6d8667c524cc07e02bdbd142ab16bee25f1581"
+        },
+        "date": 1747356260592,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 2.362,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 6.398,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 1.058,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 16.46,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 12.42,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-empty",
+            "value": 1.298,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-single-tx",
+            "value": 126,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 126,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 1.16,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-root",
+            "value": 1.728,
             "unit": "s"
           },
           {
