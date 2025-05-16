@@ -804,4 +804,26 @@ mod tests {
         "
         );
     }
+
+    // Expected to panic like:
+    #[test]
+    #[should_panic(
+        expected = "ICE: at least one variant should exist for a dynamic call Signature { params: [Numeric(Unsigned { bit_size: 32 })], returns: [Numeric(Unsigned { bit_size: 32 })] }"
+    )]
+    fn missing_fn() {
+        let src = "
+          brillig(inline) fn main f0 {
+            b0(v0: function, v1: u32):
+              v2 = call v0(v1) -> u32
+              return v2
+          }
+        ";
+
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.defunctionalize();
+
+        assert_ssa_snapshot!(ssa, @r"
+        TODO
+        ");
+    }
 }
