@@ -5,15 +5,14 @@ use nargo::errors::Location;
 use noirc_frontend::{
     ast::BinaryOpKind,
     monomorphization::ast::{
-        Call, Definition, Expression, FuncId, Function, Ident, IdentId, LocalId, Program, Type,
+        Call, Definition, Expression, FuncId, Ident, IdentId, LocalId, Program, Type,
     },
     shared::Visibility,
 };
 
-use super::{
-    Context, VariableId, expr, types,
-    visitor::{visit_expr, visit_expr_mut},
-};
+use crate::program::{Context, VariableId, expr, types, visitor::visit_expr_mut};
+
+use super::next_local_and_ident_id;
 
 /// To avoid the potential of infinite recursion at runtime, add a `ctx_limit: &mut u32`
 /// parameter to all functions, which we use to limit the number of recursive calls.
@@ -367,43 +366,4 @@ fn ctx_limit_type_for_func_param(callee_unconstrained: bool, param_unconstrained
     } else {
         types::ref_mut(types::U32)
     }
-}
-
-/// Find the next local ID and ident IDs (in that order) that we can use to add
-/// variables to a [Function] during mutations.
-fn next_local_and_ident_id(func: &Function) -> (u32, u32) {
-    let mut next_local_id = func.parameters.iter().map(|p| p.0.0 + 1).max().unwrap_or_default();
-    let mut next_ident_id = 0;
-
-    visit_expr(&func.body, &mut |expr| {
-        let local_id = match expr {
-            Expression::Let(let_) => Some(let_.id),
-            Expression::For(for_) => Some(for_.index_variable),
-            Expression::Ident(ident) => {
-                next_ident_id = next_ident_id.max(ident.id.0 + 1);
-                None
-            }
-            _ => None,
-        };
-        if let Some(id) = local_id {
-            next_local_id = next_local_id.max(id.0 + 1);
-        }
-        true
-    });
-    (next_local_id, next_ident_id)
-}
-
-/// Turn all ACIR functions into Brillig functions.
-///
-/// This is more involved than flipping the `unconstrained` property because of the
-/// "ownership analysis", which can only run on a function once.
-pub fn change_all_functions_into_unconstrained(mut program: Program) -> Program {
-    for f in program.functions.iter_mut() {
-        if f.unconstrained {
-            continue;
-        }
-        f.unconstrained = true;
-        f.handle_ownership();
-    }
-    program
 }
