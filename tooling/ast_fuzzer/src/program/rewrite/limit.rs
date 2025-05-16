@@ -5,7 +5,7 @@ use nargo::errors::Location;
 use noirc_frontend::{
     ast::BinaryOpKind,
     monomorphization::ast::{
-        Call, Definition, Expression, FuncId, Ident, IdentId, LocalId, Program, Type,
+        Call, Definition, Expression, FuncId, Function, Ident, IdentId, LocalId, Program, Type,
     },
     shared::Visibility,
 };
@@ -13,6 +13,8 @@ use noirc_frontend::{
 use crate::program::{Context, VariableId, expr, types, visitor::visit_expr_mut};
 
 use super::next_local_and_ident_id;
+
+const LIMIT_NAME: &str = "ctx_limit";
 
 /// To avoid the potential of infinite recursion at runtime, add a `ctx_limit: &mut u32`
 /// parameter to all functions, which we use to limit the number of recursive calls.
@@ -29,13 +31,6 @@ pub(crate) fn add_recursion_limit(
     ctx: &mut Context,
     u: &mut Unstructured,
 ) -> arbitrary::Result<()> {
-    // Collect recursive functions, ie. the ones which call other functions.
-    let recursive_functions = ctx
-        .functions
-        .iter()
-        .filter_map(|(id, func)| expr::has_call(&func.body).then_some(*id))
-        .collect::<HashSet<_>>();
-
     // Collect functions called from ACIR; they will need proxy functions.
     let called_from_acir = ctx.functions.values().filter(|func| !func.unconstrained).fold(
         HashSet::<FuncId>::new(),
@@ -66,8 +61,57 @@ pub(crate) fn add_recursion_limit(
 
     // Rewrite functions.
     for (func_id, func) in ctx.functions.iter_mut() {
-        let is_main = *func_id == Program::main_id();
-        let is_recursive = recursive_functions.contains(func_id);
+        let mut ctx = LimitContext::new(*func_id, func, ctx.config.max_recursive_calls as u32);
+
+        ctx.rewrite_functions(u, &mut proxy_functions)?;
+    }
+
+    // Append proxy functions.
+    for (_, proxy) in proxy_functions {
+        ctx.functions.insert(proxy.id, proxy);
+    }
+
+    // Rewrite function valued parameters to take the limit.
+    for func in ctx.functions.values_mut() {
+        for param in func.parameters.iter_mut() {
+            if let Type::Function(param_types, _, _, param_unconstrained) = &mut param.3 {
+                let typ = ctx_limit_type_for_func_param(func.unconstrained, *param_unconstrained);
+                param_types.push(typ);
+            }
+        }
+    }
+
+    Ok(())
+}
+
+/// Decide how to pass the recursion limit to function: by value or by ref.
+fn ctx_limit_type_for_func_param(callee_unconstrained: bool, param_unconstrained: bool) -> Type {
+    // If the function receiving the parameter is ACIR, and the function we pass
+    // to it is Brillig, it will have to pass the limit by value.
+    // Otherwise by ref should work. We don't pass ACIR to Brillig.
+    if !callee_unconstrained && param_unconstrained {
+        types::U32
+    } else {
+        types::ref_mut(types::U32)
+    }
+}
+
+struct LimitContext<'a> {
+    func_id: FuncId,
+    func: &'a mut Function,
+    is_main: bool,
+    is_recursive: bool,
+    next_local_id: u32,
+    next_ident_id: u32,
+    max_recursive_calls: u32,
+}
+
+impl<'a> LimitContext<'a> {
+    fn new(func_id: FuncId, func: &'a mut Function, max_recursive_calls: u32) -> Self {
+        let is_main = func_id == Program::main_id();
+
+        // Recursive functions are those that call another function.
+        let is_recursive = expr::has_call(&func.body);
 
         // We'll need a new ID for variables or parameters. We could speed this up by
         // 1) caching this value in a "function meta" construct, or
@@ -76,151 +120,210 @@ pub(crate) fn add_recursion_limit(
         // We wouldn't be able to add caching to `Program` without changing it, so eventually we'll need to look at the values
         // to do random mutations, or we have to pass back some meta along with `Program` and look it up there. For now we
         // traverse the AST to figure out what the next ID to use is.
-        let (mut next_local_id, mut next_ident_id) = next_local_and_ident_id(func);
+        let (next_local_id, next_ident_id) = next_local_and_ident_id(func);
 
-        let mut next_local_id = || {
-            let id = next_local_id;
-            next_local_id += 1;
-            LocalId(id)
-        };
+        Self {
+            func_id,
+            func,
+            is_main,
+            is_recursive,
+            next_local_id,
+            next_ident_id,
+            max_recursive_calls,
+        }
+    }
 
-        let mut next_ident_id = || {
-            let id = next_ident_id;
-            next_ident_id += 1;
-            IdentId(id)
-        };
+    /// Rewrite the function and its proxy (if it has one).
+    fn rewrite_functions(
+        &mut self,
+        u: &mut Unstructured,
+        proxy_functions: &mut HashMap<FuncId, Function>,
+    ) -> arbitrary::Result<()> {
+        let limit_id = self.next_local_id();
 
-        let limit_name = "ctx_limit".to_string();
-        let limit_id = next_local_id();
-        let limit_var = VariableId::Local(limit_id);
-
-        if is_main {
-            // In main we initialize the limit to its maximum value.
-            let init_limit = expr::let_var(
-                limit_id,
-                true,
-                limit_name.clone(),
-                expr::u32_literal(ctx.config.max_recursive_calls as u32),
-            );
-            expr::prepend(&mut func.body, init_limit);
-        } else if is_recursive {
-            // In non-main we look at the limit and return a random value if it's zero,
-            // otherwise decrease it by one and continue with the original body.
-            let limit_type = types::ref_mut(types::U32);
-            func.parameters.push((
-                limit_id,
-                false,
-                limit_name.clone(),
-                limit_type.clone(),
-                Visibility::Private,
-            ));
-
-            // Generate a random value to return.
-            let default_return = expr::gen_literal(u, &func.return_type)?;
-
-            let limit_ident = expr::ident_inner(
-                limit_var,
-                next_ident_id(),
-                false,
-                limit_name.clone(),
-                limit_type,
-            );
-            let limit_expr = Expression::Ident(limit_ident.clone());
-
-            expr::replace(&mut func.body, |mut body| {
-                expr::prepend(
-                    &mut body,
-                    expr::assign_ref(
-                        limit_ident,
-                        expr::binary(
-                            expr::deref(limit_expr.clone(), types::U32),
-                            BinaryOpKind::Subtract,
-                            expr::u32_literal(1),
-                        ),
-                    ),
-                );
-                expr::if_else(
-                    expr::equal(expr::deref(limit_expr.clone(), types::U32), expr::u32_literal(0)),
-                    default_return,
-                    body,
-                    func.return_type.clone(),
-                )
-            });
+        if self.is_main {
+            self.modify_body_when_main(limit_id);
+        } else if self.is_recursive {
+            self.modify_body_when_recursive(u, limit_id)?;
         } else {
-            // For non-recursive functions just add an unused parameter.
-            // In non-main we look at the limit and return a random value if it's zero,
-            // otherwise decrease it by one and continue with the original body.
-            let limit_type = types::ref_mut(types::U32);
-            func.parameters.push((
-                limit_id,
-                false,
-                format!("_{limit_name}"),
-                limit_type.clone(),
-                Visibility::Private,
-            ));
+            self.modify_body_when_non_recursive(limit_id);
         }
 
-        // Add the non-reference version of the parameter to the proxy function.
-        if let Some(proxy) = proxy_functions.get_mut(func_id) {
-            proxy.parameters.push((
-                limit_id,
-                true,
-                limit_name.clone(),
-                types::U32,
-                Visibility::Private,
-            ));
-            // The body is just a call the the non-proxy function.
-            proxy.body = Expression::Call(Call {
-                func: Box::new(Expression::Ident(Ident {
-                    location: None,
-                    definition: Definition::Function(*func_id),
-                    mutable: false,
-                    name: func.name.clone(),
-                    typ: Type::Function(
-                        func.parameters.iter().map(|p| p.3.clone()).collect(),
-                        Box::new(func.return_type.clone()),
-                        Box::new(Type::Unit),
-                        func.unconstrained,
+        self.set_proxy_function(limit_id, proxy_functions);
+        self.modify_calls(limit_id, proxy_functions);
+
+        Ok(())
+    }
+
+    fn next_local_id(&mut self) -> LocalId {
+        let id = self.next_local_id;
+        self.next_local_id += 1;
+        LocalId(id)
+    }
+
+    fn next_ident_id(&mut self) -> IdentId {
+        let id = self.next_ident_id;
+        self.next_ident_id += 1;
+        IdentId(id)
+    }
+
+    /// In `main` we initialize the recursion limit.
+    fn modify_body_when_main(&mut self, limit_id: LocalId) {
+        let init_limit = expr::let_var(
+            limit_id,
+            true,
+            LIMIT_NAME.to_string(),
+            expr::u32_literal(self.max_recursive_calls),
+        );
+        expr::prepend(&mut self.func.body, init_limit);
+    }
+
+    /// In non-main we look at the limit and return a random value if it's zero,
+    /// otherwise decrease it by one and continue with the original body.
+    fn modify_body_when_recursive(
+        &mut self,
+        u: &mut Unstructured,
+        limit_id: LocalId,
+    ) -> arbitrary::Result<()> {
+        let limit_var = VariableId::Local(limit_id);
+
+        let limit_type = types::ref_mut(types::U32);
+        self.func.parameters.push((
+            limit_id,
+            false,
+            LIMIT_NAME.to_string(),
+            limit_type.clone(),
+            Visibility::Private,
+        ));
+
+        // Generate a random value to return.
+        let default_return = expr::gen_literal(u, &self.func.return_type)?;
+
+        let limit_ident = expr::ident_inner(
+            limit_var,
+            self.next_ident_id(),
+            false,
+            LIMIT_NAME.to_string(),
+            limit_type,
+        );
+        let limit_expr = Expression::Ident(limit_ident.clone());
+
+        expr::replace(&mut self.func.body, |mut body| {
+            expr::prepend(
+                &mut body,
+                expr::assign_ref(
+                    limit_ident,
+                    expr::binary(
+                        expr::deref(limit_expr.clone(), types::U32),
+                        BinaryOpKind::Subtract,
+                        expr::u32_literal(1),
                     ),
-                    id: next_ident_id(),
-                })),
-                arguments: proxy
-                    .parameters
-                    .iter()
-                    .map(|(id, mutable, name, typ, _visibility)| {
-                        if *id == limit_id {
-                            // Pass mutable reference to the limit.
-                            expr::ref_mut(
-                                expr::ident(
-                                    VariableId::Local(*id),
-                                    next_ident_id(),
-                                    *mutable,
-                                    name.clone(),
-                                    typ.clone(),
-                                ),
-                                typ.clone(),
-                            )
-                        } else {
-                            // Pass every other parameter as-is.
+                ),
+            );
+            expr::if_else(
+                expr::equal(expr::deref(limit_expr.clone(), types::U32), expr::u32_literal(0)),
+                default_return,
+                body,
+                self.func.return_type.clone(),
+            )
+        });
+
+        Ok(())
+    }
+
+    /// For non-recursive functions just add an unused parameter.
+    /// In non-main we look at the limit and return a random value if it's zero,
+    /// otherwise decrease it by one and continue with the original body.
+    fn modify_body_when_non_recursive(&mut self, limit_id: LocalId) {
+        let limit_type = types::ref_mut(types::U32);
+        self.func.parameters.push((
+            limit_id,
+            false,
+            format!("_{LIMIT_NAME}"),
+            limit_type.clone(),
+            Visibility::Private,
+        ));
+    }
+
+    /// Fill the body of a `func_{i}_proxy` with an expression to forward the call
+    /// to the original function. Add the `ctx_parameter` as well.
+    fn set_proxy_function(
+        &mut self,
+        limit_id: LocalId,
+        proxy_functions: &mut HashMap<FuncId, Function>,
+    ) {
+        let Some(proxy) = proxy_functions.get_mut(&self.func_id) else {
+            return;
+        };
+
+        proxy.parameters.push((
+            limit_id,
+            true,
+            LIMIT_NAME.to_string(),
+            types::U32,
+            Visibility::Private,
+        ));
+
+        // The body is just a call the the non-proxy function.
+        proxy.body = Expression::Call(Call {
+            func: Box::new(Expression::Ident(Ident {
+                location: None,
+                definition: Definition::Function(self.func_id),
+                mutable: false,
+                name: self.func.name.clone(),
+                typ: Type::Function(
+                    self.func.parameters.iter().map(|p| p.3.clone()).collect(),
+                    Box::new(self.func.return_type.clone()),
+                    Box::new(Type::Unit),
+                    self.func.unconstrained,
+                ),
+                id: self.next_ident_id(),
+            })),
+            arguments: proxy
+                .parameters
+                .iter()
+                .map(|(id, mutable, name, typ, _visibility)| {
+                    if *id == limit_id {
+                        // Pass mutable reference to the limit.
+                        expr::ref_mut(
                             expr::ident(
                                 VariableId::Local(*id),
-                                next_ident_id(),
+                                self.next_ident_id(),
                                 *mutable,
                                 name.clone(),
                                 typ.clone(),
-                            )
-                        }
-                    })
-                    .collect(),
-                return_type: proxy.return_type.clone(),
-                location: Location::dummy(),
-            });
-        }
+                            ),
+                            typ.clone(),
+                        )
+                    } else {
+                        // Pass every other parameter as-is.
+                        expr::ident(
+                            VariableId::Local(*id),
+                            self.next_ident_id(),
+                            *mutable,
+                            name.clone(),
+                            typ.clone(),
+                        )
+                    }
+                })
+                .collect(),
+            return_type: proxy.return_type.clone(),
+            location: Location::dummy(),
+        });
+    }
+
+    /// Visit all the calls made by this function and pass along the limit.
+    fn modify_calls(&mut self, limit_id: LocalId, proxy_functions: &HashMap<FuncId, Function>) {
+        let limit_var = VariableId::Local(limit_id);
+
+        // Swap out the body because we need mutable access to self in the visitor.
+        let mut body = Expression::Break;
+        std::mem::swap(&mut self.func.body, &mut body);
 
         // Update calls to pass along the limit and call the proxy if necessary.
         // Also find places where we are passing a function pointer, and change
         // it into the proxy version if necessary.
-        visit_expr_mut(&mut func.body, &mut |expr: &mut Expression| {
+        visit_expr_mut(&mut body, &mut |expr: &mut Expression| {
             if let Expression::Call(call) = expr {
                 let Expression::Ident(ident) = call.func.as_mut() else {
                     unreachable!("functions are called by ident");
@@ -236,28 +339,28 @@ pub(crate) fn add_recursion_limit(
                     unreachable!("function type expected");
                 };
 
-                if *callee_unconstrained && !func.unconstrained {
+                if *callee_unconstrained && !self.func.unconstrained {
                     // Calling Brillig from ACIR: call the proxy if it's global.
                     if let Some(proxy) = proxy {
                         ident.name = proxy.name.clone();
                         ident.definition = Definition::Function(proxy.id);
                     }
                     // Pass the limit by value.
-                    let limit_expr = if is_main {
+                    let limit_expr = if self.is_main {
                         expr::ident(
                             limit_var,
-                            next_ident_id(),
+                            self.next_ident_id(),
                             true,
-                            limit_name.clone(),
+                            LIMIT_NAME.to_string(),
                             types::U32,
                         )
                     } else {
                         expr::deref(
                             expr::ident(
                                 limit_var,
-                                next_ident_id(),
+                                self.next_ident_id(),
                                 false,
-                                limit_name.clone(),
+                                LIMIT_NAME.to_string(),
                                 types::ref_mut(types::U32),
                             ),
                             types::U32,
@@ -268,13 +371,13 @@ pub(crate) fn add_recursion_limit(
                 } else {
                     // Pass the limit by reference.
                     let limit_type = types::ref_mut(types::U32);
-                    let limit_expr = if is_main {
+                    let limit_expr = if self.is_main {
                         expr::ref_mut(
                             expr::ident(
                                 limit_var,
-                                next_ident_id(),
+                                self.next_ident_id(),
                                 true,
-                                limit_name.clone(),
+                                LIMIT_NAME.to_string(),
                                 types::U32,
                             ),
                             limit_type,
@@ -282,9 +385,9 @@ pub(crate) fn add_recursion_limit(
                     } else {
                         expr::ident(
                             limit_var,
-                            next_ident_id(),
+                            self.next_ident_id(),
                             false,
-                            limit_name.clone(),
+                            LIMIT_NAME.to_string(),
                             limit_type,
                         )
                     };
@@ -336,34 +439,8 @@ pub(crate) fn add_recursion_limit(
             }
             true
         });
-    }
 
-    // Append proxy functions.
-    for (_, proxy) in proxy_functions {
-        ctx.functions.insert(proxy.id, proxy);
-    }
-
-    // Rewrite function valued parameters to take the limit.
-    for func in ctx.functions.values_mut() {
-        for param in func.parameters.iter_mut() {
-            if let Type::Function(param_types, _, _, param_unconstrained) = &mut param.3 {
-                let typ = ctx_limit_type_for_func_param(func.unconstrained, *param_unconstrained);
-                param_types.push(typ);
-            }
-        }
-    }
-
-    Ok(())
-}
-
-/// Decide how to pass the recursion limit to function: by value or by ref.
-fn ctx_limit_type_for_func_param(callee_unconstrained: bool, param_unconstrained: bool) -> Type {
-    // If the function receiving the parameter is ACIR, and the function we pass
-    // to it is Brillig, it will have to pass the limit by value.
-    // Otherwise by ref should work. We don't pass ACIR to Brillig.
-    if !callee_unconstrained && param_unconstrained {
-        types::U32
-    } else {
-        types::ref_mut(types::U32)
+        // Put the result back.
+        std::mem::swap(&mut self.func.body, &mut body);
     }
 }
