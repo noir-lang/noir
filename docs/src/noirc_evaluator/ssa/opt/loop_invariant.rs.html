@@ -2223,7 +2223,50 @@
 <a href="#2222" id="2222">2222</a>
 <a href="#2223" id="2223">2223</a>
 <a href="#2224" id="2224">2224</a>
-<a href="#2225" id="2225">2225</a></pre></div><pre class="rust"><code><span class="doccomment">//! The loop invariant code motion pass moves code from inside a loop to before the loop
+<a href="#2225" id="2225">2225</a>
+<a href="#2226" id="2226">2226</a>
+<a href="#2227" id="2227">2227</a>
+<a href="#2228" id="2228">2228</a>
+<a href="#2229" id="2229">2229</a>
+<a href="#2230" id="2230">2230</a>
+<a href="#2231" id="2231">2231</a>
+<a href="#2232" id="2232">2232</a>
+<a href="#2233" id="2233">2233</a>
+<a href="#2234" id="2234">2234</a>
+<a href="#2235" id="2235">2235</a>
+<a href="#2236" id="2236">2236</a>
+<a href="#2237" id="2237">2237</a>
+<a href="#2238" id="2238">2238</a>
+<a href="#2239" id="2239">2239</a>
+<a href="#2240" id="2240">2240</a>
+<a href="#2241" id="2241">2241</a>
+<a href="#2242" id="2242">2242</a>
+<a href="#2243" id="2243">2243</a>
+<a href="#2244" id="2244">2244</a>
+<a href="#2245" id="2245">2245</a>
+<a href="#2246" id="2246">2246</a>
+<a href="#2247" id="2247">2247</a>
+<a href="#2248" id="2248">2248</a>
+<a href="#2249" id="2249">2249</a>
+<a href="#2250" id="2250">2250</a>
+<a href="#2251" id="2251">2251</a>
+<a href="#2252" id="2252">2252</a>
+<a href="#2253" id="2253">2253</a>
+<a href="#2254" id="2254">2254</a>
+<a href="#2255" id="2255">2255</a>
+<a href="#2256" id="2256">2256</a>
+<a href="#2257" id="2257">2257</a>
+<a href="#2258" id="2258">2258</a>
+<a href="#2259" id="2259">2259</a>
+<a href="#2260" id="2260">2260</a>
+<a href="#2261" id="2261">2261</a>
+<a href="#2262" id="2262">2262</a>
+<a href="#2263" id="2263">2263</a>
+<a href="#2264" id="2264">2264</a>
+<a href="#2265" id="2265">2265</a>
+<a href="#2266" id="2266">2266</a>
+<a href="#2267" id="2267">2267</a>
+<a href="#2268" id="2268">2268</a></pre></div><pre class="rust"><code><span class="doccomment">//! The loop invariant code motion pass moves code from inside a loop to before the loop
 //! if that code will always have the same result on every iteration of the loop.
 //!
 //! To identify a loop invariant, check whether all of an instruction's values are:
@@ -2578,11 +2621,21 @@
 
         <span class="kw">let </span>can_be_hoisted = can_be_hoisted(<span class="kw-2">&amp;</span>instruction, <span class="self">self</span>.inserter.function, <span class="bool-val">false</span>)
             || <span class="macro">matches!</span>(instruction, MakeArray { .. })
-            || (can_be_hoisted(<span class="kw-2">&amp;</span>instruction, <span class="self">self</span>.inserter.function, <span class="bool-val">true</span>)
-                &amp;&amp; !<span class="self">self</span>.current_block_control_dependent)
+            || <span class="self">self</span>.can_be_hoisted_with_control_dependence(<span class="kw-2">&amp;</span>instruction, <span class="self">self</span>.inserter.function)
             || <span class="self">self</span>.can_be_hoisted_from_loop_bounds(<span class="kw-2">&amp;</span>instruction);
 
         is_loop_invariant &amp;&amp; can_be_hoisted
+    }
+
+    <span class="doccomment">/// Check [can_be_hoisted] with extra control dependence information that
+    /// lives within the context of this pass.
+    </span><span class="kw">fn </span>can_be_hoisted_with_control_dependence(
+        <span class="kw-2">&amp;</span><span class="self">self</span>,
+        instruction: <span class="kw-2">&amp;</span>Instruction,
+        function: <span class="kw-2">&amp;</span>Function,
+    ) -&gt; bool {
+        can_be_hoisted(instruction, function, <span class="bool-val">true</span>)
+            &amp;&amp; <span class="self">self</span>.can_hoist_control_dependent_instruction()
     }
 
     <span class="doccomment">/// Keep track of a loop induction variable and respective upper bound.
@@ -2628,8 +2681,7 @@
             }
             Binary(binary) =&gt; <span class="self">self</span>.can_evaluate_binary_op(binary),
             Constrain(..) | ConstrainNotEqual(..) | RangeCheck { .. } =&gt; {
-                <span class="comment">// If we know the loop will be executed we can still only hoist if we are in a non control dependent block.
-                </span>!<span class="self">self</span>.current_block_control_dependent &amp;&amp; <span class="self">self</span>.does_loop_body_execute()
+                <span class="self">self</span>.can_hoist_control_dependent_instruction()
             }
             Call { func, .. } =&gt; {
                 <span class="kw">let </span>purity = <span class="kw">match </span><span class="self">self</span>.inserter.function.dfg[<span class="kw-2">*</span>func] {
@@ -2637,13 +2689,19 @@
                     Value::Function(id) =&gt; <span class="self">self</span>.inserter.function.dfg.purity_of(id),
                     <span class="kw">_ </span>=&gt; <span class="prelude-val">None</span>,
                 };
-                <span class="comment">// If we know the loop will be executed we can still only hoist if we are in a non control dependent block.
-                </span><span class="macro">matches!</span>(purity, <span class="prelude-val">Some</span>(Purity::PureWithPredicate))
-                    &amp;&amp; !<span class="self">self</span>.current_block_control_dependent
-                    &amp;&amp; <span class="self">self</span>.does_loop_body_execute()
+                <span class="macro">matches!</span>(purity, <span class="prelude-val">Some</span>(Purity::PureWithPredicate))
+                    &amp;&amp; <span class="self">self</span>.can_hoist_control_dependent_instruction()
             }
             <span class="kw">_ </span>=&gt; <span class="bool-val">false</span>,
         }
+    }
+
+    <span class="doccomment">/// A control dependent instruction (e.g. constrain or division) has more strict conditions for hoisting.
+    /// This function check the following conditions:
+    /// - The current block is non control dependent
+    /// - The loop body is guaranteed to be executed
+    </span><span class="kw">fn </span>can_hoist_control_dependent_instruction(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; bool {
+        !<span class="self">self</span>.current_block_control_dependent &amp;&amp; <span class="self">self</span>.does_loop_body_execute()
     }
 
     <span class="doccomment">/// Determine whether the loop body is guaranteed to execute.
@@ -3044,9 +3102,17 @@
 /// and its predicate, rather than just the instruction. Setting this means instructions that
 /// rely on predicates can be hoisted as well.
 ///
+/// # Preconditions
 /// Certain instructions can be hoisted because they implicitly depend on a predicate.
 /// However, to avoid tight coupling between passes, we make the hoisting
 /// conditional on whether the caller wants the predicate to be taken into account or not.
+///
+/// Even if we know the predicate is the same for an instruction's block and a loop's header block,
+/// the caller of this methods needs to be careful as a loop may still never be executed.
+/// This is because an loop with dynamic bounds may never execute its loop body.
+/// If the instruction were to trigger a failure, our program may fail inadvertently.
+/// If we know a loop's upper bound is greater than its lower bound we can hoist these instructions,
+/// but it is left to the caller of this method to account for this case.
 ///
 /// This differs from `can_be_deduplicated` as that method assumes there is a matching instruction
 /// with the same inputs. Hoisting is for lone instructions, meaning a mislabeled hoist could cause
@@ -3075,19 +3141,13 @@
             };
             <span class="kw">match </span>purity {
                 <span class="prelude-val">Some</span>(Purity::Pure) =&gt; <span class="bool-val">true</span>,
-                <span class="prelude-val">Some</span>(Purity::PureWithPredicate) =&gt; <span class="bool-val">false</span>,
+                <span class="prelude-val">Some</span>(Purity::PureWithPredicate) =&gt; hoist_with_predicate,
                 <span class="prelude-val">Some</span>(Purity::Impure) =&gt; <span class="bool-val">false</span>,
                 <span class="prelude-val">None </span>=&gt; <span class="bool-val">false</span>,
             }
         }
 
-        <span class="comment">// We cannot hoist these instructions, even if we know the predicate is the same.
-        // This is because an loop with dynamic bounds may never execute its loop body.
-        // If the instruction were to trigger a failure, our program may fail inadvertently.
-        // If we know a loop's upper bound is greater than its lower bound we can hoist these instructions,
-        // but we do not want to assume that the caller of this method has accounted
-        // for this case. Thus, we block hoisting on these instructions.
-        </span>Constrain(..) | ConstrainNotEqual(..) | RangeCheck { .. } =&gt; <span class="bool-val">false</span>,
+        Constrain(..) | ConstrainNotEqual(..) | RangeCheck { .. } =&gt; hoist_with_predicate,
 
         <span class="comment">// Noop instructions can always be hoisted, although they're more likely to be
         // removed entirely.
@@ -3948,8 +4008,8 @@
             v3 = lt v2, u32 0
             jmpif v3 then: loop_body, else: exit
           loop_body():
-            v6 = mul v0, v1
-            v7 = mul v6, v0
+            v6 = unchecked_mul v0, v1
+            v7 = unchecked_mul v6, v0
             constrain v7 == u32 12
             v10 = unchecked_add v2, u32 1
             jmp loop(v10)
@@ -3969,8 +4029,8 @@
         </span><span class="kw">let </span>expected = <span class="string">"
         brillig(inline) fn main f0 {
           entry(v0: u32, v1: u32):
-            v3 = mul v0, v1
-            v4 = mul v3, v0
+            v3 = unchecked_mul v0, v1
+            v4 = unchecked_mul v3, v0
             jmp loop(u32 0)
           loop(v2: u32):
             jmpif u1 0 then: loop_body, else: exit
@@ -3998,8 +4058,8 @@
             v3 = lt v2, u32 1
             jmpif v3 then: loop_body, else: exit
           loop_body():
-            v6 = mul v0, v1
-            v7 = mul v6, v0
+            v6 = unchecked_mul v0, v1
+            v7 = unchecked_mul v6, v0
             constrain v7 == u32 12
             v10 = unchecked_add v2, u32 1
             jmp loop(v10)
@@ -4018,8 +4078,8 @@
         </span><span class="kw">let </span>expected = <span class="string">"
         brillig(inline) fn main f0 {
           entry(v0: u32, v1: u32):
-            v3 = mul v0, v1
-            v4 = mul v3, v0
+            v3 = unchecked_mul v0, v1
+            v4 = unchecked_mul v3, v0
             jmp loop(u32 1)
           loop(v2: u32):
             v7 = eq v2, u32 0
@@ -4048,8 +4108,8 @@
             v3 = lt v2, v1
             jmpif v3 then: loop_body, else: exit
           loop_body():
-            v6 = mul v0, v1
-            v7 = mul v6, v0
+            v6 = unchecked_mul v0, v1
+            v7 = unchecked_mul v6, v0
             constrain v7 == u32 12
             v10 = unchecked_add v2, u32 1
             jmp loop(v10)
@@ -4069,8 +4129,8 @@
         </span><span class="kw">let </span>expected = <span class="string">"
         brillig(inline) fn main f0 {
           entry(v0: u32, v1: u32):
-            v3 = mul v0, v1
-            v4 = mul v3, v0
+            v3 = unchecked_mul v0, v1
+            v4 = unchecked_mul v3, v0
             jmp loop(u32 0)
           loop(v2: u32):
             v6 = lt v2, v1
@@ -4101,8 +4161,8 @@
             v3 = lt v2, v1
             jmpif v3 then: loop_body, else: exit
           loop_body():
-            v6 = mul v0, v1
-            v7 = mul v6, v0
+            v6 = unchecked_mul v0, v1
+            v7 = unchecked_mul v6, v0
             call f1()
             v10 = unchecked_add v2, u32 1
             jmp loop(v10)
@@ -4123,8 +4183,8 @@
         <span class="macro">assert_ssa_snapshot!</span>(ssa, @<span class="string">r"
         brillig(inline) predicate_pure fn main f0 {
           b0(v0: u32, v1: u32):
-            v3 = mul v0, v1
-            v4 = mul v3, v0
+            v3 = unchecked_mul v0, v1
+            v4 = unchecked_mul v3, v0
             jmp b1(u32 0)
           b1(v2: u32):
             v6 = lt v2, v1
@@ -4428,7 +4488,6 @@
         "</span>;
 
         <span class="kw">let </span>ssa = Ssa::from_str(src).unwrap();
-
         <span class="kw">let </span>ssa = ssa.loop_invariant_code_motion();
 
         <span class="macro">assert_ssa_snapshot!</span>(ssa, @<span class="string">r"
@@ -4446,6 +4505,33 @@
             return
         }
         "</span>);
+    }
+
+    <span class="attr">#[test]
+    </span><span class="kw">fn </span>do_not_hoist_non_control_dependent_div_in_non_executed_loop() {
+        <span class="kw">let </span>src = <span class="string">"
+        brillig(inline) fn main f0 {
+          b0(v0: u32):
+            v1 = allocate -&gt; &amp;mut Field
+            store Field 0 at v1
+            jmp b1()
+          b1():
+            v3 = load v1 -&gt; Field
+            v4 = eq v3, Field 0
+            jmpif v4 then: b2, else: b3
+          b2():
+            return
+          b3():
+            v6 = div u32 5, v0
+            jmp b1()
+        }
+        "</span>;
+
+        <span class="kw">let </span>ssa = Ssa::from_str(src).unwrap();
+        <span class="kw">let </span>ssa = ssa.loop_invariant_code_motion();
+
+        <span class="comment">// We expect the SSA to be unchanged
+        </span>assert_normalized_ssa_equals(ssa, src);
     }
 }
 </code></pre></div></section></main></body></html>
