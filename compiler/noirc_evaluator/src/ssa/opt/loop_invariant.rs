@@ -353,11 +353,21 @@ impl<'f> LoopInvariantContext<'f> {
 
         let can_be_hoisted = can_be_hoisted(&instruction, self.inserter.function, false)
             || matches!(instruction, MakeArray { .. })
-            || (can_be_hoisted(&instruction, self.inserter.function, true)
-                && self.can_hoist_control_dependent_instruction())
+            || self.can_be_hoisted_with_control_dependence(&instruction, self.inserter.function)
             || self.can_be_hoisted_from_loop_bounds(&instruction);
 
         is_loop_invariant && can_be_hoisted
+    }
+
+    /// Check [can_be_hoisted] with extra control dependence information that
+    /// lives within the context of this pass.
+    fn can_be_hoisted_with_control_dependence(
+        &self,
+        instruction: &Instruction,
+        function: &Function,
+    ) -> bool {
+        can_be_hoisted(instruction, function, true)
+            && self.can_hoist_control_dependent_instruction()
     }
 
     /// Keep track of a loop induction variable and respective upper bound.
