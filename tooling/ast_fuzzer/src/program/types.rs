@@ -161,7 +161,7 @@ pub(crate) fn to_hir_type(typ: &Type) -> hir_def::types::Type {
             Box::new(to_hir_type(env_type)),
             *unconstrained,
         ),
-        Type::Reference(_, _) => todo!("map reference type to HIR"),
+        Type::Reference(typ, mutable) => HirType::Reference(Box::new(to_hir_type(typ)), *mutable),
         Type::FmtString(_, _) | Type::Slice(_) => {
             unreachable!("unexpected type converting to HIR: {}", typ)
         }
