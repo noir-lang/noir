@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1747405536441,
+  "lastUpdate": 1747405545699,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -3878,80 +3878,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "isennovskiy@gmail.com",
-            "name": "Innokentii Sennovskii",
-            "username": "Rumata888"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "c7ff3e75c7472b0184cdc29294d36991d38954cd",
-          "message": "feat(greybox_fuzzer): Parallel fuzz tests (#8432)",
-          "timestamp": "2025-05-09T16:51:03Z",
-          "tree_id": "6877aeff09045dad7207ee5ec34a0307ab6f2ac0",
-          "url": "https://github.com/noir-lang/noir/commit/c7ff3e75c7472b0184cdc29294d36991d38954cd"
-        },
-        "date": 1746810920479,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 2.392,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 6.702,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 1.214,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 17.44,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 13.46,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root-empty",
-            "value": 1.236,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root-single-tx",
-            "value": 124,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 123,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 1.052,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-root",
-            "value": 1.636,
-            "unit": "s"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "163862677+noirwhal@users.noreply.github.com",
             "name": "noirwhal",
             "username": "noirwhal"
@@ -7741,6 +7667,85 @@ window.BENCHMARK_DATA = {
           {
             "name": "semaphore-depth-10",
             "value": 0.847,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "aakoshh@gmail.com",
+            "name": "Akosh Farkash",
+            "username": "aakoshh"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "8f70d14a03186124e12d6bce9a8b58e30d515b22",
+          "message": "chore(fuzz): AST fuzzer to use function valued arguments (Part 1) (#8514)\n\nCo-authored-by: Ratmir Karabut <rkarabut@users.noreply.github.com>",
+          "timestamp": "2025-05-16T13:44:52Z",
+          "tree_id": "5b96b902c071164b648c099e29302026999a6762",
+          "url": "https://github.com/noir-lang/noir/commit/8f70d14a03186124e12d6bce9a8b58e30d515b22"
+        },
+        "date": 1747405535684,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 2.452,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 6.466,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 1.076,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 16.08,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 12.78,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-empty",
+            "value": 1.26,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-single-tx",
+            "value": 129,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 132,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 1.122,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-root",
+            "value": 1.642,
+            "unit": "s"
+          },
+          {
+            "name": "semaphore-depth-10",
+            "value": 0.832,
             "unit": "s"
           }
         ]
