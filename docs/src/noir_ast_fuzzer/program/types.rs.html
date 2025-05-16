@@ -266,9 +266,19 @@
 <a href="#265" id="265">265</a>
 <a href="#266" id="266">266</a>
 <a href="#267" id="267">267</a>
-<a href="#268" id="268">268</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::collections::HashSet;
+<a href="#268" id="268">268</a>
+<a href="#269" id="269">269</a>
+<a href="#270" id="270">270</a>
+<a href="#271" id="271">271</a>
+<a href="#272" id="272">272</a>
+<a href="#273" id="273">273</a>
+<a href="#274" id="274">274</a>
+<a href="#275" id="275">275</a>
+<a href="#276" id="276">276</a>
+<a href="#277" id="277">277</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::collections::HashSet;
 
 <span class="kw">use </span>acir::FieldElement;
+<span class="kw">use </span>iter_extended::vecmap;
 <span class="kw">use </span>noirc_frontend::{
     ast::{BinaryOpKind, IntegerBitSize},
     hir_def,
@@ -422,10 +432,14 @@
         Type::String(size) =&gt; HirType::String(size_const(<span class="kw-2">*</span>size)),
         Type::Array(size, typ) =&gt; HirType::Array(size_const(<span class="kw-2">*</span>size), Box::new(to_hir_type(typ))),
         Type::Tuple(items) =&gt; HirType::Tuple(items.iter().map(to_hir_type).collect()),
-        Type::FmtString(<span class="kw">_</span>, <span class="kw">_</span>)
-        | Type::Slice(<span class="kw">_</span>)
-        | Type::Reference(<span class="kw">_</span>, <span class="kw">_</span>)
-        | Type::Function(<span class="kw">_</span>, <span class="kw">_</span>, <span class="kw">_</span>, <span class="kw">_</span>) =&gt; {
+        Type::Function(param_types, return_type, env_type, unconstrained) =&gt; HirType::Function(
+            vecmap(param_types, to_hir_type),
+            Box::new(to_hir_type(return_type)),
+            Box::new(to_hir_type(env_type)),
+            <span class="kw-2">*</span>unconstrained,
+        ),
+        Type::Reference(typ, mutable) =&gt; HirType::Reference(Box::new(to_hir_type(typ)), <span class="kw-2">*</span>mutable),
+        Type::FmtString(<span class="kw">_</span>, <span class="kw">_</span>) | Type::Slice(<span class="kw">_</span>) =&gt; {
             <span class="macro">unreachable!</span>(<span class="string">"unexpected type converting to HIR: {}"</span>, typ)
         }
     }
@@ -444,6 +458,10 @@
 <span class="doccomment">/// Check if the type works with `UnaryOp::Not`
 </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>is_bool(typ: <span class="kw-2">&amp;</span>Type) -&gt; bool {
     <span class="macro">matches!</span>(typ, Type::Bool)
+}
+
+<span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>is_reference(typ: <span class="kw-2">&amp;</span>Type) -&gt; bool {
+    <span class="macro">matches!</span>(typ, Type::Reference(<span class="kw">_</span>, <span class="kw">_</span>))
 }
 
 <span class="doccomment">/// Can the type be returned by some `UnaryOp`.

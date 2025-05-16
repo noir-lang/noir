@@ -1207,7 +1207,70 @@
 <a href="#1206" id="1206">1206</a>
 <a href="#1207" id="1207">1207</a>
 <a href="#1208" id="1208">1208</a>
-<a href="#1209" id="1209">1209</a></pre></div><pre class="rust"><code><span class="kw">use </span>nargo::errors::Location;
+<a href="#1209" id="1209">1209</a>
+<a href="#1210" id="1210">1210</a>
+<a href="#1211" id="1211">1211</a>
+<a href="#1212" id="1212">1212</a>
+<a href="#1213" id="1213">1213</a>
+<a href="#1214" id="1214">1214</a>
+<a href="#1215" id="1215">1215</a>
+<a href="#1216" id="1216">1216</a>
+<a href="#1217" id="1217">1217</a>
+<a href="#1218" id="1218">1218</a>
+<a href="#1219" id="1219">1219</a>
+<a href="#1220" id="1220">1220</a>
+<a href="#1221" id="1221">1221</a>
+<a href="#1222" id="1222">1222</a>
+<a href="#1223" id="1223">1223</a>
+<a href="#1224" id="1224">1224</a>
+<a href="#1225" id="1225">1225</a>
+<a href="#1226" id="1226">1226</a>
+<a href="#1227" id="1227">1227</a>
+<a href="#1228" id="1228">1228</a>
+<a href="#1229" id="1229">1229</a>
+<a href="#1230" id="1230">1230</a>
+<a href="#1231" id="1231">1231</a>
+<a href="#1232" id="1232">1232</a>
+<a href="#1233" id="1233">1233</a>
+<a href="#1234" id="1234">1234</a>
+<a href="#1235" id="1235">1235</a>
+<a href="#1236" id="1236">1236</a>
+<a href="#1237" id="1237">1237</a>
+<a href="#1238" id="1238">1238</a>
+<a href="#1239" id="1239">1239</a>
+<a href="#1240" id="1240">1240</a>
+<a href="#1241" id="1241">1241</a>
+<a href="#1242" id="1242">1242</a>
+<a href="#1243" id="1243">1243</a>
+<a href="#1244" id="1244">1244</a>
+<a href="#1245" id="1245">1245</a>
+<a href="#1246" id="1246">1246</a>
+<a href="#1247" id="1247">1247</a>
+<a href="#1248" id="1248">1248</a>
+<a href="#1249" id="1249">1249</a>
+<a href="#1250" id="1250">1250</a>
+<a href="#1251" id="1251">1251</a>
+<a href="#1252" id="1252">1252</a>
+<a href="#1253" id="1253">1253</a>
+<a href="#1254" id="1254">1254</a>
+<a href="#1255" id="1255">1255</a>
+<a href="#1256" id="1256">1256</a>
+<a href="#1257" id="1257">1257</a>
+<a href="#1258" id="1258">1258</a>
+<a href="#1259" id="1259">1259</a>
+<a href="#1260" id="1260">1260</a>
+<a href="#1261" id="1261">1261</a>
+<a href="#1262" id="1262">1262</a>
+<a href="#1263" id="1263">1263</a>
+<a href="#1264" id="1264">1264</a>
+<a href="#1265" id="1265">1265</a>
+<a href="#1266" id="1266">1266</a>
+<a href="#1267" id="1267">1267</a>
+<a href="#1268" id="1268">1268</a>
+<a href="#1269" id="1269">1269</a>
+<a href="#1270" id="1270">1270</a>
+<a href="#1271" id="1271">1271</a>
+<a href="#1272" id="1272">1272</a></pre></div><pre class="rust"><code><span class="kw">use </span>nargo::errors::Location;
 <span class="kw">use </span>std::{
     collections::{BTreeMap, BTreeSet, HashSet},
     fmt::Debug,
@@ -1262,14 +1325,6 @@
 
         (param_types, return_type)
     }
-
-    <span class="kw">fn </span>is_acir(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; bool {
-        !<span class="self">self</span>.unconstrained
-    }
-
-    <span class="kw">fn </span>is_brillig(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; bool {
-        <span class="self">self</span>.unconstrained
-    }
 }
 
 <span class="doccomment">/// HIR representation of a function parameter.
@@ -1293,6 +1348,43 @@
 
     (pat, typ, vis)
 }
+
+<span class="doccomment">/// Help avoid infinite recursion by limiting which function can call which other one.
+</span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>can_call(
+    caller_id: FuncId,
+    caller_unconstrained: bool,
+    callee_id: FuncId,
+    callee_unconstrained: bool,
+) -&gt; bool {
+    <span class="comment">// Nobody should call `main`.
+    </span><span class="kw">if </span>callee_id == Program::main_id() {
+        <span class="kw">return </span><span class="bool-val">false</span>;
+    }
+
+    <span class="comment">// From an ACIR function we can call any Brillig function,
+    // but we avoid creating infinite recursive ACIR calls by
+    // only calling functions with lower IDs than ours,
+    // otherwise the inliner could get stuck.
+    </span><span class="kw">if </span>!caller_unconstrained &amp;&amp; !callee_unconstrained {
+        <span class="comment">// Higher calls lower, so we can use this rule to pick function parameters
+        // as we create the declarations: we can pass functions already declared.
+        </span><span class="kw">return </span>callee_id &lt; caller_id;
+    }
+
+    <span class="comment">// From a Brillig function we restrict ourselves to only call
+    // other Brillig functions. That's because the `Monomorphizer`
+    // would make an unconstrained copy of any ACIR function called
+    // from Brillig, and this is expected by the inliner for example,
+    // but if we did similarly in the generator after we know who
+    // calls who, we would incur two drawbacks:
+    // 1) it would make programs bigger for little benefit
+    // 2) it would skew calibration frequencies as ACIR freqs would overlay Brillig ones
+    </span><span class="kw">if </span>caller_unconstrained {
+        <span class="kw">return </span>callee_unconstrained;
+    }
+
+    <span class="bool-val">true
+</span>}
 
 <span class="doccomment">/// Control what kind of expressions we can generate, depending on the surrounding context.
 </span><span class="attr">#[derive(Debug, Clone, Copy)]
@@ -1365,35 +1457,14 @@
         );
 
         <span class="comment">// Collect all the functions we can call from this one.
+        // TODO(#8484): Look for call targets in function-valued arguments as well.
         </span><span class="kw">let </span>call_targets = ctx
             .function_declarations
             .iter()
             .filter_map(|(callee_id, callee_decl)| {
-                <span class="comment">// We can't call `main`.
-                </span><span class="kw">if </span><span class="kw-2">*</span>callee_id == Program::main_id() {
+                <span class="kw">if </span>!can_call(id, decl.unconstrained, <span class="kw-2">*</span>callee_id, callee_decl.unconstrained) {
                     <span class="kw">return </span><span class="prelude-val">None</span>;
                 }
-
-                <span class="comment">// From an ACIR function we can call any Brillig function,
-                // but we avoid creating infinite recursive ACIR calls by
-                // only calling functions with higher IDs than ours,
-                // otherwise the inliner could get stuck.
-                </span><span class="kw">if </span>decl.is_acir() &amp;&amp; callee_decl.is_acir() &amp;&amp; <span class="kw-2">*</span>callee_id &lt;= id {
-                    <span class="kw">return </span><span class="prelude-val">None</span>;
-                }
-
-                <span class="comment">// From a Brillig function we restrict ourselves to only call
-                // other Brillig functions. That's because the `Monomorphizer`
-                // would make an unconstrained copy of any ACIR function called
-                // from Brillig, and this is expected by the inliner for example,
-                // but if we did similarly in the generator after we know who
-                // calls who, we would incur two drawbacks:
-                // 1) it would make programs bigger for little benefit
-                // 2) it would skew calibration frequencies as ACIR freqs would overlay Brillig ones
-                </span><span class="kw">if </span>decl.is_brillig() &amp;&amp; !callee_decl.is_brillig() {
-                    <span class="kw">return </span><span class="prelude-val">None</span>;
-                }
-
                 <span class="prelude-val">Some</span>((<span class="kw-2">*</span>callee_id, types::types_produced(<span class="kw-2">&amp;</span>callee_decl.return_type)))
             })
             .collect();
@@ -1517,6 +1588,14 @@
         max_depth: usize,
         flags: Flags,
     ) -&gt; arbitrary::Result&lt;Expression&gt; {
+        <span class="comment">// For now if we need a function, return one without further nesting,
+        // e.g. avoid `if &lt;cond&gt; { func_1 } else { func_2 }`, because it makes rewriting
+        // harder when we need to deal with proxies.
+        </span><span class="kw">if </span><span class="macro">matches!</span>(typ, Type::Function(<span class="kw">_</span>, <span class="kw">_</span>, <span class="kw">_</span>, <span class="kw">_</span>)) {
+            <span class="comment">// Local variables we should consider in `gen_expr_from_vars`, so here we just look through global functions.
+            </span><span class="kw">return </span><span class="self">self</span>.find_function_with_signature(u, typ);
+        }
+
         <span class="kw">let </span><span class="kw-2">mut </span>freq = Freq::new(u, <span class="kw-2">&amp;</span><span class="self">self</span>.ctx.config.expr_freqs)<span class="question-mark">?</span>;
 
         <span class="comment">// Stop nesting if we reached the bottom.
@@ -2161,28 +2240,19 @@
         </span><span class="self">self</span>.has_call = <span class="bool-val">true</span>;
 
         <span class="kw">let </span>callee_id = <span class="kw-2">*</span>u.choose_iter(opts)<span class="question-mark">?</span>;
+        <span class="kw">let </span>callee_ident = <span class="self">self</span>.function_ident(callee_id);
+
         <span class="kw">let </span>callee = <span class="self">self</span>.ctx.function_decl(callee_id).clone();
         <span class="kw">let </span>param_types = callee.params.iter().map(|p| p.<span class="number">3</span>.clone()).collect::&lt;Vec&lt;<span class="kw">_</span>&gt;&gt;();
 
-        <span class="kw">let </span><span class="kw-2">mut </span>args = Vec::new();
+        <span class="comment">// Generate an expression for each argument.
+        </span><span class="kw">let </span><span class="kw-2">mut </span>args = Vec::new();
         <span class="kw">for </span>typ <span class="kw">in </span><span class="kw-2">&amp;</span>param_types {
             args.push(<span class="self">self</span>.gen_expr(u, typ, max_depth, Flags::CALL)<span class="question-mark">?</span>);
         }
 
         <span class="kw">let </span>call_expr = Expression::Call(Call {
-            func: Box::new(Expression::Ident(Ident {
-                location: <span class="prelude-val">None</span>,
-                definition: Definition::Function(callee_id),
-                mutable: <span class="bool-val">false</span>,
-                name: callee.name.clone(),
-                typ: Type::Function(
-                    param_types,
-                    Box::new(callee.return_type.clone()),
-                    Box::new(Type::Unit),
-                    callee.unconstrained,
-                ),
-                id: <span class="self">self</span>.next_ident_id(),
-            })),
+            func: Box::new(callee_ident),
             arguments: args,
             return_type: callee.return_type.clone(),
             location: Location::dummy(),
@@ -2362,6 +2432,62 @@
             }
         }
         <span class="prelude-val">Ok</span>(<span class="prelude-val">None</span>)
+    }
+
+    <span class="doccomment">/// Find a global function matching a type signature.
+    </span><span class="kw">fn </span>find_function_with_signature(
+        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
+        u: <span class="kw-2">&amp;mut </span>Unstructured,
+        typ: <span class="kw-2">&amp;</span>Type,
+    ) -&gt; arbitrary::Result&lt;Expression&gt; {
+        <span class="kw">let </span>Type::Function(param_types, return_type, <span class="kw">_</span>, unconstrained) = typ <span class="kw">else </span>{
+            <span class="macro">unreachable!</span>(
+                <span class="string">"find_function_with_signature should only be called with Type::Function; got {typ}"
+            </span>);
+        };
+
+        <span class="comment">// TODO(#8484): Take the callee ID into account, so we don't create a problem inlining ACIR.
+        </span><span class="kw">let </span>candidates = <span class="self">self
+            </span>.ctx
+            .function_declarations
+            .iter()
+            .skip(<span class="number">1</span>) <span class="comment">// Can't call main.
+            </span>.filter_map(|(func_id, func)| {
+                <span class="kw">let </span>matches = func.return_type == <span class="kw-2">*</span>return_type.as_ref()
+                    &amp;&amp; func.unconstrained == <span class="kw-2">*</span>unconstrained
+                    &amp;&amp; func.params.len() == param_types.len()
+                    &amp;&amp; func.params.iter().zip(param_types).all(|((<span class="kw">_</span>, <span class="kw">_</span>, <span class="kw">_</span>, a, <span class="kw">_</span>), b)| a == b);
+
+                matches.then_some(<span class="kw-2">*</span>func_id)
+            })
+            .collect::&lt;Vec&lt;<span class="kw">_</span>&gt;&gt;();
+
+        <span class="kw">if </span>candidates.is_empty() {
+            <span class="macro">panic!</span>(<span class="string">"No candidate found for function type: {typ}"</span>);
+        }
+
+        <span class="kw">let </span>callee_id = u.choose_iter(candidates)<span class="question-mark">?</span>;
+
+        <span class="prelude-val">Ok</span>(<span class="self">self</span>.function_ident(callee_id))
+    }
+
+    <span class="doccomment">/// Generate an identifier for calling a global function.
+    </span><span class="kw">fn </span>function_ident(<span class="kw-2">&amp;mut </span><span class="self">self</span>, callee_id: FuncId) -&gt; Expression {
+        <span class="kw">let </span>callee = <span class="self">self</span>.ctx.function_decl(callee_id).clone();
+        <span class="kw">let </span>param_types = callee.params.iter().map(|p| p.<span class="number">3</span>.clone()).collect::&lt;Vec&lt;<span class="kw">_</span>&gt;&gt;();
+        Expression::Ident(Ident {
+            location: <span class="prelude-val">None</span>,
+            definition: Definition::Function(callee_id),
+            mutable: <span class="bool-val">false</span>,
+            name: callee.name.clone(),
+            typ: Type::Function(
+                param_types,
+                Box::new(callee.return_type.clone()),
+                Box::new(Type::Unit),
+                callee.unconstrained,
+            ),
+            id: <span class="self">self</span>.next_ident_id(),
+        })
     }
 }
 

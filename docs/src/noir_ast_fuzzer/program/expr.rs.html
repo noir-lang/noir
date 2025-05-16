@@ -489,7 +489,15 @@
 <a href="#488" id="488">488</a>
 <a href="#489" id="489">489</a>
 <a href="#490" id="490">490</a>
-<a href="#491" id="491">491</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::collections::HashSet;
+<a href="#491" id="491">491</a>
+<a href="#492" id="492">492</a>
+<a href="#493" id="493">493</a>
+<a href="#494" id="494">494</a>
+<a href="#495" id="495">495</a>
+<a href="#496" id="496">496</a>
+<a href="#497" id="497">497</a>
+<a href="#498" id="498">498</a>
+<a href="#499" id="499">499</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::collections::HashSet;
 
 <span class="kw">use </span>acir::FieldElement;
 <span class="kw">use </span>nargo::errors::Location;
@@ -583,7 +591,7 @@
             }
             Expression::Tuple(values)
         }
-        <span class="kw">_ </span>=&gt; <span class="macro">unreachable!</span>(<span class="string">"unexpected literal type: {typ}"</span>),
+        <span class="kw">_ </span>=&gt; <span class="macro">unreachable!</span>(<span class="string">"unexpected type to generate a literal for: {typ}"</span>),
     };
     <span class="prelude-val">Ok</span>(expr)
 }
@@ -867,6 +875,14 @@
             <span class="kw">if let </span>Expression::Ident(ident) = call.func.as_ref() {
                 <span class="kw">if let </span>Definition::Function(func_id) = ident.definition {
                     callees.insert(func_id);
+                }
+            }
+            <span class="comment">// Consider functions passed as arguments as at least callable.
+            </span><span class="kw">for </span>arg <span class="kw">in </span><span class="kw-2">&amp;</span>call.arguments {
+                <span class="kw">if let </span>Expression::Ident(ident) = arg {
+                    <span class="kw">if let </span>Definition::Function(func_id) = ident.definition {
+                        callees.insert(func_id);
+                    }
                 }
             }
         }

@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"fn":["hir_param"],"struct":["Flags","FunctionContext","FunctionDeclaration"]};
+window.SIDEBAR_ITEMS = {"fn":["can_call","hir_param"],"struct":["Flags","FunctionContext","FunctionDeclaration"]};

@@ -344,7 +344,70 @@
 <a href="#343" id="343">343</a>
 <a href="#344" id="344">344</a>
 <a href="#345" id="345">345</a>
-<a href="#346" id="346">346</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::collections::{HashMap, HashSet};
+<a href="#346" id="346">346</a>
+<a href="#347" id="347">347</a>
+<a href="#348" id="348">348</a>
+<a href="#349" id="349">349</a>
+<a href="#350" id="350">350</a>
+<a href="#351" id="351">351</a>
+<a href="#352" id="352">352</a>
+<a href="#353" id="353">353</a>
+<a href="#354" id="354">354</a>
+<a href="#355" id="355">355</a>
+<a href="#356" id="356">356</a>
+<a href="#357" id="357">357</a>
+<a href="#358" id="358">358</a>
+<a href="#359" id="359">359</a>
+<a href="#360" id="360">360</a>
+<a href="#361" id="361">361</a>
+<a href="#362" id="362">362</a>
+<a href="#363" id="363">363</a>
+<a href="#364" id="364">364</a>
+<a href="#365" id="365">365</a>
+<a href="#366" id="366">366</a>
+<a href="#367" id="367">367</a>
+<a href="#368" id="368">368</a>
+<a href="#369" id="369">369</a>
+<a href="#370" id="370">370</a>
+<a href="#371" id="371">371</a>
+<a href="#372" id="372">372</a>
+<a href="#373" id="373">373</a>
+<a href="#374" id="374">374</a>
+<a href="#375" id="375">375</a>
+<a href="#376" id="376">376</a>
+<a href="#377" id="377">377</a>
+<a href="#378" id="378">378</a>
+<a href="#379" id="379">379</a>
+<a href="#380" id="380">380</a>
+<a href="#381" id="381">381</a>
+<a href="#382" id="382">382</a>
+<a href="#383" id="383">383</a>
+<a href="#384" id="384">384</a>
+<a href="#385" id="385">385</a>
+<a href="#386" id="386">386</a>
+<a href="#387" id="387">387</a>
+<a href="#388" id="388">388</a>
+<a href="#389" id="389">389</a>
+<a href="#390" id="390">390</a>
+<a href="#391" id="391">391</a>
+<a href="#392" id="392">392</a>
+<a href="#393" id="393">393</a>
+<a href="#394" id="394">394</a>
+<a href="#395" id="395">395</a>
+<a href="#396" id="396">396</a>
+<a href="#397" id="397">397</a>
+<a href="#398" id="398">398</a>
+<a href="#399" id="399">399</a>
+<a href="#400" id="400">400</a>
+<a href="#401" id="401">401</a>
+<a href="#402" id="402">402</a>
+<a href="#403" id="403">403</a>
+<a href="#404" id="404">404</a>
+<a href="#405" id="405">405</a>
+<a href="#406" id="406">406</a>
+<a href="#407" id="407">407</a>
+<a href="#408" id="408">408</a>
+<a href="#409" id="409">409</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::collections::{HashMap, HashSet};
 
 <span class="kw">use </span>arbitrary::Unstructured;
 <span class="kw">use </span>nargo::errors::Location;
@@ -401,6 +464,18 @@
     <span class="comment">// Create proxies for unconstrained functions called from ACIR.
     </span><span class="kw">let </span><span class="kw-2">mut </span>proxy_functions = HashMap::new();
     <span class="kw">let </span><span class="kw-2">mut </span>next_func_id = FuncId(ctx.functions.len() <span class="kw">as </span>u32);
+
+    <span class="doccomment">/// Decide how to pass the limit to function valued parameter passed to a function.
+    </span><span class="kw">fn </span>limit_type_for_func_param(callee_unconstrained: bool, param_unconstrained: bool) -&gt; Type {
+        <span class="comment">// If the function receiving the parameter is ACIR, and the function we pass
+        // to it is Brillig, it will have to pass the limit by value.
+        // Otherwise by ref should work. We don't pass ACIR to Brillig.
+        </span><span class="kw">if </span>!callee_unconstrained &amp;&amp; param_unconstrained {
+            types::U32
+        } <span class="kw">else </span>{
+            types::ref_mut(types::U32)
+        }
+    }
 
     <span class="kw">for </span>(func_id, func) <span class="kw">in </span><span class="kw-2">&amp;</span>ctx.functions {
         <span class="kw">if </span>!func.unconstrained
@@ -571,6 +646,8 @@
         }
 
         <span class="comment">// Update calls to pass along the limit and call the proxy if necessary.
+        // Also find places where we are passing a function pointer, and change
+        // it into the proxy version if necessary.
         </span>visit_expr_mut(<span class="kw-2">&amp;mut </span>func.body, <span class="kw-2">&amp;mut </span>|expr: <span class="kw-2">&amp;mut </span>Expression| {
             <span class="kw">if let </span>Expression::Call(call) = expr {
                 <span class="kw">let </span>Expression::Ident(ident) = call.func.as_mut() <span class="kw">else </span>{
@@ -583,6 +660,7 @@
                     <span class="macro">unreachable!</span>(<span class="string">"function type expected"</span>);
                 };
                 <span class="kw">let </span>callee_unconstrained = unconstrained_functions.contains(<span class="kw-2">&amp;</span>callee_id);
+
                 <span class="kw">if </span>callee_unconstrained &amp;&amp; !func.unconstrained {
                     <span class="comment">// Calling Brillig from ACIR: call the proxy.
                     </span><span class="kw">let </span><span class="prelude-val">Some</span>(proxy) = proxy_functions.get(<span class="kw-2">&amp;</span>callee_id) <span class="kw">else </span>{
@@ -639,6 +717,44 @@
                     param_types.push(types::U32);
                     call.arguments.push(limit_expr);
                 }
+
+                <span class="comment">// Now go through all the parameters: if they pass a function pointer,
+                // change the proxy or the original based on the caller.
+                </span><span class="kw">for </span>i <span class="kw">in </span><span class="number">0</span>..param_types.len() {
+                    <span class="kw">let </span>param_type = <span class="kw-2">&amp;mut </span>param_types[i];
+                    <span class="kw">if let </span>Type::Function(param_types, <span class="kw">_</span>, <span class="kw">_</span>, param_unconstrained) = param_type {
+                        <span class="kw">let </span>typ =
+                            limit_type_for_func_param(callee_unconstrained, <span class="kw-2">*</span>param_unconstrained);
+
+                        <span class="comment">// If we need to pass by value, then it's going to the proxy.
+                        // We don't have to update when the value we pass on is an input parameter,
+                        // but I don't know yet what that will look like.
+                        </span><span class="kw">if </span>!types::is_reference(<span class="kw-2">&amp;</span>typ) {
+                            <span class="kw">let </span>arg = <span class="kw-2">&amp;mut </span>call.arguments[i];
+                            <span class="kw">let </span>Expression::Ident(func_param_ident) = arg <span class="kw">else </span>{
+                                <span class="macro">unreachable!</span>(<span class="string">"functions are passed by ident; got {arg}"</span>);
+                            };
+                            <span class="kw">let </span>Definition::Function(func_param_id) = func_param_ident.definition
+                            <span class="kw">else </span>{
+                                <span class="macro">unreachable!</span>(
+                                    <span class="string">"function definition expected; got {}"</span>,
+                                    func_param_ident.definition
+                                );
+                            };
+                            <span class="kw">let </span><span class="prelude-val">Some</span>(proxy) = proxy_functions.get(<span class="kw-2">&amp;</span>func_param_id) <span class="kw">else </span>{
+                                <span class="macro">unreachable!</span>(
+                                    <span class="string">"expected to have a proxy for the function pointer: {func_param_id}; got some for {:?}"</span>,
+                                    proxy_functions.keys().collect::&lt;Vec&lt;<span class="kw">_</span>&gt;&gt;()
+                                );
+                            };
+                            func_param_ident.name = proxy.name.clone();
+                            func_param_ident.definition = Definition::Function(proxy.id);
+                        }
+
+                        <span class="comment">// Add the limit to the function described in the parameter.
+                        </span>param_types.push(typ);
+                    }
+                }
             }
             <span class="bool-val">true
         </span>});
@@ -647,6 +763,16 @@
     <span class="comment">// Append proxy functions.
     </span><span class="kw">for </span>(<span class="kw">_</span>, proxy) <span class="kw">in </span>proxy_functions {
         ctx.functions.insert(proxy.id, proxy);
+    }
+
+    <span class="comment">// Rewrite function valued parameters to take the limit.
+    </span><span class="kw">for </span>func <span class="kw">in </span>ctx.functions.values_mut() {
+        <span class="kw">for </span>param <span class="kw">in </span>func.parameters.iter_mut() {
+            <span class="kw">if let </span>Type::Function(param_types, <span class="kw">_</span>, <span class="kw">_</span>, param_unconstrained) = <span class="kw-2">&amp;mut </span>param.<span class="number">3 </span>{
+                <span class="kw">let </span>typ = limit_type_for_func_param(func.unconstrained, <span class="kw-2">*</span>param_unconstrained);
+                param_types.push(typ);
+            }
+        }
     }
 
     <span class="prelude-val">Ok</span>(())
