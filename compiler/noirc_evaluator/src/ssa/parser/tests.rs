@@ -390,6 +390,30 @@ fn test_mutable_array_set() {
 }
 
 #[test]
+fn test_array_set_offseted_by_1() {
+    let src = "
+        acir(inline) fn main f0 {
+          b0(v0: [Field; 3]):
+            v3 = array_set v0, index Field 2 minus 1, value Field 1
+            return
+        }
+        ";
+    assert_ssa_roundtrip(src);
+}
+
+#[test]
+fn test_array_set_offseted_by_3() {
+    let src = "
+        acir(inline) fn main f0 {
+          b0(v0: [Field; 3]):
+            v3 = array_set v0, index Field 4 minus 3, value Field 1
+            return
+        }
+        ";
+    assert_ssa_roundtrip(src);
+}
+
+#[test]
 fn test_array_get_set_bug() {
     let src = "
         acir(inline) fn main f0 {

@@ -446,8 +446,8 @@ impl<'ssa> Interpreter<'ssa> {
             Instruction::ArrayGet { array, index, offset } => {
                 self.interpret_array_get(*array, *index, *offset, results[0])
             }
-            Instruction::ArraySet { array, index, value, mutable } => {
-                self.interpret_array_set(*array, *index, *value, *mutable, results[0])
+            Instruction::ArraySet { array, index, value, mutable, offset } => {
+                self.interpret_array_set(*array, *index, *value, *mutable, *offset, results[0])
             }
             Instruction::IncrementRc { value } => self.interpret_inc_rc(*value),
             Instruction::DecrementRc { value } => self.interpret_dec_rc(*value),
@@ -758,12 +758,14 @@ impl<'ssa> Interpreter<'ssa> {
         index: ValueId,
         value: ValueId,
         mutable: bool,
+        offset: ArrayOffset,
         result: ValueId,
     ) -> IResult<()> {
         let array = self.lookup_array_or_slice(array, "array set")?;
 
         let result_array = if self.side_effects_enabled() {
             let index = self.lookup_u32(index, "array set index")?;
+            let index = index - offset.to_u32();
             let value = self.lookup(value)?;
 
             let should_mutate =

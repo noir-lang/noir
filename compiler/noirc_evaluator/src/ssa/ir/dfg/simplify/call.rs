@@ -506,6 +506,7 @@ fn simplify_slice_push_back(
         index: arguments[0],
         value: arguments[2],
         mutable: false,
+        offset: ArrayOffset::None,
     };
 
     let set_last_slice_value = dfg

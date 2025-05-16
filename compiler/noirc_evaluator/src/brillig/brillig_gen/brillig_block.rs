@@ -802,30 +802,24 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
                 );
 
                 let array_variable = self.convert_ssa_value(*array, dfg);
-
                 let index_variable = self.convert_ssa_single_addr_value(*index, dfg);
 
-                if dfg.is_constant(*index) {
+                let offseted = if dfg.is_constant(*index) {
                     // For constant indices it must be the case that they have been offseted during SSA
                     assert!(*offset != ArrayOffset::None);
-                    self.brillig_context.codegen_load_with_offset(
-                        array_variable.extract_register(),
-                        index_variable,
-                        destination_variable.extract_register(),
-                    );
+                    true
                 } else {
-                    let items_pointer = self
-                        .brillig_context
-                        .codegen_make_array_or_vector_items_pointer(array_variable);
-                    self.brillig_context.codegen_load_with_offset(
-                        items_pointer,
-                        index_variable,
-                        destination_variable.extract_register(),
-                    );
-                    self.brillig_context.deallocate_register(items_pointer);
-                }
+                    false
+                };
+
+                self.convert_ssa_array_get(
+                    array_variable,
+                    index_variable,
+                    destination_variable,
+                    offseted,
+                );
             }
-            Instruction::ArraySet { array, index, value, mutable } => {
+            Instruction::ArraySet { array, index, value, mutable, offset } => {
                 let source_variable = self.convert_ssa_value(*array, dfg);
                 let index_register = self.convert_ssa_single_addr_value(*index, dfg);
                 let value_variable = self.convert_ssa_value(*value, dfg);
@@ -838,12 +832,21 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
                     dfg,
                 );
 
+                let offseted = if dfg.is_constant(*index) {
+                    // For constant indices it must be the case that they have been offseted during SSA
+                    assert!(*offset != ArrayOffset::None);
+                    true
+                } else {
+                    false
+                };
+
                 self.convert_ssa_array_set(
                     source_variable,
                     destination_variable,
                     index_register,
                     value_variable,
                     *mutable,
+                    offseted,
                 );
             }
             Instruction::RangeCheck { value, max_bit_size, assert_message } => {
@@ -1110,6 +1113,32 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
         }
     }
 
+    fn convert_ssa_array_get(
+        &mut self,
+        array_variable: BrilligVariable,
+        index_variable: SingleAddrVariable,
+        destination_variable: BrilligVariable,
+        offseted: bool,
+    ) {
+        let (items_pointer, deallocate) = if offseted {
+            (array_variable.extract_register(), false)
+        } else {
+            let items_pointer =
+                self.brillig_context.codegen_make_array_or_vector_items_pointer(array_variable);
+            (items_pointer, true)
+        };
+
+        self.brillig_context.codegen_load_with_offset(
+            items_pointer,
+            index_variable,
+            destination_variable.extract_register(),
+        );
+
+        if deallocate {
+            self.brillig_context.deallocate_register(items_pointer);
+        }
+    }
+
     /// Array set operation in SSA returns a new array or slice that is a copy of the parameter array or slice
     /// With a specific value changed.
     ///
@@ -1122,6 +1151,7 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
         index_register: SingleAddrVariable,
         value_variable: BrilligVariable,
         mutable: bool,
+        offseted: bool,
     ) {
         assert!(index_register.bit_size == BRILLIG_MEMORY_ADDRESSING_BIT_SIZE);
         match (source_variable, destination_variable) {
@@ -1146,9 +1176,16 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
         }
 
         let destination_for_store = if mutable { source_variable } else { destination_variable };
+
         // Then set the value in the newly created array
-        let items_pointer =
-            self.brillig_context.codegen_make_array_or_vector_items_pointer(destination_for_store);
+        let (items_pointer, deallocate) = if offseted {
+            (destination_for_store.extract_register(), false)
+        } else {
+            let items_pointer = self
+                .brillig_context
+                .codegen_make_array_or_vector_items_pointer(destination_for_store);
+            (items_pointer, true)
+        };
 
         self.brillig_context.codegen_store_with_offset(
             items_pointer,
@@ -1164,7 +1201,9 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
             );
         }
 
-        self.brillig_context.deallocate_register(items_pointer);
+        if deallocate {
+            self.brillig_context.deallocate_register(items_pointer);
+        }
     }
 
     /// Convert the SSA slice operations to brillig slice operations
