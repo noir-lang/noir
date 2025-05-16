@@ -17,4 +17,9 @@ impl<let A: u32, let B: u32> Trait for Foo<A, B> {
 fn main() {
     let x = Foo::<10, 20>::foo();
     assert_eq(x, 30);
+
+    comptime {
+        let x = Foo::<10, 20>::foo();
+        assert_eq(x, 30);
+    }
 }

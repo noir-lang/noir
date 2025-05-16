@@ -554,10 +554,12 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
     }
 
     pub(super) fn evaluate_ident(&mut self, ident: HirIdent, id: ExprId) -> IResult<Value> {
-        let definition = self.elaborator.interner.try_definition(ident.id).ok_or_else(|| {
-            let location = self.elaborator.interner.expr_location(&id);
-            InterpreterError::VariableNotInScope { location }
-        })?;
+        let location = self.elaborator.interner.expr_location(&id);
+        let definition = self
+            .elaborator
+            .interner
+            .try_definition(ident.id)
+            .ok_or_else(|| InterpreterError::VariableNotInScope { location })?;
 
         if let ImplKind::TraitMethod(method) = ident.impl_kind {
             let method_id = resolve_trait_method(self.elaborator.interner, method.method_id, id)?;
@@ -636,8 +638,22 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
 
                 self.evaluate_integer(value.into(), id)
             }
-            DefinitionKind::AssociatedConstant(..) => {
-                todo!("Implement accessing an associated constant in the comptime interpreter")
+            DefinitionKind::AssociatedConstant(trait_impl_id, name) => {
+                let associated_types =
+                    self.elaborator.interner.get_associated_types_for_impl(*trait_impl_id);
+                let associated_type = associated_types
+                    .iter()
+                    .find(|typ| typ.name.as_str() == name)
+                    .expect("Expected to find associated type");
+                let Kind::Numeric(numeric_type) = associated_type.typ.kind() else {
+                    unreachable!("Expected associated type to be numeric");
+                };
+                let value = associated_type
+                    .typ
+                    .evaluate_to_field_element(&associated_type.typ.kind(), location)
+                    .expect("Expected to be able to evaluate associated type");
+
+                self.evaluate_integer(value.into(), id)
             }
         }
     }
