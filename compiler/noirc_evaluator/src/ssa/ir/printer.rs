@@ -7,7 +7,10 @@ use iter_extended::vecmap;
 
 use crate::ssa::{
     Ssa,
-    ir::types::{NumericType, Type},
+    ir::{
+        instruction::ArrayGetOffset,
+        types::{NumericType, Type},
+    },
 };
 
 use super::{
@@ -230,12 +233,17 @@ fn display_instruction_inner(
         Instruction::EnableSideEffectsIf { condition } => {
             writeln!(f, "enable_side_effects {}", show(*condition))
         }
-        Instruction::ArrayGet { array, index } => {
+        Instruction::ArrayGet { array, index, offset } => {
             writeln!(
                 f,
-                "array_get {}, index {}{}",
+                "array_get {}, index {}{}{}",
                 show(*array),
                 show(*index),
+                match offset {
+                    ArrayGetOffset::None => String::new(),
+                    ArrayGetOffset::Array | ArrayGetOffset::Slice =>
+                        format!(" minus {}", offset.to_u32()),
+                },
                 result_types(dfg, results)
             )
         }

@@ -200,7 +200,7 @@ fn block_cost(block: BasicBlockId, dfg: &DataFlowGraph) -> u32 {
             | Instruction::Store { .. }
             | Instruction::ArraySet { .. } => return u32::MAX,
 
-            Instruction::ArrayGet { array, index  } => {
+            Instruction::ArrayGet { array, index, offset: _  } => {
                 // A get can fail because of out-of-bound index
                 let mut in_bound = false;
                 // check if index is in bound
