@@ -13,6 +13,7 @@ use crate::ssa::{
     function_builder::FunctionBuilder,
     ir::{
         basic_block::BasicBlockId,
+        call_graph::CallGraph,
         dfg::{GlobalsGraph, InsertInstructionResult},
         function::{Function, FunctionId, RuntimeType},
         instruction::{Instruction, InstructionId, TerminatorInstruction},
@@ -50,13 +51,15 @@ impl Ssa {
     /// This step should run after runtime separation, since it relies on the runtime of the called functions being final.
     #[tracing::instrument(level = "trace", skip(self))]
     pub(crate) fn inline_functions(self, aggressiveness: i64) -> Ssa {
-        let inline_infos = compute_inline_infos(&self, false, aggressiveness);
+        let call_graph = CallGraph::from_ssa_weighted(&self);
+        let inline_infos = compute_inline_infos(&self, &call_graph, false, aggressiveness);
         Self::inline_functions_inner(self, &inline_infos, false)
     }
 
     /// Run the inlining pass where functions marked with `InlineType::NoPredicates` as not entry points
     pub(crate) fn inline_functions_with_no_predicates(self, aggressiveness: i64) -> Ssa {
-        let inline_infos = compute_inline_infos(&self, true, aggressiveness);
+        let call_graph = CallGraph::from_ssa_weighted(&self);
+        let inline_infos = compute_inline_infos(&self, &call_graph, true, aggressiveness);
         Self::inline_functions_inner(self, &inline_infos, true)
     }
 
