@@ -426,8 +426,7 @@ impl<'a> LimitContext<'a> {
         }
         if let Some(proxy) = proxy_functions.get_mut(&self.func_id) {
             for (_, _, _, param_type, _) in proxy.parameters.iter_mut() {
-                // Proxies will only be called from ACIR
-                modify_function_pointer_param_type(param_type, false);
+                modify_function_pointer_param_type(param_type, self.func.unconstrained);
             }
         }
     }
