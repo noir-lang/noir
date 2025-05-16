@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1747356553633,
+  "lastUpdate": 1747403714900,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -18091,48 +18091,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "mvezenov@gmail.com",
-            "name": "Maxim Vezenov",
-            "username": "vezenovm"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "74279a4de32baf7f3a9712268d1ff1626e7dc9b2",
-          "message": "fix(ssa): Mislabeled instructions with side effects in EnableSideEffectsIf removal pass (#8355)",
-          "timestamp": "2025-05-09T16:20:33Z",
-          "tree_id": "2572d8f7852d9a61f397fc4aee2a399a5feb693e",
-          "url": "https://github.com/noir-lang/noir/commit/74279a4de32baf7f3a9712268d1ff1626e7dc9b2"
-        },
-        "date": 1746808764282,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 266234,
-            "range": "± 670",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 236279,
-            "range": "± 7852",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 3223952,
-            "range": "± 18834",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "isennovskiy@gmail.com",
             "name": "Innokentii Sennovskii",
             "username": "Rumata888"
@@ -20184,6 +20142,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 3570602,
             "range": "± 7008",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "mvezenov@gmail.com",
+            "name": "Maxim Vezenov",
+            "username": "vezenovm"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "89cdf76c7f9be39b9fcc11761903c08c2cf8d30b",
+          "message": "fix(licm): Check whether the loop is executed when hoisting with a predicate (#8546)\n\nCo-authored-by: Akosh Farkash <aakoshh@gmail.com>",
+          "timestamp": "2025-05-16T13:34:09Z",
+          "tree_id": "9b0abeaa77face6ff57af5ec85596cc0ea11c02c",
+          "url": "https://github.com/noir-lang/noir/commit/89cdf76c7f9be39b9fcc11761903c08c2cf8d30b"
+        },
+        "date": 1747403705459,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 264318,
+            "range": "± 6756",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 243763,
+            "range": "± 5241",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 3238766,
+            "range": "± 49003",
             "unit": "ns/iter"
           }
         ]
