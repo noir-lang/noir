@@ -388,7 +388,10 @@
 <a href="#387" id="387">387</a>
 <a href="#388" id="388">388</a>
 <a href="#389" id="389">389</a>
-<a href="#390" id="390">390</a></pre></div><pre class="rust"><code><span class="attr">#![allow(dead_code)]
+<a href="#390" id="390">390</a>
+<a href="#391" id="391">391</a>
+<a href="#392" id="392">392</a>
+<a href="#393" id="393">393</a></pre></div><pre class="rust"><code><span class="attr">#![allow(dead_code)]
 </span><span class="kw">use </span><span class="kw">crate</span>::compiler::compile;
 <span class="kw">use </span><span class="kw">crate</span>::helpers::{id_to_int, u32_to_id_value};
 <span class="kw">use </span><span class="kw">crate</span>::typed_value::{TypedValue, ValueType};
@@ -397,7 +400,7 @@
 <span class="kw">use </span>noirc_evaluator::ssa::function_builder::FunctionBuilder;
 <span class="kw">use </span>noirc_evaluator::ssa::ir::basic_block::BasicBlockId;
 <span class="kw">use </span>noirc_evaluator::ssa::ir::function::{Function, RuntimeType};
-<span class="kw">use </span>noirc_evaluator::ssa::ir::instruction::BinaryOp;
+<span class="kw">use </span>noirc_evaluator::ssa::ir::instruction::{ArrayOffset, BinaryOp};
 <span class="kw">use </span>noirc_evaluator::ssa::ir::map::Id;
 <span class="kw">use </span>noirc_evaluator::ssa::ir::types::{NumericType, Type};
 <span class="kw">use </span>noirc_evaluator::ssa::ir::value::Value;
@@ -711,7 +714,8 @@
         <span class="kw">let </span>index_var =
             <span class="self">self</span>.builder.numeric_constant(index, NumericType::Unsigned { bit_size: <span class="number">32 </span>});
 
-        <span class="self">self</span>.builder.insert_array_get(array, index_var, <span class="self">self</span>.type_.clone())
+        <span class="kw">let </span>offset = ArrayOffset::None;
+        <span class="self">self</span>.builder.insert_array_get(array, index_var, offset, <span class="self">self</span>.type_.clone())
     }
 
     <span class="kw">pub fn </span>insert_constant(
@@ -733,7 +737,9 @@
         <span class="kw">let </span>index_var =
             <span class="self">self</span>.builder.numeric_constant(index, NumericType::Unsigned { bit_size: <span class="number">32 </span>});
 
-        <span class="self">self</span>.builder.insert_array_set(array, index_var, value)
+        <span class="kw">let </span>mutable = <span class="bool-val">false</span>;
+        <span class="kw">let </span>offset = ArrayOffset::None;
+        <span class="self">self</span>.builder.insert_array_set(array, index_var, value, mutable, offset)
     }
 
     <span class="doccomment">/// Gets the index of the entry block

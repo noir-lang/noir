@@ -1233,7 +1233,9 @@
 <a href="#1232" id="1232">1232</a>
 <a href="#1233" id="1233">1233</a>
 <a href="#1234" id="1234">1234</a>
-<a href="#1235" id="1235">1235</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::collections::BTreeMap;
+<a href="#1235" id="1235">1235</a>
+<a href="#1236" id="1236">1236</a>
+<a href="#1237" id="1237">1237</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::collections::BTreeMap;
 <span class="kw">use </span>std::sync::{Arc, Mutex, RwLock};
 
 <span class="kw">use </span>acvm::{FieldElement, acir::AcirField};
@@ -1251,8 +1253,8 @@
 <span class="kw">use </span><span class="kw">crate</span>::ssa::ir::basic_block::BasicBlockId;
 <span class="kw">use </span><span class="kw">crate</span>::ssa::ir::function::FunctionId <span class="kw">as </span>IrFunctionId;
 <span class="kw">use </span><span class="kw">crate</span>::ssa::ir::function::{Function, RuntimeType};
-<span class="kw">use </span><span class="kw">crate</span>::ssa::ir::instruction::BinaryOp;
 <span class="kw">use </span><span class="kw">crate</span>::ssa::ir::instruction::Instruction;
+<span class="kw">use </span><span class="kw">crate</span>::ssa::ir::instruction::{ArrayOffset, BinaryOp};
 <span class="kw">use </span><span class="kw">crate</span>::ssa::ir::map::AtomicCounter;
 <span class="kw">use </span><span class="kw">crate</span>::ssa::ir::types::{NumericType, Type};
 <span class="kw">use </span><span class="kw">crate</span>::ssa::ir::value::ValueId;
@@ -2295,7 +2297,9 @@
 
         new_value.for_each(|value| {
             <span class="kw">let </span>value = value.eval(<span class="self">self</span>);
-            array = <span class="self">self</span>.builder.insert_array_set(array, index, value);
+            <span class="kw">let </span>mutable = <span class="bool-val">false</span>;
+            <span class="kw">let </span>offset = ArrayOffset::None;
+            array = <span class="self">self</span>.builder.insert_array_set(array, index, value, mutable, offset);
             <span class="comment">// Unchecked add because this can't overflow (it would have overflowed when creating the array)
             </span>index = <span class="self">self</span>.builder.insert_binary(index, BinaryOp::Add { unchecked: <span class="bool-val">true </span>}, one);
         });

@@ -488,7 +488,7 @@
     ir::{
         dfg::InsertInstructionResult,
         function::Function,
-        instruction::{ArrayGetOffset, Binary, BinaryOp, Endian, Instruction, Intrinsic},
+        instruction::{ArrayOffset, Binary, BinaryOp, Endian, Instruction, Intrinsic},
         types::{NumericType, Type},
         value::ValueId,
     },
@@ -811,7 +811,7 @@
         element_type: Type,
     ) -&gt; ValueId {
         <span class="kw">let </span>element_type = <span class="prelude-val">Some</span>(<span class="macro">vec!</span>[element_type]);
-        <span class="kw">let </span>offset = ArrayGetOffset::None;
+        <span class="kw">let </span>offset = ArrayOffset::None;
         <span class="kw">let </span>instruction = Instruction::ArrayGet { array, index, offset };
         <span class="self">self</span>.insert_instruction(instruction, element_type).first()
     }

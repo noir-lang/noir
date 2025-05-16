@@ -779,7 +779,8 @@
 <a href="#778" id="778">778</a>
 <a href="#779" id="779">779</a>
 <a href="#780" id="780">780</a>
-<a href="#781" id="781">781</a></pre></div><pre class="rust"><code><span class="kw">use </span>fxhash::FxHashMap <span class="kw">as </span>HashMap;
+<a href="#781" id="781">781</a>
+<a href="#782" id="782">782</a></pre></div><pre class="rust"><code><span class="kw">use </span>fxhash::FxHashMap <span class="kw">as </span>HashMap;
 <span class="kw">use </span>noirc_errors::call_stack::CallStackId;
 <span class="kw">use </span>std::{collections::VecDeque, sync::Arc};
 
@@ -792,7 +793,7 @@
     ir::{
         basic_block::BasicBlockId,
         dfg::DataFlowGraph,
-        instruction::{ArrayGetOffset, Binary, BinaryOp, Endian, Hint, Instruction, Intrinsic},
+        instruction::{ArrayOffset, Binary, BinaryOp, Endian, Hint, Instruction, Intrinsic},
         types::{NumericType, Type},
         value::{Value, ValueId},
     },
@@ -1287,6 +1288,7 @@
         index: arguments[<span class="number">0</span>],
         value: arguments[<span class="number">2</span>],
         mutable: <span class="bool-val">false</span>,
+        offset: ArrayOffset::None,
     };
 
     <span class="kw">let </span>set_last_slice_value = dfg
@@ -1338,7 +1340,7 @@
         <span class="kw">let </span>get_last_elem_instr = Instruction::ArrayGet {
             array: arguments[<span class="number">1</span>],
             index: flattened_len,
-            offset: ArrayGetOffset::None,
+            offset: ArrayOffset::None,
         };
 
         <span class="kw">let </span>element_type = <span class="prelude-val">Some</span>(<span class="macro">vec!</span>[element_type.clone()]);

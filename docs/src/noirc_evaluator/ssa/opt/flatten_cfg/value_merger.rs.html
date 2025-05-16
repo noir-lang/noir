@@ -296,7 +296,7 @@
 <span class="kw">use </span><span class="kw">crate</span>::ssa::ir::{
     basic_block::BasicBlockId,
     dfg::DataFlowGraph,
-    instruction::{ArrayGetOffset, BinaryOp, Instruction},
+    instruction::{ArrayOffset, BinaryOp, Instruction},
     types::{NumericType, Type},
     value::ValueId,
 };
@@ -438,7 +438,7 @@
                 <span class="kw">let </span>typevars = <span class="prelude-val">Some</span>(<span class="macro">vec!</span>[element_type.clone()]);
 
                 <span class="kw">let </span><span class="kw-2">mut </span>get_element = |array, typevars| {
-                    <span class="kw">let </span>offset = ArrayGetOffset::None;
+                    <span class="kw">let </span>offset = ArrayOffset::None;
                     <span class="kw">let </span>get = Instruction::ArrayGet { array, index, offset };
                     <span class="self">self</span>.dfg
                         .insert_instruction_and_results(get, <span class="self">self</span>.block, typevars, <span class="self">self</span>.call_stack)
@@ -508,7 +508,7 @@
                     </span><span class="kw">if </span>len &lt;= index_u32 {
                         <span class="self">self</span>.make_slice_dummy_data(element_type)
                     } <span class="kw">else </span>{
-                        <span class="kw">let </span>offset = ArrayGetOffset::None;
+                        <span class="kw">let </span>offset = ArrayOffset::None;
                         <span class="kw">let </span>get = Instruction::ArrayGet { array, index, offset };
                         <span class="self">self</span>.dfg
                             .insert_instruction_and_results(

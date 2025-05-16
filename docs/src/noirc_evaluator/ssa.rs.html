@@ -972,7 +972,7 @@
         // We can safely place the pass before DIE as that pass only removes instructions.
         // We also need DIE's tracking of used globals in case the array get transformations
         // end up using an existing constant from the globals space.
-        </span>SsaPass::new(Ssa::brillig_array_gets, <span class="string">"Brillig Array Get Optimizations"</span>),
+        </span>SsaPass::new(Ssa::brillig_array_get_and_set, <span class="string">"Brillig Array Get and Set Optimizations"</span>),
         SsaPass::new(Ssa::dead_instruction_elimination, <span class="string">"Dead Instruction Elimination"</span>),
         <span class="comment">// A function can be potentially unreachable post-DIE if all calls to that function were removed.
         </span>SsaPass::new(Ssa::remove_unreachable_functions, <span class="string">"Removing Unreachable Functions"</span>),
@@ -1010,7 +1010,7 @@
         <span class="comment">// We need a DIE pass to populate `used_globals`, otherwise it will panic later.
         </span>SsaPass::new(Ssa::dead_instruction_elimination, <span class="string">"Dead Instruction Elimination"</span>),
         <span class="comment">// We need to add an offset to constant array indices in Brillig.
-        </span>SsaPass::new(Ssa::brillig_array_gets, <span class="string">"Brillig Array Get Optimizations"</span>),
+        </span>SsaPass::new(Ssa::brillig_array_get_and_set, <span class="string">"Brillig Array Get and Set Optimizations"</span>),
     ]
 }
 

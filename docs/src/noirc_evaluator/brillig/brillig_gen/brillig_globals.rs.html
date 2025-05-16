@@ -1090,7 +1090,7 @@
 
         <span class="kw">let </span>ssa = Ssa::from_str(src).unwrap();
         <span class="comment">// Need to run SSA pass that sets up Brillig array gets
-        </span><span class="kw">let </span>ssa = ssa.brillig_array_gets();
+        </span><span class="kw">let </span>ssa = ssa.brillig_array_get_and_set();
         <span class="comment">// Need to run DIE to generate the used globals map, which is necessary for Brillig globals generation.
         </span><span class="kw">let </span><span class="kw-2">mut </span>ssa = ssa.dead_instruction_elimination();
 

@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"fn":["compute_index_and_offset"]};

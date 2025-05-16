@@ -495,7 +495,7 @@
     ir::{
         basic_block::BasicBlockId,
         instruction::{
-            ArrayGetOffset, Binary, BinaryOp, Instruction,
+            ArrayOffset, Binary, BinaryOp, Instruction,
             binary::{truncate, truncate_field},
         },
         types::Type,
@@ -869,7 +869,7 @@
 ) -&gt; SimplifyResult {
     <span class="kw">let </span>array_from_get = <span class="kw">match </span>dfg.get_local_or_global_instruction(target_value) {
         <span class="prelude-val">Some</span>(Instruction::ArrayGet { array, index, offset }) =&gt; {
-            <span class="kw">if </span><span class="kw-2">*</span>offset == ArrayGetOffset::None &amp;&amp; <span class="kw-2">*</span>array == array_id &amp;&amp; <span class="kw-2">*</span>index == target_index {
+            <span class="kw">if </span><span class="kw-2">*</span>offset == ArrayOffset::None &amp;&amp; <span class="kw-2">*</span>array == array_id &amp;&amp; <span class="kw-2">*</span>index == target_index {
                 <span class="comment">// If array and index match from the value, we can immediately simplify
                 </span><span class="kw">return </span>SimplifyResult::SimplifiedTo(array_id);
             } <span class="kw">else if </span><span class="kw-2">*</span>index == target_index {

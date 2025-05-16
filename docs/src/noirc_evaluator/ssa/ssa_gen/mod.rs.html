@@ -1138,7 +1138,8 @@
 <a href="#1137" id="1137">1137</a>
 <a href="#1138" id="1138">1138</a>
 <a href="#1139" id="1139">1139</a>
-<a href="#1140" id="1140">1140</a></pre></div><pre class="rust"><code><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">mod </span>context;
+<a href="#1140" id="1140">1140</a>
+<a href="#1141" id="1141">1141</a></pre></div><pre class="rust"><code><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">mod </span>context;
 <span class="kw">mod </span>program;
 <span class="kw">mod </span>tests;
 <span class="kw">mod </span>value;
@@ -1168,7 +1169,7 @@
 
 <span class="kw">use </span><span class="kw">super</span>::ir::basic_block::BasicBlockId;
 <span class="kw">use </span><span class="kw">super</span>::ir::dfg::GlobalsGraph;
-<span class="kw">use </span><span class="kw">super</span>::ir::instruction::ErrorType;
+<span class="kw">use </span><span class="kw">super</span>::ir::instruction::{ArrayOffset, ErrorType};
 <span class="kw">use </span><span class="kw">super</span>::ir::types::NumericType;
 <span class="kw">use super</span>::{
     function_builder::data_bus::DataBus,
@@ -1612,13 +1613,14 @@
 
         <span class="kw">let </span><span class="kw-2">mut </span>field_index = <span class="number">0u128</span>;
         <span class="prelude-val">Ok</span>(<span class="self">Self</span>::map_type(element_type, |typ| {
-            <span class="kw">let </span>offset = <span class="self">self</span>.make_offset(base_index, field_index);
+            <span class="kw">let </span>index = <span class="self">self</span>.make_offset(base_index, field_index);
             field_index += <span class="number">1</span>;
 
             <span class="comment">// Reference counting in brillig relies on us incrementing reference
             // counts when nested arrays/slices are constructed or indexed. This
             // has no effect in ACIR code.
-            </span><span class="kw">let </span>result = <span class="self">self</span>.builder.insert_array_get(array, offset, typ);
+            </span><span class="kw">let </span>offset = ArrayOffset::None;
+            <span class="kw">let </span>result = <span class="self">self</span>.builder.insert_array_get(array, index, offset, typ);
             result.into()
         }))
     }

@@ -1115,7 +1115,10 @@
 <a href="#1114" id="1114">1114</a>
 <a href="#1115" id="1115">1115</a>
 <a href="#1116" id="1116">1116</a>
-<a href="#1117" id="1117">1117</a></pre></div><pre class="rust"><code><span class="doccomment">//! Dead Instruction Elimination (DIE) pass: Removes any instruction without side-effects for
+<a href="#1117" id="1117">1117</a>
+<a href="#1118" id="1118">1118</a>
+<a href="#1119" id="1119">1119</a>
+<a href="#1120" id="1120">1120</a></pre></div><pre class="rust"><code><span class="doccomment">//! Dead Instruction Elimination (DIE) pass: Removes any instruction without side-effects for
 //! which the results are unused.
 //!
 //! DIE also tracks which block parameters are unused.
@@ -1741,6 +1744,7 @@
             function_builder::FunctionBuilder,
             ir::{
                 function::RuntimeType,
+                instruction::ArrayOffset,
                 map::Id,
                 types::{NumericType, Type},
             },
@@ -1887,7 +1891,9 @@
 
         <span class="kw">let </span>v3 = builder.insert_load(v2, array_type);
         <span class="kw">let </span>one = builder.numeric_constant(<span class="number">1u128</span>, NumericType::unsigned(<span class="number">32</span>));
-        <span class="kw">let </span>v5 = builder.insert_array_set(v3, zero, one);
+        <span class="kw">let </span>mutable = <span class="bool-val">false</span>;
+        <span class="kw">let </span>offset = ArrayOffset::None;
+        <span class="kw">let </span>v5 = builder.insert_array_set(v3, zero, one, mutable, offset);
         builder.terminate_with_return(<span class="macro">vec!</span>[v5]);
 
         <span class="kw">let </span>ssa = builder.finish();

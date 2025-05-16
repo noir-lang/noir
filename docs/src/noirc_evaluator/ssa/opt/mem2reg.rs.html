@@ -1232,7 +1232,10 @@
 <a href="#1231" id="1231">1231</a>
 <a href="#1232" id="1232">1232</a>
 <a href="#1233" id="1233">1233</a>
-<a href="#1234" id="1234">1234</a></pre></div><pre class="rust"><code><span class="doccomment">//! The goal of the mem2reg SSA optimization pass is to replace any `Load` instructions to known
+<a href="#1234" id="1234">1234</a>
+<a href="#1235" id="1235">1235</a>
+<a href="#1236" id="1236">1236</a>
+<a href="#1237" id="1237">1237</a></pre></div><pre class="rust"><code><span class="doccomment">//! The goal of the mem2reg SSA optimization pass is to replace any `Load` instructions to known
 //! addresses with the value stored at that address, if it is also known. This pass will also remove
 //! any `Store` instructions within a block that are no longer needed because no more loads occur in
 //! between the Store in question and the next Store.
@@ -1913,7 +1916,9 @@
             ir::{
                 basic_block::BasicBlockId,
                 dfg::DataFlowGraph,
-                instruction::{BinaryOp, Instruction, Intrinsic, TerminatorInstruction},
+                instruction::{
+                    ArrayOffset, BinaryOp, Instruction, Intrinsic, TerminatorInstruction,
+                },
                 map::Id,
                 types::Type,
             },
@@ -1945,7 +1950,8 @@
 
         builder.insert_store(v0, v1);
         <span class="kw">let </span>v2 = builder.insert_load(v0, array_type);
-        <span class="kw">let </span>v3 = builder.insert_array_get(v2, one, Type::field());
+        <span class="kw">let </span>offset = ArrayOffset::None;
+        <span class="kw">let </span>v3 = builder.insert_array_get(v2, one, offset, Type::field());
         builder.terminate_with_return(<span class="macro">vec!</span>[v3]);
 
         <span class="kw">let </span>ssa = builder.finish().mem2reg().fold_constants();

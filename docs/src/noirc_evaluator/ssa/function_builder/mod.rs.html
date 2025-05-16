@@ -604,21 +604,7 @@
 <a href="#603" id="603">603</a>
 <a href="#604" id="604">604</a>
 <a href="#605" id="605">605</a>
-<a href="#606" id="606">606</a>
-<a href="#607" id="607">607</a>
-<a href="#608" id="608">608</a>
-<a href="#609" id="609">609</a>
-<a href="#610" id="610">610</a>
-<a href="#611" id="611">611</a>
-<a href="#612" id="612">612</a>
-<a href="#613" id="613">613</a>
-<a href="#614" id="614">614</a>
-<a href="#615" id="615">615</a>
-<a href="#616" id="616">616</a>
-<a href="#617" id="617">617</a>
-<a href="#618" id="618">618</a>
-<a href="#619" id="619">619</a>
-<a href="#620" id="620">620</a></pre></div><pre class="rust"><code><span class="kw">pub mod </span>data_bus;
+<a href="#606" id="606">606</a></pre></div><pre class="rust"><code><span class="kw">pub mod </span>data_bus;
 
 <span class="kw">use </span>std::{borrow::Cow, collections::BTreeMap, sync::Arc};
 
@@ -643,7 +629,7 @@
         basic_block::BasicBlock,
         dfg::{GlobalsGraph, InsertInstructionResult},
         function::RuntimeType,
-        instruction::{ArrayGetOffset, ConstrainError, InstructionId, Intrinsic},
+        instruction::{ArrayOffset, ConstrainError, InstructionId, Intrinsic},
         types::NumericType,
     },
     opt::pure::FunctionPurities,
@@ -971,17 +957,7 @@
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
         array: ValueId,
         index: ValueId,
-        element_type: Type,
-    ) -&gt; ValueId {
-        <span class="self">self</span>.insert_array_get_with_offset(array, index, ArrayGetOffset::None, element_type)
-    }
-
-    <span class="doccomment">/// Insert an instruction to extract an element from an array
-    </span><span class="kw">pub fn </span>insert_array_get_with_offset(
-        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
-        array: ValueId,
-        index: ValueId,
-        offset: ArrayGetOffset,
+        offset: ArrayOffset,
         element_type: Type,
     ) -&gt; ValueId {
         <span class="kw">let </span>element_type = <span class="prelude-val">Some</span>(<span class="macro">vec!</span>[element_type]);
@@ -990,20 +966,16 @@
     }
 
     <span class="doccomment">/// Insert an instruction to create a new array with the given index replaced with a new value
-    </span><span class="kw">pub fn </span>insert_array_set(<span class="kw-2">&amp;mut </span><span class="self">self</span>, array: ValueId, index: ValueId, value: ValueId) -&gt; ValueId {
-        <span class="self">self</span>.insert_instruction(Instruction::ArraySet { array, index, value, mutable: <span class="bool-val">false </span>}, <span class="prelude-val">None</span>)
-            .first()
-    }
-
-    <span class="attr">#[cfg(test)]
-    </span><span class="kw">pub fn </span>insert_mutable_array_set(
+    </span><span class="kw">pub fn </span>insert_array_set(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
         array: ValueId,
         index: ValueId,
         value: ValueId,
+        mutable: bool,
+        offset: ArrayOffset,
     ) -&gt; ValueId {
-        <span class="self">self</span>.insert_instruction(Instruction::ArraySet { array, index, value, mutable: <span class="bool-val">true </span>}, <span class="prelude-val">None</span>)
-            .first()
+        <span class="kw">let </span>instruction = Instruction::ArraySet { array, index, value, mutable, offset };
+        <span class="self">self</span>.insert_instruction(instruction, <span class="prelude-val">None</span>).first()
     }
 
     <span class="doccomment">/// Insert an instruction to increment an array's reference count. This only has an effect

@@ -378,7 +378,18 @@
 <a href="#377" id="377">377</a>
 <a href="#378" id="378">378</a>
 <a href="#379" id="379">379</a>
-<a href="#380" id="380">380</a></pre></div><pre class="rust"><code><span class="doccomment">//! This file is for pretty-printing the SSA IR in a human-readable form for debugging.
+<a href="#380" id="380">380</a>
+<a href="#381" id="381">381</a>
+<a href="#382" id="382">382</a>
+<a href="#383" id="383">383</a>
+<a href="#384" id="384">384</a>
+<a href="#385" id="385">385</a>
+<a href="#386" id="386">386</a>
+<a href="#387" id="387">387</a>
+<a href="#388" id="388">388</a>
+<a href="#389" id="389">389</a>
+<a href="#390" id="390">390</a>
+<a href="#391" id="391">391</a></pre></div><pre class="rust"><code><span class="doccomment">//! This file is for pretty-printing the SSA IR in a human-readable form for debugging.
 </span><span class="kw">use </span>std::fmt::{Display, Formatter, <span class="prelude-ty">Result</span>};
 
 <span class="kw">use </span>acvm::acir::AcirField;
@@ -388,7 +399,7 @@
 <span class="kw">use </span><span class="kw">crate</span>::ssa::{
     Ssa,
     ir::{
-        instruction::ArrayGetOffset,
+        instruction::ArrayOffset,
         types::{NumericType, Type},
     },
 };
@@ -619,20 +630,24 @@
                 <span class="string">"array_get {}, index {}{}{}"</span>,
                 show(<span class="kw-2">*</span>array),
                 show(<span class="kw-2">*</span>index),
-                <span class="kw">match </span>offset {
-                    ArrayGetOffset::None =&gt; String::new(),
-                    ArrayGetOffset::Array | ArrayGetOffset::Slice =&gt;
-                        <span class="macro">format!</span>(<span class="string">" minus {}"</span>, offset.to_u32()),
-                },
+                display_array_offset(offset),
                 result_types(dfg, results)
             )
         }
-        Instruction::ArraySet { array, index, value, mutable } =&gt; {
+        Instruction::ArraySet { array, index, value, mutable, offset } =&gt; {
             <span class="kw">let </span>array = show(<span class="kw-2">*</span>array);
             <span class="kw">let </span>index = show(<span class="kw-2">*</span>index);
             <span class="kw">let </span>value = show(<span class="kw-2">*</span>value);
             <span class="kw">let </span>mutable = <span class="kw">if </span><span class="kw-2">*</span>mutable { <span class="string">" mut" </span>} <span class="kw">else </span>{ <span class="string">"" </span>};
-            <span class="macro">writeln!</span>(f, <span class="string">"array_set{mutable} {array}, index {index}, value {value}"</span>)
+            <span class="macro">writeln!</span>(
+                f,
+                <span class="string">"array_set{} {}, index {}{}, value {}"</span>,
+                mutable,
+                array,
+                index,
+                display_array_offset(offset),
+                value
+            )
         }
         Instruction::IncrementRc { value } =&gt; {
             <span class="macro">writeln!</span>(f, <span class="string">"inc_rc {}"</span>, show(<span class="kw-2">*</span>value))
@@ -692,6 +707,13 @@
             <span class="macro">writeln!</span>(f, <span class="string">"] : {typ}"</span>)
         }
         Instruction::Noop =&gt; <span class="macro">writeln!</span>(f, <span class="string">"nop"</span>),
+    }
+}
+
+<span class="kw">fn </span>display_array_offset(offset: <span class="kw-2">&amp;</span>ArrayOffset) -&gt; String {
+    <span class="kw">match </span>offset {
+        ArrayOffset::None =&gt; String::new(),
+        ArrayOffset::Array | ArrayOffset::Slice =&gt; <span class="macro">format!</span>(<span class="string">" minus {}"</span>, offset.to_u32()),
     }
 }
 

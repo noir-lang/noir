@@ -1311,14 +1311,16 @@
 <a href="#1310" id="1310">1310</a>
 <a href="#1311" id="1311">1311</a>
 <a href="#1312" id="1312">1312</a>
-<a href="#1313" id="1313">1313</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::cmp::Ordering;
+<a href="#1313" id="1313">1313</a>
+<a href="#1314" id="1314">1314</a>
+<a href="#1315" id="1315">1315</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::cmp::Ordering;
 
 <span class="kw">use super</span>::{
     Ssa,
     ir::{
         dfg::DataFlowGraph,
         function::{Function, FunctionId, RuntimeType},
-        instruction::{ArrayGetOffset, Binary, BinaryOp, Instruction, TerminatorInstruction},
+        instruction::{ArrayOffset, Binary, BinaryOp, Instruction, TerminatorInstruction},
         types::Type,
         value::ValueId,
     },
@@ -1759,8 +1761,8 @@
             Instruction::ArrayGet { array, index, offset } =&gt; {
                 <span class="self">self</span>.interpret_array_get(<span class="kw-2">*</span>array, <span class="kw-2">*</span>index, <span class="kw-2">*</span>offset, results[<span class="number">0</span>])
             }
-            Instruction::ArraySet { array, index, value, mutable } =&gt; {
-                <span class="self">self</span>.interpret_array_set(<span class="kw-2">*</span>array, <span class="kw-2">*</span>index, <span class="kw-2">*</span>value, <span class="kw-2">*</span>mutable, results[<span class="number">0</span>])
+            Instruction::ArraySet { array, index, value, mutable, offset } =&gt; {
+                <span class="self">self</span>.interpret_array_set(<span class="kw-2">*</span>array, <span class="kw-2">*</span>index, <span class="kw-2">*</span>value, <span class="kw-2">*</span>mutable, <span class="kw-2">*</span>offset, results[<span class="number">0</span>])
             }
             Instruction::IncrementRc { value } =&gt; <span class="self">self</span>.interpret_inc_rc(<span class="kw-2">*</span>value),
             Instruction::DecrementRc { value } =&gt; <span class="self">self</span>.interpret_dec_rc(<span class="kw-2">*</span>value),
@@ -2049,7 +2051,7 @@
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
         array: ValueId,
         index: ValueId,
-        offset: ArrayGetOffset,
+        offset: ArrayOffset,
         result: ValueId,
     ) -&gt; IResult&lt;()&gt; {
         <span class="kw">let </span>element = <span class="kw">if </span><span class="self">self</span>.side_effects_enabled() {
@@ -2071,12 +2073,14 @@
         index: ValueId,
         value: ValueId,
         mutable: bool,
+        offset: ArrayOffset,
         result: ValueId,
     ) -&gt; IResult&lt;()&gt; {
         <span class="kw">let </span>array = <span class="self">self</span>.lookup_array_or_slice(array, <span class="string">"array set"</span>)<span class="question-mark">?</span>;
 
         <span class="kw">let </span>result_array = <span class="kw">if </span><span class="self">self</span>.side_effects_enabled() {
             <span class="kw">let </span>index = <span class="self">self</span>.lookup_u32(index, <span class="string">"array set index"</span>)<span class="question-mark">?</span>;
+            <span class="kw">let </span>index = index - offset.to_u32();
             <span class="kw">let </span>value = <span class="self">self</span>.lookup(value)<span class="question-mark">?</span>;
 
             <span class="kw">let </span>should_mutate =
