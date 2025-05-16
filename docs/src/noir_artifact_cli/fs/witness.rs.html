@@ -27,7 +27,7 @@
 <a href="#26" id="26">26</a>
 <a href="#27" id="27">27</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::path::{Path, PathBuf};
 
-<span class="kw">use </span>acir::{FieldElement, native_types::WitnessStackError};
+<span class="kw">use </span>acir::FieldElement;
 <span class="kw">use </span>acvm::acir::native_types::WitnessStack;
 
 <span class="kw">use </span><span class="kw">crate</span>::errors::{CliError, FilesystemError};
@@ -42,7 +42,7 @@
 
     <span class="kw">let </span>witness_path = witness_dir.join(witness_name).with_extension(<span class="string">"gz"</span>);
 
-    <span class="kw">let </span>buf: Vec&lt;u8&gt; = witnesses.try_into().map_err(|e: WitnessStackError| {
+    <span class="kw">let </span>buf: Vec&lt;u8&gt; = witnesses.serialize().map_err(|e| {
         FilesystemError::OutputWitnessCreationFailed(witness_path.clone(), <span class="macro">format!</span>(<span class="string">"{e:?}"</span>))
     })<span class="question-mark">?</span>;
 

@@ -727,7 +727,9 @@
 <a href="#726" id="726">726</a>
 <a href="#727" id="727">727</a>
 <a href="#728" id="728">728</a>
-<a href="#729" id="729">729</a></pre></div><pre class="rust"><code><span class="doccomment">//! Native structures for representing ACIR
+<a href="#729" id="729">729</a>
+<a href="#730" id="730">730</a>
+<a href="#731" id="731">731</a></pre></div><pre class="rust"><code><span class="doccomment">//! Native structures for representing ACIR
 
 </span><span class="kw">pub mod </span>black_box_functions;
 <span class="kw">pub mod </span>brillig;
@@ -735,7 +737,7 @@
 
 <span class="kw">use crate</span>::{
     native_types::{Expression, Witness},
-    serialization::{bincode_deserialize, bincode_serialize},
+    serialization::{deserialize_any_format, serialize_with_format_from_env},
 };
 <span class="kw">use </span>acir_field::AcirField;
 <span class="kw">pub use </span>opcodes::Opcode;
@@ -997,8 +999,10 @@
 <span class="kw">impl</span>&lt;F: Serialize + AcirField&gt; Program&lt;F&gt; {
     <span class="doccomment">/// Serialize and compress the [Program] into bytes.
     </span><span class="kw">fn </span>write&lt;W: Write&gt;(<span class="kw-2">&amp;</span><span class="self">self</span>, writer: W) -&gt; std::io::Result&lt;()&gt; {
-        <span class="kw">let </span>buf = bincode_serialize(<span class="self">self</span>)<span class="question-mark">?</span>;
-        <span class="kw">let </span><span class="kw-2">mut </span>encoder = flate2::write::GzEncoder::new(writer, Compression::default());
+        <span class="kw">let </span>buf = serialize_with_format_from_env(<span class="self">self</span>)<span class="question-mark">?</span>;
+
+        <span class="comment">// Compress the data, which should help with formats that uses field names.
+        </span><span class="kw">let </span><span class="kw-2">mut </span>encoder = flate2::write::GzEncoder::new(writer, Compression::default());
         encoder.write_all(<span class="kw-2">&amp;</span>buf)<span class="question-mark">?</span>;
         encoder.finish()<span class="question-mark">?</span>;
         <span class="prelude-val">Ok</span>(())
@@ -1027,7 +1031,7 @@
         <span class="kw">let </span><span class="kw-2">mut </span>gz_decoder = flate2::read::GzDecoder::new(reader);
         <span class="kw">let </span><span class="kw-2">mut </span>buf = Vec::new();
         gz_decoder.read_to_end(<span class="kw-2">&amp;mut </span>buf)<span class="question-mark">?</span>;
-        <span class="kw">let </span>program = bincode_deserialize(<span class="kw-2">&amp;</span>buf)<span class="question-mark">?</span>;
+        <span class="kw">let </span>program = deserialize_any_format(<span class="kw-2">&amp;</span>buf)<span class="question-mark">?</span>;
         <span class="prelude-val">Ok</span>(program)
     }
 
@@ -1408,8 +1412,8 @@
         <span class="attr">#[test]
         </span><span class="kw">fn </span>prop_witness_stack_roundtrip() {
             run_with_max_size_range(<span class="number">10</span>, |witness: WitnessStack&lt;TestField&gt;| {
-                <span class="kw">let </span>bz = Vec::&lt;u8&gt;::try_from(<span class="kw-2">&amp;</span>witness)<span class="question-mark">?</span>;
-                <span class="kw">let </span>de = WitnessStack::try_from(bz.as_slice())<span class="question-mark">?</span>;
+                <span class="kw">let </span>bz = witness.serialize()<span class="question-mark">?</span>;
+                <span class="kw">let </span>de = WitnessStack::deserialize(bz.as_slice())<span class="question-mark">?</span>;
                 <span class="macro">prop_assert_eq!</span>(witness, de);
                 <span class="prelude-val">Ok</span>(())
             });
@@ -1448,8 +1452,8 @@
         <span class="attr">#[test]
         </span><span class="kw">fn </span>prop_witness_map_roundtrip() {
             run_with_max_size_range(<span class="number">10</span>, |witness: WitnessMap&lt;TestField&gt;| {
-                <span class="kw">let </span>bz = Vec::&lt;u8&gt;::try_from(witness.clone())<span class="question-mark">?</span>;
-                <span class="kw">let </span>de = WitnessMap::try_from(bz.as_slice())<span class="question-mark">?</span>;
+                <span class="kw">let </span>bz = witness.serialize()<span class="question-mark">?</span>;
+                <span class="kw">let </span>de = WitnessMap::deserialize(bz.as_slice())<span class="question-mark">?</span>;
                 <span class="macro">prop_assert_eq!</span>(witness, de);
                 <span class="prelude-val">Ok</span>(())
             });

@@ -63,9 +63,7 @@
 <a href="#62" id="62">62</a>
 <a href="#63" id="63">63</a>
 <a href="#64" id="64">64</a>
-<a href="#65" id="65">65</a>
-<a href="#66" id="66">66</a>
-<a href="#67" id="67">67</a></pre></div><pre class="rust"><code><span class="kw">use </span>acvm::acir::native_types::{WitnessMap, WitnessStack};
+<a href="#65" id="65">65</a></pre></div><pre class="rust"><code><span class="kw">use </span>acvm::acir::native_types::{WitnessMap, WitnessStack};
 <span class="kw">use </span>js_sys::JsString;
 <span class="kw">use </span>wasm_bindgen::prelude::wasm_bindgen;
 
@@ -81,8 +79,7 @@
 
     <span class="kw">let </span>witness_map = WitnessMap::from(witness_map);
     <span class="kw">let </span>witness_stack = WitnessStack::from(witness_map);
-    <span class="kw">let </span>compressed_witness_stack: Vec&lt;u8&gt; =
-        Vec::&lt;u8&gt;::try_from(witness_stack).map_err(|err| err.to_string())<span class="question-mark">?</span>;
+    <span class="kw">let </span>compressed_witness_stack = witness_stack.serialize().map_err(|err| err.to_string())<span class="question-mark">?</span>;
 
     <span class="prelude-val">Ok</span>(compressed_witness_stack)
 }
@@ -97,7 +94,7 @@
     console_error_panic_hook::set_once();
 
     <span class="kw">let </span><span class="kw-2">mut </span>witness_stack =
-        WitnessStack::try_from(compressed_witness.as_slice()).map_err(|err| err.to_string())<span class="question-mark">?</span>;
+        WitnessStack::deserialize(compressed_witness.as_slice()).map_err(|err| err.to_string())<span class="question-mark">?</span>;
 
     <span class="kw">let </span>witness =
         witness_stack.pop().expect(<span class="string">"Should have at least one witness on the stack"</span>).witness;
@@ -113,8 +110,7 @@
     console_error_panic_hook::set_once();
 
     <span class="kw">let </span>witness_stack = WitnessStack::from(witness_stack);
-    <span class="kw">let </span>compressed_witness_stack: Vec&lt;u8&gt; =
-        Vec::&lt;u8&gt;::try_from(witness_stack).map_err(|err| err.to_string())<span class="question-mark">?</span>;
+    <span class="kw">let </span>compressed_witness_stack = witness_stack.serialize().map_err(|err| err.to_string())<span class="question-mark">?</span>;
 
     <span class="prelude-val">Ok</span>(compressed_witness_stack)
 }
@@ -128,7 +124,7 @@
     console_error_panic_hook::set_once();
 
     <span class="kw">let </span>witness_stack =
-        WitnessStack::try_from(compressed_witness.as_slice()).map_err(|err| err.to_string())<span class="question-mark">?</span>;
+        WitnessStack::deserialize(compressed_witness.as_slice()).map_err(|err| err.to_string())<span class="question-mark">?</span>;
 
     <span class="prelude-val">Ok</span>(witness_stack.into())
 }
