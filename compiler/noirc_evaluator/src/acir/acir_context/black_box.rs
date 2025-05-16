@@ -1,9 +1,6 @@
 use acvm::{
     BlackBoxFunctionSolver,
-    acir::{
-        AcirField, BlackBoxFunc,
-        circuit::opcodes::FunctionInput,
-    },
+    acir::{AcirField, BlackBoxFunc, circuit::opcodes::FunctionInput},
 };
 use iter_extended::vecmap;
 use num_bigint::BigUint;
