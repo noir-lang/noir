@@ -211,6 +211,7 @@ pub fn primary_passes(options: &SsaEvaluatorOptions) -> Vec<SsaPass> {
         // We also need DIE's tracking of used globals in case the array get transformations
         // end up using an existing constant from the globals space.
         SsaPass::new(Ssa::brillig_array_gets, "Brillig Array Get Optimizations"),
+        SsaPass::new(Ssa::arithmetic_optimization, "Arithmetic Optimizations"),
         SsaPass::new(Ssa::dead_instruction_elimination, "Dead Instruction Elimination"),
         // A function can be potentially unreachable post-DIE if all calls to that function were removed.
         SsaPass::new(Ssa::remove_unreachable_functions, "Removing Unreachable Functions"),
