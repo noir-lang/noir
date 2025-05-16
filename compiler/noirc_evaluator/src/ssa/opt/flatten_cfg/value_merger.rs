@@ -5,7 +5,7 @@ use noirc_errors::call_stack::CallStackId;
 use crate::ssa::ir::{
     basic_block::BasicBlockId,
     dfg::DataFlowGraph,
-    instruction::{BinaryOp, Instruction},
+    instruction::{ArrayGetOffset, BinaryOp, Instruction},
     types::{NumericType, Type},
     value::ValueId,
 };
@@ -142,12 +142,13 @@ impl<'a> ValueMerger<'a> {
             for (element_index, element_type) in element_types.iter().enumerate() {
                 let index =
                     ((i * element_types.len() as u32 + element_index as u32) as u128).into();
-                let index = self.dfg.make_constant(index, NumericType::NativeField);
+                let index = self.dfg.make_constant(index, NumericType::length_type());
 
                 let typevars = Some(vec![element_type.clone()]);
 
                 let mut get_element = |array, typevars| {
-                    let get = Instruction::ArrayGet { array, index };
+                    let offset = ArrayGetOffset::None;
+                    let get = Instruction::ArrayGet { array, index, offset };
                     self.dfg
                         .insert_instruction_and_results(get, self.block, typevars, self.call_stack)
                         .first()
@@ -216,7 +217,8 @@ impl<'a> ValueMerger<'a> {
                     if len <= index_u32 {
                         self.make_slice_dummy_data(element_type)
                     } else {
-                        let get = Instruction::ArrayGet { array, index };
+                        let offset = ArrayGetOffset::None;
+                        let get = Instruction::ArrayGet { array, index, offset };
                         self.dfg
                             .insert_instruction_and_results(
                                 get,

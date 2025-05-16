@@ -58,13 +58,16 @@ pub enum PathResolutionError {
     UnresolvedWithPossibleTraitsToImport { ident: Ident, traits: Vec<String> },
     #[error("Multiple applicable items in scope")]
     MultipleTraitsInScope { ident: Ident, traits: Vec<String> },
+    #[error("`StructDefinition` is deprecated. It has been renamed to `TypeDefinition`")]
+    StructDefinitionDeprecated { location: Location },
 }
 
 impl PathResolutionError {
     pub fn location(&self) -> Location {
         match self {
             PathResolutionError::NoSuper(location)
-            | PathResolutionError::TurbofishNotAllowedOnItem { location, .. } => *location,
+            | PathResolutionError::TurbofishNotAllowedOnItem { location, .. }
+            | PathResolutionError::StructDefinitionDeprecated { location } => *location,
             PathResolutionError::Unresolved(ident)
             | PathResolutionError::Private(ident)
             | PathResolutionError::NotAModule { ident, .. }
@@ -139,6 +142,14 @@ impl<'a> From<&'a PathResolutionError> for CustomDiagnostic {
                     ident.location(),
                 )
             }
+            PathResolutionError::StructDefinitionDeprecated { location } => {
+                CustomDiagnostic::simple_warning(
+                    "`StructDefinition` is deprecated. It has been renamed to `TypeDefinition`"
+                        .to_string(),
+                    String::new(),
+                    *location,
+                )
+            }
         }
     }
 }
@@ -202,19 +213,21 @@ struct PathResolutionTargetResolver<'def_maps, 'references_tracker> {
 impl PathResolutionTargetResolver<'_, '_> {
     fn resolve(&mut self, path: TypedPath) -> Result<(TypedPath, ModuleId), PathResolutionError> {
         match path.kind {
-            PathKind::Crate => self.resolve_crate_path(path),
+            PathKind::Crate => self.resolve_crate_path(path, self.importing_module.krate),
             PathKind::Plain => self.resolve_plain_path(path, self.importing_module),
             PathKind::Dep => self.resolve_dep_path(path),
             PathKind::Super => self.resolve_super_path(path),
+            PathKind::Resolved(crate_id) => self.resolve_crate_path(path, crate_id),
         }
     }
 
     fn resolve_crate_path(
         &mut self,
         path: TypedPath,
+        krate: CrateId,
     ) -> Result<(TypedPath, ModuleId), PathResolutionError> {
-        let root_module = self.def_maps[&self.importing_module.krate].root();
-        let current_module = ModuleId { krate: self.importing_module.krate, local_id: root_module };
+        let root_module = self.def_maps[&krate].root();
+        let current_module = ModuleId { krate, local_id: root_module };
         Ok((path, current_module))
     }
 
@@ -334,7 +347,9 @@ impl<'def_maps, 'usage_tracker, 'references_tracker>
             let current_ident = &current_segment.ident;
 
             let (typ, visibility) = match current_ns.types {
-                None => return Err(PathResolutionError::Unresolved(last_ident.clone())),
+                None => {
+                    return Err(PathResolutionError::Unresolved(last_ident.clone()));
+                }
                 Some((typ, visibility, _)) => (typ, visibility),
             };
 

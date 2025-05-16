@@ -133,8 +133,14 @@ impl Context {
         u: &mut Unstructured,
         i: usize,
     ) -> arbitrary::Result<(Name, Type, Expression)> {
-        let typ =
-            self.gen_type(u, self.config.max_depth, true, false, self.config.comptime_friendly)?;
+        let typ = self.gen_type(
+            u,
+            self.config.max_depth,
+            true,
+            false,
+            false,
+            self.config.comptime_friendly,
+        )?;
         // By the time we get to the monomorphized AST the compiler will have already turned
         // complex global expressions into literals.
         let val = expr::gen_literal(u, &typ)?;
@@ -163,6 +169,16 @@ impl Context {
         let is_main = i == 0;
         let num_params = u.int_in_range(0..=self.config.max_function_args)?;
 
+        // If `main` is unconstrained, it won't call ACIR, so no point generating ACIR functions.
+        let unconstrained = self.config.force_brillig
+            || (!is_main
+                && self
+                    .functions
+                    .get(&Program::main_id())
+                    .map(|func| func.unconstrained)
+                    .unwrap_or_default())
+            || bool::arbitrary(u)?;
+
         let mut params = Vec::new();
         for p in 0..num_params {
             let id = LocalId(p as u32);
@@ -172,6 +188,7 @@ impl Context {
                 u,
                 self.config.max_depth,
                 false,
+                is_main,
                 false,
                 self.config.comptime_friendly,
             )?;
@@ -189,8 +206,15 @@ impl Context {
             params.push((id, is_mutable, name, typ, visibility));
         }
 
-        let return_type =
-            self.gen_type(u, self.config.max_depth, false, false, self.config.comptime_friendly)?;
+        let return_type = self.gen_type(
+            u,
+            self.config.max_depth,
+            false,
+            is_main,
+            false,
+            self.config.comptime_friendly,
+        )?;
+
         let return_visibility = if is_main {
             if types::is_unit(&return_type) {
                 Visibility::Private
@@ -213,7 +237,7 @@ impl Context {
             } else {
                 *u.choose(&[InlineType::Inline, InlineType::InlineAlways])?
             },
-            unconstrained: self.config.force_brillig || bool::arbitrary(u)?,
+            unconstrained,
         };
 
         Ok(decl)
@@ -321,6 +345,7 @@ impl Context {
         u: &mut Unstructured,
         max_depth: usize,
         is_global: bool,
+        is_main: bool,
         is_frontend_friendly: bool,
         is_comptime_friendly: bool,
     ) -> arbitrary::Result<Type> {
@@ -330,6 +355,7 @@ impl Context {
                 .types
                 .iter()
                 .filter(|typ| !is_global || types::can_be_global(typ))
+                .filter(|typ| !is_main || types::can_be_main(typ))
                 .filter(|typ| types::type_depth(typ) <= max_depth)
                 .filter(|typ| !is_frontend_friendly || !self.should_avoid_literals(typ))
                 .collect::<Vec<_>>();
@@ -378,6 +404,7 @@ impl Context {
                                 u,
                                 max_depth - 1,
                                 is_global,
+                                is_main,
                                 is_frontend_friendly,
                                 is_comptime_friendly,
                             )
@@ -392,6 +419,7 @@ impl Context {
                         u,
                         max_depth - 1,
                         is_global,
+                        is_main,
                         is_frontend_friendly,
                         is_comptime_friendly,
                     )?;
@@ -399,7 +427,11 @@ impl Context {
                 }
                 _ => unreachable!("unexpected arbitrary type index"),
             };
-            if !is_global || types::can_be_global(&typ) {
+            // Looping is kinda dangerous, we could get stuck if we run out of randomness,
+            // so we have to make sure the first type on the list is acceptable.
+            if is_global && !types::can_be_global(&typ) || is_main && !types::can_be_main(&typ) {
+                continue;
+            } else {
                 break;
             }
         }

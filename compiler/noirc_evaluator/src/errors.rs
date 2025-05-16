@@ -31,10 +31,6 @@ pub enum RuntimeError {
     },
     #[error("Expected array index to fit into a u64")]
     TypeConversion { from: String, into: String, call_stack: CallStack },
-    #[error("{name:?} is not initialized")]
-    UnInitialized { name: String, call_stack: CallStack },
-    #[error("Integer sized {num_bits:?} is over the max supported size of {max_num_bits:?}")]
-    UnsupportedIntegerSize { num_bits: u32, max_num_bits: u32, call_stack: CallStack },
     #[error(
         "Integer {value}, sized {num_bits:?}, is over the max supported size of {max_num_bits:?} for the blackbox function's inputs"
     )]
@@ -166,14 +162,12 @@ impl RuntimeError {
             )
             | RuntimeError::InvalidRangeConstraint { call_stack, .. }
             | RuntimeError::TypeConversion { call_stack, .. }
-            | RuntimeError::UnInitialized { call_stack, .. }
             | RuntimeError::UnknownLoopBound { call_stack }
             | RuntimeError::AssertConstantFailed { call_stack }
             | RuntimeError::StaticAssertDynamicMessage { call_stack }
             | RuntimeError::StaticAssertDynamicPredicate { call_stack, .. }
             | RuntimeError::StaticAssertFailed { call_stack, .. }
             | RuntimeError::IntegerOutOfBounds { call_stack, .. }
-            | RuntimeError::UnsupportedIntegerSize { call_stack, .. }
             | RuntimeError::InvalidBlackBoxInputBitSize { call_stack, .. }
             | RuntimeError::NestedSlice { call_stack, .. }
             | RuntimeError::BigIntModulus { call_stack, .. }

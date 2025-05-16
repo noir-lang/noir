@@ -35,6 +35,21 @@ pub(crate) fn can_be_global(typ: &Type) -> bool {
     )
 }
 
+/// Check if a type can be used in the `main` function.
+///
+/// We decided we will avoid 0 length arrays in the main inputs and outputs, because we don't generate
+/// witnesses for them anyway, and they are tricky to handle consistently when they can be regular inputs
+/// as well as part of the databus. They are not expected in real programs as they don't do anything useful.
+pub(crate) fn can_be_main(typ: &Type) -> bool {
+    match typ {
+        Type::String(size) => *size > 0,
+        Type::Array(size, typ) => *size > 0 && can_be_main(typ),
+        Type::Tuple(types) => types.iter().all(can_be_main),
+        Type::Bool | Type::Field | Type::Integer(_, _) => true,
+        _ => false,
+    }
+}
+
 /// Collect all the sub-types produced by a type.
 ///
 /// It's like a _power set_ of the type.

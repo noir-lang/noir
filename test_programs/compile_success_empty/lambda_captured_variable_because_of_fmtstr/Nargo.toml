@@ -1,0 +1,6 @@
+[package]
+name = "lambda_captured_variable_because_of_fmtstr"
+type = "bin"
+authors = [""]
+
+[dependencies]

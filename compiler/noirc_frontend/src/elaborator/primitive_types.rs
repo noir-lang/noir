@@ -1,0 +1,166 @@
+use crate::{QuotedType, Type, ast::IntegerBitSize, shared::Signedness};
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, strum_macros::EnumIter)]
+pub enum PrimitiveType {
+    Bool,
+    CtString,
+    Expr,
+    Field,
+    Fmtstr,
+    FunctionDefinition,
+    I8,
+    I16,
+    I32,
+    I64,
+    U1,
+    U8,
+    U16,
+    U32,
+    U64,
+    U128,
+    Module,
+    Quoted,
+    Str,
+    StructDefinition,
+    TraitConstraint,
+    TraitDefinition,
+    TraitImpl,
+    TypeDefinition,
+    TypedExpr,
+    Type,
+    UnresolvedType,
+}
+
+impl PrimitiveType {
+    pub fn lookup_by_name(name: &str) -> Option<Self> {
+        match name {
+            "bool" => Some(Self::Bool),
+            "CtString" => Some(Self::CtString),
+            "Expr" => Some(Self::Expr),
+            "fmtstr" => Some(Self::Fmtstr),
+            "Field" => Some(Self::Field),
+            "FunctionDefinition" => Some(Self::FunctionDefinition),
+            "i8" => Some(Self::I8),
+            "i16" => Some(Self::I16),
+            "i32" => Some(Self::I32),
+            "i64" => Some(Self::I64),
+            "u1" => Some(Self::U1),
+            "u8" => Some(Self::U8),
+            "u16" => Some(Self::U16),
+            "u32" => Some(Self::U32),
+            "u64" => Some(Self::U64),
+            "u128" => Some(Self::U128),
+            "Module" => Some(Self::Module),
+            "Quoted" => Some(Self::Quoted),
+            "str" => Some(Self::Str),
+            "StructDefinition" => Some(Self::StructDefinition),
+            "TraitConstraint" => Some(Self::TraitConstraint),
+            "TraitDefinition" => Some(Self::TraitDefinition),
+            "TraitImpl" => Some(Self::TraitImpl),
+            "TypeDefinition" => Some(Self::TypeDefinition),
+            "TypedExpr" => Some(Self::TypedExpr),
+            "Type" => Some(Self::Type),
+            "UnresolvedType" => Some(Self::UnresolvedType),
+            _ => None,
+        }
+    }
+
+    pub fn to_type(self) -> Type {
+        match self {
+            Self::Bool => Type::Bool,
+            Self::CtString => Type::Quoted(QuotedType::CtString),
+            Self::Expr => Type::Quoted(QuotedType::Expr),
+            Self::Fmtstr => Type::FmtString(Box::new(Type::Error), Box::new(Type::Error)),
+            Self::Field => Type::FieldElement,
+            Self::FunctionDefinition => Type::Quoted(QuotedType::FunctionDefinition),
+            Self::I8 => Type::Integer(Signedness::Signed, IntegerBitSize::Eight),
+            Self::I16 => Type::Integer(Signedness::Signed, IntegerBitSize::Sixteen),
+            Self::I32 => Type::Integer(Signedness::Signed, IntegerBitSize::ThirtyTwo),
+            Self::I64 => Type::Integer(Signedness::Signed, IntegerBitSize::SixtyFour),
+            Self::U1 => Type::Integer(Signedness::Unsigned, IntegerBitSize::One),
+            Self::U8 => Type::Integer(Signedness::Unsigned, IntegerBitSize::Eight),
+            Self::U16 => Type::Integer(Signedness::Unsigned, IntegerBitSize::Sixteen),
+            Self::U32 => Type::Integer(Signedness::Unsigned, IntegerBitSize::ThirtyTwo),
+            Self::U64 => Type::Integer(Signedness::Unsigned, IntegerBitSize::SixtyFour),
+            Self::U128 => Type::Integer(Signedness::Unsigned, IntegerBitSize::HundredTwentyEight),
+            Self::Module => Type::Quoted(QuotedType::Module),
+            Self::Quoted => Type::Quoted(QuotedType::Quoted),
+            Self::Str => Type::String(Box::new(Type::Error)),
+            Self::TraitConstraint => Type::Quoted(QuotedType::TraitConstraint),
+            Self::TraitDefinition => Type::Quoted(QuotedType::TraitDefinition),
+            Self::TraitImpl => Type::Quoted(QuotedType::TraitImpl),
+            Self::StructDefinition | Self::TypeDefinition => {
+                Type::Quoted(QuotedType::TypeDefinition)
+            }
+            Self::TypedExpr => Type::Quoted(QuotedType::TypedExpr),
+            Self::Type => Type::Quoted(QuotedType::Type),
+            Self::UnresolvedType => Type::Quoted(QuotedType::UnresolvedType),
+        }
+    }
+
+    pub fn to_integer_or_field(self) -> Option<Type> {
+        match self {
+            Self::I8 => Some(Type::Integer(Signedness::Signed, IntegerBitSize::Eight)),
+            Self::I16 => Some(Type::Integer(Signedness::Signed, IntegerBitSize::Sixteen)),
+            Self::I32 => Some(Type::Integer(Signedness::Signed, IntegerBitSize::ThirtyTwo)),
+            Self::I64 => Some(Type::Integer(Signedness::Signed, IntegerBitSize::SixtyFour)),
+            Self::U1 => Some(Type::Integer(Signedness::Unsigned, IntegerBitSize::One)),
+            Self::U8 => Some(Type::Integer(Signedness::Unsigned, IntegerBitSize::Eight)),
+            Self::U16 => Some(Type::Integer(Signedness::Unsigned, IntegerBitSize::Sixteen)),
+            Self::U32 => Some(Type::Integer(Signedness::Unsigned, IntegerBitSize::ThirtyTwo)),
+            Self::U64 => Some(Type::Integer(Signedness::Unsigned, IntegerBitSize::SixtyFour)),
+            Self::U128 => {
+                Some(Type::Integer(Signedness::Unsigned, IntegerBitSize::HundredTwentyEight))
+            }
+            Self::Field => Some(Type::FieldElement),
+            Self::Bool
+            | Self::CtString
+            | Self::Expr
+            | Self::Fmtstr
+            | Self::FunctionDefinition
+            | Self::Module
+            | Self::Quoted
+            | Self::Str
+            | Self::StructDefinition
+            | Self::TraitConstraint
+            | Self::TraitDefinition
+            | Self::TraitImpl
+            | Self::TypeDefinition
+            | Self::TypedExpr
+            | Self::Type
+            | Self::UnresolvedType => None,
+        }
+    }
+
+    pub fn name(&self) -> &'static str {
+        match self {
+            Self::Bool => "bool",
+            Self::CtString => "CtString",
+            Self::Expr => "Expr",
+            Self::Field => "Field",
+            Self::Fmtstr => "fmtstr",
+            Self::FunctionDefinition => "FunctionDefinition",
+            Self::I8 => "i8",
+            Self::I16 => "i16",
+            Self::I32 => "i32",
+            Self::I64 => "i64",
+            Self::U1 => "u1",
+            Self::U8 => "u8",
+            Self::U16 => "u16",
+            Self::U32 => "u32",
+            Self::U64 => "u64",
+            Self::U128 => "u128",
+            Self::Module => "Module",
+            Self::Quoted => "Quoted",
+            Self::Str => "str",
+            Self::StructDefinition => "StructDefinition",
+            Self::TraitConstraint => "TraitConstraint",
+            Self::TraitDefinition => "TraitDefinition",
+            Self::TraitImpl => "TraitImpl",
+            Self::TypeDefinition => "TypeDefinition",
+            Self::TypedExpr => "TypedExpr",
+            Self::Type => "Type",
+            Self::UnresolvedType => "UnresolvedType",
+        }
+    }
+}

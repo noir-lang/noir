@@ -1,7 +1,10 @@
 use acir::circuit::ExpressionWidth;
 use color_eyre::eyre;
 use noir_ast_fuzzer::DisplayAstAsNoir;
-use noir_ast_fuzzer::compare::{CompareCompiled, CompareComptime, CompareResult, HasPrograms};
+use noir_ast_fuzzer::compare::{
+    CompareCompiled, CompareCompiledResult, CompareComptime, CompareInterpreted,
+    CompareInterpretedResult, HasPrograms,
+};
 use noirc_abi::input_parser::Format;
 use noirc_evaluator::brillig::Brillig;
 use noirc_evaluator::ssa::{SsaPass, primary_passes, secondary_passes};
@@ -79,7 +82,10 @@ where
 }
 
 /// Compare the execution result and print the inputs if the result is a failure.
-pub fn compare_results<P>(inputs: &CompareCompiled<P>, result: &CompareResult) -> eyre::Result<()>
+pub fn compare_results_compiled<P>(
+    inputs: &CompareCompiled<P>,
+    result: &CompareCompiledResult,
+) -> eyre::Result<()>
 where
     CompareCompiled<P>: HasPrograms,
 {
@@ -122,7 +128,7 @@ where
 /// Compare the execution result for comptime fuzzing and print the inputs if the result is a failure.
 pub fn compare_results_comptime(
     inputs: &CompareComptime,
-    result: &CompareResult,
+    result: &CompareCompiledResult,
 ) -> eyre::Result<()> {
     let res = result.return_value_or_err();
 
@@ -136,6 +142,59 @@ pub fn compare_results_comptime(
 
         eprintln!("---\nCompile options:\n{:?}", inputs.ssa.options);
         eprintln!("---\nCompiled program:\n{}", inputs.ssa.artifact.program);
+
+        // Returning it as-is, so we can see the error message at the bottom as well.
+        Err(report)
+    } else {
+        Ok(())
+    }
+}
+
+/// Compare the execution result and print the inputs if the result is a failure.
+pub fn compare_results_interpreted(
+    inputs: &CompareInterpreted,
+    result: &CompareInterpretedResult,
+) -> eyre::Result<()> {
+    let res = result.return_value_or_err();
+
+    if let Err(report) = res {
+        eprintln!("---\nComparison failed:");
+        eprintln!("{report:#}");
+
+        // Showing the AST as Noir so we can easily create integration tests.
+        eprintln!("---\nAST:\n{}", DisplayAstAsNoir(&inputs.program));
+
+        // Showing the inputs as TOML so we can easily create a Prover.toml file.
+        eprintln!(
+            "---\nABI Inputs:\n{}",
+            Format::Toml
+                .serialize(&inputs.input_map, &inputs.abi)
+                .unwrap_or_else(|e| format!("failed to serialize inputs: {e}"))
+        );
+
+        // Show the SSA inputs as well so we can see any discrepancy in encoding.
+        eprintln!(
+            "---\nSSA Inputs:\n{}",
+            inputs
+                .input_values
+                .iter()
+                .enumerate()
+                .map(|(i, v)| format!("{i}: {v}"))
+                .collect::<Vec<_>>()
+                .join("\n")
+        );
+
+        // Common options for the SSA passes.
+        eprintln!("---\nOptions:\n{:?}", inputs.options);
+
+        eprintln!(
+            "---\nSSA 1 after step {} ({}):\n{}",
+            inputs.ssa1.step, inputs.ssa1.msg, inputs.ssa1.ssa
+        );
+        eprintln!(
+            "---\nSSA 2 after step {} ({}):\n{}",
+            inputs.ssa2.step, inputs.ssa2.msg, inputs.ssa2.ssa
+        );
 
         // Returning it as-is, so we can see the error message at the bottom as well.
         Err(report)

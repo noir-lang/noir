@@ -23,7 +23,7 @@ use super::{
         basic_block::BasicBlock,
         dfg::{GlobalsGraph, InsertInstructionResult},
         function::RuntimeType,
-        instruction::{ConstrainError, InstructionId, Intrinsic},
+        instruction::{ArrayGetOffset, ConstrainError, InstructionId, Intrinsic},
         types::NumericType,
     },
     opt::pure::FunctionPurities,
@@ -353,8 +353,20 @@ impl FunctionBuilder {
         index: ValueId,
         element_type: Type,
     ) -> ValueId {
+        self.insert_array_get_with_offset(array, index, ArrayGetOffset::None, element_type)
+    }
+
+    /// Insert an instruction to extract an element from an array
+    pub fn insert_array_get_with_offset(
+        &mut self,
+        array: ValueId,
+        index: ValueId,
+        offset: ArrayGetOffset,
+        element_type: Type,
+    ) -> ValueId {
         let element_type = Some(vec![element_type]);
-        self.insert_instruction(Instruction::ArrayGet { array, index }, element_type).first()
+        self.insert_instruction(Instruction::ArrayGet { array, index, offset }, element_type)
+            .first()
     }
 
     /// Insert an instruction to create a new array with the given index replaced with a new value
@@ -549,10 +561,10 @@ impl std::ops::Index<BasicBlockId> for FunctionBuilder {
 fn validate_numeric_type(typ: &NumericType) {
     match &typ {
         NumericType::Signed { bit_size } => match bit_size {
-            8 | 16 | 32 | 64 => (),
+            8 | 16 | 32 | 64 | 128 => (),
             _ => {
                 panic!(
-                    "Invalid bit size for signed numeric type: {bit_size}. Expected one of 8, 16, 32 or 64."
+                    "Invalid bit size for signed numeric type: {bit_size}. Expected one of 8, 16, 32, 64 or 128."
                 );
             }
         },

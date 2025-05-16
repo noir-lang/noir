@@ -35,7 +35,7 @@ pub(crate) struct CallGraph {
 
 impl CallGraph {
     /// Construct a [CallGraph] from the [Ssa]
-    pub(crate) fn new_from_ssa(ssa: &Ssa) -> Self {
+    pub(crate) fn from_ssa(ssa: &Ssa) -> Self {
         let function_deps = ssa
             .functions
             .iter()
@@ -45,11 +45,11 @@ impl CallGraph {
             })
             .collect();
 
-        Self::new_from_deps(function_deps)
+        Self::from_deps(function_deps)
     }
 
     /// Construct a [CallGraph] from an explicit dependency mapping of (caller -> callees)
-    pub(crate) fn new_from_deps(dependencies: HashMap<FunctionId, BTreeSet<FunctionId>>) -> Self {
+    pub(crate) fn from_deps(dependencies: HashMap<FunctionId, BTreeSet<FunctionId>>) -> Self {
         let mut graph = DiGraph::new();
         let mut ids_to_indices = HashMap::default();
         let mut indices_to_ids = HashMap::default();
@@ -63,7 +63,6 @@ impl CallGraph {
         // Create edges from caller -> called
         for (function, dependencies) in dependencies {
             let function_index = ids_to_indices[&function];
-
             for dependency in dependencies {
                 let dependency_index = ids_to_indices[&dependency];
                 graph.add_edge(function_index, dependency_index, ());
@@ -109,6 +108,44 @@ impl CallGraph {
 
     pub(crate) fn indices_to_ids(&self) -> &HashMap<PetGraphIndex, FunctionId> {
         &self.indices_to_ids
+    }
+
+    pub(crate) fn build_acyclic_subgraph(
+        &self,
+        recursive_functions: &HashSet<FunctionId>,
+    ) -> CallGraph {
+        let mut graph = DiGraph::new();
+        let mut ids_to_indices = HashMap::default();
+        let mut indices_to_ids = HashMap::default();
+
+        // Add all non-recursive nodes
+        for (&function, _) in self.ids_to_indices.iter() {
+            if recursive_functions.contains(&function) {
+                continue;
+            }
+            let index = graph.add_node(function);
+            ids_to_indices.insert(function, index);
+            indices_to_ids.insert(index, function);
+        }
+
+        // Create edges from caller -> called between non-recursive nodes
+        for (&func_id, &old_idx) in self.ids_to_indices.iter() {
+            if recursive_functions.contains(&func_id) {
+                continue;
+            }
+            let new_src = ids_to_indices[&func_id];
+            for neighbor in self.graph.neighbors(old_idx) {
+                let callee_id = self.indices_to_ids[&neighbor];
+                if recursive_functions.contains(&callee_id) {
+                    continue;
+                }
+                if let Some(&new_dst) = ids_to_indices.get(&callee_id) {
+                    graph.add_edge(new_src, new_dst, ());
+                }
+            }
+        }
+
+        Self { graph, ids_to_indices, indices_to_ids }
     }
 }
 
