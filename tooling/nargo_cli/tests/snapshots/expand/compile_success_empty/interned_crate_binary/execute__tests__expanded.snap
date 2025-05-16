@@ -1,0 +1,18 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: expanded_code
+---
+use lib::Foo;
+
+struct BinStruct {}
+
+impl Foo for BinStruct {
+    fn foo(self) {
+        lib::my_public_fn_that_wont_be_imported();
+    }
+}
+
+fn main() {
+    BinStruct {}.foo();
+    lib::lib_fn();
+}

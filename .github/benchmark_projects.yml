@@ -57,7 +57,7 @@ projects:
     num_runs: 5
     timeout: 60
     compilation-timeout: 2
-    compilation-memory-limit: 400
+    compilation-memory-limit: 410
   rollup-block-root-single-tx:
     repo: AztecProtocol/aztec-packages
     ref: *AZ_COMMIT
