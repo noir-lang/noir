@@ -1,3 +1,5 @@
+//! Compare an arbitrary AST executed as Noir with the comptime
+//! interpreter vs compiled into bytecode and ran through a VM.
 use std::collections::BTreeMap;
 use std::path::Path;
 
@@ -13,11 +15,8 @@ use noirc_driver::{
 use noirc_evaluator::ssa::SsaProgramArtifact;
 use noirc_frontend::{hir::Context, monomorphization::ast::Program};
 
-use crate::{
-    Config, DisplayAstAsNoirComptime, arb_program_comptime, compare::CompareResult, program_abi,
-};
-
-use super::{CompareArtifact, CompareOptions, HasPrograms};
+use super::{CompareArtifact, CompareCompiledResult, CompareOptions, HasPrograms};
+use crate::{Config, DisplayAstAsNoirComptime, arb_program_comptime, program_abi};
 
 /// Prepare a code snippet.
 /// (copied from nargo_cli/tests/common.rs)
@@ -68,7 +67,7 @@ pub struct CompareComptime {
 
 impl CompareComptime {
     /// Execute the Noir code and the SSA, then compare the results.
-    pub fn exec(&self) -> eyre::Result<CompareResult> {
+    pub fn exec(&self) -> eyre::Result<CompareCompiledResult> {
         let program1 = match prepare_and_compile_snippet(self.source.clone(), self.force_brillig) {
             Ok((program, _)) => program,
             Err(e) => panic!("failed to compile program:\n{}\n{e:?}", self.source),
@@ -99,7 +98,7 @@ impl CompareComptime {
         let (res1, print1) = do_exec(&program1.program);
         let (res2, print2) = do_exec(&self.ssa.artifact.program);
 
-        CompareResult::new(&self.abi, (res1, print1), (res2, print2))
+        CompareCompiledResult::new(&self.abi, (res1, print1), (res2, print2))
     }
 
     /// Generate a random comptime-viable AST, reverse it into
@@ -127,5 +126,79 @@ impl CompareComptime {
 impl HasPrograms for CompareComptime {
     fn programs(&self) -> Vec<&Program> {
         vec![&self.program]
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::prepare_and_compile_snippet;
+
+    /// Comptime compilation can fail with stack overflow because of how the interpreter is evaluating instructions.
+    /// We could apply `#[inline(always)]` on some of the `Interpreter::elaborate_` functions to make it go further,
+    /// at the cost of compilation speed. Instead, we just need to make sure that compile tests have lower loop and
+    /// recursion limits.
+    #[test]
+    fn test_prepare_and_compile_snippet() {
+        let src = r#"
+fn main() -> pub ((str<2>, str<2>, bool, str<2>), bool, [str<2>; 3]) {
+    comptime {
+        let mut ctx_limit = 10;
+        unsafe { func_1_proxy(ctx_limit) }
+    }
+}
+unconstrained fn func_1(ctx_limit: &mut u32) -> ((str<2>, str<2>, bool, str<2>), bool, [str<2>; 3]) {
+    if ((*ctx_limit) == 0) {
+        (("BD", "GT", false, "EV"), false, ["LJ", "BB", "CE"])
+    } else {
+        *ctx_limit = ((*ctx_limit) - 1);
+        let g = if true {
+            let f = {
+                {
+                    let mut idx_a = 0;
+                    loop {
+                        if (idx_a == 4) {
+                            break
+                        } else {
+                            idx_a = (idx_a + 1);
+                            let mut e = if true {
+                                if func_1(ctx_limit).0.2 {
+                                    {
+                                        let b = 38;
+                                        {
+                                            let mut c = false;
+                                            let d = if c {
+                                                c = false;
+                                                [("ZO", "AF", false, "NY"), ("HJ", "NF", c, "RV"), ("SN", "VK", true, "QJ")]
+                                            } else {
+                                                [("SN", "YR", (b != (27 >> b)), "LS"), ("SW", "ZQ", false, "TQ"), ("AD", "YD", c, "EF")]
+                                            };
+                                            (d[1].3, d[1].1, (!c), "LO")
+                                        }
+                                    }
+                                } else {
+                                    ("HF", "WQ", true, "FZ")
+                                }
+                            } else {
+                                ("YP", "CH", true, "ZG")
+                            };
+                            e = (e.1, "NU", e.2, e.0);
+                        }
+                    }
+                };
+                true
+            };
+            (("HW", "EI", true, "IY"), (!false), ["TO", "WI", "PC"])
+        } else {
+            (("OX", "CE", true, "OV"), false, ["OS", "DT", "CH"])
+        };
+        g
+    }
+}
+unconstrained fn func_1_proxy(mut ctx_limit: u32) -> ((str<2>, str<2>, bool, str<2>), bool, [str<2>; 3]) {
+    func_1((&mut ctx_limit))
+}
+        "#;
+
+        let _ = prepare_and_compile_snippet(src.to_string(), false);
     }
 }

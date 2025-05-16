@@ -1,6 +1,7 @@
 use std::collections::HashSet;
 
 use acir::FieldElement;
+use iter_extended::vecmap;
 use noirc_frontend::{
     ast::{BinaryOpKind, IntegerBitSize},
     hir_def,
@@ -42,8 +43,11 @@ pub(crate) fn can_be_global(typ: &Type) -> bool {
 /// as well as part of the databus. They are not expected in real programs as they don't do anything useful.
 pub(crate) fn can_be_main(typ: &Type) -> bool {
     match typ {
-        Type::Array(size, _) | Type::String(size) => *size > 0,
-        _ => true,
+        Type::String(size) => *size > 0,
+        Type::Array(size, typ) => *size > 0 && can_be_main(typ),
+        Type::Tuple(types) => types.iter().all(can_be_main),
+        Type::Bool | Type::Field | Type::Integer(_, _) => true,
+        _ => false,
     }
 }
 
@@ -151,10 +155,14 @@ pub(crate) fn to_hir_type(typ: &Type) -> hir_def::types::Type {
         Type::String(size) => HirType::String(size_const(*size)),
         Type::Array(size, typ) => HirType::Array(size_const(*size), Box::new(to_hir_type(typ))),
         Type::Tuple(items) => HirType::Tuple(items.iter().map(to_hir_type).collect()),
-        Type::FmtString(_, _)
-        | Type::Slice(_)
-        | Type::Reference(_, _)
-        | Type::Function(_, _, _, _) => {
+        Type::Function(param_types, return_type, env_type, unconstrained) => HirType::Function(
+            vecmap(param_types, to_hir_type),
+            Box::new(to_hir_type(return_type)),
+            Box::new(to_hir_type(env_type)),
+            *unconstrained,
+        ),
+        Type::Reference(typ, mutable) => HirType::Reference(Box::new(to_hir_type(typ)), *mutable),
+        Type::FmtString(_, _) | Type::Slice(_) => {
             unreachable!("unexpected type converting to HIR: {}", typ)
         }
     }
@@ -173,6 +181,10 @@ pub(crate) fn is_unit(typ: &Type) -> bool {
 /// Check if the type works with `UnaryOp::Not`
 pub(crate) fn is_bool(typ: &Type) -> bool {
     matches!(typ, Type::Bool)
+}
+
+pub(crate) fn is_reference(typ: &Type) -> bool {
+    matches!(typ, Type::Reference(_, _))
 }
 
 /// Can the type be returned by some `UnaryOp`.

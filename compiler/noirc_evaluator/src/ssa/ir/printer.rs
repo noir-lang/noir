@@ -7,7 +7,10 @@ use iter_extended::vecmap;
 
 use crate::ssa::{
     Ssa,
-    ir::types::{NumericType, Type},
+    ir::{
+        instruction::ArrayOffset,
+        types::{NumericType, Type},
+    },
 };
 
 use super::{
@@ -230,21 +233,30 @@ fn display_instruction_inner(
         Instruction::EnableSideEffectsIf { condition } => {
             writeln!(f, "enable_side_effects {}", show(*condition))
         }
-        Instruction::ArrayGet { array, index } => {
+        Instruction::ArrayGet { array, index, offset } => {
             writeln!(
                 f,
-                "array_get {}, index {}{}",
+                "array_get {}, index {}{}{}",
                 show(*array),
                 show(*index),
+                display_array_offset(offset),
                 result_types(dfg, results)
             )
         }
-        Instruction::ArraySet { array, index, value, mutable } => {
+        Instruction::ArraySet { array, index, value, mutable, offset } => {
             let array = show(*array);
             let index = show(*index);
             let value = show(*value);
             let mutable = if *mutable { " mut" } else { "" };
-            writeln!(f, "array_set{mutable} {array}, index {index}, value {value}")
+            writeln!(
+                f,
+                "array_set{} {}, index {}{}, value {}",
+                mutable,
+                array,
+                index,
+                display_array_offset(offset),
+                value
+            )
         }
         Instruction::IncrementRc { value } => {
             writeln!(f, "inc_rc {}", show(*value))
@@ -304,6 +316,13 @@ fn display_instruction_inner(
             writeln!(f, "] : {typ}")
         }
         Instruction::Noop => writeln!(f, "nop"),
+    }
+}
+
+fn display_array_offset(offset: &ArrayOffset) -> String {
+    match offset {
+        ArrayOffset::None => String::new(),
+        ArrayOffset::Array | ArrayOffset::Slice => format!(" minus {}", offset.to_u32()),
     }
 }
 

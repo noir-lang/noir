@@ -114,7 +114,7 @@ expression: artifact
     "EXPR [ (-1, _35) (1, _67) 0 ]",
     "EXPR [ (-1, _36) (1, _68) 0 ]"
   ],
-  "debug_symbols": "jdLNioMwFAXgd8naRfy5N9O+yjBI1FgCIUqqA0V890aPtnYhdHVM4vmUSybRmGq8lda33V1cfydRBeucvZWuq/VgOx93pzkR+7IcgjFxSxzOY6vXwfhBXP3oXCL+tRvXl+699msOOsRTmQjjm5gRbK0zy9OcvNvyvEpq6yr1KtPX7cv+5VTyWT07r2dS8gZkMs3fwvdAql5ARkfgLy50bcPHwEWu4r8mIv9Z2fyyRiERKSJD5IgCQQhGKASUAgpBISgEhaAQFIJCUAgKQSEoDIWhMBSGwlAYCkNhKAyFF2VeBhasrpzZblk7+vpw6YZHv5/s17IPXW2aMZhlXutZnOAT",
+  "debug_symbols": "jdLBioMwFAXQf8naRTS+Z+2vDINEjSUQoqQ6MIj/PtGrHbsQurom8R7lkVm0pp4elfVd/xT3r1nUwTpnH5XrGz3a3sfdeUnEsazGYEzcEqfz2Bp0MH4Udz85l4gf7abtpeeg/ZajDvFUJsL4NmYEO+vM+rQk/215XaVi7xbFq0wft8vjy6nkq3p2Xc9kWu5AJrOT8Dmg5AtQtzPwHRe6seFt4EIV8V8ToW4bq8otcolIERlCIXIEIRhRIKDkUAgKQSEoBIWgEBSCQlAICkFhKAyFoTAUhsJQGApDYSi8Kss6sGB17cx+y7rJN6dLN/4Ox8lxLYfQN6adglnntZ3FCf4B",
   "file_map": {
     "50": {
       "source": "fn main(x: [u8; 5], result: [u8; 32]) {\n    let digest = std::hash::blake3(x);\n    assert(digest == result);\n}\n",
