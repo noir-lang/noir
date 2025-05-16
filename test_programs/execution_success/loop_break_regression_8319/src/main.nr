@@ -1,3 +1,4 @@
+// Regression for issue #8319 (https://github.com/noir-lang/noir/issues/8319)
 unconstrained fn main() {
     func_4(([982714762, 1608230664, 671108204]))
 }

@@ -1,4 +1,4 @@
-// Regression for issue #8521
+// Regression for issue #8521 (https://github.com/noir-lang/noir/issues/8521)
 // We do not expect division by zero in the while loop to be hoisted
 // x = 0
 unconstrained fn main(x: u32) -> pub str<3> {
