@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"constant":["LIMIT_NAME"],"fn":["add_recursion_limit","ctx_limit_type_for_func_param","modify_function_pointer_param_type","modify_function_pointer_param_types","modify_function_pointer_param_values"],"struct":["LimitContext"]};

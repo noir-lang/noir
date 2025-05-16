@@ -548,7 +548,15 @@
 <a href="#547" id="547">547</a>
 <a href="#548" id="548">548</a>
 <a href="#549" id="549">549</a>
-<a href="#550" id="550">550</a></pre></div><pre class="rust"><code><span class="doccomment">//! Module responsible for generating arbitrary [Program] ASTs.
+<a href="#550" id="550">550</a>
+<a href="#551" id="551">551</a>
+<a href="#552" id="552">552</a>
+<a href="#553" id="553">553</a>
+<a href="#554" id="554">554</a>
+<a href="#555" id="555">555</a>
+<a href="#556" id="556">556</a>
+<a href="#557" id="557">557</a>
+<a href="#558" id="558">558</a></pre></div><pre class="rust"><code><span class="doccomment">//! Module responsible for generating arbitrary [Program] ASTs.
 </span><span class="kw">use </span>std::collections::{BTreeMap, BTreeSet}; <span class="comment">// Using BTree for deterministic enumeration, for repeatability.
 
 </span><span class="kw">use </span>func::{FunctionContext, FunctionDeclaration, can_call};
@@ -625,6 +633,14 @@
 </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">enum </span>VariableId {
     Local(LocalId),
     Global(GlobalId),
+}
+
+<span class="doccomment">/// ID of a function we can call, either as a pointer in a local variable,
+/// or directly as a global function.
+</span><span class="attr">#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
+</span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">enum </span>CallableId {
+    Local(LocalId),
+    Global(FuncId),
 }
 
 <span class="doccomment">/// Name of a variable.
@@ -731,7 +747,7 @@
             || bool::arbitrary(u)<span class="question-mark">?</span>;
 
         <span class="comment">// Which existing functions we could receive as parameters.
-        </span><span class="kw">let </span>func_param_candidates: Vec&lt;FuncId&gt; = <span class="kw">if </span>is_main {
+        </span><span class="kw">let </span>func_param_candidates: Vec&lt;FuncId&gt; = <span class="kw">if </span>is_main || <span class="self">self</span>.config.avoid_lambdas {
             <span class="comment">// Main cannot receive function parameters from outside.
             </span><span class="macro">vec!</span>[]
         } <span class="kw">else </span>{

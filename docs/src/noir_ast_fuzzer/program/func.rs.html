@@ -1270,7 +1270,57 @@
 <a href="#1269" id="1269">1269</a>
 <a href="#1270" id="1270">1270</a>
 <a href="#1271" id="1271">1271</a>
-<a href="#1272" id="1272">1272</a></pre></div><pre class="rust"><code><span class="kw">use </span>nargo::errors::Location;
+<a href="#1272" id="1272">1272</a>
+<a href="#1273" id="1273">1273</a>
+<a href="#1274" id="1274">1274</a>
+<a href="#1275" id="1275">1275</a>
+<a href="#1276" id="1276">1276</a>
+<a href="#1277" id="1277">1277</a>
+<a href="#1278" id="1278">1278</a>
+<a href="#1279" id="1279">1279</a>
+<a href="#1280" id="1280">1280</a>
+<a href="#1281" id="1281">1281</a>
+<a href="#1282" id="1282">1282</a>
+<a href="#1283" id="1283">1283</a>
+<a href="#1284" id="1284">1284</a>
+<a href="#1285" id="1285">1285</a>
+<a href="#1286" id="1286">1286</a>
+<a href="#1287" id="1287">1287</a>
+<a href="#1288" id="1288">1288</a>
+<a href="#1289" id="1289">1289</a>
+<a href="#1290" id="1290">1290</a>
+<a href="#1291" id="1291">1291</a>
+<a href="#1292" id="1292">1292</a>
+<a href="#1293" id="1293">1293</a>
+<a href="#1294" id="1294">1294</a>
+<a href="#1295" id="1295">1295</a>
+<a href="#1296" id="1296">1296</a>
+<a href="#1297" id="1297">1297</a>
+<a href="#1298" id="1298">1298</a>
+<a href="#1299" id="1299">1299</a>
+<a href="#1300" id="1300">1300</a>
+<a href="#1301" id="1301">1301</a>
+<a href="#1302" id="1302">1302</a>
+<a href="#1303" id="1303">1303</a>
+<a href="#1304" id="1304">1304</a>
+<a href="#1305" id="1305">1305</a>
+<a href="#1306" id="1306">1306</a>
+<a href="#1307" id="1307">1307</a>
+<a href="#1308" id="1308">1308</a>
+<a href="#1309" id="1309">1309</a>
+<a href="#1310" id="1310">1310</a>
+<a href="#1311" id="1311">1311</a>
+<a href="#1312" id="1312">1312</a>
+<a href="#1313" id="1313">1313</a>
+<a href="#1314" id="1314">1314</a>
+<a href="#1315" id="1315">1315</a>
+<a href="#1316" id="1316">1316</a>
+<a href="#1317" id="1317">1317</a>
+<a href="#1318" id="1318">1318</a>
+<a href="#1319" id="1319">1319</a>
+<a href="#1320" id="1320">1320</a>
+<a href="#1321" id="1321">1321</a>
+<a href="#1322" id="1322">1322</a></pre></div><pre class="rust"><code><span class="kw">use </span>nargo::errors::Location;
 <span class="kw">use </span>std::{
     collections::{BTreeMap, BTreeSet, HashSet},
     fmt::Debug,
@@ -1291,7 +1341,7 @@
 };
 
 <span class="kw">use super</span>::{
-    Context, VariableId, expr,
+    CallableId, Context, VariableId, expr,
     freq::Freq,
     make_name,
     scope::{Scope, ScopeStack, Variable},
@@ -1433,7 +1483,7 @@
     </span>in_loop: bool,
     <span class="doccomment">/// All the functions callable from this one, with the types we can
     /// produce from their return value.
-    </span>call_targets: BTreeMap&lt;FuncId, HashSet&lt;Type&gt;&gt;,
+    </span>call_targets: BTreeMap&lt;CallableId, HashSet&lt;Type&gt;&gt;,
     <span class="doccomment">/// Indicate that we have generated a `Call`.
     </span>has_call: bool,
 }
@@ -1457,17 +1507,25 @@
         );
 
         <span class="comment">// Collect all the functions we can call from this one.
-        // TODO(#8484): Look for call targets in function-valued arguments as well.
-        </span><span class="kw">let </span>call_targets = ctx
-            .function_declarations
-            .iter()
-            .filter_map(|(callee_id, callee_decl)| {
-                <span class="kw">if </span>!can_call(id, decl.unconstrained, <span class="kw-2">*</span>callee_id, callee_decl.unconstrained) {
-                    <span class="kw">return </span><span class="prelude-val">None</span>;
-                }
-                <span class="prelude-val">Some</span>((<span class="kw-2">*</span>callee_id, types::types_produced(<span class="kw-2">&amp;</span>callee_decl.return_type)))
-            })
-            .collect();
+        </span><span class="kw">let </span><span class="kw-2">mut </span>call_targets = BTreeMap::new();
+
+        <span class="comment">// Consider calling any allowed global function.
+        </span><span class="kw">for </span>(callee_id, callee_decl) <span class="kw">in </span><span class="kw-2">&amp;</span>ctx.function_declarations {
+            <span class="kw">if </span>!can_call(id, decl.unconstrained, <span class="kw-2">*</span>callee_id, callee_decl.unconstrained) {
+                <span class="kw">continue</span>;
+            }
+            <span class="kw">let </span>produces = types::types_produced(<span class="kw-2">&amp;</span>callee_decl.return_type);
+            call_targets.insert(CallableId::Global(<span class="kw-2">*</span>callee_id), produces);
+        }
+
+        <span class="comment">// Consider function pointers as callable; they are already filtered during construction.
+        </span><span class="kw">for </span>(callee_id, <span class="kw">_</span>, <span class="kw">_</span>, typ, <span class="kw">_</span>) <span class="kw">in </span><span class="kw-2">&amp;</span>decl.params {
+            <span class="kw">let </span>Type::Function(<span class="kw">_</span>, return_type, <span class="kw">_</span>, <span class="kw">_</span>) = typ <span class="kw">else </span>{
+                <span class="kw">continue</span>;
+            };
+            <span class="kw">let </span>produces = types::types_produced(return_type);
+            call_targets.insert(CallableId::Local(<span class="kw-2">*</span>callee_id), produces);
+        }
 
         <span class="self">Self </span>{
             ctx,
@@ -1588,12 +1646,20 @@
         max_depth: usize,
         flags: Flags,
     ) -&gt; arbitrary::Result&lt;Expression&gt; {
-        <span class="comment">// For now if we need a function, return one without further nesting,
-        // e.g. avoid `if &lt;cond&gt; { func_1 } else { func_2 }`, because it makes rewriting
-        // harder when we need to deal with proxies.
+        <span class="comment">// For now if we need a function, return one without further nesting, e.g. avoid `if &lt;cond&gt; { func_1 } else { func_2 }`,
+        // because it makes it harder to rewrite functions to add recursion limit: we would need to replace functions in the
+        // expressions to proxy version if we call Brillig from ACIR, but we would also need to keep track whether we are calling a function,
+        // For example if we could return function pointers, we could have something like this:
+        //  `acir_func_1(if c { brillig_func_2 } else { unsafe { brillig_func_3(brillig_func_4) } })`
+        // We could replace `brillig_func_2` with `brillig_func_2_proxy`, but we wouldn't replace `brillig_func_4` with `brillig_func_4_proxy`
+        // because that is a parameter of another call. But we would have to deal with the return value.
+        // For this reason we handle function parameters directly here.
         </span><span class="kw">if </span><span class="macro">matches!</span>(typ, Type::Function(<span class="kw">_</span>, <span class="kw">_</span>, <span class="kw">_</span>, <span class="kw">_</span>)) {
-            <span class="comment">// Local variables we should consider in `gen_expr_from_vars`, so here we just look through global functions.
-            </span><span class="kw">return </span><span class="self">self</span>.find_function_with_signature(u, typ);
+            <span class="comment">// Prefer functions in variables over globals.
+            </span><span class="kw">return match </span><span class="self">self</span>.gen_expr_from_vars(u, typ, max_depth)<span class="question-mark">? </span>{
+                <span class="prelude-val">Some</span>(expr) =&gt; <span class="prelude-val">Ok</span>(expr),
+                <span class="prelude-val">None </span>=&gt; <span class="self">self</span>.find_global_function_with_signature(u, typ),
+            };
         }
 
         <span class="kw">let </span><span class="kw-2">mut </span>freq = Freq::new(u, <span class="kw-2">&amp;</span><span class="self">self</span>.ctx.config.expr_freqs)<span class="question-mark">?</span>;
@@ -2241,9 +2307,7 @@
 
         <span class="kw">let </span>callee_id = <span class="kw-2">*</span>u.choose_iter(opts)<span class="question-mark">?</span>;
         <span class="kw">let </span>callee_ident = <span class="self">self</span>.function_ident(callee_id);
-
-        <span class="kw">let </span>callee = <span class="self">self</span>.ctx.function_decl(callee_id).clone();
-        <span class="kw">let </span>param_types = callee.params.iter().map(|p| p.<span class="number">3</span>.clone()).collect::&lt;Vec&lt;<span class="kw">_</span>&gt;&gt;();
+        <span class="kw">let </span>(param_types, return_type) = <span class="self">self</span>.callable_signature(callee_id);
 
         <span class="comment">// Generate an expression for each argument.
         </span><span class="kw">let </span><span class="kw-2">mut </span>args = Vec::new();
@@ -2254,12 +2318,12 @@
         <span class="kw">let </span>call_expr = Expression::Call(Call {
             func: Box::new(callee_ident),
             arguments: args,
-            return_type: callee.return_type.clone(),
+            return_type: return_type.clone(),
             location: Location::dummy(),
         });
 
         <span class="comment">// Derive the final result from the call, e.g. by casting, or accessing a member.
-        </span><span class="self">self</span>.gen_expr_from_source(u, call_expr, <span class="kw-2">&amp;</span>callee.return_type, typ, <span class="self">self</span>.max_depth())
+        </span><span class="self">self</span>.gen_expr_from_source(u, call_expr, <span class="kw-2">&amp;</span>return_type, typ, <span class="self">self</span>.max_depth())
     }
 
     <span class="doccomment">/// Generate a call to a specific function, with arbitrary literals
@@ -2435,7 +2499,9 @@
     }
 
     <span class="doccomment">/// Find a global function matching a type signature.
-    </span><span class="kw">fn </span>find_function_with_signature(
+    ///
+    /// For local functions we use `gen_expr_from_vars`.
+    </span><span class="kw">fn </span>find_global_function_with_signature(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
         u: <span class="kw-2">&amp;mut </span>Unstructured,
         typ: <span class="kw-2">&amp;</span>Type,
@@ -2468,26 +2534,60 @@
 
         <span class="kw">let </span>callee_id = u.choose_iter(candidates)<span class="question-mark">?</span>;
 
-        <span class="prelude-val">Ok</span>(<span class="self">self</span>.function_ident(callee_id))
+        <span class="prelude-val">Ok</span>(<span class="self">self</span>.function_ident(CallableId::Global(callee_id)))
     }
 
     <span class="doccomment">/// Generate an identifier for calling a global function.
-    </span><span class="kw">fn </span>function_ident(<span class="kw-2">&amp;mut </span><span class="self">self</span>, callee_id: FuncId) -&gt; Expression {
-        <span class="kw">let </span>callee = <span class="self">self</span>.ctx.function_decl(callee_id).clone();
-        <span class="kw">let </span>param_types = callee.params.iter().map(|p| p.<span class="number">3</span>.clone()).collect::&lt;Vec&lt;<span class="kw">_</span>&gt;&gt;();
-        Expression::Ident(Ident {
-            location: <span class="prelude-val">None</span>,
-            definition: Definition::Function(callee_id),
-            mutable: <span class="bool-val">false</span>,
-            name: callee.name.clone(),
-            typ: Type::Function(
-                param_types,
-                Box::new(callee.return_type.clone()),
-                Box::new(Type::Unit),
-                callee.unconstrained,
-            ),
-            id: <span class="self">self</span>.next_ident_id(),
-        })
+    </span><span class="kw">fn </span>function_ident(<span class="kw-2">&amp;mut </span><span class="self">self</span>, callee_id: CallableId) -&gt; Expression {
+        <span class="kw">match </span>callee_id {
+            CallableId::Global(id) =&gt; {
+                <span class="kw">let </span>callee = <span class="self">self</span>.ctx.function_decl(id).clone();
+                <span class="kw">let </span>param_types = callee.params.iter().map(|p| p.<span class="number">3</span>.clone()).collect::&lt;Vec&lt;<span class="kw">_</span>&gt;&gt;();
+                Expression::Ident(Ident {
+                    location: <span class="prelude-val">None</span>,
+                    definition: Definition::Function(id),
+                    mutable: <span class="bool-val">false</span>,
+                    name: callee.name.clone(),
+                    typ: Type::Function(
+                        param_types,
+                        Box::new(callee.return_type.clone()),
+                        Box::new(Type::Unit),
+                        callee.unconstrained,
+                    ),
+                    id: <span class="self">self</span>.next_ident_id(),
+                })
+            }
+            CallableId::Local(id) =&gt; {
+                <span class="kw">let </span>(mutable, name, typ) = <span class="self">self</span>.locals.current().get_variable(<span class="kw-2">&amp;</span>id);
+                Expression::Ident(Ident {
+                    location: <span class="prelude-val">None</span>,
+                    definition: Definition::Local(id),
+                    mutable: <span class="kw-2">*</span>mutable,
+                    name: name.clone(),
+                    typ: typ.clone(),
+                    id: <span class="self">self</span>.next_ident_id(),
+                })
+            }
+        }
+    }
+
+    <span class="doccomment">/// Get the parameter types and return type of a callable function.
+    </span><span class="kw">fn </span>callable_signature(<span class="kw-2">&amp;</span><span class="self">self</span>, callee_id: CallableId) -&gt; (Vec&lt;Type&gt;, Type) {
+        <span class="kw">match </span>callee_id {
+            CallableId::Global(id) =&gt; {
+                <span class="kw">let </span>decl = <span class="self">self</span>.ctx.function_decl(id);
+                <span class="kw">let </span>return_type = decl.return_type.clone();
+                <span class="kw">let </span>param_types = decl.params.iter().map(|p| p.<span class="number">3</span>.clone()).collect::&lt;Vec&lt;<span class="kw">_</span>&gt;&gt;();
+                (param_types, return_type)
+            }
+            CallableId::Local(id) =&gt; {
+                <span class="kw">let </span>(<span class="kw">_</span>, <span class="kw">_</span>, typ) = <span class="self">self</span>.locals.current().get_variable(<span class="kw-2">&amp;</span>id);
+                <span class="kw">let </span>Type::Function(param_types, return_type, <span class="kw">_</span>, <span class="kw">_</span>) = typ <span class="kw">else </span>{
+                    <span class="macro">unreachable!</span>(<span class="string">"function pointers should have function type; got {typ}"</span>)
+                };
+                (param_types.clone(), return_type.as_ref().clone())
+            }
+        }
     }
 }
 
