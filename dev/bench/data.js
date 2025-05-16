@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1747411971383,
+  "lastUpdate": 1747411974950,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -11167,70 +11167,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "asterite@gmail.com",
-            "name": "Ary Borenszweig",
-            "username": "asterite"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "944d23430d2746e25980ca283160f13665f123c3",
-          "message": "fix: always type-check turbofish, and error when it's not allowed (#8437)\n\nCo-authored-by: Tom French <15848336+TomAFrench@users.noreply.github.com>",
-          "timestamp": "2025-05-09T19:34:35Z",
-          "tree_id": "77421e3590fa49825816d04e604bb1856774a70a",
-          "url": "https://github.com/noir-lang/noir/commit/944d23430d2746e25980ca283160f13665f123c3"
-        },
-        "date": 1746821046298,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 235.13,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 257.61,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 213.46,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 542.52,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 534.7,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 1440,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 363.67,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-root",
-            "value": 369.59,
-            "unit": "MB"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "163862677+noirwhal@users.noreply.github.com",
             "name": "noirwhal",
             "username": "noirwhal"
@@ -14495,6 +14431,75 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/noir-lang/noir/commit/9ec22c146567eecfc6401c145467b4856339cf6d"
         },
         "date": 1747410125910,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 241.27,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 263.53,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 216.76,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 549.25,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 541.7,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 1450,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 370.96,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-root",
+            "value": 376.89,
+            "unit": "MB"
+          },
+          {
+            "name": "semaphore_depth_10",
+            "value": 93.04,
+            "unit": "MB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "aakoshh@gmail.com",
+            "name": "Akosh Farkash",
+            "username": "aakoshh"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "0298a63d3febda346a48737f493ee8aeb4e8c538",
+          "message": "feat: C++ codegen for msgpack (#7716)\n\nCo-authored-by: Tom French <15848336+TomAFrench@users.noreply.github.com>\nCo-authored-by: guipublic <47281315+guipublic@users.noreply.github.com>\nCo-authored-by: guipublic <guipublic@gmail.com>",
+          "timestamp": "2025-05-16T15:34:49Z",
+          "tree_id": "044ebf290a381828bd746fa324e52bf0fef91dd5",
+          "url": "https://github.com/noir-lang/noir/commit/0298a63d3febda346a48737f493ee8aeb4e8c538"
+        },
+        "date": 1747411964116,
         "tool": "customSmallerIsBetter",
         "benches": [
           {
