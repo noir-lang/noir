@@ -1728,8 +1728,8 @@ mod control_dependence {
             v3 = lt v2, u32 0
             jmpif v3 then: loop_body, else: exit
           loop_body():
-            v6 = mul v0, v1
-            v7 = mul v6, v0
+            v6 = unchecked_mul v0, v1
+            v7 = unchecked_mul v6, v0
             constrain v7 == u32 12
             v10 = unchecked_add v2, u32 1
             jmp loop(v10)
@@ -1749,8 +1749,8 @@ mod control_dependence {
         let expected = "
         brillig(inline) fn main f0 {
           entry(v0: u32, v1: u32):
-            v3 = mul v0, v1
-            v4 = mul v3, v0
+            v3 = unchecked_mul v0, v1
+            v4 = unchecked_mul v3, v0
             jmp loop(u32 0)
           loop(v2: u32):
             jmpif u1 0 then: loop_body, else: exit
@@ -1778,8 +1778,8 @@ mod control_dependence {
             v3 = lt v2, u32 1
             jmpif v3 then: loop_body, else: exit
           loop_body():
-            v6 = mul v0, v1
-            v7 = mul v6, v0
+            v6 = unchecked_mul v0, v1
+            v7 = unchecked_mul v6, v0
             constrain v7 == u32 12
             v10 = unchecked_add v2, u32 1
             jmp loop(v10)
@@ -1798,8 +1798,8 @@ mod control_dependence {
         let expected = "
         brillig(inline) fn main f0 {
           entry(v0: u32, v1: u32):
-            v3 = mul v0, v1
-            v4 = mul v3, v0
+            v3 = unchecked_mul v0, v1
+            v4 = unchecked_mul v3, v0
             jmp loop(u32 1)
           loop(v2: u32):
             v7 = eq v2, u32 0
@@ -1828,8 +1828,8 @@ mod control_dependence {
             v3 = lt v2, v1
             jmpif v3 then: loop_body, else: exit
           loop_body():
-            v6 = mul v0, v1
-            v7 = mul v6, v0
+            v6 = unchecked_mul v0, v1
+            v7 = unchecked_mul v6, v0
             constrain v7 == u32 12
             v10 = unchecked_add v2, u32 1
             jmp loop(v10)
@@ -1849,8 +1849,8 @@ mod control_dependence {
         let expected = "
         brillig(inline) fn main f0 {
           entry(v0: u32, v1: u32):
-            v3 = mul v0, v1
-            v4 = mul v3, v0
+            v3 = unchecked_mul v0, v1
+            v4 = unchecked_mul v3, v0
             jmp loop(u32 0)
           loop(v2: u32):
             v6 = lt v2, v1
@@ -1881,8 +1881,8 @@ mod control_dependence {
             v3 = lt v2, v1
             jmpif v3 then: loop_body, else: exit
           loop_body():
-            v6 = mul v0, v1
-            v7 = mul v6, v0
+            v6 = unchecked_mul v0, v1
+            v7 = unchecked_mul v6, v0
             call f1()
             v10 = unchecked_add v2, u32 1
             jmp loop(v10)
@@ -1903,8 +1903,8 @@ mod control_dependence {
         assert_ssa_snapshot!(ssa, @r"
         brillig(inline) predicate_pure fn main f0 {
           b0(v0: u32, v1: u32):
-            v3 = mul v0, v1
-            v4 = mul v3, v0
+            v3 = unchecked_mul v0, v1
+            v4 = unchecked_mul v3, v0
             jmp b1(u32 0)
           b1(v2: u32):
             v6 = lt v2, v1

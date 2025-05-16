@@ -1,5 +1,5 @@
 // Regression for issue #8521
-// We do not expect constant division by zero in the while loop to be hoisted
+// We do not expect division by zero in the while loop to be hoisted
 // x = 0
 unconstrained fn main(x: u32) -> pub str<3> {
     let mut idx_b = 0;
