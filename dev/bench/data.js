@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1747411638115,
+  "lastUpdate": 1747411640232,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -7775,70 +7775,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "asterite@gmail.com",
-            "name": "Ary Borenszweig",
-            "username": "asterite"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "944d23430d2746e25980ca283160f13665f123c3",
-          "message": "fix: always type-check turbofish, and error when it's not allowed (#8437)\n\nCo-authored-by: Tom French <15848336+TomAFrench@users.noreply.github.com>",
-          "timestamp": "2025-05-09T19:34:35Z",
-          "tree_id": "77421e3590fa49825816d04e604bb1856774a70a",
-          "url": "https://github.com/noir-lang/noir/commit/944d23430d2746e25980ca283160f13665f123c3"
-        },
-        "date": 1746820749360,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 0.028,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 0.16,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 0.016,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 0.331,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 0.206,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 11.7,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 0.004,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-root",
-            "value": 0.013,
-            "unit": "s"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "163862677+noirwhal@users.noreply.github.com",
             "name": "noirwhal",
             "username": "noirwhal"
@@ -11133,6 +11069,75 @@ window.BENCHMARK_DATA = {
           {
             "name": "rollup-block-root",
             "value": 11.8,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 0.004,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-root",
+            "value": 0.013,
+            "unit": "s"
+          },
+          {
+            "name": "semaphore-depth-10",
+            "value": 0.02,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "aakoshh@gmail.com",
+            "name": "Akosh Farkash",
+            "username": "aakoshh"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "0298a63d3febda346a48737f493ee8aeb4e8c538",
+          "message": "feat: C++ codegen for msgpack (#7716)\n\nCo-authored-by: Tom French <15848336+TomAFrench@users.noreply.github.com>\nCo-authored-by: guipublic <47281315+guipublic@users.noreply.github.com>\nCo-authored-by: guipublic <guipublic@gmail.com>",
+          "timestamp": "2025-05-16T15:34:49Z",
+          "tree_id": "044ebf290a381828bd746fa324e52bf0fef91dd5",
+          "url": "https://github.com/noir-lang/noir/commit/0298a63d3febda346a48737f493ee8aeb4e8c538"
+        },
+        "date": 1747411629833,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 0.028,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 0.159,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 0.011,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 0.304,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 0.191,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 11.5,
             "unit": "s"
           },
           {
