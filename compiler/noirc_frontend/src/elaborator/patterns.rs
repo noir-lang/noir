@@ -682,17 +682,11 @@ impl Elaborator<'_> {
         let associated_type = associated_types.iter().find(|typ| typ.name.as_str() == name);
         if let Some(associated_type) = associated_type {
             if let Kind::Numeric(numeric_type) = associated_type.typ.kind() {
-                let Type::TypeVariable(type_var) = associated_type.typ.clone() else {
+                let Type::TypeVariable(type_variable) = associated_type.typ.clone() else {
                     panic!("Expected associated type to be a type variable")
                 };
-
-                let definition_id = self.interner.push_definition(
-                    associated_type.name.to_string(),
-                    false,
-                    false,
-                    DefinitionKind::NumericGeneric(type_var, numeric_type.clone()),
-                    location,
-                );
+                let definition_id =
+                    self.interner.get_associated_constant_definition_id(type_variable.id());
                 let hir_ident = HirIdent::non_trait_method(definition_id, location);
                 let hir_expr = HirExpression::Ident(hir_ident, None);
                 let id = self.interner.push_expr(hir_expr);
