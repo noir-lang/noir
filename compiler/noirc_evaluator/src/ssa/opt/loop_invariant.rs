@@ -824,9 +824,17 @@ impl<'f> LoopInvariantContext<'f> {
 /// and its predicate, rather than just the instruction. Setting this means instructions that
 /// rely on predicates can be hoisted as well.
 ///
+/// # Preconditions
 /// Certain instructions can be hoisted because they implicitly depend on a predicate.
 /// However, to avoid tight coupling between passes, we make the hoisting
 /// conditional on whether the caller wants the predicate to be taken into account or not.
+///
+/// Even if we know the predicate is the same for an instruction's block and a loop's header block,
+/// the caller of this methods needs to be careful as a loop may still never be executed.
+/// This is because an loop with dynamic bounds may never execute its loop body.
+/// If the instruction were to trigger a failure, our program may fail inadvertently.
+/// If we know a loop's upper bound is greater than its lower bound we can hoist these instructions,
+/// but it is left to the caller of this method to account for this case.
 ///
 /// This differs from `can_be_deduplicated` as that method assumes there is a matching instruction
 /// with the same inputs. Hoisting is for lone instructions, meaning a mislabeled hoist could cause
@@ -855,19 +863,13 @@ fn can_be_hoisted(
             };
             match purity {
                 Some(Purity::Pure) => true,
-                Some(Purity::PureWithPredicate) => false,
+                Some(Purity::PureWithPredicate) => hoist_with_predicate,
                 Some(Purity::Impure) => false,
                 None => false,
             }
         }
 
-        // We cannot hoist these instructions, even if we know the predicate is the same.
-        // This is because an loop with dynamic bounds may never execute its loop body.
-        // If the instruction were to trigger a failure, our program may fail inadvertently.
-        // If we know a loop's upper bound is greater than its lower bound we can hoist these instructions,
-        // but we do not want to assume that the caller of this method has accounted
-        // for this case. Thus, we block hoisting on these instructions.
-        Constrain(..) | ConstrainNotEqual(..) | RangeCheck { .. } => false,
+        Constrain(..) | ConstrainNotEqual(..) | RangeCheck { .. } => hoist_with_predicate,
 
         // Noop instructions can always be hoisted, although they're more likely to be
         // removed entirely.
