@@ -6,6 +6,7 @@ mod black_box_parser;
 mod brillig_call_parser;
 mod call_parser;
 mod mem_init_parser;
+mod mem_parser;
 mod utils;
 
 use crate::circuit::opcodes::{BlackBoxFuncCall, FunctionInput};
