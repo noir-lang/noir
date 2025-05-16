@@ -6,7 +6,7 @@ pub mod opcodes;
 
 use crate::{
     native_types::{Expression, Witness},
-    serialization::{bincode_deserialize, bincode_serialize},
+    serialization::{deserialize_any_format, serialize_with_format_from_env},
 };
 use acir_field::AcirField;
 pub use opcodes::Opcode;
@@ -268,7 +268,9 @@ impl<F: AcirField> Circuit<F> {
 impl<F: Serialize + AcirField> Program<F> {
     /// Serialize and compress the [Program] into bytes.
     fn write<W: Write>(&self, writer: W) -> std::io::Result<()> {
-        let buf = bincode_serialize(self)?;
+        let buf = serialize_with_format_from_env(self)?;
+
+        // Compress the data, which should help with formats that uses field names.
         let mut encoder = flate2::write::GzEncoder::new(writer, Compression::default());
         encoder.write_all(&buf)?;
         encoder.finish()?;
@@ -298,7 +300,7 @@ impl<F: AcirField + for<'a> Deserialize<'a>> Program<F> {
         let mut gz_decoder = flate2::read::GzDecoder::new(reader);
         let mut buf = Vec::new();
         gz_decoder.read_to_end(&mut buf)?;
-        let program = bincode_deserialize(&buf)?;
+        let program = deserialize_any_format(&buf)?;
         Ok(program)
     }
 
@@ -418,21 +420,23 @@ mod tests {
 
     fn and_opcode<F: AcirField>() -> Opcode<F> {
         Opcode::BlackBoxFuncCall(BlackBoxFuncCall::AND {
-            lhs: FunctionInput::witness(Witness(1), 4),
-            rhs: FunctionInput::witness(Witness(2), 4),
+            lhs: FunctionInput::Witness(Witness(1)),
+            rhs: FunctionInput::Witness(Witness(2)),
+            num_bits: 4,
             output: Witness(3),
         })
     }
 
     fn range_opcode<F: AcirField>() -> Opcode<F> {
         Opcode::BlackBoxFuncCall(BlackBoxFuncCall::RANGE {
-            input: FunctionInput::witness(Witness(1), 8),
+            input: FunctionInput::Witness(Witness(1)),
+            num_bits: 8,
         })
     }
 
     fn keccakf1600_opcode<F: AcirField>() -> Opcode<F> {
         let inputs: Box<[FunctionInput<F>; 25]> =
-            Box::new(std::array::from_fn(|i| FunctionInput::witness(Witness(i as u32 + 1), 8)));
+            Box::new(std::array::from_fn(|i| FunctionInput::Witness(Witness(i as u32 + 1))));
         let outputs: Box<[Witness; 25]> = Box::new(std::array::from_fn(|i| Witness(i as u32 + 26)));
 
         Opcode::BlackBoxFuncCall(BlackBoxFuncCall::Keccakf1600 { inputs, outputs })
@@ -535,15 +539,15 @@ mod tests {
         insta::assert_snapshot!(
             circuit.to_string(),
             @r"
-            current witness index : _3
-            private parameters indices : []
-            public parameters indices : [_2]
-            return value indices : [_2]
-            EXPR [ (2, _1) 8 ]
-            BLACKBOX::RANGE [(_1, 8)] []
-            BLACKBOX::AND [(_1, 4), (_2, 4)] [_3]
-            BLACKBOX::KECCAKF1600 [(_1, 8), (_2, 8), (_3, 8), (_4, 8), (_5, 8), (_6, 8), (_7, 8), (_8, 8), (_9, 8), (_10, 8), (_11, 8), (_12, 8), (_13, 8), (_14, 8), (_15, 8), (_16, 8), (_17, 8), (_18, 8), (_19, 8), (_20, 8), (_21, 8), (_22, 8), (_23, 8), (_24, 8), (_25, 8)] [_26, _27, _28, _29, _30, _31, _32, _33, _34, _35, _36, _37, _38, _39, _40, _41, _42, _43, _44, _45, _46, _47, _48, _49, _50]
-            "
+        current witness index : _3
+        private parameters indices : []
+        public parameters indices : [_2]
+        return value indices : [_2]
+        EXPR [ (2, _1) 8 ]
+        BLACKBOX::RANGE [_1]:8 bits []
+        BLACKBOX::AND [_1, _2]:4 bits [_3]
+        BLACKBOX::KECCAKF1600 [_1, _2, _3, _4, _5, _6, _7, _8, _9, _10, _11, _12, _13, _14, _15, _16, _17, _18, _19, _20, _21, _22, _23, _24, _25] [_26, _27, _28, _29, _30, _31, _32, _33, _34, _35, _36, _37, _38, _39, _40, _41, _42, _43, _44, _45, _46, _47, _48, _49, _50]
+        "
         );
     }
 
@@ -679,8 +683,8 @@ mod tests {
         #[test]
         fn prop_witness_stack_roundtrip() {
             run_with_max_size_range(10, |witness: WitnessStack<TestField>| {
-                let bz = Vec::<u8>::try_from(&witness)?;
-                let de = WitnessStack::try_from(bz.as_slice())?;
+                let bz = witness.serialize()?;
+                let de = WitnessStack::deserialize(bz.as_slice())?;
                 prop_assert_eq!(witness, de);
                 Ok(())
             });
@@ -719,8 +723,8 @@ mod tests {
         #[test]
         fn prop_witness_map_roundtrip() {
             run_with_max_size_range(10, |witness: WitnessMap<TestField>| {
-                let bz = Vec::<u8>::try_from(witness.clone())?;
-                let de = WitnessMap::try_from(bz.as_slice())?;
+                let bz = witness.serialize()?;
+                let de = WitnessMap::deserialize(bz.as_slice())?;
                 prop_assert_eq!(witness, de);
                 Ok(())
             });
