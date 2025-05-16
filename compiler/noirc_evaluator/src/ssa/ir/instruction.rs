@@ -654,7 +654,7 @@ impl Instruction {
 
 /// Determines whether an ArrayGet or ArraySet index has been shifted by a given value.
 /// Offsets are set during `crate::ssa::opt::brillig_array_gets` for brillig arrays
-/// and vectors with constant indicces.
+/// and vectors with constant indices.
 #[derive(Debug, PartialEq, Eq, Hash, Copy, Clone, Serialize, Deserialize)]
 pub enum ArrayOffset {
     None,
