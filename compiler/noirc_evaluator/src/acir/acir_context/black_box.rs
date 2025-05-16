@@ -223,9 +223,6 @@ impl<F: AcirField, B: BlackBoxFunctionSolver<F>> AcirContext<F, B> {
         // Convert `AcirVar` to `FunctionInput`
         let mut inputs =
             self.prepare_inputs_for_black_box_func_call(inputs, allow_constant_inputs)?;
-        if name == BlackBoxFunc::EmbeddedCurveAdd {
-            inputs = self.all_or_nothing_for_ec_add(inputs)?;
-        }
         Ok(inputs)
     }
 

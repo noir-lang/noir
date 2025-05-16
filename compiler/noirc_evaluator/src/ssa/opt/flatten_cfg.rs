@@ -798,10 +798,61 @@ impl<'f> Context<'f> {
 
                         Instruction::Call { func, arguments }
                     }
-                    //Issue #5045: We set curve points to infinity if condition is false, to ensure that they are on the curve, if not the addition may fail.
+                    //Issue #5045: We set curve points to g1, g2=2g1 if condition is false, to ensure that they are on the curve, if not the addition may fail.
+                    // If inputs are distinct curve points, then so is their predicate version.
+                    // If inputs are identical (point doubling), then so is their predicate version
+                    // Hence the assumptions for calling EmbeddedCurveAdd are kept by this transformation.
                     Value::Intrinsic(Intrinsic::BlackBox(BlackBoxFunc::EmbeddedCurveAdd)) => {
-                        arguments[2] = self.var_or_one(arguments[2], condition, call_stack);
-                        arguments[5] = self.var_or_one(arguments[5], condition, call_stack);
+                        #[cfg(feature = "bn254")]
+                        {
+                            let g1_x = FieldElement::from_hex("0x01").unwrap();
+                            let g1_y = FieldElement::from_hex(
+                                "0x02cf135e7506a45d632d270d45f1181294833fc48d823f272c",
+                            )
+                            .unwrap();
+                            let g2_x = FieldElement::from_hex("0x06ce1b0827aafa85ddeb49cdaa36306d19a74caa311e13d46d8bc688cdbffffe").unwrap();
+                            let g2_y = FieldElement::from_hex("0x1c122f81a3a14964909ede0ba2a6855fc93faf6fa1a788bf467be7e7a43f80ac").unwrap();
+                            let g1_x = self
+                                .inserter
+                                .function
+                                .dfg
+                                .make_constant(g1_x, NumericType::NativeField);
+                            let g1_y = self
+                                .inserter
+                                .function
+                                .dfg
+                                .make_constant(g1_y, NumericType::NativeField);
+                            let g2_x = self
+                                .inserter
+                                .function
+                                .dfg
+                                .make_constant(g2_x, NumericType::NativeField);
+                            let g2_y = self
+                                .inserter
+                                .function
+                                .dfg
+                                .make_constant(g2_y, NumericType::NativeField);
+                            if arguments[3] == arguments[0] {
+                                arguments[0] =
+                                    self.var_or(arguments[0], condition, g1_x, call_stack);
+                                arguments[3] = arguments[0];
+                            } else {
+                                arguments[0] =
+                                    self.var_or(arguments[0], condition, g1_x, call_stack);
+                                arguments[3] =
+                                    self.var_or(arguments[3], condition, g2_x, call_stack);
+                            }
+                            if arguments[4] == arguments[1] {
+                                arguments[1] =
+                                    self.var_or(arguments[1], condition, g1_y, call_stack);
+                                arguments[4] = arguments[1];
+                            } else {
+                                arguments[1] =
+                                    self.var_or(arguments[1], condition, g1_y, call_stack);
+                                arguments[4] =
+                                    self.var_or(arguments[4], condition, g2_y, call_stack);
+                            }
+                        }
 
                         Instruction::Call { func, arguments }
                     }
@@ -861,8 +912,9 @@ impl<'f> Context<'f> {
         call_stack: CallStackId,
     ) -> ValueId {
         // Unchecked mul because the condition is always 0 or 1
+        let cast_condition = self.cast_condition_to_value_type(condition, value, call_stack);
         self.insert_instruction(
-            Instruction::binary(BinaryOp::Mul { unchecked: true }, value, condition),
+            Instruction::binary(BinaryOp::Mul { unchecked: true }, value, cast_condition),
             call_stack,
         )
     }
@@ -904,6 +956,23 @@ impl<'f> Context<'f> {
         // Unchecked add because of the values is guaranteed to be 0
         self.insert_instruction(
             Instruction::binary(BinaryOp::Add { unchecked: true }, field, not_condition),
+            call_stack,
+        )
+    }
+    // Computes: if condition { var } else { other }
+    fn var_or(
+        &mut self,
+        var: ValueId,
+        condition: ValueId,
+        other: ValueId,
+        call_stack: CallStackId,
+    ) -> ValueId {
+        let field = self.mul_by_condition(var, condition, call_stack);
+        let not_condition = self.not_instruction(condition, call_stack);
+        let else_field = self.mul_by_condition(other, not_condition, call_stack);
+        // Unchecked add because of the values is guaranteed to be 0
+        self.insert_instruction(
+            Instruction::binary(BinaryOp::Add { unchecked: true }, field, else_field),
             call_stack,
         )
     }
