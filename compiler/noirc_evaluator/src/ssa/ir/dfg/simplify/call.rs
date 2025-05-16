@@ -73,6 +73,10 @@ pub(super) fn simplify_call(
         Intrinsic::ToRadix(endian) => {
             // TODO: simplify to a range constraint if `limb_count == 1`
             if let (Some(constant_args), Some(return_type)) = (constant_args, return_type.clone()) {
+                // TODO
+                if constant_args.len() < 2 {
+                    std::process::exit(0)
+                }
                 let field = constant_args[0];
                 let radix = constant_args[1].to_u128() as u32;
                 let limb_count = if let Type::Array(_, array_len) = return_type {

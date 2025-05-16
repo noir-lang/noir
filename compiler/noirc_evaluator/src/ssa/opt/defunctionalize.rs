@@ -373,10 +373,15 @@ fn find_dynamic_dispatches(func: &Function) -> BTreeSet<Signature> {
 fn create_apply_functions(ssa: &mut Ssa, variants_map: Variants) -> ApplyFunctions {
     let mut apply_functions = HashMap::default();
     for ((mut signature, runtime), variants) in variants_map.into_iter() {
-        assert!(
-            !variants.is_empty(),
-            "ICE: at least one variant should exist for a dynamic call {signature:?}"
-        );
+        // TODO: re-enable and remove this "if variants.is_empty.."
+        if variants.is_empty() {
+            continue;
+        }
+        // assert!(
+        //     !variants.is_empty(),
+        //     "ICE: at least one variant should exist for a dynamic call {signature:?}"
+        // );
+        //
         let dispatches_to_multiple_functions = variants.len() > 1;
 
         // Update the shared function signature of the higher-order function variants
@@ -541,6 +546,79 @@ mod tests {
     use crate::assert_ssa_snapshot;
 
     use super::Ssa;
+
+    #[test]
+    fn defunctionalize_missing_fn() {
+        let src = "
+          brillig(inline) fn main f0 {
+           
+            b0(v0: function, v1: u32):
+              v2 = call v0(v1) -> u32
+              return v2
+          }
+        ";
+
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.defunctionalize();
+
+        assert_ssa_snapshot!(ssa, @r"
+        brillig(inline) fn main f0 {
+          b0(v0: u32):
+            v3 = call f1(Field 2, v0) -> u32
+            v5 = add v0, u32 1
+            v6 = eq v3, v5
+            constrain v3 == v5
+            v8 = call f1(Field 3, v0) -> u32
+            v9 = add v0, u32 1
+            v10 = eq v8, v9
+            constrain v8 == v9
+            v12 = call f1(Field 4, v0) -> u32
+            v13 = add v0, u32 1
+            constrain v12 == v13
+            return
+        }
+        brillig(inline) fn wrapper f1 {
+          b0(v0: Field, v1: u32):
+            v3 = call f5(v0, v1) -> u32
+            return v3
+        }
+        brillig(inline) fn increment f2 {
+          b0(v0: u32):
+            v2 = add v0, u32 1
+            return v2
+        }
+        brillig(inline) fn increment_acir f3 {
+          b0(v0: u32):
+            v2 = add v0, u32 1
+            return v2
+        }
+        brillig(inline) fn increment_three f4 {
+          b0(v0: u32):
+            v2 = add v0, u32 1
+            return v2
+        }
+        brillig(inline_always) fn apply f5 {
+          b0(v0: Field, v1: u32):
+            v4 = eq v0, Field 2
+            jmpif v4 then: b3, else: b2
+          b1(v2: u32):
+            return v2
+          b2():
+            v8 = eq v0, Field 3
+            jmpif v8 then: b5, else: b4
+          b3():
+            v6 = call f2(v1) -> u32
+            jmp b1(v6)
+          b4():
+            constrain v0 == Field 4
+            v13 = call f4(v1) -> u32
+            jmp b1(v13)
+          b5():
+            v10 = call f3(v1) -> u32
+            jmp b1(v10)
+        }
+        ");
+    }
 
     #[test]
     fn apply_inherits_caller_runtime() {

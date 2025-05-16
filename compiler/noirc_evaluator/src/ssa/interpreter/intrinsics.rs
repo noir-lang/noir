@@ -64,7 +64,9 @@ impl Interpreter<'_> {
             Intrinsic::SliceInsert => self.slice_insert(args),
             Intrinsic::SliceRemove => self.slice_remove(args),
             Intrinsic::ApplyRangeConstraint => {
-                todo!("Intrinsic::ApplyRangeConstraint is currently unimplemented")
+                // TODO
+                // todo!("Intrinsic::ApplyRangeConstraint is currently unimplemented")
+                std::process::exit(0)
             }
             // Both of these are no-ops
             Intrinsic::StrAsBytes | Intrinsic::AsWitness => {
@@ -82,16 +84,26 @@ impl Interpreter<'_> {
                 let radix = self.lookup_u32(args[1], "call to to_bits")?;
                 self.to_radix(endian, args[0], field, radix, results[0])
             }
-            Intrinsic::BlackBox(black_box_func) => {
-                todo!("Intrinsic::BlackBox({black_box_func}) is currently unimplemented")
+            // TODO
+            // Intrinsic::BlackBox(black_box_func) => {
+            Intrinsic::BlackBox(_black_box_func) => {
+                // TODO
+                // todo!("Intrinsic::BlackBox({black_box_func}) is currently unimplemented")
+                std::process::exit(0)
             }
-            Intrinsic::Hint(_) => todo!("Intrinsic::Hint is currently unimplemented"),
+            Intrinsic::Hint(_) => {
+                // TODO
+                // todo!("Intrinsic::Hint is currently unimplemented")
+                std::process::exit(0)
+            }
             Intrinsic::IsUnconstrained => {
                 check_argument_count(args, 0, intrinsic)?;
                 Ok(vec![Value::bool(self.in_unconstrained_context())])
             }
             Intrinsic::DerivePedersenGenerators => {
-                todo!("Intrinsic::DerivePedersenGenerators is currently unimplemented")
+                // TODO
+                // todo!("Intrinsic::DerivePedersenGenerators is currently unimplemented")
+                std::process::exit(0)
             }
             Intrinsic::FieldLessThan => {
                 if !self.in_unconstrained_context() {

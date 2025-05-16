@@ -223,7 +223,9 @@ impl<'ssa> Interpreter<'ssa> {
             super::ir::value::Value::Instruction { .. }
             | super::ir::value::Value::Param { .. }
             | super::ir::value::Value::Global(_) => {
-                unreachable!("`{id}` should already be in scope")
+                // TODO
+                // unreachable!("`{id}` should already be in scope")
+                std::process::exit(0)
             }
         }
     }
@@ -653,7 +655,9 @@ impl<'ssa> Interpreter<'ssa> {
         let element = if self.side_effects_enabled() {
             let array = self.lookup_array_or_slice(array, "array get")?;
             let index = self.lookup_u32(index, "array get index")?;
-            array.elements.borrow()[index as usize].clone()
+            // TODO: error for index out of bounds
+            // array.elements.borrow()[index as usize].clone()
+            array.elements.borrow().get(index as usize).unwrap_or_else(|| { std::process::exit(0) }).clone()
         } else {
             let typ = self.dfg().type_of_value(result);
             Value::uninitialized(&typ, result)
@@ -680,11 +684,15 @@ impl<'ssa> Interpreter<'ssa> {
                 if self.in_unconstrained_context() { *array.rc.borrow() == 1 } else { mutable };
 
             if should_mutate {
-                array.elements.borrow_mut()[index as usize] = value;
+                // TODO: error for index out of bounds
+                // array.elements.borrow_mut()[index as usize] = value;
+                array.elements.borrow_mut().get_mut(index as usize).map(|element| *element = value).unwrap_or_else(|| { std::process::exit(0) });
                 Value::ArrayOrSlice(array.clone())
             } else {
                 let mut elements = array.elements.borrow().to_vec();
-                elements[index as usize] = value;
+                // TODO: error for index out of bounds
+                // elements[index as usize] = value;
+                elements.get_mut(index as usize).map(|element| *element = value).unwrap_or_else(|| { std::process::exit(0) });
                 let elements = Shared::new(elements);
                 let rc = Shared::new(1);
                 let element_types = array.element_types.clone();
@@ -1124,7 +1132,7 @@ where
 {
     let value_u128 = u128::from(value);
     let bit_mask = match bit_size.cmp(&MAX_UNSIGNED_BIT_SIZE) {
-        Ordering::Less => (1u128 << bit_size) - 1,
+        Ordering::Less => (1u128.checked_shl(bit_size).unwrap_or_else(|| { std::process::exit(0) })) - 1,
         Ordering::Equal => u128::MAX,
         Ordering::Greater => {
             return Err(internal(InternalError::InvalidUnsignedTruncateBitSize { bit_size }));
@@ -1145,13 +1153,15 @@ where
 {
     let mut value_i128 = i128::from(value);
     if value_i128 < 0 {
-        let max = 1i128 << (bit_size - 1);
-        value_i128 += max;
         if bit_size > MAX_SIGNED_BIT_SIZE {
-            return Err(internal(InternalError::InvalidSignedTruncateBitSize { bit_size }));
+            // TODO: this check needs to be before the '<<'
+            // return Err(internal(InternalError::InvalidSignedTruncateBitSize { bit_size }));
+            std::process::exit(0)
         }
+        let max = 1i128.checked_shl(bit_size - 1).unwrap_or_else(|| { std::process::exit(0) });
+        value_i128 += max;
 
-        let mask = (1i128 << bit_size) - 1;
+        let mask = (1i128.checked_shl(bit_size).unwrap_or_else(|| { std::process::exit(0) })) - 1;
         let result = (value_i128 & mask) - max;
 
         Ok(T::try_from(result).expect(

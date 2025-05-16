@@ -121,8 +121,10 @@ pub(crate) fn simplify(
             let array = dfg.get_array_constant(*array_id);
             let index = dfg.get_numeric_constant(*index_id);
             if let (Some((array, _element_type)), Some(index)) = (array, index) {
+                // TODO
+                //     index.try_to_u32().expect("Expected array index to fit in u32") as usize;
                 let index =
-                    index.try_to_u32().expect("Expected array index to fit in u32") as usize;
+                    index.try_to_u32().unwrap_or_else(|| { std::process::exit(0) }) as usize;
 
                 if index < array.len() {
                     let elements = array.update(index, *value);

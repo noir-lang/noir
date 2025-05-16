@@ -82,10 +82,14 @@ impl<'a> ValueMerger<'a> {
     ) -> ValueId {
         let then_type = dfg.type_of_value(then_value).unwrap_numeric();
         let else_type = dfg.type_of_value(else_value).unwrap_numeric();
-        assert_eq!(
-            then_type, else_type,
-            "Expected values merged to be of the same type but found {then_type} and {else_type}"
-        );
+        // TODO: re-enable after using to show fuzzer what inputs are valid
+        // assert_eq!(
+        //     then_type, else_type,
+        //     "Expected values merged to be of the same type but found {then_type} and {else_type}"
+        // );
+        if then_type != else_type {
+            std::process::exit(0)
+        }
 
         if then_value == else_value {
             return then_value;

@@ -47,9 +47,12 @@ fn main() {
                 let parameters: Vec<_> = parameter_types.iter().zip(parameter_ids).map(|(param_typ, param_id)| { 
                     Value::uninitialized(param_typ, *param_id)
                 }).collect();
+                let other_parameters: Vec<_> = parameter_types.iter().zip(parameter_ids).map(|(param_typ, param_id)| { 
+                    Value::uninitialized(param_typ, *param_id)
+                }).collect();
 
                 let result = ssa.interpret(parameters.clone());
-                let other_result = other_ssa.interpret(parameters);
+                let other_result = other_ssa.interpret(other_parameters);
 
                 // ensure both pass with the same result or both fail with the same error variant
                 match (result, other_result) {
@@ -60,7 +63,10 @@ fn main() {
                     (Err(err), Err(other_err)) => {
                         let disciminant = std::mem::discriminant(&err);
                         let other_disciminant = std::mem::discriminant(&other_err);
-                        assert_eq!(disciminant, other_disciminant);
+                        if disciminant != other_disciminant {
+                            dbg!(&err, &other_err);
+                            panic!("interpreter produced different errors")
+                        }
                     }
                     (result, other_result) => {
                         panic!("results did not match when applying 'remove_unreachable_functions'!\n{:?}\n-----------\n{:?}", result, other_result)

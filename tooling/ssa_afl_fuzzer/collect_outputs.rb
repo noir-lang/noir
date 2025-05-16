@@ -7,7 +7,8 @@ output_dirs = [
   # "outputs",
   # "outputs2",
   # "outputs3",
-  "outputs8",
+  # "outputs8",
+  "outputs9",
 ]
 
 collected_output_dir = ARGV[0]
