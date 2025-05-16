@@ -354,7 +354,7 @@ impl<'f> LoopInvariantContext<'f> {
         let can_be_hoisted = can_be_hoisted(&instruction, self.inserter.function, false)
             || matches!(instruction, MakeArray { .. })
             || (can_be_hoisted(&instruction, self.inserter.function, true)
-                && !self.current_block_control_dependent)
+                && self.can_hoist_control_dependent_instruction())
             || self.can_be_hoisted_from_loop_bounds(&instruction);
 
         is_loop_invariant && can_be_hoisted
@@ -403,8 +403,7 @@ impl<'f> LoopInvariantContext<'f> {
             }
             Binary(binary) => self.can_evaluate_binary_op(binary),
             Constrain(..) | ConstrainNotEqual(..) | RangeCheck { .. } => {
-                // If we know the loop will be executed we can still only hoist if we are in a non control dependent block.
-                !self.current_block_control_dependent && self.does_loop_body_execute()
+                self.can_hoist_control_dependent_instruction()
             }
             Call { func, .. } => {
                 let purity = match self.inserter.function.dfg[*func] {
@@ -412,13 +411,19 @@ impl<'f> LoopInvariantContext<'f> {
                     Value::Function(id) => self.inserter.function.dfg.purity_of(id),
                     _ => None,
                 };
-                // If we know the loop will be executed we can still only hoist if we are in a non control dependent block.
                 matches!(purity, Some(Purity::PureWithPredicate))
-                    && !self.current_block_control_dependent
-                    && self.does_loop_body_execute()
+                    && self.can_hoist_control_dependent_instruction()
             }
             _ => false,
         }
+    }
+
+    /// A control dependent instruction (e.g. constrain or division) has more strict conditions for hoisting.
+    /// This function check the following conditions:
+    /// - The current block is non control dependent
+    /// - The loop body is guaranteed to be executed
+    fn can_hoist_control_dependent_instruction(&self) -> bool {
+        !self.current_block_control_dependent && self.does_loop_body_execute()
     }
 
     /// Determine whether the loop body is guaranteed to execute.
@@ -2203,7 +2208,6 @@ mod control_dependence {
         ";
 
         let ssa = Ssa::from_str(src).unwrap();
-
         let ssa = ssa.loop_invariant_code_motion();
 
         assert_ssa_snapshot!(ssa, @r"
@@ -2219,6 +2223,49 @@ mod control_dependence {
             jmp b1(v9)
           b3():
             return
+        }
+        ");
+    }
+
+    #[test]
+    fn do_not_hoist_non_control_dependent_div_in_non_executed_loop() {
+        let src = "
+        brillig(inline) fn main f0 {
+          b0(v0: u32):
+            v1 = allocate -> &mut Field
+            store Field 0 at v1
+            jmp b1()
+          b1():
+            v3 = load v1 -> Field
+            v4 = eq v3, Field 0
+            jmpif v4 then: b2, else: b3
+          b2():
+            return
+          b3():
+            v6 = div u32 5, v0
+            jmp b1()
+        }
+        ";
+
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.loop_invariant_code_motion();
+
+        // We expect the SSA to be unchanged
+        assert_ssa_snapshot!(ssa, @r"
+        brillig(inline) fn main f0 {
+          b0(v0: u32):
+            v1 = allocate -> &mut Field
+            store Field 0 at v1
+            jmp b1()
+          b1():
+            v3 = load v1 -> Field
+            v4 = eq v3, Field 0
+            jmpif v4 then: b2, else: b3
+          b2():
+            return
+          b3():
+            v6 = div u32 5, v0
+            jmp b1()
         }
         ");
     }
