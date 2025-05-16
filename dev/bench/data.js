@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1747356468600,
+  "lastUpdate": 1747356551774,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -11102,70 +11102,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "aakoshh@gmail.com",
-            "name": "Akosh Farkash",
-            "username": "aakoshh"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "b6570a5057072f628f332582c6a7fc11bf5413cd",
-          "message": "feat: SSA pass impact report (#8393)",
-          "timestamp": "2025-05-09T14:47:40Z",
-          "tree_id": "31ba812a3b24ed44f31e71eb7fbf5e393478b585",
-          "url": "https://github.com/noir-lang/noir/commit/b6570a5057072f628f332582c6a7fc11bf5413cd"
-        },
-        "date": 1746803825949,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 235.13,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 257.61,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 213.46,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 542.55,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 534.73,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 1440,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 363.67,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-root",
-            "value": 369.59,
-            "unit": "MB"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "mvezenov@gmail.com",
             "name": "Maxim Vezenov",
             "username": "vezenovm"
@@ -14455,6 +14391,75 @@ window.BENCHMARK_DATA = {
           {
             "name": "semaphore_depth_10",
             "value": 91.5,
+            "unit": "MB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "jfecher11@gmail.com",
+            "name": "jfecher",
+            "username": "jfecher"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "ef6d8667c524cc07e02bdbd142ab16bee25f1581",
+          "message": "feat: Implement $crate (#8537)\n\nCo-authored-by: Jake Fecher <jake@aztecprotocol.com>",
+          "timestamp": "2025-05-16T00:18:40Z",
+          "tree_id": "d51ef506603debb177f56d3b68cf17410043db31",
+          "url": "https://github.com/noir-lang/noir/commit/ef6d8667c524cc07e02bdbd142ab16bee25f1581"
+        },
+        "date": 1747356543074,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 241.27,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 263.53,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 216.76,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 549.25,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 541.7,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 1450,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 370.96,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-root",
+            "value": 376.89,
+            "unit": "MB"
+          },
+          {
+            "name": "semaphore_depth_10",
+            "value": 93.04,
             "unit": "MB"
           }
         ]
