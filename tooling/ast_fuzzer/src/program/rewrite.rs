@@ -313,33 +313,35 @@ pub(crate) fn add_recursion_limit(
                         let typ =
                             limit_type_for_func_param(*callee_unconstrained, *param_unconstrained);
 
-                        // If we need to pass by value, then it's going to the proxy.
-                        // We don't have to update when the value we pass on is an input parameter,
-                        // but I don't know yet what that will look like.
-                        if !types::is_reference(&typ) {
-                            let arg = &mut call.arguments[i];
-                            let Expression::Ident(func_param_ident) = arg else {
-                                unreachable!("functions are passed by ident; got {arg}");
-                            };
-                            let Definition::Function(func_param_id) = func_param_ident.definition
-                            else {
-                                unreachable!(
-                                    "function definition expected; got {}",
-                                    func_param_ident.definition
-                                );
-                            };
-                            let Some(proxy) = proxy_functions.get(&func_param_id) else {
-                                unreachable!(
-                                    "expected to have a proxy for the function pointer: {func_param_id}; got some for {:?}",
-                                    proxy_functions.keys().collect::<Vec<_>>()
-                                );
-                            };
-                            func_param_ident.name = proxy.name.clone();
-                            func_param_ident.definition = Definition::Function(proxy.id);
-                        }
+                        let pass_by_value = !types::is_reference(&typ);
 
                         // Add the limit to the function described in the parameter.
                         param_types.push(typ);
+
+                        // If we need to pass by value, then it's going to the proxy, but only if it's a global function,
+                        // and not a function parameter, which is we wouldn't know what to change to, and doing so is the
+                        // happens when it's first passed as a global.
+                        if pass_by_value {
+                            let arg = &mut call.arguments[i];
+                            let Expression::Ident(param_func_ident) = arg else {
+                                unreachable!("functions are passed by ident; got {arg}");
+                            };
+                            let param_func_id = match &param_func_ident.definition {
+                                Definition::Function(id) => id,
+                                Definition::Local(_) => continue,
+                                other => {
+                                    unreachable!("function definition expected; got {}", other);
+                                }
+                            };
+                            let Some(proxy) = proxy_functions.get(param_func_id) else {
+                                unreachable!(
+                                    "expected to have a proxy for the function pointer: {param_func_id}; only have them for {:?}",
+                                    proxy_functions.keys().collect::<Vec<_>>()
+                                );
+                            };
+                            param_func_ident.name = proxy.name.clone();
+                            param_func_ident.definition = Definition::Function(proxy.id);
+                        }
                     }
                 }
             }
