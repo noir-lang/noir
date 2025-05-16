@@ -71,16 +71,6 @@ pub(crate) fn add_recursion_limit(
         ctx.functions.insert(proxy.id, proxy);
     }
 
-    // Rewrite function valued parameters to take the limit.
-    for func in ctx.functions.values_mut() {
-        for param in func.parameters.iter_mut() {
-            if let Type::Function(param_types, _, _, param_unconstrained) = &mut param.3 {
-                let typ = ctx_limit_type_for_func_param(func.unconstrained, *param_unconstrained);
-                param_types.push(typ);
-            }
-        }
-    }
-
     Ok(())
 }
 
@@ -141,6 +131,7 @@ impl<'a> LimitContext<'a> {
     ) -> arbitrary::Result<()> {
         let limit_id = self.next_local_id();
 
+        // Limit variable operations in the body
         if self.is_main {
             self.modify_body_when_main(limit_id);
         } else if self.is_recursive {
@@ -149,8 +140,14 @@ impl<'a> LimitContext<'a> {
             self.modify_body_when_non_recursive(limit_id);
         }
 
+        // Call forwarding in the proxy
         self.set_proxy_function(limit_id, proxy_functions);
+
+        // Passing along the limit in calls
         self.modify_calls(limit_id, proxy_functions);
+
+        // Update function pointer types to have the extra parameter.
+        self.modify_function_pointer_param_types(proxy_functions);
 
         Ok(())
     }
@@ -418,23 +415,45 @@ impl<'a> LimitContext<'a> {
         // Put the result back.
         std::mem::swap(&mut self.func.body, &mut body);
     }
+
+    /// Update any function pointer and the function and its proxy's signature to take the limit.
+    fn modify_function_pointer_param_types(
+        &mut self,
+        proxy_functions: &mut HashMap<FuncId, Function>,
+    ) {
+        for (_, _, _, param_type, _) in self.func.parameters.iter_mut() {
+            modify_function_pointer_param_type(param_type, self.func.unconstrained);
+        }
+        if let Some(proxy) = proxy_functions.get_mut(&self.func_id) {
+            for (_, _, _, param_type, _) in proxy.parameters.iter_mut() {
+                // Proxies will only be called from ACIR
+                modify_function_pointer_param_type(param_type, false);
+            }
+        }
+    }
 }
 
 /// Go through the types of each function parameter. If they are function pointers,
 /// then they need the context, depending on the callee type.
 fn modify_function_pointer_param_types(param_types: &mut [Type], callee_unconstrained: bool) {
     for param_type in param_types.iter_mut() {
-        let Type::Function(param_types, _, _, param_unconstrained) = param_type else {
-            continue;
-        };
-        let limit_typ = ctx_limit_type_for_func_param(callee_unconstrained, *param_unconstrained);
-
-        // Add the limit to the function described in the parameter.
-        param_types.push(limit_typ);
-
-        // We need to recurse into the parameters of the function pointer.
-        modify_function_pointer_param_types(param_types, *param_unconstrained);
+        modify_function_pointer_param_type(param_type, callee_unconstrained);
     }
+}
+
+/// Recursively modify function pointers in the param type.
+fn modify_function_pointer_param_type(param_type: &mut Type, callee_unconstrained: bool) {
+    let Type::Function(param_types, _, _, param_unconstrained) = param_type else {
+        return;
+    };
+
+    let limit_typ = ctx_limit_type_for_func_param(callee_unconstrained, *param_unconstrained);
+
+    // Add the limit to the function described in the parameter.
+    param_types.push(limit_typ);
+
+    // We need to recurse into the parameters of the function pointer.
+    modify_function_pointer_param_types(param_types, *param_unconstrained);
 }
 
 /// Go through the call arguments and update global function pointers to their
