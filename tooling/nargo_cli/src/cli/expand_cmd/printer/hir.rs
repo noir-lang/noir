@@ -684,24 +684,24 @@ impl ItemPrinter<'_, '_, '_> {
 
     fn show_hir_ident(&mut self, ident: HirIdent) {
         let definition = self.interner.definition(ident.id);
-        match &definition.kind {
+        match definition.kind {
             DefinitionKind::Function(func_id) => {
-                let func_meta = self.interner.function_meta(func_id);
+                let func_meta = self.interner.function_meta(&func_id);
                 if func_meta.self_type.is_some() && func_meta.self_type == self.self_type {
                     // No need to fully-qualify the function name if its self type is the current self type
-                    let name = self.interner.function_name(func_id);
+                    let name = self.interner.function_name(&func_id);
                     self.push_str("Self::");
                     self.push_str(name);
                 } else {
                     let use_import = true;
                     self.show_reference_to_module_def_id(
-                        ModuleDefId::FunctionId(*func_id),
+                        ModuleDefId::FunctionId(func_id),
                         use_import,
                     );
                 }
             }
             DefinitionKind::Global(global_id) => {
-                let global_info = self.interner.get_global(*global_id);
+                let global_info = self.interner.get_global(global_id);
                 let typ = self.interner.definition_type(global_info.definition_id);
 
                 // Special case: the global is an enum value
@@ -714,7 +714,7 @@ impl ItemPrinter<'_, '_, '_> {
                     }
                 }
                 let use_import = true;
-                self.show_reference_to_module_def_id(ModuleDefId::GlobalId(*global_id), use_import);
+                self.show_reference_to_module_def_id(ModuleDefId::GlobalId(global_id), use_import);
             }
             DefinitionKind::Local(..)
             | DefinitionKind::NumericGeneric(..)
