@@ -280,13 +280,14 @@ pub enum Instruction {
     EnableSideEffectsIf { condition: ValueId },
 
     /// Retrieve a value from an array at the given index
-    /// `offset` determines whether the index has been offseted by some offset.
-    ArrayGet { array: ValueId, index: ValueId, offset: ArrayGetOffset },
+    /// `offset` determines whether the index has been shifted by some offset.
+    ArrayGet { array: ValueId, index: ValueId, offset: ArrayOffset },
 
     /// Creates a new array with the new value at the given index. All other elements are identical
     /// to those in the given array. This will not modify the original array unless `mutable` is
     /// set. This flag is off by default and only enabled when optimizations determine it is safe.
-    ArraySet { array: ValueId, index: ValueId, value: ValueId, mutable: bool },
+    /// `offset` determines whether the index has been shifted by some offset.
+    ArraySet { array: ValueId, index: ValueId, value: ValueId, mutable: bool, offset: ArrayOffset },
 
     /// An instruction to increment the reference count of a value.
     ///
@@ -481,12 +482,15 @@ impl Instruction {
             Instruction::ArrayGet { array, index, offset } => {
                 Instruction::ArrayGet { array: f(*array), index: f(*index), offset: *offset }
             }
-            Instruction::ArraySet { array, index, value, mutable } => Instruction::ArraySet {
-                array: f(*array),
-                index: f(*index),
-                value: f(*value),
-                mutable: *mutable,
-            },
+            Instruction::ArraySet { array, index, value, mutable, offset } => {
+                Instruction::ArraySet {
+                    array: f(*array),
+                    index: f(*index),
+                    value: f(*value),
+                    mutable: *mutable,
+                    offset: *offset,
+                }
+            }
             Instruction::IncrementRc { value } => Instruction::IncrementRc { value: f(*value) },
             Instruction::DecrementRc { value } => Instruction::DecrementRc { value: f(*value) },
             Instruction::RangeCheck { value, max_bit_size, assert_message } => {
@@ -553,7 +557,7 @@ impl Instruction {
                 *array = f(*array);
                 *index = f(*index);
             }
-            Instruction::ArraySet { array, index, value, mutable: _ } => {
+            Instruction::ArraySet { array, index, value, mutable: _, offset: _ } => {
                 *array = f(*array);
                 *index = f(*index);
                 *value = f(*value);
@@ -619,7 +623,7 @@ impl Instruction {
                 f(*array);
                 f(*index);
             }
-            Instruction::ArraySet { array, index, value, mutable: _ } => {
+            Instruction::ArraySet { array, index, value, mutable: _, offset: _ } => {
                 f(*array);
                 f(*index);
                 f(*value);
@@ -648,17 +652,17 @@ impl Instruction {
     }
 }
 
-/// Determines whether an ArrayGet index has been offseted by a given value.
+/// Determines whether an ArrayGet or ArraySet index has been shifted by a given value.
 /// Offsets are set during `crate::ssa::opt::brillig_array_gets` for brillig arrays
-/// and vectors with constant indicces.
+/// and vectors with constant indices.
 #[derive(Debug, PartialEq, Eq, Hash, Copy, Clone, Serialize, Deserialize)]
-pub enum ArrayGetOffset {
+pub enum ArrayOffset {
     None,
     Array,
     Slice,
 }
 
-impl ArrayGetOffset {
+impl ArrayOffset {
     pub fn from_u32(value: u32) -> Option<Self> {
         match value {
             0 => Some(Self::None),
