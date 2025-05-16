@@ -1,11 +1,12 @@
 use std::future::{self, Future};
 
 use async_lsp::ResponseError;
-use fm::{FileId, FileMap, PathString};
-use lsp_types::{
+use async_lsp::lsp_types;
+use async_lsp::lsp_types::{
     InlayHint, InlayHintKind, InlayHintLabel, InlayHintLabelPart, InlayHintParams, Position, Range,
     TextDocumentPositionParams, TextEdit,
 };
+use fm::{FileId, FileMap, PathString};
 use noirc_errors::{Location, Span};
 use noirc_frontend::{
     self, Kind, Type, TypeBinding, TypeVariable,
@@ -464,6 +465,9 @@ fn push_type_parts(typ: &Type, parts: &mut Vec<InlayHintLabelPart>, files: &File
                     parts.push(string_part(", "));
                 }
             }
+            if types.len() == 1 {
+                parts.push(string_part(","));
+            }
             parts.push(string_part(")"));
         }
         Type::DataType(struct_type, generics) => {
@@ -608,7 +612,7 @@ mod inlay_hints_tests {
     };
 
     use super::*;
-    use lsp_types::{Range, TextDocumentIdentifier, WorkDoneProgressParams};
+    use async_lsp::lsp_types::{Range, TextDocumentIdentifier, WorkDoneProgressParams};
     use tokio::test;
 
     async fn get_inlay_hints(

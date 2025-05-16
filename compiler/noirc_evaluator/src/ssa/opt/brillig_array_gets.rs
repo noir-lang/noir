@@ -10,15 +10,13 @@
 //! is unnecessary as we already know the index. This pass looks for such array operations
 //! with constant indices and replaces their index with the appropriate offset.
 
-use fxhash::FxHashMap as HashMap;
-
 use crate::{
     brillig::brillig_ir::BRILLIG_MEMORY_ADDRESSING_BIT_SIZE,
     ssa::{
         Ssa,
         ir::{
             function::Function,
-            instruction::Instruction,
+            instruction::{ArrayGetOffset, Instruction},
             types::{NumericType, Type},
         },
     },
@@ -39,46 +37,35 @@ impl Ssa {
 
 impl Function {
     pub(super) fn brillig_array_gets(&mut self) {
-        let reachable_blocks = self.reachable_blocks();
-
-        let mut instructions_to_update = HashMap::default();
-        for block_id in reachable_blocks.into_iter() {
-            for instruction_id in self.dfg[block_id].instructions() {
-                if let Instruction::ArrayGet { array, index } = self.dfg[*instruction_id] {
-                    if self.dfg.is_constant(index) {
-                        instructions_to_update.insert(
-                            *instruction_id,
-                            (Instruction::ArrayGet { array, index }, block_id),
-                        );
-                    }
-                }
-            }
-        }
-
-        for (instruction_id, _) in instructions_to_update {
-            let new_instruction = match self.dfg[instruction_id] {
-                Instruction::ArrayGet { array, index } => {
-                    let index_constant =
-                        self.dfg.get_numeric_constant(index).expect("ICE: Expected constant index");
-                    let offset = if matches!(self.dfg.type_of_value(array), Type::Array(..)) {
-                        // Brillig arrays are [RC, ...items]
-                        1u128
-                    } else {
-                        // Brillig vectors are [RC, Size, Capacity, ...items]
-                        3u128
-                    };
-                    let index = self.dfg.make_constant(
-                        index_constant + offset.into(),
-                        NumericType::unsigned(BRILLIG_MEMORY_ADDRESSING_BIT_SIZE),
-                    );
-                    Instruction::ArrayGet { array, index }
-                }
-                _ => {
-                    continue;
-                }
+        self.simple_reachable_blocks_optimization(|context| {
+            let instruction = context.instruction();
+            let Instruction::ArrayGet { array, index, offset } = instruction else {
+                return;
             };
-            self.dfg[instruction_id] = new_instruction;
-        }
+
+            // This pass should run at most once
+            assert!(*offset == ArrayGetOffset::None);
+
+            let array = *array;
+            let index = *index;
+            if !context.dfg.is_constant(index) {
+                return;
+            }
+
+            let index_constant =
+                context.dfg.get_numeric_constant(index).expect("ICE: Expected constant index");
+            let offset = if matches!(context.dfg.type_of_value(array), Type::Array(..)) {
+                ArrayGetOffset::Array
+            } else {
+                ArrayGetOffset::Slice
+            };
+            let index = context.dfg.make_constant(
+                index_constant + offset.to_u32().into(),
+                NumericType::unsigned(BRILLIG_MEMORY_ADDRESSING_BIT_SIZE),
+            );
+            let new_instruction = Instruction::ArrayGet { array, index, offset };
+            context.replace_current_instruction_with(new_instruction);
+        });
     }
 }
 
@@ -104,7 +91,7 @@ mod tests {
         assert_ssa_snapshot!(ssa, @r"
         brillig(inline) fn main f0 {
           b0(v0: [Field; 3]):
-            v2 = array_get v0, index u32 1 -> Field
+            v2 = array_get v0, index u32 1 minus 1 -> Field
             return v2
         }
         ");
@@ -156,7 +143,7 @@ mod tests {
         assert_ssa_snapshot!(ssa, @r"
         brillig(inline) fn main f0 {
           b0(v0: [Field]):
-            v2 = array_get v0, index u32 3 -> Field
+            v2 = array_get v0, index u32 3 minus 3 -> Field
             return v2
         }
         ");

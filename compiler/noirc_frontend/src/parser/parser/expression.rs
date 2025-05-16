@@ -251,7 +251,11 @@ impl Parser<'_> {
             return (atom, false);
         }
 
-        let typ = self.parse_type_or_error();
+        // Here we don't allow generics on a type so that `x as u8 < 3` parses without error.
+        // In Rust the above is a syntax error as `u8<` would denote a generic type.
+        // In Noir it's unlikely we'd want generic types in casts and, to avoid a breaking change,
+        // we disallow generics in that position.
+        let typ = self.parse_type_or_error_without_generics();
         let kind = ExpressionKind::Cast(Box::new(CastExpression { lhs: atom, r#type: typ }));
         let location = self.location_since(start_location);
         let atom = Expression { kind, location };
@@ -1015,6 +1019,7 @@ impl Parser<'_> {
 
 #[cfg(test)]
 mod tests {
+    use insta::assert_snapshot;
     use strum::IntoEnumIterator;
 
     use crate::{
@@ -1281,7 +1286,7 @@ mod tests {
         let mut parser = Parser::for_str_with_dummy_file(&src);
         parser.parse_expression();
         let error = get_single_error(&parser.errors, span);
-        assert_eq!(error.to_string(), "Expected an expression but found end of input");
+        assert_snapshot!(error.to_string(), @"Expected an expression but found end of input");
     }
 
     #[test]
@@ -1653,7 +1658,7 @@ mod tests {
         let expr = parser.parse_expression_or_error();
 
         let error = get_single_error(&parser.errors, span);
-        assert_eq!(error.to_string(), "Expected a ':' but found '='");
+        assert_snapshot!(error.to_string(), @"Expected a ':' but found '='");
 
         let ExpressionKind::Constructor(mut constructor) = expr.kind else {
             panic!("Expected constructor");
@@ -1681,7 +1686,7 @@ mod tests {
         let expr = parser.parse_expression_or_error();
 
         let error = get_single_error(&parser.errors, span);
-        assert_eq!(error.to_string(), "Expected a ':' but found '::'");
+        assert_snapshot!(error.to_string(), @"Expected a ':' but found '::'");
 
         let ExpressionKind::Constructor(mut constructor) = expr.kind else {
             panic!("Expected constructor");
@@ -1719,7 +1724,7 @@ mod tests {
         assert_eq!(expr.to_string(), "1");
 
         let error = get_single_error(&parser.errors, span);
-        assert_eq!(error.to_string(), "Expected an identifier but found '2'");
+        assert_snapshot!(error.to_string(), @"Expected an identifier but found '2'");
     }
 
     #[test]
@@ -1747,7 +1752,7 @@ mod tests {
         assert_eq!(expr.to_string(), "2");
 
         let error = get_single_error(&parser.errors, span);
-        assert_eq!(error.to_string(), "Expected an identifier but found '2'");
+        assert_snapshot!(error.to_string(), @"Expected an identifier but found '2'");
     }
 
     #[test]
@@ -1821,7 +1826,26 @@ mod tests {
         let mut parser = Parser::for_str_with_dummy_file(&src);
         parser.parse_expression();
         let error = get_single_error(&parser.errors, span);
-        assert_eq!(error.to_string(), "Expected a type but found end of input");
+        assert_snapshot!(error.to_string(), @"Expected a type but found end of input");
+    }
+
+    #[test]
+    fn parses_cast_comparison() {
+        // Note: in Rust this is a syntax error because `u8 <` is parsed as a generic type reference.
+        // In Noir we allow this syntax, for now, mainly to avoid a breaking change and because
+        // it's unlikely we'd want generic types in this context.
+        let src = "1 as u8 < 3";
+        let expr = parse_expression_no_errors(src);
+        let ExpressionKind::Infix(infix_expr) = expr.kind else {
+            panic!("Expected infix");
+        };
+        let ExpressionKind::Cast(cast_expr) = infix_expr.lhs.kind else {
+            panic!("Expected cast");
+        };
+        assert_eq!(cast_expr.lhs.to_string(), "1");
+        assert_eq!(cast_expr.r#type.to_string(), "u8");
+
+        assert_eq!(infix_expr.rhs.to_string(), "3");
     }
 
     #[test]
@@ -1942,7 +1966,7 @@ mod tests {
 
         let (pattern, typ) = lambda.parameters.remove(0);
         assert_eq!(pattern.to_string(), "y");
-        assert!(matches!(typ.typ, UnresolvedTypeData::FieldElement));
+        assert_eq!(typ.typ.to_string(), "Field");
     }
 
     #[test]
@@ -1954,7 +1978,7 @@ mod tests {
         };
         assert!(lambda.parameters.is_empty());
         assert_eq!(lambda.body.to_string(), "1");
-        assert!(matches!(lambda.return_type.typ, UnresolvedTypeData::FieldElement));
+        assert_eq!(lambda.return_type.typ.to_string(), "Field");
     }
 
     #[test]
@@ -1978,30 +2002,6 @@ mod tests {
             panic!("Expected comptime block");
         };
         assert_eq!(block.statements.len(), 1);
-    }
-
-    #[test]
-    fn parses_type_path() {
-        let src = "Field::foo";
-        let expr = parse_expression_no_errors(src);
-        let ExpressionKind::TypePath(type_path) = expr.kind else {
-            panic!("Expected type_path");
-        };
-        assert_eq!(type_path.typ.to_string(), "Field");
-        assert_eq!(type_path.item.to_string(), "foo");
-        assert!(type_path.turbofish.is_none());
-    }
-
-    #[test]
-    fn parses_type_path_with_generics() {
-        let src = "Field::foo::<T>";
-        let expr = parse_expression_no_errors(src);
-        let ExpressionKind::TypePath(type_path) = expr.kind else {
-            panic!("Expected type_path");
-        };
-        assert_eq!(type_path.typ.to_string(), "Field");
-        assert_eq!(type_path.item.to_string(), "foo");
-        assert!(type_path.turbofish.is_some());
     }
 
     #[test]
@@ -2079,22 +2079,6 @@ mod tests {
 
         let reason = get_single_error_reason(&parser.errors, span);
         assert!(matches!(reason, ParserErrorReason::MissingAngleBrackets));
-    }
-
-    #[test]
-    fn parses_primitive_type_errors() {
-        let src = "
-        Field
-        ^^^^^
-        ";
-        let (src, span) = get_source_with_error_span(src);
-        let mut parser = Parser::for_str_with_dummy_file(&src);
-        let expr = parser.parse_expression_or_error();
-        let ExpressionKind::Error = expr.kind else {
-            panic!("Expected error");
-        };
-        let reason = get_single_error_reason(&parser.errors, span);
-        assert_eq!(reason.to_string(), "Expected value, found built-in type `Field`");
     }
 
     #[test]

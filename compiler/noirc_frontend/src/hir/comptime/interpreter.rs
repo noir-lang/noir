@@ -2,7 +2,6 @@ use std::collections::VecDeque;
 use std::{collections::hash_map::Entry, rc::Rc};
 
 use acvm::blackbox_solver::BigIntSolverWithId;
-use acvm::{FieldElement, acir::AcirField};
 use im::Vector;
 use iter_extended::try_vecmap;
 use noirc_errors::Location;
@@ -45,6 +44,7 @@ use super::errors::{IResult, InterpreterError};
 use super::value::{Closure, Value, unwrap_rc};
 
 mod builtin;
+mod cast;
 mod foreign;
 mod infix;
 mod unquote;
@@ -858,9 +858,9 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
 
         use BinaryOpKind::*;
         let less_or_greater = if matches!(operator, Less | GreaterEqual) {
-            FieldElement::zero() // Ordering::Less
+            SignedField::zero() // Ordering::Less
         } else {
-            2u128.into() // Ordering::Greater
+            SignedField::positive(2u128) // Ordering::Greater
         };
 
         if matches!(operator, Less | Greater) {
@@ -997,7 +997,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
     fn evaluate_cast(&mut self, cast: &HirCastExpression, id: ExprId) -> IResult<Value> {
         let evaluated_lhs = self.evaluate(cast.lhs)?;
         let location = self.elaborator.interner.expr_location(&id);
-        evaluate_cast_one_step(&cast.r#type, location, evaluated_lhs)
+        cast::evaluate_cast_one_step(&cast.r#type, location, evaluated_lhs)
     }
 
     fn evaluate_if(&mut self, if_: HirIfExpression, id: ExprId) -> IResult<Value> {
@@ -1110,7 +1110,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
     fn store_lvalue(&mut self, lvalue: HirLValue, rhs: Value) -> IResult<()> {
         match lvalue {
             HirLValue::Ident(ident, typ) => self.mutate(ident.id, rhs, ident.location),
-            HirLValue::Dereference { lvalue, element_type: _, location } => {
+            HirLValue::Dereference { lvalue, element_type: _, location, implicitly_added: _ } => {
                 match self.evaluate_lvalue(&lvalue)? {
                     Value::Pointer(value, _, _) => {
                         *value.borrow_mut() = rhs;
@@ -1171,7 +1171,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
                 Value::Pointer(elem, true, _) => Ok(elem.borrow().clone()),
                 other => Ok(other),
             },
-            HirLValue::Dereference { lvalue, element_type, location } => {
+            HirLValue::Dereference { lvalue, element_type, location, implicitly_added: _ } => {
                 match self.evaluate_lvalue(lvalue)? {
                     Value::Pointer(value, _, _) => Ok(value.borrow().clone()),
                     value => {
@@ -1210,44 +1210,62 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
     }
 
     fn evaluate_for(&mut self, for_: HirForStatement) -> IResult<Value> {
-        // i128 can store all values from i8 - u64
-        let get_index = |this: &mut Self, expr| -> IResult<(_, fn(_) -> _)> {
-            match this.evaluate(expr)? {
-                Value::I8(value) => Ok((value as i128, |i| Value::I8(i as i8))),
-                Value::I16(value) => Ok((value as i128, |i| Value::I16(i as i16))),
-                Value::I32(value) => Ok((value as i128, |i| Value::I32(i as i32))),
-                Value::I64(value) => Ok((value as i128, |i| Value::I64(i as i64))),
-                Value::U8(value) => Ok((value as i128, |i| Value::U8(i as u8))),
-                Value::U16(value) => Ok((value as i128, |i| Value::U16(i as u16))),
-                Value::U32(value) => Ok((value as i128, |i| Value::U32(i as u32))),
-                Value::U64(value) => Ok((value as i128, |i| Value::U64(i as u64))),
-                value => {
-                    let location = this.elaborator.interner.expr_location(&expr);
-                    let typ = value.get_type().into_owned();
-                    Err(InterpreterError::NonIntegerUsedInLoop { typ, location })
-                }
-            }
-        };
+        let start_value = self.evaluate(for_.start_range)?;
+        let end_value = self.evaluate(for_.end_range)?;
+        let loop_index_type = start_value.get_type();
 
-        let (start, make_value) = get_index(self, for_.start_range)?;
-        let (end, _) = get_index(self, for_.end_range)?;
+        if loop_index_type.is_signed() {
+            let get_index = match start_value {
+                Value::I8(_) => |i| Value::I8(i as i8),
+                Value::I16(_) => |i| Value::I16(i as i16),
+                Value::I32(_) => |i| Value::I32(i as i32),
+                Value::I64(_) => |i| Value::I64(i as i64),
+                value => unreachable!("Checked above that value is signed type"),
+            };
+
+            // i128 can store all values from i8 - u64
+            let start = to_i128(start_value).expect("Checked above that value is signed type");
+            let end = to_i128(end_value).expect("Checked above that value is signed type");
+
+            self.evaluate_for_loop(start..end, get_index, for_.identifier.id, for_.block)
+        } else if loop_index_type.is_unsigned() {
+            let get_index = match start_value {
+                Value::U8(_) => |i| Value::U8(i as u8),
+                Value::U16(_) => |i| Value::U16(i as u16),
+                Value::U32(_) => |i| Value::U32(i as u32),
+                Value::U64(_) => |i| Value::U64(i as u64),
+                Value::U128(_) => |i| Value::U128(i),
+                _ => unreachable!("Checked above that value is unsigned type"),
+            };
+
+            // u128 can store all values from u8 - u128
+            let start = to_u128(start_value).expect("Checked above that value is unsigned type");
+            let end = to_u128(end_value).expect("Checked above that value is unsigned type");
+
+            self.evaluate_for_loop(start..end, get_index, for_.identifier.id, for_.block)
+        } else {
+            let location = self.elaborator.interner.expr_location(&for_.start_range);
+            let typ = loop_index_type.into_owned();
+            Err(InterpreterError::NonIntegerUsedInLoop { typ, location })
+        }
+    }
+
+    fn evaluate_for_loop<T>(
+        &mut self,
+        range_iterator: impl Iterator<Item = T>,
+        get_index: fn(T) -> Value,
+        index_id: DefinitionId,
+        block: ExprId,
+    ) -> IResult<Value> {
         let was_in_loop = std::mem::replace(&mut self.in_loop, true);
 
         let mut result = Ok(Value::Unit);
 
-        for i in start..end {
+        for i in range_iterator {
             self.push_scope();
-            self.current_scope_mut().insert(for_.identifier.id, make_value(i));
+            self.current_scope_mut().insert(index_id, get_index(i));
 
-            let must_break = match self.evaluate(for_.block) {
-                Ok(_) => false,
-                Err(InterpreterError::Break) => true,
-                Err(InterpreterError::Continue) => false,
-                Err(error) => {
-                    result = Err(error);
-                    true
-                }
-            };
+            let must_break = self.evaluate_loop_body(block, &mut result);
 
             self.pop_scope();
 
@@ -1269,15 +1287,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
         loop {
             self.push_scope();
 
-            let must_break = match self.evaluate(expr) {
-                Ok(_) => false,
-                Err(InterpreterError::Break) => true,
-                Err(InterpreterError::Continue) => false,
-                Err(error) => {
-                    result = Err(error);
-                    true
-                }
-            };
+            let must_break = self.evaluate_loop_body(expr, &mut result);
 
             self.pop_scope();
 
@@ -1318,16 +1328,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
 
             self.push_scope();
 
-            let must_break = match self.evaluate(block) {
-                Ok(_) => false,
-                Err(InterpreterError::Break) => true,
-                Err(InterpreterError::Continue) => false,
-                Err(error) => {
-                    result = Err(error);
-                    true
-                }
-            };
-
+            let must_break = self.evaluate_loop_body(block, &mut result);
             self.pop_scope();
 
             if must_break {
@@ -1344,6 +1345,18 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
 
         self.in_loop = was_in_loop;
         result
+    }
+
+    fn evaluate_loop_body(&mut self, body: ExprId, result: &mut IResult<Value>) -> bool {
+        match self.evaluate(body) {
+            Ok(_) => false,
+            Err(InterpreterError::Break) => true,
+            Err(InterpreterError::Continue) => false,
+            Err(error) => {
+                *result = Err(error);
+                true
+            }
+        }
     }
 
     fn evaluate_break(&mut self, id: StmtId) -> IResult<Value> {
@@ -1398,7 +1411,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
 
 fn evaluate_integer(typ: Type, value: SignedField, location: Location) -> IResult<Value> {
     if let Type::FieldElement = &typ {
-        Ok(Value::Field(value.into()))
+        Ok(Value::Field(value))
     } else if let Type::Integer(sign, bit_size) = &typ {
         match (sign, bit_size) {
             (Signedness::Unsigned, IntegerBitSize::One) => {
@@ -1467,7 +1480,7 @@ fn evaluate_integer(typ: Type, value: SignedField, location: Location) -> IResul
         }
     } else if let Type::TypeVariable(variable) = &typ {
         if variable.is_integer_or_field() {
-            Ok(Value::Field(value.into()))
+            Ok(Value::Field(value))
         } else if variable.is_integer() {
             let value = value
                 .try_to_unsigned()
@@ -1478,98 +1491,6 @@ fn evaluate_integer(typ: Type, value: SignedField, location: Location) -> IResul
         }
     } else {
         Err(InterpreterError::NonIntegerIntegerLiteral { typ, location })
-    }
-}
-
-/// evaluate_cast without recursion
-fn evaluate_cast_one_step(typ: &Type, location: Location, evaluated_lhs: Value) -> IResult<Value> {
-    macro_rules! signed_int_to_field {
-        ($x:expr) => {{
-            // Need to convert the signed integer to an i128 before
-            // we negate it to preserve the MIN value.
-            let mut value = $x as i128;
-            let is_negative = value < 0;
-            if is_negative {
-                value = -value;
-            }
-            ((value as u128).into(), is_negative)
-        }};
-    }
-
-    let (mut lhs, lhs_is_negative) = match evaluated_lhs {
-        Value::Field(value) => (value, false),
-        Value::U1(value) => ((value as u128).into(), false),
-        Value::U8(value) => ((value as u128).into(), false),
-        Value::U16(value) => ((value as u128).into(), false),
-        Value::U32(value) => ((value as u128).into(), false),
-        Value::U64(value) => ((value as u128).into(), false),
-        Value::I8(value) => signed_int_to_field!(value),
-        Value::I16(value) => signed_int_to_field!(value),
-        Value::I32(value) => signed_int_to_field!(value),
-        Value::I64(value) => signed_int_to_field!(value),
-        Value::Bool(value) => {
-            (if value { FieldElement::one() } else { FieldElement::zero() }, false)
-        }
-        value => {
-            let typ = value.get_type().into_owned();
-            return Err(InterpreterError::NonNumericCasted { typ, location });
-        }
-    };
-
-    macro_rules! cast_to_int {
-        ($x:expr, $method:ident, $typ:ty, $f:ident) => {{
-            let mut value = $x.$method() as $typ;
-            if lhs_is_negative {
-                value = 0 - value;
-            }
-            Ok(Value::$f(value))
-        }};
-    }
-
-    // Now actually cast the lhs, bit casting and wrapping as necessary
-    match typ.follow_bindings() {
-        Type::FieldElement => {
-            if lhs_is_negative {
-                lhs = FieldElement::zero() - lhs;
-            }
-            Ok(Value::Field(lhs))
-        }
-        Type::Integer(sign, bit_size) => match (sign, bit_size) {
-            (Signedness::Unsigned, IntegerBitSize::One) => {
-                Err(InterpreterError::TypeUnsupported { typ: typ.clone(), location })
-            }
-            (Signedness::Unsigned, IntegerBitSize::Eight) => cast_to_int!(lhs, to_u128, u8, U8),
-            (Signedness::Unsigned, IntegerBitSize::Sixteen) => {
-                cast_to_int!(lhs, to_u128, u16, U16)
-            }
-            (Signedness::Unsigned, IntegerBitSize::ThirtyTwo) => {
-                cast_to_int!(lhs, to_u128, u32, U32)
-            }
-            (Signedness::Unsigned, IntegerBitSize::SixtyFour) => {
-                cast_to_int!(lhs, to_u128, u64, U64)
-            }
-            (Signedness::Unsigned, IntegerBitSize::HundredTwentyEight) => {
-                cast_to_int!(lhs, to_u128, u128, U128)
-            }
-            (Signedness::Signed, IntegerBitSize::One) => {
-                Err(InterpreterError::TypeUnsupported { typ: typ.clone(), location })
-            }
-            (Signedness::Signed, IntegerBitSize::Eight) => cast_to_int!(lhs, to_i128, i8, I8),
-            (Signedness::Signed, IntegerBitSize::Sixteen) => {
-                cast_to_int!(lhs, to_i128, i16, I16)
-            }
-            (Signedness::Signed, IntegerBitSize::ThirtyTwo) => {
-                cast_to_int!(lhs, to_i128, i32, I32)
-            }
-            (Signedness::Signed, IntegerBitSize::SixtyFour) => {
-                cast_to_int!(lhs, to_i128, i64, I64)
-            }
-            (Signedness::Signed, IntegerBitSize::HundredTwentyEight) => {
-                todo!()
-            }
-        },
-        Type::Bool => Ok(Value::Bool(!lhs.is_zero() || lhs_is_negative)),
-        typ => Err(InterpreterError::CastToNonNumericType { typ, location }),
     }
 }
 
@@ -1587,7 +1508,8 @@ fn bounds_check(array: Value, index: Value, location: Location) -> IResult<(Vect
 
     let index = match index {
         Value::Field(value) => {
-            value.try_to_u64().and_then(|value| value.try_into().ok()).ok_or_else(|| {
+            let u64: Option<u64> = value.try_to_unsigned();
+            u64.and_then(|value| value.try_into().ok()).ok_or_else(|| {
                 let typ = Type::default_int_type();
                 let value = SignedField::positive(value);
                 InterpreterError::IntegerOutOfRangeForType { value, typ, location }
@@ -1618,7 +1540,7 @@ fn bounds_check(array: Value, index: Value, location: Location) -> IResult<(Vect
 fn evaluate_prefix_with_value(rhs: Value, operator: UnaryOp, location: Location) -> IResult<Value> {
     match operator {
         UnaryOp::Minus => match rhs {
-            Value::Field(value) => Ok(Value::Field(FieldElement::zero() - value)),
+            Value::Field(value) => Ok(Value::Field(-value)),
             Value::I8(value) => Ok(Value::I8(-value)),
             Value::I16(value) => Ok(Value::I16(-value)),
             Value::I32(value) => Ok(Value::I32(-value)),
@@ -1627,6 +1549,7 @@ fn evaluate_prefix_with_value(rhs: Value, operator: UnaryOp, location: Location)
             Value::U16(value) => Ok(Value::U16(0 - value)),
             Value::U32(value) => Ok(Value::U32(0 - value)),
             Value::U64(value) => Ok(Value::U64(0 - value)),
+            Value::U128(value) => Ok(Value::U128(0 - value)),
             value => {
                 let operator = "minus";
                 let typ = value.get_type().into_owned();
@@ -1643,6 +1566,7 @@ fn evaluate_prefix_with_value(rhs: Value, operator: UnaryOp, location: Location)
             Value::U16(value) => Ok(Value::U16(!value)),
             Value::U32(value) => Ok(Value::U32(!value)),
             Value::U64(value) => Ok(Value::U64(!value)),
+            Value::U128(value) => Ok(Value::U128(!value)),
             value => {
                 let typ = value.get_type().into_owned();
                 Err(InterpreterError::InvalidValueForUnary { typ, location, operator: "not" })
@@ -1664,5 +1588,26 @@ fn evaluate_prefix_with_value(rhs: Value, operator: UnaryOp, location: Location)
                 Err(InterpreterError::NonPointerDereferenced { typ, location })
             }
         },
+    }
+}
+
+fn to_u128(value: Value) -> Option<u128> {
+    match value {
+        Value::U8(value) => Some(value as u128),
+        Value::U16(value) => Some(value as u128),
+        Value::U32(value) => Some(value as u128),
+        Value::U64(value) => Some(value as u128),
+        Value::U128(value) => Some(value),
+        _ => None,
+    }
+}
+
+fn to_i128(value: Value) -> Option<i128> {
+    match value {
+        Value::I8(value) => Some(value as i128),
+        Value::I16(value) => Some(value as i128),
+        Value::I32(value) => Some(value as i128),
+        Value::I64(value) => Some(value as i128),
+        _ => None,
     }
 }

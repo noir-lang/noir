@@ -40,7 +40,7 @@ fn test_empty_brillig_function() {
 
 #[test]
 fn test_return_integer() {
-    for typ in ["u1", "u8", "u16", "u32", "u64", "i1", "i8", "i16", "i32", "i64", "Field"] {
+    for typ in ["u1", "u8", "u16", "u32", "u64", "i8", "i16", "i32", "i64", "Field"] {
         let src = format!(
             "
             acir(inline) fn main f0 {{
@@ -84,6 +84,19 @@ fn test_make_composite_array() {
           b0():
             v2 = make_array [Field 1, Field 2] : [(Field, Field); 1]
             return v2
+        }
+        ";
+    assert_ssa_roundtrip(src);
+}
+
+#[test]
+fn test_make_composite_slice() {
+    let src = "
+        acir(inline) predicate_pure fn main f0 {
+          b0():
+            v2 = make_array [Field 2, Field 3] : [Field; 2]
+            v4 = make_array [Field 1, v2] : [(Field, [Field; 2])]
+            return v4
         }
         ";
     assert_ssa_roundtrip(src);
@@ -322,6 +335,30 @@ fn test_array_get() {
         acir(inline) fn main f0 {
           b0(v0: [Field; 3]):
             v2 = array_get v0, index Field 0 -> Field
+            return
+        }
+        ";
+    assert_ssa_roundtrip(src);
+}
+
+#[test]
+fn test_array_get_offseted_by_1() {
+    let src: &'static str = "
+        acir(inline) fn main f0 {
+          b0(v0: [Field; 3]):
+            v2 = array_get v0, index Field 3 minus 1 -> Field
+            return
+        }
+        ";
+    assert_ssa_roundtrip(src);
+}
+
+#[test]
+fn test_array_get_offseted_by_3() {
+    let src: &'static str = "
+        acir(inline) fn main f0 {
+          b0(v0: [Field; 3]):
+            v2 = array_get v0, index Field 6 minus 3 -> Field
             return
         }
         ";
@@ -618,6 +655,57 @@ fn test_parses_if_else() {
           b0(v0: u1, v1: u1):
             v4 = if v0 then Field 1 else (if v1) Field 2
             return v4
+        }
+        ";
+    assert_ssa_roundtrip(src);
+}
+
+#[test]
+fn test_parses_keyword_in_function_name() {
+    let src = "
+        acir(inline) fn add f0 {
+          b0():
+            return
+        }
+        ";
+    assert_ssa_roundtrip(src);
+}
+
+#[test]
+#[should_panic = "Attempt to modulo fields"]
+fn regression_modulo_fields_brillig() {
+    use crate::brillig::BrilligOptions;
+
+    let src = "
+        brillig(inline) predicate_pure fn main f0 {
+          b0(v0: Field, v1: Field):
+            v2 = mod v0, v1
+            return v2
+        }
+        ";
+    let ssa = Ssa::from_str(src).unwrap();
+    ssa.to_brillig(&BrilligOptions::default());
+}
+
+#[test]
+fn test_parses_nop() {
+    let src = "
+        acir(inline) fn add f0 {
+          b0():
+            nop
+            return
+        }
+        ";
+    assert_ssa_roundtrip(src);
+}
+
+#[test]
+fn test_parses_print() {
+    let src = "
+        brillig(inline) impure fn main f0 {
+          b0():
+            call print()
+            return
         }
         ";
     assert_ssa_roundtrip(src);

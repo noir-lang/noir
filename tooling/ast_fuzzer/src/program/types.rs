@@ -35,6 +35,21 @@ pub(crate) fn can_be_global(typ: &Type) -> bool {
     )
 }
 
+/// Check if a type can be used in the `main` function.
+///
+/// We decided we will avoid 0 length arrays in the main inputs and outputs, because we don't generate
+/// witnesses for them anyway, and they are tricky to handle consistently when they can be regular inputs
+/// as well as part of the databus. They are not expected in real programs as they don't do anything useful.
+pub(crate) fn can_be_main(typ: &Type) -> bool {
+    match typ {
+        Type::String(size) => *size > 0,
+        Type::Array(size, typ) => *size > 0 && can_be_main(typ),
+        Type::Tuple(types) => types.iter().all(can_be_main),
+        Type::Bool | Type::Field | Type::Integer(_, _) => true,
+        _ => false,
+    }
+}
+
 /// Collect all the sub-types produced by a type.
 ///
 /// It's like a _power set_ of the type.
@@ -78,6 +93,14 @@ pub(crate) fn types_produced(typ: &Type) -> HashSet<Type> {
                 for size in IntegerBitSize::iter()
                     .filter(|size| size.bit_size() > integer_bit_size.bit_size())
                 {
+                    // We don't want to produce `i1` or `i128`
+                    if sign.is_signed()
+                        && (size == IntegerBitSize::One
+                            || size == IntegerBitSize::HundredTwentyEight)
+                    {
+                        continue;
+                    }
+
                     acc.insert(Type::Integer(*sign, size));
                 }
                 // There are `From<u*>` for Field
@@ -195,6 +218,22 @@ pub(crate) fn can_binary_op_return(op: &BinaryOp, typ: &Type) -> bool {
     }
 }
 
+/// Can the binary operation result in an overflow.
+/// These are operations that commonly fail with random constants.
+pub(crate) fn can_binary_op_overflow(op: &BinaryOp) -> bool {
+    use BinaryOpKind::*;
+    matches!(op, Add | Subtract | Multiply | ShiftLeft)
+}
+
+/// Can the binary operation fail because the RHS is zero.
+/// These operations can fail because of an unfortunate combination of
+/// expressions, such as `a / (a % a)` or `a % (a % a)`, but it's less
+/// like to occur than the overflows.
+pub(crate) fn can_binary_op_err_by_zero(op: &BinaryOp) -> bool {
+    use BinaryOpKind::*;
+    matches!(op, Divide | Modulo)
+}
+
 /// Check if a certain binary operation can take a type as input and produce the target output.
 pub(crate) fn can_binary_op_return_from_input(op: &BinaryOp, input: &Type, output: &Type) -> bool {
     match (input, output) {
@@ -215,10 +254,15 @@ pub(crate) fn can_binary_op_return_from_input(op: &BinaryOp, input: &Type, outpu
             // i128 is not a type a user can define, and the truncation that gets added after binary operations to
             // limit it to 129 bits results in division by zero during compilation.
             (op.is_arithmetic() && size != 1 && size != 128 && size_in <= size_out)
-                || op.is_bitshift() && size != 128
+                || op.is_bitshift() && size != 128 && !(size == 1 && sign_in.is_signed())
                 || op.is_bitwise()
         }
         (Type::Reference(typ, _), _) => can_binary_op_return_from_input(op, typ, output),
         _ => false,
     }
+}
+
+/// Reference an expression into a target type
+pub(crate) fn ref_mut(typ: Type) -> Type {
+    Type::Reference(Box::new(typ), true)
 }

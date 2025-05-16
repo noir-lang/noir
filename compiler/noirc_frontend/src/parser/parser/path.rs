@@ -176,6 +176,10 @@ impl Parser<'_> {
             PathKind::Dep
         } else if self.eat_keyword(Keyword::Super) {
             PathKind::Super
+        } else if let Token::InternedCrate(crate_id) = self.token.token() {
+            let crate_id = *crate_id;
+            self.bump();
+            PathKind::Resolved(crate_id)
         } else {
             PathKind::Plain
         };
@@ -218,6 +222,8 @@ impl Parser<'_> {
 
 #[cfg(test)]
 mod tests {
+
+    use insta::assert_snapshot;
 
     use crate::{
         ast::{Path, PathKind},
@@ -352,6 +358,6 @@ mod tests {
         assert!(path.is_none());
 
         let error = get_single_error(&parser.errors, span);
-        assert_eq!(error.to_string(), "Expected an identifier but found end of input");
+        assert_snapshot!(error.to_string(), @"Expected an identifier but found end of input");
     }
 }

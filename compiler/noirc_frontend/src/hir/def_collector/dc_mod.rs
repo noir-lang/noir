@@ -16,9 +16,10 @@ use crate::ast::{
     NoirTypeAlias, Pattern, TraitImplItemKind, TraitItem, TypeImpl, UnresolvedType,
     UnresolvedTypeData, desugar_generic_trait_bounds,
 };
+use crate::elaborator::PrimitiveType;
 use crate::hir::resolution::errors::ResolverError;
 use crate::node_interner::{ModuleAttributes, NodeInterner, ReferenceId, TypeId};
-use crate::token::SecondaryAttribute;
+use crate::token::{SecondaryAttribute, TestScope};
 use crate::usage_tracker::{UnusedItem, UsageTracker};
 use crate::{Generics, Kind, ResolvedGeneric, Type, TypeVariable};
 use crate::{
@@ -450,6 +451,8 @@ impl ModCollector<'_> {
             let mut trait_definition = trait_definition.item;
             let name = trait_definition.name.clone();
             let location = trait_definition.location;
+            let has_allow_dead_code =
+                trait_definition.attributes.iter().any(|attr| attr.kind.is_allow("dead_code"));
 
             // Create the corresponding module for the trait namespace
             let trait_id = match self.push_child_module(
@@ -481,12 +484,14 @@ impl ModCollector<'_> {
             );
 
             let parent_module_id = ModuleId { krate, local_id: self.module_id };
-            context.usage_tracker.add_unused_item(
-                parent_module_id,
-                name.clone(),
-                UnusedItem::Trait(trait_id),
-                visibility,
-            );
+            if !has_allow_dead_code {
+                context.usage_tracker.add_unused_item(
+                    parent_module_id,
+                    name.clone(),
+                    UnusedItem::Trait(trait_id),
+                    visibility,
+                );
+            }
 
             if let Err((first_def, second_def)) = result {
                 let error = DefCollectorErrorKind::Duplicate {
@@ -888,16 +893,23 @@ impl ModCollector<'_> {
         typ: &UnresolvedType,
         errors: &mut Vec<CompilationError>,
     ) -> Type {
-        match &typ.typ {
-            UnresolvedTypeData::FieldElement => Type::FieldElement,
-            UnresolvedTypeData::Integer(sign, bits) => Type::Integer(*sign, *bits),
-            _ => {
-                let error =
-                    ResolverError::AssociatedConstantsMustBeNumeric { location: typ.location };
-                errors.push(error.into());
-                Type::Error
+        // TODO: delay this to the Elaborator
+        // See https://github.com/noir-lang/noir/issues/8504
+        if let UnresolvedTypeData::Named(path, _generics, _) = &typ.typ {
+            if path.segments.len() == 1 {
+                if let Some(primitive_type) =
+                    PrimitiveType::lookup_by_name(path.segments[0].ident.as_str())
+                {
+                    if let Some(typ) = primitive_type.to_integer_or_field() {
+                        return typ;
+                    }
+                }
             }
         }
+
+        let error = ResolverError::AssociatedConstantsMustBeNumeric { location: typ.location };
+        errors.push(error.into());
+        Type::Error
     }
 }
 
@@ -1005,30 +1017,63 @@ pub fn collect_function(
 
     let module_data = &mut def_map[module.local_id];
 
-    let is_test = function.def.attributes.is_test_function();
-    let is_fuzzing_harness = function.def.attributes.is_fuzzing_harness();
+    let test_attribute = function.def.attributes.as_test_function();
+    let is_test = test_attribute.is_some();
+    let fuzz_attribute = function.def.attributes.as_fuzzing_harness();
+    let is_fuzzing_harness = fuzz_attribute.is_some();
     let is_entry_point_function = if module_data.is_contract {
         function.attributes().is_contract_entry_point()
     } else {
         function.name() == MAIN_FUNCTION
     };
     let has_export = function.def.attributes.has_export();
+    let has_allow_dead_code = function.def.attributes.has_allow("dead_code");
 
     let name = function.name_ident().clone();
     let func_id = interner.push_empty_fn();
     let visibility = function.def.visibility;
     let location = function.location();
     interner.push_function(func_id, &function.def, module, location);
-    if interner.is_in_lsp_mode() && !function.def.is_test() {
+    if interner.is_in_lsp_mode() && !function.def.attributes.is_test_function() {
         interner.register_function(func_id, &function.def);
     }
 
-    if !is_test && !is_fuzzing_harness && !is_entry_point_function && !has_export {
+    if is_entry_point_function {
+        if let Some(generic) = function.def.generics.first() {
+            let name = name.to_string();
+            let location = generic.location();
+            let error = DefCollectorErrorKind::EntryPointWithGenerics { name, location };
+            errors.push(error.into());
+        }
+    }
+
+    if !is_test
+        && !is_fuzzing_harness
+        && !is_entry_point_function
+        && !has_export
+        && !has_allow_dead_code
+    {
         let item = UnusedItem::Function(func_id);
         usage_tracker.add_unused_item(module, name.clone(), item, visibility);
     }
 
     interner.set_doc_comments(ReferenceId::Function(func_id), doc_comments);
+
+    if let Some((test_scope, location)) = test_attribute {
+        if function.def.parameters.is_empty()
+            && matches!(test_scope, TestScope::OnlyFailWith { .. })
+        {
+            let error = DefCollectorErrorKind::TestOnlyFailWithWithoutParameters { location };
+            errors.push(error.into());
+        }
+    }
+
+    if let Some((_, location)) = fuzz_attribute {
+        if function.def.parameters.is_empty() {
+            let error = DefCollectorErrorKind::FuzzingHarnessWithoutParameters { location };
+            errors.push(error.into());
+        }
+    }
 
     // Add function to scope/ns of the module
     let result = module_data.declare_function(name, visibility, func_id);
@@ -1109,7 +1154,10 @@ pub fn collect_struct(
 
     let parent_module_id = ModuleId { krate, local_id: module_id };
 
-    if !unresolved.struct_def.is_abi() {
+    let has_allow_dead_code =
+        unresolved.struct_def.attributes.iter().any(|attr| attr.kind.is_allow("dead_code"));
+
+    if !unresolved.struct_def.is_abi() && !has_allow_dead_code {
         usage_tracker.add_unused_item(
             parent_module_id,
             name.clone(),
@@ -1200,7 +1248,10 @@ pub fn collect_enum(
 
     let parent_module_id = ModuleId { krate, local_id: module_id };
 
-    if !unresolved.enum_def.is_abi() {
+    let has_allow_dead_code =
+        unresolved.enum_def.attributes.iter().any(|attr| attr.kind.is_allow("dead_code"));
+
+    if !unresolved.enum_def.is_abi() && !has_allow_dead_code {
         usage_tracker.add_unused_item(
             parent_module_id,
             name.clone(),
@@ -1257,7 +1308,7 @@ pub fn collect_impl(
         let func_id = interner.push_empty_fn();
         method.def.where_clause.extend(r#impl.where_clause.clone());
         desugar_generic_trait_bounds(&mut method.def.generics, &mut method.def.where_clause);
-        let location = Location::new(method.span(), file_id);
+        let location = method.location();
         interner.push_function(func_id, &method.def, module_id, location);
         unresolved_functions.push_fn(module_id.local_id, func_id, method);
         interner.set_doc_comments(ReferenceId::Function(func_id), doc_comments);
@@ -1378,7 +1429,7 @@ pub(crate) fn collect_trait_impl_items(
                 impl_method.def.visibility = ItemVisibility::Private;
 
                 let func_id = interner.push_empty_fn();
-                let location = Location::new(impl_method.span(), file_id);
+                let location = impl_method.location();
                 interner.push_function(func_id, &impl_method.def, module, location);
                 interner.set_doc_comments(ReferenceId::Function(func_id), item.doc_comments);
                 desugar_generic_trait_bounds(

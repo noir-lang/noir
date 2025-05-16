@@ -23,7 +23,7 @@ impl Parser<'_> {
         let Some(name) = self.eat_ident() else {
             self.expected_identifier();
             return self.empty_struct(
-                Ident::default(),
+                self.unknown_ident_at_previous_token_end(),
                 attributes,
                 visibility,
                 Vec::new(),
@@ -128,8 +128,10 @@ impl Parser<'_> {
 
 #[cfg(test)]
 mod tests {
+    use insta::assert_snapshot;
+
     use crate::{
-        ast::{IntegerBitSize, NoirStruct, UnresolvedGeneric, UnresolvedTypeData},
+        ast::{NoirStruct, UnresolvedGeneric},
         parse_program_with_dummy_file,
         parser::{
             ItemKind, ParserErrorReason,
@@ -138,7 +140,6 @@ mod tests {
                 get_source_with_error_span,
             },
         },
-        shared::Signedness,
     };
 
     fn parse_struct_no_errors(src: &str) -> NoirStruct {
@@ -190,10 +191,7 @@ mod tests {
             panic!("Expected generic numeric");
         };
         assert_eq!("B", ident.to_string());
-        assert_eq!(
-            typ.typ,
-            UnresolvedTypeData::Integer(Signedness::Unsigned, IntegerBitSize::ThirtyTwo)
-        );
+        assert_eq!(typ.typ.to_string(), "u32");
     }
 
     #[test]
@@ -205,14 +203,11 @@ mod tests {
 
         let field = noir_struct.fields.remove(0).item;
         assert_eq!("x", field.name.to_string());
-        assert!(matches!(
-            field.typ.typ,
-            UnresolvedTypeData::Integer(Signedness::Signed, IntegerBitSize::ThirtyTwo)
-        ));
+        assert_eq!(field.typ.typ.to_string(), "i32");
 
         let field = noir_struct.fields.remove(0).item;
         assert_eq!("y", field.name.to_string());
-        assert!(matches!(field.typ.typ, UnresolvedTypeData::FieldElement));
+        assert_eq!(field.typ.typ.to_string(), "Field");
     }
 
     #[test]
@@ -272,6 +267,6 @@ mod tests {
         assert_eq!(noir_struct.fields.len(), 1);
 
         let error = get_single_error(&errors, span);
-        assert_eq!(error.to_string(), "Expected an identifier but found '42'");
+        assert_snapshot!(error.to_string(), @"Expected an identifier but found '42'");
     }
 }

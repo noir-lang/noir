@@ -15,9 +15,6 @@ pub(super) fn decompose_constrain(
     msg: &Option<ConstrainError>,
     dfg: &mut DataFlowGraph,
 ) -> Vec<Instruction> {
-    let lhs = dfg.resolve(lhs);
-    let rhs = dfg.resolve(rhs);
-
     if lhs == rhs {
         // Remove trivial case `assert_eq(x, x)`
         Vec::new()
@@ -248,9 +245,9 @@ mod tests {
         assert_ssa_snapshot!(ssa, @r"
         acir(inline) fn main f0 {
           b0(v0: u1, v1: u1, v2: u1):
-            v3 = mul v0, v1
+            v3 = unchecked_mul v0, v1
             v4 = not v2
-            v5 = mul v3, v4
+            v5 = unchecked_mul v3, v4
             constrain v0 == u1 1
             constrain v1 == u1 1
             constrain v2 == u1 0

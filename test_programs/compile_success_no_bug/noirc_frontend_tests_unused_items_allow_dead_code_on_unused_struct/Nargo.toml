@@ -1,0 +1,7 @@
+
+            [package]
+            name = "noirc_frontend_tests_unused_items_allow_dead_code_on_unused_struct"
+            type = "bin"
+            authors = [""]
+            
+            [dependencies]

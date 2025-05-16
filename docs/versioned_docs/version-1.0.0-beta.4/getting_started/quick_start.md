@@ -94,6 +94,7 @@ With circuit compiled and witness generated, we're ready to prove.
 Different proving backends may provide different tools and commands to work with Noir programs. Here Barretenberg's `bb` CLI tool is used as an example:
 
 ```sh
+# Generate proof and save proof and public_inputs to ./target
 bb prove -b ./target/hello_world.json -w ./target/hello_world.gz -o ./target
 ```
 
@@ -110,7 +111,7 @@ The proof is now generated in the `target` folder. To verify it we first need to
 bb write_vk -b ./target/hello_world.json -o ./target
 
 # Verify the proof
-bb verify -k ./target/vk -p ./target/proof
+bb verify -k ./target/vk -p ./target/proof -i ./target/public_inputs
 ```
 
 Congratulations, you have now created and verified a proof for your very first Noir program!

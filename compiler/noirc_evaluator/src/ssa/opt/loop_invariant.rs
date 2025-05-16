@@ -44,14 +44,10 @@
 //!
 //! We then can store the PDFs for every block as part of the context of this pass, and use it for checking control dependence.
 //! Using PDFs gets us from a worst case n^2 complexity to a worst case n.
-use acvm::{FieldElement, acir::AcirField};
-use fxhash::{FxHashMap as HashMap, FxHashSet as HashSet};
-
 use crate::ssa::{
     Ssa,
     ir::{
         basic_block::BasicBlockId,
-        call_stack::CallStackId,
         cfg::ControlFlowGraph,
         dfg::simplify::SimplifyResult,
         dom::DominatorTree,
@@ -61,12 +57,16 @@ use crate::ssa::{
             Binary, BinaryOp, ConstrainError, Instruction, InstructionId,
             binary::eval_constant_binary_op,
         },
+        integer::IntegerConstant,
         post_order::PostOrder,
         types::{NumericType, Type},
         value::{Value, ValueId},
     },
     opt::pure::Purity,
 };
+use acvm::{FieldElement, acir::AcirField};
+use fxhash::{FxHashMap as HashMap, FxHashSet as HashSet};
+use noirc_errors::call_stack::CallStackId;
 
 use super::unrolling::{Loop, Loops};
 
@@ -127,6 +127,21 @@ impl Loop {
     fn get_induction_variable(&self, function: &Function) -> ValueId {
         function.dfg.block_parameters(self.header)[0]
     }
+
+    // Check if the loop will be fully executed by checking the number of predecessors of the loop exit
+    // Our SSA code generation restricts loops to having one exit block except in the case of a `break`.
+    // If a loop can have several exit blocks, we would need to update this function
+    pub(super) fn is_fully_executed(&self, cfg: &ControlFlowGraph) -> bool {
+        let Some(header) = self.blocks.first() else {
+            return true;
+        };
+        for block in cfg.successors(*header) {
+            if !self.blocks.contains(&block) {
+                return cfg.predecessors(block).len() == 1;
+            }
+        }
+        true
+    }
 }
 
 struct LoopInvariantContext<'f> {
@@ -137,11 +152,11 @@ struct LoopInvariantContext<'f> {
     // This map is expected to only ever contain a singular value.
     // However, we store it in a map in order to match the definition of
     // `outer_induction_variables` as both maps share checks for evaluating binary operations.
-    current_induction_variables: HashMap<ValueId, (FieldElement, FieldElement)>,
+    current_induction_variables: HashMap<ValueId, (IntegerConstant, IntegerConstant)>,
     // Maps outer loop induction variable -> fixed lower and upper loop bound
     // This will be used by inner loops to determine whether they
     // have safe operations reliant upon an outer loop's maximum induction variable.
-    outer_induction_variables: HashMap<ValueId, (FieldElement, FieldElement)>,
+    outer_induction_variables: HashMap<ValueId, (IntegerConstant, IntegerConstant)>,
     // This context struct processes runs across all loops.
     // This stores the current loop's pre-header block.
     // It is wrapped in an Option as our SSA `Id<T>` does not allow dummy values.
@@ -192,20 +207,6 @@ impl<'f> LoopInvariantContext<'f> {
 
     fn pre_header(&self) -> BasicBlockId {
         self.current_pre_header.expect("ICE: Pre-header block should have been set")
-    }
-
-    // Check if the loop will be fully executed by checking the number of predecessors of the loop exit
-    // If a loop can have several exit blocks, we would need to update this function
-    fn is_fully_executed(&self, loop_: &Loop) -> bool {
-        let Some(header) = loop_.blocks.first() else {
-            return true;
-        };
-        for block in self.inserter.function.dfg[*header].successors() {
-            if !loop_.blocks.contains(&block) {
-                return self.cfg.predecessors(block).len() == 1;
-            }
-        }
-        true
     }
 
     fn hoist_loop_invariants(&mut self, loop_: &Loop) {
@@ -298,7 +299,7 @@ impl<'f> LoopInvariantContext<'f> {
         // set the new current induction variable.
         self.current_induction_variables.clear();
         self.set_induction_var_bounds(loop_, true);
-        self.no_break = self.is_fully_executed(loop_);
+        self.no_break = loop_.is_fully_executed(&self.cfg);
 
         for block in loop_.blocks.iter() {
             let params = self.inserter.function.dfg.block_parameters(*block);
@@ -391,30 +392,49 @@ impl<'f> LoopInvariantContext<'f> {
         use Instruction::*;
 
         match instruction {
-            ArrayGet { array, index } => {
+            ArrayGet { array, index, offset: _ } => {
                 let array_typ = self.inserter.function.dfg.type_of_value(*array);
                 let upper_bound = self.outer_induction_variables.get(index).map(|bounds| bounds.1);
                 if let (Type::Array(_, len), Some(upper_bound)) = (array_typ, upper_bound) {
-                    upper_bound.to_u128() <= len.into()
+                    upper_bound.apply(|i| i <= len.into(), |i| i <= len.into())
                 } else {
                     false
                 }
             }
             Binary(binary) => self.can_evaluate_binary_op(binary),
             Constrain(..) | ConstrainNotEqual(..) | RangeCheck { .. } => {
-                // These instructions should not be hoisted if we know the loop will never be executed (an upper bound or zero or equal loop bounds)
-                // or we are unsure if the loop will ever be executed (dynamic loop bounds).
-                // If the instruction were to be hoisted out of a loop that never executes it could potentially cause the program to fail when it is not meant to fail.
-                let bounds = self.current_induction_variables.values().next().copied();
-                let does_loop_body_execute = bounds
-                    .map(|(lower_bound, upper_bound)| !(upper_bound - lower_bound).is_zero())
-                    .unwrap_or(false);
-                // If we know the loop will be executed these instructions can still only be hoisted if the instructions
-                // are in a non control dependent block.
-                does_loop_body_execute && !self.current_block_control_dependent
+                // If we know the loop will be executed we can still only hoist if we are in a non control dependent block.
+                !self.current_block_control_dependent && self.does_loop_body_execute()
+            }
+            Call { func, .. } => {
+                let purity = match self.inserter.function.dfg[*func] {
+                    Value::Intrinsic(intrinsic) => Some(intrinsic.purity()),
+                    Value::Function(id) => self.inserter.function.dfg.purity_of(id),
+                    _ => None,
+                };
+                // If we know the loop will be executed we can still only hoist if we are in a non control dependent block.
+                matches!(purity, Some(Purity::PureWithPredicate))
+                    && !self.current_block_control_dependent
+                    && self.does_loop_body_execute()
             }
             _ => false,
         }
+    }
+
+    /// Determine whether the loop body is guaranteed to execute.
+    /// We know a loop body will execute if we have constant loop bounds where the upper bound
+    /// is greater than the lower bound.
+    fn does_loop_body_execute(&self) -> bool {
+        // The loop will never be executed if we have an upper bound of zero, equal loop bounds,
+        // or we are unsure if the loop will ever be executed (dynamic loop bounds).
+        // If certain instructions were to be hoisted out of a loop that never executed it
+        // could potentially cause the program to fail when it is not meant to fail.
+        let bounds = self.current_induction_variables.values().next().copied();
+        bounds
+            .and_then(|(lower_bound, upper_bound)| {
+                upper_bound.reduce(lower_bound, |u, l| u > l, |u, l| u > l)
+            })
+            .unwrap_or(false)
     }
 
     /// Some instructions can take advantage of that our induction variable has a fixed minimum/maximum,
@@ -439,7 +459,7 @@ impl<'f> LoopInvariantContext<'f> {
                 let results =
                     self.inserter.function.dfg.instruction_results(instruction_id).to_vec();
                 assert!(results.len() == 1);
-                self.inserter.function.dfg.set_value_from_id(results[0], id);
+                self.inserter.map_value(results[0], id);
                 true
             }
             SimplifyResult::SimplifiedToInstruction(instruction) => {
@@ -572,13 +592,13 @@ impl<'f> LoopInvariantContext<'f> {
             _ => None,
         }?;
 
-        let min_iter = self.inserter.function.dfg.make_constant(*lower, NumericType::length_type());
-        assert!(*upper != FieldElement::zero(), "executing a non executable loop");
-        let max_iter = self
-            .inserter
-            .function
-            .dfg
-            .make_constant(*upper - FieldElement::one(), NumericType::length_type());
+        assert!(!upper.is_zero(), "executing a non executable loop");
+
+        let (upper_field, upper_type) = upper.dec().into_numeric_constant();
+        let (lower_field, lower_type) = lower.into_numeric_constant();
+
+        let min_iter = self.inserter.function.dfg.make_constant(lower_field, lower_type);
+        let max_iter = self.inserter.function.dfg.make_constant(upper_field, upper_type);
         if (is_left && self.is_loop_invariant(rhs)) || (!is_left && self.is_loop_invariant(lhs)) {
             return Some((is_left, min_iter, max_iter));
         }
@@ -632,9 +652,9 @@ impl<'f> LoopInvariantContext<'f> {
         lhs: &ValueId,
         rhs: &ValueId,
         only_outer_induction: bool,
-    ) -> Option<(bool, FieldElement, FieldElement, FieldElement)> {
-        let lhs_const = self.inserter.function.dfg.get_numeric_constant_with_type(*lhs);
-        let rhs_const = self.inserter.function.dfg.get_numeric_constant_with_type(*rhs);
+    ) -> Option<(bool, IntegerConstant, IntegerConstant, IntegerConstant)> {
+        let lhs_const = self.inserter.function.dfg.get_integer_constant(*lhs);
+        let rhs_const = self.inserter.function.dfg.get_integer_constant(*rhs);
         match (
             lhs_const,
             rhs_const,
@@ -647,10 +667,10 @@ impl<'f> LoopInvariantContext<'f> {
                 .and_then(|v| if only_outer_induction { None } else { Some(v) })
                 .or(self.outer_induction_variables.get(rhs)),
         ) {
-            (Some((lhs, _)), None, None, Some((lower_bound, upper_bound))) => {
+            (Some(lhs), None, None, Some((lower_bound, upper_bound))) => {
                 Some((false, lhs, *lower_bound, *upper_bound))
             }
-            (None, Some((rhs, _)), Some((lower_bound, upper_bound)), None) => {
+            (None, Some(rhs), Some((lower_bound, upper_bound)), None) => {
                 Some((true, rhs, *lower_bound, *upper_bound))
             }
             _ => None,
@@ -703,6 +723,8 @@ impl<'f> LoopInvariantContext<'f> {
             // of its inputs to check whether it will ever overflow.
             // If so, this will cause `eval_constant_binary_op` to return `None`.
             // Therefore a `Some` value shows that this operation is safe.
+            let lhs = lhs.into_numeric_constant().0;
+            let rhs = rhs.into_numeric_constant().0;
             if eval_constant_binary_op(lhs, rhs, binary.operator, operand_type).is_some() {
                 // Unchecked version of the binary operation
                 let unchecked = Instruction::Binary(Binary {
@@ -729,7 +751,7 @@ impl<'f> LoopInvariantContext<'f> {
                 true if upper_bound <= value => SimplifyResult::SimplifiedTo(self.true_value),
                 true if lower_bound >= value => SimplifyResult::SimplifiedTo(self.false_value),
                 false if lower_bound > value => SimplifyResult::SimplifiedTo(self.true_value),
-                false if upper_bound <= value + FieldElement::one() => {
+                false if upper_bound <= value.inc() => {
                     SimplifyResult::SimplifiedTo(self.false_value)
                 }
                 _ => SimplifyResult::None,
@@ -756,10 +778,10 @@ impl<'f> LoopInvariantContext<'f> {
                     return false;
                 };
                 if left {
-                    if value != FieldElement::zero() {
+                    if !value.is_zero() {
                         return true;
                     }
-                } else if lower != FieldElement::zero() {
+                } else if !lower.is_zero() {
                     return true;
                 }
 
@@ -1841,6 +1863,118 @@ mod control_dependence {
     }
 
     #[test]
+    fn do_not_hoist_pure_with_predicate_call_in_non_executed_loop_body() {
+        // This test is the same as `hoist_safe_mul_that_is_non_control_dependent` except
+        // that the upper loop bound is dynamic and the constrain inside the loop body
+        // is replaced with a call to pure with predicates functions.
+        // We cannot guarantee that the loop body will be executed when we have dynamic bounds.
+        let src = "
+        brillig(inline) fn main f0 {
+          entry(v0: u32, v1: u32):
+            jmp loop(u32 0)
+          loop(v2: u32):
+            v3 = lt v2, v1
+            jmpif v3 then: loop_body, else: exit
+          loop_body():
+            v6 = mul v0, v1
+            v7 = mul v6, v0
+            call f1()
+            v10 = unchecked_add v2, u32 1
+            jmp loop(v10)
+          exit():
+            return
+        }
+        brillig(inline) fn foo f1 {
+          entry(v0: u32):
+            constrain v0 == u32 12
+            return
+        }
+        ";
+
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.purity_analysis();
+        let ssa = ssa.loop_invariant_code_motion();
+
+        assert_ssa_snapshot!(ssa, @r"
+        brillig(inline) predicate_pure fn main f0 {
+          b0(v0: u32, v1: u32):
+            v3 = mul v0, v1
+            v4 = mul v3, v0
+            jmp b1(u32 0)
+          b1(v2: u32):
+            v6 = lt v2, v1
+            jmpif v6 then: b2, else: b3
+          b2():
+            call f1()
+            v9 = unchecked_add v2, u32 1
+            jmp b1(v9)
+          b3():
+            return
+        }
+        brillig(inline) predicate_pure fn foo f1 {
+          b0(v0: u32):
+            constrain v0 == u32 12
+            return
+        }
+        ");
+    }
+
+    #[test]
+    fn hoist_pure_with_predicate_call_in_executed_loop_body() {
+        // This test is the same as `do_not_hoist_pure_with_predicate_call_in_non_executed_loop_body`
+        // except that the loop bounds are guaranteed to execute.
+        let src = "
+        brillig(inline) fn main f0 {
+          entry(v0: u32, v1: u32):
+            jmp loop(u32 0)
+          loop(v2: u32):
+            v3 = lt v2, u32 4
+            jmpif v3 then: loop_body, else: exit
+          loop_body():
+            v6 = mul v0, v1
+            v7 = mul v6, v0
+            call f1()
+            v10 = unchecked_add v2, u32 1
+            jmp loop(v10)
+          exit():
+            return
+        }
+        brillig(inline) fn foo f1 {
+          entry(v0: u32):
+            constrain v0 == u32 12
+            return
+        }
+        ";
+
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.purity_analysis();
+        let ssa = ssa.loop_invariant_code_motion();
+
+        assert_ssa_snapshot!(ssa, @r"
+        brillig(inline) predicate_pure fn main f0 {
+          b0(v0: u32, v1: u32):
+            v3 = mul v0, v1
+            v4 = mul v3, v0
+            call f1()
+            jmp b1(u32 0)
+          b1(v2: u32):
+            v8 = lt v2, u32 4
+            jmpif v8 then: b2, else: b3
+          b2():
+            v10 = unchecked_add v2, u32 1
+            jmp b1(v10)
+          b3():
+            return
+        }
+        brillig(inline) predicate_pure fn foo f1 {
+          b0(v0: u32):
+            constrain v0 == u32 12
+            return
+        }
+        ");
+    }
+
+    #[test]
     fn simplify_constraint() {
         // This test shows the simplification of the constraint constrain v17 == u1 1 which is converted into constrain u1 0 == u1 1 in entry block
         let src = "
@@ -1934,7 +2068,7 @@ mod control_dependence {
             jmp b5()
           b5():
             v15 = lt u32 2, v3
-            v16 = mul v6, v15
+            v16 = unchecked_mul v6, v15
             jmpif v16 then: loop_exit, else: b6
           b6():
             v17 = lt v3, u32 4
@@ -1972,7 +2106,7 @@ mod control_dependence {
             jmp b5()
           b5():
             v15 = lt u32 2, v3
-            v16 = mul v6, v15
+            v16 = unchecked_mul v6, v15
             jmpif v16 then: b3, else: b6
           b6():
             v17 = lt v3, u32 4

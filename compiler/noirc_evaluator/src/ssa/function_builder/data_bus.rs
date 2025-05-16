@@ -3,7 +3,7 @@ use std::{collections::BTreeMap, sync::Arc};
 use crate::ssa::ir::{
     function::RuntimeType,
     types::{NumericType, Type},
-    value::ValueId,
+    value::{ValueId, ValueMapping},
 };
 use acvm::FieldElement;
 use fxhash::FxHashMap as HashMap;
@@ -94,6 +94,12 @@ impl DataBus {
         DataBus { call_data, return_data: self.return_data.map(&mut f) }
     }
 
+    pub(crate) fn replace_values(&mut self, mapping: &ValueMapping) {
+        if !mapping.is_empty() {
+            self.map_values_mut(|value_id| mapping.get(value_id));
+        }
+    }
+
     /// Updates the databus values in place with the provided function
     pub(crate) fn map_values_mut(&mut self, mut f: impl FnMut(ValueId) -> ValueId) {
         for cd in self.call_data.iter_mut() {
@@ -150,6 +156,11 @@ impl FunctionBuilder {
                         let index_var = FieldElement::from(index as i128);
                         let index_var =
                             self.current_function.dfg.make_constant(index_var, length_type);
+                        // If we do not check for an empty array we will have an unused array get
+                        // as an array of length zero will not be actually added to the databus' values.
+                        if let Type::Array(_, 0) = subitem_typ {
+                            continue;
+                        }
                         let element = self.insert_array_get(value, index_var, subitem_typ.clone());
                         index += match subitem_typ {
                             Type::Array(_, _) | Type::Slice(_) => subitem_typ.element_size(),
@@ -224,6 +235,7 @@ impl FunctionBuilder {
                 }
             }
         }
+
         // create the call-data-bus from the filtered lists
         let mut result = Vec::new();
         for id in databus_param.keys() {

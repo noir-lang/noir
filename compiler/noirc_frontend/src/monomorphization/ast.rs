@@ -88,6 +88,12 @@ pub struct GlobalId(pub u32);
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub struct FuncId(pub u32);
 
+/// Each identifier is given a unique ID to distinguish different uses of identifiers.
+/// This is used, for example, in last use analysis to determine which identifiers represent
+/// the last use of their definition and can thus be moved instead of cloned.
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
+pub struct IdentId(pub u32);
+
 impl Display for FuncId {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         write!(f, "{}", self.0)
@@ -101,6 +107,7 @@ pub struct Ident {
     pub mutable: bool,
     pub name: String,
     pub typ: Type,
+    pub id: IdentId,
 }
 
 #[derive(Debug, Clone, Hash)]
@@ -246,7 +253,8 @@ pub enum LValue {
     Dereference { reference: Box<LValue>, element_type: Type },
 }
 
-pub type Parameters = Vec<(LocalId, /*mutable:*/ bool, /*name:*/ String, Type)>;
+pub type Parameters =
+    Vec<(LocalId, /*mutable:*/ bool, /*name:*/ String, Type, Visibility)>;
 
 /// Represents how an Acir function should be inlined.
 /// This type is only relevant for ACIR functions as we do not inline any Brillig functions
@@ -315,6 +323,7 @@ pub struct Function {
     pub body: Expression,
 
     pub return_type: Type,
+    pub return_visibility: Visibility,
     pub unconstrained: bool,
     pub inline_type: InlineType,
     pub func_sig: FunctionSignature,
@@ -368,7 +377,6 @@ pub struct Program {
     pub function_signatures: Vec<FunctionSignature>,
     pub main_function_signature: FunctionSignature,
     pub return_location: Option<Location>,
-    pub return_visibility: Visibility,
     pub globals: BTreeMap<GlobalId, (String, Type, Expression)>,
     pub debug_variables: DebugVariables,
     pub debug_functions: DebugFunctions,
@@ -382,7 +390,6 @@ impl Program {
         function_signatures: Vec<FunctionSignature>,
         main_function_signature: FunctionSignature,
         return_location: Option<Location>,
-        return_visibility: Visibility,
         globals: BTreeMap<GlobalId, (String, Type, Expression)>,
         debug_variables: DebugVariables,
         debug_functions: DebugFunctions,
@@ -393,7 +400,6 @@ impl Program {
             function_signatures,
             main_function_signature,
             return_location,
-            return_visibility,
             globals,
             debug_variables,
             debug_functions,
@@ -427,6 +433,10 @@ impl Program {
         let replacement = Expression::Block(vec![]);
         std::mem::replace(&mut function_definition.body, replacement)
     }
+
+    pub fn return_visibility(&self) -> Visibility {
+        self.main().return_visibility
+    }
 }
 
 impl std::ops::Index<FuncId> for Program {
@@ -451,7 +461,11 @@ impl std::fmt::Display for Program {
 
 impl std::fmt::Display for Function {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        super::printer::AstPrinter::default().print_function(self, None, f)
+        super::printer::AstPrinter::default().print_function(
+            self,
+            f,
+            super::printer::FunctionPrintOptions::default(),
+        )
     }
 }
 

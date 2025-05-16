@@ -1,9 +1,9 @@
 use super::{
-    call_stack::CallStackId,
     instruction::{InstructionId, TerminatorInstruction},
     map::Id,
     value::ValueId,
 };
+use noirc_errors::call_stack::CallStackId;
 use serde::{Deserialize, Serialize};
 
 /// A Basic block is a maximal collection of instructions
@@ -13,7 +13,7 @@ use serde::{Deserialize, Serialize};
 /// This means that if one instruction is executed in a basic
 /// block, then all instructions are executed. ie single-entry single-exit.
 #[derive(Debug, PartialEq, Eq, Hash, Clone, Serialize, Deserialize)]
-pub(crate) struct BasicBlock {
+pub struct BasicBlock {
     /// Parameters to the basic block.
     parameters: Vec<ValueId>,
 
@@ -28,7 +28,7 @@ pub(crate) struct BasicBlock {
 }
 
 /// An identifier for a Basic Block.
-pub(crate) type BasicBlockId = Id<BasicBlock>;
+pub type BasicBlockId = Id<BasicBlock>;
 
 impl BasicBlock {
     /// Create a new BasicBlock with the given parameters.

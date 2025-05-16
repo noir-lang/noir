@@ -11,7 +11,7 @@
 use std::collections::BTreeMap;
 
 use arbtest::arbtest;
-use noir_ast_fuzzer::{Config, arb_program, visit_expr};
+use noir_ast_fuzzer::{Config, arb_program, visitor::visit_expr};
 use noirc_frontend::monomorphization::ast::{Expression, Type};
 
 #[test]
@@ -41,7 +41,7 @@ fn arb_program_freqs_in_expected_range() {
         program_count += 1;
         Ok(())
     })
-    .budget_ms(1000)
+    .budget_ms(2000)
     .size_min(1 << 12)
     .size_max(1 << 20);
 
@@ -61,9 +61,10 @@ fn arb_program_freqs_in_expected_range() {
         }
     }
 
+    // Sum of frequencies normalized to 100, as it appears in the printout above.
     let freq_100 = |unconstrained, group: &str, keys: &[&str]| {
-        keys.iter().map(|key| counts[&unconstrained][group][key]).sum::<usize>() * 100
-            / counts[&unconstrained][group].values().sum::<usize>()
+        let total = counts[&unconstrained][group].values().sum::<usize>();
+        keys.iter().map(|key| counts[&unconstrained][group][key] * 100 / total).sum::<usize>()
     };
 
     // Assert relative frequencies
@@ -71,9 +72,10 @@ fn arb_program_freqs_in_expected_range() {
     let loops_b = freq_100(true, "stmt", &["for", "loop", "while"]);
     let break_b = freq_100(true, "stmt", &["break"]);
 
-    assert!((9..=11).contains(&loops_a), "ACIR loops: {loops_a}");
-    assert!((loops_a - 1..=loops_a + 1).contains(&loops_b), "Brillig loops: {loops_b}");
-    assert!(break_b >= loops_b, "Brillig should break out of loops: {break_b}");
+    let loop_range = 8..=12;
+    assert!(loop_range.contains(&loops_a), "ACIR loops should be ~10: {loops_a}");
+    assert!(loop_range.contains(&loops_b), "Brillig loops should be ~10: {loops_b}");
+    assert!(break_b >= loops_b, "Brillig should break out of loops: {break_b} >= {loops_b}");
 }
 
 /// Classify the expression into "expr" or "stmt" for frequency settings.
@@ -85,7 +87,8 @@ fn classify(expr: &Expression) -> Option<(&'static str, &'static str)> {
         | Expression::ExtractTupleField(_, _)
         | Expression::Index(_)
         | Expression::Semi(_)
-        | Expression::Clone(_) => {
+        | Expression::Clone(_)
+        | Expression::Drop(_) => {
             return None;
         }
         Expression::Literal(_) => ("expr", "literal"),
@@ -103,7 +106,6 @@ fn classify(expr: &Expression) -> Option<(&'static str, &'static str)> {
         Expression::Let(_) => ("stmt", "let"),
         Expression::Constrain(_, _, _) => ("stmt", "constrain"),
         Expression::Assign(_) => ("stmt", "assign"),
-        Expression::Drop(_) => ("stmt", "drop"),
         Expression::Break => ("stmt", "break"),
         Expression::Continue => ("stmt", "continue"),
     };

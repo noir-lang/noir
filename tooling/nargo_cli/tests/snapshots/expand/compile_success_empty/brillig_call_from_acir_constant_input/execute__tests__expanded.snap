@@ -1,0 +1,17 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: expanded_code
+---
+fn main() {
+    bar(0)
+}
+
+pub unconstrained fn foo(input: Field) -> Field {
+    (input == 0) as Field
+}
+
+pub fn bar(input: Field) {
+    // Safety: comment added by `nargo expand`
+    let output: Field = unsafe { foo(input) };
+    assert(output != 0, "");
+}

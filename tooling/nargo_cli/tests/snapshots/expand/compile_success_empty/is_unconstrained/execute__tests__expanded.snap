@@ -1,0 +1,19 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: expanded_code
+---
+use std::runtime::is_unconstrained;
+
+fn check(should_be_unconstrained: bool) {
+    assert(should_be_unconstrained == is_unconstrained());
+}
+
+unconstrained fn unconstrained_intermediate() {
+    check(true);
+}
+
+fn main() {
+    // Safety: comment added by `nargo expand`
+    unsafe { unconstrained_intermediate(); };
+    check(false);
+}

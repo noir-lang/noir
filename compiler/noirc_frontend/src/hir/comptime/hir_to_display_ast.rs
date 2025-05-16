@@ -2,6 +2,7 @@ use fm::FileId;
 use iter_extended::vecmap;
 use noirc_errors::{Located, Location, Span};
 
+use crate::NamedGeneric;
 use crate::ast::{
     ArrayLiteral, AssignStatement, BlockExpression, CallExpression, CastExpression, ConstrainKind,
     ConstructorExpression, ExpressionKind, ForLoopStatement, ForRange, GenericTypeArgs, Ident,
@@ -375,7 +376,7 @@ impl Type {
     /// Convert to AST for display (some details lost)
     fn to_display_ast(&self) -> UnresolvedType {
         let typ = match self {
-            Type::FieldElement => UnresolvedTypeData::FieldElement,
+            Type::FieldElement => UnresolvedTypeData::field(Location::dummy()),
             Type::Array(length, element) => {
                 let length = length.to_type_expression();
                 let element = Box::new(element.to_display_ast());
@@ -385,16 +386,18 @@ impl Type {
                 let element = Box::new(element.to_display_ast());
                 UnresolvedTypeData::Slice(element)
             }
-            Type::Integer(sign, bit_size) => UnresolvedTypeData::Integer(*sign, *bit_size),
-            Type::Bool => UnresolvedTypeData::Bool,
+            Type::Integer(sign, bit_size) => {
+                UnresolvedTypeData::integer(*sign, *bit_size, Location::dummy())
+            }
+            Type::Bool => UnresolvedTypeData::bool(Location::dummy()),
             Type::String(length) => {
                 let length = length.to_type_expression();
-                UnresolvedTypeData::String(length)
+                UnresolvedTypeData::str(length, Location::dummy())
             }
             Type::FmtString(length, element) => {
                 let length = length.to_type_expression();
-                let element = Box::new(element.to_display_ast());
-                UnresolvedTypeData::FormatString(length, element)
+                let element = element.to_display_ast();
+                UnresolvedTypeData::fmtstr(length, element, Location::dummy())
             }
             Type::Unit => UnresolvedTypeData::Unit,
             Type::Tuple(fields) => {
@@ -438,7 +441,7 @@ impl Type {
                 let name = Path::from_single(name.as_ref().clone(), Location::dummy());
                 UnresolvedTypeData::TraitAsType(name, generics)
             }
-            Type::NamedGeneric(_var, name) => {
+            Type::NamedGeneric(NamedGeneric { name, .. }) => {
                 let name = Path::from_single(name.as_ref().clone(), Location::dummy());
                 UnresolvedTypeData::Named(name, GenericTypeArgs::default(), true)
             }
@@ -459,7 +462,9 @@ impl Type {
             // this to ignore this case since it shouldn't be needed anyway.
             Type::Forall(_, typ) => return typ.to_display_ast(),
             Type::Constant(..) => panic!("Type::Constant where a type was expected: {self:?}"),
-            Type::Quoted(quoted_type) => UnresolvedTypeData::Quoted(*quoted_type),
+            Type::Quoted(quoted_type) => {
+                UnresolvedTypeData::quoted(*quoted_type, Location::dummy())
+            }
             Type::Error => UnresolvedTypeData::Error,
             Type::InfixExpr(lhs, op, rhs, _) => {
                 let lhs = Box::new(lhs.to_type_expression());
@@ -479,7 +484,7 @@ impl Type {
 
         match self.follow_bindings() {
             Type::Constant(length, _kind) => UnresolvedTypeExpression::Constant(length, location),
-            Type::NamedGeneric(_var, name) => {
+            Type::NamedGeneric(NamedGeneric { name, .. }) => {
                 let path = Path::from_single(name.as_ref().clone(), location);
                 UnresolvedTypeExpression::Variable(path)
             }
@@ -503,7 +508,7 @@ impl HirLValue {
                 let index = index.to_display_ast(interner);
                 LValue::Index { array, index, location: *location }
             }
-            HirLValue::Dereference { lvalue, element_type: _, location } => {
+            HirLValue::Dereference { lvalue, element_type: _, location, implicitly_added: _ } => {
                 let lvalue = Box::new(lvalue.to_display_ast(interner));
                 LValue::Dereference(lvalue, *location)
             }

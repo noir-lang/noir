@@ -2,7 +2,7 @@ use crate::token::DocStyle;
 
 use super::{
     errors::LexerErrorKind,
-    token::{FmtStrFragment, IntType, Keyword, LocatedToken, SpannedToken, Token, Tokens},
+    token::{FmtStrFragment, Keyword, LocatedToken, SpannedToken, Token, Tokens},
 };
 use acvm::{AcirField, FieldElement};
 use fm::FileId;
@@ -174,6 +174,21 @@ impl<'a> Lexer<'a> {
             Some('r') => self.eat_raw_string_or_alpha_numeric(),
             Some('q') => self.eat_quote_or_alpha_numeric(),
             Some('#') => self.eat_attribute_start(),
+            Some(ch)
+                if ch.is_whitespace()
+                    // These aren't unicode whitespace but look like '' so they are also misleading
+                    || ch == '\u{180E}'
+                    || ch == '\u{200B}'
+                    || ch == '\u{200C}'
+                    || ch == '\u{200D}'
+                    || ch == '\u{2060}'
+                    || ch == '\u{FEFF}' =>
+            {
+                let span = Span::from(self.position..self.position + 1);
+                let location = Location::new(span, self.file_id);
+                self.next_char();
+                Err(LexerErrorKind::UnicodeCharacterLooksLikeSpaceButIsItNot { char: ch, location })
+            }
             Some(ch) if ch.is_ascii_alphanumeric() || ch == '_' => self.eat_alpha_numeric(ch),
             Some(ch) => {
                 // We don't report invalid tokens in the source as errors until parsing to
@@ -381,15 +396,6 @@ impl<'a> Lexer<'a> {
         // Check if word either an identifier or a keyword
         if let Some(keyword_token) = Keyword::lookup_keyword(&word) {
             return Ok(keyword_token.into_span(start, end));
-        }
-
-        // Check if word an int type
-        // if no error occurred, then it is either a valid integer type or it is not an int type
-        let parsed_token = IntType::lookup_int_type(&word);
-
-        // Check if it is an int type
-        if let Some(int_type) = parsed_token {
-            return Ok(Token::IntType(int_type).into_span(start, end));
         }
 
         // Else it is just an identifier
@@ -984,26 +990,6 @@ mod tests {
     }
 
     #[test]
-    fn test_int_type() {
-        let input = "u16 i16 i108 u104.5";
-
-        let expected = vec![
-            Token::IntType(IntType::Unsigned(16)),
-            Token::IntType(IntType::Signed(16)),
-            Token::IntType(IntType::Signed(108)),
-            Token::IntType(IntType::Unsigned(104)),
-            Token::Dot,
-            Token::Int(5_i128.into()),
-        ];
-
-        let mut lexer = Lexer::new_with_dummy_file(input);
-        for token in expected.into_iter() {
-            let got = lexer.next_token().unwrap();
-            assert_eq!(got, token);
-        }
-    }
-
-    #[test]
     fn test_int_too_large() {
         let modulus = FieldElement::modulus();
         let input = modulus.to_string();
@@ -1408,7 +1394,7 @@ mod tests {
             Token::Keyword(Keyword::Let),
             Token::Ident("ten".to_string()),
             Token::Colon,
-            Token::Keyword(Keyword::Field),
+            Token::Ident("Field".to_string()),
             Token::Assign,
             Token::Int(10_i128.into()),
             Token::Semicolon,
@@ -1628,5 +1614,15 @@ mod tests {
                 "Expected NonAsciiComment error"
             );
         }
+    }
+
+    #[test]
+    fn errors_on_non_unicode_whitespace() {
+        let str = "\u{0085}";
+        let mut lexer = Lexer::new_with_dummy_file(str);
+        assert!(matches!(
+            lexer.next_token(),
+            Err(LexerErrorKind::UnicodeCharacterLooksLikeSpaceButIsItNot { .. })
+        ));
     }
 }

@@ -12,7 +12,11 @@ use crate::{
         Literal, NoirEnumeration, StatementKind, UnresolvedType,
     },
     elaborator::path_resolution::PathResolutionItem,
-    hir::{comptime::Value, resolution::errors::ResolverError, type_check::TypeCheckError},
+    hir::{
+        comptime::Value,
+        resolution::{errors::ResolverError, import::PathResolutionError},
+        type_check::TypeCheckError,
+    },
     hir_def::{
         expr::{
             Case, Constructor, HirBlockExpression, HirEnumConstructorExpression, HirExpression,
@@ -27,7 +31,7 @@ use crate::{
     token::Attributes,
 };
 
-use super::Elaborator;
+use super::{Elaborator, TypedPathSegment, path_resolution::PathResolutionTarget};
 
 const WILDCARD_PATTERN: &str = "_";
 
@@ -405,6 +409,8 @@ impl Elaborator<'_> {
                 Pattern::Constructor(constructor, Vec::new())
             }
             ExpressionKind::Variable(path) => {
+                let path = self.validate_path(path);
+
                 // A variable can be free or bound if it refers to an enum constant:
                 // - in `(a, b)`, both variables may be free and should be defined, or
                 //   may refer to an enum variant named `a` or `b` in scope.
@@ -412,14 +418,14 @@ impl Elaborator<'_> {
                 //   when there is a matching enum variant with name `Foo::a` which can
                 //   be imported. The user likely intended to reference the enum variant.
                 let location = path.location;
-                let last_ident = path.last_ident();
 
                 // Setting this to `Some` allows us to shadow globals with the same name.
                 // We should avoid this if there is a `::` in the path since that means the
                 // user is trying to resolve to a non-local item.
-                let shadow_existing = path.is_ident().then_some(last_ident);
 
-                match self.resolve_path_or_error(path) {
+                let shadow_existing = path.as_single_segment().cloned();
+
+                match self.resolve_path_or_error(path, PathResolutionTarget::Value) {
                     Ok(resolution) => self.path_resolution_to_constructor(
                         resolution,
                         shadow_existing,
@@ -430,7 +436,18 @@ impl Elaborator<'_> {
                     ),
                     Err(error) => {
                         if let Some(name) = shadow_existing {
-                            self.define_pattern_variable(name, expected_type, variables_defined)
+                            if name.generics.is_some() {
+                                self.push_err(PathResolutionError::TurbofishNotAllowedOnItem {
+                                    item: "local variables".to_string(),
+                                    location: name.turbofish_location(),
+                                });
+                            }
+
+                            self.define_pattern_variable(
+                                name.ident,
+                                expected_type,
+                                variables_defined,
+                            )
                         } else {
                             self.push_err(error);
                             Pattern::Error
@@ -587,8 +604,9 @@ impl Elaborator<'_> {
         match name.kind {
             ExpressionKind::Variable(path) => {
                 let location = path.location;
+                let path = self.validate_path(path);
 
-                match self.resolve_path_or_error(path) {
+                match self.resolve_path_or_error(path, PathResolutionTarget::Value) {
                     // Use None for `name` here - we don't want to define a variable if this
                     // resolves to an existing item.
                     Ok(resolution) => self.path_resolution_to_constructor(
@@ -638,7 +656,7 @@ impl Elaborator<'_> {
     fn path_resolution_to_constructor(
         &mut self,
         resolution: PathResolutionItem,
-        name: Option<Ident>,
+        name: Option<TypedPathSegment>,
         args: Vec<Expression>,
         expected_type: &Type,
         location: Location,
@@ -689,14 +707,26 @@ impl Elaborator<'_> {
             PathResolutionItem::Module(_)
             | PathResolutionItem::Type(_)
             | PathResolutionItem::TypeAlias(_)
+            | PathResolutionItem::PrimitiveType(_)
             | PathResolutionItem::Trait(_)
             | PathResolutionItem::ModuleFunction(_)
             | PathResolutionItem::TypeAliasFunction(_, _, _)
-            | PathResolutionItem::TraitFunction(_, _, _) => {
+            | PathResolutionItem::TraitFunction(_, _, _)
+            | PathResolutionItem::PrimitiveFunction(..) => {
                 // This variable refers to an existing item
                 if let Some(name) = name {
                     // If name is set, shadow the existing item
-                    return self.define_pattern_variable(name, expected_type, variables_defined);
+                    if name.generics.is_some() {
+                        self.push_err(PathResolutionError::TurbofishNotAllowedOnItem {
+                            item: "local variables".to_string(),
+                            location: name.turbofish_location(),
+                        });
+                    }
+                    return self.define_pattern_variable(
+                        name.ident,
+                        expected_type,
+                        variables_defined,
+                    );
                 } else {
                     let item = resolution.description();
                     self.push_err(ResolverError::UnexpectedItemInPattern { location, item });
@@ -936,7 +966,7 @@ impl<'elab, 'ctx> MatchCompiler<'elab, 'ctx> {
             | Type::TypeVariable(_)
             | Type::FmtString(_, _)
             | Type::TraitAsType(_, _, _)
-            | Type::NamedGeneric(_, _)
+            | Type::NamedGeneric(_)
             | Type::CheckedCast { .. }
             | Type::Function(_, _, _, _)
             | Type::Reference(..)
@@ -955,11 +985,18 @@ impl<'elab, 'ctx> MatchCompiler<'elab, 'ctx> {
         variable_types: Vec<Type>,
         location: Location,
     ) -> Vec<DefinitionId> {
-        vecmap(variable_types, |typ| self.fresh_match_variable(typ, location))
+        vecmap(variable_types.into_iter().enumerate(), |(index, typ)| {
+            self.fresh_match_variable(index, typ, location)
+        })
     }
 
-    fn fresh_match_variable(&mut self, variable_type: Type, location: Location) -> DefinitionId {
-        let name = "internal_match_variable".to_string();
+    fn fresh_match_variable(
+        &mut self,
+        index: usize,
+        variable_type: Type,
+        location: Location,
+    ) -> DefinitionId {
+        let name = format!("internal_match_variable_{index}");
         let kind = DefinitionKind::Local(None);
         let id = self.elaborator.interner.push_definition(name, false, false, kind, location);
         self.elaborator.interner.push_definition_type(id, variable_type);

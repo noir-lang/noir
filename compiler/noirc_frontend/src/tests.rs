@@ -37,7 +37,7 @@ use crate::hir_def::stmt::HirStatement;
 
 pub(crate) fn get_program_using_features(
     src: &str,
-    test_path: &str,
+    test_path: Option<&str>,
     expect: Expect,
     features: &[UnstableFeature],
 ) -> (ParsedModule, Context<'static, 'static>, Vec<CompilationError>) {
@@ -48,11 +48,11 @@ pub(crate) fn get_program_using_features(
 }
 
 pub(crate) fn get_program_errors(src: &str, test_path: &str) -> Vec<CompilationError> {
-    get_program(src, test_path, Expect::Error).2
+    get_program(src, Some(test_path), Expect::Error).2
 }
 
 fn assert_no_errors(src: &str, test_path: &str) {
-    let (_, context, errors) = get_program(src, test_path, Expect::Success);
+    let (_, context, errors) = get_program(src, Some(test_path), Expect::Success);
     if !errors.is_empty() {
         let errors = errors.iter().map(CustomDiagnostic::from).collect::<Vec<_>>();
         report_all(context.file_manager.as_file_map(), &errors, false, false);
@@ -74,7 +74,7 @@ fn assert_no_errors(src: &str, test_path: &str) {
 ///
 /// this method will check that compiling the program without those error markers
 /// will produce errors at those locations and with/ those messages.
-fn check_errors(src: &str, test_path: &str) {
+fn check_errors(src: &str, test_path: Option<&str>) {
     let allow_parser_errors = false;
     let monomorphize = false;
     check_errors_with_options(
@@ -86,7 +86,7 @@ fn check_errors(src: &str, test_path: &str) {
     );
 }
 
-fn check_errors_using_features(src: &str, test_path: &str, features: &[UnstableFeature]) {
+fn check_errors_using_features(src: &str, test_path: Option<&str>, features: &[UnstableFeature]) {
     let allow_parser_errors = false;
     let monomorphize = false;
     let options =
@@ -95,13 +95,13 @@ fn check_errors_using_features(src: &str, test_path: &str, features: &[UnstableF
 }
 
 #[allow(unused)]
-pub(super) fn check_monomorphization_error(src: &str, test_path: &str) {
+pub(super) fn check_monomorphization_error(src: &str, test_path: Option<&str>) {
     check_monomorphization_error_using_features(src, test_path, &[]);
 }
 
 pub(super) fn check_monomorphization_error_using_features(
     src: &str,
-    test_path: &str,
+    test_path: Option<&str>,
     features: &[UnstableFeature],
 ) {
     let allow_parser_errors = false;
@@ -117,7 +117,7 @@ pub(super) fn check_monomorphization_error_using_features(
 
 fn check_errors_with_options(
     src: &str,
-    test_path: &str,
+    test_path: Option<&str>,
     allow_parser_errors: bool,
     monomorphize: bool,
     options: FrontendOptions,
@@ -305,7 +305,7 @@ macro_rules! get_program_using_features {
     ($src:expr, $expect:expr, $features:expr) => {
         $crate::tests::get_program_using_features(
             $src,
-            $crate::function_path!(),
+            Some($crate::function_path!()),
             $expect,
             $features,
         )
@@ -334,7 +334,7 @@ macro_rules! get_program_with_options {
     ($src:expr, $expect:expr, $allow_parser_errors:expr, $options:expr) => {
         $crate::tests::get_program_with_options(
             $src,
-            $crate::function_path!(),
+            Some($crate::function_path!()),
             $expect,
             $allow_parser_errors,
             $options,
@@ -354,7 +354,7 @@ macro_rules! get_program_captures {
 #[macro_export]
 macro_rules! check_errors {
     ($src:expr) => {
-        $crate::tests::check_errors($src, $crate::function_path!())
+        $crate::tests::check_errors($src, Some($crate::function_path!()))
     };
     ($src:expr,) => {
         $crate::check_errors!($src)
@@ -365,7 +365,7 @@ macro_rules! check_errors {
 #[macro_export]
 macro_rules! check_errors_using_features {
     ($src:expr, $features:expr) => {
-        $crate::tests::check_errors_using_features($src, $crate::function_path!(), $features)
+        $crate::tests::check_errors_using_features($src, Some($crate::function_path!()), $features)
     };
 }
 
@@ -373,7 +373,7 @@ macro_rules! check_errors_using_features {
 #[macro_export]
 macro_rules! check_monomorphization_error {
     ($src:expr) => {
-        $crate::tests::check_monomorphization_error($src, $crate::function_path!())
+        $crate::tests::check_monomorphization_error($src, Some($crate::function_path!()))
     };
 }
 
@@ -383,7 +383,7 @@ macro_rules! check_monomorphization_error_using_features {
     ($src:expr, $features:expr) => {
         $crate::tests::check_monomorphization_error_using_features(
             $src,
-            $crate::function_path!(),
+            Some($crate::function_path!()),
             $features,
         )
     };
@@ -933,7 +933,7 @@ fn check_trait_as_type_as_two_fn_parameters() {
 }
 
 fn get_program_captures(src: &str, test_path: &str) -> Vec<Vec<String>> {
-    let (program, context, _errors) = get_program(src, test_path, Expect::Success);
+    let (program, context, _errors) = get_program(src, Some(test_path), Expect::Success);
     let interner = context.def_interner;
     let mut all_captures: Vec<Vec<String>> = Vec::new();
     for func in program.into_sorted().functions {
@@ -1344,9 +1344,11 @@ fn break_and_continue_in_constrained_fn() {
 #[test]
 fn break_and_continue_outside_loop() {
     let src = r#"
-        unconstrained fn main() {
+        pub unconstrained fn foo() {
             continue;
             ^^^^^^^^^ continue is only allowed within loops
+        }
+        pub unconstrained fn bar() {
             break;
             ^^^^^^ break is only allowed within loops
         }
@@ -2071,7 +2073,7 @@ fn normal_generic_used_when_numeric_expected_in_where_clause() {
         T::deserialize([0, 1])
     }
     "#;
-    check_errors(src, &format!("{}_1", function_path!()));
+    check_errors(src, Some(&format!("{}_1", function_path!())));
 
     // TODO: improve the error location for the array (should be on N)
     let src = r#"
@@ -2095,7 +2097,7 @@ fn normal_generic_used_when_numeric_expected_in_where_clause() {
         T::deserialize(fields)
     }
     "#;
-    check_errors(src, &format!("{}_2", function_path!()));
+    check_errors(src, Some(&format!("{}_2", function_path!())));
 }
 
 #[named]
@@ -2995,11 +2997,11 @@ fn do_not_infer_globals_to_u32_from_type_use() {
                     ^^^^^^^^^^^^^^^^ The numeric generic is not of type `u32`
                     ~~~~~~~~~~~~~~~~ expected `u32`, found `Field`
             let _b: str<STR_LEN> = "hi";
-                    ^^^^^^^^^^^^ The numeric generic is not of type `u32`
-                    ~~~~~~~~~~~~ expected `u32`, found `Field`
+                        ^^^^^^^ The numeric generic is not of type `u32`
+                        ~~~~~~~ expected `u32`, found `Field`
             let _c: fmtstr<FMT_STR_LEN, _> = f"hi";
-                    ^^^^^^^^^^^^^^^^^^^^^^ The numeric generic is not of type `u32`
-                    ~~~~~~~~~~~~~~~~~~~~~~ expected `u32`, found `Field`
+                           ^^^^^^^^^^^ The numeric generic is not of type `u32`
+                           ~~~~~~~~~~~ expected `u32`, found `Field`
         }
     "#;
     check_errors!(src);
@@ -3025,7 +3027,7 @@ fn do_not_infer_partial_global_types() {
         pub global FORMATTED_VALUE: str<5> = "there";
         pub global FMT_STR: fmtstr<_, _> = f"hi {FORMATTED_VALUE}";
                    ^^^^^^^ Globals must have a specified type
-                                           ~~~~~~~~~~~~~~~~~~~~~~~ Inferred type is `fmtstr<20, (str<5>)>`
+                                           ~~~~~~~~~~~~~~~~~~~~~~~ Inferred type is `fmtstr<20, (str<5>,)>`
         pub global TUPLE_WITH_MULTIPLE: ([str<_>], [[Field; _]; 3]) = 
                    ^^^^^^^^^^^^^^^^^^^ Globals must have a specified type
             (&["hi"], [[]; 3]);
@@ -3314,7 +3316,7 @@ fn unconditional_recursion_fail() {
     ];
 
     for (index, src) in srcs.into_iter().enumerate() {
-        check_errors(src, &format!("{}_{index}", function_path!()));
+        check_errors(src, Some(&format!("{}_{index}", function_path!())));
     }
 }
 
@@ -4379,7 +4381,6 @@ fn deny_attaching_mut_ref_to_immutable_object() {
     check_errors!(src);
 }
 
-#[named]
 #[test]
 fn immutable_references_with_ownership_feature() {
     let src = r#"
@@ -4392,7 +4393,7 @@ fn immutable_references_with_ownership_feature() {
     "#;
 
     let (_, _, errors) =
-        get_program_using_features!(src, Expect::Success, &[UnstableFeature::Ownership]);
+        get_program_using_features(src, None, Expect::Success, &[UnstableFeature::Ownership]);
     assert_eq!(errors.len(), 0);
 }
 
@@ -4410,19 +4411,6 @@ fn immutable_references_without_ownership_feature() {
         fn borrow(_array: &[Field; 3]) {}
                           ^^^^^^^^^^^ This requires the unstable feature 'ownership' which is not enabled
                           ~~~~~~~~~~~ Pass -Zownership to nargo to enable this feature at your own risk.
-    "#;
-    check_errors!(src);
-}
-
-#[named]
-#[test]
-fn errors_on_invalid_integer_bit_size() {
-    let src = r#"
-    fn main() {
-        let _: u42 = 4;
-               ^^^ Use of invalid bit size 42
-               ~~~ Allowed bit sizes for integers are 1, 8, 16, 32, 64, 128
-    }
     "#;
     check_errors!(src);
 }
@@ -4643,4 +4631,74 @@ fn resolves_generic_type_argument_via_self() {
     }
     ";
     check_monomorphization_error!(src);
+}
+
+#[named]
+#[test]
+fn attempt_to_add_with_overflow_at_comptime() {
+    let src = r#"
+        fn main() -> pub u8 {
+            comptime {
+                255 as u8 + 1 as u8
+                ^^^^^^^^^^^^^^^^^^^ Attempt to add with overflow
+            }
+        }
+
+        "#;
+    check_errors!(src);
+}
+
+#[named]
+#[test]
+fn attempt_to_divide_by_zero_at_comptime() {
+    let src = r#"
+        fn main() -> pub u8 {
+            comptime {
+                255 as u8 / 0
+                ^^^^^^^^^^^^^ Attempt to divide by zero
+            }
+        }
+
+        "#;
+    check_errors!(src);
+}
+
+#[named]
+#[test]
+fn same_name_in_types_and_values_namespace_works() {
+    let src = "
+    struct foo {}
+
+    fn foo(x: foo) -> foo {
+        x
+    }
+
+    fn main() {
+        let x: foo = foo {};
+        let _ = foo(x);
+    }
+    ";
+    assert_no_errors!(src);
+}
+
+#[named]
+#[test]
+fn only_one_private_error_when_name_in_types_and_values_namespace_collides() {
+    let src = "
+    mod moo {
+        struct foo {}
+
+        fn foo() {}
+    }
+
+    fn main() {
+        let _ = moo::foo {};
+                     ^^^ foo is private and not visible from the current module
+                     ~~~ foo is private
+        x
+        ^ cannot find `x` in this scope
+        ~ not found in this scope
+    }
+    ";
+    check_errors!(src);
 }

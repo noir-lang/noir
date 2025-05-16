@@ -5,6 +5,9 @@ use std::{
 };
 
 use async_lsp::ResponseError;
+use async_lsp::lsp_types::{
+    CompletionItem, CompletionItemKind, CompletionParams, CompletionResponse,
+};
 use completion_items::{
     field_completion_item, simple_completion_item, snippet_completion_item,
     trait_impl_method_completion_item,
@@ -12,10 +15,9 @@ use completion_items::{
 use convert_case::{Case, Casing};
 use fm::{FileId, FileMap, PathString};
 use kinds::{FunctionCompletionKind, FunctionKind, RequestedItems};
-use lsp_types::{CompletionItem, CompletionItemKind, CompletionParams, CompletionResponse};
 use noirc_errors::{Location, Span};
 use noirc_frontend::{
-    DataType, ParsedModule, Type, TypeBinding,
+    DataType, NamedGeneric, ParsedModule, Type, TypeBinding,
     ast::{
         AsTraitPath, AttributeTarget, BlockExpression, CallExpression, ConstructorExpression,
         Expression, ExpressionKind, ForLoopStatement, GenericTypeArgs, Ident, IfExpression,
@@ -24,6 +26,7 @@ use noirc_frontend::{
         Statement, TraitBound, TraitImplItemKind, TypeImpl, TypePath, UnresolvedGeneric,
         UnresolvedGenerics, UnresolvedType, UnresolvedTypeData, UseTree, UseTreeKind, Visitor,
     },
+    elaborator::PrimitiveType,
     graph::{CrateId, Dependency},
     hir::{
         def_map::{CrateDefMap, LocalModuleId, ModuleDefId, ModuleId},
@@ -317,7 +320,22 @@ impl<'a> NodeFinder<'a> {
         if idents.is_empty() {
             module_id = self.module_id;
         } else {
-            let Some(module_def_id) = self.resolve_path(idents) else {
+            let Some(module_def_id) = self.resolve_path(idents.clone()) else {
+                // Check if the first segment refers to a primitive type
+                if idents.len() != 1 {
+                    return;
+                }
+                let Some(primitive_type) = PrimitiveType::lookup_by_name(idents[0].as_str()) else {
+                    return;
+                };
+                let typ = primitive_type.to_type();
+                self.complete_type_methods(
+                    &typ,
+                    &prefix,
+                    FunctionKind::Any,
+                    FunctionCompletionKind::NameAndParameters,
+                    false, // self_prefix
+                );
                 return;
             };
 
@@ -544,6 +562,9 @@ impl<'a> NodeFinder<'a> {
                     self.collect_local_variables(pattern);
                 }
             }
+            Pattern::Parenthesized(pattern, _) => {
+                self.collect_local_variables(pattern);
+            }
             Pattern::Interned(..) => (),
         }
     }
@@ -606,7 +627,7 @@ impl<'a> NodeFinder<'a> {
             Type::Tuple(types) => {
                 self.complete_tuple_fields(types, self_prefix);
             }
-            Type::TypeVariable(var) | Type::NamedGeneric(var, _) => {
+            Type::TypeVariable(var) | Type::NamedGeneric(NamedGeneric { type_var: var, .. }) => {
                 if let TypeBinding::Bound(typ) = &*var.borrow() {
                     return self.complete_type_fields_and_methods(
                         typ,
@@ -886,6 +907,13 @@ impl<'a> NodeFinder<'a> {
                 }
                 PathKind::Dep => (),
                 PathKind::Plain => (),
+                PathKind::Resolved(crate_id) => {
+                    let def_map = &self.def_maps[&crate_id];
+                    let Some(root_module_data) = def_map.get(def_map.root()) else {
+                        return;
+                    };
+                    module_data = root_module_data;
+                }
             }
         }
 
@@ -1098,7 +1126,9 @@ impl<'a> NodeFinder<'a> {
                     }
                 }
             }
-            Pattern::Mutable(pattern, ..) => self.try_set_self_type(pattern),
+            Pattern::Mutable(pattern, ..) | Pattern::Parenthesized(pattern, _) => {
+                self.try_set_self_type(pattern);
+            }
             Pattern::Tuple(..) | Pattern::Struct(..) | Pattern::Interned(..) => (),
         }
     }
@@ -1909,10 +1939,12 @@ fn get_field_type(typ: &Type, name: &str) -> Option<Type> {
             }
         }
         Type::Alias(alias_type, generics) => Some(alias_type.borrow().get_type(generics)),
-        Type::TypeVariable(var) | Type::NamedGeneric(var, _) => match &*var.borrow() {
-            TypeBinding::Bound(typ) => get_field_type(typ, name),
-            _ => None,
-        },
+        Type::TypeVariable(var) | Type::NamedGeneric(NamedGeneric { type_var: var, .. }) => {
+            match &*var.borrow() {
+                TypeBinding::Bound(typ) => get_field_type(typ, name),
+                _ => None,
+            }
+        }
         _ => None,
     }
 }
@@ -1924,10 +1956,12 @@ fn get_array_element_type(typ: Type) -> Option<Type> {
             let typ = alias_type.borrow().get_type(&generics);
             get_array_element_type(typ)
         }
-        Type::TypeVariable(var) | Type::NamedGeneric(var, _) => match &*var.borrow() {
-            TypeBinding::Bound(typ) => get_array_element_type(typ.clone()),
-            _ => None,
-        },
+        Type::TypeVariable(var) | Type::NamedGeneric(NamedGeneric { type_var: var, .. }) => {
+            match &*var.borrow() {
+                TypeBinding::Bound(typ) => get_array_element_type(typ.clone()),
+                _ => None,
+            }
+        }
         _ => None,
     }
 }

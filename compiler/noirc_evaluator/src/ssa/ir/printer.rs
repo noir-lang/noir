@@ -7,7 +7,10 @@ use iter_extended::vecmap;
 
 use crate::ssa::{
     Ssa,
-    ir::types::{NumericType, Type},
+    ir::{
+        instruction::ArrayGetOffset,
+        types::{NumericType, Type},
+    },
 };
 
 use super::{
@@ -85,7 +88,6 @@ fn display_block(dfg: &DataFlowGraph, block_id: BasicBlockId, f: &mut Formatter)
 /// Specialize displaying value ids so that if they refer to a numeric
 /// constant or a function we print those directly.
 fn value(dfg: &DataFlowGraph, id: ValueId) -> String {
-    let id = dfg.resolve(id);
     match &dfg[id] {
         Value::NumericConstant { constant, typ } => {
             format!("{typ} {constant}")
@@ -191,7 +193,7 @@ fn display_instruction_inner(
 
     match instruction {
         Instruction::Binary(binary) => {
-            writeln!(f, "{} {}, {}", binary.operator, show(binary.lhs), show(binary.rhs))
+            writeln!(f, "{}", display_binary(binary, dfg))
         }
         Instruction::Cast(lhs, typ) => writeln!(f, "cast {} as {typ}", show(*lhs)),
         Instruction::Not(rhs) => writeln!(f, "not {}", show(*rhs)),
@@ -231,12 +233,17 @@ fn display_instruction_inner(
         Instruction::EnableSideEffectsIf { condition } => {
             writeln!(f, "enable_side_effects {}", show(*condition))
         }
-        Instruction::ArrayGet { array, index } => {
+        Instruction::ArrayGet { array, index, offset } => {
             writeln!(
                 f,
-                "array_get {}, index {}{}",
+                "array_get {}, index {}{}{}",
                 show(*array),
                 show(*index),
+                match offset {
+                    ArrayGetOffset::None => String::new(),
+                    ArrayGetOffset::Array | ArrayGetOffset::Slice =>
+                        format!(" minus {}", offset.to_u32()),
+                },
                 result_types(dfg, results)
             )
         }
@@ -304,8 +311,12 @@ fn display_instruction_inner(
 
             writeln!(f, "] : {typ}")
         }
-        Instruction::Noop => writeln!(f, "no-op"),
+        Instruction::Noop => writeln!(f, "nop"),
     }
+}
+
+pub(crate) fn display_binary(binary: &super::instruction::Binary, dfg: &DataFlowGraph) -> String {
+    format!("{} {}, {}", binary.operator, value(dfg, binary.lhs), value(dfg, binary.rhs))
 }
 
 fn try_byte_array_to_string(elements: &Vector<ValueId>, dfg: &DataFlowGraph) -> Option<String> {

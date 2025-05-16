@@ -1,11 +1,9 @@
 use std::collections::hash_map::Entry;
 
-use acvm::{FieldElement, acir::AcirField};
 use fxhash::FxHashMap as HashMap;
 
 use crate::ssa::ir::function::RuntimeType;
 use crate::ssa::ir::instruction::Hint;
-use crate::ssa::ir::types::NumericType;
 use crate::ssa::ir::value::ValueId;
 use crate::ssa::{
     Ssa,
@@ -51,38 +49,32 @@ impl Function {
 #[derive(Default)]
 struct Context {
     slice_sizes: HashMap<ValueId, u32>,
-
-    // Maps array_set result -> enable_side_effects_if value which was active during it.
-    array_set_conditionals: HashMap<ValueId, ValueId>,
 }
 
 impl Context {
     fn remove_if_else(&mut self, function: &mut Function) {
         let block = function.entry_block();
-        let instructions = function.dfg[block].take_instructions();
-        let one = FieldElement::one();
-        let mut current_conditional = function.dfg.make_constant(one, NumericType::bool());
 
-        for instruction in instructions {
-            match &function.dfg[instruction] {
+        // Make sure this optimization runs when there's only one block
+        assert_eq!(function.dfg[block].successors().count(), 0);
+
+        function.simple_reachable_blocks_optimization(|context| {
+            let instruction_id = context.instruction_id;
+            let instruction = context.instruction();
+
+            match instruction {
                 Instruction::IfElse { then_condition, then_value, else_condition, else_value } => {
                     let then_condition = *then_condition;
                     let else_condition = *else_condition;
                     let then_value = *then_value;
                     let else_value = *else_value;
 
-                    let typ = function.dfg.type_of_value(then_value);
+                    let typ = context.dfg.type_of_value(then_value);
                     assert!(!matches!(typ, Type::Numeric(_)));
 
-                    let call_stack = function.dfg.get_instruction_call_stack_id(instruction);
-                    let mut value_merger = ValueMerger::new(
-                        &mut function.dfg,
-                        block,
-                        &mut self.slice_sizes,
-                        &mut self.array_set_conditionals,
-                        Some(current_conditional),
-                        call_stack,
-                    );
+                    let call_stack = context.dfg.get_instruction_call_stack_id(instruction_id);
+                    let mut value_merger =
+                        ValueMerger::new(context.dfg, block, &mut self.slice_sizes, call_stack);
 
                     let value = value_merger.merge_values(
                         then_condition,
@@ -91,8 +83,8 @@ impl Context {
                         else_value,
                     );
 
-                    let _typ = function.dfg.type_of_value(value);
-                    let results = function.dfg.instruction_results(instruction);
+                    let _typ = context.dfg.type_of_value(value);
+                    let results = context.dfg.instruction_results(instruction_id);
                     let result = results[0];
                     // let result = match typ {
                     //     Type::Array(..) => results[0],
@@ -100,51 +92,41 @@ impl Context {
                     //     other => unreachable!("IfElse instructions should only have arrays or slices at this point. Found {other:?}"),
                     // };
 
-                    function.dfg.set_value_from_id(result, value);
-                    self.array_set_conditionals.insert(result, current_conditional);
+                    context.remove_current_instruction();
+                    context.replace_value(result, value);
                 }
                 Instruction::Call { func, arguments } => {
-                    if let Value::Intrinsic(intrinsic) = function.dfg[*func] {
-                        let results = function.dfg.instruction_results(instruction);
+                    if let Value::Intrinsic(intrinsic) = context.dfg[*func] {
+                        let results = context.dfg.instruction_results(instruction_id);
 
-                        match slice_capacity_change(&function.dfg, intrinsic, arguments, results) {
+                        match slice_capacity_change(context.dfg, intrinsic, arguments, results) {
                             SizeChange::None => (),
                             SizeChange::SetTo(value, new_capacity) => {
                                 self.slice_sizes.insert(value, new_capacity);
                             }
                             SizeChange::Inc { old, new } => {
-                                let old_capacity = self.get_or_find_capacity(&function.dfg, old);
+                                let old_capacity = self.get_or_find_capacity(context.dfg, old);
                                 self.slice_sizes.insert(new, old_capacity + 1);
                             }
                             SizeChange::Dec { old, new } => {
-                                let old_capacity = self.get_or_find_capacity(&function.dfg, old);
+                                let old_capacity = self.get_or_find_capacity(context.dfg, old);
                                 // We use a saturating sub here as calling `pop_front` or `pop_back` on a zero-length slice
                                 // would otherwise underflow.
                                 self.slice_sizes.insert(new, old_capacity.saturating_sub(1));
                             }
                         }
                     }
-                    function.dfg[block].instructions_mut().push(instruction);
                 }
                 Instruction::ArraySet { array, .. } => {
-                    let results = function.dfg.instruction_results(instruction);
+                    let results = context.dfg.instruction_results(instruction_id);
                     let result = if results.len() == 2 { results[1] } else { results[0] };
 
-                    self.array_set_conditionals.insert(result, current_conditional);
-
-                    let old_capacity = self.get_or_find_capacity(&function.dfg, *array);
+                    let old_capacity = self.get_or_find_capacity(context.dfg, *array);
                     self.slice_sizes.insert(result, old_capacity);
-                    function.dfg[block].instructions_mut().push(instruction);
                 }
-                Instruction::EnableSideEffectsIf { condition } => {
-                    current_conditional = *condition;
-                    function.dfg[block].instructions_mut().push(instruction);
-                }
-                _ => {
-                    function.dfg[block].instructions_mut().push(instruction);
-                }
+                _ => (),
             }
-        }
+        });
     }
 
     fn get_or_find_capacity(&mut self, dfg: &DataFlowGraph, value: ValueId) -> u32 {
@@ -286,7 +268,7 @@ mod tests {
         // We then should create a new array where each value can be mapped to `(then_condition * then_value) + (!then_condition * else_value)`.
         // The `then_value` and `else_value` for an array will be every element of the array. Thus, we should see array_get operations
         // on the original array as well as the new values we are writing to the array.
-        assert_ssa_snapshot!(ssa, @r#"
+        assert_ssa_snapshot!(ssa, @r"
         acir(inline) predicate_pure fn main f0 {
           b0(v0: u1, v1: [u32; 2]):
             v2 = allocate -> &mut [u32; 2]
@@ -294,27 +276,27 @@ mod tests {
             v5 = array_set v1, index u32 0, value u32 1
             v7 = array_set v5, index u32 1, value u32 2
             v8 = not v0
-            v10 = array_get v1, index Field 0 -> u32
-            v11 = cast v0 as u32
-            v12 = cast v8 as u32
-            v13 = unchecked_mul v12, v10
-            v14 = unchecked_add v11, v13
-            v16 = array_get v1, index Field 1 -> u32
-            v17 = cast v0 as u32
-            v18 = cast v8 as u32
-            v19 = unchecked_mul v17, u32 2
-            v20 = unchecked_mul v18, v16
-            v21 = unchecked_add v19, v20
-            v22 = make_array [v14, v21] : [u32; 2]
+            v9 = array_get v1, index u32 0 -> u32
+            v10 = cast v0 as u32
+            v11 = cast v8 as u32
+            v12 = unchecked_mul v11, v9
+            v13 = unchecked_add v10, v12
+            v14 = array_get v1, index u32 1 -> u32
+            v15 = cast v0 as u32
+            v16 = cast v8 as u32
+            v17 = unchecked_mul v15, u32 2
+            v18 = unchecked_mul v16, v14
+            v19 = unchecked_add v17, v18
+            v20 = make_array [v13, v19] : [u32; 2]
             enable_side_effects u1 1
-            v24 = array_get v22, index u32 0 -> u32
-            v25 = array_get v22, index u32 1 -> u32
-            v26 = add v24, v25
-            v28 = eq v26, u32 3
-            constrain v26 == u32 3
+            v22 = array_get v20, index u32 0 -> u32
+            v23 = array_get v20, index u32 1 -> u32
+            v24 = add v22, v23
+            v26 = eq v24, u32 3
+            constrain v24 == u32 3
             return
         }
-        "#);
+        ");
     }
 
     #[test]
@@ -355,29 +337,34 @@ mod tests {
         // rather than merging the entire array. As we only modify the `y` array at a single index,
         // we instead only map the if predicate onto the the numeric value we are looking to write,
         // and then write into the array directly.
-        assert_ssa_snapshot!(ssa, @r#"
+        assert_ssa_snapshot!(ssa, @r"
         acir(inline) predicate_pure fn main f0 {
           b0(v0: u1, v1: [u32; 2]):
             v2 = allocate -> &mut [u32; 2]
             enable_side_effects v0
             v5 = array_set v1, index u32 0, value u32 1
             v6 = not v0
-            enable_side_effects v0
             v7 = array_get v1, index u32 0 -> u32
             v8 = cast v0 as u32
             v9 = cast v6 as u32
             v10 = unchecked_mul v9, v7
             v11 = unchecked_add v8, v10
-            v12 = array_set v5, index u32 0, value v11
-            enable_side_effects v0
+            v12 = array_get v5, index u32 1 -> u32
+            v13 = array_get v1, index u32 1 -> u32
+            v14 = cast v0 as u32
+            v15 = cast v6 as u32
+            v16 = unchecked_mul v14, v12
+            v17 = unchecked_mul v15, v13
+            v18 = unchecked_add v16, v17
+            v19 = make_array [v11, v18] : [u32; 2]
             enable_side_effects u1 1
-            v14 = array_get v12, index u32 0 -> u32
-            v15 = array_get v12, index u32 1 -> u32
-            v16 = add v14, v15
-            v17 = eq v16, u32 1
-            constrain v16 == u32 1
+            v21 = array_get v19, index u32 0 -> u32
+            v22 = array_get v19, index u32 1 -> u32
+            v23 = add v21, v22
+            v24 = eq v23, u32 1
+            constrain v23 == u32 1
             return
         }
-        "#);
+        ");
     }
 }
