@@ -2263,22 +2263,6 @@ mod control_dependence {
         let ssa = ssa.loop_invariant_code_motion();
 
         // We expect the SSA to be unchanged
-        assert_ssa_snapshot!(ssa, @r"
-        brillig(inline) fn main f0 {
-          b0(v0: u32):
-            v1 = allocate -> &mut Field
-            store Field 0 at v1
-            jmp b1()
-          b1():
-            v3 = load v1 -> Field
-            v4 = eq v3, Field 0
-            jmpif v4 then: b2, else: b3
-          b2():
-            return
-          b3():
-            v6 = div u32 5, v0
-            jmp b1()
-        }
-        ");
+        assert_normalized_ssa_equals(ssa, src);
     }
 }
