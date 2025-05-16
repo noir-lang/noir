@@ -189,7 +189,7 @@ impl Context {
             || bool::arbitrary(u)?;
 
         // Which existing functions we could receive as parameters.
-        let func_param_candidates: Vec<FuncId> = if is_main {
+        let func_param_candidates: Vec<FuncId> = if is_main || self.config.avoid_lambdas {
             // Main cannot receive function parameters from outside.
             vec![]
         } else {

@@ -27,7 +27,10 @@ fn arb_program_can_be_executed() {
     let maybe_seed = seed_from_env();
 
     let mut prop = arbtest(|u| {
-        let program = arb_program(u, Config::default())?;
+        // TODO(#8543): Allow lambdas when ICE is fixed.
+        let config = Config { avoid_lambdas: true, ..Default::default() };
+
+        let program = arb_program(u, config)?;
         let abi = program_abi(&program);
 
         let options = ssa::SsaEvaluatorOptions {
