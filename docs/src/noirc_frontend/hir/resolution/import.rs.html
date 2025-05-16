@@ -421,7 +421,9 @@
 <a href="#420" id="420">420</a>
 <a href="#421" id="421">421</a>
 <a href="#422" id="422">422</a>
-<a href="#423" id="423">423</a></pre></div><pre class="rust"><code><span class="kw">use </span>iter_extended::vecmap;
+<a href="#423" id="423">423</a>
+<a href="#424" id="424">424</a>
+<a href="#425" id="425">425</a></pre></div><pre class="rust"><code><span class="kw">use </span>iter_extended::vecmap;
 <span class="kw">use </span>noirc_errors::{CustomDiagnostic, Location};
 <span class="kw">use </span>thiserror::Error;
 
@@ -636,19 +638,21 @@
 <span class="kw">impl </span>PathResolutionTargetResolver&lt;<span class="lifetime">'_</span>, <span class="lifetime">'_</span>&gt; {
     <span class="kw">fn </span>resolve(<span class="kw-2">&amp;mut </span><span class="self">self</span>, path: TypedPath) -&gt; <span class="prelude-ty">Result</span>&lt;(TypedPath, ModuleId), PathResolutionError&gt; {
         <span class="kw">match </span>path.kind {
-            PathKind::Crate =&gt; <span class="self">self</span>.resolve_crate_path(path),
+            PathKind::Crate =&gt; <span class="self">self</span>.resolve_crate_path(path, <span class="self">self</span>.importing_module.krate),
             PathKind::Plain =&gt; <span class="self">self</span>.resolve_plain_path(path, <span class="self">self</span>.importing_module),
             PathKind::Dep =&gt; <span class="self">self</span>.resolve_dep_path(path),
             PathKind::Super =&gt; <span class="self">self</span>.resolve_super_path(path),
+            PathKind::Resolved(crate_id) =&gt; <span class="self">self</span>.resolve_crate_path(path, crate_id),
         }
     }
 
     <span class="kw">fn </span>resolve_crate_path(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
         path: TypedPath,
+        krate: CrateId,
     ) -&gt; <span class="prelude-ty">Result</span>&lt;(TypedPath, ModuleId), PathResolutionError&gt; {
-        <span class="kw">let </span>root_module = <span class="self">self</span>.def_maps[<span class="kw-2">&amp;</span><span class="self">self</span>.importing_module.krate].root();
-        <span class="kw">let </span>current_module = ModuleId { krate: <span class="self">self</span>.importing_module.krate, local_id: root_module };
+        <span class="kw">let </span>root_module = <span class="self">self</span>.def_maps[<span class="kw-2">&amp;</span>krate].root();
+        <span class="kw">let </span>current_module = ModuleId { krate, local_id: root_module };
         <span class="prelude-val">Ok</span>((path, current_module))
     }
 

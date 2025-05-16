@@ -1301,12 +1301,19 @@
 <a href="#1300" id="1300">1300</a>
 <a href="#1301" id="1301">1301</a>
 <a href="#1302" id="1302">1302</a>
-<a href="#1303" id="1303">1303</a></pre></div><pre class="rust"><code><span class="kw">use </span>acvm::FieldElement;
+<a href="#1303" id="1303">1303</a>
+<a href="#1304" id="1304">1304</a>
+<a href="#1305" id="1305">1305</a>
+<a href="#1306" id="1306">1306</a>
+<a href="#1307" id="1307">1307</a>
+<a href="#1308" id="1308">1308</a>
+<a href="#1309" id="1309">1309</a></pre></div><pre class="rust"><code><span class="kw">use </span>acvm::FieldElement;
 <span class="kw">use </span>noirc_errors::{Located, Location, Position, Span, Spanned};
 <span class="kw">use </span>std::fmt::{<span class="self">self</span>, Display};
 
 <span class="kw">use crate</span>::{
     ast::{Expression, Path},
+    graph::CrateId,
     node_interner::{
         ExprId, InternedExpressionKind, InternedPattern, InternedStatementKind,
         InternedUnresolvedTypeData, QuotedTypeId,
@@ -1341,6 +1348,7 @@
     InternedLValue(InternedExpressionKind),
     InternedUnresolvedTypeData(InternedUnresolvedTypeData),
     InternedPattern(InternedPattern),
+    InternedCrate(CrateId),
     <span class="doccomment">/// &lt;
     </span>Less,
     <span class="doccomment">/// &lt;=
@@ -1465,6 +1473,8 @@
     </span>InternedUnresolvedTypeData(InternedUnresolvedTypeData),
     <span class="doccomment">/// A reference to an interned `Pattern`.
     </span>InternedPattern(InternedPattern),
+    <span class="doccomment">/// A reference to an existing crate. This is a result of using `$crate` in a macro
+    </span>InternedCrate(CrateId),
     <span class="doccomment">/// &lt;
     </span>Less,
     <span class="doccomment">/// &lt;=
@@ -1581,6 +1591,7 @@
         Token::InternedLValue(id) =&gt; BorrowedToken::InternedLValue(<span class="kw-2">*</span>id),
         Token::InternedUnresolvedTypeData(id) =&gt; BorrowedToken::InternedUnresolvedTypeData(<span class="kw-2">*</span>id),
         Token::InternedPattern(id) =&gt; BorrowedToken::InternedPattern(<span class="kw-2">*</span>id),
+        Token::InternedCrate(id) =&gt; BorrowedToken::InternedCrate(<span class="kw-2">*</span>id),
         Token::Less =&gt; BorrowedToken::Less,
         Token::LessEqual =&gt; BorrowedToken::LessEqual,
         Token::Greater =&gt; BorrowedToken::Greater,
@@ -1817,6 +1828,7 @@
                 <span class="macro">write!</span>(f, <span class="string">"(expr)"</span>)
             }
             Token::InternedUnresolvedTypeData(<span class="kw">_</span>) =&gt; <span class="macro">write!</span>(f, <span class="string">"(type)"</span>),
+            Token::InternedCrate(<span class="kw">_</span>) =&gt; <span class="macro">write!</span>(f, <span class="string">"$crate"</span>),
             Token::Less =&gt; <span class="macro">write!</span>(f, <span class="string">"&lt;"</span>),
             Token::LessEqual =&gt; <span class="macro">write!</span>(f, <span class="string">"&lt;="</span>),
             Token::Greater =&gt; <span class="macro">write!</span>(f, <span class="string">"&gt;"</span>),

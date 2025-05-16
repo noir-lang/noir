@@ -2045,7 +2045,14 @@
 <a href="#2044" id="2044">2044</a>
 <a href="#2045" id="2045">2045</a>
 <a href="#2046" id="2046">2046</a>
-<a href="#2047" id="2047">2047</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::{
+<a href="#2047" id="2047">2047</a>
+<a href="#2048" id="2048">2048</a>
+<a href="#2049" id="2049">2049</a>
+<a href="#2050" id="2050">2050</a>
+<a href="#2051" id="2051">2051</a>
+<a href="#2052" id="2052">2052</a>
+<a href="#2053" id="2053">2053</a>
+<a href="#2054" id="2054">2054</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::{
     collections::{BTreeMap, HashMap, HashSet},
     future::{<span class="self">self</span>, Future},
     ops::Deref,
@@ -2954,6 +2961,13 @@
                 }
                 PathKind::Dep =&gt; (),
                 PathKind::Plain =&gt; (),
+                PathKind::Resolved(crate_id) =&gt; {
+                    <span class="kw">let </span>def_map = <span class="kw-2">&amp;</span><span class="self">self</span>.def_maps[<span class="kw-2">&amp;</span>crate_id];
+                    <span class="kw">let </span><span class="prelude-val">Some</span>(root_module_data) = def_map.get(def_map.root()) <span class="kw">else </span>{
+                        <span class="kw">return</span>;
+                    };
+                    module_data = root_module_data;
+                }
             }
         }
 
