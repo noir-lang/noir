@@ -268,11 +268,7 @@ fn merge_imports_in_tree(imports: Vec<UseTree>, mut tree: &mut ImportTree) {
             PathKind::Super => tree.insert(Segment::Super),
             PathKind::Dep => tree.insert(Segment::Dep),
             PathKind::Plain => &mut tree,
-            PathKind::Resolved(_) => {
-                // TODO: Don't know whether to insert $crate or <crate name> here, or what the crate name is
-                //       Probably better to guess instead of panicking in the LS though.
-                tree.insert(Segment::Crate)
-            }
+            PathKind::Resolved(_) => unreachable!("$crate shouldn't be possible here"),
         };
 
         for segment in import.prefix.segments {
