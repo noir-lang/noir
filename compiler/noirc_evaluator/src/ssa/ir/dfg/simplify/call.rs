@@ -11,7 +11,7 @@ use crate::ssa::{
     ir::{
         basic_block::BasicBlockId,
         dfg::DataFlowGraph,
-        instruction::{Binary, BinaryOp, Endian, Hint, Instruction, Intrinsic},
+        instruction::{ArrayGetOffset, Binary, BinaryOp, Endian, Hint, Instruction, Intrinsic},
         types::{NumericType, Type},
         value::{Value, ValueId},
     },
@@ -554,8 +554,11 @@ fn simplify_slice_pop_back(
     // We must pop multiple elements in the case of a slice of tuples
     // Iterating through element types in reverse here since we're popping from the end
     for element_type in element_types.iter().rev() {
-        let get_last_elem_instr =
-            Instruction::ArrayGet { array: arguments[1], index: flattened_len };
+        let get_last_elem_instr = Instruction::ArrayGet {
+            array: arguments[1],
+            index: flattened_len,
+            offset: ArrayGetOffset::None,
+        };
 
         let element_type = Some(vec![element_type.clone()]);
         let get_last_elem = dfg
