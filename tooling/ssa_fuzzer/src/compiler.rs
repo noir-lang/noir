@@ -17,9 +17,10 @@ use noirc_evaluator::{
     brillig::BrilligOptions,
     errors::{InternalError, RuntimeError},
     ssa::{
-        ArtifactsAndWarnings, SsaBuilder, SsaCircuitArtifact, SsaEvaluatorOptions, SsaLogging,
-        SsaProgramArtifact, function_builder::FunctionBuilder, ir::instruction::ErrorType,
-        optimize_ssa_builder_into_acir, primary_passes, secondary_passes,
+        ArtifactsAndWarnings, OptimizationLevel, SsaBuilder, SsaCircuitArtifact,
+        SsaEvaluatorOptions, SsaLogging, SsaProgramArtifact, function_builder::FunctionBuilder,
+        ir::instruction::ErrorType, optimize_ssa_builder_into_acir, primary_passes,
+        secondary_passes,
     },
 };
 
@@ -228,6 +229,7 @@ pub fn compile(
         max_bytecode_increase_percent: options.max_bytecode_increase_percent,
         brillig_options: BrilligOptions::default(),
         enable_brillig_constraints_check_lookback: false,
+        optimization_level: OptimizationLevel::All,
         skip_passes: Default::default(),
     };
     let SsaProgramArtifact { program, debug, warnings, names, brillig_names, .. } =
