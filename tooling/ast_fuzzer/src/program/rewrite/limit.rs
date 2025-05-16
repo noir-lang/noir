@@ -372,6 +372,7 @@ impl<'a> LimitContext<'a> {
                     // Pass the limit by reference.
                     let limit_type = types::ref_mut(types::U32);
                     let limit_expr = if self.is_main {
+                        // In main we take a mutable reference to the limit.
                         expr::ref_mut(
                             expr::ident(
                                 limit_var,
@@ -383,6 +384,7 @@ impl<'a> LimitContext<'a> {
                             limit_type,
                         )
                     } else {
+                        // In non-main we just pass along the parameter.
                         expr::ident(
                             limit_var,
                             self.next_ident_id(),
@@ -395,52 +397,86 @@ impl<'a> LimitContext<'a> {
                     call.arguments.push(limit_expr);
                 }
 
-                // Now go through all the parameters: if they pass a function pointer,
-                // change the proxy or the original based on the caller.
-                for i in 0..param_types.len() {
-                    let param_type = &mut param_types[i];
-                    if let Type::Function(param_types, _, _, param_unconstrained) = param_type {
-                        let typ = ctx_limit_type_for_func_param(
-                            *callee_unconstrained,
-                            *param_unconstrained,
-                        );
+                // Now go through all the parameters: if they are function pointer,
+                // change the signature type of the parameter based on the caller.
+                modify_function_pointer_param_types(param_types, *callee_unconstrained);
 
-                        let pass_by_value = !types::is_reference(&typ);
-
-                        // Add the limit to the function described in the parameter.
-                        param_types.push(typ);
-
-                        // If we need to pass by value, then it's going to the proxy, but only if it's a global function,
-                        // and not a function parameter, which is we wouldn't know what to change to, and doing so is the
-                        // happens when it's first passed as a global.
-                        if pass_by_value {
-                            let arg = &mut call.arguments[i];
-                            let Expression::Ident(param_func_ident) = arg else {
-                                unreachable!("functions are passed by ident; got {arg}");
-                            };
-                            let param_func_id = match &param_func_ident.definition {
-                                Definition::Function(id) => id,
-                                Definition::Local(_) => continue,
-                                other => {
-                                    unreachable!("function definition expected; got {}", other);
-                                }
-                            };
-                            let Some(proxy) = proxy_functions.get(param_func_id) else {
-                                unreachable!(
-                                    "expected to have a proxy for the function pointer: {param_func_id}; only have them for {:?}",
-                                    proxy_functions.keys().collect::<Vec<_>>()
-                                );
-                            };
-                            param_func_ident.name = proxy.name.clone();
-                            param_func_ident.definition = Definition::Function(proxy.id);
-                        }
-                    }
-                }
+                // Go through the arguments of the call: if they point at a global
+                // function, they might need to point at the proxy instead.
+                modify_function_pointer_param_values(
+                    &mut call.arguments,
+                    param_types,
+                    *callee_unconstrained,
+                    proxy_functions,
+                );
             }
+
+            // Continue the visiting expressions.
             true
         });
 
         // Put the result back.
         std::mem::swap(&mut self.func.body, &mut body);
+    }
+}
+
+/// Go through the types of each function parameter. If they are function pointers,
+/// then they need the context, depending on the callee type.
+fn modify_function_pointer_param_types(param_types: &mut [Type], callee_unconstrained: bool) {
+    for param_type in param_types.iter_mut() {
+        let Type::Function(param_types, _, _, param_unconstrained) = param_type else {
+            continue;
+        };
+        let limit_typ = ctx_limit_type_for_func_param(callee_unconstrained, *param_unconstrained);
+
+        // Add the limit to the function described in the parameter.
+        param_types.push(limit_typ);
+
+        // We need to recurse into the parameters of the function pointer.
+        modify_function_pointer_param_types(param_types, *param_unconstrained);
+    }
+}
+
+/// Go through the call arguments and update global function pointers to their
+/// proxy equivalents if necessary.
+fn modify_function_pointer_param_values(
+    args: &mut [Expression],
+    param_types: &[Type],
+    callee_unconstrained: bool,
+    proxy_functions: &HashMap<FuncId, Function>,
+) {
+    for i in 0..param_types.len() {
+        let Type::Function(_, _, _, param_unconstrained) = &param_types[i] else {
+            continue;
+        };
+        let limit_typ = ctx_limit_type_for_func_param(callee_unconstrained, *param_unconstrained);
+
+        // If it's passed by reference we can leave it alone.
+        if types::is_reference(&limit_typ) {
+            continue;
+        }
+
+        // If we need to pass by value, then it's going to the proxy, but only if it's a global function,
+        // and not a function parameter, which is we wouldn't know what to change to, and doing so is the
+        // happens when it's first passed as a global.
+        let arg = &mut args[i];
+        let Expression::Ident(param_func_ident) = arg else {
+            unreachable!("functions are passed by ident; got {arg}");
+        };
+        let param_func_id = match &param_func_ident.definition {
+            Definition::Function(id) => id,
+            Definition::Local(_) => continue,
+            other => {
+                unreachable!("function definition expected; got {}", other);
+            }
+        };
+        let Some(proxy) = proxy_functions.get(param_func_id) else {
+            unreachable!(
+                "expected to have a proxy for the function pointer: {param_func_id}; only have them for {:?}",
+                proxy_functions.keys().collect::<Vec<_>>()
+            );
+        };
+        param_func_ident.name = proxy.name.clone();
+        param_func_ident.definition = Definition::Function(proxy.id);
     }
 }
