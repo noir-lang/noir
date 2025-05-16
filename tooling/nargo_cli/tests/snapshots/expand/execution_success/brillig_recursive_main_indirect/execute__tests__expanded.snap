@@ -1,3 +1,7 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: expanded_code
+---
 unconstrained fn foo(x: u32, f: unconstrained fn(u32) -> bool) -> bool {
     if f(x - 1) & (x > 1) {
         f(x - 2)
