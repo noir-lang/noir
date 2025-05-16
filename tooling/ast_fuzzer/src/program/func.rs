@@ -53,14 +53,6 @@ impl FunctionDeclaration {
 
         (param_types, return_type)
     }
-
-    fn is_acir(&self) -> bool {
-        !self.unconstrained
-    }
-
-    fn is_brillig(&self) -> bool {
-        self.unconstrained
-    }
 }
 
 /// HIR representation of a function parameter.
@@ -83,6 +75,43 @@ pub(crate) fn hir_param(
     let typ = types::to_hir_type(typ);
 
     (pat, typ, vis)
+}
+
+/// Help avoid infinite recursion by limiting which function can call which other one.
+pub(super) fn can_call(
+    caller_id: FuncId,
+    caller_unconstrained: bool,
+    callee_id: FuncId,
+    callee_unconstrained: bool,
+) -> bool {
+    // Nobody should call `main`.
+    if callee_id == Program::main_id() {
+        return false;
+    }
+
+    // From an ACIR function we can call any Brillig function,
+    // but we avoid creating infinite recursive ACIR calls by
+    // only calling functions with lower IDs than ours,
+    // otherwise the inliner could get stuck.
+    if !caller_unconstrained && !callee_unconstrained {
+        // Higher calls lower, so we can use this rule to pick function parameters
+        // as we create the declarations: we can pass functions already declared.
+        return callee_id < caller_id;
+    }
+
+    // From a Brillig function we restrict ourselves to only call
+    // other Brillig functions. That's because the `Monomorphizer`
+    // would make an unconstrained copy of any ACIR function called
+    // from Brillig, and this is expected by the inliner for example,
+    // but if we did similarly in the generator after we know who
+    // calls who, we would incur two drawbacks:
+    // 1) it would make programs bigger for little benefit
+    // 2) it would skew calibration frequencies as ACIR freqs would overlay Brillig ones
+    if caller_unconstrained {
+        return callee_unconstrained;
+    }
+
+    true
 }
 
 /// Control what kind of expressions we can generate, depending on the surrounding context.
@@ -156,35 +185,14 @@ impl<'a> FunctionContext<'a> {
         );
 
         // Collect all the functions we can call from this one.
+        // TODO(#8484): Look for call targets in function-valued arguments as well.
         let call_targets = ctx
             .function_declarations
             .iter()
             .filter_map(|(callee_id, callee_decl)| {
-                // We can't call `main`.
-                if *callee_id == Program::main_id() {
+                if !can_call(id, decl.unconstrained, *callee_id, callee_decl.unconstrained) {
                     return None;
                 }
-
-                // From an ACIR function we can call any Brillig function,
-                // but we avoid creating infinite recursive ACIR calls by
-                // only calling functions with higher IDs than ours,
-                // otherwise the inliner could get stuck.
-                if decl.is_acir() && callee_decl.is_acir() && *callee_id <= id {
-                    return None;
-                }
-
-                // From a Brillig function we restrict ourselves to only call
-                // other Brillig functions. That's because the `Monomorphizer`
-                // would make an unconstrained copy of any ACIR function called
-                // from Brillig, and this is expected by the inliner for example,
-                // but if we did similarly in the generator after we know who
-                // calls who, we would incur two drawbacks:
-                // 1) it would make programs bigger for little benefit
-                // 2) it would skew calibration frequencies as ACIR freqs would overlay Brillig ones
-                if decl.is_brillig() && !callee_decl.is_brillig() {
-                    return None;
-                }
-
                 Some((*callee_id, types::types_produced(&callee_decl.return_type)))
             })
             .collect();
@@ -308,6 +316,14 @@ impl<'a> FunctionContext<'a> {
         max_depth: usize,
         flags: Flags,
     ) -> arbitrary::Result<Expression> {
+        // For now if we need a function, return one without further nesting,
+        // e.g. avoid `if <cond> { func_1 } else { func_2 }`, because it makes rewriting
+        // harder when we need to deal with proxies.
+        if matches!(typ, Type::Function(_, _, _, _)) {
+            // Local variables we should consider in `gen_expr_from_vars`, so here we just look through global functions.
+            return self.find_function_with_signature(u, typ);
+        }
+
         let mut freq = Freq::new(u, &self.ctx.config.expr_freqs)?;
 
         // Stop nesting if we reached the bottom.
@@ -952,28 +968,19 @@ impl<'a> FunctionContext<'a> {
         self.has_call = true;
 
         let callee_id = *u.choose_iter(opts)?;
+        let callee_ident = self.function_ident(callee_id);
+
         let callee = self.ctx.function_decl(callee_id).clone();
         let param_types = callee.params.iter().map(|p| p.3.clone()).collect::<Vec<_>>();
 
+        // Generate an expression for each argument.
         let mut args = Vec::new();
         for typ in &param_types {
             args.push(self.gen_expr(u, typ, max_depth, Flags::CALL)?);
         }
 
         let call_expr = Expression::Call(Call {
-            func: Box::new(Expression::Ident(Ident {
-                location: None,
-                definition: Definition::Function(callee_id),
-                mutable: false,
-                name: callee.name.clone(),
-                typ: Type::Function(
-                    param_types,
-                    Box::new(callee.return_type.clone()),
-                    Box::new(Type::Unit),
-                    callee.unconstrained,
-                ),
-                id: self.next_ident_id(),
-            })),
+            func: Box::new(callee_ident),
             arguments: args,
             return_type: callee.return_type.clone(),
             location: Location::dummy(),
@@ -1153,6 +1160,62 @@ impl<'a> FunctionContext<'a> {
             }
         }
         Ok(None)
+    }
+
+    /// Find a global function matching a type signature.
+    fn find_function_with_signature(
+        &mut self,
+        u: &mut Unstructured,
+        typ: &Type,
+    ) -> arbitrary::Result<Expression> {
+        let Type::Function(param_types, return_type, _, unconstrained) = typ else {
+            unreachable!(
+                "find_function_with_signature should only be called with Type::Function; got {typ}"
+            );
+        };
+
+        // TODO(#8484): Take the callee ID into account, so we don't create a problem inlining ACIR.
+        let candidates = self
+            .ctx
+            .function_declarations
+            .iter()
+            .skip(1) // Can't call main.
+            .filter_map(|(func_id, func)| {
+                let matches = func.return_type == *return_type.as_ref()
+                    && func.unconstrained == *unconstrained
+                    && func.params.len() == param_types.len()
+                    && func.params.iter().zip(param_types).all(|((_, _, _, a, _), b)| a == b);
+
+                matches.then_some(*func_id)
+            })
+            .collect::<Vec<_>>();
+
+        if candidates.is_empty() {
+            panic!("No candidate found for function type: {typ}");
+        }
+
+        let callee_id = u.choose_iter(candidates)?;
+
+        Ok(self.function_ident(callee_id))
+    }
+
+    /// Generate an identifier for calling a global function.
+    fn function_ident(&mut self, callee_id: FuncId) -> Expression {
+        let callee = self.ctx.function_decl(callee_id).clone();
+        let param_types = callee.params.iter().map(|p| p.3.clone()).collect::<Vec<_>>();
+        Expression::Ident(Ident {
+            location: None,
+            definition: Definition::Function(callee_id),
+            mutable: false,
+            name: callee.name.clone(),
+            typ: Type::Function(
+                param_types,
+                Box::new(callee.return_type.clone()),
+                Box::new(Type::Unit),
+                callee.unconstrained,
+            ),
+            id: self.next_ident_id(),
+        })
     }
 }
 

@@ -56,6 +56,18 @@ pub(crate) fn add_recursion_limit(
     let mut proxy_functions = HashMap::new();
     let mut next_func_id = FuncId(ctx.functions.len() as u32);
 
+    /// Decide how to pass the limit to function valued parameter passed to a function.
+    fn limit_type_for_func_param(callee_unconstrained: bool, param_unconstrained: bool) -> Type {
+        // If the function receiving the parameter is ACIR, and the function we pass
+        // to it is Brillig, it will have to pass the limit by value.
+        // Otherwise by ref should work. We don't pass ACIR to Brillig.
+        if !callee_unconstrained && param_unconstrained {
+            types::U32
+        } else {
+            types::ref_mut(types::U32)
+        }
+    }
+
     for (func_id, func) in &ctx.functions {
         if !func.unconstrained
             || *func_id == Program::main_id()
@@ -225,6 +237,8 @@ pub(crate) fn add_recursion_limit(
         }
 
         // Update calls to pass along the limit and call the proxy if necessary.
+        // Also find places where we are passing a function pointer, and change
+        // it into the proxy version if necessary.
         visit_expr_mut(&mut func.body, &mut |expr: &mut Expression| {
             if let Expression::Call(call) = expr {
                 let Expression::Ident(ident) = call.func.as_mut() else {
@@ -237,6 +251,7 @@ pub(crate) fn add_recursion_limit(
                     unreachable!("function type expected");
                 };
                 let callee_unconstrained = unconstrained_functions.contains(&callee_id);
+
                 if callee_unconstrained && !func.unconstrained {
                     // Calling Brillig from ACIR: call the proxy.
                     let Some(proxy) = proxy_functions.get(&callee_id) else {
@@ -293,6 +308,44 @@ pub(crate) fn add_recursion_limit(
                     param_types.push(types::U32);
                     call.arguments.push(limit_expr);
                 }
+
+                // Now go through all the parameters: if they pass a function pointer,
+                // change the proxy or the original based on the caller.
+                for i in 0..param_types.len() {
+                    let param_type = &mut param_types[i];
+                    if let Type::Function(param_types, _, _, param_unconstrained) = param_type {
+                        let typ =
+                            limit_type_for_func_param(callee_unconstrained, *param_unconstrained);
+
+                        // If we need to pass by value, then it's going to the proxy.
+                        // We don't have to update when the value we pass on is an input parameter,
+                        // but I don't know yet what that will look like.
+                        if !types::is_reference(&typ) {
+                            let arg = &mut call.arguments[i];
+                            let Expression::Ident(func_param_ident) = arg else {
+                                unreachable!("functions are passed by ident; got {arg}");
+                            };
+                            let Definition::Function(func_param_id) = func_param_ident.definition
+                            else {
+                                unreachable!(
+                                    "function definition expected; got {}",
+                                    func_param_ident.definition
+                                );
+                            };
+                            let Some(proxy) = proxy_functions.get(&func_param_id) else {
+                                unreachable!(
+                                    "expected to have a proxy for the function pointer: {func_param_id}; got some for {:?}",
+                                    proxy_functions.keys().collect::<Vec<_>>()
+                                );
+                            };
+                            func_param_ident.name = proxy.name.clone();
+                            func_param_ident.definition = Definition::Function(proxy.id);
+                        }
+
+                        // Add the limit to the function described in the parameter.
+                        param_types.push(typ);
+                    }
+                }
             }
             true
         });
@@ -301,6 +354,16 @@ pub(crate) fn add_recursion_limit(
     // Append proxy functions.
     for (_, proxy) in proxy_functions {
         ctx.functions.insert(proxy.id, proxy);
+    }
+
+    // Rewrite function valued parameters to take the limit.
+    for func in ctx.functions.values_mut() {
+        for param in func.parameters.iter_mut() {
+            if let Type::Function(param_types, _, _, param_unconstrained) = &mut param.3 {
+                let typ = limit_type_for_func_param(func.unconstrained, *param_unconstrained);
+                param_types.push(typ);
+            }
+        }
     }
 
     Ok(())
