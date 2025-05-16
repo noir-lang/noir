@@ -659,15 +659,25 @@ impl<'a> FunctionContext<'a> {
                             location,
                         );
                         let half_width = self.builder.numeric_constant(
-                            FieldElement::from(2_i128.pow(incoming_type_size - 1)),
+                            FieldElement::from(2_u128.pow(incoming_type_size - 1)),
                             NumericType::unsigned(*incoming_type_size),
                         );
                         // value_sign is 1 if the value is positive, 0 otherwise
                         let value_sign =
                             self.builder.insert_binary(value_as_unsigned, BinaryOp::Lt, half_width);
+                        let max_for_incoming_type_size = if *incoming_type_size == 128 {
+                            u128::MAX
+                        } else {
+                            2_u128.pow(*incoming_type_size) - 1
+                        };
+                        let max_for_target_type_size = if target_type_size == 128 {
+                            u128::MAX
+                        } else {
+                            2_u128.pow(target_type_size) - 1
+                        };
                         let patch = self.builder.numeric_constant(
                             FieldElement::from(
-                                2_i128.pow(target_type_size) - 2_i128.pow(*incoming_type_size),
+                                max_for_target_type_size - max_for_incoming_type_size,
                             ),
                             NumericType::unsigned(target_type_size),
                         );

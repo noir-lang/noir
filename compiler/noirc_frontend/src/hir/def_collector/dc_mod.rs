@@ -1034,7 +1034,7 @@ pub fn collect_function(
     let visibility = function.def.visibility;
     let location = function.location();
     interner.push_function(func_id, &function.def, module, location);
-    if interner.is_in_lsp_mode() && !function.def.is_test() {
+    if interner.is_in_lsp_mode() && !function.def.attributes.is_test_function() {
         interner.register_function(func_id, &function.def);
     }
 
@@ -1308,7 +1308,7 @@ pub fn collect_impl(
         let func_id = interner.push_empty_fn();
         method.def.where_clause.extend(r#impl.where_clause.clone());
         desugar_generic_trait_bounds(&mut method.def.generics, &mut method.def.where_clause);
-        let location = Location::new(method.span(), file_id);
+        let location = method.location();
         interner.push_function(func_id, &method.def, module_id, location);
         unresolved_functions.push_fn(module_id.local_id, func_id, method);
         interner.set_doc_comments(ReferenceId::Function(func_id), doc_comments);
@@ -1429,7 +1429,7 @@ pub(crate) fn collect_trait_impl_items(
                 impl_method.def.visibility = ItemVisibility::Private;
 
                 let func_id = interner.push_empty_fn();
-                let location = Location::new(impl_method.span(), file_id);
+                let location = impl_method.location();
                 interner.push_function(func_id, &impl_method.def, module, location);
                 interner.set_doc_comments(ReferenceId::Function(func_id), item.doc_comments);
                 desugar_generic_trait_bounds(
