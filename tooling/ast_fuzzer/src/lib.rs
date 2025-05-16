@@ -60,6 +60,8 @@ pub struct Config {
     pub avoid_large_int_literals: bool,
     /// Avoid using loop control (break/continue).
     pub avoid_loop_control: bool,
+    /// Avoid using function pointers in parameters.
+    pub avoid_lambdas: bool,
     /// Only use comptime friendly expressions.
     pub comptime_friendly: bool,
 }
@@ -117,6 +119,8 @@ impl Default for Config {
             avoid_large_int_literals: false,
             avoid_negative_int_literals: false,
             avoid_loop_control: false,
+            // TODO(#8543): Allow lambdas when ICE is fixed.
+            avoid_lambdas: true,
             comptime_friendly: false,
         }
     }
