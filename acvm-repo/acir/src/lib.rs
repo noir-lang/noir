@@ -284,7 +284,7 @@ mod reflection {
 
         /// Reduce the opcode size in C++ by doing what Adam came up with in https://github.com/zefchain/serde-reflection/issues/75
         fn replace_array_with_shared_ptr(source: &mut String) {
-            // Capture function ID, value IDs, global IDs.
+            // Capture `std::array<$TYPE, $LEN>`
             let re = Regex::new(r#"std::array<\s*([^,<>]+?)\s*,\s*([0-9]+)\s*>"#)
                 .expect("failed to create regex");
 
