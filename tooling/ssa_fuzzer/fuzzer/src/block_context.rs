@@ -1,11 +1,11 @@
 use crate::instruction::{Argument, Instruction};
 use crate::options::SsaBlockOptions;
-use acvm::acir;
 use noir_ssa_fuzzer::{
     builder::{FuzzerBuilder, InstructionWithOneArg, InstructionWithTwoArgs},
     typed_value::{TypedValue, ValueType},
 };
 use noirc_evaluator::ssa::ir::basic_block::BasicBlockId;
+use noirc_evaluator::ssa::ir::value::Value;
 use std::collections::{HashMap, VecDeque};
 
 /// Main context for the ssa block containing both ACIR and Brillig builders and their state
@@ -14,6 +14,8 @@ use std::collections::{HashMap, VecDeque};
 pub(crate) struct BlockContext {
     /// Ids of the Program variables stored as TypedValue separated by type
     pub(crate) stored_values: HashMap<ValueType, Vec<TypedValue>>,
+    // TODO: Ids of typed addresses of memory (mutable variables)
+    pub(crate) memory_addresses: HashMap<ValueType, Vec<TypedValue>>,
     /// ACIR and Brillig last changed value, used to finalize the block with return
     pub(crate) last_value: Option<TypedValue>,
     /// Parent blocks history
@@ -51,11 +53,13 @@ fn append_typed_value_to_map(
 impl BlockContext {
     pub(crate) fn new(
         stored_values: HashMap<ValueType, Vec<TypedValue>>,
+        memory_addresses: HashMap<ValueType, Vec<TypedValue>>,
         parent_blocks_history: VecDeque<BasicBlockId>,
         options: SsaBlockOptions,
     ) -> Self {
         Self {
             stored_values,
+            memory_addresses,
             last_value: None,
             parent_blocks_history,
             children_blocks: Vec::new(),
@@ -103,7 +107,7 @@ impl BlockContext {
             return;
         }
         let instr_lhs = get_typed_value_from_map(&self.stored_values, &lhs.value_type, lhs.index);
-        let instr_rhs = get_typed_value_from_map(&self.stored_values, &rhs.value_type, rhs.index);
+        let instr_rhs = get_typed_value_from_map(&self.stored_values, &lhs.value_type, rhs.index);
         let (instr_lhs, instr_rhs) = match (instr_lhs, instr_rhs) {
             (Some(acir_lhs), Some(acir_rhs)) => (acir_lhs, acir_rhs),
             _ => return,
@@ -112,10 +116,6 @@ impl BlockContext {
         // insert to brillig, assert id of return is the same
         assert_eq!(result.value_id, instruction(brillig_builder, instr_lhs, instr_rhs).value_id);
 
-        //
-        if self.stored_values.get(&result.to_value_type()).unwrap().contains(&result) {
-            return;
-        }
         self.last_value = Some(result.clone());
         append_typed_value_to_map(&mut self.stored_values, &result.to_value_type(), result);
     }
@@ -129,6 +129,9 @@ impl BlockContext {
     ) {
         match instruction {
             Instruction::AddChecked { lhs, rhs } => {
+                if !self.options.instruction_options.add_enabled {
+                    return;
+                }
                 self.insert_instruction_with_double_args(
                     acir_builder,
                     brillig_builder,
@@ -138,6 +141,9 @@ impl BlockContext {
                 );
             }
             Instruction::SubChecked { lhs, rhs } => {
+                if !self.options.instruction_options.sub_enabled {
+                    return;
+                }
                 self.insert_instruction_with_double_args(
                     acir_builder,
                     brillig_builder,
@@ -147,6 +153,9 @@ impl BlockContext {
                 );
             }
             Instruction::MulChecked { lhs, rhs } => {
+                if !self.options.instruction_options.mul_enabled {
+                    return;
+                }
                 self.insert_instruction_with_double_args(
                     acir_builder,
                     brillig_builder,
@@ -156,6 +165,9 @@ impl BlockContext {
                 );
             }
             Instruction::Div { lhs, rhs } => {
+                if !self.options.instruction_options.div_enabled {
+                    return;
+                }
                 self.insert_instruction_with_double_args(
                     acir_builder,
                     brillig_builder,
@@ -165,6 +177,9 @@ impl BlockContext {
                 );
             }
             Instruction::Eq { lhs, rhs } => {
+                if !self.options.instruction_options.eq_enabled {
+                    return;
+                }
                 self.insert_instruction_with_double_args(
                     acir_builder,
                     brillig_builder,
@@ -174,6 +189,9 @@ impl BlockContext {
                 );
             }
             Instruction::Cast { lhs, type_ } => {
+                if !self.options.instruction_options.cast_enabled {
+                    return;
+                }
                 if lhs.value_type == ValueType::Memory || type_ == ValueType::Memory {
                     return;
                 }
@@ -200,6 +218,9 @@ impl BlockContext {
                 );
             }
             Instruction::Mod { lhs, rhs } => {
+                if !self.options.instruction_options.mod_enabled {
+                    return;
+                }
                 self.insert_instruction_with_double_args(
                     acir_builder,
                     brillig_builder,
@@ -209,6 +230,9 @@ impl BlockContext {
                 );
             }
             Instruction::Not { lhs } => {
+                if !self.options.instruction_options.not_enabled {
+                    return;
+                }
                 self.insert_instruction_with_single_arg(
                     acir_builder,
                     brillig_builder,
@@ -217,6 +241,9 @@ impl BlockContext {
                 );
             }
             Instruction::Shl { lhs, rhs } => {
+                if !self.options.instruction_options.shl_enabled {
+                    return;
+                }
                 self.insert_instruction_with_double_args(
                     acir_builder,
                     brillig_builder,
@@ -226,6 +253,9 @@ impl BlockContext {
                 );
             }
             Instruction::Shr { lhs, rhs } => {
+                if !self.options.instruction_options.shr_enabled {
+                    return;
+                }
                 self.insert_instruction_with_double_args(
                     acir_builder,
                     brillig_builder,
@@ -235,6 +265,9 @@ impl BlockContext {
                 );
             }
             Instruction::And { lhs, rhs } => {
+                if !self.options.instruction_options.and_enabled {
+                    return;
+                }
                 self.insert_instruction_with_double_args(
                     acir_builder,
                     brillig_builder,
@@ -244,6 +277,9 @@ impl BlockContext {
                 );
             }
             Instruction::Or { lhs, rhs } => {
+                if !self.options.instruction_options.or_enabled {
+                    return;
+                }
                 self.insert_instruction_with_double_args(
                     acir_builder,
                     brillig_builder,
@@ -253,6 +289,9 @@ impl BlockContext {
                 );
             }
             Instruction::Xor { lhs, rhs } => {
+                if !self.options.instruction_options.xor_enabled {
+                    return;
+                }
                 self.insert_instruction_with_double_args(
                     acir_builder,
                     brillig_builder,
@@ -294,7 +333,7 @@ impl BlockContext {
                         .value_id,
                 );
 
-                if !self.options.idempotent_morphing_enabled {
+                if !self.options.constrain_idempotent_enabled {
                     return;
                 }
 
@@ -328,23 +367,27 @@ impl BlockContext {
                     brillig_builder.insert_div_instruction(lhs.clone(), rhs.clone()).value_id,
                 );
 
-                if !self.options.idempotent_morphing_enabled {
+                if !self.options.constrain_idempotent_enabled {
                     return;
                 }
                 acir_builder.insert_constrain(lhs_orig.clone(), morphed.clone());
                 brillig_builder.insert_constrain(lhs_orig.clone(), morphed.clone());
             }
             Instruction::AddToMemory { lhs } => {
-                return;
+                if !self.options.instruction_options.alloc_enabled {
+                    return;
+                }
                 if lhs.value_type == ValueType::Memory {
                     return;
                 }
+
                 let value =
                     match get_typed_value_from_map(&self.stored_values, &lhs.value_type, lhs.index)
                     {
                         Some(value) => value,
                         _ => return,
                     };
+
                 let addr = acir_builder.insert_add_to_memory(value.clone());
                 assert_eq!(
                     addr.clone().value_id,
@@ -352,12 +395,17 @@ impl BlockContext {
                     "add to memory differs in ACIR and Brillig"
                 );
                 // Append the memory address to stored_values with Memory type
-                append_typed_value_to_map(&mut self.stored_values, &ValueType::Memory, addr);
+                append_typed_value_to_map(&mut self.memory_addresses, &addr.to_value_type(), addr);
             }
             Instruction::LoadFromMemory { memory_addr } => {
-                return;
-                let addr =
-                    get_typed_value_from_map(&self.stored_values, &ValueType::Memory, memory_addr);
+                if !self.options.instruction_options.load_enabled {
+                    return;
+                }
+                let addr = get_typed_value_from_map(
+                    &self.memory_addresses,
+                    &memory_addr.value_type,
+                    memory_addr.index,
+                );
                 let addr = match addr {
                     Some(addr) => addr,
                     _ => return,
@@ -371,13 +419,18 @@ impl BlockContext {
                 self.last_value = Some(value.clone());
                 append_typed_value_to_map(&mut self.stored_values, &value.to_value_type(), value);
             }
-            Instruction::SetToMemory { memory_addr, value } => {
-                return;
+            Instruction::SetToMemory { memory_addr_index, value } => {
+                if !self.options.instruction_options.store_enabled {
+                    return;
+                }
                 if value.value_type == ValueType::Memory {
                     return;
                 }
-                let addr =
-                    get_typed_value_from_map(&self.stored_values, &ValueType::Memory, memory_addr);
+                let addr = get_typed_value_from_map(
+                    &self.memory_addresses,
+                    &value.value_type,
+                    memory_addr_index,
+                );
                 let addr = match addr {
                     Some(addr) => addr,
                     _ => return,

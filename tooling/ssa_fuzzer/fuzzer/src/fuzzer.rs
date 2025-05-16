@@ -41,21 +41,36 @@ impl Fuzzer {
                 initial_witness_vector,
                 types.clone(),
                 instruction_blocks.clone(),
-                ContextOptions { idempotent_morphing_enabled: false },
+                ContextOptions {
+                    idempotent_morphing_enabled: false,
+                    compile_options: options.compile_options.clone(),
+                    max_jumps_num: options.max_jumps_num,
+                    max_instructions_num: options.max_instructions_num,
+                },
             )),
             false => None,
         };
         let context_non_constant = Some(FuzzerContext::new(
             types.clone(),
             instruction_blocks.clone(),
-            ContextOptions { idempotent_morphing_enabled: false },
+            ContextOptions {
+                idempotent_morphing_enabled: false,
+                compile_options: options.compile_options.clone(),
+                max_jumps_num: options.max_jumps_num,
+                max_instructions_num: options.max_instructions_num,
+            },
         ));
         let context_non_constant_with_idempotent_morphing =
             match options.idempotent_morphing_enabled {
                 true => Some(FuzzerContext::new(
                     types,
                     instruction_blocks,
-                    ContextOptions { idempotent_morphing_enabled: true },
+                    ContextOptions {
+                        idempotent_morphing_enabled: true,
+                        compile_options: options.compile_options.clone(),
+                        max_jumps_num: options.max_jumps_num,
+                        max_instructions_num: options.max_instructions_num,
+                    },
                 )),
                 false => None,
             };

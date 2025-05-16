@@ -23,3 +23,14 @@ or in 5 threads
 ```
 cargo +nightly fuzz run base_target --fuzz-dir ./fuzzer -- -jobs=5 -workers=5
 ```
+
+3. Triage crashes:
+```
+TRIAGE=FULL/FINAL cargo +nightly fuzz run base_target --fuzz-dir ./fuzzer PATH_TO_CRASH
+```
+FULL mode will show all SSA passes, FINAL mode will show only the final SSA pass (After Dead Instruction Elimination (3)).
+
+4. Minimize crashes:
+```
+cargo +nightly fuzz tmin base_target --fuzz-dir ./fuzzer PATH_TO_CRASH -runs=1000
+```

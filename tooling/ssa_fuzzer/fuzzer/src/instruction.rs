@@ -14,6 +14,7 @@ pub(crate) struct Argument {
     pub(crate) value_type: ValueType,
 }
 
+/// TODO: For operations that take two arguments we ignore type of the second argument.
 #[derive(Arbitrary, Debug, Clone, Copy)]
 pub(crate) enum Instruction {
     /// Addition of two values
@@ -98,10 +99,10 @@ pub(crate) enum Instruction {
         lhs: Argument,
     },
     LoadFromMemory {
-        memory_addr: usize,
+        memory_addr: Argument,
     },
     SetToMemory {
-        memory_addr: usize,
+        memory_addr_index: usize,
         value: Argument,
     },
 }

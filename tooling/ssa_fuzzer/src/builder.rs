@@ -68,9 +68,12 @@ impl FuzzerBuilder {
     }
 
     /// Compiles the built function into a CompiledProgram, to run it with nargo execute
-    pub fn compile(self) -> Result<CompiledProgram, FuzzerBuilderError> {
+    pub fn compile(
+        self,
+        compile_options: CompileOptions,
+    ) -> Result<CompiledProgram, FuzzerBuilderError> {
         let result = std::panic::catch_unwind(AssertUnwindSafe(|| {
-            compile_from_builder(self.builder, &CompileOptions::default())
+            compile_from_builder(self.builder, &compile_options)
         }));
         match result {
             Ok(result) => match result {
@@ -278,8 +281,6 @@ impl FuzzerBuilder {
 
     /// Inserts a bitwise AND instruction between two values
     pub fn insert_and_instruction(&mut self, lhs: TypedValue, rhs: TypedValue) -> TypedValue {
-        // TODO
-        return lhs;
         let (lhs, rhs) = self.balance_types_for_bitwise_op(lhs, rhs);
         let res = self.builder.insert_binary(lhs.value_id, BinaryOp::And, rhs.value_id);
         TypedValue::new(res, lhs.type_of_variable)
@@ -287,8 +288,6 @@ impl FuzzerBuilder {
 
     /// Inserts a bitwise OR instruction between two values
     pub fn insert_or_instruction(&mut self, lhs: TypedValue, rhs: TypedValue) -> TypedValue {
-        // TODO
-        return lhs;
         let (lhs, rhs) = self.balance_types_for_bitwise_op(lhs, rhs);
         let res = self.builder.insert_binary(lhs.value_id, BinaryOp::Or, rhs.value_id);
         TypedValue::new(res, lhs.type_of_variable)
@@ -296,8 +295,6 @@ impl FuzzerBuilder {
 
     /// Inserts a bitwise XOR instruction between two values    
     pub fn insert_xor_instruction(&mut self, lhs: TypedValue, rhs: TypedValue) -> TypedValue {
-        // TODO
-        return lhs;
         let (lhs, rhs) = self.balance_types_for_bitwise_op(lhs, rhs);
         let res = self.builder.insert_binary(lhs.value_id, BinaryOp::Xor, rhs.value_id);
         TypedValue::new(res, lhs.type_of_variable)
@@ -306,8 +303,6 @@ impl FuzzerBuilder {
     /// Inserts a left shift instruction between two values
     /// The right hand side is cast to 8 bits
     pub fn insert_shl_instruction(&mut self, lhs: TypedValue, rhs: TypedValue) -> TypedValue {
-        //TODO
-        return lhs;
         // rhs must be 8bit, otherwise compiler will throw panic...
         // TODO(sn): make something smarter than forcing rhs to be u8 and casting to u64 on field
         let rhs = self.insert_cast(rhs, ValueType::U8);
@@ -326,8 +321,6 @@ impl FuzzerBuilder {
     /// Inserts a right shift instruction between two values
     /// The right hand side is cast to 8 bits
     pub fn insert_shr_instruction(&mut self, lhs: TypedValue, rhs: TypedValue) -> TypedValue {
-        // TODO
-        return lhs;
         // TODO(sn): make something smarter than forcing rhs to be u8 and casting to u64 on field
         let rhs = self.insert_cast(rhs, ValueType::U8);
         let mut lhs = lhs;

@@ -18,6 +18,7 @@ mod tests {
     use crate::typed_value::{TypedValue, ValueType};
     use acvm::FieldElement;
     use acvm::acir::native_types::{Witness, WitnessMap};
+    use noirc_driver::CompileOptions;
     use rand::RngCore;
 
     struct TestHelper {
@@ -94,8 +95,9 @@ mod tests {
             test_helper.insert_instruction_double_arg(instruction, lhs, rhs);
         test_helper.finalize_function(acir_result);
         test_helper.finalize_function(brillig_result);
-        let acir_program = test_helper.acir_builder.compile().unwrap();
-        let brillig_program = test_helper.brillig_builder.compile().unwrap();
+        let acir_program = test_helper.acir_builder.compile(CompileOptions::default()).unwrap();
+        let brillig_program =
+            test_helper.brillig_builder.compile(CompileOptions::default()).unwrap();
         let result_witness = Witness(config::NUMBER_OF_VARIABLES_INITIAL);
         let compare_results = run_and_compare(
             &acir_program.program,
