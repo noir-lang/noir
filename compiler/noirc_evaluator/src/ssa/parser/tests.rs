@@ -342,6 +342,30 @@ fn test_array_get() {
 }
 
 #[test]
+fn test_array_get_offseted_by_1() {
+    let src: &'static str = "
+        acir(inline) fn main f0 {
+          b0(v0: [Field; 3]):
+            v2 = array_get v0, index Field 3 minus 1 -> Field
+            return
+        }
+        ";
+    assert_ssa_roundtrip(src);
+}
+
+#[test]
+fn test_array_get_offseted_by_3() {
+    let src: &'static str = "
+        acir(inline) fn main f0 {
+          b0(v0: [Field; 3]):
+            v2 = array_get v0, index Field 6 minus 3 -> Field
+            return
+        }
+        ";
+    assert_ssa_roundtrip(src);
+}
+
+#[test]
 fn test_array_set() {
     let src = "
         acir(inline) fn main f0 {

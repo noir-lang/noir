@@ -392,7 +392,7 @@ impl<'f> LoopInvariantContext<'f> {
         use Instruction::*;
 
         match instruction {
-            ArrayGet { array, index } => {
+            ArrayGet { array, index, offset: _ } => {
                 let array_typ = self.inserter.function.dfg.type_of_value(*array);
                 let upper_bound = self.outer_induction_variables.get(index).map(|bounds| bounds.1);
                 if let (Type::Array(_, len), Some(upper_bound)) = (array_typ, upper_bound) {
