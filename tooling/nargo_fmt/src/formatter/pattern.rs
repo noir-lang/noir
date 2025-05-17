@@ -48,6 +48,29 @@ impl Formatter<'_> {
 
                 self.write_right_paren();
             }
+            Pattern::TupleWithDoubleDot(tuple) => {
+                self.write_left_paren();
+
+                for (index, pattern) in tuple.iter().enumerate() {
+                    if index > 0 {
+                        self.write_comma();
+                        self.write_space();
+                    }
+                    if let Some(pattern) = pattern {
+                        self.format_pattern(pattern.clone());
+                    } else {
+                        self.write_token(Token::DoubleDot);
+                    }
+                }
+
+                // Check for trailing comma
+                self.skip_comments_and_whitespace();
+                if self.is_at(Token::Comma) {
+                    self.bump();
+                }
+
+                self.write_right_paren();
+            }
             Pattern::Struct(path, fields, _span) => {
                 let mut group = ChunkGroup::new();
 
