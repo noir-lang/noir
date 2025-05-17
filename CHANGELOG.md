@@ -1,5 +1,23 @@
 # Changelog
 
+## [1.0.0-beta.7](https://github.com/noir-lang/noir/compare/v1.0.0-beta.6...v1.0.0-beta.7) (2025-05-17)
+
+
+### Features
+
+* C++ codegen for msgpack ([#7716](https://github.com/noir-lang/noir/issues/7716)) ([0298a63](https://github.com/noir-lang/noir/commit/0298a63d3febda346a48737f493ee8aeb4e8c538))
+* **fuzz:** AST fuzzing with SSA interpreter ([#8436](https://github.com/noir-lang/noir/issues/8436)) ([bc6cf4f](https://github.com/noir-lang/noir/commit/bc6cf4fda9535584c41849a410f5ac546d01dc01))
+* Implement $crate ([#8537](https://github.com/noir-lang/noir/issues/8537)) ([ef6d866](https://github.com/noir-lang/noir/commit/ef6d8667c524cc07e02bdbd142ab16bee25f1581))
+* **performance:** Brillig array set optimization ([#8550](https://github.com/noir-lang/noir/issues/8550)) ([9ec22c1](https://github.com/noir-lang/noir/commit/9ec22c146567eecfc6401c145467b4856339cf6d))
+
+
+### Bug Fixes
+
+* Add offset to ArrayGet ([#8536](https://github.com/noir-lang/noir/issues/8536)) ([da0b3a2](https://github.com/noir-lang/noir/commit/da0b3a2e722f3bd0ff42f67d221088b5c8f60ea4))
+* Disallow `()` in entry points ([#8529](https://github.com/noir-lang/noir/issues/8529)) ([e2a52b7](https://github.com/noir-lang/noir/commit/e2a52b793ebcfbb3b0b39ec4978918179b3d33f7))
+* Don't overflow when casting signed value to u128 ([#8526](https://github.com/noir-lang/noir/issues/8526)) ([bc002e0](https://github.com/noir-lang/noir/commit/bc002e0721c8b6847b182fdf2233e70dd86b16bf))
+* **licm:** Check whether the loop is executed when hoisting with a predicate ([#8546](https://github.com/noir-lang/noir/issues/8546)) ([89cdf76](https://github.com/noir-lang/noir/commit/89cdf76c7f9be39b9fcc11761903c08c2cf8d30b))
+
 ## [1.0.0-beta.6](https://github.com/noir-lang/noir/compare/v1.0.0-beta.5...v1.0.0-beta.6) (2025-05-14)
 
 
