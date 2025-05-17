@@ -71,12 +71,12 @@ impl Visitor for HoverFinder<'_> {
 }
 
 fn format_integer(typ: &Type, value: SignedField) -> String {
-    let value_base_10 = value.field.to_string();
+    let value_base_10 = value.absolute_value().to_string();
 
     // For simplicity we parse the value as a BigInt to convert it to hex
     // because `FieldElement::to_hex` will include many leading zeros.
     let value_big_int = BigInt::from_str(&value_base_10).unwrap();
-    let negative = if value.is_negative { "-" } else { "" };
+    let negative = if value.is_negative() { "-" } else { "" };
 
     format!(
         "    {typ}\n---\nvalue of literal: `{negative}{value_base_10} ({negative}0x{value_big_int:02x})`"

@@ -62,16 +62,20 @@ impl NumericType {
         match self {
             NumericType::Unsigned { bit_size } => {
                 let max = if bit_size == 128 { u128::MAX } else { 2u128.pow(bit_size) - 1 };
-                if value.is_negative {
+                if value.is_negative() {
                     return Some(format!("0..={}", max));
                 }
-                if value.field <= max.into() { None } else { Some(format!("0..={}", max)) }
+                if value.absolute_value() <= max.into() {
+                    None
+                } else {
+                    Some(format!("0..={}", max))
+                }
             }
             NumericType::Signed { bit_size } => {
                 let min = 2u128.pow(bit_size - 1);
                 let max = 2u128.pow(bit_size - 1) - 1;
-                let target_max = if value.is_negative { min } else { max };
-                if value.field <= target_max.into() {
+                let target_max = if value.is_negative() { min } else { max };
+                if value.absolute_value() <= target_max.into() {
                     None
                 } else {
                     Some(format!("-{}..={}", min, max))
