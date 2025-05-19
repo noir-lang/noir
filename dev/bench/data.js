@@ -1,82 +1,8 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1747674938321,
+  "lastUpdate": 1747675091376,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
-      {
-        "commit": {
-          "author": {
-            "email": "15848336+TomAFrench@users.noreply.github.com",
-            "name": "Tom French",
-            "username": "TomAFrench"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "5e3a04eea96bde4403b291dfb8c326f47770b6da",
-          "message": "feat: improve bitshift codegen (#8442)\n\nCo-authored-by: AztecBot <tech@aztecprotocol.com>",
-          "timestamp": "2025-05-12T15:06:55Z",
-          "tree_id": "0e1e8edce6e7e1770245eb935caa4a91d23fdf91",
-          "url": "https://github.com/noir-lang/noir/commit/5e3a04eea96bde4403b291dfb8c326f47770b6da"
-        },
-        "date": 1747064187140,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 311.38,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 567.17,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 226.3,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 1430,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 1460,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-root-empty",
-            "value": 396.38,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-root-single-tx",
-            "value": 7890,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 7890,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 378.44,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-root",
-            "value": 439.38,
-            "unit": "MB"
-          }
-        ]
-      },
       {
         "commit": {
           "author": {
@@ -3909,6 +3835,85 @@ window.BENCHMARK_DATA = {
           {
             "name": "rollup-root",
             "value": 445.96,
+            "unit": "MB"
+          },
+          {
+            "name": "semaphore_depth_10",
+            "value": 128.47,
+            "unit": "MB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "mvezenov@gmail.com",
+            "name": "Maxim Vezenov",
+            "username": "vezenovm"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "e33b900bba5abcfe655435c81730169234a52b6f",
+          "message": "chore(inlining): Mark functions with <= 10 instructions and no control flow as inline always  (#8533)\n\nCo-authored-by: AztecBot <tech@aztecprotocol.com>",
+          "timestamp": "2025-05-19T16:46:45Z",
+          "tree_id": "1e784a7d7511b7de82ce2357bf99facde3c5fb1b",
+          "url": "https://github.com/noir-lang/noir/commit/e33b900bba5abcfe655435c81730169234a52b6f"
+        },
+        "date": 1747675081520,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 316.51,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 572.22,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 231.43,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 1440,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 1470,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root-empty",
+            "value": 400.74,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root-single-tx",
+            "value": 7220,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 7220,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 385.02,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-root",
+            "value": 446.37,
             "unit": "MB"
           },
           {
