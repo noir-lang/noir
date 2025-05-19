@@ -3,7 +3,7 @@
 //! Functions are still restricted to not be inlined if they are recursive or marked with no predicates.
 //!
 //! A simple function is defined as the following:
-//! - Contains no more than 10 instructions
+//! - Contains no more than [MAX_INSTRUCTIONS] instructions
 //! - The function only has a single block (e.g. no control flow or conditional branches)
 //! - It is not marked with the [no predicates inline type][noirc_frontend::monomorphization::ast::InlineType::NoPredicates]
 use iter_extended::btree_map;
@@ -15,6 +15,16 @@ use crate::ssa::{
     },
     ssa_gen::Ssa,
 };
+
+/// The maximum number of instructions chosen below is an expert estimation of a "small" function
+/// in our SSA IR. Generally, inlining small functions with no control flow should enable further optimizations
+/// in the compiler while avoiding code size bloat.
+///
+/// For example, a common "simple" function is writing into a mutable reference.
+/// When that function has no control flow, it generally means we can expect all loads and stores within the
+/// function to be resolved upon inlining. Inlining this type of basic function both reduces the number of
+/// loads/stores to be executed and enables the compiler to continue optimizing at the inline site.
+const MAX_INSTRUCTIONS: usize = 10;
 
 impl Ssa {
     /// See the [`inline_simple_functions`][self] module for more information.
@@ -39,8 +49,8 @@ impl Ssa {
                 return false;
             }
 
-            // Only inline functions with 10 or less instructions
-            if instructions.len() > 10 {
+            // Only inline functions with `MAX_INSTRUCTIONS` or less instructions
+            if instructions.len() > MAX_INSTRUCTIONS {
                 return false;
             }
 
