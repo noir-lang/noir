@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1747693639304,
+  "lastUpdate": 1747693705544,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -11342,70 +11342,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "15848336+TomAFrench@users.noreply.github.com",
-            "name": "Tom French",
-            "username": "TomAFrench"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "b152a4d29c489a586faed6f13732f7b063478ba3",
-          "message": "chore: use insta for serialization tests (#8466)\n\nCo-authored-by: AztecBot <tech@aztecprotocol.com>",
-          "timestamp": "2025-05-13T10:02:14Z",
-          "tree_id": "b81fb196029e07cbdef3441afedb6d11be6f64ba",
-          "url": "https://github.com/noir-lang/noir/commit/b152a4d29c489a586faed6f13732f7b063478ba3"
-        },
-        "date": 1747132359214,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 236.15,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 258.41,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 211.65,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 542.69,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 535.14,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 1440,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 364.19,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-root",
-            "value": 370.11,
-            "unit": "MB"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "aakoshh@gmail.com",
             "name": "Akosh Farkash",
             "username": "aakoshh"
@@ -14730,6 +14666,75 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/noir-lang/noir/commit/bfd3d0ead7a01acc076f174e6a3dbe11c999bd21"
         },
         "date": 1747687762580,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 240.76,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 263.02,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 216.26,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 548.22,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 540.67,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 1450,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 369.93,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-root",
+            "value": 375.94,
+            "unit": "MB"
+          },
+          {
+            "name": "semaphore_depth_10",
+            "value": 92.9,
+            "unit": "MB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "mvezenov@gmail.com",
+            "name": "Maxim Vezenov",
+            "username": "vezenovm"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "0112e2197c2a2067d950bf45740d0946bbf75e9c",
+          "message": "fix(ssa): Do not generate apply functions when no lambda variants exist (#8573)",
+          "timestamp": "2025-05-19T21:51:53Z",
+          "tree_id": "d2b46473c0b9265409aae57af29fc8614262a5b3",
+          "url": "https://github.com/noir-lang/noir/commit/0112e2197c2a2067d950bf45740d0946bbf75e9c"
+        },
+        "date": 1747693694963,
         "tool": "customSmallerIsBetter",
         "benches": [
           {
