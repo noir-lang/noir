@@ -1088,13 +1088,23 @@ impl<'interner> Monomorphizer<'interner> {
                 let Kind::Numeric(numeric_type) = associated_type.typ.kind() else {
                     unreachable!("Expected associated type to be numeric");
                 };
-                let field = associated_type
+                match associated_type
                     .typ
                     .evaluate_to_field_element(&associated_type.typ.kind(), location)
-                    .expect("Expected to be able to evaluate associated type");
-                let typ = Self::convert_type(&numeric_type, location)?;
-                let value = SignedField::positive(field);
-                ast::Expression::Literal(ast::Literal::Integer(value, typ, location))
+                {
+                    Ok(value) => {
+                        let typ = Self::convert_type(&numeric_type, location)?;
+                        let value = SignedField::positive(value);
+                        ast::Expression::Literal(ast::Literal::Integer(value, typ, location))
+                    }
+                    Err(err) => {
+                        return Err(MonomorphizationError::CannotComputeAssociatedConstant {
+                            name: name.clone(),
+                            err,
+                            location,
+                        });
+                    }
+                }
             }
         };
 
