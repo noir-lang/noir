@@ -10,28 +10,36 @@ expression: artifact
       {
         "name": "x",
         "type": {
-          "kind": "boolean"
+          "kind": "integer",
+          "sign": "unsigned",
+          "width": 1
         },
         "visibility": "private"
       },
       {
         "name": "y",
         "type": {
-          "kind": "boolean"
+          "kind": "integer",
+          "sign": "unsigned",
+          "width": 1
         },
         "visibility": "private"
       },
       {
         "name": "z",
         "type": {
-          "kind": "boolean"
+          "kind": "integer",
+          "sign": "unsigned",
+          "width": 1
         },
         "visibility": "private"
       }
     ],
     "return_type": {
       "abi_type": {
-        "kind": "boolean"
+        "kind": "integer",
+        "sign": "unsigned",
+        "width": 1
       },
       "visibility": "public"
     },
@@ -94,10 +102,10 @@ expression: artifact
     "unconstrained func 1",
     "[Const { destination: Direct(10), bit_size: Integer(U32), value: 2 }, Const { destination: Direct(11), bit_size: Integer(U32), value: 0 }, CalldataCopy { destination_address: Direct(0), size_address: Direct(10), offset_address: Direct(11) }, BinaryFieldOp { destination: Direct(2), op: IntegerDiv, lhs: Direct(0), rhs: Direct(1) }, BinaryFieldOp { destination: Direct(1), op: Mul, lhs: Direct(2), rhs: Direct(1) }, BinaryFieldOp { destination: Direct(1), op: Sub, lhs: Direct(0), rhs: Direct(1) }, Mov { destination: Direct(0), source: Direct(2) }, Stop { return_data: HeapVector { pointer: Direct(11), size: Direct(10) } }]"
   ],
-  "debug_symbols": "nZPBboQgEIbfhTMHYITVfZWmMai4ISFoWN2kMfvuHRlpdw9NGi/zKeP3G0bc2OC69db6OE53dv3YWJd8CP7Whqm3i58irm5PzsptuyTncIm99NGabXJxYde4hsDZw4Y1P3SfbcxcbMKu4MzFAYmBow9uv3ryX1v8rRp5uMb8yPrfdqMPWwpxQpeyLr6CM74pO5dGn/Ebc/hKyBO+kmX/Sr3v/xPvbO/T2+dmgK/krMpVo8SZyfWSa51rk6sUBElQBCBUBEqQFCExAxA1oclQmFIhJEERgFARNMEQLoSa0GQApQClAKUApQCm4AxAEzAFJwqYsp+mh03edsEdR31cY/9y8pevuXTKvzGnqXfDmtw+ttzDQX4D",
+  "debug_symbols": "nZPdboQgEEbfhWsugBF/9lWaxqDihoSgYbVJY3z3joxsdy+aNN7MUcbzBUfc2GC79d66ME4PdvvYWBed9+7e+qk3i5sCrm47Z/m2XaK1uMRe+mjNJtqwsFtYvefsy/g1PfSYTUhcTMSu4MyGAYmBo/P2uNr5ry3+VjWcrq6fsv633ejTlkJc0KWss6/gil8+/eqKr0Rx+ko0V3yVp6fU+/g+8c70Lr59bga4Uc6KVDVKnJWpVqnWqTapSkGQBEUAQkGgBEkREjNwM7ImNAkKU/ANlSQoAhAKgiaUhIpQE5oEoBSgFKAUoBTAFDwDoAmYUiIwpdyPsUVnOm/Poz6uoX85+cv3nDv535jj1NthjfYYW+rhIH8A",
   "file_map": {
     "50": {
-      "source": "fn main(x: bool, y: bool, z: bool) -> pub bool {\n    let p = y - z;\n    if p {\n        let a = x / z;\n        let b = a - z;\n        if b {\n            let _ = a / b;\n        }\n    }\n\n    let u = x - z;\n    let v = y - u;\n    v\n}\n",
+      "source": "fn main(x: u1, y: u1, z: u1) -> pub u1 {\n    let p = y - z;\n    if p as bool {\n        let a = x / z;\n        let b = a - z;\n        if b as bool {\n            let _ = a / b;\n        }\n    }\n\n    let u = x - z;\n    let v = y - u;\n    v\n}\n",
       "path": ""
     }
   },
