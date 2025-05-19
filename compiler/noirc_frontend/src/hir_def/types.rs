@@ -1325,7 +1325,7 @@ impl Type {
     /// Check if it is okay to allow for zero-sized input (e..g zero-sized arrays) to a program.
     /// This behavior is not well defined and is banned by default.
     /// However, this ban is a breaking change for some dependent projects so this override
-    /// is provided until those projects migrate away from using zero-sized array input (e.g. https://github.com/AztecProtocol/aztec-packages/issues/14388).
+    /// is provided until those projects migrate away from using zero-sized array input (e.g. <https://github.com/AztecProtocol/aztec-packages/issues/14388>).
     fn should_allow_zero_sized_input() -> bool {
         std::env::var("ALLOW_EMPTY_INPUT").ok().map(|v| v == "1" || v == "true").unwrap_or_default()
     }
