@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1747669432826,
+  "lastUpdate": 1747669435526,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -7825,70 +7825,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "jfecher11@gmail.com",
-            "name": "jfecher",
-            "username": "jfecher"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "2d727b149ce6c85d7b79687e7709436b1b03783f",
-          "message": "fix: Fix nested trait dispatch with associated types (#8440)\n\nCo-authored-by: AztecBot <tech@aztecprotocol.com>\nCo-authored-by: Jake Fecher <jake@aztecprotocol.com>",
-          "timestamp": "2025-05-12T13:49:55Z",
-          "tree_id": "3291c047c51a0b6388e3338b70c841aa59ea8771",
-          "url": "https://github.com/noir-lang/noir/commit/2d727b149ce6c85d7b79687e7709436b1b03783f"
-        },
-        "date": 1747059403268,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 0.029,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 0.159,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 0.011,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 0.306,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 0.192,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 11,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 0.004,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-root",
-            "value": 0.013,
-            "unit": "s"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "mvezenov@gmail.com",
             "name": "Maxim Vezenov",
             "username": "vezenovm"
@@ -11208,6 +11144,75 @@ window.BENCHMARK_DATA = {
           {
             "name": "rollup-block-root",
             "value": 11.1,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 0.004,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-root",
+            "value": 0.013,
+            "unit": "s"
+          },
+          {
+            "name": "semaphore-depth-10",
+            "value": 0.019,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "mvezenov@gmail.com",
+            "name": "Maxim Vezenov",
+            "username": "vezenovm"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "f0de22e22f28ebb45831c4972f77514235e3a0c9",
+          "message": "fix(frontend): Override to allow empty array input (#8568)",
+          "timestamp": "2025-05-19T15:16:46Z",
+          "tree_id": "8e3d77bdd97b1d482313da42324a96e8a7f802ad",
+          "url": "https://github.com/noir-lang/noir/commit/f0de22e22f28ebb45831c4972f77514235e3a0c9"
+        },
+        "date": 1747669424091,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 0.028,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 0.16,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 0.011,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 0.307,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 0.192,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 11.2,
             "unit": "s"
           },
           {
