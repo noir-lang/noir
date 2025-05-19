@@ -1,82 +1,8 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1747693705544,
+  "lastUpdate": 1747693707572,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
-      {
-        "commit": {
-          "author": {
-            "email": "15848336+TomAFrench@users.noreply.github.com",
-            "name": "Tom French",
-            "username": "TomAFrench"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "b152a4d29c489a586faed6f13732f7b063478ba3",
-          "message": "chore: use insta for serialization tests (#8466)\n\nCo-authored-by: AztecBot <tech@aztecprotocol.com>",
-          "timestamp": "2025-05-13T10:02:14Z",
-          "tree_id": "b81fb196029e07cbdef3441afedb6d11be6f64ba",
-          "url": "https://github.com/noir-lang/noir/commit/b152a4d29c489a586faed6f13732f7b063478ba3"
-        },
-        "date": 1747132363331,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 311.38,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 567.17,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 226.3,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 1430,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 1460,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-root-empty",
-            "value": 396.38,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-root-single-tx",
-            "value": 7890,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 7890,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 378.44,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-root",
-            "value": 439.38,
-            "unit": "MB"
-          }
-        ]
-      },
       {
         "commit": {
           "author": {
@@ -3914,6 +3840,85 @@ window.BENCHMARK_DATA = {
           {
             "name": "rollup-block-root-empty",
             "value": 399.7,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root-single-tx",
+            "value": 7220,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 7220,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 383.97,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-root",
+            "value": 445.32,
+            "unit": "MB"
+          },
+          {
+            "name": "semaphore_depth_10",
+            "value": 128.34,
+            "unit": "MB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "mvezenov@gmail.com",
+            "name": "Maxim Vezenov",
+            "username": "vezenovm"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "0112e2197c2a2067d950bf45740d0946bbf75e9c",
+          "message": "fix(ssa): Do not generate apply functions when no lambda variants exist (#8573)",
+          "timestamp": "2025-05-19T21:51:53Z",
+          "tree_id": "d2b46473c0b9265409aae57af29fc8614262a5b3",
+          "url": "https://github.com/noir-lang/noir/commit/0112e2197c2a2067d950bf45740d0946bbf75e9c"
+        },
+        "date": 1747693694914,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 315.99,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 571.7,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 230.89,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 1440,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 1470,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root-empty",
+            "value": 399.68,
             "unit": "MB"
           },
           {
