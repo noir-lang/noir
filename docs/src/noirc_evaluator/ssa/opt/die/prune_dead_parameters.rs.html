@@ -492,7 +492,7 @@
 
 <span class="kw">impl </span>Ssa {
     <span class="doccomment">/// See [`prune_dead_parameters`][self] module for more information.
-    </span><span class="attr">#[tracing::instrument(level = <span class="string">"trace"</span>, skip(<span class="self">self</span>))]
+    </span><span class="attr">#[tracing::instrument(level = <span class="string">"trace"</span>, skip_all)]
     </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>prune_dead_parameters(
         <span class="kw-2">mut </span><span class="self">self</span>,
         unused_parameters: <span class="kw-2">&amp;</span>HashMap&lt;FunctionId, HashMap&lt;BasicBlockId, Vec&lt;ValueId&gt;&gt;&gt;,
