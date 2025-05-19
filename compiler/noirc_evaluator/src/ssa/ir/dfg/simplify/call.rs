@@ -11,7 +11,7 @@ use crate::ssa::{
     ir::{
         basic_block::BasicBlockId,
         dfg::DataFlowGraph,
-        instruction::{ArrayGetOffset, Binary, BinaryOp, Endian, Hint, Instruction, Intrinsic},
+        instruction::{ArrayOffset, Binary, BinaryOp, Endian, Hint, Instruction, Intrinsic},
         types::{NumericType, Type},
         value::{Value, ValueId},
     },
@@ -506,6 +506,7 @@ fn simplify_slice_push_back(
         index: arguments[0],
         value: arguments[2],
         mutable: false,
+        offset: ArrayOffset::None,
     };
 
     let set_last_slice_value = dfg
@@ -557,7 +558,7 @@ fn simplify_slice_pop_back(
         let get_last_elem_instr = Instruction::ArrayGet {
             array: arguments[1],
             index: flattened_len,
-            offset: ArrayGetOffset::None,
+            offset: ArrayOffset::None,
         };
 
         let element_type = Some(vec![element_type.clone()]);

@@ -23,7 +23,7 @@ use super::{
         basic_block::BasicBlock,
         dfg::{GlobalsGraph, InsertInstructionResult},
         function::RuntimeType,
-        instruction::{ArrayGetOffset, ConstrainError, InstructionId, Intrinsic},
+        instruction::{ArrayOffset, ConstrainError, InstructionId, Intrinsic},
         types::NumericType,
     },
     opt::pure::FunctionPurities,
@@ -351,17 +351,7 @@ impl FunctionBuilder {
         &mut self,
         array: ValueId,
         index: ValueId,
-        element_type: Type,
-    ) -> ValueId {
-        self.insert_array_get_with_offset(array, index, ArrayGetOffset::None, element_type)
-    }
-
-    /// Insert an instruction to extract an element from an array
-    pub fn insert_array_get_with_offset(
-        &mut self,
-        array: ValueId,
-        index: ValueId,
-        offset: ArrayGetOffset,
+        offset: ArrayOffset,
         element_type: Type,
     ) -> ValueId {
         let element_type = Some(vec![element_type]);
@@ -370,20 +360,16 @@ impl FunctionBuilder {
     }
 
     /// Insert an instruction to create a new array with the given index replaced with a new value
-    pub fn insert_array_set(&mut self, array: ValueId, index: ValueId, value: ValueId) -> ValueId {
-        self.insert_instruction(Instruction::ArraySet { array, index, value, mutable: false }, None)
-            .first()
-    }
-
-    #[cfg(test)]
-    pub fn insert_mutable_array_set(
+    pub fn insert_array_set(
         &mut self,
         array: ValueId,
         index: ValueId,
         value: ValueId,
+        mutable: bool,
+        offset: ArrayOffset,
     ) -> ValueId {
-        self.insert_instruction(Instruction::ArraySet { array, index, value, mutable: true }, None)
-            .first()
+        let instruction = Instruction::ArraySet { array, index, value, mutable, offset };
+        self.insert_instruction(instruction, None).first()
     }
 
     /// Insert an instruction to increment an array's reference count. This only has an effect

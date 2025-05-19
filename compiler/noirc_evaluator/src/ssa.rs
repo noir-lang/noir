@@ -333,8 +333,8 @@ pub fn primary_passes(options: &SsaEvaluatorOptions) -> Vec<SsaPass> {
     // We also need DIE's tracking of used globals in case the array get transformations
     // end up using an existing constant from the globals space.
     ssa_pass_builder.add_pass(
-        Ssa::brillig_array_gets,
-        "Brillig Array Get Optimizations",
+        Ssa::brillig_array_get_and_set,
+        "Brillig Array Get and Set Optimizations",
         vec![All, Debug],
     );
     ssa_pass_builder.add_pass(
@@ -383,7 +383,7 @@ pub fn minimal_passes() -> Vec<SsaPass<'static>> {
         // We need a DIE pass to populate `used_globals`, otherwise it will panic later.
         SsaPass::new(Ssa::dead_instruction_elimination, "Dead Instruction Elimination"),
         // We need to add an offset to constant array indices in Brillig.
-        SsaPass::new(Ssa::brillig_array_gets, "Brillig Array Get Optimizations"),
+        SsaPass::new(Ssa::brillig_array_get_and_set, "Brillig Array Get and Set Optimizations"),
     ]
 }
 
