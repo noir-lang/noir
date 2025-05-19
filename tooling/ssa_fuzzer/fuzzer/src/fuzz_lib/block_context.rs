@@ -1,5 +1,5 @@
-use crate::instruction::{Argument, Instruction};
-use crate::options::SsaBlockOptions;
+use super::instruction::{Argument, Instruction};
+use super::options::SsaBlockOptions;
 use noir_ssa_fuzzer::{
     builder::{FuzzerBuilder, InstructionWithOneArg, InstructionWithTwoArgs},
     typed_value::{TypedValue, ValueType},
@@ -86,16 +86,12 @@ impl BlockContext {
         let acir_result = instruction(acir_builder, value.clone());
         // insert to brillig, assert id is the same
         assert_eq!(acir_result.value_id, instruction(brillig_builder, value).value_id);
-        // println!("acir_result: {:?}", acir_result);
         self.last_value = Some(acir_result.clone());
-        // println!("stored_values before: {:?}", self.stored_values.get(&ValueType::Boolean));
         append_typed_value_to_map(
             &mut self.stored_values,
             &acir_result.to_value_type(),
             acir_result,
         );
-        // println!("last_value: {:?}", self.last_value);
-        // println!("stored_values after: {:?}", self.stored_values.get(&ValueType::Boolean));
     }
 
     /// Inserts an instruction that takes two arguments
@@ -420,6 +416,11 @@ impl BlockContext {
                     brillig_builder.insert_load_from_memory(addr.clone()).value_id,
                     "load from memory differs in ACIR and Brillig"
                 );
+                append_typed_value_to_map(
+                    &mut self.stored_values,
+                    &value.to_value_type(),
+                    value.clone(),
+                );
                 self.last_value = Some(value.clone());
                 append_typed_value_to_map(&mut self.stored_values, &value.to_value_type(), value);
             }
@@ -502,7 +503,6 @@ impl BlockContext {
         else_destination: BasicBlockId,
     ) {
         // takes last boolean variable as condition
-        // println!("stored_values: {:?}", self.stored_values.get(&ValueType::Boolean));
         let condition = self
             .stored_values
             .get(&ValueType::Boolean)

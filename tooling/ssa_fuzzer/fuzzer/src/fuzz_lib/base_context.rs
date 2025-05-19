@@ -1,7 +1,7 @@
-use crate::block_context::BlockContext;
-use crate::instruction::Instruction;
-use crate::instruction::InstructionBlock;
-use crate::options::{ContextOptions, SsaBlockOptions};
+use super::block_context::BlockContext;
+use super::instruction::Instruction;
+use super::instruction::InstructionBlock;
+use super::options::{ContextOptions, SsaBlockOptions};
 use acvm::FieldElement;
 use acvm::acir::native_types::Witness;
 use libfuzzer_sys::arbitrary;
@@ -514,6 +514,7 @@ impl FuzzerContext {
         let return_block_id = self.acir_builder.insert_block();
         assert_eq!(return_block_id, self.brillig_builder.insert_block());
 
+        log::debug!("return block memory addresses: {:?}", last_block.context.memory_addresses);
         self.switch_to_block(return_block_id);
         let mut return_block_context = BlockContext::new(
             last_block.context.stored_values.clone(),

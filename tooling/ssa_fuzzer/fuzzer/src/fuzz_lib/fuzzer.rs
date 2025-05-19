@@ -13,9 +13,9 @@
 //!    - If programs return different results
 //!    - If one program fails to compile but the other executes successfully
 
-use crate::base_context::{FuzzerCommand, FuzzerContext};
-use crate::instruction::InstructionBlock;
-use crate::options::{ContextOptions, FuzzerOptions};
+use super::base_context::{FuzzerCommand, FuzzerContext};
+use super::instruction::InstructionBlock;
+use super::options::{ContextOptions, FuzzerOptions};
 use acvm::FieldElement;
 use acvm::acir::native_types::{Witness, WitnessMap};
 use noir_ssa_executor::runner::execute_single;
@@ -113,7 +113,7 @@ impl Fuzzer {
         mut self,
         initial_witness: WitnessMap<FieldElement>,
         return_instruction_block_idx: usize,
-    ) {
+    ) -> Option<FieldElement> {
         let mut non_constant_context = self.context_non_constant.take().unwrap();
         non_constant_context.finalize(return_instruction_block_idx);
         let non_constant_result = self.run_context(non_constant_context, initial_witness.clone());
@@ -139,6 +139,7 @@ impl Fuzzer {
             );
             log::debug!("result_with_constrains: {:?}", result_with_constrains);
         }
+        non_constant_result
     }
 
     fn execute_and_compare(

@@ -79,10 +79,12 @@ pub struct FuzzerOptions {
 
 impl Default for FuzzerOptions {
     fn default() -> Self {
+        let mut compile_options = CompileOptions::default();
+        compile_options.show_ssa = true;
         Self {
-            idempotent_morphing_enabled: true,
-            constant_execution_enabled: true,
-            compile_options: CompileOptions::default(),
+            idempotent_morphing_enabled: false,
+            constant_execution_enabled: false,
+            compile_options,
             max_jumps_num: 30,
             max_instructions_num: 500,
         }
