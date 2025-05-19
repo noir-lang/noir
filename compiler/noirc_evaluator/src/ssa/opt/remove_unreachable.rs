@@ -43,7 +43,7 @@ impl Ssa {
             is_entry_point.then_some(id)
         });
 
-        // Build call graph dependencies uses this passes definition of reachability.
+        // Build call graph dependencies using this passes definition of reachability.
         let dependencies = self
             .functions
             .iter()
