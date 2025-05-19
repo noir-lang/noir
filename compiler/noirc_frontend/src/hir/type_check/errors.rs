@@ -493,7 +493,7 @@ impl<'a> From<&'a TypeCheckError> for Diagnostic {
                     BinaryOpKind::Divide => "Cannot divide `bool` by `bool`",
                     BinaryOpKind::ShiftRight => "No implementation for `bool >> bool`",
                     BinaryOpKind::ShiftLeft => "No implementation for `bool << bool`",
-                    BinaryOpKind::Modulo => "Cannot caluclate the reminder of `bool` divided by `bool`",
+                    BinaryOpKind::Modulo => "Cannot calculate the remainder of `bool` divided by `bool`",
                     BinaryOpKind::Equal |
                     BinaryOpKind::NotEqual |
                     BinaryOpKind::Less |
