@@ -329,9 +329,7 @@ impl Type {
         let rhs = rhs.evaluate_to_field_element(&kind, dummy_location).ok()?;
 
         let lhs = lhs.follow_bindings();
-        let Some((l_type, l_op, l_rhs, _)) = lhs.as_infix_expr() else {
-            return None;
-        };
+        let (l_type, l_op, l_rhs, _) = lhs.as_infix_expr()?;
 
         let l_rhs = l_rhs.evaluate_to_field_element(&kind, dummy_location).ok()?;
         Some((l_type.clone(), l_op, l_rhs, rhs))
