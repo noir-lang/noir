@@ -648,12 +648,17 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
                 let Kind::Numeric(numeric_type) = associated_type.typ.kind() else {
                     unreachable!("Expected associated type to be numeric");
                 };
-                let value = associated_type
+                match associated_type
                     .typ
                     .evaluate_to_field_element(&associated_type.typ.kind(), location)
-                    .expect("Expected to be able to evaluate associated type");
-
-                self.evaluate_integer(value.into(), id)
+                {
+                    Ok(value) => self.evaluate_integer(value.into(), id),
+                    Err(err) => Err(InterpreterError::NonIntegerArrayLength {
+                        typ: associated_type.typ.clone(),
+                        err: Some(Box::new(err)),
+                        location,
+                    }),
+                }
             }
         }
     }
