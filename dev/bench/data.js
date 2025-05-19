@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1747670492057,
+  "lastUpdate": 1747670495423,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -11257,70 +11257,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "mvezenov@gmail.com",
-            "name": "Maxim Vezenov",
-            "username": "vezenovm"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "6d6aca93ce27809c1f433672526943e9269366b4",
-          "message": "fix(ssa): Mark mutually recursive simple functions (#8447)",
-          "timestamp": "2025-05-12T14:13:10Z",
-          "tree_id": "5ce899abdaabca9f313f845d1d842c8ff0c11254",
-          "url": "https://github.com/noir-lang/noir/commit/6d6aca93ce27809c1f433672526943e9269366b4"
-        },
-        "date": 1747060947766,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 236.15,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 258.41,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 211.65,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 542.69,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 535.14,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 1440,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 364.19,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-root",
-            "value": 370.11,
-            "unit": "MB"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "15848336+TomAFrench@users.noreply.github.com",
             "name": "Tom French",
             "username": "TomAFrench"
@@ -14615,6 +14551,75 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/noir-lang/noir/commit/f0de22e22f28ebb45831c4972f77514235e3a0c9"
         },
         "date": 1747669735985,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 241.29,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 263.55,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 216.78,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 549.27,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 541.72,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 1450,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 370.98,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-root",
+            "value": 376.91,
+            "unit": "MB"
+          },
+          {
+            "name": "semaphore_depth_10",
+            "value": 93.04,
+            "unit": "MB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "mvezenov@gmail.com",
+            "name": "Maxim Vezenov",
+            "username": "vezenovm"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "1feac18e7d54673f78d0d2d32c6c09d470a3841c",
+          "message": "chore(ssa): Add weighted edges to call graph, move callers and callees methods to call graph (#8513)",
+          "timestamp": "2025-05-19T15:23:56Z",
+          "tree_id": "7f08b369233590a02513ae97621467e477039c18",
+          "url": "https://github.com/noir-lang/noir/commit/1feac18e7d54673f78d0d2d32c6c09d470a3841c"
+        },
+        "date": 1747670485407,
         "tool": "customSmallerIsBetter",
         "benches": [
           {
