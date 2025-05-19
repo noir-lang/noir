@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1747669654846,
+  "lastUpdate": 1747669745992,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -11237,70 +11237,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "jfecher11@gmail.com",
-            "name": "jfecher",
-            "username": "jfecher"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "2d727b149ce6c85d7b79687e7709436b1b03783f",
-          "message": "fix: Fix nested trait dispatch with associated types (#8440)\n\nCo-authored-by: AztecBot <tech@aztecprotocol.com>\nCo-authored-by: Jake Fecher <jake@aztecprotocol.com>",
-          "timestamp": "2025-05-12T13:49:55Z",
-          "tree_id": "3291c047c51a0b6388e3338b70c841aa59ea8771",
-          "url": "https://github.com/noir-lang/noir/commit/2d727b149ce6c85d7b79687e7709436b1b03783f"
-        },
-        "date": 1747059687599,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 236.15,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 258.41,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 211.65,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 542.69,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 535.14,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 1440,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 364.19,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-root",
-            "value": 370.11,
-            "unit": "MB"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "mvezenov@gmail.com",
             "name": "Maxim Vezenov",
             "username": "vezenovm"
@@ -14590,6 +14526,75 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/noir-lang/noir/commit/9a8a7ec4df8d0a465ae583d8d64ece254e39dca5"
         },
         "date": 1747663029152,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 241.29,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 263.55,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 216.78,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 549.27,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 541.72,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 1450,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 370.98,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-root",
+            "value": 376.91,
+            "unit": "MB"
+          },
+          {
+            "name": "semaphore_depth_10",
+            "value": 93.04,
+            "unit": "MB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "mvezenov@gmail.com",
+            "name": "Maxim Vezenov",
+            "username": "vezenovm"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "f0de22e22f28ebb45831c4972f77514235e3a0c9",
+          "message": "fix(frontend): Override to allow empty array input (#8568)",
+          "timestamp": "2025-05-19T15:16:46Z",
+          "tree_id": "8e3d77bdd97b1d482313da42324a96e8a7f802ad",
+          "url": "https://github.com/noir-lang/noir/commit/f0de22e22f28ebb45831c4972f77514235e3a0c9"
+        },
+        "date": 1747669735985,
         "tool": "customSmallerIsBetter",
         "benches": [
           {
