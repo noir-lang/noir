@@ -2,7 +2,7 @@ use crate::ssa::{
     ir::{
         basic_block::BasicBlockId,
         instruction::{
-            Binary, BinaryOp, Instruction,
+            ArrayOffset, Binary, BinaryOp, Instruction,
             binary::{truncate, truncate_field},
         },
         types::Type,
@@ -110,7 +110,7 @@ pub(crate) fn simplify(
             }
         }
         Instruction::ConstrainNotEqual(..) => None,
-        Instruction::ArrayGet { array, index } => {
+        Instruction::ArrayGet { array, index, offset: _ } => {
             if let Some(index) = dfg.get_numeric_constant(*index) {
                 try_optimize_array_get_from_previous_set(dfg, *array, index)
             } else {
@@ -375,8 +375,8 @@ fn try_optimize_array_set_from_previous_get(
     target_value: ValueId,
 ) -> SimplifyResult {
     let array_from_get = match dfg.get_local_or_global_instruction(target_value) {
-        Some(Instruction::ArrayGet { array, index }) => {
-            if *array == array_id && *index == target_index {
+        Some(Instruction::ArrayGet { array, index, offset }) => {
+            if *offset == ArrayOffset::None && *array == array_id && *index == target_index {
                 // If array and index match from the value, we can immediately simplify
                 return SimplifyResult::SimplifiedTo(array_id);
             } else if *index == target_index {

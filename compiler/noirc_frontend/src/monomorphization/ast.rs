@@ -272,8 +272,15 @@ pub enum InlineType {
     Fold,
     /// Functions marked to have no predicates will not be inlined in the default inlining pass
     /// and will be separately inlined after the flattening pass.
-    /// They are different from `Fold` as they are expected to be inlined into the program
+    ///
+    /// Flattening and inlining are necessary compiler passes in the ACIR runtime. More specifically,
+    /// flattening is the removal of control flow through predicating side-effectual instructions.
+    /// In some cases, a user may only want predicates applied to the result of a function call rather
+    /// than all of a function's internal execution. To allow this behavior, we can simply inline a function
+    /// after performing flattening (as ultimately in ACIR a non-entry point function will have to be inlined).
+    /// These functions are different from `Fold` as they are expected to be inlined into the program
     /// entry point before being used in the backend.
+    ///
     /// This attribute is unsafe and can cause a function whose logic relies on predicates from
     /// the flattening pass to fail.
     NoPredicates,

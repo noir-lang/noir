@@ -176,6 +176,10 @@ impl Parser<'_> {
             PathKind::Dep
         } else if self.eat_keyword(Keyword::Super) {
             PathKind::Super
+        } else if let Token::InternedCrate(crate_id) = self.token.token() {
+            let crate_id = *crate_id;
+            self.bump();
+            PathKind::Resolved(crate_id)
         } else {
             PathKind::Plain
         };

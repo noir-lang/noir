@@ -1,0 +1,12 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: stderr
+---
+error: No matching impl found for `BadType: MyTrait`
+   ┌─ src/main.nr:35:18
+   │
+35 │     Wrapper::new(foo()).unwrap()
+   │                  --- No impl for `BadType: MyTrait`
+   │
+
+Aborting due to 1 previous error

@@ -4,6 +4,7 @@ use std::fmt::{self, Display};
 
 use crate::{
     ast::{Expression, Path},
+    graph::CrateId,
     node_interner::{
         ExprId, InternedExpressionKind, InternedPattern, InternedStatementKind,
         InternedUnresolvedTypeData, QuotedTypeId,
@@ -38,6 +39,7 @@ pub enum BorrowedToken<'input> {
     InternedLValue(InternedExpressionKind),
     InternedUnresolvedTypeData(InternedUnresolvedTypeData),
     InternedPattern(InternedPattern),
+    InternedCrate(CrateId),
     /// <
     Less,
     /// <=
@@ -162,6 +164,8 @@ pub enum Token {
     InternedUnresolvedTypeData(InternedUnresolvedTypeData),
     /// A reference to an interned `Pattern`.
     InternedPattern(InternedPattern),
+    /// A reference to an existing crate. This is a result of using `$crate` in a macro
+    InternedCrate(CrateId),
     /// <
     Less,
     /// <=
@@ -278,6 +282,7 @@ pub fn token_to_borrowed_token(token: &Token) -> BorrowedToken<'_> {
         Token::InternedLValue(id) => BorrowedToken::InternedLValue(*id),
         Token::InternedUnresolvedTypeData(id) => BorrowedToken::InternedUnresolvedTypeData(*id),
         Token::InternedPattern(id) => BorrowedToken::InternedPattern(*id),
+        Token::InternedCrate(id) => BorrowedToken::InternedCrate(*id),
         Token::Less => BorrowedToken::Less,
         Token::LessEqual => BorrowedToken::LessEqual,
         Token::Greater => BorrowedToken::Greater,
@@ -514,6 +519,7 @@ impl fmt::Display for Token {
                 write!(f, "(expr)")
             }
             Token::InternedUnresolvedTypeData(_) => write!(f, "(type)"),
+            Token::InternedCrate(_) => write!(f, "$crate"),
             Token::Less => write!(f, "<"),
             Token::LessEqual => write!(f, "<="),
             Token::Greater => write!(f, ">"),

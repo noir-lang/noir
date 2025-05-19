@@ -624,6 +624,21 @@ fn array_get() {
 }
 
 #[test]
+fn array_get_with_offset() {
+    let value = expect_value(
+        r#"
+        acir(inline) fn main f0 {
+          b0():
+            v0 = make_array [Field 1, Field 2] : [Field; 2]
+            v1 = array_get v0, index u32 4 minus 3 -> Field
+            return v1
+        }
+    "#,
+    );
+    assert_eq!(value, from_constant(2_u32.into(), NumericType::NativeField));
+}
+
+#[test]
 fn array_get_disabled_by_enable_side_effects() {
     let value = expect_value(
         r#"
@@ -708,6 +723,36 @@ fn array_set_disabled_by_enable_side_effects() {
     assert_eq!(*v0.elements.borrow(), expected);
     assert_eq!(*v1.elements.borrow(), expected);
     assert_eq!(*v2.elements.borrow(), expected);
+}
+
+#[test]
+fn array_set_with_offset() {
+    let values = expect_values(
+        "
+        acir(inline) fn main f0 {
+          b0():
+            v0 = make_array [Field 1, Field 2] : [Field; 2]
+            v1 = array_set v0, index u32 4 minus 3, value Field 5
+            return v0, v1
+        }
+    ",
+    );
+
+    let v0 = values[0].as_array_or_slice().unwrap();
+    let v1 = values[1].as_array_or_slice().unwrap();
+
+    // acir function, so all rcs are 1
+    assert_eq!(*v0.rc.borrow(), 1);
+    assert_eq!(*v1.rc.borrow(), 1);
+
+    let one = from_constant(1u32.into(), NumericType::NativeField);
+    let two = from_constant(2u32.into(), NumericType::NativeField);
+    let five = from_constant(5u32.into(), NumericType::NativeField);
+
+    // v0 was not mutated
+    assert_eq!(*v0.elements.borrow(), vec![one.clone(), two.clone()]);
+    // v1 was mutated
+    assert_eq!(*v1.elements.borrow(), vec![one, five]);
 }
 
 #[test]
