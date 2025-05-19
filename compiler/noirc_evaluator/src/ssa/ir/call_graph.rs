@@ -253,7 +253,7 @@ impl CallGraph {
             };
             // Use DFS to determine all reachable nodes from the root
             let dfs = Dfs::new(&self.graph, start_index);
-            reachable.extend(dfs.iter(&self.graph).map(|index| self.indices_to_ids[&index]))
+            reachable.extend(dfs.iter(&self.graph).map(|index| self.indices_to_ids[&index]));
         }
 
         reachable

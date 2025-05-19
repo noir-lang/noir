@@ -13,8 +13,8 @@
 //!   for resolving loads/stores.
 //! - A function is reachable if it is used in a block terminator (e.g., returned from a function)
 //!
-//! The pass builds a call graph based upon the definition of reachability above. 
-//! It then identifies all entry points and uses the [CallGraph::reachable_from] utility 
+//! The pass builds a call graph based upon the definition of reachability above.
+//! It then identifies all entry points and uses the [CallGraph::reachable_from] utility
 //! to mark all transitively reachable functions. It then discards the rest.
 //!
 //! This pass helps shrink the SSA before compilation stages like inlining and dead code elimination.
