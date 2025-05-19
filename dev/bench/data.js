@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1747693341292,
+  "lastUpdate": 1747693342616,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -3948,80 +3948,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "15848336+TomAFrench@users.noreply.github.com",
-            "name": "Tom French",
-            "username": "TomAFrench"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "b152a4d29c489a586faed6f13732f7b063478ba3",
-          "message": "chore: use insta for serialization tests (#8466)\n\nCo-authored-by: AztecBot <tech@aztecprotocol.com>",
-          "timestamp": "2025-05-13T10:02:14Z",
-          "tree_id": "b81fb196029e07cbdef3441afedb6d11be6f64ba",
-          "url": "https://github.com/noir-lang/noir/commit/b152a4d29c489a586faed6f13732f7b063478ba3"
-        },
-        "date": 1747132141195,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 2.286,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 6.388,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 1.058,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 17.76,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 12.44,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root-empty",
-            "value": 1.286,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root-single-tx",
-            "value": 125,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 127,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 1.056,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-root",
-            "value": 1.614,
-            "unit": "s"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "aakoshh@gmail.com",
             "name": "Akosh Farkash",
             "username": "aakoshh"
@@ -7881,6 +7807,85 @@ window.BENCHMARK_DATA = {
           {
             "name": "semaphore-depth-10",
             "value": 0.882,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "mvezenov@gmail.com",
+            "name": "Maxim Vezenov",
+            "username": "vezenovm"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "0112e2197c2a2067d950bf45740d0946bbf75e9c",
+          "message": "fix(ssa): Do not generate apply functions when no lambda variants exist (#8573)",
+          "timestamp": "2025-05-19T21:51:53Z",
+          "tree_id": "d2b46473c0b9265409aae57af29fc8614262a5b3",
+          "url": "https://github.com/noir-lang/noir/commit/0112e2197c2a2067d950bf45740d0946bbf75e9c"
+        },
+        "date": 1747693329536,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 2.298,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 6.452,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 1.05,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 16.54,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 12.34,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-empty",
+            "value": 1.278,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-single-tx",
+            "value": 132,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 120,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 1.1,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-root",
+            "value": 2.174,
+            "unit": "s"
+          },
+          {
+            "name": "semaphore-depth-10",
+            "value": 0.823,
             "unit": "s"
           }
         ]
