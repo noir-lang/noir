@@ -206,7 +206,7 @@ pub fn parse_all(file_manager: &FileManager) -> ParsedFiles {
                 .spawn_scoped(scope, move || {
                     loop {
                         // Get next file to process from the iterator.
-                        let Some(file_id) = iter.lock().unwrap().next().cloned() else {
+                        let Some(&file_id) = iter.lock().unwrap().next() else {
                             break;
                         };
 
