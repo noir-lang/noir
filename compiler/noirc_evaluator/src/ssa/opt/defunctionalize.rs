@@ -181,7 +181,9 @@ impl DefunctionalizationContext {
                         };
 
                         // Find the correct apply function
-                        let apply_function = self.get_apply_function(signature, func.runtime());
+                        let Some(apply_function) = self.get_apply_function(signature, func.runtime()) else {
+                            continue;
+                        };
 
                         // Replace the instruction with a call to apply
                         let apply_function_value_id = func.dfg.import_function(apply_function.id);
@@ -201,8 +203,8 @@ impl DefunctionalizationContext {
     }
 
     /// Returns the apply function for the given signature
-    fn get_apply_function(&self, signature: Signature, runtime: RuntimeType) -> ApplyFunction {
-        *self.apply_functions.get(&(signature, runtime)).expect("Could not find apply function")
+    fn get_apply_function(&self, signature: Signature, runtime: RuntimeType) -> Option<ApplyFunction> {
+        self.apply_functions.get(&(signature, runtime)).copied()
     }
 }
 
@@ -376,10 +378,10 @@ fn find_dynamic_dispatches(func: &Function) -> BTreeSet<Signature> {
 fn create_apply_functions(ssa: &mut Ssa, variants_map: Variants) -> ApplyFunctions {
     let mut apply_functions = HashMap::default();
     for ((mut signature, runtime), variants) in variants_map.into_iter() {
-        assert!(
-            !variants.is_empty(),
-            "ICE: at least one variant should exist for a dynamic call {signature:?}"
-        );
+        if variants.is_empty() {
+            // If no variants exist for a dynamic call we leave removing those dead parameters to DIE
+            continue;
+        }
         let dispatches_to_multiple_functions = variants.len() > 1;
 
         // Update the shared function signature of the higher-order function variants
