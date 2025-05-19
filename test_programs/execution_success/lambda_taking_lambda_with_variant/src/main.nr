@@ -1,4 +1,4 @@
-// This is the same as `lambda_taking_lambda_regression_8543` except that there is 
+// This is the same as `lambda_taking_lambda_regression_8543` except that there is
 // actually a variant which has been constructed.
 unconstrained fn main() -> pub i64 {
     func_3(func_2)
