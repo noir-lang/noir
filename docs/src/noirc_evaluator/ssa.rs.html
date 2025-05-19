@@ -757,10 +757,7 @@
 <a href="#756" id="756">756</a>
 <a href="#757" id="757">757</a>
 <a href="#758" id="758">758</a>
-<a href="#759" id="759">759</a>
-<a href="#760" id="760">760</a>
-<a href="#761" id="761">761</a>
-<a href="#762" id="762">762</a></pre></div><pre class="rust"><code><span class="doccomment">//! SSA stands for Single Static Assignment
+<a href="#759" id="759">759</a></pre></div><pre class="rust"><code><span class="doccomment">//! SSA stands for Single Static Assignment
 //! The IR presented in this module will already
 //! be in SSA form and will be used to apply
 //! conventional optimizations like Common Subexpression
@@ -902,10 +899,7 @@
     <span class="macro">vec!</span>[
         SsaPass::new(Ssa::remove_unreachable_functions, <span class="string">"Removing Unreachable Functions"</span>),
         SsaPass::new(Ssa::defunctionalize, <span class="string">"Defunctionalization"</span>),
-        SsaPass::new(
-            Ssa::inline_functions_with_at_most_one_instruction,
-            <span class="string">"Inlining functions with at most one instruction"</span>,
-        ),
+        SsaPass::new(Ssa::inline_simple_functions, <span class="string">"Inlining simple functions"</span>),
         <span class="comment">// BUG: Enabling this mem2reg causes an integration test failure in aztec-package; see:
         // https://github.com/AztecProtocol/aztec-packages/pull/11294#issuecomment-2622809518
         //SsaPass::new(Ssa::mem2reg, "Mem2Reg (1st)"),
