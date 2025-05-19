@@ -1,8 +1,0 @@
-error: Missing case: `Some(_)`
-  ┌─ src/main.nr:3:19
-  │
-3 │             match Opt::Some(3) {
-  │                   ------------
-  │
-
-Aborting due to 1 previous error

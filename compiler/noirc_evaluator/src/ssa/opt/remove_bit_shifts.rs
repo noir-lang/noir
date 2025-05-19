@@ -7,7 +7,7 @@ use crate::ssa::{
     ir::{
         dfg::InsertInstructionResult,
         function::Function,
-        instruction::{Binary, BinaryOp, Endian, Instruction, Intrinsic},
+        instruction::{ArrayOffset, Binary, BinaryOp, Endian, Instruction, Intrinsic},
         types::{NumericType, Type},
         value::ValueId,
     },
@@ -330,7 +330,9 @@ impl Context<'_, '_, '_> {
         element_type: Type,
     ) -> ValueId {
         let element_type = Some(vec![element_type]);
-        self.insert_instruction(Instruction::ArrayGet { array, index }, element_type).first()
+        let offset = ArrayOffset::None;
+        let instruction = Instruction::ArrayGet { array, index, offset };
+        self.insert_instruction(instruction, element_type).first()
     }
 
     pub(crate) fn insert_instruction(

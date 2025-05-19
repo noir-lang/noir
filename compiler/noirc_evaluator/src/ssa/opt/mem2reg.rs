@@ -679,7 +679,9 @@ mod tests {
             ir::{
                 basic_block::BasicBlockId,
                 dfg::DataFlowGraph,
-                instruction::{BinaryOp, Instruction, Intrinsic, TerminatorInstruction},
+                instruction::{
+                    ArrayOffset, BinaryOp, Instruction, Intrinsic, TerminatorInstruction,
+                },
                 map::Id,
                 types::Type,
             },
@@ -711,7 +713,8 @@ mod tests {
 
         builder.insert_store(v0, v1);
         let v2 = builder.insert_load(v0, array_type);
-        let v3 = builder.insert_array_get(v2, one, Type::field());
+        let offset = ArrayOffset::None;
+        let v3 = builder.insert_array_get(v2, one, offset, Type::field());
         builder.terminate_with_return(vec![v3]);
 
         let ssa = builder.finish().mem2reg().fold_constants();

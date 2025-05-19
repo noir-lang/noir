@@ -205,6 +205,7 @@ impl<'interner> TokenPrettyPrinter<'interner> {
                 let value = Value::pattern(Pattern::Interned(*id, Location::dummy()));
                 self.print_value(&value, last_was_alphanumeric, f)
             }
+            Token::InternedCrate(_) => write!(f, "$crate"),
             Token::UnquoteMarker(id) => {
                 let value = Value::TypedExpr(TypedExpr::ExprId(*id));
                 self.print_value(&value, last_was_alphanumeric, f)
