@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1747681309220,
+  "lastUpdate": 1747681658342,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -20458,80 +20458,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "15848336+TomAFrench@users.noreply.github.com",
-            "name": "Tom French",
-            "username": "TomAFrench"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "5302490985807cdf0938602508c1112d163077cd",
-          "message": "chore: fix visibility issues in test suite (#8454)\n\nCo-authored-by: AztecBot <tech@aztecprotocol.com>",
-          "timestamp": "2025-05-12T16:44:00Z",
-          "tree_id": "0e38345d5ef8cdb8dd2c4f309e974e5104d72858",
-          "url": "https://github.com/noir-lang/noir/commit/5302490985807cdf0938602508c1112d163077cd"
-        },
-        "date": 1747069765722,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 1125.7,
-            "unit": "KB"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 2049.6,
-            "unit": "KB"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 581.7,
-            "unit": "KB"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 5122.1,
-            "unit": "KB"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 3940.9,
-            "unit": "KB"
-          },
-          {
-            "name": "rollup-block-root-empty",
-            "value": 256.9,
-            "unit": "KB"
-          },
-          {
-            "name": "rollup-block-root-single-tx",
-            "value": 25679.6,
-            "unit": "KB"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 25706.5,
-            "unit": "KB"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 181.7,
-            "unit": "KB"
-          },
-          {
-            "name": "rollup-root",
-            "value": 472,
-            "unit": "KB"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "aakoshh@gmail.com",
             "name": "Akosh Farkash",
             "username": "aakoshh"
@@ -24321,6 +24247,85 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/noir-lang/noir/commit/96aa7631faaa966c6f8ebda7d46cd383764641b7"
         },
         "date": 1747676253844,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 1127.1,
+            "unit": "KB"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 2051.1,
+            "unit": "KB"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 583.1,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 5123.1,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 3945.1,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-block-root-empty",
+            "value": 256.8,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-block-root-single-tx",
+            "value": 25674.8,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 25714.3,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 181.7,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-root",
+            "value": 477.8,
+            "unit": "KB"
+          },
+          {
+            "name": "semaphore-depth-10",
+            "value": 636.3,
+            "unit": "KB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "asterite@gmail.com",
+            "name": "Ary Borenszweig",
+            "username": "asterite"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "4972733638fa117f84848a3d923df1724bd84821",
+          "message": "chore(experimental): use larger stack size for parsing (#8347)\n\nCo-authored-by: Maxim Vezenov <mvezenov@gmail.com>",
+          "timestamp": "2025-05-19T18:39:27Z",
+          "tree_id": "86a2ed36990bba8a9085d422395f14cf58e6a031",
+          "url": "https://github.com/noir-lang/noir/commit/4972733638fa117f84848a3d923df1724bd84821"
+        },
+        "date": 1747681648986,
         "tool": "customSmallerIsBetter",
         "benches": [
           {
