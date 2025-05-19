@@ -30,6 +30,7 @@ enum ArrayLiteralOrError {
 }
 
 impl Parser<'_> {
+    #[inline(always)]
     pub(crate) fn parse_expression_or_error(&mut self) -> Expression {
         self.parse_expression_or_error_impl(true) // allow constructors
     }
@@ -48,6 +49,7 @@ impl Parser<'_> {
         self.parse_expression_or_error_impl(false) // allow constructors
     }
 
+    #[inline(always)]
     pub(crate) fn parse_expression_or_error_impl(
         &mut self,
         allow_constructors: bool,
