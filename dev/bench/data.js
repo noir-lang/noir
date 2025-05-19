@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1747681658342,
+  "lastUpdate": 1747681660446,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -3933,80 +3933,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "15848336+TomAFrench@users.noreply.github.com",
-            "name": "Tom French",
-            "username": "TomAFrench"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "5302490985807cdf0938602508c1112d163077cd",
-          "message": "chore: fix visibility issues in test suite (#8454)\n\nCo-authored-by: AztecBot <tech@aztecprotocol.com>",
-          "timestamp": "2025-05-12T16:44:00Z",
-          "tree_id": "0e38345d5ef8cdb8dd2c4f309e974e5104d72858",
-          "url": "https://github.com/noir-lang/noir/commit/5302490985807cdf0938602508c1112d163077cd"
-        },
-        "date": 1747069763820,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 2.454,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 6.544,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 0.99,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 17.2,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 12.42,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root-empty",
-            "value": 1.296,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root-single-tx",
-            "value": 124,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 133,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 1.054,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-root",
-            "value": 1.596,
-            "unit": "s"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "aakoshh@gmail.com",
             "name": "Akosh Farkash",
             "username": "aakoshh"
@@ -7851,6 +7777,85 @@ window.BENCHMARK_DATA = {
           {
             "name": "semaphore-depth-10",
             "value": 0.885,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "asterite@gmail.com",
+            "name": "Ary Borenszweig",
+            "username": "asterite"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "4972733638fa117f84848a3d923df1724bd84821",
+          "message": "chore(experimental): use larger stack size for parsing (#8347)\n\nCo-authored-by: Maxim Vezenov <mvezenov@gmail.com>",
+          "timestamp": "2025-05-19T18:39:27Z",
+          "tree_id": "86a2ed36990bba8a9085d422395f14cf58e6a031",
+          "url": "https://github.com/noir-lang/noir/commit/4972733638fa117f84848a3d923df1724bd84821"
+        },
+        "date": 1747681650156,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 2.556,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 6.462,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 1.136,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 14.96,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 12.36,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-empty",
+            "value": 1.28,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-single-tx",
+            "value": 123,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 127,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 1.094,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-root",
+            "value": 1.634,
+            "unit": "s"
+          },
+          {
+            "name": "semaphore-depth-10",
+            "value": 0.845,
             "unit": "s"
           }
         ]
