@@ -4084,7 +4084,7 @@
         trait_generics: <span class="kw-2">&amp;</span>[Type],
         trait_associated_types: <span class="kw-2">&amp;</span>[NamedType],
     ) -&gt; <span class="prelude-ty">Result</span>&lt;(TraitImplKind, TypeBindings, TypeBindings), ImplSearchErrorKind&gt; {
-        <span class="kw">let </span><span class="kw-2">mut </span>bindings = TypeBindings::new();
+        <span class="kw">let </span><span class="kw-2">mut </span>bindings = TypeBindings::default();
         <span class="kw">let </span>(impl_kind, instantiation_bindings) = <span class="self">self</span>.lookup_trait_implementation_helper(
             object_type,
             trait_id,
@@ -4857,7 +4857,7 @@
         trait_impl_generics: <span class="kw-2">&amp;</span>[Type],
         impl_self_type: Type,
     ) -&gt; TypeBindings {
-        <span class="kw">let </span><span class="kw-2">mut </span>bindings = TypeBindings::new();
+        <span class="kw">let </span><span class="kw-2">mut </span>bindings = TypeBindings::default();
         <span class="kw">let </span>the_trait = <span class="self">self</span>.get_trait(trait_id);
         <span class="kw">let </span>trait_generics = the_trait.generics.clone();
 

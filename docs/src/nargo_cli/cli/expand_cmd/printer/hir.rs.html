@@ -1338,7 +1338,7 @@
         </span><span class="kw">let </span>param_type = func_meta.parameters.<span class="number">0</span>[<span class="number">0</span>].<span class="number">1</span>.follow_bindings();
         <span class="kw">let </span>param_type = <span class="kw">if let </span>Type::Reference(typ, ..) = param_type { <span class="kw-2">*</span>typ } <span class="kw">else </span>{ param_type };
 
-        <span class="kw">let </span><span class="kw-2">mut </span>bindings = TypeBindings::new();
+        <span class="kw">let </span><span class="kw-2">mut </span>bindings = TypeBindings::default();
         <span class="kw">if </span>self_type.try_unify(<span class="kw-2">&amp;</span>param_type, <span class="kw-2">&amp;mut </span>bindings).is_err() {
             <span class="kw">return </span><span class="bool-val">false</span>;
         }

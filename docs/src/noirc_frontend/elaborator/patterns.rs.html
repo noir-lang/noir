@@ -1785,7 +1785,7 @@
             &amp;&amp; definition.is_some_and(DefinitionInfo::is_comptime_local);
         <span class="kw">let </span>definition_kind = definition.as_ref().map(|definition| definition.kind.clone());
 
-        <span class="kw">let </span><span class="kw-2">mut </span>bindings = TypeBindings::new();
+        <span class="kw">let </span><span class="kw-2">mut </span>bindings = TypeBindings::default();
 
         <span class="comment">// Resolve any generics if we the variable we have resolved is a function
         // and if the turbofish operator was used.
@@ -2170,7 +2170,7 @@
         expr_id: ExprId,
         generics: <span class="prelude-ty">Option</span>&lt;Vec&lt;Type&gt;&gt;,
     ) -&gt; Type {
-        <span class="kw">let </span>bindings = TypeBindings::new();
+        <span class="kw">let </span>bindings = TypeBindings::default();
         <span class="self">self</span>.type_check_variable_with_bindings(ident, expr_id, generics, bindings)
     }
 

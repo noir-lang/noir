@@ -3709,7 +3709,7 @@
 
         <span class="kw">let </span>impl_trait = the_trait.name.to_string();
 
-        <span class="kw">let </span><span class="kw-2">mut </span>bindings = TypeBindings::new();
+        <span class="kw">let </span><span class="kw-2">mut </span>bindings = TypeBindings::default();
         bind_ordered_generics(
             <span class="kw-2">&amp;</span>the_trait.generics,
             <span class="kw-2">&amp;</span>trait_impl.resolved_trait_generics,
@@ -3769,7 +3769,7 @@
 
         <span class="kw">let </span>impl_trait = the_trait.name.to_string();
 
-        <span class="kw">let </span><span class="kw-2">mut </span>bindings = TypeBindings::new();
+        <span class="kw">let </span><span class="kw-2">mut </span>bindings = TypeBindings::default();
         bind_ordered_generics(
             <span class="kw-2">&amp;</span>the_trait.generics,
             <span class="kw-2">&amp;</span>trait_impl.resolved_trait_generics,

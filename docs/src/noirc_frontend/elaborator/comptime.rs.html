@@ -943,7 +943,7 @@
         arguments.insert(<span class="number">0</span>, (item, location));
 
         <span class="kw">let </span>value = interpreter
-            .call_function(function, arguments, TypeBindings::new(), location)
+            .call_function(function, arguments, TypeBindings::default(), location)
             .map_err(CompilationError::from)<span class="question-mark">?</span>;
 
         <span class="self">self</span>.debug_comptime(location, |interner| value.display(interner).to_string());

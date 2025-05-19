@@ -3319,7 +3319,7 @@
         expected: <span class="kw-2">&amp;</span>Type,
         make_error: <span class="kw">impl </span>FnOnce() -&gt; TypeCheckError,
     ) {
-        <span class="kw">let </span><span class="kw-2">mut </span>bindings = TypeBindings::new();
+        <span class="kw">let </span><span class="kw-2">mut </span>bindings = TypeBindings::default();
         <span class="kw">if </span>actual.try_unify(expected, <span class="kw-2">&amp;mut </span>bindings).is_err() {
             <span class="kw">let </span>error: CompilationError = make_error().into();
             <span class="self">self</span>.push_err(error);
@@ -4677,7 +4677,7 @@
         trait_bound: <span class="kw-2">&amp;</span>ResolvedTraitBound,
         parent_trait_bound: <span class="kw-2">&amp;</span>ResolvedTraitBound,
     ) -&gt; ResolvedTraitBound {
-        <span class="kw">let </span><span class="kw-2">mut </span>bindings = TypeBindings::new();
+        <span class="kw">let </span><span class="kw-2">mut </span>bindings = TypeBindings::default();
         <span class="self">self</span>.bind_generics_from_trait_bound(trait_bound, <span class="kw-2">&amp;mut </span>bindings);
         ResolvedTraitBound {
             trait_generics: parent_trait_bound.trait_generics.map(|typ| typ.substitute(<span class="kw-2">&amp;</span>bindings)),

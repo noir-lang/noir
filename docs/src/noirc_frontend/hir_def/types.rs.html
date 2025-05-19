@@ -3387,15 +3387,9 @@
 <a href="#3386" id="3386">3386</a>
 <a href="#3387" id="3387">3387</a>
 <a href="#3388" id="3388">3388</a>
-<a href="#3389" id="3389">3389</a>
-<a href="#3390" id="3390">3390</a>
-<a href="#3391" id="3391">3391</a>
-<a href="#3392" id="3392">3392</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::{
-    borrow::Cow,
-    cell::RefCell,
-    collections::{BTreeSet, HashMap},
-    rc::Rc,
-};
+<a href="#3389" id="3389">3389</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::{borrow::Cow, cell::RefCell, collections::BTreeSet, rc::Rc};
+
+<span class="kw">use </span>fxhash::FxHashMap <span class="kw">as </span>HashMap;
 
 <span class="attr">#[cfg(test)]
 </span><span class="kw">use </span>proptest_derive::Arbitrary;
@@ -3635,7 +3629,7 @@
 
             <span class="comment">// Kind::Numeric unifies along its Type argument
             </span>(Kind::Numeric(lhs), Kind::Numeric(rhs)) =&gt; {
-                <span class="kw">let </span><span class="kw-2">mut </span>bindings = TypeBindings::new();
+                <span class="kw">let </span><span class="kw-2">mut </span>bindings = TypeBindings::default();
                 <span class="kw">let </span>unifies = lhs.try_unify(rhs, <span class="kw-2">&amp;mut </span>bindings).is_ok();
                 <span class="kw">if </span>unifies {
                     Type::apply_type_bindings(bindings);
@@ -5190,7 +5184,7 @@
     /// (including try_unify) are almost always preferred over Type::eq as unification
     /// will correctly handle generic types.
     </span><span class="kw">pub fn </span>unify(<span class="kw-2">&amp;</span><span class="self">self</span>, expected: <span class="kw-2">&amp;</span>Type) -&gt; <span class="prelude-ty">Result</span>&lt;(), UnificationError&gt; {
-        <span class="kw">let </span><span class="kw-2">mut </span>bindings = TypeBindings::new();
+        <span class="kw">let </span><span class="kw-2">mut </span>bindings = TypeBindings::default();
 
         <span class="self">self</span>.try_unify(expected, <span class="kw-2">&amp;mut </span>bindings).map(|()| {
             <span class="comment">// Commit any type bindings on success
@@ -5462,7 +5456,7 @@
         errors: <span class="kw-2">&amp;mut </span>Vec&lt;TypeCheckError&gt;,
         make_error: <span class="kw">impl </span>FnOnce() -&gt; TypeCheckError,
     ) {
-        <span class="kw">let </span><span class="kw-2">mut </span>bindings = TypeBindings::new();
+        <span class="kw">let </span><span class="kw-2">mut </span>bindings = TypeBindings::default();
 
         <span class="kw">if let </span><span class="prelude-val">Ok</span>(()) = <span class="self">self</span>.try_unify(expected, <span class="kw-2">&amp;mut </span>bindings) {
             Type::apply_type_bindings(bindings);
@@ -5534,7 +5528,7 @@
             </span><span class="kw">if let </span><span class="prelude-val">Some</span>(as_slice) = interner.lookup_direct_method(<span class="kw-2">&amp;</span>this, <span class="string">"as_slice"</span>, <span class="bool-val">true</span>) {
                 <span class="comment">// Still have to ensure the element types match.
                 // Don't need to issue an error here if not, it will be done in unify_with_coercions
-                </span><span class="kw">let </span><span class="kw-2">mut </span>bindings = TypeBindings::new();
+                </span><span class="kw">let </span><span class="kw-2">mut </span>bindings = TypeBindings::default();
                 <span class="kw">if </span>element1.try_unify(element2, <span class="kw-2">&amp;mut </span>bindings).is_ok() {
                     convert_array_expression_to_slice(expression, this, target, as_slice, interner);
                     <span class="self">Self</span>::apply_type_bindings(bindings);
@@ -5555,7 +5549,7 @@
         {
             <span class="comment">// Still have to ensure the element types match.
             // Don't need to issue an error here if not, it will be done in unify_with_coercions
-            </span><span class="kw">let </span><span class="kw-2">mut </span>bindings = TypeBindings::new();
+            </span><span class="kw">let </span><span class="kw-2">mut </span>bindings = TypeBindings::default();
             <span class="kw">if </span>this_elem.try_unify(target_elem, <span class="kw-2">&amp;mut </span>bindings).is_ok() {
                 <span class="self">Self</span>::apply_type_bindings(bindings);
                 <span class="kw">return </span><span class="bool-val">true</span>;
@@ -5738,7 +5732,7 @@
                 <span class="kw">let </span>instantiated = typ.force_substitute(<span class="kw-2">&amp;</span>replacements);
                 (instantiated, replacements)
             }
-            other =&gt; (other.clone(), HashMap::new()),
+            other =&gt; (other.clone(), HashMap::default()),
         }
     }
 
@@ -5775,7 +5769,7 @@
                 <span class="kw">let </span>instantiated = typ.substitute(<span class="kw-2">&amp;</span>replacements);
                 (instantiated, replacements)
             }
-            other =&gt; (other.clone(), HashMap::new()),
+            other =&gt; (other.clone(), HashMap::default()),
         }
     }
 
