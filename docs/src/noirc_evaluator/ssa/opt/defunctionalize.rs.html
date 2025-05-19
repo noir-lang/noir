@@ -805,7 +805,58 @@
 <a href="#804" id="804">804</a>
 <a href="#805" id="805">805</a>
 <a href="#806" id="806">806</a>
-<a href="#807" id="807">807</a></pre></div><pre class="rust"><code><span class="doccomment">//! This module defines the defunctionalization pass for the SSA IR.
+<a href="#807" id="807">807</a>
+<a href="#808" id="808">808</a>
+<a href="#809" id="809">809</a>
+<a href="#810" id="810">810</a>
+<a href="#811" id="811">811</a>
+<a href="#812" id="812">812</a>
+<a href="#813" id="813">813</a>
+<a href="#814" id="814">814</a>
+<a href="#815" id="815">815</a>
+<a href="#816" id="816">816</a>
+<a href="#817" id="817">817</a>
+<a href="#818" id="818">818</a>
+<a href="#819" id="819">819</a>
+<a href="#820" id="820">820</a>
+<a href="#821" id="821">821</a>
+<a href="#822" id="822">822</a>
+<a href="#823" id="823">823</a>
+<a href="#824" id="824">824</a>
+<a href="#825" id="825">825</a>
+<a href="#826" id="826">826</a>
+<a href="#827" id="827">827</a>
+<a href="#828" id="828">828</a>
+<a href="#829" id="829">829</a>
+<a href="#830" id="830">830</a>
+<a href="#831" id="831">831</a>
+<a href="#832" id="832">832</a>
+<a href="#833" id="833">833</a>
+<a href="#834" id="834">834</a>
+<a href="#835" id="835">835</a>
+<a href="#836" id="836">836</a>
+<a href="#837" id="837">837</a>
+<a href="#838" id="838">838</a>
+<a href="#839" id="839">839</a>
+<a href="#840" id="840">840</a>
+<a href="#841" id="841">841</a>
+<a href="#842" id="842">842</a>
+<a href="#843" id="843">843</a>
+<a href="#844" id="844">844</a>
+<a href="#845" id="845">845</a>
+<a href="#846" id="846">846</a>
+<a href="#847" id="847">847</a>
+<a href="#848" id="848">848</a>
+<a href="#849" id="849">849</a>
+<a href="#850" id="850">850</a>
+<a href="#851" id="851">851</a>
+<a href="#852" id="852">852</a>
+<a href="#853" id="853">853</a>
+<a href="#854" id="854">854</a>
+<a href="#855" id="855">855</a>
+<a href="#856" id="856">856</a>
+<a href="#857" id="857">857</a>
+<a href="#858" id="858">858</a></pre></div><pre class="rust"><code><span class="doccomment">//! This module defines the defunctionalization pass for the SSA IR.
 //! Certain IR targets (e.g., Brillig and ACIR) do not support higher-order functions directly.
 //!
 //! The pass eliminates higher-order functions (a function which accepts function values as arguments or returns functions)
@@ -988,7 +1039,11 @@
                         };
 
                         <span class="comment">// Find the correct apply function
-                        </span><span class="kw">let </span>apply_function = <span class="self">self</span>.get_apply_function(signature, func.runtime());
+                        </span><span class="kw">let </span><span class="prelude-val">Some</span>(apply_function) =
+                            <span class="self">self</span>.get_apply_function(signature, func.runtime())
+                        <span class="kw">else </span>{
+                            <span class="kw">continue</span>;
+                        };
 
                         <span class="comment">// Replace the instruction with a call to apply
                         </span><span class="kw">let </span>apply_function_value_id = func.dfg.import_function(apply_function.id);
@@ -1008,8 +1063,12 @@
     }
 
     <span class="doccomment">/// Returns the apply function for the given signature
-    </span><span class="kw">fn </span>get_apply_function(<span class="kw-2">&amp;</span><span class="self">self</span>, signature: Signature, runtime: RuntimeType) -&gt; ApplyFunction {
-        <span class="kw-2">*</span><span class="self">self</span>.apply_functions.get(<span class="kw-2">&amp;</span>(signature, runtime)).expect(<span class="string">"Could not find apply function"</span>)
+    </span><span class="kw">fn </span>get_apply_function(
+        <span class="kw-2">&amp;</span><span class="self">self</span>,
+        signature: Signature,
+        runtime: RuntimeType,
+    ) -&gt; <span class="prelude-ty">Option</span>&lt;ApplyFunction&gt; {
+        <span class="self">self</span>.apply_functions.get(<span class="kw-2">&amp;</span>(signature, runtime)).copied()
     }
 }
 
@@ -1183,10 +1242,10 @@
 </span><span class="kw">fn </span>create_apply_functions(ssa: <span class="kw-2">&amp;mut </span>Ssa, variants_map: Variants) -&gt; ApplyFunctions {
     <span class="kw">let </span><span class="kw-2">mut </span>apply_functions = HashMap::default();
     <span class="kw">for </span>((<span class="kw-2">mut </span>signature, runtime), variants) <span class="kw">in </span>variants_map.into_iter() {
-        <span class="macro">assert!</span>(
-            !variants.is_empty(),
-            <span class="string">"ICE: at least one variant should exist for a dynamic call {signature:?}"
-        </span>);
+        <span class="kw">if </span>variants.is_empty() {
+            <span class="comment">// If no variants exist for a dynamic call we leave removing those dead parameters to DIE
+            </span><span class="kw">continue</span>;
+        }
         <span class="kw">let </span>dispatches_to_multiple_functions = variants.len() &gt; <span class="number">1</span>;
 
         <span class="comment">// Update the shared function signature of the higher-order function variants
@@ -1610,6 +1669,49 @@
         }
         "
         </span>);
+    }
+
+    <span class="attr">#[test]
+    </span><span class="kw">fn </span>missing_fn_variant() {
+        <span class="kw">let </span>src = <span class="string">"
+        brillig(inline) fn main f0 {
+          b0():
+            v2 = call f1(f2) -&gt; i64
+            return v2
+        }
+        brillig(inline) fn func_3 f1 {
+          b0(v0: function):
+            return i64 0
+        }
+        brillig(inline) fn func_2 f2 {
+          b0(v0: function):
+            v2 = call v0(u128 1) -&gt; u1
+            return v2
+        }
+        "</span>;
+
+        <span class="kw">let </span>ssa = Ssa::from_str(src).unwrap();
+        <span class="kw">let </span>ssa = ssa.defunctionalize();
+
+        <span class="comment">// We still expect all parameters with a function type to be replaced.
+        // However, this is fine as a function with no variants means that function
+        // was never actually called.
+        </span><span class="macro">assert_ssa_snapshot!</span>(ssa, @<span class="string">r"
+        brillig(inline) fn main f0 {
+          b0():
+            v2 = call f1(Field 2) -&gt; i64
+            return v2
+        }
+        brillig(inline) fn func_3 f1 {
+          b0(v0: Field):
+            return i64 0
+        }
+        brillig(inline) fn func_2 f2 {
+          b0(v0: Field):
+            v2 = call v0(u128 1) -&gt; u1
+            return v2
+        }
+        "</span>);
     }
 }
 </code></pre></div></section></main></body></html>
