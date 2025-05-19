@@ -3382,7 +3382,15 @@
 <a href="#3381" id="3381">3381</a>
 <a href="#3382" id="3382">3382</a>
 <a href="#3383" id="3383">3383</a>
-<a href="#3384" id="3384">3384</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::{
+<a href="#3384" id="3384">3384</a>
+<a href="#3385" id="3385">3385</a>
+<a href="#3386" id="3386">3386</a>
+<a href="#3387" id="3387">3387</a>
+<a href="#3388" id="3388">3388</a>
+<a href="#3389" id="3389">3389</a>
+<a href="#3390" id="3390">3390</a>
+<a href="#3391" id="3391">3391</a>
+<a href="#3392" id="3392">3392</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::{
     borrow::Cow,
     cell::RefCell,
     collections::{BTreeSet, HashMap},
@@ -4683,7 +4691,7 @@
             }
 
             Type::Array(length, element) =&gt; {
-                <span class="self">self</span>.array_or_string_len_is_not_zero()
+                (<span class="self">Self</span>::should_allow_zero_sized_input() || <span class="self">self</span>.array_or_string_len_is_not_zero())
                     &amp;&amp; length.is_valid_for_program_input()
                     &amp;&amp; element.is_valid_for_program_input()
             }
@@ -4704,6 +4712,14 @@
                 lhs.is_valid_for_program_input() &amp;&amp; rhs.is_valid_for_program_input()
             }
         }
+    }
+
+    <span class="doccomment">/// Check if it is okay to allow for zero-sized input (e..g zero-sized arrays) to a program.
+    /// This behavior is not well defined and is banned by default.
+    /// However, this ban is a breaking change for some dependent projects so this override
+    /// is provided until those projects migrate away from using zero-sized array input (e.g. &lt;https://github.com/AztecProtocol/aztec-packages/issues/14388&gt;).
+    </span><span class="kw">fn </span>should_allow_zero_sized_input() -&gt; bool {
+        std::env::var(<span class="string">"ALLOW_EMPTY_INPUT"</span>).ok().map(|v| v == <span class="string">"1" </span>|| v == <span class="string">"true"</span>).unwrap_or_default()
     }
 
     <span class="doccomment">/// Empty arrays and strings (which are arrays under the hood) are disallowed
