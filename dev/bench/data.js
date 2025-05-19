@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1747687030816,
+  "lastUpdate": 1747687035033,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -11317,70 +11317,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "aakoshh@gmail.com",
-            "name": "Akosh Farkash",
-            "username": "aakoshh"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "21d9ffdc802d11aa66c15e708222dc8f845f0353",
-          "message": "chore(fuzz): Do not use zero length types in the main input output (#8465)",
-          "timestamp": "2025-05-12T18:43:23Z",
-          "tree_id": "4f4d167bc948ca3066d838c19e520af2f04fc0a5",
-          "url": "https://github.com/noir-lang/noir/commit/21d9ffdc802d11aa66c15e708222dc8f845f0353"
-        },
-        "date": 1747077174829,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 236.15,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 258.41,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 211.65,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 542.69,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 535.14,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 1440,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 364.19,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-root",
-            "value": 370.11,
-            "unit": "MB"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "47281315+guipublic@users.noreply.github.com",
             "name": "guipublic",
             "username": "guipublic"
@@ -14740,6 +14676,75 @@ window.BENCHMARK_DATA = {
           {
             "name": "semaphore_depth_10",
             "value": 93.04,
+            "unit": "MB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "jfecher11@gmail.com",
+            "name": "jfecher",
+            "username": "jfecher"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "49e0156cc75427e196007f148cb2e281fd5b97bc",
+          "message": "chore: Use FxHashMap for TypeBindings (#8574)",
+          "timestamp": "2025-05-19T19:47:25Z",
+          "tree_id": "d8dc18bceac513e16dc5737dd8f56faeebee5bbc",
+          "url": "https://github.com/noir-lang/noir/commit/49e0156cc75427e196007f148cb2e281fd5b97bc"
+        },
+        "date": 1747687024014,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 240.76,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 263.02,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 216.26,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 548.22,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 540.67,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 1450,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 369.93,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-root",
+            "value": 375.94,
+            "unit": "MB"
+          },
+          {
+            "name": "semaphore_depth_10",
+            "value": 92.9,
             "unit": "MB"
           }
         ]
