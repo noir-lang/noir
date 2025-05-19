@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1747669437532,
+  "lastUpdate": 1747669632395,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -18281,48 +18281,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "mvezenov@gmail.com",
-            "name": "Maxim Vezenov",
-            "username": "vezenovm"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "6d6aca93ce27809c1f433672526943e9269366b4",
-          "message": "fix(ssa): Mark mutually recursive simple functions (#8447)",
-          "timestamp": "2025-05-12T14:13:10Z",
-          "tree_id": "5ce899abdaabca9f313f845d1d842c8ff0c11254",
-          "url": "https://github.com/noir-lang/noir/commit/6d6aca93ce27809c1f433672526943e9269366b4"
-        },
-        "date": 1747060335419,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 275042,
-            "range": "± 3239",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 246073,
-            "range": "± 3021",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 3600125,
-            "range": "± 18945",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "15848336+TomAFrench@users.noreply.github.com",
             "name": "Tom French",
             "username": "TomAFrench"
@@ -20374,6 +20332,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 3579742,
             "range": "± 4220",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "mvezenov@gmail.com",
+            "name": "Maxim Vezenov",
+            "username": "vezenovm"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "1feac18e7d54673f78d0d2d32c6c09d470a3841c",
+          "message": "chore(ssa): Add weighted edges to call graph, move callers and callees methods to call graph (#8513)",
+          "timestamp": "2025-05-19T15:23:56Z",
+          "tree_id": "7f08b369233590a02513ae97621467e477039c18",
+          "url": "https://github.com/noir-lang/noir/commit/1feac18e7d54673f78d0d2d32c6c09d470a3841c"
+        },
+        "date": 1747669622668,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 253639,
+            "range": "± 322",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 222904,
+            "range": "± 9810",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 3564404,
+            "range": "± 6706",
             "unit": "ns/iter"
           }
         ]
