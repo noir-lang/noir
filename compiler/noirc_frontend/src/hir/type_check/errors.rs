@@ -487,13 +487,13 @@ impl<'a> From<&'a TypeCheckError> for Diagnostic {
             }
             TypeCheckError::InvalidBoolInfixOp { op, location } => {
                 let primary = match op {
-                    BinaryOpKind::Add => "Cannot add `bool` to `bool",
-                    BinaryOpKind::Subtract => "Cannot subtract `bool` from `bool",
-                    BinaryOpKind::Multiply => "Cannot multiply `bool` by `bool",
-                    BinaryOpKind::Divide => "Cannot divide `bool` by `bool`",
+                    BinaryOpKind::Add => "Cannot add a `bool` to a `bool",
+                    BinaryOpKind::Subtract => "Cannot subtract a `bool` from a `bool",
+                    BinaryOpKind::Multiply => "Cannot multiply a `bool` by a `bool",
+                    BinaryOpKind::Divide => "Cannot divide a `bool` by a `bool`",
                     BinaryOpKind::ShiftRight => "No implementation for `bool >> bool`",
                     BinaryOpKind::ShiftLeft => "No implementation for `bool << bool`",
-                    BinaryOpKind::Modulo => "Cannot calculate the remainder of `bool` divided by `bool`",
+                    BinaryOpKind::Modulo => "Cannot calculate the remainder of a `bool` divided by a `bool`",
                     BinaryOpKind::Equal |
                     BinaryOpKind::NotEqual |
                     BinaryOpKind::Less |
