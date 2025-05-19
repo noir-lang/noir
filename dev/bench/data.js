@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1747670695242,
+  "lastUpdate": 1747674439280,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -18316,48 +18316,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "15848336+TomAFrench@users.noreply.github.com",
-            "name": "Tom French",
-            "username": "TomAFrench"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "5e3a04eea96bde4403b291dfb8c326f47770b6da",
-          "message": "feat: improve bitshift codegen (#8442)\n\nCo-authored-by: AztecBot <tech@aztecprotocol.com>",
-          "timestamp": "2025-05-12T15:06:55Z",
-          "tree_id": "0e1e8edce6e7e1770245eb935caa4a91d23fdf91",
-          "url": "https://github.com/noir-lang/noir/commit/5e3a04eea96bde4403b291dfb8c326f47770b6da"
-        },
-        "date": 1747063527926,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 273718,
-            "range": "± 902",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 245140,
-            "range": "± 8193",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 3253503,
-            "range": "± 7245",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "47281315+guipublic@users.noreply.github.com",
             "name": "guipublic",
             "username": "guipublic"
@@ -20409,6 +20367,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 3564404,
             "range": "± 6706",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "mvezenov@gmail.com",
+            "name": "Maxim Vezenov",
+            "username": "vezenovm"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "e33b900bba5abcfe655435c81730169234a52b6f",
+          "message": "chore(inlining): Mark functions with <= 10 instructions and no control flow as inline always  (#8533)\n\nCo-authored-by: AztecBot <tech@aztecprotocol.com>",
+          "timestamp": "2025-05-19T16:46:45Z",
+          "tree_id": "1e784a7d7511b7de82ce2357bf99facde3c5fb1b",
+          "url": "https://github.com/noir-lang/noir/commit/e33b900bba5abcfe655435c81730169234a52b6f"
+        },
+        "date": 1747674430042,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 255504,
+            "range": "± 1882",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 224336,
+            "range": "± 8258",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 3564799,
+            "range": "± 7301",
             "unit": "ns/iter"
           }
         ]
