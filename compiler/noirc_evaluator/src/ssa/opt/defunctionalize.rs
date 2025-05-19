@@ -568,7 +568,7 @@ fn defunctionalize_post_check(func: &Function) {
 
 #[cfg(test)]
 mod tests {
-    use crate::assert_ssa_snapshot;
+    use crate::{assert_ssa_snapshot, ssa::opt::assert_normalized_ssa_equals};
 
     use super::Ssa;
 
@@ -805,5 +805,21 @@ mod tests {
         }
         "
         );
+    }
+
+    #[test]
+    fn missing_fn_variant() {
+        let src = "
+          brillig(inline) fn main f0 {
+            b0(v0: function, v1: u32):
+              v2 = call v0(v1) -> u32
+              return v2
+          }
+        ";
+
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.defunctionalize();
+
+        assert_normalized_ssa_equals(ssa, src);
     }
 }

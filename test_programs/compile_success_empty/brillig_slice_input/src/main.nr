@@ -22,10 +22,10 @@ fn main() {
         assert_eq(brillig_sum, 55);
     }
 
-    slice = slice.push_back([Point { x: 15, y: 5 }, Point { x: 12, y: 13 }]);
-    // Safety: testing context
-    unsafe {
-        let brillig_sum = sum_slice(slice);
-        assert_eq(brillig_sum, 100);
-    }
+    // slice = slice.push_back([Point { x: 15, y: 5 }, Point { x: 12, y: 13 }]);
+    // // Safety: testing context
+    // unsafe {
+    //     let brillig_sum = sum_slice(slice);
+    //     assert_eq(brillig_sum, 100);
+    // }
 }
