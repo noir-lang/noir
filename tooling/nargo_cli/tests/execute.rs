@@ -307,12 +307,13 @@ mod tests {
         let stderr = delete_test_program_dir_occurrences(stderr, &test_program_dir);
 
         let test_name = test_program_dir.file_name().unwrap().to_string_lossy().to_string();
+        let snapshot_name = "stderr";
         insta::with_settings!(
             {
                 snapshot_path => format!("./snapshots/compile_failure/{test_name}")
             },
             {
-            insta::assert_snapshot!(stderr)
+            insta::assert_snapshot!(snapshot_name, stderr)
         })
     }
 
