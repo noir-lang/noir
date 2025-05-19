@@ -37,7 +37,7 @@ use crate::{
             dfg::{DataFlowGraph, InsertInstructionResult},
             dom::DominatorTree,
             function::{Function, FunctionId, RuntimeType},
-            instruction::{ArrayGetOffset, BinaryOp, Instruction, InstructionId},
+            instruction::{ArrayOffset, BinaryOp, Instruction, InstructionId},
             types::{NumericType, Type},
             value::{Value, ValueId, ValueMapping},
         },
@@ -478,7 +478,7 @@ impl<'brillig> Context<'brillig> {
         if let Instruction::ArraySet { index, value, .. } = &instruction {
             let predicate = self.use_constraint_info.then_some(side_effects_enabled_var);
 
-            let offset = ArrayGetOffset::None;
+            let offset = ArrayOffset::None;
             let array_get =
                 Instruction::ArrayGet { array: instruction_results[0], index: *index, offset };
 
@@ -1578,7 +1578,7 @@ mod test {
             ";
         let ssa = Ssa::from_str(src).unwrap();
         // Need to run SSA pass that sets up Brillig array gets
-        let ssa = ssa.brillig_array_gets();
+        let ssa = ssa.brillig_array_get_and_set();
         let brillig = ssa.to_brillig(&BrilligOptions::default());
 
         let ssa = ssa.fold_constants_with_brillig(&brillig);

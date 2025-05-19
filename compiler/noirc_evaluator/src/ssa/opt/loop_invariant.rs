@@ -353,11 +353,21 @@ impl<'f> LoopInvariantContext<'f> {
 
         let can_be_hoisted = can_be_hoisted(&instruction, self.inserter.function, false)
             || matches!(instruction, MakeArray { .. })
-            || (can_be_hoisted(&instruction, self.inserter.function, true)
-                && !self.current_block_control_dependent)
+            || self.can_be_hoisted_with_control_dependence(&instruction, self.inserter.function)
             || self.can_be_hoisted_from_loop_bounds(&instruction);
 
         is_loop_invariant && can_be_hoisted
+    }
+
+    /// Check [can_be_hoisted] with extra control dependence information that
+    /// lives within the context of this pass.
+    fn can_be_hoisted_with_control_dependence(
+        &self,
+        instruction: &Instruction,
+        function: &Function,
+    ) -> bool {
+        can_be_hoisted(instruction, function, true)
+            && self.can_hoist_control_dependent_instruction()
     }
 
     /// Keep track of a loop induction variable and respective upper bound.
@@ -403,8 +413,7 @@ impl<'f> LoopInvariantContext<'f> {
             }
             Binary(binary) => self.can_evaluate_binary_op(binary),
             Constrain(..) | ConstrainNotEqual(..) | RangeCheck { .. } => {
-                // If we know the loop will be executed we can still only hoist if we are in a non control dependent block.
-                !self.current_block_control_dependent && self.does_loop_body_execute()
+                self.can_hoist_control_dependent_instruction()
             }
             Call { func, .. } => {
                 let purity = match self.inserter.function.dfg[*func] {
@@ -412,13 +421,19 @@ impl<'f> LoopInvariantContext<'f> {
                     Value::Function(id) => self.inserter.function.dfg.purity_of(id),
                     _ => None,
                 };
-                // If we know the loop will be executed we can still only hoist if we are in a non control dependent block.
                 matches!(purity, Some(Purity::PureWithPredicate))
-                    && !self.current_block_control_dependent
-                    && self.does_loop_body_execute()
+                    && self.can_hoist_control_dependent_instruction()
             }
             _ => false,
         }
+    }
+
+    /// A control dependent instruction (e.g. constrain or division) has more strict conditions for hoisting.
+    /// This function check the following conditions:
+    /// - The current block is non control dependent
+    /// - The loop body is guaranteed to be executed
+    fn can_hoist_control_dependent_instruction(&self) -> bool {
+        !self.current_block_control_dependent && self.does_loop_body_execute()
     }
 
     /// Determine whether the loop body is guaranteed to execute.
@@ -819,9 +834,17 @@ impl<'f> LoopInvariantContext<'f> {
 /// and its predicate, rather than just the instruction. Setting this means instructions that
 /// rely on predicates can be hoisted as well.
 ///
+/// # Preconditions
 /// Certain instructions can be hoisted because they implicitly depend on a predicate.
 /// However, to avoid tight coupling between passes, we make the hoisting
 /// conditional on whether the caller wants the predicate to be taken into account or not.
+///
+/// Even if we know the predicate is the same for an instruction's block and a loop's header block,
+/// the caller of this methods needs to be careful as a loop may still never be executed.
+/// This is because an loop with dynamic bounds may never execute its loop body.
+/// If the instruction were to trigger a failure, our program may fail inadvertently.
+/// If we know a loop's upper bound is greater than its lower bound we can hoist these instructions,
+/// but it is left to the caller of this method to account for this case.
 ///
 /// This differs from `can_be_deduplicated` as that method assumes there is a matching instruction
 /// with the same inputs. Hoisting is for lone instructions, meaning a mislabeled hoist could cause
@@ -850,19 +873,13 @@ fn can_be_hoisted(
             };
             match purity {
                 Some(Purity::Pure) => true,
-                Some(Purity::PureWithPredicate) => false,
+                Some(Purity::PureWithPredicate) => hoist_with_predicate,
                 Some(Purity::Impure) => false,
                 None => false,
             }
         }
 
-        // We cannot hoist these instructions, even if we know the predicate is the same.
-        // This is because an loop with dynamic bounds may never execute its loop body.
-        // If the instruction were to trigger a failure, our program may fail inadvertently.
-        // If we know a loop's upper bound is greater than its lower bound we can hoist these instructions,
-        // but we do not want to assume that the caller of this method has accounted
-        // for this case. Thus, we block hoisting on these instructions.
-        Constrain(..) | ConstrainNotEqual(..) | RangeCheck { .. } => false,
+        Constrain(..) | ConstrainNotEqual(..) | RangeCheck { .. } => hoist_with_predicate,
 
         // Noop instructions can always be hoisted, although they're more likely to be
         // removed entirely.
@@ -1723,8 +1740,8 @@ mod control_dependence {
             v3 = lt v2, u32 0
             jmpif v3 then: loop_body, else: exit
           loop_body():
-            v6 = mul v0, v1
-            v7 = mul v6, v0
+            v6 = unchecked_mul v0, v1
+            v7 = unchecked_mul v6, v0
             constrain v7 == u32 12
             v10 = unchecked_add v2, u32 1
             jmp loop(v10)
@@ -1744,8 +1761,8 @@ mod control_dependence {
         let expected = "
         brillig(inline) fn main f0 {
           entry(v0: u32, v1: u32):
-            v3 = mul v0, v1
-            v4 = mul v3, v0
+            v3 = unchecked_mul v0, v1
+            v4 = unchecked_mul v3, v0
             jmp loop(u32 0)
           loop(v2: u32):
             jmpif u1 0 then: loop_body, else: exit
@@ -1773,8 +1790,8 @@ mod control_dependence {
             v3 = lt v2, u32 1
             jmpif v3 then: loop_body, else: exit
           loop_body():
-            v6 = mul v0, v1
-            v7 = mul v6, v0
+            v6 = unchecked_mul v0, v1
+            v7 = unchecked_mul v6, v0
             constrain v7 == u32 12
             v10 = unchecked_add v2, u32 1
             jmp loop(v10)
@@ -1793,8 +1810,8 @@ mod control_dependence {
         let expected = "
         brillig(inline) fn main f0 {
           entry(v0: u32, v1: u32):
-            v3 = mul v0, v1
-            v4 = mul v3, v0
+            v3 = unchecked_mul v0, v1
+            v4 = unchecked_mul v3, v0
             jmp loop(u32 1)
           loop(v2: u32):
             v7 = eq v2, u32 0
@@ -1823,8 +1840,8 @@ mod control_dependence {
             v3 = lt v2, v1
             jmpif v3 then: loop_body, else: exit
           loop_body():
-            v6 = mul v0, v1
-            v7 = mul v6, v0
+            v6 = unchecked_mul v0, v1
+            v7 = unchecked_mul v6, v0
             constrain v7 == u32 12
             v10 = unchecked_add v2, u32 1
             jmp loop(v10)
@@ -1844,8 +1861,8 @@ mod control_dependence {
         let expected = "
         brillig(inline) fn main f0 {
           entry(v0: u32, v1: u32):
-            v3 = mul v0, v1
-            v4 = mul v3, v0
+            v3 = unchecked_mul v0, v1
+            v4 = unchecked_mul v3, v0
             jmp loop(u32 0)
           loop(v2: u32):
             v6 = lt v2, v1
@@ -1876,8 +1893,8 @@ mod control_dependence {
             v3 = lt v2, v1
             jmpif v3 then: loop_body, else: exit
           loop_body():
-            v6 = mul v0, v1
-            v7 = mul v6, v0
+            v6 = unchecked_mul v0, v1
+            v7 = unchecked_mul v6, v0
             call f1()
             v10 = unchecked_add v2, u32 1
             jmp loop(v10)
@@ -1898,8 +1915,8 @@ mod control_dependence {
         assert_ssa_snapshot!(ssa, @r"
         brillig(inline) predicate_pure fn main f0 {
           b0(v0: u32, v1: u32):
-            v3 = mul v0, v1
-            v4 = mul v3, v0
+            v3 = unchecked_mul v0, v1
+            v4 = unchecked_mul v3, v0
             jmp b1(u32 0)
           b1(v2: u32):
             v6 = lt v2, v1
@@ -2203,7 +2220,6 @@ mod control_dependence {
         ";
 
         let ssa = Ssa::from_str(src).unwrap();
-
         let ssa = ssa.loop_invariant_code_motion();
 
         assert_ssa_snapshot!(ssa, @r"
@@ -2221,5 +2237,32 @@ mod control_dependence {
             return
         }
         ");
+    }
+
+    #[test]
+    fn do_not_hoist_non_control_dependent_div_in_non_executed_loop() {
+        let src = "
+        brillig(inline) fn main f0 {
+          b0(v0: u32):
+            v1 = allocate -> &mut Field
+            store Field 0 at v1
+            jmp b1()
+          b1():
+            v3 = load v1 -> Field
+            v4 = eq v3, Field 0
+            jmpif v4 then: b2, else: b3
+          b2():
+            return
+          b3():
+            v6 = div u32 5, v0
+            jmp b1()
+        }
+        ";
+
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.loop_invariant_code_motion();
+
+        // We expect the SSA to be unchanged
+        assert_normalized_ssa_equals(ssa, src);
     }
 }

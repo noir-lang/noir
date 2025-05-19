@@ -8,7 +8,7 @@ mod array_set;
 mod as_slice_length;
 mod assert_constant;
 mod basic_conditional;
-mod brillig_array_gets;
+mod brillig_array_get_and_set;
 pub(crate) mod brillig_entry_points;
 mod check_u128_mul_overflow;
 mod checked_to_unchecked;
