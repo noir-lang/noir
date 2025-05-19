@@ -574,7 +574,7 @@ fn defunctionalize_post_check(func: &Function) {
 
 #[cfg(test)]
 mod tests {
-    use crate::{assert_ssa_snapshot, ssa::opt::assert_normalized_ssa_equals};
+    use crate::assert_ssa_snapshot;
 
     use super::Ssa;
 
@@ -816,16 +816,43 @@ mod tests {
     #[test]
     fn missing_fn_variant() {
         let src = "
-          brillig(inline) fn main f0 {
-            b0(v0: function, v1: u32):
-              v2 = call v0(v1) -> u32
-              return v2
-          }
+        brillig(inline) fn main f0 {
+          b0():
+            v2 = call f1(f2) -> i64
+            return v2
+        }
+        brillig(inline) fn func_3 f1 {
+          b0(v0: function):
+            return i64 0
+        }
+        brillig(inline) fn func_2 f2 {
+          b0(v0: function):
+            v2 = call v0(u128 1) -> u1
+            return v2
+        }
         ";
 
         let ssa = Ssa::from_str(src).unwrap();
         let ssa = ssa.defunctionalize();
 
-        assert_normalized_ssa_equals(ssa, src);
+        // We still expect all parameters with a function type to be replaced.
+        // However, this is fine as a function with no variants means that function
+        // was never actually called.
+        assert_ssa_snapshot!(ssa, @r"
+        brillig(inline) fn main f0 {
+          b0():
+            v2 = call f1(Field 2) -> i64
+            return v2
+        }
+        brillig(inline) fn func_3 f1 {
+          b0(v0: Field):
+            return i64 0
+        }
+        brillig(inline) fn func_2 f2 {
+          b0(v0: Field):
+            v2 = call v0(u128 1) -> u1
+            return v2
+        }
+        ");
     }
 }
