@@ -1957,6 +1957,8 @@ impl Type {
             }
 
             (InfixExpr(lhs_a, op_a, rhs_a, _), InfixExpr(lhs_b, op_b, rhs_b, _)) => {
+                eprintln!("{lhs:?} =? {rhs:?}");
+
                 if op_a == op_b {
                     // We need to preserve the original bindings since if syntactic equality
                     // fails we fall back to other equality strategies.
@@ -2187,7 +2189,12 @@ impl Type {
         location: Location,
     ) -> Result<acvm::FieldElement, TypeCheckError> {
         let run_simplifications = true;
-        self.evaluate_to_field_element_helper(kind, location, run_simplifications)
+        self.evaluate_to_field_element_helper(
+            kind,
+            location,
+            run_simplifications,
+            &mut HashMap::default(),
+        )
     }
 
     /// evaluate_to_field_element with optional generic arithmetic simplifications
@@ -2196,7 +2203,8 @@ impl Type {
         kind: &Kind,
         location: Location,
         run_simplifications: bool,
-    ) -> Result<acvm::FieldElement, TypeCheckError> {
+        canonicalized: &mut HashMap<Type, Type>,
+    ) -> Result<FieldElement, TypeCheckError> {
         if let Some((binding, binding_kind)) = self.get_inner_type_variable() {
             if let TypeBinding::Bound(binding) = &*binding.borrow() {
                 if kind.unifies(&binding_kind) {
@@ -2204,13 +2212,18 @@ impl Type {
                         &binding_kind,
                         location,
                         run_simplifications,
+                        canonicalized,
                     );
                 }
             }
         }
 
         let could_be_checked_cast = false;
-        match self.canonicalize_helper(could_be_checked_cast, run_simplifications) {
+        match self.canonicalize_memoized_helper(
+            could_be_checked_cast,
+            run_simplifications,
+            canonicalized,
+        ) {
             Type::Constant(x, constant_kind) => {
                 if kind.unifies(&constant_kind) {
                     kind.ensure_value_fits(x, location)
@@ -2229,11 +2242,13 @@ impl Type {
                         &infix_kind,
                         location,
                         run_simplifications,
+                        canonicalized,
                     )?;
                     let rhs_value = rhs.evaluate_to_field_element_helper(
                         &infix_kind,
                         location,
                         run_simplifications,
+                        canonicalized,
                     )?;
                     op.function(lhs_value, rhs_value, &infix_kind, location)
                 } else {
@@ -2250,9 +2265,12 @@ impl Type {
                 // if both 'to' and 'from' evaluate to a constant,
                 // return None unless they match
                 let skip_simplifications = false;
-                if let Ok(from_value) =
-                    from.evaluate_to_field_element_helper(kind, location, skip_simplifications)
-                {
+                if let Ok(from_value) = from.evaluate_to_field_element_helper(
+                    kind,
+                    location,
+                    skip_simplifications,
+                    canonicalized,
+                ) {
                     if to_value == from_value {
                         Ok(to_value)
                     } else {
