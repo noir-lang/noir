@@ -22,7 +22,7 @@ path = "../"
 
 [[bin]]
 name = "base_target"
-path = "src/base_target.rs"
+path = "src/fuzz_target.rs"
 test = false
 doc = false
 bench = false

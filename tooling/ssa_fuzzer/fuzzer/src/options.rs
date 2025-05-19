@@ -1,5 +1,6 @@
 use noirc_driver::CompileOptions;
 
+// TODO pass them with FuzzerOptions
 #[derive(Clone, Debug)]
 pub struct InstructionOptions {
     pub cast_enabled: bool,
@@ -24,7 +25,7 @@ pub struct InstructionOptions {
 impl Default for InstructionOptions {
     fn default() -> Self {
         Self {
-            cast_enabled: true,
+            cast_enabled: false,
             xor_enabled: true,
             and_enabled: true,
             or_enabled: true,
@@ -32,11 +33,11 @@ impl Default for InstructionOptions {
             add_enabled: true,
             sub_enabled: true,
             mul_enabled: true,
-            mod_enabled: true,
+            mod_enabled: false,
             div_enabled: true,
-            shl_enabled: true,
+            shl_enabled: false,
             shr_enabled: false,
-            eq_enabled: true,
+            eq_enabled: false,
             lt_enabled: true,
             load_enabled: true,
             store_enabled: true,
@@ -74,4 +75,16 @@ pub struct FuzzerOptions {
     pub compile_options: CompileOptions,
     pub max_jumps_num: usize,
     pub max_instructions_num: usize,
+}
+
+impl Default for FuzzerOptions {
+    fn default() -> Self {
+        Self {
+            idempotent_morphing_enabled: true,
+            constant_execution_enabled: true,
+            compile_options: CompileOptions::default(),
+            max_jumps_num: 30,
+            max_instructions_num: 500,
+        }
+    }
 }

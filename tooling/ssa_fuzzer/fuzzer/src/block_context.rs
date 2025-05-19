@@ -86,12 +86,16 @@ impl BlockContext {
         let acir_result = instruction(acir_builder, value.clone());
         // insert to brillig, assert id is the same
         assert_eq!(acir_result.value_id, instruction(brillig_builder, value).value_id);
+        // println!("acir_result: {:?}", acir_result);
         self.last_value = Some(acir_result.clone());
+        // println!("stored_values before: {:?}", self.stored_values.get(&ValueType::Boolean));
         append_typed_value_to_map(
             &mut self.stored_values,
             &acir_result.to_value_type(),
             acir_result,
         );
+        // println!("last_value: {:?}", self.last_value);
+        // println!("stored_values after: {:?}", self.stored_values.get(&ValueType::Boolean));
     }
 
     /// Inserts an instruction that takes two arguments
@@ -498,6 +502,7 @@ impl BlockContext {
         else_destination: BasicBlockId,
     ) {
         // takes last boolean variable as condition
+        // println!("stored_values: {:?}", self.stored_values.get(&ValueType::Boolean));
         let condition = self
             .stored_values
             .get(&ValueType::Boolean)
