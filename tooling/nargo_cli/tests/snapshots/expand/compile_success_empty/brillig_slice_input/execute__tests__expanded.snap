@@ -24,5 +24,11 @@ fn main() {
     unsafe {
         let brillig_sum: Field = sum_slice(slice);
         assert(brillig_sum == 55);
+    };
+    slice = slice.push_back([Point { x: 15, y: 5 }, Point { x: 12, y: 13 }]);
+    // Safety: comment added by `nargo expand`
+    unsafe {
+        let brillig_sum: Field = sum_slice(slice);
+        assert(brillig_sum == 100);
     }
 }
