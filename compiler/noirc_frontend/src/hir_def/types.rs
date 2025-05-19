@@ -1957,8 +1957,6 @@ impl Type {
             }
 
             (InfixExpr(lhs_a, op_a, rhs_a, _), InfixExpr(lhs_b, op_b, rhs_b, _)) => {
-                eprintln!("{lhs:?} =? {rhs:?}");
-
                 if op_a == op_b {
                     // We need to preserve the original bindings since if syntactic equality
                     // fails we fall back to other equality strategies.
