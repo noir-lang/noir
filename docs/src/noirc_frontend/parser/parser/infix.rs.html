@@ -195,7 +195,28 @@
 <a href="#194" id="194">194</a>
 <a href="#195" id="195">195</a>
 <a href="#196" id="196">196</a>
-<a href="#197" id="197">197</a></pre></div><pre class="rust"><code><span class="kw">use </span>noirc_errors::{Located, Location};
+<a href="#197" id="197">197</a>
+<a href="#198" id="198">198</a>
+<a href="#199" id="199">199</a>
+<a href="#200" id="200">200</a>
+<a href="#201" id="201">201</a>
+<a href="#202" id="202">202</a>
+<a href="#203" id="203">203</a>
+<a href="#204" id="204">204</a>
+<a href="#205" id="205">205</a>
+<a href="#206" id="206">206</a>
+<a href="#207" id="207">207</a>
+<a href="#208" id="208">208</a>
+<a href="#209" id="209">209</a>
+<a href="#210" id="210">210</a>
+<a href="#211" id="211">211</a>
+<a href="#212" id="212">212</a>
+<a href="#213" id="213">213</a>
+<a href="#214" id="214">214</a>
+<a href="#215" id="215">215</a>
+<a href="#216" id="216">216</a>
+<a href="#217" id="217">217</a>
+<a href="#218" id="218">218</a></pre></div><pre class="rust"><code><span class="kw">use </span>noirc_errors::{Located, Location};
 
 <span class="kw">use crate</span>::{
     ast::{BinaryOpKind, Expression, ExpressionKind, InfixExpression},
@@ -205,181 +226,202 @@
 
 <span class="kw">use </span><span class="kw">super</span>::Parser;
 
-<span class="kw">impl</span>&lt;<span class="lifetime">'a</span>&gt; Parser&lt;<span class="lifetime">'a</span>&gt; {
+<span class="macro">macro_rules!</span> parse_infix {
+    (<span class="macro-nonterminal">$self</span>:expr, <span class="macro-nonterminal">$next</span>:expr, <span class="macro-nonterminal">$operator</span>:expr, <span class="macro-nonterminal">$allow_constructors</span>:expr) =&gt; {{
+        <span class="kw">let </span>start_location = <span class="macro-nonterminal">$self</span>.current_token_location;
+        <span class="kw">let </span><span class="kw-2">mut </span>lhs = <span class="macro-nonterminal">$next</span>(<span class="macro-nonterminal">$self</span>, <span class="macro-nonterminal">$allow_constructors</span>)<span class="question-mark">?</span>;
+
+        <span class="kw">loop </span>{
+            <span class="kw">let </span>operator_start_location = <span class="macro-nonterminal">$self</span>.current_token_location;
+            <span class="kw">let </span>operator = <span class="macro-nonterminal">$operator</span>;
+            <span class="kw">let </span>operator = Located::from(operator_start_location, operator);
+
+            <span class="kw">let </span><span class="prelude-val">Some</span>(rhs) = <span class="macro-nonterminal">$next</span>(<span class="macro-nonterminal">$self</span>, <span class="macro-nonterminal">$allow_constructors</span>) <span class="kw">else </span>{
+                <span class="macro-nonterminal">$self</span>.push_expected_expression();
+                <span class="kw">break</span>;
+            };
+
+            lhs = <span class="macro-nonterminal">$self</span>.new_infix_expression(lhs, operator, rhs, start_location);
+        }
+
+        <span class="prelude-val">Some</span>(lhs)
+    }};
+}
+
+<span class="kw">impl </span>Parser&lt;<span class="lifetime">'_</span>&gt; {
     <span class="doccomment">/// EqualOrNotEqualExpression
     ///     = OrExpression ( ( '==' | '!=' ) OrExpression )*
+    </span><span class="attr">#[inline(always)]
     </span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>parse_equal_or_not_equal(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
         allow_constructors: bool,
     ) -&gt; <span class="prelude-ty">Option</span>&lt;Expression&gt; {
-        <span class="self">self</span>.parse_infix(allow_constructors, Parser::parse_or, |parser| {
-            <span class="kw">if </span>parser.eat(Token::Equal) {
-                <span class="prelude-val">Some</span>(BinaryOpKind::Equal)
-            } <span class="kw">else if </span>parser.eat(Token::NotEqual) {
-                <span class="prelude-val">Some</span>(BinaryOpKind::NotEqual)
+        <span class="macro">parse_infix!</span>(
+            <span class="self">self</span>,
+            Parser::parse_or,
+            <span class="kw">if </span><span class="self">self</span>.eat(Token::Equal) {
+                BinaryOpKind::Equal
+            } <span class="kw">else if </span><span class="self">self</span>.eat(Token::NotEqual) {
+                BinaryOpKind::NotEqual
             } <span class="kw">else </span>{
-                <span class="prelude-val">None
-            </span>}
-        })
+                <span class="kw">break</span>;
+            },
+            allow_constructors
+        )
     }
 
     <span class="doccomment">/// OrExpression
     ///     = AndExpression ( '|' AndExpression )*
+    </span><span class="attr">#[inline(always)]
     </span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>parse_or(<span class="kw-2">&amp;mut </span><span class="self">self</span>, allow_constructors: bool) -&gt; <span class="prelude-ty">Option</span>&lt;Expression&gt; {
-        <span class="self">self</span>.parse_infix(allow_constructors, Parser::parse_and, |parser| {
-            <span class="comment">// Don't parse `x |= ...`, etc.
-            </span><span class="kw">if </span>parser.next_is(Token::Assign) {
-                <span class="prelude-val">None
-            </span>} <span class="kw">else if </span>parser.eat(Token::Pipe) {
-                <span class="prelude-val">Some</span>(BinaryOpKind::Or)
+        <span class="macro">parse_infix!</span>(
+            <span class="self">self</span>,
+            Parser::parse_and,
+            <span class="kw">if </span><span class="self">self</span>.next_is(Token::Assign) {
+                <span class="kw">break</span>;
+            } <span class="kw">else if </span><span class="self">self</span>.eat(Token::Pipe) {
+                BinaryOpKind::Or
             } <span class="kw">else </span>{
-                <span class="prelude-val">None
-            </span>}
-        })
+                <span class="kw">break</span>;
+            },
+            allow_constructors
+        )
     }
 
     <span class="doccomment">/// AndExpression
     ///     = XorExpression ( '&amp;' XorExpression )*
+    </span><span class="attr">#[inline(always)]
     </span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>parse_and(<span class="kw-2">&amp;mut </span><span class="self">self</span>, allow_constructors: bool) -&gt; <span class="prelude-ty">Option</span>&lt;Expression&gt; {
-        <span class="self">self</span>.parse_infix(allow_constructors, Parser::parse_xor, |parser| {
+        <span class="macro">parse_infix!</span>(
+            <span class="self">self</span>,
+            Parser::parse_xor,
             <span class="comment">// Don't parse `x |= ...`, etc.
-            </span><span class="kw">if </span>parser.next_is(Token::Assign) {
-                <span class="prelude-val">None
-            </span>} <span class="kw">else if </span>parser.eat(Token::Ampersand) {
-                <span class="prelude-val">Some</span>(BinaryOpKind::And)
-            } <span class="kw">else if </span>parser.eat(Token::LogicalAnd) {
-                parser.push_error(ParserErrorReason::LogicalAnd, parser.previous_token_location);
-                <span class="prelude-val">Some</span>(BinaryOpKind::And)
+            </span><span class="kw">if </span><span class="self">self</span>.next_is(Token::Assign) {
+                <span class="kw">break</span>;
+            } <span class="kw">else if </span><span class="self">self</span>.eat(Token::Ampersand) {
+                BinaryOpKind::And
+            } <span class="kw">else if </span><span class="self">self</span>.eat(Token::LogicalAnd) {
+                <span class="self">self</span>.push_error(ParserErrorReason::LogicalAnd, <span class="self">self</span>.previous_token_location);
+                BinaryOpKind::And
             } <span class="kw">else </span>{
-                <span class="prelude-val">None
-            </span>}
-        })
+                <span class="kw">break</span>;
+            },
+            allow_constructors
+        )
     }
 
     <span class="doccomment">/// XorExpression
     ///     = LessOrGreaterExpression ( '^' LessOrGreaterExpression )*
+    </span><span class="attr">#[inline(always)]
     </span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>parse_xor(<span class="kw-2">&amp;mut </span><span class="self">self</span>, allow_constructors: bool) -&gt; <span class="prelude-ty">Option</span>&lt;Expression&gt; {
-        <span class="self">self</span>.parse_infix(allow_constructors, Parser::parse_less_or_greater, |parser| {
+        <span class="macro">parse_infix!</span>(
+            <span class="self">self</span>,
+            Parser::parse_less_or_greater,
             <span class="comment">// Don't parse `x |= ...`, etc.
-            </span><span class="kw">if </span>parser.next_is(Token::Assign) {
-                <span class="prelude-val">None
-            </span>} <span class="kw">else if </span>parser.eat(Token::Caret) {
-                <span class="prelude-val">Some</span>(BinaryOpKind::Xor)
+            </span><span class="kw">if </span><span class="self">self</span>.next_is(Token::Assign) {
+                <span class="kw">break</span>;
+            } <span class="kw">else if </span><span class="self">self</span>.eat(Token::Caret) {
+                BinaryOpKind::Xor
             } <span class="kw">else </span>{
-                <span class="prelude-val">None
-            </span>}
-        })
+                <span class="kw">break</span>;
+            },
+            allow_constructors
+        )
     }
 
     <span class="doccomment">/// LessOrGreaterExpression
     ///     = ShiftExpression ( ( '&lt;' | '&lt;=' | '&gt;' | '&gt;=' ) ShiftExpression )*
+    </span><span class="attr">#[inline(always)]
     </span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>parse_less_or_greater(<span class="kw-2">&amp;mut </span><span class="self">self</span>, allow_constructors: bool) -&gt; <span class="prelude-ty">Option</span>&lt;Expression&gt; {
-        <span class="self">self</span>.parse_infix(allow_constructors, Parser::parse_shift, |parser| {
-            <span class="kw">if </span>parser.eat(Token::Less) {
-                <span class="prelude-val">Some</span>(BinaryOpKind::Less)
-            } <span class="kw">else if </span>parser.eat(Token::LessEqual) {
-                <span class="prelude-val">Some</span>(BinaryOpKind::LessEqual)
-            } <span class="kw">else if </span>parser.next_token.token() != <span class="kw-2">&amp;</span>Token::GreaterEqual
-                &amp;&amp; parser.eat(Token::Greater)
-            {
+        <span class="macro">parse_infix!</span>(
+            <span class="self">self</span>,
+            Parser::parse_shift,
+            <span class="kw">if </span><span class="self">self</span>.eat(Token::Less) {
+                BinaryOpKind::Less
+            } <span class="kw">else if </span><span class="self">self</span>.eat(Token::LessEqual) {
+                BinaryOpKind::LessEqual
+            } <span class="kw">else if </span><span class="self">self</span>.next_token.token() != <span class="kw-2">&amp;</span>Token::GreaterEqual &amp;&amp; <span class="self">self</span>.eat(Token::Greater) {
                 <span class="comment">// Make sure to skip the `&gt;&gt;=` case, as `&gt;&gt;=` is lexed as `&gt; &gt;=`.
-                </span><span class="prelude-val">Some</span>(BinaryOpKind::Greater)
-            } <span class="kw">else if </span>parser.eat(Token::GreaterEqual) {
-                <span class="prelude-val">Some</span>(BinaryOpKind::GreaterEqual)
+                </span>BinaryOpKind::Greater
+            } <span class="kw">else if </span><span class="self">self</span>.eat(Token::GreaterEqual) {
+                BinaryOpKind::GreaterEqual
             } <span class="kw">else </span>{
-                <span class="prelude-val">None
-            </span>}
-        })
+                <span class="kw">break</span>;
+            },
+            allow_constructors
+        )
     }
 
     <span class="doccomment">/// ShiftExpression
     ///     = AddOrSubtractExpression ( ( '&lt;&lt;' | '&gt;' '&gt;' ) AddOrSubtractExpression )*
+    </span><span class="attr">#[inline(always)]
     </span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>parse_shift(<span class="kw-2">&amp;mut </span><span class="self">self</span>, allow_constructors: bool) -&gt; <span class="prelude-ty">Option</span>&lt;Expression&gt; {
-        <span class="self">self</span>.parse_infix(allow_constructors, Parser::parse_add_or_subtract, |parser| {
-            <span class="kw">if </span>!parser.next_is(Token::Assign) &amp;&amp; parser.eat(Token::ShiftLeft) {
-                <span class="prelude-val">Some</span>(BinaryOpKind::ShiftLeft)
-            } <span class="kw">else if </span>parser.at(Token::Greater) &amp;&amp; parser.next_is(Token::Greater) {
+        <span class="macro">parse_infix!</span>(
+            <span class="self">self</span>,
+            Parser::parse_add_or_subtract,
+            <span class="kw">if </span>!<span class="self">self</span>.next_is(Token::Assign) &amp;&amp; <span class="self">self</span>.eat(Token::ShiftLeft) {
+                BinaryOpKind::ShiftLeft
+            } <span class="kw">else if </span><span class="self">self</span>.at(Token::Greater) &amp;&amp; <span class="self">self</span>.next_is(Token::Greater) {
                 <span class="comment">// Right-shift (&gt;&gt;) is issued as two separate &gt; tokens by the lexer as this makes it easier
                 // to parse nested generic types. For normal expressions however, it means we have to manually
                 // parse two greater-than tokens as a single right-shift here.
-                </span>parser.bump();
-                parser.bump();
-                <span class="prelude-val">Some</span>(BinaryOpKind::ShiftRight)
+                </span><span class="self">self</span>.bump();
+                <span class="self">self</span>.bump();
+                BinaryOpKind::ShiftRight
             } <span class="kw">else </span>{
-                <span class="prelude-val">None
-            </span>}
-        })
+                <span class="kw">break</span>;
+            },
+            allow_constructors
+        )
     }
 
     <span class="doccomment">/// AddOrSubtractExpression
     ///     = MultiplyOrDivideOrModuloExpression ( ( '+' | '-' ) MultiplyOrDivideOrModuloExpression )*
+    </span><span class="attr">#[inline(always)]
     </span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>parse_add_or_subtract(<span class="kw-2">&amp;mut </span><span class="self">self</span>, allow_constructors: bool) -&gt; <span class="prelude-ty">Option</span>&lt;Expression&gt; {
-        <span class="self">self</span>.parse_infix(allow_constructors, Parser::parse_multiply_or_divide_or_modulo, |parser| {
-            <span class="kw">if </span>parser.next_is(Token::Assign) {
-                <span class="prelude-val">None
-            </span>} <span class="kw">else if </span>parser.eat(Token::Plus) {
-                <span class="prelude-val">Some</span>(BinaryOpKind::Add)
-            } <span class="kw">else if </span>parser.eat(Token::Minus) {
-                <span class="prelude-val">Some</span>(BinaryOpKind::Subtract)
+        <span class="macro">parse_infix!</span>(
+            <span class="self">self</span>,
+            Parser::parse_multiply_or_divide_or_modulo,
+            <span class="kw">if </span><span class="self">self</span>.next_is(Token::Assign) {
+                <span class="kw">break</span>;
+            } <span class="kw">else if </span><span class="self">self</span>.eat(Token::Plus) {
+                BinaryOpKind::Add
+            } <span class="kw">else if </span><span class="self">self</span>.eat(Token::Minus) {
+                BinaryOpKind::Subtract
             } <span class="kw">else </span>{
-                <span class="prelude-val">None
-            </span>}
-        })
+                <span class="kw">break</span>;
+            },
+            allow_constructors
+        )
     }
 
     <span class="doccomment">/// MultiplyOrDivideOrModuloExpression
     ///     = Term ( ( '*' | '/' | '%' ) Term )*
+    </span><span class="attr">#[inline(always)]
     </span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>parse_multiply_or_divide_or_modulo(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
         allow_constructors: bool,
     ) -&gt; <span class="prelude-ty">Option</span>&lt;Expression&gt; {
-        <span class="self">self</span>.parse_infix(allow_constructors, Parser::parse_term, |parser| {
-            <span class="kw">if </span>parser.next_is(Token::Assign) {
-                <span class="prelude-val">None
-            </span>} <span class="kw">else if </span>parser.eat(Token::Star) {
-                <span class="prelude-val">Some</span>(BinaryOpKind::Multiply)
-            } <span class="kw">else if </span>parser.eat(Token::Slash) {
-                <span class="prelude-val">Some</span>(BinaryOpKind::Divide)
-            } <span class="kw">else if </span>parser.eat(Token::Percent) {
-                <span class="prelude-val">Some</span>(BinaryOpKind::Modulo)
+        <span class="macro">parse_infix!</span>(
+            <span class="self">self</span>,
+            Parser::parse_term,
+            <span class="kw">if </span><span class="self">self</span>.next_is(Token::Assign) {
+                <span class="kw">break</span>;
+            } <span class="kw">else if </span><span class="self">self</span>.eat(Token::Star) {
+                BinaryOpKind::Multiply
+            } <span class="kw">else if </span><span class="self">self</span>.eat(Token::Slash) {
+                BinaryOpKind::Divide
+            } <span class="kw">else if </span><span class="self">self</span>.eat(Token::Percent) {
+                BinaryOpKind::Modulo
             } <span class="kw">else </span>{
-                <span class="prelude-val">None
-            </span>}
-        })
+                <span class="kw">break</span>;
+            },
+            allow_constructors
+        )
     }
 
-    <span class="kw">fn </span>parse_infix&lt;Next, Op&gt;(
-        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
-        allow_constructors: bool,
-        <span class="kw-2">mut </span>next: Next,
-        <span class="kw-2">mut </span>op: Op,
-    ) -&gt; <span class="prelude-ty">Option</span>&lt;Expression&gt;
-    <span class="kw">where
-        </span>Next: FnMut(<span class="kw-2">&amp;mut </span>Parser&lt;<span class="lifetime">'a</span>&gt;, bool) -&gt; <span class="prelude-ty">Option</span>&lt;Expression&gt;,
-        Op: FnMut(<span class="kw-2">&amp;mut </span>Parser&lt;<span class="lifetime">'a</span>&gt;) -&gt; <span class="prelude-ty">Option</span>&lt;BinaryOpKind&gt;,
-    {
-        <span class="kw">let </span>start_location = <span class="self">self</span>.current_token_location;
-        <span class="kw">let </span><span class="kw-2">mut </span>lhs = next(<span class="self">self</span>, allow_constructors)<span class="question-mark">?</span>;
-
-        <span class="kw">loop </span>{
-            <span class="kw">let </span>operator_start_location = <span class="self">self</span>.current_token_location;
-            <span class="kw">let </span><span class="prelude-val">Some</span>(operator) = op(<span class="self">self</span>) <span class="kw">else </span>{
-                <span class="kw">break</span>;
-            };
-            <span class="kw">let </span>operator = Located::from(operator_start_location, operator);
-
-            <span class="kw">let </span><span class="prelude-val">Some</span>(rhs) = next(<span class="self">self</span>, allow_constructors) <span class="kw">else </span>{
-                <span class="self">self</span>.push_expected_expression();
-                <span class="kw">break</span>;
-            };
-
-            lhs = <span class="self">self</span>.new_infix_expression(lhs, operator, rhs, start_location);
-        }
-
-        <span class="prelude-val">Some</span>(lhs)
-    }
-
-    <span class="kw">fn </span>new_infix_expression(
+    <span class="attr">#[inline(always)]
+    </span><span class="kw">fn </span>new_infix_expression(
         <span class="kw-2">&amp;</span><span class="self">self</span>,
         lhs: Expression,
         operator: Located&lt;BinaryOpKind&gt;,

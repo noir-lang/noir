@@ -2145,7 +2145,9 @@
 <a href="#2144" id="2144">2144</a>
 <a href="#2145" id="2145">2145</a>
 <a href="#2146" id="2146">2146</a>
-<a href="#2147" id="2147">2147</a></pre></div><pre class="rust"><code><span class="kw">use </span>iter_extended::vecmap;
+<a href="#2147" id="2147">2147</a>
+<a href="#2148" id="2148">2148</a>
+<a href="#2149" id="2149">2149</a></pre></div><pre class="rust"><code><span class="kw">use </span>iter_extended::vecmap;
 <span class="kw">use </span>noirc_errors::Location;
 
 <span class="kw">use crate</span>::{
@@ -2177,7 +2179,8 @@
 }
 
 <span class="kw">impl </span>Parser&lt;<span class="lifetime">'_</span>&gt; {
-    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>parse_expression_or_error(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; Expression {
+    <span class="attr">#[inline(always)]
+    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>parse_expression_or_error(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; Expression {
         <span class="self">self</span>.parse_expression_or_error_impl(<span class="bool-val">true</span>) <span class="comment">// allow constructors
     </span>}
 
@@ -2195,7 +2198,8 @@
         <span class="self">self</span>.parse_expression_or_error_impl(<span class="bool-val">false</span>) <span class="comment">// allow constructors
     </span>}
 
-    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>parse_expression_or_error_impl(
+    <span class="attr">#[inline(always)]
+    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>parse_expression_or_error_impl(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
         allow_constructors: bool,
     ) -&gt; Expression {
