@@ -1183,6 +1183,7 @@ impl<F: AcirField, B: BlackBoxFunctionSolver<F>> AcirContext<F, B> {
                         .assertion_payloads
                         .insert(self.acir_ir.last_acir_opcode_location(), payload);
                 }
+                return Ok(witness_var);
             }
             NumericType::NativeField => {
                 // Range constraining a Field is a no-op
