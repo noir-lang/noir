@@ -173,7 +173,319 @@
 <a href="#172" id="172">172</a>
 <a href="#173" id="173">173</a>
 <a href="#174" id="174">174</a>
-<a href="#175" id="175">175</a></pre></div><pre class="rust"><code><span class="doccomment">//! Call graph analysis
+<a href="#175" id="175">175</a>
+<a href="#176" id="176">176</a>
+<a href="#177" id="177">177</a>
+<a href="#178" id="178">178</a>
+<a href="#179" id="179">179</a>
+<a href="#180" id="180">180</a>
+<a href="#181" id="181">181</a>
+<a href="#182" id="182">182</a>
+<a href="#183" id="183">183</a>
+<a href="#184" id="184">184</a>
+<a href="#185" id="185">185</a>
+<a href="#186" id="186">186</a>
+<a href="#187" id="187">187</a>
+<a href="#188" id="188">188</a>
+<a href="#189" id="189">189</a>
+<a href="#190" id="190">190</a>
+<a href="#191" id="191">191</a>
+<a href="#192" id="192">192</a>
+<a href="#193" id="193">193</a>
+<a href="#194" id="194">194</a>
+<a href="#195" id="195">195</a>
+<a href="#196" id="196">196</a>
+<a href="#197" id="197">197</a>
+<a href="#198" id="198">198</a>
+<a href="#199" id="199">199</a>
+<a href="#200" id="200">200</a>
+<a href="#201" id="201">201</a>
+<a href="#202" id="202">202</a>
+<a href="#203" id="203">203</a>
+<a href="#204" id="204">204</a>
+<a href="#205" id="205">205</a>
+<a href="#206" id="206">206</a>
+<a href="#207" id="207">207</a>
+<a href="#208" id="208">208</a>
+<a href="#209" id="209">209</a>
+<a href="#210" id="210">210</a>
+<a href="#211" id="211">211</a>
+<a href="#212" id="212">212</a>
+<a href="#213" id="213">213</a>
+<a href="#214" id="214">214</a>
+<a href="#215" id="215">215</a>
+<a href="#216" id="216">216</a>
+<a href="#217" id="217">217</a>
+<a href="#218" id="218">218</a>
+<a href="#219" id="219">219</a>
+<a href="#220" id="220">220</a>
+<a href="#221" id="221">221</a>
+<a href="#222" id="222">222</a>
+<a href="#223" id="223">223</a>
+<a href="#224" id="224">224</a>
+<a href="#225" id="225">225</a>
+<a href="#226" id="226">226</a>
+<a href="#227" id="227">227</a>
+<a href="#228" id="228">228</a>
+<a href="#229" id="229">229</a>
+<a href="#230" id="230">230</a>
+<a href="#231" id="231">231</a>
+<a href="#232" id="232">232</a>
+<a href="#233" id="233">233</a>
+<a href="#234" id="234">234</a>
+<a href="#235" id="235">235</a>
+<a href="#236" id="236">236</a>
+<a href="#237" id="237">237</a>
+<a href="#238" id="238">238</a>
+<a href="#239" id="239">239</a>
+<a href="#240" id="240">240</a>
+<a href="#241" id="241">241</a>
+<a href="#242" id="242">242</a>
+<a href="#243" id="243">243</a>
+<a href="#244" id="244">244</a>
+<a href="#245" id="245">245</a>
+<a href="#246" id="246">246</a>
+<a href="#247" id="247">247</a>
+<a href="#248" id="248">248</a>
+<a href="#249" id="249">249</a>
+<a href="#250" id="250">250</a>
+<a href="#251" id="251">251</a>
+<a href="#252" id="252">252</a>
+<a href="#253" id="253">253</a>
+<a href="#254" id="254">254</a>
+<a href="#255" id="255">255</a>
+<a href="#256" id="256">256</a>
+<a href="#257" id="257">257</a>
+<a href="#258" id="258">258</a>
+<a href="#259" id="259">259</a>
+<a href="#260" id="260">260</a>
+<a href="#261" id="261">261</a>
+<a href="#262" id="262">262</a>
+<a href="#263" id="263">263</a>
+<a href="#264" id="264">264</a>
+<a href="#265" id="265">265</a>
+<a href="#266" id="266">266</a>
+<a href="#267" id="267">267</a>
+<a href="#268" id="268">268</a>
+<a href="#269" id="269">269</a>
+<a href="#270" id="270">270</a>
+<a href="#271" id="271">271</a>
+<a href="#272" id="272">272</a>
+<a href="#273" id="273">273</a>
+<a href="#274" id="274">274</a>
+<a href="#275" id="275">275</a>
+<a href="#276" id="276">276</a>
+<a href="#277" id="277">277</a>
+<a href="#278" id="278">278</a>
+<a href="#279" id="279">279</a>
+<a href="#280" id="280">280</a>
+<a href="#281" id="281">281</a>
+<a href="#282" id="282">282</a>
+<a href="#283" id="283">283</a>
+<a href="#284" id="284">284</a>
+<a href="#285" id="285">285</a>
+<a href="#286" id="286">286</a>
+<a href="#287" id="287">287</a>
+<a href="#288" id="288">288</a>
+<a href="#289" id="289">289</a>
+<a href="#290" id="290">290</a>
+<a href="#291" id="291">291</a>
+<a href="#292" id="292">292</a>
+<a href="#293" id="293">293</a>
+<a href="#294" id="294">294</a>
+<a href="#295" id="295">295</a>
+<a href="#296" id="296">296</a>
+<a href="#297" id="297">297</a>
+<a href="#298" id="298">298</a>
+<a href="#299" id="299">299</a>
+<a href="#300" id="300">300</a>
+<a href="#301" id="301">301</a>
+<a href="#302" id="302">302</a>
+<a href="#303" id="303">303</a>
+<a href="#304" id="304">304</a>
+<a href="#305" id="305">305</a>
+<a href="#306" id="306">306</a>
+<a href="#307" id="307">307</a>
+<a href="#308" id="308">308</a>
+<a href="#309" id="309">309</a>
+<a href="#310" id="310">310</a>
+<a href="#311" id="311">311</a>
+<a href="#312" id="312">312</a>
+<a href="#313" id="313">313</a>
+<a href="#314" id="314">314</a>
+<a href="#315" id="315">315</a>
+<a href="#316" id="316">316</a>
+<a href="#317" id="317">317</a>
+<a href="#318" id="318">318</a>
+<a href="#319" id="319">319</a>
+<a href="#320" id="320">320</a>
+<a href="#321" id="321">321</a>
+<a href="#322" id="322">322</a>
+<a href="#323" id="323">323</a>
+<a href="#324" id="324">324</a>
+<a href="#325" id="325">325</a>
+<a href="#326" id="326">326</a>
+<a href="#327" id="327">327</a>
+<a href="#328" id="328">328</a>
+<a href="#329" id="329">329</a>
+<a href="#330" id="330">330</a>
+<a href="#331" id="331">331</a>
+<a href="#332" id="332">332</a>
+<a href="#333" id="333">333</a>
+<a href="#334" id="334">334</a>
+<a href="#335" id="335">335</a>
+<a href="#336" id="336">336</a>
+<a href="#337" id="337">337</a>
+<a href="#338" id="338">338</a>
+<a href="#339" id="339">339</a>
+<a href="#340" id="340">340</a>
+<a href="#341" id="341">341</a>
+<a href="#342" id="342">342</a>
+<a href="#343" id="343">343</a>
+<a href="#344" id="344">344</a>
+<a href="#345" id="345">345</a>
+<a href="#346" id="346">346</a>
+<a href="#347" id="347">347</a>
+<a href="#348" id="348">348</a>
+<a href="#349" id="349">349</a>
+<a href="#350" id="350">350</a>
+<a href="#351" id="351">351</a>
+<a href="#352" id="352">352</a>
+<a href="#353" id="353">353</a>
+<a href="#354" id="354">354</a>
+<a href="#355" id="355">355</a>
+<a href="#356" id="356">356</a>
+<a href="#357" id="357">357</a>
+<a href="#358" id="358">358</a>
+<a href="#359" id="359">359</a>
+<a href="#360" id="360">360</a>
+<a href="#361" id="361">361</a>
+<a href="#362" id="362">362</a>
+<a href="#363" id="363">363</a>
+<a href="#364" id="364">364</a>
+<a href="#365" id="365">365</a>
+<a href="#366" id="366">366</a>
+<a href="#367" id="367">367</a>
+<a href="#368" id="368">368</a>
+<a href="#369" id="369">369</a>
+<a href="#370" id="370">370</a>
+<a href="#371" id="371">371</a>
+<a href="#372" id="372">372</a>
+<a href="#373" id="373">373</a>
+<a href="#374" id="374">374</a>
+<a href="#375" id="375">375</a>
+<a href="#376" id="376">376</a>
+<a href="#377" id="377">377</a>
+<a href="#378" id="378">378</a>
+<a href="#379" id="379">379</a>
+<a href="#380" id="380">380</a>
+<a href="#381" id="381">381</a>
+<a href="#382" id="382">382</a>
+<a href="#383" id="383">383</a>
+<a href="#384" id="384">384</a>
+<a href="#385" id="385">385</a>
+<a href="#386" id="386">386</a>
+<a href="#387" id="387">387</a>
+<a href="#388" id="388">388</a>
+<a href="#389" id="389">389</a>
+<a href="#390" id="390">390</a>
+<a href="#391" id="391">391</a>
+<a href="#392" id="392">392</a>
+<a href="#393" id="393">393</a>
+<a href="#394" id="394">394</a>
+<a href="#395" id="395">395</a>
+<a href="#396" id="396">396</a>
+<a href="#397" id="397">397</a>
+<a href="#398" id="398">398</a>
+<a href="#399" id="399">399</a>
+<a href="#400" id="400">400</a>
+<a href="#401" id="401">401</a>
+<a href="#402" id="402">402</a>
+<a href="#403" id="403">403</a>
+<a href="#404" id="404">404</a>
+<a href="#405" id="405">405</a>
+<a href="#406" id="406">406</a>
+<a href="#407" id="407">407</a>
+<a href="#408" id="408">408</a>
+<a href="#409" id="409">409</a>
+<a href="#410" id="410">410</a>
+<a href="#411" id="411">411</a>
+<a href="#412" id="412">412</a>
+<a href="#413" id="413">413</a>
+<a href="#414" id="414">414</a>
+<a href="#415" id="415">415</a>
+<a href="#416" id="416">416</a>
+<a href="#417" id="417">417</a>
+<a href="#418" id="418">418</a>
+<a href="#419" id="419">419</a>
+<a href="#420" id="420">420</a>
+<a href="#421" id="421">421</a>
+<a href="#422" id="422">422</a>
+<a href="#423" id="423">423</a>
+<a href="#424" id="424">424</a>
+<a href="#425" id="425">425</a>
+<a href="#426" id="426">426</a>
+<a href="#427" id="427">427</a>
+<a href="#428" id="428">428</a>
+<a href="#429" id="429">429</a>
+<a href="#430" id="430">430</a>
+<a href="#431" id="431">431</a>
+<a href="#432" id="432">432</a>
+<a href="#433" id="433">433</a>
+<a href="#434" id="434">434</a>
+<a href="#435" id="435">435</a>
+<a href="#436" id="436">436</a>
+<a href="#437" id="437">437</a>
+<a href="#438" id="438">438</a>
+<a href="#439" id="439">439</a>
+<a href="#440" id="440">440</a>
+<a href="#441" id="441">441</a>
+<a href="#442" id="442">442</a>
+<a href="#443" id="443">443</a>
+<a href="#444" id="444">444</a>
+<a href="#445" id="445">445</a>
+<a href="#446" id="446">446</a>
+<a href="#447" id="447">447</a>
+<a href="#448" id="448">448</a>
+<a href="#449" id="449">449</a>
+<a href="#450" id="450">450</a>
+<a href="#451" id="451">451</a>
+<a href="#452" id="452">452</a>
+<a href="#453" id="453">453</a>
+<a href="#454" id="454">454</a>
+<a href="#455" id="455">455</a>
+<a href="#456" id="456">456</a>
+<a href="#457" id="457">457</a>
+<a href="#458" id="458">458</a>
+<a href="#459" id="459">459</a>
+<a href="#460" id="460">460</a>
+<a href="#461" id="461">461</a>
+<a href="#462" id="462">462</a>
+<a href="#463" id="463">463</a>
+<a href="#464" id="464">464</a>
+<a href="#465" id="465">465</a>
+<a href="#466" id="466">466</a>
+<a href="#467" id="467">467</a>
+<a href="#468" id="468">468</a>
+<a href="#469" id="469">469</a>
+<a href="#470" id="470">470</a>
+<a href="#471" id="471">471</a>
+<a href="#472" id="472">472</a>
+<a href="#473" id="473">473</a>
+<a href="#474" id="474">474</a>
+<a href="#475" id="475">475</a>
+<a href="#476" id="476">476</a>
+<a href="#477" id="477">477</a>
+<a href="#478" id="478">478</a>
+<a href="#479" id="479">479</a>
+<a href="#480" id="480">480</a>
+<a href="#481" id="481">481</a>
+<a href="#482" id="482">482</a>
+<a href="#483" id="483">483</a>
+<a href="#484" id="484">484</a>
+<a href="#485" id="485">485</a>
+<a href="#486" id="486">486</a>
+<a href="#487" id="487">487</a></pre></div><pre class="rust"><code><span class="doccomment">//! Call graph analysis
 //!
 //! This module provides a `CallGraph` structure that builds a directed call graph from SSA functions.
 //!
@@ -183,12 +495,13 @@
 //!
 //! This utility is used by SSA passes such as inlining, which need to avoid recursive functions,
 //! and purity analysis which needs to unify the purities of all functions called within another function.
-</span><span class="kw">use </span>std::collections::BTreeSet;
+</span><span class="kw">use </span>std::collections::{BTreeMap, BTreeSet};
 
 <span class="kw">use </span>fxhash::{FxHashMap <span class="kw">as </span>HashMap, FxHashSet <span class="kw">as </span>HashSet};
 <span class="kw">use </span>petgraph::{
     algo::kosaraju_scc,
     graph::{DiGraph, NodeIndex <span class="kw">as </span>PetGraphIndex},
+    visit::EdgeRef,
 };
 
 <span class="kw">use </span><span class="kw">crate</span>::ssa::ssa_gen::Ssa;
@@ -202,14 +515,17 @@
 <span class="doccomment">/// Represents a function call graph built from the SSA
 /// Internally, this is a directed graph where each node is a [FunctionId] and each edge
 /// represents a call from one function to another.
+/// Each edge has an associated weight representing the number of times a descendant node
+/// was called by an ancestor node.
 </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">struct </span>CallGraph {
-    graph: DiGraph&lt;FunctionId, ()&gt;,
+    graph: DiGraph&lt;FunctionId, usize&gt;,
     ids_to_indices: HashMap&lt;FunctionId, PetGraphIndex&gt;,
     indices_to_ids: HashMap&lt;PetGraphIndex, FunctionId&gt;,
 }
 
 <span class="kw">impl </span>CallGraph {
     <span class="doccomment">/// Construct a [CallGraph] from the [Ssa]
+    /// The edges in this graph are unweighted. Thus, it is a pure dependency map.
     </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>from_ssa(ssa: <span class="kw-2">&amp;</span>Ssa) -&gt; <span class="self">Self </span>{
         <span class="kw">let </span>function_deps = ssa
             .functions
@@ -219,11 +535,41 @@
                 (<span class="kw-2">*</span>id, called_functions)
             })
             .collect();
-
         <span class="self">Self</span>::from_deps(function_deps)
     }
 
+    <span class="doccomment">/// Construct a [CallGraph] from the [Ssa] with its edges weighted.
+    /// An edges weight refers to the numbers of times a descendant node was called by its ancestor.
+    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>from_ssa_weighted(ssa: <span class="kw-2">&amp;</span>Ssa) -&gt; <span class="self">Self </span>{
+        <span class="kw">let </span>dependencies = compute_callees(ssa);
+        <span class="self">Self</span>::from_deps_weighted(dependencies)
+    }
+
+    <span class="kw">fn </span>from_deps_weighted(dependencies: BTreeMap&lt;FunctionId, BTreeMap&lt;FunctionId, usize&gt;&gt;) -&gt; <span class="self">Self </span>{
+        <span class="kw">let </span><span class="kw-2">mut </span>graph = DiGraph::new();
+        <span class="kw">let </span><span class="kw-2">mut </span>ids_to_indices = HashMap::default();
+        <span class="kw">let </span><span class="kw-2">mut </span>indices_to_ids = HashMap::default();
+
+        <span class="kw">for </span>function <span class="kw">in </span>dependencies.keys() {
+            <span class="kw">let </span>index = graph.add_node(<span class="kw-2">*</span>function);
+            ids_to_indices.insert(<span class="kw-2">*</span>function, index);
+            indices_to_ids.insert(index, <span class="kw-2">*</span>function);
+        }
+
+        <span class="comment">// Create edges from caller -&gt; called
+        </span><span class="kw">for </span>(function, dependencies) <span class="kw">in </span>dependencies {
+            <span class="kw">let </span>function_index = ids_to_indices[<span class="kw-2">&amp;</span>function];
+            <span class="kw">for </span>(callee, weight) <span class="kw">in </span>dependencies {
+                <span class="kw">let </span>dependency_index = ids_to_indices[<span class="kw-2">&amp;</span>callee];
+                graph.add_edge(function_index, dependency_index, weight);
+            }
+        }
+
+        <span class="self">Self </span>{ graph, ids_to_indices, indices_to_ids }
+    }
+
     <span class="doccomment">/// Construct a [CallGraph] from an explicit dependency mapping of (caller -&gt; callees)
+    /// The edges in this graph all have a weight of one. Thus, it is a pure dependency graph.
     </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>from_deps(dependencies: HashMap&lt;FunctionId, BTreeSet&lt;FunctionId&gt;&gt;) -&gt; <span class="self">Self </span>{
         <span class="kw">let </span><span class="kw-2">mut </span>graph = DiGraph::new();
         <span class="kw">let </span><span class="kw-2">mut </span>ids_to_indices = HashMap::default();
@@ -240,7 +586,7 @@
             <span class="kw">let </span>function_index = ids_to_indices[<span class="kw-2">&amp;</span>function];
             <span class="kw">for </span>dependency <span class="kw">in </span>dependencies {
                 <span class="kw">let </span>dependency_index = ids_to_indices[<span class="kw-2">&amp;</span>dependency];
-                graph.add_edge(function_index, dependency_index, ());
+                graph.add_edge(function_index, dependency_index, <span class="number">1</span>);
             }
         }
 
@@ -273,7 +619,7 @@
         recursive_functions
     }
 
-    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>graph(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="kw-2">&amp;</span>DiGraph&lt;FunctionId, ()&gt; {
+    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>graph(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="kw-2">&amp;</span>DiGraph&lt;FunctionId, usize&gt; {
         <span class="kw-2">&amp;</span><span class="self">self</span>.graph
     }
 
@@ -304,23 +650,78 @@
         }
 
         <span class="comment">// Create edges from caller -&gt; called between non-recursive nodes
-        </span><span class="kw">for </span>(<span class="kw-2">&amp;</span>func_id, <span class="kw-2">&amp;</span>old_idx) <span class="kw">in </span><span class="self">self</span>.ids_to_indices.iter() {
+        </span><span class="kw">for </span>(<span class="kw-2">&amp;</span>func_id, <span class="kw-2">&amp;</span>old_index) <span class="kw">in </span><span class="self">self</span>.ids_to_indices.iter() {
             <span class="kw">if </span>recursive_functions.contains(<span class="kw-2">&amp;</span>func_id) {
                 <span class="kw">continue</span>;
             }
             <span class="kw">let </span>new_src = ids_to_indices[<span class="kw-2">&amp;</span>func_id];
-            <span class="kw">for </span>neighbor <span class="kw">in </span><span class="self">self</span>.graph.neighbors(old_idx) {
-                <span class="kw">let </span>callee_id = <span class="self">self</span>.indices_to_ids[<span class="kw-2">&amp;</span>neighbor];
+            <span class="kw">for </span>edge <span class="kw">in </span><span class="self">self</span>.graph.edges(old_index) {
+                <span class="kw">let </span>dst_index = edge.target();
+                <span class="kw">let </span>callee_id = <span class="self">self</span>.indices_to_ids[<span class="kw-2">&amp;</span>dst_index];
                 <span class="kw">if </span>recursive_functions.contains(<span class="kw-2">&amp;</span>callee_id) {
                     <span class="kw">continue</span>;
                 }
                 <span class="kw">if let </span><span class="prelude-val">Some</span>(<span class="kw-2">&amp;</span>new_dst) = ids_to_indices.get(<span class="kw-2">&amp;</span>callee_id) {
-                    graph.add_edge(new_src, new_dst, ());
+                    graph.add_edge(new_src, new_dst, <span class="kw-2">*</span>edge.weight());
                 }
             }
         }
 
         <span class="self">Self </span>{ graph, ids_to_indices, indices_to_ids }
+    }
+
+    <span class="doccomment">/// Fetch for each function the set of functions called by it, and how many times it does so.
+    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>callees(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; BTreeMap&lt;FunctionId, BTreeMap&lt;FunctionId, usize&gt;&gt; {
+        <span class="kw">let </span><span class="kw-2">mut </span>callees: BTreeMap&lt;FunctionId, BTreeMap&lt;FunctionId, usize&gt;&gt; = BTreeMap::new();
+
+        <span class="kw">for </span>(caller_id, caller_index) <span class="kw">in </span><span class="self">self</span>.ids_to_indices.iter() {
+            <span class="comment">// Ensure all entries exist, even if they have no callers
+            </span><span class="kw">let </span>entry = callees.entry(<span class="kw-2">*</span>caller_id).or_default();
+
+            <span class="kw">for </span>edge <span class="kw">in </span><span class="self">self</span>.graph.edges(<span class="kw-2">*</span>caller_index) {
+                <span class="kw">let </span>callee_index = edge.target();
+                <span class="kw">let </span>callee_id = <span class="self">self</span>.indices_to_ids[<span class="kw-2">&amp;</span>callee_index];
+                entry.insert(callee_id, <span class="kw-2">*</span>edge.weight());
+            }
+        }
+
+        callees
+    }
+
+    <span class="doccomment">/// Fetch for each function the set of functions that call it, and how many times they do so.
+    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>callers(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; BTreeMap&lt;FunctionId, BTreeMap&lt;FunctionId, usize&gt;&gt; {
+        <span class="kw">let </span><span class="kw-2">mut </span>callers: BTreeMap&lt;FunctionId, BTreeMap&lt;FunctionId, usize&gt;&gt; = BTreeMap::new();
+
+        <span class="kw">for </span>(caller_id, caller_index) <span class="kw">in </span><span class="self">self</span>.ids_to_indices.iter() {
+            <span class="comment">// Ensure all entries exist, even if they have no callers
+            </span>callers.entry(<span class="kw-2">*</span>caller_id).or_default();
+
+            <span class="kw">for </span>edge <span class="kw">in </span><span class="self">self</span>.graph.edges(<span class="kw-2">*</span>caller_index) {
+                <span class="kw">let </span>callee_idx = edge.target();
+                <span class="kw">let </span>callee_id = <span class="self">self</span>.indices_to_ids[<span class="kw-2">&amp;</span>callee_idx];
+                callers.entry(callee_id).or_default().insert(<span class="kw-2">*</span>caller_id, <span class="kw-2">*</span>edge.weight());
+            }
+        }
+
+        callers
+    }
+
+    <span class="doccomment">/// Compute the times each function is called from any other function.
+    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>times_called(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; im::HashMap&lt;FunctionId, usize&gt; {
+        <span class="kw">let </span><span class="kw-2">mut </span>counts = im::HashMap::default();
+
+        <span class="kw">for </span>edge <span class="kw">in </span><span class="self">self</span>.graph.edge_references() {
+            <span class="kw">let </span>callee_idx = edge.target();
+            <span class="kw">let </span>callee_id = <span class="self">self</span>.indices_to_ids[<span class="kw-2">&amp;</span>callee_idx];
+            <span class="kw-2">*</span>counts.entry(callee_id).or_default() += <span class="kw-2">*</span>edge.weight();
+        }
+
+        <span class="comment">// Ensure all nodes appear even if they are never called
+        </span><span class="kw">for </span>function_id <span class="kw">in </span><span class="self">self</span>.ids_to_indices.keys() {
+            counts.entry(<span class="kw-2">*</span>function_id).or_insert(<span class="number">0</span>);
+        }
+
+        counts
     }
 }
 
@@ -347,5 +748,228 @@
 <span class="doccomment">/// Utility function to find out the deduplicated direct calls made from a function.
 </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>called_functions(func: <span class="kw-2">&amp;</span>Function) -&gt; BTreeSet&lt;FunctionId&gt; {
     called_functions_vec(func).into_iter().collect()
+}
+
+<span class="doccomment">/// Compute for each function the set of functions called by it, and how many times it does so.
+</span><span class="kw">fn </span>compute_callees(ssa: <span class="kw-2">&amp;</span>Ssa) -&gt; BTreeMap&lt;FunctionId, BTreeMap&lt;FunctionId, usize&gt;&gt; {
+    ssa.functions
+        .iter()
+        .flat_map(|(caller_id, function)| {
+            <span class="kw">let </span>called_functions = called_functions_vec(function);
+            called_functions.into_iter().map(|callee_id| (<span class="kw-2">*</span>caller_id, callee_id))
+        })
+        .fold(
+            <span class="comment">// Make sure an entry exists even for ones that don't call anything.
+            </span>ssa.functions.keys().map(|id| (<span class="kw-2">*</span>id, BTreeMap::new())).collect(),
+            |<span class="kw-2">mut </span>acc, (caller_id, callee_id)| {
+                <span class="kw">let </span>callees = acc.entry(caller_id).or_default();
+                <span class="kw-2">*</span>callees.entry(callee_id).or_default() += <span class="number">1</span>;
+                acc
+            },
+        )
+}
+
+<span class="attr">#[cfg(test)]
+</span><span class="kw">mod </span>tests {
+    <span class="kw">use </span><span class="kw">crate</span>::ssa::{
+        ir::{call_graph::CallGraph, map::Id},
+        ssa_gen::Ssa,
+    };
+
+    <span class="attr">#[test]
+    </span><span class="kw">fn </span>mark_mutually_recursive_functions() {
+        <span class="kw">let </span>src = <span class="string">"
+        acir(inline) fn main f0 {
+          b0():
+            call f1()
+            return
+        }
+        brillig(inline) fn starter f1 {
+          b0():
+            call f2()
+            return
+        }
+        brillig(inline) fn ping f2 {
+          b0():
+            call f3()
+            return
+        }
+        brillig(inline) fn pong f3 {
+          b0():
+            call f2()
+            return
+        }
+        "</span>;
+
+        <span class="kw">let </span>ssa = Ssa::from_str(src).unwrap();
+        <span class="kw">let </span>call_graph = CallGraph::from_ssa_weighted(<span class="kw-2">&amp;</span>ssa);
+        <span class="kw">let </span>recursive_functions = call_graph.get_recursive_functions();
+
+        <span class="macro">assert_eq!</span>(recursive_functions.len(), <span class="number">2</span>);
+        <span class="macro">assert!</span>(recursive_functions.contains(<span class="kw-2">&amp;</span>Id::test_new(<span class="number">2</span>)));
+        <span class="macro">assert!</span>(recursive_functions.contains(<span class="kw-2">&amp;</span>Id::test_new(<span class="number">3</span>)));
+    }
+
+    <span class="attr">#[test]
+    </span><span class="kw">fn </span>mark_self_recursive_function() {
+        <span class="kw">let </span>src = <span class="string">"
+        acir(inline) fn main f0 {
+          b0():
+            call f1()
+            return
+        }
+        brillig(inline) fn self_recur f1 {
+          b0():
+            call f1()
+            return
+        }
+        "</span>;
+
+        <span class="kw">let </span>ssa = Ssa::from_str(src).unwrap();
+        <span class="kw">let </span>call_graph = CallGraph::from_ssa_weighted(<span class="kw-2">&amp;</span>ssa);
+        <span class="kw">let </span>recursive_functions = call_graph.get_recursive_functions();
+
+        <span class="macro">assert_eq!</span>(recursive_functions.len(), <span class="number">1</span>);
+        <span class="macro">assert!</span>(recursive_functions.contains(<span class="kw-2">&amp;</span>Id::test_new(<span class="number">1</span>)));
+    }
+
+    <span class="kw">fn </span>callers_and_callees_src() -&gt; <span class="kw-2">&amp;</span><span class="lifetime">'static </span>str {
+        <span class="string">r#"
+        acir(inline) fn main f0 {
+          b0():
+            call f1()
+            call f1()
+            call f2()
+            return
+        }
+        acir(inline) fn foo f1 {
+          b0():
+            call f3()
+            return
+        }
+        brillig(inline) fn bar f2 {
+          b0():
+            call f3()
+            call f4()
+            call f4()
+            return
+        }
+        brillig(inline) fn baz f3 {
+          b0():
+            return
+        }
+        brillig(inline) fn qux f4 {
+          b0():
+            call f3()
+            return
+        }
+        "#
+    </span>}
+
+    <span class="attr">#[test]
+    </span><span class="kw">fn </span>callers() {
+        <span class="kw">let </span>ssa = Ssa::from_str(callers_and_callees_src()).unwrap();
+        <span class="kw">let </span>call_graph = CallGraph::from_ssa_weighted(<span class="kw-2">&amp;</span>ssa);
+        <span class="kw">let </span>callers = call_graph.callers();
+
+        <span class="kw">let </span>f0_callers = callers.get(<span class="kw-2">&amp;</span>Id::test_new(<span class="number">0</span>)).expect(<span class="string">"Should have callers"</span>);
+        <span class="macro">assert!</span>(f0_callers.is_empty());
+
+        <span class="kw">let </span>f1_callers = callers.get(<span class="kw-2">&amp;</span>Id::test_new(<span class="number">1</span>)).expect(<span class="string">"Should have callers"</span>);
+        <span class="macro">assert_eq!</span>(f1_callers.len(), <span class="number">1</span>);
+        <span class="kw">let </span>times_f1_called_by_f0 =
+            <span class="kw-2">*</span>f1_callers.get(<span class="kw-2">&amp;</span>Id::test_new(<span class="number">0</span>)).expect(<span class="string">"Should have times called"</span>);
+        <span class="macro">assert_eq!</span>(times_f1_called_by_f0, <span class="number">2</span>);
+
+        <span class="kw">let </span>f2_callers = callers.get(<span class="kw-2">&amp;</span>Id::test_new(<span class="number">2</span>)).expect(<span class="string">"Should have callers"</span>);
+        <span class="macro">assert_eq!</span>(f2_callers.len(), <span class="number">1</span>);
+        <span class="kw">let </span>times_f2_called_by_f0 =
+            <span class="kw-2">*</span>f2_callers.get(<span class="kw-2">&amp;</span>Id::test_new(<span class="number">0</span>)).expect(<span class="string">"Should have times called"</span>);
+        <span class="macro">assert_eq!</span>(times_f2_called_by_f0, <span class="number">1</span>);
+
+        <span class="kw">let </span>f3_callers = callers.get(<span class="kw-2">&amp;</span>Id::test_new(<span class="number">3</span>)).expect(<span class="string">"Should have callers"</span>);
+        <span class="macro">assert_eq!</span>(f3_callers.len(), <span class="number">3</span>);
+        <span class="kw">let </span>times_f3_called_by_f1 =
+            <span class="kw-2">*</span>f3_callers.get(<span class="kw-2">&amp;</span>Id::test_new(<span class="number">1</span>)).expect(<span class="string">"Should have times called"</span>);
+        <span class="macro">assert_eq!</span>(times_f3_called_by_f1, <span class="number">1</span>);
+        <span class="kw">let </span>times_f3_called_by_f2 =
+            <span class="kw-2">*</span>f3_callers.get(<span class="kw-2">&amp;</span>Id::test_new(<span class="number">2</span>)).expect(<span class="string">"Should have times called"</span>);
+        <span class="macro">assert_eq!</span>(times_f3_called_by_f2, <span class="number">1</span>);
+        <span class="kw">let </span>times_f3_called_by_f4 =
+            <span class="kw-2">*</span>f3_callers.get(<span class="kw-2">&amp;</span>Id::test_new(<span class="number">4</span>)).expect(<span class="string">"Should have times called"</span>);
+        <span class="macro">assert_eq!</span>(times_f3_called_by_f4, <span class="number">1</span>);
+
+        <span class="kw">let </span>f4_callers = callers.get(<span class="kw-2">&amp;</span>Id::test_new(<span class="number">4</span>)).expect(<span class="string">"Should have callers"</span>);
+        <span class="macro">assert_eq!</span>(f4_callers.len(), <span class="number">1</span>);
+        <span class="kw">let </span>times_f4_called_by_f2 =
+            <span class="kw-2">*</span>f4_callers.get(<span class="kw-2">&amp;</span>Id::test_new(<span class="number">2</span>)).expect(<span class="string">"Should have times called"</span>);
+        <span class="macro">assert_eq!</span>(times_f4_called_by_f2, <span class="number">2</span>);
+    }
+
+    <span class="attr">#[test]
+    </span><span class="kw">fn </span>callees() {
+        <span class="kw">let </span>ssa = Ssa::from_str(callers_and_callees_src()).unwrap();
+        <span class="kw">let </span>call_graph = CallGraph::from_ssa_weighted(<span class="kw-2">&amp;</span>ssa);
+        <span class="kw">let </span>callees = call_graph.callees();
+
+        <span class="kw">let </span>f0_callees = callees.get(<span class="kw-2">&amp;</span>Id::test_new(<span class="number">0</span>)).expect(<span class="string">"Should have callees"</span>);
+        <span class="macro">assert_eq!</span>(f0_callees.len(), <span class="number">2</span>);
+        <span class="kw">let </span>times_f0_calls_f1 =
+            <span class="kw-2">*</span>f0_callees.get(<span class="kw-2">&amp;</span>Id::test_new(<span class="number">1</span>)).expect(<span class="string">"Should have times called"</span>);
+        <span class="macro">assert_eq!</span>(times_f0_calls_f1, <span class="number">2</span>);
+        <span class="kw">let </span>times_f0_calls_f2 =
+            <span class="kw-2">*</span>f0_callees.get(<span class="kw-2">&amp;</span>Id::test_new(<span class="number">2</span>)).expect(<span class="string">"Should have times called"</span>);
+        <span class="macro">assert_eq!</span>(times_f0_calls_f2, <span class="number">1</span>);
+
+        <span class="kw">let </span>f1_callees = callees.get(<span class="kw-2">&amp;</span>Id::test_new(<span class="number">1</span>)).expect(<span class="string">"Should have callees"</span>);
+        <span class="macro">assert_eq!</span>(f1_callees.len(), <span class="number">1</span>);
+        <span class="kw">let </span>times_f1_calls_f3 =
+            <span class="kw-2">*</span>f1_callees.get(<span class="kw-2">&amp;</span>Id::test_new(<span class="number">3</span>)).expect(<span class="string">"Should have times called"</span>);
+        <span class="macro">assert_eq!</span>(times_f1_calls_f3, <span class="number">1</span>);
+
+        <span class="kw">let </span>f2_callees = callees.get(<span class="kw-2">&amp;</span>Id::test_new(<span class="number">2</span>)).expect(<span class="string">"Should have callees"</span>);
+        <span class="macro">assert_eq!</span>(f2_callees.len(), <span class="number">2</span>);
+        <span class="kw">let </span>times_f2_calls_f3 =
+            <span class="kw-2">*</span>f2_callees.get(<span class="kw-2">&amp;</span>Id::test_new(<span class="number">3</span>)).expect(<span class="string">"Should have times called"</span>);
+        <span class="macro">assert_eq!</span>(times_f2_calls_f3, <span class="number">1</span>);
+        <span class="kw">let </span>times_f2_calls_f4 =
+            <span class="kw-2">*</span>f2_callees.get(<span class="kw-2">&amp;</span>Id::test_new(<span class="number">4</span>)).expect(<span class="string">"Should have times called"</span>);
+        <span class="macro">assert_eq!</span>(times_f2_calls_f4, <span class="number">2</span>);
+
+        <span class="kw">let </span>f3_callees = callees.get(<span class="kw-2">&amp;</span>Id::test_new(<span class="number">3</span>)).expect(<span class="string">"Should have callees"</span>);
+        <span class="macro">assert!</span>(f3_callees.is_empty());
+
+        <span class="kw">let </span>f4_callees = callees.get(<span class="kw-2">&amp;</span>Id::test_new(<span class="number">4</span>)).expect(<span class="string">"Should have callees"</span>);
+        <span class="kw">let </span>times_f4_calls_f3 =
+            <span class="kw-2">*</span>f4_callees.get(<span class="kw-2">&amp;</span>Id::test_new(<span class="number">3</span>)).expect(<span class="string">"Should have times called"</span>);
+        <span class="macro">assert_eq!</span>(times_f4_calls_f3, <span class="number">1</span>);
+    }
+
+    <span class="attr">#[test]
+    </span><span class="kw">fn </span>times_called() {
+        <span class="kw">let </span>ssa = Ssa::from_str(callers_and_callees_src()).unwrap();
+        <span class="kw">let </span>call_graph = CallGraph::from_ssa_weighted(<span class="kw-2">&amp;</span>ssa);
+        <span class="kw">let </span>times_called = call_graph.times_called();
+
+        <span class="kw">let </span>times_f0_called =
+            <span class="kw-2">*</span>times_called.get(<span class="kw-2">&amp;</span>Id::test_new(<span class="number">0</span>)).expect(<span class="string">" Should have times called"</span>);
+        <span class="macro">assert_eq!</span>(times_f0_called, <span class="number">0</span>);
+
+        <span class="kw">let </span>times_f1_called =
+            <span class="kw-2">*</span>times_called.get(<span class="kw-2">&amp;</span>Id::test_new(<span class="number">1</span>)).expect(<span class="string">" Should have times called"</span>);
+        <span class="macro">assert_eq!</span>(times_f1_called, <span class="number">2</span>);
+
+        <span class="kw">let </span>times_f2_called =
+            <span class="kw-2">*</span>times_called.get(<span class="kw-2">&amp;</span>Id::test_new(<span class="number">2</span>)).expect(<span class="string">" Should have times called"</span>);
+        <span class="macro">assert_eq!</span>(times_f2_called, <span class="number">1</span>);
+
+        <span class="kw">let </span>times_f3_called =
+            <span class="kw-2">*</span>times_called.get(<span class="kw-2">&amp;</span>Id::test_new(<span class="number">3</span>)).expect(<span class="string">" Should have times called"</span>);
+        <span class="macro">assert_eq!</span>(times_f3_called, <span class="number">3</span>);
+
+        <span class="kw">let </span>times_f4_called =
+            <span class="kw-2">*</span>times_called.get(<span class="kw-2">&amp;</span>Id::test_new(<span class="number">4</span>)).expect(<span class="string">" Should have times called"</span>);
+        <span class="macro">assert_eq!</span>(times_f4_called, <span class="number">2</span>);
+    }
 }
 </code></pre></div></section></main></body></html>

@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"fn":["called_functions","called_functions_vec"],"struct":["CallGraph"]};
+window.SIDEBAR_ITEMS = {"fn":["called_functions","called_functions_vec","compute_callees"],"struct":["CallGraph"]};

@@ -130,11 +130,18 @@
 <a href="#129" id="129">129</a>
 <a href="#130" id="130">130</a>
 <a href="#131" id="131">131</a>
-<a href="#132" id="132">132</a></pre></div><pre class="rust"><code><span class="doccomment">//! Pre-process functions before inlining them into others.
+<a href="#132" id="132">132</a>
+<a href="#133" id="133">133</a>
+<a href="#134" id="134">134</a>
+<a href="#135" id="135">135</a>
+<a href="#136" id="136">136</a></pre></div><pre class="rust"><code><span class="doccomment">//! Pre-process functions before inlining them into others.
 
 </span><span class="kw">use </span><span class="kw">crate</span>::ssa::{
     Ssa,
-    ir::function::{Function, RuntimeType},
+    ir::{
+        call_graph::CallGraph,
+        function::{Function, RuntimeType},
+    },
 };
 
 <span class="kw">use </span><span class="kw">super</span>::inlining::{<span class="self">self</span>, InlineInfo};
@@ -142,12 +149,13 @@
 <span class="kw">impl </span>Ssa {
     <span class="doccomment">/// Run pre-processing steps on functions in isolation.
     </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>preprocess_functions(<span class="kw-2">mut </span><span class="self">self</span>, aggressiveness: i64) -&gt; Ssa {
+        <span class="kw">let </span>call_graph = CallGraph::from_ssa_weighted(<span class="kw-2">&amp;</span><span class="self">self</span>);
         <span class="comment">// Bottom-up order, starting with the "leaf" functions, so we inline already optimized code into the ones that call them.
-        </span><span class="kw">let </span>bottom_up = inlining::inline_info::compute_bottom_up_order(<span class="kw-2">&amp;</span><span class="self">self</span>);
+        </span><span class="kw">let </span>bottom_up = inlining::inline_info::compute_bottom_up_order(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="kw-2">&amp;</span>call_graph);
 
         <span class="comment">// Preliminary inlining decisions.
         </span><span class="kw">let </span>inline_infos =
-            inlining::inline_info::compute_inline_infos(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="bool-val">false</span>, aggressiveness);
+            inlining::inline_info::compute_inline_infos(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="kw-2">&amp;</span>call_graph, <span class="bool-val">false</span>, aggressiveness);
 
         <span class="kw">let </span>should_inline_call = |callee: <span class="kw-2">&amp;</span>Function| -&gt; bool {
             <span class="kw">match </span>callee.runtime() {

@@ -970,7 +970,10 @@
 <a href="#969" id="969">969</a>
 <a href="#970" id="970">970</a>
 <a href="#971" id="971">971</a>
-<a href="#972" id="972">972</a></pre></div><pre class="rust"><code><span class="doccomment">//! This module defines the function inlining pass for the SSA IR.
+<a href="#972" id="972">972</a>
+<a href="#973" id="973">973</a>
+<a href="#974" id="974">974</a>
+<a href="#975" id="975">975</a></pre></div><pre class="rust"><code><span class="doccomment">//! This module defines the function inlining pass for the SSA IR.
 //! The purpose of this pass is to inline the instructions of each function call
 //! within the function caller. If all function calls are known, there will only
 //! be a single function remaining when the pass finishes.
@@ -985,6 +988,7 @@
     function_builder::FunctionBuilder,
     ir::{
         basic_block::BasicBlockId,
+        call_graph::CallGraph,
         dfg::{GlobalsGraph, InsertInstructionResult},
         function::{Function, FunctionId, RuntimeType},
         instruction::{Instruction, InstructionId, TerminatorInstruction},
@@ -1022,13 +1026,15 @@
     /// This step should run after runtime separation, since it relies on the runtime of the called functions being final.
     </span><span class="attr">#[tracing::instrument(level = <span class="string">"trace"</span>, skip(<span class="self">self</span>))]
     </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>inline_functions(<span class="self">self</span>, aggressiveness: i64) -&gt; Ssa {
-        <span class="kw">let </span>inline_infos = compute_inline_infos(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="bool-val">false</span>, aggressiveness);
+        <span class="kw">let </span>call_graph = CallGraph::from_ssa_weighted(<span class="kw-2">&amp;</span><span class="self">self</span>);
+        <span class="kw">let </span>inline_infos = compute_inline_infos(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="kw-2">&amp;</span>call_graph, <span class="bool-val">false</span>, aggressiveness);
         <span class="self">Self</span>::inline_functions_inner(<span class="self">self</span>, <span class="kw-2">&amp;</span>inline_infos, <span class="bool-val">false</span>)
     }
 
     <span class="doccomment">/// Run the inlining pass where functions marked with `InlineType::NoPredicates` as not entry points
     </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>inline_functions_with_no_predicates(<span class="self">self</span>, aggressiveness: i64) -&gt; Ssa {
-        <span class="kw">let </span>inline_infos = compute_inline_infos(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="bool-val">true</span>, aggressiveness);
+        <span class="kw">let </span>call_graph = CallGraph::from_ssa_weighted(<span class="kw-2">&amp;</span><span class="self">self</span>);
+        <span class="kw">let </span>inline_infos = compute_inline_infos(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="kw-2">&amp;</span>call_graph, <span class="bool-val">true</span>, aggressiveness);
         <span class="self">Self</span>::inline_functions_inner(<span class="self">self</span>, <span class="kw-2">&amp;</span>inline_infos, <span class="bool-val">true</span>)
     }
 
