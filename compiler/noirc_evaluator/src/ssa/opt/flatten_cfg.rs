@@ -886,7 +886,7 @@ impl<'f> Context<'f> {
     }
 
     /// Returns the values corresponding to the given inputs by doing
-    /// 'if condition {inputs[i]} else {generators[i]}'
+    /// 'if condition {inputs[0]} else {generators[0]}'
     /// It is done for the abscissas or the ordinates, depending on 'abscissa'.
     /// Inputs are supposed to be of the form:
     /// - inputs: (point1_x, point1_y, point1_infinite, point2_x, point2_y, point2_infinite)
