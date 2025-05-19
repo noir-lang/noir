@@ -1,8 +1,0 @@
-error: Type provided when a numeric generic was expected
-  ┌─ src/main.nr:6:18
-  │
-6 │ fn foo<N>(array: [Field; N]) {
-  │                  ---------- the numeric generic is not of type `u32`
-  │
-
-Aborting due to 1 previous error
