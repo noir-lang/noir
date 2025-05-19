@@ -1,3 +1,4 @@
+use super::NUMBER_OF_VARIABLES_INITIAL;
 use super::base_context::FuzzerCommand;
 use super::fuzzer::Fuzzer;
 use super::instruction::InstructionBlock;
@@ -6,7 +7,6 @@ use acvm::FieldElement;
 use acvm::acir::native_types::{Witness, WitnessMap};
 use libfuzzer_sys::arbitrary;
 use libfuzzer_sys::arbitrary::Arbitrary;
-use noir_ssa_fuzzer::config;
 use noir_ssa_fuzzer::typed_value::ValueType;
 
 /// Field modulus has 254 bits, and FieldElement::from supports u128, so we use two unsigneds to represent a field element
@@ -39,7 +39,7 @@ pub(crate) enum WitnessValue {
 pub(crate) struct FuzzerData {
     blocks: Vec<InstructionBlock>,
     commands: Vec<FuzzerCommand>,
-    initial_witness: [WitnessValue; (config::NUMBER_OF_VARIABLES_INITIAL - 2) as usize],
+    initial_witness: [WitnessValue; (NUMBER_OF_VARIABLES_INITIAL - 2) as usize],
     return_instruction_block_idx: usize,
 }
 
@@ -92,7 +92,7 @@ mod tests {
     use super::*;
     use crate::instruction::{Argument, Instruction};
 
-    fn default_witness() -> [WitnessValue; (config::NUMBER_OF_VARIABLES_INITIAL - 2) as usize] {
+    fn default_witness() -> [WitnessValue; (NUMBER_OF_VARIABLES_INITIAL - 2) as usize] {
         [
             WitnessValue::Field(FieldRepresentation { high: 0, low: 0 }),
             WitnessValue::Field(FieldRepresentation { high: 0, low: 1 }),

@@ -82,6 +82,12 @@ pub(crate) enum Instruction {
         rhs: Argument,
     },
 
+    /// Less than comparison
+    Lt {
+        lhs: Argument,
+        rhs: Argument,
+    },
+
     /// constrain(lhs == lhs + rhs - rhs), doesn't insert constraint if idempotent_morphing_enabled=false
     /// uses only fields variables
     AddSubConstrain {

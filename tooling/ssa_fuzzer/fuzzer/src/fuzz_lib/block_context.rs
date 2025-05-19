@@ -5,7 +5,6 @@ use noir_ssa_fuzzer::{
     typed_value::{TypedValue, ValueType},
 };
 use noirc_evaluator::ssa::ir::basic_block::BasicBlockId;
-use noirc_evaluator::ssa::ir::value::Value;
 use std::collections::{HashMap, VecDeque};
 
 /// Main context for the ssa block containing both ACIR and Brillig builders and their state
@@ -300,6 +299,19 @@ impl BlockContext {
                     |builder, lhs, rhs| builder.insert_xor_instruction(lhs, rhs),
                 );
             }
+            Instruction::Lt { lhs, rhs } => {
+                if !self.options.instruction_options.lt_enabled {
+                    return;
+                }
+                self.insert_instruction_with_double_args(
+                    acir_builder,
+                    brillig_builder,
+                    lhs,
+                    rhs,
+                    |builder, lhs, rhs| builder.insert_lt_instruction(lhs, rhs),
+                );
+            }
+
             Instruction::AddSubConstrain { lhs, rhs } => {
                 // inserts lhs' = lhs + rhs
                 let lhs_orig =

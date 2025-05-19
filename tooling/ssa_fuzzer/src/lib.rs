@@ -5,7 +5,6 @@
 
 pub mod builder;
 pub mod compiler;
-pub mod config;
 pub mod helpers;
 pub mod runner;
 pub mod typed_value;
@@ -13,13 +12,14 @@ pub mod typed_value;
 #[cfg(test)]
 mod tests {
     use crate::builder::{FuzzerBuilder, InstructionWithTwoArgs};
-    use crate::config;
     use crate::runner::{CompareResults, run_and_compare};
     use crate::typed_value::{TypedValue, ValueType};
     use acvm::FieldElement;
     use acvm::acir::native_types::{Witness, WitnessMap};
     use noirc_driver::CompileOptions;
     use rand::RngCore;
+
+    const NUMBER_OF_VARIABLES_INITIAL: u32 = 7;
 
     struct TestHelper {
         acir_builder: FuzzerBuilder,
@@ -58,8 +58,8 @@ mod tests {
     /// Generates a random array with config::NUMBER_OF_VARIABLES_INITIAL elements
     fn generate_values() -> Vec<u64> {
         let mut rng = rand::thread_rng();
-        let mut values = Vec::with_capacity(config::NUMBER_OF_VARIABLES_INITIAL as usize);
-        for _ in 0..config::NUMBER_OF_VARIABLES_INITIAL {
+        let mut values = Vec::with_capacity(NUMBER_OF_VARIABLES_INITIAL as usize);
+        for _ in 0..NUMBER_OF_VARIABLES_INITIAL {
             values.push(rng.next_u64());
         }
         values
@@ -67,7 +67,7 @@ mod tests {
 
     fn get_witness_map(values: Vec<u64>) -> WitnessMap<FieldElement> {
         let mut witness_map = WitnessMap::new();
-        for i in 0..config::NUMBER_OF_VARIABLES_INITIAL {
+        for i in 0..NUMBER_OF_VARIABLES_INITIAL {
             let witness = Witness(i);
             let value = FieldElement::from(values[i as usize]);
             witness_map.insert(witness, value);
@@ -98,7 +98,7 @@ mod tests {
         let acir_program = test_helper.acir_builder.compile(CompileOptions::default()).unwrap();
         let brillig_program =
             test_helper.brillig_builder.compile(CompileOptions::default()).unwrap();
-        let result_witness = Witness(config::NUMBER_OF_VARIABLES_INITIAL);
+        let result_witness = Witness(NUMBER_OF_VARIABLES_INITIAL);
         let compare_results = run_and_compare(
             &acir_program.program,
             &brillig_program.program,

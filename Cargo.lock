@@ -3591,26 +3591,14 @@ name = "noir_ssa_fuzzer"
 version = "1.0.0-beta.6"
 dependencies = [
  "acvm",
- "bn254_blackbox_solver",
- "cfg-if",
- "chrono",
- "im",
  "libfuzzer-sys",
- "log",
- "nargo",
  "noir_ssa_executor",
  "noirc_abi",
  "noirc_driver",
- "noirc_errors",
  "noirc_evaluator",
  "noirc_frontend",
  "rand 0.8.5",
- "rayon",
- "serde",
- "serde_json",
- "serde_with",
  "thiserror 1.0.69",
- "tracing",
 ]
 
 [[package]]

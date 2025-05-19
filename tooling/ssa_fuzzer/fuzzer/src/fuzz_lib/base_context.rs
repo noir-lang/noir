@@ -8,7 +8,6 @@ use libfuzzer_sys::arbitrary;
 use libfuzzer_sys::arbitrary::Arbitrary;
 use noir_ssa_fuzzer::{
     builder::{FuzzerBuilder, FuzzerBuilderError},
-    config::NUMBER_OF_VARIABLES_INITIAL,
     typed_value::{TypedValue, ValueType},
 };
 use noirc_driver::CompiledProgram;
@@ -548,7 +547,10 @@ impl FuzzerContext {
         if self.is_constant {
             (Witness(0), Witness(0))
         } else {
-            (Witness(NUMBER_OF_VARIABLES_INITIAL), Witness(NUMBER_OF_VARIABLES_INITIAL))
+            (
+                Witness(super::NUMBER_OF_VARIABLES_INITIAL),
+                Witness(super::NUMBER_OF_VARIABLES_INITIAL),
+            )
         }
     }
 

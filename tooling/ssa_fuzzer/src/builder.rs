@@ -1,18 +1,15 @@
-#![allow(dead_code)]
 use crate::compiler::compile_from_builder;
-use crate::helpers::{id_to_int, u32_to_id_value};
 use crate::typed_value::{TypedValue, ValueType};
 use acvm::FieldElement;
 use noirc_driver::{CompileOptions, CompiledProgram};
 use noirc_evaluator::ssa::function_builder::FunctionBuilder;
 use noirc_evaluator::ssa::ir::basic_block::BasicBlockId;
 use noirc_evaluator::ssa::ir::function::{Function, RuntimeType};
-use noirc_evaluator::ssa::ir::instruction::{ArrayOffset, BinaryOp};
+use noirc_evaluator::ssa::ir::instruction::BinaryOp;
 use noirc_evaluator::ssa::ir::map::Id;
 use noirc_evaluator::ssa::ir::types::{NumericType, Type};
 use noirc_evaluator::ssa::ir::value::Value;
 use noirc_frontend::monomorphization::ast::InlineType as FrontendInlineType;
-use std::collections::HashMap;
 use std::panic::AssertUnwindSafe;
 use thiserror::Error;
 
@@ -34,10 +31,6 @@ pub type InstructionWithOneArg = fn(&mut FuzzerBuilder, TypedValue) -> TypedValu
 /// Contains a FunctionBuilder and tracks the current numeric type being used
 pub struct FuzzerBuilder {
     pub(crate) builder: FunctionBuilder,
-    pub(crate) numeric_type: NumericType,
-    pub(crate) type_: Type,
-    // represents mutable memory, key is type of variable, value is vector of addresses
-    pub(crate) memory: HashMap<ValueType, Vec<Id<Value>>>,
 }
 
 impl FuzzerBuilder {
@@ -46,12 +39,7 @@ impl FuzzerBuilder {
         let main_id: Id<Function> = Id::new(0);
         let mut builder = FunctionBuilder::new("main".into(), main_id);
         builder.set_runtime(RuntimeType::Acir(FrontendInlineType::default()));
-        Self {
-            builder,
-            numeric_type: NumericType::NativeField,
-            type_: Type::Numeric(NumericType::NativeField),
-            memory: HashMap::new(),
-        }
+        Self { builder }
     }
 
     /// Creates a new FuzzerBuilder in Brillig context
@@ -59,12 +47,7 @@ impl FuzzerBuilder {
         let main_id: Id<Function> = Id::new(0);
         let mut builder = FunctionBuilder::new("main".into(), main_id);
         builder.set_runtime(RuntimeType::Brillig(FrontendInlineType::default()));
-        Self {
-            builder,
-            numeric_type: NumericType::NativeField,
-            type_: Type::Numeric(NumericType::NativeField),
-            memory: HashMap::new(),
-        }
+        Self { builder }
     }
 
     /// Compiles the built function into a CompiledProgram, to run it with nargo execute
