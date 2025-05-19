@@ -24,7 +24,7 @@ use crate::{
         FunctionKind, FunctionReturnType, Ident, IntegerBitSize, LValue, Literal, Pattern,
         Statement, StatementKind, UnresolvedType, UnresolvedTypeData, UnsafeExpression,
     },
-    elaborator::{ElaborateReason, Elaborator},
+    elaborator::{ElaborateReason, Elaborator, PrimitiveType},
     hir::{
         comptime::{
             InterpreterError, Value,
@@ -1375,7 +1375,22 @@ fn unresolved_type_is_bool(
 ) -> IResult<Value> {
     let self_argument = check_one_argument(arguments, location)?;
     let typ = get_unresolved_type(interner, self_argument)?;
-    Ok(Value::Bool(matches!(typ, UnresolvedTypeData::Bool)))
+
+    // TODO: we should resolve the type here instead of just checking the name
+    // See https://github.com/noir-lang/noir/issues/8505
+    let UnresolvedTypeData::Named(path, generics, _) = typ else {
+        return Ok(Value::Bool(false));
+    };
+    if !generics.is_empty() {
+        return Ok(Value::Bool(false));
+    }
+    let Some(ident) = path.as_ident() else {
+        return Ok(Value::Bool(false));
+    };
+    let Some(primitive_type) = PrimitiveType::lookup_by_name(ident.as_str()) else {
+        return Ok(Value::Bool(false));
+    };
+    Ok(Value::Bool(primitive_type == PrimitiveType::Bool))
 }
 
 // fn is_field(self) -> bool
@@ -1386,7 +1401,22 @@ fn unresolved_type_is_field(
 ) -> IResult<Value> {
     let self_argument = check_one_argument(arguments, location)?;
     let typ = get_unresolved_type(interner, self_argument)?;
-    Ok(Value::Bool(matches!(typ, UnresolvedTypeData::FieldElement)))
+
+    // TODO: we should resolve the type here instead of just checking the name
+    // See https://github.com/noir-lang/noir/issues/8505
+    let UnresolvedTypeData::Named(path, generics, _) = typ else {
+        return Ok(Value::Bool(false));
+    };
+    if !generics.is_empty() {
+        return Ok(Value::Bool(false));
+    }
+    let Some(ident) = path.as_ident() else {
+        return Ok(Value::Bool(false));
+    };
+    let Some(primitive_type) = PrimitiveType::lookup_by_name(ident.as_str()) else {
+        return Ok(Value::Bool(false));
+    };
+    Ok(Value::Bool(primitive_type == PrimitiveType::Field))
 }
 
 // fn is_unit(self) -> bool
