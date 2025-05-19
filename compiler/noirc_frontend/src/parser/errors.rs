@@ -1,4 +1,4 @@
-use crate::ast::{Expression, IntegerBitSize, ItemVisibility, UnresolvedType};
+use crate::ast::{Expression, ItemVisibility, UnresolvedType};
 use crate::lexer::errors::LexerErrorKind;
 use crate::lexer::token::Token;
 use crate::token::TokenKind;
@@ -16,8 +16,6 @@ use super::labels::ParsingRuleLabel;
 pub enum ParserErrorReason {
     #[error("Unexpected `;`")]
     UnexpectedSemicolon,
-    #[error("Unexpected `,`")]
-    UnexpectedComma,
     #[error("Expected a `{token}` separating these two {items}")]
     ExpectedTokenSeparatingTwoItems { token: Token, items: &'static str },
     #[error("Expected `mut` after `&`, found `{found}`")]
@@ -70,10 +68,6 @@ pub enum ParserErrorReason {
     InvalidTypeExpression(Expression),
     #[error("Early 'return' is unsupported")]
     EarlyReturn,
-    #[error("Patterns aren't allowed in a trait's function declarations")]
-    PatternInTraitFunctionParameter,
-    #[error("Patterns aren't allowed in a trait impl's associated constants")]
-    PatternInAssociatedConstant,
     #[error("Visibility is ignored on a trait method")]
     TraitVisibilityIgnored,
     #[error("Visibility is ignored on a trait impl method")]
@@ -86,14 +80,8 @@ pub enum ParserErrorReason {
     MultipleFunctionAttributesFound,
     #[error("A function attribute cannot be placed on a struct or enum")]
     NoFunctionAttributesAllowedOnType,
-    #[error("Assert statements can only accept string literals")]
-    AssertMessageNotString,
-    #[error("Integer bit size {0} isn't supported")]
-    InvalidBitSize(u32),
     #[error("{0}")]
     Lexer(LexerErrorKind),
-    #[error("Invalid call data identifier, must be a number. E.g `call_data(0)`")]
-    InvalidCallDataIdentifier,
     #[error("Associated types are not allowed in paths")]
     AssociatedTypesNotAllowedInPaths,
     #[error("Associated types are not allowed on a method call")]
@@ -260,18 +248,6 @@ impl<'a> From<&'a ParserError> for Diagnostic {
                     diagnostic.deprecated = true;
                     diagnostic
                 }
-                ParserErrorReason::InvalidBitSize(bit_size) => Diagnostic::simple_error(
-                    format!("Use of invalid bit size {}", bit_size),
-                    format!(
-                        "Allowed bit sizes for integers are {}",
-                        IntegerBitSize::allowed_sizes()
-                            .iter()
-                            .map(|n| n.to_string())
-                            .collect::<Vec<_>>()
-                            .join(", ")
-                    ),
-                    error.location(),
-                ),
                 ParserErrorReason::ExperimentalFeature(feature) => {
                     let secondary = format!(
                         "Pass -Z{feature} to nargo to enable this feature at your own risk."

@@ -907,6 +907,13 @@ impl<'a> NodeFinder<'a> {
                 }
                 PathKind::Dep => (),
                 PathKind::Plain => (),
+                PathKind::Resolved(crate_id) => {
+                    let def_map = &self.def_maps[&crate_id];
+                    let Some(root_module_data) = def_map.get(def_map.root()) else {
+                        return;
+                    };
+                    module_data = root_module_data;
+                }
             }
         }
 
