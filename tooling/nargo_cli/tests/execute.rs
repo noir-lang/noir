@@ -306,33 +306,14 @@ mod tests {
         let stderr = remove_noise_lines(stderr);
         let stderr = delete_test_program_dir_occurrences(stderr, &test_program_dir);
 
-        let stderr_path = test_program_dir.join("stderr.txt");
-
-        let expected_stderr = if stderr_path.exists() {
-            String::from_utf8(fs::read(stderr_path.clone()).unwrap()).unwrap()
-        } else {
-            String::new()
-        };
-
-        // Remove any trailing newlines added by some editors
-        let stderr = stderr.trim();
-        let expected_stderr = expected_stderr.trim();
-
-        if stderr != expected_stderr {
-            if std::env::var("OVERWRITE_TEST_OUTPUT").is_ok() {
-                fs::write(stderr_path, stderr.to_string() + "\n").unwrap();
-            } else {
-                // If the expected stderr is empty this is likely a new test, so we produce the expected output for next time
-                if expected_stderr.is_empty() {
-                    fs::write(stderr_path, stderr.to_string() + "\n").unwrap();
-                }
-
-                println!(
-                    "stderr does not match expected output. Expected:\n{expected_stderr}\n\nActual:\n{stderr}"
-                );
-                assert_eq!(stderr, expected_stderr);
-            }
-        }
+        let test_name = test_program_dir.file_name().unwrap().to_string_lossy().to_string();
+        insta::with_settings!(
+            {
+                snapshot_path => format!("./snapshots/compile_failure/{test_name}")
+            },
+            {
+            insta::assert_snapshot!(stderr)
+        })
     }
 
     fn nargo_expand_execute(test_program_dir: PathBuf) {

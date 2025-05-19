@@ -1,8 +1,0 @@
-error: Dependency cycle found
-  ┌─ src/main.nr:3:9
-  │
-3 │         type B = A;
-  │         ---------- 'B' recursively depends on itself: B -> A -> B
-  │
-
-Aborting due to 1 previous error
