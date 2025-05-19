@@ -2,4 +2,12 @@
 source: tooling/nargo_cli/tests/execute.rs
 expression: expanded_code
 ---
+use foo::bar;
 
+mod foo {
+    pub fn bar() {}
+}
+
+fn main() {
+    bar()
+}

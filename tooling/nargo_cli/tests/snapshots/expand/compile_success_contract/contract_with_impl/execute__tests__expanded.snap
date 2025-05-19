@@ -2,14 +2,4 @@
 source: tooling/nargo_cli/tests/execute.rs
 expression: expanded_code
 ---
-contract Foo {
-    pub struct T {
-        x: [Field],
-    }
 
-    impl T {
-        fn t(self) {
-            let _: Self = self;
-        }
-    }
-}
