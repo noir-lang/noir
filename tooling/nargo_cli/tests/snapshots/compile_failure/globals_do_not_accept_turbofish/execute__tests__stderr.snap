@@ -1,0 +1,26 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: stderr
+---
+error: Could not resolve 'hello' in path
+  ┌─ src/main.nr:4:17
+  │
+4 │     let _ = x::<hello, world>;
+  │                 -----
+  │
+
+error: Could not resolve 'world' in path
+  ┌─ src/main.nr:4:24
+  │
+4 │     let _ = x::<hello, world>;
+  │                        -----
+  │
+
+error: turbofish (`::<_>`) not allowed on globals
+  ┌─ src/main.nr:4:14
+  │
+4 │     let _ = x::<hello, world>;
+  │              ----------------
+  │
+
+Aborting due to 3 previous errors
