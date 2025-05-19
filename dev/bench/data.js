@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1747670260061,
+  "lastUpdate": 1747670265583,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -7835,70 +7835,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "mvezenov@gmail.com",
-            "name": "Maxim Vezenov",
-            "username": "vezenovm"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "6d6aca93ce27809c1f433672526943e9269366b4",
-          "message": "fix(ssa): Mark mutually recursive simple functions (#8447)",
-          "timestamp": "2025-05-12T14:13:10Z",
-          "tree_id": "5ce899abdaabca9f313f845d1d842c8ff0c11254",
-          "url": "https://github.com/noir-lang/noir/commit/6d6aca93ce27809c1f433672526943e9269366b4"
-        },
-        "date": 1747060639145,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 0.029,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 0.16,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 0.011,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 0.307,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 0.193,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 11.3,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 0.004,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-root",
-            "value": 0.013,
-            "unit": "s"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "15848336+TomAFrench@users.noreply.github.com",
             "name": "Tom French",
             "username": "TomAFrench"
@@ -11238,6 +11174,75 @@ window.BENCHMARK_DATA = {
           {
             "name": "semaphore-depth-10",
             "value": 0.019,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "mvezenov@gmail.com",
+            "name": "Maxim Vezenov",
+            "username": "vezenovm"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "1feac18e7d54673f78d0d2d32c6c09d470a3841c",
+          "message": "chore(ssa): Add weighted edges to call graph, move callers and callees methods to call graph (#8513)",
+          "timestamp": "2025-05-19T15:23:56Z",
+          "tree_id": "7f08b369233590a02513ae97621467e477039c18",
+          "url": "https://github.com/noir-lang/noir/commit/1feac18e7d54673f78d0d2d32c6c09d470a3841c"
+        },
+        "date": 1747670254963,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 0.028,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 0.185,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 0.011,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 0.304,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 0.192,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 12.1,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 0.004,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-root",
+            "value": 0.013,
+            "unit": "s"
+          },
+          {
+            "name": "semaphore-depth-10",
+            "value": 0.02,
             "unit": "s"
           }
         ]
