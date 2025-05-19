@@ -7,7 +7,7 @@ use noirc_driver::{CompileOptions, CompiledProgram};
 use noirc_evaluator::ssa::function_builder::FunctionBuilder;
 use noirc_evaluator::ssa::ir::basic_block::BasicBlockId;
 use noirc_evaluator::ssa::ir::function::{Function, RuntimeType};
-use noirc_evaluator::ssa::ir::instruction::BinaryOp;
+use noirc_evaluator::ssa::ir::instruction::{ArrayOffset, BinaryOp};
 use noirc_evaluator::ssa::ir::map::Id;
 use noirc_evaluator::ssa::ir::types::{NumericType, Type};
 use noirc_evaluator::ssa::ir::value::Value;

@@ -7,7 +7,7 @@ use std::{
 use super::{
     Ssa,
     ir::{
-        instruction::BinaryOp,
+        instruction::{ArrayOffset, BinaryOp},
         types::{NumericType, Type},
     },
     opt::pure::Purity,
@@ -508,9 +508,10 @@ impl<'a> Parser<'a> {
             self.eat_or_error(Token::Comma)?;
             self.eat_or_error(Token::Keyword(Keyword::Index))?;
             let index = self.parse_value_or_error()?;
+            let offset = self.parse_array_offset()?;
             self.eat_or_error(Token::Arrow)?;
             let element_type = self.parse_type()?;
-            return Ok(ParsedInstruction::ArrayGet { target, element_type, array, index });
+            return Ok(ParsedInstruction::ArrayGet { target, element_type, array, index, offset });
         }
 
         if self.eat_keyword(Keyword::ArraySet)? {
@@ -519,10 +520,18 @@ impl<'a> Parser<'a> {
             self.eat_or_error(Token::Comma)?;
             self.eat_or_error(Token::Keyword(Keyword::Index))?;
             let index = self.parse_value_or_error()?;
+            let offset = self.parse_array_offset()?;
             self.eat_or_error(Token::Comma)?;
             self.eat_or_error(Token::Keyword(Keyword::Value))?;
             let value = self.parse_value_or_error()?;
-            return Ok(ParsedInstruction::ArraySet { target, array, index, value, mutable });
+            return Ok(ParsedInstruction::ArraySet {
+                target,
+                array,
+                index,
+                value,
+                mutable,
+                offset,
+            });
         }
 
         if self.eat_keyword(Keyword::Cast)? {
@@ -591,6 +600,25 @@ impl<'a> Parser<'a> {
         }
 
         self.expected_instruction_or_terminator()
+    }
+
+    fn parse_array_offset(&mut self) -> ParseResult<ArrayOffset> {
+        if self.eat_keyword(Keyword::Minus)? {
+            let token = self.token.token().clone();
+            let span = self.token.span();
+            let field = self.eat_int_or_error()?;
+            if let Some(offset) = field.try_to_u32().and_then(ArrayOffset::from_u32) {
+                if offset == ArrayOffset::None {
+                    self.unexpected_offset(token, span)
+                } else {
+                    Ok(offset)
+                }
+            } else {
+                self.unexpected_offset(token, span)
+            }
+        } else {
+            Ok(ArrayOffset::None)
+        }
     }
 
     fn parse_make_array(&mut self) -> ParseResult<Option<ParsedMakeArray>> {
@@ -1034,6 +1062,10 @@ impl<'a> Parser<'a> {
         Err(ParserError::ExpectedInt { found: self.token.token().clone(), span: self.token.span() })
     }
 
+    fn unexpected_offset<T>(&mut self, found: Token, span: Span) -> ParseResult<T> {
+        Err(ParserError::UnexpectedOffset { found, span })
+    }
+
     fn expected_type<T>(&mut self) -> ParseResult<T> {
         Err(ParserError::ExpectedType {
             found: self.token.token().clone(),
@@ -1100,6 +1132,8 @@ pub(crate) enum ParserError {
     ExpectedGlobalValue { found: Token, span: Span },
     #[error("Multiple return values only allowed for call")]
     MultipleReturnValuesOnlyAllowedForCall { second_target: Identifier },
+    #[error("Unexpected integer value for array_get offset")]
+    UnexpectedOffset { found: Token, span: Span },
 }
 
 impl ParserError {
@@ -1115,7 +1149,8 @@ impl ParserError {
             | ParserError::ExpectedStringOrData { span, .. }
             | ParserError::ExpectedByteString { span, .. }
             | ParserError::ExpectedValue { span, .. }
-            | ParserError::ExpectedGlobalValue { span, .. } => *span,
+            | ParserError::ExpectedGlobalValue { span, .. }
+            | ParserError::UnexpectedOffset { span, .. } => *span,
             ParserError::MultipleReturnValuesOnlyAllowedForCall { second_target, .. } => {
                 second_target.span
             }

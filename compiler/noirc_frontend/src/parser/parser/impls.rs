@@ -438,7 +438,7 @@ mod tests {
         };
 
         assert_eq!(trait_name.to_string(), "Foo");
-        assert!(matches!(trait_impl.object_type.typ, UnresolvedTypeData::FieldElement));
+        assert_eq!(trait_impl.object_type.typ.to_string(), "Field");
         assert!(trait_impl.items.is_empty());
         assert!(trait_impl.impl_generics.is_empty());
     }
@@ -453,7 +453,7 @@ mod tests {
         };
 
         assert_eq!(trait_name.to_string(), "Foo");
-        assert!(matches!(trait_impl.object_type.typ, UnresolvedTypeData::FieldElement));
+        assert_eq!(trait_impl.object_type.typ.to_string(), "Field");
         assert!(trait_impl.items.is_empty());
         assert_eq!(trait_impl.impl_generics.len(), 1);
     }

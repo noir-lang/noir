@@ -208,21 +208,17 @@ impl Translator {
                 let value_id = self.builder.insert_allocate(typ);
                 self.define_variable(target, value_id)?;
             }
-            ParsedInstruction::ArrayGet { target, element_type, array, index } => {
+            ParsedInstruction::ArrayGet { target, element_type, array, index, offset } => {
                 let array = self.translate_value(array)?;
                 let index = self.translate_value(index)?;
-                let value_id = self.builder.insert_array_get(array, index, element_type);
+                let value_id = self.builder.insert_array_get(array, index, offset, element_type);
                 self.define_variable(target, value_id)?;
             }
-            ParsedInstruction::ArraySet { target, array, index, value, mutable } => {
+            ParsedInstruction::ArraySet { target, array, index, value, mutable, offset } => {
                 let array = self.translate_value(array)?;
                 let index = self.translate_value(index)?;
                 let value = self.translate_value(value)?;
-                let value_id = if mutable {
-                    self.builder.insert_mutable_array_set(array, index, value)
-                } else {
-                    self.builder.insert_array_set(array, index, value)
-                };
+                let value_id = self.builder.insert_array_set(array, index, value, mutable, offset);
                 self.define_variable(target, value_id)?;
             }
             ParsedInstruction::BinaryOp { target, lhs, op, rhs } => {
