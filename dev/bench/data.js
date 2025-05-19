@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1747675094397,
+  "lastUpdate": 1747675988180,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -18336,48 +18336,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "47281315+guipublic@users.noreply.github.com",
-            "name": "guipublic",
-            "username": "guipublic"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "ef582a683eb4bf492f415d538a8695644e964db2",
-          "message": "chore: blackbox functions for ssa intepreter (#8375)",
-          "timestamp": "2025-05-12T15:51:30Z",
-          "tree_id": "2f2b2026651e79ba06d0f624965454bd618fe529",
-          "url": "https://github.com/noir-lang/noir/commit/ef582a683eb4bf492f415d538a8695644e964db2"
-        },
-        "date": 1747066275879,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 272766,
-            "range": "± 582",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 242763,
-            "range": "± 707",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 3245107,
-            "range": "± 10915",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "15848336+TomAFrench@users.noreply.github.com",
             "name": "Tom French",
             "username": "TomAFrench"
@@ -20429,6 +20387,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 3564799,
             "range": "± 7301",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "asterite@gmail.com",
+            "name": "Ary Borenszweig",
+            "username": "asterite"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "96aa7631faaa966c6f8ebda7d46cd383764641b7",
+          "message": "chore: use insta snapshots for compile_failure stderr (#8569)",
+          "timestamp": "2025-05-19T17:11:42Z",
+          "tree_id": "f2c386cace17446895a4b52c35db600e563db1d8",
+          "url": "https://github.com/noir-lang/noir/commit/96aa7631faaa966c6f8ebda7d46cd383764641b7"
+        },
+        "date": 1747675978438,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 254353,
+            "range": "± 1012",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 223438,
+            "range": "± 4598",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 3208426,
+            "range": "± 10325",
             "unit": "ns/iter"
           }
         ]
