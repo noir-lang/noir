@@ -26,3 +26,8 @@ path = "src/fuzz_target.rs"
 test = false
 doc = false
 bench = false
+
+
+[[test]]
+name = "test_fuzz_target"
+path = "src/fuzz_lib/mod.rs"

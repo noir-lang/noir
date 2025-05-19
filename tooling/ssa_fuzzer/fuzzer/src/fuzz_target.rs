@@ -1,21 +1,14 @@
 #![no_main]
-mod base_context;
-mod block_context;
+
 mod fuzz_lib;
-mod fuzzer;
-mod instruction;
-mod options;
-use fuzz_lib::{FuzzerData, fuzz_target};
+use fuzz_lib::fuzz_lib::{FuzzerData, fuzz_target};
+use fuzz_lib::options::FuzzerOptions;
 use noirc_driver::CompileOptions;
-use options::FuzzerOptions;
 
 libfuzzer_sys::fuzz_target!(|data: FuzzerData| {
     let _ = env_logger::try_init();
     let mut compile_options = CompileOptions::default();
-    // Check if we're in triage mode by reading the TRIAGE environment variable
     if let Ok(triage_value) = std::env::var("TRIAGE") {
-        log::debug!("Running in triage mode with TRIAGE={}", triage_value);
-
         match triage_value.as_str() {
             "FULL" => compile_options.show_ssa = true,
             "FINAL" => {

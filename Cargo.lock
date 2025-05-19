@@ -3570,13 +3570,8 @@ dependencies = [
 ]
 
 [[package]]
-<<<<<<< HEAD
 name = "noir_ssa_executor"
-version = "1.0.0-beta.5"
-=======
-name = "noir_ssa_fuzzer"
 version = "1.0.0-beta.6"
->>>>>>> origin
 dependencies = [
  "acvm",
  "bn254_blackbox_solver",
@@ -3593,7 +3588,7 @@ dependencies = [
 
 [[package]]
 name = "noir_ssa_fuzzer"
-version = "1.0.0-beta.5"
+version = "1.0.0-beta.6"
 dependencies = [
  "acvm",
  "bn254_blackbox_solver",
