@@ -1395,7 +1395,7 @@ impl<'context> Elaborator<'context> {
 
         let impl_trait = the_trait.name.to_string();
 
-        let mut bindings = TypeBindings::new();
+        let mut bindings = TypeBindings::default();
         bind_ordered_generics(
             &the_trait.generics,
             &trait_impl.resolved_trait_generics,
@@ -1455,7 +1455,7 @@ impl<'context> Elaborator<'context> {
 
         let impl_trait = the_trait.name.to_string();
 
-        let mut bindings = TypeBindings::new();
+        let mut bindings = TypeBindings::default();
         bind_ordered_generics(
             &the_trait.generics,
             &trait_impl.resolved_trait_generics,

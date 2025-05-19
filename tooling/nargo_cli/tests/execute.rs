@@ -353,7 +353,7 @@ mod tests {
         let snapshot_name = "expanded";
         insta::with_settings!(
         {
-            snapshot_path => format!("./snapshots/expand/execution_success/{test_name}")
+            snapshot_path => format!("./snapshots/execution_success/{test_name}")
         },
         {
             insta::assert_snapshot!(snapshot_name, expanded_code)
@@ -414,7 +414,7 @@ mod tests {
         let snapshot_name = "expanded";
         insta::with_settings!(
         {
-            snapshot_path => format!("./snapshots/expand/{prefix}/{test_name}")
+            snapshot_path => format!("./snapshots/{prefix}/{test_name}")
         },
         {
             insta::assert_snapshot!(snapshot_name, expanded_code)
