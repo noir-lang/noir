@@ -1,0 +1,19 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: stderr
+---
+error: Type provided when a numeric generic was expected
+  ┌─ src/main.nr:6:32
+  │
+6 │ fn my_pedersen_hash<N>(_input: [Field; N]) -> Field {}
+  │                                ---------- the numeric generic is not of type `u32`
+  │
+
+error: Definition of low-level function outside of standard library
+  ┌─ src/main.nr:5:1
+  │
+5 │ #[foreign(pedersen_hash)]
+  │ ------------------------- Usage of the `#[foreign]` or `#[builtin]` function attributes are not allowed outside of the Noir standard library
+  │
+
+Aborting due to 2 previous errors
