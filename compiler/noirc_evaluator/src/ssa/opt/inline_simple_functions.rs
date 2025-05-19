@@ -5,7 +5,7 @@
 //! A simple function is defined as the following:
 //! - Contains no more than 10 instructions
 //! - The function only has a single block (e.g. no control flow or conditional branches)
-//! - It is not marked with the no predicates [inline type][noirc_frontend::monomorphization::ast::InlineType]
+//! - It is not marked with the [no predicates inline type][noirc_frontend::monomorphization::ast::InlineType::NoPredicates]
 use iter_extended::btree_map;
 
 use crate::ssa::{
@@ -113,6 +113,8 @@ mod test {
     /// This test is here to make clear that this SSA pass does not attempt multiple passes.
     #[test]
     fn does_not_inline_functions_that_require_multiple_passes() {
+        // f2 has greater than 10 instructions, which should prevent it from
+        // being inlined into f0 on the first run of this pass.
         let src = "
         acir(inline) fn main f0 {
           b0(v0: Field):
