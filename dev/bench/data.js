@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1747687771828,
+  "lastUpdate": 1747687773839,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -11332,70 +11332,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "47281315+guipublic@users.noreply.github.com",
-            "name": "guipublic",
-            "username": "guipublic"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "29f93d51d59695ad9847fd8a28a3516fcbaf65fe",
-          "message": "fix: sign extend in signed cast (#8264)\n\nCo-authored-by: AztecBot <tech@aztecprotocol.com>\nCo-authored-by: Tom French <15848336+TomAFrench@users.noreply.github.com>",
-          "timestamp": "2025-05-12T18:58:41Z",
-          "tree_id": "d57bf26a3c7a906dfbff897f49a83c39c291014e",
-          "url": "https://github.com/noir-lang/noir/commit/29f93d51d59695ad9847fd8a28a3516fcbaf65fe"
-        },
-        "date": 1747078114489,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 236.15,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 258.41,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 211.65,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 542.69,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 535.14,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 1440,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 364.19,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-root",
-            "value": 370.11,
-            "unit": "MB"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "15848336+TomAFrench@users.noreply.github.com",
             "name": "Tom French",
             "username": "TomAFrench"
@@ -14715,6 +14651,75 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/noir-lang/noir/commit/49e0156cc75427e196007f148cb2e281fd5b97bc"
         },
         "date": 1747687024014,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 240.76,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 263.02,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 216.26,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 548.22,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 540.67,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 1450,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 369.93,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-root",
+            "value": 375.94,
+            "unit": "MB"
+          },
+          {
+            "name": "semaphore_depth_10",
+            "value": 92.9,
+            "unit": "MB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "asterite@gmail.com",
+            "name": "Ary Borenszweig",
+            "username": "asterite"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "bfd3d0ead7a01acc076f174e6a3dbe11c999bd21",
+          "message": "chore: put `nargo expand` snapshosts in the same directory (#8577)",
+          "timestamp": "2025-05-19T20:03:15Z",
+          "tree_id": "7478745cc7a77db3b3cd15756b1573181f2de069",
+          "url": "https://github.com/noir-lang/noir/commit/bfd3d0ead7a01acc076f174e6a3dbe11c999bd21"
+        },
+        "date": 1747687762580,
         "tool": "customSmallerIsBetter",
         "benches": [
           {
