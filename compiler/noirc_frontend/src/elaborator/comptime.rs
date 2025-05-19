@@ -249,7 +249,7 @@ impl<'context> Elaborator<'context> {
         arguments.insert(0, (item, location));
 
         let value = interpreter
-            .call_function(function, arguments, TypeBindings::new(), location)
+            .call_function(function, arguments, TypeBindings::default(), location)
             .map_err(CompilationError::from)?;
 
         self.debug_comptime(location, |interner| value.display(interner).to_string());

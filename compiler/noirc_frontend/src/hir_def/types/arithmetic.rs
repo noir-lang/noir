@@ -1,3 +1,4 @@
+use fxhash::FxHashMap as HashMap;
 use std::collections::BTreeMap;
 
 use acvm::{AcirField, FieldElement};
