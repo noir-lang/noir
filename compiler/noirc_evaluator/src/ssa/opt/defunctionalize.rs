@@ -181,7 +181,9 @@ impl DefunctionalizationContext {
                         };
 
                         // Find the correct apply function
-                        let Some(apply_function) = self.get_apply_function(signature, func.runtime()) else {
+                        let Some(apply_function) =
+                            self.get_apply_function(signature, func.runtime())
+                        else {
                             continue;
                         };
 
@@ -203,7 +205,11 @@ impl DefunctionalizationContext {
     }
 
     /// Returns the apply function for the given signature
-    fn get_apply_function(&self, signature: Signature, runtime: RuntimeType) -> Option<ApplyFunction> {
+    fn get_apply_function(
+        &self,
+        signature: Signature,
+        runtime: RuntimeType,
+    ) -> Option<ApplyFunction> {
         self.apply_functions.get(&(signature, runtime)).copied()
     }
 }
