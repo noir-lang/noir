@@ -41,7 +41,7 @@ expression: artifact
   "debug_symbols": "pdXLbuJAEEDRf/GahftVVc2vjKKIEGdkyTLIgZFGEf8+btclkywizWPDxZg6gIW737rn4en6/XGcX06v3f7bW/e0jNM0fn+cTsfDZTzN66tvXd8eknb7sOuSbcmh28c10SMe9Zinbim9xweKD5TkyZ7icaW4Ulwprogr4oq4Iq6IK+KKuCKuiCviirqirqgr6oq6oq6oK+qKuqKumCvmirlirpgr5oq5Yq6YK+ZKdaW6Ul2prlRXqivVlepKdaW6EvqeBhppopkWKlTpyuXW6g09DTTSRDMtVKhSvIAX8SJexIt4ES/iRbyIF+v2fwupp4FGmmimhQpVahQv42W8jJfxMl7Gy3gZL+NlvIJX8ApewSt4Ba/gFbyCV/AET/AET/AET/AET/AET/AUT/EUT/EUT/EUT/EUT/EMz/AMz/AMz/AMz/AMz/AqXrsfSmukiWZaqFClRuvW2O6LrYFGmmimhQpVahQv4LXrJK2FClVqtHrbddoaaKSJ4hme4Rme4Rlexat4Fa9dJ7nddt195X68LMPQFu4PS/m6wJ8PyzBfuv18naZd9+MwXbc3vZ4P89bLYVnP9rtumJ/XruDLOA3t2W33e7r/enT9RQynGN/Hyx/Pp6T3eS3/Ml/vXz5H+2o+fT2vkXHV9+mcPk3H/5oOfz/9sB4djuPyaVu+NWcZD0/TwOHLdT5+OHv5eb6fuW/r5+V0HJ6vy9CkD3v7+tdIfdylEB/aXrAexiq71IeHW/v0Xw==",
   "file_map": {
     "43": {
-      "source": "pub fn panic<T, U, let N: u32>(message: fmtstr<N, T>) -> U {\n    assert(false, message);\n    crate::mem::zeroed()\n}\n",
+      "source": "pub fn panic<T, U, let N: u32>(message: fmtstr<N, T>) -> U {\n    assert(false, message);\n    crate::mem::uninitialized()\n}\n",
       "path": "std/panic.nr"
     },
     "50": {

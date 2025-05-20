@@ -66,8 +66,8 @@ impl<T, let MaxLen: u32> BoundedVec<T, MaxLen> {
     /// but for now make sure to use type annotations when using bounded vectors. Otherwise, you will receive a
     /// constraint failure at runtime when the vec is pushed to.
     pub fn new() -> Self {
-        let zeroed = crate::mem::zeroed();
-        BoundedVec { storage: [zeroed; MaxLen], len: 0 }
+        let uninitialized = crate::mem::uninitialized();
+        BoundedVec { storage: [uninitialized; MaxLen], len: 0 }
     }
 
     /// Retrieves an element from the vector at the given index, starting from zero.
@@ -377,7 +377,7 @@ impl<T, let MaxLen: u32> BoundedVec<T, MaxLen> {
         self.len -= 1;
 
         let elem = self.storage[self.len];
-        self.storage[self.len] = crate::mem::zeroed();
+        self.storage[self.len] = crate::mem::uninitialized();
         elem
     }
 
@@ -540,16 +540,16 @@ impl<T, let MaxLen: u32> BoundedVec<T, MaxLen> {
     /// ```
     pub fn from_parts(mut array: [T; MaxLen], len: u32) -> Self {
         assert(len <= MaxLen);
-        let zeroed = crate::mem::zeroed();
+        let uninitialized = crate::mem::uninitialized();
 
         if is_unconstrained() {
             for i in len..MaxLen {
-                array[i] = zeroed;
+                array[i] = uninitialized;
             }
         } else {
             for i in 0..MaxLen {
                 if i >= len {
-                    array[i] = zeroed;
+                    array[i] = uninitialized;
                 }
             }
         }

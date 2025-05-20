@@ -50,7 +50,7 @@ impl<T> [T] {
     pub fn as_array<let N: u32>(self) -> [T; N] {
         assert(self.len() == N);
 
-        let mut array = [crate::mem::zeroed(); N];
+        let mut array = [crate::mem::uninitialized(); N];
         for i in 0..N {
             array[i] = self[i];
         }

@@ -43,7 +43,7 @@ impl<T, let N: u32> [T; N] {
     /// assert_eq(b, [2, 4, 6]);
     /// ```
     pub fn map<U, Env>(self, f: fn[Env](T) -> U) -> [U; N] {
-        let uninitialized = crate::mem::zeroed();
+        let uninitialized = crate::mem::uninitialized();
         let mut ret = [uninitialized; N];
 
         for i in 0..self.len() {
@@ -64,7 +64,7 @@ impl<T, let N: u32> [T; N] {
     /// assert_eq(b, [2, 5, 8]);
     /// ```
     pub fn mapi<U, Env>(self, f: fn[Env](u32, T) -> U) -> [U; N] {
-        let uninitialized = crate::mem::zeroed();
+        let uninitialized = crate::mem::uninitialized();
         let mut ret = [uninitialized; N];
 
         for i in 0..self.len() {
@@ -209,7 +209,7 @@ impl<T, let N: u32> [T; N] {
     /// }
     /// ```
     pub fn concat<let M: u32>(self, array2: [T; M]) -> [T; N + M] {
-        let mut result = [crate::mem::zeroed(); N + M];
+        let mut result = [crate::mem::uninitialized(); N + M];
         for i in 0..N {
             result[i] = self[i];
         }

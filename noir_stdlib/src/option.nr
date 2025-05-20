@@ -10,7 +10,7 @@ pub struct Option<T> {
 impl<T> Option<T> {
     /// Constructs a None value
     pub fn none() -> Self {
-        Self { _is_some: false, _value: crate::mem::zeroed() }
+        Self { _is_some: false, _value: crate::mem::uninitialized() }
     }
 
     /// Constructs a Some wrapper around the given value

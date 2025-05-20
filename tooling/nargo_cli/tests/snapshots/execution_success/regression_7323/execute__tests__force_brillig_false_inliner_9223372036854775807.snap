@@ -48,7 +48,7 @@ expression: artifact
   "debug_symbols": "tZLdzoMgDIbvpcccKOhw3sqXLwa1LiQEDYMli/HeV5ns58BkO9hJCy0Pbymdocc2nBpth/EM9d8MrdPG6FNjxk55PVqKzguDtG28Q6QQvOSJmpRD66G2wRgGF2VCPHSelI3eK0fZjAHanjxdOGiD62phTzrbR3lVbLDg/IGX73y+z0u+4VI+6EJ8qi6ETOqy3FMXP1M/psYVvNpTL79X/6ed6rR7+2sQ1GwGRexmGe0hWkkQgyq+8xhtnt1dDvVhWeWdVq3BbWKGYLuXAfLXKWXSiE1u7LAPDtcCYo5KugE=",
   "file_map": {
     "43": {
-      "source": "pub fn panic<T, U, let N: u32>(message: fmtstr<N, T>) -> U {\n    assert(false, message);\n    crate::mem::zeroed()\n}\n",
+      "source": "pub fn panic<T, U, let N: u32>(message: fmtstr<N, T>) -> U {\n    assert(false, message);\n    crate::mem::uninitialized()\n}\n",
       "path": "std/panic.nr"
     },
     "50": {
