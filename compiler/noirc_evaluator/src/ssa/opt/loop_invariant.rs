@@ -2316,7 +2316,7 @@ mod control_dependence {
     }
 
     #[test]
-    fn do_not_hoist_to_outer_loop_when_inner_loop_is_control_dependent() {
+    fn do_not_hoist_from_outer_loop_when_inner_loop_is_control_dependent() {
         // We want to check the case when an entire inner loop is under a predicate
         // that we do not still hoist with respect to control dependence on the outer
         // loop's block header.
