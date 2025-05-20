@@ -41,8 +41,8 @@ impl Elaborator<'_> {
 
                 let new_generics =
                     this.desugar_trait_constraints(&mut unresolved_trait.trait_def.where_clause);
-                let new_generics = vecmap(new_generics, |(generic, _bound)| {
-                    // TODO: use `_bound` variable above
+                let new_generics = vecmap(new_generics, |(generic, _bounds)| {
+                    // TODO: use `_bounds` variable above
                     generic
                 });
                 this.generics.extend(new_generics);
