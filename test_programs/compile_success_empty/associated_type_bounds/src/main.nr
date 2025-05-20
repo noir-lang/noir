@@ -20,12 +20,22 @@ impl Foo for i32 {
     }
 }
 
-pub struct Baz<T> {}
+pub struct Baz<T> {
+    t: T,
+}
 
 impl<T: Foo> Baz<T> {
     pub fn baz_method(t: T) {
         let bar = t.bar();
         bar.bar_method();
+    }
+}
+
+impl<T: Foo> Eq for Baz<T> {
+    fn eq(self, other: Self) -> bool {
+        let bar = other.t.bar();
+        bar.bar_method();
+        true
     }
 }
 
