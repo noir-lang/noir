@@ -1,0 +1,5 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: stdout
+---
+[array_dynamic_main_output] Circuit output: Vec([Field(0), Field(1), Field(2), Field(3), Field(4), Field(0), Field(6), Field(7), Field(8), Field(9)])
