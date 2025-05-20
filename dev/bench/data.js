@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1747739499323,
+  "lastUpdate": 1747740044387,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -18451,48 +18451,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "15848336+TomAFrench@users.noreply.github.com",
-            "name": "Tom French",
-            "username": "TomAFrench"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "9366563418b5dd6980533a36dc440c50c184f0f0",
-          "message": "chore: add depth 10 semaphore circuit to benchmarks (#8480)\n\nCo-authored-by: AztecBot <tech@aztecprotocol.com>",
-          "timestamp": "2025-05-13T11:54:13Z",
-          "tree_id": "077ead0dcfa7659110feaddab63bd1546ee78ff7",
-          "url": "https://github.com/noir-lang/noir/commit/9366563418b5dd6980533a36dc440c50c184f0f0"
-        },
-        "date": 1747138739673,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 285177,
-            "range": "± 3167",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 252405,
-            "range": "± 10085",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 3615178,
-            "range": "± 23078",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "asterite@gmail.com",
             "name": "Ary Borenszweig",
             "username": "asterite"
@@ -20544,6 +20502,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 3230682,
             "range": "± 2040",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "47281315+guipublic@users.noreply.github.com",
+            "name": "guipublic",
+            "username": "guipublic"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "1be0da333770ee5a026a9952783b16c39b9ab7b4",
+          "message": "chore: use generator instead of zero for ec-add predicate (#8552)",
+          "timestamp": "2025-05-20T11:00:22Z",
+          "tree_id": "9344da7e7ba2beda5c8c66a43859c62b3a85206f",
+          "url": "https://github.com/noir-lang/noir/commit/1be0da333770ee5a026a9952783b16c39b9ab7b4"
+        },
+        "date": 1747740033736,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 253789,
+            "range": "± 1188",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 222500,
+            "range": "± 5425",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 3564415,
+            "range": "± 10521",
             "unit": "ns/iter"
           }
         ]
