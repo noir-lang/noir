@@ -305,7 +305,7 @@ impl<'f> LoopInvariantContext<'f> {
     /// on a block in the outer loop.
     /// If this is the case, we block hoisting as control is not guaranteed.
     /// If the block is not control dependent on the inner loop itself, it will be marked appropriately
-    /// when the inner loop is being processed.
+    /// when the inner loop is being processed later.
     ///
     /// Control dependence on a nested loop is determined by checking whether the nested loop's header
     /// is control dependent on any blocks between itself and the outer loop's header.
