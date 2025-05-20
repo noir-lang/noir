@@ -1,0 +1,1 @@
+[lambda_taking_lambda_regression_8543] Circuit output: Field(0)
