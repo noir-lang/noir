@@ -432,7 +432,7 @@ impl ItemPrinter<'_, '_, '_> {
         let param_type = func_meta.parameters.0[0].1.follow_bindings();
         let param_type = if let Type::Reference(typ, ..) = param_type { *typ } else { param_type };
 
-        let mut bindings = TypeBindings::new();
+        let mut bindings = TypeBindings::default();
         if self_type.try_unify(&param_type, &mut bindings).is_err() {
             return false;
         }

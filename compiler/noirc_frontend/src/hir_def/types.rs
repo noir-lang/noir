@@ -1,9 +1,6 @@
-use std::{
-    borrow::Cow,
-    cell::RefCell,
-    collections::{BTreeSet, HashMap},
-    rc::Rc,
-};
+use std::{borrow::Cow, cell::RefCell, collections::BTreeSet, rc::Rc};
+
+use fxhash::FxHashMap as HashMap;
 
 #[cfg(test)]
 use proptest_derive::Arbitrary;
@@ -243,7 +240,7 @@ impl Kind {
 
             // Kind::Numeric unifies along its Type argument
             (Kind::Numeric(lhs), Kind::Numeric(rhs)) => {
-                let mut bindings = TypeBindings::new();
+                let mut bindings = TypeBindings::default();
                 let unifies = lhs.try_unify(rhs, &mut bindings).is_ok();
                 if unifies {
                     Type::apply_type_bindings(bindings);
@@ -1804,7 +1801,7 @@ impl Type {
     /// (including try_unify) are almost always preferred over Type::eq as unification
     /// will correctly handle generic types.
     pub fn unify(&self, expected: &Type) -> Result<(), UnificationError> {
-        let mut bindings = TypeBindings::new();
+        let mut bindings = TypeBindings::default();
 
         self.try_unify(expected, &mut bindings).map(|()| {
             // Commit any type bindings on success
@@ -2076,7 +2073,7 @@ impl Type {
         errors: &mut Vec<TypeCheckError>,
         make_error: impl FnOnce() -> TypeCheckError,
     ) {
-        let mut bindings = TypeBindings::new();
+        let mut bindings = TypeBindings::default();
 
         if let Ok(()) = self.try_unify(expected, &mut bindings) {
             Type::apply_type_bindings(bindings);
@@ -2148,7 +2145,7 @@ impl Type {
             if let Some(as_slice) = interner.lookup_direct_method(&this, "as_slice", true) {
                 // Still have to ensure the element types match.
                 // Don't need to issue an error here if not, it will be done in unify_with_coercions
-                let mut bindings = TypeBindings::new();
+                let mut bindings = TypeBindings::default();
                 if element1.try_unify(element2, &mut bindings).is_ok() {
                     convert_array_expression_to_slice(expression, this, target, as_slice, interner);
                     Self::apply_type_bindings(bindings);
@@ -2169,7 +2166,7 @@ impl Type {
         {
             // Still have to ensure the element types match.
             // Don't need to issue an error here if not, it will be done in unify_with_coercions
-            let mut bindings = TypeBindings::new();
+            let mut bindings = TypeBindings::default();
             if this_elem.try_unify(target_elem, &mut bindings).is_ok() {
                 Self::apply_type_bindings(bindings);
                 return true;
@@ -2352,7 +2349,7 @@ impl Type {
                 let instantiated = typ.force_substitute(&replacements);
                 (instantiated, replacements)
             }
-            other => (other.clone(), HashMap::new()),
+            other => (other.clone(), HashMap::default()),
         }
     }
 
@@ -2389,7 +2386,7 @@ impl Type {
                 let instantiated = typ.substitute(&replacements);
                 (instantiated, replacements)
             }
-            other => (other.clone(), HashMap::new()),
+            other => (other.clone(), HashMap::default()),
         }
     }
 

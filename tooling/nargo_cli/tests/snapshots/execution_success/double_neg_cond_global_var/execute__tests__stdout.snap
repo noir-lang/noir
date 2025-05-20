@@ -1,0 +1,5 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: stdout
+---
+[double_neg_cond_global_var] Circuit output: Field(1)
