@@ -1727,7 +1727,8 @@
 <a href="#1726" id="1726">1726</a>
 <a href="#1727" id="1727">1727</a>
 <a href="#1728" id="1728">1728</a>
-<a href="#1729" id="1729">1729</a></pre></div><pre class="rust"><code><span class="doccomment">//! The `acir_context` module acts as a high-level wrapper around [`generated_acir`], maintaining a small amount
+<a href="#1729" id="1729">1729</a>
+<a href="#1730" id="1730">1730</a></pre></div><pre class="rust"><code><span class="doccomment">//! The `acir_context` module acts as a high-level wrapper around [`generated_acir`], maintaining a small amount
 //! of type information from SSA in order to allow efficient ACIR-gen.
 //!
 //! The [`AcirContext`] struct defines how to translate SSA instructions into equivalent ACIR constructs. This
@@ -2912,12 +2913,13 @@
                         .assertion_payloads
                         .insert(<span class="self">self</span>.acir_ir.last_acir_opcode_location(), payload);
                 }
+                <span class="prelude-val">Ok</span>(predicate_range)
             }
             NumericType::NativeField =&gt; {
                 <span class="comment">// Range constraining a Field is a no-op
-            </span>}
+                </span><span class="prelude-val">Ok</span>(variable)
+            }
         }
-        <span class="prelude-val">Ok</span>(variable)
     }
 
     <span class="doccomment">/// Returns an `AcirVar` which will be constrained to be lhs mod 2^{rhs}

@@ -1803,8 +1803,7 @@
 <a href="#1802" id="1802">1802</a>
 <a href="#1803" id="1803">1803</a>
 <a href="#1804" id="1804">1804</a>
-<a href="#1805" id="1805">1805</a>
-<a href="#1806" id="1806">1806</a></pre></div><pre class="rust"><code><span class="doccomment">//! The `acir` module contains all the logic necessary for noirc's ACIR-gen pass which
+<a href="#1805" id="1805">1805</a></pre></div><pre class="rust"><code><span class="doccomment">//! The `acir` module contains all the logic necessary for noirc's ACIR-gen pass which
 //! generates the output ACIR program.
 //!
 //! # Usage
@@ -2873,10 +2872,10 @@
 
         <span class="kw">if let </span>NumericType::Unsigned { bit_size } = <span class="kw-2">&amp;</span>num_type {
             <span class="comment">// Check for integer overflow
-            </span><span class="self">self</span>.check_unsigned_overflow(result, <span class="kw-2">*</span>bit_size, binary, predicate)<span class="question-mark">?</span>;
+            </span><span class="self">self</span>.check_unsigned_overflow(result, <span class="kw-2">*</span>bit_size, binary, predicate)
+        } <span class="kw">else </span>{
+            <span class="prelude-val">Ok</span>(result)
         }
-
-        <span class="prelude-val">Ok</span>(result)
     }
 
     <span class="doccomment">/// Adds a range check against the bit size of the result of addition, subtraction or multiplication
@@ -2886,12 +2885,12 @@
         bit_size: u32,
         binary: <span class="kw-2">&amp;</span>Binary,
         predicate: AcirVar,
-    ) -&gt; <span class="prelude-ty">Result</span>&lt;(), RuntimeError&gt; {
+    ) -&gt; <span class="prelude-ty">Result</span>&lt;AcirVar, RuntimeError&gt; {
         <span class="kw">let </span>msg = <span class="kw">match </span>binary.operator {
             BinaryOp::Add { unchecked: <span class="bool-val">false </span>} =&gt; <span class="string">"attempt to add with overflow"</span>,
             BinaryOp::Sub { unchecked: <span class="bool-val">false </span>} =&gt; <span class="string">"attempt to subtract with overflow"</span>,
             BinaryOp::Mul { unchecked: <span class="bool-val">false </span>} =&gt; <span class="string">"attempt to multiply with overflow"</span>,
-            <span class="kw">_ </span>=&gt; <span class="kw">return </span><span class="prelude-val">Ok</span>(()),
+            <span class="kw">_ </span>=&gt; <span class="kw">return </span><span class="prelude-val">Ok</span>(result),
         };
 
         <span class="self">self</span>.acir_context.range_constrain_var(
@@ -2899,8 +2898,7 @@
             <span class="kw-2">&amp;</span>NumericType::Unsigned { bit_size },
             <span class="prelude-val">Some</span>(msg.to_string()),
             predicate,
-        )<span class="question-mark">?</span>;
-        <span class="prelude-val">Ok</span>(())
+        )
     }
 
     <span class="doccomment">/// Operands in a binary operation are checked to have the same type.
