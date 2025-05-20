@@ -1,11 +1,13 @@
-use crate::blob::{blob_public_inputs::BlobCommitment, config::{D_INV, LOG_FIELDS_PER_BLOB, ROOTS}};
-
-use crate::SpongeBlob;
+use crate::blob::config::{D_INV, LOG_FIELDS_PER_BLOB, ROOTS};
 
 use bigint::{BigNum, BLS12_381_Fr as F};
 use std::ops::{Mul, Neg};
 
 global FIELDS_PER_BLOB: u32 = 4096;
+
+pub(crate) struct BlobCommitment {
+    pub(crate) inner: [Field; 2],
+}
 
 // TODO(MW): remove pub(crate)when fully moved to batching
 pub(crate) fn convert_blob_fields(

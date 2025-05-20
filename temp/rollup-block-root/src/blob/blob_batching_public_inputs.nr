@@ -207,23 +207,11 @@ pub(crate) struct FinalBlobBatchingChallenges {
     pub(crate) gamma: F,
 }
 
-pub(crate) struct FinalBlobAccumulatorPublicInputs {
-    pub(crate) blob_commitments_hash: Field, // Hash of Cs (to link to L1 blob hashes) (BN254Fr)
-    pub(crate) z: Field, // Challenge at which the batched blob polynomial is evaluated (BN254Fr)
-    pub(crate) y: F, // Batched blob's evaluation y (BLS12Fr)
-    pub(crate) c: [Field; 2], // Batched blob's commitment C (BLS12 point: { x: BLS12Fq, y: BLS12Fq }) compressed to 48 bytes, stored in 2 fields of 31 and 17 bytes
-}
-
 /**
 * - start_blob_accumulator: Accumulated opening proofs for all blobs before this block range.
 * - end_blob_accumulator: Accumulated opening proofs for all blobs after adding this block range.
 * - final_blob_challenges: Final values z and gamma, shared across the epoch.
 */
-pub(crate) struct BlockBlobPublicInputs {
-    pub(crate) start_blob_accumulator: BlobAccumulatorPublicInputs,
-    pub(crate) end_blob_accumulator: BlobAccumulatorPublicInputs,
-    pub(crate) final_blob_challenges: FinalBlobBatchingChallenges,
-}
 
 fn byte_to_bits_be(byte: u8) -> [u1; 8] {
     let mut mut_byte = byte;
@@ -262,7 +250,6 @@ where
     }
     result
 }
-
 
 pub(crate) fn poseidon2_hash<let N: u32>(inputs: [Field; N]) -> Field {
     poseidon::poseidon2::Poseidon2::hash(inputs, N)

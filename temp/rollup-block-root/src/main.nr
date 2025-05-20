@@ -1,14 +1,12 @@
-
 use crate::blob::{
-    blob::{barycentric_evaluate_blob_at_z, compute_challenge, convert_blob_fields},
-blob_batching_public_inputs::{
-        BlobAccumulationInputs, BlobAccumulatorPublicInputs, BLSPoint, compress_to_blob_commitment,
-        FinalBlobBatchingChallenges, BatchingBlobCommitment
+    blob::{barycentric_evaluate_blob_at_z, BlobCommitment, compute_challenge, convert_blob_fields},
+    blob_batching_public_inputs::{
+        BatchingBlobCommitment, BlobAccumulationInputs, BlobAccumulatorPublicInputs, BLSPoint,
+        compress_to_blob_commitment, FinalBlobBatchingChallenges,
     },
-    blob_public_inputs::BlobCommitment,
 };
 
-use bigint::{BigNum, BLS12_381_Fr as F};
+use bigint::{BLS12_381_Fr as F};
 
 pub(crate) mod blob;
 
@@ -23,33 +21,27 @@ fn main(
 ) -> pub BlobAccumulatorPublicInputs {
     let hashed_blobs_fields = end_sponge_blob.squeeze();
 
-    // for-loop is required
-    for i in 0..1 {
-        let c_i = compress_to_blob_commitment(kzg_commitments_point);
-        let (z_i, y_i) = evaluate_blob_for_batching(
-            blobs_as_fields,
-            c_i,
-            hashed_blobs_fields,
-            final_blob_challenges.z,
-        );
-        if !(y_i.is_zero()) & !(blobs_as_fields[0] == 0) {
-            // Only accumulate if the blob is non empty
-            if is_empty(start_blob_accumulator) {
-                start_blob_accumulator = BlobAccumulatorPublicInputs::init(
-                    BlobAccumulationInputs { z_i, y_i, c_i },
-                    final_blob_challenges.gamma,
-                );
-            } else {
-                start_blob_accumulator = start_blob_accumulator.accumulate(
-                    BlobAccumulationInputs { z_i, y_i, c_i },
-                    final_blob_challenges.gamma,
-                );
-            }
-        }
-    }
-    start_blob_accumulator
-}
+    let c_i = compress_to_blob_commitment(kzg_commitments_point);
+    let (z_i, y_i) = evaluate_blob_for_batching(
+        blobs_as_fields,
+        c_i,
+        hashed_blobs_fields,
+        final_blob_challenges.z,
+    );
 
+    if is_empty(start_blob_accumulator) {
+        BlobAccumulatorPublicInputs::init(
+            BlobAccumulationInputs { z_i, y_i, c_i },
+            final_blob_challenges.gamma,
+        )
+    } else {
+        start_blob_accumulator.accumulate(
+            BlobAccumulationInputs { z_i, y_i, c_i },
+            final_blob_challenges.gamma,
+        )
+    }
+
+}
 
 pub(crate) struct SpongeBlob {
     pub(crate) sponge: Poseidon2Sponge,
@@ -68,8 +60,6 @@ impl SpongeBlob {
         self.sponge.squeeze()
     }
 }
-
-
 
 // Evaluates a single blob:
 // - Evaluates the blob at shared challenge z and returns result y_i
@@ -92,7 +82,6 @@ fn evaluate_blob_for_batching(
 
     (z_i, y_i)
 }
-
 
 global TWO_POW_64: Field = 18446744073709551616;
 
@@ -186,50 +175,9 @@ pub(crate) trait Empty {
     fn empty() -> Self;
 }
 
-impl Empty for Field {
-    fn empty() -> Self {
-        0
-    }
-}
-
-impl Empty for u1 {
-    fn empty() -> Self {
-        0
-    }
-}
 impl Empty for u8 {
     fn empty() -> Self {
         0
-    }
-}
-impl Empty for u32 {
-    fn empty() -> Self {
-        0
-    }
-}
-impl Empty for u64 {
-    fn empty() -> Self {
-        0
-    }
-}
-impl Empty for u128 {
-    fn empty() -> Self {
-        0
-    }
-}
-
-impl<T, let N: u32> Empty for [T; N]
-where
-    T: Empty,
-{
-    fn empty() -> Self {
-        [T::empty(); N]
-    }
-}
-
-impl<T> Empty for Option<T> {
-    fn empty() -> Self {
-        Option::none()
     }
 }
 
