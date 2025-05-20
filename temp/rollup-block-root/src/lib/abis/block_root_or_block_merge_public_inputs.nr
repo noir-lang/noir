@@ -1,6 +1,5 @@
-use dep::types::{
+use crate::types::{
     abis::{append_only_tree_snapshot::AppendOnlyTreeSnapshot, global_variables::GlobalVariables},
-    address::EthAddress,
     constants::{
         AZTEC_MAX_EPOCH_DURATION, BLOCK_ROOT_OR_BLOCK_MERGE_PUBLIC_INPUTS_LENGTH,
         FEE_RECIPIENT_LENGTH,
@@ -8,17 +7,17 @@ use dep::types::{
     traits::{Deserialize, Empty, Serialize, ToField},
     utils::reader::Reader,
 };
-use blob::blob_batching_public_inputs::BlockBlobPublicInputs;
+use crate::blob::blob_batching_public_inputs::BlockBlobPublicInputs;
 
 pub(crate)struct FeeRecipient {
-    pub(crate)recipient: EthAddress,
-    pub(crate)value: Field,
+    pub(crate) recipient: crate::types::address::EthAddress,
+    pub(crate) value: Field,
 }
 
 // TODO(#7346): Should the default empty value be MAX_FIELD? The zero addr may be a valid recipient
 impl Empty for FeeRecipient {
     fn empty() -> Self {
-        Self { recipient: EthAddress::zero(), value: 0 }
+        Self { recipient: crate::types::address::EthAddress::zero(), value: 0 }
     }
 }
 
@@ -30,7 +29,7 @@ impl Serialize<FEE_RECIPIENT_LENGTH> for FeeRecipient {
 
 impl Deserialize<FEE_RECIPIENT_LENGTH> for FeeRecipient {
     fn deserialize(values: [Field; FEE_RECIPIENT_LENGTH]) -> Self {
-        Self { recipient: EthAddress::from_field(values[0]), value: values[1] }
+        Self { recipient: crate::types::address::EthAddress::from_field(values[0]), value: values[1] }
     }
 }
 
@@ -43,17 +42,17 @@ impl Eq for FeeRecipient {
 // TODO: instead of archives + global vars, use ConstantRollupData x2? It also includes vk root
 // may be confusing as new_constant.last_archive would actually be the new_archive
 pub(crate)struct BlockRootOrBlockMergePublicInputs {
-    pub(crate)previous_archive: AppendOnlyTreeSnapshot, // Archive tree root immediately before this block range
-    pub(crate)new_archive: AppendOnlyTreeSnapshot, // Archive tree root after adding this block range
-    pub(crate)start_global_variables: GlobalVariables, // Global variables for the first block in the range
-    pub(crate)end_global_variables: GlobalVariables, // Global variables for the last block in the range
-    pub(crate)out_hash: Field, // Merkle node of the L2-to-L1 messages merkle roots in the block range
-    pub(crate)proposed_block_header_hashes: [Field; AZTEC_MAX_EPOCH_DURATION], // Hashes of proposed block headers for the block range
-    pub(crate)fees: [FeeRecipient; AZTEC_MAX_EPOCH_DURATION], // Concatenation of all coinbase and fees for the block range
-    pub(crate)vk_tree_root: Field, // Root of allowed vk tree
-    pub(crate)protocol_contract_tree_root: Field, // Root of protocol contract tree
-    pub(crate)prover_id: Field, // TODO(#7346): Temporarily added prover_id while we verify block-root proofs on L1
-    pub(crate)blob_public_inputs: BlockBlobPublicInputs, // Blob accumulators at the start and end of this block range
+    pub(crate) previous_archive: AppendOnlyTreeSnapshot, // Archive tree root immediately before this block range
+    pub(crate) new_archive: AppendOnlyTreeSnapshot, // Archive tree root after adding this block range
+    pub(crate) start_global_variables: GlobalVariables, // Global variables for the first block in the range
+    pub(crate) end_global_variables: GlobalVariables, // Global variables for the last block in the range
+    pub(crate) out_hash: Field, // Merkle node of the L2-to-L1 messages merkle roots in the block range
+    pub(crate) proposed_block_header_hashes: [Field; AZTEC_MAX_EPOCH_DURATION], // Hashes of proposed block headers for the block range
+    pub(crate) fees: [FeeRecipient; AZTEC_MAX_EPOCH_DURATION], // Concatenation of all coinbase and fees for the block range
+    pub(crate) vk_tree_root: Field, // Root of allowed vk tree
+    pub(crate) protocol_contract_tree_root: Field, // Root of protocol contract tree
+    pub(crate) prover_id: Field, // TODO(#7346): Temporarily added prover_id while we verify block-root proofs on L1
+    pub(crate) blob_public_inputs: BlockBlobPublicInputs, // Blob accumulators at the start and end of this block range
 }
 
 impl BlockRootOrBlockMergePublicInputs {
@@ -145,12 +144,4 @@ impl Deserialize<BLOCK_ROOT_OR_BLOCK_MERGE_PUBLIC_INPUTS_LENGTH> for BlockRootOr
         reader.finish();
         item
     }
-}
-
-#[test]
-fn serialization_of_empty() {
-    let item = BlockRootOrBlockMergePublicInputs::empty();
-    let serialized = item.serialize();
-    let deserialized = BlockRootOrBlockMergePublicInputs::deserialize(serialized);
-    assert(item.eq(deserialized));
 }

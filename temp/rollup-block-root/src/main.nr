@@ -1,11 +1,17 @@
-use lib::block_root::BlockRootRollupInputs;
+use crate::lib::abis::{
+    block_root_rollup_data::{BlockRootRollupBlobData, BlockRootRollupData},
+    previous_rollup_data::PreviousRollupData,
+};
+
 
 use blob::{
     blob_batching::evaluate_blobs_and_batch,
     blob_batching_public_inputs::BlobAccumulatorPublicInputs,
 };
 
-mod lib;
+pub(crate) mod lib;
+pub(crate) mod types;
+pub(crate) mod blob;
 
 fn main(inputs: BlockRootRollupInputs) -> pub BlobAccumulatorPublicInputs {
     evaluate_blobs_and_batch(
@@ -15,4 +21,10 @@ fn main(inputs: BlockRootRollupInputs) -> pub BlobAccumulatorPublicInputs {
         inputs.data.final_blob_challenges,
         inputs.data.start_blob_accumulator,
     )
+}
+
+pub(crate)struct BlockRootRollupInputs {
+    previous_rollup_data: [PreviousRollupData; 2],
+    data: BlockRootRollupData,
+    blob_data: BlockRootRollupBlobData,
 }

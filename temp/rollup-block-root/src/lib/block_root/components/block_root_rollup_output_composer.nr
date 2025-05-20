@@ -6,20 +6,20 @@ use crate::lib::{
     },
     merge::utils::merge_rollups::merge_rollups,
 };
-use blob::{
+use crate::blob::{
     blob_batching::evaluate_blobs_and_batch,
     blob_batching_public_inputs::{
         BlobAccumulationInputs, BlobAccumulatorPublicInputs, BlockBlobPublicInputs,
     },
 };
-use types::{
+use crate::types::{
     abis::{
         append_only_tree_snapshot::AppendOnlyTreeSnapshot, constant_rollup_data::ConstantRollupData,
     },
     block_header::BlockHeader,
     constants::{AZTEC_MAX_EPOCH_DURATION, L1_TO_L2_MSG_SUBTREE_HEIGHT},
     content_commitment::ContentCommitment,
-    merkle_tree::{append_only_tree, calculate_empty_tree_root},
+    merkle_tree::append_only_tree,
     partial_state_reference::PartialStateReference,
     proposed_block_header::ProposedBlockHeader,
     state_reference::StateReference,
@@ -181,7 +181,7 @@ impl BlockRootRollupOutputComposer {
 
         // Insert subtree into the l1 to l2 data tree
         let last_l1_to_l2_snapshot = self.data.previous_block_header.state.l1_to_l2_message_tree;
-        let empty_l1_to_l2_subtree_root = calculate_empty_tree_root(L1_TO_L2_MSG_SUBTREE_HEIGHT);
+        let empty_l1_to_l2_subtree_root = crate::types::merkle_tree::calculate_empty_tree_root(L1_TO_L2_MSG_SUBTREE_HEIGHT);
         let new_l1_to_l2_message_tree_snapshot = append_only_tree::insert_subtree_to_snapshot_tree(
             last_l1_to_l2_snapshot,
             self.data.l1_to_l2_message_subtree_sibling_path,
@@ -247,7 +247,7 @@ impl BlockRootRollupOutputComposer {
         } else {
             // Safety: TODO(#10323): this was added to save simulation time, if/when simulation times of unconstrained are improved, remove this.
             unsafe {
-                blob::mock_blob_oracle::evaluate_blobs_and_batch(
+                crate::blob::mock_blob_oracle::evaluate_blobs_and_batch(
                     data.blobs_fields,
                     data.blob_commitments,
                     self.merged_rollup.end_sponge_blob,

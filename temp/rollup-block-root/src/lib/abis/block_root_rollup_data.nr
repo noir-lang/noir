@@ -1,7 +1,7 @@
-use blob::blob_batching_public_inputs::{
+use crate::blob::blob_batching_public_inputs::{
     BlobAccumulatorPublicInputs, BLSPoint, FinalBlobBatchingChallenges,
 };
-use types::{
+use crate::types::{
     block_header::BlockHeader,
     constants::{
         ARCHIVE_HEIGHT, BLOBS_PER_BLOCK, FIELDS_PER_BLOB, L1_TO_L2_MSG_SUBTREE_SIBLING_PATH_LENGTH,

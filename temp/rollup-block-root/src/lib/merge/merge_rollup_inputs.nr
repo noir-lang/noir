@@ -3,7 +3,7 @@ use crate::lib::abis::previous_rollup_data::PreviousRollupData;
 use crate::lib::merge::utils::{
     merge_rollups::merge_rollups, validate_consecutive_rollups::validate_consecutive_rollups,
 };
-use dep::types::{
+use crate::types::{
     constants::{MERGE_ROLLUP_INDEX, PRIVATE_BASE_ROLLUP_VK_INDEX, PUBLIC_BASE_ROLLUP_VK_INDEX},
     proof::traits::Verifiable,
     traits::Empty,

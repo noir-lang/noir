@@ -1,4 +1,4 @@
-use dep::types::{
+use crate::types::{
     abis::{constant_rollup_data::ConstantRollupData, sponge_blob::SpongeBlob},
     constants::BASE_OR_MERGE_PUBLIC_INPUTS_LENGTH,
     partial_state_reference::PartialStateReference,
@@ -6,7 +6,6 @@ use dep::types::{
     utils::reader::Reader,
 };
 
-pub(crate) global BASE_ROLLUP_TYPE: u32 = 0;
 pub(crate) global MERGE_ROLLUP_TYPE: u32 = 1;
 
 pub(crate)struct BaseOrMergeRollupPublicInputs {

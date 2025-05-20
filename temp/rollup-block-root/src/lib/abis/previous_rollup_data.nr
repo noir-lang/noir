@@ -1,7 +1,7 @@
 use crate::lib::abis::base_or_merge_rollup_public_inputs::BaseOrMergeRollupPublicInputs;
-use dep::types::{
+use crate::types::{
     constants::{PROOF_TYPE_ROLLUP_HONK, VK_TREE_HEIGHT},
-    merkle_tree::{membership::assert_check_membership, MembershipWitness},
+    merkle_tree::{membership::assert_check_membership},
     proof::{
         rollup_recursive_proof::NestedRecursiveProof,
         traits::Verifiable,
@@ -12,10 +12,10 @@ use dep::types::{
 };
 
 pub(crate)struct PreviousRollupData {
-    pub(crate)base_or_merge_rollup_public_inputs: BaseOrMergeRollupPublicInputs,
-    pub(crate)proof: NestedRecursiveProof,
-    pub(crate)vk: RollupHonkVerificationKey,
-    pub(crate)vk_witness: MembershipWitness<VK_TREE_HEIGHT>,
+    pub(crate) base_or_merge_rollup_public_inputs: BaseOrMergeRollupPublicInputs,
+    pub(crate) proof: NestedRecursiveProof,
+    pub(crate) vk: RollupHonkVerificationKey,
+    pub(crate) vk_witness: crate::types::merkle_tree::MembershipWitness<VK_TREE_HEIGHT>,
 }
 
 impl Verifiable for PreviousRollupData {
@@ -38,7 +38,7 @@ impl Empty for PreviousRollupData {
             base_or_merge_rollup_public_inputs: BaseOrMergeRollupPublicInputs::empty(),
             proof: NestedRecursiveProof::empty(),
             vk: VerificationKey::empty(),
-            vk_witness: MembershipWitness::empty(),
+            vk_witness: crate::types::merkle_tree::MembershipWitness::empty(),
         }
     }
 }

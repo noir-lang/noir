@@ -1,9 +1,0 @@
-[package]
-name = "types"
-type = "lib"
-authors = [""]
-compiler_version = ">=0.18.0"
-
-[dependencies]
-sha256 = { tag = "v0.1.3", git = "https://github.com/noir-lang/sha256" }
-poseidon = { tag = "v0.1.0", git = "https://github.com/noir-lang/poseidon" }
