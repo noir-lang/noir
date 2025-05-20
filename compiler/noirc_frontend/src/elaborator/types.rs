@@ -2191,7 +2191,7 @@ impl Elaborator<'_> {
         }
     }
 
-    fn push_trait_constraint_error(
+    pub(super) fn push_trait_constraint_error(
         &mut self,
         object_type: &Type,
         error: ImplSearchErrorKind,

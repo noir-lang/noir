@@ -1545,6 +1545,40 @@ impl<'context> Elaborator<'context> {
             self.generics = trait_impl.resolved_generics.clone();
 
             let where_clause = self.resolve_trait_constraints(&trait_impl.where_clause);
+
+            let trait_ = self.interner.get_trait(trait_id);
+
+            // If there are bounds on the trait's associated types, check them now
+            let associated_type_bounds = &trait_.associated_type_bounds;
+            if !associated_type_bounds.is_empty() {
+                let associated_type_bounds = associated_type_bounds.clone();
+                let named_generics = self
+                    .interner
+                    .get_associated_types_for_impl(trait_impl.impl_id.unwrap())
+                    .to_vec();
+                for named_generic in named_generics {
+                    let Some(bounds) = associated_type_bounds.get(named_generic.name.as_str())
+                    else {
+                        continue;
+                    };
+                    let object_type = &named_generic.typ;
+                    for bound in bounds {
+                        if let Err(error) = self.interner.lookup_trait_implementation(
+                            object_type,
+                            bound.trait_id,
+                            &bound.trait_generics.ordered,
+                            &bound.trait_generics.named,
+                        ) {
+                            self.push_trait_constraint_error(
+                                object_type,
+                                error,
+                                named_generic.name.location(),
+                            );
+                        }
+                    }
+                }
+            }
+
             self.remove_trait_constraints_from_scope(&where_clause);
 
             self.collect_trait_impl_methods(trait_id, trait_impl, &where_clause);

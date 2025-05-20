@@ -7,7 +7,7 @@ use crate::{
     NamedGeneric, ResolvedGeneric, Type, TypeBindings,
     ast::{
         BlockExpression, FunctionDefinition, FunctionKind, FunctionReturnType, Ident,
-        ItemVisibility, NoirFunction, TraitItem, UnresolvedGeneric, UnresolvedGenerics,
+        ItemVisibility, NoirFunction, TraitBound, TraitItem, UnresolvedGeneric, UnresolvedGenerics,
         UnresolvedTraitConstraint, UnresolvedType,
     },
     hir::{def_collector::dc_crate::UnresolvedTrait, type_check::TypeCheckError},
@@ -47,12 +47,21 @@ impl Elaborator<'_> {
                     this.resolve_trait_constraints(&unresolved_trait.trait_def.where_clause);
                 this.remove_trait_constraints_from_scope(&where_clause);
 
+                let mut associated_type_bounds = rustc_hash::FxHashMap::default();
+                for item in &unresolved_trait.trait_def.items {
+                    if let TraitItem::Type { name, bounds } = &item.item {
+                        let resolved_bounds = this.resolve_trait_bounds(bounds);
+                        associated_type_bounds.insert(name.to_string(), resolved_bounds);
+                    }
+                }
+
                 // Each associated type in this trait is also an implicit generic
                 for associated_type in &this.interner.get_trait(*trait_id).associated_types {
                     this.generics.push(associated_type.clone());
                 }
 
-                let resolved_trait_bounds = this.resolve_trait_bounds(unresolved_trait);
+                let resolved_trait_bounds =
+                    this.resolve_trait_bounds(&unresolved_trait.trait_def.bounds);
                 for bound in &resolved_trait_bounds {
                     this.interner
                         .add_trait_dependency(DependencyId::Trait(bound.trait_id), *trait_id);
@@ -62,6 +71,7 @@ impl Elaborator<'_> {
                     trait_def.set_trait_bounds(resolved_trait_bounds);
                     trait_def.set_where_clause(where_clause);
                     trait_def.set_visibility(unresolved_trait.trait_def.visibility);
+                    trait_def.set_associated_type_bounds(associated_type_bounds);
                 });
 
                 let methods = this.resolve_trait_methods(*trait_id, unresolved_trait);
@@ -83,11 +93,7 @@ impl Elaborator<'_> {
         self.current_trait = None;
     }
 
-    fn resolve_trait_bounds(
-        &mut self,
-        unresolved_trait: &UnresolvedTrait,
-    ) -> Vec<ResolvedTraitBound> {
-        let bounds = &unresolved_trait.trait_def.bounds;
+    fn resolve_trait_bounds(&mut self, bounds: &[TraitBound]) -> Vec<ResolvedTraitBound> {
         bounds.iter().filter_map(|bound| self.resolve_trait_bound(bound)).collect()
     }
 

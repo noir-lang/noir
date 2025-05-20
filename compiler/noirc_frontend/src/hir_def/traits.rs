@@ -62,6 +62,7 @@ pub struct Trait {
     pub method_ids: HashMap<String, FuncId>,
 
     pub associated_types: Generics,
+    pub associated_type_bounds: HashMap<String, Vec<ResolvedTraitBound>>,
 
     pub name: Ident,
     pub generics: Generics,
@@ -165,6 +166,13 @@ impl Trait {
 
     pub fn set_visibility(&mut self, visibility: ItemVisibility) {
         self.visibility = visibility;
+    }
+
+    pub fn set_associated_type_bounds(
+        &mut self,
+        associated_type_bounds: HashMap<String, Vec<ResolvedTraitBound>>,
+    ) {
+        self.associated_type_bounds = associated_type_bounds;
     }
 
     pub fn find_method(&self, name: &str) -> Option<TraitMethodId> {
