@@ -1,0 +1,5 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: stdout
+---
+[tuple_inputs] Circuit output: Vec([Field(2), Field(1)])
