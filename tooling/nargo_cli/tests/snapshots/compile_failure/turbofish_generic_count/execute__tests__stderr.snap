@@ -2,6 +2,13 @@
 source: tooling/nargo_cli/tests/execute.rs
 expression: stderr
 ---
+warning: use of deprecated function zeroed
+  ┌─ src/main.nr:9:19
+  │
+9 │         std::mem::zeroed()
+  │                   ------ This function has been renamed to `uninitialized`
+  │
+
 warning: unused function foo
    ┌─ src/main.nr:13:4
    │

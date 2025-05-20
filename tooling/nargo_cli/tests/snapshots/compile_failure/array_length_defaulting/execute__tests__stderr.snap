@@ -2,6 +2,13 @@
 source: tooling/nargo_cli/tests/execute.rs
 expression: stderr
 ---
+warning: use of deprecated function zeroed
+  ┌─ src/main.nr:2:23
+  │
+2 │     let x = std::mem::zeroed();
+  │                       ------ This function has been renamed to `uninitialized`
+  │
+
 error: Type provided when a numeric generic was expected
   ┌─ src/main.nr:6:18
   │

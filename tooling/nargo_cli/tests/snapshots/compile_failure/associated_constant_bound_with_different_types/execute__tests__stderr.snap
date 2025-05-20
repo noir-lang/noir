@@ -2,6 +2,13 @@
 source: tooling/nargo_cli/tests/execute.rs
 expression: stderr
 ---
+warning: use of deprecated function zeroed
+   ┌─ src/main.nr:17:19
+   │
+17 │         std::mem::zeroed()
+   │                   ------ This function has been renamed to `uninitialized`
+   │
+
 error: Expected type [Field; 5], found type [Field; <U as TraitWithAssociatedConstant>::N]
    ┌─ src/main.nr:31:35
    │
