@@ -505,8 +505,8 @@ impl BlockContext {
         brillig_builder: &mut FuzzerBuilder,
         jmp_destination: BasicBlockId,
     ) {
-        acir_builder.insert_jmp_instruction(jmp_destination);
-        brillig_builder.insert_jmp_instruction(jmp_destination);
+        acir_builder.insert_jmp_instruction(jmp_destination, vec![]);
+        brillig_builder.insert_jmp_instruction(jmp_destination, vec![]);
         self.children_blocks.push(jmp_destination);
     }
 

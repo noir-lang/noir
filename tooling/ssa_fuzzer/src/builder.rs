@@ -352,9 +352,15 @@ impl FuzzerBuilder {
     }
 
     /// Inserts an unconditional jump to the given block with parameters
-    pub fn insert_jmp_instruction(&mut self, destination: BasicBlockId) {
-        // we have no arguments to jump to the destination block, we work in single function
-        self.builder.terminate_with_jmp(destination, vec![]);
+    pub fn insert_jmp_instruction(
+        &mut self,
+        destination: BasicBlockId,
+        arguments: Vec<TypedValue>,
+    ) {
+        self.builder.terminate_with_jmp(
+            destination,
+            arguments.into_iter().map(|arg| arg.value_id).collect(),
+        );
     }
 
     /// Inserts a conditional jump based on the condition value

@@ -18,7 +18,7 @@ libfuzzer_sys::fuzz_target!(|data: FuzzerData| {
         }
     }
     let instruction_options = InstructionOptions {
-        cast_enabled: false,
+        cast_enabled: true,
         xor_enabled: true,
         and_enabled: true,
         or_enabled: true,
@@ -26,11 +26,11 @@ libfuzzer_sys::fuzz_target!(|data: FuzzerData| {
         add_enabled: true,
         sub_enabled: true,
         mul_enabled: true,
-        mod_enabled: false,
+        mod_enabled: true,
         div_enabled: true,
         shl_enabled: false,
         shr_enabled: false,
-        eq_enabled: false,
+        eq_enabled: true,
         lt_enabled: false,
         load_enabled: true,
         store_enabled: true,
