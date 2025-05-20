@@ -1,75 +1,5 @@
-[start_blob_accumulator]
-  blob_commitments_hash = "0x00c62cfc1e5a116a2994c35f6413f28ed9a86b3231e3c68b4d10b55ffedb4680"
-  z = "0x2ae7780035295f587c9e6b7bb14bc0b35eec88379ec3f4ca90836f7b2b6fe1f7"
-  gamma = "0x24bd4aa63edb43cf82e1838a49cc526aec39e47e1754c8fcb8245d38f555952c"
 
-[start_blob_accumulator.y]
-  limbs = [
-  "0x8eb12d5c409ffb2f76f846c1845c3d",
-  "0xfb1d92b930dc5fe5d941216d9e522c",
-  "0x4c27"
-]
-
-[start_blob_accumulator.c]
-  is_infinity = false
-
-[start_blob_accumulator.c.x]
-      limbs = [
-  "0xdd2fe8907f298d658006b2e60748a8",
-  "0xafb57f855b56106482e5a12ce3edfd",
-  "0xe397e82b756c489b799b6f61c2255b",
-  "0x09292a"
-]
-
-[start_blob_accumulator.c.y]
-      limbs = [
-  "0xec4dbc92b414103b1b8bf9cbf8a0ae",
-  "0x1b0326b2dab632d2c492c488cd68fe",
-  "0x3a022ba6341d5ac3e2513f0124cdd4",
-  "0x18a249"
-]
-
-[start_blob_accumulator.gamma_pow]
-    limbs = [
-  "0xeef6758a563a91940038850fed4b42",
-  "0xfa6aeae9bb22dca33c5f7dc607d37b",
-  "0x1523"
-]
-
-[final_blob_challenges]
-  z = "0x06a20ca123c87a335aa248a5ec798ce0ee6319ebb32ffff08fde76bde0f53dc2"
-
-    [final_blob_challenges.gamma]
-    limbs = [
-  "0xeef6758a563a91940038850fed4b42",
-  "0xfa6aeae9bb22dca33c5f7dc607d37b",
-  "0x1523"
-]
-
-
-[end_sponge_blob]
-  fields = "0x000000000000000000000000000000000000000000000000000000000000005c"
-  expected_fields = "0x000000000000000000000000000000000000000000000000000000000000005c"
-
-[end_sponge_blob.sponge]
-    cache = [
-  "0x1f09e4a82c53c8e6c4cd28e3c55ab3eeab8da6eccfdc6dba493d27f5dc06c65c",
-  "0x00000000000000000000000000000000000000000000021e19e0c9b0dc0345a0",
-  "0x000000000000000000000000000000000000000000000000000000000000076c"
-]
-    state = [
-  "0x05085034e13faabf4a73ef8748158afbc5ccc474dd3cbe32958ead1fafcc11d9",
-  "0x09264a289b9dca12c90384e2794c1edc77542bf9809d45a4b087d7499d1900b3",
-  "0x295960386d91d5d83619bfa6f2ee89beaa6b0d1a33b31203224b80b88261b3e8",
-  "0x0f1adfa7c9836c6f6b87b42e8a1d78c252ddb063f53abbdb1a004c95a8d8eb67"
-]
-    cache_size = "0x0000000000000000000000000000000000000000000000000000000000000002"
-    squeeze_mode = false
-
-
-
-[blob_data]
-blobs_fields = [
+blobs_as_fields = [
   "0x000000000000000000000000000000000074785f737461727400000a00010000",
   "0x127af8762f9ea6daca8e1af962fd24b1bd990b1b5aafbf808f430fbfcf6783c0",
   "0x000200000000000000000000000000000000000000000000000000000bebdfb0",
@@ -12359,12 +12289,80 @@ blobs_fields = [
   "0x0000000000000000000000000000000000000000000000000000000000000000",
   "0x0000000000000000000000000000000000000000000000000000000000000000"
 ]
-blobs_hash = "0x002bf9b9e8b535fc5be8435ea509a27621dd743c4fddcf5d519bb49573a6bc13"
 
-  [[blob_data.blob_commitments]]
+
+[start_blob_accumulator]
+  blob_commitments_hash = "0x00c62cfc1e5a116a2994c35f6413f28ed9a86b3231e3c68b4d10b55ffedb4680"
+  z = "0x2ae7780035295f587c9e6b7bb14bc0b35eec88379ec3f4ca90836f7b2b6fe1f7"
+  gamma = "0x24bd4aa63edb43cf82e1838a49cc526aec39e47e1754c8fcb8245d38f555952c"
+
+[start_blob_accumulator.y]
+  limbs = [
+  "0x8eb12d5c409ffb2f76f846c1845c3d",
+  "0xfb1d92b930dc5fe5d941216d9e522c",
+  "0x4c27"
+]
+
+[start_blob_accumulator.c]
   is_infinity = false
 
-    [blob_data.blob_commitments.x]
+[start_blob_accumulator.c.x]
+      limbs = [
+  "0xdd2fe8907f298d658006b2e60748a8",
+  "0xafb57f855b56106482e5a12ce3edfd",
+  "0xe397e82b756c489b799b6f61c2255b",
+  "0x09292a"
+]
+
+[start_blob_accumulator.c.y]
+      limbs = [
+  "0xec4dbc92b414103b1b8bf9cbf8a0ae",
+  "0x1b0326b2dab632d2c492c488cd68fe",
+  "0x3a022ba6341d5ac3e2513f0124cdd4",
+  "0x18a249"
+]
+
+[start_blob_accumulator.gamma_pow]
+    limbs = [
+  "0xeef6758a563a91940038850fed4b42",
+  "0xfa6aeae9bb22dca33c5f7dc607d37b",
+  "0x1523"
+]
+
+[final_blob_challenges]
+  z = "0x06a20ca123c87a335aa248a5ec798ce0ee6319ebb32ffff08fde76bde0f53dc2"
+
+    [final_blob_challenges.gamma]
+    limbs = [
+  "0xeef6758a563a91940038850fed4b42",
+  "0xfa6aeae9bb22dca33c5f7dc607d37b",
+  "0x1523"
+]
+
+
+[end_sponge_blob]
+  fields = "0x000000000000000000000000000000000000000000000000000000000000005c"
+  expected_fields = "0x000000000000000000000000000000000000000000000000000000000000005c"
+
+[end_sponge_blob.sponge]
+    cache = [
+  "0x1f09e4a82c53c8e6c4cd28e3c55ab3eeab8da6eccfdc6dba493d27f5dc06c65c",
+  "0x00000000000000000000000000000000000000000000021e19e0c9b0dc0345a0",
+  "0x000000000000000000000000000000000000000000000000000000000000076c"
+]
+    state = [
+  "0x05085034e13faabf4a73ef8748158afbc5ccc474dd3cbe32958ead1fafcc11d9",
+  "0x09264a289b9dca12c90384e2794c1edc77542bf9809d45a4b087d7499d1900b3",
+  "0x295960386d91d5d83619bfa6f2ee89beaa6b0d1a33b31203224b80b88261b3e8",
+  "0x0f1adfa7c9836c6f6b87b42e8a1d78c252ddb063f53abbdb1a004c95a8d8eb67"
+]
+    cache_size = "0x0000000000000000000000000000000000000000000000000000000000000002"
+    squeeze_mode = false
+
+[[kzg_commitments_points]]
+  is_infinity = false
+
+  [kzg_commitments_points.x]
     limbs = [
   "0xe56a44a72283d6114b9c4ad00775f9",
   "0x9f61105c6df267a17062e0bd117f4c",
@@ -12372,7 +12370,7 @@ blobs_hash = "0x002bf9b9e8b535fc5be8435ea509a27621dd743c4fddcf5d519bb49573a6bc13
   "0x196514"
 ]
 
-    [blob_data.blob_commitments.y]
+  [kzg_commitments_points.y]
     limbs = [
   "0xa3517d9113eec529d13643815dab0b",
   "0xc50b88f4dd8f31410034c398790369",
@@ -12380,10 +12378,10 @@ blobs_hash = "0x002bf9b9e8b535fc5be8435ea509a27621dd743c4fddcf5d519bb49573a6bc13
   "0x0476d7"
 ]
 
-  [[blob_data.blob_commitments]]
+[[kzg_commitments_points]]
   is_infinity = true
 
-    [blob_data.blob_commitments.x]
+  [kzg_commitments_points.x]
     limbs = [
   "0x000000000000000000000000000000",
   "0x000000000000000000000000000000",
@@ -12391,7 +12389,7 @@ blobs_hash = "0x002bf9b9e8b535fc5be8435ea509a27621dd743c4fddcf5d519bb49573a6bc13
   "0x000000"
 ]
 
-    [blob_data.blob_commitments.y]
+  [kzg_commitments_points.y]
     limbs = [
   "0x000000000000000000000000000000",
   "0x000000000000000000000000000000",
@@ -12399,10 +12397,10 @@ blobs_hash = "0x002bf9b9e8b535fc5be8435ea509a27621dd743c4fddcf5d519bb49573a6bc13
   "0x000000"
 ]
 
-  [[blob_data.blob_commitments]]
+[[kzg_commitments_points]]
   is_infinity = true
 
-    [blob_data.blob_commitments.x]
+  [kzg_commitments_points.x]
     limbs = [
   "0x000000000000000000000000000000",
   "0x000000000000000000000000000000",
@@ -12410,10 +12408,11 @@ blobs_hash = "0x002bf9b9e8b535fc5be8435ea509a27621dd743c4fddcf5d519bb49573a6bc13
   "0x000000"
 ]
 
-    [blob_data.blob_commitments.y]
+[kzg_commitments_points.y]
     limbs = [
   "0x000000000000000000000000000000",
   "0x000000000000000000000000000000",
   "0x000000000000000000000000000000",
   "0x000000"
 ]
+

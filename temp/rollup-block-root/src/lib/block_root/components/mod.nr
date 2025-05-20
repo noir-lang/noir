@@ -1,1 +1,0 @@
-pub(crate)mod block_root_rollup_output_composer;

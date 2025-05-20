@@ -1,7 +1,3 @@
-use crate::lib::abis::{
-    block_root_rollup_data::BlockRootRollupBlobData,
-};
-
 use blob::{
     blob::{
         barycentric_evaluate_blob_at_z, check_block_blob_sponge, compute_challenge,
@@ -19,19 +15,18 @@ use bigint::BigNum;
 
 use crate::types::{
     abis::sponge_blob::SpongeBlob,
-    constants::{BLOBS_PER_BLOCK, FIELDS_PER_BLOB},
     traits::is_empty,
     utils::arrays::array_splice,
 };
 
-pub(crate) mod lib;
 pub(crate) mod types;
 pub(crate) mod blob;
 
 
-fn main(start_blob_accumulator: BlobAccumulatorPublicInputs, final_blob_challenges: FinalBlobBatchingChallenges, end_sponge_blob: SpongeBlob, blob_data: BlockRootRollupBlobData) -> pub BlobAccumulatorPublicInputs {
-    let blobs_as_fields = blob_data.blobs_fields;
-    let kzg_commitments_points = blob_data.blob_commitments;
+global FIELDS_PER_BLOB: u32 = 4096;
+global BLOBS_PER_BLOCK: u32 = 3;
+
+fn main(start_blob_accumulator: BlobAccumulatorPublicInputs, final_blob_challenges: FinalBlobBatchingChallenges, end_sponge_blob: SpongeBlob, blobs_as_fields: [Field; FIELDS_PER_BLOB * BLOBS_PER_BLOCK], kzg_commitments_points: [BLSPoint; BLOBS_PER_BLOCK]) -> pub BlobAccumulatorPublicInputs {
     let mut sponge_blob = end_sponge_blob;
 
      // See components.nr out_sponge definition as to why we copy here:
