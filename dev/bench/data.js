@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1747775880321,
+  "lastUpdate": 1747776224091,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -3958,85 +3958,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "asterite@gmail.com",
-            "name": "Ary Borenszweig",
-            "username": "asterite"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "c41a5177cbcdf8b807463071203f9c3a9c667b9a",
-          "message": "fix: warn if no double colon on generic type in type path (#8471)",
-          "timestamp": "2025-05-13T14:15:52Z",
-          "tree_id": "8788dbf1c659701c0efa6ed2c894ac4df5c458d8",
-          "url": "https://github.com/noir-lang/noir/commit/c41a5177cbcdf8b807463071203f9c3a9c667b9a"
-        },
-        "date": 1747147594314,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 2.414,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 6.818,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 1.028,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 16.14,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 12.94,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root-empty",
-            "value": 1.34,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root-single-tx",
-            "value": 126,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 128,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 1.1,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-root",
-            "value": 1.702,
-            "unit": "s"
-          },
-          {
-            "name": "semaphore-depth-10",
-            "value": 0.824,
-            "unit": "s"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "aakoshh@gmail.com",
             "name": "Akosh Farkash",
             "username": "aakoshh"
@@ -7901,6 +7822,85 @@ window.BENCHMARK_DATA = {
           {
             "name": "semaphore-depth-10",
             "value": 0.847,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "mvezenov@gmail.com",
+            "name": "Maxim Vezenov",
+            "username": "vezenovm"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "99ac8a06c1de1df33c20c8d7c9bc0c38695aa26a",
+          "message": "fix(licm): Account for nested loops being control dependent when analyzing outer loops (#8593)",
+          "timestamp": "2025-05-20T20:57:59Z",
+          "tree_id": "08af6c74937b8d1ffcac580127983d3e6729efc3",
+          "url": "https://github.com/noir-lang/noir/commit/99ac8a06c1de1df33c20c8d7c9bc0c38695aa26a"
+        },
+        "date": 1747776214723,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 2.368,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 6.662,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 1.052,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 16.06,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 12.42,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-empty",
+            "value": 1.314,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-single-tx",
+            "value": 125,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 125,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 1.136,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-root",
+            "value": 1.626,
+            "unit": "s"
+          },
+          {
+            "name": "semaphore-depth-10",
+            "value": 0.874,
             "unit": "s"
           }
         ]
