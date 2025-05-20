@@ -44,22 +44,7 @@ pub(crate) fn byte_to_bits_be(byte: u8) -> [u1; 8] {
     bits
 }
 
-// TODO to radix returns u8, so we cannot use bigger radixes. It'd be ideal to use a radix of the maximum range-constrained integer noir supports
-pub(crate) fn full_field_less_than(lhs: Field, rhs: Field) -> bool {
-    lhs.lt(rhs)
-}
 
-pub(crate) fn full_field_greater_than(lhs: Field, rhs: Field) -> bool {
-    rhs.lt(lhs)
-}
-
-pub(crate) fn min(f1: Field, f2: Field) -> Field {
-    if f1.lt(f2) {
-        f1
-    } else {
-        f2
-    }
-}
 
 global C1: u32 = 28;
 global C3: Field = 40770029410420498293352137776570907027550720424234931066070132305055;
