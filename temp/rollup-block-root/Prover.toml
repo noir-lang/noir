@@ -4167,10 +4167,10 @@ blobs_as_fields = [
     cache_size = "0x0000000000000000000000000000000000000000000000000000000000000002"
     squeeze_mode = false
 
-[[kzg_commitments_points]]
+[kzg_commitments_point]
   is_infinity = false
 
-  [kzg_commitments_points.x]
+  [kzg_commitments_point.x]
     limbs = [
   "0xe56a44a72283d6114b9c4ad00775f9",
   "0x9f61105c6df267a17062e0bd117f4c",
@@ -4178,7 +4178,7 @@ blobs_as_fields = [
   "0x196514"
 ]
 
-  [kzg_commitments_points.y]
+  [kzg_commitments_point.y]
     limbs = [
   "0xa3517d9113eec529d13643815dab0b",
   "0xc50b88f4dd8f31410034c398790369",

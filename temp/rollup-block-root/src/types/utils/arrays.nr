@@ -125,48 +125,7 @@ pub(crate) fn array_concat<T, let N: u32, let M: u32>(
     result
 }
 
-/// This function assumes that `array1` and `array2` contain no more than N non-empty elements between them,
-/// if this is not the case then elements from the end of `array2` will be dropped.
-pub(crate) fn array_merge<T, let N: u32>(array1: [T; N], array2: [T; N]) -> [T; N]
-where
-    T: Empty + Eq,
-{
-    // Safety: we constrain this array below
-    let result = unsafe { array_merge_helper(array1, array2) };
-    // We assume arrays have been validated. The only use cases so far are with previously validated arrays.
-    let array1_len = array_length(array1);
-    let mut add_from_left = true;
-    for i in 0..N {
-        add_from_left &= i != array1_len;
-        if add_from_left {
-            assert_eq(result[i], array1[i]);
-        } else {
-            assert_eq(result[i], array2[i - array1_len]);
-        }
-    }
-    result
-}
 
-unconstrained fn array_merge_helper<T, let N: u32>(array1: [T; N], array2: [T; N]) -> [T; N]
-where
-    T: Empty + Eq,
-{
-    let mut result: [T; N] = [T::empty(); N];
-    let mut i = 0;
-    for elem in array1 {
-        if !is_empty(elem) {
-            result[i] = elem;
-            i += 1;
-        }
-    }
-    for elem in array2 {
-        if !is_empty(elem) {
-            result[i] = elem;
-            i += 1;
-        }
-    }
-    result
-}
 
 // Helper fn to create a subarray from a given array
 pub(crate) fn array_splice<T, let N: u32, let M: u32>(array: [T; N], offset: u32) -> [T; M]

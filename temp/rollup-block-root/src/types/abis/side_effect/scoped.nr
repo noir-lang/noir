@@ -1,7 +1,6 @@
 use crate::types::{
     abis::side_effect::{counted::Counted, Ordered},
     address::AztecAddress,
-    tests::types::TestValue,
     traits::{Deserialize, Empty, Serialize, ToField},
     utils::{arrays::array_concat, reader::Reader},
 };
@@ -63,12 +62,4 @@ impl<T> Ordered for Scoped<Counted<T>> {
     fn counter(self) -> u32 {
         self.inner.counter()
     }
-}
-
-#[test]
-fn serialization_of_empty_scoped() {
-    let item: Scoped<TestValue> = Scoped::empty();
-    let serialized = item.serialize();
-    let deserialized: Scoped<TestValue> = Scoped::deserialize(serialized);
-    assert(item.eq(deserialized));
 }

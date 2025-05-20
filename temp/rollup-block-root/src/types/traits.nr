@@ -70,13 +70,6 @@ where
     item.eq(T::empty())
 }
 
-pub(crate) fn is_empty_array<T, let N: u32>(array: [T; N]) -> bool
-where
-    T: Empty + Eq,
-{
-    array.all(|elem| is_empty(elem))
-}
-
 pub(crate) trait Hash {
     fn hash(self) -> Field;
 }
