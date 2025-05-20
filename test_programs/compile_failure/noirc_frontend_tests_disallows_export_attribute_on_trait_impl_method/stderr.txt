@@ -1,8 +1,0 @@
-error: The `#[export]` attribute is disallowed on `impl` methods
-   ┌─ src/main.nr:10:16
-   │
-10 │             fn foo() { }
-   │                ---
-   │
-
-Aborting due to 1 previous error

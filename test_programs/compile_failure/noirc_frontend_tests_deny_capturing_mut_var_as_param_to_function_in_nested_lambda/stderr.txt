@@ -1,8 +1,0 @@
-error: Mutable variable x captured in lambda must be a mutable reference
-  ┌─ src/main.nr:5:40
-  │
-5 │             let inner = || mutate(&mut x); 
-  │                                        - Use '&mut' instead of 'mut' to capture a mutable variable.
-  │
-
-Aborting due to 1 previous error

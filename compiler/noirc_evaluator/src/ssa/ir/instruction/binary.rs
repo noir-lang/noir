@@ -182,9 +182,12 @@ pub(crate) fn try_convert_field_element_to_signed_integer(
 pub(crate) fn convert_signed_integer_to_field_element(int: i128, bit_size: u32) -> FieldElement {
     if int >= 0 {
         FieldElement::from(int)
+    } else if bit_size == 128 {
+        // signed to u128 conversion
+        FieldElement::from(int as u128)
     } else {
         // We add an offset of `bit_size` bits to shift the negative values into the range [2^(bitsize-1), 2^bitsize)
-        assert!(bit_size < 128);
+        assert!(bit_size < 128, "{bit_size} is too large");
         let offset_int = (1i128 << bit_size) + int;
         FieldElement::from(offset_int)
     }

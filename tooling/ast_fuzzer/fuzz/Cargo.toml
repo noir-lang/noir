@@ -25,6 +25,8 @@ noir_ast_fuzzer = { path = ".." }
 
 [dev-dependencies]
 arbtest.workspace = true
+env_logger.workspace = true
+
 
 [[bin]]
 name = "min_vs_full"
@@ -50,6 +52,13 @@ bench = false
 [[bin]]
 name = "orig_vs_morph"
 path = "fuzz_targets/orig_vs_morph.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "pass_vs_prev"
+path = "fuzz_targets/pass_vs_prev.rs"
 test = false
 doc = false
 bench = false
