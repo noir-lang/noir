@@ -291,6 +291,10 @@ impl<'f> LoopInvariantContext<'f> {
     /// If this is the case, we block hoisting as control is not guaranteed.
     /// If the block is not control dependent on the inner loop itself, it will be marked appropriately
     /// when the inner loop is being processed.
+    ///
+    /// Control dependence on a nested loop is determined by checking whether the nested loop's header
+    /// is control dependent on any blocks between itself and the outer loop's header.
+    /// It is expected that `all_predecessors` contains at least all of these blocks.
     fn is_nested_loop_control_dependent(
         &mut self,
         loop_: &Loop,
@@ -305,13 +309,14 @@ impl<'f> LoopInvariantContext<'f> {
                 continue;
             }
 
-            // We have found a nested loop if another inner loop shares blocks with the current loop
+            // We have found a nested loop if an inner loop shares blocks with the current loop
             // and they do not share a loop header.
             // `all_loops` should not contain the current loop but this extra check provides a sanity
             // check in case that ever changes.
             let nested_loop_is_control_dep = nested.header != loop_.header
                 && all_predecessors
                     .iter()
+                    // Check whether the nested loop's header is control dependent on any of its predecessors
                     .any(|predecessor| self.is_control_dependent(*predecessor, nested.header));
             if nested_loop_is_control_dep {
                 self.current_block_control_dependent = true;
