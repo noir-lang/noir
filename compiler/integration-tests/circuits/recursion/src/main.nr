@@ -1,17 +1,15 @@
-global HONK_PROOF_SIZE: u32 = 456;
-global HONK_IDENTIFIER: u32 = 1;
-global HONK_VERIFICATION_KEY_LENGTH_IN_FIELDS: u32 = 112;
+use bb_proof_verification::{verify_ultrahonk_proof, UltraHonkProof, UltraHonkVerificationKey};
+
 
 fn main(
-    verification_key: [Field; HONK_VERIFICATION_KEY_LENGTH_IN_FIELDS],
-    proof: [Field; HONK_PROOF_SIZE],
+    verification_key: UltraHonkVerificationKey,
+    proof: UltraHonkProof,
     public_inputs: [Field; 2]
 ) {
-    std::verify_proof_with_type(
+    verify_ultrahonk_proof(
         verification_key,
         proof,
         public_inputs,
         0x0,
-        HONK_IDENTIFIER,
     );
 }
