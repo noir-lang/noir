@@ -2235,7 +2235,8 @@ impl<'context> Elaborator<'context> {
             trait_impl.resolved_generics = self.generics.clone();
 
             let new_generics = self.desugar_trait_constraints(&mut trait_impl.where_clause);
-            for (new_generic, bounds) in new_generics {
+            for (new_generic, _bounds) in new_generics {
+                // TODO: use `_bounds` variable above
                 trait_impl.resolved_generics.push(new_generic.clone());
                 self.generics.push(new_generic);
             }
