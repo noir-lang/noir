@@ -2266,7 +2266,163 @@
 <a href="#2265" id="2265">2265</a>
 <a href="#2266" id="2266">2266</a>
 <a href="#2267" id="2267">2267</a>
-<a href="#2268" id="2268">2268</a></pre></div><pre class="rust"><code><span class="doccomment">//! The loop invariant code motion pass moves code from inside a loop to before the loop
+<a href="#2268" id="2268">2268</a>
+<a href="#2269" id="2269">2269</a>
+<a href="#2270" id="2270">2270</a>
+<a href="#2271" id="2271">2271</a>
+<a href="#2272" id="2272">2272</a>
+<a href="#2273" id="2273">2273</a>
+<a href="#2274" id="2274">2274</a>
+<a href="#2275" id="2275">2275</a>
+<a href="#2276" id="2276">2276</a>
+<a href="#2277" id="2277">2277</a>
+<a href="#2278" id="2278">2278</a>
+<a href="#2279" id="2279">2279</a>
+<a href="#2280" id="2280">2280</a>
+<a href="#2281" id="2281">2281</a>
+<a href="#2282" id="2282">2282</a>
+<a href="#2283" id="2283">2283</a>
+<a href="#2284" id="2284">2284</a>
+<a href="#2285" id="2285">2285</a>
+<a href="#2286" id="2286">2286</a>
+<a href="#2287" id="2287">2287</a>
+<a href="#2288" id="2288">2288</a>
+<a href="#2289" id="2289">2289</a>
+<a href="#2290" id="2290">2290</a>
+<a href="#2291" id="2291">2291</a>
+<a href="#2292" id="2292">2292</a>
+<a href="#2293" id="2293">2293</a>
+<a href="#2294" id="2294">2294</a>
+<a href="#2295" id="2295">2295</a>
+<a href="#2296" id="2296">2296</a>
+<a href="#2297" id="2297">2297</a>
+<a href="#2298" id="2298">2298</a>
+<a href="#2299" id="2299">2299</a>
+<a href="#2300" id="2300">2300</a>
+<a href="#2301" id="2301">2301</a>
+<a href="#2302" id="2302">2302</a>
+<a href="#2303" id="2303">2303</a>
+<a href="#2304" id="2304">2304</a>
+<a href="#2305" id="2305">2305</a>
+<a href="#2306" id="2306">2306</a>
+<a href="#2307" id="2307">2307</a>
+<a href="#2308" id="2308">2308</a>
+<a href="#2309" id="2309">2309</a>
+<a href="#2310" id="2310">2310</a>
+<a href="#2311" id="2311">2311</a>
+<a href="#2312" id="2312">2312</a>
+<a href="#2313" id="2313">2313</a>
+<a href="#2314" id="2314">2314</a>
+<a href="#2315" id="2315">2315</a>
+<a href="#2316" id="2316">2316</a>
+<a href="#2317" id="2317">2317</a>
+<a href="#2318" id="2318">2318</a>
+<a href="#2319" id="2319">2319</a>
+<a href="#2320" id="2320">2320</a>
+<a href="#2321" id="2321">2321</a>
+<a href="#2322" id="2322">2322</a>
+<a href="#2323" id="2323">2323</a>
+<a href="#2324" id="2324">2324</a>
+<a href="#2325" id="2325">2325</a>
+<a href="#2326" id="2326">2326</a>
+<a href="#2327" id="2327">2327</a>
+<a href="#2328" id="2328">2328</a>
+<a href="#2329" id="2329">2329</a>
+<a href="#2330" id="2330">2330</a>
+<a href="#2331" id="2331">2331</a>
+<a href="#2332" id="2332">2332</a>
+<a href="#2333" id="2333">2333</a>
+<a href="#2334" id="2334">2334</a>
+<a href="#2335" id="2335">2335</a>
+<a href="#2336" id="2336">2336</a>
+<a href="#2337" id="2337">2337</a>
+<a href="#2338" id="2338">2338</a>
+<a href="#2339" id="2339">2339</a>
+<a href="#2340" id="2340">2340</a>
+<a href="#2341" id="2341">2341</a>
+<a href="#2342" id="2342">2342</a>
+<a href="#2343" id="2343">2343</a>
+<a href="#2344" id="2344">2344</a>
+<a href="#2345" id="2345">2345</a>
+<a href="#2346" id="2346">2346</a>
+<a href="#2347" id="2347">2347</a>
+<a href="#2348" id="2348">2348</a>
+<a href="#2349" id="2349">2349</a>
+<a href="#2350" id="2350">2350</a>
+<a href="#2351" id="2351">2351</a>
+<a href="#2352" id="2352">2352</a>
+<a href="#2353" id="2353">2353</a>
+<a href="#2354" id="2354">2354</a>
+<a href="#2355" id="2355">2355</a>
+<a href="#2356" id="2356">2356</a>
+<a href="#2357" id="2357">2357</a>
+<a href="#2358" id="2358">2358</a>
+<a href="#2359" id="2359">2359</a>
+<a href="#2360" id="2360">2360</a>
+<a href="#2361" id="2361">2361</a>
+<a href="#2362" id="2362">2362</a>
+<a href="#2363" id="2363">2363</a>
+<a href="#2364" id="2364">2364</a>
+<a href="#2365" id="2365">2365</a>
+<a href="#2366" id="2366">2366</a>
+<a href="#2367" id="2367">2367</a>
+<a href="#2368" id="2368">2368</a>
+<a href="#2369" id="2369">2369</a>
+<a href="#2370" id="2370">2370</a>
+<a href="#2371" id="2371">2371</a>
+<a href="#2372" id="2372">2372</a>
+<a href="#2373" id="2373">2373</a>
+<a href="#2374" id="2374">2374</a>
+<a href="#2375" id="2375">2375</a>
+<a href="#2376" id="2376">2376</a>
+<a href="#2377" id="2377">2377</a>
+<a href="#2378" id="2378">2378</a>
+<a href="#2379" id="2379">2379</a>
+<a href="#2380" id="2380">2380</a>
+<a href="#2381" id="2381">2381</a>
+<a href="#2382" id="2382">2382</a>
+<a href="#2383" id="2383">2383</a>
+<a href="#2384" id="2384">2384</a>
+<a href="#2385" id="2385">2385</a>
+<a href="#2386" id="2386">2386</a>
+<a href="#2387" id="2387">2387</a>
+<a href="#2388" id="2388">2388</a>
+<a href="#2389" id="2389">2389</a>
+<a href="#2390" id="2390">2390</a>
+<a href="#2391" id="2391">2391</a>
+<a href="#2392" id="2392">2392</a>
+<a href="#2393" id="2393">2393</a>
+<a href="#2394" id="2394">2394</a>
+<a href="#2395" id="2395">2395</a>
+<a href="#2396" id="2396">2396</a>
+<a href="#2397" id="2397">2397</a>
+<a href="#2398" id="2398">2398</a>
+<a href="#2399" id="2399">2399</a>
+<a href="#2400" id="2400">2400</a>
+<a href="#2401" id="2401">2401</a>
+<a href="#2402" id="2402">2402</a>
+<a href="#2403" id="2403">2403</a>
+<a href="#2404" id="2404">2404</a>
+<a href="#2405" id="2405">2405</a>
+<a href="#2406" id="2406">2406</a>
+<a href="#2407" id="2407">2407</a>
+<a href="#2408" id="2408">2408</a>
+<a href="#2409" id="2409">2409</a>
+<a href="#2410" id="2410">2410</a>
+<a href="#2411" id="2411">2411</a>
+<a href="#2412" id="2412">2412</a>
+<a href="#2413" id="2413">2413</a>
+<a href="#2414" id="2414">2414</a>
+<a href="#2415" id="2415">2415</a>
+<a href="#2416" id="2416">2416</a>
+<a href="#2417" id="2417">2417</a>
+<a href="#2418" id="2418">2418</a>
+<a href="#2419" id="2419">2419</a>
+<a href="#2420" id="2420">2420</a>
+<a href="#2421" id="2421">2421</a>
+<a href="#2422" id="2422">2422</a>
+<a href="#2423" id="2423">2423</a>
+<a href="#2424" id="2424">2424</a></pre></div><pre class="rust"><code><span class="doccomment">//! The loop invariant code motion pass moves code from inside a loop to before the loop
 //! if that code will always have the same result on every iteration of the loop.
 //!
 //! To identify a loop invariant, check whether all of an instruction's values are:
@@ -2308,7 +2464,7 @@
 //! ```
 //! Reversing this for post-dominance we can see that the conditions for control dependence
 //! are the same as those for post-dominance frontiers.
-//! Thus, we rewrite our control dependence condition as Y is control dependent on X iff Y is in PDF(Y).
+//! Thus, we rewrite our control dependence condition as Y is control dependent on X iff X is in PDF(Y).
 //!
 //! We then can store the PDFs for every block as part of the context of this pass, and use it for checking control dependence.
 //! Using PDFs gets us from a worst case n^2 complexity to a worst case n.
@@ -2369,7 +2525,7 @@
             };
 
             context.current_pre_header = <span class="prelude-val">Some</span>(pre_header);
-            context.hoist_loop_invariants(<span class="kw-2">&amp;</span>loop_);
+            context.hoist_loop_invariants(<span class="kw-2">&amp;</span>loop_, <span class="kw-2">&amp;</span><span class="self">self</span>.yet_to_unroll);
         }
 
         context.map_dependent_instructions();
@@ -2434,6 +2590,13 @@
 
     <span class="comment">// Stores whether the current block being processed is control dependent
     </span>current_block_control_dependent: bool,
+    <span class="doccomment">/// Caches all blocks that belong to nested loops determined to be control dependent
+    /// on blocks in an outer loop. This allows short circuiting future control dependence
+    /// checks during loop invariant analysis, as these blocks are guaranteed to be
+    /// control dependent due to the entire nested loop being control dependent.
+    ///
+    /// Reset for each new loop as the set should not be shared across different outer loops.
+    </span>nested_loop_control_dependent_blocks: HashSet&lt;BasicBlockId&gt;,
 
     <span class="comment">// Maps a block to its post-dominance frontiers
     // This map should be precomputed a single time and used for checking control dependence.
@@ -2466,6 +2629,7 @@
             current_pre_header: <span class="prelude-val">None</span>,
             cfg,
             current_block_control_dependent: <span class="bool-val">false</span>,
+            nested_loop_control_dependent_blocks: HashSet::default(),
             post_dom_frontiers,
             true_value,
             false_value,
@@ -2477,11 +2641,11 @@
         <span class="self">self</span>.current_pre_header.expect(<span class="string">"ICE: Pre-header block should have been set"</span>)
     }
 
-    <span class="kw">fn </span>hoist_loop_invariants(<span class="kw-2">&amp;mut </span><span class="self">self</span>, loop_: <span class="kw-2">&amp;</span>Loop) {
+    <span class="kw">fn </span>hoist_loop_invariants(<span class="kw-2">&amp;mut </span><span class="self">self</span>, loop_: <span class="kw-2">&amp;</span>Loop, all_loops: <span class="kw-2">&amp;</span>[Loop]) {
         <span class="self">self</span>.set_values_defined_in_loop(loop_);
 
         <span class="kw">for </span>block <span class="kw">in </span>loop_.blocks.iter() {
-            <span class="self">self</span>.is_control_dependent_post_pre_header(loop_, <span class="kw-2">*</span>block);
+            <span class="self">self</span>.is_control_dependent_post_pre_header(loop_, <span class="kw-2">*</span>block, all_loops);
 
             <span class="kw">for </span>instruction_id <span class="kw">in </span><span class="self">self</span>.inserter.function.dfg[<span class="kw-2">*</span>block].take_instructions() {
                 <span class="kw">if </span><span class="self">self</span>.simplify_from_loop_bounds(instruction_id, loop_, block) {
@@ -2525,30 +2689,91 @@
 
     <span class="doccomment">/// Checks whether a `block` is control dependent on any blocks after
     /// the given loop's header.
-    </span><span class="kw">fn </span>is_control_dependent_post_pre_header(<span class="kw-2">&amp;mut </span><span class="self">self</span>, loop_: <span class="kw-2">&amp;</span>Loop, block: BasicBlockId) {
-        <span class="kw">let </span>all_predecessors = Loop::find_blocks_in_loop(loop_.header, block, <span class="kw-2">&amp;</span><span class="self">self</span>.cfg).blocks;
+    </span><span class="kw">fn </span>is_control_dependent_post_pre_header(
+        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
+        loop_: <span class="kw-2">&amp;</span>Loop,
+        block: BasicBlockId,
+        all_loops: <span class="kw-2">&amp;</span>[Loop],
+    ) {
+        <span class="comment">// The block is already known to be in a control dependent nested loop
+        // Thus, we can avoid checking for control dependence again.
+        </span><span class="kw">if </span><span class="self">self</span>.nested_loop_control_dependent_blocks.contains(<span class="kw-2">&amp;</span>block) {
+            <span class="self">self</span>.current_block_control_dependent = <span class="bool-val">true</span>;
+            <span class="kw">return</span>;
+        }
+
+        <span class="comment">// Find all blocks between the current block and the loop header, exclusive of the current block and loop header themselves.
+        </span><span class="kw">let </span>all_predecessors = Loop::find_blocks_in_loop(loop_.header, block, <span class="kw-2">&amp;</span><span class="self">self</span>.cfg).blocks;
+        <span class="kw">let </span>all_predecessors = all_predecessors
+            .into_iter()
+            .filter(|<span class="kw-2">&amp;</span>predecessor| predecessor != block &amp;&amp; predecessor != loop_.header)
+            .collect::&lt;Vec&lt;<span class="kw">_</span>&gt;&gt;();
 
         <span class="comment">// Reset the current block control dependent flag, the check will set it to true if needed.
         // If we fail to reset it, a block may be inadvertently labelled
         // as control dependent thus preventing optimizations.
         </span><span class="self">self</span>.current_block_control_dependent = <span class="bool-val">false</span>;
 
-        <span class="comment">// Need to accurately determine whether the current block is dependent on any blocks between
+        <span class="comment">// Now check whether the current block is dependent on any blocks between
         // the current block and the loop header, exclusive of the current block and loop header themselves
-        </span><span class="kw">if </span>all_predecessors
-            .into_iter()
-            .filter(|<span class="kw-2">&amp;</span>predecessor| predecessor != block &amp;&amp; predecessor != loop_.header)
-            .any(|predecessor| <span class="self">self</span>.is_control_dependent(predecessor, block))
+        </span><span class="kw">if </span>all_predecessors.iter().any(|predecessor| <span class="self">self</span>.is_control_dependent(<span class="kw-2">*</span>predecessor, block))
         {
             <span class="self">self</span>.current_block_control_dependent = <span class="bool-val">true</span>;
+            <span class="kw">return</span>;
+        }
+
+        <span class="self">self</span>.is_nested_loop_control_dependent(loop_, block, all_loops, all_predecessors);
+    }
+
+    <span class="doccomment">/// Determines if the `block` is in a nested loop that is control dependent
+    /// on a block in the outer loop.
+    /// If this is the case, we block hoisting as control is not guaranteed.
+    /// If the block is not control dependent on the inner loop itself, it will be marked appropriately
+    /// when the inner loop is processed later.
+    ///
+    /// Control dependence on a nested loop is determined by checking whether the nested loop's header
+    /// is control dependent on any blocks between itself and the outer loop's header.
+    /// It is expected that `all_predecessors` contains at least all of these blocks.
+    </span><span class="kw">fn </span>is_nested_loop_control_dependent(
+        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
+        loop_: <span class="kw-2">&amp;</span>Loop,
+        block: BasicBlockId,
+        all_loops: <span class="kw-2">&amp;</span>[Loop],
+        all_predecessors: Vec&lt;BasicBlockId&gt;,
+    ) {
+        <span class="comment">// Now check for nested loops within the current loop
+        </span><span class="kw">for </span>nested <span class="kw">in </span>all_loops.iter() {
+            <span class="kw">if </span>!nested.blocks.contains(<span class="kw-2">&amp;</span>block) {
+                <span class="comment">// Skip unrelated loops
+                </span><span class="kw">continue</span>;
+            }
+
+            <span class="comment">// We have found a nested loop if an inner loop shares blocks with the current loop
+            // and they do not share a loop header.
+            // `all_loops` should not contain the current loop but this extra check provides a sanity
+            // check in case that ever changes.
+            </span><span class="kw">let </span>nested_loop_is_control_dep = nested.header != loop_.header
+                &amp;&amp; all_predecessors
+                    .iter()
+                    <span class="comment">// Check whether the nested loop's header is control dependent on any of its predecessors
+                    </span>.any(|predecessor| <span class="self">self</span>.is_control_dependent(<span class="kw-2">*</span>predecessor, nested.header));
+            <span class="kw">if </span>nested_loop_is_control_dep {
+                <span class="self">self</span>.current_block_control_dependent = <span class="bool-val">true</span>;
+                <span class="comment">// Mark all blocks in the nested loop as control dependent to avoid redundant checks
+                // for each of these blocks when they are later visited during hoisting.
+                // This is valid because control dependence of the loop header implies dependence
+                // for the entire loop body.
+                </span><span class="self">self</span>.nested_loop_control_dependent_blocks.extend(nested.blocks.iter());
+                <span class="kw">return</span>;
+            }
         }
     }
 
-    <span class="doccomment">/// Checks whether a `block` is control dependent on a `parent_block`
+    <span class="doccomment">/// Checks whether a `block` is control dependent on a `parent_block`.
     /// Uses post-dominance frontiers to determine control dependence.
     /// Reference the doc comments at the top of the this module for more information
     /// regarding post-dominance frontiers and control dependence.
-    </span><span class="kw">fn </span>is_control_dependent(<span class="kw-2">&amp;mut </span><span class="self">self</span>, parent_block: BasicBlockId, block: BasicBlockId) -&gt; bool {
+    </span><span class="kw">fn </span>is_control_dependent(<span class="kw-2">&amp;</span><span class="self">self</span>, parent_block: BasicBlockId, block: BasicBlockId) -&gt; bool {
         <span class="kw">match </span><span class="self">self</span>.post_dom_frontiers.get(<span class="kw-2">&amp;</span>block) {
             <span class="prelude-val">Some</span>(dependent_blocks) =&gt; dependent_blocks.contains(<span class="kw-2">&amp;</span>parent_block),
             <span class="prelude-val">None </span>=&gt; <span class="bool-val">false</span>,
@@ -2568,6 +2793,11 @@
         </span><span class="self">self</span>.current_induction_variables.clear();
         <span class="self">self</span>.set_induction_var_bounds(loop_, <span class="bool-val">true</span>);
         <span class="self">self</span>.no_break = loop_.is_fully_executed(<span class="kw-2">&amp;</span><span class="self">self</span>.cfg);
+        <span class="comment">// Clear any cached control dependent nested loop blocks from the previous loop.
+        // This set is only relevant within the scope of a single loop.
+        // Keeping previous data would incorrectly classify blocks as control dependent,
+        // leading to missed hoisting opportunities.
+        </span><span class="self">self</span>.nested_loop_control_dependent_blocks.clear();
 
         <span class="kw">for </span>block <span class="kw">in </span>loop_.blocks.iter() {
             <span class="kw">let </span>params = <span class="self">self</span>.inserter.function.dfg.block_parameters(<span class="kw-2">*</span>block);
@@ -4532,6 +4762,88 @@
 
         <span class="comment">// We expect the SSA to be unchanged
         </span>assert_normalized_ssa_equals(ssa, src);
+    }
+
+    <span class="attr">#[test]
+    </span><span class="kw">fn </span>do_not_hoist_from_outer_loop_when_inner_loop_is_control_dependent() {
+        <span class="comment">// We want to check the case when an entire inner loop is under a predicate
+        // that we do not still hoist with respect to control dependence on the outer
+        // loop's block header.
+        // This is the SSA for the following program:
+        // ```noir
+        // fn main(a: pub bool) {
+        //     for _ in 0..1 {
+        //         if a {
+        //             for _ in 0..1 {
+        //                 let _ = (1 / (a as Field));
+        //             }
+        //         };
+        //     }
+        // }
+        // ```
+        </span><span class="kw">let </span>src = <span class="string">r"
+        acir(inline) predicate_pure fn main f0 {
+          b0(v0: u1):
+            jmp b1(u32 0)
+          b1(v1: u32):
+            v4 = eq v1, u32 0
+            jmpif v4 then: b2, else: b3
+          b2():
+            jmpif v0 then: b4, else: b5
+          b3():
+            return
+          b4():
+            jmp b6(u32 0)
+          b5():
+            v7 = unchecked_add v1, u32 1
+            jmp b1(v7)
+          b6(v2: u32):
+            v5 = eq v2, u32 0
+            jmpif v5 then: b7, else: b8
+          b7():
+            v8 = cast v0 as Field
+            v10 = div Field 1, v8
+            v11 = unchecked_add v2, u32 1
+            jmp b6(v11)
+          b8():
+            jmp b5()
+        }
+        "</span>;
+
+        <span class="kw">let </span>ssa = Ssa::from_str(src).unwrap();
+        <span class="kw">let </span>ssa = ssa.loop_invariant_code_motion();
+
+        <span class="comment">// We expect `v10 = div Field 1, v8` to be hoisted, but only to the inner loop's header.
+        // If we were to hoist that div to the outer loop's header, we will fail inadvertently
+        // if `v0 == false`.
+        </span><span class="macro">assert_ssa_snapshot!</span>(ssa, @<span class="string">r"
+        acir(inline) predicate_pure fn main f0 {
+          b0(v0: u1):
+            v3 = cast v0 as Field
+            jmp b1(u32 0)
+          b1(v1: u32):
+            v5 = eq v1, u32 0
+            jmpif v5 then: b2, else: b3
+          b2():
+            jmpif v0 then: b4, else: b5
+          b3():
+            return
+          b4():
+            v7 = div Field 1, v3
+            jmp b6(u32 0)
+          b5():
+            v10 = unchecked_add v1, u32 1
+            jmp b1(v10)
+          b6(v2: u32):
+            v8 = eq v2, u32 0
+            jmpif v8 then: b7, else: b8
+          b7():
+            v11 = unchecked_add v2, u32 1
+            jmp b6(v11)
+          b8():
+            jmp b5()
+        }
+        "</span>);
     }
 }
 </code></pre></div></section></main></body></html>
