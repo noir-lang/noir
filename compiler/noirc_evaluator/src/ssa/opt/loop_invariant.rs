@@ -166,6 +166,13 @@ struct LoopInvariantContext<'f> {
 
     // Stores whether the current block being processed is control dependent
     current_block_control_dependent: bool,
+    /// Caches all blocks that belong to nested loops determined to be control dependent
+    /// on blocks in an outer loop. This allows short circuiting future control dependence
+    /// checks during loop invariant analysis, as these blocks are guaranteed to be
+    /// control dependent due to the entire nested loop being control dependent.
+    ///
+    /// Populated during analysis of outer loops and reset for each new loop.
+    nested_loop_control_dependent_blocks: HashSet<BasicBlockId>,
 
     // Maps a block to its post-dominance frontiers
     // This map should be precomputed a single time and used for checking control dependence.
@@ -198,6 +205,7 @@ impl<'f> LoopInvariantContext<'f> {
             current_pre_header: None,
             cfg,
             current_block_control_dependent: false,
+            nested_loop_control_dependent_blocks: HashSet::default(),
             post_dom_frontiers,
             true_value,
             false_value,
@@ -263,6 +271,13 @@ impl<'f> LoopInvariantContext<'f> {
         block: BasicBlockId,
         all_loops: &[Loop],
     ) {
+        // The block is already known to be in a control dependent nested loop
+        // Thus, we can avoid checking for control dependence again.
+        if self.nested_loop_control_dependent_blocks.contains(&block) {
+            self.current_block_control_dependent = true;
+            return;
+        }
+
         // Find all blocks between the current block and the loop header, exclusive of the current block and loop header themselves.
         let all_predecessors = Loop::find_blocks_in_loop(loop_.header, block, &self.cfg).blocks;
         let all_predecessors = all_predecessors
@@ -320,6 +335,11 @@ impl<'f> LoopInvariantContext<'f> {
                     .any(|predecessor| self.is_control_dependent(*predecessor, nested.header));
             if nested_loop_is_control_dep {
                 self.current_block_control_dependent = true;
+                // Mark all blocks in the nested loop as control dependent to avoid redundant checks
+                // for each of these blocks when they are later visited during hoisting.
+                // This is valid because control dependence of the loop header implies dependence
+                // for the entire loop body.
+                self.nested_loop_control_dependent_blocks.extend(nested.blocks.iter());
                 return;
             }
         }
@@ -349,6 +369,11 @@ impl<'f> LoopInvariantContext<'f> {
         self.current_induction_variables.clear();
         self.set_induction_var_bounds(loop_, true);
         self.no_break = loop_.is_fully_executed(&self.cfg);
+        // Clear any cached control dependent nested loop blocks from the previous loop.
+        // This set is only relevant within the scope of a single loop.
+        // Keeping previous data would incorrectly classify blocks as control dependent,
+        // leading to missed hoisting opportunities.
+        self.nested_loop_control_dependent_blocks.clear();
 
         for block in loop_.blocks.iter() {
             let params = self.inserter.function.dfg.block_parameters(*block);

@@ -24,8 +24,8 @@ fn main(a: pub bool) {
                 for _ in 0..1 {
                     for _ in 0..1 {
                         for _ in 0..1 {
-                                let _ = (1 / (a as Field));
-                        };
+                            let _ = (1 / (a as Field));
+                        }
                     }
                 }
             }
@@ -40,8 +40,8 @@ fn main(a: pub bool) {
                         let _ = (1 / (a as Field));
 
                         for _ in 0..1 {
-                                let _ = (1 / (a as Field));
-                        };
+                            let _ = (1 / (a as Field));
+                        }
                     }
                 }
             }
