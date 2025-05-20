@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1747758831643,
+  "lastUpdate": 1747758833592,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -3958,85 +3958,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "aakoshh@gmail.com",
-            "name": "Akosh Farkash",
-            "username": "aakoshh"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "9463889c9fc5db8af52f9155a36ef6b60c38ca30",
-          "message": "chore(test): Add more tests for the removal of unused functions (#8479)",
-          "timestamp": "2025-05-13T14:05:37Z",
-          "tree_id": "db98ffa195d8182bbc1ecdf3a70f420cb3d7fa39",
-          "url": "https://github.com/noir-lang/noir/commit/9463889c9fc5db8af52f9155a36ef6b60c38ca30"
-        },
-        "date": 1747146610396,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 2.448,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 6.306,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 1.074,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 16.1,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 12.36,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root-empty",
-            "value": 1.334,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root-single-tx",
-            "value": 128,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 122,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 1.086,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-root",
-            "value": 1.63,
-            "unit": "s"
-          },
-          {
-            "name": "semaphore-depth-10",
-            "value": 0.819,
-            "unit": "s"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "asterite@gmail.com",
             "name": "Ary Borenszweig",
             "username": "asterite"
@@ -7901,6 +7822,85 @@ window.BENCHMARK_DATA = {
           {
             "name": "semaphore-depth-10",
             "value": 0.839,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "mvezenov@gmail.com",
+            "name": "Maxim Vezenov",
+            "username": "vezenovm"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "0e62fed6423c1c9b25105337f64d7947c9ed2e05",
+          "message": "chore(refactor): Switch unreachable function removal to use centralized call graph (#8578)\n\nCo-authored-by: Ary Borenszweig <asterite@gmail.com>",
+          "timestamp": "2025-05-20T16:10:05Z",
+          "tree_id": "692290f810cfbd786fb8c06e4c6268dbb4c779c9",
+          "url": "https://github.com/noir-lang/noir/commit/0e62fed6423c1c9b25105337f64d7947c9ed2e05"
+        },
+        "date": 1747758823241,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 2.326,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 6.47,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 1.128,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 16.4,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 13.2,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-empty",
+            "value": 1.294,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-single-tx",
+            "value": 132,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 124,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 1.102,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-root",
+            "value": 1.82,
+            "unit": "s"
+          },
+          {
+            "name": "semaphore-depth-10",
+            "value": 0.847,
             "unit": "s"
           }
         ]
