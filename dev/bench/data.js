@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1747759181442,
+  "lastUpdate": 1747759183994,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -11362,75 +11362,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "aakoshh@gmail.com",
-            "name": "Akosh Farkash",
-            "username": "aakoshh"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "9463889c9fc5db8af52f9155a36ef6b60c38ca30",
-          "message": "chore(test): Add more tests for the removal of unused functions (#8479)",
-          "timestamp": "2025-05-13T14:05:37Z",
-          "tree_id": "db98ffa195d8182bbc1ecdf3a70f420cb3d7fa39",
-          "url": "https://github.com/noir-lang/noir/commit/9463889c9fc5db8af52f9155a36ef6b60c38ca30"
-        },
-        "date": 1747147030825,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 236.15,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 258.41,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 211.65,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 542.69,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 535.14,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 1440,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 364.19,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-root",
-            "value": 370.11,
-            "unit": "MB"
-          },
-          {
-            "name": "semaphore_depth_10",
-            "value": 90.69,
-            "unit": "MB"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "asterite@gmail.com",
             "name": "Ary Borenszweig",
             "username": "asterite"
@@ -14760,6 +14691,75 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/noir-lang/noir/commit/354c5aa6a432d28c0d62be6fc8114f1add09f44e"
         },
         "date": 1747749059691,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 240.77,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 263.02,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 216.27,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 547.95,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 540.41,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 1440,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 369.9,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-root",
+            "value": 375.9,
+            "unit": "MB"
+          },
+          {
+            "name": "semaphore_depth_10",
+            "value": 92.92,
+            "unit": "MB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "mvezenov@gmail.com",
+            "name": "Maxim Vezenov",
+            "username": "vezenovm"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "0e62fed6423c1c9b25105337f64d7947c9ed2e05",
+          "message": "chore(refactor): Switch unreachable function removal to use centralized call graph (#8578)\n\nCo-authored-by: Ary Borenszweig <asterite@gmail.com>",
+          "timestamp": "2025-05-20T16:10:05Z",
+          "tree_id": "692290f810cfbd786fb8c06e4c6268dbb4c779c9",
+          "url": "https://github.com/noir-lang/noir/commit/0e62fed6423c1c9b25105337f64d7947c9ed2e05"
+        },
+        "date": 1747759172110,
         "tool": "customSmallerIsBetter",
         "benches": [
           {
