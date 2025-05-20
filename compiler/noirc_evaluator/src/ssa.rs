@@ -242,6 +242,8 @@ pub fn minimal_passes() -> Vec<SsaPass<'static>> {
         // which was called in the AST not being called in the SSA. Such functions would cause
         // panics later, when we are looking for global allocations.
         SsaPass::new(Ssa::remove_unreachable_functions, "Removing Unreachable Functions"),
+        // We need to get rid of function pointer parameters, otherwise they cause panic in Brillig generation.
+        SsaPass::new(Ssa::defunctionalize, "Defunctionalization"),
         // We need a DIE pass to populate `used_globals`, otherwise it will panic later.
         SsaPass::new(Ssa::dead_instruction_elimination, "Dead Instruction Elimination"),
         // We need to add an offset to constant array indices in Brillig.
