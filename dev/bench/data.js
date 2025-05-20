@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1747747845442,
+  "lastUpdate": 1747748094446,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -20563,85 +20563,6 @@ window.BENCHMARK_DATA = {
             "username": "web-flow"
           },
           "distinct": false,
-          "id": "27941c993754c784de9e6a0bec5b3ef991c8a730",
-          "message": "fix: incorrect parameter visibility location in monomorphized AST pri… (#8453)",
-          "timestamp": "2025-05-13T13:02:58Z",
-          "tree_id": "8657549ecb4c6b15398ad9aa31270e4879d338f7",
-          "url": "https://github.com/noir-lang/noir/commit/27941c993754c784de9e6a0bec5b3ef991c8a730"
-        },
-        "date": 1747143252362,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 1125.7,
-            "unit": "KB"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 2049.6,
-            "unit": "KB"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 581.7,
-            "unit": "KB"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 5122.1,
-            "unit": "KB"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 3940.9,
-            "unit": "KB"
-          },
-          {
-            "name": "rollup-block-root-empty",
-            "value": 256.9,
-            "unit": "KB"
-          },
-          {
-            "name": "rollup-block-root-single-tx",
-            "value": 25679.6,
-            "unit": "KB"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 25706.5,
-            "unit": "KB"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 181.7,
-            "unit": "KB"
-          },
-          {
-            "name": "rollup-root",
-            "value": 472,
-            "unit": "KB"
-          },
-          {
-            "name": "semaphore-depth-10",
-            "value": 636.4,
-            "unit": "KB"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
-            "email": "asterite@gmail.com",
-            "name": "Ary Borenszweig",
-            "username": "asterite"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
           "id": "28fa47e092b388fa8f56f1fad247591affa7d3e8",
           "message": "chore: rename regression test (#8483)",
           "timestamp": "2025-05-13T14:04:32Z",
@@ -24441,6 +24362,85 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/noir-lang/noir/commit/1be0da333770ee5a026a9952783b16c39b9ab7b4"
         },
         "date": 1747740272646,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 1129.7,
+            "unit": "KB"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 2050.5,
+            "unit": "KB"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 583.5,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 5129.9,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 3952.1,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-block-root-empty",
+            "value": 256.7,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-block-root-single-tx",
+            "value": 25697.5,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 25720.8,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 181.7,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-root",
+            "value": 478.4,
+            "unit": "KB"
+          },
+          {
+            "name": "semaphore-depth-10",
+            "value": 636.3,
+            "unit": "KB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "asterite@gmail.com",
+            "name": "Ary Borenszweig",
+            "username": "asterite"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "4c6426eaa11cbc0a050616f59090652242290dc2",
+          "message": "chore: use insta for execution_success stdout (#8576)",
+          "timestamp": "2025-05-20T13:08:13Z",
+          "tree_id": "c2187a46ffc07c152010ce4754278dd5e5a5a55f",
+          "url": "https://github.com/noir-lang/noir/commit/4c6426eaa11cbc0a050616f59090652242290dc2"
+        },
+        "date": 1747748084354,
         "tool": "customSmallerIsBetter",
         "benches": [
           {
