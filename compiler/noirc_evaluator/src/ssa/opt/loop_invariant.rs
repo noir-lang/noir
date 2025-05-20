@@ -303,7 +303,7 @@ impl<'f> LoopInvariantContext<'f> {
         all_predecessors: Vec<BasicBlockId>,
     ) {
         // Now check for nested loops within the current loop
-        for nested in all_loops.iter().rev() {
+        for nested in all_loops.iter() {
             if !nested.blocks.contains(&block) {
                 // Skip unrelated loops
                 continue;
