@@ -149,32 +149,15 @@ mod tests {
             let stdout = String::from_utf8(output.stdout).unwrap();
             let stdout = remove_noise_lines(stdout);
 
-            let stdout_path = test_program_dir.join("stdout.txt");
-            let expected_stdout = if stdout_path.exists() {
-                String::from_utf8(fs::read(stdout_path.clone()).unwrap()).unwrap()
-            } else {
-                String::new()
-            };
-
-            // Remove any trailing newlines added by some editors
-            let stdout = stdout.trim();
-            let expected_stdout = expected_stdout.trim();
-
-            if stdout != expected_stdout {
-                if std::env::var("OVERWRITE_TEST_OUTPUT").is_ok() {
-                    fs::write(stdout_path, stdout.to_string() + "\n").unwrap();
-                } else {
-                    println!(
-                        "stdout does not match expected output. Expected:\n{expected_stdout}\n\nActual:\n{stdout}"
-                    );
-                    if expected_stdout.is_empty() && !stdout_path.exists() {
-                        println!(
-                            "Hint: set the OVERWRITE_TEST_OUTPUT env var to establish a stdout.txt"
-                        )
-                    }
-                    assert_eq!(stdout, expected_stdout);
-                }
-            }
+            let test_name = test_program_dir.file_name().unwrap().to_string_lossy().to_string();
+            let snapshot_name = "stdout";
+            insta::with_settings!(
+                {
+                    snapshot_path => format!("./snapshots/execution_success/{test_name}")
+                },
+                {
+                insta::assert_snapshot!(snapshot_name, stdout)
+            })
         }
 
         check_program_artifact(
