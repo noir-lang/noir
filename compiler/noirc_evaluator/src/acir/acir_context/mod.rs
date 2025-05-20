@@ -944,7 +944,7 @@ impl<F: AcirField, B: BlackBoxFunctionSolver<F>> AcirContext<F, B> {
                     max_r_var,
                     predicate,
                     rhs_const.num_bits(),
-                    one,
+                    predicate,
                 )?;
             } else if bit_size == 128 {
                 // q and b are u128 and q*b could overflow so we check that either q or b are less than 2^64
