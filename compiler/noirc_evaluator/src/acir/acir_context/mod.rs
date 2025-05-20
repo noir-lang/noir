@@ -1183,12 +1183,13 @@ impl<F: AcirField, B: BlackBoxFunctionSolver<F>> AcirContext<F, B> {
                         .assertion_payloads
                         .insert(self.acir_ir.last_acir_opcode_location(), payload);
                 }
+                Ok(predicate_range)
             }
             NumericType::NativeField => {
                 // Range constraining a Field is a no-op
+                Ok(variable)
             }
         }
-        Ok(variable)
     }
 
     /// Returns an `AcirVar` which will be constrained to be lhs mod 2^{rhs}

@@ -2513,7 +2513,7 @@ pub fn perform_impl_bindings(
     impl_method: node_interner::FuncId,
     location: Location,
 ) -> Result<TypeBindings, InterpreterError> {
-    let mut bindings = TypeBindings::new();
+    let mut bindings = TypeBindings::default();
 
     if let Some(trait_method) = trait_method {
         let the_trait = interner.get_trait(trait_method.trait_id);
