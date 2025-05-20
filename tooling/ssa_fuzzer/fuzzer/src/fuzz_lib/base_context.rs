@@ -326,6 +326,9 @@ impl FuzzerContext {
                 self.inserted_instructions_count += instruction_block.instructions.len();
             }
             FuzzerCommand::MergeInstructionBlocks { first_block_idx, second_block_idx } => {
+                if !self.context_options.fuzzer_command_options.merge_instruction_blocks_enabled {
+                    return;
+                }
                 let first_idx = first_block_idx % self.instruction_blocks.len();
                 let second_idx = second_block_idx % self.instruction_blocks.len();
 
@@ -343,12 +346,21 @@ impl FuzzerContext {
                     .push(InstructionBlock { instructions: combined_instructions });
             }
             FuzzerCommand::InsertJmpIfBlock { block_then_idx, block_else_idx } => {
+                if !self.context_options.fuzzer_command_options.jmp_if_enabled {
+                    return;
+                }
                 self.process_jmp_if_command(*block_then_idx, *block_else_idx);
             }
             FuzzerCommand::InsertJmpBlock { block_idx } => {
+                if !self.context_options.fuzzer_command_options.jmp_block_enabled {
+                    return;
+                }
                 self.process_jmp_block(*block_idx);
             }
             FuzzerCommand::SwitchToNextBlock => {
+                if !self.context_options.fuzzer_command_options.switch_to_next_block_enabled {
+                    return;
+                }
                 self.not_terminated_blocks.push_back(self.current_block.clone());
                 self.current_block = self.not_terminated_blocks.pop_front().unwrap();
                 self.switch_to_block(self.current_block.block_id);

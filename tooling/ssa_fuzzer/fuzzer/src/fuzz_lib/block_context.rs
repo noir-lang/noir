@@ -303,6 +303,9 @@ impl BlockContext {
                 if !self.options.instruction_options.lt_enabled {
                     return;
                 }
+                if lhs.value_type == ValueType::Field {
+                    return;
+                }
                 self.insert_instruction_with_double_args(
                     acir_builder,
                     brillig_builder,

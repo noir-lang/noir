@@ -1,7 +1,7 @@
 use noirc_driver::CompileOptions;
 
 // TODO pass them with FuzzerOptions
-#[derive(Clone, Debug)]
+#[derive(Clone, Copy, Debug)]
 pub struct InstructionOptions {
     pub cast_enabled: bool,
     pub xor_enabled: bool,
@@ -25,7 +25,7 @@ pub struct InstructionOptions {
 impl Default for InstructionOptions {
     fn default() -> Self {
         Self {
-            cast_enabled: false,
+            cast_enabled: true,
             xor_enabled: true,
             and_enabled: true,
             or_enabled: true,
@@ -33,11 +33,11 @@ impl Default for InstructionOptions {
             add_enabled: true,
             sub_enabled: true,
             mul_enabled: true,
-            mod_enabled: false,
+            mod_enabled: true,
             div_enabled: true,
-            shl_enabled: false,
-            shr_enabled: false,
-            eq_enabled: false,
+            shl_enabled: true,
+            shr_enabled: true,
+            eq_enabled: true,
             lt_enabled: true,
             load_enabled: true,
             store_enabled: true,
@@ -58,13 +58,34 @@ pub struct ContextOptions {
     pub compile_options: CompileOptions,
     pub max_jumps_num: usize,
     pub max_instructions_num: usize,
+    pub instruction_options: InstructionOptions,
+    pub fuzzer_command_options: FuzzerCommandOptions,
 }
 
 impl From<ContextOptions> for SsaBlockOptions {
     fn from(context_options: ContextOptions) -> Self {
         SsaBlockOptions {
             constrain_idempotent_enabled: context_options.idempotent_morphing_enabled,
-            instruction_options: InstructionOptions::default(),
+            instruction_options: context_options.instruction_options,
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug)]
+pub struct FuzzerCommandOptions {
+    pub merge_instruction_blocks_enabled: bool,
+    pub jmp_if_enabled: bool,
+    pub jmp_block_enabled: bool,
+    pub switch_to_next_block_enabled: bool,
+}
+
+impl Default for FuzzerCommandOptions {
+    fn default() -> Self {
+        Self {
+            merge_instruction_blocks_enabled: true,
+            jmp_if_enabled: true,
+            jmp_block_enabled: true,
+            switch_to_next_block_enabled: true,
         }
     }
 }
@@ -75,6 +96,8 @@ pub struct FuzzerOptions {
     pub compile_options: CompileOptions,
     pub max_jumps_num: usize,
     pub max_instructions_num: usize,
+    pub instruction_options: InstructionOptions,
+    pub fuzzer_command_options: FuzzerCommandOptions,
 }
 
 impl Default for FuzzerOptions {
@@ -85,6 +108,8 @@ impl Default for FuzzerOptions {
             compile_options: CompileOptions::default(),
             max_jumps_num: 30,
             max_instructions_num: 500,
+            instruction_options: InstructionOptions::default(),
+            fuzzer_command_options: FuzzerCommandOptions::default(),
         }
     }
 }

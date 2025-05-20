@@ -2,7 +2,7 @@
 
 mod fuzz_lib;
 use fuzz_lib::fuzz_lib::{FuzzerData, fuzz_target};
-use fuzz_lib::options::FuzzerOptions;
+use fuzz_lib::options::{FuzzerCommandOptions, FuzzerOptions, InstructionOptions};
 use noirc_driver::CompileOptions;
 
 libfuzzer_sys::fuzz_target!(|data: FuzzerData| {
@@ -17,12 +17,39 @@ libfuzzer_sys::fuzz_target!(|data: FuzzerData| {
             _ => (),
         }
     }
+    let instruction_options = InstructionOptions {
+        cast_enabled: false,
+        xor_enabled: true,
+        and_enabled: true,
+        or_enabled: true,
+        not_enabled: true,
+        add_enabled: true,
+        sub_enabled: true,
+        mul_enabled: true,
+        mod_enabled: false,
+        div_enabled: true,
+        shl_enabled: false,
+        shr_enabled: false,
+        eq_enabled: false,
+        lt_enabled: false,
+        load_enabled: true,
+        store_enabled: true,
+        alloc_enabled: true,
+    };
+    let fuzzer_command_options = FuzzerCommandOptions {
+        merge_instruction_blocks_enabled: true,
+        jmp_if_enabled: true,
+        jmp_block_enabled: true,
+        switch_to_next_block_enabled: true,
+    };
     let options = FuzzerOptions {
         idempotent_morphing_enabled: false,
         constant_execution_enabled: false,
         compile_options,
         max_jumps_num: 30,
         max_instructions_num: 500,
+        instruction_options,
+        fuzzer_command_options,
     };
     fuzz_target(data, options);
 });

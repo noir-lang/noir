@@ -148,14 +148,14 @@ mod tests {
             instructions: vec![Instruction::Or { lhs: arg_0_boolean, rhs: arg_1_boolean }],
         };
         let commands = vec![
-            FuzzerCommand::InsertSimpleInstructionBlock { instruction_block_idx: 2 },
-            FuzzerCommand::InsertJmpIfBlock { block_then_idx: 0, block_else_idx: 1 },
+            FuzzerCommand::InsertSimpleInstructionBlock { instruction_block_idx: 2 }, // add boolean
+            FuzzerCommand::InsertJmpIfBlock { block_then_idx: 0, block_else_idx: 1 }, // jmpif
         ];
         let data = FuzzerData {
             blocks: vec![failing_block, succeeding_block, adding_bool_block],
             commands,
             initial_witness: default_witness(),
-            return_instruction_block_idx: 1,
+            return_instruction_block_idx: 1, // ends with non-failing block
         };
         let result = fuzz_target(data, FuzzerOptions::default());
         // we expect that this program failed to execute
@@ -206,15 +206,15 @@ mod tests {
 
         let commands = vec![
             FuzzerCommand::InsertSimpleInstructionBlock { instruction_block_idx: 0 }, // add v0 to memory
-            FuzzerCommand::InsertSimpleInstructionBlock { instruction_block_idx: 3 }, // adds v8 = v0 + v2 (6th field)
+            FuzzerCommand::InsertSimpleInstructionBlock { instruction_block_idx: 3 }, // add v8 = v0 + v2 (6th field)
             FuzzerCommand::InsertSimpleInstructionBlock { instruction_block_idx: 2 }, // set v6 to memory
-            FuzzerCommand::InsertSimpleInstructionBlock { instruction_block_idx: 1 }, // loads from memory (v6)
+            FuzzerCommand::InsertSimpleInstructionBlock { instruction_block_idx: 1 }, // load from memory (v6)
         ];
         let data = FuzzerData {
             blocks: vec![add_to_memory_block, load_block, set_block, add_block, add_block_2],
             commands,
             initial_witness: default_witness(),
-            return_instruction_block_idx: 4, // last block adds loaded value to v2
+            return_instruction_block_idx: 4, // last block adds v2 to loaded value, returns the result
         };
         let result = fuzz_target(data, FuzzerOptions::default());
         match result {
