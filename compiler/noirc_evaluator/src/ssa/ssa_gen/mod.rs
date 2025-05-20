@@ -28,7 +28,7 @@ use self::{
 
 use super::ir::basic_block::BasicBlockId;
 use super::ir::dfg::GlobalsGraph;
-use super::ir::instruction::ErrorType;
+use super::ir::instruction::{ArrayOffset, ErrorType};
 use super::ir::types::NumericType;
 use super::{
     function_builder::data_bus::DataBus,
@@ -49,7 +49,7 @@ pub fn generate_ssa(program: Program) -> Result<Ssa, RuntimeError> {
     // see which parameter has call_data/return_data attribute
     let is_databus = DataBusBuilder::is_databus(&program.main_function_signature);
 
-    let is_return_data = matches!(program.return_visibility, Visibility::ReturnData);
+    let is_return_data = matches!(program.return_visibility(), Visibility::ReturnData);
 
     let return_location = program.return_location;
     let mut context = SharedContext::new(program);
@@ -472,13 +472,14 @@ impl FunctionContext<'_> {
 
         let mut field_index = 0u128;
         Ok(Self::map_type(element_type, |typ| {
-            let offset = self.make_offset(base_index, field_index);
+            let index = self.make_offset(base_index, field_index);
             field_index += 1;
 
             // Reference counting in brillig relies on us incrementing reference
             // counts when nested arrays/slices are constructed or indexed. This
             // has no effect in ACIR code.
-            let result = self.builder.insert_array_get(array, offset, typ);
+            let offset = ArrayOffset::None;
+            let result = self.builder.insert_array_get(array, index, offset, typ);
             result.into()
         }))
     }

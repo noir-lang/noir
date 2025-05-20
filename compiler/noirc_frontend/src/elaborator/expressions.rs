@@ -9,9 +9,9 @@ use crate::{
         ArrayLiteral, AsTraitPath, BinaryOpKind, BlockExpression, CallExpression, CastExpression,
         ConstrainExpression, ConstrainKind, ConstructorExpression, Expression, ExpressionKind,
         Ident, IfExpression, IndexExpression, InfixExpression, ItemVisibility, Lambda, Literal,
-        MatchExpression, MemberAccessExpression, MethodCallExpression, Path, PathSegment,
-        PrefixExpression, StatementKind, TraitBound, UnaryOp, UnresolvedTraitConstraint,
-        UnresolvedTypeData, UnresolvedTypeExpression, UnsafeExpression,
+        MatchExpression, MemberAccessExpression, MethodCallExpression, PrefixExpression,
+        StatementKind, TraitBound, UnaryOp, UnresolvedTraitConstraint, UnresolvedTypeData,
+        UnresolvedTypeExpression, UnsafeExpression,
     },
     hir::{
         comptime::{self, InterpreterError},
@@ -38,7 +38,10 @@ use crate::{
     token::{FmtStrFragment, Tokens},
 };
 
-use super::{Elaborator, LambdaContext, UnsafeBlockStatus, UnstableFeature};
+use super::{
+    Elaborator, LambdaContext, UnsafeBlockStatus, UnstableFeature,
+    path_resolution::{TypedPath, TypedPathSegment},
+};
 
 impl Elaborator<'_> {
     pub(crate) fn elaborate_expression(&mut self, expr: Expression) -> (ExprId, Type) {
@@ -326,29 +329,31 @@ impl Elaborator<'_> {
 
         for fragment in &fragments {
             if let FmtStrFragment::Interpolation(ident_name, location) = fragment {
-                let scope_tree = self.scopes.current_scope_tree();
-                let variable = scope_tree.find(ident_name);
+                let ident = Ident::new(ident_name.clone(), *location);
 
-                let hir_ident = if let Some((old_value, _)) = variable {
-                    old_value.num_times_used += 1;
-                    old_value.ident.clone()
-                } else if let Ok((definition_id, _)) =
-                    self.lookup_global(Path::from_single(ident_name.to_string(), *location))
-                {
-                    HirIdent::non_trait_method(definition_id, *location)
-                } else {
-                    self.push_err(ResolverError::VariableNotDeclared {
-                        name: ident_name.to_owned(),
-                        location: *location,
-                    });
-                    continue;
-                };
+                let (hir_ident, var_scope_index) =
+                    if let Ok((ident, var_scope_index)) = self.use_variable(&ident) {
+                        (ident, var_scope_index)
+                    } else if let Ok((definition_id, _)) = self
+                        .lookup_global(TypedPath::from_single(ident_name.to_string(), *location))
+                    {
+                        (HirIdent::non_trait_method(definition_id, *location), 0)
+                    } else {
+                        self.push_err(ResolverError::VariableNotDeclared {
+                            name: ident_name.to_owned(),
+                            location: *location,
+                        });
+                        continue;
+                    };
+
+                self.handle_hir_ident(&hir_ident, var_scope_index, *location);
 
                 let hir_expr = HirExpression::Ident(hir_ident.clone(), None);
                 let expr_id = self.interner.push_expr(hir_expr);
                 self.interner.push_expr_location(expr_id, *location);
                 let typ = self.type_check_variable(hir_ident, expr_id, None);
                 self.interner.push_expr_type(expr_id, typ.clone());
+
                 capture_types.push(typ);
                 fmt_str_idents.push(expr_id);
             }
@@ -567,12 +572,15 @@ impl Elaborator<'_> {
                         &mut object_type,
                         &mut object,
                     );
-
-                    self.resolve_function_turbofish_generics(
-                        &func_id,
-                        method_call.generics,
-                        location,
-                    )
+                    let generics = method_call.generics;
+                    let generics = generics.map(|generics| {
+                        vecmap(generics, |generic| {
+                            let location = generic.location;
+                            let typ = self.use_type_with_kind(generic, &Kind::Any);
+                            Located::from(location, typ)
+                        })
+                    });
+                    self.resolve_function_turbofish_generics(&func_id, generics, location)
                 } else {
                     None
                 };
@@ -786,6 +794,7 @@ impl Elaborator<'_> {
             last_segment.generics = Some(generics.ordered_args);
         }
 
+        let path = self.validate_path(path);
         let last_segment = path.last_segment();
 
         let Some(typ) = self.lookup_type_or_error(path) else {
@@ -800,7 +809,7 @@ impl Elaborator<'_> {
         typ: Type,
         fields: Vec<(Ident, Expression)>,
         location: Location,
-        last_segment: Option<PathSegment>,
+        last_segment: Option<TypedPathSegment>,
     ) -> (HirExpression, Type) {
         let typ = typ.follow_bindings_shallow();
         let (r#type, generics) = match typ.as_ref() {

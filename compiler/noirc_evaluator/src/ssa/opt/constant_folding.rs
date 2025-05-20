@@ -37,7 +37,7 @@ use crate::{
             dfg::{DataFlowGraph, InsertInstructionResult},
             dom::DominatorTree,
             function::{Function, FunctionId, RuntimeType},
-            instruction::{BinaryOp, Instruction, InstructionId},
+            instruction::{ArrayOffset, BinaryOp, Instruction, InstructionId},
             types::{NumericType, Type},
             value::{Value, ValueId, ValueMapping},
         },
@@ -478,7 +478,9 @@ impl<'brillig> Context<'brillig> {
         if let Instruction::ArraySet { index, value, .. } = &instruction {
             let predicate = self.use_constraint_info.then_some(side_effects_enabled_var);
 
-            let array_get = Instruction::ArrayGet { array: instruction_results[0], index: *index };
+            let offset = ArrayOffset::None;
+            let array_get =
+                Instruction::ArrayGet { array: instruction_results[0], index: *index, offset };
 
             self.cached_instruction_results
                 .entry(array_get)
@@ -884,7 +886,7 @@ fn has_side_effects(instruction: &Instruction, dfg: &DataFlowGraph) -> bool {
         Cast(_, _) | Not(_) | Truncate { .. } | IfElse { .. } => false,
 
         // `ArrayGet`s which read from "known good" indices from an array have no side effects
-        ArrayGet { array, index } => !dfg.is_safe_index(*index, *array),
+        ArrayGet { array, index, offset: _ } => !dfg.is_safe_index(*index, *array),
 
         // ArraySet has side effects
         ArraySet { .. } => true,
@@ -1162,7 +1164,7 @@ mod test {
             ";
         let expected = "
             acir(inline) fn main f0 {
-              b0(v0: [Field; 4], v1: u32, v2: u1, v3: u1):
+              b0(v0: [Field; 4], v1: u32, v2: bool, v3: bool):
                 enable_side_effects v2
                 v5 = array_get v0, index u32 0 -> Field
                 v6 = array_get v0, index v1 -> Field
@@ -1576,7 +1578,7 @@ mod test {
             ";
         let ssa = Ssa::from_str(src).unwrap();
         // Need to run SSA pass that sets up Brillig array gets
-        let ssa = ssa.brillig_array_gets();
+        let ssa = ssa.brillig_array_get_and_set();
         let brillig = ssa.to_brillig(&BrilligOptions::default());
 
         let ssa = ssa.fold_constants_with_brillig(&brillig);

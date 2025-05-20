@@ -479,8 +479,10 @@ impl<'a> Context<'a> {
         numeric_type: &NumericType,
     ) -> Result<AcirVar, RuntimeError> {
         let acir_var = self.acir_context.add_variable();
+        let one = self.acir_context.add_constant(FieldElement::one());
         if matches!(numeric_type, NumericType::Signed { .. } | NumericType::Unsigned { .. }) {
-            self.acir_context.range_constrain_var(acir_var, numeric_type, None)?;
+            // The predicate is one so that this constraint is is always applied.
+            self.acir_context.range_constrain_var(acir_var, numeric_type, None, one)?;
         }
         Ok(acir_var)
     }
@@ -496,10 +498,11 @@ impl<'a> Context<'a> {
         self.acir_context.set_call_stack(dfg.get_instruction_call_stack(instruction_id));
         let mut warnings = Vec::new();
         // Disable the side effects if the binary instruction does not require them
+        let one = self.acir_context.add_constant(FieldElement::one());
         let predicate = if instruction.requires_acir_gen_predicate(dfg) {
             self.current_side_effects_enabled_var
         } else {
-            self.acir_context.add_constant(FieldElement::one())
+            one
         };
 
         match instruction {
@@ -639,10 +642,13 @@ impl<'a> Context<'a> {
             }
             Instruction::RangeCheck { value, max_bit_size, assert_message } => {
                 let acir_var = self.convert_numeric_value(*value, dfg)?;
+                // Predicate is one because the predicate has already been
+                // handled in the RangeCheck instruction during the flattening pass.
                 self.acir_context.range_constrain_var(
                     acir_var,
                     &NumericType::Unsigned { bit_size: *max_bit_size },
                     assert_message.clone(),
+                    one,
                 )?;
             }
             Instruction::IfElse { .. } => {
@@ -1061,10 +1067,10 @@ impl<'a> Context<'a> {
 
         if let NumericType::Unsigned { bit_size } = &num_type {
             // Check for integer overflow
-            self.check_unsigned_overflow(result, *bit_size, binary, predicate)?;
+            self.check_unsigned_overflow(result, *bit_size, binary, predicate)
+        } else {
+            Ok(result)
         }
-
-        Ok(result)
     }
 
     /// Adds a range check against the bit size of the result of addition, subtraction or multiplication
@@ -1074,21 +1080,20 @@ impl<'a> Context<'a> {
         bit_size: u32,
         binary: &Binary,
         predicate: AcirVar,
-    ) -> Result<(), RuntimeError> {
+    ) -> Result<AcirVar, RuntimeError> {
         let msg = match binary.operator {
             BinaryOp::Add { unchecked: false } => "attempt to add with overflow",
             BinaryOp::Sub { unchecked: false } => "attempt to subtract with overflow",
             BinaryOp::Mul { unchecked: false } => "attempt to multiply with overflow",
-            _ => return Ok(()),
+            _ => return Ok(result),
         };
 
-        let with_pred = self.acir_context.mul_var(result, predicate)?;
         self.acir_context.range_constrain_var(
-            with_pred,
+            result,
             &NumericType::Unsigned { bit_size },
             Some(msg.to_string()),
-        )?;
-        Ok(())
+            predicate,
+        )
     }
 
     /// Operands in a binary operation are checked to have the same type.

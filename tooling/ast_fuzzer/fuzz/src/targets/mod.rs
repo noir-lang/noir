@@ -1,7 +1,8 @@
 pub mod acir_vs_brillig;
 pub mod comptime_vs_brillig;
-pub mod init_vs_final;
+pub mod min_vs_full;
 pub mod orig_vs_morph;
+pub mod pass_vs_prev;
 
 #[cfg(test)]
 mod tests {
@@ -24,9 +25,8 @@ mod tests {
     /// ```ignore
     /// cargo test -p noir_ast_fuzzer_fuzz
     /// ```
-    pub fn should_ignore_on_ci() -> bool {
-        // TODO: Enable on CI once the following are fixed:
-        // #8229, #8230, #8231, #8236, #8261, #8262
+    #[allow(unused)]
+    pub fn is_running_in_ci() -> bool {
         std::env::var("CI").is_ok()
     }
 
@@ -40,9 +40,8 @@ mod tests {
     /// cargo test -p noir_ast_fuzzer_fuzz acir_vs_brillig
     /// ```
     pub fn fuzz_with_arbtest(f: impl Fn(&mut Unstructured) -> eyre::Result<()>) {
-        if should_ignore_on_ci() {
-            return;
-        }
+        let _ = env_logger::try_init();
+
         let mut prop = arbtest::arbtest(|u| {
             f(u).unwrap();
             Ok(())
