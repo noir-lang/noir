@@ -48,7 +48,10 @@ impl Deserialize<KEY_VALIDATION_REQUEST_AND_GENERATOR_LENGTH> for KeyValidationR
 }
 
 impl KeyValidationRequestAndGenerator {
-    pub(crate) fn scope(self, contract_address: AztecAddress) -> ScopedKeyValidationRequestAndGenerator {
+    pub(crate) fn scope(
+        self,
+        contract_address: AztecAddress,
+    ) -> ScopedKeyValidationRequestAndGenerator {
         ScopedKeyValidationRequestAndGenerator { request: self, contract_address }
     }
 }

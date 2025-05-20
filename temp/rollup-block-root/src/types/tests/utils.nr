@@ -13,7 +13,11 @@ where
 
 // Swap two items in a BoundedVec.
 // Useful when we want to shuffle side effects, which by default are ordered by counters when we add mock data to FixtureBuilder.
-pub(crate) fn swap_items<T, let N: u32>(vec: &mut BoundedVec<T, N>, from_index: u32, to_index: u32) {
+pub(crate) fn swap_items<T, let N: u32>(
+    vec: &mut BoundedVec<T, N>,
+    from_index: u32,
+    to_index: u32,
+) {
     let tmp = vec.get(from_index);
     vec.set(from_index, vec.get(to_index));
     vec.set(to_index, tmp);

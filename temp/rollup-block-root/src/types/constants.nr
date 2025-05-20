@@ -246,7 +246,8 @@ pub(crate) global L2_TO_L1_MESSAGE_LENGTH: u32 = 3;
 pub(crate) global SCOPED_L2_TO_L1_MESSAGE_LENGTH: u32 = L2_TO_L1_MESSAGE_LENGTH + 1;
 pub(crate) global MAX_BLOCK_NUMBER_LENGTH: u32 = 2; // 1 for the option flag, 1 for the value
 pub(crate) global KEY_VALIDATION_REQUEST_LENGTH: u32 = 4;
-pub(crate) global KEY_VALIDATION_REQUEST_AND_GENERATOR_LENGTH: u32 = KEY_VALIDATION_REQUEST_LENGTH + 1;
+pub(crate) global KEY_VALIDATION_REQUEST_AND_GENERATOR_LENGTH: u32 =
+    KEY_VALIDATION_REQUEST_LENGTH + 1;
 pub(crate) global SCOPED_KEY_VALIDATION_REQUEST_AND_GENERATOR_LENGTH: u32 =
     KEY_VALIDATION_REQUEST_AND_GENERATOR_LENGTH + 1;
 pub(crate) global PARTIAL_STATE_REFERENCE_LENGTH: u32 = 6;
@@ -257,7 +258,8 @@ pub(crate) global PRIVATE_LOG_LENGTH: u32 = PRIVATE_LOG_SIZE_IN_FIELDS + 1 /* le
 pub(crate) global PRIVATE_LOG_DATA_LENGTH: u32 = PRIVATE_LOG_LENGTH
     + 1 /* note_hash_counter */
     + 1 /* counter */;
-pub(crate) global SCOPED_PRIVATE_LOG_DATA_LENGTH: u32 = PRIVATE_LOG_DATA_LENGTH + 1 /* contract_address */;
+pub(crate) global SCOPED_PRIVATE_LOG_DATA_LENGTH: u32 =
+    PRIVATE_LOG_DATA_LENGTH + 1 /* contract_address */;
 pub(crate) global PUBLIC_LOG_SIZE_IN_FIELDS: u32 = 13;
 pub(crate) global PUBLIC_LOG_LENGTH: u32 = PUBLIC_LOG_SIZE_IN_FIELDS
     + 1 /* length */
@@ -362,9 +364,12 @@ pub(crate) global TX_CONSTANT_DATA_LENGTH: u32 = BLOCK_HEADER_LENGTH
     + TX_CONTEXT_LENGTH
     + 1 /* vk_tree_root */
     + 1 /* protocol_contract_tree_root */;
-pub(crate) global COMBINED_CONSTANT_DATA_LENGTH: u32 = TX_CONSTANT_DATA_LENGTH + GLOBAL_VARIABLES_LENGTH;
+pub(crate) global COMBINED_CONSTANT_DATA_LENGTH: u32 =
+    TX_CONSTANT_DATA_LENGTH + GLOBAL_VARIABLES_LENGTH;
 
-pub(crate) global PRIVATE_ACCUMULATED_DATA_LENGTH: u32 = (SCOPED_NOTE_HASH_LENGTH * MAX_NOTE_HASHES_PER_TX)
+pub(crate) global PRIVATE_ACCUMULATED_DATA_LENGTH: u32 = (
+    SCOPED_NOTE_HASH_LENGTH * MAX_NOTE_HASHES_PER_TX
+)
     + (SCOPED_NULLIFIER_LENGTH * MAX_NULLIFIERS_PER_TX)
     + (MAX_L2_TO_L1_MSGS_PER_TX * SCOPED_L2_TO_L1_MESSAGE_LENGTH)
     + (SCOPED_PRIVATE_LOG_DATA_LENGTH * MAX_PRIVATE_LOGS_PER_TX)
@@ -490,7 +495,8 @@ pub(crate) global NESTED_RECURSIVE_PROOF_LENGTH: u32 = RECURSIVE_PROOF_LENGTH;
 pub(crate) global IPA_PROOF_LENGTH: u32 = 69;
 pub(crate) global RECURSIVE_ROLLUP_HONK_PROOF_LENGTH: u32 =
     RECURSIVE_PROOF_LENGTH + IPA_CLAIM_SIZE + IPA_PROOF_LENGTH;
-pub(crate) global NESTED_RECURSIVE_ROLLUP_HONK_PROOF_LENGTH: u32 = RECURSIVE_ROLLUP_HONK_PROOF_LENGTH;
+pub(crate) global NESTED_RECURSIVE_ROLLUP_HONK_PROOF_LENGTH: u32 =
+    RECURSIVE_ROLLUP_HONK_PROOF_LENGTH;
 pub(crate) global TUBE_PROOF_LENGTH: u32 = RECURSIVE_ROLLUP_HONK_PROOF_LENGTH; // in the future these can differ
 
 pub(crate) global HONK_VERIFICATION_KEY_LENGTH_IN_FIELDS: u32 = 112; // size of an Ultra verification key
@@ -506,7 +512,8 @@ pub(crate) global AVM_VERIFICATION_KEY_LENGTH_IN_FIELDS: u32 = 2 + 21 * 4;
 // Setting limits for MAX_PUBLIC_CALLS_TO_UNIQUE_CONTRACT_CLASS_IDS
 // This value is determined by the length of the AVM trace and the MAX_PUBLIC_BYTECODE_SIZE_IN_BYTES
 // (i.e. 2^21 / MAX_PUBLIC_BYTECODE_SIZE_IN_BYTES ==> 2^21 / 96,000 = 21
-pub(crate) global MAX_PUBLIC_BYTECODE_SIZE_IN_BYTES: u32 = MAX_PACKED_PUBLIC_BYTECODE_SIZE_IN_FIELDS * 32;
+pub(crate) global MAX_PUBLIC_BYTECODE_SIZE_IN_BYTES: u32 =
+    MAX_PACKED_PUBLIC_BYTECODE_SIZE_IN_FIELDS * 32;
 pub(crate) global MAX_PUBLIC_CALLS_TO_UNIQUE_CONTRACT_CLASS_IDS: u32 = 21;
 
 // Note hash generator index which can be used by custom implementations of NoteHash::compute_note_hash
@@ -718,10 +725,12 @@ pub(crate) global AVM_PUBLIC_INPUTS_TRANSACTION_FEE_ROW_IDX: u32 = AVM_PUBLIC_IN
     + MAX_TOTAL_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX;
 
 // End Reverted
-pub(crate) global AVM_PUBLIC_INPUTS_REVERTED_ROW_IDX: u32 = AVM_PUBLIC_INPUTS_TRANSACTION_FEE_ROW_IDX + 1;
+pub(crate) global AVM_PUBLIC_INPUTS_REVERTED_ROW_IDX: u32 =
+    AVM_PUBLIC_INPUTS_TRANSACTION_FEE_ROW_IDX + 1;
 
 // AVM's max public input column size (aka total number of rows)
-pub(crate) global AVM_PUBLIC_INPUTS_COLUMNS_MAX_LENGTH: u32 = AVM_PUBLIC_INPUTS_REVERTED_ROW_IDX + 1;
+pub(crate) global AVM_PUBLIC_INPUTS_COLUMNS_MAX_LENGTH: u32 =
+    AVM_PUBLIC_INPUTS_REVERTED_ROW_IDX + 1;
 pub(crate) global AVM_NUM_PUBLIC_INPUT_COLUMNS: u32 = 4;
 // Combined size of the AVM's public input columns concatenated together
 pub(crate) global AVM_PUBLIC_INPUTS_COLUMNS_COMBINED_LENGTH: u32 =
@@ -788,7 +797,8 @@ pub(crate) global L2_GAS_PER_NULLIFIER: u32 =
     L2_GAS_DISTRIBUTED_STORAGE_PREMIUM + (3 * NULLIFIER_TREE_HEIGHT * L2_GAS_PER_WRITE_MERKLE_HASH);
 
 // Gas for tree read requests
-pub(crate) global L2_GAS_PER_PUBLIC_DATA_READ: u32 = PUBLIC_DATA_TREE_HEIGHT * L2_GAS_PER_READ_MERKLE_HASH;
+pub(crate) global L2_GAS_PER_PUBLIC_DATA_READ: u32 =
+    PUBLIC_DATA_TREE_HEIGHT * L2_GAS_PER_READ_MERKLE_HASH;
 pub(crate) global L2_GAS_PER_NOTE_HASH_READ_REQUEST: u32 =
     NOTE_HASH_TREE_HEIGHT * L2_GAS_PER_READ_MERKLE_HASH;
 // 2x because non-membership checks are really 2 membership checks
@@ -868,7 +878,8 @@ pub(crate) global AVM_TORADIXBE_BASE_L2_GAS: u32 = 24;
 pub(crate) global AVM_CALLDATACOPY_DYN_L2_GAS: u32 = 3;
 pub(crate) global AVM_RETURNDATACOPY_DYN_L2_GAS: u32 = 3;
 // a single increment here corresponds to an entire additional field (hence x32 bytes per field)
-pub(crate) global AVM_EMITUNENCRYPTEDLOG_DYN_L2_GAS: u32 = 3 + (DA_BYTES_PER_FIELD * L2_GAS_PER_LOG_BYTE);
+pub(crate) global AVM_EMITUNENCRYPTEDLOG_DYN_L2_GAS: u32 =
+    3 + (DA_BYTES_PER_FIELD * L2_GAS_PER_LOG_BYTE);
 pub(crate) global AVM_CALL_DYN_L2_GAS: u32 = 4;
 pub(crate) global AVM_STATICCALL_DYN_L2_GAS: u32 = 4;
 pub(crate) global AVM_RETURN_DYN_L2_GAS: u32 = 3;
@@ -934,7 +945,8 @@ pub(crate) global UPDATES_SHARED_MUTABLE_METADATA_BIT_SIZE: u32 =
     UPDATES_SHARED_MUTABLE_SDC_OPTION_DELAY_BIT_SIZE * 2 + BLOCK_NUMBER_BIT_SIZE * 2;
 
 pub(crate) global GRUMPKIN_ONE_X: Field = 1;
-pub(crate) global GRUMPKIN_ONE_Y: Field = 17631683881184975370165255887551781615748388533673675138860;
+pub(crate) global GRUMPKIN_ONE_Y: Field =
+    17631683881184975370165255887551781615748388533673675138860;
 
 mod test {
     use crate::types::constants::{

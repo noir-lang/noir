@@ -1,14 +1,14 @@
-use bigint::{bignum::BigNum, fields::bls12_381Fr::BLS12_381_Fr as F};
 use crate::types::constants::FIELDS_PER_BLOB;
+use bigint::{bignum::BigNum, fields::bls12_381Fr::BLS12_381_Fr as F};
 
 // TODO(#9982): Delete this file and go back to using config.nr - calculating ROOTS in unconstrained is insecure.
 
-pub(crate)global LOG_FIELDS_PER_BLOB: u32 = 12;
-pub(crate)global EXTRA_FIELDS_PER_BLOB: u32 = 16; // 16 = floor(4096 FIELDS_PER_BLOB / 254 noir_field_bits), wasting only 32 bits.
-pub(crate)global NOIR_FIELDS_PER_BLOB: u32 = FIELDS_PER_BLOB + EXTRA_FIELDS_PER_BLOB;
-pub(crate)global FIELDS_CARRYING_AN_EXTRA_BIT_PER_BLOB: u32 = EXTRA_FIELDS_PER_BLOB * 254; // EXTRA_FIELDS_PER_BLOB * 254 = 4064. So the first 4064 bls Fr fields in the blob will carry an extra bit in their 255th bit position, that will be used to reconstitute 16 extra fields.
-pub(crate)global D: F = F::from_limbs([4096, 0, 0]);
-pub(crate)global D_INV: F = F::from_limbs([
+pub(crate) global LOG_FIELDS_PER_BLOB: u32 = 12;
+pub(crate) global EXTRA_FIELDS_PER_BLOB: u32 = 16; // 16 = floor(4096 FIELDS_PER_BLOB / 254 noir_field_bits), wasting only 32 bits.
+pub(crate) global NOIR_FIELDS_PER_BLOB: u32 = FIELDS_PER_BLOB + EXTRA_FIELDS_PER_BLOB;
+pub(crate) global FIELDS_CARRYING_AN_EXTRA_BIT_PER_BLOB: u32 = EXTRA_FIELDS_PER_BLOB * 254; // EXTRA_FIELDS_PER_BLOB * 254 = 4064. So the first 4064 bls Fr fields in the blob will carry an extra bit in their 255th bit position, that will be used to reconstitute 16 extra fields.
+pub(crate) global D: F = F::from_limbs([4096, 0, 0]);
+pub(crate) global D_INV: F = F::from_limbs([
     0x686828bfce5c19400fffff00100001,
     0x6878b46ae3705eb6a46a89213de7d3,
     0x73e6,
@@ -91,7 +91,7 @@ unconstrained fn compute_powers(x: F) -> [F; FIELDS_PER_BLOB] {
     powers
 }
 
-pub(crate)unconstrained fn compute_roots_of_unity() -> [F; FIELDS_PER_BLOB] {
+pub(crate) unconstrained fn compute_roots_of_unity() -> [F; FIELDS_PER_BLOB] {
     // The below const is found from:
     // let order: F = BigNum { limbs: [ FIELDS_PER_BLOB, 0, 0 ];
     // let exp = BLS_MODULUS_SUB_1.udiv_mod(order);

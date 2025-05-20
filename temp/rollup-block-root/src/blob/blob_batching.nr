@@ -9,13 +9,13 @@ use crate::blob::{
     },
     blob_public_inputs::BlobCommitment,
 };
-use bigint::{BigNum, BLS12_381_Fr as F};
 use crate::types::{
     abis::sponge_blob::SpongeBlob,
     constants::{BLOBS_PER_BLOCK, FIELDS_PER_BLOB},
     traits::is_empty,
     utils::arrays::array_splice,
 };
+use bigint::{BigNum, BLS12_381_Fr as F};
 
 // Evaluates a single blob:
 // - Evaluates the blob at shared challenge z and returns result y_i
@@ -44,7 +44,7 @@ fn evaluate_blob_for_batching(
 // - Compresses each of the blob's injected commitments (")
 // - Evaluates each blob individually to find its challenge z_i & evaluation y_i
 // - Updates the batched blob accumulator
-pub(crate)fn evaluate_blobs_and_batch(
+pub(crate) fn evaluate_blobs_and_batch(
     blobs_as_fields: [Field; FIELDS_PER_BLOB * BLOBS_PER_BLOCK],
     kzg_commitments_points: [BLSPoint; BLOBS_PER_BLOCK],
     mut sponge_blob: SpongeBlob,

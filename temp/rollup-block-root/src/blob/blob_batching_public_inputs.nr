@@ -1,3 +1,9 @@
+use crate::types::{
+    constants::{BLOB_ACCUMULATOR_PUBLIC_INPUTS, BLOCK_BLOB_PUBLIC_INPUTS, BLS12_FR_LIMBS},
+    hash::{poseidon2_hash, sha256_to_field},
+    traits::{Deserialize, Empty, Serialize},
+    utils::{arrays::array_splice, field::{byte_to_bits_be, field_from_bytes}, reader::Reader},
+};
 use bigcurve::{
     BigCurveTrait,
     curves::bls12_381::{BLS12_381, BLS12_381Scalar},
@@ -5,24 +11,18 @@ use bigcurve::{
 };
 use bigint::{BigNum, BLS12_381_Fq as Q, BLS12_381_Fr as F};
 use std::ops::{Add, Mul};
-use crate::types::{
-    constants::{BLOB_ACCUMULATOR_PUBLIC_INPUTS, BLOCK_BLOB_PUBLIC_INPUTS, BLS12_FR_LIMBS},
-    hash::{poseidon2_hash, sha256_to_field},
-    traits::{Deserialize, Empty, Serialize},
-    utils::{arrays::array_splice, field::{byte_to_bits_be, field_from_bytes}, reader::Reader},
-};
 
-pub(crate)type BLSPoint = BLS12_381;
+pub(crate) type BLSPoint = BLS12_381;
 
-pub(crate)struct BatchingBlobCommitment {
-    pub(crate)point: BLSPoint,
-    pub(crate)compressed: [u8; 48], // TODO(MW): get Q::num_bytes from somewhere, rather than hardcoded 48
+pub(crate) struct BatchingBlobCommitment {
+    pub(crate) point: BLSPoint,
+    pub(crate) compressed: [u8; 48], // TODO(MW): get Q::num_bytes from somewhere, rather than hardcoded 48
 }
 
 impl BatchingBlobCommitment {
     // The compressed form is a BLS12Fq field encoded as 2 BN fields.
     // The first is the first 31 bytes, and the second is the next 17 bytes:
-    pub(crate)fn to_compressed_fields(self) -> [Field; 2] {
+    pub(crate) fn to_compressed_fields(self) -> [Field; 2] {
         [
             // field 0 is bytes 0..31
             field_from_bytes::<31>(array_splice(self.compressed, 0), true),
@@ -32,7 +32,7 @@ impl BatchingBlobCommitment {
     }
 
     // Helper fn largely used in testing to simplify fixtures
-    pub(crate)fn from_limbs(x_limbs: [u128; 4], y_limbs: [u128; 4]) -> Self {
+    pub(crate) fn from_limbs(x_limbs: [u128; 4], y_limbs: [u128; 4]) -> Self {
         let x = Q::from_limbs(x_limbs);
         let y = Q::from_limbs(y_limbs);
         let point = BLSPoint { x, y, is_infinity: (x.is_zero()) & (y.is_zero()) };
@@ -41,7 +41,7 @@ impl BatchingBlobCommitment {
 
     // The commitment for an empty blob is (0, 0), which is compressed to [192, 0, ..., 0]
     // NOT [0, 0, ..., 0] due to the is_compressed flag:
-    pub(crate)fn empty_blob() -> Self {
+    pub(crate) fn empty_blob() -> Self {
         Self {
             point: BLSPoint { x: Q::zero(), y: Q::zero(), is_infinity: true },
             compressed: [
@@ -76,7 +76,7 @@ impl Empty for BatchingBlobCommitment {
 //     }
 // }
 // So, e.g., can just call point.compress_to_bytes() in future. For now:
-pub(crate)fn compress_to_blob_commitment(point: BLSPoint) -> (BatchingBlobCommitment) {
+pub(crate) fn compress_to_blob_commitment(point: BLSPoint) -> (BatchingBlobCommitment) {
     let (flags, x) = get_flags(point);
     // TODO(#13609): use built in .to_be_bytes() in bignum 0.7.0
     let mut compressed = x.to_be_bytes();
@@ -125,10 +125,10 @@ fn set_flags(flags: [bool; 3], byte: u8) -> u8 {
 * - y_i = Evaluation for one blob (=p_i(z))
 * - c_i = Commitment for one blob (=C_i)
 */
-pub(crate)struct BlobAccumulationInputs {
-    pub(crate)z_i: Field,
-    pub(crate)y_i: F,
-    pub(crate)c_i: BatchingBlobCommitment,
+pub(crate) struct BlobAccumulationInputs {
+    pub(crate) z_i: Field,
+    pub(crate) y_i: F,
+    pub(crate) c_i: BatchingBlobCommitment,
 }
 
 impl Empty for BlobAccumulationInputs {
@@ -154,13 +154,13 @@ impl Empty for BlobAccumulationInputs {
 *
 * TODO(MW): Compress F and Q values to reduce number of public inputs (BLOB_ACCUMULATOR_PUBLIC_INPUTS)
 */
-pub(crate)struct BlobAccumulatorPublicInputs {
-    pub(crate)blob_commitments_hash: Field, // Hash of Cs (to link to L1 blob hashes) (BN254Fr)
-    pub(crate)z: Field, // Challenge at which the batched blob polynomial is evaluated (BN254Fr)
-    pub(crate)y: F, // Current state of y's linear combination (sum_i {gamma^i * y_i}) where y_i is blob_i's evaluation y (BLS12Fr)
-    pub(crate)c: BLSPoint, // Current state of C's linear combination (sum_i {gamma^i * C_i}) where C_i is blob_i's commitment C (BLS12 point: { x: BLS12Fq, y: BLS12Fq })
-    pub(crate)gamma: Field, // Challenge for linear combination of each blob's y and C (BLS12Fr but represented here as BN254Fr, since it is hashed natively)
-    pub(crate)gamma_pow: F, // gamma^i for current blob, used above (BLS12Fr)
+pub(crate) struct BlobAccumulatorPublicInputs {
+    pub(crate) blob_commitments_hash: Field, // Hash of Cs (to link to L1 blob hashes) (BN254Fr)
+    pub(crate) z: Field, // Challenge at which the batched blob polynomial is evaluated (BN254Fr)
+    pub(crate) y: F, // Current state of y's linear combination (sum_i {gamma^i * y_i}) where y_i is blob_i's evaluation y (BLS12Fr)
+    pub(crate) c: BLSPoint, // Current state of C's linear combination (sum_i {gamma^i * C_i}) where C_i is blob_i's commitment C (BLS12 point: { x: BLS12Fq, y: BLS12Fq })
+    pub(crate) gamma: Field, // Challenge for linear combination of each blob's y and C (BLS12Fr but represented here as BN254Fr, since it is hashed natively)
+    pub(crate) gamma_pow: F, // gamma^i for current blob, used above (BLS12Fr)
 }
 
 impl BlobAccumulatorPublicInputs {
@@ -191,7 +191,7 @@ impl BlobAccumulatorPublicInputs {
     * - Checking final gamma_acc == gamma in root circuit
     *
     */
-    pub(crate)fn accumulate(self, other: BlobAccumulationInputs, final_gamma: F) -> Self {
+    pub(crate) fn accumulate(self, other: BlobAccumulationInputs, final_gamma: F) -> Self {
         // TODO(#13608): use a BLS12 based hash? Is using BN based safe - since the output is smaller is there a skew?
         let hashed_y_i = poseidon2_hash(other.y_i.get_limbs().map(|l| l as Field));
         Self {
@@ -207,7 +207,7 @@ impl BlobAccumulatorPublicInputs {
         }
     }
 
-    pub(crate)fn init(first_output: BlobAccumulationInputs, final_gamma: F) -> Self {
+    pub(crate) fn init(first_output: BlobAccumulationInputs, final_gamma: F) -> Self {
         // TODO(#13608): use a BLS12 based hash? Is using BN based safe - since the output is smaller is there a skew?
         let hashed_y_0 = poseidon2_hash(first_output.y_i.get_limbs().map(|l| l as Field));
         Self {
@@ -222,7 +222,7 @@ impl BlobAccumulatorPublicInputs {
 
     // Completes the final checks for the last accumulator state. This is called in the root rollup and
     // exists here to avoid importing bignum's to_field in the rollup_lib.
-    pub(crate)fn finalize_and_validate(
+    pub(crate) fn finalize_and_validate(
         self,
         injected: FinalBlobBatchingChallenges,
     ) -> FinalBlobAccumulatorPublicInputs {
@@ -318,9 +318,9 @@ impl Deserialize<BLOB_ACCUMULATOR_PUBLIC_INPUTS> for BlobAccumulatorPublicInputs
 *
 * Iteratively calculated by BlobAccumulatorPublicInputs.accumulate() above. See also precomputeBatchedBlobChallenges() in ts.
 */
-pub(crate)struct FinalBlobBatchingChallenges {
-    pub(crate)z: Field,
-    pub(crate)gamma: F,
+pub(crate) struct FinalBlobBatchingChallenges {
+    pub(crate) z: Field,
+    pub(crate) gamma: F,
 }
 
 impl Empty for FinalBlobBatchingChallenges {
@@ -363,11 +363,11 @@ impl Deserialize<BLS12_FR_LIMBS + 1> for FinalBlobBatchingChallenges {
 *
 * Gamma has served its purpose in the 'random' linear combination and is not required as a public input.
 */
-pub(crate)struct FinalBlobAccumulatorPublicInputs {
-    pub(crate)blob_commitments_hash: Field, // Hash of Cs (to link to L1 blob hashes) (BN254Fr)
-    pub(crate)z: Field, // Challenge at which the batched blob polynomial is evaluated (BN254Fr)
-    pub(crate)y: F, // Batched blob's evaluation y (BLS12Fr)
-    pub(crate)c: [Field; 2], // Batched blob's commitment C (BLS12 point: { x: BLS12Fq, y: BLS12Fq }) compressed to 48 bytes, stored in 2 fields of 31 and 17 bytes
+pub(crate) struct FinalBlobAccumulatorPublicInputs {
+    pub(crate) blob_commitments_hash: Field, // Hash of Cs (to link to L1 blob hashes) (BN254Fr)
+    pub(crate) z: Field, // Challenge at which the batched blob polynomial is evaluated (BN254Fr)
+    pub(crate) y: F, // Batched blob's evaluation y (BLS12Fr)
+    pub(crate) c: [Field; 2], // Batched blob's commitment C (BLS12 point: { x: BLS12Fq, y: BLS12Fq }) compressed to 48 bytes, stored in 2 fields of 31 and 17 bytes
 }
 
 /**
@@ -375,10 +375,10 @@ pub(crate)struct FinalBlobAccumulatorPublicInputs {
 * - end_blob_accumulator: Accumulated opening proofs for all blobs after adding this block range.
 * - final_blob_challenges: Final values z and gamma, shared across the epoch.
 */
-pub(crate)struct BlockBlobPublicInputs {
-    pub(crate)start_blob_accumulator: BlobAccumulatorPublicInputs,
-    pub(crate)end_blob_accumulator: BlobAccumulatorPublicInputs,
-    pub(crate)final_blob_challenges: FinalBlobBatchingChallenges,
+pub(crate) struct BlockBlobPublicInputs {
+    pub(crate) start_blob_accumulator: BlobAccumulatorPublicInputs,
+    pub(crate) end_blob_accumulator: BlobAccumulatorPublicInputs,
+    pub(crate) final_blob_challenges: FinalBlobBatchingChallenges,
 }
 
 impl Empty for BlockBlobPublicInputs {
@@ -426,6 +426,7 @@ mod tests {
         BatchingBlobCommitment, BlockBlobPublicInputs, BLSPoint, compress_to_blob_commitment,
         get_flags,
     };
+    use crate::types::traits::{Deserialize, Empty, Serialize};
     use bigcurve::{
         BigCurveTrait,
         CurveParamsTrait,
@@ -433,7 +434,6 @@ mod tests {
     };
     use bigint::{BigNum, BLS12_381_Fq as Q};
     use std::ops::{Add, Mul};
-    use crate::types::traits::{Deserialize, Empty, Serialize};
 
     #[test]
     unconstrained fn point_compression() {

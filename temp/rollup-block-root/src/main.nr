@@ -1,6 +1,6 @@
 use blob::{
     blob::{
-        barycentric_evaluate_blob_at_z, check_block_blob_sponge, compute_challenge,
+        barycentric_evaluate_blob_at_z, compute_challenge,
         convert_blob_fields,
     },
     blob_batching::{evaluate_blobs_and_batch, evaluate_blob_for_batching},
@@ -24,7 +24,7 @@ pub(crate) mod blob;
 
 
 global FIELDS_PER_BLOB: u32 = 4096;
-global BLOBS_PER_BLOCK: u32 = 3;
+global BLOBS_PER_BLOCK: u32 = 1;
 
 fn main(start_blob_accumulator: BlobAccumulatorPublicInputs, final_blob_challenges: FinalBlobBatchingChallenges, end_sponge_blob: SpongeBlob, blobs_as_fields: [Field; FIELDS_PER_BLOB * BLOBS_PER_BLOCK], kzg_commitments_points: [BLSPoint; BLOBS_PER_BLOCK]) -> pub BlobAccumulatorPublicInputs {
     let mut sponge_blob = end_sponge_blob;
@@ -35,8 +35,10 @@ fn main(start_blob_accumulator: BlobAccumulatorPublicInputs, final_blob_challeng
     // z_i = H(hashed_blobs_fields, kzg_commitment[0], kzg_commitment[1])
     // This is ok, because each commitment is unique to the blob, and we need hashed_blobs_fields to encompass
     // all fields in the blob, which it does.
-    let hashed_blobs_fields = check_block_blob_sponge(blobs_as_fields, sponge_blob);
-    for i in 0..BLOBS_PER_BLOCK {
+    let hashed_blobs_fields = sponge_blob.squeeze();
+    
+    // for-loop is required
+    for i in 0..1 {
         let single_blob_fields = array_splice(blobs_as_fields, i * FIELDS_PER_BLOB);
         let c_i = compress_to_blob_commitment(kzg_commitments_points[i]);
         let (z_i, y_i) = evaluate_blob_for_batching(

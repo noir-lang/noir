@@ -43,7 +43,10 @@ pub(crate) fn private_functions_root_from_siblings(
     )
 }
 
-pub(crate) fn compute_note_hash_nonce(first_nullifier_in_tx: Field, note_index_in_tx: u32) -> Field {
+pub(crate) fn compute_note_hash_nonce(
+    first_nullifier_in_tx: Field,
+    note_index_in_tx: u32,
+) -> Field {
     // Hashing the first nullifier with note index in tx is guaranteed to be unique (because all nullifiers are also
     // unique).
     poseidon2_hash_with_separator(
@@ -103,7 +106,10 @@ pub(crate) fn silo_nullifier(nullifier: ScopedNullifier) -> Field {
     }
 }
 
-pub(crate) fn compute_siloed_private_log_field(contract_address: AztecAddress, field: Field) -> Field {
+pub(crate) fn compute_siloed_private_log_field(
+    contract_address: AztecAddress,
+    field: Field,
+) -> Field {
     poseidon2_hash([contract_address.to_field(), field])
 }
 
@@ -137,7 +143,9 @@ pub(crate) fn silo_contract_class_log(contract_class_log: ContractClassLog) -> C
     }
 }
 
-pub(crate) fn compute_contract_class_log_hash(log: [Field; CONTRACT_CLASS_LOG_SIZE_IN_FIELDS]) -> Field {
+pub(crate) fn compute_contract_class_log_hash(
+    log: [Field; CONTRACT_CLASS_LOG_SIZE_IN_FIELDS],
+) -> Field {
     poseidon2_hash(log)
 }
 
@@ -229,7 +237,10 @@ pub(crate) fn poseidon2_hash<let N: u32>(inputs: [Field; N]) -> Field {
 }
 
 #[no_predicates]
-pub(crate) fn poseidon2_hash_with_separator<let N: u32, T>(inputs: [Field; N], separator: T) -> Field
+pub(crate) fn poseidon2_hash_with_separator<let N: u32, T>(
+    inputs: [Field; N],
+    separator: T,
+) -> Field
 where
     T: ToField,
 {

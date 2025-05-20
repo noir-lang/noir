@@ -596,7 +596,9 @@ impl FixtureBuilder {
         }
     }
 
-    pub(crate) fn to_private_kernel_circuit_public_inputs(self) -> PrivateKernelCircuitPublicInputs {
+    pub(crate) fn to_private_kernel_circuit_public_inputs(
+        self,
+    ) -> PrivateKernelCircuitPublicInputs {
         let constants = self.to_tx_constant_data();
         let end = self.to_private_accumulated_data();
         let validation_requests = self.to_private_validation_requests();
@@ -997,7 +999,11 @@ impl FixtureBuilder {
         self.private_logs.push(log);
     }
 
-    pub(crate) fn append_siloed_private_logs_for_note(&mut self, num_logs: u32, note_hash_counter: u32) {
+    pub(crate) fn append_siloed_private_logs_for_note(
+        &mut self,
+        num_logs: u32,
+        note_hash_counter: u32,
+    ) {
         let index_offset = self.private_logs.len();
         for i in 0..self.private_logs.max_len() {
             if i < num_logs {
@@ -1022,7 +1028,11 @@ impl FixtureBuilder {
         }
     }
 
-    pub(crate) fn add_public_log(&mut self, fields: [Field; PUBLIC_LOG_SIZE_IN_FIELDS], length: u32) {
+    pub(crate) fn add_public_log(
+        &mut self,
+        fields: [Field; PUBLIC_LOG_SIZE_IN_FIELDS],
+        length: u32,
+    ) {
         let inner = Log { fields, length };
         let log = PublicLog { log: inner, contract_address: self.contract_address };
         let _ = self.next_counter();
@@ -1054,7 +1064,10 @@ impl FixtureBuilder {
         self.contract_class_logs_hashes.push(log_hash);
     }
 
-    pub(crate) fn add_private_call_request_for_private_call(&mut self, private_call: PrivateCallData) {
+    pub(crate) fn add_private_call_request_for_private_call(
+        &mut self,
+        private_call: PrivateCallData,
+    ) {
         let public_inputs = private_call.public_inputs;
         let start_counter = public_inputs.start_side_effect_counter;
         let end_counter = public_inputs.end_side_effect_counter;

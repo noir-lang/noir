@@ -26,12 +26,17 @@ pub(crate) struct SharedMutableValues<T, let INITIAL_DELAY: u32> {
 }
 
 impl<T, let INITIAL_DELAY: u32> SharedMutableValues<T, INITIAL_DELAY> {
-    pub(crate) fn new(svc: ScheduledValueChange<T>, sdc: ScheduledDelayChange<INITIAL_DELAY>) -> Self {
+    pub(crate) fn new(
+        svc: ScheduledValueChange<T>,
+        sdc: ScheduledDelayChange<INITIAL_DELAY>,
+    ) -> Self {
         SharedMutableValues { svc, sdc }
     }
 }
 
-pub(crate) fn unpack_value_change<T, let N: u32>(packed: [Field; 2 * N + 1]) -> ScheduledValueChange<T>
+pub(crate) fn unpack_value_change<T, let N: u32>(
+    packed: [Field; 2 * N + 1],
+) -> ScheduledValueChange<T>
 where
     T: Packable<N>,
 {

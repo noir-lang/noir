@@ -3,8 +3,6 @@ use crate::blob::{
     config::{D_INV, LOG_FIELDS_PER_BLOB, ROOTS},
 };
 
-use bigint::{BigNum, BLS12_381_Fr as F};
-use std::ops::{Mul, Neg};
 use crate::types::{
     abis::sponge_blob::SpongeBlob,
     constants::{BLOBS_PER_BLOCK, FIELDS_PER_BLOB},
@@ -12,6 +10,8 @@ use crate::types::{
     traits::Empty,
     utils::arrays::array_splice,
 };
+use bigint::{BigNum, BLS12_381_Fr as F};
+use std::ops::{Mul, Neg};
 
 // TODO(MW): remove pub(crate)when fully moved to batching
 pub(crate) fn convert_blob_fields(
@@ -24,7 +24,7 @@ pub(crate) fn convert_blob_fields(
     blob
 }
 
-pub(crate)fn check_block_blob_sponge(
+pub(crate) fn check_block_blob_sponge(
     blobs_as_fields: [Field; FIELDS_PER_BLOB * BLOBS_PER_BLOCK],
     mut sponge_blob: SpongeBlob,
 ) -> Field {
@@ -75,7 +75,7 @@ pub(crate) fn evaluate_blob(
 }
 
 // Evaluates each blob required for a block
-pub(crate)fn evaluate_blobs(
+pub(crate) fn evaluate_blobs(
     blobs_as_fields: [Field; FIELDS_PER_BLOB * BLOBS_PER_BLOCK],
     kzg_commitments: [BlobCommitment; BLOBS_PER_BLOCK],
     mut sponge_blob: SpongeBlob,

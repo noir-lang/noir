@@ -1,4 +1,6 @@
-use crate::types::{address::AztecAddress, constants::GENERATOR_INDEX__PUBLIC_LEAF_INDEX, traits::ToField};
+use crate::types::{
+    address::AztecAddress, constants::GENERATOR_INDEX__PUBLIC_LEAF_INDEX, traits::ToField,
+};
 
 pub(crate) fn compute_public_data_tree_index(
     contract_address: AztecAddress,

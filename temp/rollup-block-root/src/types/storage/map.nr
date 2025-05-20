@@ -8,7 +8,9 @@ where
 }
 
 mod test {
-    use crate::types::{address::AztecAddress, storage::map::derive_storage_slot_in_map, traits::FromField};
+    use crate::types::{
+        address::AztecAddress, storage::map::derive_storage_slot_in_map, traits::FromField,
+    };
 
     #[test]
     fn test_derive_storage_slot_in_map_matches_typescript() {

@@ -100,7 +100,10 @@ impl AztecAddress {
         AddressPoint { inner: Point { x: self.inner, y, is_infinite: false } }
     }
 
-    pub(crate) fn compute(public_keys: PublicKeys, partial_address: PartialAddress) -> AztecAddress {
+    pub(crate) fn compute(
+        public_keys: PublicKeys,
+        partial_address: PartialAddress,
+    ) -> AztecAddress {
         let public_keys_hash = public_keys.hash();
 
         let pre_address = poseidon2_hash_with_separator(

@@ -1,4 +1,7 @@
-use crate::types::{traits::{Deserialize, Empty, Serialize}, utils::{arrays::array_concat, reader::Reader}};
+use crate::types::{
+    traits::{Deserialize, Empty, Serialize},
+    utils::{arrays::array_concat, reader::Reader},
+};
 
 pub(crate) struct Log<let N: u32> {
     pub(crate) fields: [Field; N],

@@ -13,7 +13,11 @@ pub(crate) struct VerificationKey<let N: u32> {
 
 impl<let N: u32> VerificationKey<N> {
     pub(crate) fn check_hash(self) {
-        assert_eq(self.hash, crate::types::hash::verification_key_hash(self.key), "Invalid VK hash");
+        assert_eq(
+            self.hash,
+            crate::types::hash::verification_key_hash(self.key),
+            "Invalid VK hash",
+        );
     }
 }
 

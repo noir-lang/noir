@@ -45,7 +45,9 @@ where
     };
 }
 
-pub(crate) fn compute_with_hash_hash_storage_slot<T, let N: u32>(with_hash_storage_slot: Field) -> Field
+pub(crate) fn compute_with_hash_hash_storage_slot<T, let N: u32>(
+    with_hash_storage_slot: Field,
+) -> Field
 where
     T: Packable<N>,
 {

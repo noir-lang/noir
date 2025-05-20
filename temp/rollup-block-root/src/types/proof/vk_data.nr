@@ -11,7 +11,11 @@ pub(crate) struct VkData<let VK_LENGTH: u32> {
 }
 
 impl<let VK_LENGTH: u32> VkData<VK_LENGTH> {
-    pub(crate) fn validate_in_vk_tree<let N: u32>(self, vk_tree_root: Field, allowed_indices: [u32; N]) {
+    pub(crate) fn validate_in_vk_tree<let N: u32>(
+        self,
+        vk_tree_root: Field,
+        allowed_indices: [u32; N],
+    ) {
         self.vk.check_hash();
 
         // Safety: find_index_hint should return an index into allowed_indices where

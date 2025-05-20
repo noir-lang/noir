@@ -1,9 +1,7 @@
-
 pub(crate) mod get_sorted_tuple;
 pub(crate) mod sort_by;
 
 // Re-exports.
-
 
 use crate::types::traits::{Empty, is_empty};
 
@@ -93,7 +91,10 @@ where
 
 // Returns the number of consecutive elements at the start of the array for which the predicate returns false.
 // This function ensures that any element after the first matching element (predicate returns true) also matches the predicate.
-pub(crate) fn array_length_until<T, let N: u32, Env>(array: [T; N], predicate: fn[Env](T) -> bool) -> u32 {
+pub(crate) fn array_length_until<T, let N: u32, Env>(
+    array: [T; N],
+    predicate: fn[Env](T) -> bool,
+) -> u32 {
     let mut length = 0;
     let mut stop = false;
     for i in 0..N {
@@ -110,7 +111,10 @@ pub(crate) fn array_length_until<T, let N: u32, Env>(array: [T; N], predicate: f
     length
 }
 
-pub(crate) fn array_concat<T, let N: u32, let M: u32>(array1: [T; N], array2: [T; M]) -> [T; N + M] {
+pub(crate) fn array_concat<T, let N: u32, let M: u32>(
+    array1: [T; N],
+    array2: [T; M],
+) -> [T; N + M] {
     let mut result = [array1[0]; N + M];
     for i in 1..N {
         result[i] = array1[i];
@@ -254,7 +258,11 @@ where
 
 // Helper function to check if an array is padded with a given value from a given index.
 // Different to padded_array_length in that it allows the elements before the given index to be the same as the padded value.
-pub(crate) fn array_padded_with<T, let N: u32>(array: [T; N], from_index: u32, padded_with: T) -> bool
+pub(crate) fn array_padded_with<T, let N: u32>(
+    array: [T; N],
+    from_index: u32,
+    padded_with: T,
+) -> bool
 where
     T: Eq,
 {

@@ -1,18 +1,18 @@
-use bigint::{BigNum, BLS12_381_Fr as F};
-use std::ops::Add;
 use crate::types::{
     constants::{BLOB_PUBLIC_INPUTS, BLOBS_PER_BLOCK},
     traits::{Deserialize, Empty, Serialize},
     utils::reader::Reader,
 };
+use bigint::{BigNum, BLS12_381_Fr as F};
+use std::ops::Add;
 
 // TODO(MW): delete
 
 // NB: This only exists because a nested array of [[Field; 2]; N] did not build with ci2.5, but was fine otherwise
 // For blobs, we use the compressed 48 byte BLS12 commitment to compute the challenge. We never need to operate on it,
 // so it's encoded as 2 fields. The first is the first 31 bytes, and the second is the next 17 bytes.
-pub(crate)struct BlobCommitment {
-    pub(crate)inner: [Field; 2],
+pub(crate) struct BlobCommitment {
+    pub(crate) inner: [Field; 2],
 }
 
 impl Eq for BlobCommitment {
@@ -27,14 +27,14 @@ impl Empty for BlobCommitment {
     }
 }
 
-pub(crate)struct BlobPublicInputs {
-    pub(crate)z: Field,
-    pub(crate)y: F,
-    pub(crate)kzg_commitment: BlobCommitment,
+pub(crate) struct BlobPublicInputs {
+    pub(crate) z: Field,
+    pub(crate) y: F,
+    pub(crate) kzg_commitment: BlobCommitment,
 }
 
 impl BlobPublicInputs {
-    pub(crate)fn accumulate(self, other: Self) -> Self {
+    pub(crate) fn accumulate(self, other: Self) -> Self {
         // TODO: When we verify root, rather than block root, on L1 we need to accumulate many blob openings
         // @Mike this may be where we calculate z_acc, y_acc, C_acc, etc.
         // WARNING: unimplemented, below is nonsense to get noir to compile
@@ -43,7 +43,7 @@ impl BlobPublicInputs {
 
     // This checks whether the blob public inputs represent data of all 0s
     // This is not equivalent to being empty, since the challenge point z is a hash and won't have 0 value.
-    pub(crate)fn is_zero(self) -> bool {
+    pub(crate) fn is_zero(self) -> bool {
         // Note: there is no constrained is_zero in bignum
         (self.y == F::zero()) & (self.kzg_commitment.inner == [0, 0])
     }
@@ -86,8 +86,8 @@ impl Eq for BlobPublicInputs {
 
 // NB: it is much cleaner throughout the protocol circuits to define this struct rather than use a nested array.
 // Once we accumulate blob inputs, it should be removed, and we just use crate::blobPublicInputs::accumulate everywhere.
-pub(crate)struct BlockBlobPublicInputs {
-    pub(crate)inner: [BlobPublicInputs; BLOBS_PER_BLOCK],
+pub(crate) struct BlockBlobPublicInputs {
+    pub(crate) inner: [BlobPublicInputs; BLOBS_PER_BLOCK],
 }
 
 impl Empty for BlockBlobPublicInputs {
