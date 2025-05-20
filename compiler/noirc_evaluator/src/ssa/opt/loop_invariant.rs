@@ -171,7 +171,7 @@ struct LoopInvariantContext<'f> {
     /// checks during loop invariant analysis, as these blocks are guaranteed to be
     /// control dependent due to the entire nested loop being control dependent.
     ///
-    /// Populated during analysis of outer loops and reset for each new loop.
+    /// Reset for each new loop as the set should not be shared across different outer loops.
     nested_loop_control_dependent_blocks: HashSet<BasicBlockId>,
 
     // Maps a block to its post-dominance frontiers
