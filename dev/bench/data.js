@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1747749081541,
+  "lastUpdate": 1747758586449,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -18446,48 +18446,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "aakoshh@gmail.com",
-            "name": "Akosh Farkash",
-            "username": "aakoshh"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "9463889c9fc5db8af52f9155a36ef6b60c38ca30",
-          "message": "chore(test): Add more tests for the removal of unused functions (#8479)",
-          "timestamp": "2025-05-13T14:05:37Z",
-          "tree_id": "db98ffa195d8182bbc1ecdf3a70f420cb3d7fa39",
-          "url": "https://github.com/noir-lang/noir/commit/9463889c9fc5db8af52f9155a36ef6b60c38ca30"
-        },
-        "date": 1747146370250,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 275778,
-            "range": "± 720",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 246515,
-            "range": "± 9456",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 3253113,
-            "range": "± 26678",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "asterite@gmail.com",
             "name": "Ary Borenszweig",
             "username": "asterite"
@@ -20539,6 +20497,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 3211535,
             "range": "± 9837",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "mvezenov@gmail.com",
+            "name": "Maxim Vezenov",
+            "username": "vezenovm"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "0e62fed6423c1c9b25105337f64d7947c9ed2e05",
+          "message": "chore(refactor): Switch unreachable function removal to use centralized call graph (#8578)\n\nCo-authored-by: Ary Borenszweig <asterite@gmail.com>",
+          "timestamp": "2025-05-20T16:10:05Z",
+          "tree_id": "692290f810cfbd786fb8c06e4c6268dbb4c779c9",
+          "url": "https://github.com/noir-lang/noir/commit/0e62fed6423c1c9b25105337f64d7947c9ed2e05"
+        },
+        "date": 1747758576841,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 266084,
+            "range": "± 1966",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 232810,
+            "range": "± 1166",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 3231134,
+            "range": "± 53818",
             "unit": "ns/iter"
           }
         ]
