@@ -1,6 +1,5 @@
 #![cfg(test)]
 
-use std::collections::HashMap;
 use std::path::PathBuf;
 
 use fm::{FileId, FileManager};
@@ -76,7 +75,7 @@ fn interpret_helper(src: &str) -> Result<Value, InterpreterError> {
     with_interpreter(src, |interpreter, main, errors| {
         assert_eq!(errors.len(), 0);
         let no_location = Location::dummy();
-        interpreter.call_function(main, Vec::new(), HashMap::new(), no_location)
+        interpreter.call_function(main, Vec::new(), Default::default(), no_location)
     })
 }
 

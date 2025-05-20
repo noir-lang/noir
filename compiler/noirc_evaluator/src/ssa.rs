@@ -139,10 +139,7 @@ pub fn primary_passes(options: &SsaEvaluatorOptions) -> Vec<SsaPass> {
     vec![
         SsaPass::new(Ssa::remove_unreachable_functions, "Removing Unreachable Functions"),
         SsaPass::new(Ssa::defunctionalize, "Defunctionalization"),
-        SsaPass::new(
-            Ssa::inline_functions_with_at_most_one_instruction,
-            "Inlining functions with at most one instruction",
-        ),
+        SsaPass::new(Ssa::inline_simple_functions, "Inlining simple functions"),
         // BUG: Enabling this mem2reg causes an integration test failure in aztec-package; see:
         // https://github.com/AztecProtocol/aztec-packages/pull/11294#issuecomment-2622809518
         //SsaPass::new(Ssa::mem2reg, "Mem2Reg (1st)"),
@@ -240,6 +237,8 @@ pub fn secondary_passes(brillig: &Brillig) -> Vec<SsaPass> {
 /// In the future, we can potentially execute the actual initial version using the SSA interpreter.
 pub fn minimal_passes() -> Vec<SsaPass<'static>> {
     vec![
+        // We need to get rid of function pointer parameters, otherwise they cause panic in Brillig generation.
+        SsaPass::new(Ssa::defunctionalize, "Defunctionalization"),
         // Even the initial SSA generation can result in optimizations that leave a function
         // which was called in the AST not being called in the SSA. Such functions would cause
         // panics later, when we are looking for global allocations.
