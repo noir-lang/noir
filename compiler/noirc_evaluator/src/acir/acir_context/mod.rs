@@ -899,10 +899,10 @@ impl<F: AcirField, B: BlackBoxFunctionSolver<F>> AcirContext<F, B> {
 
         // Constrain `r < rhs`.
         //
-        // We need to use the predicate in case of `rhs` does not have the assumed bit size.
-        // This can happen when the predicate is false because the values
-        // in a non taken branch are not constrained (cf. issue #8329).
-        self.bound_constraint_with_offset(remainder_var, rhs, predicate, max_rhs_bits, predicate)?;
+        // `rhs` has the correct bit-size because either it is enforced by the overflow checks
+        // or `rhs` is zero when the overflow checks are disabled.
+        // Indeed, in that case, rhs is replaced with 'predicate * rhs'
+        self.bound_constraint_with_offset(remainder_var, rhs, predicate, max_rhs_bits, one)?;
 
         // a * predicate == (b * q + r) * predicate
         // => predicate * (a - b * q - r) == 0
@@ -944,7 +944,7 @@ impl<F: AcirField, B: BlackBoxFunctionSolver<F>> AcirContext<F, B> {
                     max_r_var,
                     predicate,
                     rhs_const.num_bits(),
-                    predicate,
+                    one,
                 )?;
             } else if bit_size == 128 {
                 // q and b are u128 and q*b could overflow so we check that either q or b are less than 2^64
