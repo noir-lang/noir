@@ -368,7 +368,7 @@ fn check_function_type_matches_expected_type(
     trait_name: &str,
     errors: &mut Vec<TypeCheckError>,
 ) {
-    let mut bindings = TypeBindings::new();
+    let mut bindings = TypeBindings::default();
     if let (
         Type::Function(params_a, ret_a, env_a, unconstrained_a),
         Type::Function(params_b, ret_b, env_b, unconstrained_b),
