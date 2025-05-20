@@ -1,3 +1,7 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: stderr
+---
 error: The type parameter `H` is not constrained by the impl trait, self type, or predicates
     ┌─ std/collections/map.nr:637:27
     │
