@@ -40,7 +40,7 @@
 //! ```
 //! Reversing this for post-dominance we can see that the conditions for control dependence
 //! are the same as those for post-dominance frontiers.
-//! Thus, we rewrite our control dependence condition as Y is control dependent on X iff Y is in PDF(Y).
+//! Thus, we rewrite our control dependence condition as Y is control dependent on X iff X is in PDF(Y).
 //!
 //! We then can store the PDFs for every block as part of the context of this pass, and use it for checking control dependence.
 //! Using PDFs gets us from a worst case n^2 complexity to a worst case n.
@@ -101,7 +101,7 @@ impl Loops {
             };
 
             context.current_pre_header = Some(pre_header);
-            context.hoist_loop_invariants(&loop_);
+            context.hoist_loop_invariants(&loop_, &self.yet_to_unroll);
         }
 
         context.map_dependent_instructions();
@@ -209,11 +209,11 @@ impl<'f> LoopInvariantContext<'f> {
         self.current_pre_header.expect("ICE: Pre-header block should have been set")
     }
 
-    fn hoist_loop_invariants(&mut self, loop_: &Loop) {
+    fn hoist_loop_invariants(&mut self, loop_: &Loop, all_loops: &[Loop]) {
         self.set_values_defined_in_loop(loop_);
 
         for block in loop_.blocks.iter() {
-            self.is_control_dependent_post_pre_header(loop_, *block);
+            self.is_control_dependent_post_pre_header(loop_, *block, all_loops);
 
             for instruction_id in self.inserter.function.dfg[*block].take_instructions() {
                 if self.simplify_from_loop_bounds(instruction_id, loop_, block) {
@@ -257,30 +257,74 @@ impl<'f> LoopInvariantContext<'f> {
 
     /// Checks whether a `block` is control dependent on any blocks after
     /// the given loop's header.
-    fn is_control_dependent_post_pre_header(&mut self, loop_: &Loop, block: BasicBlockId) {
+    fn is_control_dependent_post_pre_header(
+        &mut self,
+        loop_: &Loop,
+        block: BasicBlockId,
+        all_loops: &[Loop],
+    ) {
+        // Find all blocks between the current block and the loop header, exclusive of the current block and loop header themselves.
         let all_predecessors = Loop::find_blocks_in_loop(loop_.header, block, &self.cfg).blocks;
+        let all_predecessors = all_predecessors
+            .into_iter()
+            .filter(|&predecessor| predecessor != block && predecessor != loop_.header)
+            .collect::<Vec<_>>();
 
         // Reset the current block control dependent flag, the check will set it to true if needed.
         // If we fail to reset it, a block may be inadvertently labelled
         // as control dependent thus preventing optimizations.
         self.current_block_control_dependent = false;
 
-        // Need to accurately determine whether the current block is dependent on any blocks between
+        // Now check whether the current block is dependent on any blocks between
         // the current block and the loop header, exclusive of the current block and loop header themselves
-        if all_predecessors
-            .into_iter()
-            .filter(|&predecessor| predecessor != block && predecessor != loop_.header)
-            .any(|predecessor| self.is_control_dependent(predecessor, block))
+        if all_predecessors.iter().any(|predecessor| self.is_control_dependent(*predecessor, block))
         {
             self.current_block_control_dependent = true;
+            return;
+        }
+
+        self.is_nested_loop_control_dependent(loop_, block, all_loops, all_predecessors);
+    }
+
+    /// Determines if the `block` is in a nested loop that is control dependent
+    /// on a block in the outer loop.
+    /// If this is the case, we block hoisting as control is not guaranteed.
+    /// If the block is not control dependent on the inner loop itself, it will be marked appropriately
+    /// when the inner loop is being processed.
+    fn is_nested_loop_control_dependent(
+        &mut self,
+        loop_: &Loop,
+        block: BasicBlockId,
+        all_loops: &[Loop],
+        all_predecessors: Vec<BasicBlockId>,
+    ) {
+        // Now check for nested loops within the current loop
+        for nested in all_loops.iter().rev() {
+            if !nested.blocks.contains(&block) {
+                // Skip unrelated loops
+                continue;
+            }
+
+            // We have found a nested loop if another inner loop shares blocks with the current loop
+            // and they do not share a loop header.
+            // `all_loops` should not contain the current loop but this extra check provides a sanity
+            // check in case that ever changes.
+            let nested_loop_is_control_dep = nested.header != loop_.header
+                && all_predecessors
+                    .iter()
+                    .any(|predecessor| self.is_control_dependent(*predecessor, nested.header));
+            if nested_loop_is_control_dep {
+                self.current_block_control_dependent = true;
+                return;
+            }
         }
     }
 
-    /// Checks whether a `block` is control dependent on a `parent_block`
+    /// Checks whether a `block` is control dependent on a `parent_block`.
     /// Uses post-dominance frontiers to determine control dependence.
     /// Reference the doc comments at the top of the this module for more information
     /// regarding post-dominance frontiers and control dependence.
-    fn is_control_dependent(&mut self, parent_block: BasicBlockId, block: BasicBlockId) -> bool {
+    fn is_control_dependent(&self, parent_block: BasicBlockId, block: BasicBlockId) -> bool {
         match self.post_dom_frontiers.get(&block) {
             Some(dependent_blocks) => dependent_blocks.contains(&parent_block),
             None => false,
@@ -2264,5 +2308,87 @@ mod control_dependence {
 
         // We expect the SSA to be unchanged
         assert_normalized_ssa_equals(ssa, src);
+    }
+
+    #[test]
+    fn do_not_hoist_to_outer_loop_when_inner_loop_is_control_dependent() {
+        // We want to check the case when an entire inner loop is under a predicate
+        // that we do not still hoist with respect to control dependence on the outer
+        // loop's block header.
+        // This is the SSA for the following program:
+        // ```noir
+        // fn main(a: pub bool) {
+        //     for _ in 0..1 {
+        //         if a {
+        //             for _ in 0..1 {
+        //                 let _ = (1 / (a as Field));
+        //             }
+        //         };
+        //     }
+        // }
+        // ```
+        let src = r"
+        acir(inline) predicate_pure fn main f0 {
+          b0(v0: u1):
+            jmp b1(u32 0)
+          b1(v1: u32):
+            v4 = eq v1, u32 0
+            jmpif v4 then: b2, else: b3
+          b2():
+            jmpif v0 then: b4, else: b5
+          b3():
+            return
+          b4():
+            jmp b6(u32 0)
+          b5():
+            v7 = unchecked_add v1, u32 1
+            jmp b1(v7)
+          b6(v2: u32):
+            v5 = eq v2, u32 0
+            jmpif v5 then: b7, else: b8
+          b7():
+            v8 = cast v0 as Field
+            v10 = div Field 1, v8
+            v11 = unchecked_add v2, u32 1
+            jmp b6(v11)
+          b8():
+            jmp b5()
+        }
+        ";
+
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.loop_invariant_code_motion();
+
+        // We expect `v10 = div Field 1, v8` to be hoisted, but only to the inner loop's header.
+        // If we were to hoist that div to the outer loop's header, we will fail inadvertently
+        // if `v0 == false`.
+        assert_ssa_snapshot!(ssa, @r"
+        acir(inline) predicate_pure fn main f0 {
+          b0(v0: u1):
+            v3 = cast v0 as Field
+            jmp b1(u32 0)
+          b1(v1: u32):
+            v5 = eq v1, u32 0
+            jmpif v5 then: b2, else: b3
+          b2():
+            jmpif v0 then: b4, else: b5
+          b3():
+            return
+          b4():
+            v7 = div Field 1, v3
+            jmp b6(u32 0)
+          b5():
+            v10 = unchecked_add v1, u32 1
+            jmp b1(v10)
+          b6(v2: u32):
+            v8 = eq v2, u32 0
+            jmpif v8 then: b7, else: b8
+          b7():
+            v11 = unchecked_add v2, u32 1
+            jmp b6(v11)
+          b8():
+            jmp b5()
+        }
+        ");
     }
 }
