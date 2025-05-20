@@ -7,6 +7,7 @@ use crate::{
     DataType, NamedGeneric, StructField, TypeBindings,
     ast::{IntegerBitSize, ItemVisibility, UnresolvedType},
     graph::CrateGraph,
+    hir::def_collector::dc_crate::UnresolvedTrait,
     hir_def::traits::ResolvedTraitBound,
     node_interner::GlobalValue,
     shared::Signedness,
@@ -403,12 +404,7 @@ impl<'context> Elaborator<'context> {
             self.elaborate_functions(functions);
         }
 
-        for (trait_id, unresolved_trait) in items.traits {
-            self.current_trait = Some(trait_id);
-            self.elaborate_functions(unresolved_trait.fns_with_default_impl);
-        }
-
-        self.current_trait = None;
+        self.elaborate_traits(items.traits);
 
         for impls in items.impls.into_values() {
             self.elaborate_impls(impls);
@@ -1312,6 +1308,14 @@ impl<'context> Elaborator<'context> {
                 );
             }
         }
+    }
+
+    fn elaborate_traits(&mut self, traits: BTreeMap<TraitId, UnresolvedTrait>) {
+        for (trait_id, unresolved_trait) in traits {
+            self.current_trait = Some(trait_id);
+            self.elaborate_functions(unresolved_trait.fns_with_default_impl);
+        }
+        self.current_trait = None;
     }
 
     fn elaborate_impls(&mut self, impls: Vec<(UnresolvedGenerics, Location, UnresolvedFunctions)>) {
