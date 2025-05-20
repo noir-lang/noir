@@ -9,7 +9,7 @@ use dep::types::{
 pub(crate) global BASE_ROLLUP_TYPE: u32 = 0;
 pub(crate) global MERGE_ROLLUP_TYPE: u32 = 1;
 
-pub struct BaseOrMergeRollupPublicInputs {
+pub(crate)struct BaseOrMergeRollupPublicInputs {
     // rollup_type is either 0 (base) or 1 (merge)
     // TODO(Kev): Why is this a u32 instead of a u8/u16?
     pub(crate) rollup_type: u32,
@@ -107,12 +107,4 @@ impl Deserialize<BASE_OR_MERGE_PUBLIC_INPUTS_LENGTH> for BaseOrMergeRollupPublic
         reader.finish();
         item
     }
-}
-
-#[test]
-fn serialization_of_empty() {
-    let item = BaseOrMergeRollupPublicInputs::empty();
-    let serialized = item.serialize();
-    let deserialized = BaseOrMergeRollupPublicInputs::deserialize(serialized);
-    assert(item.eq(deserialized));
 }

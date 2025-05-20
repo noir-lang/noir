@@ -1,6 +1,6 @@
-use crate::abis::base_or_merge_rollup_public_inputs::BaseOrMergeRollupPublicInputs;
+use crate::lib::abis::base_or_merge_rollup_public_inputs::BaseOrMergeRollupPublicInputs;
 
-pub fn validate_consecutive_rollups(
+pub(crate)fn validate_consecutive_rollups(
     prev_rollup: BaseOrMergeRollupPublicInputs,
     next_rollup: BaseOrMergeRollupPublicInputs,
 ) {

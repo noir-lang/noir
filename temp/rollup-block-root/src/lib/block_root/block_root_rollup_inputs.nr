@@ -1,9 +1,9 @@
-use crate::abis::{
+use crate::lib::abis::{
     block_root_rollup_data::{BlockRootRollupBlobData, BlockRootRollupData},
     previous_rollup_data::PreviousRollupData,
 };
 
-pub struct BlockRootRollupInputs {
+pub(crate)struct BlockRootRollupInputs {
     previous_rollup_data: [PreviousRollupData; 2],
     data: BlockRootRollupData,
     blob_data: BlockRootRollupBlobData,

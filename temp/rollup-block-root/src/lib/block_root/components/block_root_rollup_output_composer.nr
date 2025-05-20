@@ -1,4 +1,4 @@
-use crate::{
+use crate::lib::{
     abis::{
         base_or_merge_rollup_public_inputs::BaseOrMergeRollupPublicInputs,
         block_root_or_block_merge_public_inputs::{BlockRootOrBlockMergePublicInputs, FeeRecipient},
@@ -26,13 +26,13 @@ use types::{
     traits::{Empty, Hash, is_empty},
 };
 
-pub struct BlockRootRollupOutputComposer {
+pub(crate)struct BlockRootRollupOutputComposer {
     merged_rollup: BaseOrMergeRollupPublicInputs,
     data: BlockRootRollupData,
 }
 
 impl BlockRootRollupOutputComposer {
-    pub fn new_from_two_rollups(
+    pub(crate)fn new_from_two_rollups(
         previous_rollups: [BaseOrMergeRollupPublicInputs; 2],
         data: BlockRootRollupData,
     ) -> Self {
@@ -40,21 +40,21 @@ impl BlockRootRollupOutputComposer {
         BlockRootRollupOutputComposer { merged_rollup, data }
     }
 
-    pub fn new_from_single_tx_rollup(
+    pub(crate)fn new_from_single_tx_rollup(
         previous_rollup: BaseOrMergeRollupPublicInputs,
         data: BlockRootRollupData,
     ) -> Self {
         BlockRootRollupOutputComposer { merged_rollup: previous_rollup, data }
     }
 
-    pub fn new_from_empty_rollup(data: BlockRootRollupData) -> Self {
+    pub(crate)fn new_from_empty_rollup(data: BlockRootRollupData) -> Self {
         BlockRootRollupOutputComposer {
             merged_rollup: BaseOrMergeRollupPublicInputs::empty(),
             data,
         }
     }
 
-    pub fn finish(self, blob_data: BlockRootRollupBlobData) -> BlockRootOrBlockMergePublicInputs {
+    pub(crate)fn finish(self, blob_data: BlockRootRollupBlobData) -> BlockRootOrBlockMergePublicInputs {
         let constants = self.merged_rollup.constants;
 
         // Build the block hash for this by hashing the header and then insert the new leaf to archive tree.
@@ -77,7 +77,7 @@ impl BlockRootRollupOutputComposer {
         )
     }
 
-    pub fn finish_empty(
+    pub(crate)fn finish_empty(
         self,
         constants: ConstantRollupData,
         empty_effect_blobs_hash: Field,

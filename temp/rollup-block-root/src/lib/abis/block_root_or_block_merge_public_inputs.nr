@@ -10,9 +10,9 @@ use dep::types::{
 };
 use blob::blob_batching_public_inputs::BlockBlobPublicInputs;
 
-pub struct FeeRecipient {
-    pub recipient: EthAddress,
-    pub value: Field,
+pub(crate)struct FeeRecipient {
+    pub(crate)recipient: EthAddress,
+    pub(crate)value: Field,
 }
 
 // TODO(#7346): Should the default empty value be MAX_FIELD? The zero addr may be a valid recipient
@@ -42,22 +42,22 @@ impl Eq for FeeRecipient {
 
 // TODO: instead of archives + global vars, use ConstantRollupData x2? It also includes vk root
 // may be confusing as new_constant.last_archive would actually be the new_archive
-pub struct BlockRootOrBlockMergePublicInputs {
-    pub previous_archive: AppendOnlyTreeSnapshot, // Archive tree root immediately before this block range
-    pub new_archive: AppendOnlyTreeSnapshot, // Archive tree root after adding this block range
-    pub start_global_variables: GlobalVariables, // Global variables for the first block in the range
-    pub end_global_variables: GlobalVariables, // Global variables for the last block in the range
-    pub out_hash: Field, // Merkle node of the L2-to-L1 messages merkle roots in the block range
-    pub proposed_block_header_hashes: [Field; AZTEC_MAX_EPOCH_DURATION], // Hashes of proposed block headers for the block range
-    pub fees: [FeeRecipient; AZTEC_MAX_EPOCH_DURATION], // Concatenation of all coinbase and fees for the block range
-    pub vk_tree_root: Field, // Root of allowed vk tree
-    pub protocol_contract_tree_root: Field, // Root of protocol contract tree
-    pub prover_id: Field, // TODO(#7346): Temporarily added prover_id while we verify block-root proofs on L1
-    pub blob_public_inputs: BlockBlobPublicInputs, // Blob accumulators at the start and end of this block range
+pub(crate)struct BlockRootOrBlockMergePublicInputs {
+    pub(crate)previous_archive: AppendOnlyTreeSnapshot, // Archive tree root immediately before this block range
+    pub(crate)new_archive: AppendOnlyTreeSnapshot, // Archive tree root after adding this block range
+    pub(crate)start_global_variables: GlobalVariables, // Global variables for the first block in the range
+    pub(crate)end_global_variables: GlobalVariables, // Global variables for the last block in the range
+    pub(crate)out_hash: Field, // Merkle node of the L2-to-L1 messages merkle roots in the block range
+    pub(crate)proposed_block_header_hashes: [Field; AZTEC_MAX_EPOCH_DURATION], // Hashes of proposed block headers for the block range
+    pub(crate)fees: [FeeRecipient; AZTEC_MAX_EPOCH_DURATION], // Concatenation of all coinbase and fees for the block range
+    pub(crate)vk_tree_root: Field, // Root of allowed vk tree
+    pub(crate)protocol_contract_tree_root: Field, // Root of protocol contract tree
+    pub(crate)prover_id: Field, // TODO(#7346): Temporarily added prover_id while we verify block-root proofs on L1
+    pub(crate)blob_public_inputs: BlockBlobPublicInputs, // Blob accumulators at the start and end of this block range
 }
 
 impl BlockRootOrBlockMergePublicInputs {
-    pub fn is_padding(self) -> bool {
+    pub(crate)fn is_padding(self) -> bool {
         self.previous_archive == self.new_archive
     }
 }

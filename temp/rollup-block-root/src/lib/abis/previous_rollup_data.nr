@@ -1,4 +1,4 @@
-use crate::abis::base_or_merge_rollup_public_inputs::BaseOrMergeRollupPublicInputs;
+use crate::lib::abis::base_or_merge_rollup_public_inputs::BaseOrMergeRollupPublicInputs;
 use dep::types::{
     constants::{PROOF_TYPE_ROLLUP_HONK, VK_TREE_HEIGHT},
     merkle_tree::{membership::assert_check_membership, MembershipWitness},
@@ -11,11 +11,11 @@ use dep::types::{
     utils::arrays::find_index_hint,
 };
 
-pub struct PreviousRollupData {
-    pub base_or_merge_rollup_public_inputs: BaseOrMergeRollupPublicInputs,
-    pub proof: NestedRecursiveProof,
-    pub vk: RollupHonkVerificationKey,
-    pub vk_witness: MembershipWitness<VK_TREE_HEIGHT>,
+pub(crate)struct PreviousRollupData {
+    pub(crate)base_or_merge_rollup_public_inputs: BaseOrMergeRollupPublicInputs,
+    pub(crate)proof: NestedRecursiveProof,
+    pub(crate)vk: RollupHonkVerificationKey,
+    pub(crate)vk_witness: MembershipWitness<VK_TREE_HEIGHT>,
 }
 
 impl Verifiable for PreviousRollupData {
@@ -44,7 +44,7 @@ impl Empty for PreviousRollupData {
 }
 
 impl PreviousRollupData {
-    pub fn validate_in_vk_tree<let N: u32>(self, allowed_indices: [u32; N]) {
+    pub(crate)fn validate_in_vk_tree<let N: u32>(self, allowed_indices: [u32; N]) {
         self.vk.check_hash();
 
         let leaf_index = self.vk_witness.leaf_index as u32;

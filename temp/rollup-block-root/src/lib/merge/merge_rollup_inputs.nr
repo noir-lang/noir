@@ -1,6 +1,6 @@
-use crate::abis::base_or_merge_rollup_public_inputs::BaseOrMergeRollupPublicInputs;
-use crate::abis::previous_rollup_data::PreviousRollupData;
-use crate::merge::utils::{
+use crate::lib::abis::base_or_merge_rollup_public_inputs::BaseOrMergeRollupPublicInputs;
+use crate::lib::abis::previous_rollup_data::PreviousRollupData;
+use crate::lib::merge::utils::{
     merge_rollups::merge_rollups, validate_consecutive_rollups::validate_consecutive_rollups,
 };
 use dep::types::{
@@ -12,8 +12,8 @@ use dep::types::{
 global ALLOWED_PREVIOUS_CIRCUITS: [u32; 3] =
     [MERGE_ROLLUP_INDEX, PRIVATE_BASE_ROLLUP_VK_INDEX, PUBLIC_BASE_ROLLUP_VK_INDEX];
 
-pub struct MergeRollupInputs {
-    pub previous_rollup_data: [PreviousRollupData; 2],
+pub(crate)struct MergeRollupInputs {
+    pub(crate)previous_rollup_data: [PreviousRollupData; 2],
 }
 
 impl Empty for MergeRollupInputs {
@@ -23,7 +23,7 @@ impl Empty for MergeRollupInputs {
 }
 
 impl MergeRollupInputs {
-    pub fn merge_rollup_circuit(self) -> BaseOrMergeRollupPublicInputs {
+    pub(crate)fn merge_rollup_circuit(self) -> BaseOrMergeRollupPublicInputs {
         // Verify the previous rollup proofs
         if !dep::std::runtime::is_unconstrained() {
             self.previous_rollup_data[0].verify();

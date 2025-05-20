@@ -1,9 +1,9 @@
-use crate::abis::base_or_merge_rollup_public_inputs::{
+use crate::lib::abis::base_or_merge_rollup_public_inputs::{
     BaseOrMergeRollupPublicInputs, MERGE_ROLLUP_TYPE,
 };
 use dep::types::hash::accumulate_sha256;
 
-pub fn merge_rollups(
+pub(crate)fn merge_rollups(
     prev_rollup: BaseOrMergeRollupPublicInputs,
     next_rollup: BaseOrMergeRollupPublicInputs,
 ) -> BaseOrMergeRollupPublicInputs {

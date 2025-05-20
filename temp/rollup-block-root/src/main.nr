@@ -1,9 +1,11 @@
-use dep::rollup_lib::block_root::BlockRootRollupInputs;
+use lib::block_root::BlockRootRollupInputs;
 
 use blob::{
     blob_batching::evaluate_blobs_and_batch,
     blob_batching_public_inputs::BlobAccumulatorPublicInputs,
 };
+
+mod lib;
 
 fn main(inputs: BlockRootRollupInputs) -> pub BlobAccumulatorPublicInputs {
     evaluate_blobs_and_batch(
