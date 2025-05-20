@@ -36,7 +36,7 @@ expression: artifact
   "debug_symbols": "jZDRCoMwDEX/Jc990DKZ+isiUjVKobSltoMh/felok4fBnvJbZqcG7grjNiHuZN6MgvUzQq9k0rJuVNmEF4aTb8rZKnkBdQ5g7yEmpNUJDEyOBY77xDT3oUkPyscag+1DkoxeAkVtqXFCr2pF46mGQPUIykZTlJhekX2pbPfaF49dphnjxMv/ufL6uSLG99SJwbpblnE5OSk6BXu7RT0cJn6tz0mR5bWmQHH4DA5XQKl2nDO+LON6doH",
   "file_map": {
     "50": {
-      "source": "// Regression for issue #8586 (https://github.com/noir-lang/noir/issues/8586)\nfn main(a: pub bool) {\n    for _ in 0..1 {\n        if a {\n            for _ in 0..1 {\n                let _ = (1 / (a as Field));\n            }\n        };\n    }\n}",
+      "source": "// Regression for issue #8586 (https://github.com/noir-lang/noir/issues/8586)\nfn main(a: pub bool) {\n    for _ in 0..1 {\n        if a {\n            for _ in 0..1 {\n                let _ = (1 / (a as Field));\n            }\n        };\n    }\n}\n",
       "path": ""
     }
   },
