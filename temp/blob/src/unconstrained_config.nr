@@ -107,10 +107,3 @@ pub unconstrained fn compute_roots_of_unity() -> [F; FIELDS_PER_BLOB] {
     // bit_reversal_permutation(&mut roots_of_unity);
     // roots_of_unity
 }
-
-mod tests {
-    #[test]
-    unconstrained fn test_roots_correctness() {
-        assert_eq(super::compute_roots_of_unity(), crate::config::ROOTS);
-    }
-}

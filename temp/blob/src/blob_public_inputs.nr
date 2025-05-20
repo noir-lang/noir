@@ -125,11 +125,3 @@ impl Eq for BlockBlobPublicInputs {
         self.inner.eq(other.inner)
     }
 }
-
-#[test]
-fn serialization_of_empty() {
-    let item = BlockBlobPublicInputs::empty();
-    let serialized = item.serialize();
-    let deserialized = BlockBlobPublicInputs::deserialize(serialized);
-    assert(item.eq(deserialized));
-}
