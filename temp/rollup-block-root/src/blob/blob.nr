@@ -1,17 +1,11 @@
-use crate::blob::{
-    blob_public_inputs::{BlobCommitment, BlobPublicInputs, BlockBlobPublicInputs},
-    config::{D_INV, LOG_FIELDS_PER_BLOB, ROOTS},
-};
+use crate::blob::{blob_public_inputs::BlobCommitment, config::{D_INV, LOG_FIELDS_PER_BLOB, ROOTS}};
 
-use crate::types::{
-    abis::sponge_blob::SpongeBlob,
-    constants::{BLOBS_PER_BLOCK, FIELDS_PER_BLOB},
-    hash::poseidon2_hash_subarray,
-    traits::Empty,
-    utils::arrays::array_splice,
-};
+use crate::SpongeBlob;
+
 use bigint::{BigNum, BLS12_381_Fr as F};
 use std::ops::{Mul, Neg};
+
+global FIELDS_PER_BLOB: u32 = 4096;
 
 // TODO(MW): remove pub(crate)when fully moved to batching
 pub(crate) fn convert_blob_fields(
@@ -24,27 +18,6 @@ pub(crate) fn convert_blob_fields(
     blob
 }
 
-pub(crate) fn check_block_blob_sponge(
-    blobs_as_fields: [Field; FIELDS_PER_BLOB * BLOBS_PER_BLOCK],
-    mut sponge_blob: SpongeBlob,
-) -> Field {
-    // Check that we haven't overfilled the blobs
-    assert(
-        sponge_blob.expected_fields <= FIELDS_PER_BLOB * BLOBS_PER_BLOCK,
-        "Attempted to overfill blobs",
-    );
-    // Check that the blob is full
-    assert(
-        sponge_blob.expected_fields == sponge_blob.fields,
-        "Incorrect number of tx effects added to blob",
-    );
-    let sponge_hash = sponge_blob.squeeze();
-    let hash = poseidon2_hash_subarray(blobs_as_fields, sponge_blob.fields);
-    assert(hash == sponge_hash, "Mismatched hashed tx effects");
-
-    sponge_hash
-}
-
 // TODO(MW): remove pub(crate)when fully moved to batching
 pub(crate) fn compute_challenge(
     hashed_blobs_fields: Field,
@@ -53,51 +26,6 @@ pub(crate) fn compute_challenge(
     let preimage = [hashed_blobs_fields, kzg_commitment.inner[0], kzg_commitment.inner[1]];
     let challenge = poseidon::poseidon2::Poseidon2::hash(preimage, 3);
     challenge
-}
-
-// Note: the kzg_commitment is technically a BLS12-381 point in (Fq, Fq), but
-// we don't actually need to operate on it so we've simply encoded it as fitting inside a
-// [Field; 2], since two 254-bit fields more-than covers 381+1=382 bits.
-// See yarn-project/foundation/src/blob/index.ts -> commitmentToFields() for encoding
-// TODO(MW): remove pub(crate)when fully moved to batching
-pub(crate) fn evaluate_blob(
-    blob_as_fields: [Field; FIELDS_PER_BLOB],
-    kzg_commitment: BlobCommitment,
-    hashed_blobs_fields: Field,
-) -> BlobPublicInputs {
-    let challenge_z: Field = compute_challenge(hashed_blobs_fields, kzg_commitment);
-    let challenge_z_as_bignum = F::from(challenge_z);
-    let blob = convert_blob_fields(blob_as_fields);
-
-    let y: F = barycentric_evaluate_blob_at_z(challenge_z_as_bignum, blob);
-
-    BlobPublicInputs { z: challenge_z, y, kzg_commitment }
-}
-
-// Evaluates each blob required for a block
-pub(crate) fn evaluate_blobs(
-    blobs_as_fields: [Field; FIELDS_PER_BLOB * BLOBS_PER_BLOCK],
-    kzg_commitments: [BlobCommitment; BLOBS_PER_BLOCK],
-    mut sponge_blob: SpongeBlob,
-) -> BlockBlobPublicInputs {
-    // Note that with multiple blobs per block, each blob uses the same hashed_blobs_fields in:
-    // challenge_z = H(hashed_blobs_fields, kzg_commitment[0], kzg_commitment[1])
-    // This is ok, because each commitment is unique to the blob, and we need hashed_blobs_fields to encompass
-    // all fields in the blob, which it does.
-    let hashed_blobs_fields = check_block_blob_sponge(blobs_as_fields, sponge_blob);
-    let mut result = BlockBlobPublicInputs::empty();
-    for i in 0..BLOBS_PER_BLOCK {
-        let single_blob_fields = array_splice(blobs_as_fields, i * FIELDS_PER_BLOB);
-        result.inner[i] =
-            evaluate_blob(single_blob_fields, kzg_commitments[i], hashed_blobs_fields);
-        if (result.inner[i].is_zero()) & (single_blob_fields[0] == 0) {
-            // We use empty PIs for empty blobs, to make it simpler to verify on L1.
-            // Since our fields come from the base rollup, we know they are tightly packed
-            // and should contain no 0 values among valid values => single_blob_fields[0] == 0.
-            result.inner[i] = BlobPublicInputs::empty();
-        }
-    }
-    result
 }
 
 /**
