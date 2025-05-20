@@ -41,6 +41,7 @@ impl Elaborator<'_> {
 
                 let new_generics =
                     this.desugar_trait_constraints(&mut unresolved_trait.trait_def.where_clause);
+                let new_generics = vecmap(new_generics, |(generic, bound)| generic);
                 this.generics.extend(new_generics);
 
                 let where_clause =
@@ -72,7 +73,28 @@ impl Elaborator<'_> {
                     trait_def.set_where_clause(where_clause);
                     trait_def.set_visibility(unresolved_trait.trait_def.visibility);
                     trait_def.set_associated_type_bounds(associated_type_bounds);
+                    trait_def.set_all_generics(this.generics.clone());
                 });
+            });
+        }
+
+        self.self_type = None;
+        self.current_trait = None;
+    }
+
+    pub fn collect_trait_methods(&mut self, traits: &mut BTreeMap<TraitId, UnresolvedTrait>) {
+        for (trait_id, unresolved_trait) in traits {
+            self.local_module = unresolved_trait.module_id;
+
+            self.recover_generics(|this| {
+                this.current_trait = Some(*trait_id);
+
+                let the_trait = this.interner.get_trait(*trait_id);
+                let self_typevar = the_trait.self_type_typevar.clone();
+                let self_type = Type::TypeVariable(self_typevar.clone());
+                this.self_type = Some(self_type.clone());
+
+                this.generics = the_trait.all_generics.clone();
 
                 let methods = this.resolve_trait_methods(*trait_id, unresolved_trait);
 

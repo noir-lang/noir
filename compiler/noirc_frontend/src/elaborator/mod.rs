@@ -366,10 +366,11 @@ impl<'context> Elaborator<'context> {
         // Must resolve types before we resolve globals.
         self.collect_struct_definitions(&items.structs);
         self.collect_enum_definitions(&items.enums);
+        self.collect_traits(&mut items.traits);
 
         self.define_function_metas(&mut items.functions, &mut items.impls, &mut items.trait_impls);
 
-        self.collect_traits(&mut items.traits);
+        self.collect_trait_methods(&mut items.traits);
 
         // Before we resolve any function symbols we must go through our impls and
         // re-collect the methods within into their proper module. This cannot be
@@ -838,7 +839,7 @@ impl<'context> Elaborator<'context> {
     fn desugar_trait_constraints(
         &mut self,
         where_clause: &mut [UnresolvedTraitConstraint],
-    ) -> Vec<ResolvedGeneric> {
+    ) -> Vec<(ResolvedGeneric, Vec<ResolvedTraitBound>)> {
         where_clause
             .iter_mut()
             .flat_map(|constraint| {
@@ -863,7 +864,7 @@ impl<'context> Elaborator<'context> {
         &mut self,
         object: &UnresolvedType,
         bound: &mut TraitBound,
-    ) -> Vec<ResolvedGeneric> {
+    ) -> Vec<(ResolvedGeneric, Vec<ResolvedTraitBound>)> {
         let mut added_generics = Vec::new();
         let trait_path = self.validate_path(bound.trait_path.clone());
 
@@ -877,6 +878,7 @@ impl<'context> Elaborator<'context> {
 
         if the_trait.associated_types.len() > bound.trait_generics.named_args.len() {
             let trait_name = the_trait.name.to_string();
+            let associated_type_bounds = the_trait.associated_type_bounds.clone();
 
             for associated_type in &the_trait.associated_types.clone() {
                 if !bound
@@ -903,8 +905,16 @@ impl<'context> Elaborator<'context> {
                     let typ = UnresolvedTypeData::Resolved(typ).with_location(location);
                     let ident = Ident::new(associated_type.name.as_ref().clone(), location);
 
+                    let associated_type_bounds = associated_type_bounds
+                        .get(associated_type.name.as_str())
+                        .cloned()
+                        .unwrap_or_default();
+
                     bound.trait_generics.named_args.push((ident, typ));
-                    added_generics.push(ResolvedGeneric { name, location, type_var });
+                    added_generics.push((
+                        ResolvedGeneric { name, location, type_var },
+                        associated_type_bounds,
+                    ));
                 }
             }
         }
@@ -997,13 +1007,36 @@ impl<'context> Elaborator<'context> {
         let func_generics = vecmap(&self.generics, |generic| generic.type_var.clone());
 
         let associated_generics = self.desugar_trait_constraints(&mut func.def.where_clause);
-        let mut generics = vecmap(associated_generics, |generic| generic.type_var);
+
+        let mut generics = Vec::with_capacity(associated_generics.len());
+        let mut associated_generics_trait_contraints = Vec::new();
+
+        for (associated_generic, bounds) in associated_generics {
+            for bound in bounds {
+                let typ = Type::TypeVariable(associated_generic.type_var.clone());
+
+                self.add_trait_bound_to_scope(
+                    associated_generic.location,
+                    &typ,
+                    &bound,
+                    bound.trait_id,
+                );
+
+                associated_generics_trait_contraints.push(TraitConstraint {
+                    typ: Type::TypeVariable(associated_generic.type_var.clone()),
+                    trait_bound: bound,
+                });
+            }
+
+            generics.push(associated_generic.type_var);
+        }
 
         // We put associated generics first, as they are implicit and implicit generics
         // come before explicit generics (see `Type::instantiate_with`).
         generics.extend(func_generics);
 
         let mut trait_constraints = self.resolve_trait_constraints(&func.def.where_clause);
+        trait_constraints.extend(associated_generics_trait_contraints);
 
         let mut parameters = Vec::new();
         let mut parameter_types = Vec::new();
@@ -2202,7 +2235,7 @@ impl<'context> Elaborator<'context> {
             trait_impl.resolved_generics = self.generics.clone();
 
             let new_generics = self.desugar_trait_constraints(&mut trait_impl.where_clause);
-            for new_generic in new_generics {
+            for (new_generic, bounds) in new_generics {
                 trait_impl.resolved_generics.push(new_generic.clone());
                 self.generics.push(new_generic);
             }

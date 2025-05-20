@@ -79,6 +79,8 @@ pub struct Trait {
     pub trait_bounds: Vec<ResolvedTraitBound>,
 
     pub where_clause: Vec<TraitConstraint>,
+
+    pub all_generics: Generics,
 }
 
 #[derive(Debug)]
@@ -166,6 +168,10 @@ impl Trait {
 
     pub fn set_visibility(&mut self, visibility: ItemVisibility) {
         self.visibility = visibility;
+    }
+
+    pub fn set_all_generics(&mut self, generics: Generics) {
+        self.all_generics = generics;
     }
 
     pub fn set_associated_type_bounds(
