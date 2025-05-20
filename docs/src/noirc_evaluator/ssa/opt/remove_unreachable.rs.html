@@ -178,43 +178,7 @@
 <a href="#177" id="177">177</a>
 <a href="#178" id="178">178</a>
 <a href="#179" id="179">179</a>
-<a href="#180" id="180">180</a>
-<a href="#181" id="181">181</a>
-<a href="#182" id="182">182</a>
-<a href="#183" id="183">183</a>
-<a href="#184" id="184">184</a>
-<a href="#185" id="185">185</a>
-<a href="#186" id="186">186</a>
-<a href="#187" id="187">187</a>
-<a href="#188" id="188">188</a>
-<a href="#189" id="189">189</a>
-<a href="#190" id="190">190</a>
-<a href="#191" id="191">191</a>
-<a href="#192" id="192">192</a>
-<a href="#193" id="193">193</a>
-<a href="#194" id="194">194</a>
-<a href="#195" id="195">195</a>
-<a href="#196" id="196">196</a>
-<a href="#197" id="197">197</a>
-<a href="#198" id="198">198</a>
-<a href="#199" id="199">199</a>
-<a href="#200" id="200">200</a>
-<a href="#201" id="201">201</a>
-<a href="#202" id="202">202</a>
-<a href="#203" id="203">203</a>
-<a href="#204" id="204">204</a>
-<a href="#205" id="205">205</a>
-<a href="#206" id="206">206</a>
-<a href="#207" id="207">207</a>
-<a href="#208" id="208">208</a>
-<a href="#209" id="209">209</a>
-<a href="#210" id="210">210</a>
-<a href="#211" id="211">211</a>
-<a href="#212" id="212">212</a>
-<a href="#213" id="213">213</a>
-<a href="#214" id="214">214</a>
-<a href="#215" id="215">215</a>
-<a href="#216" id="216">216</a></pre></div><pre class="rust"><code><span class="doccomment">//! Removes any unreachable functions from the code. These can result from
+<a href="#180" id="180">180</a></pre></div><pre class="rust"><code><span class="doccomment">//! Removes any unreachable functions from the code. These can result from
 //! optimizations making existing functions unreachable, e.g. `if false { foo() }`,
 //! or even from monomorphizing an unconstrained version of a constrained function
 //! where the original constrained version ends up never being used.
@@ -227,18 +191,19 @@
 //!   Even if not immediately called, it may later be dynamically loaded and invoked.
 //!   This marking is conservative but ensures correctness. We should instead rely on [mem2reg][crate::ssa::opt::mem2reg]
 //!   for resolving loads/stores.
+//! - A function is reachable if it is used in a block terminator (e.g., returned from a function)
 //!
-//! The pass performs a recursive traversal starting from all entry points and marks
-//! any transitively reachable functions. It then discards the rest.
+//! The pass builds a call graph based upon the definition of reachability above.
+//! It then identifies all entry points and uses the [CallGraph::reachable_from] utility
+//! to mark all transitively reachable functions. It then discards the rest.
 //!
 //! This pass helps shrink the SSA before compilation stages like inlining and dead code elimination.
 
 </span><span class="kw">use </span>std::collections::BTreeSet;
 
-<span class="kw">use </span>fxhash::FxHashSet <span class="kw">as </span>HashSet;
-
 <span class="kw">use </span><span class="kw">crate</span>::ssa::{
     ir::{
+        call_graph::CallGraph,
         function::{Function, FunctionId},
         instruction::Instruction,
         value::Value,
@@ -249,64 +214,27 @@
 <span class="kw">impl </span>Ssa {
     <span class="doccomment">/// See [`remove_unreachable`][self] module for more information.
     </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>remove_unreachable_functions(<span class="kw-2">mut </span><span class="self">self</span>) -&gt; <span class="self">Self </span>{
-        <span class="kw">let </span><span class="kw-2">mut </span>reachable_functions = HashSet::default();
-
-        <span class="comment">// Go through all the functions, and if we have an entry point, extend the set of all
-        // functions which are reachable.
-        </span><span class="kw">for </span>(id, function) <span class="kw">in </span><span class="self">self</span>.functions.iter() {
+        <span class="comment">// Identify entry points
+        </span><span class="kw">let </span>entry_points = <span class="self">self</span>.functions.iter().filter_map(|(<span class="kw-2">&amp;</span>id, func)| {
             <span class="comment">// Not using `Ssa::is_entry_point` because it could leave Brillig functions that nobody calls in the SSA,
             // because it considers every Brillig function as an entry point.
-            </span><span class="kw">let </span>is_entry_point = function.id() == <span class="self">self</span>.main_id
-                || function.runtime().is_acir() &amp;&amp; function.runtime().is_entry_point();
+            </span><span class="kw">let </span>is_entry_point =
+                id == <span class="self">self</span>.main_id || func.runtime().is_acir() &amp;&amp; func.runtime().is_entry_point();
+            is_entry_point.then_some(id)
+        });
 
-            <span class="kw">if </span>is_entry_point {
-                collect_reachable_functions(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="kw-2">*</span>id, <span class="kw-2">&amp;mut </span>reachable_functions);
-            }
-        }
+        <span class="comment">// Build call graph dependencies using this passes definition of reachability.
+        </span><span class="kw">let </span>dependencies =
+            <span class="self">self</span>.functions.iter().map(|(<span class="kw-2">&amp;</span>id, func)| (id, used_functions(func))).collect();
+        <span class="kw">let </span>call_graph = CallGraph::from_deps(dependencies);
+
+        <span class="comment">// Traverse the call graph from all entry points
+        </span><span class="kw">let </span>reachable_functions = call_graph.reachable_from(entry_points);
 
         <span class="comment">// Discard all functions not marked as reachable
         </span><span class="self">self</span>.functions.retain(|id, <span class="kw">_</span>| reachable_functions.contains(id));
         <span class="self">self
     </span>}
-}
-
-<span class="doccomment">/// Recursively determine the reachable functions from a given function.
-/// This function is only intended to be called on functions that are already known
-/// to be entry points or transitively reachable from one.
-///
-/// # Arguments
-/// - `ssa`: The full [Ssa] structure containing all functions.
-/// - `current_func_id`: The [FunctionId] from which to begin a traversal.
-/// - `reachable_functions`: A mutable set used to collect all reachable functions.
-///   It serves both as the final output of this traversal and as a visited set
-///   to prevent cycles and redundant recursion.
-</span><span class="kw">fn </span>collect_reachable_functions(
-    ssa: <span class="kw-2">&amp;</span>Ssa,
-    current_func_id: FunctionId,
-    reachable_functions: <span class="kw-2">&amp;mut </span>HashSet&lt;FunctionId&gt;,
-) {
-    <span class="comment">// If this function has already been determine as reachable, then we have already
-    // processed the given function and we can simply return.
-    </span><span class="kw">if </span>reachable_functions.contains(<span class="kw-2">&amp;</span>current_func_id) {
-        <span class="kw">return</span>;
-    }
-    <span class="comment">// Mark the given function as reachable
-    </span>reachable_functions.insert(current_func_id);
-
-    <span class="comment">// If the debugger is used, its possible for function inlining
-    // to remove functions that the debugger still references
-    </span><span class="kw">let </span><span class="prelude-val">Some</span>(func) = ssa.functions.get(<span class="kw-2">&amp;</span>current_func_id) <span class="kw">else </span>{
-        <span class="kw">return</span>;
-    };
-
-    <span class="comment">// Get the set of reachable functions from the given function
-    </span><span class="kw">let </span>used_functions = used_functions(func);
-
-    <span class="comment">// For each reachable function within the given function recursively collect
-    // any more reachable functions.
-    </span><span class="kw">for </span>called_func_id <span class="kw">in </span>used_functions.iter() {
-        collect_reachable_functions(ssa, <span class="kw-2">*</span>called_func_id, reachable_functions);
-    }
 }
 
 <span class="doccomment">/// Identifies all reachable function IDs within a given function.
