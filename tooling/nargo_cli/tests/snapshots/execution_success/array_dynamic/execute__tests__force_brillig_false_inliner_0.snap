@@ -161,7 +161,7 @@ expression: artifact
     "EXPR [ (-1, _52) 4 ]",
     "MEM (id: 0, read at: EXPR [ (1, _52) 0 ], value: EXPR [ (1, _53) 0 ]) ",
     "INIT (id: 3, len: 5, witnesses: [_46, _47, _49, _51, _53])",
-    "EXPR [ (-1, _39, _42) (1, _39, _45) (2, _39) (1, _42) (-1, _54) -2 ]",
+    "EXPR [ (-1, _39, _43) (1, _39, _45) (1, _43) (-1, _54) 0 ]",
     "MEM (id: 3, write EXPR [ (1, _54) 0 ] at: EXPR [ (1, _44) 0 ]) ",
     "MEM (id: 3, read at: EXPR [ (1, _52) 0 ], value: EXPR [ (1, _55) 0 ]) ",
     "MEM (id: 0, read at: EXPR [ (1, _52) 0 ], value: EXPR [ (1, _56) 0 ]) ",

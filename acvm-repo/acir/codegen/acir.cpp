@@ -2111,6 +2111,28 @@ namespace Acir {
             }
         };
 
+        struct JumpIfNot {
+            Acir::MemoryAddress condition;
+            uint64_t location;
+
+            friend bool operator==(const JumpIfNot&, const JumpIfNot&);
+            std::vector<uint8_t> bincodeSerialize() const;
+            static JumpIfNot bincodeDeserialize(std::vector<uint8_t>);
+
+            void msgpack_pack(auto& packer) const {
+                packer.pack_map(2);
+                packer.pack(std::make_pair("condition", condition));
+                packer.pack(std::make_pair("location", location));
+            }
+
+            void msgpack_unpack(msgpack::object const& o) {
+                auto name = "JumpIfNot";
+                auto kvmap = Helpers::make_kvmap(o, name);
+                Helpers::conv_fld_from_kvmap(kvmap, name, "condition", condition, false);
+                Helpers::conv_fld_from_kvmap(kvmap, name, "location", location, false);
+            }
+        };
+
         struct JumpIf {
             Acir::MemoryAddress condition;
             uint64_t location;
@@ -3018,7 +3040,7 @@ namespace Acir {
 
         struct Blake2s {
             std::vector<Acir::FunctionInput> inputs;
-            std::array<Acir::Witness, 32> outputs;
+            std::shared_ptr<std::array<Acir::Witness, 32>> outputs;
 
             friend bool operator==(const Blake2s&, const Blake2s&);
             std::vector<uint8_t> bincodeSerialize() const;
@@ -3040,7 +3062,7 @@ namespace Acir {
 
         struct Blake3 {
             std::vector<Acir::FunctionInput> inputs;
-            std::array<Acir::Witness, 32> outputs;
+            std::shared_ptr<std::array<Acir::Witness, 32>> outputs;
 
             friend bool operator==(const Blake3&, const Blake3&);
             std::vector<uint8_t> bincodeSerialize() const;
@@ -3061,10 +3083,10 @@ namespace Acir {
         };
 
         struct EcdsaSecp256k1 {
-            std::array<Acir::FunctionInput, 32> public_key_x;
-            std::array<Acir::FunctionInput, 32> public_key_y;
-            std::array<Acir::FunctionInput, 64> signature;
-            std::array<Acir::FunctionInput, 32> hashed_message;
+            std::shared_ptr<std::array<Acir::FunctionInput, 32>> public_key_x;
+            std::shared_ptr<std::array<Acir::FunctionInput, 32>> public_key_y;
+            std::shared_ptr<std::array<Acir::FunctionInput, 64>> signature;
+            std::shared_ptr<std::array<Acir::FunctionInput, 32>> hashed_message;
             Acir::Witness output;
 
             friend bool operator==(const EcdsaSecp256k1&, const EcdsaSecp256k1&);
@@ -3092,10 +3114,10 @@ namespace Acir {
         };
 
         struct EcdsaSecp256r1 {
-            std::array<Acir::FunctionInput, 32> public_key_x;
-            std::array<Acir::FunctionInput, 32> public_key_y;
-            std::array<Acir::FunctionInput, 64> signature;
-            std::array<Acir::FunctionInput, 32> hashed_message;
+            std::shared_ptr<std::array<Acir::FunctionInput, 32>> public_key_x;
+            std::shared_ptr<std::array<Acir::FunctionInput, 32>> public_key_y;
+            std::shared_ptr<std::array<Acir::FunctionInput, 64>> signature;
+            std::shared_ptr<std::array<Acir::FunctionInput, 32>> hashed_message;
             Acir::Witness output;
 
             friend bool operator==(const EcdsaSecp256r1&, const EcdsaSecp256r1&);
@@ -3125,7 +3147,7 @@ namespace Acir {
         struct MultiScalarMul {
             std::vector<Acir::FunctionInput> points;
             std::vector<Acir::FunctionInput> scalars;
-            std::array<Acir::Witness, 3> outputs;
+            std::shared_ptr<std::array<Acir::Witness, 3>> outputs;
 
             friend bool operator==(const MultiScalarMul&, const MultiScalarMul&);
             std::vector<uint8_t> bincodeSerialize() const;
@@ -3148,9 +3170,9 @@ namespace Acir {
         };
 
         struct EmbeddedCurveAdd {
-            std::array<Acir::FunctionInput, 3> input1;
-            std::array<Acir::FunctionInput, 3> input2;
-            std::array<Acir::Witness, 3> outputs;
+            std::shared_ptr<std::array<Acir::FunctionInput, 3>> input1;
+            std::shared_ptr<std::array<Acir::FunctionInput, 3>> input2;
+            std::shared_ptr<std::array<Acir::Witness, 3>> outputs;
 
             friend bool operator==(const EmbeddedCurveAdd&, const EmbeddedCurveAdd&);
             std::vector<uint8_t> bincodeSerialize() const;
@@ -3173,8 +3195,8 @@ namespace Acir {
         };
 
         struct Keccakf1600 {
-            std::array<Acir::FunctionInput, 25> inputs;
-            std::array<Acir::Witness, 25> outputs;
+            std::shared_ptr<std::array<Acir::FunctionInput, 25>> inputs;
+            std::shared_ptr<std::array<Acir::Witness, 25>> outputs;
 
             friend bool operator==(const Keccakf1600&, const Keccakf1600&);
             std::vector<uint8_t> bincodeSerialize() const;
@@ -3398,9 +3420,9 @@ namespace Acir {
         };
 
         struct Sha256Compression {
-            std::array<Acir::FunctionInput, 16> inputs;
-            std::array<Acir::FunctionInput, 8> hash_values;
-            std::array<Acir::Witness, 8> outputs;
+            std::shared_ptr<std::array<Acir::FunctionInput, 16>> inputs;
+            std::shared_ptr<std::array<Acir::FunctionInput, 8>> hash_values;
+            std::shared_ptr<std::array<Acir::Witness, 8>> outputs;
 
             friend bool operator==(const Sha256Compression&, const Sha256Compression&);
             std::vector<uint8_t> bincodeSerialize() const;

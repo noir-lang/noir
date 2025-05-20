@@ -48,6 +48,7 @@ fxhash.workspace = true
 criterion.workspace = true
 pprof.workspace = true
 num-bigint.workspace = true
+regex.workspace = true
 rmpv.workspace = true
 insta.workspace = true
 

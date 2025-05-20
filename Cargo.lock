@@ -25,6 +25,7 @@ dependencies = [
  "prost",
  "prost-build",
  "protoc-prebuilt",
+ "regex",
  "rmp-serde",
  "rmpv",
  "serde",
