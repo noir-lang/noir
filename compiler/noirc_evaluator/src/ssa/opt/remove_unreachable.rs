@@ -44,14 +44,8 @@ impl Ssa {
         });
 
         // Build call graph dependencies using this passes definition of reachability.
-        let dependencies = self
-            .functions
-            .iter()
-            .map(|(&id, func)| {
-                let used = used_functions(func);
-                (id, used)
-            })
-            .collect();
+        let dependencies =
+            self.functions.iter().map(|(&id, func)| (id, used_functions(func))).collect();
         let call_graph = CallGraph::from_deps(dependencies);
 
         // Traverse the call graph from all entry points
