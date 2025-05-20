@@ -1,6 +1,6 @@
 use acvm::{AcirField, BlackBoxFunctionSolver, BlackBoxResolutionError, FieldElement};
 use bn254_blackbox_solver::derive_generators;
-use iter_extended::vecmap;
+use iter_extended::{try_vecmap, vecmap};
 use num_bigint::BigUint;
 
 use crate::ssa::{
@@ -31,7 +31,7 @@ impl Interpreter<'_> {
             }
             Intrinsic::ArrayAsStrUnchecked => {
                 check_argument_count(args, 1, intrinsic)?;
-                Ok(vec![self.lookup(args[0])])
+                Ok(vec![self.lookup(args[0])?])
             }
             Intrinsic::AsSlice => {
                 check_argument_count(args, 1, intrinsic)?;
@@ -73,7 +73,7 @@ impl Interpreter<'_> {
             // Both of these are no-ops
             Intrinsic::StrAsBytes | Intrinsic::AsWitness => {
                 check_argument_count(args, 1, intrinsic)?;
-                Ok(vec![self.lookup(args[0])])
+                Ok(vec![self.lookup(args[0])?])
             }
             Intrinsic::ToBits(endian) => {
                 check_argument_count(args, 1, intrinsic)?;
@@ -109,9 +109,8 @@ impl Interpreter<'_> {
                     let result =
                         acvm::blackbox_solver::aes128_encrypt(&inputs, iv_array, key_array)
                             .map_err(Self::convert_error)?;
-                    let result: Vec<FieldElement> =
-                        result.iter().map(|v| (*v as u128).into()).collect();
-                    let result = Value::array_from_slice(&result, NumericType::NativeField);
+                    let result = result.iter().map(|v| (*v as u128).into());
+                    let result = Value::array_from_iter(result, NumericType::NativeField)?;
                     Ok(vec![result])
                 }
                 acvm::acir::BlackBoxFunc::AND => {
@@ -134,9 +133,8 @@ impl Interpreter<'_> {
                     let inputs = self.lookup_bytes(args[0], "call Blake2s BlackBox")?;
                     let result =
                         acvm::blackbox_solver::blake2s(&inputs).map_err(Self::convert_error)?;
-                    let result: Vec<FieldElement> =
-                        result.iter().map(|e| (*e as u128).into()).collect();
-                    let result = Value::array_from_slice(&result, NumericType::NativeField);
+                    let result = result.iter().map(|e| (*e as u128).into());
+                    let result = Value::array_from_iter(result, NumericType::NativeField)?;
                     Ok(vec![result])
                 }
                 acvm::acir::BlackBoxFunc::Blake3 => {
@@ -144,9 +142,8 @@ impl Interpreter<'_> {
                     let inputs = self.lookup_bytes(args[0], "call Blake3 BlackBox")?;
                     let results =
                         acvm::blackbox_solver::blake3(&inputs).map_err(Self::convert_error)?;
-                    let results: Vec<FieldElement> =
-                        results.iter().map(|e| (*e as u128).into()).collect();
-                    let results = Value::array_from_slice(&results, NumericType::NativeField);
+                    let results = results.iter().map(|e| (*e as u128).into());
+                    let results = Value::array_from_iter(results, NumericType::NativeField)?;
                     Ok(vec![results])
                 }
                 acvm::acir::BlackBoxFunc::EcdsaSecp256k1 => {
@@ -183,7 +180,7 @@ impl Interpreter<'_> {
                     Ok(vec![Value::from_constant(
                         result.into(),
                         NumericType::Unsigned { bit_size: 1 },
-                    )])
+                    )?])
                 }
                 acvm::acir::BlackBoxFunc::EcdsaSecp256r1 => {
                     check_argument_count(args, 4, intrinsic)?;
@@ -219,7 +216,7 @@ impl Interpreter<'_> {
                     Ok(vec![Value::from_constant(
                         result.into(),
                         NumericType::Unsigned { bit_size: 1 },
-                    )])
+                    )?])
                 }
                 acvm::acir::BlackBoxFunc::MultiScalarMul => {
                     check_argument_count(args, 2, intrinsic)?;
@@ -276,7 +273,7 @@ impl Interpreter<'_> {
                     let solver = bn254_blackbox_solver::Bn254BlackBoxSolver(false);
                     let result = solver.multi_scalar_mul(&points, &scalars_lo, &scalars_hi);
                     let (a, b, c) = result.map_err(Self::convert_error)?;
-                    let result = Value::array_from_slice(&[a, b, c], NumericType::NativeField);
+                    let result = Value::array_from_iter([a, b, c], NumericType::NativeField)?;
                     Ok(vec![result])
                 }
                 acvm::acir::BlackBoxFunc::Keccakf1600 => {
@@ -291,10 +288,9 @@ impl Interpreter<'_> {
                     })?;
                     let results = acvm::blackbox_solver::keccakf1600(inputs_array)
                         .map_err(Self::convert_error)?;
-                    let results: Vec<FieldElement> =
-                        results.iter().map(|e| (*e as u128).into()).collect();
+                    let results = results.iter().map(|e| (*e as u128).into());
                     let results =
-                        Value::array_from_slice(&results, NumericType::Unsigned { bit_size: 64 });
+                        Value::array_from_iter(results, NumericType::Unsigned { bit_size: 64 })?;
                     Ok(vec![results])
                 }
                 acvm::acir::BlackBoxFunc::RecursiveAggregation => {
@@ -318,7 +314,7 @@ impl Interpreter<'_> {
                     let result =
                         solver.ec_add(&lhs.0, &lhs.1, &lhs.2.into(), &rhs.0, &rhs.1, &rhs.2.into());
                     let (x, y, inf) = result.map_err(Self::convert_error)?;
-                    let result = Value::array_from_slice(&[x, y, inf], NumericType::NativeField);
+                    let result = Value::array_from_iter([x, y, inf], NumericType::NativeField)?;
                     Ok(vec![result])
                 }
                 acvm::acir::BlackBoxFunc::BigIntAdd
@@ -339,7 +335,7 @@ impl Interpreter<'_> {
                     let result = solver
                         .poseidon2_permutation(&inputs, inputs.len() as u32)
                         .map_err(Self::convert_error)?;
-                    let result = Value::array_from_slice(&result, NumericType::NativeField);
+                    let result = Value::array_from_iter(result, NumericType::NativeField)?;
                     Ok(vec![result])
                 }
                 acvm::acir::BlackBoxFunc::Sha256Compression => {
@@ -361,13 +357,12 @@ impl Interpreter<'_> {
                         })
                     })?;
                     acvm::blackbox_solver::sha256_compression(&mut state, &inputs);
-                    let result: Vec<FieldElement> =
-                        state.iter().map(|e| (*e as u128).into()).collect();
-                    let result = Value::array_from_slice(&result, NumericType::NativeField);
+                    let result = state.iter().map(|e| (*e as u128).into());
+                    let result = Value::array_from_iter(result, NumericType::NativeField)?;
                     Ok(vec![result])
                 }
             },
-            Intrinsic::Hint(_) => Ok(self.lookup_all(args)),
+            Intrinsic::Hint(_) => self.lookup_all(args),
             Intrinsic::IsUnconstrained => {
                 check_argument_count(args, 0, intrinsic)?;
                 Ok(vec![Value::bool(self.in_unconstrained_context())])
@@ -384,10 +379,10 @@ impl Interpreter<'_> {
                     let x = FieldElement::from_le_bytes_reduce(&x_big.to_bytes_le());
                     let y_big: BigUint = generator.y.into();
                     let y = FieldElement::from_le_bytes_reduce(&y_big.to_bytes_le());
-                    let generator_slice = Value::array_from_slice(
-                        &[x, y, generator.infinity.into()],
+                    let generator_slice = Value::array_from_iter(
+                        [x, y, generator.infinity.into()],
                         NumericType::NativeField,
-                    );
+                    )?;
                     result.push(generator_slice);
                 }
                 let results = Value::array(
@@ -417,7 +412,7 @@ impl Interpreter<'_> {
             Intrinsic::ArrayRefCount | Intrinsic::SliceRefCount => {
                 let array = self.lookup_array_or_slice(args[0], "array/slice ref count")?;
                 let rc = *array.rc.borrow();
-                Ok(vec![Value::from_constant(rc.into(), NumericType::unsigned(32))])
+                Ok(vec![Value::from_constant(rc.into(), NumericType::unsigned(32))?])
             }
         }
     }
@@ -449,7 +444,8 @@ impl Interpreter<'_> {
             return Err(InterpreterError::ToRadixFailed { field_id, field, radix });
         };
 
-        let elements = vecmap(limbs, |limb| Value::from_constant(limb, NumericType::unsigned(8)));
+        let elements =
+            try_vecmap(limbs, |limb| Value::from_constant(limb, NumericType::unsigned(8)))?;
         Ok(vec![Value::array(elements, vec![Type::unsigned(8)])])
     }
 
@@ -463,7 +459,9 @@ impl Interpreter<'_> {
         let mut new_elements = slice.elements.borrow().to_vec();
         let element_types = slice.element_types.clone();
 
-        new_elements.extend(args.iter().skip(2).map(|arg| self.lookup(*arg)));
+        for arg in args.iter().skip(2) {
+            new_elements.push(self.lookup(*arg)?);
+        }
 
         let new_length = Value::Numeric(NumericValue::U32(length + 1));
         let new_slice = Value::slice(new_elements, element_types);
@@ -477,7 +475,7 @@ impl Interpreter<'_> {
         let slice_elements = slice.elements.clone();
         let element_types = slice.element_types.clone();
 
-        let mut new_elements = vecmap(args.iter().skip(2), |arg| self.lookup(*arg));
+        let mut new_elements = try_vecmap(args.iter().skip(2), |arg| self.lookup(*arg))?;
         new_elements.extend_from_slice(&slice_elements.borrow());
 
         let new_length = Value::Numeric(NumericValue::U32(length + 1));
@@ -543,7 +541,7 @@ impl Interpreter<'_> {
 
         let mut index = index as usize * element_types.len();
         for arg in args.iter().skip(3) {
-            slice_elements.insert(index, self.lookup(*arg));
+            slice_elements.insert(index, self.lookup(*arg)?);
             index += 1;
         }
 

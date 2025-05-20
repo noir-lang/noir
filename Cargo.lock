@@ -4,7 +4,7 @@ version = 4
 
 [[package]]
 name = "acir"
-version = "1.0.0-beta.5"
+version = "1.0.0-beta.6"
 dependencies = [
  "acir",
  "acir_field",
@@ -18,13 +18,16 @@ dependencies = [
  "insta",
  "noir_protobuf",
  "num-bigint",
+ "num_enum",
  "pprof",
  "proptest",
  "proptest-derive",
  "prost",
  "prost-build",
  "protoc-prebuilt",
+ "regex",
  "rmp-serde",
+ "rmpv",
  "serde",
  "serde-big-array",
  "serde-generate",
@@ -37,7 +40,7 @@ dependencies = [
 
 [[package]]
 name = "acir_field"
-version = "1.0.0-beta.5"
+version = "1.0.0-beta.6"
 dependencies = [
  "ark-bls12-381",
  "ark-bn254 0.5.0",
@@ -53,7 +56,7 @@ dependencies = [
 
 [[package]]
 name = "acvm"
-version = "1.0.0-beta.5"
+version = "1.0.0-beta.6"
 dependencies = [
  "acir",
  "acvm_blackbox_solver",
@@ -78,7 +81,7 @@ dependencies = [
 
 [[package]]
 name = "acvm_blackbox_solver"
-version = "1.0.0-beta.5"
+version = "1.0.0-beta.6"
 dependencies = [
  "acir",
  "blake2",
@@ -115,7 +118,7 @@ dependencies = [
 
 [[package]]
 name = "acvm_js"
-version = "1.0.0-beta.5"
+version = "1.0.0-beta.6"
 dependencies = [
  "acvm",
  "bn254_blackbox_solver",
@@ -803,7 +806,7 @@ dependencies = [
 
 [[package]]
 name = "bn254_blackbox_solver"
-version = "1.0.0-beta.5"
+version = "1.0.0-beta.6"
 dependencies = [
  "acir",
  "acvm_blackbox_solver",
@@ -830,7 +833,7 @@ dependencies = [
 
 [[package]]
 name = "brillig"
-version = "1.0.0-beta.5"
+version = "1.0.0-beta.6"
 dependencies = [
  "acir_field",
  "proptest",
@@ -840,7 +843,7 @@ dependencies = [
 
 [[package]]
 name = "brillig_vm"
-version = "1.0.0-beta.5"
+version = "1.0.0-beta.6"
 dependencies = [
  "acir",
  "acvm_blackbox_solver",
@@ -1832,7 +1835,7 @@ dependencies = [
 
 [[package]]
 name = "fm"
-version = "1.0.0-beta.5"
+version = "1.0.0-beta.6"
 dependencies = [
  "codespan-reporting",
  "iter-extended",
@@ -2686,7 +2689,7 @@ checksum = "7943c866cc5cd64cbc25b2e01621d07fa8eb2a1a23160ee81ce38704e97b8ecf"
 
 [[package]]
 name = "iter-extended"
-version = "1.0.0-beta.5"
+version = "1.0.0-beta.6"
 
 [[package]]
 name = "itertools"
@@ -3191,7 +3194,7 @@ checksum = "defc4c55412d89136f966bbb339008b474350e5e6e78d2714439c386b3137a03"
 
 [[package]]
 name = "nargo"
-version = "1.0.0-beta.5"
+version = "1.0.0-beta.6"
 dependencies = [
  "acvm",
  "fm",
@@ -3216,7 +3219,7 @@ dependencies = [
 
 [[package]]
 name = "nargo_cli"
-version = "1.0.0-beta.5"
+version = "1.0.0-beta.6"
 dependencies = [
  "acvm",
  "ark-bn254 0.5.0",
@@ -3286,7 +3289,7 @@ dependencies = [
 
 [[package]]
 name = "nargo_fmt"
-version = "1.0.0-beta.5"
+version = "1.0.0-beta.6"
 dependencies = [
  "noirc_errors",
  "noirc_frontend",
@@ -3298,7 +3301,7 @@ dependencies = [
 
 [[package]]
 name = "nargo_fuzz_target"
-version = "1.0.0-beta.5"
+version = "1.0.0-beta.6"
 dependencies = [
  "afl",
  "nargo",
@@ -3308,7 +3311,7 @@ dependencies = [
 
 [[package]]
 name = "nargo_toml"
-version = "1.0.0-beta.5"
+version = "1.0.0-beta.6"
 dependencies = [
  "dirs",
  "fm",
@@ -3375,7 +3378,7 @@ dependencies = [
 
 [[package]]
 name = "noir_artifact_cli"
-version = "1.0.0-beta.5"
+version = "1.0.0-beta.6"
 dependencies = [
  "acir",
  "acvm",
@@ -3399,7 +3402,7 @@ dependencies = [
 
 [[package]]
 name = "noir_ast_fuzzer"
-version = "1.0.0-beta.5"
+version = "1.0.0-beta.6"
 dependencies = [
  "acir",
  "acvm",
@@ -3410,6 +3413,8 @@ dependencies = [
  "color-eyre",
  "im",
  "insta",
+ "iter-extended",
+ "log",
  "nargo",
  "noir_greybox_fuzzer",
  "noirc_abi",
@@ -3418,17 +3423,20 @@ dependencies = [
  "noirc_frontend",
  "proptest",
  "rand 0.8.5",
+ "regex",
+ "similar-asserts",
  "strum",
 ]
 
 [[package]]
 name = "noir_ast_fuzzer_fuzz"
-version = "1.0.0-beta.5"
+version = "1.0.0-beta.6"
 dependencies = [
  "acir",
  "arbitrary",
  "arbtest",
  "color-eyre",
+ "env_logger",
  "libfuzzer-sys",
  "noir_ast_fuzzer",
  "noirc_abi",
@@ -3438,7 +3446,7 @@ dependencies = [
 
 [[package]]
 name = "noir_debugger"
-version = "1.0.0-beta.5"
+version = "1.0.0-beta.6"
 dependencies = [
  "acvm",
  "assert_cmd",
@@ -3463,7 +3471,7 @@ dependencies = [
 
 [[package]]
 name = "noir_greybox_fuzzer"
-version = "1.0.0-beta.5"
+version = "1.0.0-beta.6"
 dependencies = [
  "acvm",
  "build-data",
@@ -3483,7 +3491,7 @@ dependencies = [
 
 [[package]]
 name = "noir_inspector"
-version = "1.0.0-beta.5"
+version = "1.0.0-beta.6"
 dependencies = [
  "acir",
  "clap",
@@ -3498,7 +3506,7 @@ dependencies = [
 
 [[package]]
 name = "noir_lsp"
-version = "1.0.0-beta.5"
+version = "1.0.0-beta.6"
 dependencies = [
  "acvm",
  "async-lsp",
@@ -3527,7 +3535,7 @@ dependencies = [
 
 [[package]]
 name = "noir_profiler"
-version = "1.0.0-beta.5"
+version = "1.0.0-beta.6"
 dependencies = [
  "acir",
  "bn254_blackbox_solver",
@@ -3555,7 +3563,7 @@ dependencies = [
 
 [[package]]
 name = "noir_protobuf"
-version = "1.0.0-beta.5"
+version = "1.0.0-beta.6"
 dependencies = [
  "color-eyre",
  "prost",
@@ -3563,7 +3571,7 @@ dependencies = [
 
 [[package]]
 name = "noir_ssa_fuzzer"
-version = "1.0.0-beta.5"
+version = "1.0.0-beta.6"
 dependencies = [
  "acvm",
  "bn254_blackbox_solver",
@@ -3582,7 +3590,7 @@ dependencies = [
 
 [[package]]
 name = "noir_wasm"
-version = "1.0.0-beta.5"
+version = "1.0.0-beta.6"
 dependencies = [
  "acvm",
  "build-data",
@@ -3606,7 +3614,7 @@ dependencies = [
 
 [[package]]
 name = "noirc_abi"
-version = "1.0.0-beta.5"
+version = "1.0.0-beta.6"
 dependencies = [
  "acvm",
  "iter-extended",
@@ -3625,7 +3633,7 @@ dependencies = [
 
 [[package]]
 name = "noirc_abi_wasm"
-version = "1.0.0-beta.5"
+version = "1.0.0-beta.6"
 dependencies = [
  "acvm",
  "build-data",
@@ -3642,11 +3650,11 @@ dependencies = [
 
 [[package]]
 name = "noirc_arena"
-version = "1.0.0-beta.5"
+version = "1.0.0-beta.6"
 
 [[package]]
 name = "noirc_artifacts"
-version = "1.0.0-beta.5"
+version = "1.0.0-beta.6"
 dependencies = [
  "acvm",
  "codespan-reporting",
@@ -3661,7 +3669,7 @@ dependencies = [
 
 [[package]]
 name = "noirc_artifacts_info"
-version = "1.0.0-beta.5"
+version = "1.0.0-beta.6"
 dependencies = [
  "acir",
  "acvm",
@@ -3676,7 +3684,7 @@ dependencies = [
 
 [[package]]
 name = "noirc_driver"
-version = "1.0.0-beta.5"
+version = "1.0.0-beta.6"
 dependencies = [
  "acvm",
  "build-data",
@@ -3695,7 +3703,7 @@ dependencies = [
 
 [[package]]
 name = "noirc_errors"
-version = "1.0.0-beta.5"
+version = "1.0.0-beta.6"
 dependencies = [
  "acvm",
  "base64 0.21.7",
@@ -3712,7 +3720,7 @@ dependencies = [
 
 [[package]]
 name = "noirc_evaluator"
-version = "1.0.0-beta.5"
+version = "1.0.0-beta.6"
 dependencies = [
  "acvm",
  "bn254_blackbox_solver",
@@ -3746,7 +3754,7 @@ dependencies = [
 
 [[package]]
 name = "noirc_frontend"
-version = "1.0.0-beta.5"
+version = "1.0.0-beta.6"
 dependencies = [
  "acvm",
  "base64 0.21.7",
@@ -3780,7 +3788,7 @@ dependencies = [
 
 [[package]]
 name = "noirc_printable_type"
-version = "1.0.0-beta.5"
+version = "1.0.0-beta.6"
 dependencies = [
  "acvm",
  "iter-extended",
@@ -3908,6 +3916,27 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "071dfc062690e90b734c0b2273ce72ad0ffa95f0c74596bc250dcfd960262841"
 dependencies = [
  "autocfg",
+]
+
+[[package]]
+name = "num_enum"
+version = "0.7.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "4e613fc340b2220f734a8595782c551f1250e969d87d3be1ae0579e8d4065179"
+dependencies = [
+ "num_enum_derive",
+]
+
+[[package]]
+name = "num_enum_derive"
+version = "0.7.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "af1844ef2428cc3e1cb900be36181049ef3d3193c63e43026cfe202983b27a56"
+dependencies = [
+ "proc-macro-crate",
+ "proc-macro2",
+ "quote",
+ "syn 2.0.101",
 ]
 
 [[package]]
@@ -4779,6 +4808,16 @@ dependencies = [
  "byteorder",
  "rmp",
  "serde",
+]
+
+[[package]]
+name = "rmpv"
+version = "1.3.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "58450723cd9ee93273ce44a20b6ec4efe17f8ed2e3631474387bfdecf18bb2a9"
+dependencies = [
+ "num-traits",
+ "rmp",
 ]
 
 [[package]]

@@ -39,10 +39,7 @@ pub struct Ssa {
 impl Ssa {
     /// Create a new Ssa object from the given SSA functions.
     /// The first function in this vector is expected to be the main function.
-    pub(crate) fn new(
-        functions: Vec<Function>,
-        error_types: BTreeMap<ErrorSelector, HirType>,
-    ) -> Self {
+    pub fn new(functions: Vec<Function>, error_types: BTreeMap<ErrorSelector, HirType>) -> Self {
         let main_id = functions.first().expect("Expected at least 1 SSA function").id();
         let mut max_id = main_id;
 

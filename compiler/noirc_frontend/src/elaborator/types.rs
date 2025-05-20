@@ -952,7 +952,7 @@ impl Elaborator<'_> {
         expected: &Type,
         make_error: impl FnOnce() -> TypeCheckError,
     ) {
-        let mut bindings = TypeBindings::new();
+        let mut bindings = TypeBindings::default();
         if actual.try_unify(expected, &mut bindings).is_err() {
             let error: CompilationError = make_error().into();
             self.push_err(error);
@@ -2312,7 +2312,7 @@ impl Elaborator<'_> {
         trait_bound: &ResolvedTraitBound,
         parent_trait_bound: &ResolvedTraitBound,
     ) -> ResolvedTraitBound {
-        let mut bindings = TypeBindings::new();
+        let mut bindings = TypeBindings::default();
         self.bind_generics_from_trait_bound(trait_bound, &mut bindings);
         ResolvedTraitBound {
             trait_generics: parent_trait_bound.trait_generics.map(|typ| typ.substitute(&bindings)),

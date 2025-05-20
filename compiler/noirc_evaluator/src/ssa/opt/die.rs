@@ -624,6 +624,7 @@ mod test {
             function_builder::FunctionBuilder,
             ir::{
                 function::RuntimeType,
+                instruction::ArrayOffset,
                 map::Id,
                 types::{NumericType, Type},
             },
@@ -770,7 +771,9 @@ mod test {
 
         let v3 = builder.insert_load(v2, array_type);
         let one = builder.numeric_constant(1u128, NumericType::unsigned(32));
-        let v5 = builder.insert_array_set(v3, zero, one);
+        let mutable = false;
+        let offset = ArrayOffset::None;
+        let v5 = builder.insert_array_set(v3, zero, one, mutable, offset);
         builder.terminate_with_return(vec![v5]);
 
         let ssa = builder.finish();
