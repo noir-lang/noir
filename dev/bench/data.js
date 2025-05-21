@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1747841201967,
+  "lastUpdate": 1747841205651,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -7920,75 +7920,6 @@ window.BENCHMARK_DATA = {
             "username": "web-flow"
           },
           "distinct": false,
-          "id": "e5bac4e512e8cd021d2d674873a3ef1f837a768e",
-          "message": "fix: disallow generics on entry points (#8490)",
-          "timestamp": "2025-05-13T16:58:10Z",
-          "tree_id": "6add356c9ed835530484ddd1fac5a8378e11a6a5",
-          "url": "https://github.com/noir-lang/noir/commit/e5bac4e512e8cd021d2d674873a3ef1f837a768e"
-        },
-        "date": 1747157281615,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 0.028,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 0.159,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 0.011,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 0.306,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 0.195,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 11,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 0.004,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-root",
-            "value": 0.013,
-            "unit": "s"
-          },
-          {
-            "name": "semaphore-depth-10",
-            "value": 0.02,
-            "unit": "s"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
-            "email": "asterite@gmail.com",
-            "name": "Ary Borenszweig",
-            "username": "asterite"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
           "id": "35ff3264b5f9badbd272f6b7aa042095d31b632d",
           "message": "fix: remove unused generic in static_assert (#8488)\n\nCo-authored-by: Tom French <15848336+TomAFrench@users.noreply.github.com>",
           "timestamp": "2025-05-13T17:02:24Z",
@@ -11338,6 +11269,75 @@ window.BENCHMARK_DATA = {
           {
             "name": "rollup-block-root",
             "value": 11.4,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 0.004,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-root",
+            "value": 0.013,
+            "unit": "s"
+          },
+          {
+            "name": "semaphore-depth-10",
+            "value": 0.02,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "15848336+TomAFrench@users.noreply.github.com",
+            "name": "Tom French",
+            "username": "TomAFrench"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "34350e88722b1d4e684d98b16165223b538c63cd",
+          "message": "chore: clippy fixes (#8600)",
+          "timestamp": "2025-05-21T14:57:58Z",
+          "tree_id": "f0cdb632d6d97349ed91505ed22f123e30f8dafa",
+          "url": "https://github.com/noir-lang/noir/commit/34350e88722b1d4e684d98b16165223b538c63cd"
+        },
+        "date": 1747841194523,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 0.028,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 0.162,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 0.011,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 0.306,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 0.193,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 11.6,
             "unit": "s"
           },
           {
