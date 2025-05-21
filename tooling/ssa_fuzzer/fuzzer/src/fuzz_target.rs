@@ -1,7 +1,7 @@
 #![no_main]
 
 mod fuzz_lib;
-use fuzz_lib::fuzz_lib::{FuzzerData, fuzz_target};
+use fuzz_lib::fuzz_target_lib::{FuzzerData, fuzz_target};
 use fuzz_lib::options::{FuzzerCommandOptions, FuzzerOptions, InstructionOptions};
 use noirc_driver::CompileOptions;
 
