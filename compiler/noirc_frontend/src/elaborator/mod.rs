@@ -1287,7 +1287,7 @@ impl<'context> Elaborator<'context> {
     }
 
     fn remove_trait_constraints_from_scope<'a>(
-        &'a mut self,
+        &mut self,
         constraints: impl Iterator<Item = &'a TraitConstraint>,
     ) {
         for constraint in constraints {
