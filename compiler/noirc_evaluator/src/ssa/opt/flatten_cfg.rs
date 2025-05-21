@@ -1511,41 +1511,41 @@ mod test {
         let src = "
         acir(inline) fn main f0 {
           b0():
-            v0 = allocate -> &mut Field
-            store Field 0 at v0
-            v2 = allocate -> &mut Field
-            store Field 2 at v2
-            v4 = load v2 -> Field
-            v5 = lt v4, Field 2
+            v0 = allocate -> &mut u32
+            store u32 0 at v0
+            v2 = allocate -> &mut u32
+            store u32 2 at v2
+            v4 = load v2 -> u32
+            v5 = lt v4, u32 2
             jmpif v5 then: b4, else: b1
           b1():
-            v6 = load v2 -> Field
-            v8 = lt v6, Field 4
+            v6 = load v2 -> u32
+            v8 = lt v6, u32 4
             jmpif v8 then: b2, else: b3
           b2():
-            v9 = load v0 -> Field
-            v10 = load v2 -> Field
-            v12 = mul v10, Field 100
+            v9 = load v0 -> u32
+            v10 = load v2 -> u32
+            v12 = mul v10, u32 100
             v13 = add v9, v12
             store v13 at v0
-            v14 = load v2 -> Field
-            v16 = add v14, Field 1
+            v14 = load v2 -> u32
+            v16 = add v14, u32 1
             store v16 at v2
             jmp b3()
           b3():
             jmp b5()
           b4():
-            v17 = load v0 -> Field
-            v18 = load v2 -> Field
-            v20 = mul v18, Field 10
+            v17 = load v0 -> u32
+            v18 = load v2 -> u32
+            v20 = mul v18, u32 10
             v21 = add v17, v20
             store v21 at v0
-            v22 = load v2 -> Field
-            v23 = add v22, Field 1
+            v22 = load v2 -> u32
+            v23 = add v22, u32 1
             store v23 at v2
             jmp b5()
           b5():
-            v24 = load v0 -> Field
+            v24 = load v0 -> u32
             return v24
         }";
 
@@ -1572,10 +1572,10 @@ mod test {
         assert_ssa_snapshot!(ssa, @r"
         acir(inline) fn main f0 {
           b0():
-            v0 = allocate -> &mut Field
-            v1 = allocate -> &mut Field
+            v0 = allocate -> &mut u32
+            v1 = allocate -> &mut u32
             enable_side_effects u1 1
-            return Field 200
+            return u32 200
         }
         ");
     }
