@@ -216,6 +216,7 @@ pub fn module_def_id_relative_path(
 }
 
 /// Returns true if the given ModuleDefId is visible from the current module, given its visibility.
+///
 /// This will in turn check if the ModuleDefId parent modules are visible from the current module.
 /// If `defining_module` is Some, it will be considered as the parent of the item to check
 /// (this is the case when the item is re-exported with `pub use` or similar).
