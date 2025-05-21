@@ -3389,7 +3389,13 @@
 <a href="#3388" id="3388">3388</a>
 <a href="#3389" id="3389">3389</a>
 <a href="#3390" id="3390">3390</a>
-<a href="#3391" id="3391">3391</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::{borrow::Cow, cell::RefCell, collections::BTreeSet, rc::Rc};
+<a href="#3391" id="3391">3391</a>
+<a href="#3392" id="3392">3392</a>
+<a href="#3393" id="3393">3393</a>
+<a href="#3394" id="3394">3394</a>
+<a href="#3395" id="3395">3395</a>
+<a href="#3396" id="3396">3396</a>
+<a href="#3397" id="3397">3397</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::{borrow::Cow, cell::RefCell, collections::BTreeSet, rc::Rc};
 
 <span class="kw">use </span>fxhash::FxHashMap <span class="kw">as </span>HashMap;
 
@@ -3654,7 +3660,13 @@
         <span class="kw">match </span><span class="self">self </span>{
             Kind::IntegerOrField =&gt; <span class="prelude-val">Some</span>(Type::default_int_or_field_type()),
             Kind::Integer =&gt; <span class="prelude-val">Some</span>(Type::default_int_type()),
-            Kind::Numeric(typ) =&gt; <span class="prelude-val">Some</span>(<span class="kw-2">*</span>typ.clone()),
+            Kind::Numeric(_typ) =&gt; {
+                <span class="comment">// Even though we have a type here, that type cannot be used as
+                // the default type of a numeric generic.
+                // For example, if we have `let N: u32` and we don't know
+                // what `N` is, we can't assume it's `u32`.
+                </span><span class="prelude-val">None
+            </span>}
             Kind::Any | Kind::Normal =&gt; <span class="prelude-val">None</span>,
         }
     }

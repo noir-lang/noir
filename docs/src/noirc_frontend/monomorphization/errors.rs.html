@@ -127,7 +127,10 @@
 <a href="#126" id="126">126</a>
 <a href="#127" id="127">127</a>
 <a href="#128" id="128">128</a>
-<a href="#129" id="129">129</a></pre></div><pre class="rust"><code><span class="kw">use </span>noirc_errors::{CustomDiagnostic, Location};
+<a href="#129" id="129">129</a>
+<a href="#130" id="130">130</a>
+<a href="#131" id="131">131</a>
+<a href="#132" id="132">132</a></pre></div><pre class="rust"><code><span class="kw">use </span>noirc_errors::{CustomDiagnostic, Location};
 
 <span class="kw">use crate</span>::{
     Type,
@@ -152,6 +155,7 @@
         generic_name: String,
         item_kind: <span class="kw-2">&amp;</span><span class="lifetime">'static </span>str,
         item_name: String,
+        is_numeric: bool,
     },
     InternalError {
         message: <span class="kw-2">&amp;</span><span class="lifetime">'static </span>str,
@@ -225,11 +229,13 @@
                 generic_name,
                 item_kind,
                 item_name,
+                is_numeric,
             } =&gt; {
                 <span class="kw">let </span>message = <span class="string">"Type annotation needed"</span>.into();
+                <span class="kw">let </span>type_or_value = <span class="kw">if </span><span class="kw-2">*</span>is_numeric { <span class="string">"value" </span>} <span class="kw">else </span>{ <span class="string">"type" </span>};
                 <span class="kw">let </span>secondary = <span class="macro">format!</span>(
-                    <span class="string">"Could not determine the type of the generic argument `{generic_name}` declared on the {item_kind} `{item_name}`"
-                </span>);
+                    <span class="string">"Could not determine the {type_or_value} of the generic argument `{generic_name}` declared on the {item_kind} `{item_name}`"</span>,
+                );
                 <span class="kw">return </span>CustomDiagnostic::simple_error(message, secondary, <span class="kw-2">*</span>location);
             }
             MonomorphizationError::InterpreterError(error) =&gt; <span class="kw">return </span>error.into(),

@@ -1071,7 +1071,8 @@
 <a href="#1070" id="1070">1070</a>
 <a href="#1071" id="1071">1071</a>
 <a href="#1072" id="1072">1072</a>
-<a href="#1073" id="1073">1073</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::future::{<span class="self">self</span>, Future};
+<a href="#1073" id="1073">1073</a>
+<a href="#1074" id="1074">1074</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::future::{<span class="self">self</span>, Future};
 
 <span class="kw">use </span>async_lsp::ResponseError;
 <span class="kw">use </span>async_lsp::lsp_types;
@@ -1598,10 +1599,11 @@
         }
         Type::TypeVariable(binding) =&gt; <span class="kw">match </span><span class="kw-2">&amp;*</span>binding.borrow() {
             TypeBinding::Unbound(<span class="kw">_</span>, kind) =&gt; <span class="kw">match </span>kind {
-                Kind::Any | Kind::Normal =&gt; push_type_variable_parts(binding, parts, files),
+                Kind::Any | Kind::Normal | Kind::Numeric(..) =&gt; {
+                    push_type_variable_parts(binding, parts, files);
+                }
                 Kind::Integer =&gt; push_type_parts(<span class="kw-2">&amp;</span>Type::default_int_type(), parts, files),
                 Kind::IntegerOrField =&gt; parts.push(string_part(<span class="string">"Field"</span>)),
-                Kind::Numeric(typ) =&gt; push_type_parts(typ, parts, files),
             },
             <span class="kw">_ </span>=&gt; {
                 push_type_variable_parts(binding, parts, files);

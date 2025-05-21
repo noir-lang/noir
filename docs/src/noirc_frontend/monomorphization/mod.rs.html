@@ -2593,7 +2593,15 @@
 <a href="#2592" id="2592">2592</a>
 <a href="#2593" id="2593">2593</a>
 <a href="#2594" id="2594">2594</a>
-<a href="#2595" id="2595">2595</a></pre></div><pre class="rust"><code><span class="doccomment">//! Coming after type checking, monomorphization is the last pass in Noir's frontend.
+<a href="#2595" id="2595">2595</a>
+<a href="#2596" id="2596">2596</a>
+<a href="#2597" id="2597">2597</a>
+<a href="#2598" id="2598">2598</a>
+<a href="#2599" id="2599">2599</a>
+<a href="#2600" id="2600">2600</a>
+<a href="#2601" id="2601">2601</a>
+<a href="#2602" id="2602">2602</a>
+<a href="#2603" id="2603">2603</a></pre></div><pre class="rust"><code><span class="doccomment">//! Coming after type checking, monomorphization is the last pass in Noir's frontend.
 //! It accepts the type checked HIR as input and produces a monomorphized AST as output.
 //! This file implements the pass itself, while the AST is defined in the ast module.
 //!
@@ -3982,11 +3990,13 @@
                 <span class="kw">for </span>generic <span class="kw">in </span><span class="kw-2">&amp;</span>meta.direct_generics {
                     <span class="kw">if </span>generic.type_var.id() == id {
                         <span class="kw">let </span>item_name = <span class="self">self</span>.interner.definition_name(ident.id).to_string();
+                        <span class="kw">let </span>is_numeric = <span class="macro">matches!</span>(generic.type_var.kind(), Kind::Numeric(..));
                         <span class="kw">return </span><span class="prelude-val">Err</span>(MonomorphizationError::NoDefaultTypeInItem {
                             location,
                             generic_name: generic.name.to_string(),
                             item_kind: <span class="string">"function"</span>,
                             item_name,
+                            is_numeric,
                         });
                     }
                 }
@@ -3998,11 +4008,13 @@
                             <span class="kw">let </span>typ = typ.borrow();
                             <span class="kw">let </span>item_name = typ.name.to_string();
                             <span class="kw">let </span>item_kind = <span class="kw">if </span>typ.is_struct() { <span class="string">"struct" </span>} <span class="kw">else </span>{ <span class="string">"enum" </span>};
+                            <span class="kw">let </span>is_numeric = <span class="macro">matches!</span>(generic.type_var.kind(), Kind::Numeric(..));
                             <span class="kw">return </span><span class="prelude-val">Err</span>(MonomorphizationError::NoDefaultTypeInItem {
                                 location,
                                 generic_name: generic.name.to_string(),
                                 item_kind,
                                 item_name,
+                                is_numeric,
                             });
                         }
                     }
@@ -4025,11 +4037,13 @@
                 <span class="kw">let </span>def = def.borrow();
                 <span class="kw">for </span>generic <span class="kw">in </span><span class="kw-2">&amp;</span>def.generics {
                     <span class="kw">if </span>generic.type_var.id() == id {
+                        <span class="kw">let </span>is_numeric = <span class="macro">matches!</span>(generic.type_var.kind(), Kind::Numeric(..));
                         <span class="kw">return </span><span class="prelude-val">Err</span>(MonomorphizationError::NoDefaultTypeInItem {
                             location,
                             generic_name: generic.name.to_string(),
                             item_kind: <span class="string">"enum"</span>,
                             item_name: def.name.to_string(),
+                            is_numeric,
                         });
                     }
                 }
@@ -4054,7 +4068,7 @@
             | HirType::Error
             | HirType::Quoted(<span class="kw">_</span>) =&gt; <span class="prelude-val">Ok</span>(()),
             HirType::Constant(_value, kind) =&gt; {
-                <span class="kw">if </span>kind.is_error() || kind.default_type().is_none() {
+                <span class="kw">if </span>kind.is_error() {
                     <span class="prelude-val">Err</span>(MonomorphizationError::UnknownConstant { location })
                 } <span class="kw">else </span>{
                     <span class="prelude-val">Ok</span>(())
@@ -5074,11 +5088,13 @@
 
     <span class="kw">let </span>def = def.borrow();
     <span class="kw">if let </span><span class="prelude-val">Some</span>(generic) = def.generics.get(index) {
+        <span class="kw">let </span>is_numeric = <span class="macro">matches!</span>(generic.type_var.kind(), Kind::Numeric(..));
         <span class="kw">return </span><span class="prelude-val">Err</span>(MonomorphizationError::NoDefaultTypeInItem {
             location,
             generic_name: generic.name.to_string(),
             item_kind: <span class="string">"struct"</span>,
             item_name: def.name.to_string(),
+            is_numeric,
         });
     }
 
