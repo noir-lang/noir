@@ -33,7 +33,7 @@ use crate::{
             dfg::DataFlowGraph,
             dom::DominatorTree,
             function::Function,
-            function_inserter::{ArrayCache, FunctionInserter},
+            function_inserter::FunctionInserter,
             instruction::{Binary, BinaryOp, Instruction, InstructionId, TerminatorInstruction},
             integer::IntegerConstant,
             post_order::PostOrder,
@@ -439,21 +439,9 @@ impl Loop {
     fn unroll(&self, function: &mut Function, cfg: &ControlFlowGraph) -> Result<(), CallStack> {
         let mut unroll_into = self.get_pre_header(function, cfg)?;
         let mut jump_value = get_induction_variable(function, unroll_into)?;
-        let mut array_cache = Some(ArrayCache::default());
 
-        while let Some(mut context) = self.unroll_header(function, unroll_into, jump_value)? {
-            // The inserter's array cache must be explicitly enabled. This is to
-            // confirm that we're inserting in insertion order. This is true here since:
-            // 1. We have a fresh inserter for each loop
-            // 2. Each loop is unrolled in iteration order
-            //
-            // Within a loop we do not insert in insertion order. This is fine however since the
-            // array cache is buffered with a separate fresh_array_cache which collects arrays
-            // but does not deduplicate. When we later call `into_array_cache`, that will merge
-            // the fresh cache in with the old one so that each iteration of the loop can cache
-            // from previous iterations but not the current iteration.
-            context.inserter.set_array_cache(array_cache, unroll_into);
-            (unroll_into, jump_value, array_cache) = context.unroll_loop_iteration();
+        while let Some(context) = self.unroll_header(function, unroll_into, jump_value)? {
+            (unroll_into, jump_value) = context.unroll_loop_iteration();
         }
 
         Ok(())
@@ -872,7 +860,7 @@ impl<'f> LoopIteration<'f> {
     /// It is expected the terminator instructions are set up to branch into an empty block
     /// for further unrolling. When the loop is finished this will need to be mutated to
     /// jump to the end of the loop instead.
-    fn unroll_loop_iteration(mut self) -> (BasicBlockId, ValueId, Option<ArrayCache>) {
+    fn unroll_loop_iteration(mut self) -> (BasicBlockId, ValueId) {
         let mut next_blocks = self.unroll_loop_block();
 
         while let Some(block) = next_blocks.pop() {
@@ -890,7 +878,7 @@ impl<'f> LoopIteration<'f> {
             .induction_value
             .expect("Expected to find the induction variable by end of loop iteration");
 
-        (end_block, induction_value, self.inserter.into_array_cache())
+        (end_block, induction_value)
     }
 
     /// Unroll a single block in the current iteration of the loop
