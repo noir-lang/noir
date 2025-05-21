@@ -89,7 +89,7 @@ pub fn gen_literal(u: &mut Unstructured, typ: &Type) -> arbitrary::Result<Expres
             }
             Expression::Tuple(values)
         }
-        _ => unreachable!("unexpected literal type: {typ}"),
+        _ => unreachable!("unexpected type to generate a literal for: {typ}"),
     };
     Ok(expr)
 }
@@ -373,6 +373,14 @@ pub fn callees(expr: &Expression) -> HashSet<FuncId> {
             if let Expression::Ident(ident) = call.func.as_ref() {
                 if let Definition::Function(func_id) = ident.definition {
                     callees.insert(func_id);
+                }
+            }
+            // Consider functions passed as arguments as at least callable.
+            for arg in &call.arguments {
+                if let Expression::Ident(ident) = arg {
+                    if let Definition::Function(func_id) = ident.definition {
+                        callees.insert(func_id);
+                    }
                 }
             }
         }

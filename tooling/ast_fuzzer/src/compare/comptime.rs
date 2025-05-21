@@ -1,3 +1,5 @@
+//! Compare an arbitrary AST executed as Noir with the comptime
+//! interpreter vs compiled into bytecode and ran through a VM.
 use std::collections::BTreeMap;
 use std::path::Path;
 
@@ -13,11 +15,8 @@ use noirc_driver::{
 use noirc_evaluator::ssa::SsaProgramArtifact;
 use noirc_frontend::{hir::Context, monomorphization::ast::Program};
 
-use crate::{
-    Config, DisplayAstAsNoirComptime, arb_program_comptime, compare::CompareResult, program_abi,
-};
-
-use super::{CompareArtifact, CompareOptions, HasPrograms};
+use super::{CompareArtifact, CompareCompiledResult, CompareOptions, HasPrograms};
+use crate::{Config, DisplayAstAsNoirComptime, arb_program_comptime, program_abi};
 
 /// Prepare a code snippet.
 /// (copied from nargo_cli/tests/common.rs)
@@ -68,7 +67,7 @@ pub struct CompareComptime {
 
 impl CompareComptime {
     /// Execute the Noir code and the SSA, then compare the results.
-    pub fn exec(&self) -> eyre::Result<CompareResult> {
+    pub fn exec(&self) -> eyre::Result<CompareCompiledResult> {
         let program1 = match prepare_and_compile_snippet(self.source.clone(), self.force_brillig) {
             Ok((program, _)) => program,
             Err(e) => panic!("failed to compile program:\n{}\n{e:?}", self.source),
@@ -99,7 +98,7 @@ impl CompareComptime {
         let (res1, print1) = do_exec(&program1.program);
         let (res2, print2) = do_exec(&self.ssa.artifact.program);
 
-        CompareResult::new(&self.abi, (res1, print1), (res2, print2))
+        CompareCompiledResult::new(&self.abi, (res1, print1), (res2, print2))
     }
 
     /// Generate a random comptime-viable AST, reverse it into

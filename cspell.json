@@ -263,6 +263,7 @@
         "termion",
         "testcase",
         "thiserror",
+        "toposort",
         "tslog",
         "turbofish",
         "typecheck",

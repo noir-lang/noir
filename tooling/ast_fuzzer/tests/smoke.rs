@@ -27,7 +27,8 @@ fn arb_program_can_be_executed() {
     let maybe_seed = seed_from_env();
 
     let mut prop = arbtest(|u| {
-        let program = arb_program(u, Config::default())?;
+        let config = Config::default();
+        let program = arb_program(u, config)?;
         let abi = program_abi(&program);
 
         let options = ssa::SsaEvaluatorOptions {

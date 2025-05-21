@@ -1526,7 +1526,7 @@ impl NodeInterner {
         trait_generics: &[Type],
         trait_associated_types: &[NamedType],
     ) -> Result<(TraitImplKind, TypeBindings, TypeBindings), ImplSearchErrorKind> {
-        let mut bindings = TypeBindings::new();
+        let mut bindings = TypeBindings::default();
         let (impl_kind, instantiation_bindings) = self.lookup_trait_implementation_helper(
             object_type,
             trait_id,
@@ -2299,7 +2299,7 @@ impl NodeInterner {
         trait_impl_generics: &[Type],
         impl_self_type: Type,
     ) -> TypeBindings {
-        let mut bindings = TypeBindings::new();
+        let mut bindings = TypeBindings::default();
         let the_trait = self.get_trait(trait_id);
         let trait_generics = the_trait.generics.clone();
 

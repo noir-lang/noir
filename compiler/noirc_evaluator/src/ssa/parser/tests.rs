@@ -342,6 +342,30 @@ fn test_array_get() {
 }
 
 #[test]
+fn test_array_get_with_index_minus_1() {
+    let src: &'static str = "
+        acir(inline) fn main f0 {
+          b0(v0: [Field; 3]):
+            v2 = array_get v0, index Field 3 minus 1 -> Field
+            return
+        }
+        ";
+    assert_ssa_roundtrip(src);
+}
+
+#[test]
+fn test_array_get_with_index_minus_3() {
+    let src: &'static str = "
+        acir(inline) fn main f0 {
+          b0(v0: [Field; 3]):
+            v2 = array_get v0, index Field 6 minus 3 -> Field
+            return
+        }
+        ";
+    assert_ssa_roundtrip(src);
+}
+
+#[test]
 fn test_array_set() {
     let src = "
         acir(inline) fn main f0 {
@@ -359,6 +383,30 @@ fn test_mutable_array_set() {
         acir(inline) fn main f0 {
           b0(v0: [Field; 3]):
             v3 = array_set mut v0, index Field 0, value Field 1
+            return
+        }
+        ";
+    assert_ssa_roundtrip(src);
+}
+
+#[test]
+fn test_array_set_with_index_minus_1() {
+    let src = "
+        acir(inline) fn main f0 {
+          b0(v0: [Field; 3]):
+            v3 = array_set v0, index Field 2 minus 1, value Field 1
+            return
+        }
+        ";
+    assert_ssa_roundtrip(src);
+}
+
+#[test]
+fn test_array_set_with_index_minus_3() {
+    let src = "
+        acir(inline) fn main f0 {
+          b0(v0: [Field; 3]):
+            v3 = array_set v0, index Field 4 minus 3, value Field 1
             return
         }
         ";

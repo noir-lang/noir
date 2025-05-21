@@ -12,6 +12,7 @@ use super::{
 };
 use crate::ast::UnresolvedTypeData;
 use crate::elaborator::types::SELF_TYPE_NAME;
+use crate::graph::CrateId;
 use crate::node_interner::{
     InternedExpressionKind, InternedPattern, InternedStatementKind, NodeInterner,
 };
@@ -310,6 +311,8 @@ pub enum PathKind {
     Dep,
     Plain,
     Super,
+    /// This path is a Crate or Dep path which always points to the given crate
+    Resolved(CrateId),
 }
 
 #[derive(Debug, PartialEq, Eq, Clone)]
@@ -572,9 +575,6 @@ pub enum Pattern {
 }
 
 impl Pattern {
-    pub fn is_synthesized(&self) -> bool {
-        matches!(self, Pattern::Mutable(_, _, true))
-    }
     pub fn location(&self) -> Location {
         match self {
             Pattern::Identifier(ident) => ident.location(),
@@ -752,16 +752,6 @@ impl ForRange {
     /// Create a half-open range, bounded inclusively below and exclusively above.
     pub fn range(start: Expression, end: Expression) -> Self {
         Self::Range(ForBounds { start, end, inclusive: false })
-    }
-
-    /// Create a range bounded inclusively below and above.
-    pub fn range_inclusive(start: Expression, end: Expression) -> Self {
-        Self::Range(ForBounds { start, end, inclusive: true })
-    }
-
-    /// Create a range over some array.
-    pub fn array(value: Expression) -> Self {
-        Self::Array(value)
     }
 
     /// Create a 'for' expression taking care of desugaring a 'for e in array' loop
@@ -966,6 +956,7 @@ impl Display for PathKind {
             PathKind::Dep => write!(f, "dep"),
             PathKind::Super => write!(f, "super"),
             PathKind::Plain => write!(f, "plain"),
+            PathKind::Resolved(_) => write!(f, "$crate"),
         }
     }
 }
