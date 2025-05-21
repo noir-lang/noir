@@ -37,7 +37,6 @@ use crate::{
         TraitMethodId,
     },
     shared::Signedness,
-    signed_field::SignedField,
     token::SecondaryAttributeKind,
 };
 
@@ -1141,7 +1140,9 @@ impl Elaborator<'_> {
 
         use HirExpression::Literal;
         let from_value_opt = match self.interner.expression(from_expr_id) {
-            Literal(HirLiteral::Integer(SignedField { field, is_negative: false })) => Some(field),
+            Literal(HirLiteral::Integer(field)) if !field.is_negative() => {
+                Some(field.absolute_value())
+            }
 
             // TODO(https://github.com/noir-lang/noir/issues/6247):
             // handle negative literals
@@ -1393,7 +1394,26 @@ impl Elaborator<'_> {
                 Ok((FieldElement, false))
             }
 
-            (Bool, Bool) => Ok((Bool, false)),
+            (Bool, Bool) => match op.kind {
+                BinaryOpKind::Add
+                | BinaryOpKind::Subtract
+                | BinaryOpKind::Multiply
+                | BinaryOpKind::Divide
+                | BinaryOpKind::ShiftRight
+                | BinaryOpKind::ShiftLeft
+                | BinaryOpKind::Modulo => {
+                    Err(TypeCheckError::InvalidBoolInfixOp { op: op.kind, location })
+                }
+                BinaryOpKind::Equal
+                | BinaryOpKind::NotEqual
+                | BinaryOpKind::Less
+                | BinaryOpKind::LessEqual
+                | BinaryOpKind::Greater
+                | BinaryOpKind::GreaterEqual
+                | BinaryOpKind::And
+                | BinaryOpKind::Or
+                | BinaryOpKind::Xor => Ok((Bool, false)),
+            },
 
             (lhs, rhs) => {
                 if op.kind == BinaryOpKind::ShiftLeft || op.kind == BinaryOpKind::ShiftRight {
