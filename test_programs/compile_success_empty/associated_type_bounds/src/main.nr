@@ -24,6 +24,16 @@ pub struct Baz<T> {
     t: T,
 }
 
+trait Another {
+    fn foo<F: Foo>(f: F);
+}
+
+impl Another for i32 {
+    fn foo<F: Foo>(f: F) {
+        f.bar().bar_method();
+    }
+}
+
 impl<T: Foo> Baz<T> {
     pub fn baz_method(t: T) {
         let bar = t.bar();

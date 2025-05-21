@@ -250,6 +250,7 @@ impl Elaborator<'_> {
             location,
             has_body: false,
             trait_constraints: Vec::new(),
+            extra_trait_constraints: Vec::new(),
             type_id: Some(type_id),
             trait_id: None,
             trait_impl: None,

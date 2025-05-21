@@ -488,7 +488,7 @@ impl<'context> Elaborator<'context> {
         self.scopes.start_function();
         let old_item = std::mem::replace(&mut self.current_item, Some(DependencyId::Function(id)));
 
-        self.trait_bounds = func_meta.trait_constraints.clone();
+        self.trait_bounds = func_meta.all_trait_constraints().cloned().collect::<Vec<_>>();
         self.function_context.push(FunctionContext::default());
 
         let modifiers = self.interner.function_modifiers(&id).clone();
@@ -530,7 +530,7 @@ impl<'context> Elaborator<'context> {
             self.add_existing_variable_to_scope(name, parameter.clone(), warn_if_unused);
         }
 
-        self.add_trait_constraints_to_scope(&func_meta.trait_constraints, func_meta.location);
+        self.add_trait_constraints_to_scope(func_meta.all_trait_constraints(), func_meta.location);
 
         let (hir_func, body_type) = match kind {
             FunctionKind::Builtin
@@ -557,7 +557,7 @@ impl<'context> Elaborator<'context> {
         // when multiple impls are available. Instead we default first to choose the Field or u64 impl.
         self.check_and_pop_function_context();
 
-        self.remove_trait_constraints_from_scope(&func_meta.trait_constraints);
+        self.remove_trait_constraints_from_scope(func_meta.all_trait_constraints());
 
         let func_scope_tree = self.scopes.end_function();
 
@@ -1036,7 +1036,7 @@ impl<'context> Elaborator<'context> {
         generics.extend(func_generics);
 
         let mut trait_constraints = self.resolve_trait_constraints(&func.def.where_clause);
-        trait_constraints.extend(associated_generics_trait_contraints);
+        let extra_trait_constraints = associated_generics_trait_contraints;
 
         let mut parameters = Vec::new();
         let mut parameter_types = Vec::new();
@@ -1109,7 +1109,9 @@ impl<'context> Elaborator<'context> {
         };
 
         // Remove the traits assumed by `resolve_trait_constraints` from scope
-        self.remove_trait_constraints_from_scope(&trait_constraints);
+        self.remove_trait_constraints_from_scope(
+            trait_constraints.iter().chain(extra_trait_constraints.iter()),
+        );
 
         let meta = FuncMeta {
             name: name_ident,
@@ -1128,6 +1130,7 @@ impl<'context> Elaborator<'context> {
             return_visibility: func.def.return_visibility,
             has_body: !func.def.body.is_empty(),
             trait_constraints,
+            extra_trait_constraints,
             is_entry_point,
             has_inline_attribute,
             source_crate: self.crate_id,
@@ -1258,9 +1261,9 @@ impl<'context> Elaborator<'context> {
         }
     }
 
-    fn add_trait_constraints_to_scope(
-        &mut self,
-        constraints: &[TraitConstraint],
+    fn add_trait_constraints_to_scope<'a, 'b>(
+        &'a mut self,
+        constraints: impl Iterator<Item = &'b TraitConstraint>,
         location: Location,
     ) {
         for constraint in constraints {
@@ -1287,7 +1290,10 @@ impl<'context> Elaborator<'context> {
         }
     }
 
-    fn remove_trait_constraints_from_scope(&mut self, constraints: &[TraitConstraint]) {
+    fn remove_trait_constraints_from_scope<'a, 'b>(
+        &'a mut self,
+        constraints: impl Iterator<Item = &'b TraitConstraint>,
+    ) {
         for constraint in constraints {
             self.interner
                 .remove_assumed_trait_implementations_for_trait(constraint.trait_bound.trait_id);
@@ -1612,7 +1618,7 @@ impl<'context> Elaborator<'context> {
                 }
             }
 
-            self.remove_trait_constraints_from_scope(&where_clause);
+            self.remove_trait_constraints_from_scope(where_clause.iter());
 
             self.collect_trait_impl_methods(trait_id, trait_impl, &where_clause);
 
@@ -2268,7 +2274,7 @@ impl<'context> Elaborator<'context> {
             trait_impl.resolved_trait_generics = ordered_generics;
             self.interner.set_associated_types_for_impl(impl_id, named_generics);
 
-            self.remove_trait_constraints_from_scope(&constraints);
+            self.remove_trait_constraints_from_scope(constraints.iter());
 
             let self_type = self.resolve_type(unresolved_type);
             self.self_type = Some(self_type.clone());

@@ -49,7 +49,7 @@ impl Elaborator<'_> {
 
                 let where_clause =
                     this.resolve_trait_constraints(&unresolved_trait.trait_def.where_clause);
-                this.remove_trait_constraints_from_scope(&where_clause);
+                this.remove_trait_constraints_from_scope(where_clause.iter());
 
                 let mut associated_type_bounds = rustc_hash::FxHashMap::default();
                 for item in &unresolved_trait.trait_def.items {
