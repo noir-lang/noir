@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1747859135876,
+  "lastUpdate": 1747859137792,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -10522,75 +10522,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "aakoshh@gmail.com",
-            "name": "Akosh Farkash",
-            "username": "aakoshh"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "6c761141515a7a4ac0cf92297e322424c5b22dc4",
-          "message": "fix: Change `can_be_main` to be recursive (#8501)\n\nCo-authored-by: Tom French <15848336+TomAFrench@users.noreply.github.com>",
-          "timestamp": "2025-05-14T11:13:37Z",
-          "tree_id": "83dd7aa5022d88833f2e44971cacd84221b22ed3",
-          "url": "https://github.com/noir-lang/noir/commit/6c761141515a7a4ac0cf92297e322424c5b22dc4"
-        },
-        "date": 1747223358459,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 236.21,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 258.47,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 211.71,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 542.78,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 535.23,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 1440,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 364.28,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-root",
-            "value": 370.21,
-            "unit": "MB"
-          },
-          {
-            "name": "semaphore_depth_10",
-            "value": 90.72,
-            "unit": "MB"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "15848336+TomAFrench@users.noreply.github.com",
             "name": "Tom French",
             "username": "TomAFrench"
@@ -13765,6 +13696,35 @@ window.BENCHMARK_DATA = {
           {
             "name": "semaphore_depth_10",
             "value": 92.92,
+            "unit": "MB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "asterite@gmail.com",
+            "name": "Ary Borenszweig",
+            "username": "asterite"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "b2bfdb7bb0fc661bfb27da365f108cf131771295",
+          "message": "feat: trait associated type bounds (#8594)\n\nCo-authored-by: Tom French <15848336+TomAFrench@users.noreply.github.com>",
+          "timestamp": "2025-05-21T20:02:08Z",
+          "tree_id": "7b621533fdf49ffda9b67050128d482eaee0f8a2",
+          "url": "https://github.com/noir-lang/noir/commit/b2bfdb7bb0fc661bfb27da365f108cf131771295"
+        },
+        "date": 1747859126030,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "semaphore_depth_10",
+            "value": 92.93,
             "unit": "MB"
           }
         ]
