@@ -495,6 +495,8 @@ impl AstPrinter {
             write!(f, "print")?;
         }
         write!(f, "(")?;
+        // The 2nd parameter is the printed value. The 3rd and 4th parameter don't appear in Noir;
+        // they are inserted automatically by the monomorphizer in the AST. Here we ignore them.
         self.print_expr(&args[1], f)?;
         write!(f, ")")?;
         Ok(())

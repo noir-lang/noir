@@ -870,7 +870,8 @@ impl<'a> FunctionContext<'a> {
         let (id, typ) = u.choose_iter(opts)?;
 
         // The print oracle takes 2 parameters: the newline marker and the value,
-        // but it takes 2 more arguments: the type descriptor and the format string marker.
+        // but it takes 2 more arguments: the type descriptor and the format string marker,
+        // which are inserted automatically by the monomorphizer.
         let param_types = vec![Type::Bool, typ.clone()];
         let hir_type = types::to_hir_type(typ);
         let ident = self.local_ident(*id);
