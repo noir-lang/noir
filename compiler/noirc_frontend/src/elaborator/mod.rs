@@ -1006,14 +1006,14 @@ impl<'context> Elaborator<'context> {
         let associated_generics = self.desugar_trait_constraints(&mut func.def.where_clause);
 
         let mut generics = Vec::with_capacity(associated_generics.len());
-        let mut associated_generics_trait_contraints = Vec::new();
+        let mut associated_generics_trait_constraints = Vec::new();
 
         for (associated_generic, bounds) in associated_generics {
             for bound in bounds {
                 let typ = Type::TypeVariable(associated_generic.type_var.clone());
                 let location = associated_generic.location;
                 self.add_trait_bound_to_scope(location, &typ, &bound, bound.trait_id);
-                associated_generics_trait_contraints
+                associated_generics_trait_constraints
                     .push(TraitConstraint { typ, trait_bound: bound });
             }
 
@@ -1032,7 +1032,7 @@ impl<'context> Elaborator<'context> {
         let mut trait_constraints = self.resolve_trait_constraints(&func.def.where_clause);
         let mut extra_trait_constraints =
             vecmap(extra_trait_constraints, |(constraint, _)| constraint);
-        extra_trait_constraints.extend(associated_generics_trait_contraints);
+        extra_trait_constraints.extend(associated_generics_trait_constraints);
 
         let mut parameters = Vec::new();
         let mut parameter_types = Vec::new();
@@ -2237,13 +2237,13 @@ impl<'context> Elaborator<'context> {
             trait_impl.resolved_generics = self.generics.clone();
 
             let new_generics = self.desugar_trait_constraints(&mut trait_impl.where_clause);
-            let mut new_generics_trait_contraints = Vec::new();
+            let mut new_generics_trait_constraints = Vec::new();
             for (new_generic, bounds) in new_generics {
                 for bound in bounds {
                     let typ = Type::TypeVariable(new_generic.type_var.clone());
                     let location = new_generic.location;
                     self.add_trait_bound_to_scope(location, &typ, &bound, bound.trait_id);
-                    new_generics_trait_contraints
+                    new_generics_trait_constraints
                         .push((TraitConstraint { typ, trait_bound: bound }, location));
                 }
                 trait_impl.resolved_generics.push(new_generic.clone());
