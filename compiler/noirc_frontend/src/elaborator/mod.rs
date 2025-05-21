@@ -486,9 +486,9 @@ impl<'context> Elaborator<'context> {
         self.current_trait_impl = func_meta.trait_impl;
 
         self.scopes.start_function();
-        let old_item = std::mem::replace(&mut self.current_item, Some(DependencyId::Function(id)));
+        let old_item = self.current_item.replace(DependencyId::Function(id));
 
-        self.trait_bounds = func_meta.all_trait_constraints().cloned().collect::<Vec<_>>();
+        self.trait_bounds = func_meta.all_trait_constraints().cloned().collect();
         self.function_context.push(FunctionContext::default());
 
         let modifiers = self.interner.function_modifiers(&id).clone();
@@ -2280,7 +2280,7 @@ impl<'context> Elaborator<'context> {
             self.remove_trait_constraints_from_scope(
                 constraints
                     .iter()
-                    .chain(new_generics_trait_contraints.iter().map(|(constraint, _)| constraint)),
+                    .chain(new_generics_trait_constraints.iter().map(|(constraint, _)| constraint)),
             );
 
             let self_type = self.resolve_type(unresolved_type);
@@ -2289,7 +2289,7 @@ impl<'context> Elaborator<'context> {
 
             self.define_function_metas_for_functions(
                 &mut trait_impl.methods,
-                new_generics_trait_contraints,
+                new_generics_trait_constraints,
             );
 
             trait_impl.resolved_object_type = self.self_type.take();
