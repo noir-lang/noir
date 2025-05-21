@@ -103,7 +103,7 @@ const INLINER_OVERRIDES: [(&str, i64); 4] = [
 
 /// Some tests are expected to have warnings
 /// These should be fixed and removed from this list.
-const TESTS_WITH_EXPECTED_WARNINGS: [&str; 4] = [
+const TESTS_WITH_EXPECTED_WARNINGS: [&str; 5] = [
     // TODO(https://github.com/noir-lang/noir/issues/6238): remove from list once issue is closed
     "brillig_cast",
     // TODO(https://github.com/noir-lang/noir/issues/6238): remove from list once issue is closed
@@ -111,6 +111,8 @@ const TESTS_WITH_EXPECTED_WARNINGS: [&str; 4] = [
     // We issue a "experimental feature" warning for all enums until they're stabilized
     "enums",
     "comptime_enums",
+    // Testing unreachable instructions
+    "brillig_continue_break",
 ];
 
 /// These tests are ignored because making them work involves a more complex test code that
