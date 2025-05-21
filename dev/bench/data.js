@@ -1,87 +1,8 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1747858690686,
+  "lastUpdate": 1747858696459,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
-      {
-        "commit": {
-          "author": {
-            "email": "michaeljklein@users.noreply.github.com",
-            "name": "Michael J Klein",
-            "username": "michaeljklein"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "80c08aec1ed3fb4c1d2edef2255c671eb69ac2e0",
-          "message": "chore: add SSA interpreter test for higher order functions (#8486)\n\nCo-authored-by: AztecBot <tech@aztecprotocol.com>",
-          "timestamp": "2025-05-14T10:44:01Z",
-          "tree_id": "277112cee309a140cd1e89e154835428e7c59f15",
-          "url": "https://github.com/noir-lang/noir/commit/80c08aec1ed3fb4c1d2edef2255c671eb69ac2e0"
-        },
-        "date": 1747221412236,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 311.44,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 567.23,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 226.36,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 1430,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 1460,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-root-empty",
-            "value": 396.48,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-root-single-tx",
-            "value": 7890,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 7890,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 378.55,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-root",
-            "value": 439.46,
-            "unit": "MB"
-          },
-          {
-            "name": "semaphore_depth_10",
-            "value": 126.16,
-            "unit": "MB"
-          }
-        ]
-      },
       {
         "commit": {
           "author": {
@@ -3744,6 +3665,35 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/noir-lang/noir/commit/4d7c8f7f13b47c8d9de094135289640a20b78dae"
         },
         "date": 1747856143422,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "semaphore_depth_10",
+            "value": 128.35,
+            "unit": "MB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "mvezenov@gmail.com",
+            "name": "Maxim Vezenov",
+            "username": "vezenovm"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "0031c313ed9358d3589a98ae812330fa114286ab",
+          "message": "chore(ci): Update expected failures for noir_rsa  (#8608)",
+          "timestamp": "2025-05-21T19:56:00Z",
+          "tree_id": "b42ccf9ed162a9debee64640b157056cca6b0c9d",
+          "url": "https://github.com/noir-lang/noir/commit/0031c313ed9358d3589a98ae812330fa114286ab"
+        },
+        "date": 1747858684929,
         "tool": "customSmallerIsBetter",
         "benches": [
           {
