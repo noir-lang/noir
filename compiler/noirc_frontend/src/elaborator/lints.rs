@@ -222,7 +222,7 @@ pub(crate) fn overflowing_int(
             Type::Integer(Signedness::Unsigned, bit_size) => {
                 let bit_size: u32 = (*bit_size).into();
                 let max = if bit_size == 128 { u128::MAX } else { 2u128.pow(bit_size) - 1 };
-                if value.field > max.into() || value.is_negative {
+                if value.absolute_value() > max.into() || value.is_negative() {
                     errors.push(TypeCheckError::OverflowingAssignment {
                         expr: value,
                         ty: annotated_type.clone(),
@@ -235,9 +235,11 @@ pub(crate) fn overflowing_int(
                 let bit_count: u32 = (*bit_count).into();
                 let min = 2u128.pow(bit_count - 1);
                 let max = 2u128.pow(bit_count - 1) - 1;
-                if (value.is_negative && value.field > min.into())
-                    || (!value.is_negative && value.field > max.into())
-                {
+
+                let is_negative = value.is_negative();
+                let abs = value.absolute_value();
+
+                if (is_negative && abs > min.into()) || (!is_negative && abs > max.into()) {
                     errors.push(TypeCheckError::OverflowingAssignment {
                         expr: value,
                         ty: annotated_type.clone(),
