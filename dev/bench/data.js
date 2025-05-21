@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1747849374782,
+  "lastUpdate": 1747849381632,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -3967,85 +3967,6 @@ window.BENCHMARK_DATA = {
             "name": "GitHub",
             "username": "web-flow"
           },
-          "distinct": false,
-          "id": "35ff3264b5f9badbd272f6b7aa042095d31b632d",
-          "message": "fix: remove unused generic in static_assert (#8488)\n\nCo-authored-by: Tom French <15848336+TomAFrench@users.noreply.github.com>",
-          "timestamp": "2025-05-13T17:02:24Z",
-          "tree_id": "db4f3c0ddefa76688a53583a9ee2facc5c7da020",
-          "url": "https://github.com/noir-lang/noir/commit/35ff3264b5f9badbd272f6b7aa042095d31b632d"
-        },
-        "date": 1747158019426,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 2.416,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 6.548,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 1.03,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 16.7,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 12.72,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root-empty",
-            "value": 1.274,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root-single-tx",
-            "value": 123,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 120,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 1.108,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-root",
-            "value": 1.812,
-            "unit": "s"
-          },
-          {
-            "name": "semaphore-depth-10",
-            "value": 0.821,
-            "unit": "s"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
-            "email": "asterite@gmail.com",
-            "name": "Ary Borenszweig",
-            "username": "asterite"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
           "distinct": true,
           "id": "8863c6a93a2e9bad81d0168ba15184e994e8df8b",
           "message": "fix: allowing accessing associated constants via `Self::...` (#8403)",
@@ -7901,6 +7822,85 @@ window.BENCHMARK_DATA = {
           {
             "name": "semaphore-depth-10",
             "value": 0.858,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "jfecher11@gmail.com",
+            "name": "jfecher",
+            "username": "jfecher"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "4ee2d1295cfd8a16f002969eebc4cb77e9551ee8",
+          "message": "fix: Prevent negative zero (#8511)\n\nCo-authored-by: Ratmir Karabut <rkarabut@users.noreply.github.com>\nCo-authored-by: Jake Fecher <jake@aztecprotocol.com>\nCo-authored-by: Tom French <15848336+TomAFrench@users.noreply.github.com>",
+          "timestamp": "2025-05-21T17:15:42Z",
+          "tree_id": "b65671246f046d0ad674f5c18270279f1962d6af",
+          "url": "https://github.com/noir-lang/noir/commit/4ee2d1295cfd8a16f002969eebc4cb77e9551ee8"
+        },
+        "date": 1747849371756,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 2.478,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 6.932,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 1.092,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 15.94,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 12.5,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-empty",
+            "value": 1.352,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-single-tx",
+            "value": 125,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 124,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 1.07,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-root",
+            "value": 1.652,
+            "unit": "s"
+          },
+          {
+            "name": "semaphore-depth-10",
+            "value": 0.842,
             "unit": "s"
           }
         ]
