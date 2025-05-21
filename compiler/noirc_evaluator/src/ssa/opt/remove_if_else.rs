@@ -43,7 +43,9 @@ impl Function {
         } else {
             Context::default().remove_if_else(self);
         }
-        debug_assert!(remove_if_else_post_check(self));
+
+        #[cfg(debug_assertions)]
+        remove_if_else_post_check(self);
     }
 }
 
@@ -227,15 +229,16 @@ fn slice_capacity_change(
 
 /// Post-check condition for [Function::remove_if_else].
 ///
-/// Returns `true` if:
+/// Succeeds if:
 ///   - `func` is a Brillig function, OR
 ///   - `func` does not contain any if-else instructions.
 ///
-/// Otherwise returns `false`.
-fn remove_if_else_post_check(func: &Function) -> bool {
+/// Otherwise panics.
+#[cfg(debug_assertions)]
+fn remove_if_else_post_check(func: &Function) {
     // Brillig functions should be unaffected.
     if func.runtime().is_brillig() {
-        return true;
+        return;
     }
 
     // Otherwise there should be no if-else instructions in any reachable block.
@@ -243,12 +246,10 @@ fn remove_if_else_post_check(func: &Function) -> bool {
         let instruction_ids = func.dfg[block_id].instructions();
         for instruction_id in instruction_ids {
             if matches!(func.dfg[*instruction_id], Instruction::IfElse { .. }) {
-                return false;
+                panic!("IfElse instruction still remains in ACIR function");
             }
         }
     }
-
-    true
 }
 
 #[cfg(test)]
