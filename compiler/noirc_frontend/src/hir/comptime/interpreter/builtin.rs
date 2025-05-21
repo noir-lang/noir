@@ -1954,15 +1954,15 @@ fn expr_as_integer(
     expr_as(interner, arguments, return_type.clone(), location, |expr| match expr {
         ExprValue::Expression(ExpressionKind::Literal(Literal::Integer(field))) => {
             Some(Value::Tuple(vec![
-                Value::Field(SignedField::positive(field.field)),
-                Value::Bool(field.is_negative),
+                Value::Field(SignedField::positive(field.absolute_value())),
+                Value::Bool(field.is_negative()),
             ]))
         }
         ExprValue::Expression(ExpressionKind::Resolved(id)) => {
             if let HirExpression::Literal(HirLiteral::Integer(field)) = interner.expression(&id) {
                 Some(Value::Tuple(vec![
-                    Value::Field(SignedField::positive(field.field)),
-                    Value::Bool(field.is_negative),
+                    Value::Field(SignedField::positive(field.absolute_value())),
+                    Value::Bool(field.is_negative()),
                 ]))
             } else {
                 None
