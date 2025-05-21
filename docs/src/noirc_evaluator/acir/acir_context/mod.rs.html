@@ -2629,10 +2629,10 @@
 
         <span class="comment">// Constrain `r &lt; rhs`.
         //
-        // We need to use the predicate in case of `rhs` does not have the assumed bit size.
-        // This can happen when the predicate is false because the values
-        // in a non taken branch are not constrained (cf. issue #8329).
-        </span><span class="self">self</span>.bound_constraint_with_offset(remainder_var, rhs, predicate, max_rhs_bits, predicate)<span class="question-mark">?</span>;
+        // `rhs` has the correct bit-size because either it is enforced by the overflow checks
+        // or `rhs` is zero when the overflow checks are disabled.
+        // Indeed, in that case, rhs is replaced with 'predicate * rhs'
+        </span><span class="self">self</span>.bound_constraint_with_offset(remainder_var, rhs, predicate, max_rhs_bits, one)<span class="question-mark">?</span>;
 
         <span class="comment">// a * predicate == (b * q + r) * predicate
         // =&gt; predicate * (a - b * q - r) == 0
