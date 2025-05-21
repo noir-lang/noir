@@ -1,9 +1,11 @@
 fn main() {
     let numerator =
         [790096867046896348, 1063071665130103641, 602707730209562162, 996751591622961462, 28650, 0];
+    // Safety: test program
     unsafe { __udiv_mod(numerator) };
 
     let denominator = [12, 0, 0, 0, 0, 0];
+    // Safety: test program
     let result = unsafe { __validate_gt_remainder(denominator) };
     assert(result[4] == 0);
     assert(result[5] == 0);
