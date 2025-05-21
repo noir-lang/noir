@@ -14,7 +14,9 @@ pub(crate) struct Argument {
     pub(crate) value_type: ValueType,
 }
 
-/// TODO: For operations that take two arguments we ignore type of the second argument.
+/// Represents set of instructions
+///
+/// For operations that take two arguments we ignore type of the second argument.
 #[derive(Arbitrary, Debug, Clone, Copy)]
 pub(crate) enum Instruction {
     /// Addition of two values
@@ -111,57 +113,6 @@ pub(crate) enum Instruction {
         memory_addr_index: usize,
         value: Argument,
     },
-}
-
-/// Check if two vectors of arguments have the same types
-/// lhs and rhs are the same length, its inputs for the same instruction
-/// we need to check if all arguments have same types up to permutation
-fn have_same_types(lhs: Vec<Argument>, rhs: Vec<Argument>) -> bool {
-    if lhs.len() == 1 {
-        return lhs[0].value_type == rhs[0].value_type;
-    } else if lhs.len() == 2 {
-        return (lhs[0].value_type == rhs[0].value_type && lhs[1].value_type == rhs[1].value_type)
-            || (lhs[0].value_type == rhs[1].value_type && lhs[1].value_type == rhs[0].value_type);
-    } else {
-        unreachable!()
-    }
-}
-
-impl Instruction {
-    fn get_arguments(&self) -> Vec<Argument> {
-        match self {
-            Instruction::AddChecked { lhs, rhs } => vec![*lhs, *rhs],
-            Instruction::SubChecked { lhs, rhs } => vec![*lhs, *rhs],
-            Instruction::MulChecked { lhs, rhs } => vec![*lhs, *rhs],
-            Instruction::Div { lhs, rhs } => vec![*lhs, *rhs],
-            Instruction::Eq { lhs, rhs } => vec![*lhs, *rhs],
-            Instruction::Mod { lhs, rhs } => vec![*lhs, *rhs],
-            Instruction::Not { lhs } => vec![*lhs],
-            Instruction::Shl { lhs, rhs } => vec![*lhs, *rhs],
-            Instruction::Shr { lhs, rhs } => vec![*lhs, *rhs],
-            Instruction::And { lhs, rhs } => vec![*lhs, *rhs],
-            Instruction::Or { lhs, rhs } => vec![*lhs, *rhs],
-            Instruction::Xor { lhs, rhs } => vec![*lhs, *rhs],
-            _ => unreachable!(),
-        }
-    }
-}
-
-/// Implement PartialEq for Instruction to allow for comparison of instructions
-/// to forbid certain instructions
-impl PartialEq for Instruction {
-    fn eq(&self, other: &Self) -> bool {
-        match (self, other) {
-            (
-                Instruction::Cast { lhs: arg1, type_: l_type },
-                Instruction::Cast { lhs: arg2, type_: r_type },
-            ) => l_type == r_type && have_same_types(vec![*arg1], vec![*arg2]),
-            _ => {
-                std::mem::discriminant(self) == std::mem::discriminant(other)
-                    && have_same_types(self.get_arguments(), other.get_arguments())
-            }
-        }
-    }
 }
 
 /// Represents set of instructions

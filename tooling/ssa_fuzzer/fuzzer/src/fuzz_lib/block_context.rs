@@ -13,7 +13,7 @@ use std::collections::{HashMap, VecDeque};
 pub(crate) struct BlockContext {
     /// Ids of the Program variables stored as TypedValue separated by type
     pub(crate) stored_values: HashMap<ValueType, Vec<TypedValue>>,
-    // TODO: Ids of typed addresses of memory (mutable variables)
+    /// Ids of typed addresses of memory (mutable variables)
     pub(crate) memory_addresses: HashMap<ValueType, Vec<TypedValue>>,
     /// ACIR and Brillig last changed value, used to finalize the block with return
     pub(crate) last_value: Option<TypedValue>,
@@ -74,9 +74,6 @@ impl BlockContext {
         arg: Argument,
         instruction: InstructionWithOneArg,
     ) {
-        if arg.value_type == ValueType::Memory {
-            return;
-        }
         let value = get_typed_value_from_map(&self.stored_values, &arg.value_type, arg.index);
         let value = match value {
             Some(value) => value,
@@ -102,9 +99,6 @@ impl BlockContext {
         rhs: Argument,
         instruction: InstructionWithTwoArgs,
     ) {
-        if lhs.value_type == ValueType::Memory || rhs.value_type == ValueType::Memory {
-            return;
-        }
         let instr_lhs = get_typed_value_from_map(&self.stored_values, &lhs.value_type, lhs.index);
         let instr_rhs = get_typed_value_from_map(&self.stored_values, &lhs.value_type, rhs.index);
         let (instr_lhs, instr_rhs) = match (instr_lhs, instr_rhs) {
@@ -191,9 +185,6 @@ impl BlockContext {
                 if !self.options.instruction_options.cast_enabled {
                     return;
                 }
-                if lhs.value_type == ValueType::Memory || type_ == ValueType::Memory {
-                    return;
-                }
                 let value =
                     get_typed_value_from_map(&self.stored_values, &lhs.value_type, lhs.index);
                 let value = match value {
@@ -205,7 +196,7 @@ impl BlockContext {
                     acir_result.value_id,
                     brillig_builder.insert_cast(value.clone(), type_).value_id
                 );
-                // TODO COMMENTS WHY
+                // Cast can return the same value as the original value, if cast type is forbidden, so we skip it
                 if self.stored_values.get(&value.to_value_type()).unwrap().contains(&acir_result) {
                     return;
                 }
@@ -303,6 +294,7 @@ impl BlockContext {
                 if !self.options.instruction_options.lt_enabled {
                     return;
                 }
+                // TODO: prevent in builder
                 if lhs.value_type == ValueType::Field {
                     return;
                 }
@@ -327,8 +319,6 @@ impl BlockContext {
                 // assert ids of add are the same for both builders
                 let lhs_add_rhs =
                     acir_builder.insert_add_instruction_checked(lhs_orig.clone(), rhs.clone());
-                log::debug!("adding lhs {:?} and rhs {:?}", lhs_orig, rhs);
-                log::debug!("lhs_add_rhs: {:?}", lhs_add_rhs);
                 assert_eq!(
                     lhs_add_rhs.value_id,
                     brillig_builder
@@ -338,8 +328,7 @@ impl BlockContext {
                 // inserts lhs'' = lhs' - rhs
                 let lhs = lhs_add_rhs;
                 let morphed = acir_builder.insert_sub_instruction_checked(lhs.clone(), rhs.clone());
-                log::debug!("subbing lhs {:?} and rhs {:?}", lhs, rhs);
-                log::debug!("morphed: {:?}", morphed);
+
                 // assert ids of sub are the same for both builders
                 assert_eq!(
                     morphed.value_id,
@@ -373,7 +362,7 @@ impl BlockContext {
                         .insert_mul_instruction_checked(lhs_orig.clone(), rhs.clone())
                         .value_id,
                 );
-                // inserts lhs'' = lhs' / rhs
+                // lhs'' = lhs' / rhs
                 let lhs = lhs_mul_rhs;
                 // insert to both builders, assert ids of div are the same
                 let morphed = acir_builder.insert_div_instruction(lhs.clone(), rhs.clone());
@@ -392,9 +381,6 @@ impl BlockContext {
                 if !self.options.instruction_options.alloc_enabled {
                     return;
                 }
-                if lhs.value_type == ValueType::Memory {
-                    return;
-                }
 
                 let value =
                     match get_typed_value_from_map(&self.stored_values, &lhs.value_type, lhs.index)
@@ -409,7 +395,7 @@ impl BlockContext {
                     brillig_builder.insert_add_to_memory(value.clone()).value_id,
                     "add to memory differs in ACIR and Brillig"
                 );
-                // Append the memory address to stored_values with Memory type
+                // Append the memory address to stored_values with the type of the result
                 append_typed_value_to_map(&mut self.memory_addresses, &addr.to_value_type(), addr);
             }
             Instruction::LoadFromMemory { memory_addr } => {
@@ -441,9 +427,6 @@ impl BlockContext {
             }
             Instruction::SetToMemory { memory_addr_index, value } => {
                 if !self.options.instruction_options.store_enabled {
-                    return;
-                }
-                if value.value_type == ValueType::Memory {
                     return;
                 }
                 let addr = get_typed_value_from_map(

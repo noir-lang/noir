@@ -16,7 +16,6 @@ pub enum ValueType {
     I16,
     I32,
     I64,
-    Memory,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -44,7 +43,6 @@ impl TypedValue {
             ValueType::I16 => Type::signed(16),
             ValueType::I32 => Type::signed(32),
             ValueType::I64 => Type::signed(64),
-            ValueType::Memory => unreachable!(),
         };
 
         Self { value_id: Id::new(value_id), type_of_variable: type_ }
@@ -93,8 +91,6 @@ impl TypedValue {
 
     /// Helper to check if shift operations are supported for this type
     pub fn supports_shift(&self) -> bool {
-        //!self.is_field()
-        // https://github.com/noir-lang/noir/issues/8089
         !self.is_field()
     }
 
@@ -117,24 +113,6 @@ impl TypedValue {
     pub fn supports_unchecked(&self) -> bool {
         false
     }
-
-    /// Check if this type can be used in an operation with another type
-    pub fn compatible_with(&self, other: &Self, op: &str) -> bool {
-        match op {
-            "shift" => self.supports_shift() && other.to_value_type() == ValueType::U8,
-            "bitwise" => {
-                self.supports_bitwise()
-                    && other.supports_bitwise()
-                    && self.type_of_variable == other.type_of_variable
-            }
-            "uncheked" => {
-                self.supports_unchecked()
-                    && other.supports_unchecked()
-                    && self.type_of_variable == other.type_of_variable
-            }
-            _ => self.type_of_variable == other.type_of_variable,
-        }
-    }
 }
 
 impl ValueType {
@@ -152,7 +130,6 @@ impl ValueType {
             ValueType::I16 => Type::signed(16),
             ValueType::I32 => Type::signed(32),
             ValueType::I64 => Type::signed(64),
-            ValueType::Memory => unreachable!(),
         }
     }
 
@@ -187,7 +164,6 @@ impl ValueType {
             ValueType::I16 => NumericType::Signed { bit_size: 16 },
             ValueType::I32 => NumericType::Signed { bit_size: 32 },
             ValueType::I64 => NumericType::Signed { bit_size: 64 },
-            ValueType::Memory => unreachable!(),
         }
     }
 
@@ -204,7 +180,6 @@ impl ValueType {
             ValueType::I16 => 16,
             ValueType::I32 => 32,
             ValueType::I64 => 64,
-            ValueType::Memory => unreachable!(),
         }
     }
 }

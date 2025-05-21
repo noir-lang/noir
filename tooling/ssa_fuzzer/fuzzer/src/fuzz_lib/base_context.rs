@@ -44,7 +44,6 @@ pub(crate) struct StoredBlock {
 }
 
 /// Main context for the fuzzer containing both ACIR and Brillig builders and their state
-/// It works with indices of variables Ids, because it cannot handle Ids logic for ACIR and Brillig
 pub(crate) struct FuzzerContext {
     /// ACIR builder
     acir_builder: FuzzerBuilder,
@@ -259,7 +258,6 @@ impl FuzzerContext {
 
         // find instruction block to be inserted
         let block = self.instruction_blocks[block_idx % self.instruction_blocks.len()].clone();
-        // TODO: HACK
         if block.instructions.len() + self.inserted_instructions_count
             > self.context_options.max_instructions_num
         {
@@ -369,7 +367,7 @@ impl FuzzerContext {
     }
 
     /// Merges two blocks into one
-    /// Create empty merged_block. Terminates first_block and second_block with jmp to merged_block
+    /// Creates empty merged_block. Terminates first_block and second_block with jmp to merged_block
     /// Returns merged_block
     fn merge_blocks(
         &mut self,
@@ -384,7 +382,6 @@ impl FuzzerContext {
         parent_blocks_history.push_front(second_block.block_id);
 
         let closest_parent = self.find_closest_parent(&first_block, &second_block);
-        // let values_block_can_use = self.stored_variables_for_block.get(&closest_parent).unwrap();
         let closest_parent_block = self.stored_blocks[&closest_parent].clone();
 
         let merged_block_context = BlockContext::new(
@@ -430,8 +427,8 @@ impl FuzzerContext {
     ///  b7    b8
     ///   ↘   ↙
     ///    b9
-    /// between b5 and b6. They both have parents history [b4, b3, b2, b1] and closest parent is b1
-    /// between b7 and b8. b7 has history [b5, b6, b4, b2, b1, b0], b8 has history [b3, b1, b0], closest parent is b1
+    /// closest parent for b5 and b6 is b4
+    /// closest parent for b7 and b8 is b1
     fn find_closest_parent(&mut self, lhs: &StoredBlock, rhs: &StoredBlock) -> BasicBlockId {
         for block in &lhs.context.parent_blocks_history {
             if rhs.context.parent_blocks_history.contains(block) {
@@ -439,18 +436,32 @@ impl FuzzerContext {
             }
         }
 
-        unreachable!("Blocks are not in the same CFG. How?");
+        unreachable!("Blocks are not in the same CFG.");
     }
 
     fn ids_to_blocks(&self, ids: &Vec<BasicBlockId>) -> Vec<StoredBlock> {
         ids.into_iter().map(|id| self.stored_blocks[&id].clone()).collect()
     }
 
-    /// Checks if blocks' children blocks have only one end or block has no children blocks
+    /// Returns end of the block if it has only one end or block has no children blocks
+    /// e.g.
+    ///     b0
+    ///    ↙  ↘
+    ///   b1   b2
+    ///    ↘  ↙
+    ///     b3
+    /// b0 has only one end b3, so we return b3
+    ///
+    /// Returns None if block has more than one end or block has no children blocks
+    /// e.g.
+    ///     b0
+    ///    ↙  ↘
+    ///   b1   b2
+    /// b0 has 2 children blocks b1 and b2, so it has 2 ends, so we return None
     fn end_of_block(&self, block_id: BasicBlockId) -> Option<BasicBlockId> {
         let block = match self.stored_blocks.get(&block_id) {
             Some(block) => block,
-            None => unreachable!("Block not found in stored blocks. How?"),
+            None => unreachable!("Block not found in stored blocks."),
         };
 
         if block.context.children_blocks.len() == 0 {
@@ -478,6 +489,7 @@ impl FuzzerContext {
         None
     }
 
+    /// Merges block and return ending block
     fn merge_one_block(&mut self, block_id: BasicBlockId) -> StoredBlock {
         let block = &self.stored_blocks[&block_id];
         let block_end = self.end_of_block(block_id);
@@ -498,9 +510,8 @@ impl FuzzerContext {
         }
     }
 
-    /// We can merge block if it has only one end
-    ///
-    fn try_merge(&mut self) -> StoredBlock {
+    /// Merges first block and returns ending block
+    fn merge_main_block(&mut self) -> StoredBlock {
         let main_block = self.stored_blocks[&BasicBlockId::new(0)].clone();
 
         self.merge_one_block(main_block.block_id)
@@ -508,24 +519,28 @@ impl FuzzerContext {
 
     /// Creates return block and terminates all blocks from current_block_queue with return
     pub(crate) fn finalize(&mut self, return_instruction_block_idx: usize) {
-        // Every block must have 0, 1 or 2 successors(blocks that jumped to it)
-        // so we need to merge all not terminated blocks into one
-        // and then terminate merged block with return
-
-        // save all blocks to stored_blocks
+        // save all not-terminated blocks to stored_blocks
         self.not_terminated_blocks.push_back(self.current_block.clone());
         for block in self.not_terminated_blocks.iter() {
             self.stored_blocks.insert(block.block_id, block.clone());
         }
-        let mut last_block = self.try_merge();
 
+        // create empty return block
         let return_instruction_block = self.instruction_blocks
             [return_instruction_block_idx % self.instruction_blocks.len()]
         .clone();
         let return_block_id = self.acir_builder.insert_block();
         assert_eq!(return_block_id, self.brillig_builder.insert_block());
 
-        log::debug!("return block memory addresses: {:?}", last_block.context.memory_addresses);
+        // finalize last block with jmp to return block
+        let mut last_block = self.merge_main_block();
+        last_block.context.finalize_block_with_jmp(
+            &mut self.acir_builder,
+            &mut self.brillig_builder,
+            return_block_id,
+        );
+
+        // add instructions to the return block
         self.switch_to_block(return_block_id);
         let mut return_block_context = BlockContext::new(
             last_block.context.stored_values.clone(),
@@ -541,13 +556,6 @@ impl FuzzerContext {
 
         return_block_context
             .finalize_block_with_return(&mut self.acir_builder, &mut self.brillig_builder);
-
-        self.switch_to_block(last_block.block_id);
-        last_block.context.finalize_block_with_jmp(
-            &mut self.acir_builder,
-            &mut self.brillig_builder,
-            return_block_id,
-        );
     }
 
     /// Returns witnesses for ACIR and Brillig

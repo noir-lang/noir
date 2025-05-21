@@ -43,6 +43,7 @@ pub(crate) struct FuzzerData {
     return_instruction_block_idx: usize,
 }
 
+/// Creates ACIR and Brillig programs from the data, runs and compares them
 pub(crate) fn fuzz_target(data: FuzzerData, options: FuzzerOptions) -> Option<FieldElement> {
     let mut witness_map = WitnessMap::new();
     let mut values = vec![];
@@ -114,15 +115,16 @@ mod tests {
     ///              ↘   ↙
     ///                b3
     /// suppose that b1 is failing block, b2 is succeeding block
-    /// first program uses last boolean value which is false
-    /// second program sets last boolean value to true
+    /// jmpif uses last boolean value defined in the block as condition
+    /// for first program last boolean value is false
+    /// for second program sets last boolean value to true
     /// we expect that first program succeeds, second program fails
     #[test]
     fn test_jmp_if() {
         let arg_0_field = Argument { index: 0, value_type: ValueType::Field };
         let arg_1_field = Argument { index: 1, value_type: ValueType::Field };
         let failing_block = InstructionBlock {
-            instructions: vec![Instruction::Div { lhs: arg_1_field, rhs: arg_0_field }],
+            instructions: vec![Instruction::Div { lhs: arg_1_field, rhs: arg_0_field }], // Field(1) / Field(0)
         };
         let succeeding_block = InstructionBlock {
             instructions: vec![Instruction::AddChecked { lhs: arg_0_field, rhs: arg_1_field }],
@@ -133,7 +135,7 @@ mod tests {
             blocks: vec![failing_block.clone(), succeeding_block.clone()],
             commands,
             initial_witness: default_witness(),
-            return_instruction_block_idx: 1,
+            return_instruction_block_idx: 1, // ends with non-failing block
         };
         let result = fuzz_target(data, FuzzerOptions::default());
         // we expect that this program executed successfully
