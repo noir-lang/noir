@@ -83,7 +83,6 @@ impl Default for Config {
             ("if", 10),
             ("for", 18),
             ("let", 25),
-            ("print", 15),
             ("call", 5),
         ]);
         let stmt_freqs_brillig = Freqs::new(&[
@@ -96,8 +95,8 @@ impl Default for Config {
             ("loop", 15),
             ("while", 15),
             ("let", 20),
-            ("print", 15),
             ("call", 5),
+            ("print", 15),
         ]);
         Self {
             max_globals: 3,

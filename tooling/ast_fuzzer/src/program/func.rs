@@ -718,6 +718,13 @@ impl<'a> FunctionContext<'a> {
         }
 
         if self.unconstrained() {
+            // For now only try prints in unconstrained code, were we don't need to create a proxy.
+            if freq.enabled("print") {
+                if let Some(e) = self.gen_print(u)? {
+                    return Ok(e);
+                }
+            }
+
             // Get loop out of the way quick, as it's always disabled for ACIR.
             if freq.enabled_when("loop", self.budget > 1) {
                 return self.gen_loop(u);
@@ -738,12 +745,6 @@ impl<'a> FunctionContext<'a> {
 
         if freq.enabled("assign") {
             if let Some(e) = self.gen_assign(u)? {
-                return Ok(e);
-            }
-        }
-
-        if freq.enabled("print") {
-            if let Some(e) = self.gen_print(u)? {
                 return Ok(e);
             }
         }
@@ -848,6 +849,10 @@ impl<'a> FunctionContext<'a> {
     }
 
     /// Generate a `println` statement, if there is some printable local variable.
+    ///
+    /// For now this only works in unconstrained code. For constrained code we will
+    /// need to generate a proxy function, which we can do as a follow-up pass,
+    /// as it has to be done once per function signature.
     fn gen_print(&mut self, u: &mut Unstructured) -> arbitrary::Result<Option<Expression>> {
         let opts = self
             .locals
