@@ -3442,7 +3442,7 @@
                     <span class="self">self</span>.mark_type_as_used(generic);
                 }
                 <span class="kw">if let </span><span class="prelude-val">Some</span>(fields) = datatype.borrow().get_fields(generics) {
-                    <span class="kw">for </span>(<span class="kw">_</span>, typ) <span class="kw">in </span>fields {
+                    <span class="kw">for </span>(<span class="kw">_</span>, typ, <span class="kw">_</span>) <span class="kw">in </span>fields {
                         <span class="self">self</span>.mark_type_as_used(<span class="kw-2">&amp;</span>typ);
                     }
                 } <span class="kw">else if let </span><span class="prelude-val">Some</span>(variants) = datatype.borrow().get_variants(generics) {
@@ -4221,7 +4221,7 @@
             // after monomorphization when performing SSA codegen
             </span><span class="kw">if </span>struct_type.borrow().generics.is_empty() {
                 <span class="kw">let </span>fields = struct_type.borrow().get_fields(<span class="kw-2">&amp;</span>[]).unwrap();
-                <span class="kw">for </span>(<span class="kw">_</span>, field_type) <span class="kw">in </span>fields.iter() {
+                <span class="kw">for </span>(<span class="kw">_</span>, field_type, <span class="kw">_</span>) <span class="kw">in </span>fields.iter() {
                     <span class="kw">if </span>field_type.is_nested_slice() {
                         <span class="kw">let </span>location = struct_type.borrow().location;
                         <span class="self">self</span>.push_err(ResolverError::NestedSlices { location });

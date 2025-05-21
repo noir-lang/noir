@@ -681,12 +681,58 @@
 <a href="#680" id="680">680</a>
 <a href="#681" id="681">681</a>
 <a href="#682" id="682">682</a>
-<a href="#683" id="683">683</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::hash::Hash;
+<a href="#683" id="683">683</a>
+<a href="#684" id="684">684</a>
+<a href="#685" id="685">685</a>
+<a href="#686" id="686">686</a>
+<a href="#687" id="687">687</a>
+<a href="#688" id="688">688</a>
+<a href="#689" id="689">689</a>
+<a href="#690" id="690">690</a>
+<a href="#691" id="691">691</a>
+<a href="#692" id="692">692</a>
+<a href="#693" id="693">693</a>
+<a href="#694" id="694">694</a>
+<a href="#695" id="695">695</a>
+<a href="#696" id="696">696</a>
+<a href="#697" id="697">697</a>
+<a href="#698" id="698">698</a>
+<a href="#699" id="699">699</a>
+<a href="#700" id="700">700</a>
+<a href="#701" id="701">701</a>
+<a href="#702" id="702">702</a>
+<a href="#703" id="703">703</a>
+<a href="#704" id="704">704</a>
+<a href="#705" id="705">705</a>
+<a href="#706" id="706">706</a>
+<a href="#707" id="707">707</a>
+<a href="#708" id="708">708</a>
+<a href="#709" id="709">709</a>
+<a href="#710" id="710">710</a>
+<a href="#711" id="711">711</a>
+<a href="#712" id="712">712</a>
+<a href="#713" id="713">713</a>
+<a href="#714" id="714">714</a>
+<a href="#715" id="715">715</a>
+<a href="#716" id="716">716</a>
+<a href="#717" id="717">717</a>
+<a href="#718" id="718">718</a>
+<a href="#719" id="719">719</a>
+<a href="#720" id="720">720</a>
+<a href="#721" id="721">721</a>
+<a href="#722" id="722">722</a>
+<a href="#723" id="723">723</a>
+<a href="#724" id="724">724</a>
+<a href="#725" id="725">725</a>
+<a href="#726" id="726">726</a>
+<a href="#727" id="727">727</a>
+<a href="#728" id="728">728</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::hash::Hash;
 <span class="kw">use </span>std::{hash::Hasher, rc::Rc};
 
-<span class="kw">use </span>iter_extended::try_vecmap;
+<span class="kw">use </span>iter_extended::{try_vecmap, vecmap};
 <span class="kw">use </span>noirc_errors::Location;
 
+<span class="kw">use </span><span class="kw">crate</span>::ast::{BinaryOp, ItemVisibility, UnaryOp};
 <span class="kw">use </span><span class="kw">crate</span>::elaborator::Elaborator;
 <span class="kw">use </span><span class="kw">crate</span>::hir::comptime::display::tokens_to_string;
 <span class="kw">use </span><span class="kw">crate</span>::hir::comptime::value::unwrap_rc;
@@ -694,7 +740,7 @@
 <span class="kw">use </span><span class="kw">crate</span>::lexer::Lexer;
 <span class="kw">use </span><span class="kw">crate</span>::parser::{Parser, ParserError};
 <span class="kw">use </span><span class="kw">crate</span>::signed_field::SignedField;
-<span class="kw">use </span><span class="kw">crate</span>::token::{LocatedToken, SecondaryAttributeKind};
+<span class="kw">use </span><span class="kw">crate</span>::token::{Keyword, LocatedToken, SecondaryAttributeKind};
 <span class="kw">use crate</span>::{DataType, Kind, Shared};
 <span class="kw">use crate</span>::{
     QuotedType, Type,
@@ -1363,5 +1409,49 @@
 ) -&gt; Value {
     <span class="kw">let </span>fields = fields.into_iter().map(|(k, v)| (Rc::new(k.to_string()), v)).collect();
     Value::Struct(fields, typ)
+}
+
+<span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>new_unary_op(operator: UnaryOp, typ: Type) -&gt; <span class="prelude-ty">Option</span>&lt;Value&gt; {
+    <span class="comment">// These values should match the values used in noir_stdlib/src/meta/op.nr
+    </span><span class="kw">let </span>unary_op_value: u128 = <span class="kw">match </span>operator {
+        UnaryOp::Minus =&gt; <span class="number">0</span>,
+        UnaryOp::Not =&gt; <span class="number">1</span>,
+        UnaryOp::Reference { mutable: <span class="bool-val">true </span>} =&gt; <span class="number">2</span>,
+        UnaryOp::Reference { mutable: <span class="bool-val">false </span>} =&gt; {
+            <span class="comment">// `&amp;` alone is experimental and currently hidden from the comptime API
+            </span><span class="kw">return </span><span class="prelude-val">None</span>;
+        }
+        UnaryOp::Dereference { .. } =&gt; <span class="number">3</span>,
+    };
+
+    <span class="kw">let </span><span class="kw-2">mut </span>fields = HashMap::default();
+    fields.insert(Rc::new(<span class="string">"op"</span>.to_string()), Value::Field(SignedField::positive(unary_op_value)));
+
+    <span class="prelude-val">Some</span>(Value::Struct(fields, typ))
+}
+
+<span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>new_binary_op(operator: BinaryOp, typ: Type) -&gt; Value {
+    <span class="comment">// For the op value we use the enum member index, which should match noir_stdlib/src/meta/op.nr
+    </span><span class="kw">let </span>binary_op_value = operator.contents <span class="kw">as </span>u128;
+
+    <span class="kw">let </span><span class="kw-2">mut </span>fields = HashMap::default();
+    fields.insert(Rc::new(<span class="string">"op"</span>.to_string()), Value::Field(SignedField::positive(binary_op_value)));
+
+    Value::Struct(fields, typ)
+}
+
+<span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>visibility_to_quoted(visibility: ItemVisibility, location: Location) -&gt; Value {
+    <span class="kw">let </span>tokens = <span class="kw">match </span>visibility {
+        ItemVisibility::Private =&gt; <span class="macro">vec!</span>[],
+        ItemVisibility::PublicCrate =&gt; <span class="macro">vec!</span>[
+            Token::Keyword(Keyword::Pub),
+            Token::LeftParen,
+            Token::Keyword(Keyword::Crate),
+            Token::RightParen,
+        ],
+        ItemVisibility::Public =&gt; <span class="macro">vec!</span>[Token::Keyword(Keyword::Pub)],
+    };
+    <span class="kw">let </span>tokens = vecmap(tokens, |token| LocatedToken::new(token, location));
+    Value::Quoted(Rc::new(tokens))
 }
 </code></pre></div></section></main></body></html>

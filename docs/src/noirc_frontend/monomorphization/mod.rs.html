@@ -2592,7 +2592,8 @@
 <a href="#2591" id="2591">2591</a>
 <a href="#2592" id="2592">2592</a>
 <a href="#2593" id="2593">2593</a>
-<a href="#2594" id="2594">2594</a></pre></div><pre class="rust"><code><span class="doccomment">//! Coming after type checking, monomorphization is the last pass in Noir's frontend.
+<a href="#2594" id="2594">2594</a>
+<a href="#2595" id="2595">2595</a></pre></div><pre class="rust"><code><span class="doccomment">//! Coming after type checking, monomorphization is the last pass in Noir's frontend.
 //! It accepts the type checked HIR as input and produces a monomorphized AST as output.
 //! This file implements the pass itself, while the AST is defined in the ast module.
 //!
@@ -2602,7 +2603,7 @@
 //!
 //! The entry point to this pass is the `monomorphize` function which, starting from a given
 //! function, will monomorphize the entire reachable program.
-</span><span class="kw">use </span><span class="kw">crate</span>::ast::{FunctionKind, IntegerBitSize, UnaryOp};
+</span><span class="kw">use </span><span class="kw">crate</span>::ast::{FunctionKind, IntegerBitSize, ItemVisibility, UnaryOp};
 <span class="kw">use </span><span class="kw">crate</span>::hir::comptime::{InterpreterError, Value};
 <span class="kw">use </span><span class="kw">crate</span>::hir::type_check::{NoMatchingImplFoundError, TypeCheckError};
 <span class="kw">use </span><span class="kw">crate</span>::node_interner::{ExprId, GlobalValue, ImplSearchErrorKind};
@@ -3063,7 +3064,7 @@
 
                 <span class="comment">// Iterate over `struct_field_types` since `unwrap_struct_type` will always
                 // return the fields in the order defined by the struct type.
-                </span><span class="kw">for </span>(field_name, field_type) <span class="kw">in </span>struct_field_types {
+                </span><span class="kw">for </span>(field_name, field_type, <span class="kw">_</span>) <span class="kw">in </span>struct_field_types {
                     <span class="kw">let </span>field = fields.remove(<span class="kw-2">&amp;</span>field_name).unwrap_or_else(|| {
                         <span class="macro">unreachable!</span>(<span class="string">"Expected a field named '{field_name}' in the struct pattern"</span>)
                     });
@@ -3349,7 +3350,8 @@
         <span class="kw">let </span>typ = <span class="self">self</span>.interner.id_type(id);
         <span class="kw">let </span>field_types = unwrap_struct_type(<span class="kw-2">&amp;</span>typ, location)<span class="question-mark">?</span>;
 
-        <span class="kw">let </span>field_type_map = btree_map(<span class="kw-2">&amp;</span>field_types, |x| x.clone());
+        <span class="kw">let </span>field_type_map =
+            btree_map(<span class="kw-2">&amp;</span>field_types, |(name, typ, <span class="kw">_</span>)| (name.to_string(), typ.clone()));
 
         <span class="comment">// Create let bindings for each field value first to preserve evaluation order before
         // they are reordered and packed into the resulting tuple
@@ -3376,7 +3378,7 @@
         <span class="comment">// We must ensure the tuple created from the variables here matches the order
         // of the fields as defined in the type. To do this, we iterate over field_types,
         // rather than field_type_map which is a sorted BTreeMap.
-        </span><span class="kw">let </span>field_idents = vecmap(field_types, |(name, <span class="kw">_</span>)| {
+        </span><span class="kw">let </span>field_idents = vecmap(field_types, |(name, <span class="kw">_</span>, <span class="kw">_</span>)| {
             <span class="kw">let </span>(id, typ) = field_vars.remove(<span class="kw-2">&amp;</span>name).unwrap_or_else(|| {
                 <span class="macro">unreachable!</span>(<span class="string">"Expected field {name} to be present in constructor for {typ}"</span>)
             });
@@ -3480,7 +3482,7 @@
                     btree_map(patterns, |(name, pattern)| (name.into_string(), pattern));
 
                 <span class="comment">// We iterate through the type's fields to match the order defined in the struct type
-                </span><span class="kw">let </span>patterns_iter = fields.into_iter().map(|(field_name, field_type)| {
+                </span><span class="kw">let </span>patterns_iter = fields.into_iter().map(|(field_name, field_type, <span class="kw">_</span>)| {
                     <span class="kw">let </span>pattern = patterns.remove(<span class="kw-2">&amp;</span>field_name).unwrap();
                     (pattern, field_type)
                 });
@@ -3878,7 +3880,7 @@
 
                 <span class="kw">let </span>def = def.borrow();
                 <span class="kw">if let </span><span class="prelude-val">Some</span>(fields) = def.get_fields(args) {
-                    <span class="kw">let </span>fields = try_vecmap(fields, |(<span class="kw">_</span>, field)| {
+                    <span class="kw">let </span>fields = try_vecmap(fields, |(<span class="kw">_</span>, field, <span class="kw">_</span>)| {
                         <span class="self">Self</span>::convert_type_helper(<span class="kw-2">&amp;</span>field, location, seen_types)
                     })<span class="question-mark">?</span>;
 
@@ -5028,7 +5030,7 @@
 <span class="kw">fn </span>unwrap_struct_type(
     typ: <span class="kw-2">&amp;</span>HirType,
     location: Location,
-) -&gt; <span class="prelude-ty">Result</span>&lt;Vec&lt;(String, HirType)&gt;, MonomorphizationError&gt; {
+) -&gt; <span class="prelude-ty">Result</span>&lt;Vec&lt;(String, HirType, ItemVisibility)&gt;, MonomorphizationError&gt; {
     <span class="kw">match </span>typ.follow_bindings() {
         HirType::DataType(def, args) =&gt; {
             <span class="comment">// Some of args might not be mentioned in fields, so we need to check that they aren't unbound.

@@ -1481,7 +1481,7 @@
                         <span class="kw">let </span>typ = context.def_interner.get_type(struct_id);
                         <span class="kw">let </span>typ = typ.borrow();
                         <span class="kw">let </span>fields =
-                            vecmap(typ.get_fields(<span class="kw-2">&amp;</span>[]).unwrap_or_default(), |(name, typ)| {
+                            vecmap(typ.get_fields(<span class="kw-2">&amp;</span>[]).unwrap_or_default(), |(name, typ, <span class="kw">_</span>)| {
                                 (name, abi_type_from_hir_type(context, <span class="kw-2">&amp;</span>typ))
                             });
                         <span class="kw">let </span>path =

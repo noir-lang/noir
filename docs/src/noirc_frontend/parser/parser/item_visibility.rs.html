@@ -126,7 +126,7 @@
     ///     = 'pub'                 // ItemVisibility::Public
     ///     | 'pub' '(' 'crate' ')' // ItemVisibility::PublicCrate
     ///     | nothing               // ItemVisibility::Private
-    </span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>parse_item_visibility(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; ItemVisibility {
+    </span><span class="kw">pub fn </span>parse_item_visibility(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; ItemVisibility {
         <span class="kw">if </span>!<span class="self">self</span>.eat_keyword(Keyword::Pub) {
             <span class="kw">return </span>ItemVisibility::Private;
         }

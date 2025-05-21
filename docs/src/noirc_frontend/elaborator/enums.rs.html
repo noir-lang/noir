@@ -1396,7 +1396,9 @@
 <a href="#1395" id="1395">1395</a>
 <a href="#1396" id="1396">1396</a>
 <a href="#1397" id="1397">1397</a>
-<a href="#1398" id="1398">1398</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::collections::{BTreeMap, BTreeSet};
+<a href="#1398" id="1398">1398</a>
+<a href="#1399" id="1399">1399</a>
+<a href="#1400" id="1400">1400</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::collections::{BTreeMap, BTreeSet};
 
 <span class="kw">use </span>fxhash::FxHashMap <span class="kw">as </span>HashMap;
 <span class="kw">use </span>iter_extended::{btree_map, try_vecmap, vecmap};
@@ -1407,7 +1409,7 @@
     DataType, Kind, Shared, Type,
     ast::{
         ConstructorExpression, EnumVariant, Expression, ExpressionKind, FunctionKind, Ident,
-        Literal, NoirEnumeration, StatementKind, UnresolvedType,
+        ItemVisibility, Literal, NoirEnumeration, StatementKind, UnresolvedType,
     },
     elaborator::path_resolution::PathResolutionItem,
     hir::{
@@ -1957,7 +1959,7 @@
         <span class="kw">let </span><span class="kw-2">mut </span>fields = BTreeMap::default();
         <span class="kw">for </span>(field_name, field) <span class="kw">in </span>constructor.fields {
             <span class="kw">let </span><span class="prelude-val">Some</span>(field_index) =
-                expected_field_types.iter().position(|(name, <span class="kw">_</span>)| <span class="kw-2">*</span>name == field_name.as_str())
+                expected_field_types.iter().position(|(name, <span class="kw">_</span>, <span class="kw">_</span>)| <span class="kw-2">*</span>name == field_name.as_str())
             <span class="kw">else </span>{
                 <span class="kw">let </span>error = <span class="kw">if </span>fields.contains_key(field_name.as_str()) {
                     ResolverError::DuplicateField { field: field_name }
@@ -1969,7 +1971,8 @@
                 <span class="kw">continue</span>;
             };
 
-            <span class="kw">let </span>(field_name, expected_field_type) = expected_field_types.swap_remove(field_index);
+            <span class="kw">let </span>(field_name, expected_field_type, <span class="kw">_</span>) =
+                expected_field_types.swap_remove(field_index);
             <span class="kw">let </span>pattern =
                 <span class="self">self</span>.expression_to_pattern(field, <span class="kw-2">&amp;</span>expected_field_type, variables_defined);
             fields.insert(field_name, pattern);
@@ -1977,7 +1980,7 @@
 
         <span class="kw">if </span>!expected_field_types.is_empty() {
             <span class="kw">let </span>struct_definition = struct_name;
-            <span class="kw">let </span>missing_fields = vecmap(expected_field_types, |(name, <span class="kw">_</span>)| name);
+            <span class="kw">let </span>missing_fields = vecmap(expected_field_types, |(name, <span class="kw">_</span>, <span class="kw">_</span>)| name);
             <span class="kw">let </span>error =
                 ResolverError::MissingFields { location, missing_fields, struct_definition };
             <span class="self">self</span>.push_err(error);
@@ -2205,11 +2208,12 @@
         Pattern::Int(value)
     }
 
-    <span class="kw">fn </span>struct_name_and_field_types(
+    <span class="attr">#[allow(clippy::type_complexity)]
+    </span><span class="kw">fn </span>struct_name_and_field_types(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
         typ: <span class="kw-2">&amp;</span>Type,
         location: Location,
-    ) -&gt; <span class="prelude-ty">Option</span>&lt;(Ident, Vec&lt;(String, Type)&gt;)&gt; {
+    ) -&gt; <span class="prelude-ty">Option</span>&lt;(Ident, Vec&lt;(String, Type, ItemVisibility)&gt;)&gt; {
         <span class="kw">if let </span>Type::DataType(typ, generics) = typ.follow_bindings_shallow().as_ref() {
             <span class="kw">if let </span><span class="prelude-val">Some</span>(fields) = typ.borrow().get_fields(generics) {
                 <span class="kw">return </span><span class="prelude-val">Some</span>((typ.borrow().name.clone(), fields));
@@ -2342,7 +2346,7 @@
                     <span class="kw">let </span>typ = Type::DataType(type_def, generics);
 
                     <span class="comment">// Just treat structs as a single-variant type
-                    </span><span class="kw">let </span>fields = vecmap(fields, |(_name, typ)| typ);
+                    </span><span class="kw">let </span>fields = vecmap(fields, |(_name, typ, <span class="kw">_</span>)| typ);
                     <span class="kw">let </span>constructor = Constructor::Variant(typ, <span class="number">0</span>);
                     <span class="kw">let </span>field_variables = <span class="self">self</span>.fresh_match_variables(fields, location);
                     <span class="kw">let </span>cases = <span class="macro">vec!</span>[(constructor, field_variables, Vec::new())];

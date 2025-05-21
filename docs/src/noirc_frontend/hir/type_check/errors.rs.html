@@ -729,7 +729,32 @@
 <a href="#728" id="728">728</a>
 <a href="#729" id="729">729</a>
 <a href="#730" id="730">730</a>
-<a href="#731" id="731">731</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::collections::BTreeSet;
+<a href="#731" id="731">731</a>
+<a href="#732" id="732">732</a>
+<a href="#733" id="733">733</a>
+<a href="#734" id="734">734</a>
+<a href="#735" id="735">735</a>
+<a href="#736" id="736">736</a>
+<a href="#737" id="737">737</a>
+<a href="#738" id="738">738</a>
+<a href="#739" id="739">739</a>
+<a href="#740" id="740">740</a>
+<a href="#741" id="741">741</a>
+<a href="#742" id="742">742</a>
+<a href="#743" id="743">743</a>
+<a href="#744" id="744">744</a>
+<a href="#745" id="745">745</a>
+<a href="#746" id="746">746</a>
+<a href="#747" id="747">747</a>
+<a href="#748" id="748">748</a>
+<a href="#749" id="749">749</a>
+<a href="#750" id="750">750</a>
+<a href="#751" id="751">751</a>
+<a href="#752" id="752">752</a>
+<a href="#753" id="753">753</a>
+<a href="#754" id="754">754</a>
+<a href="#755" id="755">755</a>
+<a href="#756" id="756">756</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::collections::BTreeSet;
 <span class="kw">use </span>std::rc::Rc;
 
 <span class="kw">use </span>acvm::FieldElement;
@@ -738,6 +763,7 @@
 <span class="kw">use </span>noirc_errors::Location;
 <span class="kw">use </span>thiserror::Error;
 
+<span class="kw">use </span><span class="kw">crate</span>::ast::BinaryOpKind;
 <span class="kw">use </span><span class="kw">crate</span>::ast::{ConstrainKind, FunctionReturnType, Ident, IntegerBitSize};
 <span class="kw">use </span><span class="kw">crate</span>::hir::resolution::errors::ResolverError;
 <span class="kw">use </span><span class="kw">crate</span>::hir_def::traits::TraitConstraint;
@@ -852,6 +878,8 @@
         <span class="string">"The bit count in a bit-shift operation must fit in a u8, try casting the right hand side into a u8 first"
     </span>)]
     </span>InvalidShiftSize { location: Location },
+    <span class="attr">#[error(<span class="string">"Cannot `bool {op} bool`"</span>)]
+    </span>InvalidBoolInfixOp { op: BinaryOpKind, location: Location },
     <span class="attr">#[error(<span class="string">"Error with additional context"</span>)]
     </span>Context { err: Box&lt;TypeCheckError&gt;, ctx: <span class="kw-2">&amp;</span><span class="lifetime">'static </span>str },
     <span class="attr">#[error(<span class="string">"Array is not homogeneous"</span>)]
@@ -1008,6 +1036,7 @@
             | TypeCheckError::FieldNot { location }
             | TypeCheckError::FieldComparison { location }
             | TypeCheckError::InvalidShiftSize { location }
+            | TypeCheckError::InvalidBoolInfixOp { location, .. }
             | TypeCheckError::NonHomogeneousArray { first_location: location, .. }
             | TypeCheckError::TypeAnnotationsNeededForMethodCall { location }
             | TypeCheckError::TypeAnnotationsNeededForFieldAccess { location }
@@ -1211,6 +1240,27 @@
             | TypeCheckError::StringIndexAssign { location }
             | TypeCheckError::InvalidShiftSize { location } =&gt; {
                 Diagnostic::simple_error(error.to_string(), String::new(), <span class="kw-2">*</span>location)
+            }
+            TypeCheckError::InvalidBoolInfixOp { op, location } =&gt; {
+                <span class="kw">let </span>primary = <span class="kw">match </span>op {
+                    BinaryOpKind::Add =&gt; <span class="string">"Cannot add a `bool` to a `bool"</span>,
+                    BinaryOpKind::Subtract =&gt; <span class="string">"Cannot subtract a `bool` from a `bool"</span>,
+                    BinaryOpKind::Multiply =&gt; <span class="string">"Cannot multiply a `bool` by a `bool"</span>,
+                    BinaryOpKind::Divide =&gt; <span class="string">"Cannot divide a `bool` by a `bool`"</span>,
+                    BinaryOpKind::ShiftRight =&gt; <span class="string">"No implementation for `bool &gt;&gt; bool`"</span>,
+                    BinaryOpKind::ShiftLeft =&gt; <span class="string">"No implementation for `bool &lt;&lt; bool`"</span>,
+                    BinaryOpKind::Modulo =&gt; <span class="string">"Cannot calculate the remainder of a `bool` divided by a `bool`"</span>,
+                    BinaryOpKind::Equal |
+                    BinaryOpKind::NotEqual |
+                    BinaryOpKind::Less |
+                    BinaryOpKind::LessEqual |
+                    BinaryOpKind::Greater |
+                    BinaryOpKind::GreaterEqual |
+                    BinaryOpKind::And |
+                    BinaryOpKind::Or |
+                    BinaryOpKind::Xor =&gt; <span class="macro">panic!</span>(<span class="string">"Unexpected op in InvalidBoolInfixOp error: {op}"</span>),
+                };
+                Diagnostic::simple_error(primary.to_string(), String::new(), <span class="kw-2">*</span>location)
             }
             TypeCheckError::MutableCaptureWithoutRef { name, location } =&gt; Diagnostic::simple_error(
                 <span class="macro">format!</span>(<span class="string">"Mutable variable {name} captured in lambda must be a mutable reference"</span>),

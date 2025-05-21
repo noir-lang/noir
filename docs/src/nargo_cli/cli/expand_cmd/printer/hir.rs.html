@@ -906,7 +906,7 @@
 <a href="#905" id="905">905</a>
 <a href="#906" id="906">906</a></pre></div><pre class="rust"><code><span class="kw">use </span>noirc_frontend::{
     NamedGeneric, Type, TypeBindings,
-    ast::UnaryOp,
+    ast::{ItemVisibility, UnaryOp},
     hir::def_map::ModuleDefId,
     hir_def::{
         expr::{
@@ -1194,7 +1194,7 @@
                             <span class="self">self</span>.push(<span class="string">'{'</span>);
                             <span class="self">self</span>.show_separated_by_comma(
                                 <span class="kw-2">&amp;</span>case.arguments.into_iter().zip(fields).collect::&lt;Vec&lt;<span class="kw">_</span>&gt;&gt;(),
-                                |this, (argument, (name, <span class="kw">_</span>))| {
+                                |this, (argument, (name, <span class="kw">_</span>, <span class="kw">_</span>))| {
                                     this.push_str(name);
                                     this.push_str(<span class="string">": "</span>);
                                     this.show_definition_id(<span class="kw-2">*</span>argument);
@@ -1801,7 +1801,7 @@
     }
 }
 
-<span class="kw">fn </span>get_type_fields(typ: <span class="kw-2">&amp;</span>Type) -&gt; <span class="prelude-ty">Option</span>&lt;Vec&lt;(String, Type)&gt;&gt; {
+<span class="kw">fn </span>get_type_fields(typ: <span class="kw-2">&amp;</span>Type) -&gt; <span class="prelude-ty">Option</span>&lt;Vec&lt;(String, Type, ItemVisibility)&gt;&gt; {
     <span class="kw">match </span>typ.follow_bindings() {
         Type::DataType(data_type, generics) =&gt; {
             <span class="kw">let </span>data_type = data_type.borrow();

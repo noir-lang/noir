@@ -351,7 +351,7 @@
             <span class="kw">let </span>struct_type = def.borrow();
             <span class="kw">let </span>fields = struct_type.get_fields(args).unwrap_or_default();
             <span class="kw">let </span>fields =
-                vecmap(fields, |(name, typ)| (name, abi_type_from_hir_type(context, <span class="kw-2">&amp;</span>typ)));
+                vecmap(fields, |(name, typ, <span class="kw">_</span>)| (name, abi_type_from_hir_type(context, <span class="kw-2">&amp;</span>typ)));
             <span class="comment">// For the ABI, we always want to resolve the struct paths from the root crate
             </span><span class="kw">let </span>path = context.fully_qualified_struct_path(context.root_crate_id(), struct_type.id);
             AbiType::Struct { fields, path }

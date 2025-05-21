@@ -3387,7 +3387,9 @@
 <a href="#3386" id="3386">3386</a>
 <a href="#3387" id="3387">3387</a>
 <a href="#3388" id="3388">3388</a>
-<a href="#3389" id="3389">3389</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::{borrow::Cow, cell::RefCell, collections::BTreeSet, rc::Rc};
+<a href="#3389" id="3389">3389</a>
+<a href="#3390" id="3390">3390</a>
+<a href="#3391" id="3391">3391</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::{borrow::Cow, cell::RefCell, collections::BTreeSet, rc::Rc};
 
 <span class="kw">use </span>fxhash::FxHashMap <span class="kw">as </span>HashMap;
 
@@ -3746,7 +3748,7 @@
     </span>Enum(Vec&lt;EnumVariant&gt;),
 }
 
-<span class="attr">#[derive(Clone)]
+<span class="attr">#[derive(Clone, Debug)]
 </span><span class="kw">pub struct </span>StructField {
     <span class="kw">pub </span>visibility: ItemVisibility,
     <span class="kw">pub </span>name: Ident,
@@ -3930,12 +3932,12 @@
     }
 
     <span class="doccomment">/// Retrieve the fields of this type. Returns None if this is not a field type
-    </span><span class="kw">pub fn </span>get_fields(<span class="kw-2">&amp;</span><span class="self">self</span>, generic_args: <span class="kw-2">&amp;</span>[Type]) -&gt; <span class="prelude-ty">Option</span>&lt;Vec&lt;(String, Type)&gt;&gt; {
+    </span><span class="kw">pub fn </span>get_fields(<span class="kw-2">&amp;</span><span class="self">self</span>, generic_args: <span class="kw-2">&amp;</span>[Type]) -&gt; <span class="prelude-ty">Option</span>&lt;Vec&lt;(String, Type, ItemVisibility)&gt;&gt; {
         <span class="kw">let </span>substitutions = <span class="self">self</span>.get_fields_substitutions(generic_args);
 
         <span class="prelude-val">Some</span>(vecmap(<span class="self">self</span>.fields_raw()<span class="question-mark">?</span>, |field| {
             <span class="kw">let </span>name = field.name.to_string();
-            (name, field.typ.substitute(<span class="kw-2">&amp;</span>substitutions))
+            (name, field.typ.substitute(<span class="kw-2">&amp;</span>substitutions), field.visibility)
         }))
     }
 
@@ -4695,7 +4697,7 @@
             Type::Tuple(elements) =&gt; elements.iter().all(|elem| elem.is_valid_for_program_input()),
             Type::DataType(definition, generics) =&gt; {
                 <span class="kw">if let </span><span class="prelude-val">Some</span>(fields) = definition.borrow().get_fields(generics) {
-                    fields.into_iter().all(|(<span class="kw">_</span>, field)| field.is_valid_for_program_input())
+                    fields.into_iter().all(|(<span class="kw">_</span>, field, <span class="kw">_</span>)| field.is_valid_for_program_input())
                 } <span class="kw">else </span>{
                     <span class="comment">// Arbitrarily disallow enums from program input, though we may support them later
                     </span><span class="bool-val">false
@@ -4778,7 +4780,7 @@
             Type::DataType(definition, generics) =&gt; {
                 <span class="kw">if let </span><span class="prelude-val">Some</span>(fields) = definition.borrow().get_fields(generics) {
                     fields.into_iter()
-                    .all(|(<span class="kw">_</span>, field)| field.is_valid_non_inlined_function_input())
+                    .all(|(<span class="kw">_</span>, field, <span class="kw">_</span>)| field.is_valid_non_inlined_function_input())
                 } <span class="kw">else </span>{
                     <span class="bool-val">false
                 </span>}
@@ -4832,7 +4834,9 @@
             }
             Type::DataType(definition, generics) =&gt; {
                 <span class="kw">if let </span><span class="prelude-val">Some</span>(fields) = definition.borrow().get_fields(generics) {
-                    fields.into_iter().all(|(<span class="kw">_</span>, field)| field.is_valid_for_unconstrained_boundary())
+                    fields
+                        .into_iter()
+                        .all(|(<span class="kw">_</span>, field, <span class="kw">_</span>)| field.is_valid_for_unconstrained_boundary())
                 } <span class="kw">else </span>{
                     <span class="bool-val">false
                 </span>}
@@ -4978,7 +4982,7 @@
             Type::DataType(def, args) =&gt; {
                 <span class="kw">let </span>struct_type = def.borrow();
                 <span class="kw">if let </span><span class="prelude-val">Some</span>(fields) = struct_type.get_fields(args) {
-                    fields.iter().map(|(<span class="kw">_</span>, field_type)| field_type.field_count(location)).sum()
+                    fields.iter().map(|(<span class="kw">_</span>, field_type, <span class="kw">_</span>)| field_type.field_count(location)).sum()
                 } <span class="kw">else if let </span><span class="prelude-val">Some</span>(variants) = struct_type.get_variants(args) {
                     <span class="kw">let </span><span class="kw-2">mut </span>size = <span class="number">1</span>; <span class="comment">// start with the tag size
                     </span><span class="kw">for </span>(<span class="kw">_</span>, args) <span class="kw">in </span>variants {
@@ -5030,7 +5034,7 @@
             Type::DataType(typ, generics) =&gt; {
                 <span class="kw">let </span>typ = typ.borrow();
                 <span class="kw">if let </span><span class="prelude-val">Some</span>(fields) = typ.get_fields(generics) {
-                    <span class="kw">if </span>fields.iter().any(|(<span class="kw">_</span>, field)| field.contains_slice()) {
+                    <span class="kw">if </span>fields.iter().any(|(<span class="kw">_</span>, field, <span class="kw">_</span>)| field.contains_slice()) {
                         <span class="kw">return </span><span class="bool-val">true</span>;
                     }
                 } <span class="kw">else if let </span><span class="prelude-val">Some</span>(variants) = typ.get_variants(generics) {
@@ -6460,7 +6464,7 @@
                 <span class="kw">let </span>name = data_type.name.to_string();
 
                 <span class="kw">if let </span><span class="prelude-val">Some</span>(fields) = data_type.get_fields(args) {
-                    <span class="kw">let </span>fields = vecmap(fields, |(name, typ)| (name, typ.into()));
+                    <span class="kw">let </span>fields = vecmap(fields, |(name, typ, <span class="kw">_</span>)| (name, typ.into()));
                     PrintableType::Struct { fields, name }
                 } <span class="kw">else if let </span><span class="prelude-val">Some</span>(variants) = data_type.get_variants(args) {
                     <span class="kw">let </span>variants =

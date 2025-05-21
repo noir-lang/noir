@@ -3120,26 +3120,7 @@
 <a href="#3119" id="3119">3119</a>
 <a href="#3120" id="3120">3120</a>
 <a href="#3121" id="3121">3121</a>
-<a href="#3122" id="3122">3122</a>
-<a href="#3123" id="3123">3123</a>
-<a href="#3124" id="3124">3124</a>
-<a href="#3125" id="3125">3125</a>
-<a href="#3126" id="3126">3126</a>
-<a href="#3127" id="3127">3127</a>
-<a href="#3128" id="3128">3128</a>
-<a href="#3129" id="3129">3129</a>
-<a href="#3130" id="3130">3130</a>
-<a href="#3131" id="3131">3131</a>
-<a href="#3132" id="3132">3132</a>
-<a href="#3133" id="3133">3133</a>
-<a href="#3134" id="3134">3134</a>
-<a href="#3135" id="3135">3135</a>
-<a href="#3136" id="3136">3136</a>
-<a href="#3137" id="3137">3137</a>
-<a href="#3138" id="3138">3138</a>
-<a href="#3139" id="3139">3139</a>
-<a href="#3140" id="3140">3140</a>
-<a href="#3141" id="3141">3141</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::rc::Rc;
+<a href="#3122" id="3122">3122</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::rc::Rc;
 
 <span class="kw">use </span>acvm::{AcirField, FieldElement};
 <span class="kw">use </span>builtin_helpers::{
@@ -3148,8 +3129,9 @@
     check_two_arguments, get_bool, get_expr, get_field, get_format_string, get_function_def,
     get_module, get_quoted, get_slice, get_trait_constraint, get_trait_def, get_trait_impl,
     get_tuple, get_type, get_type_id, get_typed_expr, get_u32, get_unresolved_type,
-    has_named_attribute, hir_pattern_to_tokens, mutate_func_meta_type, parse, quote_ident,
-    replace_func_meta_parameters, replace_func_meta_return_type,
+    has_named_attribute, hir_pattern_to_tokens, mutate_func_meta_type, new_binary_op, new_unary_op,
+    parse, quote_ident, replace_func_meta_parameters, replace_func_meta_return_type,
+    visibility_to_quoted,
 };
 <span class="kw">use </span>im::Vector;
 <span class="kw">use </span>iter_extended::{try_vecmap, vecmap};
@@ -3161,9 +3143,8 @@
     Kind, NamedGeneric, QuotedType, ResolvedGeneric, Shared, Type, TypeVariable,
     ast::{
         ArrayLiteral, BlockExpression, ConstrainKind, Expression, ExpressionKind, ForRange,
-        FunctionKind, FunctionReturnType, Ident, IntegerBitSize, ItemVisibility, LValue, Literal,
-        Pattern, Statement, StatementKind, UnaryOp, UnresolvedType, UnresolvedTypeData,
-        UnsafeExpression,
+        FunctionKind, FunctionReturnType, Ident, IntegerBitSize, LValue, Literal, Pattern,
+        Statement, StatementKind, UnresolvedType, UnresolvedTypeData, UnsafeExpression,
     },
     elaborator::{ElaborateReason, Elaborator, PrimitiveType},
     hir::{
@@ -3365,7 +3346,7 @@
             <span class="string">"type_def_hash" </span>=&gt; type_def_hash(arguments, location),
             <span class="string">"type_def_module" </span>=&gt; type_def_module(<span class="self">self</span>, arguments, location),
             <span class="string">"type_def_name" </span>=&gt; type_def_name(interner, arguments, location),
-            <span class="string">"type_def_set_fields" </span>=&gt; type_def_set_fields(interner, arguments, location),
+            <span class="string">"type_def_set_fields" </span>=&gt; type_def_set_fields(<span class="self">self</span>.elaborator, arguments, location),
             <span class="string">"type_eq" </span>=&gt; type_eq(arguments, location),
             <span class="string">"type_get_trait_impl" </span>=&gt; {
                 type_get_trait_impl(interner, arguments, return_type, location)
@@ -3684,8 +3665,8 @@
     <span class="prelude-val">Ok</span>(Value::Bool(has_named_attribute(<span class="kw-2">&amp;</span>name, interner.type_attributes(<span class="kw-2">&amp;</span>type_id), interner)))
 }
 
-<span class="doccomment">/// fn fields(self, generic_args: [Type]) -&gt; [(Quoted, Type)]
-/// Returns (name, type) pairs of each field of this TypeDefinition.
+<span class="doccomment">/// fn fields(self, generic_args: [Type]) -&gt; [(Quoted, Type, Quoted)]
+/// Returns (name, type, visibility) tuples of each field of this TypeDefinition.
 /// Applies the given generic arguments to each field.
 </span><span class="kw">fn </span>type_def_fields(
     interner: <span class="kw-2">&amp;mut </span>NodeInterner,
@@ -3719,21 +3700,23 @@
     <span class="kw">let </span><span class="kw-2">mut </span>fields = im::Vector::new();
 
     <span class="kw">if let </span><span class="prelude-val">Some</span>(struct_fields) = struct_def.get_fields(<span class="kw-2">&amp;</span>generic_args) {
-        <span class="kw">for </span>(field_name, field_type) <span class="kw">in </span>struct_fields {
+        <span class="kw">for </span>(field_name, field_type, visibility) <span class="kw">in </span>struct_fields {
             <span class="kw">let </span>token = LocatedToken::new(Token::Ident(field_name), location);
             <span class="kw">let </span>name = Value::Quoted(Rc::new(<span class="macro">vec!</span>[token]));
-            fields.push_back(Value::Tuple(<span class="macro">vec!</span>[name, Value::Type(field_type)]));
+            <span class="kw">let </span>visibility = visibility_to_quoted(visibility, location);
+            fields.push_back(Value::Tuple(<span class="macro">vec!</span>[name, Value::Type(field_type), visibility]));
         }
     }
 
     <span class="kw">let </span>typ = Type::Slice(Box::new(Type::Tuple(<span class="macro">vec!</span>[
         Type::Quoted(QuotedType::Quoted),
         Type::Quoted(QuotedType::Type),
+        Type::Quoted(QuotedType::Quoted),
     ])));
     <span class="prelude-val">Ok</span>(Value::Slice(fields, typ))
 }
 
-<span class="doccomment">/// fn fields_as_written(self) -&gt; [(Quoted, Type)]
+<span class="doccomment">/// fn fields_as_written(self) -&gt; [(Quoted, Type, Quoted)]
 /// Returns (name, type) pairs of each field of this TypeDefinition.
 ///
 /// Note that any generic arguments won't be applied: if you need them to be, use `fields`.
@@ -3754,13 +3737,15 @@
             <span class="kw">let </span>token = LocatedToken::new(Token::Ident(field.name.to_string()), location);
             <span class="kw">let </span>name = Value::Quoted(Rc::new(<span class="macro">vec!</span>[token]));
             <span class="kw">let </span>typ = Value::Type(field.typ);
-            fields.push_back(Value::Tuple(<span class="macro">vec!</span>[name, typ]));
+            <span class="kw">let </span>visibility = visibility_to_quoted(field.visibility, location);
+            fields.push_back(Value::Tuple(<span class="macro">vec!</span>[name, typ, visibility]));
         }
     }
 
     <span class="kw">let </span>typ = Type::Slice(Box::new(Type::Tuple(<span class="macro">vec!</span>[
         Type::Quoted(QuotedType::Quoted),
         Type::Quoted(QuotedType::Type),
+        Type::Quoted(QuotedType::Quoted),
     ])));
     <span class="prelude-val">Ok</span>(Value::Slice(fields, typ))
 }
@@ -3792,63 +3777,69 @@
     <span class="prelude-val">Ok</span>(Value::Quoted(Rc::new(<span class="macro">vec!</span>[token])))
 }
 
-<span class="doccomment">/// fn set_fields(self, new_fields: [(Quoted, Type)]) {}
+<span class="doccomment">/// fn set_fields(self, new_fields: [(Quoted, Type, Quoted)]) {}
 /// Returns (name, type) pairs of each field of this TypeDefinition
 </span><span class="kw">fn </span>type_def_set_fields(
-    interner: <span class="kw-2">&amp;mut </span>NodeInterner,
+    elaborator: <span class="kw-2">&amp;mut </span>Elaborator,
     arguments: Vec&lt;(Value, Location)&gt;,
     location: Location,
 ) -&gt; IResult&lt;Value&gt; {
     <span class="kw">let </span>(the_struct, fields) = check_two_arguments(arguments, location)<span class="question-mark">?</span>;
     <span class="kw">let </span>struct_id = get_type_id(the_struct)<span class="question-mark">?</span>;
 
-    <span class="kw">let </span>struct_def = interner.get_type(struct_id);
+    <span class="kw">let </span>struct_def = elaborator.interner.get_type(struct_id);
     <span class="kw">let </span><span class="kw-2">mut </span>struct_def = struct_def.borrow_mut();
 
     <span class="kw">let </span>field_location = fields.<span class="number">1</span>;
-    <span class="kw">let </span>fields = get_slice(interner, fields)<span class="question-mark">?</span>.<span class="number">0</span>;
-
-    <span class="kw">let </span>new_fields = fields
+    <span class="kw">let </span>fields = get_slice(elaborator.interner, fields)<span class="question-mark">?</span>.<span class="number">0</span>;
+    <span class="kw">let </span>fields = fields
         .into_iter()
-        .flat_map(|field_pair| get_tuple(interner, (field_pair, field_location)))
+        .flat_map(|field_pair| get_tuple(elaborator.interner, (field_pair, field_location)))
         .enumerate()
-        .map(|(index, <span class="kw-2">mut </span>field_pair)| {
-            <span class="kw">if </span>field_pair.len() == <span class="number">2 </span>{
-                <span class="kw">let </span>typ = field_pair.pop().unwrap();
-                <span class="kw">let </span>name_value = field_pair.pop().unwrap();
+        .collect::&lt;Vec&lt;<span class="kw">_</span>&gt;&gt;();
 
-                <span class="kw">let </span>name_tokens = get_quoted((name_value.clone(), field_location))<span class="question-mark">?</span>;
-                <span class="kw">let </span>typ = get_type((typ, field_location))<span class="question-mark">?</span>;
+    <span class="kw">let </span><span class="kw-2">mut </span>new_fields = Vec::new();
 
-                <span class="kw">match </span>name_tokens.first().map(|t| t.token()) {
-                    <span class="prelude-val">Some</span>(Token::Ident(name)) <span class="kw">if </span>name_tokens.len() == <span class="number">1 </span>=&gt; {
-                        <span class="prelude-val">Ok</span>(hir_def::types::StructField {
-                            visibility: ItemVisibility::Public,
-                            name: Ident::new(name.clone(), field_location),
-                            typ,
-                        })
-                    }
-                    <span class="kw">_ </span>=&gt; {
-                        <span class="kw">let </span>value = name_value.display(interner).to_string();
-                        <span class="kw">let </span>location = field_location;
-                        <span class="prelude-val">Err</span>(InterpreterError::ExpectedIdentForStructField {
-                            value,
-                            index,
-                            location,
-                        })
-                    }
+    <span class="kw">for </span>(index, <span class="kw-2">mut </span>field_pair) <span class="kw">in </span>fields {
+        <span class="kw">if </span>field_pair.len() == <span class="number">3 </span>{
+            <span class="kw">let </span>visibility = field_pair.pop().unwrap();
+            <span class="kw">let </span>typ = field_pair.pop().unwrap();
+            <span class="kw">let </span>name_value = field_pair.pop().unwrap();
+
+            <span class="kw">let </span>name_tokens = get_quoted((name_value.clone(), field_location))<span class="question-mark">?</span>;
+            <span class="kw">let </span>typ = get_type((typ, field_location))<span class="question-mark">?</span>;
+
+            <span class="kw">match </span>name_tokens.first().map(|t| t.token()) {
+                <span class="prelude-val">Some</span>(Token::Ident(name)) <span class="kw">if </span>name_tokens.len() == <span class="number">1 </span>=&gt; {
+                    <span class="kw">let </span>visibility = parse(
+                        elaborator,
+                        (visibility, field_location),
+                        Parser::parse_item_visibility,
+                        <span class="string">"a visibility"</span>,
+                    )<span class="question-mark">?</span>;
+
+                    <span class="kw">let </span>name = Ident::new(name.clone(), field_location);
+                    new_fields.push(hir_def::types::StructField { visibility, name, typ });
                 }
-            } <span class="kw">else </span>{
-                <span class="kw">let </span>type_var = interner.next_type_variable();
-                <span class="kw">let </span>expected = Type::Tuple(<span class="macro">vec!</span>[type_var.clone(), type_var]);
-
-                <span class="kw">let </span>actual =
-                    Type::Tuple(vecmap(<span class="kw-2">&amp;</span>field_pair, |value| value.get_type().into_owned()));
-
-                <span class="prelude-val">Err</span>(InterpreterError::TypeMismatch { expected, actual, location })
+                <span class="kw">_ </span>=&gt; {
+                    <span class="kw">let </span>value = name_value.display(elaborator.interner).to_string();
+                    <span class="kw">let </span>location = field_location;
+                    <span class="kw">return </span><span class="prelude-val">Err</span>(InterpreterError::ExpectedIdentForStructField {
+                        value,
+                        index,
+                        location,
+                    });
+                }
             }
-        })
-        .collect::&lt;<span class="prelude-ty">Result</span>&lt;Vec&lt;<span class="kw">_</span>&gt;, <span class="kw">_</span>&gt;&gt;()<span class="question-mark">?</span>;
+        } <span class="kw">else </span>{
+            <span class="kw">let </span>type_var = elaborator.interner.next_type_variable();
+            <span class="kw">let </span>expected = Type::Tuple(<span class="macro">vec!</span>[type_var.clone(), type_var]);
+
+            <span class="kw">let </span>actual = Type::Tuple(vecmap(<span class="kw-2">&amp;</span>field_pair, |value| value.get_type().into_owned()));
+
+            <span class="kw">return </span><span class="prelude-val">Err</span>(InterpreterError::TypeMismatch { expected, actual, location });
+        }
+    }
 
     struct_def.set_fields(new_fields);
     <span class="prelude-val">Ok</span>(Value::Unit)
@@ -4635,7 +4626,7 @@
             <span class="kw">if let </span><span class="prelude-val">Some</span>(fields) = typ.get_fields(<span class="kw-2">&amp;</span>generics) {
                 <span class="kw">let </span><span class="kw-2">mut </span>values = HashMap::default();
 
-                <span class="kw">for </span>(field_name, field_type) <span class="kw">in </span>fields {
+                <span class="kw">for </span>(field_name, field_type, <span class="kw">_</span>) <span class="kw">in </span>fields {
                     <span class="kw">let </span>field_value = zeroed(field_type, location);
                     values.insert(Rc::new(field_name), field_value);
                 }
@@ -4824,20 +4815,10 @@
 
             tuple_types.pop().unwrap();
             <span class="kw">let </span>binary_op_type = tuple_types.pop().unwrap();
-
-            <span class="comment">// For the op value we use the enum member index, which should match noir_stdlib/src/meta/op.nr
-            </span><span class="kw">let </span>binary_op_value = infix_expr.operator.contents <span class="kw">as </span>u128;
-
-            <span class="kw">let </span><span class="kw-2">mut </span>fields = HashMap::default();
-            fields.insert(
-                Rc::new(<span class="string">"op"</span>.to_string()),
-                Value::Field(SignedField::positive(binary_op_value)),
-            );
-
-            <span class="kw">let </span>unary_op = Value::Struct(fields, binary_op_type);
+            <span class="kw">let </span>binary_op = new_binary_op(infix_expr.operator, binary_op_type);
             <span class="kw">let </span>lhs = Value::expression(infix_expr.lhs.kind);
             <span class="kw">let </span>rhs = Value::expression(infix_expr.rhs.kind);
-            <span class="prelude-val">Some</span>(Value::Tuple(<span class="macro">vec!</span>[lhs, unary_op, rhs]))
+            <span class="prelude-val">Some</span>(Value::Tuple(<span class="macro">vec!</span>[lhs, binary_op, rhs]))
         } <span class="kw">else </span>{
             <span class="prelude-val">None
         </span>}
@@ -5364,26 +5345,7 @@
 
             tuple_types.pop().unwrap();
             <span class="kw">let </span>unary_op_type = tuple_types.pop().unwrap();
-
-            <span class="comment">// These values should match the values used in noir_stdlib/src/meta/op.nr
-            </span><span class="kw">let </span>unary_op_value: u128 = <span class="kw">match </span>prefix_expr.operator {
-                UnaryOp::Minus =&gt; <span class="number">0</span>,
-                UnaryOp::Not =&gt; <span class="number">1</span>,
-                UnaryOp::Reference { mutable: <span class="bool-val">true </span>} =&gt; <span class="number">2</span>,
-                UnaryOp::Reference { mutable: <span class="bool-val">false </span>} =&gt; {
-                    <span class="comment">// `&amp;` alone is experimental and currently hidden from the comptime API
-                    </span><span class="kw">return </span><span class="prelude-val">None</span>;
-                }
-                UnaryOp::Dereference { .. } =&gt; <span class="number">3</span>,
-            };
-
-            <span class="kw">let </span><span class="kw-2">mut </span>fields = HashMap::default();
-            fields.insert(
-                Rc::new(<span class="string">"op"</span>.to_string()),
-                Value::Field(SignedField::positive(unary_op_value)),
-            );
-
-            <span class="kw">let </span>unary_op = Value::Struct(fields, unary_op_type);
+            <span class="kw">let </span>unary_op = new_unary_op(prefix_expr.operator, unary_op_type)<span class="question-mark">?</span>;
             <span class="kw">let </span>rhs = Value::expression(prefix_expr.rhs.kind);
             <span class="prelude-val">Some</span>(Value::Tuple(<span class="macro">vec!</span>[unary_op, rhs]))
         } <span class="kw">else </span>{
