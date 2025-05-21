@@ -61,7 +61,7 @@ impl Function {
             // This call is before try_inline_into_predecessor so that if it succeeds in changing a
             // jmpif into a jmp, the block may then be inlined entirely into its predecessor in try_inline_into_predecessor.
             check_for_constant_jmpif(self, block, &mut cfg);
-            
+
             check_for_converging_jmpif(self, block, &mut cfg);
 
             let mut predecessors = cfg.predecessors(block);
