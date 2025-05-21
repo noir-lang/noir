@@ -1257,9 +1257,9 @@ impl<'context> Elaborator<'context> {
         }
     }
 
-    fn add_trait_constraints_to_scope<'a, 'b>(
-        &'a mut self,
-        constraints: impl Iterator<Item = &'b TraitConstraint>,
+    fn add_trait_constraints_to_scope<'a>(
+        &mut self,
+        constraints: impl Iterator<Item = &'a TraitConstraint>,
         location: Location,
     ) {
         for constraint in constraints {
