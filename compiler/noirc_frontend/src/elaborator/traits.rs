@@ -43,6 +43,7 @@ impl Elaborator<'_> {
                     this.desugar_trait_constraints(&mut unresolved_trait.trait_def.where_clause);
                 let new_generics = vecmap(new_generics, |(generic, _bounds)| {
                     // TODO: use `_bounds` variable above
+                    // See https://github.com/noir-lang/noir/issues/8601
                     generic
                 });
                 this.generics.extend(new_generics);
