@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1747853080637,
+  "lastUpdate": 1747853838500,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -18296,48 +18296,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "asterite@gmail.com",
-            "name": "Ary Borenszweig",
-            "username": "asterite"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "b657b076bdcfcf627a318237276a917d8e067e0f",
-          "message": "fix: pass Field to ToBits intrinsic in remove_bit_shifts optimization (#8493)",
-          "timestamp": "2025-05-13T20:10:21Z",
-          "tree_id": "fe15a1582a8a7cc51b45946fcfd59ebf12293169",
-          "url": "https://github.com/noir-lang/noir/commit/b657b076bdcfcf627a318237276a917d8e067e0f"
-        },
-        "date": 1747168216313,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 265998,
-            "range": "± 788",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 237818,
-            "range": "± 2938",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 3579447,
-            "range": "± 51259",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "15848336+TomAFrench@users.noreply.github.com",
             "name": "Tom French",
             "username": "TomAFrench"
@@ -20389,6 +20347,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 3210603,
             "range": "± 12008",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "asterite@gmail.com",
+            "name": "Ary Borenszweig",
+            "username": "asterite"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "72ce94beeac6d15b67141307bc38f9e2b0020b20",
+          "message": "fix!: better error message when cannot infer generic numeric type (#7843)\n\nCo-authored-by: Tom French <15848336+TomAFrench@users.noreply.github.com>",
+          "timestamp": "2025-05-21T18:34:52Z",
+          "tree_id": "786c56011c8db2e3eae5718d0dc4939f1b4158ba",
+          "url": "https://github.com/noir-lang/noir/commit/72ce94beeac6d15b67141307bc38f9e2b0020b20"
+        },
+        "date": 1747853828382,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 255611,
+            "range": "± 7392",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 223823,
+            "range": "± 1590",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 3213498,
+            "range": "± 34782",
             "unit": "ns/iter"
           }
         ]
