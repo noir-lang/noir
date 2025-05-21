@@ -82,7 +82,7 @@ impl From<SsaReport> for CustomDiagnostic {
                         ("This variable contains a value which is constrained to be a constant. Consider removing this value as additional return values increase proving/verification time".to_string(), call_stack)
                     },
                     InternalWarning::VerifyProof { call_stack } => {
-                        ("The validity of the proof passed to verify_proof(...) can only be checked by the proving backend, so the ACVM will then defer checking of these proofs to the proving backend. Passing an invalid proof is expected to cause the proving backend to either fail to generate a proof or generate a proof which fails verification".to_string(), call_stack)
+                        ("The validity of the proof passed to verify_proof(...) can only be checked by the proving backend, so witness execution will defer checking of these proofs to the proving backend. Passing an invalid proof is expected to cause the proving backend to either fail to generate a proof or generate a proof which fails verification".to_string(), call_stack)
                     },
                 };
                 let call_stack = vecmap(call_stack, |location| location);
