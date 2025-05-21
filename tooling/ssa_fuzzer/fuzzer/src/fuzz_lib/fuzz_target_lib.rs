@@ -161,9 +161,8 @@ mod tests {
         };
         let result = fuzz_target(data, FuzzerOptions::default());
         // we expect that this program failed to execute
-        match result {
-            Some(result) => panic!("Program executed successfully with result: {:?}", result),
-            None => (),
+        if let Some(result) = result {
+            panic!("Program executed successfully with result: {:?}", result);
         }
     }
 

@@ -533,6 +533,7 @@ impl FuzzerContext {
 
         // finalize last block with jmp to return block
         let mut last_block = self.merge_main_block();
+        self.switch_to_block(last_block.block_id);
         last_block.context.finalize_block_with_jmp(
             &mut self.acir_builder,
             &mut self.brillig_builder,
