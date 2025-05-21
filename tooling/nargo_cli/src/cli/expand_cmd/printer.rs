@@ -357,8 +357,17 @@ impl<'interner, 'def_map, 'deps, 'string> ItemPrinter<'interner, 'def_map, 'deps
             }
 
             self.write_indent();
-            self.push_str("type ");
-            self.push_str(&associated_type.name);
+
+            if let Kind::Numeric(numeric_type) = associated_type.kind() {
+                self.push_str("let ");
+                self.push_str(&associated_type.name);
+                self.push_str(": ");
+                self.show_type(&numeric_type);
+            } else {
+                self.push_str("type ");
+                self.push_str(&associated_type.name);
+            }
+
             self.push_str(";");
             printed_type_or_function = true;
         }
@@ -422,9 +431,18 @@ impl<'interner, 'def_map, 'deps, 'string> ItemPrinter<'interner, 'def_map, 'deps
             }
 
             self.write_indent();
-            self.push_str("type ");
-            self.push_str(&named_type.name.to_string());
-            self.push_str(" = ");
+
+            if let Type::Constant(_, Kind::Numeric(numeric_type)) = &named_type.typ {
+                self.push_str("let ");
+                self.push_str(&named_type.name.to_string());
+                self.push_str(": ");
+                self.show_type(numeric_type);
+                self.push_str(" = ");
+            } else {
+                self.push_str("type ");
+                self.push_str(&named_type.name.to_string());
+                self.push_str(" = ");
+            }
             self.show_type(&named_type.typ);
             self.push_str(";");
 

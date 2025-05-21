@@ -253,7 +253,8 @@ pub enum LValue {
     Dereference { reference: Box<LValue>, element_type: Type },
 }
 
-pub type Parameters = Vec<(LocalId, /*mutable:*/ bool, /*name:*/ String, Type)>;
+pub type Parameters =
+    Vec<(LocalId, /*mutable:*/ bool, /*name:*/ String, Type, Visibility)>;
 
 /// Represents how an Acir function should be inlined.
 /// This type is only relevant for ACIR functions as we do not inline any Brillig functions
@@ -271,8 +272,15 @@ pub enum InlineType {
     Fold,
     /// Functions marked to have no predicates will not be inlined in the default inlining pass
     /// and will be separately inlined after the flattening pass.
-    /// They are different from `Fold` as they are expected to be inlined into the program
+    ///
+    /// Flattening and inlining are necessary compiler passes in the ACIR runtime. More specifically,
+    /// flattening is the removal of control flow through predicating side-effectual instructions.
+    /// In some cases, a user may only want predicates applied to the result of a function call rather
+    /// than all of a function's internal execution. To allow this behavior, we can simply inline a function
+    /// after performing flattening (as ultimately in ACIR a non-entry point function will have to be inlined).
+    /// These functions are different from `Fold` as they are expected to be inlined into the program
     /// entry point before being used in the backend.
+    ///
     /// This attribute is unsafe and can cause a function whose logic relies on predicates from
     /// the flattening pass to fail.
     NoPredicates,
@@ -322,6 +330,7 @@ pub struct Function {
     pub body: Expression,
 
     pub return_type: Type,
+    pub return_visibility: Visibility,
     pub unconstrained: bool,
     pub inline_type: InlineType,
     pub func_sig: FunctionSignature,
@@ -375,7 +384,6 @@ pub struct Program {
     pub function_signatures: Vec<FunctionSignature>,
     pub main_function_signature: FunctionSignature,
     pub return_location: Option<Location>,
-    pub return_visibility: Visibility,
     pub globals: BTreeMap<GlobalId, (String, Type, Expression)>,
     pub debug_variables: DebugVariables,
     pub debug_functions: DebugFunctions,
@@ -389,7 +397,6 @@ impl Program {
         function_signatures: Vec<FunctionSignature>,
         main_function_signature: FunctionSignature,
         return_location: Option<Location>,
-        return_visibility: Visibility,
         globals: BTreeMap<GlobalId, (String, Type, Expression)>,
         debug_variables: DebugVariables,
         debug_functions: DebugFunctions,
@@ -400,7 +407,6 @@ impl Program {
             function_signatures,
             main_function_signature,
             return_location,
-            return_visibility,
             globals,
             debug_variables,
             debug_functions,
@@ -433,6 +439,10 @@ impl Program {
         let function_definition = &mut self[function];
         let replacement = Expression::Block(vec![]);
         std::mem::replace(&mut function_definition.body, replacement)
+    }
+
+    pub fn return_visibility(&self) -> Visibility {
+        self.main().return_visibility
     }
 }
 

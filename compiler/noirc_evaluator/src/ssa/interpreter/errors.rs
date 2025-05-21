@@ -1,16 +1,16 @@
 use crate::ssa::ir::{
     basic_block::BasicBlockId,
     instruction::{BinaryOp, Intrinsic},
+    types::NumericType,
     value::ValueId,
 };
 use acvm::FieldElement;
 use thiserror::Error;
 
-pub(super) const MAX_SIGNED_BIT_SIZE: u32 = 64;
 pub(super) const MAX_UNSIGNED_BIT_SIZE: u32 = 128;
 
-#[derive(Debug, Error)]
-pub(crate) enum InterpreterError {
+#[derive(Debug, Error, PartialEq, Eq)]
+pub enum InterpreterError {
     /// These errors are all the result from malformed input SSA
     #[error("{0}")]
     Internal(InternalError),
@@ -56,11 +56,13 @@ pub(crate) enum InterpreterError {
     PoppedFromEmptySlice { slice: ValueId, instruction: &'static str },
     #[error("Unable to convert `{field_id} = {field}` to radix {radix}")]
     ToRadixFailed { field_id: ValueId, field: FieldElement, radix: u32 },
+    #[error("Failed to solve blackbox function {name}: {reason}")]
+    BlackBoxError { name: String, reason: String },
 }
 
 /// These errors can only result from interpreting malformed SSA
-#[derive(Debug, Error)]
-pub(crate) enum InternalError {
+#[derive(Debug, Error, PartialEq, Eq)]
+pub enum InternalError {
     #[error(
         "Argument count {arguments} to block {block} does not match the expected parameter count {parameters}"
     )]
@@ -91,14 +93,12 @@ pub(crate) enum InternalError {
     },
     #[error("Unsupported operator `{operator}` for type `{typ}`")]
     UnsupportedOperatorForType { operator: &'static str, typ: &'static str },
+    #[error("Unsupported numeric type `{typ}`")]
+    UnsupportedNumericType { typ: NumericType },
     #[error(
         "Invalid bit size of `{bit_size}` given to truncate, maximum size allowed for unsigned values is {MAX_UNSIGNED_BIT_SIZE}"
     )]
     InvalidUnsignedTruncateBitSize { bit_size: u32 },
-    #[error(
-        "Invalid bit size of `{bit_size}` given to truncate, maximum size allowed for signed values is {MAX_SIGNED_BIT_SIZE}"
-    )]
-    InvalidSignedTruncateBitSize { bit_size: u32 },
     #[error("Rhs of `{operator}` should be a u8 but found `{rhs_id} = {rhs}`")]
     RhsOfBitShiftShouldBeU8 { operator: &'static str, rhs_id: ValueId, rhs: String },
     #[error(
@@ -136,4 +136,10 @@ pub(crate) enum InternalError {
         actual_length: usize,
         element_types: Vec<String>,
     },
+    #[error("Unexpected instruction: `{reason}`")]
+    UnexpectedInstruction { reason: &'static str },
+    #[error("Expected array of {expected_size} elements, got {size}")]
+    InvalidInputSize { expected_size: usize, size: usize },
+    #[error("Constant `{constant}` does not fit in type `{typ}`")]
+    ConstantDoesNotFitInType { constant: FieldElement, typ: NumericType },
 }

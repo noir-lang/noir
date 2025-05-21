@@ -2,7 +2,10 @@
 
 use crate::ssa::{
     Ssa,
-    ir::function::{Function, RuntimeType},
+    ir::{
+        call_graph::CallGraph,
+        function::{Function, RuntimeType},
+    },
 };
 
 use super::inlining::{self, InlineInfo};
@@ -10,12 +13,13 @@ use super::inlining::{self, InlineInfo};
 impl Ssa {
     /// Run pre-processing steps on functions in isolation.
     pub(crate) fn preprocess_functions(mut self, aggressiveness: i64) -> Ssa {
+        let call_graph = CallGraph::from_ssa_weighted(&self);
         // Bottom-up order, starting with the "leaf" functions, so we inline already optimized code into the ones that call them.
-        let bottom_up = inlining::inline_info::compute_bottom_up_order(&self);
+        let bottom_up = inlining::inline_info::compute_bottom_up_order(&self, &call_graph);
 
         // Preliminary inlining decisions.
         let inline_infos =
-            inlining::inline_info::compute_inline_infos(&self, false, aggressiveness);
+            inlining::inline_info::compute_inline_infos(&self, &call_graph, false, aggressiveness);
 
         let should_inline_call = |callee: &Function| -> bool {
             match callee.runtime() {
@@ -39,8 +43,10 @@ impl Ssa {
 
             // Functions which are inline targets will be processed in later passes.
             // Here we want to treat the functions which will be inlined into them.
-            let is_target =
-                inline_infos.get(&id).map(|info| info.is_inline_target()).unwrap_or_default();
+            let is_target = inline_infos
+                .get(&id)
+                .map(|info| info.is_inline_target(&function.dfg))
+                .unwrap_or_default();
 
             if is_heavy || is_target {
                 continue;
@@ -56,16 +62,75 @@ impl Ssa {
             let _ = function.unroll_loops_iteratively();
             // Reduce the number of redundant stores/loads after unrolling
             function.mem2reg();
+
             // Try to reduce the number of blocks.
             function.simplify_function();
-            // Remove leftover instructions.
-            function.dead_instruction_elimination(false, false);
 
             // Put it back into the SSA, so the next functions can pick it up.
             self.functions.insert(id, function);
         }
 
         // Remove any functions that have been inlined into others already.
-        self.remove_unreachable_functions()
+        let ssa = self.remove_unreachable_functions();
+        // Remove leftover instructions.
+        ssa.dead_instruction_elimination_pre_flattening()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::{assert_ssa_snapshot, ssa::ssa_gen::Ssa};
+
+    #[test]
+    fn dead_block_params() {
+        // This test makes sure that we are appropriately triggering DIE+parameter pruning.
+        //
+        // DIE must be run over the full SSA to correctly identify unused block parameters.
+        // If it's run in isolation on a single function (e.g., during preprocessing),
+        // it may leave dangling block parameters.
+        //
+        // We need to call f0 from an entry point as inline targets are not preprocessed.
+        let src = r#"
+        acir(inline) fn main f0 {
+          b0():
+            call f0()
+            return
+        }
+        acir(inline) fn foo f0 {
+          b0(v0: u32, v1: Field):
+            jmpif v0 then: b1, else: b2
+          b1():
+            v6 = add v0, u32 1
+            jmp b3(v6, v1)
+          b2():
+            v5 = sub v0, u32 1
+            jmp b3(v5, v1)
+          b3(v2: u32, v3: Field):
+            return
+        }
+        "#;
+
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.preprocess_functions(i64::MAX);
+
+        assert_ssa_snapshot!(ssa, @r#"
+        acir(inline) fn main f0 {
+          b0():
+            call f1()
+            return
+        }
+        acir(inline) fn foo f1 {
+          b0(v0: u32, v1: Field):
+            jmpif v0 then: b1, else: b2
+          b1():
+            v4 = add v0, u32 1
+            jmp b3()
+          b2():
+            v3 = sub v0, u32 1
+            jmp b3()
+          b3():
+            return
+        }
+        "#);
     }
 }

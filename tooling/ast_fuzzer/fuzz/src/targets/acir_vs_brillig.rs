@@ -1,11 +1,11 @@
 //! Compare the execution of random ASTs between the normal execution
 //! vs when everything is forced to be Brillig.
-use crate::{compare_results, create_ssa_or_die, default_ssa_options};
+use crate::{compare_results_compiled, create_ssa_or_die, default_ssa_options};
 use arbitrary::Arbitrary;
 use arbitrary::Unstructured;
 use color_eyre::eyre;
 use noir_ast_fuzzer::Config;
-use noir_ast_fuzzer::compare::{CompareOptions, ComparePasses};
+use noir_ast_fuzzer::compare::{CompareOptions, ComparePipelines};
 use noir_ast_fuzzer::rewrite::change_all_functions_into_unconstrained;
 
 pub fn fuzz(u: &mut Unstructured) -> eyre::Result<()> {
@@ -19,7 +19,7 @@ pub fn fuzz(u: &mut Unstructured) -> eyre::Result<()> {
         ..Default::default()
     };
 
-    let inputs = ComparePasses::arb(
+    let inputs = ComparePipelines::arb(
         u,
         config,
         |u, program| {
@@ -41,12 +41,11 @@ pub fn fuzz(u: &mut Unstructured) -> eyre::Result<()> {
 
     let result = inputs.exec()?;
 
-    compare_results(&inputs, &result)
+    compare_results_compiled(&inputs, &result)
 }
 
 #[cfg(test)]
 mod tests {
-
     /// ```ignore
     /// NOIR_ARBTEST_SEED=0x6819c61400001000 \
     /// NOIR_AST_FUZZER_SHOW_AST=1 \

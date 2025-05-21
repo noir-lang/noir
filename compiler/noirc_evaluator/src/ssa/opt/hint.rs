@@ -21,14 +21,10 @@ mod tests {
             skip_brillig_constraints_check: true,
             inliner_aggressiveness: 0,
             max_bytecode_increase_percent: None,
+            skip_passes: Default::default(),
         };
 
-        let builder = SsaBuilder {
-            ssa,
-            ssa_logging: options.ssa_logging.clone(),
-            print_codegen_timings: false,
-            passed: Default::default(),
-        };
+        let builder = SsaBuilder::from_ssa(ssa, options.ssa_logging.clone(), false);
 
         Ok(builder.run_passes(&primary_passes(options))?.finish())
     }

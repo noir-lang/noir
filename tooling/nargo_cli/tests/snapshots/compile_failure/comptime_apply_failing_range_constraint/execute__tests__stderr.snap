@@ -1,0 +1,12 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: stderr
+---
+error: failed to solve blackbox function: range, reason: value exceeds range check bounds
+   ┌─ std/field/mod.nr:17:9
+   │
+17 │         __assert_max_bit_size(self, BIT_SIZE);
+   │         -------------------------------------
+   │
+
+Aborting due to 1 previous error

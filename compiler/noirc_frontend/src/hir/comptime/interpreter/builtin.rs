@@ -24,7 +24,7 @@ use crate::{
         Pattern, Statement, StatementKind, UnaryOp, UnresolvedType, UnresolvedTypeData,
         UnsafeExpression,
     },
-    elaborator::{ElaborateReason, Elaborator},
+    elaborator::{ElaborateReason, Elaborator, PrimitiveType},
     hir::{
         comptime::{
             InterpreterError, Value,
@@ -332,7 +332,7 @@ fn slice_push_back(
     Ok(Value::Slice(values, typ))
 }
 
-// static_assert<let N: u32>(predicate: bool, message: str<N>)
+// static_assert<let N: u32>(predicate: bool, message: T)
 fn static_assert(
     interner: &NodeInterner,
     arguments: Vec<(Value, Location)>,
@@ -341,7 +341,7 @@ fn static_assert(
 ) -> IResult<Value> {
     let (predicate, message) = check_two_arguments(arguments, location)?;
     let predicate = get_bool(predicate)?;
-    let message = get_str(interner, message)?;
+    let message = message.0.display(interner).to_string();
 
     if predicate {
         Ok(Value::Unit)
@@ -838,6 +838,7 @@ fn quoted_as_module(
         parse(interpreter.elaborator, argument, Parser::parse_path_no_turbofish_or_error, "a path")
             .ok();
     let option_value = path.and_then(|path| {
+        let path = interpreter.elaborator.validate_path(path);
         let reason = Some(ElaborateReason::EvaluatingComptimeCall("Quoted::as_module", location));
         let module =
             interpreter.elaborate_in_function(interpreter.current_function, reason, |elaborator| {
@@ -1178,7 +1179,7 @@ fn type_get_trait_impl(
         &generics.ordered,
         &generics.named,
     ) {
-        Ok(TraitImplKind::Normal(trait_impl_id)) => Some(Value::TraitImpl(trait_impl_id)),
+        Ok((TraitImplKind::Normal(trait_impl_id), _)) => Some(Value::TraitImpl(trait_impl_id)),
         _ => None,
     };
 
@@ -1364,7 +1365,22 @@ fn unresolved_type_is_bool(
 ) -> IResult<Value> {
     let self_argument = check_one_argument(arguments, location)?;
     let typ = get_unresolved_type(interner, self_argument)?;
-    Ok(Value::Bool(matches!(typ, UnresolvedTypeData::Bool)))
+
+    // TODO: we should resolve the type here instead of just checking the name
+    // See https://github.com/noir-lang/noir/issues/8505
+    let UnresolvedTypeData::Named(path, generics, _) = typ else {
+        return Ok(Value::Bool(false));
+    };
+    if !generics.is_empty() {
+        return Ok(Value::Bool(false));
+    }
+    let Some(ident) = path.as_ident() else {
+        return Ok(Value::Bool(false));
+    };
+    let Some(primitive_type) = PrimitiveType::lookup_by_name(ident.as_str()) else {
+        return Ok(Value::Bool(false));
+    };
+    Ok(Value::Bool(primitive_type == PrimitiveType::Bool))
 }
 
 // fn is_field(self) -> bool
@@ -1375,7 +1391,22 @@ fn unresolved_type_is_field(
 ) -> IResult<Value> {
     let self_argument = check_one_argument(arguments, location)?;
     let typ = get_unresolved_type(interner, self_argument)?;
-    Ok(Value::Bool(matches!(typ, UnresolvedTypeData::FieldElement)))
+
+    // TODO: we should resolve the type here instead of just checking the name
+    // See https://github.com/noir-lang/noir/issues/8505
+    let UnresolvedTypeData::Named(path, generics, _) = typ else {
+        return Ok(Value::Bool(false));
+    };
+    if !generics.is_empty() {
+        return Ok(Value::Bool(false));
+    }
+    let Some(ident) = path.as_ident() else {
+        return Ok(Value::Bool(false));
+    };
+    let Some(primitive_type) = PrimitiveType::lookup_by_name(ident.as_str()) else {
+        return Ok(Value::Bool(false));
+    };
+    Ok(Value::Bool(primitive_type == PrimitiveType::Field))
 }
 
 // fn is_unit(self) -> bool
@@ -1923,15 +1954,15 @@ fn expr_as_integer(
     expr_as(interner, arguments, return_type.clone(), location, |expr| match expr {
         ExprValue::Expression(ExpressionKind::Literal(Literal::Integer(field))) => {
             Some(Value::Tuple(vec![
-                Value::Field(SignedField::positive(field.field)),
-                Value::Bool(field.is_negative),
+                Value::Field(SignedField::positive(field.absolute_value())),
+                Value::Bool(field.is_negative()),
             ]))
         }
         ExprValue::Expression(ExpressionKind::Resolved(id)) => {
             if let HirExpression::Literal(HirLiteral::Integer(field)) = interner.expression(&id) {
                 Some(Value::Tuple(vec![
-                    Value::Field(SignedField::positive(field.field)),
-                    Value::Bool(field.is_negative),
+                    Value::Field(SignedField::positive(field.absolute_value())),
+                    Value::Bool(field.is_negative()),
                 ]))
             } else {
                 None

@@ -32,8 +32,17 @@ expression: artifact
       }
     }
   },
-  "bytecode": "H4sIAAAAAAAA/71UzU7DMAx2m0wQoAKBuMAbcPJop+3YAy8SMfU59ugQyabGdTmMeJaqNIrz5fv818BsDa1R7cHwGWnF/9m2IhaaRP8y9hloTbS24jxUFJvUuzXxDzjskqGvIv8+EaZnfBjTAR+vCOfjNONrLcU62ssa4jvX398dzP8d/Sd1xyO3jrHHJ4M/v3VLWp+VVicufQe/8yGNz+SQkpy1aQzJu2h6FbjaD4R+7q14qq95f0Dk9wLhb8DWH8W59H+h/Y3iz7Eaz+Q57fN26vOUd/l4HD7zo8IvtlYnnKtW+PI9515/t2oiGLEJIm6es62BZU0HWManVbGLBtcHWO8BzzmEZ/SmjKc2qzfZr9TRm8DVfmwXnk0/eYxKx9rsvIdlnUfFVeoZ6/BEzWNj8GjUGfv2il/0iSXqWSLfKnn9Ao3o9y+dCgAA",
-  "debug_symbols": "pdLbaoQwEAbgd8m1FzEHNb7KskjUuARClKwWivjunWS0awtC2d7kM8Z/xoGspDft8misH8YnqW8raYN1zj4aN3Z6tqOHtyuhcckFqfOM5BIpkBKpEJVgsOOASnCK5AhDOCIQqCmAAimRClEJQRHISUAgEoFcAZRIhaiEhFyxbRk5BmrmYEyc5zQhzD3pYPxMar84l5EP7Zb00XPSPjnrAKc0I8b3IBQcrDPxacteaXodFYrvYUnld1z+PU/FnhfsMs+u86ws9zyn9J3+nB39pXgj/+rPlPxX/vf/32GnOxt+3NktVgpWt87s22Hx3el0/pyOk+POT2HsTL8EEyudLj6sN5ZnrLhvsdsX",
+  "bytecode": [
+    "func 0",
+    "current witness index : _0",
+    "private parameters indices : [_0]",
+    "public parameters indices : []",
+    "return value indices : []",
+    "BRILLIG CALL func 0: inputs: [Single(Expression { mul_terms: [], linear_combinations: [(1, Witness(0))], q_c: 0 })], outputs: []",
+    "unconstrained func 0",
+    "[Const { destination: Direct(2), bit_size: Integer(U32), value: 1 }, Const { destination: Direct(1), bit_size: Integer(U32), value: 32837 }, Const { destination: Direct(0), bit_size: Integer(U32), value: 3 }, Const { destination: Relative(2), bit_size: Integer(U32), value: 1 }, Const { destination: Relative(3), bit_size: Integer(U32), value: 0 }, CalldataCopy { destination_address: Direct(32836), size_address: Relative(2), offset_address: Relative(3) }, Mov { destination: Relative(1), source: Direct(32836) }, Call { location: 12 }, Call { location: 13 }, Const { destination: Relative(1), bit_size: Integer(U32), value: 32837 }, Const { destination: Relative(2), bit_size: Integer(U32), value: 0 }, Stop { return_data: HeapVector { pointer: Relative(1), size: Relative(2) } }, Return, Call { location: 20 }, Const { destination: Relative(2), bit_size: Field, value: 0 }, BinaryFieldOp { destination: Relative(3), op: Equals, lhs: Relative(1), rhs: Relative(2) }, JumpIf { condition: Relative(3), location: 19 }, Const { destination: Relative(4), bit_size: Integer(U32), value: 0 }, Trap { revert_data: HeapVector { pointer: Direct(1), size: Relative(4) } }, Return, Const { destination: Direct(32772), bit_size: Integer(U32), value: 30720 }, BinaryIntOp { destination: Direct(32771), op: LessThan, bit_size: U32, lhs: Direct(0), rhs: Direct(32772) }, JumpIf { condition: Direct(32771), location: 25 }, IndirectConst { destination_pointer: Direct(1), bit_size: Integer(U64), value: 17843811134343075018 }, Trap { revert_data: HeapVector { pointer: Direct(1), size: Direct(2) } }, Return]"
+  ],
+  "debug_symbols": "fZFNDoMgEIXvMmsWiFJbr9IYgzoaEoIGoUljuHvBn1YXdjOP4fE9kpkZWqxdX0ndDRMUzxlqI5WSfaWGRlg56HA7A40lyaBICSR8ldsq+Sr3IN4T2LHKGsRIHXJC+igMaguFdkoReAnllkfTKPSiVpjgUgKo26AhsJMK48mTH02v0eyRbjCn/IvzM5/84VO28RnPrnh2zbM83/iU0hNfhk400pwm62OSkaJWuLWd083Bte9xd/bNjGZosHUGY9JhPaE+GSWMlz7+9gE=",
   "file_map": {
     "50": {
       "source": "trait Serialize<let N: u32> {\n    fn serialize(self) -> [Field; N];\n}\n\nstruct ValueNote {\n    value: Field,\n}\n\nimpl Serialize<1> for ValueNote {\n    fn serialize(self) -> [Field; 1] {\n        [self.value]\n    }\n}\n\nfn check<let N: u32>(serialized_note: [Field; N]) {\n    assert(serialized_note[0] == 0);\n}\n\nfn oopsie<Note, let N: u32>(note: Note)\nwhere\n    Note: Serialize<N>,\n{\n    let serialized_note = Note::serialize(note);\n\n    check(serialized_note)\n}\n\nfn main(mut note: ValueNote) {\n    oopsie(note);\n}\n",

@@ -24,10 +24,7 @@ pub fn gen_literal(u: &mut Unstructured, typ: &Type) -> arbitrary::Result<Expres
         Type::Unit => Expression::Literal(Literal::Unit),
         Type::Bool => Expression::Literal(Literal::Bool(bool::arbitrary(u)?)),
         Type::Field => {
-            let field = SignedField {
-                field: Field::from(u128::arbitrary(u)?),
-                is_negative: bool::arbitrary(u)?,
-            };
+            let field = SignedField::new(Field::from(u128::arbitrary(u)?), bool::arbitrary(u)?);
             Expression::Literal(Literal::Integer(field, Type::Field, Location::dummy()))
         }
         Type::Integer(signedness, integer_bit_size) => {
@@ -64,7 +61,7 @@ pub fn gen_literal(u: &mut Unstructured, typ: &Type) -> arbitrary::Result<Expres
                 };
 
             Expression::Literal(Literal::Integer(
-                SignedField { field, is_negative },
+                SignedField::new(field, is_negative),
                 Type::Integer(*signedness, *integer_bit_size),
                 Location::dummy(),
             ))
@@ -92,7 +89,7 @@ pub fn gen_literal(u: &mut Unstructured, typ: &Type) -> arbitrary::Result<Expres
             }
             Expression::Tuple(values)
         }
-        _ => unreachable!("unexpected literal type: {typ}"),
+        _ => unreachable!("unexpected type to generate a literal for: {typ}"),
     };
     Ok(expr)
 }
@@ -190,7 +187,7 @@ pub fn gen_range(
 
     let to_lit = |(field, is_negative)| {
         Expression::Literal(Literal::Integer(
-            SignedField { field, is_negative },
+            SignedField::new(field, is_negative),
             Type::Integer(*signedness, *integer_bit_size),
             Location::dummy(),
         ))
@@ -237,10 +234,15 @@ where
     FieldElement: From<V>,
 {
     Expression::Literal(Literal::Integer(
-        SignedField { field: FieldElement::from(value), is_negative },
+        SignedField::new(value.into(), is_negative),
         typ,
         Location::dummy(),
     ))
+}
+
+/// 8-bit unsigned int literal, used in bit shifts.
+pub fn u8_literal(value: u8) -> Expression {
+    int_literal(value as u32, false, types::U8)
 }
 
 /// 32-bit unsigned int literal, used in indexing arrays.
@@ -371,6 +373,14 @@ pub fn callees(expr: &Expression) -> HashSet<FuncId> {
             if let Expression::Ident(ident) = call.func.as_ref() {
                 if let Definition::Function(func_id) = ident.definition {
                     callees.insert(func_id);
+                }
+            }
+            // Consider functions passed as arguments as at least callable.
+            for arg in &call.arguments {
+                if let Expression::Ident(ident) = arg {
+                    if let Definition::Function(func_id) = ident.definition {
+                        callees.insert(func_id);
+                    }
                 }
             }
         }

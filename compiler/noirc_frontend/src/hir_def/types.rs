@@ -1,9 +1,6 @@
-use std::{
-    borrow::Cow,
-    cell::RefCell,
-    collections::{BTreeSet, HashMap},
-    rc::Rc,
-};
+use std::{borrow::Cow, cell::RefCell, collections::BTreeSet, rc::Rc};
+
+use fxhash::FxHashMap as HashMap;
 
 #[cfg(test)]
 use proptest_derive::Arbitrary;
@@ -243,7 +240,7 @@ impl Kind {
 
             // Kind::Numeric unifies along its Type argument
             (Kind::Numeric(lhs), Kind::Numeric(rhs)) => {
-                let mut bindings = TypeBindings::new();
+                let mut bindings = TypeBindings::default();
                 let unifies = lhs.try_unify(rhs, &mut bindings).is_ok();
                 if unifies {
                     Type::apply_type_bindings(bindings);
@@ -1030,7 +1027,11 @@ impl std::fmt::Display for Type {
             }
             Type::Tuple(elements) => {
                 let elements = vecmap(elements, ToString::to_string);
-                write!(f, "({})", elements.join(", "))
+                if elements.len() == 1 {
+                    write!(f, "({},)", elements[0])
+                } else {
+                    write!(f, "({})", elements.join(", "))
+                }
             }
             Type::Bool => write!(f, "bool"),
             Type::String(len) => write!(f, "str<{len}>"),
@@ -1277,16 +1278,18 @@ impl Type {
         match self {
             // Type::Error is allowed as usual since it indicates an error was already issued and
             // we don't need to issue further errors about this likely unresolved type
+            // TypeVariable and Generic are allowed here too as they can only result from
+            // generics being declared on the function itself, but we produce a different error in that case.
             Type::FieldElement
             | Type::Integer(_, _)
             | Type::Bool
-            | Type::Unit
             | Type::Constant(_, _)
-            | Type::Error => true,
-
-            Type::FmtString(_, _)
             | Type::TypeVariable(_)
             | Type::NamedGeneric(_)
+            | Type::Error => true,
+
+            Type::Unit
+            | Type::FmtString(_, _)
             | Type::Function(_, _, _, _)
             | Type::Reference(..)
             | Type::Forall(_, _)
@@ -1302,9 +1305,13 @@ impl Type {
             }
 
             Type::Array(length, element) => {
-                length.is_valid_for_program_input() && element.is_valid_for_program_input()
+                (Self::should_allow_zero_sized_input() || self.array_or_string_len_is_not_zero())
+                    && length.is_valid_for_program_input()
+                    && element.is_valid_for_program_input()
             }
-            Type::String(length) => length.is_valid_for_program_input(),
+            Type::String(length) => {
+                self.array_or_string_len_is_not_zero() && length.is_valid_for_program_input()
+            }
             Type::Tuple(elements) => elements.iter().all(|elem| elem.is_valid_for_program_input()),
             Type::DataType(definition, generics) => {
                 if let Some(fields) = definition.borrow().get_fields(generics) {
@@ -1318,6 +1325,30 @@ impl Type {
             Type::InfixExpr(lhs, _, rhs, _) => {
                 lhs.is_valid_for_program_input() && rhs.is_valid_for_program_input()
             }
+        }
+    }
+
+    /// Check if it is okay to allow for zero-sized input (e..g zero-sized arrays) to a program.
+    /// This behavior is not well defined and is banned by default.
+    /// However, this ban is a breaking change for some dependent projects so this override
+    /// is provided until those projects migrate away from using zero-sized array input (e.g. <https://github.com/AztecProtocol/aztec-packages/issues/14388>).
+    fn should_allow_zero_sized_input() -> bool {
+        std::env::var("ALLOW_EMPTY_INPUT").ok().map(|v| v == "1" || v == "true").unwrap_or_default()
+    }
+
+    /// Empty arrays and strings (which are arrays under the hood) are disallowed
+    /// as input to program entry points.
+    ///
+    /// The point of inputs to entry points is to process input data.
+    /// Thus, passing empty arrays is pointless and adds extra complexity to the compiler
+    /// for handling them.
+    fn array_or_string_len_is_not_zero(&self) -> bool {
+        match self {
+            Type::Array(length, _) | Type::String(length) => {
+                let length = length.evaluate_to_u32(Location::dummy()).unwrap_or(0);
+                length != 0
+            }
+            _ => panic!("ICE: Expected an array or string type"),
         }
     }
 
@@ -1773,7 +1804,7 @@ impl Type {
     /// (including try_unify) are almost always preferred over Type::eq as unification
     /// will correctly handle generic types.
     pub fn unify(&self, expected: &Type) -> Result<(), UnificationError> {
-        let mut bindings = TypeBindings::new();
+        let mut bindings = TypeBindings::default();
 
         self.try_unify(expected, &mut bindings).map(|()| {
             // Commit any type bindings on success
@@ -2045,7 +2076,7 @@ impl Type {
         errors: &mut Vec<TypeCheckError>,
         make_error: impl FnOnce() -> TypeCheckError,
     ) {
-        let mut bindings = TypeBindings::new();
+        let mut bindings = TypeBindings::default();
 
         if let Ok(()) = self.try_unify(expected, &mut bindings) {
             Type::apply_type_bindings(bindings);
@@ -2117,7 +2148,7 @@ impl Type {
             if let Some(as_slice) = interner.lookup_direct_method(&this, "as_slice", true) {
                 // Still have to ensure the element types match.
                 // Don't need to issue an error here if not, it will be done in unify_with_coercions
-                let mut bindings = TypeBindings::new();
+                let mut bindings = TypeBindings::default();
                 if element1.try_unify(element2, &mut bindings).is_ok() {
                     convert_array_expression_to_slice(expression, this, target, as_slice, interner);
                     Self::apply_type_bindings(bindings);
@@ -2138,7 +2169,7 @@ impl Type {
         {
             // Still have to ensure the element types match.
             // Don't need to issue an error here if not, it will be done in unify_with_coercions
-            let mut bindings = TypeBindings::new();
+            let mut bindings = TypeBindings::default();
             if this_elem.try_unify(target_elem, &mut bindings).is_ok() {
                 Self::apply_type_bindings(bindings);
                 return true;
@@ -2321,7 +2352,7 @@ impl Type {
                 let instantiated = typ.force_substitute(&replacements);
                 (instantiated, replacements)
             }
-            other => (other.clone(), HashMap::new()),
+            other => (other.clone(), HashMap::default()),
         }
     }
 
@@ -2358,7 +2389,7 @@ impl Type {
                 let instantiated = typ.substitute(&replacements);
                 (instantiated, replacements)
             }
-            other => (other.clone(), HashMap::new()),
+            other => (other.clone(), HashMap::default()),
         }
     }
 
@@ -2850,6 +2881,46 @@ impl Type {
                 }
             }
             _ => None,
+        }
+    }
+
+    /// Substitute any [`Kind::Any`] in this type, for types that hold kinds (like [`Type::Constant`])
+    /// with the given `kind`.
+    pub(crate) fn substitute_kind_any_with_kind(self, kind: &Kind) -> Type {
+        match self {
+            Type::CheckedCast { from, to } => Type::CheckedCast {
+                from: Box::new(from.substitute_kind_any_with_kind(kind)),
+                to: Box::new(to.substitute_kind_any_with_kind(kind)),
+            },
+            Type::Constant(value, constant_kind) => {
+                let kind = if let Kind::Any = constant_kind { kind.clone() } else { constant_kind };
+                Type::Constant(value, kind)
+            }
+            Type::InfixExpr(lhs, op, rhs, inverse) => Type::InfixExpr(
+                Box::new(lhs.substitute_kind_any_with_kind(kind)),
+                op,
+                Box::new(rhs.substitute_kind_any_with_kind(kind)),
+                inverse,
+            ),
+            Type::FieldElement
+            | Type::Array(..)
+            | Type::Slice(..)
+            | Type::Integer(..)
+            | Type::Bool
+            | Type::String(..)
+            | Type::FmtString(..)
+            | Type::Unit
+            | Type::Tuple(..)
+            | Type::DataType(..)
+            | Type::Alias(..)
+            | Type::TypeVariable(..)
+            | Type::TraitAsType(..)
+            | Type::NamedGeneric(..)
+            | Type::Function(..)
+            | Type::Reference(..)
+            | Type::Quoted(..)
+            | Type::Forall(..)
+            | Type::Error => self,
         }
     }
 }
