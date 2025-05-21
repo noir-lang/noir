@@ -977,6 +977,7 @@ impl<'context> Elaborator<'context> {
         func: &mut NoirFunction,
         func_id: FuncId,
         trait_id: Option<TraitId>,
+        mut extra_trait_constraints: Vec<TraitConstraint>,
     ) {
         let in_contract = if self.self_type.is_some() {
             // Without this, impl methods can accidentally be placed in contracts.
@@ -1031,12 +1032,22 @@ impl<'context> Elaborator<'context> {
             generics.push(associated_generic.type_var);
         }
 
+        for extra_constraint in &extra_trait_constraints {
+            let bound = &extra_constraint.trait_bound;
+            self.add_trait_bound_to_scope(
+                bound.location,
+                &extra_constraint.typ,
+                bound,
+                bound.trait_id,
+            );
+        }
+
         // We put associated generics first, as they are implicit and implicit generics
         // come before explicit generics (see `Type::instantiate_with`).
         generics.extend(func_generics);
 
         let mut trait_constraints = self.resolve_trait_constraints(&func.def.where_clause);
-        let extra_trait_constraints = associated_generics_trait_contraints;
+        extra_trait_constraints.extend(associated_generics_trait_contraints);
 
         let mut parameters = Vec::new();
         let mut parameter_types = Vec::new();
@@ -2168,7 +2179,7 @@ impl<'context> Elaborator<'context> {
         trait_impls: &mut [UnresolvedTraitImpl],
     ) {
         for function_set in functions {
-            self.define_function_metas_for_functions(function_set);
+            self.define_function_metas_for_functions(function_set, Vec::new());
         }
 
         for ((self_type, local_module), function_sets) in impls {
@@ -2180,7 +2191,7 @@ impl<'context> Elaborator<'context> {
 
                 function_set.self_type = Some(self_type.clone());
                 self.self_type = Some(self_type);
-                self.define_function_metas_for_functions(function_set);
+                self.define_function_metas_for_functions(function_set, Vec::new());
                 self.self_type = None;
                 self.generics.clear();
             }
@@ -2241,8 +2252,23 @@ impl<'context> Elaborator<'context> {
             trait_impl.resolved_generics = self.generics.clone();
 
             let new_generics = self.desugar_trait_constraints(&mut trait_impl.where_clause);
-            for (new_generic, _bounds) in new_generics {
-                // TODO: use `_bounds` variable above
+            let mut new_generics_trait_contraints = Vec::new();
+            for (new_generic, bounds) in new_generics {
+                for bound in bounds {
+                    let typ = Type::TypeVariable(new_generic.type_var.clone());
+
+                    self.add_trait_bound_to_scope(
+                        new_generic.location,
+                        &typ,
+                        &bound,
+                        bound.trait_id,
+                    );
+
+                    new_generics_trait_contraints.push(TraitConstraint {
+                        typ: Type::TypeVariable(new_generic.type_var.clone()),
+                        trait_bound: bound,
+                    });
+                }
                 trait_impl.resolved_generics.push(new_generic.clone());
                 self.generics.push(new_generic);
             }
@@ -2274,13 +2300,18 @@ impl<'context> Elaborator<'context> {
             trait_impl.resolved_trait_generics = ordered_generics;
             self.interner.set_associated_types_for_impl(impl_id, named_generics);
 
-            self.remove_trait_constraints_from_scope(constraints.iter());
+            self.remove_trait_constraints_from_scope(
+                constraints.iter().chain(new_generics_trait_contraints.iter()),
+            );
 
             let self_type = self.resolve_type(unresolved_type);
             self.self_type = Some(self_type.clone());
             trait_impl.methods.self_type = Some(self_type);
 
-            self.define_function_metas_for_functions(&mut trait_impl.methods);
+            self.define_function_metas_for_functions(
+                &mut trait_impl.methods,
+                new_generics_trait_contraints,
+            );
 
             trait_impl.resolved_object_type = self.self_type.take();
             trait_impl.impl_id = self.current_trait_impl.take();
@@ -2299,11 +2330,15 @@ impl<'context> Elaborator<'context> {
         }
     }
 
-    fn define_function_metas_for_functions(&mut self, function_set: &mut UnresolvedFunctions) {
+    fn define_function_metas_for_functions(
+        &mut self,
+        function_set: &mut UnresolvedFunctions,
+        extra_constraints: Vec<TraitConstraint>,
+    ) {
         for (local_module, id, func) in &mut function_set.functions {
             self.local_module = *local_module;
             self.recover_generics(|this| {
-                this.define_function_meta(func, *id, None);
+                this.define_function_meta(func, *id, None, extra_constraints.clone());
             });
         }
     }
