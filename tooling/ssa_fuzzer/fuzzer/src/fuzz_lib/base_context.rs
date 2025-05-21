@@ -439,8 +439,8 @@ impl FuzzerContext {
         unreachable!("Blocks are not in the same CFG.");
     }
 
-    fn ids_to_blocks(&self, ids: &Vec<BasicBlockId>) -> Vec<StoredBlock> {
-        ids.into_iter().map(|id| self.stored_blocks[&id].clone()).collect()
+    fn ids_to_blocks(&self, ids: &[BasicBlockId]) -> Vec<StoredBlock> {
+        ids.iter().map(|id| self.stored_blocks[id].clone()).collect()
     }
 
     /// Returns end of the block if it has only one end or block has no children blocks
@@ -464,17 +464,16 @@ impl FuzzerContext {
             None => unreachable!("Block not found in stored blocks."),
         };
 
-        if block.context.children_blocks.len() == 0 {
+        if block.context.children_blocks.is_empty() {
             return Some(block.block_id);
         }
         let mut blocks_stack = vec![block.block_id];
         let mut end_blocks = Vec::new();
-        while !blocks_stack.is_empty() {
-            let block_id = blocks_stack.pop().unwrap();
+        while let Some(block_id) = blocks_stack.pop() {
             let block = &self.stored_blocks[&block_id];
             let children_blocks = self.ids_to_blocks(&block.context.children_blocks);
             for child_block in children_blocks {
-                if child_block.context.children_blocks.len() == 0 {
+                if child_block.context.children_blocks.is_empty() {
                     end_blocks.push(child_block.block_id);
                 } else {
                     blocks_stack.push(child_block.block_id);
@@ -493,8 +492,8 @@ impl FuzzerContext {
     fn merge_one_block(&mut self, block_id: BasicBlockId) -> StoredBlock {
         let block = &self.stored_blocks[&block_id];
         let block_end = self.end_of_block(block_id);
-        if block_end.is_some() {
-            return self.stored_blocks[&block_end.unwrap()].clone();
+        if let Some(block_end) = block_end {
+            return self.stored_blocks[&block_end].clone();
         }
         if block.context.children_blocks.len() == 1 {
             let child_block = self.stored_blocks[&block.context.children_blocks[0]].block_id;
