@@ -348,16 +348,30 @@
 <a href="#347" id="347">347</a>
 <a href="#348" id="348">348</a>
 <a href="#349" id="349">349</a>
-<a href="#350" id="350">350</a></pre></div><pre class="rust"><code><span class="kw">use </span>acvm::{AcirField, FieldElement};
+<a href="#350" id="350">350</a>
+<a href="#351" id="351">351</a>
+<a href="#352" id="352">352</a>
+<a href="#353" id="353">353</a>
+<a href="#354" id="354">354</a>
+<a href="#355" id="355">355</a>
+<a href="#356" id="356">356</a>
+<a href="#357" id="357">357</a>
+<a href="#358" id="358">358</a>
+<a href="#359" id="359">359</a>
+<a href="#360" id="360">360</a>
+<a href="#361" id="361">361</a></pre></div><pre class="rust"><code><span class="kw">use </span>acvm::{AcirField, FieldElement};
 
 <span class="attr">#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
 </span><span class="kw">pub struct </span>SignedField {
-    <span class="kw">pub </span>field: FieldElement,
-    <span class="kw">pub </span>is_negative: bool,
+    field: FieldElement,
+    is_negative: bool,
 }
 
 <span class="kw">impl </span>SignedField {
-    <span class="kw">pub fn </span>new(field: FieldElement, is_negative: bool) -&gt; <span class="self">Self </span>{
+    <span class="kw">pub fn </span>new(field: FieldElement, <span class="kw-2">mut </span>is_negative: bool) -&gt; <span class="self">Self </span>{
+        <span class="kw">if </span>field.is_zero() {
+            is_negative = <span class="bool-val">false</span>;
+        }
         <span class="self">Self </span>{ field, is_negative }
     }
 
@@ -366,7 +380,7 @@
     }
 
     <span class="kw">pub fn </span>negative(field: <span class="kw">impl </span>Into&lt;FieldElement&gt;) -&gt; <span class="self">Self </span>{
-        <span class="self">Self </span>{ field: field.into(), is_negative: <span class="bool-val">true </span>}
+        <span class="self">Self</span>::new(field.into(), <span class="bool-val">true</span>)
     }
 
     <span class="kw">pub fn </span>zero() -&gt; SignedField {
@@ -375,6 +389,15 @@
 
     <span class="kw">pub fn </span>one() -&gt; SignedField {
         <span class="self">Self </span>{ field: FieldElement::one(), is_negative: <span class="bool-val">false </span>}
+    }
+
+    <span class="doccomment">/// Returns the inner FieldElement which will always be positive
+    </span><span class="kw">pub fn </span>absolute_value(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; FieldElement {
+        <span class="self">self</span>.field
+    }
+
+    <span class="kw">pub fn </span>is_negative(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; bool {
+        <span class="self">self</span>.is_negative
     }
 
     <span class="doccomment">/// Convert a signed integer to a SignedField, carefully handling
@@ -497,10 +520,9 @@
 <span class="kw">impl </span>std::ops::Neg <span class="kw">for </span>SignedField {
     <span class="kw">type </span>Output = <span class="self">Self</span>;
 
-    <span class="kw">fn </span>neg(<span class="kw-2">mut </span><span class="self">self</span>) -&gt; <span class="self">Self</span>::Output {
-        <span class="self">self</span>.is_negative = !<span class="self">self</span>.is_negative;
-        <span class="self">self
-    </span>}
+    <span class="kw">fn </span>neg(<span class="self">self</span>) -&gt; <span class="self">Self</span>::Output {
+        <span class="self">Self</span>::new(<span class="self">self</span>.field, !<span class="self">self</span>.is_negative)
+    }
 }
 
 <span class="kw">impl </span>Ord <span class="kw">for </span>SignedField {

@@ -2364,7 +2364,8 @@
 <a href="#2363" id="2363">2363</a>
 <a href="#2364" id="2364">2364</a>
 <a href="#2365" id="2365">2365</a>
-<a href="#2366" id="2366">2366</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::{borrow::Cow, rc::Rc};
+<a href="#2366" id="2366">2366</a>
+<a href="#2367" id="2367">2367</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::{borrow::Cow, rc::Rc};
 
 <span class="kw">use </span>im::HashSet;
 <span class="kw">use </span>iter_extended::vecmap;
@@ -2403,7 +2404,6 @@
         TraitMethodId,
     },
     shared::Signedness,
-    signed_field::SignedField,
     token::SecondaryAttributeKind,
 };
 
@@ -3507,7 +3507,9 @@
 
         <span class="kw">use </span>HirExpression::Literal;
         <span class="kw">let </span>from_value_opt = <span class="kw">match </span><span class="self">self</span>.interner.expression(from_expr_id) {
-            Literal(HirLiteral::Integer(SignedField { field, is_negative: <span class="bool-val">false </span>})) =&gt; <span class="prelude-val">Some</span>(field),
+            Literal(HirLiteral::Integer(field)) <span class="kw">if </span>!field.is_negative() =&gt; {
+                <span class="prelude-val">Some</span>(field.absolute_value())
+            }
 
             <span class="comment">// TODO(https://github.com/noir-lang/noir/issues/6247):
             // handle negative literals

@@ -5095,15 +5095,15 @@
     expr_as(interner, arguments, return_type.clone(), location, |expr| <span class="kw">match </span>expr {
         ExprValue::Expression(ExpressionKind::Literal(Literal::Integer(field))) =&gt; {
             <span class="prelude-val">Some</span>(Value::Tuple(<span class="macro">vec!</span>[
-                Value::Field(SignedField::positive(field.field)),
-                Value::Bool(field.is_negative),
+                Value::Field(SignedField::positive(field.absolute_value())),
+                Value::Bool(field.is_negative()),
             ]))
         }
         ExprValue::Expression(ExpressionKind::Resolved(id)) =&gt; {
             <span class="kw">if let </span>HirExpression::Literal(HirLiteral::Integer(field)) = interner.expression(<span class="kw-2">&amp;</span>id) {
                 <span class="prelude-val">Some</span>(Value::Tuple(<span class="macro">vec!</span>[
-                    Value::Field(SignedField::positive(field.field)),
-                    Value::Bool(field.is_negative),
+                    Value::Field(SignedField::positive(field.absolute_value())),
+                    Value::Bool(field.is_negative()),
                 ]))
             } <span class="kw">else </span>{
                 <span class="prelude-val">None

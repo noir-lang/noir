@@ -188,12 +188,12 @@
 }
 
 <span class="kw">fn </span>format_integer(typ: <span class="kw-2">&amp;</span>Type, value: SignedField) -&gt; String {
-    <span class="kw">let </span>value_base_10 = value.field.to_string();
+    <span class="kw">let </span>value_base_10 = value.absolute_value().to_string();
 
     <span class="comment">// For simplicity we parse the value as a BigInt to convert it to hex
     // because `FieldElement::to_hex` will include many leading zeros.
     </span><span class="kw">let </span>value_big_int = BigInt::from_str(<span class="kw-2">&amp;</span>value_base_10).unwrap();
-    <span class="kw">let </span>negative = <span class="kw">if </span>value.is_negative { <span class="string">"-" </span>} <span class="kw">else </span>{ <span class="string">"" </span>};
+    <span class="kw">let </span>negative = <span class="kw">if </span>value.is_negative() { <span class="string">"-" </span>} <span class="kw">else </span>{ <span class="string">"" </span>};
 
     <span class="macro">format!</span>(
         <span class="string">"    {typ}\n---\nvalue of literal: `{negative}{value_base_10} ({negative}0x{value_big_int:02x})`"

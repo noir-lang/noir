@@ -161,7 +161,7 @@
         }};
     }
     <span class="kw">let </span>(lhs, lhs_is_negative) = <span class="kw">match </span>evaluated_lhs {
-        Value::Field(value) =&gt; (value.field, value.is_negative),
+        Value::Field(value) =&gt; (value.absolute_value(), value.is_negative()),
         Value::U1(value) =&gt; ((value <span class="kw">as </span>u128).into(), <span class="bool-val">false</span>),
         Value::U8(value) =&gt; ((value <span class="kw">as </span>u128).into(), <span class="bool-val">false</span>),
         Value::U16(value) =&gt; ((value <span class="kw">as </span>u128).into(), <span class="bool-val">false</span>),

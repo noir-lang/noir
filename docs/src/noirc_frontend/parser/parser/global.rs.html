@@ -372,8 +372,8 @@
             <span class="macro">panic!</span>(<span class="string">"Expected integer literal expression, got {:?}"</span>, let_statement.expression.kind);
         };
 
-        <span class="macro">assert!</span>(value.is_negative);
-        <span class="macro">assert_eq!</span>(value.field, FieldElement::from(<span class="number">17u128</span>));
+        <span class="macro">assert!</span>(value.is_negative());
+        <span class="macro">assert_eq!</span>(value.absolute_value(), FieldElement::from(<span class="number">17u128</span>));
     }
 }
 </code></pre></div></section></main></body></html>

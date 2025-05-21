@@ -234,7 +234,8 @@
 <a href="#233" id="233">233</a>
 <a href="#234" id="234">234</a>
 <a href="#235" id="235">235</a>
-<a href="#236" id="236">236</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::collections::BTreeMap;
+<a href="#236" id="236">236</a>
+<a href="#237" id="237">237</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::collections::BTreeMap;
 
 <span class="kw">use </span>acvm::AcirField;
 <span class="kw">use </span>acvm::acir::circuit::ErrorSelector;
@@ -462,9 +463,10 @@
             },
             HirLiteral::Bool(value) =&gt; AbiValue::Boolean { value },
             HirLiteral::Str(value) =&gt; AbiValue::String { value },
-            HirLiteral::Integer(value) =&gt; {
-                AbiValue::Integer { value: value.field.to_hex(), sign: value.is_negative }
-            }
+            HirLiteral::Integer(value) =&gt; AbiValue::Integer {
+                value: value.absolute_value().to_hex(),
+                sign: value.is_negative(),
+            },
             <span class="kw">_ </span>=&gt; <span class="macro">unreachable!</span>(<span class="string">"Literal cannot be used in the abi"</span>),
         },
         <span class="kw">_ </span>=&gt; <span class="macro">unreachable!</span>(<span class="string">"Type cannot be used in the abi {:?}"</span>, expression),

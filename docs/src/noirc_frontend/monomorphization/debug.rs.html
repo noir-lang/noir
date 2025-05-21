@@ -277,7 +277,7 @@
         <span class="comment">// instantiate tracked variable for the value type and associate it with
         // the ID used by the injected instrumentation code
         </span><span class="kw">let </span>var_type = <span class="self">self</span>.interner.id_type(call.arguments[DEBUG_VALUE_ARG_SLOT]);
-        <span class="kw">let </span>source_var_id = source_var_id.field.to_u128().into();
+        <span class="kw">let </span>source_var_id = source_var_id.absolute_value().to_u128().into();
         <span class="comment">// then update the ID used for tracking at runtime
         </span><span class="kw">let </span>var_id = <span class="self">self</span>.debug_type_tracker.insert_var(source_var_id, <span class="kw-2">&amp;</span>var_type);
         <span class="kw">let </span>interned_var_id = <span class="self">self</span>.intern_var_id(var_id, <span class="kw-2">&amp;</span>call.location);
@@ -299,7 +299,7 @@
             <span class="macro">unreachable!</span>(<span class="string">"Missing source_var_id in __debug_var_drop call"</span>);
         };
         <span class="comment">// update variable ID for tracked drops (ie. when the var goes out of scope)
-        </span><span class="kw">let </span>source_var_id = source_var_id.field.to_u128().into();
+        </span><span class="kw">let </span>source_var_id = source_var_id.absolute_value().to_u128().into();
         <span class="kw">let </span>var_id = <span class="self">self
             </span>.debug_type_tracker
             .get_var_id(source_var_id)
@@ -327,7 +327,7 @@
             <span class="macro">unreachable!</span>(<span class="string">"Missing source_var_id in __debug_member_assign call"</span>);
         };
         <span class="comment">// update variable member assignments
-        </span><span class="kw">let </span>source_var_id = source_var_id.field.to_u128().into();
+        </span><span class="kw">let </span>source_var_id = source_var_id.absolute_value().to_u128().into();
 
         <span class="kw">let </span>var_type = <span class="self">self
             </span>.debug_type_tracker
@@ -339,8 +339,8 @@
             <span class="kw">if let </span><span class="prelude-val">Some</span>(HirExpression::Literal(HirLiteral::Integer(fe_i))) =
                 hir_arguments.get(DEBUG_MEMBER_FIELD_INDEX_ARG_SLOT + i)
             {
-                <span class="kw">let </span>index = fe_i.field.to_i128().unsigned_abs();
-                <span class="kw">if </span>fe_i.is_negative {
+                <span class="kw">let </span>index = fe_i.absolute_value().to_i128().unsigned_abs();
+                <span class="kw">if </span>fe_i.is_negative() {
                     <span class="comment">// We use negative indices at instrumentation time to indicate
                     // and reference member accesses by name which cannot be
                     // resolved until we have a type. This strategy is also used
