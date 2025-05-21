@@ -1,1 +1,0 @@
-[struct_array_inputs] Circuit output: Field(3)
