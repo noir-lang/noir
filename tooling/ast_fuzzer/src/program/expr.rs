@@ -15,6 +15,11 @@ use noirc_frontend::{
 
 use super::{Name, VariableId, types, visitor::visit_expr};
 
+/// Boolean literal.
+pub fn lit_bool(value: bool) -> Expression {
+    Expression::Literal(Literal::Bool(value))
+}
+
 /// Generate a literal expression according to a type.
 pub fn gen_literal(u: &mut Unstructured, typ: &Type) -> arbitrary::Result<Expression> {
     use FieldElement as Field;
@@ -22,12 +27,9 @@ pub fn gen_literal(u: &mut Unstructured, typ: &Type) -> arbitrary::Result<Expres
 
     let expr = match typ {
         Type::Unit => Expression::Literal(Literal::Unit),
-        Type::Bool => Expression::Literal(Literal::Bool(bool::arbitrary(u)?)),
+        Type::Bool => lit_bool(bool::arbitrary(u)?),
         Type::Field => {
-            let field = SignedField {
-                field: Field::from(u128::arbitrary(u)?),
-                is_negative: bool::arbitrary(u)?,
-            };
+            let field = SignedField::new(Field::from(u128::arbitrary(u)?), bool::arbitrary(u)?);
             Expression::Literal(Literal::Integer(field, Type::Field, Location::dummy()))
         }
         Type::Integer(signedness, integer_bit_size) => {
@@ -64,7 +66,7 @@ pub fn gen_literal(u: &mut Unstructured, typ: &Type) -> arbitrary::Result<Expres
                 };
 
             Expression::Literal(Literal::Integer(
-                SignedField { field, is_negative },
+                SignedField::new(field, is_negative),
                 Type::Integer(*signedness, *integer_bit_size),
                 Location::dummy(),
             ))
@@ -190,7 +192,7 @@ pub fn gen_range(
 
     let to_lit = |(field, is_negative)| {
         Expression::Literal(Literal::Integer(
-            SignedField { field, is_negative },
+            SignedField::new(field, is_negative),
             Type::Integer(*signedness, *integer_bit_size),
             Location::dummy(),
         ))
@@ -237,7 +239,7 @@ where
     FieldElement: From<V>,
 {
     Expression::Literal(Literal::Integer(
-        SignedField { field: FieldElement::from(value), is_negative },
+        SignedField::new(value.into(), is_negative),
         typ,
         Location::dummy(),
     ))

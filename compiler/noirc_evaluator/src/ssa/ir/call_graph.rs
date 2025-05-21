@@ -14,7 +14,7 @@ use fxhash::{FxHashMap as HashMap, FxHashSet as HashSet};
 use petgraph::{
     algo::kosaraju_scc,
     graph::{DiGraph, NodeIndex as PetGraphIndex},
-    visit::EdgeRef,
+    visit::{Dfs, EdgeRef, Walker},
 };
 
 use crate::ssa::ssa_gen::Ssa;
@@ -235,6 +235,28 @@ impl CallGraph {
         }
 
         counts
+    }
+
+    /// Returns all functions reachable from the provided root(s).
+    ///
+    /// This function uses DFS internally to find all nodes reachable from the provided root(s).
+    pub(crate) fn reachable_from(
+        &self,
+        roots: impl IntoIterator<Item = FunctionId>,
+    ) -> HashSet<FunctionId> {
+        let mut reachable = HashSet::default();
+
+        for root in roots {
+            // If the root does not exist, skip it.
+            let Some(&start_index) = self.ids_to_indices.get(&root) else {
+                continue;
+            };
+            // Use DFS to determine all reachable nodes from the root
+            let dfs = Dfs::new(&self.graph, start_index);
+            reachable.extend(dfs.iter(&self.graph).map(|index| self.indices_to_ids[&index]));
+        }
+
+        reachable
     }
 }
 

@@ -777,7 +777,7 @@ impl<'a> NodeFinder<'a> {
         };
 
         let func_meta = self.interner.function_meta(&func_id);
-        for constraint in &func_meta.trait_constraints {
+        for constraint in func_meta.all_trait_constraints() {
             if *typ == constraint.typ {
                 let trait_ = self.interner.get_trait(constraint.trait_bound.trait_id);
                 self.complete_trait_methods(
