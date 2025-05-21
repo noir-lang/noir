@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1747854487636,
+  "lastUpdate": 1747854656998,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -18111,48 +18111,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "15848336+TomAFrench@users.noreply.github.com",
-            "name": "Tom French",
-            "username": "TomAFrench"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "4519387fa4e3cd00136b1069a06c3d7e5ee072d1",
-          "message": "fix!: remove `to_be_radix` and `to_le_radix` from stdlib interface (#8495)\n\nCo-authored-by: AztecBot <tech@aztecprotocol.com>",
-          "timestamp": "2025-05-14T09:40:04Z",
-          "tree_id": "2416a1607b8bc20480ff21b609fc8edb734e0570",
-          "url": "https://github.com/noir-lang/noir/commit/4519387fa4e3cd00136b1069a06c3d7e5ee072d1"
-        },
-        "date": 1747216853119,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 276168,
-            "range": "± 547",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 246681,
-            "range": "± 8029",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 3265326,
-            "range": "± 68587",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "mvezenov@gmail.com",
             "name": "Maxim Vezenov",
             "username": "vezenovm"
@@ -20204,6 +20162,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 3213498,
             "range": "± 34782",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "aakoshh@gmail.com",
+            "name": "Akosh Farkash",
+            "username": "aakoshh"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "9509cc495131cc1b5c55026df6acc83d53ebe0c4",
+          "message": "feat(fuzz): Generate println statements in unconstrained code (#8604)",
+          "timestamp": "2025-05-21T18:45:41Z",
+          "tree_id": "cdc6591d97e59b1408b8d9964a1f587745af2c71",
+          "url": "https://github.com/noir-lang/noir/commit/9509cc495131cc1b5c55026df6acc83d53ebe0c4"
+        },
+        "date": 1747854646961,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 254106,
+            "range": "± 473",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 223503,
+            "range": "± 2287",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 3210402,
+            "range": "± 10402",
             "unit": "ns/iter"
           }
         ]
