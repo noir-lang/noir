@@ -20,7 +20,7 @@ use crate::{
         resolution::{errors::ResolverError, import::PathResolutionError},
         type_check::{
             NoMatchingImplFoundError, Source, TypeCheckError,
-            generics::{Generic, TraitGenerics},
+            generics::{FmtstrPrimitiveType, Generic, StrPrimitiveType, TraitGenerics},
         },
     },
     hir_def::{
@@ -44,6 +44,7 @@ use crate::{
 use super::{
     Elaborator, FunctionContext, PathResolutionTarget, UnsafeBlockStatus, lints,
     path_resolution::{PathResolutionItem, PathResolutionMode, TypedPath},
+    primitive_types::PrimitiveType,
 };
 
 pub const SELF_TYPE_NAME: &str = "Self";
@@ -109,7 +110,6 @@ impl Elaborator<'_> {
             };
 
         let resolved_type = match typ.typ {
-            FieldElement => Type::FieldElement,
             Array(size, elem) => {
                 let elem = Box::new(self.resolve_type_with_kind_inner(*elem, kind, mode));
                 let size = self.convert_expression_type(size, &Kind::u32(), location);
@@ -120,26 +120,6 @@ impl Elaborator<'_> {
                 Type::Slice(elem)
             }
             Expression(expr) => self.convert_expression_type(expr, kind, location),
-            Integer(sign, bits) => Type::Integer(sign, bits),
-            Bool => Type::Bool,
-            String(size) => {
-                let resolved_size = self.convert_expression_type(size, &Kind::u32(), location);
-                Type::String(Box::new(resolved_size))
-            }
-            FormatString(size, fields) => {
-                let resolved_size = self.convert_expression_type(size, &Kind::u32(), location);
-                let fields = self.resolve_type_with_kind_inner(*fields, kind, mode);
-                Type::FmtString(Box::new(resolved_size), Box::new(fields))
-            }
-            Quoted(quoted) => {
-                let in_function = matches!(self.current_item, Some(DependencyId::Function(_)));
-                if in_function && !self.in_comptime_context() {
-                    let location = typ.location;
-                    let typ = quoted.to_string();
-                    self.push_err(ResolverError::ComptimeTypeInRuntimeCode { location, typ });
-                }
-                Type::Quoted(quoted)
-            }
             Unit => Type::Unit,
             Unspecified => {
                 let location = typ.location;
@@ -261,25 +241,7 @@ impl Elaborator<'_> {
 
         // Check if the path is a type variable first. We currently disallow generics on type
         // variables since we do not support higher-kinded types.
-        if path.segments.len() == 1 {
-            let name = path.last_name();
-
-            if name == SELF_TYPE_NAME {
-                if let Some(self_type) = self.self_type.clone() {
-                    if !args.is_empty() {
-                        self.push_err(ResolverError::GenericsOnSelfType {
-                            location: path.location,
-                        });
-                    }
-                    return self_type;
-                }
-            } else if name == WILDCARD_TYPE {
-                return self.interner.next_type_variable_with_kind(Kind::Any);
-            }
-        } else if let Some(typ) = self.lookup_associated_type_on_self(&path) {
-            if !args.is_empty() {
-                self.push_err(ResolverError::GenericsOnAssociatedType { location: path.location });
-            }
+        if let Some(typ) = self.lookup_type_variable(&path, &args) {
             return typ;
         }
 
@@ -305,8 +267,11 @@ impl Elaborator<'_> {
             return Type::Alias(type_alias, args);
         }
 
-        match self.lookup_datatype_or_error(path, mode) {
-            Some(data_type) => {
+        let location = path.location;
+        match self.resolve_path_or_error_inner(path.clone(), PathResolutionTarget::Type, mode) {
+            Ok(PathResolutionItem::Type(type_id)) => {
+                let data_type = self.get_type(type_id);
+
                 if self.resolving_ids.contains(&data_type.borrow().id) {
                     self.push_err(ResolverError::SelfReferentialType {
                         location: data_type.borrow().name.location(),
@@ -337,8 +302,125 @@ impl Elaborator<'_> {
 
                 Type::DataType(data_type, args)
             }
-            None => Type::Error,
+            Ok(PathResolutionItem::PrimitiveType(primitive_type)) => {
+                let typ = self.instantiate_primitive_type(primitive_type, args, location);
+                if let Type::Quoted(quoted) = typ {
+                    let in_function = matches!(self.current_item, Some(DependencyId::Function(_)));
+                    if in_function && !self.in_comptime_context() {
+                        let typ = quoted.to_string();
+                        self.push_err(ResolverError::ComptimeTypeInRuntimeCode { location, typ });
+                    }
+                }
+                typ
+            }
+            Ok(item) => {
+                self.push_err(ResolverError::Expected {
+                    expected: "type",
+                    got: item.description(),
+                    location,
+                });
+
+                Type::Error
+            }
+            Err(err) => {
+                self.push_err(err);
+
+                Type::Error
+            }
         }
+    }
+
+    fn lookup_type_variable(&mut self, path: &TypedPath, args: &GenericTypeArgs) -> Option<Type> {
+        if path.segments.len() != 1 {
+            return None;
+        }
+
+        let name = path.last_name();
+        match name {
+            SELF_TYPE_NAME => {
+                let self_type = self.self_type.clone()?;
+                if !args.is_empty() {
+                    self.push_err(ResolverError::GenericsOnSelfType { location: path.location });
+                }
+                Some(self_type)
+            }
+            WILDCARD_TYPE => Some(self.interner.next_type_variable_with_kind(Kind::Any)),
+            _ => None,
+        }
+    }
+
+    fn instantiate_primitive_type(
+        &mut self,
+        primitive_type: PrimitiveType,
+        args: GenericTypeArgs,
+        location: Location,
+    ) -> Type {
+        match primitive_type {
+            PrimitiveType::Bool
+            | PrimitiveType::CtString
+            | PrimitiveType::Expr
+            | PrimitiveType::Field
+            | PrimitiveType::FunctionDefinition
+            | PrimitiveType::I8
+            | PrimitiveType::I16
+            | PrimitiveType::I32
+            | PrimitiveType::I64
+            | PrimitiveType::U1
+            | PrimitiveType::U8
+            | PrimitiveType::U16
+            | PrimitiveType::U32
+            | PrimitiveType::U64
+            | PrimitiveType::U128
+            | PrimitiveType::Module
+            | PrimitiveType::Quoted
+            | PrimitiveType::StructDefinition
+            | PrimitiveType::TraitConstraint
+            | PrimitiveType::TraitDefinition
+            | PrimitiveType::TraitImpl
+            | PrimitiveType::TypeDefinition
+            | PrimitiveType::TypedExpr
+            | PrimitiveType::Type
+            | PrimitiveType::UnresolvedType => {
+                if !args.is_empty() {
+                    let found = args.ordered_args.len() + args.named_args.len();
+                    self.push_err(CompilationError::TypeError(
+                        TypeCheckError::GenericCountMismatch {
+                            item: primitive_type.name().to_string(),
+                            expected: 0,
+                            found,
+                            location,
+                        },
+                    ));
+                }
+            }
+            PrimitiveType::Str => {
+                let item = StrPrimitiveType;
+                let (mut args, _) = self.resolve_type_args_inner(
+                    args,
+                    item,
+                    location,
+                    PathResolutionMode::MarkAsReferenced,
+                );
+                assert_eq!(args.len(), 1);
+                let length = args.pop().unwrap();
+                return Type::String(Box::new(length));
+            }
+            PrimitiveType::Fmtstr => {
+                let item = FmtstrPrimitiveType;
+                let (mut args, _) = self.resolve_type_args_inner(
+                    args,
+                    item,
+                    location,
+                    PathResolutionMode::MarkAsReferenced,
+                );
+                assert_eq!(args.len(), 2);
+                let element = args.pop().unwrap();
+                let length = args.pop().unwrap();
+                return Type::FmtString(Box::new(length), Box::new(element));
+            }
+        }
+
+        primitive_type.to_type()
     }
 
     fn resolve_trait_as_type(
@@ -402,7 +484,7 @@ impl Elaborator<'_> {
         allow_implicit_named_args: bool,
         mode: PathResolutionMode,
     ) -> (Vec<Type>, Vec<NamedType>) {
-        let expected_kinds = item.generics(self.interner);
+        let expected_kinds = item.generic_kinds(self.interner);
 
         if args.ordered_args.len() != expected_kinds.len() {
             self.push_err(TypeCheckError::GenericCountMismatch {
@@ -416,9 +498,8 @@ impl Elaborator<'_> {
         }
 
         let ordered_args = expected_kinds.iter().zip(args.ordered_args);
-        let ordered = vecmap(ordered_args, |(generic, typ)| {
-            self.resolve_type_with_kind_inner(typ, &generic.kind(), mode)
-        });
+        let ordered =
+            vecmap(ordered_args, |(kind, typ)| self.resolve_type_with_kind_inner(typ, kind, mode));
 
         let mut associated = Vec::new();
 
@@ -872,7 +953,7 @@ impl Elaborator<'_> {
         expected: &Type,
         make_error: impl FnOnce() -> TypeCheckError,
     ) {
-        let mut bindings = TypeBindings::new();
+        let mut bindings = TypeBindings::default();
         if actual.try_unify(expected, &mut bindings).is_err() {
             let error: CompilationError = make_error().into();
             self.push_err(error);
@@ -2230,7 +2311,7 @@ impl Elaborator<'_> {
         trait_bound: &ResolvedTraitBound,
         parent_trait_bound: &ResolvedTraitBound,
     ) -> ResolvedTraitBound {
-        let mut bindings = TypeBindings::new();
+        let mut bindings = TypeBindings::default();
         self.bind_generics_from_trait_bound(trait_bound, &mut bindings);
         ResolvedTraitBound {
             trait_generics: parent_trait_bound.trait_generics.map(|typ| typ.substitute(&bindings)),

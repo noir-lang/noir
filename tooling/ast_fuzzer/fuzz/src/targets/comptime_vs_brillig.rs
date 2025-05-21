@@ -27,6 +27,9 @@ pub fn fuzz(u: &mut Unstructured) -> eyre::Result<()> {
         comptime_friendly: true,
         // Force brillig
         force_brillig: true,
+        // Use lower limits because of the interpreter.
+        max_loop_size: 5,
+        max_recursive_calls: 5,
         ..Default::default()
     };
 
@@ -47,6 +50,7 @@ pub fn fuzz(u: &mut Unstructured) -> eyre::Result<()> {
 
 #[cfg(test)]
 mod tests {
+    use crate::targets::tests::is_running_in_ci;
 
     /// ```ignore
     /// NOIR_ARBTEST_SEED=0x6819c61400001000 \
@@ -55,6 +59,10 @@ mod tests {
     /// ```
     #[test]
     fn fuzz_with_arbtest() {
+        if is_running_in_ci() {
+            // #8511
+            return;
+        }
         crate::targets::tests::fuzz_with_arbtest(super::fuzz);
     }
 }

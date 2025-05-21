@@ -3,7 +3,7 @@
 
 use std::collections::{HashSet, VecDeque};
 
-use crate::{compare_results, create_ssa_or_die, default_ssa_options};
+use crate::{compare_results_compiled, create_ssa_or_die, default_ssa_options};
 use arbitrary::{Arbitrary, Unstructured};
 use color_eyre::eyre;
 use noir_ast_fuzzer::compare::{CompareMorph, CompareOptions};
@@ -33,7 +33,7 @@ pub fn fuzz(u: &mut Unstructured) -> eyre::Result<()> {
 
     let result = inputs.exec()?;
 
-    compare_results(&inputs, &result)
+    compare_results_compiled(&inputs, &result)
 }
 
 fn rewrite_program(

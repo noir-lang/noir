@@ -1,11 +1,10 @@
 use std::fmt::Display;
 
-use noirc_errors::{Location, Span};
+use noirc_errors::Location;
 
 use crate::{
     ast::{FunctionReturnType, Ident, Param},
-    shared::Visibility,
-    token::{Attributes, FunctionAttribute, FunctionAttributeKind, SecondaryAttribute},
+    token::{Attributes, FunctionAttributeKind, SecondaryAttribute},
 };
 
 use super::{FunctionDefinition, UnresolvedType, UnresolvedTypeData};
@@ -50,19 +49,6 @@ impl NoirFunction {
     pub fn normal(def: FunctionDefinition) -> NoirFunction {
         NoirFunction { kind: FunctionKind::Normal, def }
     }
-    pub fn builtin(def: FunctionDefinition) -> NoirFunction {
-        NoirFunction { kind: FunctionKind::Builtin, def }
-    }
-    pub fn low_level(def: FunctionDefinition) -> NoirFunction {
-        NoirFunction { kind: FunctionKind::LowLevel, def }
-    }
-    pub fn oracle(def: FunctionDefinition) -> NoirFunction {
-        NoirFunction { kind: FunctionKind::Oracle, def }
-    }
-
-    pub fn return_visibility(&self) -> Visibility {
-        self.def.return_visibility
-    }
 
     pub fn return_type(&self) -> UnresolvedType {
         match &self.def.return_type {
@@ -84,26 +70,11 @@ impl NoirFunction {
     pub fn attributes(&self) -> &Attributes {
         &self.def.attributes
     }
-    pub fn function_attribute(&self) -> Option<&FunctionAttribute> {
-        self.def.attributes.function()
-    }
     pub fn secondary_attributes(&self) -> &[SecondaryAttribute] {
         self.def.attributes.secondary.as_ref()
     }
-    pub fn def(&self) -> &FunctionDefinition {
-        &self.def
-    }
-    pub fn def_mut(&mut self) -> &mut FunctionDefinition {
-        &mut self.def
-    }
-    pub fn number_of_statements(&self) -> usize {
-        self.def.body.statements.len()
-    }
     pub fn location(&self) -> Location {
         self.def.location
-    }
-    pub fn span(&self) -> Span {
-        self.location().span
     }
 }
 

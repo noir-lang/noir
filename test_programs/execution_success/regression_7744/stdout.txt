@@ -1,1 +1,0 @@
-[regression_7744] Circuit output: Struct({"is_infinite": Field(0), "x": Field(0), "y": Field(5)})

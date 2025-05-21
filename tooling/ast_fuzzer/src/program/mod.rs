@@ -1,7 +1,7 @@
 //! Module responsible for generating arbitrary [Program] ASTs.
 use std::collections::{BTreeMap, BTreeSet}; // Using BTree for deterministic enumeration, for repeatability.
 
-use func::{FunctionContext, FunctionDeclaration};
+use func::{FunctionContext, FunctionDeclaration, can_call};
 use strum::IntoEnumIterator;
 
 use arbitrary::{Arbitrary, Unstructured};
@@ -77,6 +77,14 @@ pub(crate) enum VariableId {
     Global(GlobalId),
 }
 
+/// ID of a function we can call, either as a pointer in a local variable,
+/// or directly as a global function.
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
+pub(crate) enum CallableId {
+    Local(LocalId),
+    Global(FuncId),
+}
+
 /// Name of a variable.
 type Name = String;
 
@@ -133,8 +141,14 @@ impl Context {
         u: &mut Unstructured,
         i: usize,
     ) -> arbitrary::Result<(Name, Type, Expression)> {
-        let typ =
-            self.gen_type(u, self.config.max_depth, true, false, self.config.comptime_friendly)?;
+        let typ = self.gen_type(
+            u,
+            self.config.max_depth,
+            true,
+            false,
+            false,
+            self.config.comptime_friendly,
+        )?;
         // By the time we get to the monomorphized AST the compiler will have already turned
         // complex global expressions into literals.
         let val = expr::gen_literal(u, &typ)?;
@@ -160,21 +174,63 @@ impl Context {
         u: &mut Unstructured,
         i: usize,
     ) -> arbitrary::Result<FunctionDeclaration> {
+        let id = FuncId(i as u32);
         let is_main = i == 0;
         let num_params = u.int_in_range(0..=self.config.max_function_args)?;
 
+        // If `main` is unconstrained, it won't call ACIR, so no point generating ACIR functions.
+        let unconstrained = self.config.force_brillig
+            || (!is_main
+                && self
+                    .functions
+                    .get(&Program::main_id())
+                    .map(|func| func.unconstrained)
+                    .unwrap_or_default())
+            || bool::arbitrary(u)?;
+
+        // Which existing functions we could receive as parameters.
+        let func_param_candidates: Vec<FuncId> = if is_main || self.config.avoid_lambdas {
+            // Main cannot receive function parameters from outside.
+            vec![]
+        } else {
+            self.function_declarations
+                .iter()
+                .filter_map(|(callee_id, callee)| {
+                    can_call(id, unconstrained, *callee_id, callee.unconstrained)
+                        .then_some(*callee_id)
+                })
+                .collect()
+        };
+
+        // Choose parameter types.
         let mut params = Vec::new();
         for p in 0..num_params {
             let id = LocalId(p as u32);
             let name = make_name(p, false);
             let is_mutable = !is_main && bool::arbitrary(u)?;
-            let typ = self.gen_type(
-                u,
-                self.config.max_depth,
-                false,
-                false,
-                self.config.comptime_friendly,
-            )?;
+
+            let typ = if func_param_candidates.is_empty() || u.ratio(7, 10)? {
+                // Take some kind of data type.
+                self.gen_type(
+                    u,
+                    self.config.max_depth,
+                    false,
+                    is_main,
+                    false,
+                    self.config.comptime_friendly,
+                )?
+            } else {
+                // Take a function type.
+                let callee_id = u.choose_iter(&func_param_candidates)?;
+                let callee = &self.function_declarations[callee_id];
+                let param_types = callee.params.iter().map(|p| p.3.clone()).collect::<Vec<_>>();
+                Type::Function(
+                    param_types,
+                    Box::new(callee.return_type.clone()),
+                    Box::new(Type::Unit),
+                    callee.unconstrained,
+                )
+            };
 
             let visibility = if is_main {
                 match u.choose_index(5)? {
@@ -189,8 +245,16 @@ impl Context {
             params.push((id, is_mutable, name, typ, visibility));
         }
 
-        let return_type =
-            self.gen_type(u, self.config.max_depth, false, false, self.config.comptime_friendly)?;
+        // We could return a function as well.
+        let return_type = self.gen_type(
+            u,
+            self.config.max_depth,
+            false,
+            is_main,
+            false,
+            self.config.comptime_friendly,
+        )?;
+
         let return_visibility = if is_main {
             if types::is_unit(&return_type) {
                 Visibility::Private
@@ -213,7 +277,7 @@ impl Context {
             } else {
                 *u.choose(&[InlineType::Inline, InlineType::InlineAlways])?
             },
-            unconstrained: self.config.force_brillig || bool::arbitrary(u)?,
+            unconstrained,
         };
 
         Ok(decl)
@@ -321,6 +385,7 @@ impl Context {
         u: &mut Unstructured,
         max_depth: usize,
         is_global: bool,
+        is_main: bool,
         is_frontend_friendly: bool,
         is_comptime_friendly: bool,
     ) -> arbitrary::Result<Type> {
@@ -330,6 +395,7 @@ impl Context {
                 .types
                 .iter()
                 .filter(|typ| !is_global || types::can_be_global(typ))
+                .filter(|typ| !is_main || types::can_be_main(typ))
                 .filter(|typ| types::type_depth(typ) <= max_depth)
                 .filter(|typ| !is_frontend_friendly || !self.should_avoid_literals(typ))
                 .collect::<Vec<_>>();
@@ -378,6 +444,7 @@ impl Context {
                                 u,
                                 max_depth - 1,
                                 is_global,
+                                is_main,
                                 is_frontend_friendly,
                                 is_comptime_friendly,
                             )
@@ -392,6 +459,7 @@ impl Context {
                         u,
                         max_depth - 1,
                         is_global,
+                        is_main,
                         is_frontend_friendly,
                         is_comptime_friendly,
                     )?;
@@ -399,7 +467,11 @@ impl Context {
                 }
                 _ => unreachable!("unexpected arbitrary type index"),
             };
-            if !is_global || types::can_be_global(&typ) {
+            // Looping is kinda dangerous, we could get stuck if we run out of randomness,
+            // so we have to make sure the first type on the list is acceptable.
+            if is_global && !types::can_be_global(&typ) || is_main && !types::can_be_main(&typ) {
+                continue;
+            } else {
                 break;
             }
         }

@@ -125,7 +125,7 @@ impl Function {
         // Set of functions we call which the purity result depends on.
         // `is_pure` is intended to be called on each function, building
         // up a call graph of sorts to check afterwards to propagate impurity
-        // from called functions to their callers. Resultingly, an initial "Pure"
+        // from called functions to their callers. Therefore, an initial "Pure"
         // result here could be overridden by one of these dependencies being impure.
         let mut dependencies = BTreeSet::new();
 
@@ -222,7 +222,7 @@ fn analyze_call_graph(
     starting_purities: FunctionPurities,
     main: FunctionId,
 ) -> FunctionPurities {
-    let call_graph = CallGraph::new_from_deps(dependencies);
+    let call_graph = CallGraph::from_deps(dependencies);
 
     // Now we can analyze it: a function is only as pure as all of
     // its called functions
