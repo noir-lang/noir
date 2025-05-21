@@ -932,13 +932,9 @@ impl<'context> Elaborator<'context> {
     ) -> Option<TraitConstraint> {
         let typ = self.resolve_type(constraint.typ.clone());
         let trait_bound = self.resolve_trait_bound(&constraint.trait_bound)?;
+        let location = constraint.trait_bound.trait_path.location;
 
-        self.add_trait_bound_to_scope(
-            constraint.trait_bound.trait_path.location,
-            &typ,
-            &trait_bound,
-            trait_bound.trait_id,
-        );
+        self.add_trait_bound_to_scope(location, &typ, &trait_bound, trait_bound.trait_id);
 
         Some(TraitConstraint { typ, trait_bound })
     }
@@ -1015,18 +1011,10 @@ impl<'context> Elaborator<'context> {
         for (associated_generic, bounds) in associated_generics {
             for bound in bounds {
                 let typ = Type::TypeVariable(associated_generic.type_var.clone());
-
-                self.add_trait_bound_to_scope(
-                    associated_generic.location,
-                    &typ,
-                    &bound,
-                    bound.trait_id,
-                );
-
-                associated_generics_trait_contraints.push(TraitConstraint {
-                    typ: Type::TypeVariable(associated_generic.type_var.clone()),
-                    trait_bound: bound,
-                });
+                let location = associated_generic.location;
+                self.add_trait_bound_to_scope(location, &typ, &bound, bound.trait_id);
+                associated_generics_trait_contraints
+                    .push(TraitConstraint { typ, trait_bound: bound });
             }
 
             generics.push(associated_generic.type_var);
@@ -1034,12 +1022,9 @@ impl<'context> Elaborator<'context> {
 
         for extra_constraint in &extra_trait_constraints {
             let bound = &extra_constraint.trait_bound;
-            self.add_trait_bound_to_scope(
-                bound.location,
-                &extra_constraint.typ,
-                bound,
-                bound.trait_id,
-            );
+            // TODO: this location is not the right one
+            let location = bound.location;
+            self.add_trait_bound_to_scope(location, &extra_constraint.typ, bound, bound.trait_id);
         }
 
         // We put associated generics first, as they are implicit and implicit generics
@@ -2256,18 +2241,9 @@ impl<'context> Elaborator<'context> {
             for (new_generic, bounds) in new_generics {
                 for bound in bounds {
                     let typ = Type::TypeVariable(new_generic.type_var.clone());
-
-                    self.add_trait_bound_to_scope(
-                        new_generic.location,
-                        &typ,
-                        &bound,
-                        bound.trait_id,
-                    );
-
-                    new_generics_trait_contraints.push(TraitConstraint {
-                        typ: Type::TypeVariable(new_generic.type_var.clone()),
-                        trait_bound: bound,
-                    });
+                    let location = new_generic.location;
+                    self.add_trait_bound_to_scope(location, &typ, &bound, bound.trait_id);
+                    new_generics_trait_contraints.push(TraitConstraint { typ, trait_bound: bound });
                 }
                 trait_impl.resolved_generics.push(new_generic.clone());
                 self.generics.push(new_generic);
