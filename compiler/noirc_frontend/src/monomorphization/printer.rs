@@ -217,7 +217,7 @@ impl AstPrinter {
             }
             super::ast::Literal::Integer(x, _, _) => x.fmt(f),
             super::ast::Literal::Bool(x) => x.fmt(f),
-            super::ast::Literal::Str(s) => write!(f, "\"{s}\""),
+            super::ast::Literal::Str(s) => write!(f, "r#\"{s}\"#"),
             super::ast::Literal::FmtStr(fragments, _, _) => {
                 write!(f, "f\"")?;
                 for fragment in fragments {
