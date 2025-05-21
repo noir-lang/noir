@@ -52,7 +52,7 @@ expression: artifact
   },
   "bytecode": [
     "func 0",
-    "current witness index : _21",
+    "current witness index : _20",
     "private parameters indices : [_0, _1, _2]",
     "public parameters indices : []",
     "return value indices : [_3]",
@@ -69,12 +69,11 @@ expression: artifact
     "inputs: [Single(Expression { mul_terms: [], linear_combinations: [(1, Witness(0))], q_c: 0 }), Single(Expression { mul_terms: [], linear_combinations: [(1, Witness(2))], q_c: 0 })], outputs: [Simple(Witness(7)), Simple(Witness(8))]",
     "BLACKBOX::RANGE [(_7, 1)] []",
     "BLACKBOX::RANGE [(_8, 1)] []",
-    "EXPR [ (1, _2, _4) (-1, _21) 0 ]",
-    "EXPR [ (-1, _4, _4) (-1, _4, _8) (-1, _9) (1, _21) 0 ]",
+    "EXPR [ (1, _2) (-1, _4) (-1, _8) (-1, _9) 0 ]",
     "BLACKBOX::RANGE [(_9, 1)] []",
     "EXPR [ (1, _2, _7) (1, _8) (-1, _10) 0 ]",
     "EXPR [ (1, _0, _4) (-1, _4, _10) 0 ]",
-    "EXPR [ (1, _4, _7) (-1, _11) (-1, _21) 0 ]",
+    "EXPR [ (-1, _2, _4) (1, _4, _7) (-1, _11) 0 ]",
     "BLACKBOX::RANGE [(_11, 1)] []",
     "BRILLIG CALL func 0: inputs: [Single(Expression { mul_terms: [], linear_combinations: [(1, Witness(11))], q_c: 0 })], outputs: [Simple(Witness(12))]",
     "EXPR [ (1, _11, _12) (1, _13) -1 ]",
@@ -85,7 +84,7 @@ expression: artifact
     "inputs: [Single(Expression { mul_terms: [], linear_combinations: [(1, Witness(7))], q_c: 0 }), Single(Expression { mul_terms: [], linear_combinations: [(1, Witness(11))], q_c: 0 })], outputs: [Simple(Witness(15)), Simple(Witness(16))]",
     "BLACKBOX::RANGE [(_15, 1)] []",
     "BLACKBOX::RANGE [(_16, 1)] []",
-    "EXPR [ (1, _11, _14) (-1, _14, _14) (-1, _14, _16) (-1, _17) 0 ]",
+    "EXPR [ (1, _11) (-1, _14) (-1, _16) (-1, _17) 0 ]",
     "BLACKBOX::RANGE [(_17, 1)] []",
     "EXPR [ (1, _11, _15) (1, _16) (-1, _18) 0 ]",
     "EXPR [ (1, _7, _14) (-1, _14, _18) 0 ]",
@@ -99,7 +98,7 @@ expression: artifact
     "unconstrained func 1",
     "[Const { destination: Direct(10), bit_size: Integer(U32), value: 2 }, Const { destination: Direct(11), bit_size: Integer(U32), value: 0 }, CalldataCopy { destination_address: Direct(0), size_address: Direct(10), offset_address: Direct(11) }, BinaryFieldOp { destination: Direct(2), op: IntegerDiv, lhs: Direct(0), rhs: Direct(1) }, BinaryFieldOp { destination: Direct(1), op: Mul, lhs: Direct(2), rhs: Direct(1) }, BinaryFieldOp { destination: Direct(1), op: Sub, lhs: Direct(0), rhs: Direct(1) }, Mov { destination: Direct(0), source: Direct(2) }, Stop { return_data: HeapVector { pointer: Direct(11), size: Direct(10) } }]"
   ],
-  "debug_symbols": "nZPbboQgEIbfZa654CAe9lWaxqDihoSgYbVJY3z3joxsdy+aNN7MJ+D3BwfcYLDdem9dGKcH3D426KLz3t1bP/VmcVPA2W1nkIftEq3FKXhZR2s20YYFbmH1nsGX8Wt66TGbkLiYiKucgQ0DEgNH5+3xtLNfm/+tanW6un7K+t92o09bcH5BF6LOvlRX/PLpV1d8yYvTl7y54svcPSnf2/eJI9O7+HbcoHCjDIpUNUoMylSrVOtUm1QFJwiCJChCQaAEQRECM3AzoiZgCn6a5ARBkARFKAiaUBIqQk2gFEUpClPwuJUkYEqJwJRyPzoUnem8PW/1uIb+5ZIv33Neyb/BHKfeDmu0R4fSGvbsBw==",
+  "debug_symbols": "nZLbaoQwEIbfZa5zkYPxsK9SikSNSyBEyWqhiO/eMWO2uxeF4s18mvH7iZNsMNhuvbcujNMDbh8bdNF57+6tn3qzuCng6rYzyK/tEq3FJXjpozWbaMMCt7B6z+DL+DV99JhNSFxMxC5nYMOAxMDReXs87ezX5n+rWp2urp+y/rfd6NMWnF/QhaizL9UVv3z61RVf8uL0JW+u+DJPT8r38X3im+ldfDtuULhRBkWqGiUGZapVqnWqTaqCEwRBEhShIFCCwAjchagIGIL/JJoEyQmCIAmKUBA0oSRUBEqRlKIwBc9ZCQKmlAhMKfdjNNGZztvzOo9r6F9u9/I9506+/3Ocejus0R6jST0c1g8=",
   "file_map": {
     "50": {
       "source": "fn main(x: u1, y: u1, z: u1) -> pub u1 {\n    let p = y - z;\n    if p as bool {\n        let a = x / z;\n        let b = a - z;\n        if b as bool {\n            let _ = a / b;\n        }\n    }\n\n    let u = x - z;\n    let v = y - u;\n    v\n}\n",
