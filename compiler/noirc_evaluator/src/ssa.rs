@@ -376,6 +376,8 @@ pub fn secondary_passes(brillig: &Brillig) -> Vec<SsaPass> {
 /// In the future, we can potentially execute the actual initial version using the SSA interpreter.
 pub fn minimal_passes() -> Vec<SsaPass<'static>> {
     vec![
+        // We need to get rid of function pointer parameters, otherwise they cause panic in Brillig generation.
+        SsaPass::new(Ssa::defunctionalize, "Defunctionalization"),
         // Even the initial SSA generation can result in optimizations that leave a function
         // which was called in the AST not being called in the SSA. Such functions would cause
         // panics later, when we are looking for global allocations.
