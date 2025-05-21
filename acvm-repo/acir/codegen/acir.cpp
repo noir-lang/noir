@@ -2111,28 +2111,6 @@ namespace Acir {
             }
         };
 
-        struct JumpIfNot {
-            Acir::MemoryAddress condition;
-            uint64_t location;
-
-            friend bool operator==(const JumpIfNot&, const JumpIfNot&);
-            std::vector<uint8_t> bincodeSerialize() const;
-            static JumpIfNot bincodeDeserialize(std::vector<uint8_t>);
-
-            void msgpack_pack(auto& packer) const {
-                packer.pack_map(2);
-                packer.pack(std::make_pair("condition", condition));
-                packer.pack(std::make_pair("location", location));
-            }
-
-            void msgpack_unpack(msgpack::object const& o) {
-                auto name = "JumpIfNot";
-                auto kvmap = Helpers::make_kvmap(o, name);
-                Helpers::conv_fld_from_kvmap(kvmap, name, "condition", condition, false);
-                Helpers::conv_fld_from_kvmap(kvmap, name, "location", location, false);
-            }
-        };
-
         struct JumpIf {
             Acir::MemoryAddress condition;
             uint64_t location;
@@ -2934,8 +2912,8 @@ namespace Acir {
 
         struct AES128Encrypt {
             std::vector<Acir::FunctionInput> inputs;
-            std::array<Acir::FunctionInput, 16> iv;
-            std::array<Acir::FunctionInput, 16> key;
+            std::shared_ptr<std::array<Acir::FunctionInput, 16>> iv;
+            std::shared_ptr<std::array<Acir::FunctionInput, 16>> key;
             std::vector<Acir::Witness> outputs;
 
             friend bool operator==(const AES128Encrypt&, const AES128Encrypt&);
