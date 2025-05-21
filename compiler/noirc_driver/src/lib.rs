@@ -644,7 +644,7 @@ fn compile_contract_inner(
                         let typ = context.def_interner.get_type(struct_id);
                         let typ = typ.borrow();
                         let fields =
-                            vecmap(typ.get_fields(&[]).unwrap_or_default(), |(name, typ)| {
+                            vecmap(typ.get_fields(&[]).unwrap_or_default(), |(name, typ, _)| {
                                 (name, abi_type_from_hir_type(context, &typ))
                             });
                         let path =
