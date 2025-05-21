@@ -719,7 +719,8 @@ impl<'a> FunctionContext<'a> {
 
         if self.unconstrained() {
             // For now only try prints in unconstrained code, were we don't need to create a proxy.
-            if freq.enabled("print") {
+            // We don't use this in comptime because comptime prints to stdout which is currently not captured.
+            if freq.enabled_when("print", !self.is_comptime_friendly()) {
                 if let Some(e) = self.gen_print(u)? {
                     return Ok(e);
                 }
@@ -881,7 +882,7 @@ impl<'a> FunctionContext<'a> {
 
         let print_oracle_ident = Ident {
             location: None,
-            definition: Definition::Oracle("print_oracle".to_string()),
+            definition: Definition::Oracle("print".to_string()),
             mutable: false,
             name: "print_oracle".to_string(),
             typ: Type::Function(param_types, Box::new(Type::Unit), Box::new(Type::Unit), true),
