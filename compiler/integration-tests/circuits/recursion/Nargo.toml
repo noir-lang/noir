@@ -4,4 +4,3 @@ type = "bin"
 authors = [""]
 
 [dependencies]
-bb_proof_verification = {tag = "v0.87.0", git = "https://github.com/aztecprotocol/aztec-packages", directory = "./barretenberg/noir/bb_proof_verification" }
