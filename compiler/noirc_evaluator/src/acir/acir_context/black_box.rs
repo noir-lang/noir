@@ -16,6 +16,7 @@ impl<F: AcirField, B: BlackBoxFunctionSolver<F>> AcirContext<F, B> {
         &mut self,
         name: BlackBoxFunc,
         mut inputs: Vec<AcirValue>,
+        num_bits: Option<u32>,
         mut output_count: usize,
     ) -> Result<Vec<AcirVar>, RuntimeError> {
         // Separate out any arguments that should be constants
@@ -186,6 +187,7 @@ impl<F: AcirField, B: BlackBoxFunctionSolver<F>> AcirContext<F, B> {
             &inputs,
             constant_inputs,
             constant_outputs,
+            num_bits,
             output_witnesses,
         )?;
 
@@ -237,23 +239,20 @@ impl<F: AcirField, B: BlackBoxFunctionSolver<F>> AcirContext<F, B> {
                 let num_bits = typ.bit_size::<F>();
                 match self.var_to_expression(input)?.to_const() {
                     Some(constant) if allow_constant_inputs => {
-                        single_val_witnesses.push(
-                            FunctionInput::constant(*constant, num_bits).map_err(
-                                |invalid_input_bit_size| {
-                                    RuntimeError::InvalidBlackBoxInputBitSize {
-                                        value: invalid_input_bit_size.value,
-                                        num_bits: invalid_input_bit_size.value_num_bits,
-                                        max_num_bits: invalid_input_bit_size.max_bits,
-                                        call_stack: self.get_call_stack(),
-                                    }
-                                },
-                            )?,
-                        );
+                        if num_bits < constant.num_bits() {
+                            return Err(RuntimeError::InvalidBlackBoxInputBitSize {
+                                value: constant.to_string(),
+                                num_bits: constant.num_bits(),
+                                max_num_bits: num_bits,
+                                call_stack: self.get_call_stack(),
+                            });
+                        }
+                        single_val_witnesses.push(FunctionInput::Constant(*constant));
                     }
                     _ => {
                         let witness_var = self.get_or_create_witness_var(input)?;
                         let witness = self.var_to_witness(witness_var)?;
-                        single_val_witnesses.push(FunctionInput::witness(witness, num_bits));
+                        single_val_witnesses.push(FunctionInput::Witness(witness));
                     }
                 }
             }
