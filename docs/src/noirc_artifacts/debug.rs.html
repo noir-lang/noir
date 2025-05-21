@@ -297,9 +297,7 @@
 <a href="#296" id="296">296</a>
 <a href="#297" id="297">297</a>
 <a href="#298" id="298">298</a>
-<a href="#299" id="299">299</a>
-<a href="#300" id="300">300</a>
-<a href="#301" id="301">301</a></pre></div><pre class="rust"><code><span class="kw">use </span>codespan_reporting::files::{Error, Files, SimpleFile};
+<a href="#299" id="299">299</a></pre></div><pre class="rust"><code><span class="kw">use </span>codespan_reporting::files::{Error, Files, SimpleFile};
 <span class="kw">use </span>noirc_driver::{CompiledContract, CompiledProgram, DebugFile};
 <span class="kw">use </span>noirc_errors::{Location, debug_info::DebugInfo};
 <span class="kw">use </span>serde::{Deserialize, Serialize};
@@ -340,17 +338,15 @@
         <span class="kw">let </span>files_with_brillig_debug_symbols: BTreeSet&lt;FileId&gt; = debug_symbols
             .iter()
             .flat_map(|function_symbols| {
-                <span class="kw">let </span>brillig_location_maps =
-                    function_symbols.brillig_locations.values().flat_map(|brillig_location_map| {
-                        brillig_location_map.values().flat_map(|call_stack_id| {
-                            function_symbols
-                                .location_tree
-                                .get_call_stack(<span class="kw-2">*</span>call_stack_id)
-                                .into_iter()
-                                .map(|location| location.file)
-                        })
-                    });
-                brillig_location_maps
+                function_symbols.brillig_locations.values().flat_map(|brillig_location_map| {
+                    brillig_location_map.values().flat_map(|call_stack_id| {
+                        function_symbols
+                            .location_tree
+                            .get_call_stack(<span class="kw-2">*</span>call_stack_id)
+                            .into_iter()
+                            .map(|location| location.file)
+                    })
+                })
             })
             .collect();
 

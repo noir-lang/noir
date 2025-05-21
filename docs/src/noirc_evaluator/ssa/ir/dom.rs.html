@@ -803,9 +803,7 @@
 <a href="#802" id="802">802</a>
 <a href="#803" id="803">803</a>
 <a href="#804" id="804">804</a>
-<a href="#805" id="805">805</a>
-<a href="#806" id="806">806</a>
-<a href="#807" id="807">807</a></pre></div><pre class="rust"><code><span class="doccomment">//! The dominator tree of a function, represented as a hash map of each reachable block id to its
+<a href="#805" id="805">805</a></pre></div><pre class="rust"><code><span class="doccomment">//! The dominator tree of a function, represented as a hash map of each reachable block id to its
 //! immediate dominator.
 //!
 //! Dominator trees are useful for tasks such as identifying back-edges in loop analysis or
@@ -1301,9 +1299,7 @@
         builder.terminate_with_jmp(block1_id, <span class="macro">vec!</span>[]);
 
         <span class="kw">let </span>ssa = builder.finish();
-        <span class="kw">let </span>func = ssa.main().clone();
-
-        func
+        ssa.main().clone()
     }
 
     <span class="kw">fn </span>check_dom_matrix(
