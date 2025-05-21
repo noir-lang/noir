@@ -24,10 +24,7 @@ pub fn gen_literal(u: &mut Unstructured, typ: &Type) -> arbitrary::Result<Expres
         Type::Unit => Expression::Literal(Literal::Unit),
         Type::Bool => Expression::Literal(Literal::Bool(bool::arbitrary(u)?)),
         Type::Field => {
-            let field = SignedField {
-                field: Field::from(u128::arbitrary(u)?),
-                is_negative: bool::arbitrary(u)?,
-            };
+            let field = SignedField::new(Field::from(u128::arbitrary(u)?), bool::arbitrary(u)?);
             Expression::Literal(Literal::Integer(field, Type::Field, Location::dummy()))
         }
         Type::Integer(signedness, integer_bit_size) => {
@@ -64,7 +61,7 @@ pub fn gen_literal(u: &mut Unstructured, typ: &Type) -> arbitrary::Result<Expres
                 };
 
             Expression::Literal(Literal::Integer(
-                SignedField { field, is_negative },
+                SignedField::new(field, is_negative),
                 Type::Integer(*signedness, *integer_bit_size),
                 Location::dummy(),
             ))
@@ -190,7 +187,7 @@ pub fn gen_range(
 
     let to_lit = |(field, is_negative)| {
         Expression::Literal(Literal::Integer(
-            SignedField { field, is_negative },
+            SignedField::new(field, is_negative),
             Type::Integer(*signedness, *integer_bit_size),
             Location::dummy(),
         ))
@@ -237,7 +234,7 @@ where
     FieldElement: From<V>,
 {
     Expression::Literal(Literal::Integer(
-        SignedField { field: FieldElement::from(value), is_negative },
+        SignedField::new(value.into(), is_negative),
         typ,
         Location::dummy(),
     ))
