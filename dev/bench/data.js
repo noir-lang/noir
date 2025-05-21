@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1747852717778,
+  "lastUpdate": 1747852719626,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -20473,85 +20473,6 @@ window.BENCHMARK_DATA = {
             "username": "web-flow"
           },
           "distinct": true,
-          "id": "9c5393624ca5accc1573b965f9c42cf1e5312101",
-          "message": "fix: don't produce `index Field` in value merger (#8492)",
-          "timestamp": "2025-05-13T19:41:31Z",
-          "tree_id": "e851845918bd42870a7d456c472d2c452e6fa5be",
-          "url": "https://github.com/noir-lang/noir/commit/9c5393624ca5accc1573b965f9c42cf1e5312101"
-        },
-        "date": 1747166751229,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 1125.7,
-            "unit": "KB"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 2049.6,
-            "unit": "KB"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 581.7,
-            "unit": "KB"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 5121.8,
-            "unit": "KB"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 3940.4,
-            "unit": "KB"
-          },
-          {
-            "name": "rollup-block-root-empty",
-            "value": 256.9,
-            "unit": "KB"
-          },
-          {
-            "name": "rollup-block-root-single-tx",
-            "value": 25679,
-            "unit": "KB"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 25706.3,
-            "unit": "KB"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 181.7,
-            "unit": "KB"
-          },
-          {
-            "name": "rollup-root",
-            "value": 472,
-            "unit": "KB"
-          },
-          {
-            "name": "semaphore-depth-10",
-            "value": 636.4,
-            "unit": "KB"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
-            "email": "asterite@gmail.com",
-            "name": "Ary Borenszweig",
-            "username": "asterite"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
           "id": "b657b076bdcfcf627a318237276a917d8e067e0f",
           "message": "fix: pass Field to ToBits intrinsic in remove_bit_shifts optimization (#8493)",
           "timestamp": "2025-05-13T20:10:21Z",
@@ -24403,6 +24324,35 @@ window.BENCHMARK_DATA = {
             "value": 478.4,
             "unit": "KB"
           },
+          {
+            "name": "semaphore-depth-10",
+            "value": 636.3,
+            "unit": "KB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "asterite@gmail.com",
+            "name": "Ary Borenszweig",
+            "username": "asterite"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "cafcdcd8d6250936bc089679838485bbd138fe35",
+          "message": "fix!: accept and return visibilities for StructDef (#8420)\n\nCo-authored-by: Tom French <15848336+TomAFrench@users.noreply.github.com>",
+          "timestamp": "2025-05-21T18:06:41Z",
+          "tree_id": "0411a5c02a631d01b998c52d7b45b173365a0923",
+          "url": "https://github.com/noir-lang/noir/commit/cafcdcd8d6250936bc089679838485bbd138fe35"
+        },
+        "date": 1747852707147,
+        "tool": "customSmallerIsBetter",
+        "benches": [
           {
             "name": "semaphore-depth-10",
             "value": 636.3,
