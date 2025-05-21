@@ -4268,7 +4268,7 @@
             }
         }
 
-        <span class="kw">for </span>constraint <span class="kw">in </span><span class="kw-2">&amp;</span>func_meta.trait_constraints {
+        <span class="kw">for </span>constraint <span class="kw">in </span>func_meta.all_trait_constraints() {
             <span class="kw">if </span><span class="kw-2">*</span>object_type == constraint.typ {
                 <span class="kw">if let </span><span class="prelude-val">Some</span>(the_trait) =
                     <span class="self">self</span>.interner.try_get_trait(constraint.trait_bound.trait_id)
@@ -4597,7 +4597,7 @@
         }
     }
 
-    <span class="kw">fn </span>push_trait_constraint_error(
+    <span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>push_trait_constraint_error(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
         object_type: <span class="kw-2">&amp;</span>Type,
         error: ImplSearchErrorKind,

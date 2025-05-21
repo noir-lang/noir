@@ -2831,7 +2831,7 @@
         };
 
         <span class="kw">let </span>func_meta = <span class="self">self</span>.interner.function_meta(<span class="kw-2">&amp;</span>func_id);
-        <span class="kw">for </span>constraint <span class="kw">in </span><span class="kw-2">&amp;</span>func_meta.trait_constraints {
+        <span class="kw">for </span>constraint <span class="kw">in </span>func_meta.all_trait_constraints() {
             <span class="kw">if </span><span class="kw-2">*</span>typ == constraint.typ {
                 <span class="kw">let </span>trait_ = <span class="self">self</span>.interner.get_trait(constraint.trait_bound.trait_id);
                 <span class="self">self</span>.complete_trait_methods(

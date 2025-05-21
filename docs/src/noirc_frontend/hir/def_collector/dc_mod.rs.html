@@ -2369,7 +2369,7 @@
                             });
                         }
                     }
-                    TraitItem::Type { name } =&gt; {
+                    TraitItem::Type { name, bounds: <span class="kw">_ </span>} =&gt; {
                         <span class="kw">if let </span><span class="prelude-val">Err</span>((first_def, second_def)) =
                             <span class="self">self</span>.def_collector.def_map[trait_id.<span class="number">0</span>.local_id].declare_type_alias(
                                 name.clone(),

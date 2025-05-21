@@ -761,7 +761,9 @@
 <a href="#760" id="760">760</a>
 <a href="#761" id="761">761</a>
 <a href="#762" id="762">762</a>
-<a href="#763" id="763">763</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::future::{<span class="self">self</span>, Future};
+<a href="#763" id="763">763</a>
+<a href="#764" id="764">764</a>
+<a href="#765" id="765">765</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::future::{<span class="self">self</span>, Future};
 
 <span class="kw">use </span>async_lsp::ResponseError;
 <span class="kw">use </span>async_lsp::lsp_types::{
@@ -770,6 +772,7 @@
 };
 <span class="kw">use </span>fm::{FileId, FileMap, PathString};
 <span class="kw">use </span>noirc_errors::Span;
+<span class="kw">use </span>noirc_frontend::ast::TraitBound;
 <span class="kw">use </span>noirc_frontend::{
     ParsedModule,
     ast::{
@@ -1103,9 +1106,10 @@
         <span class="bool-val">false
     </span>}
 
-    <span class="kw">fn </span>visit_trait_item_type(<span class="kw-2">&amp;mut </span><span class="self">self</span>, name: <span class="kw-2">&amp;</span>Ident) {
+    <span class="kw">fn </span>visit_trait_item_type(<span class="kw-2">&amp;mut </span><span class="self">self</span>, name: <span class="kw-2">&amp;</span>Ident, _bounds: <span class="kw-2">&amp;</span>[TraitBound]) -&gt; bool {
         <span class="self">self</span>.collect_in_type(name, <span class="prelude-val">None</span>);
-    }
+        <span class="bool-val">false
+    </span>}
 
     <span class="kw">fn </span>visit_noir_trait_impl(<span class="kw-2">&amp;mut </span><span class="self">self</span>, noir_trait_impl: <span class="kw-2">&amp;</span>NoirTraitImpl, span: Span) -&gt; bool {
         <span class="kw">let </span><span class="prelude-val">Some</span>(location) = <span class="self">self</span>.to_lsp_location(span) <span class="kw">else </span>{

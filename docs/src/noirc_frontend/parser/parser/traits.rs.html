@@ -607,7 +607,26 @@
 <a href="#606" id="606">606</a>
 <a href="#607" id="607">607</a>
 <a href="#608" id="608">608</a>
-<a href="#609" id="609">609</a></pre></div><pre class="rust"><code><span class="kw">use </span>iter_extended::vecmap;
+<a href="#609" id="609">609</a>
+<a href="#610" id="610">610</a>
+<a href="#611" id="611">611</a>
+<a href="#612" id="612">612</a>
+<a href="#613" id="613">613</a>
+<a href="#614" id="614">614</a>
+<a href="#615" id="615">615</a>
+<a href="#616" id="616">616</a>
+<a href="#617" id="617">617</a>
+<a href="#618" id="618">618</a>
+<a href="#619" id="619">619</a>
+<a href="#620" id="620">620</a>
+<a href="#621" id="621">621</a>
+<a href="#622" id="622">622</a>
+<a href="#623" id="623">623</a>
+<a href="#624" id="624">624</a>
+<a href="#625" id="625">625</a>
+<a href="#626" id="626">626</a>
+<a href="#627" id="627">627</a>
+<a href="#628" id="628">628</a></pre></div><pre class="rust"><code><span class="kw">use </span>iter_extended::vecmap;
 
 <span class="kw">use </span>noirc_errors::{Located, Location};
 
@@ -776,7 +795,7 @@
         <span class="prelude-val">None
     </span>}
 
-    <span class="doccomment">/// TraitType = 'type' identifier ';'
+    <span class="doccomment">/// TraitType = 'type' identifier ( ':' TraitBounds ) ';'
     </span><span class="kw">fn </span>parse_trait_type(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; <span class="prelude-ty">Option</span>&lt;TraitItem&gt; {
         <span class="kw">if </span>!<span class="self">self</span>.eat_keyword(Keyword::Type) {
             <span class="kw">return </span><span class="prelude-val">None</span>;
@@ -790,9 +809,11 @@
             }
         };
 
+        <span class="kw">let </span>bounds = <span class="kw">if </span><span class="self">self</span>.eat_colon() { <span class="self">self</span>.parse_trait_bounds() } <span class="kw">else </span>{ Vec::new() };
+
         <span class="self">self</span>.eat_semicolon_or_error();
 
-        <span class="prelude-val">Some</span>(TraitItem::Type { name })
+        <span class="prelude-val">Some</span>(TraitItem::Type { name, bounds })
     }
 
     <span class="doccomment">/// TraitConstant = 'let' identifier ':' Type ( '=' Expression ) ';'
@@ -1088,11 +1109,28 @@
         <span class="macro">assert_eq!</span>(noir_trait.items.len(), <span class="number">1</span>);
 
         <span class="kw">let </span>item = noir_trait.items.remove(<span class="number">0</span>).item;
-        <span class="kw">let </span>TraitItem::Type { name } = item <span class="kw">else </span>{
+        <span class="kw">let </span>TraitItem::Type { name, bounds } = item <span class="kw">else </span>{
             <span class="macro">panic!</span>(<span class="string">"Expected type"</span>);
         };
         <span class="macro">assert_eq!</span>(name.to_string(), <span class="string">"Elem"</span>);
         <span class="macro">assert!</span>(!noir_trait.is_alias);
+        <span class="macro">assert!</span>(bounds.is_empty());
+    }
+
+    <span class="attr">#[test]
+    </span><span class="kw">fn </span>parse_trait_with_type_and_bounds() {
+        <span class="kw">let </span>src = <span class="string">"trait Foo { type Elem: Bound; }"</span>;
+        <span class="kw">let </span><span class="kw-2">mut </span>noir_trait = parse_trait_no_errors(src);
+        <span class="macro">assert_eq!</span>(noir_trait.items.len(), <span class="number">1</span>);
+
+        <span class="kw">let </span>item = noir_trait.items.remove(<span class="number">0</span>).item;
+        <span class="kw">let </span>TraitItem::Type { name, bounds } = item <span class="kw">else </span>{
+            <span class="macro">panic!</span>(<span class="string">"Expected type"</span>);
+        };
+        <span class="macro">assert_eq!</span>(name.to_string(), <span class="string">"Elem"</span>);
+        <span class="macro">assert!</span>(!noir_trait.is_alias);
+        <span class="macro">assert!</span>(bounds.len() == <span class="number">1</span>);
+        <span class="macro">assert_eq!</span>(bounds[<span class="number">0</span>].to_string(), <span class="string">"Bound"</span>);
     }
 
     <span class="attr">#[test]

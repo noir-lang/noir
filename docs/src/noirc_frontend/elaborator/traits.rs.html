@@ -434,7 +434,39 @@
 <a href="#433" id="433">433</a>
 <a href="#434" id="434">434</a>
 <a href="#435" id="435">435</a>
-<a href="#436" id="436">436</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::{collections::BTreeMap, rc::Rc};
+<a href="#436" id="436">436</a>
+<a href="#437" id="437">437</a>
+<a href="#438" id="438">438</a>
+<a href="#439" id="439">439</a>
+<a href="#440" id="440">440</a>
+<a href="#441" id="441">441</a>
+<a href="#442" id="442">442</a>
+<a href="#443" id="443">443</a>
+<a href="#444" id="444">444</a>
+<a href="#445" id="445">445</a>
+<a href="#446" id="446">446</a>
+<a href="#447" id="447">447</a>
+<a href="#448" id="448">448</a>
+<a href="#449" id="449">449</a>
+<a href="#450" id="450">450</a>
+<a href="#451" id="451">451</a>
+<a href="#452" id="452">452</a>
+<a href="#453" id="453">453</a>
+<a href="#454" id="454">454</a>
+<a href="#455" id="455">455</a>
+<a href="#456" id="456">456</a>
+<a href="#457" id="457">457</a>
+<a href="#458" id="458">458</a>
+<a href="#459" id="459">459</a>
+<a href="#460" id="460">460</a>
+<a href="#461" id="461">461</a>
+<a href="#462" id="462">462</a>
+<a href="#463" id="463">463</a>
+<a href="#464" id="464">464</a>
+<a href="#465" id="465">465</a>
+<a href="#466" id="466">466</a>
+<a href="#467" id="467">467</a>
+<a href="#468" id="468">468</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::{collections::BTreeMap, rc::Rc};
 
 <span class="kw">use </span>iter_extended::vecmap;
 <span class="kw">use </span>noirc_errors::Location;
@@ -443,7 +475,7 @@
     NamedGeneric, ResolvedGeneric, Type, TypeBindings,
     ast::{
         BlockExpression, FunctionDefinition, FunctionKind, FunctionReturnType, Ident,
-        ItemVisibility, NoirFunction, TraitItem, UnresolvedGeneric, UnresolvedGenerics,
+        ItemVisibility, NoirFunction, TraitBound, TraitItem, UnresolvedGeneric, UnresolvedGenerics,
         UnresolvedTraitConstraint, UnresolvedType,
     },
     hir::{def_collector::dc_crate::UnresolvedTrait, type_check::TypeCheckError},
@@ -477,18 +509,32 @@
 
                 <span class="kw">let </span>new_generics =
                     this.desugar_trait_constraints(<span class="kw-2">&amp;mut </span>unresolved_trait.trait_def.where_clause);
+                <span class="kw">let </span>new_generics = vecmap(new_generics, |(generic, _bounds)| {
+                    <span class="comment">// TODO: use `_bounds` variable above
+                    // See https://github.com/noir-lang/noir/issues/8601
+                    </span>generic
+                });
                 this.generics.extend(new_generics);
 
                 <span class="kw">let </span>where_clause =
                     this.resolve_trait_constraints(<span class="kw-2">&amp;</span>unresolved_trait.trait_def.where_clause);
-                this.remove_trait_constraints_from_scope(<span class="kw-2">&amp;</span>where_clause);
+                this.remove_trait_constraints_from_scope(where_clause.iter());
+
+                <span class="kw">let </span><span class="kw-2">mut </span>associated_type_bounds = rustc_hash::FxHashMap::default();
+                <span class="kw">for </span>item <span class="kw">in </span><span class="kw-2">&amp;</span>unresolved_trait.trait_def.items {
+                    <span class="kw">if let </span>TraitItem::Type { name, bounds } = <span class="kw-2">&amp;</span>item.item {
+                        <span class="kw">let </span>resolved_bounds = this.resolve_trait_bounds(bounds);
+                        associated_type_bounds.insert(name.to_string(), resolved_bounds);
+                    }
+                }
 
                 <span class="comment">// Each associated type in this trait is also an implicit generic
                 </span><span class="kw">for </span>associated_type <span class="kw">in </span><span class="kw-2">&amp;</span>this.interner.get_trait(<span class="kw-2">*</span>trait_id).associated_types {
                     this.generics.push(associated_type.clone());
                 }
 
-                <span class="kw">let </span>resolved_trait_bounds = this.resolve_trait_bounds(unresolved_trait);
+                <span class="kw">let </span>resolved_trait_bounds =
+                    this.resolve_trait_bounds(<span class="kw-2">&amp;</span>unresolved_trait.trait_def.bounds);
                 <span class="kw">for </span>bound <span class="kw">in </span><span class="kw-2">&amp;</span>resolved_trait_bounds {
                     this.interner
                         .add_trait_dependency(DependencyId::Trait(bound.trait_id), <span class="kw-2">*</span>trait_id);
@@ -498,7 +544,29 @@
                     trait_def.set_trait_bounds(resolved_trait_bounds);
                     trait_def.set_where_clause(where_clause);
                     trait_def.set_visibility(unresolved_trait.trait_def.visibility);
+                    trait_def.set_associated_type_bounds(associated_type_bounds);
+                    trait_def.set_all_generics(this.generics.clone());
                 });
+            });
+        }
+
+        <span class="self">self</span>.self_type = <span class="prelude-val">None</span>;
+        <span class="self">self</span>.current_trait = <span class="prelude-val">None</span>;
+    }
+
+    <span class="kw">pub fn </span>collect_trait_methods(<span class="kw-2">&amp;mut </span><span class="self">self</span>, traits: <span class="kw-2">&amp;mut </span>BTreeMap&lt;TraitId, UnresolvedTrait&gt;) {
+        <span class="kw">for </span>(trait_id, unresolved_trait) <span class="kw">in </span>traits {
+            <span class="self">self</span>.local_module = unresolved_trait.module_id;
+
+            <span class="self">self</span>.recover_generics(|this| {
+                this.current_trait = <span class="prelude-val">Some</span>(<span class="kw-2">*</span>trait_id);
+
+                <span class="kw">let </span>the_trait = this.interner.get_trait(<span class="kw-2">*</span>trait_id);
+                <span class="kw">let </span>self_typevar = the_trait.self_type_typevar.clone();
+                <span class="kw">let </span>self_type = Type::TypeVariable(self_typevar.clone());
+                this.self_type = <span class="prelude-val">Some</span>(self_type.clone());
+
+                this.generics = the_trait.all_generics.clone();
 
                 <span class="kw">let </span>methods = this.resolve_trait_methods(<span class="kw-2">*</span>trait_id, unresolved_trait);
 
@@ -519,11 +587,7 @@
         <span class="self">self</span>.current_trait = <span class="prelude-val">None</span>;
     }
 
-    <span class="kw">fn </span>resolve_trait_bounds(
-        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
-        unresolved_trait: <span class="kw-2">&amp;</span>UnresolvedTrait,
-    ) -&gt; Vec&lt;ResolvedTraitBound&gt; {
-        <span class="kw">let </span>bounds = <span class="kw-2">&amp;</span>unresolved_trait.trait_def.bounds;
+    <span class="kw">fn </span>resolve_trait_bounds(<span class="kw-2">&amp;mut </span><span class="self">self</span>, bounds: <span class="kw-2">&amp;</span>[TraitBound]) -&gt; Vec&lt;ResolvedTraitBound&gt; {
         bounds.iter().filter_map(|bound| <span class="self">self</span>.resolve_trait_bound(bound)).collect()
     }
 
@@ -672,7 +736,7 @@
         </span>def.visibility = trait_visibility;
 
         <span class="kw">let </span><span class="kw-2">mut </span>function = NoirFunction { kind, def };
-        <span class="self">self</span>.define_function_meta(<span class="kw-2">&amp;mut </span>function, func_id, <span class="prelude-val">Some</span>(trait_id));
+        <span class="self">self</span>.define_function_meta(<span class="kw-2">&amp;mut </span>function, func_id, <span class="prelude-val">Some</span>(trait_id), <span class="kw-2">&amp;</span>[]);
 
         <span class="comment">// Here we elaborate functions without a body, mainly to check the arguments and return types.
         // Later on we'll elaborate functions with a body by fully type-checking them.

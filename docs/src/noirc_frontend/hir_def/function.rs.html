@@ -223,7 +223,16 @@
 <a href="#222" id="222">222</a>
 <a href="#223" id="223">223</a>
 <a href="#224" id="224">224</a>
-<a href="#225" id="225">225</a></pre></div><pre class="rust"><code><span class="kw">use </span>fm::FileId;
+<a href="#225" id="225">225</a>
+<a href="#226" id="226">226</a>
+<a href="#227" id="227">227</a>
+<a href="#228" id="228">228</a>
+<a href="#229" id="229">229</a>
+<a href="#230" id="230">230</a>
+<a href="#231" id="231">231</a>
+<a href="#232" id="232">232</a>
+<a href="#233" id="233">233</a>
+<a href="#234" id="234">234</a></pre></div><pre class="rust"><code><span class="kw">use </span>fm::FileId;
 <span class="kw">use </span>iter_extended::vecmap;
 <span class="kw">use </span>noirc_errors::{Location, Span};
 
@@ -356,7 +365,12 @@
     <span class="comment">// This flag is needed for the attribute check pass
     </span><span class="kw">pub </span>has_body: bool,
 
-    <span class="kw">pub </span>trait_constraints: Vec&lt;TraitConstraint&gt;,
+    <span class="doccomment">/// Trait constraints that were specifiied directly on this function.
+    </span><span class="kw">pub </span>trait_constraints: Vec&lt;TraitConstraint&gt;,
+
+    <span class="doccomment">/// Trait constraints that came either from a parent item (for example a where clause on a
+    /// trait or trait impl) or from constraints on implicitly added named generics.
+    </span><span class="kw">pub </span>extra_trait_constraints: Vec&lt;TraitConstraint&gt;,
 
     <span class="doccomment">/// The type this method belongs to, if any
     </span><span class="kw">pub </span>type_id: <span class="prelude-ty">Option</span>&lt;TypeId&gt;,
@@ -446,6 +460,10 @@
             FunctionBody::Resolving =&gt; FunctionBody::Resolving,
             FunctionBody::Resolved =&gt; FunctionBody::Resolved,
         }
+    }
+
+    <span class="kw">pub fn </span>all_trait_constraints(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="kw">impl </span>Iterator&lt;Item = <span class="kw-2">&amp;</span>TraitConstraint&gt; {
+        <span class="self">self</span>.trait_constraints.iter().chain(<span class="self">self</span>.extra_trait_constraints.iter())
     }
 }
 </code></pre></div></section></main></body></html>

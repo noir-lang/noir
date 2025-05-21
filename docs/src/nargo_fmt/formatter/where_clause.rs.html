@@ -73,7 +73,18 @@
 <a href="#72" id="72">72</a>
 <a href="#73" id="73">73</a>
 <a href="#74" id="74">74</a>
-<a href="#75" id="75">75</a></pre></div><pre class="rust"><code><span class="kw">use </span>noirc_frontend::{
+<a href="#75" id="75">75</a>
+<a href="#76" id="76">76</a>
+<a href="#77" id="77">77</a>
+<a href="#78" id="78">78</a>
+<a href="#79" id="79">79</a>
+<a href="#80" id="80">80</a>
+<a href="#81" id="81">81</a>
+<a href="#82" id="82">82</a>
+<a href="#83" id="83">83</a>
+<a href="#84" id="84">84</a>
+<a href="#85" id="85">85</a>
+<a href="#86" id="86">86</a></pre></div><pre class="rust"><code><span class="kw">use </span>noirc_frontend::{
     ast::{TraitBound, UnresolvedTraitConstraint},
     token::{Keyword, Token},
 };
@@ -140,6 +151,17 @@
         <span class="kw">if </span>write_trailing_comma_and_new_line {
             <span class="self">self</span>.write_line();
             <span class="self">self</span>.write_indentation();
+        }
+    }
+
+    <span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>format_trait_bounds(<span class="kw-2">&amp;mut </span><span class="self">self</span>, trait_bounds: Vec&lt;TraitBound&gt;) {
+        <span class="kw">for </span>(index, trait_bound) <span class="kw">in </span>trait_bounds.into_iter().enumerate() {
+            <span class="kw">if </span>index &gt; <span class="number">0 </span>{
+                <span class="self">self</span>.write_space();
+                <span class="self">self</span>.write_token(Token::Plus);
+                <span class="self">self</span>.write_space();
+            }
+            <span class="self">self</span>.format_trait_bound(trait_bound);
         }
     }
 

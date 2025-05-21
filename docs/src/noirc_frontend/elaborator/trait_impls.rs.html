@@ -325,7 +325,7 @@
                     <span class="kw">let </span>module = <span class="self">self</span>.module_id();
                     <span class="kw">let </span>location = default_impl.def.location;
                     <span class="self">self</span>.interner.push_function(func_id, <span class="kw-2">&amp;</span>default_impl.def, module, location);
-                    <span class="self">self</span>.define_function_meta(<span class="kw-2">&amp;mut </span>default_impl_clone, func_id, <span class="prelude-val">None</span>);
+                    <span class="self">self</span>.define_function_meta(<span class="kw-2">&amp;mut </span>default_impl_clone, func_id, <span class="prelude-val">None</span>, <span class="kw-2">&amp;</span>[]);
                     func_ids_in_trait.insert(func_id);
                     ordered_methods.push((
                         method.default_impl_module_id,

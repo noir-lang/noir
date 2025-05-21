@@ -1680,7 +1680,15 @@
 <a href="#1679" id="1679">1679</a>
 <a href="#1680" id="1680">1680</a>
 <a href="#1681" id="1681">1681</a>
-<a href="#1682" id="1682">1682</a></pre></div><pre class="rust"><code><span class="kw">use </span>acvm::FieldElement;
+<a href="#1682" id="1682">1682</a>
+<a href="#1683" id="1683">1683</a>
+<a href="#1684" id="1684">1684</a>
+<a href="#1685" id="1685">1685</a>
+<a href="#1686" id="1686">1686</a>
+<a href="#1687" id="1687">1687</a>
+<a href="#1688" id="1688">1688</a>
+<a href="#1689" id="1689">1689</a>
+<a href="#1690" id="1690">1690</a></pre></div><pre class="rust"><code><span class="kw">use </span>acvm::FieldElement;
 <span class="kw">use </span>noirc_errors::Span;
 
 <span class="kw">use crate</span>::{
@@ -1814,7 +1822,9 @@
         <span class="bool-val">true
     </span>}
 
-    <span class="kw">fn </span>visit_trait_item_type(<span class="kw-2">&amp;mut </span><span class="self">self</span>, <span class="kw">_</span>: <span class="kw-2">&amp;</span>Ident) {}
+    <span class="kw">fn </span>visit_trait_item_type(<span class="kw-2">&amp;mut </span><span class="self">self</span>, <span class="kw">_</span>: <span class="kw-2">&amp;</span>Ident, <span class="kw">_</span>: <span class="kw-2">&amp;</span>[TraitBound]) -&gt; bool {
+        <span class="bool-val">true
+    </span>}
 
     <span class="kw">fn </span>visit_use_tree(<span class="kw-2">&amp;mut </span><span class="self">self</span>, <span class="kw">_</span>: <span class="kw-2">&amp;</span>UseTree) -&gt; bool {
         <span class="bool-val">true
@@ -2470,7 +2480,13 @@
                     }
                 }
             }
-            TraitItem::Type { name } =&gt; visitor.visit_trait_item_type(name),
+            TraitItem::Type { name, bounds } =&gt; {
+                <span class="kw">if </span>visitor.visit_trait_item_type(name, bounds) {
+                    <span class="kw">for </span>bound <span class="kw">in </span>bounds {
+                        bound.accept(visitor);
+                    }
+                }
+            }
         }
     }
 }
