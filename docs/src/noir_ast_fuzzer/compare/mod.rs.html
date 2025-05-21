@@ -269,7 +269,7 @@
                 (r1, <span class="kw">_</span>) =&gt; {
                     <span class="kw">if </span>o1.print_output != o2.print_output {
                         <span class="macro">bail!</span>(
-                            <span class="string">"programs disagree on printed output:\n---\n{}\n\n---\n{}\n"</span>,
+                            <span class="string">"programs disagree on printed output:\n---\n{}\n--- != ---\n{}\n---"</span>,
                             o1.print_output,
                             o2.print_output
                         )

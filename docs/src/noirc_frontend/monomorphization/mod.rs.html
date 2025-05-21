@@ -2601,7 +2601,9 @@
 <a href="#2600" id="2600">2600</a>
 <a href="#2601" id="2601">2601</a>
 <a href="#2602" id="2602">2602</a>
-<a href="#2603" id="2603">2603</a></pre></div><pre class="rust"><code><span class="doccomment">//! Coming after type checking, monomorphization is the last pass in Noir's frontend.
+<a href="#2603" id="2603">2603</a>
+<a href="#2604" id="2604">2604</a>
+<a href="#2605" id="2605">2605</a></pre></div><pre class="rust"><code><span class="doccomment">//! Coming after type checking, monomorphization is the last pass in Noir's frontend.
 //! It accepts the type checked HIR as input and produces a monomorphized AST as output.
 //! This file implements the pass itself, while the AST is defined in the ast module.
 //!
@@ -4265,7 +4267,7 @@
                     // Here we append printable type info so we can know how to turn that argument
                     // into a human-readable string.
                     </span><span class="kw">let </span>typ = <span class="self">self</span>.interner.id_type(call.arguments[<span class="number">1</span>]);
-                    <span class="self">self</span>.append_printable_type_info_for_type(typ, <span class="kw-2">&amp;mut </span>arguments);
+                    append_printable_type_info_for_type(typ, <span class="kw-2">&amp;mut </span>arguments);
                 }
             }
         }
@@ -4337,51 +4339,10 @@
         <span class="kw">match </span>hir_argument {
             HirExpression::Ident(ident, <span class="kw">_</span>) =&gt; {
                 <span class="kw">let </span>typ = <span class="self">self</span>.interner.definition_type(ident.id);
-                <span class="self">self</span>.append_printable_type_info_for_type(typ, arguments);
+                append_printable_type_info_for_type(typ, arguments);
             }
             <span class="kw">_ </span>=&gt; <span class="macro">unreachable!</span>(<span class="string">"logging expr {:?} is not supported"</span>, hir_argument),
         }
-    }
-
-    <span class="kw">fn </span>append_printable_type_info_for_type(<span class="kw-2">&amp;</span><span class="self">self</span>, typ: Type, arguments: <span class="kw-2">&amp;mut </span>Vec&lt;ast::Expression&gt;) {
-        <span class="kw">let </span>typ: Type = typ.follow_bindings();
-        <span class="kw">let </span>is_fmt_str = <span class="kw">match </span>typ {
-            <span class="comment">// A format string has many different possible types that need to be handled.
-            // Loop over each element in the format string to fetch each type's relevant metadata
-            </span>Type::FmtString(<span class="kw">_</span>, elements) =&gt; {
-                <span class="kw">match </span><span class="kw-2">*</span>elements {
-                    Type::Tuple(element_types) =&gt; {
-                        <span class="kw">for </span>typ <span class="kw">in </span>element_types {
-                            <span class="self">Self</span>::append_printable_type_info_inner(<span class="kw-2">&amp;</span>typ, arguments);
-                        }
-                    }
-                    <span class="kw">_ </span>=&gt; <span class="macro">unreachable!</span>(
-                        <span class="string">"ICE: format string type should be a tuple but got a {elements}"
-                    </span>),
-                }
-                <span class="bool-val">true
-            </span>}
-            <span class="kw">_ </span>=&gt; {
-                <span class="self">Self</span>::append_printable_type_info_inner(<span class="kw-2">&amp;</span>typ, arguments);
-                <span class="bool-val">false
-            </span>}
-        };
-        <span class="comment">// The caller needs information as to whether it is handling a format string or a single type
-        </span>arguments.push(ast::Expression::Literal(ast::Literal::Bool(is_fmt_str)));
-    }
-
-    <span class="kw">fn </span>append_printable_type_info_inner(typ: <span class="kw-2">&amp;</span>Type, arguments: <span class="kw-2">&amp;mut </span>Vec&lt;ast::Expression&gt;) {
-        <span class="comment">// Disallow printing slices and mutable references for consistency,
-        // since they cannot be passed from ACIR into Brillig
-        </span><span class="kw">if </span><span class="macro">matches!</span>(typ, HirType::Reference(..)) {
-            <span class="macro">unreachable!</span>(<span class="string">"println and format strings do not support references."</span>);
-        }
-
-        <span class="kw">let </span>printable_type: PrintableType = typ.into();
-        <span class="kw">let </span>abi_as_string = serde_json::to_string(<span class="kw-2">&amp;</span>printable_type)
-            .expect(<span class="string">"ICE: expected PrintableType to serialize"</span>);
-
-        arguments.push(ast::Expression::Literal(ast::Literal::Str(abi_as_string)));
     }
 
     <span class="doccomment">/// Try to evaluate certain builtin functions (currently only 'array_len' and field modulus methods)
@@ -5203,5 +5164,48 @@
     };
 
     <span class="prelude-val">Ok</span>(interner.get_trait_implementation(impl_id).borrow().methods[method.method_index])
+}
+
+<span class="doccomment">/// Extend the arguments to `print` (which is a `bool` to show if newline is needed and
+/// value to be printed itself) with a JSON serialized `PrintableType` to describe the
+/// value, and another `bool` to show if the print is using a format string, or a raw
+/// value.
+</span><span class="kw">pub fn </span>append_printable_type_info_for_type(typ: Type, arguments: <span class="kw-2">&amp;mut </span>Vec&lt;ast::Expression&gt;) {
+    <span class="kw">let </span>typ: Type = typ.follow_bindings();
+    <span class="kw">let </span>is_fmt_str = <span class="kw">match </span>typ {
+        <span class="comment">// A format string has many different possible types that need to be handled.
+        // Loop over each element in the format string to fetch each type's relevant metadata
+        </span>Type::FmtString(<span class="kw">_</span>, elements) =&gt; {
+            <span class="kw">match </span><span class="kw-2">*</span>elements {
+                Type::Tuple(element_types) =&gt; {
+                    <span class="kw">for </span>typ <span class="kw">in </span>element_types {
+                        append_printable_type_info_inner(<span class="kw-2">&amp;</span>typ, arguments);
+                    }
+                }
+                <span class="kw">_ </span>=&gt; <span class="macro">unreachable!</span>(<span class="string">"ICE: format string type should be a tuple but got a {elements}"</span>),
+            }
+            <span class="bool-val">true
+        </span>}
+        <span class="kw">_ </span>=&gt; {
+            append_printable_type_info_inner(<span class="kw-2">&amp;</span>typ, arguments);
+            <span class="bool-val">false
+        </span>}
+    };
+    <span class="comment">// The caller needs information as to whether it is handling a format string or a single type
+    </span>arguments.push(ast::Expression::Literal(ast::Literal::Bool(is_fmt_str)));
+}
+
+<span class="kw">fn </span>append_printable_type_info_inner(typ: <span class="kw-2">&amp;</span>Type, arguments: <span class="kw-2">&amp;mut </span>Vec&lt;ast::Expression&gt;) {
+    <span class="comment">// Disallow printing slices and mutable references for consistency,
+    // since they cannot be passed from ACIR into Brillig
+    </span><span class="kw">if </span><span class="macro">matches!</span>(typ, HirType::Reference(..)) {
+        <span class="macro">unreachable!</span>(<span class="string">"println and format strings do not support references."</span>);
+    }
+
+    <span class="kw">let </span>printable_type: PrintableType = typ.into();
+    <span class="kw">let </span>abi_as_string =
+        serde_json::to_string(<span class="kw-2">&amp;</span>printable_type).expect(<span class="string">"ICE: expected PrintableType to serialize"</span>);
+
+    arguments.push(ast::Expression::Literal(ast::Literal::Str(abi_as_string)));
 }
 </code></pre></div></section></main></body></html>

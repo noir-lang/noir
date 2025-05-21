@@ -494,7 +494,12 @@
 <a href="#493" id="493">493</a>
 <a href="#494" id="494">494</a>
 <a href="#495" id="495">495</a>
-<a href="#496" id="496">496</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::collections::HashSet;
+<a href="#496" id="496">496</a>
+<a href="#497" id="497">497</a>
+<a href="#498" id="498">498</a>
+<a href="#499" id="499">499</a>
+<a href="#500" id="500">500</a>
+<a href="#501" id="501">501</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::collections::HashSet;
 
 <span class="kw">use </span>acir::FieldElement;
 <span class="kw">use </span>nargo::errors::Location;
@@ -511,6 +516,11 @@
 
 <span class="kw">use super</span>::{Name, VariableId, types, visitor::visit_expr};
 
+<span class="doccomment">/// Boolean literal.
+</span><span class="kw">pub fn </span>lit_bool(value: bool) -&gt; Expression {
+    Expression::Literal(Literal::Bool(value))
+}
+
 <span class="doccomment">/// Generate a literal expression according to a type.
 </span><span class="kw">pub fn </span>gen_literal(u: <span class="kw-2">&amp;mut </span>Unstructured, typ: <span class="kw-2">&amp;</span>Type) -&gt; arbitrary::Result&lt;Expression&gt; {
     <span class="kw">use </span>FieldElement <span class="kw">as </span>Field;
@@ -518,7 +528,7 @@
 
     <span class="kw">let </span>expr = <span class="kw">match </span>typ {
         Type::Unit =&gt; Expression::Literal(Literal::Unit),
-        Type::Bool =&gt; Expression::Literal(Literal::Bool(bool::arbitrary(u)<span class="question-mark">?</span>)),
+        Type::Bool =&gt; lit_bool(bool::arbitrary(u)<span class="question-mark">?</span>),
         Type::Field =&gt; {
             <span class="kw">let </span>field = SignedField::new(Field::from(u128::arbitrary(u)<span class="question-mark">?</span>), bool::arbitrary(u)<span class="question-mark">?</span>);
             Expression::Literal(Literal::Integer(field, Type::Field, Location::dummy()))

@@ -1763,7 +1763,10 @@
 <a href="#1762" id="1762">1762</a>
 <a href="#1763" id="1763">1763</a>
 <a href="#1764" id="1764">1764</a>
-<a href="#1765" id="1765">1765</a></pre></div><pre class="rust"><code><span class="doccomment">//! The flatten cfg optimization pass "flattens" the entire control flow graph into a single block.
+<a href="#1765" id="1765">1765</a>
+<a href="#1766" id="1766">1766</a>
+<a href="#1767" id="1767">1767</a>
+<a href="#1768" id="1768">1768</a></pre></div><pre class="rust"><code><span class="doccomment">//! The flatten cfg optimization pass "flattens" the entire control flow graph into a single block.
 //! This includes branches in the CFG with non-constant conditions. Flattening these requires
 //! special handling for operations with side-effects and can lead to a loss of information since
 //! the jmpif will no longer be in the program. As a result, this pass should usually be towards or
@@ -2635,7 +2638,8 @@
         }
     }
 
-    <span class="kw">fn </span>grumpkin_generators() -&gt; Vec&lt;FieldElement&gt; {
+    <span class="attr">#[cfg(feature = <span class="string">"bn254"</span>)]
+    </span><span class="kw">fn </span>grumpkin_generators() -&gt; Vec&lt;FieldElement&gt; {
         <span class="kw">let </span>g1_x = FieldElement::from_hex(<span class="string">"0x01"</span>).unwrap();
         <span class="kw">let </span>g1_y =
             FieldElement::from_hex(<span class="string">"0x02cf135e7506a45d632d270d45f1181294833fc48d823f272c"</span>).unwrap();
@@ -2657,6 +2661,7 @@
     /// - inputs: (point1_x, point1_y, point1_infinite, point2_x, point2_y, point2_infinite)
     /// - generators: [g1_x, g1_y, g2_x, g2_y]
     /// - index: true for abscissa, false for ordinate
+    </span><span class="attr">#[cfg(feature = <span class="string">"bn254"</span>)]
     </span><span class="kw">fn </span>predicate_argument(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
         inputs: <span class="kw-2">&amp;</span>[ValueId],
@@ -2750,6 +2755,7 @@
         )
     }
     <span class="comment">// Computes: if condition { var } else { other }
+    </span><span class="attr">#[cfg(feature = <span class="string">"bn254"</span>)]
     </span><span class="kw">fn </span>var_or(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
         var: ValueId,
@@ -3373,8 +3379,8 @@
             store Field 0 at v1
             jmpif v0 then: b1, else: b2
           b1():
-            store Field 1 at v1 
-            store Field 2 at v1 
+            store Field 1 at v1
+            store Field 2 at v1
             jmp b2()
           b2():
             v3 = load v1 -&gt; Field
@@ -3413,9 +3419,9 @@
             jmpif v0 then: b1, else: b2
           b1():
             v4 = make_array [Field 1] : [Field; 1]
-            store v4 at v3 
+            store v4 at v3
             v5 = make_array [Field 2] : [Field; 1]
-            store v5 at v3 
+            store v5 at v3
             jmp b2()
           b2():
             v24 = load v3 -&gt; Field

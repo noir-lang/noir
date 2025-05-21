@@ -556,7 +556,9 @@
 <a href="#555" id="555">555</a>
 <a href="#556" id="556">556</a>
 <a href="#557" id="557">557</a>
-<a href="#558" id="558">558</a></pre></div><pre class="rust"><code><span class="doccomment">//! Module responsible for generating arbitrary [Program] ASTs.
+<a href="#558" id="558">558</a>
+<a href="#559" id="559">559</a>
+<a href="#560" id="560">560</a></pre></div><pre class="rust"><code><span class="doccomment">//! Module responsible for generating arbitrary [Program] ASTs.
 </span><span class="kw">use </span>std::collections::{BTreeMap, BTreeSet}; <span class="comment">// Using BTree for deterministic enumeration, for repeatability.
 
 </span><span class="kw">use </span>func::{FunctionContext, FunctionDeclaration, can_call};
@@ -1085,6 +1087,7 @@
         <span class="kw">let </span><span class="kw-2">mut </span>printer = AstPrinter::default();
         printer.show_id = <span class="bool-val">false</span>;
         printer.show_clone_and_drop = <span class="bool-val">false</span>;
+        printer.show_print_as_std = <span class="bool-val">true</span>;
         printer.print_program(<span class="self">self</span>.<span class="number">0</span>, f)
     }
 }
@@ -1101,6 +1104,7 @@
         <span class="kw">let </span><span class="kw-2">mut </span>printer = AstPrinter::default();
         printer.show_id = <span class="bool-val">false</span>;
         printer.show_clone_and_drop = <span class="bool-val">false</span>;
+        printer.show_print_as_std = <span class="bool-val">true</span>;
         <span class="kw">for </span>function <span class="kw">in </span><span class="kw-2">&amp;</span><span class="self">self</span>.<span class="number">0</span>.functions {
             <span class="kw">if </span>function.id == Program::main_id() {
                 <span class="kw">let </span><span class="kw-2">mut </span>function = function.clone();

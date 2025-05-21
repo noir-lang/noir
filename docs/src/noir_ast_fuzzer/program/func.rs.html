@@ -1320,10 +1320,61 @@
 <a href="#1319" id="1319">1319</a>
 <a href="#1320" id="1320">1320</a>
 <a href="#1321" id="1321">1321</a>
-<a href="#1322" id="1322">1322</a></pre></div><pre class="rust"><code><span class="kw">use </span>nargo::errors::Location;
+<a href="#1322" id="1322">1322</a>
+<a href="#1323" id="1323">1323</a>
+<a href="#1324" id="1324">1324</a>
+<a href="#1325" id="1325">1325</a>
+<a href="#1326" id="1326">1326</a>
+<a href="#1327" id="1327">1327</a>
+<a href="#1328" id="1328">1328</a>
+<a href="#1329" id="1329">1329</a>
+<a href="#1330" id="1330">1330</a>
+<a href="#1331" id="1331">1331</a>
+<a href="#1332" id="1332">1332</a>
+<a href="#1333" id="1333">1333</a>
+<a href="#1334" id="1334">1334</a>
+<a href="#1335" id="1335">1335</a>
+<a href="#1336" id="1336">1336</a>
+<a href="#1337" id="1337">1337</a>
+<a href="#1338" id="1338">1338</a>
+<a href="#1339" id="1339">1339</a>
+<a href="#1340" id="1340">1340</a>
+<a href="#1341" id="1341">1341</a>
+<a href="#1342" id="1342">1342</a>
+<a href="#1343" id="1343">1343</a>
+<a href="#1344" id="1344">1344</a>
+<a href="#1345" id="1345">1345</a>
+<a href="#1346" id="1346">1346</a>
+<a href="#1347" id="1347">1347</a>
+<a href="#1348" id="1348">1348</a>
+<a href="#1349" id="1349">1349</a>
+<a href="#1350" id="1350">1350</a>
+<a href="#1351" id="1351">1351</a>
+<a href="#1352" id="1352">1352</a>
+<a href="#1353" id="1353">1353</a>
+<a href="#1354" id="1354">1354</a>
+<a href="#1355" id="1355">1355</a>
+<a href="#1356" id="1356">1356</a>
+<a href="#1357" id="1357">1357</a>
+<a href="#1358" id="1358">1358</a>
+<a href="#1359" id="1359">1359</a>
+<a href="#1360" id="1360">1360</a>
+<a href="#1361" id="1361">1361</a>
+<a href="#1362" id="1362">1362</a>
+<a href="#1363" id="1363">1363</a>
+<a href="#1364" id="1364">1364</a>
+<a href="#1365" id="1365">1365</a>
+<a href="#1366" id="1366">1366</a>
+<a href="#1367" id="1367">1367</a>
+<a href="#1368" id="1368">1368</a>
+<a href="#1369" id="1369">1369</a>
+<a href="#1370" id="1370">1370</a>
+<a href="#1371" id="1371">1371</a>
+<a href="#1372" id="1372">1372</a></pre></div><pre class="rust"><code><span class="kw">use </span>nargo::errors::Location;
 <span class="kw">use </span>std::{
     collections::{BTreeMap, BTreeSet, HashSet},
     fmt::Debug,
+    ops::Deref,
 };
 <span class="kw">use </span>strum::IntoEnumIterator;
 
@@ -1331,10 +1382,13 @@
 <span class="kw">use </span>noirc_frontend::{
     ast::{IntegerBitSize, UnaryOp},
     hir_def::{<span class="self">self</span>, expr::HirIdent, stmt::HirPattern},
-    monomorphization::ast::{
-        ArrayLiteral, Assign, BinaryOp, Call, Definition, Expression, For, FuncId, GlobalId, Ident,
-        IdentId, Index, InlineType, LValue, Let, Literal, LocalId, Parameters, Program, Type,
-        While,
+    monomorphization::{
+        append_printable_type_info_for_type,
+        ast::{
+            ArrayLiteral, Assign, BinaryOp, Call, Definition, Expression, For, FuncId, GlobalId,
+            Ident, IdentId, Index, InlineType, LValue, Let, Literal, LocalId, Parameters, Program,
+            Type, While,
+        },
     },
     node_interner::DefinitionId,
     shared::{Signedness, Visibility},
@@ -2011,7 +2065,6 @@
             Freq::new(u, <span class="kw-2">&amp;</span><span class="self">self</span>.ctx.config.stmt_freqs_acir)<span class="question-mark">?
         </span>};
         <span class="comment">// TODO(#7926): Match
-        // TODO(#7931): print
         // TODO(#7932): Constrain
 
         // Start with `drop`, it doesn't need to be frequent even if others are disabled.
@@ -2037,6 +2090,14 @@
         }
 
         <span class="kw">if </span><span class="self">self</span>.unconstrained() {
+            <span class="comment">// For now only try prints in unconstrained code, were we don't need to create a proxy.
+            // We don't use this in comptime because comptime prints to stdout which is currently not captured.
+            </span><span class="kw">if </span>freq.enabled_when(<span class="string">"print"</span>, !<span class="self">self</span>.is_comptime_friendly()) {
+                <span class="kw">if let </span><span class="prelude-val">Some</span>(e) = <span class="self">self</span>.gen_print(u)<span class="question-mark">? </span>{
+                    <span class="kw">return </span><span class="prelude-val">Ok</span>(e);
+                }
+            }
+
             <span class="comment">// Get loop out of the way quick, as it's always disabled for ACIR.
             </span><span class="kw">if </span>freq.enabled_when(<span class="string">"loop"</span>, <span class="self">self</span>.budget &gt; <span class="number">1</span>) {
                 <span class="kw">return </span><span class="self">self</span>.gen_loop(u);
@@ -2107,19 +2168,13 @@
             <span class="kw">return </span><span class="prelude-val">Ok</span>(<span class="prelude-val">None</span>);
         }
         <span class="kw">let </span>id = <span class="kw-2">*</span>u.choose_iter(<span class="self">self</span>.locals.current().variable_ids())<span class="question-mark">?</span>;
-        <span class="kw">let </span>(mutable, name, typ) = <span class="self">self</span>.locals.current().get_variable(<span class="kw-2">&amp;</span>id).clone();
 
         <span class="comment">// Remove variable so we stop using it.
         </span><span class="self">self</span>.locals.remove(<span class="kw-2">&amp;</span>id);
 
-        <span class="kw">let </span>ident_id = <span class="self">self</span>.next_ident_id();
-        <span class="prelude-val">Ok</span>(<span class="prelude-val">Some</span>(Expression::Drop(Box::new(expr::ident(
-            VariableId::Local(id),
-            ident_id,
-            mutable,
-            name,
-            typ,
-        )))))
+        <span class="kw">let </span>ident = <span class="self">self</span>.local_ident(id);
+
+        <span class="prelude-val">Ok</span>(<span class="prelude-val">Some</span>(Expression::Drop(Box::new(Expression::Ident(ident)))))
     }
 
     <span class="doccomment">/// Assign to a mutable variable, if we have one in scope.
@@ -2136,13 +2191,11 @@
         }
 
         <span class="kw">let </span>id = <span class="kw-2">*</span>u.choose_iter(opts)<span class="question-mark">?</span>;
-        <span class="kw">let </span>(mutable, name, typ) = <span class="self">self</span>.locals.current().get_variable(<span class="kw-2">&amp;</span>id).clone();
-        <span class="kw">let </span>ident_id = <span class="self">self</span>.next_ident_id();
-        <span class="kw">let </span>ident = expr::ident_inner(VariableId::Local(id), ident_id, mutable, name, typ.clone());
+        <span class="kw">let </span>ident = <span class="self">self</span>.local_ident(id);
         <span class="kw">let </span>ident = LValue::Ident(ident);
 
         <span class="comment">// For arrays and tuples we can consider assigning to their items.
-        </span><span class="kw">let </span>(lvalue, typ) = <span class="kw">match </span>typ {
+        </span><span class="kw">let </span>(lvalue, typ) = <span class="kw">match </span><span class="self">self</span>.local_type(id).clone() {
             Type::Array(len, typ) <span class="kw">if </span>len &gt; <span class="number">0 </span>&amp;&amp; bool::arbitrary(u)<span class="question-mark">? </span>=&gt; {
                 <span class="kw">let </span>idx = <span class="self">self</span>.gen_index(u, len, <span class="self">self</span>.max_depth())<span class="question-mark">?</span>;
                 <span class="kw">let </span>lvalue = LValue::Index {
@@ -2151,7 +2204,7 @@
                     element_type: typ.as_ref().clone(),
                     location: Location::dummy(),
                 };
-                (lvalue, <span class="kw-2">*</span>typ)
+                (lvalue, typ.deref().clone())
             }
             Type::Tuple(items) <span class="kw">if </span>bool::arbitrary(u)<span class="question-mark">? </span>=&gt; {
                 <span class="kw">let </span>idx = u.choose_index(items.len())<span class="question-mark">?</span>;
@@ -2159,13 +2212,64 @@
                 <span class="kw">let </span>lvalue = LValue::MemberAccess { object: Box::new(ident), field_index: idx };
                 (lvalue, typ)
             }
-            <span class="kw">_ </span>=&gt; (ident, typ),
+            typ =&gt; (ident, typ),
         };
 
         <span class="comment">// Generate the assigned value.
         </span><span class="kw">let </span>expr = <span class="self">self</span>.gen_expr(u, <span class="kw-2">&amp;</span>typ, <span class="self">self</span>.max_depth(), Flags::TOP)<span class="question-mark">?</span>;
 
         <span class="prelude-val">Ok</span>(<span class="prelude-val">Some</span>(Expression::Assign(Assign { lvalue, expression: Box::new(expr) })))
+    }
+
+    <span class="doccomment">/// Generate a `println` statement, if there is some printable local variable.
+    ///
+    /// For now this only works in unconstrained code. For constrained code we will
+    /// need to generate a proxy function, which we can do as a follow-up pass,
+    /// as it has to be done once per function signature.
+    </span><span class="kw">fn </span>gen_print(<span class="kw-2">&amp;mut </span><span class="self">self</span>, u: <span class="kw-2">&amp;mut </span>Unstructured) -&gt; arbitrary::Result&lt;<span class="prelude-ty">Option</span>&lt;Expression&gt;&gt; {
+        <span class="kw">let </span>opts = <span class="self">self
+            </span>.locals
+            .current()
+            .variables()
+            .filter_map(|(id, (<span class="kw">_</span>, <span class="kw">_</span>, typ))| types::is_printable(typ).then_some((id, typ)))
+            .collect::&lt;Vec&lt;<span class="kw">_</span>&gt;&gt;();
+
+        <span class="kw">if </span>opts.is_empty() {
+            <span class="kw">return </span><span class="prelude-val">Ok</span>(<span class="prelude-val">None</span>);
+        }
+
+        <span class="comment">// Print one of the variables as-is.
+        </span><span class="kw">let </span>(id, typ) = u.choose_iter(opts)<span class="question-mark">?</span>;
+
+        <span class="comment">// The print oracle takes 2 parameters: the newline marker and the value,
+        // but it takes 2 more arguments: the type descriptor and the format string marker,
+        // which are inserted automatically by the monomorphizer.
+        </span><span class="kw">let </span>param_types = <span class="macro">vec!</span>[Type::Bool, typ.clone()];
+        <span class="kw">let </span>hir_type = types::to_hir_type(typ);
+        <span class="kw">let </span>ident = <span class="self">self</span>.local_ident(<span class="kw-2">*</span>id);
+        <span class="kw">let </span><span class="kw-2">mut </span>args = <span class="macro">vec!</span>[
+            expr::lit_bool(<span class="bool-val">true</span>), <span class="comment">// include newline,
+            </span>Expression::Ident(ident),
+        ];
+        append_printable_type_info_for_type(hir_type, <span class="kw-2">&amp;mut </span>args);
+
+        <span class="kw">let </span>print_oracle_ident = Ident {
+            location: <span class="prelude-val">None</span>,
+            definition: Definition::Oracle(<span class="string">"print"</span>.to_string()),
+            mutable: <span class="bool-val">false</span>,
+            name: <span class="string">"print_oracle"</span>.to_string(),
+            typ: Type::Function(param_types, Box::new(Type::Unit), Box::new(Type::Unit), <span class="bool-val">true</span>),
+            id: <span class="self">self</span>.next_ident_id(),
+        };
+
+        <span class="kw">let </span>call = Expression::Call(Call {
+            func: Box::new(Expression::Ident(print_oracle_ident)),
+            arguments: args,
+            return_type: Type::Unit,
+            location: Location::dummy(),
+        });
+
+        <span class="prelude-val">Ok</span>(<span class="prelude-val">Some</span>(call))
     }
 
     <span class="doccomment">/// Generate an if-then-else statement or expression.
@@ -2306,7 +2410,7 @@
         </span><span class="self">self</span>.has_call = <span class="bool-val">true</span>;
 
         <span class="kw">let </span>callee_id = <span class="kw-2">*</span>u.choose_iter(opts)<span class="question-mark">?</span>;
-        <span class="kw">let </span>callee_ident = <span class="self">self</span>.function_ident(callee_id);
+        <span class="kw">let </span>callee_ident = Expression::Ident(<span class="self">self</span>.callable_ident(callee_id));
         <span class="kw">let </span>(param_types, return_type) = <span class="self">self</span>.callable_signature(callee_id);
 
         <span class="comment">// Generate an expression for each argument.
@@ -2333,8 +2437,8 @@
         u: <span class="kw-2">&amp;mut </span>Unstructured,
         callee_id: FuncId,
     ) -&gt; arbitrary::Result&lt;Expression&gt; {
-        <span class="kw">let </span>callee = <span class="self">self</span>.ctx.function_decl(callee_id).clone();
-        <span class="kw">let </span>param_types = callee.params.iter().map(|p| p.<span class="number">3</span>.clone()).collect::&lt;Vec&lt;<span class="kw">_</span>&gt;&gt;();
+        <span class="kw">let </span>callee_ident = <span class="self">self</span>.func_ident(callee_id);
+        <span class="kw">let </span>(param_types, return_type) = <span class="self">self</span>.callable_signature(CallableId::Global(callee_id));
 
         <span class="kw">let </span><span class="kw-2">mut </span>args = Vec::new();
         <span class="kw">for </span>typ <span class="kw">in </span><span class="kw-2">&amp;</span>param_types {
@@ -2342,21 +2446,9 @@
         }
 
         <span class="kw">let </span>call_expr = Expression::Call(Call {
-            func: Box::new(Expression::Ident(Ident {
-                location: <span class="prelude-val">None</span>,
-                definition: Definition::Function(callee_id),
-                mutable: <span class="bool-val">false</span>,
-                name: callee.name.clone(),
-                typ: Type::Function(
-                    param_types,
-                    Box::new(callee.return_type.clone()),
-                    Box::new(Type::Unit),
-                    callee.unconstrained,
-                ),
-                id: <span class="self">self</span>.next_ident_id(),
-            })),
+            func: Box::new(Expression::Ident(callee_ident)),
             arguments: args,
-            return_type: callee.return_type,
+            return_type,
             location: Location::dummy(),
         });
 
@@ -2368,13 +2460,7 @@
         <span class="comment">// Declare break index variable visible in the loop body. Do not include it
         // in the locals the generator would be able to manipulate, as it could
         // lead to the loop becoming infinite.
-        </span><span class="kw">let </span>idx_type = types::U32;
-        <span class="kw">let </span>idx_local_id = <span class="self">self</span>.next_local_id();
-        <span class="kw">let </span>idx_id = <span class="self">self</span>.next_ident_id();
-        <span class="kw">let </span>idx_name = <span class="macro">format!</span>(<span class="string">"idx_{}"</span>, make_name(idx_local_id.<span class="number">0 </span><span class="kw">as </span>usize, <span class="bool-val">false</span>));
-        <span class="kw">let </span>idx_variable_id = VariableId::Local(idx_local_id);
-        <span class="kw">let </span>idx_ident =
-            expr::ident_inner(idx_variable_id, idx_id, <span class="bool-val">true</span>, idx_name.clone(), idx_type);
+        </span><span class="kw">let </span>(idx_local_id, idx_name, idx_ident) = <span class="self">self</span>.next_loop_index();
         <span class="kw">let </span>idx_expr = Expression::Ident(idx_ident.clone());
 
         <span class="comment">// Decrease budget so we don't nest endlessly.
@@ -2414,13 +2500,7 @@
         <span class="comment">// Declare break index variable visible in the loop body. Do not include it
         // in the locals the generator would be able to manipulate, as it could
         // lead to the loop becoming infinite.
-        </span><span class="kw">let </span>idx_type = types::U32;
-        <span class="kw">let </span>idx_local_id = <span class="self">self</span>.next_local_id();
-        <span class="kw">let </span>idx_id = <span class="self">self</span>.next_ident_id();
-        <span class="kw">let </span>idx_name = <span class="macro">format!</span>(<span class="string">"idx_{}"</span>, make_name(idx_local_id.<span class="number">0 </span><span class="kw">as </span>usize, <span class="bool-val">false</span>));
-        <span class="kw">let </span>idx_variable_id = VariableId::Local(idx_local_id);
-        <span class="kw">let </span>idx_ident =
-            expr::ident_inner(idx_variable_id, idx_id, <span class="bool-val">true</span>, idx_name.clone(), idx_type);
+        </span><span class="kw">let </span>(idx_local_id, idx_name, idx_ident) = <span class="self">self</span>.next_loop_index();
         <span class="kw">let </span>idx_expr = Expression::Ident(idx_ident.clone());
 
         <span class="comment">// Decrease budget so we don't nest endlessly.
@@ -2533,42 +2613,62 @@
         }
 
         <span class="kw">let </span>callee_id = u.choose_iter(candidates)<span class="question-mark">?</span>;
+        <span class="kw">let </span>callee_ident = <span class="self">self</span>.func_ident(callee_id);
 
-        <span class="prelude-val">Ok</span>(<span class="self">self</span>.function_ident(CallableId::Global(callee_id)))
+        <span class="prelude-val">Ok</span>(Expression::Ident(callee_ident))
     }
 
-    <span class="doccomment">/// Generate an identifier for calling a global function.
-    </span><span class="kw">fn </span>function_ident(<span class="kw-2">&amp;mut </span><span class="self">self</span>, callee_id: CallableId) -&gt; Expression {
+    <span class="doccomment">/// Identifier for passing a reference a global function or local function pointer.
+    </span><span class="kw">fn </span>callable_ident(<span class="kw-2">&amp;mut </span><span class="self">self</span>, callee_id: CallableId) -&gt; Ident {
         <span class="kw">match </span>callee_id {
-            CallableId::Global(id) =&gt; {
-                <span class="kw">let </span>callee = <span class="self">self</span>.ctx.function_decl(id).clone();
-                <span class="kw">let </span>param_types = callee.params.iter().map(|p| p.<span class="number">3</span>.clone()).collect::&lt;Vec&lt;<span class="kw">_</span>&gt;&gt;();
-                Expression::Ident(Ident {
-                    location: <span class="prelude-val">None</span>,
-                    definition: Definition::Function(id),
-                    mutable: <span class="bool-val">false</span>,
-                    name: callee.name.clone(),
-                    typ: Type::Function(
-                        param_types,
-                        Box::new(callee.return_type.clone()),
-                        Box::new(Type::Unit),
-                        callee.unconstrained,
-                    ),
-                    id: <span class="self">self</span>.next_ident_id(),
-                })
-            }
-            CallableId::Local(id) =&gt; {
-                <span class="kw">let </span>(mutable, name, typ) = <span class="self">self</span>.locals.current().get_variable(<span class="kw-2">&amp;</span>id);
-                Expression::Ident(Ident {
-                    location: <span class="prelude-val">None</span>,
-                    definition: Definition::Local(id),
-                    mutable: <span class="kw-2">*</span>mutable,
-                    name: name.clone(),
-                    typ: typ.clone(),
-                    id: <span class="self">self</span>.next_ident_id(),
-                })
-            }
+            CallableId::Global(id) =&gt; <span class="self">self</span>.func_ident(id),
+            CallableId::Local(id) =&gt; <span class="self">self</span>.local_ident(id),
         }
+    }
+
+    <span class="doccomment">/// Identifier for a global function.
+    </span><span class="kw">fn </span>func_ident(<span class="kw-2">&amp;mut </span><span class="self">self</span>, callee_id: FuncId) -&gt; Ident {
+        <span class="kw">let </span>callee = <span class="self">self</span>.ctx.function_decl(callee_id).clone();
+        <span class="kw">let </span>param_types = callee.params.iter().map(|p| p.<span class="number">3</span>.clone()).collect::&lt;Vec&lt;<span class="kw">_</span>&gt;&gt;();
+
+        Ident {
+            location: <span class="prelude-val">None</span>,
+            definition: Definition::Function(callee_id),
+            mutable: <span class="bool-val">false</span>,
+            name: callee.name.clone(),
+            typ: Type::Function(
+                param_types,
+                Box::new(callee.return_type.clone()),
+                Box::new(Type::Unit),
+                callee.unconstrained,
+            ),
+            id: <span class="self">self</span>.next_ident_id(),
+        }
+    }
+
+    <span class="doccomment">/// Identifier for a local variable.
+    </span><span class="kw">fn </span>local_ident(<span class="kw-2">&amp;mut </span><span class="self">self</span>, id: LocalId) -&gt; Ident {
+        <span class="kw">let </span>(mutable, name, typ) = <span class="self">self</span>.locals.current().get_variable(<span class="kw-2">&amp;</span>id).clone();
+        <span class="kw">let </span>ident_id = <span class="self">self</span>.next_ident_id();
+        expr::ident_inner(VariableId::Local(id), ident_id, mutable, name, typ.clone())
+    }
+
+    <span class="doccomment">/// Type of a local variable.
+    </span><span class="kw">fn </span>local_type(<span class="kw-2">&amp;</span><span class="self">self</span>, id: LocalId) -&gt; <span class="kw-2">&amp;</span>Type {
+        <span class="kw">let </span>(<span class="kw">_</span>, <span class="kw">_</span>, typ) = <span class="self">self</span>.locals.current().get_variable(<span class="kw-2">&amp;</span>id);
+        typ
+    }
+
+    <span class="doccomment">/// Create a loop index variable.
+    </span><span class="kw">fn </span>next_loop_index(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; (LocalId, String, Ident) {
+        <span class="kw">let </span>idx_type = types::U32;
+        <span class="kw">let </span>idx_local_id = <span class="self">self</span>.next_local_id();
+        <span class="kw">let </span>idx_id = <span class="self">self</span>.next_ident_id();
+        <span class="kw">let </span>idx_name = <span class="macro">format!</span>(<span class="string">"idx_{}"</span>, make_name(idx_local_id.<span class="number">0 </span><span class="kw">as </span>usize, <span class="bool-val">false</span>));
+        <span class="kw">let </span>idx_variable_id = VariableId::Local(idx_local_id);
+        <span class="kw">let </span>idx_ident =
+            expr::ident_inner(idx_variable_id, idx_id, <span class="bool-val">true</span>, idx_name.clone(), idx_type);
+        (idx_local_id, idx_name, idx_ident)
     }
 
     <span class="doccomment">/// Get the parameter types and return type of a callable function.
