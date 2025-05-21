@@ -349,7 +349,8 @@
 <a href="#348" id="348">348</a>
 <a href="#349" id="349">349</a>
 <a href="#350" id="350">350</a>
-<a href="#351" id="351">351</a></pre></div><pre class="rust"><code><span class="kw">use </span>acvm::{FieldElement, acir::AcirField};
+<a href="#351" id="351">351</a>
+<a href="#352" id="352">352</a></pre></div><pre class="rust"><code><span class="kw">use </span>acvm::{FieldElement, acir::AcirField};
 <span class="kw">use </span>num_traits::ToPrimitive <span class="kw">as _</span>;
 <span class="kw">use </span>serde::{Deserialize, Serialize};
 
@@ -587,7 +588,8 @@
             BinaryOp::Mul { .. } =&gt; <span class="prelude-val">Some</span>(std::ops::Mul::mul),
             BinaryOp::Div =&gt; <span class="prelude-val">Some</span>(std::ops::Div::div),
             BinaryOp::Eq =&gt; <span class="prelude-val">Some</span>(|x, y| (x == y).into()),
-            BinaryOp::Lt =&gt; <span class="prelude-val">Some</span>(|x, y| (x &lt; y).into()),
+            <span class="comment">// "less then" comparison is not supported for Fields
+            </span>BinaryOp::Lt =&gt; <span class="prelude-val">None</span>,
             <span class="comment">// Bitwise operators are unsupported for Fields
             </span>BinaryOp::Mod =&gt; <span class="prelude-val">None</span>,
             BinaryOp::And =&gt; <span class="prelude-val">None</span>,

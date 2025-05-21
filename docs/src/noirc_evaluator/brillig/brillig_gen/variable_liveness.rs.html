@@ -999,7 +999,7 @@
     <span class="kw">use </span><span class="kw">crate</span>::ssa::ir::function::RuntimeType;
     <span class="kw">use </span><span class="kw">crate</span>::ssa::ir::instruction::BinaryOp;
     <span class="kw">use </span><span class="kw">crate</span>::ssa::ir::map::Id;
-    <span class="kw">use </span><span class="kw">crate</span>::ssa::ir::types::Type;
+    <span class="kw">use </span><span class="kw">crate</span>::ssa::ir::types::{NumericType, Type};
 
     <span class="attr">#[test]
     </span><span class="kw">fn </span>simple_back_propagation() {
@@ -1099,11 +1099,11 @@
     <span class="attr">#[test]
     </span><span class="kw">fn </span>propagation_with_nested_loops() {
         <span class="comment">// brillig fn main f0 {
-        //     b0(v0: Field, v1: Field):
+        //     b0(v0: u32, v1: u32):
         //       v3 = allocate
-        //       store Field 0 at v3
-        //       jmp b1(Field 0)
-        //     b1(v4: Field):
+        //       store u32 0 at v3
+        //       jmp b1(u32 0)
+        //     b1(v4: u32):
         //       v5 = lt v4, v0
         //       jmpif v5 then: b2, else: b3
         //     b3():
@@ -1112,14 +1112,14 @@
         //     b2():
         //       v6 = mul v4, v4
         //       jmp b4(v0)
-        //     b4(v7: Field):
+        //     b4(v7: u32):
         //       v8 = lt v7, v1
         //       jmpif v8 then: b5, else: b6
         //     b6():
-        //       v16 = add v4, Field 1
+        //       v16 = add v4, u32 1
         //       jmp b1(v16)
         //     b5():
-        //       v10 = eq v7, Field 27
+        //       v10 = eq v7, u32 27
         //       v11 = not v10
         //       jmpif v11 then: b7, else: b8
         //     b7():
@@ -1128,7 +1128,7 @@
         //       store v13 at v3
         //       jmp b8()
         //     b8():
-        //       v15 = add v7, Field 1
+        //       v15 = add v7, u32 1
         //       jmp b4(v15)
         //   }
 
@@ -1145,18 +1145,18 @@
         <span class="kw">let </span>b7 = builder.insert_block();
         <span class="kw">let </span>b8 = builder.insert_block();
 
-        <span class="kw">let </span>v0 = builder.add_parameter(Type::field());
-        <span class="kw">let </span>v1 = builder.add_parameter(Type::field());
+        <span class="kw">let </span>v0 = builder.add_parameter(Type::unsigned(<span class="number">32</span>));
+        <span class="kw">let </span>v1 = builder.add_parameter(Type::unsigned(<span class="number">32</span>));
 
-        <span class="kw">let </span>v3 = builder.insert_allocate(Type::field());
+        <span class="kw">let </span>v3 = builder.insert_allocate(Type::unsigned(<span class="number">32</span>));
 
-        <span class="kw">let </span>zero = builder.field_constant(<span class="number">0u128</span>);
+        <span class="kw">let </span>zero = builder.numeric_constant(<span class="number">0u128</span>, NumericType::Unsigned { bit_size: <span class="number">32 </span>});
         builder.insert_store(v3, zero);
 
         builder.terminate_with_jmp(b1, <span class="macro">vec!</span>[zero]);
 
         builder.switch_to_block(b1);
-        <span class="kw">let </span>v4 = builder.add_block_parameter(b1, Type::field());
+        <span class="kw">let </span>v4 = builder.add_block_parameter(b1, Type::unsigned(<span class="number">32</span>));
 
         <span class="kw">let </span>v5 = builder.insert_binary(v4, BinaryOp::Lt, v0);
 
@@ -1170,7 +1170,7 @@
 
         builder.switch_to_block(b4);
 
-        <span class="kw">let </span>v7 = builder.add_block_parameter(b4, Type::field());
+        <span class="kw">let </span>v7 = builder.add_block_parameter(b4, Type::unsigned(<span class="number">32</span>));
 
         <span class="kw">let </span>v8 = builder.insert_binary(v7, BinaryOp::Lt, v1);
 
@@ -1178,7 +1178,7 @@
 
         builder.switch_to_block(b5);
 
-        <span class="kw">let </span>twenty_seven = builder.field_constant(<span class="number">27u128</span>);
+        <span class="kw">let </span>twenty_seven = builder.numeric_constant(<span class="number">27u128</span>, NumericType::Unsigned { bit_size: <span class="number">32 </span>});
         <span class="kw">let </span>v10 = builder.insert_binary(v7, BinaryOp::Eq, twenty_seven);
 
         <span class="kw">let </span>v11 = builder.insert_not(v10);
@@ -1187,7 +1187,7 @@
 
         builder.switch_to_block(b7);
 
-        <span class="kw">let </span>v12 = builder.insert_load(v3, Type::field());
+        <span class="kw">let </span>v12 = builder.insert_load(v3, Type::unsigned(<span class="number">32</span>));
 
         <span class="kw">let </span>v13 = builder.insert_binary(v12, BinaryOp::Add { unchecked: <span class="bool-val">false </span>}, v6);
 
@@ -1197,7 +1197,7 @@
 
         builder.switch_to_block(b8);
 
-        <span class="kw">let </span>one = builder.field_constant(<span class="number">1u128</span>);
+        <span class="kw">let </span>one = builder.numeric_constant(<span class="number">1u128</span>, NumericType::Unsigned { bit_size: <span class="number">32 </span>});
         <span class="kw">let </span>v15 = builder.insert_binary(v7, BinaryOp::Add { unchecked: <span class="bool-val">false </span>}, one);
 
         builder.terminate_with_jmp(b4, <span class="macro">vec!</span>[v15]);
@@ -1210,7 +1210,7 @@
 
         builder.switch_to_block(b3);
 
-        <span class="kw">let </span>v17 = builder.insert_load(v3, Type::field());
+        <span class="kw">let </span>v17 = builder.insert_load(v3, Type::unsigned(<span class="number">32</span>));
 
         builder.terminate_with_return(<span class="macro">vec!</span>[v17]);
 
