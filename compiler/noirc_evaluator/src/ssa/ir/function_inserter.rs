@@ -113,7 +113,7 @@ impl<'f> FunctionInserter<'f> {
             .then(|| vecmap(&results, |result| self.function.dfg.type_of_value(*result)));
 
         let new_results = self.function.dfg.insert_instruction_and_results(
-            instruction.clone(),
+            instruction,
             block,
             ctrl_typevars,
             call_stack,
