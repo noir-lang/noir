@@ -10,10 +10,13 @@ use arbitrary::{Arbitrary, Unstructured};
 use noirc_frontend::{
     ast::{IntegerBitSize, UnaryOp},
     hir_def::{self, expr::HirIdent, stmt::HirPattern},
-    monomorphization::ast::{
-        ArrayLiteral, Assign, BinaryOp, Call, Definition, Expression, For, FuncId, GlobalId, Ident,
-        IdentId, Index, InlineType, LValue, Let, Literal, LocalId, Parameters, Program, Type,
-        While,
+    monomorphization::{
+        append_printable_type_info_for_type,
+        ast::{
+            ArrayLiteral, Assign, BinaryOp, Call, Definition, Expression, For, FuncId, GlobalId,
+            Ident, IdentId, Index, InlineType, LValue, Let, Literal, LocalId, Parameters, Program,
+            Type, While,
+        },
     },
     node_interner::DefinitionId,
     shared::{Signedness, Visibility},
@@ -739,6 +742,12 @@ impl<'a> FunctionContext<'a> {
             }
         }
 
+        if freq.enabled("print") {
+            if let Some(e) = self.gen_print(u)? {
+                return Ok(e);
+            }
+        }
+
         self.gen_let(u)
     }
 
@@ -836,6 +845,52 @@ impl<'a> FunctionContext<'a> {
         let expr = self.gen_expr(u, &typ, self.max_depth(), Flags::TOP)?;
 
         Ok(Some(Expression::Assign(Assign { lvalue, expression: Box::new(expr) })))
+    }
+
+    /// Generate a `println` statement, if there is some printable local variable.
+    fn gen_print(&mut self, u: &mut Unstructured) -> arbitrary::Result<Option<Expression>> {
+        let opts = self
+            .locals
+            .current()
+            .variables()
+            .filter_map(|(id, (_, _, typ))| types::is_printable(typ).then_some((id, typ)))
+            .collect::<Vec<_>>();
+
+        if opts.is_empty() {
+            return Ok(None);
+        }
+
+        // Print one of the variables as-is.
+        let (id, typ) = u.choose_iter(opts)?;
+
+        // The print oracle takes 2 parameters: the newline marker and the value,
+        // but it takes 2 more arguments: the type descriptor and the format string marker.
+        let param_types = vec![Type::Bool, typ.clone()];
+        let hir_type = types::to_hir_type(typ);
+        let ident = self.local_ident(*id);
+        let mut args = vec![
+            expr::lit_bool(true), // include newline,
+            Expression::Ident(ident),
+        ];
+        append_printable_type_info_for_type(hir_type, &mut args);
+
+        let print_oracle_ident = Ident {
+            location: None,
+            definition: Definition::Oracle("print_oracle".to_string()),
+            mutable: false,
+            name: "print_oracle".to_string(),
+            typ: Type::Function(param_types, Box::new(Type::Unit), Box::new(Type::Unit), true),
+            id: self.next_ident_id(),
+        };
+
+        let call = Expression::Call(Call {
+            func: Box::new(Expression::Ident(print_oracle_ident)),
+            arguments: args,
+            return_type: Type::Unit,
+            location: Location::dummy(),
+        });
+
+        Ok(Some(call))
     }
 
     /// Generate an if-then-else statement or expression.
