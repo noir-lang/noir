@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1747858527421,
+  "lastUpdate": 1747858653677,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -19843,85 +19843,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "michaeljklein@users.noreply.github.com",
-            "name": "Michael J Klein",
-            "username": "michaeljklein"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "80c08aec1ed3fb4c1d2edef2255c671eb69ac2e0",
-          "message": "chore: add SSA interpreter test for higher order functions (#8486)\n\nCo-authored-by: AztecBot <tech@aztecprotocol.com>",
-          "timestamp": "2025-05-14T10:44:01Z",
-          "tree_id": "277112cee309a140cd1e89e154835428e7c59f15",
-          "url": "https://github.com/noir-lang/noir/commit/80c08aec1ed3fb4c1d2edef2255c671eb69ac2e0"
-        },
-        "date": 1747220938878,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 1125.8,
-            "unit": "KB"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 2049.7,
-            "unit": "KB"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 581.7,
-            "unit": "KB"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 5121.9,
-            "unit": "KB"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 3940.5,
-            "unit": "KB"
-          },
-          {
-            "name": "rollup-block-root-empty",
-            "value": 256.9,
-            "unit": "KB"
-          },
-          {
-            "name": "rollup-block-root-single-tx",
-            "value": 25679.1,
-            "unit": "KB"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 25706.3,
-            "unit": "KB"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 181.8,
-            "unit": "KB"
-          },
-          {
-            "name": "rollup-root",
-            "value": 472.1,
-            "unit": "KB"
-          },
-          {
-            "name": "semaphore-depth-10",
-            "value": 636.5,
-            "unit": "KB"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "aakoshh@gmail.com",
             "name": "Akosh Farkash",
             "username": "aakoshh"
@@ -23581,6 +23502,35 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/noir-lang/noir/commit/4d7c8f7f13b47c8d9de094135289640a20b78dae"
         },
         "date": 1747856133132,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "semaphore-depth-10",
+            "value": 636.3,
+            "unit": "KB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "mvezenov@gmail.com",
+            "name": "Maxim Vezenov",
+            "username": "vezenovm"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "0031c313ed9358d3589a98ae812330fa114286ab",
+          "message": "chore(ci): Update expected failures for noir_rsa  (#8608)",
+          "timestamp": "2025-05-21T19:56:00Z",
+          "tree_id": "b42ccf9ed162a9debee64640b157056cca6b0c9d",
+          "url": "https://github.com/noir-lang/noir/commit/0031c313ed9358d3589a98ae812330fa114286ab"
+        },
+        "date": 1747858643420,
         "tool": "customSmallerIsBetter",
         "benches": [
           {
