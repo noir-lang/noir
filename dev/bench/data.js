@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1747918793289,
+  "lastUpdate": 1747920827748,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -16821,48 +16821,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "15848336+TomAFrench@users.noreply.github.com",
-            "name": "Tom French",
-            "username": "TomAFrench"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "f4078e1e175b6003ed25215fb870639ee9900cb7",
-          "message": "fix: remove private builtins from `Field` impl (#8496)\n\nCo-authored-by: AztecBot <tech@aztecprotocol.com>",
-          "timestamp": "2025-05-14T13:14:16Z",
-          "tree_id": "b80fae0b42de17fc222513ceae20f8d534d0e002",
-          "url": "https://github.com/noir-lang/noir/commit/f4078e1e175b6003ed25215fb870639ee9900cb7"
-        },
-        "date": 1747229962914,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 267707,
-            "range": "± 2096",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 239218,
-            "range": "± 4787",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 3589293,
-            "range": "± 3094",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "mvezenov@gmail.com",
             "name": "Maxim Vezenov",
             "username": "vezenovm"
@@ -18914,6 +18872,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 3209533,
             "range": "± 12426",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "asterite@gmail.com",
+            "name": "Ary Borenszweig",
+            "username": "asterite"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "d992ad59d4c787aa12b0176e6f9d12202e4d9f71",
+          "message": "fix: error on unused generic in trait impl (#8395)",
+          "timestamp": "2025-05-22T13:11:49Z",
+          "tree_id": "2d531c541093b364423eeeafad5b3989726b5036",
+          "url": "https://github.com/noir-lang/noir/commit/d992ad59d4c787aa12b0176e6f9d12202e4d9f71"
+        },
+        "date": 1747920817369,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 283140,
+            "range": "± 6195",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 252968,
+            "range": "± 3798",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 3235120,
+            "range": "± 10874",
             "unit": "ns/iter"
           }
         ]
