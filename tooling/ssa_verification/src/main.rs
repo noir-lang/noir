@@ -22,9 +22,6 @@ use std::path::Path;
 
 Each test case generates formatted SSA representation and serialized ACIR output.
 
-FLAGS:
-    -d, --dir <PATH>    Output directory for test artifacts [default: /tmp/]"
-)]
 struct Args {
     /// Output directory path for the generated test artifacts
     /// Defaults to the barretenberg acir formal proofs artifacts directory
