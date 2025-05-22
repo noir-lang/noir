@@ -104,7 +104,7 @@ const INLINER_OVERRIDES: [(&str, i64); 4] = [
 
 /// Some tests are expected to have warnings
 /// These should be fixed and removed from this list.
-const TESTS_WITH_EXPECTED_WARNINGS: [&str; 4] = [
+const TESTS_WITH_EXPECTED_WARNINGS: [&str; 5] = [
     // TODO(https://github.com/noir-lang/noir/issues/6238): remove from list once issue is closed
     "brillig_cast",
     // TODO(https://github.com/noir-lang/noir/issues/6238): remove from list once issue is closed
@@ -112,6 +112,8 @@ const TESTS_WITH_EXPECTED_WARNINGS: [&str; 4] = [
     // We issue a "experimental feature" warning for all enums until they're stabilized
     "enums",
     "comptime_enums",
+    // Testing unreachable instructions
+    "brillig_continue_break",
 ];
 
 /// These tests are ignored because making them work involves a more complex test code that
@@ -144,7 +146,9 @@ const TESTS_WITHOUT_STDOUT_CHECK: [&str; 0] = [];
 /// These tests are ignored because of existing bugs in `nargo expand`.
 /// As the bugs are fixed these tests should be removed from this list.
 /// (some are ignored on purpose for the same reason as `IGNORED_NARGO_EXPAND_EXECUTION_TESTS`)
-const IGNORED_NARGO_EXPAND_COMPILE_SUCCESS_EMPTY_TESTS: [&str; 16] = [
+const IGNORED_NARGO_EXPAND_COMPILE_SUCCESS_EMPTY_TESTS: [&str; 17] = [
+    // bug
+    "associated_type_bounds",
     // bug
     "enums",
     // There's no "src/main.nr" here so it's trickier to make this work
