@@ -21,7 +21,7 @@ env_logger.workspace = true
 path = "../"
 
 [[bin]]
-name = "base_target"
+name = "fuzz_target"
 path = "src/fuzz_target.rs"
 test = false
 doc = false
