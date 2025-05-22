@@ -1301,19 +1301,7 @@
 <a href="#1300" id="1300">1300</a>
 <a href="#1301" id="1301">1301</a>
 <a href="#1302" id="1302">1302</a>
-<a href="#1303" id="1303">1303</a>
-<a href="#1304" id="1304">1304</a>
-<a href="#1305" id="1305">1305</a>
-<a href="#1306" id="1306">1306</a>
-<a href="#1307" id="1307">1307</a>
-<a href="#1308" id="1308">1308</a>
-<a href="#1309" id="1309">1309</a>
-<a href="#1310" id="1310">1310</a>
-<a href="#1311" id="1311">1311</a>
-<a href="#1312" id="1312">1312</a>
-<a href="#1313" id="1313">1313</a>
-<a href="#1314" id="1314">1314</a>
-<a href="#1315" id="1315">1315</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::cmp::Ordering;
+<a href="#1303" id="1303">1303</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::cmp::Ordering;
 
 <span class="kw">use super</span>::{
     Ssa,
@@ -2384,12 +2372,6 @@
                     }));
                 };
 
-                <span class="kw">let </span>overflow = || {
-                    <span class="kw">let </span>instruction =
-                        <span class="macro">format!</span>(<span class="string">"`{}` ({lhs} &lt;&lt; {rhs})"</span>, display_binary(binary, <span class="self">self</span>.dfg()));
-                    InterpreterError::Overflow { instruction }
-                };
-
                 <span class="kw">let </span>rhs = rhs <span class="kw">as </span>u32;
                 <span class="kw">use </span>NumericValue::<span class="kw-2">*</span>;
                 <span class="kw">match </span>lhs {
@@ -2399,22 +2381,16 @@
                             typ: <span class="string">"Field"</span>,
                         }));
                     }
-                    U1(value) =&gt; {
-                        <span class="kw">if </span>rhs == <span class="number">0 </span>{
-                            U1(value)
-                        } <span class="kw">else </span>{
-                            <span class="kw">return </span><span class="prelude-val">Err</span>(overflow());
-                        }
-                    }
-                    U8(value) =&gt; U8(value.checked_shl(rhs).ok_or_else(overflow)<span class="question-mark">?</span>),
-                    U16(value) =&gt; U16(value.checked_shl(rhs).ok_or_else(overflow)<span class="question-mark">?</span>),
-                    U32(value) =&gt; U32(value.checked_shl(rhs).ok_or_else(overflow)<span class="question-mark">?</span>),
-                    U64(value) =&gt; U64(value.checked_shl(rhs).ok_or_else(overflow)<span class="question-mark">?</span>),
-                    U128(value) =&gt; U128(value.checked_shl(rhs).ok_or_else(overflow)<span class="question-mark">?</span>),
-                    I8(value) =&gt; I8(value.checked_shl(rhs).ok_or_else(overflow)<span class="question-mark">?</span>),
-                    I16(value) =&gt; I16(value.checked_shl(rhs).ok_or_else(overflow)<span class="question-mark">?</span>),
-                    I32(value) =&gt; I32(value.checked_shl(rhs).ok_or_else(overflow)<span class="question-mark">?</span>),
-                    I64(value) =&gt; I64(value.checked_shl(rhs).ok_or_else(overflow)<span class="question-mark">?</span>),
+                    U1(value) =&gt; U1(<span class="kw">if </span>rhs == <span class="number">0 </span>{ value } <span class="kw">else </span>{ <span class="bool-val">false </span>}),
+                    U8(value) =&gt; U8(value.checked_shl(rhs).unwrap_or(<span class="number">0</span>)),
+                    U16(value) =&gt; U16(value.checked_shl(rhs).unwrap_or(<span class="number">0</span>)),
+                    U32(value) =&gt; U32(value.checked_shl(rhs).unwrap_or(<span class="number">0</span>)),
+                    U64(value) =&gt; U64(value.checked_shl(rhs).unwrap_or(<span class="number">0</span>)),
+                    U128(value) =&gt; U128(value.checked_shl(rhs).unwrap_or(<span class="number">0</span>)),
+                    I8(value) =&gt; I8(value.checked_shl(rhs).unwrap_or(<span class="number">0</span>)),
+                    I16(value) =&gt; I16(value.checked_shl(rhs).unwrap_or(<span class="number">0</span>)),
+                    I32(value) =&gt; I32(value.checked_shl(rhs).unwrap_or(<span class="number">0</span>)),
+                    I64(value) =&gt; I64(value.checked_shl(rhs).unwrap_or(<span class="number">0</span>)),
                 }
             }
             BinaryOp::Shr =&gt; {

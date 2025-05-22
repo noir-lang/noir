@@ -428,7 +428,7 @@
             </span>(lhs_value <span class="kw">as </span>lhs <span class="string">"&gt;&gt;" </span>rhs_value <span class="kw">as </span>rhs) =&gt; lhs.checked_shr(rhs.into()).or(<span class="prelude-val">Some</span>(<span class="number">0</span>))
         },
         BinaryOpKind::ShiftLeft =&gt; <span class="macro">match_bitshift!</span> {
-            (lhs_value <span class="kw">as </span>lhs <span class="string">"&lt;&lt;" </span>rhs_value <span class="kw">as </span>rhs) =&gt; lhs.checked_shl(rhs.into())
+            (lhs_value <span class="kw">as </span>lhs <span class="string">"&lt;&lt;" </span>rhs_value <span class="kw">as </span>rhs) =&gt; lhs.checked_shl(rhs.into()).or(<span class="prelude-val">Some</span>(<span class="number">0</span>))
         },
         BinaryOpKind::Modulo =&gt; <span class="macro">match_integer!</span> {
             (lhs_value <span class="kw">as </span>lhs <span class="string">"%" </span>rhs_value <span class="kw">as </span>rhs) =&gt; lhs.checked_rem(rhs)
