@@ -573,12 +573,10 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
     }
 
     pub(super) fn evaluate_ident(&mut self, ident: HirIdent, id: ExprId) -> IResult<Value> {
-        let location = self.elaborator.interner.expr_location(&id);
-        let definition = self
-            .elaborator
-            .interner
-            .try_definition(ident.id)
-            .ok_or_else(|| InterpreterError::VariableNotInScope { location })?;
+        let definition = self.elaborator.interner.try_definition(ident.id).ok_or_else(|| {
+            let location = self.elaborator.interner.expr_location(&id);
+            InterpreterError::VariableNotInScope { location }
+        })?;
 
         if let ImplKind::TraitMethod(method) = ident.impl_kind {
             let method_id = resolve_trait_method(self.elaborator.interner, method.method_id, id)?;
@@ -667,6 +665,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
                 let Kind::Numeric(numeric_type) = associated_type.typ.kind() else {
                     unreachable!("Expected associated type to be numeric");
                 };
+                let location = self.elaborator.interner.expr_location(&id);
                 match associated_type
                     .typ
                     .evaluate_to_field_element(&associated_type.typ.kind(), location)
