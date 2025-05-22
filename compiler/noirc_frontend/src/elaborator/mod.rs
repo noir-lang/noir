@@ -1308,6 +1308,13 @@ impl<'context> Elaborator<'context> {
         trait_bound: &ResolvedTraitBound,
         starting_trait_id: TraitId,
     ) {
+        // If there's a constraint on self, like `Self: Trait`, and we are inside a trait impl,
+        // there's no need to add it as an assumed impl because that impl shouldn't be assumed
+        // (it's either defined or not)
+        if self.current_trait_impl.is_some() && Some(object) == self.self_type.as_ref() {
+            return;
+        }
+
         let trait_id = trait_bound.trait_id;
         let generics = trait_bound.trait_generics.clone();
 

@@ -1,0 +1,47 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: expanded_code
+---
+trait Foo {
+    fn to_be_implemented(self) -> Field;
+
+    fn method_that_already_exists(self, other: Self) -> Field
+    where
+        Self: Eq,
+    {
+        if Eq::eq(self, other) {
+            self.to_be_implemented()
+        } else {
+            0
+        }
+    }
+}
+
+pub struct Bar {
+    a: Field,
+}
+
+impl Eq for Bar {
+    fn eq(_self: Self, _other: Self) -> bool {
+        _self.a == _other.a
+    }
+}
+
+impl Foo for Bar {
+    fn to_be_implemented(self) -> Field {
+        self.a
+    }
+
+    fn method_that_already_exists(self, other: Self) -> Field
+    where
+        Self: Eq,
+    {
+        if self.eq(other) {
+            self.to_be_implemented()
+        } else {
+            0
+        }
+    }
+}
+
+fn main() {}
