@@ -9,7 +9,7 @@ use crate::{
     graph::CrateGraph,
     hir::def_collector::dc_crate::UnresolvedTrait,
     hir_def::traits::ResolvedTraitBound,
-    node_interner::{GlobalValue, QuotedTypeId},
+    node_interner::GlobalValue,
     shared::Signedness,
     token::SecondaryAttributeKind,
     usage_tracker::UsageTracker,
@@ -68,7 +68,7 @@ mod unquote;
 
 use im::HashSet;
 use iter_extended::vecmap;
-use noirc_errors::{Located, Location, Span};
+use noirc_errors::{Located, Location};
 pub(crate) use options::ElaboratorOptions;
 pub use options::{FrontendOptions, UnstableFeature};
 pub use path_resolution::Turbofish;
@@ -1550,7 +1550,7 @@ impl<'context> Elaborator<'context> {
         self.local_module = module;
 
         for (generics, location, unresolved) in impls {
-            self.check_generics_appear_in_types(generics, &[self_type]);
+            self.check_generics_appear_in_type(generics, self_type);
 
             let old_generic_count = self.generics.len();
             self.add_generics(generics);
@@ -1575,11 +1575,6 @@ impl<'context> Elaborator<'context> {
                 location: self_type_location,
             });
         }
-
-        self.check_generics_appear_in_types(
-            &trait_impl.generics,
-            &[&trait_impl.r#trait, &trait_impl.object_type],
-        );
 
         if let Some(trait_id) = trait_impl.trait_id {
             self.generics = trait_impl.resolved_generics.clone();
@@ -2339,11 +2334,11 @@ impl<'context> Elaborator<'context> {
             })
     }
 
-    /// Check that all the generics show up in any of `types` (if they don't, we produce an error)
-    fn check_generics_appear_in_types(
+    /// Check that all the generics show up in `self_type` (if they don't, we produce an error)
+    fn check_generics_appear_in_type(
         &mut self,
         generics: &[UnresolvedGeneric],
-        types: &[&UnresolvedType],
+        self_type: &UnresolvedType,
     ) {
         if generics.is_empty() {
             return;
@@ -2370,11 +2365,8 @@ impl<'context> Elaborator<'context> {
         }
 
         // Remove the ones that show up in `self_type`
-        let mut visitor =
-            RemoveGenericsAppearingInTypeVisitor { interner: self.interner, idents: &mut idents };
-        for typ in types {
-            typ.accept(&mut visitor);
-        }
+        let mut visitor = RemoveGenericsAppearingInTypeVisitor { idents: &mut idents };
+        self_type.accept(&mut visitor);
 
         // The ones that remain are not mentioned in the impl: it's an error.
         for ident in idents {
@@ -2401,83 +2393,14 @@ impl<'context> Elaborator<'context> {
     }
 }
 
-struct RemoveGenericsAppearingInTypeVisitor<'interner, 'ident> {
-    interner: &'interner NodeInterner,
-    idents: &'ident mut HashSet<Ident>,
+struct RemoveGenericsAppearingInTypeVisitor<'a> {
+    idents: &'a mut HashSet<Ident>,
 }
 
-impl RemoveGenericsAppearingInTypeVisitor<'_, '_> {
-    fn visit_type(&mut self, typ: &Type) {
-        match typ {
-            Type::Array(length, element) => {
-                self.visit_type(length);
-                self.visit_type(element);
-            }
-            Type::Slice(element) => {
-                self.visit_type(element);
-            }
-            Type::FmtString(length, element) => {
-                self.visit_type(length);
-                self.visit_type(element);
-            }
-            Type::Tuple(items) | Type::DataType(_, items) | Type::Alias(_, items) => {
-                for item in items {
-                    self.visit_type(item);
-                }
-            }
-            Type::TraitAsType(_, _, trait_generics) => {
-                for generic in &trait_generics.ordered {
-                    self.visit_type(generic);
-                }
-                for named_type in &trait_generics.named {
-                    self.visit_type(&named_type.typ);
-                }
-            }
-            Type::NamedGeneric(named_generic) => {
-                let ident = Ident::new(named_generic.name.to_string(), Location::dummy());
-                self.idents.remove(&ident);
-            }
-            Type::CheckedCast { from, to } => {
-                self.visit_type(from);
-                self.visit_type(to);
-            }
-            Type::Function(args, ret, env, _) => {
-                for arg in args {
-                    self.visit_type(arg);
-                }
-                self.visit_type(ret);
-                self.visit_type(env);
-            }
-            Type::Reference(typ, _) => {
-                self.visit_type(typ);
-            }
-            Type::InfixExpr(lhs, _, rhs, _) => {
-                self.visit_type(lhs);
-                self.visit_type(rhs);
-            }
-            Type::Unit
-            | Type::Bool
-            | Type::Integer(..)
-            | Type::FieldElement
-            | Type::String(_)
-            | Type::Constant(..)
-            | Type::Quoted(_)
-            | Type::Forall(..)
-            | Type::TypeVariable(_)
-            | Type::Error => (),
-        }
-    }
-}
-
-impl Visitor for RemoveGenericsAppearingInTypeVisitor<'_, '_> {
+impl Visitor for RemoveGenericsAppearingInTypeVisitor<'_> {
     fn visit_path(&mut self, path: &Path) {
         if let Some(ident) = path.as_ident() {
             self.idents.remove(ident);
         }
-    }
-
-    fn visit_resolved_type(&mut self, quoted_type_id: QuotedTypeId, _span: Span) {
-        let typ = self.interner.get_quoted_type(quoted_type_id);
-        self.visit_type(typ);
     }
 }
