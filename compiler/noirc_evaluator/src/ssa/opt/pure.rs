@@ -56,7 +56,7 @@ impl Ssa {
     }
 }
 
-/// Post-check condition for [Ssa:: purity_analysis].
+/// Post-check condition for [Ssa::purity_analysis].
 ///
 /// Succeeds if:
 ///   - all functions have a purity status attached to it.
