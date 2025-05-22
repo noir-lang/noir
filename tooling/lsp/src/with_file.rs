@@ -282,7 +282,10 @@ fn trait_item_with_file(item: TraitItem, file: FileId) -> TraitItem {
             typ: unresolved_type_with_file(typ, file),
             default_value: default_value.map(|value| expression_with_file(value, file)),
         },
-        TraitItem::Type { name } => TraitItem::Type { name: ident_with_file(name, file) },
+        TraitItem::Type { name, bounds } => TraitItem::Type {
+            name: ident_with_file(name, file),
+            bounds: trait_bounds_with_file(bounds, file),
+        },
     }
 }
 

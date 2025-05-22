@@ -3591,6 +3591,7 @@ name = "noir_ssa_fuzzer"
 version = "1.0.0-beta.6"
 dependencies = [
  "acvm",
+ "im",
  "libfuzzer-sys",
  "noir_ssa_executor",
  "noirc_abi",

@@ -1882,7 +1882,7 @@ impl Elaborator<'_> {
             }
         }
 
-        for constraint in &func_meta.trait_constraints {
+        for constraint in func_meta.all_trait_constraints() {
             if *object_type == constraint.typ {
                 if let Some(the_trait) =
                     self.interner.try_get_trait(constraint.trait_bound.trait_id)
@@ -2211,7 +2211,7 @@ impl Elaborator<'_> {
         }
     }
 
-    fn push_trait_constraint_error(
+    pub(super) fn push_trait_constraint_error(
         &mut self,
         object_type: &Type,
         error: ImplSearchErrorKind,

@@ -17,10 +17,11 @@ noirc_frontend.workspace = true
 noirc_evaluator.workspace = true
 noirc_driver.workspace = true
 noirc_abi.workspace = true
-acvm.workspace = true
 noir_ssa_executor.workspace = true
+acvm.workspace = true
+im.workspace = true
 thiserror.workspace = true
-libfuzzer-sys = { version = "0.4.0", features = ["arbitrary-derive"] }
+libfuzzer-sys = { workspace = true, features = ["arbitrary-derive"] }
 
 [dev-dependencies]
 rand.workspace = true
