@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1747931322669,
+  "lastUpdate": 1747938877163,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -16306,48 +16306,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "163862677+noirwhal@users.noreply.github.com",
-            "name": "noirwhal",
-            "username": "noirwhal"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "e796dfd67726cbc28eb9991782533b211025928d",
-          "message": "chore: Release Noir(1.0.0-beta.6) (#8438)\n\nCo-authored-by: noirwhal <tomfrench@aztecprotocol.com>",
-          "timestamp": "2025-05-14T20:57:27Z",
-          "tree_id": "1cefca22bd36aeb909b1fc20186ded4361abbff2",
-          "url": "https://github.com/noir-lang/noir/commit/e796dfd67726cbc28eb9991782533b211025928d"
-        },
-        "date": 1747257658416,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 262591,
-            "range": "± 1354",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 235048,
-            "range": "± 5720",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 3217811,
-            "range": "± 4723",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "jfecher11@gmail.com",
             "name": "jfecher",
             "username": "jfecher"
@@ -18399,6 +18357,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 3209985,
             "range": "± 15288",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "mvezenov@gmail.com",
+            "name": "Maxim Vezenov",
+            "username": "vezenovm"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "23d7409f37630b4268b60b0511338b0d0d5b5df6",
+          "message": "fix(ssa interpreter): Default to zero when we have an overflowing shl (#8638)",
+          "timestamp": "2025-05-22T18:14:20Z",
+          "tree_id": "54a1d5ec8e14fe29138df05a36bd03a75cd6d8c6",
+          "url": "https://github.com/noir-lang/noir/commit/23d7409f37630b4268b60b0511338b0d0d5b5df6"
+        },
+        "date": 1747938866738,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 255603,
+            "range": "± 785",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 222809,
+            "range": "± 6021",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 3562397,
+            "range": "± 39786",
             "unit": "ns/iter"
           }
         ]
