@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1747947811791,
+  "lastUpdate": 1747947934367,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -3208,85 +3208,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "mvezenov@gmail.com",
-            "name": "Maxim Vezenov",
-            "username": "vezenovm"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "535f80966141dc31a4a8992811059737107af872",
-          "message": "chore(performance): Enable hoisting pure with predicate calls (#8522)",
-          "timestamp": "2025-05-15T14:04:07Z",
-          "tree_id": "470f98166cf43fccf5436a761d53eb78d0a4655a",
-          "url": "https://github.com/noir-lang/noir/commit/535f80966141dc31a4a8992811059737107af872"
-        },
-        "date": 1747319244642,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 2.378,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 6.956,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 1.1,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 17.08,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 12.48,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root-empty",
-            "value": 1.354,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root-single-tx",
-            "value": 121,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 124,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 1.132,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-root",
-            "value": 1.708,
-            "unit": "s"
-          },
-          {
-            "name": "semaphore-depth-10",
-            "value": 0.813,
-            "unit": "s"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "asterite@gmail.com",
             "name": "Ary Borenszweig",
             "username": "asterite"
@@ -6401,6 +6322,35 @@ window.BENCHMARK_DATA = {
           {
             "name": "semaphore-depth-10",
             "value": 0.86,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "mvezenov@gmail.com",
+            "name": "Maxim Vezenov",
+            "username": "vezenovm"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "56770d0c6933d53c08d50eaa24a5ff5e7950cad3",
+          "message": "chore(ci): Do not run ast_fuzzer orig vs. morph in ci (#8646)",
+          "timestamp": "2025-05-22T20:42:24Z",
+          "tree_id": "746b2452283995eb0bfbca10e7b7a68d95f1e38e",
+          "url": "https://github.com/noir-lang/noir/commit/56770d0c6933d53c08d50eaa24a5ff5e7950cad3"
+        },
+        "date": 1747947924579,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "semaphore-depth-10",
+            "value": 0.839,
             "unit": "s"
           }
         ]
