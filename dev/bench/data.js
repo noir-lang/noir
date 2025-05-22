@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1747950396813,
+  "lastUpdate": 1747950451150,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -9032,75 +9032,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "asterite@gmail.com",
-            "name": "Ary Borenszweig",
-            "username": "asterite"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "bc002e0721c8b6847b182fdf2233e70dd86b16bf",
-          "message": "fix: don't overflow when casting signed value to u128 (#8526)",
-          "timestamp": "2025-05-15T14:40:36Z",
-          "tree_id": "2dbd09deb7e8e4c5def2cf26e604d02abc7ef4a4",
-          "url": "https://github.com/noir-lang/noir/commit/bc002e0721c8b6847b182fdf2233e70dd86b16bf"
-        },
-        "date": 1747321802246,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 238.07,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 260.32,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 213.56,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 544.98,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 537.43,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 1440,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 366.5,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-root",
-            "value": 372.43,
-            "unit": "MB"
-          },
-          {
-            "name": "semaphore_depth_10",
-            "value": 91.5,
-            "unit": "MB"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "jfecher11@gmail.com",
             "name": "jfecher",
             "username": "jfecher"
@@ -11830,6 +11761,35 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/noir-lang/noir/commit/56770d0c6933d53c08d50eaa24a5ff5e7950cad3"
         },
         "date": 1747947957709,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "semaphore_depth_10",
+            "value": 92.93,
+            "unit": "MB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "mvezenov@gmail.com",
+            "name": "Maxim Vezenov",
+            "username": "vezenovm"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "d3cb2b2ff4025f681cc645b75aa28aa4788dc9b5",
+          "message": "chore(defunctionalize): Add regression test for missing lambda variants panic  (#8642)",
+          "timestamp": "2025-05-22T21:23:20Z",
+          "tree_id": "82d945ab941855ad9154c623022574345ebb2353",
+          "url": "https://github.com/noir-lang/noir/commit/d3cb2b2ff4025f681cc645b75aa28aa4788dc9b5"
+        },
+        "date": 1747950440816,
         "tool": "customSmallerIsBetter",
         "benches": [
           {
