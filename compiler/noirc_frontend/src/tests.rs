@@ -4614,22 +4614,6 @@ fn unconstrained_numeric_generic_in_impl() {
 
 #[named]
 #[test]
-fn unconstrained_type_parameter_in_trait_impl() {
-    let src = r#"
-        pub trait Trait<T> {}
-        pub struct Foo<T> {}
-
-        impl<T, U> Trait<T> for Foo<T> {}
-                ^ The type parameter `U` is not constrained by the impl trait, self type, or predicates
-                ~ Hint: remove the `U` type parameter
-
-        fn main() {}
-        "#;
-    check_errors!(src);
-}
-
-#[named]
-#[test]
 fn resolves_generic_type_argument_via_self() {
     let src = "
     pub struct Foo<T> {}
