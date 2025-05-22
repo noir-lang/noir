@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1747939759599,
+  "lastUpdate": 1747939762493,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -9502,75 +9502,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "jfecher11@gmail.com",
-            "name": "jfecher",
-            "username": "jfecher"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "d6eac5c65912f58aa472537140cfedc5681c2341",
-          "message": "chore: Add u1 ops to interpreter, convert Value panics to errors (#8469)\n\nCo-authored-by: Akosh Farkash <aakoshh@gmail.com>",
-          "timestamp": "2025-05-15T09:32:25Z",
-          "tree_id": "6e6458ebc3b550d3aff4df19742500763ddd29b4",
-          "url": "https://github.com/noir-lang/noir/commit/d6eac5c65912f58aa472537140cfedc5681c2341"
-        },
-        "date": 1747303362363,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 238.07,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 260.32,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 213.56,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 544.98,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 537.43,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 1440,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 366.5,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-root",
-            "value": 372.43,
-            "unit": "MB"
-          },
-          {
-            "name": "semaphore_depth_10",
-            "value": 91.5,
-            "unit": "MB"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "aakoshh@gmail.com",
             "name": "Akosh Farkash",
             "username": "aakoshh"
@@ -12420,6 +12351,35 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/noir-lang/noir/commit/23d7409f37630b4268b60b0511338b0d0d5b5df6"
         },
         "date": 1747939057718,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "semaphore_depth_10",
+            "value": 92.93,
+            "unit": "MB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "asterite@gmail.com",
+            "name": "Ary Borenszweig",
+            "username": "asterite"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "973a76c3130708d11eaea7474e45e85dac831a8b",
+          "message": "fix: revert \"fix: error on unused generic in trait impl (#8395)\" (#8636)",
+          "timestamp": "2025-05-22T18:18:44Z",
+          "tree_id": "fb3a1194c134e2f1afea9fb07b789df7596207bb",
+          "url": "https://github.com/noir-lang/noir/commit/973a76c3130708d11eaea7474e45e85dac831a8b"
+        },
+        "date": 1747939751886,
         "tool": "customSmallerIsBetter",
         "benches": [
           {
