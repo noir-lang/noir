@@ -20,8 +20,8 @@ use std::path::Path;
 - Field operations: add, mul, div
 - Signed integer operations: div (126-bit)
 
-Each test case generates formatted SSA representation and serialized ACIR output.
-
+Each test case generates formatted SSA representation and serialized ACIR output."
+)]
 struct Args {
     /// Output directory path for the generated test artifacts
     /// Defaults to the barretenberg acir formal proofs artifacts directory

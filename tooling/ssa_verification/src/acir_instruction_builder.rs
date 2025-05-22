@@ -238,6 +238,7 @@ fn ssa_to_acir_program(ssa: Ssa) -> AcirProgram<FieldElement> {
         ssa_logging: SsaLogging::None,
         print_codegen_timings: false,
         passed: HashMap::default(),
+        skip_passes: vec![],
     };
     let ssa_evaluator_options = SsaEvaluatorOptions {
         ssa_logging: SsaLogging::None,
@@ -250,6 +251,7 @@ fn ssa_to_acir_program(ssa: Ssa) -> AcirProgram<FieldElement> {
         max_bytecode_increase_percent: None,
         brillig_options: BrilligOptions::default(),
         enable_brillig_constraints_check_lookback: false,
+        skip_passes: vec![],
     };
     let (acir_functions, brillig, _, _) = match optimize_ssa_builder_into_acir(
         builder,
