@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"fn":["compile_from_artifacts","compile_from_ssa","convert_generated_acir_into_circuit_without_signature","create_program","evaluator_options","optimize_ssa_into_acir"]};

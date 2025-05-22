@@ -57,80 +57,14 @@
 <a href="#56" id="56">56</a>
 <a href="#57" id="57">57</a>
 <a href="#58" id="58">58</a>
-<a href="#59" id="59">59</a>
-<a href="#60" id="60">60</a>
-<a href="#61" id="61">61</a>
-<a href="#62" id="62">62</a>
-<a href="#63" id="63">63</a>
-<a href="#64" id="64">64</a>
-<a href="#65" id="65">65</a>
-<a href="#66" id="66">66</a>
-<a href="#67" id="67">67</a>
-<a href="#68" id="68">68</a>
-<a href="#69" id="69">69</a>
-<a href="#70" id="70">70</a>
-<a href="#71" id="71">71</a>
-<a href="#72" id="72">72</a>
-<a href="#73" id="73">73</a>
-<a href="#74" id="74">74</a>
-<a href="#75" id="75">75</a>
-<a href="#76" id="76">76</a>
-<a href="#77" id="77">77</a>
-<a href="#78" id="78">78</a>
-<a href="#79" id="79">79</a>
-<a href="#80" id="80">80</a>
-<a href="#81" id="81">81</a>
-<a href="#82" id="82">82</a>
-<a href="#83" id="83">83</a>
-<a href="#84" id="84">84</a>
-<a href="#85" id="85">85</a>
-<a href="#86" id="86">86</a>
-<a href="#87" id="87">87</a>
-<a href="#88" id="88">88</a>
-<a href="#89" id="89">89</a>
-<a href="#90" id="90">90</a>
-<a href="#91" id="91">91</a>
-<a href="#92" id="92">92</a>
-<a href="#93" id="93">93</a>
-<a href="#94" id="94">94</a>
-<a href="#95" id="95">95</a>
-<a href="#96" id="96">96</a>
-<a href="#97" id="97">97</a>
-<a href="#98" id="98">98</a>
-<a href="#99" id="99">99</a>
-<a href="#100" id="100">100</a>
-<a href="#101" id="101">101</a>
-<a href="#102" id="102">102</a>
-<a href="#103" id="103">103</a>
-<a href="#104" id="104">104</a>
-<a href="#105" id="105">105</a>
-<a href="#106" id="106">106</a>
-<a href="#107" id="107">107</a>
-<a href="#108" id="108">108</a>
-<a href="#109" id="109">109</a>
-<a href="#110" id="110">110</a>
-<a href="#111" id="111">111</a></pre></div><pre class="rust"><code><span class="kw">use </span>acvm::{
-    BlackBoxFunctionSolver, FieldElement,
+<a href="#59" id="59">59</a></pre></div><pre class="rust"><code><span class="kw">use </span>acvm::{
+    FieldElement,
     acir::{
         circuit::Program,
-        native_types::{Witness, WitnessMap, WitnessStack},
+        native_types::{Witness, WitnessMap},
     },
 };
-<span class="kw">use </span>bn254_blackbox_solver::Bn254BlackBoxSolver;
-<span class="kw">use </span>nargo::errors::NargoError;
-<span class="kw">use </span>nargo::foreign_calls::DefaultForeignCallBuilder;
-<span class="kw">use </span>nargo::ops::execute_program;
-<span class="kw">use </span>thiserror::Error;
-
-<span class="doccomment">/// Errors that can occur during execution of the program
-/// It can be NargoError or rust panic
-</span><span class="attr">#[derive(Debug, Error)]
-</span><span class="kw">pub enum </span>RunnerError {
-    <span class="attr">#[error(<span class="string">"Execution failed: {0}"</span>)]
-    </span>ExecutionFailed(NargoError&lt;FieldElement&gt;),
-    <span class="attr">#[error(<span class="string">"Execution panicked: {0}"</span>)]
-    </span>ExecutionPanicked(String),
-}
+<span class="kw">use </span>noir_ssa_executor::runner::execute_single;
 
 <span class="attr">#[derive(Debug)]
 </span><span class="kw">pub enum </span>CompareResults {
@@ -139,48 +73,6 @@
     BothFailed(String, String),
     AcirFailed(String, FieldElement),
     BrilligFailed(String, FieldElement),
-}
-
-<span class="doccomment">/// Low level function to execute the given program with the given initial witness
-/// It uses nargo execute_program to run the program
-</span><span class="kw">fn </span>execute&lt;B: BlackBoxFunctionSolver&lt;FieldElement&gt; + Default&gt;(
-    program: <span class="kw-2">&amp;</span>Program&lt;FieldElement&gt;,
-    initial_witness: WitnessMap&lt;FieldElement&gt;,
-) -&gt; <span class="prelude-ty">Result</span>&lt;WitnessStack&lt;FieldElement&gt;, NargoError&lt;FieldElement&gt;&gt; {
-    execute_program(
-        program,
-        initial_witness.clone(),
-        <span class="kw-2">&amp;</span>B::default(),
-        <span class="kw-2">&amp;mut </span>DefaultForeignCallBuilder::default().build(),
-    )
-}
-
-<span class="doccomment">/// High level function to execute the given program with the given initial witness
-/// It returns the result of the program execution
-</span><span class="kw">pub fn </span>execute_single(
-    program: <span class="kw-2">&amp;</span>Program&lt;FieldElement&gt;,
-    initial_witness: WitnessMap&lt;FieldElement&gt;,
-    return_witness: Witness,
-) -&gt; <span class="prelude-ty">Result</span>&lt;FieldElement, RunnerError&gt; {
-    <span class="kw">let </span>result =
-        std::panic::catch_unwind(|| execute::&lt;Bn254BlackBoxSolver&gt;(program, initial_witness));
-
-    <span class="kw">match </span>result {
-        <span class="prelude-val">Ok</span>(result) =&gt; <span class="kw">match </span>result {
-            <span class="prelude-val">Ok</span>(result) =&gt; {
-                <span class="prelude-val">Ok</span>(result.peek().expect(<span class="string">"Should have at least one witness on the stack"</span>).witness
-                    [<span class="kw-2">&amp;</span>return_witness])
-            }
-            <span class="prelude-val">Err</span>(e) =&gt; <span class="prelude-val">Err</span>(RunnerError::ExecutionFailed(e)),
-        },
-        <span class="prelude-val">Err</span>(e) =&gt; {
-            <span class="kw">if let </span><span class="prelude-val">Some</span>(message) = e.downcast_ref::&lt;<span class="kw-2">&amp;</span>str&gt;() {
-                <span class="prelude-val">Err</span>(RunnerError::ExecutionPanicked(message.to_string()))
-            } <span class="kw">else </span>{
-                <span class="prelude-val">Err</span>(RunnerError::ExecutionPanicked(<span class="string">"Unknown error"</span>.to_string()))
-            }
-        }
-    }
 }
 
 <span class="doccomment">/// High level function to execute the given ACIR and Brillig programs with the given initial witness
@@ -193,8 +85,8 @@
     return_witness_acir: Witness,
     return_witness_brillig: Witness,
 ) -&gt; CompareResults {
-    <span class="kw">let </span>acir_result = execute_single(acir_program, initial_witness.clone(), return_witness_acir);
-    <span class="kw">let </span>brillig_result = execute_single(brillig_program, initial_witness, return_witness_brillig);
+    <span class="kw">let </span>acir_result = execute_single(acir_program, initial_witness.clone());
+    <span class="kw">let </span>brillig_result = execute_single(brillig_program, initial_witness);
 
     <span class="comment">// we found bug in case of
     // 1) acir_result != brillig_result
@@ -203,6 +95,8 @@
     // it has depth 2, because nargo can panic or return NargoError
     </span><span class="kw">match </span>(acir_result, brillig_result) {
         (<span class="prelude-val">Ok</span>(acir_result), <span class="prelude-val">Ok</span>(brillig_result)) =&gt; {
+            <span class="kw">let </span>acir_result = acir_result[<span class="kw-2">&amp;</span>return_witness_acir];
+            <span class="kw">let </span>brillig_result = brillig_result[<span class="kw-2">&amp;</span>return_witness_brillig];
             <span class="kw">if </span>acir_result == brillig_result {
                 CompareResults::Agree(acir_result)
             } <span class="kw">else </span>{
@@ -210,9 +104,11 @@
             }
         }
         (<span class="prelude-val">Err</span>(acir_error), <span class="prelude-val">Ok</span>(brillig_result)) =&gt; {
+            <span class="kw">let </span>brillig_result = brillig_result[<span class="kw-2">&amp;</span>return_witness_brillig];
             CompareResults::AcirFailed(acir_error.to_string(), brillig_result)
         }
         (<span class="prelude-val">Ok</span>(acir_result), <span class="prelude-val">Err</span>(brillig_error)) =&gt; {
+            <span class="kw">let </span>acir_result = acir_result[<span class="kw-2">&amp;</span>return_witness_acir];
             CompareResults::BrilligFailed(brillig_error.to_string(), acir_result)
         }
         (<span class="prelude-val">Err</span>(acir_error), <span class="prelude-val">Err</span>(brillig_error)) =&gt; {

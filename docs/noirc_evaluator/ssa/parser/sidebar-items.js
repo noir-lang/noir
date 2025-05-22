@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"enum":["ParserError","SsaError"],"fn":["eof_spanned_token"],"mod":["ast","into_ssa","lexer","token"],"struct":["Parser","SsaErrorWithSource"],"type":["ParseResult"]};

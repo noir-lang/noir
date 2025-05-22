@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"enum":["LexerError"],"struct":["Lexer"],"type":["SpannedTokenResult"]};
