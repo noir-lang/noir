@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1747914618273,
+  "lastUpdate": 1747914619788,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -3658,85 +3658,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "15848336+TomAFrench@users.noreply.github.com",
-            "name": "Tom French",
-            "username": "TomAFrench"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "7be8f5693adc3047156598781d08ac874c56050f",
-          "message": "fix: fix visibility of methods in `std::meta` (#8497)\n\nCo-authored-by: AztecBot <tech@aztecprotocol.com>",
-          "timestamp": "2025-05-14T11:14:30Z",
-          "tree_id": "9fb9708cb0f0fd914735216dd15fcec2ea7f3079",
-          "url": "https://github.com/noir-lang/noir/commit/7be8f5693adc3047156598781d08ac874c56050f"
-        },
-        "date": 1747223371987,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 2.24,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 6.876,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 1.092,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 16.74,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 12.9,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root-empty",
-            "value": 1.238,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root-single-tx",
-            "value": 126,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 123,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 1.068,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-root",
-            "value": 1.646,
-            "unit": "s"
-          },
-          {
-            "name": "semaphore-depth-10",
-            "value": 0.814,
-            "unit": "s"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "asterite@gmail.com",
             "name": "Ary Borenszweig",
             "username": "asterite"
@@ -7301,6 +7222,35 @@ window.BENCHMARK_DATA = {
           {
             "name": "semaphore-depth-10",
             "value": 0.818,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "47281315+guipublic@users.noreply.github.com",
+            "name": "guipublic",
+            "username": "guipublic"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "aea7a383c4c5884179fe7eb8265bbe0ce5fca19a",
+          "message": "fix: restore the all_or_nothing witness/constant for ec-add (#8624)",
+          "timestamp": "2025-05-22T11:26:38Z",
+          "tree_id": "f46a975d23bcff74b6625207f87801806eccf01a",
+          "url": "https://github.com/noir-lang/noir/commit/aea7a383c4c5884179fe7eb8265bbe0ce5fca19a"
+        },
+        "date": 1747914608535,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "semaphore-depth-10",
+            "value": 0.86,
             "unit": "s"
           }
         ]
