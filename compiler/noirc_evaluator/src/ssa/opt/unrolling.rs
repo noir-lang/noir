@@ -1503,8 +1503,8 @@ mod tests {
             jmpif v7 then: b3, else: b2
           b3():
             v9 = load v4 -> [u64; 6]
-            v10 = array_get v0, index v1 -> u64
-            v12 = add v10, u64 1
+            v11 = array_get v0, index v1 -> u64
+            v12 = add v11, u64 1
             v13 = array_set v9, index v1, value v12
             v15 = add v1, {idx_type} 1
             store v13 at v4
