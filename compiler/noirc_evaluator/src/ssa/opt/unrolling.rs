@@ -1083,26 +1083,26 @@ mod tests {
         let src = "
             acir(inline) fn main f0 {
                 b0():
-                    jmp b1(Field 0)
-                b1(v0: Field):  // header of outer loop
-                    v1 = lt v0, Field 3
+                    jmp b1(u32 0)
+                b1(v0: u32):  // header of outer loop
+                    v1 = lt v0, u32 3
                     jmpif v1 then: b2, else: b3
                 b2():
-                    jmp b4(Field 0)
-                b4(v2: Field):  // header of inner loop
-                    v3 = lt v2, Field 4
+                    jmp b4(u32 0)
+                b4(v2: u32):  // header of inner loop
+                    v3 = lt v2, u32 4
                     jmpif v3 then: b5, else: b6
                 b5():
                     v4 = add v0, v2
-                    v5 = lt Field 10, v4
-                    constrain v5 == Field 1
-                    v6 = add v2, Field 1
+                    v5 = lt u32 10, v4
+                    constrain v5 == u32 1
+                    v6 = add v2, u32 1
                     jmp b4(v6)
                 b6(): // end of inner loop
-                    v7 = add v0, Field 1
+                    v7 = add v0, u32 1
                     jmp b1(v7)
                 b3(): // end of outer loop
-                    return Field 0
+                    return u32 0
             }
         ";
         let ssa = Ssa::from_str(src).unwrap();
@@ -1116,24 +1116,24 @@ mod tests {
         assert_ssa_snapshot!(ssa, @r"
         acir(inline) fn main f0 {
           b0():
-            constrain u1 0 == Field 1
-            constrain u1 0 == Field 1
-            constrain u1 0 == Field 1
-            constrain u1 0 == Field 1
+            constrain u1 0 == u32 1
+            constrain u1 0 == u32 1
+            constrain u1 0 == u32 1
+            constrain u1 0 == u32 1
             jmp b2()
           b1():
-            return Field 0
+            return u32 0
           b2():
-            constrain u1 0 == Field 1
-            constrain u1 0 == Field 1
-            constrain u1 0 == Field 1
-            constrain u1 0 == Field 1
+            constrain u1 0 == u32 1
+            constrain u1 0 == u32 1
+            constrain u1 0 == u32 1
+            constrain u1 0 == u32 1
             jmp b3()
           b3():
-            constrain u1 0 == Field 1
-            constrain u1 0 == Field 1
-            constrain u1 0 == Field 1
-            constrain u1 0 == Field 1
+            constrain u1 0 == u32 1
+            constrain u1 0 == u32 1
+            constrain u1 0 == u32 1
+            constrain u1 0 == u32 1
             jmp b4()
           b4():
             jmp b1()
@@ -1146,16 +1146,16 @@ mod tests {
     fn fail_to_unroll_loop() {
         let src = "
         acir(inline) fn main f0 {
-          b0(v0: Field):
+          b0(v0: u32):
             jmp b1(v0)
-          b1(v1: Field):
-            v2 = lt v1, Field 5
+          b1(v1: u32):
+            v2 = lt v1, u32 5
             jmpif v2 then: b2, else: b3
           b2():
-            v3 = add v1, Field 1
+            v3 = add v1, u32 1
             jmp b1(v3)
           b3():
-            return Field 0
+            return u32 0
         }
         ";
         let ssa = Ssa::from_str(src).unwrap();

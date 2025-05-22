@@ -96,6 +96,7 @@ impl Default for Config {
             ("while", 15),
             ("let", 20),
             ("call", 5),
+            ("print", 15),
         ]);
         Self {
             max_globals: 3,

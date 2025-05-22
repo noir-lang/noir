@@ -297,17 +297,17 @@ impl<'a> FunctionContext<'a> {
             });
         }
 
-        let value = if value.is_negative {
+        let value = if value.is_negative() {
             match numeric_type {
-                NumericType::NativeField => -value.field,
+                NumericType::NativeField => -value.absolute_value(),
                 NumericType::Signed { bit_size } | NumericType::Unsigned { bit_size } => {
                     assert!(bit_size < 128);
                     let base = 1_u128 << bit_size;
-                    FieldElement::from(base) - value.field
+                    FieldElement::from(base) - value.absolute_value()
                 }
             }
         } else {
-            value.field
+            value.absolute_value()
         };
 
         Ok(self.builder.numeric_constant(value, numeric_type))

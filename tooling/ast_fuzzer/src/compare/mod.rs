@@ -128,7 +128,7 @@ where
                 (r1, _) => {
                     if o1.print_output != o2.print_output {
                         bail!(
-                            "programs disagree on printed output:\n---\n{}\n\n---\n{}\n",
+                            "programs disagree on printed output:\n---\n{}\n--- != ---\n{}\n---",
                             o1.print_output,
                             o2.print_output
                         )
