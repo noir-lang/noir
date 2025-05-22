@@ -1803,7 +1803,14 @@
 <a href="#1802" id="1802">1802</a>
 <a href="#1803" id="1803">1803</a>
 <a href="#1804" id="1804">1804</a>
-<a href="#1805" id="1805">1805</a></pre></div><pre class="rust"><code><span class="doccomment">//! The `acir` module contains all the logic necessary for noirc's ACIR-gen pass which
+<a href="#1805" id="1805">1805</a>
+<a href="#1806" id="1806">1806</a>
+<a href="#1807" id="1807">1807</a>
+<a href="#1808" id="1808">1808</a>
+<a href="#1809" id="1809">1809</a>
+<a href="#1810" id="1810">1810</a>
+<a href="#1811" id="1811">1811</a>
+<a href="#1812" id="1812">1812</a></pre></div><pre class="rust"><code><span class="doccomment">//! The `acir` module contains all the logic necessary for noirc's ACIR-gen pass which
 //! generates the output ACIR program.
 //!
 //! # Usage
@@ -2970,10 +2977,17 @@
                 ) {
                     <span class="comment">// Subtractions must first have the integer modulus added before truncation can be
                     // applied. This is done in order to prevent underflow.
-                    </span><span class="kw">let </span>integer_modulus = power_of_two::&lt;FieldElement&gt;(bit_size);
-                    <span class="kw">let </span>integer_modulus = <span class="self">self</span>.acir_context.add_constant(integer_modulus);
-                    var = <span class="self">self</span>.acir_context.add_var(var, integer_modulus)<span class="question-mark">?</span>;
-                    max_bit_size += <span class="number">1</span>;
+                    //
+                    // FieldElements have max bit size equals to max_num_bits so
+                    // we filter out this bit size because there is no underflow
+                    // for FieldElements. Furthermore, adding a power of two
+                    // would be incorrect for a FieldElement (cf. #8519).
+                    </span><span class="kw">if </span>max_bit_size &lt; FieldElement::max_num_bits() {
+                        <span class="kw">let </span>integer_modulus = power_of_two::&lt;FieldElement&gt;(max_bit_size);
+                        <span class="kw">let </span>integer_modulus = <span class="self">self</span>.acir_context.add_constant(integer_modulus);
+                        var = <span class="self">self</span>.acir_context.add_var(var, integer_modulus)<span class="question-mark">?</span>;
+                        max_bit_size += <span class="number">1</span>;
+                    }
                 }
             }
             Value::Param { .. } =&gt; {
