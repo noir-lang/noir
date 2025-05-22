@@ -1023,7 +1023,8 @@ impl Elaborator<'_> {
         if let Some(definition) = self.interner.try_definition(ident.id) {
             if let DefinitionKind::Function(function) = definition.kind {
                 let function = self.interner.function_meta(&function);
-                for mut constraint in function.trait_constraints.clone() {
+                for mut constraint in function.all_trait_constraints().cloned().collect::<Vec<_>>()
+                {
                     constraint.apply_bindings(&bindings);
 
                     self.push_trait_constraint(

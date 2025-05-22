@@ -870,6 +870,7 @@ impl<'f> Context<'f> {
         }
     }
 
+    #[cfg(feature = "bn254")]
     fn grumpkin_generators() -> Vec<FieldElement> {
         let g1_x = FieldElement::from_hex("0x01").unwrap();
         let g1_y =
@@ -892,6 +893,7 @@ impl<'f> Context<'f> {
     /// - inputs: (point1_x, point1_y, point1_infinite, point2_x, point2_y, point2_infinite)
     /// - generators: [g1_x, g1_y, g2_x, g2_y]
     /// - index: true for abscissa, false for ordinate
+    #[cfg(feature = "bn254")]
     fn predicate_argument(
         &mut self,
         inputs: &[ValueId],
@@ -985,6 +987,7 @@ impl<'f> Context<'f> {
         )
     }
     // Computes: if condition { var } else { other }
+    #[cfg(feature = "bn254")]
     fn var_or(
         &mut self,
         var: ValueId,
@@ -1005,7 +1008,7 @@ impl<'f> Context<'f> {
 
 #[cfg(test)]
 mod test {
-    use acvm::{FieldElement, acir::AcirField};
+    use acvm::acir::AcirField;
 
     use crate::{
         assert_ssa_snapshot,
@@ -1016,7 +1019,6 @@ mod test {
                 instruction::{Instruction, TerminatorInstruction},
                 value::{Value, ValueId},
             },
-            opt::flatten_cfg::Context,
         },
     };
 
@@ -1608,8 +1610,8 @@ mod test {
             store Field 0 at v1
             jmpif v0 then: b1, else: b2
           b1():
-            store Field 1 at v1 
-            store Field 2 at v1 
+            store Field 1 at v1
+            store Field 2 at v1
             jmp b2()
           b2():
             v3 = load v1 -> Field
@@ -1648,9 +1650,9 @@ mod test {
             jmpif v0 then: b1, else: b2
           b1():
             v4 = make_array [Field 1] : [Field; 1]
-            store v4 at v3 
+            store v4 at v3
             v5 = make_array [Field 2] : [Field; 1]
-            store v5 at v3 
+            store v5 at v3
             jmp b2()
           b2():
             v24 = load v3 -> Field
@@ -1751,6 +1753,9 @@ mod test {
     #[test]
     #[cfg(feature = "bn254")]
     fn test_grumpkin_points() {
+        use crate::ssa::opt::flatten_cfg::Context;
+        use acvm::acir::FieldElement;
+
         let generators = Context::grumpkin_generators();
         let len = generators.len();
         for i in (0..len).step_by(2) {

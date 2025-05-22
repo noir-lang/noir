@@ -167,7 +167,7 @@ impl Parser<'_> {
         None
     }
 
-    /// TraitType = 'type' identifier ';'
+    /// TraitType = 'type' identifier ( ':' TraitBounds ) ';'
     fn parse_trait_type(&mut self) -> Option<TraitItem> {
         if !self.eat_keyword(Keyword::Type) {
             return None;
@@ -181,9 +181,11 @@ impl Parser<'_> {
             }
         };
 
+        let bounds = if self.eat_colon() { self.parse_trait_bounds() } else { Vec::new() };
+
         self.eat_semicolon_or_error();
 
-        Some(TraitItem::Type { name })
+        Some(TraitItem::Type { name, bounds })
     }
 
     /// TraitConstant = 'let' identifier ':' Type ( '=' Expression ) ';'
@@ -479,11 +481,28 @@ mod tests {
         assert_eq!(noir_trait.items.len(), 1);
 
         let item = noir_trait.items.remove(0).item;
-        let TraitItem::Type { name } = item else {
+        let TraitItem::Type { name, bounds } = item else {
             panic!("Expected type");
         };
         assert_eq!(name.to_string(), "Elem");
         assert!(!noir_trait.is_alias);
+        assert!(bounds.is_empty());
+    }
+
+    #[test]
+    fn parse_trait_with_type_and_bounds() {
+        let src = "trait Foo { type Elem: Bound; }";
+        let mut noir_trait = parse_trait_no_errors(src);
+        assert_eq!(noir_trait.items.len(), 1);
+
+        let item = noir_trait.items.remove(0).item;
+        let TraitItem::Type { name, bounds } = item else {
+            panic!("Expected type");
+        };
+        assert_eq!(name.to_string(), "Elem");
+        assert!(!noir_trait.is_alias);
+        assert!(bounds.len() == 1);
+        assert_eq!(bounds[0].to_string(), "Bound");
     }
 
     #[test]

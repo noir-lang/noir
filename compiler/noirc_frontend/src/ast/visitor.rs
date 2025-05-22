@@ -132,7 +132,9 @@ pub trait Visitor {
         true
     }
 
-    fn visit_trait_item_type(&mut self, _: &Ident) {}
+    fn visit_trait_item_type(&mut self, _: &Ident, _: &[TraitBound]) -> bool {
+        true
+    }
 
     fn visit_use_tree(&mut self, _: &UseTree) -> bool {
         true
@@ -788,7 +790,13 @@ impl TraitItem {
                     }
                 }
             }
-            TraitItem::Type { name } => visitor.visit_trait_item_type(name),
+            TraitItem::Type { name, bounds } => {
+                if visitor.visit_trait_item_type(name, bounds) {
+                    for bound in bounds {
+                        bound.accept(visitor);
+                    }
+                }
+            }
         }
     }
 }
