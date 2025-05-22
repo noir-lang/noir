@@ -75,14 +75,15 @@ pub struct CompareComptime {
 impl CompareComptime {
     /// Execute the Noir code and the SSA, then compare the results.
     pub fn exec(&self) -> eyre::Result<CompareCompiledResult> {
-        let program1 = match prepare_and_compile_snippet(
+        let (program1, output1) = match prepare_and_compile_snippet(
             self.source.clone(),
             self.force_brillig,
-            std::io::empty(),
+            Vec::new(),
         ) {
-            Ok(((program, _), _)) => program,
+            Ok(((program, output), _)) => (program, output),
             Err(e) => panic!("failed to compile program:\n{}\n{e:?}", self.source),
         };
+        let comptime_print = String::from_utf8(output1).expect("should be valid utf8 string");
 
         let blackbox_solver = Bn254BlackBoxSolver(false);
         let initial_witness = self.abi.encode(&BTreeMap::new(), None).wrap_err("abi::encode")?;
@@ -109,7 +110,7 @@ impl CompareComptime {
         let (res1, print1) = do_exec(&program1.program);
         let (res2, print2) = do_exec(&self.ssa.artifact.program);
 
-        CompareCompiledResult::new(&self.abi, (res1, print1), (res2, print2))
+        CompareCompiledResult::new(&self.abi, (res1, comptime_print + &print1), (res2, print2))
     }
 
     /// Generate a random comptime-viable AST, reverse it into
