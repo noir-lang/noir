@@ -620,7 +620,7 @@ impl<'interner> Monomorphizer<'interner> {
 
             HirExpression::Lambda(lambda) => self.lambda(lambda, expr)?,
 
-            HirExpression::Error => unreachable!("Encountered Error node during monomorphization"),
+            HirExpression::Error => ast::Expression::Tuple(Vec::new()),
             HirExpression::Quote(_) => unreachable!("quote expression remaining in runtime code"),
             HirExpression::Unquote(_) => {
                 unreachable!("unquote expression remaining in runtime code")

@@ -338,9 +338,11 @@ impl<'context> Elaborator<'context> {
         items: CollectedItems,
         options: ElaboratorOptions<'context>,
     ) -> Self {
+        eprintln!("Making elaborator");
         let mut this = Self::from_context(context, crate_id, options);
         this.elaborate_items(items);
         this.check_and_pop_function_context();
+        eprintln!("Elaborator has {} errors", this.errors.len());
         this
     }
 
