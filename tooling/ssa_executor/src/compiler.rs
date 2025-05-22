@@ -32,6 +32,7 @@ pub fn optimize_ssa_into_acir(
         ssa_logging: options.ssa_logging.clone(),
         print_codegen_timings: options.print_codegen_timings,
         passed: HashMap::new(),
+        skip_passes: vec![],
     };
     let previous_hook = std::panic::take_hook();
     let panic_message = std::sync::Arc::new(std::sync::Mutex::new(String::new()));
@@ -221,6 +222,7 @@ pub fn evaluator_options(options: &CompileOptions) -> SsaEvaluatorOptions {
         brillig_options: BrilligOptions::default(),
         enable_brillig_constraints_check_lookback: options
             .enable_brillig_constraints_check_lookback,
+        skip_passes: options.skip_ssa_pass.clone(),
     }
 }
 

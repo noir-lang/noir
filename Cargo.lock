@@ -3591,15 +3591,11 @@ name = "noir_ssa_fuzzer"
 version = "1.0.0-beta.6"
 dependencies = [
  "acvm",
- "bn254_blackbox_solver",
  "im",
  "libfuzzer-sys",
- "log",
- "nargo",
  "noir_ssa_executor",
  "noirc_abi",
  "noirc_driver",
- "noirc_errors",
  "noirc_evaluator",
  "noirc_frontend",
  "rand 0.8.5",
@@ -5500,6 +5496,7 @@ dependencies = [
  "env_logger",
  "libfuzzer-sys",
  "log",
+ "noir_ssa_executor",
  "noir_ssa_fuzzer",
  "noirc_driver",
  "noirc_evaluator",
