@@ -138,9 +138,9 @@ impl ValueType {
     pub fn can_be_used_for_casts(&self) -> bool {
         match self {
             //https://github.com/noir-lang/noir/issues/8089
-            ValueType::I8 => false,
-            ValueType::I16 => false,
-            ValueType::I32 => false,
+            ValueType::I8 |
+            ValueType::I16 |
+            ValueType::I32 |
             ValueType::I64 => false,
             //https://github.com/noir-lang/noir/issues/7555
             ValueType::U128 => false,
