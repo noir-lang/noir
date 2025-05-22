@@ -814,6 +814,28 @@ mod tests {
     }
 
     #[test]
+    fn missing_fn() {
+        let src = "
+          brillig(inline) fn main f0 {
+            b0(v0: function, v1: u32):
+              v2 = call v0(v1) -> u32
+              return v2
+          }
+        ";
+
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.defunctionalize();
+
+        assert_ssa_snapshot!(ssa, @r"
+          brillig(inline) fn main f0 {
+            b0(v0: Field, v1: u32):
+              v2 = call v0(v1) -> u32
+              return v2
+          }
+        ");
+    }
+
+    #[test]
     fn missing_fn_variant() {
         let src = "
         brillig(inline) fn main f0 {
