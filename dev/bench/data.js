@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1747930997137,
+  "lastUpdate": 1747931027816,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -9732,75 +9732,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "aakoshh@gmail.com",
-            "name": "Akosh Farkash",
-            "username": "aakoshh"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "0abbe113d60d5251ae505386e4cbef1f0d64b526",
-          "message": "chore(fuzz): AST generator to add `ctx_limit` to all functions (#8507)",
-          "timestamp": "2025-05-14T17:06:36Z",
-          "tree_id": "cd9722472880a7f81de9fa9ef03ed506c6d98b67",
-          "url": "https://github.com/noir-lang/noir/commit/0abbe113d60d5251ae505386e4cbef1f0d64b526"
-        },
-        "date": 1747244216479,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 238.07,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 260.32,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 213.56,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 544.98,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 537.43,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 1440,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 366.5,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-root",
-            "value": 372.43,
-            "unit": "MB"
-          },
-          {
-            "name": "semaphore_depth_10",
-            "value": 91.5,
-            "unit": "MB"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "163862677+noirwhal@users.noreply.github.com",
             "name": "noirwhal",
             "username": "noirwhal"
@@ -12730,6 +12661,35 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/noir-lang/noir/commit/4f22497c1f1d8871ba8050f236e03c2637b17e00"
         },
         "date": 1747924647873,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "semaphore_depth_10",
+            "value": 92.93,
+            "unit": "MB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "15848336+TomAFrench@users.noreply.github.com",
+            "name": "Tom French",
+            "username": "TomAFrench"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "8f660a3a6c8b1e48b9e988d181a65df44e0bc715",
+          "message": "fix: ensure that purity analysis pass explores all functions (#8452)\n\nCo-authored-by: AztecBot <tech@aztecprotocol.com>\nCo-authored-by: Ary Borenszweig <asterite@gmail.com>\nCo-authored-by: Maxim Vezenov <mvezenov@gmail.com>",
+          "timestamp": "2025-05-22T15:59:30Z",
+          "tree_id": "6123d6f139c9509750bdbd8f7ddffb55027f5d20",
+          "url": "https://github.com/noir-lang/noir/commit/8f660a3a6c8b1e48b9e988d181a65df44e0bc715"
+        },
+        "date": 1747931018052,
         "tool": "customSmallerIsBetter",
         "benches": [
           {
