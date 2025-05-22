@@ -2,10 +2,9 @@ use std::collections::BTreeSet;
 use std::sync::Arc;
 
 use fxhash::FxHashMap as HashMap;
-use petgraph::prelude::DiGraph;
-use petgraph::prelude::NodeIndex as PetGraphIndex;
 use petgraph::visit::DfsPostOrder;
 
+use crate::ssa::ir::call_graph::CallGraph;
 use crate::ssa::{
     ir::{
         function::{Function, FunctionId},
@@ -113,7 +112,7 @@ impl Function {
         // Set of functions we call which the purity result depends on.
         // `is_pure` is intended to be called on each function, building
         // up a call graph of sorts to check afterwards to propagate impurity
-        // from called functions to their callers. Resultingly, an initial "Pure"
+        // from called functions to their callers. Therefore, an initial "Pure"
         // result here could be overridden by one of these dependencies being impure.
         let mut dependencies = BTreeSet::new();
 
@@ -210,18 +209,20 @@ fn analyze_call_graph(
     starting_purities: FunctionPurities,
     main: FunctionId,
 ) -> FunctionPurities {
-    let (graph, ids_to_indices, indices_to_ids) = build_call_graph(dependencies);
+    let call_graph = CallGraph::from_deps(dependencies);
 
     // Now we can analyze it: a function is only as pure as all of
     // its called functions
-    let main_index = ids_to_indices[&main];
-    let mut dfs = DfsPostOrder::new(&graph, main_index);
+    let main_index = call_graph.ids_to_indices()[&main];
+    let graph = call_graph.graph();
+    let mut dfs = DfsPostOrder::new(graph, main_index);
 
     // The `starting_purities` are the preliminary results from `is_pure`
     // that don't take into account function calls. These finished purities do.
     let mut finished_purities = HashMap::default();
 
-    while let Some(index) = dfs.next(&graph) {
+    let indices_to_ids = call_graph.indices_to_ids();
+    while let Some(index) = dfs.next(graph) {
         let id = indices_to_ids[&index];
         let mut purity = starting_purities[&id];
 
@@ -249,34 +250,6 @@ fn analyze_call_graph(
 
     finished_purities
 }
-
-fn build_call_graph(
-    dependencies: HashMap<FunctionId, BTreeSet<FunctionId>>,
-) -> (DiGraph<FunctionId, ()>, HashMap<FunctionId, PetGraphIndex>, HashMap<PetGraphIndex, FunctionId>)
-{
-    let mut graph = DiGraph::new();
-    let mut ids_to_indices = HashMap::default();
-    let mut indices_to_ids = HashMap::default();
-
-    for function in dependencies.keys() {
-        let index = graph.add_node(*function);
-        ids_to_indices.insert(*function, index);
-        indices_to_ids.insert(index, *function);
-    }
-
-    // Create edges from caller -> called
-    for (function, dependencies) in dependencies {
-        let function_index = ids_to_indices[&function];
-
-        for dependency in dependencies {
-            let dependency_index = ids_to_indices[&dependency];
-            graph.add_edge(function_index, dependency_index, ());
-        }
-    }
-
-    (graph, ids_to_indices, indices_to_ids)
-}
-
 #[cfg(test)]
 mod test {
     use crate::{

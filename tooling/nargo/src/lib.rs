@@ -17,6 +17,9 @@ pub mod workspace;
 pub use self::errors::NargoError;
 pub use self::ops::FuzzExecutionConfig;
 pub use self::ops::FuzzFolderConfig;
+use std::sync::Mutex;
+use std::sync::mpsc;
+use std::thread;
 use std::{
     collections::{BTreeMap, HashMap, HashSet},
     path::PathBuf,
@@ -29,7 +32,6 @@ use noirc_frontend::{
     hir::{Context, ParsedFiles, def_map::parse_file},
 };
 use package::{Dependency, Package};
-use rayon::prelude::*;
 use walkdir::WalkDir;
 
 pub fn prepare_dependencies(
@@ -165,7 +167,13 @@ pub fn insert_all_files_under_path_into_file_manager(
     }
 }
 
+const STACK_SIZE: usize = 8 * 1024 * 1024;
+
+#[cfg(any(target_arch = "wasm32", target_arch = "wasm64"))]
 pub fn parse_all(file_manager: &FileManager) -> ParsedFiles {
+    use rayon::iter::ParallelBridge as _;
+    use rayon::iter::ParallelIterator as _;
+
     file_manager
         .as_file_map()
         .all_file_ids()
@@ -178,6 +186,58 @@ pub fn parse_all(file_manager: &FileManager) -> ParsedFiles {
         })
         .map(|&file_id| (file_id, parse_file(file_manager, file_id)))
         .collect()
+}
+
+#[cfg(not(any(target_arch = "wasm32", target_arch = "wasm64")))]
+pub fn parse_all(file_manager: &FileManager) -> ParsedFiles {
+    let num_threads = rayon::current_num_threads();
+    let (sender, receiver) = mpsc::channel();
+    let iter = &Mutex::new(file_manager.as_file_map().all_file_ids());
+
+    thread::scope(|scope| {
+        // Start worker threads
+        for _ in 0..num_threads {
+            // Clone sender so it's dropped once the thread finishes
+            let thread_sender = sender.clone();
+            thread::Builder::new()
+                // Specify a larger-than-default stack size to prevent overflowing stack in large programs.
+                // (the default is 2MB)
+                .stack_size(STACK_SIZE)
+                .spawn_scoped(scope, move || {
+                    loop {
+                        // Get next file to process from the iterator.
+                        let Some(&file_id) = iter.lock().unwrap().next() else {
+                            break;
+                        };
+
+                        let file_path = file_manager.path(file_id).expect("expected file to exist");
+                        let file_extension = file_path
+                            .extension()
+                            .expect("expected all file paths to have an extension");
+                        if file_extension != "nr" {
+                            continue;
+                        }
+
+                        let parsed_file = parse_file(file_manager, file_id);
+
+                        if thread_sender.send((file_id, parsed_file)).is_err() {
+                            break;
+                        }
+                    }
+                })
+                .unwrap();
+        }
+
+        // Also drop main sender so the channel closes
+        drop(sender);
+
+        let mut parsed_files = ParsedFiles::default();
+        while let Ok((file_id, parsed_file)) = receiver.recv() {
+            parsed_files.insert(file_id, parsed_file);
+        }
+
+        parsed_files
+    })
 }
 
 #[tracing::instrument(level = "trace", skip_all)]

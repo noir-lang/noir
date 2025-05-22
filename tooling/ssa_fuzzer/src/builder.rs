@@ -7,7 +7,7 @@ use noirc_driver::{CompileOptions, CompiledProgram};
 use noirc_evaluator::ssa::function_builder::FunctionBuilder;
 use noirc_evaluator::ssa::ir::basic_block::BasicBlockId;
 use noirc_evaluator::ssa::ir::function::{Function, RuntimeType};
-use noirc_evaluator::ssa::ir::instruction::BinaryOp;
+use noirc_evaluator::ssa::ir::instruction::{ArrayOffset, BinaryOp};
 use noirc_evaluator::ssa::ir::map::Id;
 use noirc_evaluator::ssa::ir::types::{NumericType, Type};
 use noirc_evaluator::ssa::ir::value::Value;
@@ -321,7 +321,8 @@ impl FuzzerBuilder {
         let index_var =
             self.builder.numeric_constant(index, NumericType::Unsigned { bit_size: 32 });
 
-        self.builder.insert_array_get(array, index_var, self.type_.clone())
+        let offset = ArrayOffset::None;
+        self.builder.insert_array_get(array, index_var, offset, self.type_.clone())
     }
 
     pub fn insert_constant(
@@ -343,7 +344,9 @@ impl FuzzerBuilder {
         let index_var =
             self.builder.numeric_constant(index, NumericType::Unsigned { bit_size: 32 });
 
-        self.builder.insert_array_set(array, index_var, value)
+        let mutable = false;
+        let offset = ArrayOffset::None;
+        self.builder.insert_array_set(array, index_var, value, mutable, offset)
     }
 
     /// Gets the index of the entry block

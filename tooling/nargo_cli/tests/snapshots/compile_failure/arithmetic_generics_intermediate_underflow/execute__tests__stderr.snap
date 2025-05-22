@@ -1,0 +1,12 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: stderr
+---
+error: Could not determine array length `-1`, encountered error: `The value `-1` cannot fit into `numeric u32` which has a maximum size of `4294967295``
+   ┌─ src/main.nr:13:5
+   │
+13 │     push_zero(pop(array))
+   │     ---------
+   │
+
+Aborting due to 1 previous error

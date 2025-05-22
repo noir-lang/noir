@@ -1,1 +1,0 @@
-Invalid package name `hyphenated-name` found in Nargo.toml

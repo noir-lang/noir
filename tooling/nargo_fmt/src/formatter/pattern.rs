@@ -94,6 +94,11 @@ impl Formatter<'_> {
 
                 self.format_chunk_group(group);
             }
+            Pattern::Parenthesized(pattern, _) => {
+                self.write_left_paren();
+                self.format_pattern(*pattern);
+                self.write_right_paren();
+            }
             Pattern::Interned(..) => {
                 unreachable!("Should not be present in the AST")
             }
@@ -141,6 +146,13 @@ mod tests {
     fn format_tuple_pattern_one_element() {
         let src = "fn foo( (  x  ,    ) : i32) {}";
         let expected = "fn foo((x,): i32) {}\n";
+        assert_format(src, expected);
+    }
+
+    #[test]
+    fn format_parenthesized_pattern_one_element() {
+        let src = "fn foo( (  x      ) : i32) {}";
+        let expected = "fn foo((x): i32) {}\n";
         assert_format(src, expected);
     }
 
