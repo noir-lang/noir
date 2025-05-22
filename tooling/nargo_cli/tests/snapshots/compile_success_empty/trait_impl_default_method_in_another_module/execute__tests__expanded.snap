@@ -1,0 +1,21 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: expanded_code
+---
+mod moo {
+    fn foo() {}
+
+    pub trait Trait {
+        fn bar() {
+            foo()
+        }
+    }
+
+    impl Trait for i32 {
+        fn bar() {
+            foo()
+        }
+    }
+}
+
+fn main() {}

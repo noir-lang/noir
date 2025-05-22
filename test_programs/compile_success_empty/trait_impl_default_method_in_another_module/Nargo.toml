@@ -1,0 +1,6 @@
+[package]
+name = "trait_impl_default_method_in_another_module"
+type = "bin"
+authors = [""]
+
+[dependencies]

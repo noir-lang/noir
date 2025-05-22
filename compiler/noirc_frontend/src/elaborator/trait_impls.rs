@@ -62,7 +62,12 @@ impl Elaborator<'_> {
                     let module = self.module_id();
                     let location = default_impl.def.location;
                     self.interner.push_function(func_id, &default_impl.def, module, location);
+
+                    // Because this function is potentially defined in a different module, we must switch to that module
+                    self.local_module = method.default_impl_module_id;
                     self.define_function_meta(&mut default_impl_clone, func_id, None, &[]);
+                    self.local_module = trait_impl.module_id;
+
                     func_ids_in_trait.insert(func_id);
                     ordered_methods.push((
                         method.default_impl_module_id,
