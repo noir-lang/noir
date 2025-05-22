@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1747924973303,
+  "lastUpdate": 1747930839494,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -16486,48 +16486,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "aakoshh@gmail.com",
-            "name": "Akosh Farkash",
-            "username": "aakoshh"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "0abbe113d60d5251ae505386e4cbef1f0d64b526",
-          "message": "chore(fuzz): AST generator to add `ctx_limit` to all functions (#8507)",
-          "timestamp": "2025-05-14T17:06:36Z",
-          "tree_id": "cd9722472880a7f81de9fa9ef03ed506c6d98b67",
-          "url": "https://github.com/noir-lang/noir/commit/0abbe113d60d5251ae505386e4cbef1f0d64b526"
-        },
-        "date": 1747243559353,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 268380,
-            "range": "± 774",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 238583,
-            "range": "± 1267",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 3231037,
-            "range": "± 18748",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "163862677+noirwhal@users.noreply.github.com",
             "name": "noirwhal",
             "username": "noirwhal"
@@ -18579,6 +18537,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 3565627,
             "range": "± 7821",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "15848336+TomAFrench@users.noreply.github.com",
+            "name": "Tom French",
+            "username": "TomAFrench"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "8f660a3a6c8b1e48b9e988d181a65df44e0bc715",
+          "message": "fix: ensure that purity analysis pass explores all functions (#8452)\n\nCo-authored-by: AztecBot <tech@aztecprotocol.com>\nCo-authored-by: Ary Borenszweig <asterite@gmail.com>\nCo-authored-by: Maxim Vezenov <mvezenov@gmail.com>",
+          "timestamp": "2025-05-22T15:59:30Z",
+          "tree_id": "6123d6f139c9509750bdbd8f7ddffb55027f5d20",
+          "url": "https://github.com/noir-lang/noir/commit/8f660a3a6c8b1e48b9e988d181a65df44e0bc715"
+        },
+        "date": 1747930829009,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 254793,
+            "range": "± 833",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 223285,
+            "range": "± 5981",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 3209985,
+            "range": "± 15288",
             "unit": "ns/iter"
           }
         ]
