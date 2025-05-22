@@ -2,34 +2,6 @@
 source: tooling/nargo_cli/tests/execute.rs
 expression: stderr
 ---
-error: The type parameter `H` is not constrained by the impl trait, self type, or predicates
-    ┌─ std/collections/map.nr:637:27
-    │
-637 │ impl<K, V, let N: u32, B, H> Eq for HashMap<K, V, N, B>
-    │                           - Hint: remove the `H` type parameter
-    │
-
-error: The type parameter `H` is not constrained by the impl trait, self type, or predicates
-    ┌─ std/collections/map.nr:689:27
-    │
-689 │ impl<K, V, let N: u32, B, H> Default for HashMap<K, V, N, B>
-    │                           - Hint: remove the `H` type parameter
-    │
-
-error: The type parameter `H` is not constrained by the impl trait, self type, or predicates
-    ┌─ std/collections/umap.nr:419:15
-    │
-419 │ impl<K, V, B, H> Eq for UHashMap<K, V, B>
-    │               - Hint: remove the `H` type parameter
-    │
-
-error: The type parameter `H` is not constrained by the impl trait, self type, or predicates
-    ┌─ std/collections/umap.nr:456:15
-    │
-456 │ impl<K, V, B, H> Default for UHashMap<K, V, B>
-    │               - Hint: remove the `H` type parameter
-    │
-
 error: The type parameter `U` is not constrained by the impl trait, self type, or predicates
   ┌─ src/main.nr:5:17
   │
@@ -37,4 +9,4 @@ error: The type parameter `U` is not constrained by the impl trait, self type, o
   │                 - Hint: remove the `U` type parameter
   │
 
-Aborting due to 5 previous errors
+Aborting due to 1 previous error
