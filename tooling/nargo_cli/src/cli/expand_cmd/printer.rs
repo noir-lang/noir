@@ -26,11 +26,11 @@ use super::items::{Impl, Import, Item, Module, TraitImpl};
 mod hir;
 mod types;
 
-pub(super) struct ItemPrinter<'interner, 'def_map, 'deps, 'string> {
+pub(super) struct ItemPrinter<'context, 'string> {
     crate_id: CrateId,
-    interner: &'interner NodeInterner,
-    def_maps: &'def_map DefMaps,
-    dependencies: &'deps Vec<Dependency>,
+    interner: &'context NodeInterner,
+    def_maps: &'context DefMaps,
+    dependencies: &'context Vec<Dependency>,
     string: &'string mut String,
     indent: usize,
     module_id: ModuleId,
@@ -38,12 +38,12 @@ pub(super) struct ItemPrinter<'interner, 'def_map, 'deps, 'string> {
     self_type: Option<Type>,
 }
 
-impl<'interner, 'def_map, 'deps, 'string> ItemPrinter<'interner, 'def_map, 'deps, 'string> {
+impl<'context, 'string> ItemPrinter<'context, 'string> {
     pub(super) fn new(
         crate_id: CrateId,
-        interner: &'interner NodeInterner,
-        def_maps: &'def_map DefMaps,
-        dependencies: &'deps Vec<Dependency>,
+        interner: &'context NodeInterner,
+        def_maps: &'context DefMaps,
+        dependencies: &'context Vec<Dependency>,
         string: &'string mut String,
     ) -> Self {
         let root_id = def_maps[&crate_id].root();

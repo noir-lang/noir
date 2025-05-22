@@ -2,7 +2,7 @@ use noirc_frontend::{NamedGeneric, Type, TypeBinding, hir::def_map::ModuleDefId}
 
 use super::ItemPrinter;
 
-impl ItemPrinter<'_, '_, '_, '_> {
+impl ItemPrinter<'_, '_> {
     pub(super) fn show_types_separated_by_comma(&mut self, types: &[Type]) {
         self.show_separated_by_comma(types, |this, typ| {
             this.show_type(typ);
