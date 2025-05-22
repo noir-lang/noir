@@ -450,15 +450,8 @@ impl<'a> Parser<'a> {
         let max_bit_size = self.eat_int_or_error()?.to_u128() as u32;
         self.eat_or_error(Token::Keyword(Keyword::Bits))?;
 
-        let assert_message = if self.eat(Token::Comma)? {
-            if let Some(message) = self.eat_str()? {
-                Some(message)
-            } else {
-                return self.expected_string();
-            }
-        } else {
-            None
-        };
+        let assert_message =
+            if self.eat(Token::Comma)? { Some(self.eat_str_or_error()?) } else { None };
 
         Ok(Some(ParsedInstruction::RangeCheck { value, max_bit_size, assert_message }))
     }
@@ -997,6 +990,10 @@ impl<'a> Parser<'a> {
         } else {
             Ok(None)
         }
+    }
+
+    fn eat_str_or_error(&mut self) -> ParseResult<String> {
+        if let Some(message) = self.eat_str()? { Ok(message) } else { self.expected_string() }
     }
 
     fn eat_byte_str(&mut self) -> ParseResult<Option<String>> {
