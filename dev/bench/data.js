@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1747924655148,
+  "lastUpdate": 1747924656430,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -6860,75 +6860,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "mvezenov@gmail.com",
-            "name": "Maxim Vezenov",
-            "username": "vezenovm"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "d919e6afcd7bc4ebf07e8b355c48ee4439ecd52b",
-          "message": "fix(inlining): Use centralized CallGraph structure for inline info computation  (#8489)\n\nCo-authored-by: Tom French <15848336+TomAFrench@users.noreply.github.com>",
-          "timestamp": "2025-05-14T14:39:53Z",
-          "tree_id": "7c6816dc169e601725e586f74b5d2800e9f168b5",
-          "url": "https://github.com/noir-lang/noir/commit/d919e6afcd7bc4ebf07e8b355c48ee4439ecd52b"
-        },
-        "date": 1747235135518,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 0.028,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 0.159,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 0.011,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 0.306,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 0.198,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 11.3,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 0.004,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-root",
-            "value": 0.013,
-            "unit": "s"
-          },
-          {
-            "name": "semaphore-depth-10",
-            "value": 0.02,
-            "unit": "s"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "aakoshh@gmail.com",
             "name": "Akosh Farkash",
             "username": "aakoshh"
@@ -9903,6 +9834,35 @@ window.BENCHMARK_DATA = {
           {
             "name": "semaphore-depth-10",
             "value": 0.028,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "84741533+defkit@users.noreply.github.com",
+            "name": "defkit",
+            "username": "defkit"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "4f22497c1f1d8871ba8050f236e03c2637b17e00",
+          "message": "feat: acir_formal_proofs (#8140)\n\nCo-authored-by: Akosh Farkash <aakoshh@gmail.com>",
+          "timestamp": "2025-05-22T14:12:56Z",
+          "tree_id": "480e888cb20cf723493d1f85f149927bf25261d6",
+          "url": "https://github.com/noir-lang/noir/commit/4f22497c1f1d8871ba8050f236e03c2637b17e00"
+        },
+        "date": 1747924645588,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "semaphore-depth-10",
+            "value": 0.02,
             "unit": "s"
           }
         ]
