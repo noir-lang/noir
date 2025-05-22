@@ -12,7 +12,7 @@ use std::path::PathBuf;
 #[derive(Debug, Clone, Args)]
 pub(crate) struct InitCommand {
     /// Name of the package [default: current directory name]
-    #[clap(long)]
+    #[clap(index = 1)]
     name: Option<CrateName>,
 
     /// Use a library template
@@ -36,8 +36,11 @@ pub(crate) fn run(args: InitCommand, config: NargoConfig) -> Result<(), CliError
     let package_name = match args.name {
         Some(name) => name,
         None => {
-            let name = config.program_dir.file_name().unwrap().to_str().unwrap();
-            name.parse().map_err(|_| CliError::InvalidPackageName(name.into()))?
+            let name_str = config.program_dir.file_name().unwrap().to_str().unwrap();
+            name_str.parse().map_err(|e| CliError::InvalidPackageNameFromDirectory {
+                directory_name: name_str.to_string(),
+                parse_error: e.to_string(),
+            })?
         }
     };
 

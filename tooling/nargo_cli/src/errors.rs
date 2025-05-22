@@ -17,6 +17,9 @@ pub enum CliError {
     #[error("Invalid package name {0}. Did you mean to use `--name`?")]
     InvalidPackageName(String),
 
+    #[error("The current directory name '{directory_name}' is not a valid package name. Reason: {parse_error}. Please provide a name explicitly: nargo init <package_name>")]
+    InvalidPackageNameFromDirectory { directory_name: String, parse_error: String },
+
     #[error("`--debug-compile-stdin` is incompatible with `--watch`")]
     CantWatchStdin,
 
