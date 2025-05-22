@@ -1008,7 +1008,7 @@ impl<'f> Context<'f> {
 
 #[cfg(test)]
 mod test {
-    use acvm::{FieldElement, acir::AcirField};
+    use acvm::acir::AcirField;
 
     use crate::{
         assert_ssa_snapshot,
@@ -1019,7 +1019,6 @@ mod test {
                 instruction::{Instruction, TerminatorInstruction},
                 value::{Value, ValueId},
             },
-            opt::flatten_cfg::Context,
         },
     };
 
@@ -1754,6 +1753,9 @@ mod test {
     #[test]
     #[cfg(feature = "bn254")]
     fn test_grumpkin_points() {
+        use crate::ssa::opt::flatten_cfg::Context;
+        use acvm::acir::FieldElement;
+
         let generators = Context::grumpkin_generators();
         let len = generators.len();
         for i in (0..len).step_by(2) {
