@@ -9,6 +9,13 @@ error: Expected a trait, found error
   │          -
   │
 
+error: The type parameter `Foo` is not constrained by the impl trait, self type, or predicates
+  ┌─ src/main.nr:2:7
+  │
+2 │ impl< Foo for
+  │       --- Hint: remove the `Foo` type parameter
+  │
+
 error: Expected a generic parameter but found 'for'
   ┌─ src/main.nr:2:11
   │
@@ -41,4 +48,4 @@ error: Expected a '{' but found end of input
   │ ╰'
   │  
 
-Aborting due to 5 previous errors
+Aborting due to 6 previous errors
