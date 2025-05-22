@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"struct":["Context"]};
+window.SIDEBAR_ITEMS = {"fn":["remove_bit_shifts_post_check"],"struct":["Context"]};

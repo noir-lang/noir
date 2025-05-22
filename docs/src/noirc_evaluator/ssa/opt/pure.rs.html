@@ -402,7 +402,72 @@
 <a href="#401" id="401">401</a>
 <a href="#402" id="402">402</a>
 <a href="#403" id="403">403</a>
-<a href="#404" id="404">404</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::collections::BTreeSet;
+<a href="#404" id="404">404</a>
+<a href="#405" id="405">405</a>
+<a href="#406" id="406">406</a>
+<a href="#407" id="407">407</a>
+<a href="#408" id="408">408</a>
+<a href="#409" id="409">409</a>
+<a href="#410" id="410">410</a>
+<a href="#411" id="411">411</a>
+<a href="#412" id="412">412</a>
+<a href="#413" id="413">413</a>
+<a href="#414" id="414">414</a>
+<a href="#415" id="415">415</a>
+<a href="#416" id="416">416</a>
+<a href="#417" id="417">417</a>
+<a href="#418" id="418">418</a>
+<a href="#419" id="419">419</a>
+<a href="#420" id="420">420</a>
+<a href="#421" id="421">421</a>
+<a href="#422" id="422">422</a>
+<a href="#423" id="423">423</a>
+<a href="#424" id="424">424</a>
+<a href="#425" id="425">425</a>
+<a href="#426" id="426">426</a>
+<a href="#427" id="427">427</a>
+<a href="#428" id="428">428</a>
+<a href="#429" id="429">429</a>
+<a href="#430" id="430">430</a>
+<a href="#431" id="431">431</a>
+<a href="#432" id="432">432</a>
+<a href="#433" id="433">433</a>
+<a href="#434" id="434">434</a>
+<a href="#435" id="435">435</a>
+<a href="#436" id="436">436</a>
+<a href="#437" id="437">437</a>
+<a href="#438" id="438">438</a>
+<a href="#439" id="439">439</a>
+<a href="#440" id="440">440</a>
+<a href="#441" id="441">441</a>
+<a href="#442" id="442">442</a>
+<a href="#443" id="443">443</a>
+<a href="#444" id="444">444</a>
+<a href="#445" id="445">445</a>
+<a href="#446" id="446">446</a>
+<a href="#447" id="447">447</a>
+<a href="#448" id="448">448</a>
+<a href="#449" id="449">449</a>
+<a href="#450" id="450">450</a>
+<a href="#451" id="451">451</a>
+<a href="#452" id="452">452</a>
+<a href="#453" id="453">453</a>
+<a href="#454" id="454">454</a>
+<a href="#455" id="455">455</a>
+<a href="#456" id="456">456</a>
+<a href="#457" id="457">457</a>
+<a href="#458" id="458">458</a>
+<a href="#459" id="459">459</a>
+<a href="#460" id="460">460</a>
+<a href="#461" id="461">461</a>
+<a href="#462" id="462">462</a>
+<a href="#463" id="463">463</a>
+<a href="#464" id="464">464</a>
+<a href="#465" id="465">465</a>
+<a href="#466" id="466">466</a>
+<a href="#467" id="467">467</a>
+<a href="#468" id="468">468</a>
+<a href="#469" id="469">469</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::collections::BTreeSet;
 <span class="kw">use </span>std::sync::Arc;
 
 <span class="kw">use </span>fxhash::FxHashMap <span class="kw">as </span>HashMap;
@@ -453,8 +518,26 @@
             function.dfg.set_function_purities(purities.clone());
         }
 
+        <span class="attr">#[cfg(debug_assertions)]
+        </span>purity_analysis_post_check(<span class="kw-2">&amp;</span><span class="self">self</span>);
+
         <span class="self">self
     </span>}
+}
+
+<span class="doccomment">/// Post-check condition for [Ssa::purity_analysis].
+///
+/// Succeeds if:
+///   - all functions have a purity status attached to it.
+///
+/// Otherwise panics.
+</span><span class="attr">#[cfg(debug_assertions)]
+</span><span class="kw">fn </span>purity_analysis_post_check(ssa: <span class="kw-2">&amp;</span>Ssa) {
+    <span class="kw">if let </span><span class="prelude-val">Some</span>((id, <span class="kw">_</span>)) =
+        ssa.functions.iter().find(|(id, function)| function.dfg.purity_of(<span class="kw-2">**</span>id).is_none())
+    {
+        <span class="macro">panic!</span>(<span class="string">"Function {id} does not have a purity status"</span>)
+    }
 }
 
 <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">type </span>FunctionPurities = HashMap&lt;FunctionId, Purity&gt;;
@@ -504,21 +587,16 @@
 
 <span class="kw">impl </span>Function {
     <span class="kw">fn </span>is_pure(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; (Purity, BTreeSet&lt;FunctionId&gt;) {
-        <span class="kw">let </span>contains_reference = |value_id: <span class="kw-2">&amp;</span>ValueId| {
+        <span class="comment">// Note, this function must be allowed to complete despite the fact that once the function is marked as impure
+        // then its final purity is known. This is because we need to collect all of the dependencies of the function
+        // to ensure that they are processed.
+        //
+        // This can be relaxed if we calculate the callgraph separately.
+
+        </span><span class="kw">let </span>contains_reference = |value_id: <span class="kw-2">&amp;</span>ValueId| {
             <span class="kw">let </span>typ = <span class="self">self</span>.dfg.type_of_value(<span class="kw-2">*</span>value_id);
             typ.contains_reference()
         };
-
-        <span class="kw">if </span><span class="self">self</span>.parameters().iter().any(<span class="kw-2">&amp;</span>contains_reference) {
-            <span class="kw">return </span>(Purity::Impure, BTreeSet::new());
-        }
-
-        <span class="comment">// Set of functions we call which the purity result depends on.
-        // `is_pure` is intended to be called on each function, building
-        // up a call graph of sorts to check afterwards to propagate impurity
-        // from called functions to their callers. Therefore, an initial "Pure"
-        // result here could be overridden by one of these dependencies being impure.
-        </span><span class="kw">let </span><span class="kw-2">mut </span>dependencies = BTreeSet::new();
 
         <span class="kw">let </span><span class="kw-2">mut </span>result = <span class="kw">if </span><span class="self">self</span>.runtime().is_acir() {
             Purity::Pure
@@ -528,6 +606,17 @@
             </span>Purity::PureWithPredicate
         };
 
+        <span class="comment">// Set of functions we call which the purity result depends on.
+        // `is_pure` is intended to be called on each function, building
+        // up a call graph of sorts to check afterwards to propagate impurity
+        // from called functions to their callers. Therefore, an initial "Pure"
+        // result here could be overridden by one of these dependencies being impure.
+        </span><span class="kw">let </span><span class="kw-2">mut </span>dependencies = BTreeSet::new();
+
+        <span class="kw">if </span><span class="self">self</span>.parameters().iter().any(<span class="kw-2">&amp;</span>contains_reference) {
+            result = Purity::Impure;
+        }
+
         <span class="kw">for </span>block <span class="kw">in </span><span class="self">self</span>.reachable_blocks() {
             <span class="kw">for </span>instruction <span class="kw">in </span><span class="self">self</span>.dfg[block].instructions() {
                 <span class="comment">// We don't defer to Instruction::can_be_deduplicated, Instruction::requires_acir_gen_predicate,
@@ -536,12 +625,10 @@
                 // parameters or returned, we can ignore them.
                 // We even ignore Constrain instructions. As long as the external parameters are
                 // identical, we should be constraining the same values anyway.
-                </span><span class="kw">match </span><span class="kw-2">&amp;</span><span class="self">self</span>.dfg[<span class="kw-2">*</span>instruction] {
+                </span><span class="kw">let </span>instruction_purity = <span class="kw">match </span><span class="kw-2">&amp;</span><span class="self">self</span>.dfg[<span class="kw-2">*</span>instruction] {
                     Instruction::Constrain(..)
                     | Instruction::ConstrainNotEqual(..)
-                    | Instruction::RangeCheck { .. } =&gt; {
-                        result = Purity::PureWithPredicate;
-                    }
+                    | Instruction::RangeCheck { .. } =&gt; Purity::PureWithPredicate,
 
                     <span class="comment">// These instructions may be pure unless:
                     // - We may divide by zero
@@ -552,7 +639,9 @@
                     | Instruction::ArrayGet { .. }
                     | Instruction::ArraySet { .. }) =&gt; {
                         <span class="kw">if </span>ins.requires_acir_gen_predicate(<span class="kw-2">&amp;</span><span class="self">self</span>.dfg) {
-                            result = Purity::PureWithPredicate;
+                            Purity::PureWithPredicate
+                        } <span class="kw">else </span>{
+                            result
                         }
                     }
                     Instruction::Call { func, .. } =&gt; {
@@ -561,25 +650,24 @@
                                 <span class="comment">// We don't know if this function is pure or not yet,
                                 // so track it as a dependency for now.
                                 </span>dependencies.insert(<span class="kw-2">*</span>function_id);
+                                result
                             }
                             Value::Intrinsic(intrinsic) =&gt; <span class="kw">match </span>intrinsic.purity() {
-                                Purity::Pure =&gt; (),
-                                Purity::PureWithPredicate =&gt; result = Purity::PureWithPredicate,
-                                Purity::Impure =&gt; <span class="kw">return </span>(Purity::Impure, BTreeSet::new()),
+                                Purity::Pure =&gt; result,
+                                Purity::PureWithPredicate =&gt; Purity::PureWithPredicate,
+                                Purity::Impure =&gt; Purity::Impure,
                             },
-                            Value::ForeignFunction(<span class="kw">_</span>) =&gt; <span class="kw">return </span>(Purity::Impure, BTreeSet::new()),
+                            Value::ForeignFunction(<span class="kw">_</span>) =&gt; Purity::Impure,
                             <span class="comment">// The function we're calling is unknown in the remaining cases,
                             // so just assume the worst.
                             </span>Value::Global(<span class="kw">_</span>)
                             | Value::Instruction { .. }
                             | Value::Param { .. }
-                            | Value::NumericConstant { .. } =&gt; {
-                                <span class="kw">return </span>(Purity::Impure, BTreeSet::new());
-                            }
+                            | Value::NumericConstant { .. } =&gt; Purity::Impure,
                         }
                     }
 
-                    <span class="comment">// The rest are always pure (including allocate, load, &amp; store)
+                    <span class="comment">// The rest are always pure (including allocate, load, &amp; store) and so don't affect purity
                     </span>Instruction::Cast(<span class="kw">_</span>, <span class="kw">_</span>)
                     | Instruction::Not(<span class="kw">_</span>)
                     | Instruction::Truncate { .. }
@@ -591,15 +679,17 @@
                     | Instruction::DecrementRc { .. }
                     | Instruction::IfElse { .. }
                     | Instruction::MakeArray { .. }
-                    | Instruction::Noop =&gt; (),
-                }
+                    | Instruction::Noop =&gt; result,
+                };
+
+                result = result.unify(instruction_purity);
             }
 
             <span class="comment">// If the function returns a reference it is impure
             </span><span class="kw">let </span>terminator = <span class="self">self</span>.dfg[block].terminator();
             <span class="kw">if let </span><span class="prelude-val">Some</span>(TerminatorInstruction::Return { return_values, .. }) = terminator {
                 <span class="kw">if </span>return_values.iter().any(<span class="kw-2">&amp;</span>contains_reference) {
-                    <span class="kw">return </span>(Purity::Impure, BTreeSet::new());
+                    result = Purity::Impure;
                 }
             }
         }
@@ -804,6 +894,46 @@
             return v1
         }
         "</span>);
+    }
+
+    <span class="attr">#[test]
+    </span><span class="kw">fn </span>regression_8625() {
+        <span class="comment">// This test checks for a case which would result in some functions not having a purity status applied.
+        // See https://github.com/noir-lang/noir/issues/8625
+        </span><span class="kw">let </span>src = <span class="string">r#"
+        brillig(inline) fn main f0 {
+          b0(v0: [u8; 3]):
+            inc_rc v0
+            v1 = allocate -&gt; &amp;mut [u8; 3]
+            store v0 at v1
+            inc_rc v0
+            inc_rc v0
+            call f1(v1, u32 0, u32 2, Field 3)
+            return
+        }
+        brillig(inline) fn impure_because_reference_arg f1 {
+          b0(v0: &amp;mut [u8; 3], v1: u32, v2: u32, v3: Field):
+            call f2(v0, v1, v2, v3)
+            return
+        }
+        brillig(inline) fn also_impure_because_reference_arg f2 {
+          b0(v0: &amp;mut [u8; 3], v1: u32, v2: u32, v3: Field):
+            call f3()
+            return
+        }
+        brillig(inline) fn pure_with_predicate_func f3 {
+          b0():
+            return
+        }"#</span>;
+
+        <span class="kw">let </span>ssa = Ssa::from_str(src).unwrap();
+        <span class="kw">let </span>ssa = ssa.purity_analysis();
+
+        <span class="kw">let </span>purities = <span class="kw-2">&amp;</span>ssa.main().dfg.function_purities;
+        <span class="macro">assert_eq!</span>(purities[<span class="kw-2">&amp;</span>FunctionId::test_new(<span class="number">0</span>)], Purity::Impure);
+        <span class="macro">assert_eq!</span>(purities[<span class="kw-2">&amp;</span>FunctionId::test_new(<span class="number">1</span>)], Purity::Impure);
+        <span class="macro">assert_eq!</span>(purities[<span class="kw-2">&amp;</span>FunctionId::test_new(<span class="number">2</span>)], Purity::Impure);
+        <span class="macro">assert_eq!</span>(purities[<span class="kw-2">&amp;</span>FunctionId::test_new(<span class="number">3</span>)], Purity::PureWithPredicate);
     }
 }
 </code></pre></div></section></main></body></html>

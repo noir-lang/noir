@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"enum":["SizeChange"],"fn":["slice_capacity_change"],"struct":["Context"]};
+window.SIDEBAR_ITEMS = {"enum":["SizeChange"],"fn":["remove_if_else_post_check","slice_capacity_change"],"struct":["Context"]};

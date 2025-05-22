@@ -368,7 +368,35 @@
 <a href="#367" id="367">367</a>
 <a href="#368" id="368">368</a>
 <a href="#369" id="369">369</a>
-<a href="#370" id="370">370</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::collections::hash_map::Entry;
+<a href="#370" id="370">370</a>
+<a href="#371" id="371">371</a>
+<a href="#372" id="372">372</a>
+<a href="#373" id="373">373</a>
+<a href="#374" id="374">374</a>
+<a href="#375" id="375">375</a>
+<a href="#376" id="376">376</a>
+<a href="#377" id="377">377</a>
+<a href="#378" id="378">378</a>
+<a href="#379" id="379">379</a>
+<a href="#380" id="380">380</a>
+<a href="#381" id="381">381</a>
+<a href="#382" id="382">382</a>
+<a href="#383" id="383">383</a>
+<a href="#384" id="384">384</a>
+<a href="#385" id="385">385</a>
+<a href="#386" id="386">386</a>
+<a href="#387" id="387">387</a>
+<a href="#388" id="388">388</a>
+<a href="#389" id="389">389</a>
+<a href="#390" id="390">390</a>
+<a href="#391" id="391">391</a>
+<a href="#392" id="392">392</a>
+<a href="#393" id="393">393</a>
+<a href="#394" id="394">394</a>
+<a href="#395" id="395">395</a>
+<a href="#396" id="396">396</a>
+<a href="#397" id="397">397</a>
+<a href="#398" id="398">398</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::collections::hash_map::Entry;
 
 <span class="kw">use </span>fxhash::FxHashMap <span class="kw">as </span>HashMap;
 
@@ -413,6 +441,9 @@
         </span>} <span class="kw">else </span>{
             Context::default().remove_if_else(<span class="self">self</span>);
         }
+
+        <span class="attr">#[cfg(debug_assertions)]
+        </span>remove_if_else_post_check(<span class="self">self</span>);
     }
 }
 
@@ -591,6 +622,31 @@
         | Intrinsic::ArrayRefCount
         | Intrinsic::SliceRefCount
         | Intrinsic::FieldLessThan =&gt; SizeChange::None,
+    }
+}
+
+<span class="doccomment">/// Post-check condition for [Function::remove_if_else].
+///
+/// Succeeds if:
+///   - `func` is a Brillig function, OR
+///   - `func` does not contain any if-else instructions.
+///
+/// Otherwise panics.
+</span><span class="attr">#[cfg(debug_assertions)]
+</span><span class="kw">fn </span>remove_if_else_post_check(func: <span class="kw-2">&amp;</span>Function) {
+    <span class="comment">// Brillig functions should be unaffected.
+    </span><span class="kw">if </span>func.runtime().is_brillig() {
+        <span class="kw">return</span>;
+    }
+
+    <span class="comment">// Otherwise there should be no if-else instructions in any reachable block.
+    </span><span class="kw">for </span>block_id <span class="kw">in </span>func.reachable_blocks() {
+        <span class="kw">let </span>instruction_ids = func.dfg[block_id].instructions();
+        <span class="kw">for </span>instruction_id <span class="kw">in </span>instruction_ids {
+            <span class="kw">if </span><span class="macro">matches!</span>(func.dfg[<span class="kw-2">*</span>instruction_id], Instruction::IfElse { .. }) {
+                <span class="macro">panic!</span>(<span class="string">"IfElse instruction still remains in ACIR function"</span>);
+            }
+        }
     }
 }
 
