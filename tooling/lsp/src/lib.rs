@@ -73,7 +73,6 @@ mod trait_impl_method_stub_generator;
 mod types;
 mod use_segment_positions;
 mod utils;
-mod visibility;
 mod with_file;
 
 #[cfg(test)]
