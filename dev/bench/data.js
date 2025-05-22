@@ -1,87 +1,8 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1747920991951,
+  "lastUpdate": 1747921012929,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
-      {
-        "commit": {
-          "author": {
-            "email": "15848336+TomAFrench@users.noreply.github.com",
-            "name": "Tom French",
-            "username": "TomAFrench"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "f4078e1e175b6003ed25215fb870639ee9900cb7",
-          "message": "fix: remove private builtins from `Field` impl (#8496)\n\nCo-authored-by: AztecBot <tech@aztecprotocol.com>",
-          "timestamp": "2025-05-14T13:14:16Z",
-          "tree_id": "b80fae0b42de17fc222513ceae20f8d534d0e002",
-          "url": "https://github.com/noir-lang/noir/commit/f4078e1e175b6003ed25215fb870639ee9900cb7"
-        },
-        "date": 1747230761358,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 313.29,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 569.09,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 228.21,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 1440,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 1460,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-root-empty",
-            "value": 398.67,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-root-single-tx",
-            "value": 7890,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 7900,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 380.74,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-root",
-            "value": 441.66,
-            "unit": "MB"
-          },
-          {
-            "name": "semaphore_depth_10",
-            "value": 126.94,
-            "unit": "MB"
-          }
-        ]
-      },
       {
         "commit": {
           "author": {
@@ -3494,6 +3415,35 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/noir-lang/noir/commit/275e438feaa5d610e21d2e683c3f3cd61b72ebff"
         },
         "date": 1747918532673,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "semaphore_depth_10",
+            "value": 128.37,
+            "unit": "MB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "asterite@gmail.com",
+            "name": "Ary Borenszweig",
+            "username": "asterite"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "d992ad59d4c787aa12b0176e6f9d12202e4d9f71",
+          "message": "fix: error on unused generic in trait impl (#8395)",
+          "timestamp": "2025-05-22T13:11:49Z",
+          "tree_id": "2d531c541093b364423eeeafad5b3989726b5036",
+          "url": "https://github.com/noir-lang/noir/commit/d992ad59d4c787aa12b0176e6f9d12202e4d9f71"
+        },
+        "date": 1747921002030,
         "tool": "customSmallerIsBetter",
         "benches": [
           {
