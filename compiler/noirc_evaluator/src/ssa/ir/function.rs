@@ -234,6 +234,14 @@ impl std::fmt::Display for RuntimeType {
     }
 }
 
+/// Iterate over every Value in this DFG in no particular order, including unused Values,
+/// for testing purposes.
+pub fn function_values_iter(
+    func: &Function,
+) -> impl DoubleEndedIterator<Item = (ValueId, &super::value::Value)> {
+    func.dfg.values_iter()
+}
+
 /// FunctionId is a reference for a function
 ///
 /// This Id is how each function refers to other functions
