@@ -1128,7 +1128,7 @@ impl<'context> Elaborator<'context> {
                     self.mark_type_as_used(generic);
                 }
                 if let Some(fields) = datatype.borrow().get_fields(generics) {
-                    for (_, typ) in fields {
+                    for (_, typ, _) in fields {
                         self.mark_type_as_used(&typ);
                     }
                 } else if let Some(variants) = datatype.borrow().get_variants(generics) {
@@ -1912,7 +1912,7 @@ impl<'context> Elaborator<'context> {
             // after monomorphization when performing SSA codegen
             if struct_type.borrow().generics.is_empty() {
                 let fields = struct_type.borrow().get_fields(&[]).unwrap();
-                for (_, field_type) in fields.iter() {
+                for (_, field_type, _) in fields.iter() {
                     if field_type.is_nested_slice() {
                         let location = struct_type.borrow().location;
                         self.push_err(ResolverError::NestedSlices { location });

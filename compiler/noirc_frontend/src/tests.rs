@@ -4718,3 +4718,31 @@ fn only_one_private_error_when_name_in_types_and_values_namespace_collides() {
     ";
     check_errors!(src);
 }
+
+#[named]
+#[test]
+fn cannot_determine_type_of_generic_argument_in_function_call_when_it_is_a_numeric_generic() {
+    let src = r#"
+    struct Foo<let N: u32> {
+        array: [Field; N],
+    }
+
+    impl<let N: u32> Foo<N> {
+        fn new() -> Self {
+            Self { array: [0; N] }
+        }
+    }
+
+    fn foo<let N: u32>() -> Foo<N> {
+        Foo::new()
+    }
+
+    fn main() {
+        let _ = foo();
+                ^^^ Type annotation needed
+                ~~~ Could not determine the value of the generic argument `N` declared on the function `foo`
+    }
+    "#;
+    let features = vec![UnstableFeature::Enums];
+    check_monomorphization_error_using_features!(src, &features);
+}

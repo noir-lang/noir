@@ -33,7 +33,7 @@ impl Format {
     /// The reason we use an env var is because:
     /// 1. It has to be picked up in methods like `Program::serialize_program_base64` where no config is available.
     /// 2. At the moment this is mostly for testing, to be able to commit code that _can_ produce different formats,
-    ///     but only activate it once a version of `bb` that can handle it is released.
+    ///    but only activate it once a version of `bb` that can handle it is released.
     pub(crate) fn from_env() -> Result<Option<Self>, String> {
         let Ok(format) = std::env::var(FORMAT_ENV_VAR) else {
             return Ok(None);

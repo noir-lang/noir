@@ -236,7 +236,8 @@ impl BinaryOp {
             BinaryOp::Mul { .. } => Some(std::ops::Mul::mul),
             BinaryOp::Div => Some(std::ops::Div::div),
             BinaryOp::Eq => Some(|x, y| (x == y).into()),
-            BinaryOp::Lt => Some(|x, y| (x < y).into()),
+            // "less then" comparison is not supported for Fields
+            BinaryOp::Lt => None,
             // Bitwise operators are unsupported for Fields
             BinaryOp::Mod => None,
             BinaryOp::And => None,
