@@ -1,8 +1,13 @@
 #[allow(unused_imports)]
 #[cfg(test)]
 mod tests {
+    use acvm::FieldElement;
+    use acvm::acir::circuit::Program;
     // Some of these imports are consumed by the injected tests
     use assert_cmd::prelude::*;
+    use base64::Engine;
+    use insta::assert_snapshot;
+    use insta::internals::Content;
     use insta::internals::Redaction;
     use noirc_artifacts::contract::ContractArtifact;
     use noirc_artifacts::program::ProgramArtifact;
@@ -133,8 +138,8 @@ mod tests {
         force_brillig: ForceBrillig,
         inliner: Inliner,
     ) {
-        let target_dir = test_program_dir
-            .join(format!("target_force_brillig_{}_inliner_{}", force_brillig.0, inliner.0));
+        let target_dir = tempfile::tempdir().unwrap().into_path();
+
         nargo.arg(format!("--target-dir={}", target_dir.to_string_lossy()));
 
         nargo.assert().success();
@@ -144,32 +149,15 @@ mod tests {
             let stdout = String::from_utf8(output.stdout).unwrap();
             let stdout = remove_noise_lines(stdout);
 
-            let stdout_path = test_program_dir.join("stdout.txt");
-            let expected_stdout = if stdout_path.exists() {
-                String::from_utf8(fs::read(stdout_path.clone()).unwrap()).unwrap()
-            } else {
-                String::new()
-            };
-
-            // Remove any trailing newlines added by some editors
-            let stdout = stdout.trim();
-            let expected_stdout = expected_stdout.trim();
-
-            if stdout != expected_stdout {
-                if std::env::var("OVERWRITE_TEST_OUTPUT").is_ok() {
-                    fs::write(stdout_path, stdout.to_string() + "\n").unwrap();
-                } else {
-                    println!(
-                        "stdout does not match expected output. Expected:\n{expected_stdout}\n\nActual:\n{stdout}"
-                    );
-                    if expected_stdout.is_empty() && !stdout_path.exists() {
-                        println!(
-                            "Hint: set the OVERWRITE_TEST_OUTPUT env var to establish a stdout.txt"
-                        )
-                    }
-                    assert_eq!(stdout, expected_stdout);
-                }
-            }
+            let test_name = test_program_dir.file_name().unwrap().to_string_lossy().to_string();
+            let snapshot_name = "stdout";
+            insta::with_settings!(
+                {
+                    snapshot_path => format!("./snapshots/execution_success/{test_name}")
+                },
+                {
+                insta::assert_snapshot!(snapshot_name, stdout)
+            })
         }
 
         check_program_artifact(
@@ -301,33 +289,15 @@ mod tests {
         let stderr = remove_noise_lines(stderr);
         let stderr = delete_test_program_dir_occurrences(stderr, &test_program_dir);
 
-        let stderr_path = test_program_dir.join("stderr.txt");
-
-        let expected_stderr = if stderr_path.exists() {
-            String::from_utf8(fs::read(stderr_path.clone()).unwrap()).unwrap()
-        } else {
-            String::new()
-        };
-
-        // Remove any trailing newlines added by some editors
-        let stderr = stderr.trim();
-        let expected_stderr = expected_stderr.trim();
-
-        if stderr != expected_stderr {
-            if std::env::var("OVERWRITE_TEST_OUTPUT").is_ok() {
-                fs::write(stderr_path, stderr.to_string() + "\n").unwrap();
-            } else {
-                // If the expected stderr is empty this is likely a new test, so we produce the expected output for next time
-                if expected_stderr.is_empty() {
-                    fs::write(stderr_path, stderr.to_string() + "\n").unwrap();
-                }
-
-                println!(
-                    "stderr does not match expected output. Expected:\n{expected_stderr}\n\nActual:\n{stderr}"
-                );
-                assert_eq!(stderr, expected_stderr);
-            }
-        }
+        let test_name = test_program_dir.file_name().unwrap().to_string_lossy().to_string();
+        let snapshot_name = "stderr";
+        insta::with_settings!(
+            {
+                snapshot_path => format!("./snapshots/compile_failure/{test_name}")
+            },
+            {
+            insta::assert_snapshot!(snapshot_name, stderr)
+        })
     }
 
     fn nargo_expand_execute(test_program_dir: PathBuf) {
@@ -361,6 +331,16 @@ mod tests {
 
         let expanded_code = nargo.output().unwrap();
         let expanded_code: String = String::from_utf8(expanded_code.stdout).unwrap();
+
+        let test_name = test_program_dir.file_name().unwrap().to_string_lossy().to_string();
+        let snapshot_name = "expanded";
+        insta::with_settings!(
+        {
+            snapshot_path => format!("./snapshots/execution_success/{test_name}")
+        },
+        {
+            insta::assert_snapshot!(snapshot_name, expanded_code)
+        });
 
         // Create a new directory where we'll put the expanded code
         let temp_dir = tempfile::tempdir().unwrap().into_path();
@@ -397,7 +377,7 @@ mod tests {
         assert_eq!(original_output, expanded_output);
     }
 
-    fn nargo_expand_compile(test_program_dir: PathBuf) {
+    fn nargo_expand_compile(test_program_dir: PathBuf, prefix: &'static str) {
         let mut nargo = Command::cargo_bin("nargo").unwrap();
         nargo.arg("--program-dir").arg(test_program_dir.clone());
         nargo.arg("expand").arg("--force").arg("--disable-comptime-printing");
@@ -412,6 +392,16 @@ mod tests {
 
         let expanded_code = nargo.output().unwrap();
         let expanded_code: String = String::from_utf8(expanded_code.stdout).unwrap();
+
+        let test_name = test_program_dir.file_name().unwrap().to_string_lossy().to_string();
+        let snapshot_name = "expanded";
+        insta::with_settings!(
+        {
+            snapshot_path => format!("./snapshots/{prefix}/{test_name}")
+        },
+        {
+            insta::assert_snapshot!(snapshot_name, expanded_code)
+        });
 
         // Create a new directory where we'll put the expanded code
         let temp_dir = tempfile::tempdir().unwrap().into_path();
@@ -477,6 +467,15 @@ mod tests {
             insta::assert_json_snapshot!(snapshot_name, artifact, {
                 ".noir_version" => "[noir_version]",
                 ".hash" => "[hash]",
+                ".bytecode" => insta::dynamic_redaction(|value, _path| {
+                    // assert that the value looks like a uuid here
+                    let bytecode_b64 = value.as_str().unwrap();
+                    let bytecode = base64::engine::general_purpose::STANDARD
+                        .decode(bytecode_b64)
+                        .unwrap();
+                    let program = Program::<FieldElement>::deserialize_program(&bytecode).unwrap();
+                    Content::Seq(program.to_string().split("\n").filter(|line: &&str| !line.is_empty()).map(Content::from).collect::<Vec<Content>>())
+                }),
                 ".file_map.**.path" => file_map_path_redaction(),
             })
         })

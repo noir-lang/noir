@@ -182,9 +182,12 @@ pub(crate) fn try_convert_field_element_to_signed_integer(
 pub(crate) fn convert_signed_integer_to_field_element(int: i128, bit_size: u32) -> FieldElement {
     if int >= 0 {
         FieldElement::from(int)
+    } else if bit_size == 128 {
+        // signed to u128 conversion
+        FieldElement::from(int as u128)
     } else {
         // We add an offset of `bit_size` bits to shift the negative values into the range [2^(bitsize-1), 2^bitsize)
-        assert!(bit_size < 128);
+        assert!(bit_size < 128, "{bit_size} is too large");
         let offset_int = (1i128 << bit_size) + int;
         FieldElement::from(offset_int)
     }
@@ -233,7 +236,8 @@ impl BinaryOp {
             BinaryOp::Mul { .. } => Some(std::ops::Mul::mul),
             BinaryOp::Div => Some(std::ops::Div::div),
             BinaryOp::Eq => Some(|x, y| (x == y).into()),
-            BinaryOp::Lt => Some(|x, y| (x < y).into()),
+            // "less then" comparison is not supported for Fields
+            BinaryOp::Lt => None,
             // Bitwise operators are unsupported for Fields
             BinaryOp::Mod => None,
             BinaryOp::And => None,

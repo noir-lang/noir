@@ -8,9 +8,9 @@ pub trait Default {
 // docs:end:default-trait
 
 comptime fn derive_default(s: TypeDefinition) -> Quoted {
-    let name = quote { Default };
+    let name = quote { $crate::default::Default };
     let signature = quote { fn default() -> Self };
-    let for_each_field = |name| quote { $name: Default::default() };
+    let for_each_field = |name| quote { $name: $crate::default::Default::default() };
     let body = |fields| quote { Self { $fields } };
     crate::meta::make_trait_impl(s, name, signature, for_each_field, quote { , }, body)
 }

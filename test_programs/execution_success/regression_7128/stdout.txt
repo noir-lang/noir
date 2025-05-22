@@ -1,1 +1,0 @@
-[regression_7128] Circuit output: Field(0)

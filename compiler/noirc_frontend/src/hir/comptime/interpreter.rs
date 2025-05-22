@@ -2,7 +2,6 @@ use std::collections::VecDeque;
 use std::{collections::hash_map::Entry, rc::Rc};
 
 use acvm::blackbox_solver::BigIntSolverWithId;
-use acvm::{FieldElement, acir::AcirField};
 use im::Vector;
 use iter_extended::try_vecmap;
 use noirc_errors::Location;
@@ -174,13 +173,23 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
         let previous_state = self.enter_function();
 
         for ((parameter, typ, _), (argument, arg_location)) in parameters.iter().zip(arguments) {
-            self.define_pattern(parameter, typ, argument, arg_location)?;
+            let result = self.define_pattern(parameter, typ, argument, arg_location);
+            if let Err(err) = result {
+                self.exit_function(previous_state);
+                return Err(err);
+            }
         }
 
-        let function_body = self.get_function_body(function, location)?;
-        let result = self.evaluate(function_body)?;
+        let function_body = match self.get_function_body(function, location) {
+            Ok(body) => body,
+            Err(err) => {
+                self.exit_function(previous_state);
+                return Err(err);
+            }
+        };
+        let result = self.evaluate(function_body);
         self.exit_function(previous_state);
-        Ok(result)
+        result
     }
 
     /// Try to retrieve a function's body.
@@ -300,17 +309,21 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
 
         let parameters = closure.parameters.iter().zip(arguments);
         for ((parameter, typ), (argument, arg_location)) in parameters {
-            self.define_pattern(parameter, typ, argument, arg_location)?;
+            let result = self.define_pattern(parameter, typ, argument, arg_location);
+            if let Err(err) = result {
+                self.exit_function(previous_state);
+                return Err(err);
+            }
         }
 
         for (param, arg) in closure.captures.into_iter().zip(environment) {
             self.define(param.ident.id, arg);
         }
 
-        let result = self.evaluate(closure.body)?;
+        let result = self.evaluate(closure.body);
 
         self.exit_function(previous_state);
-        Ok(result)
+        result
     }
 
     /// Enters a function, pushing a new scope and resetting any required state.
@@ -339,7 +352,8 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
     }
 
     pub(super) fn pop_scope(&mut self) {
-        self.elaborator.interner.comptime_scopes.pop();
+        self.elaborator.interner.comptime_scopes.pop().expect("Expected a scope to exist");
+        assert!(!self.elaborator.interner.comptime_scopes.is_empty());
     }
 
     fn current_scope_mut(&mut self) -> &mut HashMap<DefinitionId, Value> {
@@ -439,12 +453,16 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
                             })?;
 
                             let field_type = field.get_type().into_owned();
-                            self.define_pattern(
+                            let result = self.define_pattern(
                                 field_pattern,
                                 &field_type,
                                 field.clone(),
                                 location,
-                            )?;
+                            );
+                            if result.is_err() {
+                                self.pop_scope();
+                                return result;
+                            }
                         }
                         Ok(())
                     }
@@ -716,7 +734,11 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
         self.push_scope();
 
         for statement in block.statements {
-            self.evaluate_statement(statement)?;
+            let result = self.evaluate_statement(statement);
+            if result.is_err() {
+                self.pop_scope();
+                return result;
+            }
         }
 
         let result = if let Some(statement) = last_statement {
@@ -859,9 +881,9 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
 
         use BinaryOpKind::*;
         let less_or_greater = if matches!(operator, Less | GreaterEqual) {
-            FieldElement::zero() // Ordering::Less
+            SignedField::zero() // Ordering::Less
         } else {
-            2u128.into() // Ordering::Greater
+            SignedField::positive(2u128) // Ordering::Greater
         };
 
         if matches!(operator, Less | Greater) {
@@ -1017,7 +1039,11 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
             if if_.alternative.is_some() {
                 self.evaluate(if_.consequence)
             } else {
-                self.evaluate(if_.consequence)?;
+                let result = self.evaluate(if_.consequence);
+                if result.is_err() {
+                    self.pop_scope();
+                    return result;
+                }
                 Ok(Value::Unit)
             }
         } else {
@@ -1412,7 +1438,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
 
 fn evaluate_integer(typ: Type, value: SignedField, location: Location) -> IResult<Value> {
     if let Type::FieldElement = &typ {
-        Ok(Value::Field(value.into()))
+        Ok(Value::Field(value))
     } else if let Type::Integer(sign, bit_size) = &typ {
         match (sign, bit_size) {
             (Signedness::Unsigned, IntegerBitSize::One) => {
@@ -1481,7 +1507,7 @@ fn evaluate_integer(typ: Type, value: SignedField, location: Location) -> IResul
         }
     } else if let Type::TypeVariable(variable) = &typ {
         if variable.is_integer_or_field() {
-            Ok(Value::Field(value.into()))
+            Ok(Value::Field(value))
         } else if variable.is_integer() {
             let value = value
                 .try_to_unsigned()
@@ -1509,7 +1535,8 @@ fn bounds_check(array: Value, index: Value, location: Location) -> IResult<(Vect
 
     let index = match index {
         Value::Field(value) => {
-            value.try_to_u64().and_then(|value| value.try_into().ok()).ok_or_else(|| {
+            let u64: Option<u64> = value.try_to_unsigned();
+            u64.and_then(|value| value.try_into().ok()).ok_or_else(|| {
                 let typ = Type::default_int_type();
                 let value = SignedField::positive(value);
                 InterpreterError::IntegerOutOfRangeForType { value, typ, location }
@@ -1540,7 +1567,7 @@ fn bounds_check(array: Value, index: Value, location: Location) -> IResult<(Vect
 fn evaluate_prefix_with_value(rhs: Value, operator: UnaryOp, location: Location) -> IResult<Value> {
     match operator {
         UnaryOp::Minus => match rhs {
-            Value::Field(value) => Ok(Value::Field(FieldElement::zero() - value)),
+            Value::Field(value) => Ok(Value::Field(-value)),
             Value::I8(value) => Ok(Value::I8(-value)),
             Value::I16(value) => Ok(Value::I16(-value)),
             Value::I32(value) => Ok(Value::I32(-value)),

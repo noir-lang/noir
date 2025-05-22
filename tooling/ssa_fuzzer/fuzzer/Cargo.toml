@@ -12,9 +12,10 @@ cargo-fuzz = true
 libfuzzer-sys = { version = "0.4.0", features = ["arbitrary-derive"] }
 noirc_evaluator.workspace = true
 noirc_driver.workspace = true
+noir_ssa_executor.workspace = true
 acvm.workspace = true
-log = "0.4"
-env_logger = "0.11.6"
+log.workspace = true
+env_logger.workspace = true
 
 [dependencies.noir_ssa_fuzzer]
 path = "../"
