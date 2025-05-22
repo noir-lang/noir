@@ -163,16 +163,15 @@ pub trait Hasher {
 }
 
 // BuildHasher is a factory trait, responsible for production of specific Hasher.
-pub trait BuildHasher<H>
-where
-    H: Hasher,
-{
+pub trait BuildHasher {
+    type H: Hasher;
+
     fn build_hasher(self) -> H;
 }
 
 pub struct BuildHasherDefault<H>;
 
-impl<H> BuildHasher<H> for BuildHasherDefault<H>
+impl<H> BuildHasher<H = H> for BuildHasherDefault<H>
 where
     H: Hasher + Default,
 {

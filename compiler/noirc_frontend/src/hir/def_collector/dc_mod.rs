@@ -636,7 +636,7 @@ impl ModCollector<'_> {
                             });
                         }
                     }
-                    TraitItem::Type { name } => {
+                    TraitItem::Type { name, bounds: _ } => {
                         if let Err((first_def, second_def)) =
                             self.def_collector.def_map[trait_id.0.local_id].declare_type_alias(
                                 name.clone(),

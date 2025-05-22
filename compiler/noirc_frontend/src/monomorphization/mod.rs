@@ -1387,11 +1387,13 @@ impl<'interner> Monomorphizer<'interner> {
                 for generic in &meta.direct_generics {
                     if generic.type_var.id() == id {
                         let item_name = self.interner.definition_name(ident.id).to_string();
+                        let is_numeric = matches!(generic.type_var.kind(), Kind::Numeric(..));
                         return Err(MonomorphizationError::NoDefaultTypeInItem {
                             location,
                             generic_name: generic.name.to_string(),
                             item_kind: "function",
                             item_name,
+                            is_numeric,
                         });
                     }
                 }
@@ -1403,11 +1405,13 @@ impl<'interner> Monomorphizer<'interner> {
                             let typ = typ.borrow();
                             let item_name = typ.name.to_string();
                             let item_kind = if typ.is_struct() { "struct" } else { "enum" };
+                            let is_numeric = matches!(generic.type_var.kind(), Kind::Numeric(..));
                             return Err(MonomorphizationError::NoDefaultTypeInItem {
                                 location,
                                 generic_name: generic.name.to_string(),
                                 item_kind,
                                 item_name,
+                                is_numeric,
                             });
                         }
                     }
@@ -1430,11 +1434,13 @@ impl<'interner> Monomorphizer<'interner> {
                 let def = def.borrow();
                 for generic in &def.generics {
                     if generic.type_var.id() == id {
+                        let is_numeric = matches!(generic.type_var.kind(), Kind::Numeric(..));
                         return Err(MonomorphizationError::NoDefaultTypeInItem {
                             location,
                             generic_name: generic.name.to_string(),
                             item_kind: "enum",
                             item_name: def.name.to_string(),
+                            is_numeric,
                         });
                     }
                 }
@@ -1459,7 +1465,7 @@ impl<'interner> Monomorphizer<'interner> {
             | HirType::Error
             | HirType::Quoted(_) => Ok(()),
             HirType::Constant(_value, kind) => {
-                if kind.is_error() || kind.default_type().is_none() {
+                if kind.is_error() {
                     Err(MonomorphizationError::UnknownConstant { location })
                 } else {
                     Ok(())
@@ -1656,7 +1662,7 @@ impl<'interner> Monomorphizer<'interner> {
                     // Here we append printable type info so we can know how to turn that argument
                     // into a human-readable string.
                     let typ = self.interner.id_type(call.arguments[1]);
-                    self.append_printable_type_info_for_type(typ, &mut arguments);
+                    append_printable_type_info_for_type(typ, &mut arguments);
                 }
             }
         }
@@ -1728,51 +1734,10 @@ impl<'interner> Monomorphizer<'interner> {
         match hir_argument {
             HirExpression::Ident(ident, _) => {
                 let typ = self.interner.definition_type(ident.id);
-                self.append_printable_type_info_for_type(typ, arguments);
+                append_printable_type_info_for_type(typ, arguments);
             }
             _ => unreachable!("logging expr {:?} is not supported", hir_argument),
         }
-    }
-
-    fn append_printable_type_info_for_type(&self, typ: Type, arguments: &mut Vec<ast::Expression>) {
-        let typ: Type = typ.follow_bindings();
-        let is_fmt_str = match typ {
-            // A format string has many different possible types that need to be handled.
-            // Loop over each element in the format string to fetch each type's relevant metadata
-            Type::FmtString(_, elements) => {
-                match *elements {
-                    Type::Tuple(element_types) => {
-                        for typ in element_types {
-                            Self::append_printable_type_info_inner(&typ, arguments);
-                        }
-                    }
-                    _ => unreachable!(
-                        "ICE: format string type should be a tuple but got a {elements}"
-                    ),
-                }
-                true
-            }
-            _ => {
-                Self::append_printable_type_info_inner(&typ, arguments);
-                false
-            }
-        };
-        // The caller needs information as to whether it is handling a format string or a single type
-        arguments.push(ast::Expression::Literal(ast::Literal::Bool(is_fmt_str)));
-    }
-
-    fn append_printable_type_info_inner(typ: &Type, arguments: &mut Vec<ast::Expression>) {
-        // Disallow printing slices and mutable references for consistency,
-        // since they cannot be passed from ACIR into Brillig
-        if matches!(typ, HirType::Reference(..)) {
-            unreachable!("println and format strings do not support references.");
-        }
-
-        let printable_type: PrintableType = typ.into();
-        let abi_as_string = serde_json::to_string(&printable_type)
-            .expect("ICE: expected PrintableType to serialize");
-
-        arguments.push(ast::Expression::Literal(ast::Literal::Str(abi_as_string)));
     }
 
     /// Try to evaluate certain builtin functions (currently only 'array_len' and field modulus methods)
@@ -2479,11 +2444,13 @@ fn check_struct_generic_type(
 
     let def = def.borrow();
     if let Some(generic) = def.generics.get(index) {
+        let is_numeric = matches!(generic.type_var.kind(), Kind::Numeric(..));
         return Err(MonomorphizationError::NoDefaultTypeInItem {
             location,
             generic_name: generic.name.to_string(),
             item_kind: "struct",
             item_name: def.name.to_string(),
+            is_numeric,
         });
     }
 
@@ -2592,4 +2559,47 @@ pub fn resolve_trait_method(
     };
 
     Ok(interner.get_trait_implementation(impl_id).borrow().methods[method.method_index])
+}
+
+/// Extend the arguments to `print` (which is a `bool` to show if newline is needed and
+/// value to be printed itself) with a JSON serialized `PrintableType` to describe the
+/// value, and another `bool` to show if the print is using a format string, or a raw
+/// value.
+pub fn append_printable_type_info_for_type(typ: Type, arguments: &mut Vec<ast::Expression>) {
+    let typ: Type = typ.follow_bindings();
+    let is_fmt_str = match typ {
+        // A format string has many different possible types that need to be handled.
+        // Loop over each element in the format string to fetch each type's relevant metadata
+        Type::FmtString(_, elements) => {
+            match *elements {
+                Type::Tuple(element_types) => {
+                    for typ in element_types {
+                        append_printable_type_info_inner(&typ, arguments);
+                    }
+                }
+                _ => unreachable!("ICE: format string type should be a tuple but got a {elements}"),
+            }
+            true
+        }
+        _ => {
+            append_printable_type_info_inner(&typ, arguments);
+            false
+        }
+    };
+    // The caller needs information as to whether it is handling a format string or a single type
+    arguments.push(ast::Expression::Literal(ast::Literal::Bool(is_fmt_str)));
+}
+
+fn append_printable_type_info_inner(typ: &Type, arguments: &mut Vec<ast::Expression>) {
+    // Disallow printing slices and mutable references for consistency,
+    // since they cannot be passed from ACIR into Brillig
+    if matches!(typ, HirType::Reference(..)) {
+        unreachable!("println and format strings do not support references.");
+    }
+
+    let printable_type: PrintableType = typ.into();
+    let abi_as_string =
+        serde_json::to_string(&printable_type).expect("ICE: expected PrintableType to serialize");
+
+    arguments.push(ast::Expression::Literal(ast::Literal::Str(abi_as_string)));
 }
