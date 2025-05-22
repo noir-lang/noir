@@ -1165,8 +1165,11 @@ impl<'a> Context<'a> {
                 ) {
                     // Subtractions must first have the integer modulus added before truncation can be
                     // applied. This is done in order to prevent underflow.
-                    // There is no underflow for field elements. Besides,
-                    // adding the modulus would cause an overflow (cf. #8519).
+                    //
+                    // FieldElements have max bit size equals to max_num_bits so
+                    // we filter out this bit size because there is no underflow
+                    // for FieldElements. Furthermore, adding a power of two
+                    // would be incorrect for a FieldElement (cf. #8519).
                     if max_bit_size < FieldElement::max_num_bits() {
                         let integer_modulus = power_of_two::<FieldElement>(max_bit_size);
                         let integer_modulus = self.acir_context.add_constant(integer_modulus);
