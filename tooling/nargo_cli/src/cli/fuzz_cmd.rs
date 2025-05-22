@@ -70,8 +70,12 @@ pub(crate) struct FuzzCommand {
     oracle_resolver: Option<String>,
 
     /// Maximum time in seconds to spend fuzzing (default: no timeout)
-    #[arg(long)]
-    timeout: Option<u64>,
+    #[arg(long, default_value = "0")]
+    timeout: u64,
+
+    /// Maximum number of executions of ACIR and Brillig per harness (default: no limit)
+    #[arg(long, default_value = "0")]
+    max_executions: usize,
 }
 impl WorkspaceCommand for FuzzCommand {
     fn package_selection(&self) -> PackageSelection {
@@ -153,9 +157,10 @@ pub(crate) fn run(args: FuzzCommand, workspace: Workspace) -> Result<(), CliErro
         fuzzing_failure_dir: args.fuzzing_failure_dir,
     };
     let fuzz_execution_config = FuzzExecutionConfig {
-        timeout: args.timeout.unwrap_or(0),
+        timeout: args.timeout,
         num_threads: args.num_threads,
         show_progress: true,
+        max_executions: args.max_executions,
     };
 
     let fuzzing_reports: Vec<Vec<(String, FuzzingRunStatus)>> = workspace

@@ -84,6 +84,10 @@ pub struct CompileOptions {
     #[arg(long, hide = true)]
     pub show_contract_fn: Option<String>,
 
+    /// Skip SSA passes whose name contains the provided string(s).
+    #[arg(long, hide = true)]
+    pub skip_ssa_pass: Vec<String>,
+
     /// Emit the unoptimized SSA IR to file.
     /// The IR will be dumped into the workspace target directory,
     /// under `[compiled-package].ssa.json`.
@@ -221,7 +225,7 @@ pub fn parse_expression_width(input: &str) -> Result<ExpressionWidth, std::io::E
 }
 
 impl CompileOptions {
-    pub fn frontend_options(&self) -> FrontendOptions {
+    pub(crate) fn frontend_options(&self) -> FrontendOptions {
         FrontendOptions {
             debug_comptime_in_file: self.debug_comptime_in_file.as_deref(),
             pedantic_solving: self.pedantic_solving,
@@ -431,7 +435,9 @@ pub fn compile_main(
     if options.deny_warnings && !compilation_warnings.is_empty() {
         return Err(compilation_warnings);
     }
-    warnings.extend(compilation_warnings);
+    if !options.silence_warnings {
+        warnings.extend(compilation_warnings);
+    }
 
     if options.print_acir {
         println!("Compiled ACIR for main (unoptimized):");
@@ -638,7 +644,7 @@ fn compile_contract_inner(
                         let typ = context.def_interner.get_type(struct_id);
                         let typ = typ.borrow();
                         let fields =
-                            vecmap(typ.get_fields(&[]).unwrap_or_default(), |(name, typ)| {
+                            vecmap(typ.get_fields(&[]).unwrap_or_default(), |(name, typ, _)| {
                                 (name, abi_type_from_hir_type(context, &typ))
                             });
                         let path =
@@ -746,7 +752,7 @@ pub fn compile_no_check(
         }
     }
 
-    let return_visibility = program.return_visibility;
+    let return_visibility = program.return_visibility();
     let ssa_evaluator_options = SsaEvaluatorOptions {
         ssa_logging: match &options.show_ssa_pass {
             Some(string) => SsaLogging::Contains(string.clone()),
@@ -770,12 +776,15 @@ pub fn compile_no_check(
             ExpressionWidth::default()
         },
         emit_ssa: if options.emit_ssa { Some(context.package_build_path.clone()) } else { None },
-        skip_underconstrained_check: options.skip_underconstrained_check,
+        skip_underconstrained_check: !options.silence_warnings
+            && options.skip_underconstrained_check,
         enable_brillig_constraints_check_lookback: options
             .enable_brillig_constraints_check_lookback,
-        skip_brillig_constraints_check: options.skip_brillig_constraints_check,
+        skip_brillig_constraints_check: !options.silence_warnings
+            && options.skip_brillig_constraints_check,
         inliner_aggressiveness: options.inliner_aggressiveness,
         max_bytecode_increase_percent: options.max_bytecode_increase_percent,
+        skip_passes: options.skip_ssa_pass.clone(),
     };
 
     let SsaProgramArtifact { program, debug, warnings, names, brillig_names, error_types, .. } =

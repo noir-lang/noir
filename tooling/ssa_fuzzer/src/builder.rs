@@ -1,5 +1,5 @@
 #![allow(dead_code)]
-use crate::compiler::compile;
+use crate::compiler::compile_from_builder;
 use crate::helpers::{id_to_int, u32_to_id_value};
 use crate::typed_value::{TypedValue, ValueType};
 use acvm::FieldElement;
@@ -7,7 +7,7 @@ use noirc_driver::{CompileOptions, CompiledProgram};
 use noirc_evaluator::ssa::function_builder::FunctionBuilder;
 use noirc_evaluator::ssa::ir::basic_block::BasicBlockId;
 use noirc_evaluator::ssa::ir::function::{Function, RuntimeType};
-use noirc_evaluator::ssa::ir::instruction::BinaryOp;
+use noirc_evaluator::ssa::ir::instruction::{ArrayOffset, BinaryOp};
 use noirc_evaluator::ssa::ir::map::Id;
 use noirc_evaluator::ssa::ir::types::{NumericType, Type};
 use noirc_evaluator::ssa::ir::value::Value;
@@ -66,7 +66,7 @@ impl FuzzerBuilder {
     /// Compiles the built function into a CompiledProgram, to run it with nargo execute
     pub fn compile(self) -> Result<CompiledProgram, FuzzerBuilderError> {
         let result = std::panic::catch_unwind(AssertUnwindSafe(|| {
-            compile(self.builder, &CompileOptions::default())
+            compile_from_builder(self.builder, &CompileOptions::default())
         }));
         match result {
             Ok(result) => match result {
@@ -321,7 +321,8 @@ impl FuzzerBuilder {
         let index_var =
             self.builder.numeric_constant(index, NumericType::Unsigned { bit_size: 32 });
 
-        self.builder.insert_array_get(array, index_var, self.type_.clone())
+        let offset = ArrayOffset::None;
+        self.builder.insert_array_get(array, index_var, offset, self.type_.clone())
     }
 
     pub fn insert_constant(
@@ -343,7 +344,9 @@ impl FuzzerBuilder {
         let index_var =
             self.builder.numeric_constant(index, NumericType::Unsigned { bit_size: 32 });
 
-        self.builder.insert_array_set(array, index_var, value)
+        let mutable = false;
+        let offset = ArrayOffset::None;
+        self.builder.insert_array_set(array, index_var, value, mutable, offset)
     }
 
     /// Gets the index of the entry block

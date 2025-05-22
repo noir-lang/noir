@@ -7,7 +7,7 @@ use crate::{
     ast::{Ident, ItemVisibility},
     lexer::{Lexer, lexer::LocatedTokenResult},
     node_interner::ExprId,
-    token::{FmtStrFragment, IntType, Keyword, LocatedToken, Token, TokenKind, Tokens},
+    token::{FmtStrFragment, Keyword, LocatedToken, Token, TokenKind, Tokens},
 };
 
 use super::{ParsedModule, ParserError, ParserErrorReason, labels::ParsingRuleLabel};
@@ -264,19 +264,6 @@ impl<'a> Parser<'a> {
         false
     }
 
-    fn eat_int_type(&mut self) -> Option<IntType> {
-        let is_int_type = matches!(self.token.token(), Token::IntType(..));
-        if is_int_type {
-            let token = self.bump();
-            match token.into_token() {
-                Token::IntType(int_type) => Some(int_type),
-                _ => unreachable!(),
-            }
-        } else {
-            None
-        }
-    }
-
     fn eat_int(&mut self) -> Option<FieldElement> {
         if matches!(self.token.token(), Token::Int(..)) {
             let token = self.bump();
@@ -388,17 +375,6 @@ impl<'a> Parser<'a> {
 
     fn eat_comma(&mut self) -> bool {
         self.eat(Token::Comma)
-    }
-
-    fn eat_commas(&mut self) -> bool {
-        if self.eat_comma() {
-            while self.eat_comma() {
-                self.push_error(ParserErrorReason::UnexpectedComma, self.previous_token_location);
-            }
-            true
-        } else {
-            false
-        }
     }
 
     fn eat_semicolon(&mut self) -> bool {
@@ -542,6 +518,10 @@ impl<'a> Parser<'a> {
 
     fn expected_identifier(&mut self) {
         self.expected_label(ParsingRuleLabel::Identifier);
+    }
+
+    fn expected_string(&mut self) {
+        self.expected_label(ParsingRuleLabel::String);
     }
 
     fn expected_token(&mut self, token: Token) {

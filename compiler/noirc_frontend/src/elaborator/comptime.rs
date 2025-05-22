@@ -249,7 +249,7 @@ impl<'context> Elaborator<'context> {
         arguments.insert(0, (item, location));
 
         let value = interpreter
-            .call_function(function, arguments, TypeBindings::new(), location)
+            .call_function(function, arguments, TypeBindings::default(), location)
             .map_err(CompilationError::from)?;
 
         self.debug_comptime(location, |interner| value.display(interner).to_string());
@@ -323,10 +323,13 @@ impl<'context> Elaborator<'context> {
 
             if *param_type == Type::Quoted(crate::QuotedType::TraitDefinition) {
                 let trait_id = match arg.kind {
-                    ExpressionKind::Variable(path) => interpreter
-                        .elaborator
-                        .resolve_trait_by_path(path)
-                        .ok_or(InterpreterError::FailedToResolveTraitDefinition { location }),
+                    ExpressionKind::Variable(path) => {
+                        let path = interpreter.elaborator.validate_path(path);
+                        interpreter
+                            .elaborator
+                            .resolve_trait_by_path(path)
+                            .ok_or(InterpreterError::FailedToResolveTraitDefinition { location })
+                    }
                     _ => Err(InterpreterError::TraitDefinitionMustBeAPath { location }),
                 }?;
                 push_arg(Value::TraitDefinition(trait_id));

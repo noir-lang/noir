@@ -277,7 +277,7 @@ pub struct NodeInterner {
     /// Only for LSP: a map of ModuleDefId to each module that pub or pub(crate) exports it.
     /// In LSP this is used to offer importing the item via one of these exports if
     /// the item is not visible where it's defined.
-    reexports: HashMap<ModuleDefId, Vec<Reexport>>,
+    pub reexports: HashMap<ModuleDefId, Vec<Reexport>>,
 }
 
 /// A dependency in the dependency graph may be a type or a definition.
@@ -621,6 +621,7 @@ pub struct GlobalInfo {
     pub id: GlobalId,
     pub definition_id: DefinitionId,
     pub ident: Ident,
+    pub visibility: ItemVisibility,
     pub local_id: LocalModuleId,
     pub crate_id: CrateId,
     pub location: Location,
@@ -782,8 +783,10 @@ impl NodeInterner {
             methods: Vec::new(),
             method_ids: unresolved_trait.method_ids.clone(),
             associated_types,
+            associated_type_bounds: HashMap::default(),
             trait_bounds: Vec::new(),
             where_clause: Vec::new(),
+            all_generics: Vec::new(),
         };
 
         self.traits.insert(type_id, new_trait);
@@ -797,6 +800,7 @@ impl NodeInterner {
         span: Span,
         attributes: Vec<SecondaryAttribute>,
         generics: Generics,
+        visibility: ItemVisibility,
         krate: CrateId,
         local_id: LocalModuleId,
         file_id: FileId,
@@ -804,7 +808,7 @@ impl NodeInterner {
         let type_id = TypeId(ModuleId { krate, local_id });
 
         let location = Location::new(span, file_id);
-        let new_type = DataType::new(type_id, name, location, generics);
+        let new_type = DataType::new(type_id, name, location, generics, visibility);
         self.data_types.insert(type_id, Shared::new(new_type));
         self.type_attributes.insert(type_id, attributes);
         type_id
@@ -823,6 +827,7 @@ impl NodeInterner {
             typ.type_alias_def.location,
             Type::Error,
             generics,
+            typ.type_alias_def.visibility,
         )));
 
         type_id
@@ -898,6 +903,7 @@ impl NodeInterner {
         attributes: Vec<SecondaryAttribute>,
         mutable: bool,
         comptime: bool,
+        visibility: ItemVisibility,
     ) -> GlobalId {
         let id = GlobalId(self.globals.len());
         let location = Location::new(ident.span(), file);
@@ -914,6 +920,7 @@ impl NodeInterner {
             crate_id,
             let_statement,
             location,
+            visibility,
             value: GlobalValue::Unresolved,
         });
         self.global_attributes.insert(id, attributes);
@@ -935,12 +942,14 @@ impl NodeInterner {
         attributes: Vec<SecondaryAttribute>,
         mutable: bool,
         comptime: bool,
+        visibility: ItemVisibility,
     ) -> GlobalId {
         let statement = self.push_stmt(HirStatement::Error);
         let location = name.location();
 
-        let id = self
-            .push_global(name, local_id, crate_id, statement, file, attributes, mutable, comptime);
+        let id = self.push_global(
+            name, local_id, crate_id, statement, file, attributes, mutable, comptime, visibility,
+        );
         self.push_stmt_location(statement, location);
         id
     }
@@ -978,6 +987,10 @@ impl NodeInterner {
     /// See ModCollector for it's usage.
     pub fn push_fn_meta(&mut self, func_data: FuncMeta, func_id: FuncId) {
         self.func_meta.insert(func_id, func_data);
+    }
+
+    pub fn definition_count(&self) -> usize {
+        self.definitions.len()
     }
 
     pub fn push_definition(
@@ -1490,14 +1503,16 @@ impl NodeInterner {
     /// constraints deep. In this case, all of the constraints are returned, starting with the
     /// failing one.
     /// If this list of failing constraints is empty, this means type annotations are required.
+    /// Returns the list of instantiation bindings as well, which should be stored on the
+    /// expression.
     pub fn lookup_trait_implementation(
         &self,
         object_type: &Type,
         trait_id: TraitId,
         trait_generics: &[Type],
         trait_associated_types: &[NamedType],
-    ) -> Result<TraitImplKind, ImplSearchErrorKind> {
-        let (impl_kind, bindings) = self.try_lookup_trait_implementation(
+    ) -> Result<(TraitImplKind, TypeBindings), ImplSearchErrorKind> {
+        let (impl_kind, bindings, instantiation_bindings) = self.try_lookup_trait_implementation(
             object_type,
             trait_id,
             trait_generics,
@@ -1505,7 +1520,7 @@ impl NodeInterner {
         )?;
 
         Type::apply_type_bindings(bindings);
-        Ok(impl_kind)
+        Ok((impl_kind, instantiation_bindings))
     }
 
     /// Similar to `lookup_trait_implementation` but does not apply any type bindings on success.
@@ -1519,9 +1534,9 @@ impl NodeInterner {
         trait_id: TraitId,
         trait_generics: &[Type],
         trait_associated_types: &[NamedType],
-    ) -> Result<(TraitImplKind, TypeBindings), ImplSearchErrorKind> {
-        let mut bindings = TypeBindings::new();
-        let impl_kind = self.lookup_trait_implementation_helper(
+    ) -> Result<(TraitImplKind, TypeBindings, TypeBindings), ImplSearchErrorKind> {
+        let mut bindings = TypeBindings::default();
+        let (impl_kind, instantiation_bindings) = self.lookup_trait_implementation_helper(
             object_type,
             trait_id,
             trait_generics,
@@ -1529,10 +1544,15 @@ impl NodeInterner {
             &mut bindings,
             IMPL_SEARCH_RECURSION_LIMIT,
         )?;
-        Ok((impl_kind, bindings))
+        Ok((impl_kind, bindings, instantiation_bindings))
     }
 
-    /// Returns the trait implementation if found.
+    /// Returns the trait implementation if found along with the instantiation bindings for
+    /// instantiating that trait impl. Note that this is separate from the passed-in TypeBindings
+    /// which can be bound via `Type::apply_type_bindings` if needed. Instantiation bindings should
+    /// be stored as such but not bound, lest the original named generics in trait impls get bound
+    /// over.
+    ///
     /// On error returns either:
     /// - 1+ failing trait constraints, including the original.
     ///   Each constraint after the first represents a `where` clause that was followed.
@@ -1545,7 +1565,7 @@ impl NodeInterner {
         trait_associated_types: &[NamedType],
         type_bindings: &mut TypeBindings,
         recursion_limit: u32,
-    ) -> Result<TraitImplKind, ImplSearchErrorKind> {
+    ) -> Result<(TraitImplKind, TypeBindings), ImplSearchErrorKind> {
         let make_constraint = || {
             let ordered = trait_generics.to_vec();
             let named = trait_associated_types.to_vec();
@@ -1579,7 +1599,6 @@ impl NodeInterner {
         let mut where_clause_error = None;
 
         for (existing_object_type, impl_kind) in impls {
-            // Bug: We're instantiating only the object type's generics here, not all of the trait's generics like we need to
             let (existing_object_type, instantiation_bindings) =
                 existing_object_type.instantiate(self);
 
@@ -1649,14 +1668,19 @@ impl NodeInterner {
                         location: Location::dummy(),
                     },
                 };
-                matching_impls.push((impl_kind.clone(), fresh_bindings, constraint));
+                matching_impls.push((
+                    impl_kind.clone(),
+                    fresh_bindings,
+                    instantiation_bindings,
+                    constraint,
+                ));
             }
         }
 
         if matching_impls.len() == 1 {
-            let (impl_, fresh_bindings, _) = matching_impls.pop().unwrap();
+            let (impl_, fresh_bindings, instantiation_bindings, _) = matching_impls.pop().unwrap();
             *type_bindings = fresh_bindings;
-            Ok(impl_)
+            Ok((impl_, instantiation_bindings))
         } else if matching_impls.is_empty() {
             let mut errors = match where_clause_error {
                 Some((_, ImplSearchErrorKind::Nested(errors))) => errors,
@@ -1666,7 +1690,7 @@ impl NodeInterner {
             errors.push(make_constraint());
             Err(ImplSearchErrorKind::Nested(errors))
         } else {
-            let impls = vecmap(matching_impls, |(_, _, constraint)| {
+            let impls = vecmap(matching_impls, |(_, _, _, constraint)| {
                 let name = &self.get_trait(constraint.trait_bound.trait_id).name;
                 format!("{}: {name}{}", constraint.typ, constraint.trait_bound.trait_generics)
             });
@@ -1801,7 +1825,7 @@ impl NodeInterner {
         // It should never happen since impls are defined at global scope, but even
         // if they were, we should never prevent defining a new impl because a 'where'
         // clause already assumes it exists.
-        if let Ok((TraitImplKind::Normal(existing), _)) = self.try_lookup_trait_implementation(
+        if let Ok((TraitImplKind::Normal(existing), ..)) = self.try_lookup_trait_implementation(
             &instantiated_object_type,
             trait_id,
             trait_generics,
@@ -2284,7 +2308,7 @@ impl NodeInterner {
         trait_impl_generics: &[Type],
         impl_self_type: Type,
     ) -> TypeBindings {
-        let mut bindings = TypeBindings::new();
+        let mut bindings = TypeBindings::default();
         let the_trait = self.get_trait(trait_id);
         let trait_generics = the_trait.generics.clone();
 

@@ -1,9 +1,10 @@
-use std::collections::{HashMap, HashSet};
+use std::collections::{BTreeSet, HashMap};
 
 use noirc_driver::CrateId;
 use noirc_frontend::{
     DataType, Generics, Kind, NamedGeneric, Type,
     ast::{Ident, ItemVisibility},
+    graph::Dependency,
     hir::{
         comptime::{Value, tokens_to_string_with_indent},
         def_map::{DefMaps, ModuleDefId, ModuleId},
@@ -14,7 +15,7 @@ use noirc_frontend::{
         stmt::{HirLetStatement, HirPattern},
         traits::{ResolvedTraitBound, TraitConstraint},
     },
-    modules::{module_def_id_to_reference_id, relative_module_full_path},
+    modules::{module_def_id_is_visible, module_def_id_to_reference_id, relative_module_full_path},
     node_interner::{FuncId, GlobalId, GlobalValue, NodeInterner, ReferenceId, TypeAliasId},
     shared::Visibility,
     token::{FunctionAttributeKind, LocatedToken, SecondaryAttribute, SecondaryAttributeKind},
@@ -25,10 +26,11 @@ use super::items::{Impl, Import, Item, Module, TraitImpl};
 mod hir;
 mod types;
 
-pub(super) struct ItemPrinter<'interner, 'def_map, 'string> {
+pub(super) struct ItemPrinter<'context, 'string> {
     crate_id: CrateId,
-    interner: &'interner NodeInterner,
-    def_maps: &'def_map DefMaps,
+    interner: &'context NodeInterner,
+    def_maps: &'context DefMaps,
+    dependencies: &'context Vec<Dependency>,
     string: &'string mut String,
     indent: usize,
     module_id: ModuleId,
@@ -36,11 +38,12 @@ pub(super) struct ItemPrinter<'interner, 'def_map, 'string> {
     self_type: Option<Type>,
 }
 
-impl<'interner, 'def_map, 'string> ItemPrinter<'interner, 'def_map, 'string> {
+impl<'context, 'string> ItemPrinter<'context, 'string> {
     pub(super) fn new(
         crate_id: CrateId,
-        interner: &'interner NodeInterner,
-        def_maps: &'def_map DefMaps,
+        interner: &'context NodeInterner,
+        def_maps: &'context DefMaps,
+        dependencies: &'context Vec<Dependency>,
         string: &'string mut String,
     ) -> Self {
         let root_id = def_maps[&crate_id].root();
@@ -50,6 +53,7 @@ impl<'interner, 'def_map, 'string> ItemPrinter<'interner, 'def_map, 'string> {
             crate_id,
             interner,
             def_maps,
+            dependencies,
             string,
             indent: 0,
             module_id,
@@ -353,8 +357,17 @@ impl<'interner, 'def_map, 'string> ItemPrinter<'interner, 'def_map, 'string> {
             }
 
             self.write_indent();
-            self.push_str("type ");
-            self.push_str(&associated_type.name);
+
+            if let Kind::Numeric(numeric_type) = associated_type.kind() {
+                self.push_str("let ");
+                self.push_str(&associated_type.name);
+                self.push_str(": ");
+                self.show_type(&numeric_type);
+            } else {
+                self.push_str("type ");
+                self.push_str(&associated_type.name);
+            }
+
             self.push_str(";");
             printed_type_or_function = true;
         }
@@ -392,7 +405,11 @@ impl<'interner, 'def_map, 'string> ItemPrinter<'interner, 'def_map, 'string> {
         self.push(' ');
 
         let use_import = true;
-        self.show_reference_to_module_def_id(ModuleDefId::TraitId(trait_.id), use_import);
+        self.show_reference_to_module_def_id(
+            ModuleDefId::TraitId(trait_.id),
+            trait_.visibility,
+            use_import,
+        );
 
         let use_colons = false;
         self.show_generic_types(&trait_impl.trait_generics, use_colons);
@@ -414,9 +431,18 @@ impl<'interner, 'def_map, 'string> ItemPrinter<'interner, 'def_map, 'string> {
             }
 
             self.write_indent();
-            self.push_str("type ");
-            self.push_str(&named_type.name.to_string());
-            self.push_str(" = ");
+
+            if let Type::Constant(_, Kind::Numeric(numeric_type)) = &named_type.typ {
+                self.push_str("let ");
+                self.push_str(&named_type.name.to_string());
+                self.push_str(": ");
+                self.show_type(numeric_type);
+                self.push_str(" = ");
+            } else {
+                self.push_str("type ");
+                self.push_str(&named_type.name.to_string());
+                self.push_str(" = ");
+            }
             self.show_type(&named_type.typ);
             self.push_str(";");
 
@@ -657,7 +683,7 @@ impl<'interner, 'def_map, 'string> ItemPrinter<'interner, 'def_map, 'string> {
         self.push('>');
     }
 
-    fn show_generic_type_variables(&mut self, generics: &HashSet<(String, Kind)>) {
+    fn show_generic_type_variables(&mut self, generics: &BTreeSet<(String, Kind)>) {
         if generics.is_empty() {
             return;
         }
@@ -766,7 +792,12 @@ impl<'interner, 'def_map, 'string> ItemPrinter<'interner, 'def_map, 'string> {
             }
             Value::Function(func_id, ..) => {
                 let use_import = true;
-                self.show_reference_to_module_def_id(ModuleDefId::FunctionId(*func_id), use_import);
+                let visibility = self.interner.function_modifiers(func_id).visibility;
+                self.show_reference_to_module_def_id(
+                    ModuleDefId::FunctionId(*func_id),
+                    visibility,
+                    use_import,
+                );
             }
             Value::Tuple(values) => {
                 self.push('(');
@@ -888,7 +919,11 @@ impl<'interner, 'def_map, 'string> ItemPrinter<'interner, 'def_map, 'string> {
 
         let data_type = data_type.borrow();
         let use_import = true;
-        self.show_reference_to_module_def_id(ModuleDefId::TypeId(data_type.id), use_import);
+        self.show_reference_to_module_def_id(
+            ModuleDefId::TypeId(data_type.id),
+            data_type.visibility,
+            use_import,
+        );
 
         let use_colons = true;
         self.show_generic_types(&generics, use_colons);
@@ -910,7 +945,8 @@ impl<'interner, 'def_map, 'string> ItemPrinter<'interner, 'def_map, 'string> {
             self.show_item_visibility(import.visibility);
             self.push_str("use ");
             let use_import = false;
-            let name = self.show_reference_to_module_def_id(import.id, use_import);
+            let name =
+                self.show_reference_to_module_def_id(import.id, import.visibility, use_import);
 
             if name != import.name.as_str() {
                 self.push_str(" as ");
@@ -924,6 +960,7 @@ impl<'interner, 'def_map, 'string> ItemPrinter<'interner, 'def_map, 'string> {
     fn show_reference_to_module_def_id(
         &mut self,
         module_def_id: ModuleDefId,
+        visibility: ItemVisibility,
         use_import: bool,
     ) -> String {
         if let ModuleDefId::FunctionId(func_id) = module_def_id {
@@ -932,8 +969,10 @@ impl<'interner, 'def_map, 'string> ItemPrinter<'interner, 'def_map, 'string> {
             if let Some(trait_impl_id) = func_meta.trait_impl {
                 let trait_impl = self.interner.get_trait_implementation(trait_impl_id);
                 let trait_impl = trait_impl.borrow();
+                let trait_ = self.interner.get_trait(trait_impl.trait_id);
                 self.show_reference_to_module_def_id(
                     ModuleDefId::TraitId(trait_impl.trait_id),
+                    trait_.visibility,
                     use_import,
                 );
 
@@ -948,7 +987,12 @@ impl<'interner, 'def_map, 'string> ItemPrinter<'interner, 'def_map, 'string> {
             }
 
             if let Some(trait_id) = func_meta.trait_id {
-                self.show_reference_to_module_def_id(ModuleDefId::TraitId(trait_id), use_import);
+                let trait_ = self.interner.get_trait(trait_id);
+                self.show_reference_to_module_def_id(
+                    ModuleDefId::TraitId(trait_id),
+                    trait_.visibility,
+                    use_import,
+                );
                 self.push_str("::");
 
                 let name = self.interner.function_name(&func_id).to_string();
@@ -957,7 +1001,13 @@ impl<'interner, 'def_map, 'string> ItemPrinter<'interner, 'def_map, 'string> {
             }
 
             if let Some(type_id) = func_meta.type_id {
-                self.show_reference_to_module_def_id(ModuleDefId::TypeId(type_id), use_import);
+                let typ = self.interner.get_type(type_id);
+                let typ = typ.borrow();
+                self.show_reference_to_module_def_id(
+                    ModuleDefId::TypeId(type_id),
+                    typ.visibility,
+                    use_import,
+                );
                 self.push_str("::");
 
                 let name = self.interner.function_name(&func_id).to_string();
@@ -987,6 +1037,32 @@ impl<'interner, 'def_map, 'string> ItemPrinter<'interner, 'def_map, 'string> {
         }
 
         let current_module_parent_id = self.module_id.parent(self.def_maps);
+        let mut reexport = None;
+
+        let is_visible = module_def_id_is_visible(
+            module_def_id,
+            self.module_id,
+            visibility,
+            None,
+            self.interner,
+            self.def_maps,
+            self.dependencies,
+        );
+        if !is_visible {
+            reexport = self.interner.get_reexports(module_def_id).first();
+        }
+
+        if let Some(reexport) = reexport {
+            self.show_reference_to_module_def_id(
+                ModuleDefId::ModuleId(reexport.module_id),
+                reexport.visibility,
+                true,
+            );
+            self.push_str("::");
+            self.push_str(reexport.name.as_str());
+            return reexport.name.to_string();
+        }
+
         if let Some(full_path) = relative_module_full_path(
             module_def_id,
             self.module_id,

@@ -1,0 +1,10 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: expanded_code
+---
+fn main(x: Field, y: Field, expected_commitment: std::embedded_curve_ops::EmbeddedCurvePoint) {
+    let commitment: std::embedded_curve_ops::EmbeddedCurvePoint =
+        std::hash::pedersen_commitment([x, y]);
+    assert(commitment.x == expected_commitment.x);
+    assert(commitment.y == expected_commitment.y);
+}
