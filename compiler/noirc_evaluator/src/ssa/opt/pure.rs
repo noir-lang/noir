@@ -56,7 +56,7 @@ impl Ssa {
     }
 }
 
-/// Post-check condition for [Function::remove_bit_shifts].
+/// Post-check condition for [Ssa:: purity_analysis].
 ///
 /// Succeeds if:
 ///   - all functions have a purity status attached to it.
