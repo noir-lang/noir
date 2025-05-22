@@ -9,7 +9,7 @@ comptime fn derive_default(typ: TypeDefinition) -> Quoted {
         "derive_default: Deriving Default on generic types is currently unimplemented",
     );
     let type_name: Type = typ.as_type();
-    let fields: [(Quoted, Type)] = typ.fields_as_written();
+    let fields: [(Quoted, Type, Quoted)] = typ.fields_as_written();
     let fields: Quoted = join(make_field_exprs(fields));
     quote {
         impl Default for type_name {
@@ -41,12 +41,12 @@ impl Default for Foo {
     }
 }
 
-comptime fn make_field_exprs(fields: [(Quoted, Type)]) -> [Quoted] {
+comptime fn make_field_exprs(fields: [(Quoted, Type, Quoted)]) -> [Quoted] {
     let mut result: [Quoted] = &[];
     {
-        let ___i0: [(Quoted, Type)] = fields;
+        let ___i0: [(Quoted, Type, Quoted)] = fields;
         for ___i1 in 0..___i0.len() {
-            let my_field: (Quoted, Type) = ___i0[___i1];
+            let my_field: (Quoted, Type, Quoted) = ___i0[___i1];
             {
                 let name: Quoted = my_field.0;
                 result = result.push_back(quote { name: Default::default(),  });

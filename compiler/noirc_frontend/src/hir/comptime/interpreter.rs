@@ -173,13 +173,23 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
         let previous_state = self.enter_function();
 
         for ((parameter, typ, _), (argument, arg_location)) in parameters.iter().zip(arguments) {
-            self.define_pattern(parameter, typ, argument, arg_location)?;
+            let result = self.define_pattern(parameter, typ, argument, arg_location);
+            if let Err(err) = result {
+                self.exit_function(previous_state);
+                return Err(err);
+            }
         }
 
-        let function_body = self.get_function_body(function, location)?;
-        let result = self.evaluate(function_body)?;
+        let function_body = match self.get_function_body(function, location) {
+            Ok(body) => body,
+            Err(err) => {
+                self.exit_function(previous_state);
+                return Err(err);
+            }
+        };
+        let result = self.evaluate(function_body);
         self.exit_function(previous_state);
-        Ok(result)
+        result
     }
 
     /// Try to retrieve a function's body.
@@ -299,17 +309,21 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
 
         let parameters = closure.parameters.iter().zip(arguments);
         for ((parameter, typ), (argument, arg_location)) in parameters {
-            self.define_pattern(parameter, typ, argument, arg_location)?;
+            let result = self.define_pattern(parameter, typ, argument, arg_location);
+            if let Err(err) = result {
+                self.exit_function(previous_state);
+                return Err(err);
+            }
         }
 
         for (param, arg) in closure.captures.into_iter().zip(environment) {
             self.define(param.ident.id, arg);
         }
 
-        let result = self.evaluate(closure.body)?;
+        let result = self.evaluate(closure.body);
 
         self.exit_function(previous_state);
-        Ok(result)
+        result
     }
 
     /// Enters a function, pushing a new scope and resetting any required state.
@@ -338,7 +352,8 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
     }
 
     pub(super) fn pop_scope(&mut self) {
-        self.elaborator.interner.comptime_scopes.pop();
+        self.elaborator.interner.comptime_scopes.pop().expect("Expected a scope to exist");
+        assert!(!self.elaborator.interner.comptime_scopes.is_empty());
     }
 
     fn current_scope_mut(&mut self) -> &mut HashMap<DefinitionId, Value> {
@@ -438,12 +453,16 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
                             })?;
 
                             let field_type = field.get_type().into_owned();
-                            self.define_pattern(
+                            let result = self.define_pattern(
                                 field_pattern,
                                 &field_type,
                                 field.clone(),
                                 location,
-                            )?;
+                            );
+                            if result.is_err() {
+                                self.pop_scope();
+                                return result;
+                            }
                         }
                         Ok(())
                     }
@@ -739,7 +758,11 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
         self.push_scope();
 
         for statement in block.statements {
-            self.evaluate_statement(statement)?;
+            let result = self.evaluate_statement(statement);
+            if result.is_err() {
+                self.pop_scope();
+                return result;
+            }
         }
 
         let result = if let Some(statement) = last_statement {
@@ -1040,7 +1063,11 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
             if if_.alternative.is_some() {
                 self.evaluate(if_.consequence)
             } else {
-                self.evaluate(if_.consequence)?;
+                let result = self.evaluate(if_.consequence);
+                if result.is_err() {
+                    self.pop_scope();
+                    return result;
+                }
                 Ok(Value::Unit)
             }
         } else {
