@@ -114,7 +114,7 @@ expression: artifact
     "EXPR [ (-1, _35) (1, _67) 0 ]",
     "EXPR [ (-1, _36) (1, _68) 0 ]"
   ],
-  "debug_symbols": "jdLBioMwFAXQf8naRTS+54y/MgwSNZZAiJLqwCD+e6NXW7to6epq4j3qI7NoTT1dKuu7/irKn1nUwTpnL5XrGz3a3sfVeUnEcVuNwZi4JE77sTXoYPwoSj85l4g/7abtoeug/ZajDnFXJsL4NmYEO+vMerUkj7Z8Xc0o3ctZkd7r9HFf5fneVyxf9bM375eSjw+QqXoInwNpcQcyOgO/8UY3NjzNXKhClPGf1dfGqu8tcolIERlCIXIEIRhRIKDkUAgKQSEoBIWgEBSCQlAICkFhKAyFoTAUhsJQGApDYSi8Kss6sGB17cx+0LrJN6dzN/4Px85xMofQN6adglnnte3FCd4A",
+  "debug_symbols": "jdLBioMwFAXQf8naRTS+Z+uvDINEjSUQoqQ6MIj/PtGrrbNo6epq4j3qI7NoTT3dKuu7/i7Kr1nUwTpnb5XrGz3a3sfVeUnEcVuNwZi4JE77sTXoYPwoSj85l4gf7abtofug/ZajDnFXJsL4NmYEO+vMerUkz7Z8Xc0o3ctZkT7q9HFf5fneVyxf9bM375fp9fgAmfFT+BxQ8gGoyxn4jje6seHfzIUqRBn/WV02Vl23yCUiRWQIhcgRhGBEgYCSQyEoBIWgEBSCQlAICkEhKASFoTAUhsJQGApDYSgMhaHwqizrwILVtTP7Qesm35zO3fg7HDvHyRxC35h2Cmad17YXJ/gH",
   "file_map": {
     "50": {
       "source": "// blake3 circuit where the input is 5 bytes\n// not five field elements since blake3 operates over\n// bytes.\n//\n// If you do not cast, it will take all the bytes from the field element!\nfn main(x: [u8; 5], result: pub [u8; 32]) {\n    let mut digest = std::hash::blake3(x);\n    digest[0] = 5 as u8;\n    digest = std::hash::blake3(x);\n    assert(digest == result);\n}\n",

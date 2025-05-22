@@ -798,10 +798,43 @@ impl<'f> Context<'f> {
 
                         Instruction::Call { func, arguments }
                     }
-                    //Issue #5045: We set curve points to infinity if condition is false, to ensure that they are on the curve, if not the addition may fail.
+                    //Issue #5045: We set curve points to g1, g2=2g1 if condition is false, to ensure that they are on the curve, if not the addition may fail.
+                    // If inputs are distinct curve points, then so is their predicate version.
+                    // If inputs are identical (point doubling), then so is their predicate version
+                    // Hence the assumptions for calling EmbeddedCurveAdd are kept by this transformation.
                     Value::Intrinsic(Intrinsic::BlackBox(BlackBoxFunc::EmbeddedCurveAdd)) => {
-                        arguments[2] = self.var_or_one(arguments[2], condition, call_stack);
-                        arguments[5] = self.var_or_one(arguments[5], condition, call_stack);
+                        #[cfg(feature = "bn254")]
+                        {
+                            let generators = Self::grumpkin_generators();
+                            // Convert the generators to ValueId
+                            let generators = generators
+                                .iter()
+                                .map(|v| {
+                                    self.inserter
+                                        .function
+                                        .dfg
+                                        .make_constant(*v, NumericType::NativeField)
+                                })
+                                .collect::<Vec<ValueId>>();
+                            let (point1_x, point2_x) = self.predicate_argument(
+                                &arguments,
+                                &generators,
+                                true,
+                                condition,
+                                call_stack,
+                            );
+                            let (point1_y, point2_y) = self.predicate_argument(
+                                &arguments,
+                                &generators,
+                                false,
+                                condition,
+                                call_stack,
+                            );
+                            arguments[0] = point1_x;
+                            arguments[1] = point1_y;
+                            arguments[3] = point2_x;
+                            arguments[4] = point2_y;
+                        }
 
                         Instruction::Call { func, arguments }
                     }
@@ -837,6 +870,51 @@ impl<'f> Context<'f> {
         }
     }
 
+    #[cfg(feature = "bn254")]
+    fn grumpkin_generators() -> Vec<FieldElement> {
+        let g1_x = FieldElement::from_hex("0x01").unwrap();
+        let g1_y =
+            FieldElement::from_hex("0x02cf135e7506a45d632d270d45f1181294833fc48d823f272c").unwrap();
+        let g2_x = FieldElement::from_hex(
+            "0x06ce1b0827aafa85ddeb49cdaa36306d19a74caa311e13d46d8bc688cdbffffe",
+        )
+        .unwrap();
+        let g2_y = FieldElement::from_hex(
+            "0x1c122f81a3a14964909ede0ba2a6855fc93faf6fa1a788bf467be7e7a43f80ac",
+        )
+        .unwrap();
+        vec![g1_x, g1_y, g2_x, g2_y]
+    }
+
+    /// Returns the values corresponding to the given inputs by doing
+    /// 'if condition {inputs} else {generators}'
+    /// It is done for the abscissas or the ordinates, depending on 'abscissa'.
+    /// Inputs are supposed to be of the form:
+    /// - inputs: (point1_x, point1_y, point1_infinite, point2_x, point2_y, point2_infinite)
+    /// - generators: [g1_x, g1_y, g2_x, g2_y]
+    /// - index: true for abscissa, false for ordinate
+    #[cfg(feature = "bn254")]
+    fn predicate_argument(
+        &mut self,
+        inputs: &[ValueId],
+        generators: &[ValueId],
+        abscissa: bool,
+        condition: ValueId,
+        call_stack: CallStackId,
+    ) -> (ValueId, ValueId) {
+        let index = !abscissa as usize;
+        if inputs[3 + index] == inputs[index] {
+            let predicated_value =
+                self.var_or(inputs[index], condition, generators[index], call_stack);
+            (predicated_value, predicated_value)
+        } else {
+            (
+                self.var_or(inputs[index], condition, generators[index], call_stack),
+                self.var_or(inputs[3 + index], condition, generators[2 + index], call_stack),
+            )
+        }
+    }
+
     /// 'Cast' the 'condition' to 'value' type
     ///
     /// This needed because we need to multiply the condition with several values
@@ -861,8 +939,9 @@ impl<'f> Context<'f> {
         call_stack: CallStackId,
     ) -> ValueId {
         // Unchecked mul because the condition is always 0 or 1
+        let cast_condition = self.cast_condition_to_value_type(condition, value, call_stack);
         self.insert_instruction(
-            Instruction::binary(BinaryOp::Mul { unchecked: true }, value, condition),
+            Instruction::binary(BinaryOp::Mul { unchecked: true }, value, cast_condition),
             call_stack,
         )
     }
@@ -904,6 +983,24 @@ impl<'f> Context<'f> {
         // Unchecked add because of the values is guaranteed to be 0
         self.insert_instruction(
             Instruction::binary(BinaryOp::Add { unchecked: true }, field, not_condition),
+            call_stack,
+        )
+    }
+    // Computes: if condition { var } else { other }
+    #[cfg(feature = "bn254")]
+    fn var_or(
+        &mut self,
+        var: ValueId,
+        condition: ValueId,
+        other: ValueId,
+        call_stack: CallStackId,
+    ) -> ValueId {
+        let field = self.mul_by_condition(var, condition, call_stack);
+        let not_condition = self.not_instruction(condition, call_stack);
+        let else_field = self.mul_by_condition(other, not_condition, call_stack);
+        // Unchecked add because one of the values is guaranteed to be 0
+        self.insert_instruction(
+            Instruction::binary(BinaryOp::Add { unchecked: true }, field, else_field),
             call_stack,
         )
     }
@@ -1416,41 +1513,41 @@ mod test {
         let src = "
         acir(inline) fn main f0 {
           b0():
-            v0 = allocate -> &mut Field
-            store Field 0 at v0
-            v2 = allocate -> &mut Field
-            store Field 2 at v2
-            v4 = load v2 -> Field
-            v5 = lt v4, Field 2
+            v0 = allocate -> &mut u32
+            store u32 0 at v0
+            v2 = allocate -> &mut u32
+            store u32 2 at v2
+            v4 = load v2 -> u32
+            v5 = lt v4, u32 2
             jmpif v5 then: b4, else: b1
           b1():
-            v6 = load v2 -> Field
-            v8 = lt v6, Field 4
+            v6 = load v2 -> u32
+            v8 = lt v6, u32 4
             jmpif v8 then: b2, else: b3
           b2():
-            v9 = load v0 -> Field
-            v10 = load v2 -> Field
-            v12 = mul v10, Field 100
+            v9 = load v0 -> u32
+            v10 = load v2 -> u32
+            v12 = mul v10, u32 100
             v13 = add v9, v12
             store v13 at v0
-            v14 = load v2 -> Field
-            v16 = add v14, Field 1
+            v14 = load v2 -> u32
+            v16 = add v14, u32 1
             store v16 at v2
             jmp b3()
           b3():
             jmp b5()
           b4():
-            v17 = load v0 -> Field
-            v18 = load v2 -> Field
-            v20 = mul v18, Field 10
+            v17 = load v0 -> u32
+            v18 = load v2 -> u32
+            v20 = mul v18, u32 10
             v21 = add v17, v20
             store v21 at v0
-            v22 = load v2 -> Field
-            v23 = add v22, Field 1
+            v22 = load v2 -> u32
+            v23 = add v22, u32 1
             store v23 at v2
             jmp b5()
           b5():
-            v24 = load v0 -> Field
+            v24 = load v0 -> u32
             return v24
         }";
 
@@ -1477,10 +1574,10 @@ mod test {
         assert_ssa_snapshot!(ssa, @r"
         acir(inline) fn main f0 {
           b0():
-            v0 = allocate -> &mut Field
-            v1 = allocate -> &mut Field
+            v0 = allocate -> &mut u32
+            v1 = allocate -> &mut u32
             enable_side_effects u1 1
-            return Field 200
+            return u32 200
         }
         ");
     }
@@ -1513,8 +1610,8 @@ mod test {
             store Field 0 at v1
             jmpif v0 then: b1, else: b2
           b1():
-            store Field 1 at v1 
-            store Field 2 at v1 
+            store Field 1 at v1
+            store Field 2 at v1
             jmp b2()
           b2():
             v3 = load v1 -> Field
@@ -1553,9 +1650,9 @@ mod test {
             jmpif v0 then: b1, else: b2
           b1():
             v4 = make_array [Field 1] : [Field; 1]
-            store v4 at v3 
+            store v4 at v3
             v5 = make_array [Field 2] : [Field; 1]
-            store v5 at v3 
+            store v5 at v3
             jmp b2()
           b2():
             v24 = load v3 -> Field
@@ -1651,5 +1748,23 @@ mod test {
             return v12
         }
         ");
+    }
+
+    #[test]
+    #[cfg(feature = "bn254")]
+    fn test_grumpkin_points() {
+        use crate::ssa::opt::flatten_cfg::Context;
+        use acvm::acir::FieldElement;
+
+        let generators = Context::grumpkin_generators();
+        let len = generators.len();
+        for i in (0..len).step_by(2) {
+            let gen_x = generators[i];
+            let gen_y = generators[i + 1];
+            assert!(
+                gen_y * gen_y - gen_x * gen_x * gen_x + FieldElement::from(17_u128)
+                    == FieldElement::zero()
+            );
+        }
     }
 }

@@ -588,7 +588,7 @@ impl Elaborator<'_> {
             && definition.is_some_and(DefinitionInfo::is_comptime_local);
         let definition_kind = definition.as_ref().map(|definition| definition.kind.clone());
 
-        let mut bindings = TypeBindings::new();
+        let mut bindings = TypeBindings::default();
 
         // Resolve any generics if we the variable we have resolved is a function
         // and if the turbofish operator was used.
@@ -973,7 +973,7 @@ impl Elaborator<'_> {
         expr_id: ExprId,
         generics: Option<Vec<Type>>,
     ) -> Type {
-        let bindings = TypeBindings::new();
+        let bindings = TypeBindings::default();
         self.type_check_variable_with_bindings(ident, expr_id, generics, bindings)
     }
 
@@ -1023,7 +1023,8 @@ impl Elaborator<'_> {
         if let Some(definition) = self.interner.try_definition(ident.id) {
             if let DefinitionKind::Function(function) = definition.kind {
                 let function = self.interner.function_meta(&function);
-                for mut constraint in function.trait_constraints.clone() {
+                for mut constraint in function.all_trait_constraints().cloned().collect::<Vec<_>>()
+                {
                     constraint.apply_bindings(&bindings);
 
                     self.push_trait_constraint(

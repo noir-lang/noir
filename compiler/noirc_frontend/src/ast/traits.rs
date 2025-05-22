@@ -49,6 +49,7 @@ pub enum TraitItem {
     },
     Type {
         name: Ident,
+        bounds: Vec<TraitBound>,
     },
 }
 
@@ -215,7 +216,14 @@ impl Display for TraitItem {
                     write!(f, ";")
                 }
             }
-            TraitItem::Type { name } => write!(f, "type {name};"),
+            TraitItem::Type { name, bounds } => {
+                if bounds.is_empty() {
+                    write!(f, "type {name};")
+                } else {
+                    let bounds = vecmap(bounds, |bound| bound.to_string()).join(" + ");
+                    write!(f, "type {name}: {bounds};")
+                }
+            }
         }
     }
 }

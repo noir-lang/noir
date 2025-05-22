@@ -181,7 +181,11 @@ impl DefunctionalizationContext {
                         };
 
                         // Find the correct apply function
-                        let apply_function = self.get_apply_function(signature, func.runtime());
+                        let Some(apply_function) =
+                            self.get_apply_function(signature, func.runtime())
+                        else {
+                            continue;
+                        };
 
                         // Replace the instruction with a call to apply
                         let apply_function_value_id = func.dfg.import_function(apply_function.id);
@@ -201,8 +205,12 @@ impl DefunctionalizationContext {
     }
 
     /// Returns the apply function for the given signature
-    fn get_apply_function(&self, signature: Signature, runtime: RuntimeType) -> ApplyFunction {
-        *self.apply_functions.get(&(signature, runtime)).expect("Could not find apply function")
+    fn get_apply_function(
+        &self,
+        signature: Signature,
+        runtime: RuntimeType,
+    ) -> Option<ApplyFunction> {
+        self.apply_functions.get(&(signature, runtime)).copied()
     }
 }
 
@@ -376,10 +384,10 @@ fn find_dynamic_dispatches(func: &Function) -> BTreeSet<Signature> {
 fn create_apply_functions(ssa: &mut Ssa, variants_map: Variants) -> ApplyFunctions {
     let mut apply_functions = HashMap::default();
     for ((mut signature, runtime), variants) in variants_map.into_iter() {
-        assert!(
-            !variants.is_empty(),
-            "ICE: at least one variant should exist for a dynamic call {signature:?}"
-        );
+        if variants.is_empty() {
+            // If no variants exist for a dynamic call we leave removing those dead parameters to DIE
+            continue;
+        }
         let dispatches_to_multiple_functions = variants.len() > 1;
 
         // Update the shared function signature of the higher-order function variants
@@ -805,11 +813,7 @@ mod tests {
         );
     }
 
-    // Expected to panic like:
     #[test]
-    #[should_panic(
-        expected = "ICE: at least one variant should exist for a dynamic call Signature { params: [Numeric(Unsigned { bit_size: 32 })], returns: [Numeric(Unsigned { bit_size: 32 })] }"
-    )]
     fn missing_fn() {
         let src = "
           brillig(inline) fn main f0 {
@@ -823,7 +827,54 @@ mod tests {
         let ssa = ssa.defunctionalize();
 
         assert_ssa_snapshot!(ssa, @r"
-        TODO
+          brillig(inline) fn main f0 {
+            b0(v0: Field, v1: u32):
+              v2 = call v0(v1) -> u32
+              return v2
+          }
+        ");
+    }
+
+    #[test]
+    fn missing_fn_variant() {
+        let src = "
+        brillig(inline) fn main f0 {
+          b0():
+            v2 = call f1(f2) -> i64
+            return v2
+        }
+        brillig(inline) fn func_3 f1 {
+          b0(v0: function):
+            return i64 0
+        }
+        brillig(inline) fn func_2 f2 {
+          b0(v0: function):
+            v2 = call v0(u128 1) -> u1
+            return v2
+        }
+        ";
+
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.defunctionalize();
+
+        // We still expect all parameters with a function type to be replaced.
+        // However, this is fine as a function with no variants means that function
+        // was never actually called.
+        assert_ssa_snapshot!(ssa, @r"
+        brillig(inline) fn main f0 {
+          b0():
+            v2 = call f1(Field 2) -> i64
+            return v2
+        }
+        brillig(inline) fn func_3 f1 {
+          b0(v0: Field):
+            return i64 0
+        }
+        brillig(inline) fn func_2 f2 {
+          b0(v0: Field):
+            v2 = call v0(u128 1) -> u1
+            return v2
+        }
         ");
     }
 }

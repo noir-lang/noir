@@ -47,8 +47,7 @@ pub mod function_builder;
 pub mod interpreter;
 pub mod ir;
 pub(crate) mod opt;
-#[cfg(test)]
-pub(crate) mod parser;
+pub mod parser;
 pub mod ssa_gen;
 
 #[derive(Debug, Clone)]
@@ -140,10 +139,7 @@ pub fn primary_passes(options: &SsaEvaluatorOptions) -> Vec<SsaPass> {
     vec![
         SsaPass::new(Ssa::remove_unreachable_functions, "Removing Unreachable Functions"),
         SsaPass::new(Ssa::defunctionalize, "Defunctionalization"),
-        SsaPass::new(
-            Ssa::inline_functions_with_at_most_one_instruction,
-            "Inlining functions with at most one instruction",
-        ),
+        SsaPass::new(Ssa::inline_simple_functions, "Inlining simple functions"),
         // BUG: Enabling this mem2reg causes an integration test failure in aztec-package; see:
         // https://github.com/AztecProtocol/aztec-packages/pull/11294#issuecomment-2622809518
         //SsaPass::new(Ssa::mem2reg, "Mem2Reg (1st)"),
@@ -210,7 +206,7 @@ pub fn primary_passes(options: &SsaEvaluatorOptions) -> Vec<SsaPass> {
         // We can safely place the pass before DIE as that pass only removes instructions.
         // We also need DIE's tracking of used globals in case the array get transformations
         // end up using an existing constant from the globals space.
-        SsaPass::new(Ssa::brillig_array_gets, "Brillig Array Get Optimizations"),
+        SsaPass::new(Ssa::brillig_array_get_and_set, "Brillig Array Get and Set Optimizations"),
         SsaPass::new(Ssa::dead_instruction_elimination, "Dead Instruction Elimination"),
         // A function can be potentially unreachable post-DIE if all calls to that function were removed.
         SsaPass::new(Ssa::remove_unreachable_functions, "Removing Unreachable Functions"),
@@ -241,6 +237,8 @@ pub fn secondary_passes(brillig: &Brillig) -> Vec<SsaPass> {
 /// In the future, we can potentially execute the actual initial version using the SSA interpreter.
 pub fn minimal_passes() -> Vec<SsaPass<'static>> {
     vec![
+        // We need to get rid of function pointer parameters, otherwise they cause panic in Brillig generation.
+        SsaPass::new(Ssa::defunctionalize, "Defunctionalization"),
         // Even the initial SSA generation can result in optimizations that leave a function
         // which was called in the AST not being called in the SSA. Such functions would cause
         // panics later, when we are looking for global allocations.
@@ -248,7 +246,7 @@ pub fn minimal_passes() -> Vec<SsaPass<'static>> {
         // We need a DIE pass to populate `used_globals`, otherwise it will panic later.
         SsaPass::new(Ssa::dead_instruction_elimination, "Dead Instruction Elimination"),
         // We need to add an offset to constant array indices in Brillig.
-        SsaPass::new(Ssa::brillig_array_gets, "Brillig Array Get Optimizations"),
+        SsaPass::new(Ssa::brillig_array_get_and_set, "Brillig Array Get and Set Optimizations"),
     ]
 }
 

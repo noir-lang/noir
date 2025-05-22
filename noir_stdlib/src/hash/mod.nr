@@ -140,8 +140,8 @@ pub trait Hash {
 
 // docs:start:derive_hash
 comptime fn derive_hash(s: TypeDefinition) -> Quoted {
-    let name = quote { Hash };
-    let signature = quote { fn hash<H>(_self: Self, _state: &mut H) where H: std::hash::Hasher };
+    let name = quote { $crate::hash::Hash };
+    let signature = quote { fn hash<H>(_self: Self, _state: &mut H) where H: $crate::hash::Hasher };
     let for_each_field = |name| quote { _self.$name.hash(_state); };
     crate::meta::make_trait_impl(
         s,
@@ -163,16 +163,15 @@ pub trait Hasher {
 }
 
 // BuildHasher is a factory trait, responsible for production of specific Hasher.
-pub trait BuildHasher<H>
-where
-    H: Hasher,
-{
+pub trait BuildHasher {
+    type H: Hasher;
+
     fn build_hasher(self) -> H;
 }
 
 pub struct BuildHasherDefault<H>;
 
-impl<H> BuildHasher<H> for BuildHasherDefault<H>
+impl<H> BuildHasher<H = H> for BuildHasherDefault<H>
 where
     H: Hasher + Default,
 {
