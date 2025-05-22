@@ -495,6 +495,18 @@ fn test_range_check() {
 }
 
 #[test]
+fn test_range_check_with_message() {
+    let src = r#"
+        acir(inline) fn main f0 {
+          b0(v0: Field):
+            range_check v0 to 8 bits, "overflow error"
+            return
+        }
+        "#;
+    assert_ssa_roundtrip(src);
+}
+
+#[test]
 fn test_allocate() {
     let src = "
         acir(inline) fn main f0 {
