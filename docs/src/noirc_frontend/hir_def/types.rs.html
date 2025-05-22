@@ -3395,7 +3395,16 @@
 <a href="#3394" id="3394">3394</a>
 <a href="#3395" id="3395">3395</a>
 <a href="#3396" id="3396">3396</a>
-<a href="#3397" id="3397">3397</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::{borrow::Cow, cell::RefCell, collections::BTreeSet, rc::Rc};
+<a href="#3397" id="3397">3397</a>
+<a href="#3398" id="3398">3398</a>
+<a href="#3399" id="3399">3399</a>
+<a href="#3400" id="3400">3400</a>
+<a href="#3401" id="3401">3401</a>
+<a href="#3402" id="3402">3402</a>
+<a href="#3403" id="3403">3403</a>
+<a href="#3404" id="3404">3404</a>
+<a href="#3405" id="3405">3405</a>
+<a href="#3406" id="3406">3406</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::{borrow::Cow, cell::RefCell, collections::BTreeSet, rc::Rc};
 
 <span class="kw">use </span>fxhash::FxHashMap <span class="kw">as </span>HashMap;
 
@@ -3741,6 +3750,7 @@
     </span><span class="kw">pub </span>id: TypeId,
 
     <span class="kw">pub </span>name: Ident,
+    <span class="kw">pub </span>visibility: ItemVisibility,
 
     <span class="doccomment">/// A type's body is private to force struct fields or enum variants to only be
     /// accessed through get_field(), get_fields(), instantiate(), or similar functions
@@ -3848,8 +3858,14 @@
 }
 
 <span class="kw">impl </span>DataType {
-    <span class="kw">pub fn </span>new(id: TypeId, name: Ident, location: Location, generics: Generics) -&gt; DataType {
-        DataType { id, name, location, generics, body: TypeBody::None }
+    <span class="kw">pub fn </span>new(
+        id: TypeId,
+        name: Ident,
+        location: Location,
+        generics: Generics,
+        visibility: ItemVisibility,
+    ) -&gt; DataType {
+        DataType { id, name, location, generics, body: TypeBody::None, visibility }
     }
 
     <span class="doccomment">/// To account for cyclic references between structs, a struct's
@@ -4090,6 +4106,7 @@
     <span class="kw">pub </span>id: TypeAliasId,
     <span class="kw">pub </span>typ: Type,
     <span class="kw">pub </span>generics: Generics,
+    <span class="kw">pub </span>visibility: ItemVisibility,
     <span class="kw">pub </span>location: Location,
 }
 
@@ -4130,8 +4147,9 @@
         location: Location,
         typ: Type,
         generics: Generics,
+        visibility: ItemVisibility,
     ) -&gt; TypeAlias {
-        TypeAlias { id, typ, name, location, generics }
+        TypeAlias { id, typ, name, location, generics, visibility }
     }
 
     <span class="kw">pub fn </span>set_type_and_generics(<span class="kw-2">&amp;mut </span><span class="self">self</span>, new_typ: Type, new_generics: Generics) {

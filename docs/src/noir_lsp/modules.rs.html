@@ -66,19 +66,15 @@
 <a href="#65" id="65">65</a>
 <a href="#66" id="66">66</a>
 <a href="#67" id="67">67</a>
-<a href="#68" id="68">68</a>
-<a href="#69" id="69">69</a>
-<a href="#70" id="70">70</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::collections::BTreeMap;
+<a href="#68" id="68">68</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::collections::BTreeMap;
 
 <span class="kw">use </span>noirc_frontend::{
     ast::{Ident, ItemVisibility},
     graph::{CrateId, Dependency},
     hir::def_map::{CrateDefMap, ModuleDefId, ModuleId},
-    modules::get_parent_module,
+    modules::{get_parent_module, module_def_id_is_visible},
     node_interner::{NodeInterner, Reexport},
 };
-
-<span class="kw">use </span><span class="kw">crate</span>::visibility::module_def_id_is_visible;
 
 <span class="doccomment">/// Finds a visible reexport for any ancestor module of the given ModuleDefId,
 </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>get_ancestor_module_reexport(

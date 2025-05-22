@@ -904,7 +904,18 @@
 <a href="#903" id="903">903</a>
 <a href="#904" id="904">904</a>
 <a href="#905" id="905">905</a>
-<a href="#906" id="906">906</a></pre></div><pre class="rust"><code><span class="kw">use </span>noirc_frontend::{
+<a href="#906" id="906">906</a>
+<a href="#907" id="907">907</a>
+<a href="#908" id="908">908</a>
+<a href="#909" id="909">909</a>
+<a href="#910" id="910">910</a>
+<a href="#911" id="911">911</a>
+<a href="#912" id="912">912</a>
+<a href="#913" id="913">913</a>
+<a href="#914" id="914">914</a>
+<a href="#915" id="915">915</a>
+<a href="#916" id="916">916</a>
+<a href="#917" id="917">917</a></pre></div><pre class="rust"><code><span class="kw">use </span>noirc_frontend::{
     NamedGeneric, Type, TypeBindings,
     ast::{ItemVisibility, UnaryOp},
     hir::def_map::ModuleDefId,
@@ -921,7 +932,7 @@
 
 <span class="kw">use </span><span class="kw">super</span>::ItemPrinter;
 
-<span class="kw">impl </span>ItemPrinter&lt;<span class="lifetime">'_</span>, <span class="lifetime">'_</span>, <span class="lifetime">'_</span>&gt; {
+<span class="kw">impl </span>ItemPrinter&lt;<span class="lifetime">'_</span>, <span class="lifetime">'_</span>&gt; {
     <span class="kw">fn </span>show_hir_expression_id(<span class="kw-2">&amp;mut </span><span class="self">self</span>, expr_id: ExprId) {
         <span class="kw">let </span>hir_expr = <span class="self">self</span>.interner.expression(<span class="kw-2">&amp;</span>expr_id);
         <span class="self">self</span>.show_hir_expression(hir_expr);
@@ -1035,6 +1046,7 @@
                     <span class="kw">let </span>use_import = <span class="bool-val">true</span>;
                     <span class="self">self</span>.show_reference_to_module_def_id(
                         ModuleDefId::TypeId(data_type.id),
+                        data_type.visibility,
                         use_import,
                     );
 
@@ -1059,7 +1071,11 @@
             HirExpression::EnumConstructor(constructor) =&gt; {
                 <span class="kw">let </span>data_type = constructor.r#type.borrow();
                 <span class="kw">let </span>use_import = <span class="bool-val">true</span>;
-                <span class="self">self</span>.show_reference_to_module_def_id(ModuleDefId::TypeId(data_type.id), use_import);
+                <span class="self">self</span>.show_reference_to_module_def_id(
+                    ModuleDefId::TypeId(data_type.id),
+                    data_type.visibility,
+                    use_import,
+                );
 
                 <span class="kw">let </span>variant = data_type.variant_at(constructor.variant_index);
                 <span class="self">self</span>.push_str(<span class="string">"::"</span>);
@@ -1600,8 +1616,10 @@
                     <span class="self">self</span>.push_str(name);
                 } <span class="kw">else </span>{
                     <span class="kw">let </span>use_import = <span class="bool-val">true</span>;
+                    <span class="kw">let </span>visibility = <span class="self">self</span>.interner.function_visibility(func_id);
                     <span class="self">self</span>.show_reference_to_module_def_id(
                         ModuleDefId::FunctionId(func_id),
+                        visibility,
                         use_import,
                     );
                 }
@@ -1620,7 +1638,11 @@
                     }
                 }
                 <span class="kw">let </span>use_import = <span class="bool-val">true</span>;
-                <span class="self">self</span>.show_reference_to_module_def_id(ModuleDefId::GlobalId(global_id), use_import);
+                <span class="self">self</span>.show_reference_to_module_def_id(
+                    ModuleDefId::GlobalId(global_id),
+                    global_info.visibility,
+                    use_import,
+                );
             }
             DefinitionKind::Local(..) | DefinitionKind::NumericGeneric(..) =&gt; {
                 <span class="kw">let </span>name = <span class="self">self</span>.interner.definition_name(ident.id);

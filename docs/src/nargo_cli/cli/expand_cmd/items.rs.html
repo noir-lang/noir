@@ -617,10 +617,10 @@
     <span class="kw">pub</span>(<span class="kw">super</span>) is_prelude: bool,
 }
 
-<span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">struct </span>ItemBuilder&lt;<span class="lifetime">'interner</span>, <span class="lifetime">'def_map</span>&gt; {
+<span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">struct </span>ItemBuilder&lt;<span class="lifetime">'context</span>&gt; {
     crate_id: CrateId,
-    interner: <span class="kw-2">&amp;</span><span class="lifetime">'interner </span>NodeInterner,
-    def_maps: <span class="kw-2">&amp;</span><span class="lifetime">'def_map </span>DefMaps,
+    interner: <span class="kw-2">&amp;</span><span class="lifetime">'context </span>NodeInterner,
+    def_maps: <span class="kw-2">&amp;</span><span class="lifetime">'context </span>DefMaps,
     <span class="doccomment">/// This set is initially created with all the trait impls in the crate.
     /// As we traverse traits, will gather trait impls associated to those traits
     /// that aren't associated to types in the current crate.
@@ -630,11 +630,11 @@
     </span>trait_impls: HashSet&lt;TraitImplId&gt;,
 }
 
-<span class="kw">impl</span>&lt;<span class="lifetime">'interner</span>, <span class="lifetime">'def_map</span>&gt; ItemBuilder&lt;<span class="lifetime">'interner</span>, <span class="lifetime">'def_map</span>&gt; {
+<span class="kw">impl</span>&lt;<span class="lifetime">'context</span>&gt; ItemBuilder&lt;<span class="lifetime">'context</span>&gt; {
     <span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>new(
         crate_id: CrateId,
-        interner: <span class="kw-2">&amp;</span><span class="lifetime">'interner </span>NodeInterner,
-        def_maps: <span class="kw-2">&amp;</span><span class="lifetime">'def_map </span>DefMaps,
+        interner: <span class="kw-2">&amp;</span><span class="lifetime">'context </span>NodeInterner,
+        def_maps: <span class="kw-2">&amp;</span><span class="lifetime">'context </span>DefMaps,
     ) -&gt; <span class="self">Self </span>{
         <span class="kw">let </span>trait_impls = interner.get_trait_implementations_in_crate(crate_id);
         <span class="self">Self </span>{ crate_id, interner, def_maps, trait_impls }

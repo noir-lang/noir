@@ -1766,7 +1766,9 @@
 <a href="#1765" id="1765">1765</a>
 <a href="#1766" id="1766">1766</a>
 <a href="#1767" id="1767">1767</a>
-<a href="#1768" id="1768">1768</a></pre></div><pre class="rust"><code><span class="doccomment">//! The flatten cfg optimization pass "flattens" the entire control flow graph into a single block.
+<a href="#1768" id="1768">1768</a>
+<a href="#1769" id="1769">1769</a>
+<a href="#1770" id="1770">1770</a></pre></div><pre class="rust"><code><span class="doccomment">//! The flatten cfg optimization pass "flattens" the entire control flow graph into a single block.
 //! This includes branches in the CFG with non-constant conditions. Flattening these requires
 //! special handling for operations with side-effects and can lead to a loss of information since
 //! the jmpif will no longer be in the program. As a result, this pass should usually be towards or
@@ -2776,7 +2778,7 @@
 
 <span class="attr">#[cfg(test)]
 </span><span class="kw">mod </span>test {
-    <span class="kw">use </span>acvm::{FieldElement, acir::AcirField};
+    <span class="kw">use </span>acvm::acir::AcirField;
 
     <span class="kw">use crate</span>::{
         assert_ssa_snapshot,
@@ -2787,7 +2789,6 @@
                 instruction::{Instruction, TerminatorInstruction},
                 value::{Value, ValueId},
             },
-            opt::flatten_cfg::Context,
         },
     };
 
@@ -3522,6 +3523,9 @@
     <span class="attr">#[test]
     #[cfg(feature = <span class="string">"bn254"</span>)]
     </span><span class="kw">fn </span>test_grumpkin_points() {
+        <span class="kw">use </span><span class="kw">crate</span>::ssa::opt::flatten_cfg::Context;
+        <span class="kw">use </span>acvm::acir::FieldElement;
+
         <span class="kw">let </span>generators = Context::grumpkin_generators();
         <span class="kw">let </span>len = generators.len();
         <span class="kw">for </span>i <span class="kw">in </span>(<span class="number">0</span>..len).step_by(<span class="number">2</span>) {

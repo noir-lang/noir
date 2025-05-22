@@ -2558,7 +2558,14 @@
 <a href="#2557" id="2557">2557</a>
 <a href="#2558" id="2558">2558</a>
 <a href="#2559" id="2559">2559</a>
-<a href="#2560" id="2560">2560</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::borrow::Cow;
+<a href="#2560" id="2560">2560</a>
+<a href="#2561" id="2561">2561</a>
+<a href="#2562" id="2562">2562</a>
+<a href="#2563" id="2563">2563</a>
+<a href="#2564" id="2564">2564</a>
+<a href="#2565" id="2565">2565</a>
+<a href="#2566" id="2566">2566</a>
+<a href="#2567" id="2567">2567</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::borrow::Cow;
 <span class="kw">use </span>std::collections::HashSet;
 <span class="kw">use </span>std::fmt;
 <span class="kw">use </span>std::hash::Hash;
@@ -2837,7 +2844,7 @@
     <span class="doccomment">/// Only for LSP: a map of ModuleDefId to each module that pub or pub(crate) exports it.
     /// In LSP this is used to offer importing the item via one of these exports if
     /// the item is not visible where it's defined.
-    </span>reexports: HashMap&lt;ModuleDefId, Vec&lt;Reexport&gt;&gt;,
+    </span><span class="kw">pub </span>reexports: HashMap&lt;ModuleDefId, Vec&lt;Reexport&gt;&gt;,
 }
 
 <span class="doccomment">/// A dependency in the dependency graph may be a type or a definition.
@@ -3181,6 +3188,7 @@
     <span class="kw">pub </span>id: GlobalId,
     <span class="kw">pub </span>definition_id: DefinitionId,
     <span class="kw">pub </span>ident: Ident,
+    <span class="kw">pub </span>visibility: ItemVisibility,
     <span class="kw">pub </span>local_id: LocalModuleId,
     <span class="kw">pub </span>crate_id: CrateId,
     <span class="kw">pub </span>location: Location,
@@ -3359,6 +3367,7 @@
         span: Span,
         attributes: Vec&lt;SecondaryAttribute&gt;,
         generics: Generics,
+        visibility: ItemVisibility,
         krate: CrateId,
         local_id: LocalModuleId,
         file_id: FileId,
@@ -3366,7 +3375,7 @@
         <span class="kw">let </span>type_id = TypeId(ModuleId { krate, local_id });
 
         <span class="kw">let </span>location = Location::new(span, file_id);
-        <span class="kw">let </span>new_type = DataType::new(type_id, name, location, generics);
+        <span class="kw">let </span>new_type = DataType::new(type_id, name, location, generics, visibility);
         <span class="self">self</span>.data_types.insert(type_id, Shared::new(new_type));
         <span class="self">self</span>.type_attributes.insert(type_id, attributes);
         type_id
@@ -3385,6 +3394,7 @@
             typ.type_alias_def.location,
             Type::Error,
             generics,
+            typ.type_alias_def.visibility,
         )));
 
         type_id
@@ -3460,6 +3470,7 @@
         attributes: Vec&lt;SecondaryAttribute&gt;,
         mutable: bool,
         comptime: bool,
+        visibility: ItemVisibility,
     ) -&gt; GlobalId {
         <span class="kw">let </span>id = GlobalId(<span class="self">self</span>.globals.len());
         <span class="kw">let </span>location = Location::new(ident.span(), file);
@@ -3476,6 +3487,7 @@
             crate_id,
             let_statement,
             location,
+            visibility,
             value: GlobalValue::Unresolved,
         });
         <span class="self">self</span>.global_attributes.insert(id, attributes);
@@ -3497,12 +3509,14 @@
         attributes: Vec&lt;SecondaryAttribute&gt;,
         mutable: bool,
         comptime: bool,
+        visibility: ItemVisibility,
     ) -&gt; GlobalId {
         <span class="kw">let </span>statement = <span class="self">self</span>.push_stmt(HirStatement::Error);
         <span class="kw">let </span>location = name.location();
 
-        <span class="kw">let </span>id = <span class="self">self
-            </span>.push_global(name, local_id, crate_id, statement, file, attributes, mutable, comptime);
+        <span class="kw">let </span>id = <span class="self">self</span>.push_global(
+            name, local_id, crate_id, statement, file, attributes, mutable, comptime, visibility,
+        );
         <span class="self">self</span>.push_stmt_location(statement, location);
         id
     }

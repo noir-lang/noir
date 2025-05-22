@@ -174,11 +174,16 @@
 <a href="#173" id="173">173</a>
 <a href="#174" id="174">174</a>
 <a href="#175" id="175">175</a>
-<a href="#176" id="176">176</a></pre></div><pre class="rust"><code><span class="kw">use </span>noirc_frontend::{NamedGeneric, Type, TypeBinding, hir::def_map::ModuleDefId};
+<a href="#176" id="176">176</a>
+<a href="#177" id="177">177</a>
+<a href="#178" id="178">178</a>
+<a href="#179" id="179">179</a>
+<a href="#180" id="180">180</a>
+<a href="#181" id="181">181</a></pre></div><pre class="rust"><code><span class="kw">use </span>noirc_frontend::{NamedGeneric, Type, TypeBinding, hir::def_map::ModuleDefId};
 
 <span class="kw">use </span><span class="kw">super</span>::ItemPrinter;
 
-<span class="kw">impl </span>ItemPrinter&lt;<span class="lifetime">'_</span>, <span class="lifetime">'_</span>, <span class="lifetime">'_</span>&gt; {
+<span class="kw">impl </span>ItemPrinter&lt;<span class="lifetime">'_</span>, <span class="lifetime">'_</span>&gt; {
     <span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>show_types_separated_by_comma(<span class="kw-2">&amp;mut </span><span class="self">self</span>, types: <span class="kw-2">&amp;</span>[Type]) {
         <span class="self">self</span>.show_separated_by_comma(types, |this, typ| {
             this.show_type(typ);
@@ -223,7 +228,11 @@
             Type::DataType(data_type, generics) =&gt; {
                 <span class="kw">let </span>data_type = data_type.borrow();
                 <span class="kw">let </span>use_import = <span class="bool-val">true</span>;
-                <span class="self">self</span>.show_reference_to_module_def_id(ModuleDefId::TypeId(data_type.id), use_import);
+                <span class="self">self</span>.show_reference_to_module_def_id(
+                    ModuleDefId::TypeId(data_type.id),
+                    data_type.visibility,
+                    use_import,
+                );
                 <span class="kw">if </span>!generics.is_empty() {
                     <span class="self">self</span>.push_str(<span class="string">"&lt;"</span>);
                     <span class="self">self</span>.show_types_separated_by_comma(generics);
@@ -235,6 +244,7 @@
                 <span class="kw">let </span>use_import = <span class="bool-val">true</span>;
                 <span class="self">self</span>.show_reference_to_module_def_id(
                     ModuleDefId::TypeAliasId(type_alias.id),
+                    type_alias.visibility,
                     use_import,
                 );
                 <span class="kw">if </span>!generics.is_empty() {

@@ -726,7 +726,8 @@
 <a href="#725" id="725">725</a>
 <a href="#726" id="726">726</a>
 <a href="#727" id="727">727</a>
-<a href="#728" id="728">728</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::hash::Hash;
+<a href="#728" id="728">728</a>
+<a href="#729" id="729">729</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::hash::Hash;
 <span class="kw">use </span>std::{hash::Hasher, rc::Rc};
 
 <span class="kw">use </span>iter_extended::{try_vecmap, vecmap};
@@ -845,6 +846,7 @@
                 Ident::new(name.to_string(), location),
                 location,
                 Vec::new(),
+                ItemVisibility::Public,
             );
             <span class="kw">let </span>expected = Type::DataType(Shared::new(expected), Vec::new());
             type_mismatch(value, expected, location)
