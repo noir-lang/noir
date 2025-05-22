@@ -9,7 +9,7 @@ use crate::{
     graph::CrateGraph,
     hir::def_collector::dc_crate::UnresolvedTrait,
     hir_def::traits::ResolvedTraitBound,
-    node_interner::GlobalValue,
+    node_interner::{GlobalValue, QuotedTypeId},
     shared::Signedness,
     token::SecondaryAttributeKind,
     usage_tracker::UsageTracker,
@@ -68,7 +68,7 @@ mod unquote;
 
 use im::HashSet;
 use iter_extended::vecmap;
-use noirc_errors::{Located, Location};
+use noirc_errors::{Located, Location, Span};
 pub(crate) use options::ElaboratorOptions;
 pub use options::{FrontendOptions, UnstableFeature};
 pub use path_resolution::Turbofish;
@@ -2370,7 +2370,8 @@ impl<'context> Elaborator<'context> {
         }
 
         // Remove the ones that show up in `self_type`
-        let mut visitor = RemoveGenericsAppearingInTypeVisitor { idents: &mut idents };
+        let mut visitor =
+            RemoveGenericsAppearingInTypeVisitor { interner: self.interner, idents: &mut idents };
         for typ in types {
             typ.accept(&mut visitor);
         }
@@ -2400,14 +2401,83 @@ impl<'context> Elaborator<'context> {
     }
 }
 
-struct RemoveGenericsAppearingInTypeVisitor<'a> {
-    idents: &'a mut HashSet<Ident>,
+struct RemoveGenericsAppearingInTypeVisitor<'interner, 'ident> {
+    interner: &'interner NodeInterner,
+    idents: &'ident mut HashSet<Ident>,
 }
 
-impl Visitor for RemoveGenericsAppearingInTypeVisitor<'_> {
+impl RemoveGenericsAppearingInTypeVisitor<'_, '_> {
+    fn visit_type(&mut self, typ: &Type) {
+        match typ {
+            Type::Array(length, element) => {
+                self.visit_type(length);
+                self.visit_type(element);
+            }
+            Type::Slice(element) => {
+                self.visit_type(element);
+            }
+            Type::FmtString(length, element) => {
+                self.visit_type(length);
+                self.visit_type(element);
+            }
+            Type::Tuple(items) | Type::DataType(_, items) | Type::Alias(_, items) => {
+                for item in items {
+                    self.visit_type(item);
+                }
+            }
+            Type::TraitAsType(_, _, trait_generics) => {
+                for generic in &trait_generics.ordered {
+                    self.visit_type(generic);
+                }
+                for named_type in &trait_generics.named {
+                    self.visit_type(&named_type.typ);
+                }
+            }
+            Type::NamedGeneric(named_generic) => {
+                let ident = Ident::new(named_generic.name.to_string(), Location::dummy());
+                self.idents.remove(&ident);
+            }
+            Type::CheckedCast { from, to } => {
+                self.visit_type(from);
+                self.visit_type(to);
+            }
+            Type::Function(args, ret, env, _) => {
+                for arg in args {
+                    self.visit_type(arg);
+                }
+                self.visit_type(ret);
+                self.visit_type(env);
+            }
+            Type::Reference(typ, _) => {
+                self.visit_type(typ);
+            }
+            Type::InfixExpr(lhs, _, rhs, _) => {
+                self.visit_type(lhs);
+                self.visit_type(rhs);
+            }
+            Type::Unit
+            | Type::Bool
+            | Type::Integer(..)
+            | Type::FieldElement
+            | Type::String(_)
+            | Type::Constant(..)
+            | Type::Quoted(_)
+            | Type::Forall(..)
+            | Type::TypeVariable(_)
+            | Type::Error => (),
+        }
+    }
+}
+
+impl Visitor for RemoveGenericsAppearingInTypeVisitor<'_, '_> {
     fn visit_path(&mut self, path: &Path) {
         if let Some(ident) = path.as_ident() {
             self.idents.remove(ident);
         }
+    }
+
+    fn visit_resolved_type(&mut self, quoted_type_id: QuotedTypeId, _span: Span) {
+        let typ = self.interner.get_quoted_type(quoted_type_id);
+        self.visit_type(typ);
     }
 }
