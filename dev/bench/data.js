@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1747945117903,
+  "lastUpdate": 1747947811791,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -15756,48 +15756,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "mvezenov@gmail.com",
-            "name": "Maxim Vezenov",
-            "username": "vezenovm"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "535f80966141dc31a4a8992811059737107af872",
-          "message": "chore(performance): Enable hoisting pure with predicate calls (#8522)",
-          "timestamp": "2025-05-15T14:04:07Z",
-          "tree_id": "470f98166cf43fccf5436a761d53eb78d0a4655a",
-          "url": "https://github.com/noir-lang/noir/commit/535f80966141dc31a4a8992811059737107af872"
-        },
-        "date": 1747319019852,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 264782,
-            "range": "± 1101",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 234701,
-            "range": "± 1090",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 3220416,
-            "range": "± 27866",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "asterite@gmail.com",
             "name": "Ary Borenszweig",
             "username": "asterite"
@@ -17849,6 +17807,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 3567515,
             "range": "± 7594",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "mvezenov@gmail.com",
+            "name": "Maxim Vezenov",
+            "username": "vezenovm"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "56770d0c6933d53c08d50eaa24a5ff5e7950cad3",
+          "message": "chore(ci): Do not run ast_fuzzer orig vs. morph in ci (#8646)",
+          "timestamp": "2025-05-22T20:42:24Z",
+          "tree_id": "746b2452283995eb0bfbca10e7b7a68d95f1e38e",
+          "url": "https://github.com/noir-lang/noir/commit/56770d0c6933d53c08d50eaa24a5ff5e7950cad3"
+        },
+        "date": 1747947800852,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 253761,
+            "range": "± 2184",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 223385,
+            "range": "± 8908",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 3219769,
+            "range": "± 24490",
             "unit": "ns/iter"
           }
         ]
