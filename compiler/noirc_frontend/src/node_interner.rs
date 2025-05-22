@@ -277,7 +277,7 @@ pub struct NodeInterner {
     /// Only for LSP: a map of ModuleDefId to each module that pub or pub(crate) exports it.
     /// In LSP this is used to offer importing the item via one of these exports if
     /// the item is not visible where it's defined.
-    reexports: HashMap<ModuleDefId, Vec<Reexport>>,
+    pub reexports: HashMap<ModuleDefId, Vec<Reexport>>,
 }
 
 /// A dependency in the dependency graph may be a type or a definition.
@@ -621,6 +621,7 @@ pub struct GlobalInfo {
     pub id: GlobalId,
     pub definition_id: DefinitionId,
     pub ident: Ident,
+    pub visibility: ItemVisibility,
     pub local_id: LocalModuleId,
     pub crate_id: CrateId,
     pub location: Location,
@@ -782,8 +783,10 @@ impl NodeInterner {
             methods: Vec::new(),
             method_ids: unresolved_trait.method_ids.clone(),
             associated_types,
+            associated_type_bounds: HashMap::default(),
             trait_bounds: Vec::new(),
             where_clause: Vec::new(),
+            all_generics: Vec::new(),
         };
 
         self.traits.insert(type_id, new_trait);
@@ -797,6 +800,7 @@ impl NodeInterner {
         span: Span,
         attributes: Vec<SecondaryAttribute>,
         generics: Generics,
+        visibility: ItemVisibility,
         krate: CrateId,
         local_id: LocalModuleId,
         file_id: FileId,
@@ -804,7 +808,7 @@ impl NodeInterner {
         let type_id = TypeId(ModuleId { krate, local_id });
 
         let location = Location::new(span, file_id);
-        let new_type = DataType::new(type_id, name, location, generics);
+        let new_type = DataType::new(type_id, name, location, generics, visibility);
         self.data_types.insert(type_id, Shared::new(new_type));
         self.type_attributes.insert(type_id, attributes);
         type_id
@@ -823,6 +827,7 @@ impl NodeInterner {
             typ.type_alias_def.location,
             Type::Error,
             generics,
+            typ.type_alias_def.visibility,
         )));
 
         type_id
@@ -898,6 +903,7 @@ impl NodeInterner {
         attributes: Vec<SecondaryAttribute>,
         mutable: bool,
         comptime: bool,
+        visibility: ItemVisibility,
     ) -> GlobalId {
         let id = GlobalId(self.globals.len());
         let location = Location::new(ident.span(), file);
@@ -914,6 +920,7 @@ impl NodeInterner {
             crate_id,
             let_statement,
             location,
+            visibility,
             value: GlobalValue::Unresolved,
         });
         self.global_attributes.insert(id, attributes);
@@ -935,12 +942,14 @@ impl NodeInterner {
         attributes: Vec<SecondaryAttribute>,
         mutable: bool,
         comptime: bool,
+        visibility: ItemVisibility,
     ) -> GlobalId {
         let statement = self.push_stmt(HirStatement::Error);
         let location = name.location();
 
-        let id = self
-            .push_global(name, local_id, crate_id, statement, file, attributes, mutable, comptime);
+        let id = self.push_global(
+            name, local_id, crate_id, statement, file, attributes, mutable, comptime, visibility,
+        );
         self.push_stmt_location(statement, location);
         id
     }
