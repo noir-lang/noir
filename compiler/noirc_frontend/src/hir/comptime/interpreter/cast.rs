@@ -11,8 +11,6 @@ use crate::{
     signed_field::SignedField,
 };
 
-/// Returns the truncate offset for casting to or from field values.
-/// When we do this we need to know the size of the input/output type.
 fn bit_size(typ: &Type) -> u32 {
     match typ {
         Type::FieldElement => 254,
