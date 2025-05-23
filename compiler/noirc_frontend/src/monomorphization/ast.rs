@@ -124,6 +124,70 @@ impl Expression {
             | Expression::Continue => None,
         }
     }
+
+    /// Check if the expression will need to have its type deduced from a literal,
+    /// which could be ambiguous.
+    ///
+    /// For example:
+    /// ```ignore
+    /// let a = 1;
+    /// let b = if (a > 0) { 2 } else { 3 };
+    /// ```
+    pub fn needs_type_inference_from_literal(&self) -> bool {
+        match self {
+            Expression::Literal(_) => true,
+
+            Expression::Block(expressions) => expressions
+                .last()
+                .map(|x| x.needs_type_inference_from_literal())
+                .unwrap_or_default(),
+
+            Expression::Unary(unary) => unary.rhs.needs_type_inference_from_literal(),
+
+            Expression::Binary(binary) => {
+                if binary.operator.is_comparator() {
+                    false
+                } else {
+                    binary.lhs.needs_type_inference_from_literal()
+                }
+            }
+            Expression::If(if_) => {
+                if_.consequence.needs_type_inference_from_literal()
+                    && if_
+                        .alternative
+                        .as_ref()
+                        .map(|x| x.needs_type_inference_from_literal())
+                        .unwrap_or_default()
+            }
+            Expression::Match(m) => {
+                m.cases.iter().all(|c| c.branch.needs_type_inference_from_literal())
+                    && m.default_case
+                        .as_ref()
+                        .map_or(true, |x| x.needs_type_inference_from_literal())
+            }
+
+            Expression::Tuple(xs) => xs.iter().any(|x| x.needs_type_inference_from_literal()),
+
+            Expression::ExtractTupleField(x, _) => x.needs_type_inference_from_literal(),
+
+            // The following expressions either carry an obvious type, or return nothing.
+            Expression::Ident(_)
+            | Expression::Call(_)
+            | Expression::Index(_)
+            | Expression::Cast(_)
+            | Expression::For(_)
+            | Expression::Loop(_)
+            | Expression::While(_)
+            | Expression::Let(_)
+            | Expression::Constrain(_, _, _)
+            | Expression::Assign(_)
+            | Expression::Semi(_)
+            | Expression::Clone(_)
+            | Expression::Drop(_)
+            | Expression::Break
+            | Expression::Continue => false,
+        }
+    }
 }
 
 /// A definition is either a local (variable), function, or is a built-in
