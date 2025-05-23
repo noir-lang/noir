@@ -43,6 +43,8 @@ members = [
 
     "tooling/ssa_fuzzer",
     "tooling/ssa_fuzzer/fuzzer",
+    "tooling/ssa_verification",
+    "tooling/ssa_executor",
     "utils/protobuf",
 ]
 default-members = [
@@ -103,6 +105,7 @@ noirc_artifacts = { path = "tooling/noirc_artifacts" }
 noirc_artifacts_info = { path = "tooling/noirc_artifacts_info" }
 noir_artifact_cli = { path = "tooling/artifact_cli" }
 noir_protobuf = { path = "utils/protobuf" }
+noir_ssa_executor = { path = "tooling/ssa_executor" }
 
 # Arkworks
 ark-bn254 = { version = "^0.5.0", default-features = false, features = [

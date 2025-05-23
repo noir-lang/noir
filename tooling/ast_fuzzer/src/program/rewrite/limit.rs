@@ -328,8 +328,15 @@ impl<'a> LimitContext<'a> {
 
                 let proxy = match &ident.definition {
                     Definition::Function(id) => proxy_functions.get(id),
-                    Definition::Local(_) => None,
-                    other => unreachable!("function or local definition expected; got {}", other),
+                    Definition::Local(_) => {
+                        // Doesn't have a proxy, but still needs its parameters adjusted.
+                        None
+                    }
+                    Definition::Oracle(_) => {
+                        // Oracles don't participate in recursion, let's leave them alone.
+                        return true;
+                    }
+                    other => unreachable!("unexpected call target definition: {}", other),
                 };
 
                 let Type::Function(param_types, _, _, callee_unconstrained) = &mut ident.typ else {
