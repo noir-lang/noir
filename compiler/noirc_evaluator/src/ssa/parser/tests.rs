@@ -347,7 +347,7 @@ fn test_array_get() {
     let src = "
         acir(inline) fn main f0 {
           b0(v0: [Field; 3]):
-            v2 = array_get v0, index Field 0 -> Field
+            v2 = array_get v0, index u32 0 -> Field
             return
         }
         ";
@@ -359,7 +359,7 @@ fn test_array_get_with_index_minus_1() {
     let src: &'static str = "
         acir(inline) fn main f0 {
           b0(v0: [Field; 3]):
-            v2 = array_get v0, index Field 3 minus 1 -> Field
+            v2 = array_get v0, index u32 3 minus 1 -> Field
             return
         }
         ";
@@ -371,7 +371,7 @@ fn test_array_get_with_index_minus_3() {
     let src: &'static str = "
         acir(inline) fn main f0 {
           b0(v0: [Field; 3]):
-            v2 = array_get v0, index Field 6 minus 3 -> Field
+            v2 = array_get v0, index u32 6 minus 3 -> Field
             return
         }
         ";
@@ -383,7 +383,7 @@ fn test_array_set() {
     let src = "
         acir(inline) fn main f0 {
           b0(v0: [Field; 3]):
-            v3 = array_set v0, index Field 0, value Field 1
+            v3 = array_set v0, index u32 0, value Field 1
             return
         }
         ";
@@ -395,7 +395,7 @@ fn test_mutable_array_set() {
     let src = "
         acir(inline) fn main f0 {
           b0(v0: [Field; 3]):
-            v3 = array_set mut v0, index Field 0, value Field 1
+            v3 = array_set mut v0, index u32 0, value Field 1
             return
         }
         ";
@@ -407,7 +407,7 @@ fn test_array_set_with_index_minus_1() {
     let src = "
         acir(inline) fn main f0 {
           b0(v0: [Field; 3]):
-            v3 = array_set v0, index Field 2 minus 1, value Field 1
+            v3 = array_set v0, index u32 2 minus 1, value Field 1
             return
         }
         ";
@@ -419,7 +419,7 @@ fn test_array_set_with_index_minus_3() {
     let src = "
         acir(inline) fn main f0 {
           b0(v0: [Field; 3]):
-            v3 = array_set v0, index Field 4 minus 3, value Field 1
+            v3 = array_set v0, index u32 4 minus 3, value Field 1
             return
         }
         ";
