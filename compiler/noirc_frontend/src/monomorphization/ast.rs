@@ -93,8 +93,18 @@ impl Expression {
             Expression::Cast(cast) => borrowed(&cast.r#type),
             Expression::If(if_) => borrowed(&if_.typ),
             Expression::ExtractTupleField(x, idx) => match x.as_ref() {
-                Expression::Tuple(xs) if xs.len() > *idx => xs[*idx].return_type(),
-                _ => unreachable!("expected tuple type in `ExtractTupleField`"),
+                Expression::Tuple(xs) => {
+                    assert!(xs.len() > *idx, "index out of bounds in tuple return type");
+                    xs[*idx].return_type()
+                }
+                x => {
+                    let typ = x.return_type()?;
+                    let Type::Tuple(types) = typ.as_ref() else {
+                        unreachable!("unexpected type for tuple field extraction: {typ}");
+                    };
+                    assert!(types.len() > *idx, "index out of bounds in tuple return type");
+                    owned(types[*idx].clone())
+                }
             },
             Expression::Clone(x) => x.return_type(),
             Expression::Call(call) => borrowed(&call.return_type),
