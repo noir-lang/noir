@@ -214,7 +214,6 @@ fn analyze_call_graph(
 ) -> FunctionPurities {
     // Now we can analyze it: a function is only as pure as all of
     // its called functions
-
     let times_called = call_graph.times_called();
     let starting_points =
         times_called.iter().filter_map(|(id, times_called)| (*times_called == 0).then_some(*id));
@@ -227,49 +226,43 @@ fn analyze_call_graph(
     let ids_to_indices = call_graph.ids_to_indices();
     let indices_to_ids = call_graph.indices_to_ids();
 
-    let propagate_purities =
-        |start_point: FunctionId, finished_purities: &mut HashMap<FunctionId, Purity>| {
-            let start_index = ids_to_indices[&start_point];
-            let mut dfs = DfsPostOrder::new(graph, start_index);
-
-            while let Some(index) = dfs.next(graph) {
-                let id = indices_to_ids[&index];
-                let mut purity = starting_purities[&id];
-
-                for neighbor_index in graph.neighbors(index) {
-                    let neighbor = indices_to_ids[&neighbor_index];
-
-                    let neighbor_purity = finished_purities.get(&neighbor).copied().unwrap_or({
-                        // The dependent function isn't finished yet. Since we're following
-                        // calls in a DFS, this means there are mutually recursive functions.
-                        // We could handle these but would need a different, much slower algorithm
-                        // to detect strongly connected components. Instead, since this should be
-                        // a rare case, we bail and assume impure for now.
-                        if neighbor == id {
-                            // If the recursive call is to the same function we can ignore it
-                            purity
-                        } else {
-                            Purity::Impure
-                        }
-                    });
-                    purity = purity.unify(neighbor_purity);
-                }
-
-                finished_purities.insert(id, purity);
-            }
-        };
-
     for start_point in starting_points {
-        propagate_purities(start_point, &mut finished_purities);
+        let start_index = ids_to_indices[&start_point];
+        let mut dfs = DfsPostOrder::new(graph, start_index);
+
+        while let Some(index) = dfs.next(graph) {
+            let id = indices_to_ids[&index];
+            let mut purity = starting_purities[&id];
+
+            for neighbor_index in graph.neighbors(index) {
+                let neighbor = indices_to_ids[&neighbor_index];
+
+                let neighbor_purity = finished_purities.get(&neighbor).copied().unwrap_or({
+                    // The dependent function isn't finished yet. Since we're following
+                    // calls in a DFS, this means there are mutually recursive functions.
+                    // We could handle these but would need a different, much slower algorithm
+                    // to detect strongly connected components. Instead, since this should be
+                    // a rare case, we bail and assume impure for now.
+                    if neighbor == id {
+                        // If the recursive call is to the same function we can ignore it
+                        purity
+                    } else {
+                        Purity::Impure
+                    }
+                });
+                purity = purity.unify(neighbor_purity);
+            }
+
+            finished_purities.insert(id, purity);
+        }
     }
 
-    // It's possible that there's an isolated subgraph of functions for which there is no dominating function.
-    // We then process all unhandled recursive functions.
-    let recursive_functions = call_graph.get_recursive_functions();
-    let start_points: Vec<_> =
-        recursive_functions.iter().filter(|func| !finished_purities.contains_key(*func)).collect();
-    for start_point in start_points {
-        propagate_purities(*start_point, &mut finished_purities);
+    // Any remaining functions are completely unreachable and are either recursive or mutually recursive.
+    // As these functions will be removed from the program, we treat them as impure.
+    let unhandled_funcs: Vec<_> =
+        starting_purities.keys().filter(|func| !finished_purities.contains_key(*func)).collect();
+    for id in unhandled_funcs {
+        finished_purities.insert(*id, Purity::Impure);
     }
 
     finished_purities
