@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1748030588893,
+  "lastUpdate": 1748031655539,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -15206,48 +15206,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "aakoshh@gmail.com",
-            "name": "Akosh Farkash",
-            "username": "aakoshh"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "8f70d14a03186124e12d6bce9a8b58e30d515b22",
-          "message": "chore(fuzz): AST fuzzer to use function valued arguments (Part 1) (#8514)\n\nCo-authored-by: Ratmir Karabut <rkarabut@users.noreply.github.com>",
-          "timestamp": "2025-05-16T13:44:52Z",
-          "tree_id": "5b96b902c071164b648c099e29302026999a6762",
-          "url": "https://github.com/noir-lang/noir/commit/8f70d14a03186124e12d6bce9a8b58e30d515b22"
-        },
-        "date": 1747404726979,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 261792,
-            "range": "± 1419",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 231763,
-            "range": "± 4718",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 3222566,
-            "range": "± 44056",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "asterite@gmail.com",
             "name": "Ary Borenszweig",
             "username": "asterite"
@@ -17299,6 +17257,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 3209237,
             "range": "± 39402",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "jfecher11@gmail.com",
+            "name": "jfecher",
+            "username": "jfecher"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "eb3eef93091ad485b33a7577bb9c948a5404683a",
+          "message": "fix: Make casts in `comptime` consistent with runtime casts (#8669)",
+          "timestamp": "2025-05-23T19:53:05Z",
+          "tree_id": "21bf0e5bcd41eae98dd702857e3fa4197cd7e7fd",
+          "url": "https://github.com/noir-lang/noir/commit/eb3eef93091ad485b33a7577bb9c948a5404683a"
+        },
+        "date": 1748031645244,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 265968,
+            "range": "± 408",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 232738,
+            "range": "± 7457",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 3230314,
+            "range": "± 1630",
             "unit": "ns/iter"
           }
         ]
