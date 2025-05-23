@@ -299,10 +299,10 @@ fn shl() {
     assert_eq!(value, from_constant(12_u128.into(), NumericType::signed(8)));
 }
 
-/// shl should overflow if the rhs is greater than the bit count
+/// shl does not error on overflow. It just returns zero.
 #[test]
 fn shl_overflow() {
-    let error = expect_error(
+    let value = expect_value(
         "
         acir(inline) fn main f0 {
           b0():
@@ -311,7 +311,7 @@ fn shl_overflow() {
         }
     ",
     );
-    assert!(matches!(error, InterpreterError::Overflow { .. }));
+    assert_eq!(value, from_constant(0_u128.into(), NumericType::unsigned(8)));
 }
 
 #[test]
@@ -333,7 +333,7 @@ fn shr() {
 }
 
 #[test]
-/// Unlike shl, shr does not error on overflow. It just returns 0. See https://github.com/noir-lang/noir/pull/7509.
+/// shr does not error on overflow. It just returns 0. See https://github.com/noir-lang/noir/pull/7509.
 fn shr_overflow() {
     let value = expect_value(
         "
