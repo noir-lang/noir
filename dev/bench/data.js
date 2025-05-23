@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1748040575068,
+  "lastUpdate": 1748040576957,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -8852,75 +8852,6 @@ window.BENCHMARK_DATA = {
             "username": "web-flow"
           },
           "distinct": true,
-          "id": "0298a63d3febda346a48737f493ee8aeb4e8c538",
-          "message": "feat: C++ codegen for msgpack (#7716)\n\nCo-authored-by: Tom French <15848336+TomAFrench@users.noreply.github.com>\nCo-authored-by: guipublic <47281315+guipublic@users.noreply.github.com>\nCo-authored-by: guipublic <guipublic@gmail.com>",
-          "timestamp": "2025-05-16T15:34:49Z",
-          "tree_id": "044ebf290a381828bd746fa324e52bf0fef91dd5",
-          "url": "https://github.com/noir-lang/noir/commit/0298a63d3febda346a48737f493ee8aeb4e8c538"
-        },
-        "date": 1747411964116,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 241.27,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 263.53,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 216.76,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 549.25,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 541.7,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 1450,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 370.96,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-root",
-            "value": 376.89,
-            "unit": "MB"
-          },
-          {
-            "name": "semaphore_depth_10",
-            "value": 93.04,
-            "unit": "MB"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
-            "email": "aakoshh@gmail.com",
-            "name": "Akosh Farkash",
-            "username": "aakoshh"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
           "id": "4a4ab26d4df43e60f743cecb7b76dabae3f53b41",
           "message": "chore(fuzz): Call function pointers (#8531)",
           "timestamp": "2025-05-16T16:08:48Z",
@@ -11525,6 +11456,75 @@ window.BENCHMARK_DATA = {
           {
             "name": "private-kernel-inner",
             "value": 242.04,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 264.09,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 217.23,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 577.89,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 574.21,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 1460,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 399.73,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-root",
+            "value": 405.29,
+            "unit": "MB"
+          },
+          {
+            "name": "semaphore_depth_10",
+            "value": 92.93,
+            "unit": "MB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "mvezenov@gmail.com",
+            "name": "Maxim Vezenov",
+            "username": "vezenovm"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "c37ded98c518722c2de111ed7d53796e6ed31fe9",
+          "message": "fix(defunctionalize): Higher order functions (HOF) dynamic dispatch and HOFs in arrays (#8672)",
+          "timestamp": "2025-05-23T22:17:31Z",
+          "tree_id": "9146ecc58436caf0796f64adc8d985cab501f511",
+          "url": "https://github.com/noir-lang/noir/commit/c37ded98c518722c2de111ed7d53796e6ed31fe9"
+        },
+        "date": 1748040565760,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 242.05,
             "unit": "MB"
           },
           {
