@@ -1,0 +1,54 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: stderr
+---
+error: Cannot add a `bool` to a `bool
+  ┌─ src/main.nr:2:13
+  │
+2 │     let _ = true + true;
+  │             -----------
+  │
+
+error: Cannot subtract a `bool` from a `bool
+  ┌─ src/main.nr:3:13
+  │
+3 │     let _ = true - true;
+  │             -----------
+  │
+
+error: Cannot multiply a `bool` by a `bool
+  ┌─ src/main.nr:4:13
+  │
+4 │     let _ = true * true;
+  │             -----------
+  │
+
+error: Cannot divide a `bool` by a `bool`
+  ┌─ src/main.nr:5:13
+  │
+5 │     let _ = true / true;
+  │             -----------
+  │
+
+error: Cannot calculate the remainder of a `bool` divided by a `bool`
+  ┌─ src/main.nr:6:13
+  │
+6 │     let _ = true % true;
+  │             -----------
+  │
+
+error: No implementation for `bool >> bool`
+  ┌─ src/main.nr:7:13
+  │
+7 │     let _ = true >> true;
+  │             ------------
+  │
+
+error: No implementation for `bool << bool`
+  ┌─ src/main.nr:8:13
+  │
+8 │     let _ = true << true;
+  │             ------------
+  │
+
+Aborting due to 7 previous errors

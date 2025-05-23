@@ -56,7 +56,7 @@ mod tests {
     #[test]
     fn fuzz_with_arbtest() {
         if is_running_in_ci() {
-            // TODO: Investigate stack overflow and disagreements.
+            // TODO: Investigate function missing purity status failures.
             return;
         }
         crate::targets::tests::fuzz_with_arbtest(super::fuzz);

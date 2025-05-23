@@ -4,11 +4,9 @@ use noirc_frontend::{
     ast::{Ident, ItemVisibility},
     graph::{CrateId, Dependency},
     hir::def_map::{CrateDefMap, ModuleDefId, ModuleId},
-    modules::get_parent_module,
+    modules::{get_parent_module, module_def_id_is_visible},
     node_interner::{NodeInterner, Reexport},
 };
-
-use crate::visibility::module_def_id_is_visible;
 
 /// Finds a visible reexport for any ancestor module of the given ModuleDefId,
 pub(crate) fn get_ancestor_module_reexport(

@@ -53,7 +53,7 @@ expression: artifact
     "EXPR [ (1, _0, _5) (-5, _5) 0 ]",
     "EXPR [ (4294967295, _1, _5) (-1, _6) 0 ]",
     "BLACKBOX::RANGE [(_6, 32)] []",
-    "EXPR [ (4294967295, _1, _5) (-12, _5) 0 ]",
+    "EXPR [ (1, _5, _6) (-12, _5) 0 ]",
     "EXPR [ (-1, _0) 2 ]",
     "BRILLIG CALL func 0: inputs: [Single(Expression { mul_terms: [], linear_combinations: [], q_c: 4 }), Single(Expression { mul_terms: [], linear_combinations: [(1, Witness(1))], q_c: 0 }), Single(Expression { mul_terms: [], linear_combinations: [], q_c: 2 })], outputs: []",
     "unconstrained func 0",
