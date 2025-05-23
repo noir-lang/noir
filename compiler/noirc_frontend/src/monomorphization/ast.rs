@@ -171,9 +171,7 @@ impl Expression {
             }
             Expression::Match(m) => {
                 m.cases.iter().all(|c| c.branch.needs_type_inference_from_literal())
-                    && m.default_case
-                        .as_ref()
-                        .map_or(true, |x| x.needs_type_inference_from_literal())
+                    && m.default_case.as_ref().is_none_or(|x| x.needs_type_inference_from_literal())
             }
 
             Expression::Tuple(xs) => xs.iter().any(|x| x.needs_type_inference_from_literal()),
