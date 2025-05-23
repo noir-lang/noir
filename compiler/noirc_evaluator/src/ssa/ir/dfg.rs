@@ -232,12 +232,21 @@ impl DataFlowGraph {
     }
 
     fn validate_instruction(&self, instruction: &Instruction) {
-        if let Instruction::Binary(Binary { lhs, rhs: _, operator: BinaryOp::Lt }) = instruction {
-            // Assume rhs_type is the same as lhs_type
-            let lhs_type = self.type_of_value(*lhs);
-            if matches!(lhs_type, Type::Numeric(NumericType::NativeField)) {
-                panic!("Cannot use `lt` with field elements");
+        match instruction {
+            Instruction::Binary(Binary { lhs, rhs: _, operator: BinaryOp::Lt }) => {
+                // Assume rhs_type is the same as lhs_type
+                let lhs_type = self.type_of_value(*lhs);
+                if matches!(lhs_type, Type::Numeric(NumericType::NativeField)) {
+                    panic!("Cannot use `lt` with field elements");
+                }
             }
+            Instruction::ArrayGet { index, .. } | Instruction::ArraySet { index, .. } => {
+                let index_type = self.type_of_value(*index);
+                if !matches!(index_type, Type::Numeric(NumericType::Unsigned { bit_size: 32 })) {
+                    panic!("ArrayGet/ArraySet index must be u32");
+                }
+            }
+            _ => (),
         }
     }
 
