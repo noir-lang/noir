@@ -31,6 +31,7 @@
 //! After this pass all first-class functions are replaced with numeric IDs
 //! and calls are routed via the newly generated `apply` functions.
 use std::collections::{BTreeMap, BTreeSet};
+use std::sync::Arc;
 
 use acvm::FieldElement;
 use iter_extended::vecmap;
@@ -126,8 +127,9 @@ impl DefunctionalizationContext {
             // Temporarily take the parameters here just to avoid cloning them
             let parameters = block.take_parameters();
             for parameter in &parameters {
-                if is_function_type(&func.dfg.type_of_value(*parameter)) {
-                    func.dfg.set_type_of_value(*parameter, Type::field());
+                let typ = &func.dfg.type_of_value(*parameter);
+                if is_function_type(typ) {
+                    func.dfg.set_type_of_value(*parameter, replacement_type(typ));
                 }
             }
 
@@ -155,8 +157,9 @@ impl DefunctionalizationContext {
 
                 #[allow(clippy::unnecessary_to_owned)] // clippy is wrong here
                 for result in func.dfg.instruction_results(instruction_id).to_vec() {
-                    if is_function_type(&func.dfg.type_of_value(result)) {
-                        func.dfg.set_type_of_value(result, Type::field());
+                    let typ = &func.dfg.type_of_value(result);
+                    if is_function_type(typ) {
+                        func.dfg.set_type_of_value(result, replacement_type(typ));
                     }
                 }
 
@@ -394,14 +397,14 @@ fn create_apply_functions(ssa: &mut Ssa, variants_map: Variants) -> ApplyFunctio
         // to replace any function passed as a value to a numeric field type.
         for param in &mut signature.params {
             if is_function_type(param) {
-                *param = Type::field();
+                *param = replacement_type(param);
             }
         }
 
         // Update the return value types as we did for the signature parameters above.
         for ret in &mut signature.returns {
             if is_function_type(ret) {
-                *ret = Type::field();
+                *ret = replacement_type(ret);
             }
         }
 
@@ -572,6 +575,14 @@ fn is_function_type(typ: &Type) -> bool {
         Type::Function => true,
         Type::Reference(typ) => is_function_type(typ),
         _ => false,
+    }
+}
+
+fn replacement_type(typ: &Type) -> Type {
+    if matches!(typ, Type::Reference(_)) {
+        Type::Reference(Arc::new(Type::field()))
+    } else {
+        Type::field()
     }
 }
 
@@ -772,7 +783,7 @@ mod tests {
             @r"
         acir(inline) fn main f0 {
           b0(v0: u1):
-            v1 = allocate -> &mut function
+            v1 = allocate -> &mut Field
             store Field 1 at v1
             jmpif v0 then: b1, else: b2
           b1():
@@ -887,7 +898,7 @@ mod tests {
         assert_ssa_snapshot!(ssa, @r"
         acir(inline) fn main f0 {
           b0():
-            v0 = allocate -> Field
+            v0 = allocate -> &mut Field
             store Field 1 at v0
             v3 = call f2(v0) -> u1
             return v3
@@ -897,7 +908,7 @@ mod tests {
             return u1 0
         }
         acir(inline) fn foo f2 {
-          b0(v0: Field):
+          b0(v0: &mut Field):
             v1 = load v0 -> Field
             v3 = call f1() -> u1
             return v3
