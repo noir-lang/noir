@@ -35,7 +35,7 @@ jobs:
       - name: Install nextest
         uses: taiki-e/install-action@v2
         with:
-          tool: nextest@0.9.67
+          tool: nextest@0.9.88
 
       - name: Build and archive tests
         run: cargo nextest archive --workspace --features noirc_frontend/nextest --archive-file nextest-archive-arm64.tar.zst
