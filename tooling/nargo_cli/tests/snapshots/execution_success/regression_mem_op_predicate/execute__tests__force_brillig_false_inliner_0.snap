@@ -81,7 +81,7 @@ expression: artifact
     "unconstrained func 1",
     "[Const { destination: Direct(21), bit_size: Integer(U32), value: 1 }, Const { destination: Direct(20), bit_size: Integer(U32), value: 0 }, CalldataCopy { destination_address: Direct(0), size_address: Direct(21), offset_address: Direct(20) }, Const { destination: Direct(2), bit_size: Field, value: 0 }, BinaryFieldOp { destination: Direct(3), op: Equals, lhs: Direct(0), rhs: Direct(2) }, JumpIf { condition: Direct(3), location: 8 }, Const { destination: Direct(1), bit_size: Field, value: 1 }, BinaryFieldOp { destination: Direct(0), op: Div, lhs: Direct(1), rhs: Direct(0) }, Stop { return_data: HeapVector { pointer: Direct(20), size: Direct(21) } }]"
   ],
-  "debug_symbols": "nZLBjoMgEIbfhbMHQCjSV9lsDCo2JAQNhU02xnffkSnd9tCLl/mE8ftNxtnIZId8612Ylzu5fm1kiM57d+v9MprklgC3296QeuxTtBauyEsfrNVEGxK5hux9Q36Mz+Wl+2pCYTIRurQhNkxACJydt8fT3vzb9LPKRPuQmWyfujzlqzO+UtVX+ox/6Z6+OOPr6nP6/v1vOJnRxbc/Ri6gNESV2pWqS2UUwRAc0SIEQiIwgkEGB3QIXcApAlJgrJwjWoRASASkCIBCdAhd0FIEQ3AEpMj9GER0ZvD2sX9zDuPLOqbftXbqwq5xGe2Uoz0GUXowmj8=",
+  "debug_symbols": "nZLBjoMgEIbfhbMHQCjSV9lsDCo2JAQNhU02xnffkSnd9tCLFz5h/H7NMBuZ7JBvvQvzcifXr40M0Xnvbr1fRpPcEuB02xtSt32K1sIReamDtZpoQyLXkL1vyI/xubx0X00oTCZClTbEhgkIgbPz9njam3+bflaZaB8yk+1Tl6d8dcZX9eeZOvX9S/f0xRlfV59T/eZ/w86MLr7dGLmA0hBV1q6suqyMIhiCI1qEQEgERjDI4IAOoQs4RUAKtJVzRIsQCImAFAFQiA6hC1qKYAiOgBS5H42IzgzePuZvzmF8Gcf0u9ZKHdg1LqOdcrRHI0oNWvMH",
   "file_map": {
     "50": {
       "source": "fn main(mut x: [u32; 5], idx: Field) {\n    // We should not hit out of bounds here as we have a predicate\n    // that should not be hit\n    if idx as u32 < 3 {\n        x[idx] = 10;\n    }\n    assert(x[4] == 111);\n}\n",
