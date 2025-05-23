@@ -221,7 +221,9 @@ impl Function {
 
     /// Iterate over the numeric constants in the function.
     pub fn constants(&self) -> impl Iterator<Item = (&FieldElement, &NumericType)> {
-        self.dfg.values_iter().filter_map(|(_, value)| {
+        let local = self.dfg.values_iter();
+        let global = self.dfg.globals.values_iter();
+        local.chain(global).filter_map(|(_, value)| {
             if let Value::NumericConstant { constant, typ } = value {
                 Some((constant, typ))
             } else {
