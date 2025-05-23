@@ -37,8 +37,7 @@ fn main(x: u32) {
 }
 
 fn lambdas_in_array_literal(x: u32) {
-    let xs =
-        [|| println("hi"), || println("bye"), || println("wow"), || println("big")];
+    let xs = [|| println("hi"), || println("bye"), || println("wow"), || println("big")];
     (xs[x])();
 }
 
