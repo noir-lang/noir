@@ -1008,7 +1008,7 @@ impl<'f> Context<'f> {
 
 #[cfg(test)]
 mod test {
-    use acvm::{FieldElement, acir::AcirField};
+    use acvm::acir::AcirField;
 
     use crate::{
         assert_ssa_snapshot,
@@ -1019,7 +1019,6 @@ mod test {
                 instruction::{Instruction, TerminatorInstruction},
                 value::{Value, ValueId},
             },
-            opt::flatten_cfg::Context,
         },
     };
 
@@ -1431,7 +1430,7 @@ mod test {
         let src = "
         acir(inline) fn main f0 {
           b0(v0: [u8; 2]):
-            v2 = array_get v0, index u8 0 -> u8
+            v2 = array_get v0, index u32 0 -> u8
             v3 = cast v2 as u32
             v4 = truncate v3 to 1 bits, max_bit_size: 32
             v5 = cast v4 as u1
@@ -1475,30 +1474,30 @@ mod test {
         assert_ssa_snapshot!(flattened_ssa, @r"
         acir(inline) fn main f0 {
           b0(v0: [u8; 2]):
-            v2 = array_get v0, index u8 0 -> u8
+            v2 = array_get v0, index u32 0 -> u8
             v3 = cast v2 as u32
             v4 = truncate v3 to 1 bits, max_bit_size: 32
             v5 = cast v4 as u1
             v6 = allocate -> &mut Field
             store u8 0 at v6
             enable_side_effects v5
-            v7 = cast v2 as Field
-            v9 = add v7, Field 1
-            v10 = cast v9 as u8
-            v11 = load v6 -> u8
-            v12 = not v5
-            v13 = cast v4 as u8
-            v14 = cast v12 as u8
-            v15 = unchecked_mul v13, v10
+            v8 = cast v2 as Field
+            v10 = add v8, Field 1
+            v11 = cast v10 as u8
+            v12 = load v6 -> u8
+            v13 = not v5
+            v14 = cast v4 as u8
+            v15 = cast v13 as u8
             v16 = unchecked_mul v14, v11
-            v17 = unchecked_add v15, v16
-            store v17 at v6
-            enable_side_effects v12
-            v18 = load v6 -> u8
-            v19 = cast v12 as u8
-            v20 = cast v4 as u8
-            v21 = unchecked_mul v20, v18
-            store v21 at v6
+            v17 = unchecked_mul v15, v12
+            v18 = unchecked_add v16, v17
+            store v18 at v6
+            enable_side_effects v13
+            v19 = load v6 -> u8
+            v20 = cast v13 as u8
+            v21 = cast v4 as u8
+            v22 = unchecked_mul v21, v19
+            store v22 at v6
             enable_side_effects u1 1
             constrain v5 == u1 1
             return
@@ -1754,6 +1753,9 @@ mod test {
     #[test]
     #[cfg(feature = "bn254")]
     fn test_grumpkin_points() {
+        use crate::ssa::opt::flatten_cfg::Context;
+        use acvm::acir::FieldElement;
+
         let generators = Context::grumpkin_generators();
         let len = generators.len();
         for i in (0..len).step_by(2) {
