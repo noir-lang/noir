@@ -13,10 +13,10 @@ use crate::{
 
 fn bit_size(typ: &Type) -> u32 {
     match typ {
-        Type::FieldElement => 254,
+        Type::FieldElement => FieldElement::max_num_bits(),
         Type::Integer(_, bit_size) => bit_size.bit_size() as u32,
         Type::Bool => 2,
-        _ => 0,
+        _ => FieldElement::max_num_bits(),
     }
 }
 
