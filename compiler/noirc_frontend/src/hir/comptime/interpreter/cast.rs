@@ -1,3 +1,5 @@
+use std::cmp::Ordering;
+
 use acvm::{AcirField, FieldElement};
 use noirc_errors::Location;
 
@@ -22,12 +24,19 @@ fn bit_size(typ: &Type) -> u32 {
 
 #[derive(Debug)]
 enum CastType {
-    Truncate { new_bit_size: u32 },
-    SignExtend { old_bit_size: u32, new_bit_size: u32 },
+    Truncate {
+        new_bit_size: u32,
+    },
+    SignExtend {
+        old_bit_size: u32,
+        new_bit_size: u32,
+    },
     /// SignedField makes casting signed values more difficult since we need
     /// to add an offset to make the signed value positive if it is negative,
     /// and need to store a boolean to remember it is negative
-    SignedToField { old_bit_size: u32 },
+    SignedToField {
+        old_bit_size: u32,
+    },
     /// No-op also covers the zero-extend case since we convert between
     /// field elements rather than concrete bit sizes
     Noop,
@@ -41,20 +50,20 @@ fn classify_cast(input: &Type, output: &Type) -> CastType {
     let input_size = bit_size(&input);
     let output_size = bit_size(&output);
 
-    if input_size < output_size {
-        if input_signed {
-            if output.is_field() {
-                CastType::SignedToField { old_bit_size: input_size }
+    match input_size.cmp(&output_size) {
+        Ordering::Less => {
+            if input_signed {
+                if output.is_field() {
+                    CastType::SignedToField { old_bit_size: input_size }
+                } else {
+                    CastType::SignExtend { old_bit_size: input_size, new_bit_size: output_size }
+                }
             } else {
-                CastType::SignExtend { old_bit_size: input_size, new_bit_size: output_size }
+                CastType::Noop //zero-extend
             }
-        } else {
-            CastType::Noop //zero-extend
         }
-    } else if input_size == output_size {
-        CastType::Noop
-    } else {
-        CastType::Truncate { new_bit_size: output_size }
+        Ordering::Equal => CastType::Noop,
+        Ordering::Greater => CastType::Truncate { new_bit_size: output_size },
     }
 }
 
@@ -75,7 +84,8 @@ fn perform_cast(kind: CastType, lhs: FieldElement) -> FieldElement {
             let is_negative = lhs > max_positive_value.into();
 
             if is_negative {
-                let max_target = if new_bit_size == 128 { u128::MAX } else { 2u128.pow(new_bit_size) - 1 };
+                let max_target =
+                    if new_bit_size == 128 { u128::MAX } else { 2u128.pow(new_bit_size) - 1 };
                 let max_input = 2u128.pow(old_bit_size) - 1;
 
                 // Subtracting these should give ones for each of the extension bits: `11111111 00000000`
@@ -84,8 +94,7 @@ fn perform_cast(kind: CastType, lhs: FieldElement) -> FieldElement {
             } else {
                 lhs
             }
-
-        },
+        }
         CastType::SignedToField { old_bit_size } => {
             assert!(old_bit_size < 128, "i128 and above are not supported");
             let max_positive_value = 2u128.pow(old_bit_size - 1) - 1;
@@ -111,9 +120,7 @@ fn perform_cast(kind: CastType, lhs: FieldElement) -> FieldElement {
 /// positive absolute values.
 fn convert_to_field(value: Value, location: Location) -> IResult<(FieldElement, bool)> {
     Ok(match value {
-        Value::Field(value) if value.is_negative() => {
-            (-value.absolute_value(), true)
-        }
+        Value::Field(value) if value.is_negative() => (-value.absolute_value(), true),
         Value::Field(value) => (value.absolute_value(), false),
         Value::U1(value) => ((value as u128).into(), false),
         Value::U8(value) => ((value as u128).into(), false),

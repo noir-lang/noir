@@ -11,7 +11,7 @@ use crate::{
     parser::ParserError,
     signed_field::SignedField,
 };
-use acvm::{BlackBoxResolutionError, FieldElement};
+use acvm::BlackBoxResolutionError;
 use noirc_errors::{CustomDiagnostic, Location};
 
 /// The possible errors that can halt the interpreter.
@@ -252,11 +252,6 @@ pub enum InterpreterError {
     LoopHaltedForUiResponsiveness {
         location: Location,
     },
-    ConstantDoesNotFitInType {
-        constant: FieldElement,
-        typ: Type,
-        location: Location,
-    },
 
     // These cases are not errors, they are just used to prevent us from running more code
     // until the loop can be resumed properly. These cases will never be displayed to users.
@@ -331,7 +326,6 @@ impl InterpreterError {
             | InterpreterError::UnknownArrayLength { location, .. }
             | InterpreterError::CannotInterpretFormatStringWithErrors { location }
             | InterpreterError::GlobalsDependencyCycle { location }
-            | InterpreterError::ConstantDoesNotFitInType { location, .. }
             | InterpreterError::LoopHaltedForUiResponsiveness { location } => *location,
 
             InterpreterError::FailedToParseMacro { error, .. } => error.location(),
@@ -703,11 +697,6 @@ impl<'a> From<&'a InterpreterError> for CustomDiagnostic {
                 let secondary =
                     "This error doesn't happen in normal executions of `nargo`".to_string();
                 CustomDiagnostic::simple_warning(msg, secondary, *location)
-            }
-            InterpreterError::ConstantDoesNotFitInType { constant, typ, location } => {
-                let msg = format!("`{constant}` does not fit in type `{typ}`");
-                let secondary = "Cast occurs here".to_string();
-                CustomDiagnostic::simple_error(msg, secondary, *location)
             }
         }
     }
