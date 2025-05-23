@@ -49,13 +49,19 @@ impl Formatter<'_> {
                 self.write_right_paren();
             }
             Pattern::Struct(path, fields, _span) => {
-                self.format_path(path);
-                self.write_space();
-                self.write_left_brace();
+                let mut group = ChunkGroup::new();
+
+                group.text(self.chunk_formatter().chunk(|formatter| {
+                    formatter.format_path(path);
+                    formatter.write_space();
+                    formatter.write_left_brace();
+                }));
+
                 if fields.is_empty() {
-                    self.format_empty_block_contents();
+                    if let Some(inner_group) = self.chunk_formatter().empty_block_contents_chunk() {
+                        group.group(inner_group);
+                    }
                 } else {
-                    let mut group = ChunkGroup::new();
                     self.chunk_formatter().format_items_separated_by_comma(
                         fields,
                         false, // force trailing comma,
@@ -80,10 +86,18 @@ impl Formatter<'_> {
                             }
                         },
                     );
-                    self.format_chunk_group(group);
                 }
 
-                self.write_right_brace();
+                group.text(self.chunk_formatter().chunk(|formatter| {
+                    formatter.write_right_brace();
+                }));
+
+                self.format_chunk_group(group);
+            }
+            Pattern::Parenthesized(pattern, _) => {
+                self.write_left_paren();
+                self.format_pattern(*pattern);
+                self.write_right_paren();
             }
             Pattern::Interned(..) => {
                 unreachable!("Should not be present in the AST")
@@ -98,7 +112,7 @@ fn is_identifier_pattern(pattern: &Pattern, ident: &Ident) -> bool {
 
 #[cfg(test)]
 mod tests {
-    use crate::assert_format;
+    use crate::{assert_format, assert_format_with_max_width};
 
     #[test]
     fn format_identifier_pattern() {
@@ -136,6 +150,13 @@ mod tests {
     }
 
     #[test]
+    fn format_parenthesized_pattern_one_element() {
+        let src = "fn foo( (  x      ) : i32) {}";
+        let expected = "fn foo((x): i32) {}\n";
+        assert_format(src, expected);
+    }
+
+    #[test]
     fn format_struct_pattern_empty() {
         let src = "fn foo( Foo {  } : i32) {}";
         let expected = "fn foo(Foo {}: i32) {}\n";
@@ -154,5 +175,22 @@ mod tests {
         let src = "fn foo( Foo { x  , y : y } : i32) {}";
         let expected = "fn foo(Foo { x, y }: i32) {}\n";
         assert_format(src, expected);
+    }
+
+    #[test]
+    fn format_struct_pattern_that_exceeds_max_width() {
+        let src = "
+        fn foo() {
+            let SomeStruct { one, two } = 1; 
+        }
+        ";
+        let expected = "fn foo() {
+    let SomeStruct {
+        one,
+        two,
+    } = 1;
+}
+";
+        assert_format_with_max_width(src, expected, 20);
     }
 }

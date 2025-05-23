@@ -1,10 +1,10 @@
 use std::future::{self, Future};
 
 use async_lsp::ResponseError;
+use async_lsp::lsp_types::{Hover, HoverParams};
 use fm::PathString;
 use from_reference::hover_from_reference;
 use from_visitor::hover_from_visitor;
-use lsp_types::{Hover, HoverParams};
 
 use crate::LspState;
 
@@ -34,7 +34,7 @@ mod hover_tests {
     use crate::test_utils;
 
     use super::*;
-    use lsp_types::{
+    use async_lsp::lsp_types::{
         HoverContents, Position, TextDocumentIdentifier, TextDocumentPositionParams, Url,
         WorkDoneProgressParams,
     };
@@ -147,6 +147,18 @@ mod hover_tests {
             Position { line: 15, character: 25 },
             r#"    one::subone
     global some_global: Field = 2"#,
+        )
+        .await;
+    }
+
+    #[test]
+    async fn hover_on_global_array() {
+        assert_hover(
+            "workspace",
+            "two/src/lib.nr",
+            Position { line: 116, character: 9 },
+            r#"    two
+    global array: [Field; 3] = [1, 5, 4]"#,
         )
         .await;
     }

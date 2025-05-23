@@ -12,11 +12,12 @@ import {
 } from '../../../src/types/noir_artifact';
 
 export function shouldCompileProgramIdentically(
+  name: string,
   compileFn: () => Promise<{ nargoArtifact: ProgramArtifact; noirWasmArtifact: ProgramCompilationArtifacts }>,
   expect: typeof Expect,
   timeout = 5000,
 ) {
-  it('both nargo and noir_wasm should compile program identically', async () => {
+  it(`both nargo and noir_wasm should compile program ${name} identically`, async () => {
     // Compile!
     const { nargoArtifact, noirWasmArtifact } = await compileFn();
 
@@ -48,12 +49,31 @@ export function shouldCompileProgramIdentically(
   }).timeout(timeout);
 }
 
+export function shouldCompileProgramSuccessfully(
+  name: string,
+  compileFn: () => Promise<ProgramCompilationArtifacts>,
+  expect: typeof Expect,
+  timeout = 5000,
+) {
+  it(`program ${name} should compile successfully`, async () => {
+    // Compile!
+    const noirWasmArtifact = await compileFn();
+
+    // Prepare noir-wasm artifact
+    const noirWasmProgram = noirWasmArtifact.program;
+    expect(noirWasmProgram).not.to.be.undefined;
+    const [_noirWasmDebugInfos, _] = deleteProgramDebugMetadata(noirWasmProgram);
+    normalizeVersion(noirWasmProgram);
+  }).timeout(timeout);
+}
+
 export function shouldCompileContractIdentically(
+  name: string,
   compileFn: () => Promise<{ nargoArtifact: ContractArtifact; noirWasmArtifact: ContractCompilationArtifacts }>,
   expect: typeof Expect,
   timeout = 5000,
 ) {
-  it('both nargo and noir_wasm should compile contract identically', async () => {
+  it(`both nargo and noir_wasm should compile contract ${name} identically`, async () => {
     // Compile!
     const { nargoArtifact, noirWasmArtifact } = await compileFn();
 
@@ -130,10 +150,8 @@ function clearFileIdentifiersProgram(debugSymbols: ProgramDebugInfo) {
 
 /** Clears file identifiers from a set of debug symbols. */
 function clearFileIdentifiers(debugSymbols: DebugInfo) {
-  for (const loc of Object.values(debugSymbols.locations)) {
-    for (const span of loc) {
-      span.file = 0;
-    }
+  for (const locationNode of debugSymbols.location_tree.locations) {
+    locationNode.value.file = 0;
   }
 }
 

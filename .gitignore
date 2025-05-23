@@ -18,6 +18,9 @@ pkg/
 # Noir.js
 tooling/noir_js/lib
 
+# fuzzing inputs (generated from 'test_programs')
+tooling/nargo_fuzz_target/draft_inputs
+
 # Nargo output
 *.proof
 *.acir
@@ -30,6 +33,7 @@ tooling/noir_js/lib
 **/target
 !test_programs/acir_artifacts/*/target
 !test_programs/acir_artifacts/*/target/witness.gz
+test_programs/**/target_force_brillig_*
 !compiler/wasm/noir-script/target
 
 gates_report.json
@@ -59,3 +63,6 @@ codegen
 
 mutants.out
 mutants.out.old
+
+# Artifacts created by `noir/bootstrap.sh build_packages` in aztec-packages
+**/package.tgz

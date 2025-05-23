@@ -10,7 +10,6 @@ keywords:
     smart contract,
     blockchain,
     compiler,
-    plonk_vk.sol,
     EVM blockchain,
     verifying Noir programs,
     proving backend,
@@ -43,13 +42,6 @@ Generating a Solidity Verifier with Barretenberg contract is actually a one-comm
 2. How to compile the smart contract in the RemixIDE
 3. How to deploy it to a testnet
 
-:::info[Which proving system to use?]
-
-Barretenberg currently provides two provers: `UltraPlonk` and `UltraHonk`. In a nutshell, `UltraHonk` is faster and uses less RAM, but its verifier contract is much more expensive. `UltraPlonk` is optimized for on-chain verification, but proving is more expensive.
-
-In any case, we provide instructions for both. Choose your poison ☠️
-
-:::
 
 ## Step 1 - Generate a contract
 
@@ -61,24 +53,14 @@ nargo compile
 
 This will compile your source code into a Noir build artifact to be stored in the `./target` directory. From here on, it's Barretenberg's work. You can generate the smart contract using the commands:
 
-<Tabs>
-<TabItem value="UltraHonk">
-
 ```sh
-bb write_vk_ultra_keccak_honk -b ./target/<noir_artifact_name>.json
-bb contract_ultra_honk
+# Generate the verification key. You need to pass the `--oracle_hash keccak` flag when generating vkey and proving
+# to instruct bb to use keccak as the hash function, which is more optimal in Solidity
+bb write_vk -b ./target/<noir_artifact_name>.json -o ./target --oracle_hash keccak
+
+# Generate the Solidity verifier from the vkey
+bb write_solidity_verifier -k ./target/vk -o ./target/Verifier.sol
 ```
-
-</TabItem>
-<TabItem value="UltraPlonk">
-
-```sh
-bb write_vk -b ./target/<noir_artifact_name>.json
-bb contract
-```
-
-</TabItem>
-</Tabs>
 
 replacing `<noir_artifact_name>` with the name of your Noir project. A `Verifier.sol` contract is now in the target folder and can be deployed to any EVM blockchain acting as a verifier smart contract.
 
@@ -119,18 +101,7 @@ At this point we should have a compiled contract ready to deploy. If we navigate
 
 Looking closely, we will notice that our "Solidity Verifier" is composed on multiple contracts working together. Remix will take care of the dependencies for us so we can simply deploy the Verifier contract by selecting it and hitting "deploy":
 
-<Tabs>
-<TabItem value="UltraHonk">
-
 ![Deploying HonkVerifier](@site/static/img/how-tos/solidity_verifier_7.png)
-
-</TabItem>
-<TabItem value="UltraPlonk">
-
-![Deploying PlonkVerifier](@site/static/img/how-tos/solidity_verifier_9.png)
-
-</TabItem>
-</Tabs>
 
 A contract will show up in the "Deployed Contracts" section.
 
@@ -150,49 +121,29 @@ nargo check
 
 This will generate a `Prover.toml` you can fill with the values you want to prove. We can now execute the circuit with `nargo` and then use the proving backend to prove:
 
-<Tabs>
-<TabItem value="UltraHonk">
-
 ```bash
 nargo execute <witness-name>
-bb prove_ultra_keccak_honk -b ./target/<circuit-name>.json -w ./target/<witness-name> -o ./target/proof
+bb prove -b ./target/<circuit-name>.json -w ./target/<witness-name> -o ./target --oracle_hash keccak
 ```
 
 :::tip[Public inputs]
-Barretenberg attaches the public inputs to the proof, which in this case it's not very useful. If you're up for some JS, `bb.js` has [a method for it](https://github.com/AztecProtocol/aztec-packages/blob/master/barretenberg/ts/src/proof/index.ts), but in the CLI you can use this ugly snippet:
+Barretenberg attaches the public inputs to the proof, which in this case it's not very useful. If you're up for some JS, `bb.js` has [a method for it](https://github.com/AztecProtocol/aztec-packages/blob/master/barretenberg/ts/src/proof/index.ts), but in the CLI you can use this ugly snippet for now:
 
 ```bash
-cat ./target/proof | od -An -v -t x1 | tr -d $' \n' | sed 's/^.\{8\}//' | (read hex; echo "${hex:0:192}${hex:256}")
-```
+PROOF_HEX=$(cat ./target/proof | od -An -v -t x1 | tr -d $' \n' | sed 's/^.\{8\}//')
 
-Beautiful. This assumes a circuit with one public input (32 bytes, for Barretenberg). For more inputs, you can just increment `hex:256` with 32 more bytes for each public input.
+NUM_PUBLIC_INPUTS=1  # Replace this with the number of public inputs in your circuit
+HEX_PUBLIC_INPUTS=${PROOF_HEX:0:$((32 * $NUM_PUBLIC_INPUTS * 2))}
+SPLIT_HEX_PUBLIC_INPUTS=$(sed -e 's/.\{64\}/"0x&",/g' <<<$HEX_PUBLIC_INPUTS)
+
+PROOF_WITHOUT_PUBLIC_INPUTS="${PROOF_HEX:$((NUM_PUBLIC_INPUTS * 32 * 2))}"
+
+echo 0x$PROOF_WITHOUT_PUBLIC_INPUTS
+echo "[${SPLIT_HEX_PUBLIC_INPUTS}]"
+```
+You can pass the proof and public inputs from above to the `verify` function in Remix.
 
 :::
-
-</TabItem>
-<TabItem value="UltraPlonk">
-
-```bash
-nargo execute <witness-name>
-bb prove -b ./target/<circuit-name>.json -w ./target/<witness-name> -o ./target/proof
-```
-
-
-:::tip[Public inputs]
-Barretenberg attaches the public inputs to the proof, which in this case it's not very useful. If you're up for some JS, `bb.js` has [a method for it](https://github.com/AztecProtocol/aztec-packages/blob/master/barretenberg/ts/src/proof/index.ts), but in the CLI you can use this ugly snippet:
-
-```bash
-tail -c +33 ./target/proof | od -An -v -t x1 | tr -d $' \n'
-```
-
-Beautiful. This assumes a circuit with one public input (32 bytes, for Barretenberg). For more inputs, you can just add 32 more bytes for each public input to the `tail` command.
-
-:::
-
-</TabItem>
-</Tabs>
-
-Remix expects that the public inputs will be split into an array of `bytes32` values so `HEX_PUBLIC_INPUTS` needs to be split up into 32 byte chunks which are prefixed with `0x` accordingly.
 
 A programmatic example of how the `verify` function is called can be seen in the example zk voting application [here](https://github.com/noir-lang/noir-examples/blob/33e598c257e2402ea3a6b68dd4c5ad492bce1b0a/foundry-voting/src/zkVote.sol#L35):
 

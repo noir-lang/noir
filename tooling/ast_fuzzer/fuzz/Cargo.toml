@@ -1,0 +1,64 @@
+[package]
+name = "noir_ast_fuzzer_fuzz"
+description = "Targets for the AST fuzzer."
+version.workspace = true
+authors.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+publish = false
+
+[package.metadata]
+cargo-fuzz = true
+
+[dependencies]
+arbitrary.workspace = true
+color-eyre.workspace = true
+libfuzzer-sys.workspace = true
+
+acir.workspace = true
+noirc_abi.workspace = true
+noirc_evaluator.workspace = true
+noirc_frontend.workspace = true
+
+noir_ast_fuzzer = { path = ".." }
+
+[dev-dependencies]
+arbtest.workspace = true
+env_logger.workspace = true
+
+
+[[bin]]
+name = "min_vs_full"
+path = "fuzz_targets/min_vs_full.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "acir_vs_brillig"
+path = "fuzz_targets/acir_vs_brillig.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "comptime_vs_brillig"
+path = "fuzz_targets/comptime_vs_brillig.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "orig_vs_morph"
+path = "fuzz_targets/orig_vs_morph.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "pass_vs_prev"
+path = "fuzz_targets/pass_vs_prev.rs"
+test = false
+doc = false
+bench = false

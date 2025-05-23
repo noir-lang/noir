@@ -119,7 +119,8 @@ html[data-theme='dark'] {
 }
 
 [data-theme='dark'] .homepage_cta_container a button {
-  color: var(--ifm-font-color-base-inverse);
+  --ifm-color-primary: #033DFE;
+  color: white;
 }
 
 .homepage_cta_container a {
@@ -136,7 +137,6 @@ html[data-theme='dark'] {
     margin-right: 0;
   } 
 }
-
 
 .homepage_cta {
   display: flex;
@@ -225,7 +225,18 @@ input#docsearch-input {
   background-color: var(--ifm-breadcrumb-color-active);
 }
 
+[data-theme='dark'] #optout-form {
+  background-color: black;
+}
 
+[data-theme='dark'] #optout-form .button--primary {
+  --ifm-color-primary: #033DFE;
+  color: var(--ifm-color-primary-lightest);
+}
+
+[data-theme='dark'] #optout-form a {
+  color: white;
+}
 
 .homepage_footer {
   text-align: center;
@@ -235,6 +246,10 @@ input#docsearch-input {
   flex-direction: column;
   border: 1px solid #BEC2C3;
   border-radius: 12px;
+}
+
+[data-theme='dark'] .homepage_footer {
+  border-color: black;
 }
 
 .homepage_cta_footer_container {

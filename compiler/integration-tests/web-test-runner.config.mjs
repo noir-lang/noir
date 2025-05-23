@@ -7,7 +7,7 @@ import { importMapsPlugin } from '@web/dev-server-import-maps';
 
 let reporter = summaryReporter();
 const debugPlugins = [];
-// eslint-disable-next-line no-undef
+
 if (process.env.CI !== 'true' || process.env.RUNNER_DEBUG === '1') {
   reporter = defaultReporter();
   debugPlugins.push({
@@ -26,12 +26,14 @@ export default {
     // playwrightLauncher({ product: "webkit" }),
     // playwrightLauncher({ product: "firefox" }),
   ],
-  middleware: [async (ctx, next) => {
-    if (ctx.url.endsWith('.wasm.gz')) {
-      ctx.url = ctx.url.replace('/', "/node_modules/@aztec/bb.js/dest/browser/");
-    }
-    await next();
-  }],
+  middleware: [
+    async (ctx, next) => {
+      if (ctx.url.endsWith('.wasm.gz')) {
+        ctx.url = ctx.url.replace('/', '/node_modules/@aztec/bb.js/dest/browser/');
+      }
+      await next();
+    },
+  ],
   plugins: [
     esbuildPlugin({
       ts: true,
@@ -55,7 +57,7 @@ export default {
       ui: 'bdd',
     },
   },
-  // eslint-disable-next-line no-undef
+
   rootDir: fileURLToPath(new URL('./../..', import.meta.url)),
   testsFinishTimeout: 60 * 20e3, // 20 minutes
   reporters: [reporter],

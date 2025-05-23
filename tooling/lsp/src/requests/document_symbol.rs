@@ -1,12 +1,13 @@
 use std::future::{self, Future};
 
 use async_lsp::ResponseError;
-use fm::{FileId, FileMap, PathString};
-use lsp_types::{
+use async_lsp::lsp_types::{
     DocumentSymbol, DocumentSymbolParams, DocumentSymbolResponse, Location, Position, SymbolKind,
     TextDocumentPositionParams,
 };
+use fm::{FileId, FileMap, PathString};
 use noirc_errors::Span;
+use noirc_frontend::ast::TraitBound;
 use noirc_frontend::{
     ParsedModule,
     ast::{
@@ -66,7 +67,7 @@ impl<'a> DocumentSymbolCollector<'a> {
     }
 
     fn collect_in_type(&mut self, name: &Ident, typ: Option<&UnresolvedType>) {
-        if name.0.contents.is_empty() {
+        if name.is_empty() {
             return;
         }
 
@@ -103,7 +104,7 @@ impl<'a> DocumentSymbolCollector<'a> {
         typ: &UnresolvedType,
         default_value: Option<&Expression>,
     ) {
-        if name.0.contents.is_empty() {
+        if name.is_empty() {
             return;
         }
 
@@ -145,7 +146,7 @@ impl<'a> DocumentSymbolCollector<'a> {
 
 impl Visitor for DocumentSymbolCollector<'_> {
     fn visit_noir_function(&mut self, noir_function: &NoirFunction, span: Span) -> bool {
-        if noir_function.def.name.0.contents.is_empty() {
+        if noir_function.def.name.is_empty() {
             return false;
         }
 
@@ -174,7 +175,7 @@ impl Visitor for DocumentSymbolCollector<'_> {
     }
 
     fn visit_noir_struct(&mut self, noir_struct: &NoirStruct, span: Span) -> bool {
-        if noir_struct.name.0.contents.is_empty() {
+        if noir_struct.name.is_empty() {
             return false;
         }
 
@@ -229,7 +230,7 @@ impl Visitor for DocumentSymbolCollector<'_> {
     }
 
     fn visit_noir_trait(&mut self, noir_trait: &NoirTrait, span: Span) -> bool {
-        if noir_trait.name.0.contents.is_empty() {
+        if noir_trait.name.is_empty() {
             return false;
         }
 
@@ -275,7 +276,7 @@ impl Visitor for DocumentSymbolCollector<'_> {
         _where_clause: &[noirc_frontend::ast::UnresolvedTraitConstraint],
         body: &Option<noirc_frontend::ast::BlockExpression>,
     ) -> bool {
-        if name.0.contents.is_empty() {
+        if name.is_empty() {
             return false;
         }
 
@@ -332,7 +333,7 @@ impl Visitor for DocumentSymbolCollector<'_> {
         typ: &UnresolvedType,
         default_value: &Option<Expression>,
     ) -> bool {
-        if name.0.contents.is_empty() {
+        if name.is_empty() {
             return false;
         }
 
@@ -340,8 +341,9 @@ impl Visitor for DocumentSymbolCollector<'_> {
         false
     }
 
-    fn visit_trait_item_type(&mut self, name: &Ident) {
+    fn visit_trait_item_type(&mut self, name: &Ident, _bounds: &[TraitBound]) -> bool {
         self.collect_in_type(name, None);
+        false
     }
 
     fn visit_noir_trait_impl(&mut self, noir_trait_impl: &NoirTraitImpl, span: Span) -> bool {
@@ -448,7 +450,7 @@ impl Visitor for DocumentSymbolCollector<'_> {
     }
 
     fn visit_parsed_submodule(&mut self, parsed_sub_module: &ParsedSubModule, span: Span) -> bool {
-        if parsed_sub_module.name.0.contents.is_empty() {
+        if parsed_sub_module.name.is_empty() {
             return false;
         }
 
@@ -520,7 +522,7 @@ mod document_symbol_tests {
     use crate::test_utils;
 
     use super::*;
-    use lsp_types::{
+    use async_lsp::lsp_types::{
         PartialResultParams, Range, SymbolKind, TextDocumentIdentifier, WorkDoneProgressParams,
     };
     use tokio::test;

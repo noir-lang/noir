@@ -176,6 +176,10 @@ impl Parser<'_> {
             PathKind::Dep
         } else if self.eat_keyword(Keyword::Super) {
             PathKind::Super
+        } else if let Token::InternedCrate(crate_id) = self.token.token() {
+            let crate_id = *crate_id;
+            self.bump();
+            PathKind::Resolved(crate_id)
         } else {
             PathKind::Plain
         };
@@ -193,6 +197,14 @@ impl Parser<'_> {
 
         let typ = self.parse_type_or_error();
         self.eat_keyword_or_error(Keyword::As);
+
+        Some(self.parse_as_trait_path_for_type_after_as_keyword(typ))
+    }
+
+    pub(super) fn parse_as_trait_path_for_type_after_as_keyword(
+        &mut self,
+        typ: UnresolvedType,
+    ) -> AsTraitPath {
         let trait_path = self.parse_path_no_turbofish_or_error();
         let trait_generics = self.parse_generic_type_args();
         self.eat_or_error(Token::Greater);
@@ -204,12 +216,14 @@ impl Parser<'_> {
             Ident::new(String::new(), self.location_at_previous_token_end())
         };
 
-        Some(AsTraitPath { typ, trait_path, trait_generics, impl_item })
+        AsTraitPath { typ, trait_path, trait_generics, impl_item }
     }
 }
 
 #[cfg(test)]
 mod tests {
+
+    use insta::assert_snapshot;
 
     use crate::{
         ast::{Path, PathKind},
@@ -344,6 +358,6 @@ mod tests {
         assert!(path.is_none());
 
         let error = get_single_error(&parser.errors, span);
-        assert_eq!(error.to_string(), "Expected an identifier but found end of input");
+        assert_snapshot!(error.to_string(), @"Expected an identifier but found end of input");
     }
 }

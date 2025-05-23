@@ -1,7 +1,7 @@
 use std::str::FromStr;
 
+use async_lsp::lsp_types::{Hover, HoverContents, MarkupContent, MarkupKind, Position};
 use fm::{FileId, FileMap};
-use lsp_types::{Hover, HoverContents, MarkupContent, MarkupKind, Position};
 use noirc_errors::{Location, Span};
 use noirc_frontend::{
     Type, ast::Visitor, node_interner::NodeInterner, parse_program, signed_field::SignedField,
@@ -71,12 +71,12 @@ impl Visitor for HoverFinder<'_> {
 }
 
 fn format_integer(typ: &Type, value: SignedField) -> String {
-    let value_base_10 = value.field.to_string();
+    let value_base_10 = value.absolute_value().to_string();
 
     // For simplicity we parse the value as a BigInt to convert it to hex
     // because `FieldElement::to_hex` will include many leading zeros.
     let value_big_int = BigInt::from_str(&value_base_10).unwrap();
-    let negative = if value.is_negative { "-" } else { "" };
+    let negative = if value.is_negative() { "-" } else { "" };
 
     format!(
         "    {typ}\n---\nvalue of literal: `{negative}{value_base_10} ({negative}0x{value_big_int:02x})`"
@@ -86,9 +86,7 @@ fn format_integer(typ: &Type, value: SignedField) -> String {
 #[cfg(test)]
 mod tests {
     use noirc_frontend::{
-        Type,
-        ast::{IntegerBitSize, Signedness},
-        signed_field::SignedField,
+        Type, ast::IntegerBitSize, shared::Signedness, signed_field::SignedField,
     };
 
     use super::format_integer;

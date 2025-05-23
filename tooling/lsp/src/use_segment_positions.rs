@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
+use async_lsp::lsp_types::{Position, Range, TextEdit};
 use fm::{FileId, FileMap};
-use lsp_types::{Position, Range, TextEdit};
 use noirc_errors::Span;
 use noirc_frontend::ast::{PathKind, UseTree, UseTreeKind};
 
@@ -89,6 +89,7 @@ impl UseSegmentPositions {
             PathKind::Crate => Some("crate".to_string()),
             PathKind::Super => Some("super".to_string()),
             PathKind::Dep | PathKind::Plain => None,
+            PathKind::Resolved(_) => Some("$crate".to_string()),
         };
         if let Some(kind_string) = kind_string {
             if let Some(segment) = use_tree.prefix.segments.first() {
@@ -111,7 +112,7 @@ impl UseSegmentPositions {
             if !prefix.is_empty() {
                 prefix.push_str("::");
             };
-            prefix.push_str(&ident.0.contents);
+            prefix.push_str(ident.as_str());
 
             if index < prefix_segments_len - 1 {
                 self.insert_use_segment_position(
@@ -133,7 +134,7 @@ impl UseSegmentPositions {
                 if !prefix.is_empty() {
                     prefix.push_str("::");
                 }
-                prefix.push_str(&ident.0.contents);
+                prefix.push_str(ident.as_str());
 
                 if alias.is_none() {
                     self.insert_use_segment_position(

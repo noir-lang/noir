@@ -62,6 +62,7 @@ pub struct Trait {
     pub method_ids: HashMap<String, FuncId>,
 
     pub associated_types: Generics,
+    pub associated_type_bounds: HashMap<String, Vec<ResolvedTraitBound>>,
 
     pub name: Ident,
     pub generics: Generics,
@@ -78,11 +79,14 @@ pub struct Trait {
     pub trait_bounds: Vec<ResolvedTraitBound>,
 
     pub where_clause: Vec<TraitConstraint>,
+
+    pub all_generics: Generics,
 }
 
 #[derive(Debug)]
 pub struct TraitImpl {
     pub ident: Ident,
+    pub location: Location,
     pub typ: Type,
     pub trait_id: TraitId,
 
@@ -95,6 +99,7 @@ pub struct TraitImpl {
     pub trait_generics: Vec<Type>,
 
     pub file: FileId,
+    pub crate_id: CrateId,
     pub methods: Vec<FuncId>, // methods[i] is the implementation of trait.methods[i] for Type typ
 
     /// The where clause, if present, contains each trait requirement which must
@@ -163,6 +168,17 @@ impl Trait {
 
     pub fn set_visibility(&mut self, visibility: ItemVisibility) {
         self.visibility = visibility;
+    }
+
+    pub fn set_all_generics(&mut self, generics: Generics) {
+        self.all_generics = generics;
+    }
+
+    pub fn set_associated_type_bounds(
+        &mut self,
+        associated_type_bounds: HashMap<String, Vec<ResolvedTraitBound>>,
+    ) {
+        self.associated_type_bounds = associated_type_bounds;
     }
 
     pub fn find_method(&self, name: &str) -> Option<TraitMethodId> {

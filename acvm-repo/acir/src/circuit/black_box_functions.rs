@@ -6,155 +6,51 @@
 use serde::{Deserialize, Serialize};
 use strum_macros::EnumIter;
 
+/// Representation of available black box function names.
+/// This enum should be used to represent a black box before we have set up the
+/// appropriate inputs and outputs. At which point it should be converted to a [crate::circuit::opcodes::BlackBoxFuncCall]
 #[allow(clippy::upper_case_acronyms)]
 #[derive(Clone, Debug, Hash, Copy, PartialEq, Eq, Serialize, Deserialize, EnumIter)]
 pub enum BlackBoxFunc {
-    /// Ciphers (encrypts) the provided plaintext using AES128 in CBC mode,
-    /// padding the input using PKCS#7.
-    /// - inputs: byte array `[u8; N]`
-    /// - iv: initialization vector `[u8; 16]`
-    /// - key: user key `[u8; 16]`
-    /// - outputs: byte vector `[u8]` of length `input.len() + (16 - input.len() % 16)`
+    /// More details can be found at [crate::circuit::opcodes::BlackBoxFuncCall::AES128Encrypt]
     AES128Encrypt,
-
-    /// Performs the bitwise AND of `lhs` and `rhs`. `bit_size` must be the same for
-    /// both inputs.
-    /// - lhs: (witness, bit_size)
-    /// - rhs: (witness, bit_size)
-    /// - output: a witness whose value is constrained to be lhs AND rhs, as
-    ///   bit_size bit integers
+    /// More details can be found at [crate::circuit::opcodes::BlackBoxFuncCall::AND]
     AND,
-
-    /// Performs the bitwise XOR of `lhs` and `rhs`. `bit_size` must be the same for
-    /// both inputs.
-    /// - lhs: (witness, bit_size)
-    /// - rhs: (witness, bit_size)
-    /// - output: a witness whose value is constrained to be lhs XOR rhs, as
-    ///   bit_size bit integers
+    /// More details can be found at [crate::circuit::opcodes::BlackBoxFuncCall::XOR]
     XOR,
-
-    /// Range constraint to ensure that a witness
-    /// can be represented in the specified number of bits.
-    /// - input: (witness, bit_size)
+    /// More details can be found at [crate::circuit::opcodes::BlackBoxFuncCall::RANGE]
     RANGE,
-
-    /// Computes the Blake2s hash of the inputs, as specified in
-    /// https://tools.ietf.org/html/rfc7693
-    /// - inputs are a byte array, i.e a vector of (witness, 8)
-    /// - output is a byte array of length 32, i.e. an array of 32
-    ///   (witness, 8), constrained to be the blake2s of the inputs.
+    /// More details can be found at [crate::circuit::opcodes::BlackBoxFuncCall::Blake2s]
     Blake2s,
-
-    /// Computes the Blake3 hash of the inputs
-    /// - inputs are a byte array, i.e a vector of (witness, 8)
-    /// - output is a byte array of length 32, i.e an array of 32
-    ///   (witness, 8), constrained to be the blake3 of the inputs.
+    /// More details can be found at [crate::circuit::opcodes::BlackBoxFuncCall::Blake3]
     Blake3,
-
-    /// Verifies a ECDSA signature over the secp256k1 curve.
-    /// - inputs:
-    ///     - x coordinate of public key as 32 bytes
-    ///     - y coordinate of public key as 32 bytes
-    ///     - the signature, as a 64 bytes array
-    ///     - the hash of the message, as a vector of bytes
-    /// - output: 0 for failure and 1 for success
+    /// More details can be found at [crate::circuit::opcodes::BlackBoxFuncCall::EcdsaSecp256k1]
     EcdsaSecp256k1,
-
-    /// Verifies a ECDSA signature over the secp256r1 curve.
-    ///
-    /// Same as EcdsaSecp256k1, but done over another curve.
+    /// More details can be found at [crate::circuit::opcodes::BlackBoxFuncCall::EcdsaSecp256r1]
     EcdsaSecp256r1,
-
-    /// Multiple scalar multiplication (MSM) with a variable base/input point
-    /// (P) of the embedded curve. An MSM multiplies the points and scalars and
-    /// sums the results.
-    /// - input:
-    ///     points (witness, N) a vector of x and y coordinates of input
-    ///     points `[x1, y1, x2, y2,...]`.
-    ///     scalars (witness, N) a vector of low and high limbs of input
-    ///     scalars `[s1_low, s1_high, s2_low, s2_high, ...]`. (witness, N)
-    ///     For Barretenberg, they must both be less than 128 bits.
-    /// - output:
-    ///     a tuple of `x` and `y` coordinates of output.
-    ///     Points computed as `s_low*P+s_high*2^{128}*P`
-    ///
-    /// Because the Grumpkin scalar field is bigger than the ACIR field, we
-    /// provide 2 ACIR fields representing the low and high parts of the Grumpkin
-    /// scalar $a$: `a=low+high*2^{128}`, with `low, high < 2^{128}`
+    /// More details can be found at [crate::circuit::opcodes::BlackBoxFuncCall::MultiScalarMul]
     MultiScalarMul,
-
-    /// Keccak Permutation function of width 1600
-    /// - inputs: An array of 25 64-bit Keccak lanes that represent a keccak sponge of 1600 bits
-    /// - outputs: The result of a keccak f1600 permutation on the input state. Also an array of 25 Keccak lanes.
+    /// More details can be found at [crate::circuit::opcodes::BlackBoxFuncCall::Keccakf1600]
     Keccakf1600,
-
-    /// Compute a recursive aggregation object when verifying a proof inside
-    /// another circuit.
-    /// This outputted aggregation object will then be either checked in a
-    /// top-level verifier or aggregated upon again.
-    ///
-    /// **Warning: this opcode is subject to change.**
-    /// Note that the `254` in `(witness, 254)` refers to the upper bound of
-    /// the `witness`.
-    /// - verification_key: Vector of (witness, 254) representing the
-    ///   verification key of the circuit being verified
-    /// - public_inputs: Vector of (witness, 254)  representing the public
-    ///   inputs corresponding to the proof being verified
-    /// - key_hash: one (witness, 254). It should be the hash of the
-    ///   verification key. Barretenberg expects the Pedersen hash of the
-    ///   verification key
-    ///
-    /// Another thing that it does is preparing the verification of the proof.
-    /// In order to fully verify a proof, some operations may still be required
-    /// to be done by the final verifier. This is why this black box function
-    /// does not say if verification is passing or not.
-    ///
-    /// This black box function does not fully verify a proof, what it does is
-    /// verifying that the key_hash is indeed a hash of verification_key,
-    /// allowing the user to use the verification key as private inputs and only
-    /// have the key_hash as public input, which is more performant.
-    ///
-    /// If one of the recursive proofs you verify with the black box function does not
-    /// verify, then the verification of the proof of the main ACIR program will
-    /// ultimately fail.
+    /// More details can be found at [crate::circuit::opcodes::BlackBoxFuncCall::RecursiveAggregation]
     RecursiveAggregation,
-
-    /// Addition over the embedded curve on which the witness is defined
-    /// The opcode makes the following assumptions but does not enforce them because
-    /// it is more efficient to do it only when required. For instance, adding two
-    /// points that are on the curve it guarantee to give a point on the curve.
-    ///
-    /// It assumes that the points are on the curve.
-    /// If the inputs are the same witnesses index, it will perform a doubling,
-    /// If not, it assumes that the points' x-coordinates are not equal.
-    /// It also assumes neither point is the infinity point.
+    /// More details can be found at [crate::circuit::opcodes::BlackBoxFuncCall::EmbeddedCurveAdd]
     EmbeddedCurveAdd,
-
-    /// BigInt addition
+    /// More details can be found at [crate::circuit::opcodes::BlackBoxFuncCall::BigIntAdd]
     BigIntAdd,
-
-    /// BigInt subtraction
+    /// More details can be found at [crate::circuit::opcodes::BlackBoxFuncCall::BigIntSub]
     BigIntSub,
-
-    /// BigInt multiplication
+    /// More details can be found at [crate::circuit::opcodes::BlackBoxFuncCall::BigIntMul]
     BigIntMul,
-
-    /// BigInt division
+    /// More details can be found at [crate::circuit::opcodes::BlackBoxFuncCall::BigIntDiv]
     BigIntDiv,
-
-    /// BigInt from le bytes
+    /// More details can be found at [crate::circuit::opcodes::BlackBoxFuncCall::BigIntFromLeBytes]
     BigIntFromLeBytes,
-
-    /// BigInt to le bytes
+    /// More details can be found at [crate::circuit::opcodes::BlackBoxFuncCall::BigIntToLeBytes]
     BigIntToLeBytes,
-
-    /// Permutation function of Poseidon2
+    /// More details can be found at [crate::circuit::opcodes::BlackBoxFuncCall::Poseidon2Permutation]
     Poseidon2Permutation,
-
-    /// SHA256 compression function
-    /// - input: [(witness, 32); 16]
-    /// - state: [(witness, 32); 8]
-    /// - output: [(witness, 32); 8]
+    /// More details can be found at [crate::circuit::opcodes::BlackBoxFuncCall::Sha256Compression]
     Sha256Compression,
 }
 
@@ -216,8 +112,29 @@ impl BlackBoxFunc {
         }
     }
 
-    pub fn is_valid_black_box_func_name(op_name: &str) -> bool {
-        BlackBoxFunc::lookup(op_name).is_some()
+    pub fn has_side_effects(&self) -> bool {
+        match self {
+            BlackBoxFunc::RecursiveAggregation
+            | BlackBoxFunc::MultiScalarMul
+            | BlackBoxFunc::EmbeddedCurveAdd => true,
+            BlackBoxFunc::AES128Encrypt
+            | BlackBoxFunc::AND
+            | BlackBoxFunc::XOR
+            | BlackBoxFunc::RANGE
+            | BlackBoxFunc::Blake2s
+            | BlackBoxFunc::Blake3
+            | BlackBoxFunc::EcdsaSecp256k1
+            | BlackBoxFunc::EcdsaSecp256r1
+            | BlackBoxFunc::Keccakf1600
+            | BlackBoxFunc::BigIntAdd
+            | BlackBoxFunc::BigIntSub
+            | BlackBoxFunc::BigIntMul
+            | BlackBoxFunc::BigIntDiv
+            | BlackBoxFunc::BigIntFromLeBytes
+            | BlackBoxFunc::BigIntToLeBytes
+            | BlackBoxFunc::Poseidon2Permutation
+            | BlackBoxFunc::Sha256Compression => false,
+        }
     }
 }
 

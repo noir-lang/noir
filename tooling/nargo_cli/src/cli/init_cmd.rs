@@ -7,6 +7,7 @@ use nargo::package::{CrateName, PackageType};
 use noir_artifact_cli::fs::artifact::write_to_file;
 use std::path::PathBuf;
 
+#[allow(rustdoc::broken_intra_doc_links)]
 /// Create a Noir project in the current directory.
 #[derive(Debug, Clone, Args)]
 pub(crate) struct InitCommand {

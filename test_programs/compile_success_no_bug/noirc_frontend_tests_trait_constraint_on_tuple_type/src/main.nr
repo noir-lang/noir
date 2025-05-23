@@ -1,0 +1,10 @@
+
+        trait Foo<A> {
+            fn foo(self, x: A) -> bool;
+        }
+
+        pub fn bar<T, U, V>(x: (T, U), y: V) -> bool where (T, U): Foo<V> {
+            x.foo(y)
+        }
+
+        fn main() {}

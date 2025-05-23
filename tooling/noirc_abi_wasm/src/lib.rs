@@ -7,10 +7,8 @@ use getrandom as _;
 
 use acvm::{
     FieldElement,
-    acir::{
-        circuit::RawAssertionPayload,
-        native_types::{WitnessMap, WitnessStack},
-    },
+    acir::native_types::{WitnessMap, WitnessStack},
+    pwg::RawAssertionPayload,
 };
 use iter_extended::try_btree_map;
 use noirc_abi::{
@@ -128,8 +126,8 @@ pub fn serialise_witness(witness_map: JsWitnessMap) -> Result<Vec<u8>, JsAbiErro
     console_error_panic_hook::set_once();
     let converted_witness: WitnessMap<FieldElement> = witness_map.into();
     let witness_stack: WitnessStack<FieldElement> = converted_witness.into();
-    let output = witness_stack.try_into();
-    output.map_err(|_| JsAbiError::new("Failed to convert to Vec<u8>".to_string()))
+    let output = witness_stack.serialize();
+    output.map_err(|_| JsAbiError::new("Failed to serialize witness stack".to_string()))
 }
 
 #[wasm_bindgen(js_name = abiDecodeError)]

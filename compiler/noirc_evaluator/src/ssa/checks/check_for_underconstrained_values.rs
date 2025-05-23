@@ -154,13 +154,11 @@ impl BrilligTaintedIds {
             .iter()
             .filter(|value| function.dfg.get_numeric_constant(**value).is_none())
             .copied()
-            .map(|value| function.dfg.resolve(value))
             .collect();
         let results: Vec<ValueId> = results
             .iter()
             .filter(|value| function.dfg.get_numeric_constant(**value).is_none())
             .copied()
-            .map(|value| function.dfg.resolve(value))
             .collect();
 
         let mut results_status: Vec<ResultStatus> = vec![];
@@ -316,7 +314,12 @@ impl DependencyContext {
         function: &Function,
         all_functions: &BTreeMap<FunctionId, Function>,
     ) {
-        trace!("processing instructions of block {} of function {}", block, function.id());
+        trace!(
+            "processing instructions of block {} of function {} {}",
+            block,
+            function.name(),
+            function.id()
+        );
 
         // First, gather information on all Brillig calls in the block
         // to be able to follow their arguments first appearing in the
@@ -386,7 +389,7 @@ impl DependencyContext {
             // Collect non-constant instruction arguments
             function.dfg[*instruction].for_each_value(|value_id| {
                 if function.dfg.get_numeric_constant(value_id).is_none() {
-                    arguments.push(function.dfg.resolve(value_id));
+                    arguments.push(value_id);
                 }
             });
 
@@ -415,7 +418,7 @@ impl DependencyContext {
                 // Collect non-constant instruction results
                 for value_id in function.dfg.instruction_results(*instruction).iter() {
                     if function.dfg.get_numeric_constant(*value_id).is_none() {
-                        results.push(function.dfg.resolve(*value_id));
+                        results.push(*value_id);
                     }
                 }
 
@@ -423,7 +426,7 @@ impl DependencyContext {
                     // For memory operations, we have to link up the stored value as a parent
                     // of one loaded from the same memory slot
                     Instruction::Store { address, value } => {
-                        self.memory_slots.insert(*address, function.dfg.resolve(*value));
+                        self.memory_slots.insert(*address, *value);
                     }
                     Instruction::Load { address } => {
                         // Recall the value stored at address as parent for the results
@@ -440,7 +443,7 @@ impl DependencyContext {
                     Instruction::EnableSideEffectsIf { condition: value } => {
                         self.side_effects_condition =
                             match function.dfg.get_numeric_constant(*value) {
-                                None => Some(function.dfg.resolve(*value)),
+                                None => Some(*value),
                                 Some(_) => None,
                             }
                     }
@@ -448,14 +451,11 @@ impl DependencyContext {
                     // involved in Brillig calls, remove covered calls
                     Instruction::Constrain(value_id1, value_id2, _)
                     | Instruction::ConstrainNotEqual(value_id1, value_id2, _) => {
-                        self.clear_constrained(
-                            &[function.dfg.resolve(*value_id1), function.dfg.resolve(*value_id2)],
-                            function,
-                        );
+                        self.clear_constrained(&[*value_id1, *value_id2], function);
                     }
                     // Consider range check to also be constraining
                     Instruction::RangeCheck { value, .. } => {
-                        self.clear_constrained(&[function.dfg.resolve(*value)], function);
+                        self.clear_constrained(&[*value], function);
                     }
                     Instruction::Call { func: func_id, .. } => {
                         // For functions, we remove the first element of arguments,
@@ -522,7 +522,7 @@ impl DependencyContext {
                     // For array get operations, we check the Brillig calls for
                     // results involving the array in question, to properly
                     // populate the array element tainted sets
-                    Instruction::ArrayGet { array, index } => {
+                    Instruction::ArrayGet { array, index, offset: _ } => {
                         self.process_array_get(*array, *index, &results, function);
                         // Record all the used arguments as parents of the results
                         self.update_children(&arguments, &results);
@@ -537,7 +537,7 @@ impl DependencyContext {
                         self.update_children(&arguments, &results);
                     }
                     // These instructions won't affect the dependency graph
-                    Instruction::Allocate { .. }
+                    Instruction::Allocate
                     | Instruction::DecrementRc { .. }
                     | Instruction::IncrementRc { .. }
                     | Instruction::MakeArray { .. }
@@ -548,8 +548,9 @@ impl DependencyContext {
 
         if !self.tainted.is_empty() {
             trace!(
-                "number of Brillig calls in function {} left unchecked: {}",
-                function,
+                "number of Brillig calls in function {} {} left unchecked: {}",
+                function.name(),
+                function.id(),
                 self.tainted.len()
             );
         }
@@ -573,9 +574,10 @@ impl DependencyContext {
             .collect();
 
         trace!(
-            "making {} reports on underconstrained Brillig calls for function {}",
+            "making {} reports on underconstrained Brillig calls for function {} {}",
             warnings.len(),
-            function.name()
+            function.name(),
+            function.id()
         );
         warnings
     }
@@ -690,8 +692,7 @@ impl Context {
             .parameters()
             .iter()
             .chain(returns)
-            .filter(|id| function.dfg.get_numeric_constant(**id).is_none())
-            .map(|value_id| function.dfg.resolve(*value_id));
+            .filter(|id| function.dfg.get_numeric_constant(**id).is_none());
 
         let mut connected_sets_indices: BTreeSet<usize> = BTreeSet::default();
 
@@ -699,7 +700,7 @@ impl Context {
         // If it's the case, then that set doesn't present an issue
         for parameter_or_return_value in variable_parameters_and_return_values {
             for (set_index, final_set) in self.value_sets.iter().enumerate() {
-                if final_set.contains(&parameter_or_return_value) {
+                if final_set.contains(parameter_or_return_value) {
                     connected_sets_indices.insert(set_index);
                 }
             }
@@ -755,13 +756,13 @@ impl Context {
             // Insert non-constant instruction arguments
             function.dfg[*instruction].for_each_value(|value_id| {
                 if function.dfg.get_numeric_constant(value_id).is_none() {
-                    instruction_arguments_and_results.insert(function.dfg.resolve(value_id));
+                    instruction_arguments_and_results.insert(value_id);
                 }
             });
             // And non-constant results
             for value_id in function.dfg.instruction_results(*instruction).iter() {
                 if function.dfg.get_numeric_constant(*value_id).is_none() {
-                    instruction_arguments_and_results.insert(function.dfg.resolve(*value_id));
+                    instruction_arguments_and_results.insert(*value_id);
                 }
             }
 
@@ -848,7 +849,7 @@ impl Context {
                         }
                     }
                 }
-                Instruction::Allocate { .. }
+                Instruction::Allocate
                 | Instruction::DecrementRc { .. }
                 | Instruction::EnableSideEffectsIf { .. }
                 | Instruction::IncrementRc { .. }
@@ -1049,8 +1050,8 @@ mod test {
             v19 = call f1(v5) -> u32
             v20 = add v8, v19
             constrain v6 == v20
-            dec_rc v4 v4
-            dec_rc v5 v5
+            dec_rc v4
+            dec_rc v5
             return
         }
 

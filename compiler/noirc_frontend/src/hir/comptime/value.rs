@@ -10,8 +10,8 @@ use crate::{
     Kind, QuotedType, Shared, Type, TypeBindings,
     ast::{
         ArrayLiteral, BlockExpression, ConstructorExpression, Expression, ExpressionKind, Ident,
-        IntegerBitSize, LValue, Literal, Pattern, Signedness, Statement, StatementKind,
-        UnresolvedType, UnresolvedTypeData,
+        IntegerBitSize, LValue, Literal, Pattern, Statement, StatementKind, UnresolvedType,
+        UnresolvedTypeData,
     },
     elaborator::Elaborator,
     hir::{
@@ -24,6 +24,7 @@ use crate::{
     },
     node_interner::{ExprId, FuncId, NodeInterner, StmtId, TraitId, TraitImplId, TypeId},
     parser::{Item, Parser},
+    shared::Signedness,
     signed_field::SignedField,
     token::{LocatedToken, Token, Tokens},
 };
@@ -38,7 +39,7 @@ use super::{
 pub enum Value {
     Unit,
     Bool(bool),
-    Field(FieldElement),
+    Field(SignedField),
     I8(i8),
     I16(i16),
     I32(i32),
@@ -181,9 +182,7 @@ impl Value {
         let kind = match self {
             Value::Unit => ExpressionKind::Literal(Literal::Unit),
             Value::Bool(value) => ExpressionKind::Literal(Literal::Bool(value)),
-            Value::Field(value) => {
-                ExpressionKind::Literal(Literal::Integer(SignedField::positive(value)))
-            }
+            Value::Field(value) => ExpressionKind::Literal(Literal::Integer(value)),
             Value::I8(value) => {
                 ExpressionKind::Literal(Literal::Integer(SignedField::from_signed(value)))
             }
@@ -350,7 +349,7 @@ impl Value {
         let expression = match self {
             Value::Unit => HirExpression::Literal(HirLiteral::Unit),
             Value::Bool(value) => HirExpression::Literal(HirLiteral::Bool(value)),
-            Value::Field(value) => HirExpression::Literal(HirLiteral::Integer(value.into())),
+            Value::Field(value) => HirExpression::Literal(HirLiteral::Integer(value)),
             Value::I8(value) => {
                 HirExpression::Literal(HirLiteral::Integer(SignedField::from_signed(value)))
             }
@@ -512,7 +511,7 @@ impl Value {
                 vec![Token::InternedUnresolvedTypeData(interner.push_unresolved_type_data(typ))]
             }
             Value::TraitConstraint(trait_id, generics) => {
-                let name = Rc::new(interner.get_trait(trait_id).name.0.contents.clone());
+                let name = Rc::new(interner.get_trait(trait_id).name.to_string());
                 let typ = Type::TraitAsType(trait_id, name, generics);
                 vec![Token::QuotedType(interner.push_quoted_type(typ))]
             }
@@ -522,6 +521,7 @@ impl Value {
             Value::U16(value) => vec![Token::Int((value as u128).into())],
             Value::U32(value) => vec![Token::Int((value as u128).into())],
             Value::U64(value) => vec![Token::Int((value as u128).into())],
+            Value::U128(value) => vec![Token::Int(value.into())],
             Value::I8(value) => {
                 if value < 0 {
                     vec![Token::Minus, Token::Int((-value as u128).into())]
@@ -550,7 +550,13 @@ impl Value {
                     vec![Token::Int((value as u128).into())]
                 }
             }
-            Value::Field(value) => vec![Token::Int(value)],
+            Value::Field(value) => {
+                if value.is_negative() {
+                    vec![Token::Minus, Token::Int(value.absolute_value())]
+                } else {
+                    vec![Token::Int(value.absolute_value())]
+                }
+            }
             other => vec![Token::UnquoteMarker(other.into_hir_expression(interner, location)?)],
         };
         let tokens = vecmap(tokens, |token| LocatedToken::new(token, location));
@@ -562,7 +568,16 @@ impl Value {
         use Value::*;
         matches!(
             self,
-            Field(_) | I8(_) | I16(_) | I32(_) | I64(_) | U8(_) | U16(_) | U32(_) | U64(_)
+            Field(_)
+                | I8(_)
+                | I16(_)
+                | I32(_)
+                | I64(_)
+                | U8(_)
+                | U16(_)
+                | U32(_)
+                | U64(_)
+                | U128(_)
         )
     }
 
@@ -574,7 +589,14 @@ impl Value {
     /// Returns `None` for negative integers and non-integral `Value`s.
     pub(crate) fn to_field_element(&self) -> Option<FieldElement> {
         match self {
-            Self::Field(value) => Some(*value),
+            Self::Field(value) => {
+                if value.is_negative() {
+                    None
+                } else {
+                    Some(value.absolute_value())
+                }
+            }
+
             Self::I8(value) => (*value >= 0).then_some((*value as u128).into()),
             Self::I16(value) => (*value >= 0).then_some((*value as u128).into()),
             Self::I32(value) => (*value >= 0).then_some((*value as u128).into()),
@@ -583,6 +605,7 @@ impl Value {
             Self::U16(value) => Some((*value as u128).into()),
             Self::U32(value) => Some((*value as u128).into()),
             Self::U64(value) => Some((*value as u128).into()),
+            Self::U128(value) => Some((*value).into()),
             _ => None,
         }
     }

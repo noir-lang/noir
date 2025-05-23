@@ -1,10 +1,12 @@
-use lsp_types::TextEdit;
+use async_lsp::lsp_types::TextEdit;
 use noirc_errors::Location;
-use noirc_frontend::ast::{Ident, Path};
+use noirc_frontend::{
+    ast::{Ident, Path},
+    modules::module_def_id_relative_path,
+};
 
 use crate::{
     byte_span_to_range,
-    modules::module_def_id_relative_path,
     use_segment_positions::{
         UseCompletionItemAdditionTextEditsRequest, use_completion_item_additional_text_edits,
     },
@@ -33,7 +35,7 @@ impl CodeActionFinder<'_> {
         // The Path doesn't resolve to anything so it means it's an error and maybe we
         // can suggest an import or to fully-qualify the path.
         for (name, entries) in self.interner.get_auto_import_names() {
-            if name != &ident.0.contents {
+            if name != ident.as_str() {
                 continue;
             }
 

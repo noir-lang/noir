@@ -26,7 +26,7 @@ impl Parser<'_> {
         let Some(name) = self.eat_ident() else {
             self.expected_identifier();
             return self.empty_enum(
-                Ident::default(),
+                self.unknown_ident_at_previous_token_end(),
                 attributes,
                 visibility,
                 Vec::new(),
@@ -34,7 +34,7 @@ impl Parser<'_> {
             );
         };
 
-        let generics = self.parse_generics();
+        let generics = self.parse_generics_disallowing_trait_bounds();
 
         if !self.eat_left_brace() {
             self.expected_token(Token::LeftBrace);
@@ -119,8 +119,10 @@ impl Parser<'_> {
 
 #[cfg(test)]
 mod tests {
+    use insta::assert_snapshot;
+
     use crate::{
-        ast::{IntegerBitSize, NoirEnumeration, Signedness, UnresolvedGeneric, UnresolvedTypeData},
+        ast::{NoirEnumeration, UnresolvedGeneric},
         parse_program_with_dummy_file,
         parser::{
             ItemKind, ParserErrorReason,
@@ -157,20 +159,18 @@ mod tests {
         assert_eq!(noir_enum.generics.len(), 2);
 
         let generic = noir_enum.generics.remove(0);
-        let UnresolvedGeneric::Variable(ident) = generic else {
+        let UnresolvedGeneric::Variable(ident, trait_bounds) = generic else {
             panic!("Expected generic variable");
         };
         assert_eq!("A", ident.to_string());
+        assert!(trait_bounds.is_empty());
 
         let generic = noir_enum.generics.remove(0);
         let UnresolvedGeneric::Numeric { ident, typ } = generic else {
             panic!("Expected generic numeric");
         };
         assert_eq!("B", ident.to_string());
-        assert_eq!(
-            typ.typ,
-            UnresolvedTypeData::Integer(Signedness::Unsigned, IntegerBitSize::ThirtyTwo)
-        );
+        assert_eq!(typ.typ.to_string(), "u32");
     }
 
     #[test]
@@ -182,16 +182,13 @@ mod tests {
 
         let variant = noir_enum.variants.remove(0).item;
         assert_eq!("X", variant.name.to_string());
-        assert!(matches!(
-            variant.parameters.as_ref().unwrap()[0].typ,
-            UnresolvedTypeData::Integer(Signedness::Signed, IntegerBitSize::ThirtyTwo)
-        ));
+        assert_eq!(variant.parameters.as_ref().unwrap()[0].typ.to_string(), "i32");
 
         let variant = noir_enum.variants.remove(0).item;
         assert_eq!("y", variant.name.to_string());
         let parameters = variant.parameters.as_ref().unwrap();
-        assert!(matches!(parameters[0].typ, UnresolvedTypeData::FieldElement));
-        assert!(matches!(parameters[1].typ, UnresolvedTypeData::Integer(..)));
+        assert_eq!(parameters[0].typ.to_string(), "Field");
+        assert_eq!(parameters[1].typ.to_string(), "u32");
 
         let variant = noir_enum.variants.remove(0).item;
         assert_eq!("Z", variant.name.to_string());
@@ -256,6 +253,6 @@ mod tests {
 
         assert_eq!(errors.len(), 1);
         let error = &errors[0];
-        assert_eq!(error.to_string(), "Expected an identifier but found '42'");
+        assert_snapshot!(error.to_string(), @"Expected an identifier but found '42'");
     }
 }

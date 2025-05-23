@@ -4,11 +4,11 @@ struct ExampleEvent0 {
 }
 
 trait EventInterface {
-    fn emit<Env>(self, _emit: fn[Env](Self) -> ());
+    fn emit<Env>(self, _emit: fn[Env](Self));
 }
 
 impl EventInterface for ExampleEvent0 {
-    fn emit<Env>(self: ExampleEvent0, _emit: fn[Env](Self) -> ()) {
+    fn emit<Env>(self: ExampleEvent0, _emit: fn[Env](Self)) {
         _emit(self);
     }
 }
@@ -56,7 +56,7 @@ where
 fn encode_event_with_randomness<Event>(
     context: &mut Context,
     randomness: Field,
-) -> fn[(&mut Context, Field)](Event) -> ()
+) -> fn[(&mut Context, Field)](Event)
 where
     Event: EventInterface,
 {

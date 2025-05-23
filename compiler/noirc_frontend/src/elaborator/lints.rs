@@ -1,6 +1,6 @@
 use crate::{
     Type,
-    ast::{Ident, NoirFunction, Signedness, UnaryOp, Visibility},
+    ast::{Ident, NoirFunction, UnaryOp},
     graph::CrateId,
     hir::{
         resolution::errors::{PubPosition, ResolverError},
@@ -14,9 +14,11 @@ use crate::{
     node_interner::{
         DefinitionId, DefinitionKind, ExprId, FuncId, FunctionModifiers, NodeInterner,
     },
+    shared::{Signedness, Visibility},
+    token::FunctionAttributeKind,
 };
 
-use noirc_errors::{Located, Location};
+use noirc_errors::Location;
 
 pub(super) fn deprecated_function(interner: &NodeInterner, expr: ExprId) -> Option<TypeCheckError> {
     let HirExpression::Ident(HirIdent { location, id, impl_kind: _ }, _) =
@@ -45,32 +47,42 @@ pub(super) fn inlining_attributes(
     func: &FuncMeta,
     modifiers: &FunctionModifiers,
 ) -> Option<ResolverError> {
-    if modifiers.is_unconstrained {
-        if modifiers.attributes.is_no_predicates() {
+    if !modifiers.is_unconstrained {
+        return None;
+    }
+
+    let attribute = modifiers.attributes.function()?;
+    let location = attribute.location;
+    match &attribute.kind {
+        FunctionAttributeKind::NoPredicates => {
             let ident = func_meta_name_ident(func, modifiers);
-            Some(ResolverError::NoPredicatesAttributeOnUnconstrained { ident })
-        } else if modifiers.attributes.is_foldable() {
-            let ident = func_meta_name_ident(func, modifiers);
-            Some(ResolverError::FoldAttributeOnUnconstrained { ident })
-        } else {
-            None
+            Some(ResolverError::NoPredicatesAttributeOnUnconstrained { ident, location })
         }
-    } else {
-        None
+        FunctionAttributeKind::Fold => {
+            let ident = func_meta_name_ident(func, modifiers);
+            Some(ResolverError::FoldAttributeOnUnconstrained { ident, location })
+        }
+        FunctionAttributeKind::Foreign(_)
+        | FunctionAttributeKind::Builtin(_)
+        | FunctionAttributeKind::Oracle(_)
+        | FunctionAttributeKind::Test(_)
+        | FunctionAttributeKind::InlineAlways
+        | FunctionAttributeKind::FuzzingHarness(_) => None,
     }
 }
 
 /// Attempting to define new low level (`#[builtin]` or `#[foreign]`) functions outside of the stdlib is disallowed.
 pub(super) fn low_level_function_outside_stdlib(
-    func: &FuncMeta,
     modifiers: &FunctionModifiers,
     crate_id: CrateId,
 ) -> Option<ResolverError> {
-    let is_low_level_function =
-        modifiers.attributes.function().is_some_and(|func| func.is_low_level());
-    if !crate_id.is_stdlib() && is_low_level_function {
-        let ident = func_meta_name_ident(func, modifiers);
-        Some(ResolverError::LowLevelFunctionOutsideOfStdlib { ident })
+    if crate_id.is_stdlib() {
+        return None;
+    }
+
+    let attribute = modifiers.attributes.function()?;
+    if attribute.kind.is_low_level() {
+        Some(ResolverError::LowLevelFunctionOutsideOfStdlib { location: attribute.location })
     } else {
         None
     }
@@ -81,10 +93,15 @@ pub(super) fn oracle_not_marked_unconstrained(
     func: &FuncMeta,
     modifiers: &FunctionModifiers,
 ) -> Option<ResolverError> {
-    let is_oracle_function = modifiers.attributes.function().is_some_and(|func| func.is_oracle());
-    if is_oracle_function && !modifiers.is_unconstrained {
+    if modifiers.is_unconstrained {
+        return None;
+    }
+
+    let attribute = modifiers.attributes.function()?;
+    if matches!(attribute.kind, FunctionAttributeKind::Oracle(_)) {
         let ident = func_meta_name_ident(func, modifiers);
-        Some(ResolverError::OracleMarkedAsConstrained { ident })
+        let location = attribute.location;
+        Some(ResolverError::OracleMarkedAsConstrained { ident, location })
     } else {
         None
     }
@@ -104,7 +121,7 @@ pub(super) fn oracle_called_from_constrained_function(
     }
 
     let function_attributes = interner.function_attributes(called_func);
-    let is_oracle_call = function_attributes.function().is_some_and(|func| func.is_oracle());
+    let is_oracle_call = function_attributes.function().is_some_and(|func| func.kind.is_oracle());
     if is_oracle_call {
         Some(ResolverError::UnconstrainedOracleReturnToConstrained { location })
     } else {
@@ -205,7 +222,7 @@ pub(crate) fn overflowing_int(
             Type::Integer(Signedness::Unsigned, bit_size) => {
                 let bit_size: u32 = (*bit_size).into();
                 let max = if bit_size == 128 { u128::MAX } else { 2u128.pow(bit_size) - 1 };
-                if value.field > max.into() || value.is_negative {
+                if value.absolute_value() > max.into() || value.is_negative() {
                     errors.push(TypeCheckError::OverflowingAssignment {
                         expr: value,
                         ty: annotated_type.clone(),
@@ -218,9 +235,11 @@ pub(crate) fn overflowing_int(
                 let bit_count: u32 = (*bit_count).into();
                 let min = 2u128.pow(bit_count - 1);
                 let max = 2u128.pow(bit_count - 1) - 1;
-                if (value.is_negative && value.field > min.into())
-                    || (!value.is_negative && value.field > max.into())
-                {
+
+                let is_negative = value.is_negative();
+                let abs = value.absolute_value();
+
+                if (is_negative && abs > min.into()) || (!is_negative && abs > max.into()) {
                     errors.push(TypeCheckError::OverflowingAssignment {
                         expr: value,
                         ty: annotated_type.clone(),
@@ -251,7 +270,7 @@ pub(crate) fn overflowing_int(
 }
 
 fn func_meta_name_ident(func: &FuncMeta, modifiers: &FunctionModifiers) -> Ident {
-    Ident(Located::from(func.name.location, modifiers.name.clone()))
+    Ident::new(modifiers.name.clone(), func.name.location)
 }
 
 /// Check that a recursive function *can* return without endlessly calling itself.
@@ -307,7 +326,6 @@ fn can_return_without_recursing(interner: &NodeInterner, func_id: FuncId, expr_i
         HirExpression::Index(e) => check(e.collection) && check(e.index),
         HirExpression::MemberAccess(e) => check(e.lhs),
         HirExpression::Call(e) => check(e.func) && e.arguments.iter().cloned().all(check),
-        HirExpression::MethodCall(e) => check(e.object) && e.arguments.iter().cloned().all(check),
         HirExpression::Constrain(e) => check(e.0) && e.2.map(check).unwrap_or(true),
         HirExpression::Cast(e) => check(e.lhs),
         HirExpression::If(e) => {
@@ -323,7 +341,6 @@ fn can_return_without_recursing(interner: &NodeInterner, func_id: FuncId, expr_i
         | HirExpression::EnumConstructor(_)
         | HirExpression::Quote(_)
         | HirExpression::Unquote(_)
-        | HirExpression::Comptime(_)
         | HirExpression::Error => true,
     }
 }

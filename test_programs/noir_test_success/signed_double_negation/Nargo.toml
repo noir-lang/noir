@@ -1,0 +1,6 @@
+[package]
+name = "signed_double_negation"
+type = "bin"
+authors = [""]
+
+[dependencies]

@@ -59,7 +59,7 @@ pub(crate) fn module_descendent_of_target(
         return true;
     }
 
-    def_map.modules[current.0]
+    def_map[current]
         .parent
         .is_some_and(|parent| module_descendent_of_target(def_map, target, parent))
 }
@@ -70,7 +70,7 @@ fn module_is_parent_of_struct_module(
     current: LocalModuleId,
     target: LocalModuleId,
 ) -> bool {
-    let module_data = &def_map.modules[target.0];
+    let module_data = &def_map[target];
     module_data.is_type && module_data.parent == Some(current)
 }
 

@@ -65,8 +65,7 @@ impl ContractArtifact {
 pub struct ContractFunctionArtifact {
     pub name: String,
 
-    /// Hash of the [`Program`][noirc_frontend::monomorphization::ast::Program] from which the [`ContractFunction`]
-    /// was compiled.
+    /// Hash of the monomorphized program from which the [`ContractFunction`] was compiled.
     #[serde(default)] // For backwards compatibility (it was missing).
     #[serde(serialize_with = "serialize_hash", deserialize_with = "deserialize_hash")]
     pub hash: u64,

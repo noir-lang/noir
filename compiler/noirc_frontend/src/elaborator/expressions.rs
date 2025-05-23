@@ -9,9 +9,9 @@ use crate::{
         ArrayLiteral, AsTraitPath, BinaryOpKind, BlockExpression, CallExpression, CastExpression,
         ConstrainExpression, ConstrainKind, ConstructorExpression, Expression, ExpressionKind,
         Ident, IfExpression, IndexExpression, InfixExpression, ItemVisibility, Lambda, Literal,
-        MatchExpression, MemberAccessExpression, MethodCallExpression, Path, PathSegment,
-        PrefixExpression, StatementKind, TraitBound, UnaryOp, UnresolvedTraitConstraint,
-        UnresolvedTypeData, UnresolvedTypeExpression, UnsafeExpression,
+        MatchExpression, MemberAccessExpression, MethodCallExpression, PrefixExpression,
+        StatementKind, TraitBound, UnaryOp, UnresolvedTraitConstraint, UnresolvedTypeData,
+        UnresolvedTypeExpression, UnsafeExpression,
     },
     hir::{
         comptime::{self, InterpreterError},
@@ -38,7 +38,10 @@ use crate::{
     token::{FmtStrFragment, Tokens},
 };
 
-use super::{Elaborator, LambdaContext, UnsafeBlockStatus, UnstableFeature};
+use super::{
+    Elaborator, LambdaContext, UnsafeBlockStatus, UnstableFeature,
+    path_resolution::{TypedPath, TypedPathSegment},
+};
 
 impl Elaborator<'_> {
     pub(crate) fn elaborate_expression(&mut self, expr: Expression) -> (ExprId, Type) {
@@ -151,13 +154,25 @@ impl Elaborator<'_> {
         let statements_len = block.statements.len();
         let mut statements = Vec::with_capacity(statements_len);
 
+        // If we found a break or continue statement, this holds its location (only for the first one)
+        let mut break_or_continue_location = None;
+        // When encountering a statement after a break or continue we'll error saying it's unreachable,
+        // but we only want to error for the first statement.
+        let mut errored_unreachable = false;
+
         for (i, statement) in block.statements.into_iter().enumerate() {
+            let location = statement.location;
             let statement_target_type = if i == statements_len - 1 { target_type } else { None };
             let (id, stmt_type) =
                 self.elaborate_statement_with_target_type(statement, statement_target_type);
-            statements.push(id);
 
-            if let HirStatement::Semi(expr) = self.interner.statement(&id) {
+            if break_or_continue_location.is_none() {
+                statements.push(id);
+            }
+
+            let stmt = self.interner.statement(&id);
+
+            if let HirStatement::Semi(expr) = stmt {
                 let inner_expr_type = self.interner.id_type(expr);
                 let location = self.interner.expr_location(&expr);
 
@@ -167,7 +182,18 @@ impl Elaborator<'_> {
                 });
             }
 
-            if i + 1 == statements.len() {
+            if let Some(break_or_continue_location) = break_or_continue_location {
+                if !errored_unreachable {
+                    self.push_err(ResolverError::UnreachableStatement {
+                        location,
+                        break_or_continue_location,
+                    });
+                    errored_unreachable = true;
+                }
+            } else if matches!(stmt, HirStatement::Break | HirStatement::Continue) {
+                break_or_continue_location = Some(location);
+                block_type = stmt_type;
+            } else if i + 1 == statements.len() {
                 block_type = stmt_type;
             }
         }
@@ -303,29 +329,31 @@ impl Elaborator<'_> {
 
         for fragment in &fragments {
             if let FmtStrFragment::Interpolation(ident_name, location) = fragment {
-                let scope_tree = self.scopes.current_scope_tree();
-                let variable = scope_tree.find(ident_name);
+                let ident = Ident::new(ident_name.clone(), *location);
 
-                let hir_ident = if let Some((old_value, _)) = variable {
-                    old_value.num_times_used += 1;
-                    old_value.ident.clone()
-                } else if let Ok((definition_id, _)) =
-                    self.lookup_global(Path::from_single(ident_name.to_string(), *location))
-                {
-                    HirIdent::non_trait_method(definition_id, *location)
-                } else {
-                    self.push_err(ResolverError::VariableNotDeclared {
-                        name: ident_name.to_owned(),
-                        location: *location,
-                    });
-                    continue;
-                };
+                let (hir_ident, var_scope_index) =
+                    if let Ok((ident, var_scope_index)) = self.use_variable(&ident) {
+                        (ident, var_scope_index)
+                    } else if let Ok((definition_id, _)) = self
+                        .lookup_global(TypedPath::from_single(ident_name.to_string(), *location))
+                    {
+                        (HirIdent::non_trait_method(definition_id, *location), 0)
+                    } else {
+                        self.push_err(ResolverError::VariableNotDeclared {
+                            name: ident_name.to_owned(),
+                            location: *location,
+                        });
+                        continue;
+                    };
+
+                self.handle_hir_ident(&hir_ident, var_scope_index, *location);
 
                 let hir_expr = HirExpression::Ident(hir_ident.clone(), None);
                 let expr_id = self.interner.push_expr(hir_expr);
                 self.interner.push_expr_location(expr_id, *location);
                 let typ = self.type_check_variable(hir_ident, expr_id, None);
                 self.interner.push_expr_type(expr_id, typ.clone());
+
                 capture_types.push(typ);
                 fmt_str_idents.push(expr_id);
             }
@@ -413,6 +441,8 @@ impl Elaborator<'_> {
         let location = index_expr.index.location;
 
         let (index, index_type) = self.elaborate_expression(index_expr.index);
+
+        self.push_index_to_check(index);
 
         let expected = self.polymorphic_integer_or_field();
         self.unify(&index_type, &expected, || TypeCheckError::TypeMismatch {
@@ -519,9 +549,15 @@ impl Elaborator<'_> {
         object_type = object_type.follow_bindings();
 
         let method_name_location = method_call.method_name.location();
-        let method_name = method_call.method_name.0.contents.as_str();
+        let method_name = method_call.method_name.as_str();
         let check_self_param = true;
-        match self.lookup_method(&object_type, method_name, location, check_self_param) {
+        match self.lookup_method(
+            &object_type,
+            method_name,
+            location,
+            object_location,
+            check_self_param,
+        ) {
             Some(method_ref) => {
                 // Automatically add `&mut` if the method expects a mutable reference and
                 // the object is not already one.
@@ -536,12 +572,15 @@ impl Elaborator<'_> {
                         &mut object_type,
                         &mut object,
                     );
-
-                    self.resolve_function_turbofish_generics(
-                        &func_id,
-                        method_call.generics,
-                        location,
-                    )
+                    let generics = method_call.generics;
+                    let generics = generics.map(|generics| {
+                        vecmap(generics, |generic| {
+                            let location = generic.location;
+                            let typ = self.use_type_with_kind(generic, &Kind::Any);
+                            Located::from(location, typ)
+                        })
+                    });
+                    self.resolve_function_turbofish_generics(&func_id, generics, location)
                 } else {
                     None
                 };
@@ -755,6 +794,7 @@ impl Elaborator<'_> {
             last_segment.generics = Some(generics.ordered_args);
         }
 
+        let path = self.validate_path(path);
         let last_segment = path.last_segment();
 
         let Some(typ) = self.lookup_type_or_error(path) else {
@@ -769,7 +809,7 @@ impl Elaborator<'_> {
         typ: Type,
         fields: Vec<(Ident, Expression)>,
         location: Location,
-        last_segment: Option<PathSegment>,
+        last_segment: Option<TypedPathSegment>,
     ) -> (HirExpression, Type) {
         let typ = typ.follow_bindings_shallow();
         let (r#type, generics) = match typ.as_ref() {
@@ -856,7 +896,7 @@ impl Elaborator<'_> {
             let expected_field_with_index = field_types
                 .iter()
                 .enumerate()
-                .find(|(_, (name, _, _))| name == &field_name.0.contents);
+                .find(|(_, (name, _, _))| name == field_name.as_str());
             let expected_index_and_visibility =
                 expected_field_with_index.map(|(index, (_, visibility, _))| (index, visibility));
             let expected_type =
@@ -894,7 +934,7 @@ impl Elaborator<'_> {
             if let Some((index, visibility)) = expected_index_and_visibility {
                 let struct_type = struct_type.borrow();
                 let field_location = field_name.location();
-                let field_name = &field_name.0.contents;
+                let field_name = field_name.as_str();
                 self.check_struct_field_visibility(
                     &struct_type,
                     field_name,
@@ -1369,8 +1409,8 @@ impl Elaborator<'_> {
             },
         };
 
-        let typ = self.resolve_type(constraint.typ.clone());
-        let Some(trait_bound) = self.resolve_trait_bound(&constraint.trait_bound) else {
+        let typ = self.use_type(constraint.typ.clone());
+        let Some(trait_bound) = self.use_trait_bound(&constraint.trait_bound) else {
             // resolve_trait_bound only returns None if it has already issued an error, so don't
             // issue another here.
             let error = self.interner.push_expr_full(HirExpression::Error, location, Type::Error);
@@ -1380,7 +1420,7 @@ impl Elaborator<'_> {
         let constraint = TraitConstraint { typ, trait_bound };
 
         let the_trait = self.interner.get_trait(constraint.trait_bound.trait_id);
-        let Some(method) = the_trait.find_method(&path.impl_item.0.contents) else {
+        let Some(method) = the_trait.find_method(path.impl_item.as_str()) else {
             let trait_name = the_trait.name.to_string();
             let method_name = path.impl_item.to_string();
             let location = path.impl_item.location();

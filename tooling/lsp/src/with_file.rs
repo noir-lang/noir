@@ -18,7 +18,8 @@ use noirc_frontend::{
     },
     parser::{Item, ItemKind, ParsedSubModule},
     token::{
-        Attributes, FmtStrFragment, LocatedToken, MetaAttribute, SecondaryAttribute, Token, Tokens,
+        Attributes, FmtStrFragment, LocatedToken, MetaAttribute, MetaAttributeName,
+        SecondaryAttribute, SecondaryAttributeKind, Token, Tokens,
     },
 };
 
@@ -123,6 +124,10 @@ fn pattern_with_file(pattern: Pattern, file: FileId) -> Pattern {
             vecmap(items, |(ident, pattern)| {
                 (ident_with_file(ident, file), pattern_with_file(pattern, file))
             }),
+            location_with_file(location, file),
+        ),
+        Pattern::Parenthesized(pattern, location) => Pattern::Parenthesized(
+            Box::new(pattern_with_file(*pattern, file)),
             location_with_file(location, file),
         ),
         Pattern::Interned(interned_pattern, location) => {
@@ -277,7 +282,10 @@ fn trait_item_with_file(item: TraitItem, file: FileId) -> TraitItem {
             typ: unresolved_type_with_file(typ, file),
             default_value: default_value.map(|value| expression_with_file(value, file)),
         },
-        TraitItem::Type { name } => TraitItem::Type { name: ident_with_file(name, file) },
+        TraitItem::Type { name, bounds } => TraitItem::Type {
+            name: ident_with_file(name, file),
+            bounds: trait_bounds_with_file(bounds, file),
+        },
     }
 }
 
@@ -462,13 +470,6 @@ fn unresolved_type_data_with_file(typ: UnresolvedTypeData, file: FileId) -> Unre
         UnresolvedTypeData::Expression(expr) => {
             UnresolvedTypeData::Expression(unresolved_type_expression_with_file(expr, file))
         }
-        UnresolvedTypeData::String(expr) => {
-            UnresolvedTypeData::String(unresolved_type_expression_with_file(expr, file))
-        }
-        UnresolvedTypeData::FormatString(expr, typ) => UnresolvedTypeData::FormatString(
-            unresolved_type_expression_with_file(expr, file),
-            Box::new(unresolved_type_with_file(*typ, file)),
-        ),
         UnresolvedTypeData::Parenthesized(typ) => {
             UnresolvedTypeData::Parenthesized(Box::new(unresolved_type_with_file(*typ, file)))
         }
@@ -502,13 +503,9 @@ fn unresolved_type_data_with_file(typ: UnresolvedTypeData, file: FileId) -> Unre
         UnresolvedTypeData::AsTraitPath(as_trait_path) => {
             UnresolvedTypeData::AsTraitPath(Box::new(as_trait_path_with_file(*as_trait_path, file)))
         }
-        UnresolvedTypeData::Quoted(..)
-        | UnresolvedTypeData::Resolved(..)
+        UnresolvedTypeData::Resolved(..)
         | UnresolvedTypeData::Interned(..)
         | UnresolvedTypeData::Unit
-        | UnresolvedTypeData::Bool
-        | UnresolvedTypeData::Integer(..)
-        | UnresolvedTypeData::FieldElement
         | UnresolvedTypeData::Unspecified
         | UnresolvedTypeData::Error => typ,
     }
@@ -563,7 +560,7 @@ fn generic_type_args_with_file(generics: GenericTypeArgs, file: FileId) -> Gener
 
 fn ident_with_file(ident: Ident, file: FileId) -> Ident {
     let location = location_with_file(ident.location(), file);
-    Ident::new(ident.0.contents, location)
+    Ident::new(ident.into_string(), location)
 }
 
 fn secondary_attributes_with_file(
@@ -577,28 +574,29 @@ fn secondary_attribute_with_file(
     secondary_attribute: SecondaryAttribute,
     file: FileId,
 ) -> SecondaryAttribute {
-    match secondary_attribute {
-        SecondaryAttribute::Meta(meta_attribute) => {
-            SecondaryAttribute::Meta(meta_attribute_with_file(meta_attribute, file))
+    let kind = match secondary_attribute.kind {
+        SecondaryAttributeKind::Meta(meta_attribute) => {
+            SecondaryAttributeKind::Meta(meta_attribute_with_file(meta_attribute, file))
         }
-        SecondaryAttribute::Deprecated(_)
-        | SecondaryAttribute::ContractLibraryMethod
-        | SecondaryAttribute::Export
-        | SecondaryAttribute::Field(_)
-        | SecondaryAttribute::Tag(..)
-        | SecondaryAttribute::Abi(_)
-        | SecondaryAttribute::Varargs
-        | SecondaryAttribute::UseCallersScope
-        | SecondaryAttribute::Allow(_) => secondary_attribute,
-    }
+        SecondaryAttributeKind::Deprecated(_)
+        | SecondaryAttributeKind::ContractLibraryMethod
+        | SecondaryAttributeKind::Export
+        | SecondaryAttributeKind::Field(_)
+        | SecondaryAttributeKind::Tag(..)
+        | SecondaryAttributeKind::Abi(_)
+        | SecondaryAttributeKind::Varargs
+        | SecondaryAttributeKind::UseCallersScope
+        | SecondaryAttributeKind::Allow(_) => secondary_attribute.kind,
+    };
+    SecondaryAttribute { kind, location: location_with_file(secondary_attribute.location, file) }
 }
 
 fn meta_attribute_with_file(meta_attribute: MetaAttribute, file: FileId) -> MetaAttribute {
-    MetaAttribute {
-        name: path_with_file(meta_attribute.name, file),
-        arguments: expressions_with_file(meta_attribute.arguments, file),
-        location: location_with_file(meta_attribute.location, file),
-    }
+    let name = match meta_attribute.name {
+        MetaAttributeName::Path(path) => MetaAttributeName::Path(path_with_file(path, file)),
+        MetaAttributeName::Resolved(expr_id) => MetaAttributeName::Resolved(expr_id),
+    };
+    MetaAttribute { name, arguments: expressions_with_file(meta_attribute.arguments, file) }
 }
 
 fn expressions_with_file(expressions: Vec<Expression>, file: FileId) -> Vec<Expression> {
@@ -975,8 +973,9 @@ fn unresolved_generics_with_file(
 
 fn unresolved_generic_with_file(generic: UnresolvedGeneric, file: FileId) -> UnresolvedGeneric {
     match generic {
-        UnresolvedGeneric::Variable(ident) => {
-            UnresolvedGeneric::Variable(ident_with_file(ident, file))
+        UnresolvedGeneric::Variable(ident, trait_bounds) => {
+            let trait_bounds = vecmap(trait_bounds, |bound| trait_bound_with_file(bound, file));
+            UnresolvedGeneric::Variable(ident_with_file(ident, file), trait_bounds)
         }
         UnresolvedGeneric::Numeric { ident, typ } => UnresolvedGeneric::Numeric {
             ident: ident_with_file(ident, file),

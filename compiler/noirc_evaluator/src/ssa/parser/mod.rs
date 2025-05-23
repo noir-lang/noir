@@ -7,9 +7,10 @@ use std::{
 use super::{
     Ssa,
     ir::{
-        instruction::BinaryOp,
+        instruction::{ArrayOffset, BinaryOp},
         types::{NumericType, Type},
     },
+    opt::pure::Purity,
 };
 
 use acvm::{AcirField, FieldElement};
@@ -42,13 +43,14 @@ impl FromStr for Ssa {
 
 impl Ssa {
     /// Creates an Ssa object from the given string.
-    pub(crate) fn from_str(src: &str) -> Result<Ssa, SsaErrorWithSource> {
+    #[allow(clippy::should_implement_trait)]
+    pub fn from_str(src: &str) -> Result<Ssa, SsaErrorWithSource> {
         FromStr::from_str(src)
     }
 
     /// Creates an Ssa object from the given string but trying to simplify
     /// each parsed instruction as it's inserted into the final SSA.
-    pub(crate) fn from_str_simplifying(src: &str) -> Result<Ssa, SsaErrorWithSource> {
+    pub fn from_str_simplifying(src: &str) -> Result<Ssa, SsaErrorWithSource> {
         Self::from_str_impl(src, true)
     }
 
@@ -63,7 +65,7 @@ impl Ssa {
     }
 }
 
-pub(crate) struct SsaErrorWithSource {
+pub struct SsaErrorWithSource {
     src: String,
     error: SsaError,
 }
@@ -191,13 +193,11 @@ impl<'a> Parser<'a> {
 
     fn parse_function(&mut self) -> ParseResult<ParsedFunction> {
         let runtime_type = self.parse_runtime_type()?;
-
-        // Ignore function purity if it is in the input
-        self.eat_identifier().ok();
+        let purity = self.parse_purity()?;
 
         self.eat_or_error(Token::Keyword(Keyword::Fn))?;
 
-        let external_name = self.eat_ident_or_error()?;
+        let external_name = self.eat_ident_or_keyword_or_error()?;
         let internal_name = self.eat_ident_or_error()?;
 
         self.eat_or_error(Token::LeftBrace)?;
@@ -206,7 +206,7 @@ impl<'a> Parser<'a> {
 
         self.eat_or_error(Token::RightBrace)?;
 
-        Ok(ParsedFunction { runtime_type, external_name, internal_name, blocks })
+        Ok(ParsedFunction { runtime_type, purity, external_name, internal_name, blocks })
     }
 
     fn parse_runtime_type(&mut self) -> ParseResult<RuntimeType> {
@@ -229,6 +229,18 @@ impl<'a> Parser<'a> {
             Ok(RuntimeType::Acir(inline_type))
         } else {
             Ok(RuntimeType::Brillig(inline_type))
+        }
+    }
+
+    fn parse_purity(&mut self) -> ParseResult<Option<Purity>> {
+        if self.eat_keyword(Keyword::Pure)? {
+            Ok(Some(Purity::Pure))
+        } else if self.eat_keyword(Keyword::PredicatePure)? {
+            Ok(Some(Purity::PureWithPredicate))
+        } else if self.eat_keyword(Keyword::Impure)? {
+            Ok(Some(Purity::Impure))
+        } else {
+            Ok(None)
         }
     }
 
@@ -324,6 +336,10 @@ impl<'a> Parser<'a> {
             return Ok(Some(instruction));
         }
 
+        if let Some(instruction) = self.parse_nop()? {
+            return Ok(Some(instruction));
+        }
+
         if let Some(target) = self.eat_identifier()? {
             return Ok(Some(self.parse_assignment(target)?));
         }
@@ -372,7 +388,14 @@ impl<'a> Parser<'a> {
         }
 
         let lhs = self.parse_value_or_error()?;
-        self.eat_or_error(Token::Equal)?;
+        let equals = if self.eat(Token::Equal)? {
+            true
+        } else if self.eat(Token::NotEqual)? {
+            false
+        } else {
+            return self.expected_one_of_tokens(&[Token::Equal, Token::NotEqual]);
+        };
+
         let rhs = self.parse_value_or_error()?;
 
         let assert_message = if self.eat(Token::Comma)? {
@@ -387,7 +410,7 @@ impl<'a> Parser<'a> {
             None
         };
 
-        Ok(Some(ParsedInstruction::Constrain { lhs, rhs, assert_message }))
+        Ok(Some(ParsedInstruction::Constrain { lhs, equals, rhs, assert_message }))
     }
 
     fn parse_decrement_rc(&mut self) -> ParseResult<Option<ParsedInstruction>> {
@@ -396,8 +419,7 @@ impl<'a> Parser<'a> {
         }
 
         let value = self.parse_value_or_error()?;
-        let original = self.parse_value_or_error()?;
-        Ok(Some(ParsedInstruction::DecrementRc { value, original }))
+        Ok(Some(ParsedInstruction::DecrementRc { value }))
     }
 
     fn parse_enable_side_effects(&mut self) -> ParseResult<Option<ParsedInstruction>> {
@@ -441,6 +463,14 @@ impl<'a> Parser<'a> {
         Ok(Some(ParsedInstruction::Store { address, value }))
     }
 
+    fn parse_nop(&mut self) -> ParseResult<Option<ParsedInstruction>> {
+        if !self.eat_keyword(Keyword::Nop)? {
+            return Ok(None);
+        }
+
+        Ok(Some(ParsedInstruction::Nop))
+    }
+
     fn parse_assignment(&mut self, target: Identifier) -> ParseResult<ParsedInstruction> {
         let mut targets = vec![target];
 
@@ -478,9 +508,10 @@ impl<'a> Parser<'a> {
             self.eat_or_error(Token::Comma)?;
             self.eat_or_error(Token::Keyword(Keyword::Index))?;
             let index = self.parse_value_or_error()?;
+            let offset = self.parse_array_offset()?;
             self.eat_or_error(Token::Arrow)?;
             let element_type = self.parse_type()?;
-            return Ok(ParsedInstruction::ArrayGet { target, element_type, array, index });
+            return Ok(ParsedInstruction::ArrayGet { target, element_type, array, index, offset });
         }
 
         if self.eat_keyword(Keyword::ArraySet)? {
@@ -489,10 +520,18 @@ impl<'a> Parser<'a> {
             self.eat_or_error(Token::Comma)?;
             self.eat_or_error(Token::Keyword(Keyword::Index))?;
             let index = self.parse_value_or_error()?;
+            let offset = self.parse_array_offset()?;
             self.eat_or_error(Token::Comma)?;
             self.eat_or_error(Token::Keyword(Keyword::Value))?;
             let value = self.parse_value_or_error()?;
-            return Ok(ParsedInstruction::ArraySet { target, array, index, value, mutable });
+            return Ok(ParsedInstruction::ArraySet {
+                target,
+                array,
+                index,
+                value,
+                mutable,
+                offset,
+            });
         }
 
         if self.eat_keyword(Keyword::Cast)? {
@@ -534,6 +573,25 @@ impl<'a> Parser<'a> {
             return Ok(ParsedInstruction::Truncate { target, value, bit_size, max_bit_size });
         }
 
+        if self.eat_keyword(Keyword::If)? {
+            let then_condition = self.parse_value_or_error()?;
+            self.eat_or_error(Token::Keyword(Keyword::Then))?;
+            let then_value = self.parse_value_or_error()?;
+            self.eat_or_error(Token::Keyword(Keyword::Else))?;
+            self.eat_or_error(Token::LeftParen)?;
+            self.eat_or_error(Token::Keyword(Keyword::If))?;
+            let else_condition = self.parse_value_or_error()?;
+            self.eat_or_error(Token::RightParen)?;
+            let else_value = self.parse_value_or_error()?;
+            return Ok(ParsedInstruction::IfElse {
+                target,
+                then_condition,
+                then_value,
+                else_condition,
+                else_value,
+            });
+        }
+
         if let Some(op) = self.eat_binary_op()? {
             let lhs = self.parse_value_or_error()?;
             self.eat_or_error(Token::Comma)?;
@@ -542,6 +600,25 @@ impl<'a> Parser<'a> {
         }
 
         self.expected_instruction_or_terminator()
+    }
+
+    fn parse_array_offset(&mut self) -> ParseResult<ArrayOffset> {
+        if self.eat_keyword(Keyword::Minus)? {
+            let token = self.token.token().clone();
+            let span = self.token.span();
+            let field = self.eat_int_or_error()?;
+            if let Some(offset) = field.try_to_u32().and_then(ArrayOffset::from_u32) {
+                if offset == ArrayOffset::None {
+                    self.unexpected_offset(token, span)
+                } else {
+                    Ok(offset)
+                }
+            } else {
+                self.unexpected_offset(token, span)
+            }
+        } else {
+            Ok(ArrayOffset::None)
+        }
     }
 
     fn parse_make_array(&mut self) -> ParseResult<Option<ParsedMakeArray>> {
@@ -851,6 +928,18 @@ impl<'a> Parser<'a> {
         if let Some(ident) = self.eat_ident()? { Ok(ident) } else { self.expected_identifier() }
     }
 
+    fn eat_ident_or_keyword_or_error(&mut self) -> ParseResult<String> {
+        if let Some(ident) = self.eat_ident()? {
+            Ok(ident)
+        } else if let Token::Keyword(keyword) = self.token.token() {
+            let ident = keyword.to_string();
+            self.bump()?;
+            Ok(ident)
+        } else {
+            self.expected_identifier()
+        }
+    }
+
     fn eat_int(&mut self) -> ParseResult<Option<FieldElement>> {
         let negative = self.eat(Token::Dash)?;
 
@@ -973,6 +1062,10 @@ impl<'a> Parser<'a> {
         Err(ParserError::ExpectedInt { found: self.token.token().clone(), span: self.token.span() })
     }
 
+    fn unexpected_offset<T>(&mut self, found: Token, span: Span) -> ParseResult<T> {
+        Err(ParserError::UnexpectedOffset { found, span })
+    }
+
     fn expected_type<T>(&mut self) -> ParseResult<T> {
         Err(ParserError::ExpectedType {
             found: self.token.token().clone(),
@@ -1039,6 +1132,8 @@ pub(crate) enum ParserError {
     ExpectedGlobalValue { found: Token, span: Span },
     #[error("Multiple return values only allowed for call")]
     MultipleReturnValuesOnlyAllowedForCall { second_target: Identifier },
+    #[error("Unexpected integer value for array_get offset")]
+    UnexpectedOffset { found: Token, span: Span },
 }
 
 impl ParserError {
@@ -1054,7 +1149,8 @@ impl ParserError {
             | ParserError::ExpectedStringOrData { span, .. }
             | ParserError::ExpectedByteString { span, .. }
             | ParserError::ExpectedValue { span, .. }
-            | ParserError::ExpectedGlobalValue { span, .. } => *span,
+            | ParserError::ExpectedGlobalValue { span, .. }
+            | ParserError::UnexpectedOffset { span, .. } => *span,
             ParserError::MultipleReturnValuesOnlyAllowedForCall { second_target, .. } => {
                 second_target.span
             }

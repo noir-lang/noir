@@ -63,11 +63,6 @@ pub enum InterpreterError {
         location: Location,
         call_stack: im::Vector<Location>,
     },
-    NoMethodFound {
-        name: String,
-        typ: Type,
-        location: Location,
-    },
     NonIntegerUsedInLoop {
         typ: Type,
         location: Location,
@@ -126,11 +121,12 @@ pub enum InterpreterError {
         operator: &'static str,
         location: Location,
     },
-    CastToNonNumericType {
-        typ: Type,
+    MathError {
+        operator: &'static str,
         location: Location,
     },
-    QuoteInRuntimeCode {
+    CastToNonNumericType {
+        typ: Type,
         location: Location,
     },
     NonStructInConstructor {
@@ -286,7 +282,6 @@ impl InterpreterError {
             | InterpreterError::NonBoolUsedInWhile { location, .. }
             | InterpreterError::NonBoolUsedInConstrain { location, .. }
             | InterpreterError::FailingConstraint { location, .. }
-            | InterpreterError::NoMethodFound { location, .. }
             | InterpreterError::NonIntegerUsedInLoop { location, .. }
             | InterpreterError::NonPointerDereferenced { location, .. }
             | InterpreterError::NonTupleOrStructInMemberAccess { location, .. }
@@ -300,8 +295,8 @@ impl InterpreterError {
             | InterpreterError::TypeUnsupported { location, .. }
             | InterpreterError::InvalidValueForUnary { location, .. }
             | InterpreterError::InvalidValuesForBinary { location, .. }
+            | InterpreterError::MathError { location, .. }
             | InterpreterError::CastToNonNumericType { location, .. }
-            | InterpreterError::QuoteInRuntimeCode { location, .. }
             | InterpreterError::NonStructInConstructor { location, .. }
             | InterpreterError::NonEnumInConstructor { location, .. }
             | InterpreterError::CannotInlineMacro { location, .. }
@@ -422,10 +417,6 @@ impl<'a> From<&'a InterpreterError> for CustomDiagnostic {
 
                 diagnostic.with_call_stack(call_stack.into_iter().copied().collect())
             }
-            InterpreterError::NoMethodFound { name, typ, location } => {
-                let msg = format!("No method named `{name}` found for type `{typ}`");
-                CustomDiagnostic::simple_error(msg, String::new(), *location)
-            }
             InterpreterError::NonIntegerUsedInLoop { typ, location } => {
                 let msg = format!("Non-integer type `{typ}` used in for loop");
                 let secondary = if matches!(typ, Type::FieldElement) {
@@ -493,15 +484,27 @@ impl<'a> From<&'a InterpreterError> for CustomDiagnostic {
                 CustomDiagnostic::simple_error(msg, String::new(), *location)
             }
             InterpreterError::InvalidValuesForBinary { lhs, rhs, operator, location } => {
-                let msg = format!("No implementation for `{lhs}` {operator} `{rhs}`",);
+                let msg = format!("No implementation for `{lhs}` {operator} `{rhs}`");
+                CustomDiagnostic::simple_error(msg, String::new(), *location)
+            }
+            InterpreterError::MathError { operator, location } => {
+                let msg = if *operator == "/" {
+                    "Attempt to divide by zero".to_string()
+                } else {
+                    let operator = match *operator {
+                        "+" => "add",
+                        "-" => "subtract",
+                        "*" => "multiply",
+                        ">>" => "shift right",
+                        "<<" => "shift left",
+                        _ => operator,
+                    };
+                    format!("Attempt to {operator} with overflow")
+                };
                 CustomDiagnostic::simple_error(msg, String::new(), *location)
             }
             InterpreterError::CastToNonNumericType { typ, location } => {
                 let msg = format!("Cannot cast to non-numeric type `{typ}`");
-                CustomDiagnostic::simple_error(msg, String::new(), *location)
-            }
-            InterpreterError::QuoteInRuntimeCode { location } => {
-                let msg = "`quote` may only be used in comptime code".into();
                 CustomDiagnostic::simple_error(msg, String::new(), *location)
             }
             InterpreterError::NonStructInConstructor { typ, location } => {

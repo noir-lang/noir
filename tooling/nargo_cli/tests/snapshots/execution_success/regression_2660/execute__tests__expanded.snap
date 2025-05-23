@@ -1,0 +1,10 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: expanded_code
+---
+global foo: i32 = -1;
+
+fn main(x: i32) {
+    let y: i32 = x + foo;
+    assert(y == 0);
+}

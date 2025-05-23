@@ -19,7 +19,7 @@ mod completion_tests {
         utils::get_cursor_line_and_column,
     };
 
-    use lsp_types::{
+    use async_lsp::lsp_types::{
         CompletionItem, CompletionItemKind, CompletionItemLabelDetails, CompletionParams,
         CompletionResponse, DidOpenTextDocumentParams, Documentation, PartialResultParams,
         Position, TextDocumentIdentifier, TextDocumentItem, TextDocumentPositionParams,
@@ -443,6 +443,30 @@ mod completion_tests {
         "#;
         assert_completion(src, vec![function_completion_item("one()", "one()", "fn() -> Field")])
             .await;
+    }
+
+    #[test]
+    async fn test_complete_type_path_for_nameless_type() {
+        let src = r#"
+          trait One {
+              fn some_method() -> Self;
+          }
+
+          impl One for () {
+              fn some_method() -> Self {
+                  1
+              }
+          }
+
+          fn main() {
+            <()>::some_meth>|<
+          }
+        "#;
+        assert_completion(
+            src,
+            vec![function_completion_item("some_method()", "some_method()", "fn()")],
+        )
+        .await;
     }
 
     #[test]
@@ -2386,6 +2410,20 @@ fn main() {
         assert_completion_excluding_auto_import(
             src,
             vec![simple_completion_item("no_predicates", CompletionItemKind::METHOD, None)],
+        )
+        .await;
+    }
+
+    #[test]
+    async fn test_suggests_built_in_allow_function_attribute() {
+        let src = r#"
+            #[dead_c>|<]
+            fn foo() {}
+        "#;
+
+        assert_completion_excluding_auto_import(
+            src,
+            vec![simple_completion_item("allow(dead_code)", CompletionItemKind::METHOD, None)],
         )
         .await;
     }

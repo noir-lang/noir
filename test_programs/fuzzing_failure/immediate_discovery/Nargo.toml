@@ -1,0 +1,3 @@
+[package]
+name = "immediate_discovery"
+type = "bin"

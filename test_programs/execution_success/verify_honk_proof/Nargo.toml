@@ -1,6 +1,0 @@
-[package]
-name = "verify_honk_proof"
-type = "bin"
-authors = [""]
-
-[dependencies]

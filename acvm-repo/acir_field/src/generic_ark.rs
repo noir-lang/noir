@@ -19,7 +19,7 @@ pub trait AcirField:
     + From<usize>
     + From<u128>
     // + From<u64>
-    // + From<u32>
+    + From<u32>
     // + From<u16>
     // + From<u8>
     + From<bool>
@@ -32,7 +32,6 @@ pub trait AcirField:
 
     fn is_zero(&self) -> bool;
     fn is_one(&self) -> bool;
-
     fn pow(&self, exponent: &Self) -> Self;
 
     /// Maximum number of bits needed to represent a field element
@@ -58,6 +57,8 @@ pub trait AcirField:
     fn try_into_u128(self) -> Option<u128>;
 
     fn to_i128(self) -> i128;
+
+    fn try_into_i128(self) -> Option<i128>;
 
     fn try_to_u64(&self) -> Option<u64>;
 
@@ -159,6 +160,10 @@ macro_rules! field_wrapper {
                 self.0.try_into_u128()
             }
 
+            fn try_into_i128(self) -> Option<i128> {
+                self.0.try_into_i128()
+            }
+
             fn to_i128(self) -> i128 {
                 self.0.to_i128()
             }
@@ -212,6 +217,12 @@ macro_rules! field_wrapper {
 
         impl From<u128> for $wrapper {
             fn from(value: u128) -> Self {
+                Self($field::from(value))
+            }
+        }
+
+        impl From<u32> for $wrapper {
+            fn from(value: u32) -> Self {
                 Self($field::from(value))
             }
         }

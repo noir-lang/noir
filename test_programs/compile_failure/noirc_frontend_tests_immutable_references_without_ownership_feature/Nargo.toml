@@ -1,0 +1,7 @@
+
+            [package]
+            name = "noirc_frontend_tests_immutable_references_without_ownership_feature"
+            type = "bin"
+            authors = [""]
+            
+            [dependencies]

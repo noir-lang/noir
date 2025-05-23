@@ -1,8 +1,6 @@
 use super::Formatter;
-use noirc_frontend::{
-    ast::{ItemVisibility, Visibility},
-    token::Keyword,
-};
+use noirc_frontend::shared::Visibility;
+use noirc_frontend::{ast::ItemVisibility, token::Keyword};
 
 impl Formatter<'_> {
     pub(super) fn format_item_visibility(&mut self, visibility: ItemVisibility) {

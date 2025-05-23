@@ -1,5 +1,5 @@
 use crate::{
-    ResolvedGeneric,
+    NamedGeneric, ResolvedGeneric,
     ast::{Ident, UnresolvedType, UnresolvedTypeData, UnresolvedTypeExpression},
     graph::CrateId,
     hir::def_collector::{
@@ -49,7 +49,7 @@ impl Elaborator<'_> {
                 .methods
                 .functions
                 .iter()
-                .filter(|(_, _, f)| f.name() == method.name.0.contents)
+                .filter(|(_, _, f)| f.name() == method.name.as_str())
                 .collect();
 
             if overrides.is_empty() {
@@ -62,7 +62,7 @@ impl Elaborator<'_> {
                     let module = self.module_id();
                     let location = default_impl.def.location;
                     self.interner.push_function(func_id, &default_impl.def, module, location);
-                    self.define_function_meta(&mut default_impl_clone, func_id, None);
+                    self.define_function_meta(&mut default_impl_clone, func_id, None, &[]);
                     func_ids_in_trait.insert(func_id);
                     ordered_methods.push((
                         method.default_impl_module_id,
@@ -161,7 +161,11 @@ impl Elaborator<'_> {
         ) in method.direct_generics.iter().zip(&override_meta.direct_generics)
         {
             let trait_fn_kind = trait_fn_generic.kind();
-            let arg = Type::NamedGeneric(impl_fn_generic.clone(), name.clone());
+            let arg = Type::NamedGeneric(NamedGeneric {
+                type_var: impl_fn_generic.clone(),
+                name: name.clone(),
+                implicit: false,
+            });
             bindings.insert(
                 trait_fn_generic.id(),
                 (trait_fn_generic.clone(), trait_fn_kind.clone(), arg),
@@ -193,19 +197,22 @@ impl Elaborator<'_> {
                 continue;
             }
 
+            let override_trait_generics =
+                override_trait_constraint.trait_bound.trait_generics.clone();
+
             if !substituted_method_ids.contains(&(
                 override_trait_constraint.typ.clone(),
                 override_trait_constraint.trait_bound.trait_id,
-                override_trait_constraint.trait_bound.trait_generics.clone(),
+                override_trait_generics,
             )) {
                 let the_trait =
                     self.interner.get_trait(override_trait_constraint.trait_bound.trait_id);
                 self.push_err(DefCollectorErrorKind::ImplIsStricterThanTrait {
                     constraint_typ: override_trait_constraint.typ,
-                    constraint_name: the_trait.name.0.contents.clone(),
+                    constraint_name: the_trait.name.to_string(),
                     constraint_generics: override_trait_constraint.trait_bound.trait_generics,
                     constraint_location: override_trait_constraint.trait_bound.location,
-                    trait_method_name: method.name.0.contents.clone(),
+                    trait_method_name: method.name.to_string(),
                     trait_method_location: method.location,
                 });
             }

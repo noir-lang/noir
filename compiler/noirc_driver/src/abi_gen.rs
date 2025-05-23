@@ -9,7 +9,7 @@ use noirc_abi::{
 use noirc_errors::Location;
 use noirc_evaluator::ErrorType;
 use noirc_frontend::TypeBinding;
-use noirc_frontend::ast::{Signedness, Visibility};
+use noirc_frontend::shared::{Signedness, Visibility};
 use noirc_frontend::{
     hir::Context,
     hir_def::{
@@ -114,7 +114,7 @@ pub(super) fn abi_type_from_hir_type(context: &Context, typ: &Type) -> AbiType {
             let struct_type = def.borrow();
             let fields = struct_type.get_fields(args).unwrap_or_default();
             let fields =
-                vecmap(fields, |(name, typ)| (name, abi_type_from_hir_type(context, &typ)));
+                vecmap(fields, |(name, typ, _)| (name, abi_type_from_hir_type(context, &typ)));
             // For the ABI, we always want to resolve the struct paths from the root crate
             let path = context.fully_qualified_struct_path(context.root_crate_id(), struct_type.id);
             AbiType::Struct { fields, path }
@@ -198,7 +198,7 @@ pub(super) fn value_from_hir_expression(context: &Context, expression: HirExpres
                 .iter()
                 .map(|(ident, expr_id)| {
                     (
-                        ident.0.contents.to_string(),
+                        ident.to_string(),
                         value_from_hir_expression(
                             context,
                             context.def_interner.expression(expr_id),
@@ -226,9 +226,10 @@ pub(super) fn value_from_hir_expression(context: &Context, expression: HirExpres
             },
             HirLiteral::Bool(value) => AbiValue::Boolean { value },
             HirLiteral::Str(value) => AbiValue::String { value },
-            HirLiteral::Integer(value) => {
-                AbiValue::Integer { value: value.field.to_hex(), sign: value.is_negative }
-            }
+            HirLiteral::Integer(value) => AbiValue::Integer {
+                value: value.absolute_value().to_hex(),
+                sign: value.is_negative(),
+            },
             _ => unreachable!("Literal cannot be used in the abi"),
         },
         _ => unreachable!("Type cannot be used in the abi {:?}", expression),

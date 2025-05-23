@@ -1,0 +1,131 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: expanded_code
+---
+mod baz {
+    pub fn from_baz(x: [Field; 3]) {
+        for i in 0..super::foo::MAGIC_NUMBER {
+            assert(x[i] == (super::foo::MAGIC_NUMBER as Field));
+        }
+    }
+}
+
+mod foo {
+    pub(crate) mod bar {
+        pub(crate) global N: u32 = 5;
+
+        pub fn from_bar(x: Field) -> Field {
+            x * (N as Field)
+        }
+    }
+
+    pub(crate) global MAGIC_NUMBER: u32 = 3;
+
+    pub(crate) global TYPE_INFERRED: u32 = 42;
+
+    pub fn from_foo(x: [Field; 5]) {
+        for i in 0..bar::N {
+            assert(x[i] == (bar::N as Field));
+        }
+    }
+}
+
+global M: u32 = 32;
+
+global L: Field = 10;
+
+global N: u32 = 5;
+
+global T_LEN: u32 = 2;
+
+global DERIVED: Field = 42;
+
+struct Dummy {
+    x: [Field; 5],
+    y: [Field; 3],
+}
+
+struct Test {
+    v: Field,
+}
+
+global VALS: [Test; 1] = [Test { v: 100 }];
+
+global NESTED: [[Test; 1]; 2] = [[Test { v: 100 }], [Test { v: 100 }]];
+
+unconstrained fn calculate_global_value() -> Field {
+    42
+}
+
+global CALCULATED_GLOBAL: Field = 42;
+
+fn main(a: [Field; 32], b: [Field; 32], c: pub [Field; 3], d: [Field; 5]) {
+    let test_struct: Dummy = Dummy { x: d, y: c };
+    for i in 0..foo::MAGIC_NUMBER {
+        assert(c[i] == (foo::MAGIC_NUMBER as Field));
+        assert(test_struct.y[i] == (foo::MAGIC_NUMBER as Field));
+        assert(test_struct.y[i] != NESTED[1][0].v);
+    }
+    assert((N as Field) != (M as Field));
+    let expected: u32 = 42;
+    assert(foo::TYPE_INFERRED == expected);
+    let mut y: u32 = 5;
+    let mut x: u32 = M;
+    for i in 0..N * N {
+        let M: u32 = 10;
+        x = M;
+        y = i;
+    }
+    assert(y == 24);
+    assert(x == 10);
+    let q: Field = multiplyByM(3);
+    assert(q == 96);
+    arrays_neq(a, b);
+    let t: [Field; 2] = [N as Field, M as Field];
+    assert(t[1] == 32);
+    assert(15 == my_submodule::my_helper());
+    let add_submodules_N: Field = (my_submodule::N as Field) + (foo::bar::N as Field);
+    assert(15 == add_submodules_N);
+    let add_from_bar_N: Field = (my_submodule::N as Field) + foo::bar::from_bar(1);
+    assert(15 == add_from_bar_N);
+    let sugared: [Field; 12] = [0; 12];
+    assert(sugared[my_submodule::N + 1] == 0);
+    let arr: [Field; 10] = [N as Field; 10];
+    assert((arr[0] == 5) & (arr[9] == 5));
+    foo::from_foo(d);
+    baz::from_baz(c);
+    assert(DERIVED == ((M as Field) + L));
+    assert(CALCULATED_GLOBAL == 42);
+}
+
+fn multiplyByM(x: Field) -> Field {
+    x * (M as Field)
+}
+
+fn arrays_neq(a: [Field; 32], b: [Field; 32]) {
+    assert(a != b);
+}
+
+mod my_submodule {
+    pub(crate) global N: u32 = 10;
+
+    pub fn my_helper() -> Field {
+        let N: u32 = 15;
+        let x: Field = N as Field;
+        x
+    }
+}
+
+struct Foo {
+    a: Field,
+}
+
+struct Bar {}
+
+impl Bar {
+    fn get_a() -> Field {
+        1
+    }
+}
+
+global foo: Foo = Foo { a: 1 };

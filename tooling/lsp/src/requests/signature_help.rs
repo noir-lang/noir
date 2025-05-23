@@ -1,10 +1,10 @@
 use std::future::{self, Future};
 
 use async_lsp::ResponseError;
-use fm::{FileId, PathString};
-use lsp_types::{
+use async_lsp::lsp_types::{
     ParameterInformation, ParameterLabel, SignatureHelp, SignatureHelpParams, SignatureInformation,
 };
+use fm::{FileId, PathString};
 use noirc_errors::{Location, Span};
 use noirc_frontend::{
     ParsedModule, Type,
@@ -132,7 +132,7 @@ impl<'a> SignatureFinder<'a> {
 
         if let Some(enum_type_id) = enum_type_id {
             label.push_str("enum ");
-            label.push_str(&self.interner.get_type(enum_type_id).borrow().name.0.contents);
+            label.push_str(self.interner.get_type(enum_type_id).borrow().name.as_str());
             label.push_str("::");
         } else {
             label.push_str("fn ");

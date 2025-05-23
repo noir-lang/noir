@@ -5,14 +5,15 @@ use std::{
 };
 
 use async_lsp::ResponseError;
-use fm::{FileId, FileMap, PathString};
-use lsp_types::{
+use async_lsp::lsp_types::{
     CodeAction, CodeActionKind, CodeActionOrCommand, CodeActionParams, CodeActionResponse,
     TextDocumentPositionParams, TextEdit, Url, WorkspaceEdit,
 };
+use fm::{FileId, FileMap, PathString};
 use noirc_errors::Span;
 use noirc_frontend::{
     ParsedModule,
+    modules::module_def_id_is_visible,
     parser::{Item, ItemKind, ParsedSubModule},
 };
 use noirc_frontend::{
@@ -28,7 +29,7 @@ use noirc_frontend::{
 
 use crate::{
     LspState, modules::get_ancestor_module_reexport, use_segment_positions::UseSegmentPositions,
-    utils, visibility::module_def_id_is_visible,
+    utils,
 };
 
 use super::{process_request, to_lsp_location};
@@ -120,7 +121,7 @@ impl<'a> CodeActionFinder<'a> {
         let local_id = if let Some((module_index, _)) =
             def_map.modules().iter().find(|(_, module_data)| module_data.location.file == file)
         {
-            LocalModuleId(module_index)
+            LocalModuleId::new(module_index)
         } else {
             def_map.root()
         };
@@ -250,7 +251,7 @@ impl Visitor for CodeActionFinder<'_> {
         let previous_module_id = self.module_id;
 
         let def_map = &self.def_maps[&self.module_id.krate];
-        let Some(module_data) = def_map.modules().get(self.module_id.local_id.0) else {
+        let Some(module_data) = def_map.get(self.module_id.local_id) else {
             return false;
         };
         if let Some(child_module) = module_data.children.get(&parsed_sub_module.name) {
