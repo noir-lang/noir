@@ -37,9 +37,9 @@ pub(crate) fn run(args: InitCommand, config: NargoConfig) -> Result<(), CliError
         Some(name) => name,
         None => {
             let name_str = config.program_dir.file_name().unwrap().to_str().unwrap();
-            name_str.parse().map_err(|e| CliError::InvalidPackageNameFromDirectory {
+            name_str.parse().map_err(|e: String| CliError::InvalidPackageNameFromDirectory {
                 directory_name: name_str.to_string(),
-                parse_error: e.to_string(),
+                parse_error: e,
             })?
         }
     };
