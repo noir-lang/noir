@@ -471,14 +471,12 @@ fn can_be_eliminated_if_unused(
                 None => false,
             },
 
-            // If there are still function values that come from an instruction it means 
-            // that there were no variants for that higher order function. 
+            // If there are still function values that come from an instruction it means
+            // that there were no variants for that higher order function.
             // It is safe to remove these functions.
             // We also check whether the type of the instruction is a field as all function pointers
             // are transformed to field IDs during defunctionalization.
-            Value::Instruction { typ, .. } if typ.is_field() => {
-                true
-            }
+            Value::Instruction { typ, .. } if typ.is_field() => true,
 
             _ => false,
         },
