@@ -467,8 +467,20 @@
 <a href="#466" id="466">466</a>
 <a href="#467" id="467">467</a>
 <a href="#468" id="468">468</a>
-<a href="#469" id="469">469</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::collections::BTreeSet;
-<span class="kw">use </span>std::sync::Arc;
+<a href="#469" id="469">469</a>
+<a href="#470" id="470">470</a>
+<a href="#471" id="471">471</a>
+<a href="#472" id="472">472</a>
+<a href="#473" id="473">473</a>
+<a href="#474" id="474">474</a>
+<a href="#475" id="475">475</a>
+<a href="#476" id="476">476</a>
+<a href="#477" id="477">477</a>
+<a href="#478" id="478">478</a>
+<a href="#479" id="479">479</a>
+<a href="#480" id="480">480</a>
+<a href="#481" id="481">481</a>
+<a href="#482" id="482">482</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::sync::Arc;
 
 <span class="kw">use </span>fxhash::FxHashMap <span class="kw">as </span>HashMap;
 <span class="kw">use </span>petgraph::visit::DfsPostOrder;
@@ -497,20 +509,15 @@
     /// identified as calling known pure functions.
     </span><span class="attr">#[tracing::instrument(level = <span class="string">"trace"</span>, skip(<span class="self">self</span>))]
     </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>purity_analysis(<span class="kw-2">mut </span><span class="self">self</span>) -&gt; Ssa {
-        <span class="kw">let </span><span class="kw-2">mut </span>purities = HashMap::default();
-        <span class="kw">let </span><span class="kw-2">mut </span>called_functions = HashMap::default();
-
         <span class="comment">// First look through each function to get a baseline on its purity and collect
         // the functions it calls to build a call graph.
-        </span><span class="kw">for </span>function <span class="kw">in </span><span class="self">self</span>.functions.values() {
-            <span class="kw">let </span>(purity, dependencies) = function.is_pure();
-            purities.insert(function.id(), purity);
-            called_functions.insert(function.id(), dependencies);
-        }
+        </span><span class="kw">let </span>purities: HashMap&lt;<span class="kw">_</span>, <span class="kw">_</span>&gt; =
+            <span class="self">self</span>.functions.values().map(|function| (function.id(), function.is_pure())).collect();
 
         <span class="comment">// Then transitively 'infect' any functions which call impure functions as also
         // impure.
-        </span><span class="kw">let </span>purities = analyze_call_graph(called_functions, purities, <span class="self">self</span>.main_id);
+        </span><span class="kw">let </span>call_graph = CallGraph::from_ssa(<span class="kw-2">&amp;</span><span class="self">self</span>);
+        <span class="kw">let </span>purities = analyze_call_graph(call_graph, purities);
         <span class="kw">let </span>purities = Arc::new(purities);
 
         <span class="comment">// We're done, now store purities somewhere every dfg can find it.
@@ -586,17 +593,15 @@
 }
 
 <span class="kw">impl </span>Function {
-    <span class="kw">fn </span>is_pure(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; (Purity, BTreeSet&lt;FunctionId&gt;) {
-        <span class="comment">// Note, this function must be allowed to complete despite the fact that once the function is marked as impure
-        // then its final purity is known. This is because we need to collect all of the dependencies of the function
-        // to ensure that they are processed.
-        //
-        // This can be relaxed if we calculate the callgraph separately.
-
-        </span><span class="kw">let </span>contains_reference = |value_id: <span class="kw-2">&amp;</span>ValueId| {
+    <span class="kw">fn </span>is_pure(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; Purity {
+        <span class="kw">let </span>contains_reference = |value_id: <span class="kw-2">&amp;</span>ValueId| {
             <span class="kw">let </span>typ = <span class="self">self</span>.dfg.type_of_value(<span class="kw-2">*</span>value_id);
             typ.contains_reference()
         };
+
+        <span class="kw">if </span><span class="self">self</span>.parameters().iter().any(<span class="kw-2">&amp;</span>contains_reference) {
+            <span class="kw">return </span>Purity::Impure;
+        }
 
         <span class="kw">let </span><span class="kw-2">mut </span>result = <span class="kw">if </span><span class="self">self</span>.runtime().is_acir() {
             Purity::Pure
@@ -606,17 +611,6 @@
             </span>Purity::PureWithPredicate
         };
 
-        <span class="comment">// Set of functions we call which the purity result depends on.
-        // `is_pure` is intended to be called on each function, building
-        // up a call graph of sorts to check afterwards to propagate impurity
-        // from called functions to their callers. Therefore, an initial "Pure"
-        // result here could be overridden by one of these dependencies being impure.
-        </span><span class="kw">let </span><span class="kw-2">mut </span>dependencies = BTreeSet::new();
-
-        <span class="kw">if </span><span class="self">self</span>.parameters().iter().any(<span class="kw-2">&amp;</span>contains_reference) {
-            result = Purity::Impure;
-        }
-
         <span class="kw">for </span>block <span class="kw">in </span><span class="self">self</span>.reachable_blocks() {
             <span class="kw">for </span>instruction <span class="kw">in </span><span class="self">self</span>.dfg[block].instructions() {
                 <span class="comment">// We don't defer to Instruction::can_be_deduplicated, Instruction::requires_acir_gen_predicate,
@@ -625,10 +619,10 @@
                 // parameters or returned, we can ignore them.
                 // We even ignore Constrain instructions. As long as the external parameters are
                 // identical, we should be constraining the same values anyway.
-                </span><span class="kw">let </span>instruction_purity = <span class="kw">match </span><span class="kw-2">&amp;</span><span class="self">self</span>.dfg[<span class="kw-2">*</span>instruction] {
+                </span><span class="kw">match </span><span class="kw-2">&amp;</span><span class="self">self</span>.dfg[<span class="kw-2">*</span>instruction] {
                     Instruction::Constrain(..)
                     | Instruction::ConstrainNotEqual(..)
-                    | Instruction::RangeCheck { .. } =&gt; Purity::PureWithPredicate,
+                    | Instruction::RangeCheck { .. } =&gt; result = Purity::PureWithPredicate,
 
                     <span class="comment">// These instructions may be pure unless:
                     // - We may divide by zero
@@ -639,35 +633,35 @@
                     | Instruction::ArrayGet { .. }
                     | Instruction::ArraySet { .. }) =&gt; {
                         <span class="kw">if </span>ins.requires_acir_gen_predicate(<span class="kw-2">&amp;</span><span class="self">self</span>.dfg) {
-                            Purity::PureWithPredicate
-                        } <span class="kw">else </span>{
-                            result
+                            result = Purity::PureWithPredicate;
                         }
                     }
                     Instruction::Call { func, .. } =&gt; {
                         <span class="kw">match </span><span class="kw-2">&amp;</span><span class="self">self</span>.dfg[<span class="kw-2">*</span>func] {
-                            Value::Function(function_id) =&gt; {
+                            Value::Function(<span class="kw">_</span>) =&gt; {
                                 <span class="comment">// We don't know if this function is pure or not yet,
-                                // so track it as a dependency for now.
-                                </span>dependencies.insert(<span class="kw-2">*</span>function_id);
-                                result
-                            }
+                                //
+                                // `is_pure` is intended to be called on each function, building
+                                // up a call graph of sorts to check afterwards to propagate impurity
+                                // from called functions to their callers. Therefore, an initial "Pure"
+                                // result here could be overridden by one of these dependencies being impure.
+                            </span>}
                             Value::Intrinsic(intrinsic) =&gt; <span class="kw">match </span>intrinsic.purity() {
-                                Purity::Pure =&gt; result,
-                                Purity::PureWithPredicate =&gt; Purity::PureWithPredicate,
-                                Purity::Impure =&gt; Purity::Impure,
+                                Purity::Pure =&gt; (),
+                                Purity::PureWithPredicate =&gt; result = Purity::PureWithPredicate,
+                                Purity::Impure =&gt; <span class="kw">return </span>Purity::Impure,
                             },
-                            Value::ForeignFunction(<span class="kw">_</span>) =&gt; Purity::Impure,
+                            Value::ForeignFunction(<span class="kw">_</span>) =&gt; <span class="kw">return </span>Purity::Impure,
                             <span class="comment">// The function we're calling is unknown in the remaining cases,
                             // so just assume the worst.
                             </span>Value::Global(<span class="kw">_</span>)
                             | Value::Instruction { .. }
                             | Value::Param { .. }
-                            | Value::NumericConstant { .. } =&gt; Purity::Impure,
+                            | Value::NumericConstant { .. } =&gt; <span class="kw">return </span>Purity::Impure,
                         }
                     }
 
-                    <span class="comment">// The rest are always pure (including allocate, load, &amp; store) and so don't affect purity
+                    <span class="comment">// The rest are always pure (including allocate, load, &amp; store)
                     </span>Instruction::Cast(<span class="kw">_</span>, <span class="kw">_</span>)
                     | Instruction::Not(<span class="kw">_</span>)
                     | Instruction::Truncate { .. }
@@ -679,67 +673,78 @@
                     | Instruction::DecrementRc { .. }
                     | Instruction::IfElse { .. }
                     | Instruction::MakeArray { .. }
-                    | Instruction::Noop =&gt; result,
+                    | Instruction::Noop =&gt; (),
                 };
-
-                result = result.unify(instruction_purity);
             }
 
             <span class="comment">// If the function returns a reference it is impure
             </span><span class="kw">let </span>terminator = <span class="self">self</span>.dfg[block].terminator();
             <span class="kw">if let </span><span class="prelude-val">Some</span>(TerminatorInstruction::Return { return_values, .. }) = terminator {
                 <span class="kw">if </span>return_values.iter().any(<span class="kw-2">&amp;</span>contains_reference) {
-                    result = Purity::Impure;
+                    <span class="kw">return </span>Purity::Impure;
                 }
             }
         }
 
-        (result, dependencies)
+        result
     }
 }
 
 <span class="kw">fn </span>analyze_call_graph(
-    dependencies: HashMap&lt;FunctionId, BTreeSet&lt;FunctionId&gt;&gt;,
+    call_graph: CallGraph,
     starting_purities: FunctionPurities,
-    main: FunctionId,
 ) -&gt; FunctionPurities {
-    <span class="kw">let </span>call_graph = CallGraph::from_deps(dependencies);
-
     <span class="comment">// Now we can analyze it: a function is only as pure as all of
     // its called functions
-    </span><span class="kw">let </span>main_index = call_graph.ids_to_indices()[<span class="kw-2">&amp;</span>main];
-    <span class="kw">let </span>graph = call_graph.graph();
-    <span class="kw">let </span><span class="kw-2">mut </span>dfs = DfsPostOrder::new(graph, main_index);
+    </span><span class="kw">let </span>times_called = call_graph.times_called();
+    <span class="kw">let </span>starting_points =
+        times_called.iter().filter_map(|(id, times_called)| (<span class="kw-2">*</span>times_called == <span class="number">0</span>).then_some(<span class="kw-2">*</span>id));
 
     <span class="comment">// The `starting_purities` are the preliminary results from `is_pure`
     // that don't take into account function calls. These finished purities do.
     </span><span class="kw">let </span><span class="kw-2">mut </span>finished_purities = HashMap::default();
 
+    <span class="kw">let </span>graph = call_graph.graph();
+    <span class="kw">let </span>ids_to_indices = call_graph.ids_to_indices();
     <span class="kw">let </span>indices_to_ids = call_graph.indices_to_ids();
-    <span class="kw">while let </span><span class="prelude-val">Some</span>(index) = dfs.next(graph) {
-        <span class="kw">let </span>id = indices_to_ids[<span class="kw-2">&amp;</span>index];
-        <span class="kw">let </span><span class="kw-2">mut </span>purity = starting_purities[<span class="kw-2">&amp;</span>id];
 
-        <span class="kw">for </span>neighbor_index <span class="kw">in </span>graph.neighbors(index) {
-            <span class="kw">let </span>neighbor = indices_to_ids[<span class="kw-2">&amp;</span>neighbor_index];
+    <span class="kw">for </span>start_point <span class="kw">in </span>starting_points {
+        <span class="kw">let </span>start_index = ids_to_indices[<span class="kw-2">&amp;</span>start_point];
+        <span class="kw">let </span><span class="kw-2">mut </span>dfs = DfsPostOrder::new(graph, start_index);
 
-            <span class="kw">let </span>neighbor_purity = finished_purities.get(<span class="kw-2">&amp;</span>neighbor).copied().unwrap_or({
-                <span class="comment">// The dependent function isn't finished yet. Since we're following
-                // calls in a DFS, this means there are mutually recursive functions.
-                // We could handle these but would need a different, much slower algorithm
-                // to detect strongly connected components. Instead, since this should be
-                // a rare case, we bail and assume impure for now.
-                </span><span class="kw">if </span>neighbor == id {
-                    <span class="comment">// If the recursive call is to the same function we can ignore it
-                    </span>purity
-                } <span class="kw">else </span>{
-                    Purity::Impure
-                }
-            });
-            purity = purity.unify(neighbor_purity);
+        <span class="kw">while let </span><span class="prelude-val">Some</span>(index) = dfs.next(graph) {
+            <span class="kw">let </span>id = indices_to_ids[<span class="kw-2">&amp;</span>index];
+            <span class="kw">let </span><span class="kw-2">mut </span>purity = starting_purities[<span class="kw-2">&amp;</span>id];
+
+            <span class="kw">for </span>neighbor_index <span class="kw">in </span>graph.neighbors(index) {
+                <span class="kw">let </span>neighbor = indices_to_ids[<span class="kw-2">&amp;</span>neighbor_index];
+
+                <span class="kw">let </span>neighbor_purity = finished_purities.get(<span class="kw-2">&amp;</span>neighbor).copied().unwrap_or({
+                    <span class="comment">// The dependent function isn't finished yet. Since we're following
+                    // calls in a DFS, this means there are mutually recursive functions.
+                    // We could handle these but would need a different, much slower algorithm
+                    // to detect strongly connected components. Instead, since this should be
+                    // a rare case, we bail and assume impure for now.
+                    </span><span class="kw">if </span>neighbor == id {
+                        <span class="comment">// If the recursive call is to the same function we can ignore it
+                        </span>purity
+                    } <span class="kw">else </span>{
+                        Purity::Impure
+                    }
+                });
+                purity = purity.unify(neighbor_purity);
+            }
+
+            finished_purities.insert(id, purity);
         }
+    }
 
-        finished_purities.insert(id, purity);
+    <span class="comment">// Any remaining functions are completely unreachable and are either recursive or mutually recursive.
+    // As these functions will be removed from the program, we treat them as impure.
+    </span><span class="kw">let </span>unhandled_funcs: Vec&lt;<span class="kw">_</span>&gt; =
+        starting_purities.keys().filter(|func| !finished_purities.contains_key(<span class="kw-2">*</span>func)).collect();
+    <span class="kw">for </span>id <span class="kw">in </span>unhandled_funcs {
+        finished_purities.insert(<span class="kw-2">*</span>id, Purity::Impure);
     }
 
     finished_purities
@@ -934,6 +939,27 @@
         <span class="macro">assert_eq!</span>(purities[<span class="kw-2">&amp;</span>FunctionId::test_new(<span class="number">1</span>)], Purity::Impure);
         <span class="macro">assert_eq!</span>(purities[<span class="kw-2">&amp;</span>FunctionId::test_new(<span class="number">2</span>)], Purity::Impure);
         <span class="macro">assert_eq!</span>(purities[<span class="kw-2">&amp;</span>FunctionId::test_new(<span class="number">3</span>)], Purity::PureWithPredicate);
+    }
+
+    <span class="attr">#[test]
+    </span><span class="kw">fn </span>handles_unreachable_functions() {
+        <span class="comment">// Regression test for https://github.com/noir-lang/noir/issues/8666
+        </span><span class="kw">let </span>src = <span class="string">r#"
+        brillig(inline) fn main f0 {
+          b0():
+            return
+        }
+        brillig(inline) fn func_1 f1 {
+          b0():
+            return
+        }"#</span>;
+
+        <span class="kw">let </span>ssa = Ssa::from_str(src).unwrap();
+        <span class="kw">let </span>ssa = ssa.purity_analysis();
+
+        <span class="kw">let </span>purities = <span class="kw-2">&amp;</span>ssa.main().dfg.function_purities;
+        <span class="macro">assert_eq!</span>(purities[<span class="kw-2">&amp;</span>FunctionId::test_new(<span class="number">0</span>)], Purity::PureWithPredicate);
+        <span class="macro">assert_eq!</span>(purities[<span class="kw-2">&amp;</span>FunctionId::test_new(<span class="number">1</span>)], Purity::PureWithPredicate);
     }
 }
 </code></pre></div></section></main></body></html>
