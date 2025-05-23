@@ -1079,6 +1079,34 @@ impl<'interner> Monomorphizer<'interner> {
                 let value = SignedField::positive(value);
                 ast::Expression::Literal(ast::Literal::Integer(value, typ, location))
             }
+            DefinitionKind::AssociatedConstant(trait_impl_id, name) => {
+                let location = ident.location;
+                let associated_types = self.interner.get_associated_types_for_impl(*trait_impl_id);
+                let associated_type = associated_types
+                    .iter()
+                    .find(|typ| typ.name.as_str() == name)
+                    .expect("Expected to find associated type");
+                let Kind::Numeric(numeric_type) = associated_type.typ.kind() else {
+                    unreachable!("Expected associated type to be numeric");
+                };
+                match associated_type
+                    .typ
+                    .evaluate_to_field_element(&associated_type.typ.kind(), location)
+                {
+                    Ok(value) => {
+                        let typ = Self::convert_type(&numeric_type, location)?;
+                        let value = SignedField::positive(value);
+                        ast::Expression::Literal(ast::Literal::Integer(value, typ, location))
+                    }
+                    Err(err) => {
+                        return Err(MonomorphizationError::CannotComputeAssociatedConstant {
+                            name: name.clone(),
+                            err,
+                            location,
+                        });
+                    }
+                }
+            }
         };
 
         Ok(ident)

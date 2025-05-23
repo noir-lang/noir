@@ -52,6 +52,11 @@ pub enum MonomorphizationError {
         typ: Type,
         location: Location,
     },
+    CannotComputeAssociatedConstant {
+        name: String,
+        err: TypeCheckError,
+        location: Location,
+    },
 }
 
 impl MonomorphizationError {
@@ -66,7 +71,8 @@ impl MonomorphizationError {
             | MonomorphizationError::CheckedCastFailed { location, .. }
             | MonomorphizationError::RecursiveType { location, .. }
             | MonomorphizationError::NoDefaultType { location, .. }
-            | MonomorphizationError::NoDefaultTypeInItem { location, .. } => *location,
+            | MonomorphizationError::NoDefaultTypeInItem { location, .. }
+            | MonomorphizationError::CannotComputeAssociatedConstant { location, .. } => *location,
             MonomorphizationError::InterpreterError(error) => error.location(),
         }
     }
@@ -123,6 +129,11 @@ impl From<MonomorphizationError> for CustomDiagnostic {
                 let message = format!("Type `{typ}` is recursive");
                 let secondary = "All types in Noir must have a known size at compile-time".into();
                 return CustomDiagnostic::simple_error(message, secondary, *location);
+            }
+            MonomorphizationError::CannotComputeAssociatedConstant { name, err, .. } => {
+                format!(
+                    "Could not determine the value of associated constant `{name}`, encountered error: `{err}`"
+                )
             }
         };
 
