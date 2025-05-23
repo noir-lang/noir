@@ -718,14 +718,6 @@ impl<'a> FunctionContext<'a> {
         }
 
         if self.unconstrained() {
-            // For now only try prints in unconstrained code, were we don't need to create a proxy.
-            // We don't use this in comptime because comptime prints to stdout which is currently not captured.
-            if freq.enabled_when("print", !self.is_comptime_friendly()) {
-                if let Some(e) = self.gen_print(u)? {
-                    return Ok(e);
-                }
-            }
-
             // Get loop out of the way quick, as it's always disabled for ACIR.
             if freq.enabled_when("loop", self.budget > 1) {
                 return self.gen_loop(u);
@@ -741,6 +733,13 @@ impl<'a> FunctionContext<'a> {
 
             if freq.enabled_when("continue", self.in_loop && !self.ctx.config.avoid_loop_control) {
                 return Ok(Expression::Continue);
+            }
+
+            // For now only try prints in unconstrained code, were we don't need to create a proxy.
+            if freq.enabled("print") {
+                if let Some(e) = self.gen_print(u)? {
+                    return Ok(e);
+                }
             }
         }
 

@@ -89,6 +89,7 @@ impl<'context> Elaborator<'context> {
             self.def_maps,
             self.usage_tracker,
             self.crate_graph,
+            self.interpreter_output,
             self.crate_id,
             self.interpreter_call_stack.clone(),
             self.options,

@@ -1,4 +1,5 @@
 use std::{
+    cell::RefCell,
     collections::{BTreeMap, BTreeSet},
     rc::Rc,
 };
@@ -122,6 +123,7 @@ pub struct Elaborator<'context> {
     pub(crate) def_maps: &'context mut DefMaps,
     pub(crate) usage_tracker: &'context mut UsageTracker,
     pub(crate) crate_graph: &'context CrateGraph,
+    pub(crate) interpreter_output: &'context Option<Rc<RefCell<dyn std::io::Write>>>,
 
     unsafe_block_status: UnsafeBlockStatus,
     current_loop: Option<Loop>,
@@ -272,6 +274,7 @@ impl<'context> Elaborator<'context> {
         def_maps: &'context mut DefMaps,
         usage_tracker: &'context mut UsageTracker,
         crate_graph: &'context CrateGraph,
+        interpreter_output: &'context Option<Rc<RefCell<dyn std::io::Write>>>,
         crate_id: CrateId,
         interpreter_call_stack: im::Vector<Location>,
         options: ElaboratorOptions<'context>,
@@ -284,6 +287,7 @@ impl<'context> Elaborator<'context> {
             def_maps,
             usage_tracker,
             crate_graph,
+            interpreter_output,
             unsafe_block_status: UnsafeBlockStatus::NotInUnsafeBlock,
             current_loop: None,
             generics: Vec::new(),
@@ -316,6 +320,7 @@ impl<'context> Elaborator<'context> {
             &mut context.def_maps,
             &mut context.usage_tracker,
             &context.crate_graph,
+            &context.interpreter_output,
             crate_id,
             im::Vector::new(),
             options,

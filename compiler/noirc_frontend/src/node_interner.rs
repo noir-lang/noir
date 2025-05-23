@@ -226,9 +226,6 @@ pub struct NodeInterner {
     /// Determins whether to run in LSP mode. In LSP mode references are tracked.
     pub(crate) lsp_mode: bool,
 
-    /// Whether to avoid comptime println from producing output
-    pub(crate) disable_comptime_printing: bool,
-
     /// Store the location of the references in the graph.
     /// Edges are directed from reference nodes to referenced nodes.
     /// For example:
@@ -710,7 +707,6 @@ impl Default for NodeInterner {
             interned_unresolved_type_datas: Default::default(),
             interned_patterns: Default::default(),
             lsp_mode: false,
-            disable_comptime_printing: false,
             location_indices: LocationIndices::default(),
             reference_graph: petgraph::graph::DiGraph::new(),
             reference_graph_indices: HashMap::default(),

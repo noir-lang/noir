@@ -274,14 +274,14 @@ mod rules {
                     return false;
                 }
                 // We can apply this rule on anything that returns a number.
-                if let Some(typ) = expr::return_type(expr) {
-                    matches!(typ, Type::Field | Type::Integer(_, _))
+                if let Some(typ) = expr.return_type() {
+                    matches!(typ.as_ref(), Type::Field | Type::Integer(_, _))
                 } else {
                     false
                 }
             },
             |u, expr| {
-                let typ = expr::return_type(expr).cloned().expect("only called on matching type");
+                let typ = expr.return_type().expect("only called on matching type").into_owned();
 
                 let op =
                     if bool::arbitrary(u)? { BinaryOpKind::Add } else { BinaryOpKind::Subtract };
@@ -303,8 +303,8 @@ mod rules {
         }
         // We can apply boolean rule on anything that returns a bool,
         // unless the expression can have a side effect, which we don't want to duplicate.
-        if let Some(typ) = expr::return_type(expr) {
-            matches!(typ, Type::Bool)
+        if let Some(typ) = expr.return_type() {
+            matches!(typ.as_ref(), Type::Bool)
                 && !expr::exists(expr, |expr| {
                     matches!(
                         expr,

@@ -1408,12 +1408,17 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
         self.evaluate_statement(statement)
     }
 
-    fn print_oracle(&self, arguments: Vec<(Value, Location)>) -> Result<Value, InterpreterError> {
+    fn print_oracle(
+        &mut self,
+        arguments: Vec<(Value, Location)>,
+    ) -> Result<Value, InterpreterError> {
         assert_eq!(arguments.len(), 2);
 
-        if self.elaborator.interner.disable_comptime_printing {
+        let Some(output) = self.elaborator.interpreter_output else {
             return Ok(Value::Unit);
-        }
+        };
+
+        let mut output = output.borrow_mut();
 
         let print_newline = arguments[0].0 == Value::Bool(true);
         let contents = arguments[1].0.display(self.elaborator.interner);
@@ -1427,9 +1432,9 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
                 eprint!("{}", contents);
             }
         } else if print_newline {
-            println!("{}", contents);
+            writeln!(output, "{}", contents).expect("write should succeed");
         } else {
-            print!("{}", contents);
+            write!(output, "{}", contents).expect("write should succeed");
         }
 
         Ok(Value::Unit)

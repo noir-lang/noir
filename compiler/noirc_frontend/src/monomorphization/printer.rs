@@ -27,6 +27,7 @@ pub struct AstPrinter {
     pub show_id: bool,
     pub show_clone_and_drop: bool,
     pub show_print_as_std: bool,
+    pub show_type_in_let: bool,
 }
 
 impl Default for AstPrinter {
@@ -37,6 +38,7 @@ impl Default for AstPrinter {
             show_id: true,
             show_clone_and_drop: true,
             show_print_as_std: false,
+            show_type_in_let: false,
         }
     }
 }
@@ -161,11 +163,23 @@ impl AstPrinter {
             }
             Expression::Call(call) => self.print_call(call, f),
             Expression::Let(let_expr) => {
+                let typ = if self.show_type_in_let
+                    && let_expr.expression.needs_type_inference_from_literal()
+                {
+                    &let_expr
+                        .expression
+                        .return_type()
+                        .map(|typ| format!(": {typ}"))
+                        .unwrap_or_default()
+                } else {
+                    ""
+                };
                 write!(
                     f,
-                    "let {}{} = ",
+                    "let {}{}{} = ",
                     if let_expr.mutable { "mut " } else { "" },
                     self.fmt_local(&let_expr.name, let_expr.id),
+                    typ
                 )?;
                 self.print_expr(&let_expr.expression, f)
             }

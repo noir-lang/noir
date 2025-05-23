@@ -203,7 +203,7 @@ fn test_recursion_limit_rewrite() {
 
     insta::assert_snapshot!(code, @r"
     fn main() -> () {
-        let mut ctx_limit = 25;
+        let mut ctx_limit: u32 = 25;
         foo((&mut ctx_limit))
     }
     fn foo(ctx_limit: &mut u32) -> () {
