@@ -503,7 +503,7 @@ impl Translator {
         // before each print.
         ssa.normalize_ids();
 
-        for (_, function) in &ssa.functions {
+        for function in ssa.functions.values() {
             function.assert_valid();
         }
 
