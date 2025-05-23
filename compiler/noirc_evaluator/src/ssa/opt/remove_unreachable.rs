@@ -187,24 +187,24 @@ mod tests {
     fn keep_functions_used_in_array() {
         // f1 and f2 are used within an array. Thus, we do not want to remove them.
         let src = r#"
-      acir(inline) fn main f0 {
-        b0(v0: u32):
-          v5 = make_array [f1, f2] : [function; 2]
-          v7 = lt v0, u32 4
-          constrain v7 == u1 1, "Index out of bounds"
-          v9 = array_get v5, index v0 -> function
-          call v9()
-          return
-      }
-      acir(inline) fn lambda f1 {
-        b0():
-          return
-      }
-      acir(inline) fn lambda f2 {
-        b0():
-          return
-      }
-      "#;
+        acir(inline) fn main f0 {
+          b0(v0: u32):
+            v5 = make_array [f1, f2] : [function; 2]
+            v7 = lt v0, u32 4
+            constrain v7 == u1 1, "Index out of bounds"
+            v9 = array_get v5, index v0 -> function
+            call v9()
+            return
+        }
+        acir(inline) fn lambda f1 {
+          b0():
+            return
+        }
+        acir(inline) fn lambda f2 {
+          b0():
+            return
+        }
+        "#;
 
         let ssa = Ssa::from_str(src).unwrap();
         let ssa = ssa.remove_unreachable_functions();
