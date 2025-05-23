@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1748030531360,
+  "lastUpdate": 1748030588893,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -8842,75 +8842,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "mvezenov@gmail.com",
-            "name": "Maxim Vezenov",
-            "username": "vezenovm"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "89cdf76c7f9be39b9fcc11761903c08c2cf8d30b",
-          "message": "fix(licm): Check whether the loop is executed when hoisting with a predicate (#8546)\n\nCo-authored-by: Akosh Farkash <aakoshh@gmail.com>",
-          "timestamp": "2025-05-16T13:34:09Z",
-          "tree_id": "9b0abeaa77face6ff57af5ec85596cc0ea11c02c",
-          "url": "https://github.com/noir-lang/noir/commit/89cdf76c7f9be39b9fcc11761903c08c2cf8d30b"
-        },
-        "date": 1747404581385,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 241.27,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 263.53,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 216.76,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 549.25,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 541.7,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 1450,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 370.96,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-root",
-            "value": 376.89,
-            "unit": "MB"
-          },
-          {
-            "name": "semaphore_depth_10",
-            "value": 93.04,
-            "unit": "MB"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "aakoshh@gmail.com",
             "name": "Akosh Farkash",
             "username": "aakoshh"
@@ -11520,6 +11451,75 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/noir-lang/noir/commit/a16e84853e2bc20a3756509cf40b3bcd1faad8f1"
         },
         "date": 1748022867425,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 242.04,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 264.09,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 217.23,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 577.89,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 574.21,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 1460,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 399.73,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-root",
+            "value": 405.29,
+            "unit": "MB"
+          },
+          {
+            "name": "semaphore_depth_10",
+            "value": 92.93,
+            "unit": "MB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "15848336+TomAFrench@users.noreply.github.com",
+            "name": "Tom French",
+            "username": "TomAFrench"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "6cbf5c4c5abf1f116bd5f5f05b572896556c0a60",
+          "message": "fix: relax connectedness requirement on purity analysis pass (#8667)",
+          "timestamp": "2025-05-23T19:06:27Z",
+          "tree_id": "bb8bb91297404a15206bcbfb381cabd2a4624018",
+          "url": "https://github.com/noir-lang/noir/commit/6cbf5c4c5abf1f116bd5f5f05b572896556c0a60"
+        },
+        "date": 1748030578384,
         "tool": "customSmallerIsBetter",
         "benches": [
           {
