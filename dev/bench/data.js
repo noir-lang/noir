@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1748031655539,
+  "lastUpdate": 1748032037793,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -17308,85 +17308,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "aakoshh@gmail.com",
-            "name": "Akosh Farkash",
-            "username": "aakoshh"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "8f70d14a03186124e12d6bce9a8b58e30d515b22",
-          "message": "chore(fuzz): AST fuzzer to use function valued arguments (Part 1) (#8514)\n\nCo-authored-by: Ratmir Karabut <rkarabut@users.noreply.github.com>",
-          "timestamp": "2025-05-16T13:44:52Z",
-          "tree_id": "5b96b902c071164b648c099e29302026999a6762",
-          "url": "https://github.com/noir-lang/noir/commit/8f70d14a03186124e12d6bce9a8b58e30d515b22"
-        },
-        "date": 1747405524627,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 1127.2,
-            "unit": "KB"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 2051.1,
-            "unit": "KB"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 583.2,
-            "unit": "KB"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 5123.3,
-            "unit": "KB"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 3941.9,
-            "unit": "KB"
-          },
-          {
-            "name": "rollup-block-root-empty",
-            "value": 256.8,
-            "unit": "KB"
-          },
-          {
-            "name": "rollup-block-root-single-tx",
-            "value": 25679,
-            "unit": "KB"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 25706.3,
-            "unit": "KB"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 181.7,
-            "unit": "KB"
-          },
-          {
-            "name": "rollup-root",
-            "value": 473.4,
-            "unit": "KB"
-          },
-          {
-            "name": "semaphore-depth-10",
-            "value": 636.4,
-            "unit": "KB"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "asterite@gmail.com",
             "name": "Ary Borenszweig",
             "username": "asterite"
@@ -20296,6 +20217,85 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/noir-lang/noir/commit/6cbf5c4c5abf1f116bd5f5f05b572896556c0a60"
         },
         "date": 1748030357266,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 1132.6,
+            "unit": "KB"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 2051,
+            "unit": "KB"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 586.4,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 5129.1,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 4070.5,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-block-root-empty",
+            "value": 256.7,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-block-root-single-tx",
+            "value": 25697.8,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 25721.5,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 181.6,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-root",
+            "value": 416.5,
+            "unit": "KB"
+          },
+          {
+            "name": "semaphore-depth-10",
+            "value": 636.3,
+            "unit": "KB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "jfecher11@gmail.com",
+            "name": "jfecher",
+            "username": "jfecher"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "eb3eef93091ad485b33a7577bb9c948a5404683a",
+          "message": "fix: Make casts in `comptime` consistent with runtime casts (#8669)",
+          "timestamp": "2025-05-23T19:53:05Z",
+          "tree_id": "21bf0e5bcd41eae98dd702857e3fa4197cd7e7fd",
+          "url": "https://github.com/noir-lang/noir/commit/eb3eef93091ad485b33a7577bb9c948a5404683a"
+        },
+        "date": 1748032027331,
         "tool": "customSmallerIsBetter",
         "benches": [
           {
