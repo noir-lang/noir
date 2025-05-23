@@ -749,16 +749,37 @@ fn test_parses_print() {
 }
 
 #[test]
-fn parses_variable_from_a_syntantically_following_block_but_logically_preceding_block() {
+fn parses_variable_from_a_syntantically_following_block_but_logically_preceding_block_with_jmp() {
     let src = "
         acir(inline) impure fn main f0 {
           b0():
             jmp b2()
           b1():
-            v0 = add v1, v2
+            v5 = add v2, v4
             return
           b2():
-            v1 = add Field 1, Field 2
+            v2 = add Field 1, Field 2
+            v4 = add v2, Field 3
+            jmp b1()
+        }
+        ";
+    assert_ssa_roundtrip(src);
+}
+
+#[test]
+fn parses_variable_from_a_syntantically_following_block_but_logically_preceding_block_with_jmpif() {
+    let src = "
+        acir(inline) impure fn main f0 {
+          b0(v0: u1):
+            jmpif v0 then: b2, else: b3
+          b1():
+            v6 = add v3, v5
+            return
+          b2():
+            return
+          b3():
+            v3 = add Field 1, Field 2
+            v5 = add v3, Field 3
             jmp b1()
         }
         ";
