@@ -747,3 +747,20 @@ fn test_parses_print() {
         ";
     assert_ssa_roundtrip(src);
 }
+
+#[test]
+fn parses_variable_from_a_syntantically_following_block_but_logically_preceding_block() {
+    let src = "
+        acir(inline) impure fn main f0 {
+          b0():
+            jmp b2()
+          b1():
+            v0 = add v1, v2
+            return
+          b2():
+            v1 = add Field 1, Field 2
+            jmp b1()
+        }
+        ";
+    assert_ssa_roundtrip(src);
+}
