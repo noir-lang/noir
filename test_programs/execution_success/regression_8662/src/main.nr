@@ -1,6 +1,5 @@
-
 struct Context {
-    f: fn() -> bool
+    f: fn() -> bool,
 }
 fn main(c: bool) -> pub bool {
     let mut ctx = Context { f: bar };
