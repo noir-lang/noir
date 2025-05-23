@@ -127,6 +127,19 @@ fn test_make_byte_slice_with_string_literal() {
 }
 
 #[test]
+fn test_does_not_use_byte_array_literal_for_form_feed() {
+    // 12 is '\f', which isn't available in string literals (because in Rust it's the same)
+    let src = "
+        acir(inline) fn main f0 {
+          b0():
+            v1 = make_array [u8 12] : [u8; 1]
+            return v1
+        }
+        ";
+    assert_ssa_roundtrip(src);
+}
+
+#[test]
 fn test_block_parameters() {
     let src = "
         acir(inline) fn main f0 {
