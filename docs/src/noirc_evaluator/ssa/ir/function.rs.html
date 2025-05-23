@@ -253,9 +253,24 @@
 <a href="#252" id="252">252</a>
 <a href="#253" id="253">253</a>
 <a href="#254" id="254">254</a>
-<a href="#255" id="255">255</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::collections::BTreeSet;
+<a href="#255" id="255">255</a>
+<a href="#256" id="256">256</a>
+<a href="#257" id="257">257</a>
+<a href="#258" id="258">258</a>
+<a href="#259" id="259">259</a>
+<a href="#260" id="260">260</a>
+<a href="#261" id="261">261</a>
+<a href="#262" id="262">262</a>
+<a href="#263" id="263">263</a>
+<a href="#264" id="264">264</a>
+<a href="#265" id="265">265</a>
+<a href="#266" id="266">266</a>
+<a href="#267" id="267">267</a>
+<a href="#268" id="268">268</a>
+<a href="#269" id="269">269</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::collections::BTreeSet;
 <span class="kw">use </span>std::sync::Arc;
 
+<span class="kw">use </span>acvm::FieldElement;
 <span class="kw">use </span>iter_extended::vecmap;
 <span class="kw">use </span>noirc_frontend::monomorphization::ast::InlineType;
 <span class="kw">use </span>serde::{Deserialize, Serialize};
@@ -264,8 +279,8 @@
 <span class="kw">use </span><span class="kw">super</span>::dfg::{DataFlowGraph, GlobalsGraph};
 <span class="kw">use </span><span class="kw">super</span>::instruction::TerminatorInstruction;
 <span class="kw">use </span><span class="kw">super</span>::map::Id;
-<span class="kw">use </span><span class="kw">super</span>::types::Type;
-<span class="kw">use </span><span class="kw">super</span>::value::ValueId;
+<span class="kw">use </span><span class="kw">super</span>::types::{NumericType, Type};
+<span class="kw">use </span><span class="kw">super</span>::value::{Value, ValueId};
 
 <span class="attr">#[derive(Clone, Copy, PartialEq, Eq, Debug, Hash, Serialize, Deserialize, PartialOrd, Ord)]
 </span><span class="kw">pub enum </span>RuntimeType {
@@ -472,6 +487,19 @@
             })
             .sum()
     }
+
+    <span class="doccomment">/// Iterate over the numeric constants in the function.
+    </span><span class="kw">pub fn </span>constants(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="kw">impl </span>Iterator&lt;Item = (<span class="kw-2">&amp;</span>FieldElement, <span class="kw-2">&amp;</span>NumericType)&gt; {
+        <span class="kw">let </span>local = <span class="self">self</span>.dfg.values_iter();
+        <span class="kw">let </span>global = <span class="self">self</span>.dfg.globals.values_iter();
+        local.chain(global).filter_map(|(<span class="kw">_</span>, value)| {
+            <span class="kw">if let </span>Value::NumericConstant { constant, typ } = value {
+                <span class="prelude-val">Some</span>((constant, typ))
+            } <span class="kw">else </span>{
+                <span class="prelude-val">None
+            </span>}
+        })
+    }
 }
 
 <span class="kw">impl </span>Clone <span class="kw">for </span>Function {
@@ -505,7 +533,7 @@
 </span><span class="kw">fn </span>sign_smoke() {
     <span class="kw">let </span><span class="kw-2">mut </span>signature = Signature::default();
 
-    signature.params.push(Type::Numeric(<span class="kw">super</span>::types::NumericType::NativeField));
-    signature.returns.push(Type::Numeric(<span class="kw">super</span>::types::NumericType::Unsigned { bit_size: <span class="number">32 </span>}));
+    signature.params.push(Type::Numeric(NumericType::NativeField));
+    signature.returns.push(Type::Numeric(NumericType::Unsigned { bit_size: <span class="number">32 </span>}));
 }
 </code></pre></div></section></main></body></html>

@@ -7,13 +7,25 @@
 <a href="#6" id="6">6</a>
 <a href="#7" id="7">7</a>
 <a href="#8" id="8">8</a>
-<a href="#9" id="9">9</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::collections::BTreeSet;
+<a href="#9" id="9">9</a>
+<a href="#10" id="10">10</a>
+<a href="#11" id="11">11</a>
+<a href="#12" id="12">12</a>
+<a href="#13" id="13">13</a>
+<a href="#14" id="14">14</a>
+<a href="#15" id="15">15</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::collections::BTreeSet;
 
 <span class="kw">use </span>acir::FieldElement;
 <span class="kw">use </span>noirc_evaluator::ssa::ssa_gen::Ssa;
 
-<span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>build_dictionary_from_ssa(_ssa: <span class="kw-2">&amp;</span>Ssa) -&gt; BTreeSet&lt;FieldElement&gt; {
-    <span class="comment">// TODO(#8467): Traverse the SSA to collect fields.
-    </span>BTreeSet::new()
+<span class="doccomment">/// Collect all `Field` values in the SSA which could be interesting for fuzzing.
+</span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>build_dictionary_from_ssa(ssa: <span class="kw-2">&amp;</span>Ssa) -&gt; BTreeSet&lt;FieldElement&gt; {
+    <span class="kw">let </span><span class="kw-2">mut </span>constants = BTreeSet::new();
+    <span class="kw">for </span>func <span class="kw">in </span>ssa.functions.values() {
+        <span class="kw">for </span>(constant, <span class="kw">_</span>) <span class="kw">in </span>func.constants() {
+            constants.insert(<span class="kw-2">*</span>constant);
+        }
+    }
+    constants
 }
 </code></pre></div></section></main></body></html>
