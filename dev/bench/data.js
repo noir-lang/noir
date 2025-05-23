@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1748022235413,
+  "lastUpdate": 1748022500747,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -3058,85 +3058,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "jfecher11@gmail.com",
-            "name": "jfecher",
-            "username": "jfecher"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "ef6d8667c524cc07e02bdbd142ab16bee25f1581",
-          "message": "feat: Implement $crate (#8537)\n\nCo-authored-by: Jake Fecher <jake@aztecprotocol.com>",
-          "timestamp": "2025-05-16T00:18:40Z",
-          "tree_id": "d51ef506603debb177f56d3b68cf17410043db31",
-          "url": "https://github.com/noir-lang/noir/commit/ef6d8667c524cc07e02bdbd142ab16bee25f1581"
-        },
-        "date": 1747356260592,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 2.362,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 6.398,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 1.058,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 16.46,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 12.42,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root-empty",
-            "value": 1.298,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root-single-tx",
-            "value": 126,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 126,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 1.16,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-root",
-            "value": 1.728,
-            "unit": "s"
-          },
-          {
-            "name": "semaphore-depth-10",
-            "value": 0.836,
-            "unit": "s"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "mvezenov@gmail.com",
             "name": "Maxim Vezenov",
             "username": "vezenovm"
@@ -6101,6 +6022,85 @@ window.BENCHMARK_DATA = {
           {
             "name": "semaphore-depth-10",
             "value": 0.827,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "asterite@gmail.com",
+            "name": "Ary Borenszweig",
+            "username": "asterite"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "a16e84853e2bc20a3756509cf40b3bcd1faad8f1",
+          "message": "fix: always use `u32` for indexing arrays in SSA (#8633)\n\nCo-authored-by: Tom French <15848336+TomAFrench@users.noreply.github.com>",
+          "timestamp": "2025-05-23T17:23:58Z",
+          "tree_id": "3065fc3c6ff8162da8352c2e6335781d652d5817",
+          "url": "https://github.com/noir-lang/noir/commit/a16e84853e2bc20a3756509cf40b3bcd1faad8f1"
+        },
+        "date": 1748022490745,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 2.308,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 6.428,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 1.074,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 16.44,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 13.68,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-empty",
+            "value": 1.524,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-single-tx",
+            "value": 129,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 122,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 1.192,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-root",
+            "value": 1.668,
+            "unit": "s"
+          },
+          {
+            "name": "semaphore-depth-10",
+            "value": 0.91,
             "unit": "s"
           }
         ]
