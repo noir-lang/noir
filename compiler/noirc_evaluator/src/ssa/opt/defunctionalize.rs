@@ -126,7 +126,7 @@ impl DefunctionalizationContext {
             // Temporarily take the parameters here just to avoid cloning them
             let parameters = block.take_parameters();
             for parameter in &parameters {
-                if func.dfg.type_of_value(*parameter) == Type::Function {
+                if is_function_type(&func.dfg.type_of_value(*parameter)) {
                     func.dfg.set_type_of_value(*parameter, Type::field());
                 }
             }
@@ -155,7 +155,7 @@ impl DefunctionalizationContext {
 
                 #[allow(clippy::unnecessary_to_owned)] // clippy is wrong here
                 for result in func.dfg.instruction_results(instruction_id).to_vec() {
-                    if func.dfg.type_of_value(result) == Type::Function {
+                    if is_function_type(&func.dfg.type_of_value(result)) {
                         func.dfg.set_type_of_value(result, Type::field());
                     }
                 }
@@ -245,7 +245,7 @@ fn remove_first_class_functions_in_instruction(
 /// Try to map the given function literal to a field, returning Some(field) on success.
 /// Returns none if the given value was not a function or doesn't need to be mapped.
 fn map_function_to_field(func: &mut Function, value: ValueId) -> Option<ValueId> {
-    if let Type::Function = func.dfg[value].get_type().as_ref() {
+    if is_function_type(func.dfg[value].get_type().as_ref()) {
         match &func.dfg[value] {
             // If the value is a static function, transform it to the function id
             Value::Function(id) => {
@@ -393,14 +393,14 @@ fn create_apply_functions(ssa: &mut Ssa, variants_map: Variants) -> ApplyFunctio
         // Update the shared function signature of the higher-order function variants
         // to replace any function passed as a value to a numeric field type.
         for param in &mut signature.params {
-            if *param == Type::Function {
+            if is_function_type(param) {
                 *param = Type::field();
             }
         }
 
         // Update the return value types as we did for the signature parameters above.
         for ret in &mut signature.returns {
-            if *ret == Type::Function {
+            if is_function_type(ret) {
                 *ret = Type::field();
             }
         }
@@ -551,13 +551,6 @@ fn build_return_block(builder: &mut FunctionBuilder, passed_types: &[Type]) -> B
 /// * All blocks which took function parameters should receive a discriminator instead
 #[cfg(debug_assertions)]
 fn defunctionalize_post_check(func: &Function) {
-    fn is_function(typ: &Type) -> bool {
-        match typ {
-            Type::Function => true,
-            Type::Reference(typ) => is_function(typ),
-            _ => false,
-        }
-    }
     for block_id in func.reachable_blocks() {
         for param in func.dfg[block_id].parameters() {
             let value = &func.dfg[*param];
@@ -565,10 +558,20 @@ fn defunctionalize_post_check(func: &Function) {
                 panic!("unexpected parameter value: {value:?}");
             };
             assert!(
-                !is_function(typ),
-                "Blocks are not expected to take function parameters any more."
+                !is_function_type(typ),
+                "Blocks are not expected to take function parameters any more. Got '{typ}' in param {param} of block {block_id} in function {} {}",
+                func.name(),
+                func.id()
             );
         }
+    }
+}
+
+fn is_function_type(typ: &Type) -> bool {
+    match typ {
+        Type::Function => true,
+        Type::Reference(typ) => is_function_type(typ),
+        _ => false,
     }
 }
 
