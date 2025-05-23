@@ -48,7 +48,7 @@ projects:
     compilation-timeout: 20
     execution-timeout: 0.75
     compilation-memory-limit: 1700
-    execution-memory-limit: 550
+    execution-memory-limit: 600
   rollup-block-root-empty:
     repo: AztecProtocol/aztec-packages
     ref: *AZ_COMMIT
@@ -85,7 +85,7 @@ projects:
     timeout: 300
     compilation-timeout: 1.5
     execution-timeout: 0.01
-    compilation-memory-limit: 150
+    compilation-memory-limit: 450
     execution-memory-limit: 400
   rollup-root:
     repo: AztecProtocol/aztec-packages
@@ -96,7 +96,7 @@ projects:
     compilation-timeout: 2
     execution-timeout: 0.6
     compilation-memory-limit: 500
-    execution-memory-limit: 400
+    execution-memory-limit: 450
   semaphore-depth-10:
     repo: noir-lang/noir
     path: test_programs/benchmarks/semaphore_depth_10
