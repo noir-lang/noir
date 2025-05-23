@@ -13,11 +13,11 @@ use std::path::PathBuf;
 pub(crate) struct InitCommand {
     /// Name of the package [default: current directory name]
     #[clap(index = 1)]
-    name: Option<CrateName>,
+    positional_name: Option<CrateName>,
 
     /// Name of the package [default: current directory name]
     #[arg(long)]
-    name_flag: Option<CrateName>,
+    name: Option<CrateName>,
 
     /// Use a library template
     #[arg(long, conflicts_with = "bin", conflicts_with = "contract")]
@@ -37,7 +37,7 @@ const CONTRACT_EXAMPLE: &str = include_str!("./noir_template_files/contract.nr")
 const LIB_EXAMPLE: &str = include_str!("./noir_template_files/library.nr");
 
 pub(crate) fn run(args: InitCommand, config: NargoConfig) -> Result<(), CliError> {
-    let package_name = match args.name.or(args.name_flag) {
+    let package_name = match args.positional_name.or(args.name) {
         Some(name) => name,
         None => {
             let name_str = config.program_dir.file_name().unwrap().to_str().unwrap();
