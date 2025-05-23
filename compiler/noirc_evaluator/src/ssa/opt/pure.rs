@@ -263,6 +263,8 @@ fn analyze_call_graph(
         propagate_purities(start_point, &mut finished_purities);
     }
 
+    // It's possible that there's an isolated subgraph of functions for which there is no dominating function.
+    // We then process all unhandled recursive functions.
     let recursive_functions = call_graph.get_recursive_functions();
     let start_points: Vec<_> =
         recursive_functions.iter().filter(|func| !finished_purities.contains_key(*func)).collect();
