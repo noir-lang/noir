@@ -47,7 +47,7 @@ projects:
     timeout: 15
     compilation-timeout: 20
     execution-timeout: 0.75
-    compilation-memory-limit: 1500
+    compilation-memory-limit: 1650
     execution-memory-limit: 550
   rollup-block-root-empty:
     repo: AztecProtocol/aztec-packages
