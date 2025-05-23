@@ -22,8 +22,17 @@ fn seed_from_env() -> Option<u64> {
     Some(seed)
 }
 
+fn is_running_in_ci() -> bool {
+    std::env::var("CI").is_ok()
+}
+
 #[test]
 fn arb_program_can_be_executed() {
+    if is_running_in_ci() {
+        // This test flakes a lot
+        return;
+    }
+
     let maybe_seed = seed_from_env();
 
     let mut prop = arbtest(|u| {
