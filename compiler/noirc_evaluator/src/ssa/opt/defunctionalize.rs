@@ -263,6 +263,8 @@ fn remove_first_class_functions_in_instruction(
             _ => {}
         }
         instruction.map_values_mut(map_value);
+
+        modified = true;
     } else {
         instruction.map_values_mut(map_value);
     }
@@ -1154,6 +1156,35 @@ mod tests {
             jmp b14()
           b14():
             jmp b1()
+        }
+        "#);
+    }
+
+    #[test]
+    fn empty_make_array_updates_type() {
+        let src = r#"
+        acir(inline) fn main f0 {
+          b0(v0: u32):
+            v1 = make_array [] : [function; 0]
+            constrain u1 0 == u1 1, "Index out of bounds"
+            v5 = array_get v1, index u32 0 -> function
+            call v5()
+            return
+        }
+        "#;
+
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.defunctionalize();
+
+        // Guarantee that we still accurately modify the make_array instruction type for an empty array
+        assert_ssa_snapshot!(ssa, @r#"
+        acir(inline) fn main f0 {
+          b0(v0: u32):
+            v1 = make_array [] : [Field; 0]
+            constrain u1 0 == u1 1, "Index out of bounds"
+            v5 = array_get v1, index u32 0 -> Field
+            call v5()
+            return
         }
         "#);
     }
