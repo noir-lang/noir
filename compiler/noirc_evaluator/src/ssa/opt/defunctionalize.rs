@@ -858,4 +858,50 @@ mod tests {
         }
         ");
     }
+
+    #[test]
+    fn mut_ref_function() {
+        let src = "
+        acir(inline) fn main f0 {
+          b0():
+            v0 = allocate -> &mut function
+            store f1 at v0
+            v3 = call f2(v0) -> u1
+            return v3
+        }
+        acir(inline) fn bar f1 {
+          b0():
+            return u1 0
+        }
+        acir(inline) fn foo f2 {
+          b0(v0: &mut function):
+            v1 = load v0 -> function
+            v2 = call v1() -> u1
+            return v2
+        }
+        ";
+
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.defunctionalize();
+
+        assert_ssa_snapshot!(ssa, @r"
+        acir(inline) fn main f0 {
+          b0():
+            v0 = allocate -> Field
+            store Field 1 at v0
+            v3 = call f2(v0) -> u1
+            return v3
+        }
+        acir(inline) fn bar f1 {
+          b0():
+            return u1 0
+        }
+        acir(inline) fn foo f2 {
+          b0(v0: Field):
+            v1 = load v0 -> Field
+            v3 = call f1() -> u1
+            return v3
+        }
+        ");
+    }
 }
