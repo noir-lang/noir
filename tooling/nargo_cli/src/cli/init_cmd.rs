@@ -15,6 +15,10 @@ pub(crate) struct InitCommand {
     #[clap(index = 1)]
     name: Option<CrateName>,
 
+    /// Name of the package [default: current directory name]
+    #[arg(long)]
+    name_flag: Option<CrateName>,
+
     /// Use a library template
     #[arg(long, conflicts_with = "bin", conflicts_with = "contract")]
     pub(crate) lib: bool,
@@ -33,7 +37,7 @@ const CONTRACT_EXAMPLE: &str = include_str!("./noir_template_files/contract.nr")
 const LIB_EXAMPLE: &str = include_str!("./noir_template_files/library.nr");
 
 pub(crate) fn run(args: InitCommand, config: NargoConfig) -> Result<(), CliError> {
-    let package_name = match args.name {
+    let package_name = match args.name.or(args.name_flag) {
         Some(name) => name,
         None => {
             let name_str = config.program_dir.file_name().unwrap().to_str().unwrap();
