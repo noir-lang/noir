@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"fn":["evaluate_cast_one_step"]};
+window.SIDEBAR_ITEMS = {"enum":["CastType"],"fn":["bit_size","classify_cast","convert_to_field","evaluate_cast_one_step","perform_cast"]};
