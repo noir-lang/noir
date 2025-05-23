@@ -1582,11 +1582,7 @@
 <a href="#1581" id="1581">1581</a>
 <a href="#1582" id="1582">1582</a>
 <a href="#1583" id="1583">1583</a>
-<a href="#1584" id="1584">1584</a>
-<a href="#1585" id="1585">1585</a>
-<a href="#1586" id="1586">1586</a>
-<a href="#1587" id="1587">1587</a>
-<a href="#1588" id="1588">1588</a></pre></div><pre class="rust"><code><span class="doccomment">//! This file contains the loop unrolling pass for the new SSA IR.
+<a href="#1584" id="1584">1584</a></pre></div><pre class="rust"><code><span class="doccomment">//! This file contains the loop unrolling pass for the new SSA IR.
 //!
 //! This pass is divided into a few steps:
 //! 1. Find all loops in the program (`find_all_loops`)
@@ -2831,15 +2827,15 @@
 
     <span class="attr">#[test]
     </span><span class="kw">fn </span>test_boilerplate_stats_6470() {
-        <span class="kw">let </span>ssa = brillig_unroll_test_case_6470(<span class="number">3</span>);
+        <span class="kw">let </span>ssa = brillig_unroll_test_case_6470(<span class="number">2</span>);
         <span class="kw">let </span>stats = loop0_stats(<span class="kw-2">&amp;</span>ssa);
-        <span class="macro">assert_eq!</span>(stats.iterations, <span class="number">3</span>);
-        <span class="macro">assert_eq!</span>(stats.all_instructions, <span class="number">2 </span>+ <span class="number">8</span>); <span class="comment">// Instructions in b1 and b3
+        <span class="macro">assert_eq!</span>(stats.iterations, <span class="number">2</span>);
+        <span class="macro">assert_eq!</span>(stats.all_instructions, <span class="number">2 </span>+ <span class="number">9</span>); <span class="comment">// Instructions in b1 and b3
         </span><span class="macro">assert_eq!</span>(stats.increments, <span class="number">2</span>);
         <span class="macro">assert_eq!</span>(stats.loads, <span class="number">1</span>);
         <span class="macro">assert_eq!</span>(stats.stores, <span class="number">1</span>);
-        <span class="macro">assert_eq!</span>(stats.useful_instructions(), <span class="number">3</span>); <span class="comment">// array get, add, array set
-        </span><span class="macro">assert_eq!</span>(stats.baseline_instructions(), <span class="number">11</span>);
+        <span class="macro">assert_eq!</span>(stats.useful_instructions(), <span class="number">4</span>); <span class="comment">// cast, array get, add, array set
+        </span><span class="macro">assert_eq!</span>(stats.baseline_instructions(), <span class="number">12</span>);
         <span class="macro">assert!</span>(stats.is_small());
     }
 
@@ -2884,7 +2880,7 @@
     </span><span class="attr">#[test]
     </span><span class="kw">fn </span>test_brillig_unroll_6470_small() {
         <span class="comment">// Few enough iterations so that we can perform the unroll.
-        </span><span class="kw">let </span>ssa = brillig_unroll_test_case_6470(<span class="number">3</span>);
+        </span><span class="kw">let </span>ssa = brillig_unroll_test_case_6470(<span class="number">2</span>);
         <span class="kw">let </span>(ssa, errors) = try_unroll_loops(ssa);
         <span class="macro">assert_eq!</span>(errors.len(), <span class="number">0</span>, <span class="string">"Unroll should have no errors"</span>);
         <span class="macro">assert_eq!</span>(ssa.main().reachable_blocks().len(), <span class="number">2</span>, <span class="string">"The loop should be unrolled"</span>);
@@ -2907,16 +2903,11 @@
             v13 = add v12, u64 1
             v14 = array_set v10, index u32 1, value v13
             store v14 at v3
-            v15 = load v3 -&gt; [u64; 6]
-            v17 = array_get v0, index u32 2 -&gt; u64
-            v18 = add v17, u64 1
-            v19 = array_set v15, index u32 2, value v18
-            store v19 at v3
             jmp b1()
           b1():
-            v20 = load v3 -&gt; [u64; 6]
+            v15 = load v3 -&gt; [u64; 6]
             dec_rc v0
-            return v20
+            return v15
         }
         "</span>);
     }
@@ -3091,9 +3082,10 @@
             jmpif v7 then: b3, else: b2
           b3():
             v9 = load v4 -&gt; [u64; 6]
-            v10 = array_get v0, index v1 -&gt; u64
-            v12 = add v10, u64 1
-            v13 = array_set v9, index v1, value v12
+            v10 = cast v1 as u32
+            v11 = array_get v0, index v10 -&gt; u64
+            v12 = add v11, u64 1
+            v13 = array_set v9, index v10, value v12
             v15 = add v1, {idx_type} 1
             store v13 at v4
             v16 = add v1, {idx_type} 1 // duplicate

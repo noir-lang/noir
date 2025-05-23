@@ -942,7 +942,16 @@
 <a href="#941" id="941">941</a>
 <a href="#942" id="942">942</a>
 <a href="#943" id="943">943</a>
-<a href="#944" id="944">944</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::{borrow::Cow, sync::Arc};
+<a href="#944" id="944">944</a>
+<a href="#945" id="945">945</a>
+<a href="#946" id="946">946</a>
+<a href="#947" id="947">947</a>
+<a href="#948" id="948">948</a>
+<a href="#949" id="949">949</a>
+<a href="#950" id="950">950</a>
+<a href="#951" id="951">951</a>
+<a href="#952" id="952">952</a>
+<a href="#953" id="953">953</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::{borrow::Cow, sync::Arc};
 
 <span class="kw">use </span><span class="kw">crate</span>::ssa::{
     function_builder::data_bus::DataBus,
@@ -1176,12 +1185,21 @@
     }
 
     <span class="kw">fn </span>validate_instruction(<span class="kw-2">&amp;</span><span class="self">self</span>, instruction: <span class="kw-2">&amp;</span>Instruction) {
-        <span class="kw">if let </span>Instruction::Binary(Binary { lhs, rhs: <span class="kw">_</span>, operator: BinaryOp::Lt }) = instruction {
-            <span class="comment">// Assume rhs_type is the same as lhs_type
-            </span><span class="kw">let </span>lhs_type = <span class="self">self</span>.type_of_value(<span class="kw-2">*</span>lhs);
-            <span class="kw">if </span><span class="macro">matches!</span>(lhs_type, Type::Numeric(NumericType::NativeField)) {
-                <span class="macro">panic!</span>(<span class="string">"Cannot use `lt` with field elements"</span>);
+        <span class="kw">match </span>instruction {
+            Instruction::Binary(Binary { lhs, rhs: <span class="kw">_</span>, operator: BinaryOp::Lt }) =&gt; {
+                <span class="comment">// Assume rhs_type is the same as lhs_type
+                </span><span class="kw">let </span>lhs_type = <span class="self">self</span>.type_of_value(<span class="kw-2">*</span>lhs);
+                <span class="kw">if </span><span class="macro">matches!</span>(lhs_type, Type::Numeric(NumericType::NativeField)) {
+                    <span class="macro">panic!</span>(<span class="string">"Cannot use `lt` with field elements"</span>);
+                }
             }
+            Instruction::ArrayGet { index, .. } | Instruction::ArraySet { index, .. } =&gt; {
+                <span class="kw">let </span>index_type = <span class="self">self</span>.type_of_value(<span class="kw-2">*</span>index);
+                <span class="kw">if </span>!<span class="macro">matches!</span>(index_type, Type::Numeric(NumericType::Unsigned { bit_size: <span class="number">32 </span>})) {
+                    <span class="macro">panic!</span>(<span class="string">"ArrayGet/ArraySet index must be u32"</span>);
+                }
+            }
+            <span class="kw">_ </span>=&gt; (),
         }
     }
 

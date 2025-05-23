@@ -498,7 +498,7 @@
             <span class="kw">for </span>(element_index, element_type) <span class="kw">in </span>element_types.iter().enumerate() {
                 <span class="kw">let </span>index_u32 = i * element_types.len() <span class="kw">as </span>u32 + element_index <span class="kw">as </span>u32;
                 <span class="kw">let </span>index_value = (index_u32 <span class="kw">as </span>u128).into();
-                <span class="kw">let </span>index = <span class="self">self</span>.dfg.make_constant(index_value, NumericType::NativeField);
+                <span class="kw">let </span>index = <span class="self">self</span>.dfg.make_constant(index_value, NumericType::length_type());
 
                 <span class="kw">let </span>typevars = <span class="prelude-val">Some</span>(<span class="macro">vec!</span>[element_type.clone()]);
 

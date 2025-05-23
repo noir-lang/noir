@@ -1920,7 +1920,7 @@
                     ArrayOffset, BinaryOp, Instruction, Intrinsic, TerminatorInstruction,
                 },
                 map::Id,
-                types::Type,
+                types::{NumericType, Type},
             },
             opt::assert_normalized_ssa_equals,
         },
@@ -1934,14 +1934,14 @@
         //     v1 = make_array [Field 1, Field 2]
         //     store v1 in v0
         //     v2 = load v0
-        //     v3 = array_get v2, index 1
+        //     v3 = array_get v2, index u32 1
         //     return v3
         // }
 
         </span><span class="kw">let </span>func_id = Id::test_new(<span class="number">0</span>);
         <span class="kw">let </span><span class="kw-2">mut </span>builder = FunctionBuilder::new(<span class="string">"func"</span>.into(), func_id);
         <span class="kw">let </span>v0 = builder.insert_allocate(Type::Array(Arc::new(<span class="macro">vec!</span>[Type::field()]), <span class="number">2</span>));
-        <span class="kw">let </span>one = builder.field_constant(FieldElement::one());
+        <span class="kw">let </span>one = builder.numeric_constant(FieldElement::one(), NumericType::length_type());
         <span class="kw">let </span>two = builder.field_constant(FieldElement::one());
 
         <span class="kw">let </span>element_type = Arc::new(<span class="macro">vec!</span>[Type::field()]);
