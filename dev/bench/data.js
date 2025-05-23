@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1748000845138,
+  "lastUpdate": 1748000850846,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -17408,85 +17408,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "jfecher11@gmail.com",
-            "name": "jfecher",
-            "username": "jfecher"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "ac7c9029faa766af172a50b49ba1ab5ea6accfb4",
-          "message": "chore: Remove println in ssa interpreter (#8528)\n\nCo-authored-by: Jake Fecher <jake@aztecprotocol.com>",
-          "timestamp": "2025-05-15T15:08:51Z",
-          "tree_id": "60a9936737aa945c978f925baa70f66b34bf4ef8",
-          "url": "https://github.com/noir-lang/noir/commit/ac7c9029faa766af172a50b49ba1ab5ea6accfb4"
-        },
-        "date": 1747323317706,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 1127.1,
-            "unit": "KB"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 2051,
-            "unit": "KB"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 583.1,
-            "unit": "KB"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 5123.2,
-            "unit": "KB"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 3941.9,
-            "unit": "KB"
-          },
-          {
-            "name": "rollup-block-root-empty",
-            "value": 256.8,
-            "unit": "KB"
-          },
-          {
-            "name": "rollup-block-root-single-tx",
-            "value": 25679,
-            "unit": "KB"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 25706.2,
-            "unit": "KB"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 181.7,
-            "unit": "KB"
-          },
-          {
-            "name": "rollup-root",
-            "value": 473.4,
-            "unit": "KB"
-          },
-          {
-            "name": "semaphore-depth-10",
-            "value": 636.4,
-            "unit": "KB"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "asterite@gmail.com",
             "name": "Ary Borenszweig",
             "username": "asterite"
@@ -20496,6 +20417,35 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/noir-lang/noir/commit/d3cb2b2ff4025f681cc645b75aa28aa4788dc9b5"
         },
         "date": 1747950384439,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "semaphore-depth-10",
+            "value": 636.3,
+            "unit": "KB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "asterite@gmail.com",
+            "name": "Ary Borenszweig",
+            "username": "asterite"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "5ec1647946c898801e4292b92e6d118f9502ca99",
+          "message": "fix(SSA): don't use string literal if byte is \"form feed\" ('\\f') (#8653)\n\nCo-authored-by: Tom French <15848336+TomAFrench@users.noreply.github.com>",
+          "timestamp": "2025-05-23T11:08:32Z",
+          "tree_id": "aeddb2e5899f6020018f8ecc335afe4828317a21",
+          "url": "https://github.com/noir-lang/noir/commit/5ec1647946c898801e4292b92e6d118f9502ca99"
+        },
+        "date": 1748000839329,
         "tool": "customSmallerIsBetter",
         "benches": [
           {
