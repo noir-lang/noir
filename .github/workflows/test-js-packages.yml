@@ -643,14 +643,7 @@ jobs:
 
       - name: Run nargo compile
         working-directory: ./test-repo/noir-projects/noir-contracts
-        run: |
-          if nargo compile --inliner-aggressiveness 0; then
-            echo "Expected compile-noir-contracts to fail but it didn't. Please update the workflow to assert that the command now does not fail."
-            exit 1
-          else
-            echo "This step is currently expected to fail."
-            exit 0
-          fi
+        run: nargo compile --inliner-aggressiveness 0
 
   upload_critical_library_report:
     name: Upload critical library report
