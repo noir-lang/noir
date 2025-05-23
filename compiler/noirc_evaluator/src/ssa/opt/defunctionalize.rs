@@ -30,7 +30,10 @@
 //!
 //! After this pass all first-class functions are replaced with numeric IDs
 //! and calls are routed via the newly generated `apply` functions.
-use std::collections::{BTreeMap, BTreeSet};
+use std::{
+    collections::{BTreeMap, BTreeSet},
+    sync::Arc,
+};
 
 use acvm::FieldElement;
 use iter_extended::vecmap;
@@ -235,6 +238,31 @@ fn remove_first_class_functions_in_instruction(
         for arg in arguments {
             *arg = map_value(*arg);
         }
+    } else if let Instruction::MakeArray { typ, .. } = instruction {
+        match typ {
+            Type::Array(element_types, len) => {
+                let new_element_types =
+                    element_types
+                        .iter()
+                        .map(|typ| {
+                            if matches!(typ, Type::Function) { Type::field() } else { typ.clone() }
+                        })
+                        .collect::<Vec<_>>();
+                *typ = Type::Array(Arc::new(new_element_types), *len);
+            }
+            Type::Slice(element_types) => {
+                let new_element_types =
+                    element_types
+                        .iter()
+                        .map(|typ| {
+                            if matches!(typ, Type::Function) { Type::field() } else { typ.clone() }
+                        })
+                        .collect::<Vec<_>>();
+                *typ = Type::Slice(Arc::new(new_element_types));
+            }
+            _ => {}
+        }
+        instruction.map_values_mut(map_value);
     } else {
         instruction.map_values_mut(map_value);
     }
@@ -327,6 +355,9 @@ fn find_functions_as_values(func: &Function) -> BTreeSet<FunctionId> {
                 }
                 Instruction::Store { value, .. } => {
                     process_value(*value);
+                }
+                Instruction::MakeArray { elements, .. } => {
+                    elements.iter().for_each(|element| process_value(*element));
                 }
                 _ => continue,
             };
@@ -1023,5 +1054,107 @@ mod tests {
             jmp b1(v7)
         }
         ");
+    }
+
+    #[test]
+    fn fn_in_array() {
+        let src = r#"
+        acir(inline) fn main f0 {
+          b0(v0: u32):
+            v5 = make_array [f1, f2, f3, f4] : [function; 4]
+            v7 = lt v0, u32 4
+            constrain v7 == u1 1, "Index out of bounds"
+            v9 = array_get v5, index v0 -> function
+            call v9()
+            return
+        }
+        acir(inline) fn lambda f1 {
+          b0():
+            return
+        }
+        acir(inline) fn lambda f2 {
+          b0():
+            return
+        }
+        acir(inline) fn lambda f3 {
+          b0():
+            return
+        }
+        acir(inline) fn lambda f4 {
+          b0():
+            return
+        }
+        "#;
+
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.defunctionalize();
+
+        assert_ssa_snapshot!(ssa, @r#"
+        acir(inline) fn main f0 {
+          b0(v0: u32):
+            v5 = make_array [Field 1, Field 2, Field 3, Field 4] : [Field; 4]
+            v7 = lt v0, u32 4
+            constrain v7 == u1 1, "Index out of bounds"
+            v9 = array_get v5, index v0 -> Field
+            call f5(v9)
+            return
+        }
+        acir(inline) fn lambda f1 {
+          b0():
+            return
+        }
+        acir(inline) fn lambda f2 {
+          b0():
+            return
+        }
+        acir(inline) fn lambda f3 {
+          b0():
+            return
+        }
+        acir(inline) fn lambda f4 {
+          b0():
+            return
+        }
+        acir(inline_always) fn apply f5 {
+          b0(v0: Field):
+            v2 = eq v0, Field 1
+            jmpif v2 then: b3, else: b2
+          b1():
+            return
+          b2():
+            v5 = eq v0, Field 2
+            jmpif v5 then: b6, else: b5
+          b3():
+            call f1()
+            jmp b4()
+          b4():
+            jmp b14()
+          b5():
+            v8 = eq v0, Field 3
+            jmpif v8 then: b9, else: b8
+          b6():
+            call f2()
+            jmp b7()
+          b7():
+            jmp b13()
+          b8():
+            constrain v0 == Field 4
+            call f4()
+            jmp b11()
+          b9():
+            call f3()
+            jmp b10()
+          b10():
+            jmp b12()
+          b11():
+            jmp b12()
+          b12():
+            jmp b13()
+          b13():
+            jmp b14()
+          b14():
+            jmp b1()
+        }
+        "#);
     }
 }
