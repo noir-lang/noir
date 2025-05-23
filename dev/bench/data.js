@@ -1,87 +1,8 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1748030482460,
+  "lastUpdate": 1748030531360,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
-      {
-        "commit": {
-          "author": {
-            "email": "mvezenov@gmail.com",
-            "name": "Maxim Vezenov",
-            "username": "vezenovm"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "89cdf76c7f9be39b9fcc11761903c08c2cf8d30b",
-          "message": "fix(licm): Check whether the loop is executed when hoisting with a predicate (#8546)\n\nCo-authored-by: Akosh Farkash <aakoshh@gmail.com>",
-          "timestamp": "2025-05-16T13:34:09Z",
-          "tree_id": "9b0abeaa77face6ff57af5ec85596cc0ea11c02c",
-          "url": "https://github.com/noir-lang/noir/commit/89cdf76c7f9be39b9fcc11761903c08c2cf8d30b"
-        },
-        "date": 1747404571066,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 316.49,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 572.29,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 231.42,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 1440,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 1470,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-root-empty",
-            "value": 402.95,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-root-single-tx",
-            "value": 7220,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 7220,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 385,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-root",
-            "value": 445.92,
-            "unit": "MB"
-          },
-          {
-            "name": "semaphore_depth_10",
-            "value": 128.47,
-            "unit": "MB"
-          }
-        ]
-      },
       {
         "commit": {
           "author": {
@@ -3044,6 +2965,85 @@ window.BENCHMARK_DATA = {
           {
             "name": "rollup-root",
             "value": 468.07,
+            "unit": "MB"
+          },
+          {
+            "name": "semaphore_depth_10",
+            "value": 128.37,
+            "unit": "MB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "15848336+TomAFrench@users.noreply.github.com",
+            "name": "Tom French",
+            "username": "TomAFrench"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "6cbf5c4c5abf1f116bd5f5f05b572896556c0a60",
+          "message": "fix: relax connectedness requirement on purity analysis pass (#8667)",
+          "timestamp": "2025-05-23T19:06:27Z",
+          "tree_id": "bb8bb91297404a15206bcbfb381cabd2a4624018",
+          "url": "https://github.com/noir-lang/noir/commit/6cbf5c4c5abf1f116bd5f5f05b572896556c0a60"
+        },
+        "date": 1748030520514,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 332.99,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 572.37,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 232.88,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 1470,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 1630,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root-empty",
+            "value": 429.53,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root-single-tx",
+            "value": 7240,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 7250,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 413.8,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-root",
+            "value": 468.05,
             "unit": "MB"
           },
           {
