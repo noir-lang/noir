@@ -1278,11 +1278,8 @@ impl Elaborator<'_> {
         });
 
         let mut interpreter = self.setup_interpreter();
-        let value = dbg!(interpreter.evaluate_block(block));
-
-        eprintln!("Errors before: {}", self.errors.len());
+        let value = interpreter.evaluate_block(block);
         let (id, typ) = self.inline_comptime_value(value, location);
-        eprintln!("        after: {}", self.errors.len());
 
         let location = self.interner.id_location(id);
         self.debug_comptime(location, |interner| {
