@@ -1,87 +1,8 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1748015753698,
+  "lastUpdate": 1748015766781,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
-      {
-        "commit": {
-          "author": {
-            "email": "asterite@gmail.com",
-            "name": "Ary Borenszweig",
-            "username": "asterite"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "da0b3a2e722f3bd0ff42f67d221088b5c8f60ea4",
-          "message": "fix: add offset to ArrayGet (#8536)\n\nCo-authored-by: jfecher <jfecher11@gmail.com>",
-          "timestamp": "2025-05-15T19:37:49Z",
-          "tree_id": "fdca177b4ea1d746711e7273bc80f28d5e6d94ba",
-          "url": "https://github.com/noir-lang/noir/commit/da0b3a2e722f3bd0ff42f67d221088b5c8f60ea4"
-        },
-        "date": 1747339717220,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 313.29,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 569.09,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 228.21,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 1440,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 1460,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-root-empty",
-            "value": 398.66,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-root-single-tx",
-            "value": 7210,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 7220,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 380.74,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-root",
-            "value": 441.68,
-            "unit": "MB"
-          },
-          {
-            "name": "semaphore_depth_10",
-            "value": 126.94,
-            "unit": "MB"
-          }
-        ]
-      },
       {
         "commit": {
           "author": {
@@ -3044,6 +2965,85 @@ window.BENCHMARK_DATA = {
           {
             "name": "rollup-root",
             "value": 446.3,
+            "unit": "MB"
+          },
+          {
+            "name": "semaphore_depth_10",
+            "value": 128.37,
+            "unit": "MB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "aakoshh@gmail.com",
+            "name": "Akosh Farkash",
+            "username": "aakoshh"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "4e352874a4199c95cc69e201a32af2fd04ffd51c",
+          "message": "chore(fuzz): Build the dictionary from the SSA (#8591)",
+          "timestamp": "2025-05-23T15:20:55Z",
+          "tree_id": "22be88bd8f9d5a3c9d6b89b6f8329d87012c7b5e",
+          "url": "https://github.com/noir-lang/noir/commit/4e352874a4199c95cc69e201a32af2fd04ffd51c"
+        },
+        "date": 1748015756489,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 332.49,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 571.81,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 232.32,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 1440,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 1600,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root-empty",
+            "value": 399.93,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root-single-tx",
+            "value": 7210,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 7220,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 384.2,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-root",
+            "value": 446.31,
             "unit": "MB"
           },
           {
