@@ -27,6 +27,7 @@ pub struct AstPrinter {
     pub show_id: bool,
     pub show_clone_and_drop: bool,
     pub show_print_as_std: bool,
+    pub show_type_in_let: bool,
 }
 
 impl Default for AstPrinter {
@@ -37,6 +38,7 @@ impl Default for AstPrinter {
             show_id: true,
             show_clone_and_drop: true,
             show_print_as_std: false,
+            show_type_in_let: false,
         }
     }
 }

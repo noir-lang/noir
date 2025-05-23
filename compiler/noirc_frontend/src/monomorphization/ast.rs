@@ -1,4 +1,4 @@
-use std::{collections::BTreeMap, fmt::Display};
+use std::{borrow::Cow, collections::BTreeMap, fmt::Display};
 
 use iter_extended::vecmap;
 use noirc_errors::{
@@ -59,6 +59,70 @@ pub enum Expression {
 impl Expression {
     pub fn is_array_or_slice_literal(&self) -> bool {
         matches!(self, Expression::Literal(Literal::Array(_) | Literal::Slice(_)))
+    }
+
+    /// The return type of an expression, if it has an obvious one.
+    pub fn return_type(&self) -> Option<Cow<Type>> {
+        fn borrowed(typ: &Type) -> Option<Cow<Type>> {
+            Some(Cow::Borrowed(typ))
+        }
+        let owned = |typ: Type| Some(Cow::Owned(typ));
+
+        match self {
+            Expression::Ident(ident) => borrowed(&ident.typ),
+            Expression::Literal(literal) => match literal {
+                Literal::Array(literal) | Literal::Slice(literal) => borrowed(&literal.typ),
+                Literal::Integer(_, typ, _) => borrowed(typ),
+                Literal::Bool(_) => borrowed(&Type::Bool),
+                Literal::Unit => borrowed(&Type::Unit),
+                Literal::Str(s) => owned(Type::String(s.len() as u32)),
+                Literal::FmtStr(_, size, expr) => expr.return_type().and_then(|typ| {
+                    owned(Type::FmtString(*size as u32, Box::new(typ.into_owned())))
+                }),
+            },
+            Expression::Block(xs) => xs.last().and_then(|x| x.return_type()),
+            Expression::Unary(unary) => borrowed(&unary.result_type),
+            Expression::Binary(binary) => {
+                if binary.operator.is_comparator() {
+                    borrowed(&Type::Bool)
+                } else {
+                    binary.lhs.return_type()
+                }
+            }
+            Expression::Index(index) => borrowed(&index.element_type),
+            Expression::Cast(cast) => borrowed(&cast.r#type),
+            Expression::If(if_) => borrowed(&if_.typ),
+            Expression::ExtractTupleField(x, idx) => match x.as_ref() {
+                Expression::Tuple(xs) if xs.len() > *idx => xs[*idx].return_type(),
+                _ => unreachable!("expected tuple type in `ExtractTupleField`"),
+            },
+            Expression::Clone(x) => x.return_type(),
+            Expression::Call(call) => borrowed(&call.return_type),
+            Expression::Match(m) => borrowed(&m.typ),
+
+            Expression::Tuple(xs) => {
+                let types = xs
+                    .iter()
+                    .filter_map(|x| x.return_type())
+                    .map(|t| t.into_owned())
+                    .collect::<Vec<_>>();
+                if types.len() != xs.len() {
+                    return None;
+                }
+                owned(Type::Tuple(types))
+            }
+
+            Expression::For(_)
+            | Expression::Loop(_)
+            | Expression::While(_)
+            | Expression::Let(_)
+            | Expression::Constrain(_, _, _)
+            | Expression::Assign(_)
+            | Expression::Semi(_)
+            | Expression::Drop(_)
+            | Expression::Break
+            | Expression::Continue => None,
+        }
     }
 }
 
