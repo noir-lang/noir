@@ -117,6 +117,7 @@ pub(crate) fn get_struct_fields(
                 Ident::new(name.to_string(), location),
                 location,
                 Vec::new(),
+                ItemVisibility::Public,
             );
             let expected = Type::DataType(Shared::new(expected), Vec::new());
             type_mismatch(value, expected, location)

@@ -168,6 +168,7 @@ impl Elaborator<'_> {
             Vec::new(),
             false,
             false,
+            ItemVisibility::Public,
         );
 
         let mut typ = self_type.clone();
