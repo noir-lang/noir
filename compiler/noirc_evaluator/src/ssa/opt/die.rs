@@ -450,7 +450,7 @@ fn can_be_eliminated_if_unused(
         | RangeCheck { .. } => false,
 
         // Some `Intrinsic`s have side effects so we must check what kind of `Call` this is.
-        Call { func, .. } => match function.dfg[*func] {
+        Call { func, .. } => match &function.dfg[*func] {
             // Explicitly allows removal of unused ec operations, even if they can fail
             Value::Intrinsic(Intrinsic::BlackBox(BlackBoxFunc::MultiScalarMul))
             | Value::Intrinsic(Intrinsic::BlackBox(BlackBoxFunc::EmbeddedCurveAdd)) => true,
@@ -464,12 +464,21 @@ fn can_be_eliminated_if_unused(
 
             // We use purity to determine whether functions contain side effects.
             // If we have an impure function, we cannot remove it even if it is unused.
-            Value::Function(function_id) => match function.dfg.purity_of(function_id) {
+            Value::Function(function_id) => match function.dfg.purity_of(*function_id) {
                 Some(Purity::Pure) => true,
                 Some(Purity::PureWithPredicate) => false,
                 Some(Purity::Impure) => false,
                 None => false,
             },
+
+            // If there are still function values that come from an instruction it means 
+            // that there were no variants for that higher order function. 
+            // It is safe to remove these functions.
+            // We also check whether the type of the instruction is a field as all function pointers
+            // are transformed to field IDs during defunctionalization.
+            Value::Instruction { typ, .. } if typ.is_field() => {
+                true
+            }
 
             _ => false,
         },

@@ -185,6 +185,11 @@ impl Type {
         Type::Numeric(NumericType::NativeField)
     }
 
+    /// Returns whether the `Type` represents a [native field numeric type][NumericType::NativeField].
+    pub fn is_field(&self) -> bool {
+        matches!(self, Type::Numeric(NumericType::NativeField))
+    }
+
     /// Creates the type of an array's length.
     pub fn length_type() -> Type {
         Type::unsigned(SSA_WORD_SIZE)
