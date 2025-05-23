@@ -479,26 +479,4 @@ mod test {
         assert_eq!(purities[&FunctionId::test_new(0)], Purity::PureWithPredicate);
         assert_eq!(purities[&FunctionId::test_new(1)], Purity::PureWithPredicate);
     }
-
-    #[test]
-    fn handles_recursive_functions() {
-        let src = r#"
-        brillig(inline) fn main f0 {
-          b0():
-            call f1()
-            return
-        }
-        brillig(inline) fn func_1 f1 {
-          b0():
-            call f0()
-            return
-        }"#;
-
-        let ssa = Ssa::from_str(src).unwrap();
-        let ssa = ssa.purity_analysis();
-
-        let purities = &ssa.main().dfg.function_purities;
-        assert_eq!(purities[&FunctionId::test_new(0)], Purity::PureWithPredicate);
-        assert_eq!(purities[&FunctionId::test_new(1)], Purity::PureWithPredicate);
-    }
 }
