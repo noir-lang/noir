@@ -3,7 +3,7 @@ use libfuzzer_sys::arbitrary::Arbitrary;
 use noirc_evaluator::ssa::ir::types::{NumericType, Type};
 use noirc_evaluator::ssa::ir::{map::Id, value::Value};
 
-#[derive(Arbitrary, Debug, Clone, PartialEq, Eq, Hash)]
+#[derive(Arbitrary, Debug, Clone, PartialEq, Eq, Hash, Copy)]
 pub enum ValueType {
     Field,
     Boolean,
@@ -18,7 +18,7 @@ pub enum ValueType {
     I64,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct TypedValue {
     pub value_id: Id<Value>,
     pub type_of_variable: Type,
@@ -113,24 +113,6 @@ impl TypedValue {
     pub fn supports_unchecked(&self) -> bool {
         false
     }
-
-    /// Check if this type can be used in an operation with another type
-    pub fn compatible_with(&self, other: &Self, op: &str) -> bool {
-        match op {
-            "shift" => self.supports_shift() && other.to_value_type() == ValueType::U8,
-            "bitwise" => {
-                self.supports_bitwise()
-                    && other.supports_bitwise()
-                    && self.type_of_variable == other.type_of_variable
-            }
-            "uncheked" => {
-                self.supports_unchecked()
-                    && other.supports_unchecked()
-                    && self.type_of_variable == other.type_of_variable
-            }
-            _ => self.type_of_variable == other.type_of_variable,
-        }
-    }
 }
 
 impl ValueType {
@@ -148,6 +130,20 @@ impl ValueType {
             ValueType::I16 => Type::signed(16),
             ValueType::I32 => Type::signed(32),
             ValueType::I64 => Type::signed(64),
+        }
+    }
+
+    /// Helper to check if this type could be used for casts into it
+    /// Signed types are not supported right now
+    pub fn can_be_used_for_casts(&self) -> bool {
+        match self {
+            //https://github.com/noir-lang/noir/issues/8089
+            ValueType::I8 | ValueType::I16 | ValueType::I32 | ValueType::I64 => false,
+            //https://github.com/noir-lang/noir/issues/7555
+            ValueType::U128 => false,
+            //https://github.com/noir-lang/noir/issues/8157
+            ValueType::Boolean => false,
+            _ => true,
         }
     }
 

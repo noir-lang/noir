@@ -12,8 +12,8 @@ cargo-fuzz = true
 libfuzzer-sys = { version = "0.4.0", features = ["arbitrary-derive"] }
 noirc_evaluator.workspace = true
 noirc_driver.workspace = true
-noir_ssa_executor.workspace = true
 acvm.workspace = true
+noir_ssa_executor.workspace = true
 log.workspace = true
 env_logger.workspace = true
 
@@ -21,8 +21,13 @@ env_logger.workspace = true
 path = "../"
 
 [[bin]]
-name = "base_target"
-path = "src/base_target.rs"
+name = "fuzz_target"
+path = "src/fuzz_target.rs"
 test = false
 doc = false
 bench = false
+
+
+[[test]]
+name = "test_fuzz_target"
+path = "src/fuzz_lib/mod.rs"
