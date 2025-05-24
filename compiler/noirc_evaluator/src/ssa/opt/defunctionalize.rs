@@ -30,7 +30,10 @@
 //!
 //! After this pass all first-class functions are replaced with numeric IDs
 //! and calls are routed via the newly generated `apply` functions.
-use std::collections::{BTreeMap, BTreeSet};
+use std::{
+    collections::{BTreeMap, BTreeSet},
+    sync::Arc,
+};
 
 use acvm::FieldElement;
 use iter_extended::vecmap;
@@ -235,6 +238,33 @@ fn remove_first_class_functions_in_instruction(
         for arg in arguments {
             *arg = map_value(*arg);
         }
+    } else if let Instruction::MakeArray { typ, .. } = instruction {
+        match typ {
+            Type::Array(element_types, len) => {
+                let new_element_types =
+                    element_types
+                        .iter()
+                        .map(|typ| {
+                            if matches!(typ, Type::Function) { Type::field() } else { typ.clone() }
+                        })
+                        .collect::<Vec<_>>();
+                *typ = Type::Array(Arc::new(new_element_types), *len);
+            }
+            Type::Slice(element_types) => {
+                let new_element_types =
+                    element_types
+                        .iter()
+                        .map(|typ| {
+                            if matches!(typ, Type::Function) { Type::field() } else { typ.clone() }
+                        })
+                        .collect::<Vec<_>>();
+                *typ = Type::Slice(Arc::new(new_element_types));
+            }
+            _ => {}
+        }
+        instruction.map_values_mut(map_value);
+
+        modified = true;
     } else {
         instruction.map_values_mut(map_value);
     }
@@ -327,6 +357,9 @@ fn find_functions_as_values(func: &Function) -> BTreeSet<FunctionId> {
                 }
                 Instruction::Store { value, .. } => {
                     process_value(*value);
+                }
+                Instruction::MakeArray { elements, .. } => {
+                    elements.iter().for_each(|element| process_value(*element));
                 }
                 _ => continue,
             };
@@ -480,7 +513,17 @@ fn create_apply_function(
 
         let entry_block = function_builder.current_block();
 
-        let return_block = build_return_block(&mut function_builder, &signature.returns);
+        let make_end_block = |builder: &mut FunctionBuilder| -> (BasicBlockId, Vec<ValueId>) {
+            let block = builder.insert_block();
+            // The values that will be ultimately returned from the function.
+            let params =
+                vecmap(&signature.returns, |typ| builder.add_block_parameter(block, typ.clone()));
+            (block, params)
+        };
+
+        let (end_block, end_results) = make_end_block(&mut function_builder);
+        let mut blocks_to_merge = Vec::with_capacity(function_ids.len());
+
         // Switch back to the entry block to build the rest of the dispatch function
         function_builder.switch_to_block(entry_block);
 
@@ -515,36 +558,56 @@ fn create_apply_function(
                 .insert_call(target_function_value, params_ids.clone(), signature.returns.clone())
                 .to_vec();
 
-            // Jump to the return block
-            function_builder.terminate_with_jmp(return_block, call_results);
+            let local_end_block = make_end_block(&mut function_builder);
+            // Jump to the end block
+            function_builder.terminate_with_jmp(local_end_block.0, call_results);
+            blocks_to_merge.push(local_end_block);
 
             if let Some(next_block) = next_function_block {
                 // Switch to the next block for the else branch
                 function_builder.switch_to_block(next_block);
             }
         }
+
+        // Merge blocks as last-in first-out:
+        //
+        // local_end_block0-----------------------------------------\
+        //                                                           end block
+        //                                                          /
+        // local_end_block1---------------------\                  /
+        //                                       new merge block2-/
+        // local_end_block2--\                  /
+        //                    new merge block1-/
+        // local_end_block3--/
+        //
+        // This is necessary since SSA panics during flattening if we immediately
+        // try to jump directly to end block instead: https://github.com/noir-lang/noir/issues/7323.
+        //
+        // It'd also be more efficient to merge them tournament-bracket style but that
+        // also leads to panics during flattening for similar reasons.
+        while let Some((block, results)) = blocks_to_merge.pop() {
+            function_builder.switch_to_block(block);
+
+            if let Some((block2, results2)) = blocks_to_merge.pop() {
+                // Merge two blocks in the queue together
+                let (new_merge, new_merge_results) = make_end_block(&mut function_builder);
+                blocks_to_merge.push((new_merge, new_merge_results));
+
+                function_builder.terminate_with_jmp(new_merge, results);
+
+                function_builder.switch_to_block(block2);
+                function_builder.terminate_with_jmp(new_merge, results2);
+            } else {
+                // Finally done, jump to the end
+                function_builder.terminate_with_jmp(end_block, results);
+            }
+        }
+
+        function_builder.switch_to_block(end_block);
+        function_builder.terminate_with_return(end_results);
+
         function_builder.current_function
     })
-}
-
-/// Create the final return block for an apply function.
-///
-/// The return block is meant to be shared among all branches of the apply function.
-/// The apply function will jump to this block after calling the appropriate
-/// target function.
-///
-/// # Arguments
-/// * `builder` - [FunctionBuilder] used to construct the function's SSA.
-/// * `passed_types` - A slice of [Type]s representing the values to be returned from the function.
-///
-/// # Returns
-/// A [BasicBlockId] representing the newly created return block.
-fn build_return_block(builder: &mut FunctionBuilder, passed_types: &[Type]) -> BasicBlockId {
-    let return_block = builder.insert_block();
-    builder.switch_to_block(return_block);
-    let params = vecmap(passed_types, |typ| builder.add_block_parameter(return_block, typ.clone()));
-    builder.terminate_with_return(params);
-    return_block
 }
 
 /// Check post-execution properties:
@@ -661,23 +724,33 @@ mod tests {
         }
         brillig(inline_always) fn apply f5 {
           b0(v0: Field, v1: u32):
-            v4 = eq v0, Field 2
-            jmpif v4 then: b3, else: b2
+            v9 = eq v0, Field 2
+            jmpif v9 then: b3, else: b2
           b1(v2: u32):
             return v2
           b2():
-            v8 = eq v0, Field 3
-            jmpif v8 then: b5, else: b4
+            v13 = eq v0, Field 3
+            jmpif v13 then: b6, else: b5
           b3():
-            v6 = call f2(v1) -> u32
-            jmp b1(v6)
-          b4():
-            constrain v0 == Field 4
-            v13 = call f4(v1) -> u32
-            jmp b1(v13)
+            v11 = call f2(v1) -> u32
+            jmp b4(v11)
+          b4(v3: u32):
+            jmp b10(v3)
           b5():
-            v10 = call f3(v1) -> u32
-            jmp b1(v10)
+            constrain v0 == Field 4
+            v18 = call f4(v1) -> u32
+            jmp b8(v18)
+          b6():
+            v15 = call f3(v1) -> u32
+            jmp b7(v15)
+          b7(v4: u32):
+            jmp b9(v4)
+          b8(v5: u32):
+            jmp b9(v5)
+          b9(v6: u32):
+            jmp b10(v6)
+          b10(v7: u32):
+            jmp b1(v7)
         }
         ");
     }
@@ -797,17 +870,23 @@ mod tests {
         }
         acir(inline_always) fn apply f4 {
           b0(v0: Field):
-            v3 = eq v0, Field 1
-            jmpif v3 then: b3, else: b2
+            v6 = eq v0, Field 1
+            jmpif v6 then: b3, else: b2
           b1(v1: u32):
             return v1
           b2():
             constrain v0 == Field 2
-            v8 = call f2() -> u32
-            jmp b1(v8)
+            v11 = call f2() -> u32
+            jmp b5(v11)
           b3():
-            v5 = call f1() -> u32
-            jmp b1(v5)
+            v8 = call f1() -> u32
+            jmp b4(v8)
+          b4(v2: u32):
+            jmp b6(v2)
+          b5(v3: u32):
+            jmp b6(v3)
+          b6(v4: u32):
+            jmp b1(v4)
         }
         "
         );
@@ -854,5 +933,259 @@ mod tests {
             return v2
         }
         ");
+    }
+
+    #[test]
+    fn apply_function_with_dynamic_dispatch_id() {
+        // This checks that we generate an apply function correctly when
+        // we have a dynamic dispatch.
+        // The flattening pass
+        let src = "
+        acir(inline) fn main f0 {
+          b0(v0: u32):
+            v2 = sub v0, u32 1
+            v4 = call f2(v2) -> u32
+            return v4
+        }
+        acir(inline) fn lambdas_with_input_and_return_values f1 {
+          b0(v0: u32):
+            v4 = eq v0, u32 0
+            jmpif v4 then: b1, else: b2
+          b1():
+            jmp b3(f2)
+          b2():
+            v6 = eq v0, u32 1
+            jmpif v6 then: b4, else: b5
+          b3(v1: function):
+            v10 = call v1(v0) -> u32
+            return v10
+          b4():
+            jmp b6(f3)
+          b5():
+            jmp b6(f4)
+          b6(v2: function):
+            jmp b3(v2)
+        }
+        acir(inline) fn lambda f2 {
+          b0(v0: u32):
+            return v0
+        }
+        acir(inline) fn lambda f3 {
+          b0(v0: u32):
+            v2 = add v0, u32 1
+            return v2
+        }
+        acir(inline) fn lambda f4 {
+          b0(v0: u32):
+            v2 = add v0, u32 2
+            return v2
+        }
+        ";
+
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.defunctionalize();
+
+        assert_ssa_snapshot!(ssa, @r"
+        acir(inline) fn main f0 {
+          b0(v0: u32):
+            v2 = sub v0, u32 1
+            v4 = call f2(v2) -> u32
+            return v4
+        }
+        acir(inline) fn lambdas_with_input_and_return_values f1 {
+          b0(v0: u32):
+            v4 = eq v0, u32 0
+            jmpif v4 then: b1, else: b2
+          b1():
+            jmp b3(Field 2)
+          b2():
+            v6 = eq v0, u32 1
+            jmpif v6 then: b4, else: b5
+          b3(v1: Field):
+            v11 = call f5(v1, v0) -> u32
+            return v11
+          b4():
+            jmp b6(Field 3)
+          b5():
+            jmp b6(Field 4)
+          b6(v2: Field):
+            jmp b3(v2)
+        }
+        acir(inline) fn lambda f2 {
+          b0(v0: u32):
+            return v0
+        }
+        acir(inline) fn lambda f3 {
+          b0(v0: u32):
+            v2 = add v0, u32 1
+            return v2
+        }
+        acir(inline) fn lambda f4 {
+          b0(v0: u32):
+            v2 = add v0, u32 2
+            return v2
+        }
+        acir(inline_always) fn apply f5 {
+          b0(v0: Field, v1: u32):
+            v9 = eq v0, Field 2
+            jmpif v9 then: b3, else: b2
+          b1(v2: u32):
+            return v2
+          b2():
+            v13 = eq v0, Field 3
+            jmpif v13 then: b6, else: b5
+          b3():
+            v11 = call f2(v1) -> u32
+            jmp b4(v11)
+          b4(v3: u32):
+            jmp b10(v3)
+          b5():
+            constrain v0 == Field 4
+            v18 = call f4(v1) -> u32
+            jmp b8(v18)
+          b6():
+            v15 = call f3(v1) -> u32
+            jmp b7(v15)
+          b7(v4: u32):
+            jmp b9(v4)
+          b8(v5: u32):
+            jmp b9(v5)
+          b9(v6: u32):
+            jmp b10(v6)
+          b10(v7: u32):
+            jmp b1(v7)
+        }
+        ");
+    }
+
+    #[test]
+    fn fn_in_array() {
+        let src = r#"
+        acir(inline) fn main f0 {
+          b0(v0: u32):
+            v5 = make_array [f1, f2, f3, f4] : [function; 4]
+            v7 = lt v0, u32 4
+            constrain v7 == u1 1, "Index out of bounds"
+            v9 = array_get v5, index v0 -> function
+            call v9()
+            return
+        }
+        acir(inline) fn lambda f1 {
+          b0():
+            return
+        }
+        acir(inline) fn lambda f2 {
+          b0():
+            return
+        }
+        acir(inline) fn lambda f3 {
+          b0():
+            return
+        }
+        acir(inline) fn lambda f4 {
+          b0():
+            return
+        }
+        "#;
+
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.defunctionalize();
+
+        assert_ssa_snapshot!(ssa, @r#"
+        acir(inline) fn main f0 {
+          b0(v0: u32):
+            v5 = make_array [Field 1, Field 2, Field 3, Field 4] : [Field; 4]
+            v7 = lt v0, u32 4
+            constrain v7 == u1 1, "Index out of bounds"
+            v9 = array_get v5, index v0 -> Field
+            call f5(v9)
+            return
+        }
+        acir(inline) fn lambda f1 {
+          b0():
+            return
+        }
+        acir(inline) fn lambda f2 {
+          b0():
+            return
+        }
+        acir(inline) fn lambda f3 {
+          b0():
+            return
+        }
+        acir(inline) fn lambda f4 {
+          b0():
+            return
+        }
+        acir(inline_always) fn apply f5 {
+          b0(v0: Field):
+            v2 = eq v0, Field 1
+            jmpif v2 then: b3, else: b2
+          b1():
+            return
+          b2():
+            v5 = eq v0, Field 2
+            jmpif v5 then: b6, else: b5
+          b3():
+            call f1()
+            jmp b4()
+          b4():
+            jmp b14()
+          b5():
+            v8 = eq v0, Field 3
+            jmpif v8 then: b9, else: b8
+          b6():
+            call f2()
+            jmp b7()
+          b7():
+            jmp b13()
+          b8():
+            constrain v0 == Field 4
+            call f4()
+            jmp b11()
+          b9():
+            call f3()
+            jmp b10()
+          b10():
+            jmp b12()
+          b11():
+            jmp b12()
+          b12():
+            jmp b13()
+          b13():
+            jmp b14()
+          b14():
+            jmp b1()
+        }
+        "#);
+    }
+
+    #[test]
+    fn empty_make_array_updates_type() {
+        let src = r#"
+        acir(inline) fn main f0 {
+          b0(v0: u32):
+            v1 = make_array [] : [function; 0]
+            constrain u1 0 == u1 1, "Index out of bounds"
+            v5 = array_get v1, index u32 0 -> function
+            call v5()
+            return
+        }
+        "#;
+
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.defunctionalize();
+
+        // Guarantee that we still accurately modify the make_array instruction type for an empty array
+        assert_ssa_snapshot!(ssa, @r#"
+        acir(inline) fn main f0 {
+          b0(v0: u32):
+            v1 = make_array [] : [Field; 0]
+            constrain u1 0 == u1 1, "Index out of bounds"
+            v5 = array_get v1, index u32 0 -> Field
+            call v5()
+            return
+        }
+        "#);
     }
 }
