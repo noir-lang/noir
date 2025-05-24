@@ -277,7 +277,8 @@ fn remove_first_class_functions_in_instruction(
 /// Try to map the given function literal to a field, returning Some(field) on success.
 /// Returns none if the given value was not a function or doesn't need to be mapped.
 fn map_function_to_field(func: &mut Function, value: ValueId) -> Option<ValueId> {
-    if is_function_type(func.dfg[value].get_type().as_ref()) {
+    let typ = func.dfg[value].get_type();
+    if is_function_type(typ.as_ref()) {
         match &func.dfg[value] {
             // If the value is a static function, transform it to the function id
             Value::Function(id) => {
@@ -286,7 +287,7 @@ fn map_function_to_field(func: &mut Function, value: ValueId) -> Option<ValueId>
             }
             // If the value is a function used as value, just change the type of it
             Value::Instruction { .. } | Value::Param { .. } => {
-                func.dfg.set_type_of_value(value, Type::field());
+                func.dfg.set_type_of_value(value, replacement_type(typ.as_ref()));
             }
             _ => (),
         }
@@ -1244,6 +1245,60 @@ mod tests {
             v1 = load v0 -> Field
             v3 = call f1() -> u1
             return v3
+        }
+        ");
+    }
+
+    #[test]
+    fn mut_ref_function_matching() {
+        let src = "
+        brillig(inline) fn add_to_tally_public f0 {
+          b0():
+            v4 = allocate -> &mut function
+            store f2 at v4
+            v10 = call f10(v4, f33) -> Field
+            return
+        }
+        brillig(inline) fn lambda f2 {
+          b0():
+            return Field 1
+        }
+        brillig(inline) fn at f10 {
+          b0(v4: &mut function, v6: function):
+            v10 = call v6(v4) -> Field
+            return v10
+        }
+        brillig(inline) fn lambda f33 {
+          b0(v4: &mut function):
+            v10 = call v4() -> Field
+            return v10
+        }
+        ";
+
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.defunctionalize();
+
+        assert_ssa_snapshot!(ssa, @r"
+        brillig(inline) fn add_to_tally_public f0 {
+          b0():
+            v0 = allocate -> &mut Field
+            store Field 1 at v0
+            v4 = call f2(v0, Field 3) -> Field
+            return
+        }
+        brillig(inline) fn lambda f1 {
+          b0():
+            return Field 1
+        }
+        brillig(inline) fn at f2 {
+          b0(v0: &mut Field, v1: Field):
+            v3 = call f3(v0) -> Field
+            return v3
+        }
+        brillig(inline) fn lambda f3 {
+          b0(v0: &mut Field):
+            v2 = call f1() -> Field
+            return v2
         }
         ");
     }
