@@ -12,7 +12,11 @@ use std::path::PathBuf;
 #[derive(Debug, Clone, Args)]
 pub(crate) struct InitCommand {
     /// Name of the package [default: current directory name]
-    #[clap(long)]
+    #[clap(index = 1)]
+    positional_name: Option<CrateName>,
+
+    /// Name of the package [default: current directory name]
+    #[arg(long)]
     name: Option<CrateName>,
 
     /// Use a library template
@@ -33,11 +37,14 @@ const CONTRACT_EXAMPLE: &str = include_str!("./noir_template_files/contract.nr")
 const LIB_EXAMPLE: &str = include_str!("./noir_template_files/library.nr");
 
 pub(crate) fn run(args: InitCommand, config: NargoConfig) -> Result<(), CliError> {
-    let package_name = match args.name {
+    let package_name = match args.positional_name.or(args.name) {
         Some(name) => name,
         None => {
-            let name = config.program_dir.file_name().unwrap().to_str().unwrap();
-            name.parse().map_err(|_| CliError::InvalidPackageName(name.into()))?
+            let name_str = config.program_dir.file_name().unwrap().to_str().unwrap();
+            name_str.parse().map_err(|e: String| CliError::InvalidPackageNameFromDirectory {
+                directory_name: name_str.to_string(),
+                parse_error: e,
+            })?
         }
     };
 
