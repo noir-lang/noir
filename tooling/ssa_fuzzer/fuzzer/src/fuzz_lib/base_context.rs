@@ -1,7 +1,7 @@
 use super::block_context::BlockContext;
 use super::instruction::Instruction;
 use super::instruction::InstructionBlock;
-use super::options::{ContextOptions, SsaBlockOptions};
+use super::options::{ProgramContextOptions, SsaBlockOptions};
 use acvm::FieldElement;
 use acvm::acir::native_types::Witness;
 use libfuzzer_sys::arbitrary;
@@ -61,9 +61,12 @@ pub(crate) struct FuzzerContext {
     stored_blocks: HashMap<BasicBlockId, StoredBlock>,
     /// Whether the program is executed in constants
     is_constant: bool,
-    context_options: ContextOptions,
+    /// Options of the program context
+    context_options: ProgramContextOptions,
+    /// Number of instructions inserted in the program
     inserted_instructions_count: usize,
-    inserted_jumps_count: usize,
+    /// Number of SSA blocks inserted in the program
+    inserted_ssa_blocks_count: usize,
 }
 
 impl FuzzerContext {
@@ -72,7 +75,7 @@ impl FuzzerContext {
     pub(crate) fn new(
         types: Vec<ValueType>,
         instruction_blocks: Vec<InstructionBlock>,
-        context_options: ContextOptions,
+        context_options: ProgramContextOptions,
     ) -> Self {
         let mut acir_builder = FuzzerBuilder::new_acir();
         let mut brillig_builder = FuzzerBuilder::new_brillig();
@@ -106,7 +109,7 @@ impl FuzzerContext {
             is_constant: false,
             context_options,
             inserted_instructions_count: 0,
-            inserted_jumps_count: 0,
+            inserted_ssa_blocks_count: 0,
         }
     }
 
@@ -115,7 +118,7 @@ impl FuzzerContext {
         values: Vec<impl Into<FieldElement>>,
         types: Vec<ValueType>,
         instruction_blocks: Vec<InstructionBlock>,
-        context_options: ContextOptions,
+        context_options: ProgramContextOptions,
     ) -> Self {
         let mut acir_builder = FuzzerBuilder::new_acir();
         let mut brillig_builder = FuzzerBuilder::new_brillig();
@@ -157,7 +160,7 @@ impl FuzzerContext {
             is_constant: true,
             context_options,
             inserted_instructions_count: 0,
-            inserted_jumps_count: 0,
+            inserted_ssa_blocks_count: 0,
         }
     }
 
@@ -188,12 +191,12 @@ impl FuzzerContext {
         {
             return;
         }
-        if self.inserted_jumps_count + 2 > self.context_options.max_jumps_num {
+        if self.inserted_ssa_blocks_count + 2 > self.context_options.max_ssa_blocks_num {
             return;
         }
         self.inserted_instructions_count += block_then_instruction_block.instructions.len();
         self.inserted_instructions_count += block_else_instruction_block.instructions.len();
-        self.inserted_jumps_count += 2;
+        self.inserted_ssa_blocks_count += 2;
 
         // creates new blocks
         let block_then_id = self.acir_builder.insert_block();
@@ -263,11 +266,11 @@ impl FuzzerContext {
         {
             return;
         }
-        if self.inserted_jumps_count + 1 > self.context_options.max_jumps_num {
+        if self.inserted_ssa_blocks_count + 1 > self.context_options.max_ssa_blocks_num {
             return;
         }
         self.inserted_instructions_count += block.instructions.len();
-        self.inserted_jumps_count += 1;
+        self.inserted_ssa_blocks_count += 1;
 
         // creates new block
         let destination_block_id = self.acir_builder.insert_block();

@@ -15,7 +15,7 @@
 
 use super::base_context::{FuzzerCommand, FuzzerContext};
 use super::instruction::InstructionBlock;
-use super::options::{ContextOptions, FuzzerOptions};
+use super::options::{FuzzerOptions, ProgramContextOptions};
 use acvm::FieldElement;
 use acvm::acir::native_types::{Witness, WitnessMap};
 use noir_ssa_executor::runner::execute_single;
@@ -40,10 +40,10 @@ impl Fuzzer {
                 initial_witness_vector,
                 types.clone(),
                 instruction_blocks.clone(),
-                ContextOptions {
+                ProgramContextOptions {
                     idempotent_morphing_enabled: false,
                     compile_options: options.compile_options.clone(),
-                    max_jumps_num: options.max_jumps_num,
+                    max_ssa_blocks_num: options.max_ssa_blocks_num,
                     max_instructions_num: options.max_instructions_num,
                     instruction_options: options.instruction_options,
                     fuzzer_command_options: options.fuzzer_command_options,
@@ -54,10 +54,10 @@ impl Fuzzer {
         let context_non_constant = Some(FuzzerContext::new(
             types.clone(),
             instruction_blocks.clone(),
-            ContextOptions {
+            ProgramContextOptions {
                 idempotent_morphing_enabled: false,
                 compile_options: options.compile_options.clone(),
-                max_jumps_num: options.max_jumps_num,
+                max_ssa_blocks_num: options.max_ssa_blocks_num,
                 max_instructions_num: options.max_instructions_num,
                 instruction_options: options.instruction_options,
                 fuzzer_command_options: options.fuzzer_command_options,
@@ -68,10 +68,10 @@ impl Fuzzer {
                 true => Some(FuzzerContext::new(
                     types,
                     instruction_blocks,
-                    ContextOptions {
+                    ProgramContextOptions {
                         idempotent_morphing_enabled: true,
                         compile_options: options.compile_options.clone(),
-                        max_jumps_num: options.max_jumps_num,
+                        max_ssa_blocks_num: options.max_ssa_blocks_num,
                         max_instructions_num: options.max_instructions_num,
                         instruction_options: options.instruction_options,
                         fuzzer_command_options: options.fuzzer_command_options,
@@ -133,10 +133,10 @@ impl Fuzzer {
         }
 
         if let Some(context) = self.context_non_constant_with_idempotent_morphing.take() {
-            let mut context_with_idempotent_morphin = context;
-            context_with_idempotent_morphin.finalize(return_instruction_block_idx);
+            let mut context_with_idempotent_morphing = context;
+            context_with_idempotent_morphing.finalize(return_instruction_block_idx);
             let result_with_constrains =
-                self.run_context(context_with_idempotent_morphin, initial_witness);
+                self.run_context(context_with_idempotent_morphing, initial_witness);
             assert_eq!(
                 non_constant_result, result_with_constrains,
                 "Non-constant and idempotent morphing contexts should return the same result"
@@ -165,8 +165,8 @@ impl Fuzzer {
                 match acir_result {
                     Ok(acir_result) => {
                         panic!(
-                            "ACIR compiled and successfully executed, 
-                            but brillig compilation failed. Execution result of 
+                            "ACIR compiled and successfully executed, \
+                            but brillig compilation failed. Execution result of \
                             acir only {:?}. Brillig compilation failed with: {:?}",
                             acir_result[&acir_return_witness], brillig_error
                         );
@@ -183,7 +183,9 @@ impl Fuzzer {
                 match brillig_result {
                     Ok(brillig_result) => {
                         panic!(
-                            "Brillig compiled and successfully executed, but ACIR compilation failed. Execution result of brillig only {:?}. ACIR compilation failed with: {:?}",
+                            "Brillig compiled and successfully executed, \
+                            but ACIR compilation failed. Execution result of \
+                            brillig only {:?}. ACIR compilation failed with: {:?}",
                             brillig_result[&brillig_return_witness], acir_error
                         );
                     }
@@ -207,7 +209,8 @@ impl Fuzzer {
             CompareResults::Agree(result) => Some(result),
             CompareResults::Disagree(acir_return_value, brillig_return_value) => {
                 panic!(
-                    "ACIR and Brillig programs returned different results: ACIR returned {:?}, Brillig returned {:?}",
+                    "ACIR and Brillig programs returned different results: \
+                    ACIR returned {:?}, Brillig returned {:?}",
                     acir_return_value, brillig_return_value
                 );
             }

@@ -46,7 +46,7 @@ libfuzzer_sys::fuzz_target!(|data: FuzzerData| {
         idempotent_morphing_enabled: false,
         constant_execution_enabled: false,
         compile_options,
-        max_jumps_num: 30,
+        max_ssa_blocks_num: 30,
         max_instructions_num: 500,
         instruction_options,
         fuzzer_command_options,

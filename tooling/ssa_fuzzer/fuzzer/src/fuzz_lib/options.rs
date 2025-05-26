@@ -1,6 +1,6 @@
 use noirc_driver::CompileOptions;
 
-// TODO pass them with FuzzerOptions
+/// Options for the instructions that can be used in the SSA blocks
 #[derive(Clone, Copy, Debug)]
 pub struct InstructionOptions {
     pub cast_enabled: bool,
@@ -46,24 +46,34 @@ impl Default for InstructionOptions {
     }
 }
 
+/// Options for the SSA block
 #[derive(Clone, Debug)]
 pub struct SsaBlockOptions {
+    /// If false, we don't add constraints for idempotent morphing results
     pub constrain_idempotent_enabled: bool,
+    /// Options for the instructions that can be used in the SSA block
     pub instruction_options: InstructionOptions,
 }
 
+/// Options of the program context
 #[derive(Clone, Debug)]
-pub struct ContextOptions {
+pub struct ProgramContextOptions {
+    /// If false, we don't add constraints for idempotent morphing results
     pub idempotent_morphing_enabled: bool,
+    /// Options for the program compilation
     pub compile_options: CompileOptions,
-    pub max_jumps_num: usize,
+    /// Maximum number of SSA blocks in the program
+    pub max_ssa_blocks_num: usize,
+    /// Maximum number of instructions inserted in the program
     pub max_instructions_num: usize,
+    /// Options for the instructions that can be used in the SSA block
     pub instruction_options: InstructionOptions,
+    /// Options for the fuzzer commands that can be used in the SSA block
     pub fuzzer_command_options: FuzzerCommandOptions,
 }
 
-impl From<ContextOptions> for SsaBlockOptions {
-    fn from(context_options: ContextOptions) -> Self {
+impl From<ProgramContextOptions> for SsaBlockOptions {
+    fn from(context_options: ProgramContextOptions) -> Self {
         SsaBlockOptions {
             constrain_idempotent_enabled: context_options.idempotent_morphing_enabled,
             instruction_options: context_options.instruction_options,
@@ -71,11 +81,16 @@ impl From<ContextOptions> for SsaBlockOptions {
     }
 }
 
+/// Options for the fuzzer commands that can be used in the program context
 #[derive(Clone, Copy, Debug)]
 pub struct FuzzerCommandOptions {
+    /// If false, we don't merge instruction blocks
     pub merge_instruction_blocks_enabled: bool,
+    /// If false, we don't insert jmp_if
     pub jmp_if_enabled: bool,
+    /// If false, we don't insert jmp command
     pub jmp_block_enabled: bool,
+    /// If false, we don't switch to the next block
     pub switch_to_next_block_enabled: bool,
 }
 
@@ -94,7 +109,7 @@ pub struct FuzzerOptions {
     pub idempotent_morphing_enabled: bool,
     pub constant_execution_enabled: bool,
     pub compile_options: CompileOptions,
-    pub max_jumps_num: usize,
+    pub max_ssa_blocks_num: usize,
     pub max_instructions_num: usize,
     pub instruction_options: InstructionOptions,
     pub fuzzer_command_options: FuzzerCommandOptions,
@@ -106,7 +121,7 @@ impl Default for FuzzerOptions {
             idempotent_morphing_enabled: false,
             constant_execution_enabled: false,
             compile_options: CompileOptions::default(),
-            max_jumps_num: 30,
+            max_ssa_blocks_num: 30,
             max_instructions_num: 500,
             instruction_options: InstructionOptions::default(),
             fuzzer_command_options: FuzzerCommandOptions::default(),

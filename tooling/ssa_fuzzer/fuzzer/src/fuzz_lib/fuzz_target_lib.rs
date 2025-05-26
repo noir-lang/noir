@@ -39,6 +39,9 @@ pub(crate) enum WitnessValue {
 pub(crate) struct FuzzerData {
     blocks: Vec<InstructionBlock>,
     commands: Vec<FuzzerCommand>,
+    /// initial witness values for the program as `WitnessValue`
+    /// last and last but one values are preserved for the boolean values (true, false)
+    /// fuzz_target func inserts them into the witness map itself
     initial_witness: [WitnessValue; (NUMBER_OF_VARIABLES_INITIAL - 2) as usize],
     return_instruction_block_idx: usize,
 }

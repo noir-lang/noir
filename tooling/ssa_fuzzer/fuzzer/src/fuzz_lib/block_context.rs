@@ -100,6 +100,7 @@ impl BlockContext {
         instruction: InstructionWithTwoArgs,
     ) {
         let instr_lhs = get_typed_value_from_map(&self.stored_values, &lhs.value_type, lhs.index);
+        // We ignore type of the second argument, because all binary instructions must use the same type
         let instr_rhs = get_typed_value_from_map(&self.stored_values, &lhs.value_type, rhs.index);
         let (instr_lhs, instr_rhs) = match (instr_lhs, instr_rhs) {
             (Some(acir_lhs), Some(acir_rhs)) => (acir_lhs, acir_rhs),
@@ -416,11 +417,6 @@ impl BlockContext {
                     value.value_id,
                     brillig_builder.insert_load_from_memory(addr.clone()).value_id,
                     "load from memory differs in ACIR and Brillig"
-                );
-                append_typed_value_to_map(
-                    &mut self.stored_values,
-                    &value.to_value_type(),
-                    value.clone(),
                 );
                 self.last_value = Some(value.clone());
                 append_typed_value_to_map(&mut self.stored_values, &value.to_value_type(), value);
