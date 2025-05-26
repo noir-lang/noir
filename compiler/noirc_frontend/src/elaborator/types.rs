@@ -41,8 +41,8 @@ use crate::{
 };
 
 use super::{
-    BindableTypeVariable, BindableTypeVariableKind, Elaborator, FunctionContext,
-    PathResolutionTarget, UnsafeBlockStatus, lints,
+    BindableTypeVariableKind, Elaborator, FunctionContext, PathResolutionTarget,
+    RequiredTypeVariable, UnsafeBlockStatus, lints,
     path_resolution::{PathResolutionItem, PathResolutionMode, TypedPath},
     primitive_types::PrimitiveType,
 };
@@ -2275,15 +2275,17 @@ impl Elaborator<'_> {
         self.get_function_context().defaultable_type_variables.push(typ);
     }
 
-    pub(super) fn push_bindable_type_variable(
+    /// Push a type variable (it's ID and type) as a required type variable: it must be
+    /// bound after type-checking the current function.
+    pub(super) fn push_required_type_variable(
         &mut self,
         type_variable_id: TypeVariableId,
         typ: Type,
         kind: BindableTypeVariableKind,
         location: Location,
     ) {
-        let var = BindableTypeVariable { type_variable_id, typ, kind, location };
-        self.get_function_context().bindable_type_variables.push(var);
+        let var = RequiredTypeVariable { type_variable_id, typ, kind, location };
+        self.get_function_context().required_type_variables.push(var);
     }
 
     /// Push a trait constraint into the current FunctionContext to be solved if needed

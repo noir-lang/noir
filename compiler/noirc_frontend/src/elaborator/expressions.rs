@@ -271,7 +271,7 @@ impl Elaborator<'_> {
             ArrayLiteral::Standard(elements) => {
                 let type_variable_id = self.interner.next_type_variable_id();
                 let type_variable = TypeVariable::unbound(type_variable_id, Kind::Any);
-                self.push_bindable_type_variable(
+                self.push_required_type_variable(
                     type_variable.id(),
                     Type::TypeVariable(type_variable.clone()),
                     BindableTypeVariableKind::ArrayLiteral { is_array },
@@ -857,7 +857,7 @@ impl Elaborator<'_> {
         let struct_id = r#type.borrow().id;
         for (index, generic) in generics.iter().enumerate() {
             if let Type::TypeVariable(type_variable) = generic {
-                self.push_bindable_type_variable(
+                self.push_required_type_variable(
                     type_variable.id(),
                     Type::TypeVariable(type_variable.clone()),
                     BindableTypeVariableKind::StructGeneric { struct_id, index },

@@ -2493,13 +2493,13 @@ fn function_def_as_typed_expr(
     let typ =
         interpreter.elaborate_in_function(interpreter.current_function, reason, |elaborator| {
             let bindings = TypeBindings::default();
-            let push_bindable_type_variables = false;
+            let push_required_type_variables = false;
             elaborator.type_check_variable_with_bindings(
                 hir_ident,
                 expr_id,
                 generics,
                 bindings,
-                push_bindable_type_variables,
+                push_required_type_variables,
             )
         });
     interpreter.elaborator.interner.push_expr_type(expr_id, typ);

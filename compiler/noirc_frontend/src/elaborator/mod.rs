@@ -240,7 +240,7 @@ struct FunctionContext {
     defaultable_type_variables: Vec<Type>,
 
     /// Type variables that must be bound at the end of the function.
-    bindable_type_variables: Vec<BindableTypeVariable>,
+    required_type_variables: Vec<RequiredTypeVariable>,
 
     /// Trait constraints are collected during type checking until they are
     /// verified at the end of a function. This is because constraints arise
@@ -268,18 +268,23 @@ struct FunctionContext {
     indexes_to_check: Vec<ExprId>,
 }
 
-struct BindableTypeVariable {
+/// A type variable that is required to be bound after type-checking a function.
+struct RequiredTypeVariable {
     type_variable_id: TypeVariableId,
     typ: Type,
     kind: BindableTypeVariableKind,
     location: Location,
 }
 
+/// The kind of required type variable.
 #[derive(Debug, Copy, Clone)]
 enum BindableTypeVariableKind {
+    /// The type variable corresponds to a struct generic, in a constructor.
     StructGeneric { struct_id: TypeId, index: usize },
+    /// The type variable corresponds to the type of an array literal.
     ArrayLiteral { is_array: bool },
-    Definition(DefinitionId),
+    /// The type variable corresponds to an identifier, whose definition ID is the given one.
+    Ident(DefinitionId),
 }
 
 impl<'context> Elaborator<'context> {
@@ -653,7 +658,7 @@ impl<'context> Elaborator<'context> {
             );
         }
 
-        self.check_bindable_type_variables(context.bindable_type_variables);
+        self.check_required_type_variables(context.required_type_variables);
     }
 
     fn check_defaultable_type_variables(&self, type_variables: Vec<Type>) {
@@ -665,7 +670,7 @@ impl<'context> Elaborator<'context> {
         }
     }
 
-    fn check_bindable_type_variables(&mut self, type_variables: Vec<BindableTypeVariable>) {
+    fn check_required_type_variables(&mut self, type_variables: Vec<RequiredTypeVariable>) {
         for var in type_variables {
             let id = var.type_variable_id;
             if let Type::TypeVariable(_) = var.typ.follow_bindings() {
@@ -692,7 +697,7 @@ impl<'context> Elaborator<'context> {
                             is_array,
                         });
                     }
-                    BindableTypeVariableKind::Definition(definition_id) => {
+                    BindableTypeVariableKind::Ident(definition_id) => {
                         let definition = self.interner.definition(definition_id);
                         let definition_kind = definition.kind.clone();
                         match definition_kind {

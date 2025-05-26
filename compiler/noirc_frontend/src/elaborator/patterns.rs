@@ -614,7 +614,14 @@ impl Elaborator<'_> {
         let id = self.interner.push_expr(HirExpression::Ident(expr.clone(), generics.clone()));
 
         self.interner.push_expr_location(id, location);
-        let typ = self.type_check_variable_with_bindings(expr, id, generics, bindings, true);
+        let push_required_type_variables = true;
+        let typ = self.type_check_variable_with_bindings(
+            expr,
+            id,
+            generics,
+            bindings,
+            push_required_type_variables,
+        );
         self.interner.push_expr_type(id, typ.clone());
 
         // If this variable it a comptime local variable, use its current value as the final expression
@@ -974,7 +981,14 @@ impl Elaborator<'_> {
         generics: Option<Vec<Type>>,
     ) -> Type {
         let bindings = TypeBindings::default();
-        self.type_check_variable_with_bindings(ident, expr_id, generics, bindings, true)
+        let push_required_type_variables = true;
+        self.type_check_variable_with_bindings(
+            ident,
+            expr_id,
+            generics,
+            bindings,
+            push_required_type_variables,
+        )
     }
 
     pub(crate) fn type_check_variable_with_bindings(
@@ -983,7 +997,7 @@ impl Elaborator<'_> {
         expr_id: ExprId,
         generics: Option<Vec<Type>>,
         mut bindings: TypeBindings,
-        push_bindable_type_variables: bool,
+        push_required_type_variables: bool,
     ) -> Type {
         // Add type bindings from any constraints that were used.
         // We need to do this first since otherwise instantiating the type below
@@ -1055,12 +1069,12 @@ impl Elaborator<'_> {
             }
         }
 
-        if push_bindable_type_variables {
+        if push_required_type_variables {
             for (type_variable, _kind, typ) in bindings.values() {
-                self.push_bindable_type_variable(
+                self.push_required_type_variable(
                     type_variable.id(),
                     typ.clone(),
-                    BindableTypeVariableKind::Definition(ident.id),
+                    BindableTypeVariableKind::Ident(ident.id),
                     ident.location,
                 );
             }
