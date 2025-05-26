@@ -614,7 +614,8 @@ impl Elaborator<'_> {
         let id = self.interner.push_expr(HirExpression::Ident(expr.clone(), generics.clone()));
 
         self.interner.push_expr_location(id, location);
-        let push_required_type_variables = true;
+        // TODO: set this to `true`. See https://github.com/noir-lang/noir/issues/8687
+        let push_required_type_variables = self.current_trait.is_none();
         let typ = self.type_check_variable_with_bindings(
             expr,
             id,
@@ -981,7 +982,8 @@ impl Elaborator<'_> {
         generics: Option<Vec<Type>>,
     ) -> Type {
         let bindings = TypeBindings::default();
-        let push_required_type_variables = true;
+        // TODO: set this to `true`. See https://github.com/noir-lang/noir/issues/8687
+        let push_required_type_variables = self.current_trait.is_none();
         self.type_check_variable_with_bindings(
             ident,
             expr_id,
