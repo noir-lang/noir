@@ -418,8 +418,12 @@ impl BlockContext {
                     brillig_builder.insert_load_from_memory(addr.clone()).value_id,
                     "load from memory differs in ACIR and Brillig"
                 );
+                append_typed_value_to_map(
+                    &mut self.stored_values,
+                    &value.to_value_type(),
+                    value.clone(),
+                );
                 self.last_value = Some(value.clone());
-                append_typed_value_to_map(&mut self.stored_values, &value.to_value_type(), value);
             }
             Instruction::SetToMemory { memory_addr_index, value } => {
                 if !self.options.instruction_options.store_enabled {

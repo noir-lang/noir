@@ -184,10 +184,11 @@ mod tests {
     /// v0 = 0, v2 = 2, so we expect that v10 = 4
     #[test]
     fn test_mutable_variable() {
+        env_logger::init();
         let arg_0_field = Argument { index: 0, value_type: ValueType::Field };
         let arg_2_field = Argument { index: 2, value_type: ValueType::Field };
         let arg_5_field = Argument { index: 5, value_type: ValueType::Field };
-        let arg_7_field = Argument { index: 7, value_type: ValueType::Field };
+        let arg_6_field = Argument { index: 6, value_type: ValueType::Field };
         let add_to_memory_block =
             InstructionBlock { instructions: vec![Instruction::AddToMemory { lhs: arg_0_field }] };
 
@@ -205,7 +206,7 @@ mod tests {
             instructions: vec![Instruction::AddChecked { lhs: arg_0_field, rhs: arg_2_field }],
         };
         let add_block_2 = InstructionBlock {
-            instructions: vec![Instruction::AddChecked { lhs: arg_7_field, rhs: arg_2_field }],
+            instructions: vec![Instruction::AddChecked { lhs: arg_6_field, rhs: arg_2_field }],
         };
 
         let commands = vec![
