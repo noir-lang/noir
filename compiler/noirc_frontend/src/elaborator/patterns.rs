@@ -28,7 +28,7 @@ use crate::{
 };
 
 use super::{
-    Elaborator, PrimitiveType, ResolverMeta,
+    BindableTypeVariableKind, Elaborator, PrimitiveType, ResolverMeta,
     path_resolution::{PathResolutionItem, TypedPath, TypedPathSegment},
 };
 
@@ -614,7 +614,7 @@ impl Elaborator<'_> {
         let id = self.interner.push_expr(HirExpression::Ident(expr.clone(), generics.clone()));
 
         self.interner.push_expr_location(id, location);
-        let typ = self.type_check_variable_with_bindings(expr, id, generics, bindings);
+        let typ = self.type_check_variable_with_bindings(expr, id, generics, bindings, true);
         self.interner.push_expr_type(id, typ.clone());
 
         // If this variable it a comptime local variable, use its current value as the final expression
@@ -974,15 +974,16 @@ impl Elaborator<'_> {
         generics: Option<Vec<Type>>,
     ) -> Type {
         let bindings = TypeBindings::default();
-        self.type_check_variable_with_bindings(ident, expr_id, generics, bindings)
+        self.type_check_variable_with_bindings(ident, expr_id, generics, bindings, true)
     }
 
-    pub(super) fn type_check_variable_with_bindings(
+    pub(crate) fn type_check_variable_with_bindings(
         &mut self,
         ident: HirIdent,
         expr_id: ExprId,
         generics: Option<Vec<Type>>,
         mut bindings: TypeBindings,
+        push_bindable_type_variables: bool,
     ) -> Type {
         // Add type bindings from any constraints that were used.
         // We need to do this first since otherwise instantiating the type below
@@ -1050,6 +1051,17 @@ impl Elaborator<'_> {
                     method.constraint,
                     expr_id,
                     true, // this constraint should lead to choosing a trait impl method
+                );
+            }
+        }
+
+        if push_bindable_type_variables {
+            for (type_variable, _kind, typ) in bindings.values() {
+                self.push_bindable_type_variable(
+                    type_variable.id(),
+                    typ.clone(),
+                    BindableTypeVariableKind::Definition(ident.id),
+                    ident.location,
                 );
             }
         }

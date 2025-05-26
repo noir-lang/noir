@@ -16,4 +16,11 @@ error: Variable `slice` must be mutable to be assigned to
   │     -----
   │
 
-Aborting due to 2 previous errors
+error: Type annotation needed
+  ┌─ src/main.nr:3:37
+  │
+3 │     let slice : &mut [Field] = &mut [];
+  │                                     -- Could not determine the type of the array
+  │
+
+Aborting due to 3 previous errors

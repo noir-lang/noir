@@ -4,7 +4,7 @@ use noirc_errors::{Located, Location};
 use rustc_hash::FxHashSet as HashSet;
 
 use crate::{
-    DataType, Kind, QuotedType, Shared, Type,
+    DataType, Kind, QuotedType, Shared, Type, TypeVariable,
     ast::{
         ArrayLiteral, AsTraitPath, BinaryOpKind, BlockExpression, CallExpression, CastExpression,
         ConstrainExpression, ConstrainKind, ConstructorExpression, Expression, ExpressionKind,
@@ -39,7 +39,7 @@ use crate::{
 };
 
 use super::{
-    Elaborator, LambdaContext, UnsafeBlockStatus, UnstableFeature,
+    BindableTypeVariableKind, Elaborator, LambdaContext, UnsafeBlockStatus, UnstableFeature,
     path_resolution::{TypedPath, TypedPathSegment},
 };
 
@@ -269,7 +269,16 @@ impl Elaborator<'_> {
     ) -> (HirExpression, Type) {
         let (expr, elem_type, length) = match array_literal {
             ArrayLiteral::Standard(elements) => {
-                let first_elem_type = self.interner.next_type_variable();
+                let type_variable_id = self.interner.next_type_variable_id();
+                let type_variable = TypeVariable::unbound(type_variable_id, Kind::Any);
+                self.push_bindable_type_variable(
+                    type_variable.id(),
+                    Type::TypeVariable(type_variable.clone()),
+                    BindableTypeVariableKind::ArrayLiteral { is_array },
+                    location,
+                );
+
+                let first_elem_type = Type::TypeVariable(type_variable);
                 let first_location = elements.first().map(|elem| elem.location).unwrap_or(location);
 
                 let elements = vecmap(elements.into_iter().enumerate(), |(i, elem)| {
@@ -842,6 +851,19 @@ impl Elaborator<'_> {
                 last_segment.generics,
                 turbofish_location,
             );
+        }
+
+        // Each of the struct generics must be bound at the end of the function
+        let struct_id = r#type.borrow().id;
+        for (index, generic) in generics.iter().enumerate() {
+            if let Type::TypeVariable(type_variable) = generic {
+                self.push_bindable_type_variable(
+                    type_variable.id(),
+                    Type::TypeVariable(type_variable.clone()),
+                    BindableTypeVariableKind::StructGeneric { struct_id, index },
+                    location,
+                );
+            }
         }
 
         let struct_type = r#type.clone();

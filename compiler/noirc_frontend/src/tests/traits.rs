@@ -1,7 +1,7 @@
 use crate::elaborator::FrontendOptions;
 
-use crate::assert_no_errors;
 use crate::tests::Expect;
+use crate::{assert_no_errors, get_program_errors};
 use crate::{check_errors, get_program_with_options};
 
 #[named]
@@ -427,7 +427,6 @@ fn trait_alias_polymorphic_where_clause() {
 
         fn qux<T, U>(x: T) -> bool where T: Qux<U> {
             x.foo().bar().baz()
-            ^^^^^^^^^^^^^^^^^^^ No method named 'baz' found for type 'U'
         }
 
         impl Foo for Field {
@@ -450,14 +449,13 @@ fn trait_alias_polymorphic_where_clause() {
 
         fn main() {
             assert(0.foo().bar().baz() == qux(0));
-                                          ^^^ No matching impl found for `T: Baz`
-                                          ~~~ No impl for `T: Baz`
         }
     "#;
 
     // TODO(https://github.com/noir-lang/noir/issues/6467)
     // assert_no_errors!(src);
-    check_errors!(src);
+    let errors = get_program_errors!(src);
+    assert!(!errors.is_empty());
 }
 
 // TODO(https://github.com/noir-lang/noir/issues/6467): currently failing, so

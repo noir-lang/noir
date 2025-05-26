@@ -94,7 +94,7 @@ mod test {
         comptime {
             // docs:start:as_quoted_str_example
             let my_ctstring = "foo bar".as_ctstring();
-            let my_str = my_ctstring.as_quoted_str!();
+            let my_str: str<7> = my_ctstring.as_quoted_str!();
 
             assert_eq(crate::meta::type_of(my_str), quote { str<7> }.as_type());
             // docs:end:as_quoted_str_example

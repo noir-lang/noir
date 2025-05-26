@@ -3,11 +3,6 @@ fn test_vec_new_good() {
     good();
 }
 
-#[test(should_fail)]
-fn test_vec_new_bad() {
-    bad();
-}
-
 // docs:start:new_example
 fn good() -> BoundedVec<Field, 10> {
     // Ok! MaxLen is specified with a type annotation
@@ -16,13 +11,6 @@ fn good() -> BoundedVec<Field, 10> {
 
     // Ok! MaxLen is known from the type of `good`'s return value
     v2
-}
-
-fn bad() {
-    // Error: Type annotation needed
-    // The compiler can't infer `MaxLen` from this code.
-    let mut v3 = BoundedVec::new();
-    v3.push(5);
 }
 // docs:end:new_example
 

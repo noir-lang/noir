@@ -2,11 +2,18 @@
 source: tooling/nargo_cli/tests/execute.rs
 expression: stderr
 ---
+warning: unused variable foo
+  ┌─ src/main.nr:5:9
+  │
+5 │     let foo = Foo {};
+  │         --- unused variable
+  │
+
 error: Type annotation needed
   ┌─ src/main.nr:5:15
   │
 5 │     let foo = Foo {};
-  │               ------ Could not determine the type of the generic argument `T` declared on the struct `Foo`
+  │               --- Could not determine the type of the generic argument `T` declared on the struct `Foo`
   │
 
 Aborting due to 1 previous error

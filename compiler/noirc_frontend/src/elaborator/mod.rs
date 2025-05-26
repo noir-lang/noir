@@ -4,12 +4,12 @@ use std::{
 };
 
 use crate::{
-    DataType, NamedGeneric, StructField, TypeBindings,
+    DataType, NamedGeneric, StructField, TypeBindings, TypeVariableId,
     ast::{IntegerBitSize, ItemVisibility, UnresolvedType},
     graph::CrateGraph,
-    hir::def_collector::dc_crate::UnresolvedTrait,
+    hir::{comptime::Value, def_collector::dc_crate::UnresolvedTrait},
     hir_def::traits::ResolvedTraitBound,
-    node_interner::GlobalValue,
+    node_interner::{DefinitionId, GlobalValue},
     shared::Signedness,
     token::SecondaryAttributeKind,
     usage_tracker::UsageTracker,
@@ -237,7 +237,10 @@ struct FunctionContext {
     /// All type variables created in the current function.
     /// This map is used to default any integer type variables at the end of
     /// a function (before checking trait constraints) if a type wasn't already chosen.
-    type_variables: Vec<Type>,
+    defaultable_type_variables: Vec<Type>,
+
+    /// Type variables that must be bound at the end of the function.
+    bindable_type_variables: Vec<BindableTypeVariable>,
 
     /// Trait constraints are collected during type checking until they are
     /// verified at the end of a function. This is because constraints arise
@@ -263,6 +266,20 @@ struct FunctionContext {
     /// into an error, because doing that involves a completely different approach
     /// (just unifying indexes with u32).
     indexes_to_check: Vec<ExprId>,
+}
+
+struct BindableTypeVariable {
+    type_variable_id: TypeVariableId,
+    typ: Type,
+    kind: BindableTypeVariableKind,
+    location: Location,
+}
+
+#[derive(Debug, Copy, Clone)]
+enum BindableTypeVariableKind {
+    StructGeneric { struct_id: TypeId, index: usize },
+    ArrayLiteral { is_array: bool },
+    Definition(DefinitionId),
 }
 
 impl<'context> Elaborator<'context> {
@@ -614,12 +631,7 @@ impl<'context> Elaborator<'context> {
             }
         }
 
-        for typ in context.type_variables {
-            if let Type::TypeVariable(variable) = typ.follow_bindings() {
-                let msg = "TypeChecker should only track defaultable type vars";
-                variable.bind(variable.kind().default_type().expect(msg));
-            }
-        }
+        self.check_defaultable_type_variables(context.defaultable_type_variables);
 
         for (mut constraint, expr_id, select_impl) in context.trait_constraints {
             let location = self.interner.expr_location(&expr_id);
@@ -639,6 +651,142 @@ impl<'context> Elaborator<'context> {
                 select_impl,
                 location,
             );
+        }
+
+        self.check_bindable_type_variables(context.bindable_type_variables);
+    }
+
+    fn check_defaultable_type_variables(&self, type_variables: Vec<Type>) {
+        for typ in type_variables {
+            if let Type::TypeVariable(variable) = typ.follow_bindings() {
+                let msg = "TypeChecker should only track defaultable type vars";
+                variable.bind(variable.kind().default_type().expect(msg));
+            }
+        }
+    }
+
+    fn check_bindable_type_variables(&mut self, type_variables: Vec<BindableTypeVariable>) {
+        for var in type_variables {
+            let id = var.type_variable_id;
+            if let Type::TypeVariable(_) = var.typ.follow_bindings() {
+                let location = var.location;
+                match var.kind {
+                    BindableTypeVariableKind::StructGeneric { struct_id, index } => {
+                        let data_type = self.interner.get_type(struct_id);
+                        let generic = &data_type.borrow().generics[index];
+                        let generic_name = generic.name.to_string();
+                        let item_kind = "struct";
+                        let item_name = data_type.borrow().name.to_string();
+                        let is_numeric = matches!(generic.type_var.kind(), Kind::Numeric(..));
+                        self.push_err(TypeCheckError::TypeAnnotationNeededOnItem {
+                            location,
+                            generic_name,
+                            item_kind,
+                            item_name,
+                            is_numeric,
+                        });
+                    }
+                    BindableTypeVariableKind::ArrayLiteral { is_array } => {
+                        self.push_err(TypeCheckError::TypeAnnotationNeededOnArrayLiteral {
+                            location,
+                            is_array,
+                        });
+                    }
+                    BindableTypeVariableKind::Definition(definition_id) => {
+                        let definition = self.interner.definition(definition_id);
+                        let definition_kind = definition.kind.clone();
+                        match definition_kind {
+                            DefinitionKind::Function(func_id) => {
+                                // Try to find the type variable in the function's generic arguments
+                                for generic in
+                                    self.interner.function_meta(&func_id).direct_generics.clone()
+                                {
+                                    if generic.type_var.id() == id {
+                                        let item_name = self
+                                            .interner
+                                            .definition_name(definition_id)
+                                            .to_string();
+                                        let is_numeric =
+                                            matches!(generic.type_var.kind(), Kind::Numeric(..));
+                                        self.push_err(TypeCheckError::TypeAnnotationNeededOnItem {
+                                            location,
+                                            generic_name: generic.name.to_string(),
+                                            item_kind: "function",
+                                            item_name,
+                                            is_numeric,
+                                        });
+                                    }
+                                }
+                                // If we find one in `all_generics` it means it's a generic on the type
+                                // the function is in.
+                                if let Some(Type::DataType(typ, ..)) =
+                                    &self.interner.function_meta(&func_id).self_type
+                                {
+                                    let typ = typ.borrow();
+                                    let item_name = typ.name.to_string();
+                                    let item_kind = if typ.is_struct() { "struct" } else { "enum" };
+                                    drop(typ);
+
+                                    for generic in
+                                        self.interner.function_meta(&func_id).all_generics.clone()
+                                    {
+                                        if generic.type_var.id() == id {
+                                            let is_numeric = matches!(
+                                                generic.type_var.kind(),
+                                                Kind::Numeric(..)
+                                            );
+                                            self.push_err(
+                                                TypeCheckError::TypeAnnotationNeededOnItem {
+                                                    location,
+                                                    generic_name: generic.name.to_string(),
+                                                    item_kind,
+                                                    item_name: item_name.clone(),
+                                                    is_numeric,
+                                                },
+                                            );
+                                        }
+                                    }
+                                }
+                            }
+                            DefinitionKind::Global(global_id) => {
+                                // Check if this global points to an enum variant, then get the enum's generics
+                                // and find the type variable there.
+                                let global = self.interner.get_global(global_id);
+                                let GlobalValue::Resolved(Value::Enum(_, _, Type::Forall(_, typ))) =
+                                    &global.value
+                                else {
+                                    continue;
+                                };
+
+                                let typ: &Type = typ;
+                                let Type::DataType(def, _) = typ else {
+                                    continue;
+                                };
+
+                                let def = def.borrow();
+                                let generics = def.generics.clone();
+                                let item_name = def.name.to_string();
+                                drop(def);
+
+                                for generic in generics {
+                                    if generic.type_var.id() == id {
+                                        let is_numeric =
+                                            matches!(generic.type_var.kind(), Kind::Numeric(..));
+                                        self.push_err(TypeCheckError::TypeAnnotationNeededOnItem {
+                                            location,
+                                            generic_name: generic.name.to_string(),
+                                            item_kind: "enum",
+                                            item_name: item_name.clone(),
+                                            is_numeric,
+                                        });
+                                    }
+                                }
+                            }
+                            _ => (),
+                        }
+                    }
+                }
+            }
         }
     }
 
