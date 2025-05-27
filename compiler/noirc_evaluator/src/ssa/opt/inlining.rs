@@ -816,12 +816,14 @@ mod test {
             v2 = lt v1, u32 1
             jmpif v2 then: b1, else: b2
           b1():
-            return u32 1
+            jmp b3(u32 1)
           b2():
             v4 = sub v1, u32 1
             v5 = call f1(v4) -> u32
             v6 = mul v1, v5
-            return v6
+            jmp b3(v6)
+          b3(v7: u32):
+            return v7
         }
         ";
         let ssa = Ssa::from_str(src).unwrap();
@@ -842,7 +844,23 @@ mod test {
           b5():
             jmp b6()
           b6():
-            return u32 120
+            jmp b7(u32 1)
+          b7(v0: u32):
+            jmp b8(v0)
+          b8(v1: u32):
+            v8 = mul u32 2, v1
+            jmp b9(v8)
+          b9(v2: u32):
+            v10 = mul u32 3, v2
+            jmp b10(v10)
+          b10(v3: u32):
+            v12 = mul u32 4, v3
+            jmp b11(v12)
+          b11(v4: u32):
+            v14 = mul u32 5, v4
+            jmp b12(v14)
+          b12(v5: u32):
+            return v5
         }
         ");
     }
