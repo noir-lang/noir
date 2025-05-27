@@ -10,7 +10,7 @@ pub use acir_field::AcirField;
 pub struct BrilligCallParser {}
 
 impl BrilligCallParser {
-    fn serialize_brillig_call<'a>(
+    fn deserialize_brillig_call<'a>(
         instruction: &'a Instruction<'a>,
     ) -> Result<(&'a str, &'a str, u32, Option<&'a str>), String> {
         if instruction.instruction_type != InstructionType::BrilligCall {
@@ -230,7 +230,7 @@ impl BrilligCallParser {
     ) -> Result<Opcode<F>, String> {
         // we first serialize the call string
         let (brillig_input_string, brillig_output_string, brillig_id, predicate_string) =
-            Self::serialize_brillig_call(brillig_call_instruction).map_err(|e| e.to_string())?;
+            Self::deserialize_brillig_call(brillig_call_instruction).map_err(|e| e.to_string())?;
         // now we parse the inputs
         let brillig_inputs =
             Self::parse_brillig_inputs::<F>(brillig_input_string).map_err(|e| e.to_string())?;
@@ -272,7 +272,7 @@ mod test {
             instruction_body: "func 0: inputs: [Single(Expression { mul_terms: [], linear_combinations: [(1, Witness(0)), (1, Witness(1))], q_c: 0 }), Single(Expression { mul_terms: [], linear_combinations: [], q_c: 4294967296 })], outputs: [Simple(Witness(11)), Array([Witness(12), Witness(13), Witness(14)])]",
         };
         let (inputs, outputs, id, predicate) =
-            BrilligCallParser::serialize_brillig_call(&instruction).unwrap();
+            BrilligCallParser::deserialize_brillig_call(&instruction).unwrap();
         println!("inputs: {:?}", inputs);
         println!("outputs: {:?}", outputs);
         println!("id: {:?}", id);

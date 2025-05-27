@@ -9,15 +9,10 @@ mod mem_init_parser;
 mod mem_parser;
 mod utils;
 
-use crate::circuit::opcodes::{BlackBoxFuncCall, FunctionInput};
-use crate::circuit::{Opcode, PublicInputs, opcodes};
+use crate::circuit::{Circuit, ExpressionWidth, Opcode, PublicInputs, opcodes};
 use crate::native_types::{Expression, Witness};
-use crate::proto::acir::circuit::opcode::{BrilligCall, Call, MemoryInit, MemoryOp};
-use crate::proto::acir::circuit::{Circuit, ExpressionWidth};
 use acir_field::AcirField;
 
-use super::circuit::black_box_functions::BlackBoxFunc;
-use super::circuit::opcodes::InvalidInputBitSize;
 use arithmetic_parser::ArithmeticParser;
 use black_box_parser::BlackBoxParser;
 use brillig_call_parser::BrilligCallParser;
@@ -50,7 +45,7 @@ pub(crate) struct Instruction<'a> {
 pub(crate) struct AcirParser {}
 
 impl AcirParser {
-    pub fn serialize_acir(input: &str) -> Vec<Instruction> {
+    pub fn deserialize_acir(input: &str) -> Vec<Instruction> {
         let mut instructions: Vec<Instruction> = Vec::new();
         for line in input.lines() {
             let line = line.trim();
@@ -209,15 +204,15 @@ impl AcirParser {
 
         CircuitDescription {
             current_witness_index: current_witness_index,
-            expression_width: ExpressionWidth { value: None },
+            expression_width: ExpressionWidth::Unbounded,
             private_parameters: private_parameters,
             public_parameters: PublicInputs(public_parameters),
             return_values: PublicInputs(return_values),
         }
     }
 
-    pub fn parse_acir<F: AcirField>(input: &str) -> Result<Vec<Opcode<F>>, String> {
-        let serialized_acir = AcirParser::serialize_acir(input);
+    pub(crate) fn parse_acir<F: AcirField>(input: &str) -> Result<Circuit<F>, String> {
+        let serialized_acir = AcirParser::deserialize_acir(input);
         let circuit_description = AcirParser::get_circuit_description(&serialized_acir);
         // now we go through the instructions and parse them one by one
         let mut opcodes: Vec<Opcode<F>> = Vec::new();
@@ -259,7 +254,17 @@ impl AcirParser {
                 }
             }
         }
-        Ok(opcodes)
+        let circuit = Circuit {
+            current_witness_index: circuit_description.current_witness_index,
+            expression_width: circuit_description.expression_width,
+            private_parameters: circuit_description.private_parameters,
+            public_parameters: circuit_description.public_parameters,
+            return_values: circuit_description.return_values,
+            opcodes: opcodes,
+            assert_messages: vec![],
+        };
+        Ok(circuit)
+        // Ok(opcodes)
     }
 }
 
@@ -276,7 +281,7 @@ impl CircuitDescription {
     fn new() -> Self {
         CircuitDescription {
             current_witness_index: 0,
-            expression_width: ExpressionWidth { value: None },
+            expression_width: ExpressionWidth::Unbounded,
             private_parameters: BTreeSet::new(),
             public_parameters: PublicInputs(BTreeSet::new()),
             return_values: PublicInputs(BTreeSet::new()),
@@ -286,6 +291,8 @@ impl CircuitDescription {
 
 #[cfg(test)]
 mod test {
+    use std::fmt::Display;
+
     use super::*;
     use crate::acir_field::FieldElement;
 
@@ -320,11 +327,11 @@ mod test {
                 instruction_body: "[ (-2, _0) (1, _1) 0 ]",
             },
         ];
-        assert_eq!(AcirParser::serialize_acir(acir_string), expected);
+        assert_eq!(AcirParser::deserialize_acir(acir_string), expected);
     }
 
     #[test]
-    fn test_serialize_acir_2() {
+    fn test_deserialize_acir_2() {
         let acir_string = "func 0
         current witness index : _3
         private parameters indices : [_0, _1, _2]
@@ -354,7 +361,7 @@ mod test {
                 instruction_body: "[ (-1, _0, _2) (-1, _1, _2) (1, _3) 0 ]",
             },
         ];
-        assert_eq!(AcirParser::serialize_acir(acir_string), expected);
+        assert_eq!(AcirParser::deserialize_acir(acir_string), expected);
     }
 
     #[test]
@@ -384,7 +391,7 @@ mod test {
     public parameters indices : []
     return value indices : [_1]
         EXPR [ (-2, _0) (1, _1) 0 ]";
-        let serialized_acir = AcirParser::serialize_acir(acir_string);
+        let serialized_acir = AcirParser::deserialize_acir(acir_string);
         let circuit_description = AcirParser::get_circuit_description(&serialized_acir);
         assert_eq!(circuit_description.current_witness_index, 1);
         assert_eq!(circuit_description.private_parameters, BTreeSet::from([Witness(0)]));
@@ -400,7 +407,7 @@ mod test {
         public parameters indices : []
         return value indices : [_3]
         EXPR [ (-1, _0, _2) (-1, _1, _2) (1, _3) 0 ]";
-        let serialized_acir = AcirParser::serialize_acir(acir_string);
+        let serialized_acir = AcirParser::deserialize_acir(acir_string);
         let circuit_description = AcirParser::get_circuit_description(&serialized_acir);
         assert_eq!(circuit_description.current_witness_index, 3);
         assert_eq!(
@@ -425,10 +432,7 @@ mod test {
 
     #[test]
     fn test_parse_acir() {
-        let acir_string = "
-        Compiled ACIR for main (unoptimized):
-        func 0
-        current witness index : _16
+        let acir_string = "current witness index : _16 
         private parameters indices : [_0, _1, _2]
         public parameters indices : []
         return value indices : [_3]
@@ -456,10 +460,16 @@ mod test {
         BLACKBOX::RANGE [(_15, 33)] []
         EXPR [ (1, _5, _11) (-1, _16) 0 ]
         BLACKBOX::RANGE [(_16, 32)] []
-        EXPR [ (1, _3) (-1, _16) 0 ]";
+        EXPR [ (1, _3) (-1, _16) 0 ]
+        ";
 
-        let serialized_acir = AcirParser::serialize_acir(acir_string);
-        let opcodes = AcirParser::parse_acir::<FieldElement>(acir_string).unwrap();
-        println!("{:?}", opcodes);
+        // remove all spaces from the acir_string
+        let circuit = AcirParser::parse_acir::<FieldElement>(acir_string).unwrap();
+        let cleaned_input_string = acir_string.replace(" ", "");
+        // remove all spaces from the acir_string
+
+        let circuit_serialized = format!("{}", circuit);
+        let cleaned_circuit_serialized = circuit_serialized.replace(" ", "");
+        assert_eq!(cleaned_circuit_serialized, cleaned_input_string);
     }
 }
