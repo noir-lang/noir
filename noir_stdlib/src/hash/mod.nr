@@ -37,7 +37,7 @@ pub fn blake3<let N: u32>(input: [u8; N]) -> [u8; 32]
     if crate::runtime::is_unconstrained() {
         // Temporary measure while Barretenberg is main proving system.
         // Please open an issue if you're working on another proving system and running into problems due to this.
-        static_assert(N <= 1024, "Barretenberg cannot prove blake3 hashes with inputs larger than 1024 bytes");
+        crate::static_assert(N <= 1024, "Barretenberg cannot prove blake3 hashes with inputs larger than 1024 bytes");
     }
     __blake3(input)
 }
