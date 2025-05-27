@@ -76,7 +76,7 @@ impl Translator {
         // A FunctionBuilder must be created with a main Function, so here wer remove it
         // from the parsed SSA to avoid adding it twice later on.
         let main_function = parsed_ssa.functions.remove(0);
-        let main_id = FunctionId::test_new(0);
+        let main_id = FunctionId::new(0);
         let mut builder = FunctionBuilder::new(main_function.external_name.clone(), main_id);
         builder.set_runtime(main_function.runtime_type);
         builder.simplify = simplify;
@@ -89,7 +89,7 @@ impl Translator {
         let mut function_id_counter = 1;
         let mut functions = HashMap::new();
         for function in &parsed_ssa.functions {
-            let function_id = FunctionId::test_new(function_id_counter);
+            let function_id = FunctionId::new(function_id_counter);
             function_id_counter += 1;
 
             functions.insert(function.internal_name.clone(), function_id);
@@ -211,19 +211,14 @@ impl Translator {
             ParsedInstruction::ArrayGet { target, element_type, array, index, offset } => {
                 let array = self.translate_value(array)?;
                 let index = self.translate_value(index)?;
-                let value_id =
-                    self.builder.insert_array_get_with_offset(array, index, offset, element_type);
+                let value_id = self.builder.insert_array_get(array, index, offset, element_type);
                 self.define_variable(target, value_id)?;
             }
-            ParsedInstruction::ArraySet { target, array, index, value, mutable } => {
+            ParsedInstruction::ArraySet { target, array, index, value, mutable, offset } => {
                 let array = self.translate_value(array)?;
                 let index = self.translate_value(index)?;
                 let value = self.translate_value(value)?;
-                let value_id = if mutable {
-                    self.builder.insert_mutable_array_set(array, index, value)
-                } else {
-                    self.builder.insert_array_set(array, index, value)
-                };
+                let value_id = self.builder.insert_array_set(array, index, value, mutable, offset);
                 self.define_variable(target, value_id)?;
             }
             ParsedInstruction::BinaryOp { target, lhs, op, rhs } => {
@@ -507,6 +502,10 @@ impl Translator {
         // that the SSA we parsed was printed by the `SsaBuilder`, which normalizes
         // before each print.
         ssa.normalize_ids();
+
+        for function in ssa.functions.values() {
+            function.assert_valid();
+        }
 
         ssa
     }

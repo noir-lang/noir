@@ -127,6 +127,19 @@ fn test_make_byte_slice_with_string_literal() {
 }
 
 #[test]
+fn test_does_not_use_byte_array_literal_for_form_feed() {
+    // 12 is '\f', which isn't available in string literals (because in Rust it's the same)
+    let src = "
+        acir(inline) fn main f0 {
+          b0():
+            v1 = make_array [u8 12] : [u8; 1]
+            return v1
+        }
+        ";
+    assert_ssa_roundtrip(src);
+}
+
+#[test]
 fn test_block_parameters() {
     let src = "
         acir(inline) fn main f0 {
@@ -157,7 +170,7 @@ fn test_jmpif() {
           b0(v0: Field):
             jmpif v0 then: b1, else: b2
           b1():
-            return
+            jmp b2()
           b2():
             return
         }
@@ -169,7 +182,7 @@ fn test_jmpif() {
           b0(v0: Field):
             jmpif v0 then: b2, else: b1
           b1():
-            return
+            jmp b2()
           b2():
             return
         }
@@ -184,10 +197,12 @@ fn test_multiple_jmpif() {
           b0(v0: Field, v1: Field):
             jmpif v0 then: b1, else: b2
           b1():
-            return
+            jmp b4()
           b2():
             jmpif v1 then: b3, else: b1
           b3():
+            jmp b4()
+          b4():
             return
         }
     ";
@@ -334,7 +349,7 @@ fn test_array_get() {
     let src = "
         acir(inline) fn main f0 {
           b0(v0: [Field; 3]):
-            v2 = array_get v0, index Field 0 -> Field
+            v2 = array_get v0, index u32 0 -> Field
             return
         }
         ";
@@ -342,11 +357,11 @@ fn test_array_get() {
 }
 
 #[test]
-fn test_array_get_offseted_by_1() {
+fn test_array_get_with_index_minus_1() {
     let src: &'static str = "
         acir(inline) fn main f0 {
           b0(v0: [Field; 3]):
-            v2 = array_get v0, index Field 3 minus 1 -> Field
+            v2 = array_get v0, index u32 3 minus 1 -> Field
             return
         }
         ";
@@ -354,11 +369,11 @@ fn test_array_get_offseted_by_1() {
 }
 
 #[test]
-fn test_array_get_offseted_by_3() {
+fn test_array_get_with_index_minus_3() {
     let src: &'static str = "
         acir(inline) fn main f0 {
           b0(v0: [Field; 3]):
-            v2 = array_get v0, index Field 6 minus 3 -> Field
+            v2 = array_get v0, index u32 6 minus 3 -> Field
             return
         }
         ";
@@ -370,7 +385,7 @@ fn test_array_set() {
     let src = "
         acir(inline) fn main f0 {
           b0(v0: [Field; 3]):
-            v3 = array_set v0, index Field 0, value Field 1
+            v3 = array_set v0, index u32 0, value Field 1
             return
         }
         ";
@@ -382,7 +397,31 @@ fn test_mutable_array_set() {
     let src = "
         acir(inline) fn main f0 {
           b0(v0: [Field; 3]):
-            v3 = array_set mut v0, index Field 0, value Field 1
+            v3 = array_set mut v0, index u32 0, value Field 1
+            return
+        }
+        ";
+    assert_ssa_roundtrip(src);
+}
+
+#[test]
+fn test_array_set_with_index_minus_1() {
+    let src = "
+        acir(inline) fn main f0 {
+          b0(v0: [Field; 3]):
+            v3 = array_set v0, index u32 2 minus 1, value Field 1
+            return
+        }
+        ";
+    assert_ssa_roundtrip(src);
+}
+
+#[test]
+fn test_array_set_with_index_minus_3() {
+    let src = "
+        acir(inline) fn main f0 {
+          b0(v0: [Field; 3]):
+            v3 = array_set v0, index u32 4 minus 3, value Field 1
             return
         }
         ";

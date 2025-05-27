@@ -40,7 +40,7 @@
 //! ```
 //! Reversing this for post-dominance we can see that the conditions for control dependence
 //! are the same as those for post-dominance frontiers.
-//! Thus, we rewrite our control dependence condition as Y is control dependent on X iff Y is in PDF(Y).
+//! Thus, we rewrite our control dependence condition as Y is control dependent on X iff X is in PDF(Y).
 //!
 //! We then can store the PDFs for every block as part of the context of this pass, and use it for checking control dependence.
 //! Using PDFs gets us from a worst case n^2 complexity to a worst case n.
@@ -101,7 +101,7 @@ impl Loops {
             };
 
             context.current_pre_header = Some(pre_header);
-            context.hoist_loop_invariants(&loop_);
+            context.hoist_loop_invariants(&loop_, &self.yet_to_unroll);
         }
 
         context.map_dependent_instructions();
@@ -166,6 +166,13 @@ struct LoopInvariantContext<'f> {
 
     // Stores whether the current block being processed is control dependent
     current_block_control_dependent: bool,
+    /// Caches all blocks that belong to nested loops determined to be control dependent
+    /// on blocks in an outer loop. This allows short circuiting future control dependence
+    /// checks during loop invariant analysis, as these blocks are guaranteed to be
+    /// control dependent due to the entire nested loop being control dependent.
+    ///
+    /// Reset for each new loop as the set should not be shared across different outer loops.
+    nested_loop_control_dependent_blocks: HashSet<BasicBlockId>,
 
     // Maps a block to its post-dominance frontiers
     // This map should be precomputed a single time and used for checking control dependence.
@@ -198,6 +205,7 @@ impl<'f> LoopInvariantContext<'f> {
             current_pre_header: None,
             cfg,
             current_block_control_dependent: false,
+            nested_loop_control_dependent_blocks: HashSet::default(),
             post_dom_frontiers,
             true_value,
             false_value,
@@ -209,11 +217,11 @@ impl<'f> LoopInvariantContext<'f> {
         self.current_pre_header.expect("ICE: Pre-header block should have been set")
     }
 
-    fn hoist_loop_invariants(&mut self, loop_: &Loop) {
+    fn hoist_loop_invariants(&mut self, loop_: &Loop, all_loops: &[Loop]) {
         self.set_values_defined_in_loop(loop_);
 
         for block in loop_.blocks.iter() {
-            self.is_control_dependent_post_pre_header(loop_, *block);
+            self.is_control_dependent_post_pre_header(loop_, *block, all_loops);
 
             for instruction_id in self.inserter.function.dfg[*block].take_instructions() {
                 if self.simplify_from_loop_bounds(instruction_id, loop_, block) {
@@ -257,30 +265,91 @@ impl<'f> LoopInvariantContext<'f> {
 
     /// Checks whether a `block` is control dependent on any blocks after
     /// the given loop's header.
-    fn is_control_dependent_post_pre_header(&mut self, loop_: &Loop, block: BasicBlockId) {
+    fn is_control_dependent_post_pre_header(
+        &mut self,
+        loop_: &Loop,
+        block: BasicBlockId,
+        all_loops: &[Loop],
+    ) {
+        // The block is already known to be in a control dependent nested loop
+        // Thus, we can avoid checking for control dependence again.
+        if self.nested_loop_control_dependent_blocks.contains(&block) {
+            self.current_block_control_dependent = true;
+            return;
+        }
+
+        // Find all blocks between the current block and the loop header, exclusive of the current block and loop header themselves.
         let all_predecessors = Loop::find_blocks_in_loop(loop_.header, block, &self.cfg).blocks;
+        let all_predecessors = all_predecessors
+            .into_iter()
+            .filter(|&predecessor| predecessor != block && predecessor != loop_.header)
+            .collect::<Vec<_>>();
 
         // Reset the current block control dependent flag, the check will set it to true if needed.
         // If we fail to reset it, a block may be inadvertently labelled
         // as control dependent thus preventing optimizations.
         self.current_block_control_dependent = false;
 
-        // Need to accurately determine whether the current block is dependent on any blocks between
+        // Now check whether the current block is dependent on any blocks between
         // the current block and the loop header, exclusive of the current block and loop header themselves
-        if all_predecessors
-            .into_iter()
-            .filter(|&predecessor| predecessor != block && predecessor != loop_.header)
-            .any(|predecessor| self.is_control_dependent(predecessor, block))
+        if all_predecessors.iter().any(|predecessor| self.is_control_dependent(*predecessor, block))
         {
             self.current_block_control_dependent = true;
+            return;
+        }
+
+        self.is_nested_loop_control_dependent(loop_, block, all_loops, all_predecessors);
+    }
+
+    /// Determines if the `block` is in a nested loop that is control dependent
+    /// on a block in the outer loop.
+    /// If this is the case, we block hoisting as control is not guaranteed.
+    /// If the block is not control dependent on the inner loop itself, it will be marked appropriately
+    /// when the inner loop is processed later.
+    ///
+    /// Control dependence on a nested loop is determined by checking whether the nested loop's header
+    /// is control dependent on any blocks between itself and the outer loop's header.
+    /// It is expected that `all_predecessors` contains at least all of these blocks.
+    fn is_nested_loop_control_dependent(
+        &mut self,
+        loop_: &Loop,
+        block: BasicBlockId,
+        all_loops: &[Loop],
+        all_predecessors: Vec<BasicBlockId>,
+    ) {
+        // Now check for nested loops within the current loop
+        for nested in all_loops.iter() {
+            if !nested.blocks.contains(&block) {
+                // Skip unrelated loops
+                continue;
+            }
+
+            // We have found a nested loop if an inner loop shares blocks with the current loop
+            // and they do not share a loop header.
+            // `all_loops` should not contain the current loop but this extra check provides a sanity
+            // check in case that ever changes.
+            let nested_loop_is_control_dep = nested.header != loop_.header
+                && all_predecessors
+                    .iter()
+                    // Check whether the nested loop's header is control dependent on any of its predecessors
+                    .any(|predecessor| self.is_control_dependent(*predecessor, nested.header));
+            if nested_loop_is_control_dep {
+                self.current_block_control_dependent = true;
+                // Mark all blocks in the nested loop as control dependent to avoid redundant checks
+                // for each of these blocks when they are later visited during hoisting.
+                // This is valid because control dependence of the loop header implies dependence
+                // for the entire loop body.
+                self.nested_loop_control_dependent_blocks.extend(nested.blocks.iter());
+                return;
+            }
         }
     }
 
-    /// Checks whether a `block` is control dependent on a `parent_block`
+    /// Checks whether a `block` is control dependent on a `parent_block`.
     /// Uses post-dominance frontiers to determine control dependence.
     /// Reference the doc comments at the top of the this module for more information
     /// regarding post-dominance frontiers and control dependence.
-    fn is_control_dependent(&mut self, parent_block: BasicBlockId, block: BasicBlockId) -> bool {
+    fn is_control_dependent(&self, parent_block: BasicBlockId, block: BasicBlockId) -> bool {
         match self.post_dom_frontiers.get(&block) {
             Some(dependent_blocks) => dependent_blocks.contains(&parent_block),
             None => false,
@@ -300,6 +369,11 @@ impl<'f> LoopInvariantContext<'f> {
         self.current_induction_variables.clear();
         self.set_induction_var_bounds(loop_, true);
         self.no_break = loop_.is_fully_executed(&self.cfg);
+        // Clear any cached control dependent nested loop blocks from the previous loop.
+        // This set is only relevant within the scope of a single loop.
+        // Keeping previous data would incorrectly classify blocks as control dependent,
+        // leading to missed hoisting opportunities.
+        self.nested_loop_control_dependent_blocks.clear();
 
         for block in loop_.blocks.iter() {
             let params = self.inserter.function.dfg.block_parameters(*block);
@@ -353,11 +427,21 @@ impl<'f> LoopInvariantContext<'f> {
 
         let can_be_hoisted = can_be_hoisted(&instruction, self.inserter.function, false)
             || matches!(instruction, MakeArray { .. })
-            || (can_be_hoisted(&instruction, self.inserter.function, true)
-                && !self.current_block_control_dependent)
+            || self.can_be_hoisted_with_control_dependence(&instruction, self.inserter.function)
             || self.can_be_hoisted_from_loop_bounds(&instruction);
 
         is_loop_invariant && can_be_hoisted
+    }
+
+    /// Check [can_be_hoisted] with extra control dependence information that
+    /// lives within the context of this pass.
+    fn can_be_hoisted_with_control_dependence(
+        &self,
+        instruction: &Instruction,
+        function: &Function,
+    ) -> bool {
+        can_be_hoisted(instruction, function, true)
+            && self.can_hoist_control_dependent_instruction()
     }
 
     /// Keep track of a loop induction variable and respective upper bound.
@@ -403,8 +487,7 @@ impl<'f> LoopInvariantContext<'f> {
             }
             Binary(binary) => self.can_evaluate_binary_op(binary),
             Constrain(..) | ConstrainNotEqual(..) | RangeCheck { .. } => {
-                // If we know the loop will be executed we can still only hoist if we are in a non control dependent block.
-                !self.current_block_control_dependent && self.does_loop_body_execute()
+                self.can_hoist_control_dependent_instruction()
             }
             Call { func, .. } => {
                 let purity = match self.inserter.function.dfg[*func] {
@@ -412,13 +495,19 @@ impl<'f> LoopInvariantContext<'f> {
                     Value::Function(id) => self.inserter.function.dfg.purity_of(id),
                     _ => None,
                 };
-                // If we know the loop will be executed we can still only hoist if we are in a non control dependent block.
                 matches!(purity, Some(Purity::PureWithPredicate))
-                    && !self.current_block_control_dependent
-                    && self.does_loop_body_execute()
+                    && self.can_hoist_control_dependent_instruction()
             }
             _ => false,
         }
+    }
+
+    /// A control dependent instruction (e.g. constrain or division) has more strict conditions for hoisting.
+    /// This function check the following conditions:
+    /// - The current block is non control dependent
+    /// - The loop body is guaranteed to be executed
+    fn can_hoist_control_dependent_instruction(&self) -> bool {
+        !self.current_block_control_dependent && self.does_loop_body_execute()
     }
 
     /// Determine whether the loop body is guaranteed to execute.
@@ -819,9 +908,17 @@ impl<'f> LoopInvariantContext<'f> {
 /// and its predicate, rather than just the instruction. Setting this means instructions that
 /// rely on predicates can be hoisted as well.
 ///
+/// # Preconditions
 /// Certain instructions can be hoisted because they implicitly depend on a predicate.
 /// However, to avoid tight coupling between passes, we make the hoisting
 /// conditional on whether the caller wants the predicate to be taken into account or not.
+///
+/// Even if we know the predicate is the same for an instruction's block and a loop's header block,
+/// the caller of this methods needs to be careful as a loop may still never be executed.
+/// This is because an loop with dynamic bounds may never execute its loop body.
+/// If the instruction were to trigger a failure, our program may fail inadvertently.
+/// If we know a loop's upper bound is greater than its lower bound we can hoist these instructions,
+/// but it is left to the caller of this method to account for this case.
 ///
 /// This differs from `can_be_deduplicated` as that method assumes there is a matching instruction
 /// with the same inputs. Hoisting is for lone instructions, meaning a mislabeled hoist could cause
@@ -850,19 +947,13 @@ fn can_be_hoisted(
             };
             match purity {
                 Some(Purity::Pure) => true,
-                Some(Purity::PureWithPredicate) => false,
+                Some(Purity::PureWithPredicate) => hoist_with_predicate,
                 Some(Purity::Impure) => false,
                 None => false,
             }
         }
 
-        // We cannot hoist these instructions, even if we know the predicate is the same.
-        // This is because an loop with dynamic bounds may never execute its loop body.
-        // If the instruction were to trigger a failure, our program may fail inadvertently.
-        // If we know a loop's upper bound is greater than its lower bound we can hoist these instructions,
-        // but we do not want to assume that the caller of this method has accounted
-        // for this case. Thus, we block hoisting on these instructions.
-        Constrain(..) | ConstrainNotEqual(..) | RangeCheck { .. } => false,
+        Constrain(..) | ConstrainNotEqual(..) | RangeCheck { .. } => hoist_with_predicate,
 
         // Noop instructions can always be hoisted, although they're more likely to be
         // removed entirely.
@@ -1723,8 +1814,8 @@ mod control_dependence {
             v3 = lt v2, u32 0
             jmpif v3 then: loop_body, else: exit
           loop_body():
-            v6 = mul v0, v1
-            v7 = mul v6, v0
+            v6 = unchecked_mul v0, v1
+            v7 = unchecked_mul v6, v0
             constrain v7 == u32 12
             v10 = unchecked_add v2, u32 1
             jmp loop(v10)
@@ -1744,8 +1835,8 @@ mod control_dependence {
         let expected = "
         brillig(inline) fn main f0 {
           entry(v0: u32, v1: u32):
-            v3 = mul v0, v1
-            v4 = mul v3, v0
+            v3 = unchecked_mul v0, v1
+            v4 = unchecked_mul v3, v0
             jmp loop(u32 0)
           loop(v2: u32):
             jmpif u1 0 then: loop_body, else: exit
@@ -1773,8 +1864,8 @@ mod control_dependence {
             v3 = lt v2, u32 1
             jmpif v3 then: loop_body, else: exit
           loop_body():
-            v6 = mul v0, v1
-            v7 = mul v6, v0
+            v6 = unchecked_mul v0, v1
+            v7 = unchecked_mul v6, v0
             constrain v7 == u32 12
             v10 = unchecked_add v2, u32 1
             jmp loop(v10)
@@ -1793,8 +1884,8 @@ mod control_dependence {
         let expected = "
         brillig(inline) fn main f0 {
           entry(v0: u32, v1: u32):
-            v3 = mul v0, v1
-            v4 = mul v3, v0
+            v3 = unchecked_mul v0, v1
+            v4 = unchecked_mul v3, v0
             jmp loop(u32 1)
           loop(v2: u32):
             v7 = eq v2, u32 0
@@ -1823,8 +1914,8 @@ mod control_dependence {
             v3 = lt v2, v1
             jmpif v3 then: loop_body, else: exit
           loop_body():
-            v6 = mul v0, v1
-            v7 = mul v6, v0
+            v6 = unchecked_mul v0, v1
+            v7 = unchecked_mul v6, v0
             constrain v7 == u32 12
             v10 = unchecked_add v2, u32 1
             jmp loop(v10)
@@ -1844,8 +1935,8 @@ mod control_dependence {
         let expected = "
         brillig(inline) fn main f0 {
           entry(v0: u32, v1: u32):
-            v3 = mul v0, v1
-            v4 = mul v3, v0
+            v3 = unchecked_mul v0, v1
+            v4 = unchecked_mul v3, v0
             jmp loop(u32 0)
           loop(v2: u32):
             v6 = lt v2, v1
@@ -1876,8 +1967,8 @@ mod control_dependence {
             v3 = lt v2, v1
             jmpif v3 then: loop_body, else: exit
           loop_body():
-            v6 = mul v0, v1
-            v7 = mul v6, v0
+            v6 = unchecked_mul v0, v1
+            v7 = unchecked_mul v6, v0
             call f1()
             v10 = unchecked_add v2, u32 1
             jmp loop(v10)
@@ -1898,8 +1989,8 @@ mod control_dependence {
         assert_ssa_snapshot!(ssa, @r"
         brillig(inline) predicate_pure fn main f0 {
           b0(v0: u32, v1: u32):
-            v3 = mul v0, v1
-            v4 = mul v3, v0
+            v3 = unchecked_mul v0, v1
+            v4 = unchecked_mul v3, v0
             jmp b1(u32 0)
           b1(v2: u32):
             v6 = lt v2, v1
@@ -2203,7 +2294,6 @@ mod control_dependence {
         ";
 
         let ssa = Ssa::from_str(src).unwrap();
-
         let ssa = ssa.loop_invariant_code_motion();
 
         assert_ssa_snapshot!(ssa, @r"
@@ -2219,6 +2309,115 @@ mod control_dependence {
             jmp b1(v9)
           b3():
             return
+        }
+        ");
+    }
+
+    #[test]
+    fn do_not_hoist_non_control_dependent_div_in_non_executed_loop() {
+        let src = "
+        brillig(inline) fn main f0 {
+          b0(v0: u32):
+            v1 = allocate -> &mut Field
+            store Field 0 at v1
+            jmp b1()
+          b1():
+            v3 = load v1 -> Field
+            v4 = eq v3, Field 0
+            jmpif v4 then: b2, else: b3
+          b2():
+            return
+          b3():
+            v6 = div u32 5, v0
+            jmp b1()
+        }
+        ";
+
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.loop_invariant_code_motion();
+
+        // We expect the SSA to be unchanged
+        assert_normalized_ssa_equals(ssa, src);
+    }
+
+    #[test]
+    fn do_not_hoist_from_outer_loop_when_inner_loop_is_control_dependent() {
+        // We want to check the case when an entire inner loop is under a predicate
+        // that we do not still hoist with respect to control dependence on the outer
+        // loop's block header.
+        // This is the SSA for the following program:
+        // ```noir
+        // fn main(a: pub bool) {
+        //     for _ in 0..1 {
+        //         if a {
+        //             for _ in 0..1 {
+        //                 let _ = (1 / (a as Field));
+        //             }
+        //         };
+        //     }
+        // }
+        // ```
+        let src = r"
+        acir(inline) predicate_pure fn main f0 {
+          b0(v0: u1):
+            jmp b1(u32 0)
+          b1(v1: u32):
+            v4 = eq v1, u32 0
+            jmpif v4 then: b2, else: b3
+          b2():
+            jmpif v0 then: b4, else: b5
+          b3():
+            return
+          b4():
+            jmp b6(u32 0)
+          b5():
+            v7 = unchecked_add v1, u32 1
+            jmp b1(v7)
+          b6(v2: u32):
+            v5 = eq v2, u32 0
+            jmpif v5 then: b7, else: b8
+          b7():
+            v8 = cast v0 as Field
+            v10 = div Field 1, v8
+            v11 = unchecked_add v2, u32 1
+            jmp b6(v11)
+          b8():
+            jmp b5()
+        }
+        ";
+
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.loop_invariant_code_motion();
+
+        // We expect `v10 = div Field 1, v8` to be hoisted, but only to the inner loop's header.
+        // If we were to hoist that div to the outer loop's header, we will fail inadvertently
+        // if `v0 == false`.
+        assert_ssa_snapshot!(ssa, @r"
+        acir(inline) predicate_pure fn main f0 {
+          b0(v0: u1):
+            v3 = cast v0 as Field
+            jmp b1(u32 0)
+          b1(v1: u32):
+            v5 = eq v1, u32 0
+            jmpif v5 then: b2, else: b3
+          b2():
+            jmpif v0 then: b4, else: b5
+          b3():
+            return
+          b4():
+            v7 = div Field 1, v3
+            jmp b6(u32 0)
+          b5():
+            v10 = unchecked_add v1, u32 1
+            jmp b1(v10)
+          b6(v2: u32):
+            v8 = eq v2, u32 0
+            jmpif v8 then: b7, else: b8
+          b7():
+            v11 = unchecked_add v2, u32 1
+            jmp b6(v11)
+          b8():
+            jmp b5()
         }
         ");
     }

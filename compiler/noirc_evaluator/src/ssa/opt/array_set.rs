@@ -201,7 +201,7 @@ mod tests {
                 jmp b5()
               b5():
                 v11 = load v4 -> [[Field; 5]; 2]
-                v12 = array_get v11, index Field 0 -> [Field; 5]
+                v12 = array_get v11, index u32 0 -> [Field; 5]
                 v14 = array_set v12, index v0, value Field 20
                 v15 = array_set v11, index v0, value v14
                 store v15 at v4

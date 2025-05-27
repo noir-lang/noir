@@ -16,8 +16,8 @@ use crate::ssa::function_builder::FunctionBuilder;
 use crate::ssa::ir::basic_block::BasicBlockId;
 use crate::ssa::ir::function::FunctionId as IrFunctionId;
 use crate::ssa::ir::function::{Function, RuntimeType};
-use crate::ssa::ir::instruction::BinaryOp;
 use crate::ssa::ir::instruction::Instruction;
+use crate::ssa::ir::instruction::{ArrayOffset, BinaryOp};
 use crate::ssa::ir::map::AtomicCounter;
 use crate::ssa::ir::types::{NumericType, Type};
 use crate::ssa::ir::value::ValueId;
@@ -297,17 +297,17 @@ impl<'a> FunctionContext<'a> {
             });
         }
 
-        let value = if value.is_negative {
+        let value = if value.is_negative() {
             match numeric_type {
-                NumericType::NativeField => -value.field,
+                NumericType::NativeField => -value.absolute_value(),
                 NumericType::Signed { bit_size } | NumericType::Unsigned { bit_size } => {
                     assert!(bit_size < 128);
                     let base = 1_u128 << bit_size;
-                    FieldElement::from(base) - value.field
+                    FieldElement::from(base) - value.absolute_value()
                 }
             }
         } else {
-            value.field
+            value.absolute_value()
         };
 
         Ok(self.builder.numeric_constant(value, numeric_type))
@@ -1060,7 +1060,9 @@ impl<'a> FunctionContext<'a> {
 
         new_value.for_each(|value| {
             let value = value.eval(self);
-            array = self.builder.insert_array_set(array, index, value);
+            let mutable = false;
+            let offset = ArrayOffset::None;
+            array = self.builder.insert_array_set(array, index, value, mutable, offset);
             // Unchecked add because this can't overflow (it would have overflowed when creating the array)
             index = self.builder.insert_binary(index, BinaryOp::Add { unchecked: true }, one);
         });

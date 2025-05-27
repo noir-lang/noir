@@ -7,7 +7,7 @@ use crate::ssa::{
     ir::{
         dfg::InsertInstructionResult,
         function::Function,
-        instruction::{ArrayGetOffset, Binary, BinaryOp, Endian, Instruction, Intrinsic},
+        instruction::{ArrayOffset, Binary, BinaryOp, Endian, Instruction, Intrinsic},
         types::{NumericType, Type},
         value::ValueId,
     },
@@ -79,6 +79,9 @@ impl Function {
 
             context.replace_value(old_result, new_result);
         });
+
+        #[cfg(debug_assertions)]
+        remove_bit_shifts_post_check(self);
     }
 }
 
@@ -244,7 +247,10 @@ impl Context<'_, '_, '_> {
             let mut r = one;
             // All operations are unchecked as we're acting on Field types (which are always unchecked)
             for i in 1..bit_size + 1 {
-                let idx = self.field_constant(FieldElement::from((bit_size - i) as i128));
+                let idx = self.numeric_constant(
+                    FieldElement::from((bit_size - i) as i128),
+                    NumericType::length_type(),
+                );
                 let b = self.insert_array_get(rhs_bits, idx, Type::bool());
                 let not_b = self.insert_not(b);
                 let b = self.insert_cast(b, NumericType::NativeField);
@@ -330,7 +336,7 @@ impl Context<'_, '_, '_> {
         element_type: Type,
     ) -> ValueId {
         let element_type = Some(vec![element_type]);
-        let offset = ArrayGetOffset::None;
+        let offset = ArrayOffset::None;
         let instruction = Instruction::ArrayGet { array, index, offset };
         self.insert_instruction(instruction, element_type).first()
     }
@@ -346,6 +352,34 @@ impl Context<'_, '_, '_> {
             ctrl_typevars,
             self.call_stack,
         )
+    }
+}
+
+/// Post-check condition for [Function::remove_bit_shifts].
+///
+/// Succeeds if:
+///   - `func` is not an ACIR function, OR
+///   - `func` does not contain any bitshift instructions.
+///
+/// Otherwise panics.
+#[cfg(debug_assertions)]
+fn remove_bit_shifts_post_check(func: &Function) {
+    // Non-ACIR functions should be unaffected.
+    if !func.runtime().is_acir() {
+        return;
+    }
+
+    // Otherwise there should be no shift-left or shift-right instructions in any reachable block.
+    for block_id in func.reachable_blocks() {
+        let instruction_ids = func.dfg[block_id].instructions();
+        for instruction_id in instruction_ids {
+            if matches!(
+                func.dfg[*instruction_id],
+                Instruction::Binary(Binary { operator: BinaryOp::Shl | BinaryOp::Shr, .. })
+            ) {
+                panic!("Bitshift instruction still remains in ACIR function");
+            }
+        }
     }
 }
 
@@ -397,13 +431,13 @@ mod tests {
             v4 = cast v3 as u32
             v5 = cast v1 as Field
             v7 = call to_le_bits(v5) -> [u1; 8]
-            v9 = array_get v7, index Field 7 -> u1
+            v9 = array_get v7, index u32 7 -> u1
             v10 = not v9
             v11 = cast v9 as Field
             v12 = cast v10 as Field
             v14 = mul Field 2, v11
             v15 = add v12, v14
-            v17 = array_get v7, index Field 6 -> u1
+            v17 = array_get v7, index u32 6 -> u1
             v18 = not v17
             v19 = cast v17 as Field
             v20 = cast v18 as Field
@@ -412,7 +446,7 @@ mod tests {
             v23 = mul v21, Field 2
             v24 = mul v23, v19
             v25 = add v22, v24
-            v27 = array_get v7, index Field 5 -> u1
+            v27 = array_get v7, index u32 5 -> u1
             v28 = not v27
             v29 = cast v27 as Field
             v30 = cast v28 as Field
@@ -421,7 +455,7 @@ mod tests {
             v33 = mul v31, Field 2
             v34 = mul v33, v29
             v35 = add v32, v34
-            v37 = array_get v7, index Field 4 -> u1
+            v37 = array_get v7, index u32 4 -> u1
             v38 = not v37
             v39 = cast v37 as Field
             v40 = cast v38 as Field
@@ -430,7 +464,7 @@ mod tests {
             v43 = mul v41, Field 2
             v44 = mul v43, v39
             v45 = add v42, v44
-            v47 = array_get v7, index Field 3 -> u1
+            v47 = array_get v7, index u32 3 -> u1
             v48 = not v47
             v49 = cast v47 as Field
             v50 = cast v48 as Field
@@ -439,42 +473,42 @@ mod tests {
             v53 = mul v51, Field 2
             v54 = mul v53, v49
             v55 = add v52, v54
-            v56 = array_get v7, index Field 2 -> u1
-            v57 = not v56
-            v58 = cast v56 as Field
+            v57 = array_get v7, index u32 2 -> u1
+            v58 = not v57
             v59 = cast v57 as Field
-            v60 = mul v55, v55
-            v61 = mul v60, v59
-            v62 = mul v60, Field 2
-            v63 = mul v62, v58
-            v64 = add v61, v63
-            v66 = array_get v7, index Field 1 -> u1
-            v67 = not v66
-            v68 = cast v66 as Field
+            v60 = cast v58 as Field
+            v61 = mul v55, v55
+            v62 = mul v61, v60
+            v63 = mul v61, Field 2
+            v64 = mul v63, v59
+            v65 = add v62, v64
+            v67 = array_get v7, index u32 1 -> u1
+            v68 = not v67
             v69 = cast v67 as Field
-            v70 = mul v64, v64
-            v71 = mul v70, v69
-            v72 = mul v70, Field 2
-            v73 = mul v72, v68
-            v74 = add v71, v73
-            v76 = array_get v7, index Field 0 -> u1
-            v77 = not v76
-            v78 = cast v76 as Field
+            v70 = cast v68 as Field
+            v71 = mul v65, v65
+            v72 = mul v71, v70
+            v73 = mul v71, Field 2
+            v74 = mul v73, v69
+            v75 = add v72, v74
+            v77 = array_get v7, index u32 0 -> u1
+            v78 = not v77
             v79 = cast v77 as Field
-            v80 = mul v74, v74
-            v81 = mul v80, v79
-            v82 = mul v80, Field 2
-            v83 = mul v82, v78
-            v84 = add v81, v83
-            v85 = cast v84 as u32
-            v86 = unchecked_mul v4, v85
-            v87 = cast v0 as Field
-            v88 = cast v86 as Field
-            v89 = mul v87, v88
-            v90 = truncate v89 to 32 bits, max_bit_size: 254
-            v91 = cast v90 as u32
-            v92 = truncate v91 to 32 bits, max_bit_size: 33
-            return v91
+            v80 = cast v78 as Field
+            v81 = mul v75, v75
+            v82 = mul v81, v80
+            v83 = mul v81, Field 2
+            v84 = mul v83, v79
+            v85 = add v82, v84
+            v86 = cast v85 as u32
+            v87 = unchecked_mul v4, v86
+            v88 = cast v0 as Field
+            v89 = cast v87 as Field
+            v90 = mul v88, v89
+            v91 = truncate v90 to 32 bits, max_bit_size: 254
+            v92 = cast v91 as u32
+            v93 = truncate v92 to 32 bits, max_bit_size: 33
+            return v92
         }
         ");
     }

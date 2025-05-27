@@ -1,1 +1,0 @@
-[array_oob_regression_7975] Circuit output: Vec([Vec([Field(0)])])

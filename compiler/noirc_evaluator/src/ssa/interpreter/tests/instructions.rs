@@ -299,10 +299,10 @@ fn shl() {
     assert_eq!(value, from_constant(12_u128.into(), NumericType::signed(8)));
 }
 
-/// shl should overflow if the rhs is greater than the bit count
+/// shl does not error on overflow. It just returns zero.
 #[test]
 fn shl_overflow() {
-    let error = expect_error(
+    let value = expect_value(
         "
         acir(inline) fn main f0 {
           b0():
@@ -311,7 +311,7 @@ fn shl_overflow() {
         }
     ",
     );
-    assert!(matches!(error, InterpreterError::Overflow { .. }));
+    assert_eq!(value, from_constant(0_u128.into(), NumericType::unsigned(8)));
 }
 
 #[test]
@@ -333,7 +333,7 @@ fn shr() {
 }
 
 #[test]
-/// Unlike shl, shr does not error on overflow. It just returns 0. See https://github.com/noir-lang/noir/pull/7509.
+/// shr does not error on overflow. It just returns 0. See https://github.com/noir-lang/noir/pull/7509.
 fn shr_overflow() {
     let value = expect_value(
         "
@@ -723,6 +723,36 @@ fn array_set_disabled_by_enable_side_effects() {
     assert_eq!(*v0.elements.borrow(), expected);
     assert_eq!(*v1.elements.borrow(), expected);
     assert_eq!(*v2.elements.borrow(), expected);
+}
+
+#[test]
+fn array_set_with_offset() {
+    let values = expect_values(
+        "
+        acir(inline) fn main f0 {
+          b0():
+            v0 = make_array [Field 1, Field 2] : [Field; 2]
+            v1 = array_set v0, index u32 4 minus 3, value Field 5
+            return v0, v1
+        }
+    ",
+    );
+
+    let v0 = values[0].as_array_or_slice().unwrap();
+    let v1 = values[1].as_array_or_slice().unwrap();
+
+    // acir function, so all rcs are 1
+    assert_eq!(*v0.rc.borrow(), 1);
+    assert_eq!(*v1.rc.borrow(), 1);
+
+    let one = from_constant(1u32.into(), NumericType::NativeField);
+    let two = from_constant(2u32.into(), NumericType::NativeField);
+    let five = from_constant(5u32.into(), NumericType::NativeField);
+
+    // v0 was not mutated
+    assert_eq!(*v0.elements.borrow(), vec![one.clone(), two.clone()]);
+    // v1 was mutated
+    assert_eq!(*v1.elements.borrow(), vec![one, five]);
 }
 
 #[test]

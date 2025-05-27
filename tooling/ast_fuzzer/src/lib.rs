@@ -60,6 +60,8 @@ pub struct Config {
     pub avoid_large_int_literals: bool,
     /// Avoid using loop control (break/continue).
     pub avoid_loop_control: bool,
+    /// Avoid using function pointers in parameters.
+    pub avoid_lambdas: bool,
     /// Only use comptime friendly expressions.
     pub comptime_friendly: bool,
 }
@@ -94,6 +96,7 @@ impl Default for Config {
             ("while", 15),
             ("let", 20),
             ("call", 5),
+            ("print", 15),
         ]);
         Self {
             max_globals: 3,
@@ -117,6 +120,7 @@ impl Default for Config {
             avoid_large_int_literals: false,
             avoid_negative_int_literals: false,
             avoid_loop_control: false,
+            avoid_lambdas: false,
             comptime_friendly: false,
         }
     }

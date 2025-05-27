@@ -5,7 +5,7 @@ use super::{
     ir::{
         dfg::DataFlowGraph,
         function::{Function, FunctionId, RuntimeType},
-        instruction::{ArrayGetOffset, Binary, BinaryOp, Instruction, TerminatorInstruction},
+        instruction::{ArrayOffset, Binary, BinaryOp, Instruction, TerminatorInstruction},
         types::Type,
         value::ValueId,
     },
@@ -446,8 +446,8 @@ impl<'ssa> Interpreter<'ssa> {
             Instruction::ArrayGet { array, index, offset } => {
                 self.interpret_array_get(*array, *index, *offset, results[0])
             }
-            Instruction::ArraySet { array, index, value, mutable } => {
-                self.interpret_array_set(*array, *index, *value, *mutable, results[0])
+            Instruction::ArraySet { array, index, value, mutable, offset } => {
+                self.interpret_array_set(*array, *index, *value, *mutable, *offset, results[0])
             }
             Instruction::IncrementRc { value } => self.interpret_inc_rc(*value),
             Instruction::DecrementRc { value } => self.interpret_dec_rc(*value),
@@ -736,7 +736,7 @@ impl<'ssa> Interpreter<'ssa> {
         &mut self,
         array: ValueId,
         index: ValueId,
-        offset: ArrayGetOffset,
+        offset: ArrayOffset,
         result: ValueId,
     ) -> IResult<()> {
         let element = if self.side_effects_enabled() {
@@ -758,12 +758,14 @@ impl<'ssa> Interpreter<'ssa> {
         index: ValueId,
         value: ValueId,
         mutable: bool,
+        offset: ArrayOffset,
         result: ValueId,
     ) -> IResult<()> {
         let array = self.lookup_array_or_slice(array, "array set")?;
 
         let result_array = if self.side_effects_enabled() {
             let index = self.lookup_u32(index, "array set index")?;
+            let index = index - offset.to_u32();
             let value = self.lookup(value)?;
 
             let should_mutate =
@@ -1067,12 +1069,6 @@ impl Interpreter<'_> {
                     }));
                 };
 
-                let overflow = || {
-                    let instruction =
-                        format!("`{}` ({lhs} << {rhs})", display_binary(binary, self.dfg()));
-                    InterpreterError::Overflow { instruction }
-                };
-
                 let rhs = rhs as u32;
                 use NumericValue::*;
                 match lhs {
@@ -1082,22 +1078,16 @@ impl Interpreter<'_> {
                             typ: "Field",
                         }));
                     }
-                    U1(value) => {
-                        if rhs == 0 {
-                            U1(value)
-                        } else {
-                            return Err(overflow());
-                        }
-                    }
-                    U8(value) => U8(value.checked_shl(rhs).ok_or_else(overflow)?),
-                    U16(value) => U16(value.checked_shl(rhs).ok_or_else(overflow)?),
-                    U32(value) => U32(value.checked_shl(rhs).ok_or_else(overflow)?),
-                    U64(value) => U64(value.checked_shl(rhs).ok_or_else(overflow)?),
-                    U128(value) => U128(value.checked_shl(rhs).ok_or_else(overflow)?),
-                    I8(value) => I8(value.checked_shl(rhs).ok_or_else(overflow)?),
-                    I16(value) => I16(value.checked_shl(rhs).ok_or_else(overflow)?),
-                    I32(value) => I32(value.checked_shl(rhs).ok_or_else(overflow)?),
-                    I64(value) => I64(value.checked_shl(rhs).ok_or_else(overflow)?),
+                    U1(value) => U1(if rhs == 0 { value } else { false }),
+                    U8(value) => U8(value.checked_shl(rhs).unwrap_or(0)),
+                    U16(value) => U16(value.checked_shl(rhs).unwrap_or(0)),
+                    U32(value) => U32(value.checked_shl(rhs).unwrap_or(0)),
+                    U64(value) => U64(value.checked_shl(rhs).unwrap_or(0)),
+                    U128(value) => U128(value.checked_shl(rhs).unwrap_or(0)),
+                    I8(value) => I8(value.checked_shl(rhs).unwrap_or(0)),
+                    I16(value) => I16(value.checked_shl(rhs).unwrap_or(0)),
+                    I32(value) => I32(value.checked_shl(rhs).unwrap_or(0)),
+                    I64(value) => I64(value.checked_shl(rhs).unwrap_or(0)),
                 }
             }
             BinaryOp::Shr => {
