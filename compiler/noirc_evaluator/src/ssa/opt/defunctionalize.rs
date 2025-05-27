@@ -196,7 +196,7 @@ impl DefunctionalizationContext {
                             //
                             // If there is no apply function then this should be a function
                             // that will never actually be called, and the DIE pass will eventually remove it.
-                            // However, even if no variants exist we still except a dummy apply function to be generated.
+                            // However, even if no variants exist we still expect a dummy apply function to be generated.
                             panic!(
                                 "ICE: An apply function should exist for every first-class function"
                             )
@@ -437,7 +437,7 @@ fn create_apply_functions(ssa: &mut Ssa, variants_map: Variants) -> ApplyFunctio
         if variants.is_empty() {
             // If no variants exist for a dynamic call we leave removing those dead calls and parameters to DIE.
             // However, we have to construct a dummy function for these dead calls as to not break the semantics
-            // of other SSA passes before before DIE is reached.
+            // of other SSA passes before DIE is reached.
             apply_functions.entry((signature.clone(), runtime)).or_insert_with(|| {
                 let id = create_dummy_function(ssa, signature, runtime);
                 ApplyFunction { id, dispatches_to_multiple_functions: false }
