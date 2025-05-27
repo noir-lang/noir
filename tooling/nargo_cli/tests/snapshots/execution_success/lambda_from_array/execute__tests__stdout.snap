@@ -1,0 +1,18 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: stdout
+---
+hi
+bye
+big
+wow
+hi
+bye
+big
+wow
+hi
+bye
+hi
+bye
+6
+6

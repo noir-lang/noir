@@ -200,7 +200,7 @@ pub(super) fn evaluate_infix(
             (lhs_value as lhs ">>" rhs_value as rhs) => lhs.checked_shr(rhs.into()).or(Some(0))
         },
         BinaryOpKind::ShiftLeft => match_bitshift! {
-            (lhs_value as lhs "<<" rhs_value as rhs) => lhs.checked_shl(rhs.into())
+            (lhs_value as lhs "<<" rhs_value as rhs) => lhs.checked_shl(rhs.into()).or(Some(0))
         },
         BinaryOpKind::Modulo => match_integer! {
             (lhs_value as lhs "%" rhs_value as rhs) => lhs.checked_rem(rhs)
