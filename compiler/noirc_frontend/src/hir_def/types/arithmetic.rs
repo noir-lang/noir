@@ -6,6 +6,32 @@ use noirc_errors::Location;
 
 use crate::{BinaryTypeOperator, Type, TypeBindings, UnificationError};
 
+#[derive(Default)]
+pub(super) struct CanonicalizedCache {
+    map: HashMap<Type, HashMap<(bool, bool), Type>>,
+}
+
+impl CanonicalizedCache {
+    fn get(
+        &self,
+        typ: &Type,
+        found_checked_cast: bool,
+        skip_simplifications: bool,
+    ) -> Option<&Type> {
+        self.map.get(typ)?.get(&(found_checked_cast, skip_simplifications))
+    }
+
+    fn insert(
+        &mut self,
+        typ: Type,
+        found_checked_cast: bool,
+        skip_simplifications: bool,
+        result: Type,
+    ) {
+        self.map.entry(typ).or_default().insert((found_checked_cast, skip_simplifications), result);
+    }
+}
+
 impl Type {
     /// Try to canonicalize the representation of this type.
     /// Currently the only type with a canonical representation is
@@ -20,9 +46,8 @@ impl Type {
         match self.follow_bindings() {
             Type::CheckedCast { from, to } => Type::CheckedCast {
                 from: Box::new(from.canonicalize_checked()),
-                to: Box::new(to.canonicalize_unchecked(&mut HashMap::default())),
+                to: Box::new(to.canonicalize_unchecked(&mut Default::default())),
             },
-
             other => {
                 let non_checked_cast = false;
                 let run_simplifications = true;
@@ -39,7 +64,7 @@ impl Type {
     }
 
     /// Run all simplifications and drop/skip any CheckedCast's
-    fn canonicalize_unchecked(&self, canonicalized: &mut HashMap<Type, Type>) -> Type {
+    fn canonicalize_unchecked(&self, canonicalized: &mut CanonicalizedCache) -> Type {
         let found_checked_cast = true;
         let run_simplifications = true;
         self.canonicalize_memoized_helper(found_checked_cast, run_simplifications, canonicalized)
@@ -57,7 +82,7 @@ impl Type {
         self.canonicalize_memoized_helper(
             found_checked_cast,
             run_simplifications,
-            &mut HashMap::default(),
+            &mut Default::default(),
         )
     }
 
@@ -65,14 +90,19 @@ impl Type {
         &self,
         found_checked_cast: bool,
         run_simplifications: bool,
-        canonicalized: &mut HashMap<Type, Type>,
+        canonicalized: &mut CanonicalizedCache,
     ) -> Type {
-        if let Some(typ) = canonicalized.get(self) {
+        if let Some(typ) = canonicalized.get(self, found_checked_cast, run_simplifications) {
             typ.clone()
         } else {
             let typ =
                 self.canonicalize_memoized(found_checked_cast, run_simplifications, canonicalized);
-            canonicalized.insert(self.clone(), typ.clone());
+            canonicalized.insert(
+                self.clone(),
+                found_checked_cast,
+                run_simplifications,
+                typ.clone(),
+            );
             typ
         }
     }
@@ -81,7 +111,7 @@ impl Type {
         &self,
         found_checked_cast: bool,
         run_simplifications: bool,
-        canonicalized: &mut HashMap<Type, Type>,
+        canonicalized: &mut CanonicalizedCache,
     ) -> Type {
         match self.follow_bindings() {
             Type::InfixExpr(lhs, op, rhs, inversion) => {
@@ -171,7 +201,7 @@ impl Type {
         lhs: &Type,
         op: BinaryTypeOperator,
         rhs: &Type,
-        canonicalized: &mut HashMap<Type, Type>,
+        canonicalized: &mut CanonicalizedCache,
     ) -> Type {
         let mut queue = vec![lhs.clone(), rhs.clone()];
 
@@ -245,7 +275,7 @@ impl Type {
         lhs: &Type,
         op: BinaryTypeOperator,
         rhs: &Type,
-        canonicalized: &mut HashMap<Type, Type>,
+        canonicalized: &mut CanonicalizedCache,
     ) -> Option<Type> {
         match lhs.follow_bindings() {
             Type::CheckedCast { from, to } => {
@@ -283,7 +313,7 @@ impl Type {
         lhs: &Type,
         op: BinaryTypeOperator,
         rhs: &Type,
-        canonicalized: &mut HashMap<Type, Type>,
+        canonicalized: &mut CanonicalizedCache,
     ) -> Option<Type> {
         match rhs.follow_bindings() {
             Type::CheckedCast { from, to } => {

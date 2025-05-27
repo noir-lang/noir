@@ -1558,12 +1558,11 @@ impl<'interner> Monomorphizer<'interner> {
         }
         let to_value = to.evaluate_to_field_element(&to.kind(), location);
         if to_value.is_ok() {
-            let skip_simplifications = false;
-            let from_value = from.evaluate_to_field_element_helper(
+            let run_simplifications = false;
+            let from_value = from.evaluate_to_field_element_with_option(
                 &to.kind(),
                 location,
-                skip_simplifications,
-                &mut HashMap::default(),
+                run_simplifications,
             );
             if from_value.is_err() || from_value.unwrap() != to_value.clone().unwrap() {
                 return Err(MonomorphizationError::CheckedCastFailed {

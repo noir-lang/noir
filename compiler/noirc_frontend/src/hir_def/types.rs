@@ -1,5 +1,6 @@
 use std::{borrow::Cow, cell::RefCell, collections::BTreeSet, rc::Rc};
 
+use arithmetic::CanonicalizedCache;
 use fxhash::FxHashMap as HashMap;
 
 #[cfg(test)]
@@ -827,7 +828,7 @@ pub enum BinaryTypeOperator {
 
 /// A TypeVariable is a mutable reference that is either
 /// bound to some type, or unbound with a given TypeVariableId.
-#[derive(PartialEq, Eq, Clone, Hash, PartialOrd, Ord)]
+#[derive(Eq, Clone, PartialOrd, Ord)]
 pub struct TypeVariable(TypeVariableId, Shared<TypeBinding>);
 
 impl TypeVariable {
@@ -1760,7 +1761,7 @@ impl Type {
         }
 
         let this = self.substitute(bindings).follow_bindings();
-        if let Some((binding, kind)) = this.get_inner_type_variable() {
+        if let Some(binding) = this.get_inner_type_variable() {
             match &*binding.borrow() {
                 TypeBinding::Bound(typ) => return typ.try_bind_to(var, bindings, kind),
                 // Don't recursively bind the same id to itself
@@ -1779,12 +1780,10 @@ impl Type {
         }
     }
 
-    fn get_inner_type_variable(&self) -> Option<(Shared<TypeBinding>, Kind)> {
+    fn get_inner_type_variable(&self) -> Option<TypeVariable> {
         match self {
-            Type::TypeVariable(var) => Some((var.1.clone(), var.kind())),
-            Type::NamedGeneric(NamedGeneric { type_var, .. }) => {
-                Some((type_var.1.clone(), type_var.kind()))
-            }
+            Type::TypeVariable(var) => Some(var.clone()),
+            Type::NamedGeneric(NamedGeneric { type_var, .. }) => Some(type_var.clone()),
             Type::CheckedCast { to, .. } => to.get_inner_type_variable(),
             _ => None,
         }
@@ -2195,23 +2194,33 @@ impl Type {
         location: Location,
     ) -> Result<acvm::FieldElement, TypeCheckError> {
         let run_simplifications = true;
-        self.evaluate_to_field_element_helper(
-            kind,
-            location,
-            run_simplifications,
-            &mut HashMap::default(),
-        )
+        self.evaluate_to_field_element_with_option(kind, location, run_simplifications)
     }
 
-    /// evaluate_to_field_element with optional generic arithmetic simplifications
-    pub(crate) fn evaluate_to_field_element_helper(
+    pub(crate) fn evaluate_to_field_element_with_option(
         &self,
         kind: &Kind,
         location: Location,
         run_simplifications: bool,
-        canonicalized: &mut HashMap<Type, Type>,
+    ) -> Result<acvm::FieldElement, TypeCheckError> {
+        self.evaluate_to_field_element_helper(
+            kind,
+            location,
+            run_simplifications,
+            &mut Default::default(),
+        )
+    }
+
+    /// evaluate_to_field_element with optional generic arithmetic simplifications
+    fn evaluate_to_field_element_helper(
+        &self,
+        kind: &Kind,
+        location: Location,
+        run_simplifications: bool,
+        canonicalized: &mut CanonicalizedCache,
     ) -> Result<FieldElement, TypeCheckError> {
-        if let Some((binding, binding_kind)) = self.get_inner_type_variable() {
+        if let Some(binding) = self.get_inner_type_variable() {
+            let binding_kind = binding.kind();
             if let TypeBinding::Bound(binding) = &*binding.borrow() {
                 if kind.unifies(&binding_kind) {
                     return binding.evaluate_to_field_element_helper(
@@ -3238,17 +3247,43 @@ impl std::fmt::Debug for DataType {
     }
 }
 
+impl std::hash::Hash for TypeVariable {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        if let TypeBinding::Bound(typ) = &*self.borrow() {
+            typ.hash(state);
+        } else {
+            self.id().hash(state);
+        }
+    }
+}
+
+impl PartialEq for TypeVariable {
+    fn eq(&self, other: &Self) -> bool {
+        match (&*self.borrow(), &*other.borrow()) {
+            (TypeBinding::Bound(binding1), TypeBinding::Bound(binding2)) => binding1 == binding2,
+            // This is a bit awkward since `binding: Type` but we have a TypeVariable.
+            // Check if the type has an inner type variable as a workaround.
+            (TypeBinding::Bound(binding), _) => {
+                if let Some(var) = binding.get_inner_type_variable() {
+                    var == *other
+                } else {
+                    false
+                }
+            }
+            (_, TypeBinding::Bound(binding)) => {
+                if let Some(var) = binding.get_inner_type_variable() { *self == var } else { false }
+            }
+            (_, _) => self.id() == other.id(),
+        }
+    }
+}
+
 impl std::hash::Hash for Type {
     fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
-        if let Some((variable, kind)) = self.get_inner_type_variable() {
-            kind.hash(state);
-            if let TypeBinding::Bound(typ) = &*variable.borrow() {
-                typ.hash(state);
-                return;
-            }
-        }
-
-        if !matches!(self, Type::TypeVariable(..) | Type::NamedGeneric(..)) {
+        if !matches!(
+            self,
+            Type::TypeVariable(..) | Type::NamedGeneric(..) | Type::CheckedCast { .. }
+        ) {
             std::mem::discriminant(self).hash(state);
         }
 
@@ -3277,13 +3312,6 @@ impl std::hash::Hash for Type {
                 alias.hash(state);
                 args.hash(state);
             }
-            Type::NamedGeneric(NamedGeneric { type_var, implicit: true, .. }) => {
-                // An implicitly added unbound named generic's hash must be the same as any other
-                // implicitly added unbound named generic's hash.
-                if !type_var.borrow().is_unbound() {
-                    type_var.hash(state);
-                }
-            }
             Type::TypeVariable(var) | Type::NamedGeneric(NamedGeneric { type_var: var, .. }) => {
                 var.hash(state);
             }
@@ -3306,7 +3334,10 @@ impl std::hash::Hash for Type {
                 typ.hash(state);
             }
             Type::CheckedCast { to, .. } => to.hash(state),
-            Type::Constant(value, _) => value.hash(state),
+            Type::Constant(value, kind) => {
+                value.hash(state);
+                kind.hash(state);
+            }
             Type::Quoted(typ) => typ.hash(state),
             Type::InfixExpr(lhs, op, rhs, _) => {
                 lhs.hash(state);
@@ -3319,19 +3350,13 @@ impl std::hash::Hash for Type {
 
 impl PartialEq for Type {
     fn eq(&self, other: &Self) -> bool {
-        if let Some((variable, kind)) = self.get_inner_type_variable() {
-            if kind != other.kind() {
-                return false;
-            }
+        if let Some(variable) = self.get_inner_type_variable() {
             if let TypeBinding::Bound(typ) = &*variable.borrow() {
                 return typ == other;
             }
         }
 
-        if let Some((variable, other_kind)) = other.get_inner_type_variable() {
-            if self.kind() != other_kind {
-                return false;
-            }
+        if let Some(variable) = other.get_inner_type_variable() {
             if let TypeBinding::Bound(typ) = &*variable.borrow() {
                 return self == typ;
             }
@@ -3381,14 +3406,6 @@ impl PartialEq for Type {
             (Quoted(lhs), Quoted(rhs)) => lhs == rhs,
             (InfixExpr(l_lhs, l_op, l_rhs, _), InfixExpr(r_lhs, r_op, r_rhs, _)) => {
                 l_lhs == r_lhs && l_op == r_op && l_rhs == r_rhs
-            }
-            // Two implicitly added unbound named generics are equal
-            (
-                NamedGeneric(types::NamedGeneric { type_var: lhs_var, implicit: true, .. }),
-                NamedGeneric(types::NamedGeneric { type_var: rhs_var, implicit: true, .. }),
-            ) => {
-                lhs_var.borrow().is_unbound() && rhs_var.borrow().is_unbound()
-                    || lhs_var.id() == rhs_var.id()
             }
             // Special case: we consider unbound named generics and type variables to be equal to each
             // other if their type variable ids match. This is important for some corner cases in
