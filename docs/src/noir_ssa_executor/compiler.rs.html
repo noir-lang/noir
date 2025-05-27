@@ -234,10 +234,7 @@
 <a href="#233" id="233">233</a>
 <a href="#234" id="234">234</a>
 <a href="#235" id="235">235</a>
-<a href="#236" id="236">236</a>
-<a href="#237" id="237">237</a>
-<a href="#238" id="238">238</a>
-<a href="#239" id="239">239</a></pre></div><pre class="rust"><code><span class="kw">use </span>acvm::acir::circuit::PublicInputs;
+<a href="#236" id="236">236</a></pre></div><pre class="rust"><code><span class="kw">use </span>acvm::acir::circuit::PublicInputs;
 <span class="kw">use </span>acvm::{
     FieldElement,
     acir::circuit::{AcirOpcodeLocation, Circuit, ExpressionWidth, OpcodeLocation},
@@ -441,15 +438,12 @@
 
 <span class="kw">pub fn </span>evaluator_options(options: <span class="kw-2">&amp;</span>CompileOptions) -&gt; SsaEvaluatorOptions {
     SsaEvaluatorOptions {
-        ssa_logging: <span class="kw">match </span><span class="kw-2">&amp;</span>options.show_ssa_pass {
-            <span class="prelude-val">Some</span>(string) =&gt; SsaLogging::Contains(string.clone()),
-            <span class="prelude-val">None </span>=&gt; {
-                <span class="kw">if </span>options.show_ssa {
-                    SsaLogging::All
-                } <span class="kw">else </span>{
-                    SsaLogging::None
-                }
-            }
+        ssa_logging: <span class="kw">if </span>!options.show_ssa_pass.is_empty() {
+            SsaLogging::Contains(options.show_ssa_pass.clone())
+        } <span class="kw">else if </span>options.show_ssa {
+            SsaLogging::All
+        } <span class="kw">else </span>{
+            SsaLogging::None
         },
         print_codegen_timings: options.benchmark_codegen,
         expression_width: ExpressionWidth::default(),

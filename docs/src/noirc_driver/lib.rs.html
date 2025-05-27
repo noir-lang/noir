@@ -834,8 +834,7 @@
 <a href="#833" id="833">833</a>
 <a href="#834" id="834">834</a>
 <a href="#835" id="835">835</a>
-<a href="#836" id="836">836</a>
-<a href="#837" id="837">837</a></pre></div><pre class="rust"><code><span class="attr">#![forbid(unsafe_code)]
+<a href="#836" id="836">836</a></pre></div><pre class="rust"><code><span class="attr">#![forbid(unsafe_code)]
 #![warn(unused_crate_dependencies, unused_extern_crates)]
 #![warn(unreachable_pub)]
 #![warn(clippy::semicolon_if_nothing_returned)]
@@ -915,7 +914,7 @@
     <span class="doccomment">/// Only show SSA passes whose name contains the provided string.
     /// This setting takes precedence over `show_ssa` if it's not empty.
     </span><span class="attr">#[arg(long, hide = <span class="bool-val">true</span>)]
-    </span><span class="kw">pub </span>show_ssa_pass: <span class="prelude-ty">Option</span>&lt;String&gt;,
+    </span><span class="kw">pub </span>show_ssa_pass: Vec&lt;String&gt;,
 
     <span class="doccomment">/// Only show the SSA and ACIR for the contract function with a given name.
     </span><span class="attr">#[arg(long, hide = <span class="bool-val">true</span>)]
@@ -1426,7 +1425,9 @@
         <span class="kw">if let </span><span class="prelude-val">Some</span>(<span class="kw-2">ref </span>name_filter) = options.show_contract_fn {
             <span class="kw">let </span>show = name == <span class="kw-2">*</span>name_filter;
             options.show_ssa &amp;= show;
-            options.show_ssa_pass = options.show_ssa_pass.filter(|<span class="kw">_</span>| show);
+            <span class="kw">if </span>!show {
+                options.show_ssa_pass.clear();
+            }
         };
 
         <span class="kw">let </span>function = <span class="kw">match </span>compile_no_check(context, <span class="kw-2">&amp;</span>options, function_id, <span class="prelude-val">None</span>, <span class="bool-val">true</span>) {
@@ -1575,7 +1576,7 @@
         || options.show_brillig
         || options.force_brillig
         || options.show_ssa
-        || options.show_ssa_pass.is_some()
+        || !options.show_ssa_pass.is_empty()
         || options.emit_ssa
         || options.minimal_ssa;
 
@@ -1591,15 +1592,12 @@
 
     <span class="kw">let </span>return_visibility = program.return_visibility();
     <span class="kw">let </span>ssa_evaluator_options = SsaEvaluatorOptions {
-        ssa_logging: <span class="kw">match </span><span class="kw-2">&amp;</span>options.show_ssa_pass {
-            <span class="prelude-val">Some</span>(string) =&gt; SsaLogging::Contains(string.clone()),
-            <span class="prelude-val">None </span>=&gt; {
-                <span class="kw">if </span>options.show_ssa {
-                    SsaLogging::All
-                } <span class="kw">else </span>{
-                    SsaLogging::None
-                }
-            }
+        ssa_logging: <span class="kw">if </span>!options.show_ssa_pass.is_empty() {
+            SsaLogging::Contains(options.show_ssa_pass.clone())
+        } <span class="kw">else if </span>options.show_ssa {
+            SsaLogging::All
+        } <span class="kw">else </span>{
+            SsaLogging::None
         },
         brillig_options: BrilligOptions {
             enable_debug_trace: options.show_brillig,

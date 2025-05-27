@@ -814,7 +814,7 @@
 </span><span class="kw">pub enum </span>SsaLogging {
     <span class="prelude-val">None</span>,
     All,
-    Contains(String),
+    Contains(Vec&lt;String&gt;),
 }
 
 <span class="attr">#[derive(Debug, Clone)]
@@ -1484,12 +1484,12 @@
         <span class="kw">let </span>print_ssa_pass = <span class="kw">match </span><span class="kw-2">&amp;</span><span class="self">self</span>.ssa_logging {
             SsaLogging::None =&gt; <span class="bool-val">false</span>,
             SsaLogging::All =&gt; <span class="bool-val">true</span>,
-            SsaLogging::Contains(string) =&gt; {
+            SsaLogging::Contains(strings) =&gt; strings.iter().any(|string| {
                 <span class="kw">let </span>string = string.to_lowercase();
                 <span class="kw">let </span>string = string.strip_prefix(<span class="string">"after "</span>).unwrap_or(<span class="kw-2">&amp;</span>string);
                 <span class="kw">let </span>string = string.strip_suffix(<span class="string">':'</span>).unwrap_or(string);
                 msg.to_lowercase().contains(string)
-            }
+            }),
         };
 
         <span class="kw">if </span>print_ssa_pass {
