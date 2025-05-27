@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"struct":["FunctionInserter"],"type":["ArrayCache"]};
+window.SIDEBAR_ITEMS = {"struct":["FunctionInserter"]};

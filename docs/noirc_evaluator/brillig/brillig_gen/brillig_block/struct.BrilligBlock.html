@@ -17,7 +17,7 @@
     brillig_context: &amp;'block mut <a class="struct" href="../../brillig_ir/struct.BrilligContext.html" title="struct noirc_evaluator::brillig::brillig_ir::BrilligContext">BrilligContext</a>&lt;FieldElement, Registers&gt;,
     block_id: <a class="type" href="../../../ssa/ir/basic_block/type.BasicBlockId.html" title="type noirc_evaluator::ssa::ir::basic_block::BasicBlockId">BasicBlockId</a>,
     dfg: &amp;<a class="struct" href="../../../ssa/ir/dfg/struct.DataFlowGraph.html" title="struct noirc_evaluator::ssa::ir::dfg::DataFlowGraph">DataFlowGraph</a>,
-    call_stacks: &amp;mut CallStackHelper,
+    call_stacks: &amp;mut <a class="struct" href="../../../../noirc_errors/call_stack/struct.CallStackHelper.html" title="struct noirc_errors::call_stack::CallStackHelper">CallStackHelper</a>,
     globals: &amp;'block HashMap&lt;<a class="type" href="../../../ssa/ir/value/type.ValueId.html" title="type noirc_evaluator::ssa::ir::value::ValueId">ValueId</a>, <a class="enum" href="../../brillig_ir/brillig_variable/enum.BrilligVariable.html" title="enum noirc_evaluator::brillig::brillig_ir::brillig_variable::BrilligVariable">BrilligVariable</a>&gt;,
     hoisted_global_constants: &amp;'block FxHashMap&lt;(FieldElement, <a class="enum" href="../../../ssa/ir/types/enum.NumericType.html" title="enum noirc_evaluator::ssa::ir::types::NumericType">NumericType</a>), <a class="enum" href="../../brillig_ir/brillig_variable/enum.BrilligVariable.html" title="enum noirc_evaluator::brillig::brillig_ir::brillig_variable::BrilligVariable">BrilligVariable</a>&gt;,
 )</h4></section></summary><div class="docblock"><p>Converts an SSA Basic block into a sequence of Brillig opcodes</p>
@@ -25,12 +25,12 @@
     &amp;mut self,
     globals: &amp;<a class="struct" href="../../../ssa/ir/dfg/struct.DataFlowGraph.html" title="struct noirc_evaluator::ssa::ir::dfg::DataFlowGraph">DataFlowGraph</a>,
     used_globals: &amp;HashSet&lt;<a class="type" href="../../../ssa/ir/value/type.ValueId.html" title="type noirc_evaluator::ssa::ir::value::ValueId">ValueId</a>&gt;,
-    call_stacks: &amp;mut CallStackHelper,
+    call_stacks: &amp;mut <a class="struct" href="../../../../noirc_errors/call_stack/struct.CallStackHelper.html" title="struct noirc_errors::call_stack::CallStackHelper">CallStackHelper</a>,
     hoisted_global_constants: &amp;<a class="struct" href="https://doc.rust-lang.org/1.85.0/alloc/collections/btree/set/struct.BTreeSet.html" title="struct alloc::collections::btree::set::BTreeSet">BTreeSet</a>&lt;(FieldElement, <a class="enum" href="../../../ssa/ir/types/enum.NumericType.html" title="enum noirc_evaluator::ssa::ir::types::NumericType">NumericType</a>)&gt;,
 ) -&gt; HashMap&lt;(FieldElement, <a class="enum" href="../../../ssa/ir/types/enum.NumericType.html" title="enum noirc_evaluator::ssa::ir::types::NumericType">NumericType</a>), <a class="enum" href="../../brillig_ir/brillig_variable/enum.BrilligVariable.html" title="enum noirc_evaluator::brillig::brillig_ir::brillig_variable::BrilligVariable">BrilligVariable</a>&gt;</h4></section><section id="method.convert_block" class="method"><a class="src rightside" href="../../../../src/noirc_evaluator/brillig/brillig_gen/brillig_block.rs.html#153-179">Source</a><h4 class="code-header">fn <a href="#method.convert_block" class="fn">convert_block</a>(
     &amp;mut self,
     dfg: &amp;<a class="struct" href="../../../ssa/ir/dfg/struct.DataFlowGraph.html" title="struct noirc_evaluator::ssa::ir::dfg::DataFlowGraph">DataFlowGraph</a>,
-    call_stacks: &amp;mut CallStackHelper,
+    call_stacks: &amp;mut <a class="struct" href="../../../../noirc_errors/call_stack/struct.CallStackHelper.html" title="struct noirc_errors::call_stack::CallStackHelper">CallStackHelper</a>,
 )</h4></section><details class="toggle method-toggle" open><summary><section id="method.create_block_label_for_current_function" class="method"><a class="src rightside" href="../../../../src/noirc_evaluator/brillig/brillig_gen/brillig_block.rs.html#186-188">Source</a><h4 class="code-header">fn <a href="#method.create_block_label_for_current_function" class="fn">create_block_label_for_current_function</a>(
     &amp;self,
     block_id: <a class="type" href="../../../ssa/ir/basic_block/type.BasicBlockId.html" title="type noirc_evaluator::ssa::ir::basic_block::BasicBlockId">BasicBlockId</a>,
@@ -57,7 +57,7 @@ TODO along with the <code>Self::compile</code></p>
     &amp;mut self,
     instruction_id: <a class="struct" href="../../../ssa/ir/map/struct.Id.html" title="struct noirc_evaluator::ssa::ir::map::Id">Id</a>&lt;<a class="enum" href="../../../ssa/ir/instruction/enum.Instruction.html" title="enum noirc_evaluator::ssa::ir::instruction::Instruction">Instruction</a>&gt;,
     dfg: &amp;<a class="struct" href="../../../ssa/ir/dfg/struct.DataFlowGraph.html" title="struct noirc_evaluator::ssa::ir::dfg::DataFlowGraph">DataFlowGraph</a>,
-    call_stacks: &amp;mut CallStackHelper,
+    call_stacks: &amp;mut <a class="struct" href="../../../../noirc_errors/call_stack/struct.CallStackHelper.html" title="struct noirc_errors::call_stack::CallStackHelper">CallStackHelper</a>,
 )</h4></section></summary><div class="docblock"><p>Converts an SSA instruction into a sequence of Brillig opcodes.</p>
 </div></details><section id="method.assert_rc_neq_zero" class="method"><a class="src rightside" href="../../../../src/noirc_evaluator/brillig/brillig_gen/brillig_block.rs.html#1053-1070">Source</a><h4 class="code-header">fn <a href="#method.assert_rc_neq_zero" class="fn">assert_rc_neq_zero</a>(&amp;mut self, rc_register: MemoryAddress)</h4></section><section id="method.convert_ssa_function_call" class="method"><a class="src rightside" href="../../../../src/noirc_evaluator/brillig/brillig_gen/brillig_block.rs.html#1072-1090">Source</a><h4 class="code-header">fn <a href="#method.convert_ssa_function_call" class="fn">convert_ssa_function_call</a>(
     &amp;mut self,

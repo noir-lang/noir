@@ -386,7 +386,7 @@
             value @ Value::Instruction { instruction, .. } =&gt; {
                 <span class="kw-2">*</span><span class="self">self</span>.values.get(<span class="kw-2">&amp;</span>old_value).unwrap_or_else(|| {
                     <span class="kw">let </span>instruction = <span class="kw-2">&amp;</span>old_function.dfg[<span class="kw-2">*</span>instruction];
-                    <span class="macro">unreachable!</span>(<span class="string">"Unmapped value with id {old_value}: {value:?}\n  from instruction: {instruction:?}, SSA: {old_function}"</span>)
+                    <span class="macro">unreachable!</span>(<span class="string">"Unmapped value with id {old_value}: {value:?}\n  from instruction: {instruction:?}, from function: {}"</span>, old_function.id())
                 })
             }
 

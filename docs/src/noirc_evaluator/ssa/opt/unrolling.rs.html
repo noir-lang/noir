@@ -1570,19 +1570,7 @@
 <a href="#1569" id="1569">1569</a>
 <a href="#1570" id="1570">1570</a>
 <a href="#1571" id="1571">1571</a>
-<a href="#1572" id="1572">1572</a>
-<a href="#1573" id="1573">1573</a>
-<a href="#1574" id="1574">1574</a>
-<a href="#1575" id="1575">1575</a>
-<a href="#1576" id="1576">1576</a>
-<a href="#1577" id="1577">1577</a>
-<a href="#1578" id="1578">1578</a>
-<a href="#1579" id="1579">1579</a>
-<a href="#1580" id="1580">1580</a>
-<a href="#1581" id="1581">1581</a>
-<a href="#1582" id="1582">1582</a>
-<a href="#1583" id="1583">1583</a>
-<a href="#1584" id="1584">1584</a></pre></div><pre class="rust"><code><span class="doccomment">//! This file contains the loop unrolling pass for the new SSA IR.
+<a href="#1572" id="1572">1572</a></pre></div><pre class="rust"><code><span class="doccomment">//! This file contains the loop unrolling pass for the new SSA IR.
 //!
 //! This pass is divided into a few steps:
 //! 1. Find all loops in the program (`find_all_loops`)
@@ -1617,7 +1605,7 @@
             dfg::DataFlowGraph,
             dom::DominatorTree,
             function::Function,
-            function_inserter::{ArrayCache, FunctionInserter},
+            function_inserter::FunctionInserter,
             instruction::{Binary, BinaryOp, Instruction, InstructionId, TerminatorInstruction},
             integer::IntegerConstant,
             post_order::PostOrder,
@@ -2023,21 +2011,9 @@
     </span><span class="kw">fn </span>unroll(<span class="kw-2">&amp;</span><span class="self">self</span>, function: <span class="kw-2">&amp;mut </span>Function, cfg: <span class="kw-2">&amp;</span>ControlFlowGraph) -&gt; <span class="prelude-ty">Result</span>&lt;(), CallStack&gt; {
         <span class="kw">let </span><span class="kw-2">mut </span>unroll_into = <span class="self">self</span>.get_pre_header(function, cfg)<span class="question-mark">?</span>;
         <span class="kw">let </span><span class="kw-2">mut </span>jump_value = get_induction_variable(function, unroll_into)<span class="question-mark">?</span>;
-        <span class="kw">let </span><span class="kw-2">mut </span>array_cache = <span class="prelude-val">Some</span>(ArrayCache::default());
 
-        <span class="kw">while let </span><span class="prelude-val">Some</span>(<span class="kw-2">mut </span>context) = <span class="self">self</span>.unroll_header(function, unroll_into, jump_value)<span class="question-mark">? </span>{
-            <span class="comment">// The inserter's array cache must be explicitly enabled. This is to
-            // confirm that we're inserting in insertion order. This is true here since:
-            // 1. We have a fresh inserter for each loop
-            // 2. Each loop is unrolled in iteration order
-            //
-            // Within a loop we do not insert in insertion order. This is fine however since the
-            // array cache is buffered with a separate fresh_array_cache which collects arrays
-            // but does not deduplicate. When we later call `into_array_cache`, that will merge
-            // the fresh cache in with the old one so that each iteration of the loop can cache
-            // from previous iterations but not the current iteration.
-            </span>context.inserter.set_array_cache(array_cache, unroll_into);
-            (unroll_into, jump_value, array_cache) = context.unroll_loop_iteration();
+        <span class="kw">while let </span><span class="prelude-val">Some</span>(context) = <span class="self">self</span>.unroll_header(function, unroll_into, jump_value)<span class="question-mark">? </span>{
+            (unroll_into, jump_value) = context.unroll_loop_iteration();
         }
 
         <span class="prelude-val">Ok</span>(())
@@ -2456,7 +2432,7 @@
     /// It is expected the terminator instructions are set up to branch into an empty block
     /// for further unrolling. When the loop is finished this will need to be mutated to
     /// jump to the end of the loop instead.
-    </span><span class="kw">fn </span>unroll_loop_iteration(<span class="kw-2">mut </span><span class="self">self</span>) -&gt; (BasicBlockId, ValueId, <span class="prelude-ty">Option</span>&lt;ArrayCache&gt;) {
+    </span><span class="kw">fn </span>unroll_loop_iteration(<span class="kw-2">mut </span><span class="self">self</span>) -&gt; (BasicBlockId, ValueId) {
         <span class="kw">let </span><span class="kw-2">mut </span>next_blocks = <span class="self">self</span>.unroll_loop_block();
 
         <span class="kw">while let </span><span class="prelude-val">Some</span>(block) = next_blocks.pop() {
@@ -2474,7 +2450,7 @@
             </span>.induction_value
             .expect(<span class="string">"Expected to find the induction variable by end of loop iteration"</span>);
 
-        (end_block, induction_value, <span class="self">self</span>.inserter.into_array_cache())
+        (end_block, induction_value)
     }
 
     <span class="doccomment">/// Unroll a single block in the current iteration of the loop
