@@ -1,87 +1,8 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1748342131278,
+  "lastUpdate": 1748342143293,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
-      {
-        "commit": {
-          "author": {
-            "email": "49699333+dependabot[bot]@users.noreply.github.com",
-            "name": "dependabot[bot]",
-            "username": "dependabot[bot]"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "fd3bc488ac5c50a0b2e88ee8dff5614fa0a5270f",
-          "message": "chore(deps): bump base-x from 3.0.9 to 3.0.11 (#8555)\n\nSigned-off-by: dependabot[bot] <support@github.com>\nCo-authored-by: dependabot[bot] <49699333+dependabot[bot]@users.noreply.github.com>",
-          "timestamp": "2025-05-17T18:52:56Z",
-          "tree_id": "8e66df8b700f72fcfc580eb0576b58f6e6ce718b",
-          "url": "https://github.com/noir-lang/noir/commit/fd3bc488ac5c50a0b2e88ee8dff5614fa0a5270f"
-        },
-        "date": 1747509805406,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 316.49,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 572.29,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 231.41,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 1440,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 1470,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-root-empty",
-            "value": 402.94,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-root-single-tx",
-            "value": 7220,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 7220,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 385,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-root",
-            "value": 445.94,
-            "unit": "MB"
-          },
-          {
-            "name": "semaphore_depth_10",
-            "value": 128.47,
-            "unit": "MB"
-          }
-        ]
-      },
       {
         "commit": {
           "author": {
@@ -3039,6 +2960,85 @@ window.BENCHMARK_DATA = {
           {
             "name": "rollup-merge",
             "value": 413.82,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-root",
+            "value": 468.07,
+            "unit": "MB"
+          },
+          {
+            "name": "semaphore_depth_10",
+            "value": 128.37,
+            "unit": "MB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "15848336+TomAFrench@users.noreply.github.com",
+            "name": "Tom French",
+            "username": "TomAFrench"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "5040ea515b763ef4e1e73a69ea9b7212a6967f30",
+          "message": "chore: reenable fuzzing tests in CI (#8688)",
+          "timestamp": "2025-05-27T09:52:11Z",
+          "tree_id": "89d37a8731af63b5b5957c303caddebe1b6bdbe1",
+          "url": "https://github.com/noir-lang/noir/commit/5040ea515b763ef4e1e73a69ea9b7212a6967f30"
+        },
+        "date": 1748342131898,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 333.03,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 572.38,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 232.9,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 1470,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 1630,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root-empty",
+            "value": 429.53,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root-single-tx",
+            "value": 7240,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 7250,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 413.81,
             "unit": "MB"
           },
           {
