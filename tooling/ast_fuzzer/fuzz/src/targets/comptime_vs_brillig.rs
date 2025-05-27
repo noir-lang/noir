@@ -50,7 +50,6 @@ pub fn fuzz(u: &mut Unstructured) -> eyre::Result<()> {
 
 #[cfg(test)]
 mod tests {
-    use crate::targets::tests::is_running_in_ci;
 
     /// ```ignore
     /// NOIR_ARBTEST_SEED=0x6819c61400001000 \
@@ -59,10 +58,6 @@ mod tests {
     /// ```
     #[test]
     fn fuzz_with_arbtest() {
-        if is_running_in_ci() {
-            // #8511
-            return;
-        }
         crate::targets::tests::fuzz_with_arbtest(super::fuzz);
     }
 }
