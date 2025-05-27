@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1748347624272,
+  "lastUpdate": 1748349279835,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -15216,48 +15216,6 @@ window.BENCHMARK_DATA = {
             "username": "web-flow"
           },
           "distinct": true,
-          "id": "1feac18e7d54673f78d0d2d32c6c09d470a3841c",
-          "message": "chore(ssa): Add weighted edges to call graph, move callers and callees methods to call graph (#8513)",
-          "timestamp": "2025-05-19T15:23:56Z",
-          "tree_id": "7f08b369233590a02513ae97621467e477039c18",
-          "url": "https://github.com/noir-lang/noir/commit/1feac18e7d54673f78d0d2d32c6c09d470a3841c"
-        },
-        "date": 1747669622668,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 253639,
-            "range": "± 322",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 222904,
-            "range": "± 9810",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 3564404,
-            "range": "± 6706",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
-            "email": "mvezenov@gmail.com",
-            "name": "Maxim Vezenov",
-            "username": "vezenovm"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
           "id": "e33b900bba5abcfe655435c81730169234a52b6f",
           "message": "chore(inlining): Mark functions with <= 10 instructions and no control flow as inline always  (#8533)\n\nCo-authored-by: AztecBot <tech@aztecprotocol.com>",
           "timestamp": "2025-05-19T16:46:45Z",
@@ -17299,6 +17257,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 3585666,
             "range": "± 5523",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "15848336+TomAFrench@users.noreply.github.com",
+            "name": "Tom French",
+            "username": "TomAFrench"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "9ee2618510d877402aa9ad2f4cdf9e92577fd7e8",
+          "message": "chore: add an assertion when parsing SSA that all functions are well-formed (#8671)",
+          "timestamp": "2025-05-27T12:07:42Z",
+          "tree_id": "821fdb33da3982465aa955318e3fd08873506418",
+          "url": "https://github.com/noir-lang/noir/commit/9ee2618510d877402aa9ad2f4cdf9e92577fd7e8"
+        },
+        "date": 1748349269812,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 253600,
+            "range": "± 883",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 222728,
+            "range": "± 3710",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 3213239,
+            "range": "± 1760",
             "unit": "ns/iter"
           }
         ]
