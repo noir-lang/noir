@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1748375743353,
+  "lastUpdate": 1748375744750,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -8842,75 +8842,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "asterite@gmail.com",
-            "name": "Ary Borenszweig",
-            "username": "asterite"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "bfd3d0ead7a01acc076f174e6a3dbe11c999bd21",
-          "message": "chore: put `nargo expand` snapshosts in the same directory (#8577)",
-          "timestamp": "2025-05-19T20:03:15Z",
-          "tree_id": "7478745cc7a77db3b3cd15756b1573181f2de069",
-          "url": "https://github.com/noir-lang/noir/commit/bfd3d0ead7a01acc076f174e6a3dbe11c999bd21"
-        },
-        "date": 1747687762580,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 240.76,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 263.02,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 216.26,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 548.22,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 540.67,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 1450,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 369.93,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-root",
-            "value": 375.94,
-            "unit": "MB"
-          },
-          {
-            "name": "semaphore_depth_10",
-            "value": 92.9,
-            "unit": "MB"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "mvezenov@gmail.com",
             "name": "Maxim Vezenov",
             "username": "vezenovm"
@@ -11520,6 +11451,75 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/noir-lang/noir/commit/6af0859b9e2dbcbeee8fd160cde6139802dc4dec"
         },
         "date": 1748365040435,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 246.19,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 270.04,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 221.33,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 580.06,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 576.38,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 1460,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 401.73,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-root",
+            "value": 407.3,
+            "unit": "MB"
+          },
+          {
+            "name": "semaphore_depth_10",
+            "value": 92.96,
+            "unit": "MB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "aakoshh@gmail.com",
+            "name": "Akosh Farkash",
+            "username": "aakoshh"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "9e90bf45d4386bd7762a0d08b3c548d729a3a9b7",
+          "message": "chore(docs): Add pointers to tests (#8695)",
+          "timestamp": "2025-05-27T19:21:49Z",
+          "tree_id": "145768153b8b9fe4bd35dc94072460870bf2960a",
+          "url": "https://github.com/noir-lang/noir/commit/9e90bf45d4386bd7762a0d08b3c548d729a3a9b7"
+        },
+        "date": 1748375733502,
         "tool": "customSmallerIsBetter",
         "benches": [
           {
