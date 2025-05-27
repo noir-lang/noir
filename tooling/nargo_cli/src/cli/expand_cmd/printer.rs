@@ -948,8 +948,8 @@ impl<'context, 'string> ItemPrinter<'context, 'string> {
             self.show_item_visibility(import.visibility);
             self.push_str("use ");
             let use_import = false;
-            let name =
-                self.show_reference_to_module_def_id(import.id, import.visibility, use_import);
+            let visibility = self.module_def_id_visibility(import.id);
+            let name = self.show_reference_to_module_def_id(import.id, visibility, use_import);
 
             if name != import.name.as_str() {
                 self.push_str(" as ");
@@ -1070,6 +1070,7 @@ impl<'context, 'string> ItemPrinter<'context, 'string> {
                     get_parent_module(self.interner, module_def_id)
                 {
                     let module_def_id_parent = ModuleDefId::ModuleId(module_def_id_parent_module);
+                    let visibility = self.module_def_id_visibility(module_def_id_parent);
                     self.show_reference_to_module_def_id(
                         module_def_id_parent,
                         visibility,
@@ -1179,6 +1180,34 @@ impl<'context, 'string> ItemPrinter<'context, 'string> {
             ModuleDefId::GlobalId(global_id) => {
                 let global_info = self.interner.get_global(global_id);
                 global_info.ident.to_string()
+            }
+        }
+    }
+
+    fn module_def_id_visibility(&self, module_def_id: ModuleDefId) -> ItemVisibility {
+        match module_def_id {
+            ModuleDefId::ModuleId(module_id) => {
+                let attributes = self.interner.try_module_attributes(&module_id);
+                attributes.map_or(ItemVisibility::Private, |a| a.visibility)
+            }
+            ModuleDefId::FunctionId(func_id) => {
+                self.interner.function_modifiers(&func_id).visibility
+            }
+            ModuleDefId::TypeId(type_id) => {
+                let data_type = self.interner.get_type(type_id);
+                data_type.borrow().visibility
+            }
+            ModuleDefId::TypeAliasId(type_alias_id) => {
+                let type_alias = self.interner.get_type_alias(type_alias_id);
+                type_alias.borrow().visibility
+            }
+            ModuleDefId::TraitId(trait_id) => {
+                let trait_ = self.interner.get_trait(trait_id);
+                trait_.visibility
+            }
+            ModuleDefId::GlobalId(global_id) => {
+                let global_info = self.interner.get_global(global_id);
+                global_info.visibility
             }
         }
     }
