@@ -40,7 +40,6 @@
         "bytecount",
         "cachix",
         "callees",
-        "callgraph",
         "callsite",
         "callsites",
         "callstack",

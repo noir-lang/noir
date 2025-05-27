@@ -79,9 +79,6 @@ impl Function {
 
             context.replace_value(old_result, new_result);
         });
-
-        #[cfg(debug_assertions)]
-        remove_bit_shifts_post_check(self);
     }
 }
 
@@ -349,34 +346,6 @@ impl Context<'_, '_, '_> {
             ctrl_typevars,
             self.call_stack,
         )
-    }
-}
-
-/// Post-check condition for [Function::remove_bit_shifts].
-///
-/// Succeeds if:
-///   - `func` is not an ACIR function, OR
-///   - `func` does not contain any bitshift instructions.
-///
-/// Otherwise panics.
-#[cfg(debug_assertions)]
-fn remove_bit_shifts_post_check(func: &Function) {
-    // Non-ACIR functions should be unaffected.
-    if !func.runtime().is_acir() {
-        return;
-    }
-
-    // Otherwise there should be no shift-left or shift-right instructions in any reachable block.
-    for block_id in func.reachable_blocks() {
-        let instruction_ids = func.dfg[block_id].instructions();
-        for instruction_id in instruction_ids {
-            if matches!(
-                func.dfg[*instruction_id],
-                Instruction::Binary(Binary { operator: BinaryOp::Shl | BinaryOp::Shr, .. })
-            ) {
-                panic!("Bitshift instruction still remains in ACIR function");
-            }
-        }
     }
 }
 

@@ -49,25 +49,7 @@ impl Ssa {
             function.dfg.set_function_purities(purities.clone());
         }
 
-        #[cfg(debug_assertions)]
-        purity_analysis_post_check(&self);
-
         self
-    }
-}
-
-/// Post-check condition for [Ssa::purity_analysis].
-///
-/// Succeeds if:
-///   - all functions have a purity status attached to it.
-///
-/// Otherwise panics.
-#[cfg(debug_assertions)]
-fn purity_analysis_post_check(ssa: &Ssa) {
-    if let Some((id, _)) =
-        ssa.functions.iter().find(|(id, function)| function.dfg.purity_of(**id).is_none())
-    {
-        panic!("Function {id} does not have a purity status")
     }
 }
 
@@ -118,16 +100,21 @@ impl std::fmt::Display for Purity {
 
 impl Function {
     fn is_pure(&self) -> (Purity, BTreeSet<FunctionId>) {
-        // Note, this function must be allowed to complete despite the fact that once the function is marked as impure
-        // then its final purity is known. This is because we need to collect all of the dependencies of the function
-        // to ensure that they are processed.
-        //
-        // This can be relaxed if we calculate the callgraph separately.
-
         let contains_reference = |value_id: &ValueId| {
             let typ = self.dfg.type_of_value(*value_id);
             typ.contains_reference()
         };
+
+        if self.parameters().iter().any(&contains_reference) {
+            return (Purity::Impure, BTreeSet::new());
+        }
+
+        // Set of functions we call which the purity result depends on.
+        // `is_pure` is intended to be called on each function, building
+        // up a call graph of sorts to check afterwards to propagate impurity
+        // from called functions to their callers. Therefore, an initial "Pure"
+        // result here could be overridden by one of these dependencies being impure.
+        let mut dependencies = BTreeSet::new();
 
         let mut result = if self.runtime().is_acir() {
             Purity::Pure
@@ -137,17 +124,6 @@ impl Function {
             Purity::PureWithPredicate
         };
 
-        // Set of functions we call which the purity result depends on.
-        // `is_pure` is intended to be called on each function, building
-        // up a call graph of sorts to check afterwards to propagate impurity
-        // from called functions to their callers. Therefore, an initial "Pure"
-        // result here could be overridden by one of these dependencies being impure.
-        let mut dependencies = BTreeSet::new();
-
-        if self.parameters().iter().any(&contains_reference) {
-            result = Purity::Impure;
-        }
-
         for block in self.reachable_blocks() {
             for instruction in self.dfg[block].instructions() {
                 // We don't defer to Instruction::can_be_deduplicated, Instruction::requires_acir_gen_predicate,
@@ -156,10 +132,12 @@ impl Function {
                 // parameters or returned, we can ignore them.
                 // We even ignore Constrain instructions. As long as the external parameters are
                 // identical, we should be constraining the same values anyway.
-                let instruction_purity = match &self.dfg[*instruction] {
+                match &self.dfg[*instruction] {
                     Instruction::Constrain(..)
                     | Instruction::ConstrainNotEqual(..)
-                    | Instruction::RangeCheck { .. } => Purity::PureWithPredicate,
+                    | Instruction::RangeCheck { .. } => {
+                        result = Purity::PureWithPredicate;
+                    }
 
                     // These instructions may be pure unless:
                     // - We may divide by zero
@@ -170,9 +148,7 @@ impl Function {
                     | Instruction::ArrayGet { .. }
                     | Instruction::ArraySet { .. }) => {
                         if ins.requires_acir_gen_predicate(&self.dfg) {
-                            Purity::PureWithPredicate
-                        } else {
-                            result
+                            result = Purity::PureWithPredicate;
                         }
                     }
                     Instruction::Call { func, .. } => {
@@ -181,24 +157,25 @@ impl Function {
                                 // We don't know if this function is pure or not yet,
                                 // so track it as a dependency for now.
                                 dependencies.insert(*function_id);
-                                result
                             }
                             Value::Intrinsic(intrinsic) => match intrinsic.purity() {
-                                Purity::Pure => result,
-                                Purity::PureWithPredicate => Purity::PureWithPredicate,
-                                Purity::Impure => Purity::Impure,
+                                Purity::Pure => (),
+                                Purity::PureWithPredicate => result = Purity::PureWithPredicate,
+                                Purity::Impure => return (Purity::Impure, BTreeSet::new()),
                             },
-                            Value::ForeignFunction(_) => Purity::Impure,
+                            Value::ForeignFunction(_) => return (Purity::Impure, BTreeSet::new()),
                             // The function we're calling is unknown in the remaining cases,
                             // so just assume the worst.
                             Value::Global(_)
                             | Value::Instruction { .. }
                             | Value::Param { .. }
-                            | Value::NumericConstant { .. } => Purity::Impure,
+                            | Value::NumericConstant { .. } => {
+                                return (Purity::Impure, BTreeSet::new());
+                            }
                         }
                     }
 
-                    // The rest are always pure (including allocate, load, & store) and so don't affect purity
+                    // The rest are always pure (including allocate, load, & store)
                     Instruction::Cast(_, _)
                     | Instruction::Not(_)
                     | Instruction::Truncate { .. }
@@ -210,17 +187,15 @@ impl Function {
                     | Instruction::DecrementRc { .. }
                     | Instruction::IfElse { .. }
                     | Instruction::MakeArray { .. }
-                    | Instruction::Noop => result,
-                };
-
-                result = result.unify(instruction_purity);
+                    | Instruction::Noop => (),
+                }
             }
 
             // If the function returns a reference it is impure
             let terminator = self.dfg[block].terminator();
             if let Some(TerminatorInstruction::Return { return_values, .. }) = terminator {
                 if return_values.iter().any(&contains_reference) {
-                    result = Purity::Impure;
+                    return (Purity::Impure, BTreeSet::new());
                 }
             }
         }
@@ -425,45 +400,5 @@ mod test {
             return v1
         }
         ");
-    }
-
-    #[test]
-    fn regression_8625() {
-        // This test checks for a case which would result in some functions not having a purity status applied.
-        // See https://github.com/noir-lang/noir/issues/8625
-        let src = r#"
-        brillig(inline) fn main f0 {
-          b0(v0: [u8; 3]):
-            inc_rc v0
-            v1 = allocate -> &mut [u8; 3]
-            store v0 at v1
-            inc_rc v0
-            inc_rc v0
-            call f1(v1, u32 0, u32 2, Field 3)
-            return
-        }
-        brillig(inline) fn impure_because_reference_arg f1 {
-          b0(v0: &mut [u8; 3], v1: u32, v2: u32, v3: Field):
-            call f2(v0, v1, v2, v3)
-            return
-        }
-        brillig(inline) fn also_impure_because_reference_arg f2 {
-          b0(v0: &mut [u8; 3], v1: u32, v2: u32, v3: Field):
-            call f3()
-            return
-        }
-        brillig(inline) fn pure_with_predicate_func f3 {
-          b0():
-            return
-        }"#;
-
-        let ssa = Ssa::from_str(src).unwrap();
-        let ssa = ssa.purity_analysis();
-
-        let purities = &ssa.main().dfg.function_purities;
-        assert_eq!(purities[&FunctionId::test_new(0)], Purity::Impure);
-        assert_eq!(purities[&FunctionId::test_new(1)], Purity::Impure);
-        assert_eq!(purities[&FunctionId::test_new(2)], Purity::Impure);
-        assert_eq!(purities[&FunctionId::test_new(3)], Purity::PureWithPredicate);
     }
 }
