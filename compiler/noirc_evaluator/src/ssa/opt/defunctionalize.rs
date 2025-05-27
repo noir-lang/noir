@@ -82,13 +82,6 @@ type Variants = BTreeMap<(Signature, RuntimeType), Vec<FunctionId>>;
 /// Each apply function is handles a specific ([Signature], [RuntimeType]) group.
 /// Maps ([Signature], [RuntimeType]) -> [ApplyFunction]
 type ApplyFunctions = HashMap<(Signature, RuntimeType), ApplyFunction>;
-/// Used to ensure that every runtime type has a corresponding placeholder (dummy) function,
-/// which acts as a safe fallback when function calls cannot be resolved (e.g., due to
-/// out-of-bounds function pointer accesses or zero-length function arrays).
-/// These dummy functions are pure, contain no logic, and simply return immediately.
-/// They are necessary to maintain a well-formed IR post-defunctionalization.
-/// Maps [RuntimeType] -> [FunctionId]
-type DummyFunctions = HashMap<RuntimeType, FunctionId>;
 
 /// Performs defunctionalization on all functions
 /// This is done by changing all functions as value to be a number (FieldElement)
@@ -96,7 +89,6 @@ type DummyFunctions = HashMap<RuntimeType, FunctionId>;
 #[derive(Debug, Clone)]
 struct DefunctionalizationContext {
     apply_functions: ApplyFunctions,
-    dummy_functions: DummyFunctions,
 }
 
 impl Ssa {
@@ -107,10 +99,10 @@ impl Ssa {
         let variants = find_variants(&self);
 
         // Generate the apply functions for the provided variants
-        let (apply_functions, dummy_functions) = create_apply_functions(&mut self, variants);
+        let apply_functions = create_apply_functions(&mut self, variants);
 
         // Setup the pass context
-        let context = DefunctionalizationContext { apply_functions, dummy_functions };
+        let context = DefunctionalizationContext { apply_functions };
 
         // Run defunctionalization over all functions in the SSA
         context.defunctionalize_all(&mut self);
@@ -197,18 +189,17 @@ impl DefunctionalizationContext {
 
                         // Find the correct apply function
                         let Some(apply_function) =
-                            self.get_apply_function(signature, func.runtime())
+                            self.get_apply_function(signature.clone(), func.runtime())
                         else {
                             // All first-class function values should be transformed into concrete calls even if
                             // the function reference is invalid.
                             //
                             // If there is no apply function then this should be a function
                             // that will never actually be called, and the DIE pass will eventually remove it.
-                            let dummy_function_id = self.get_dummy_function(func.runtime());
-                            let dummy_function_id = func.dfg.import_function(dummy_function_id);
-                            func.dfg[instruction_id] =
-                                Instruction::Call { func: dummy_function_id, arguments: vec![] };
-                            continue;
+                            // However, even if no variants exist we still except a dummy apply function to be generated.
+                            panic!(
+                                "ICE: An apply function should exist for every first-class function"
+                            )
                         };
 
                         // Replace the instruction with a call to apply
@@ -235,14 +226,6 @@ impl DefunctionalizationContext {
         runtime: RuntimeType,
     ) -> Option<ApplyFunction> {
         self.apply_functions.get(&(signature, runtime)).copied()
-    }
-
-    /// Returns the dummy function for a function call without any variants
-    fn get_dummy_function(&self, runtime: RuntimeType) -> FunctionId {
-        *self
-            .dummy_functions
-            .get(&runtime)
-            .expect("ICE: Should have defunctionalization dummy functions for every runtime")
     }
 }
 
@@ -447,19 +430,18 @@ fn find_dynamic_dispatches(func: &Function) -> BTreeSet<Signature> {
 /// - `variants_map`:  [Variants]
 ///
 /// # Returns
-/// ([ApplyFunctions], [DummyFunctions])
-fn create_apply_functions(
-    ssa: &mut Ssa,
-    variants_map: Variants,
-) -> (ApplyFunctions, DummyFunctions) {
+/// [ApplyFunctions]
+fn create_apply_functions(ssa: &mut Ssa, variants_map: Variants) -> ApplyFunctions {
     let mut apply_functions = HashMap::default();
-    let mut dummy_functions = HashMap::default();
     for ((mut signature, runtime), variants) in variants_map.into_iter() {
         if variants.is_empty() {
             // If no variants exist for a dynamic call we leave removing those dead calls and parameters to DIE.
             // However, we have to construct a dummy function for these dead calls as to not break the semantics
             // of other SSA passes before before DIE is reached.
-            dummy_functions.entry(runtime).or_insert_with(|| create_dummy_function(ssa, runtime));
+            apply_functions.entry((signature.clone(), runtime)).or_insert_with(|| {
+                let id = create_dummy_function(ssa, signature, runtime);
+                ApplyFunction { id, dispatches_to_multiple_functions: false }
+            });
             continue;
         }
         let dispatches_to_multiple_functions = variants.len() > 1;
@@ -490,7 +472,7 @@ fn create_apply_functions(
         apply_functions
             .insert((signature, runtime), ApplyFunction { id, dispatches_to_multiple_functions });
     }
-    (apply_functions, dummy_functions)
+    apply_functions
 }
 
 /// Transforms a [FunctionId] into a [FieldElement]
@@ -655,13 +637,17 @@ fn create_apply_function(
 /// An example of a possible invalid function reference is an out-of-bounds access on a zero-length function array.
 ///
 /// This prevents the compiler from crashing by ensuring that the IR always has a valid function to call.
-/// The dummy function is pure and contains no logic—it just returns immediately.
+/// The dummy function is pure, contains no logic, and just returns immediately.
 ///
 /// This is especially useful in cases where we cannot statically resolve the function reference,
 /// but want to continue compiling the rest of the program safely.
 ///
 /// Returns the [FunctionId] of the newly created dummy function.
-fn create_dummy_function(ssa: &mut Ssa, caller_runtime: RuntimeType) -> FunctionId {
+fn create_dummy_function(
+    ssa: &mut Ssa,
+    signature: Signature,
+    caller_runtime: RuntimeType,
+) -> FunctionId {
     ssa.add_fn(|id| {
         let mut function_builder = FunctionBuilder::new("apply_dummy".to_string(), id);
 
@@ -672,6 +658,11 @@ fn create_dummy_function(ssa: &mut Ssa, caller_runtime: RuntimeType) -> Function
             RuntimeType::Brillig(_) => RuntimeType::Brillig(InlineType::InlineAlways),
         };
         function_builder.set_runtime(runtime);
+
+        // The remaining dummy function parameters are the actual parameters of the function call without any variants.
+        // We generate these just to maintain a well-formed IR. Not doing this could result in errors if the dummy function
+        // was set to be inlined before the call to it was removed by DIE.
+        vecmap(signature.params, |typ| function_builder.add_parameter(typ));
 
         // We can mark the dummy function pure as all it does is return.
         // As the dummy function is just meant to be a placeholder for any calls to
@@ -1017,11 +1008,11 @@ mod tests {
         }
         brillig(inline) fn func_2 f2 {
           b0(v0: Field):
-            v2 = call f3() -> u1
-            return v2
+            v3 = call f3(u128 1) -> u1
+            return v3
         }
-        brillig(inline) pure fn apply_dummy f3 {
-          b0():
+        brillig(inline_always) pure fn apply_dummy f3 {
+          b0(v0: u128):
             return
         }
         ");
@@ -1280,7 +1271,7 @@ mod tests {
             call f1()
             return
         }
-        acir(inline) pure fn apply_dummy f1 {
+        acir(inline_always) pure fn apply_dummy f1 {
           b0():
             return
         }
