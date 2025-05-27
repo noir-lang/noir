@@ -227,7 +227,7 @@ impl BrilligCallParser {
         Ok(expression)
     }
 
-    fn parse_brillig_call<F: AcirField>(
+    pub(crate) fn parse_brillig_call<F: AcirField>(
         brillig_call_instruction: &Instruction,
     ) -> Result<Opcode<F>, String> {
         // we first serialize the call string

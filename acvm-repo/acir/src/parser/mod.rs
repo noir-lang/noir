@@ -110,6 +110,43 @@ impl AcirParser {
                     }
                 }
 
+                l if l.starts_with("INIT") => {
+                    if let Some(stripped) = l.strip_prefix("INIT").map(|s| s.trim()) {
+                        instructions.push(Instruction {
+                            instruction_type: InstructionType::MemoryInit,
+                            instruction_body: stripped,
+                        });
+                    }
+                }
+
+                l if l.starts_with("MEM") => {
+                    if let Some(stripped) = l.strip_prefix("MEM").map(|s| s.trim()) {
+                        instructions.push(Instruction {
+                            instruction_type: InstructionType::MemoryOp,
+                            instruction_body: stripped,
+                        });
+                    }
+                }
+
+                l if l.starts_with("BRILLIG CALL") => {
+                    if let Some(stripped) = l.strip_prefix("BRILLIG CALL").map(|s| s.trim()) {
+                        instructions.push(Instruction {
+                            instruction_type: InstructionType::BrilligCall,
+                            instruction_body: stripped,
+                        });
+                    }
+                }
+
+
+                l if l.starts_with("CALL") => {
+                    if let Some(stripped) = l.strip_prefix("CALL").map(|s| s.trim()) {
+                        instructions.push(Instruction {
+                            instruction_type: InstructionType::Call,
+                            instruction_body: stripped,
+                        });
+                    }
+                }
+                
                 _ => {
                     continue;
                 }
@@ -176,6 +213,33 @@ impl AcirParser {
             return_values: PublicInputs(return_values),
         }
     }
+
+
+    pub fn parse_acir(input: &str) -> Result<Vec<Opcode>, String> {
+        let serialized_acir = AcirParser::serialize_acir(input);
+        let circuit_description = AcirParser::get_circuit_description(&serialized_acir);
+        // now we go through the instructions and parse them one by one 
+        for instruction in serialized_acir {
+            match instruction.instruction_type {
+                InstructionType::Expr => {
+                    let expression = ArithmeticParser::parse_arithmetic_instruction::<FieldElement>(instruction)
+                        .unwrap();
+                }
+                InstructionType::BlackBoxFuncCall => {
+                    let black_box_func_call = BlackBoxParser::parse_black_box_function_call::<FieldElement>(instruction)
+                        .unwrap();
+                }
+                InstructionType::BrilligCall => {
+                    let brillig_call = BrilligCallParser::parse_brillig_call::<FieldElement>(&instruction)
+                        .unwrap();
+                }
+                InstructionType::Call => {
+                    let call = CallParser::parse_call::<FieldElement>(instruction)
+                        .unwrap();
+                }
+                
+            }
+        }
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -199,27 +263,6 @@ impl CircuitDescription {
     }
 }
 
-pub enum ExpressionTerm<F> {
-    MulTerm(F, Witness, Witness),
-    LinearTerm(F, Witness),
-    Constant(F),
-}
-
-pub fn parse_memory_init(instruction: Instruction) -> Result<MemoryInit, String> {
-    todo!()
-}
-
-pub fn parse_memory_op(instruction: Instruction) -> Result<MemoryOp, String> {
-    todo!()
-}
-
-pub fn parse_call(instruction: Instruction) -> Result<Call, String> {
-    todo!()
-}
-
-// pub fn build_circuit<F>(serialized_acir: Vec<(&str, &str)>) -> Circuit<F> where F: AcirField{
-//     // Circuit::empty()
-// }
 
 #[cfg(test)]
 mod test {
@@ -393,12 +436,7 @@ mod test {
         BLACKBOX::RANGE [(_15, 33)] []
         EXPR [ (1, _5, _11) (-1, _16) 0 ]
         BLACKBOX::RANGE [(_16, 32)] []
-        EXPR [ (1, _3) (-1, _16) 0 ]
-
-        unconstrained func 0
-        [Const { destination: Direct(10), bit_size: Integer(U32), value: 2 }, Const { destination: Direct(11), bit_size: Integer(U32), value: 0 }, CalldataCopy { destination_address: Direct(0), size_address: Direct(10), offset_address: Direct(11) }, BinaryFieldOp { destination: Direct(2), op: IntegerDiv, lhs: Direct(0), rhs: Direct(1) }, BinaryFieldOp { destination: Direct(1), op: Mul, lhs: Direct(2), rhs: Direct(1) }, BinaryFieldOp { destination: Direct(1), op: Sub, lhs: Direct(0), rhs: Direct(1) }, Mov { destination: Direct(0), source: Direct(2) }, Stop { return_data: HeapVector { pointer: Direct(11), size: Direct(10) } }]
-        unconstrained func 1
-        [Const { destination: Direct(21), bit_size: Integer(U32), value: 1 }, Const { destination: Direct(20), bit_size: Integer(U32), value: 0 }, CalldataCopy { destination_address: Direct(0), size_address: Direct(21), offset_address: Direct(20) }, Const { destination: Direct(2), bit_size: Field, value: 0 }, BinaryFieldOp { destination: Direct(3), op: Equals, lhs: Direct(0), rhs: Direct(2) }, JumpIf { condition: Direct(3), location: 8 }, Const { destination: Direct(1), bit_size: Field, value: 1 }, BinaryFieldOp { destination: Direct(0), op: Div, lhs: Direct(1), rhs: Direct(0) }, Stop { return_data: HeapVector { pointer: Direct(20), size: Direct(21) } }]";
+        EXPR [ (1, _3) (-1, _16) 0 ]";
 
         let serialized_acir = AcirParser::serialize_acir(acir_string);
         for instruction in serialized_acir {
