@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1748350041993,
+  "lastUpdate": 1748353259485,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -15206,48 +15206,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "mvezenov@gmail.com",
-            "name": "Maxim Vezenov",
-            "username": "vezenovm"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "e33b900bba5abcfe655435c81730169234a52b6f",
-          "message": "chore(inlining): Mark functions with <= 10 instructions and no control flow as inline always  (#8533)\n\nCo-authored-by: AztecBot <tech@aztecprotocol.com>",
-          "timestamp": "2025-05-19T16:46:45Z",
-          "tree_id": "1e784a7d7511b7de82ce2357bf99facde3c5fb1b",
-          "url": "https://github.com/noir-lang/noir/commit/e33b900bba5abcfe655435c81730169234a52b6f"
-        },
-        "date": 1747674430042,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 255504,
-            "range": "± 1882",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 224336,
-            "range": "± 8258",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 3564799,
-            "range": "± 7301",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "asterite@gmail.com",
             "name": "Ary Borenszweig",
             "username": "asterite"
@@ -17299,6 +17257,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 3213239,
             "range": "± 1760",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "aakoshh@gmail.com",
+            "name": "Akosh Farkash",
+            "username": "aakoshh"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "176cfd416d7a28501c1f00405c6daf25b514ce4e",
+          "message": "chore(test): Add regression test for defunctionalize (#8691)",
+          "timestamp": "2025-05-27T13:19:34Z",
+          "tree_id": "3fc3b8c111e12aa75778c9597d43e3708a6b954d",
+          "url": "https://github.com/noir-lang/noir/commit/176cfd416d7a28501c1f00405c6daf25b514ce4e"
+        },
+        "date": 1748353248095,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 255242,
+            "range": "± 1260",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 225131,
+            "range": "± 6405",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 3566390,
+            "range": "± 13832",
             "unit": "ns/iter"
           }
         ]
