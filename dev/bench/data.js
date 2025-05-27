@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1748353259485,
+  "lastUpdate": 1748353489855,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -3058,85 +3058,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "mvezenov@gmail.com",
-            "name": "Maxim Vezenov",
-            "username": "vezenovm"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "e33b900bba5abcfe655435c81730169234a52b6f",
-          "message": "chore(inlining): Mark functions with <= 10 instructions and no control flow as inline always  (#8533)\n\nCo-authored-by: AztecBot <tech@aztecprotocol.com>",
-          "timestamp": "2025-05-19T16:46:45Z",
-          "tree_id": "1e784a7d7511b7de82ce2357bf99facde3c5fb1b",
-          "url": "https://github.com/noir-lang/noir/commit/e33b900bba5abcfe655435c81730169234a52b6f"
-        },
-        "date": 1747674668715,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 2.29,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 6.546,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 1.086,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 16.06,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 12.32,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root-empty",
-            "value": 1.36,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root-single-tx",
-            "value": 124,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 129,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 1.102,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-root",
-            "value": 1.628,
-            "unit": "s"
-          },
-          {
-            "name": "semaphore-depth-10",
-            "value": 0.854,
-            "unit": "s"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "asterite@gmail.com",
             "name": "Ary Borenszweig",
             "username": "asterite"
@@ -6101,6 +6022,85 @@ window.BENCHMARK_DATA = {
           {
             "name": "semaphore-depth-10",
             "value": 0.828,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "aakoshh@gmail.com",
+            "name": "Akosh Farkash",
+            "username": "aakoshh"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "176cfd416d7a28501c1f00405c6daf25b514ce4e",
+          "message": "chore(test): Add regression test for defunctionalize (#8691)",
+          "timestamp": "2025-05-27T13:19:34Z",
+          "tree_id": "3fc3b8c111e12aa75778c9597d43e3708a6b954d",
+          "url": "https://github.com/noir-lang/noir/commit/176cfd416d7a28501c1f00405c6daf25b514ce4e"
+        },
+        "date": 1748353479783,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 2.41,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 7.006,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 1.158,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 17.24,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 16.3,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-empty",
+            "value": 1.382,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-single-tx",
+            "value": 125,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 126,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 1.168,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-root",
+            "value": 1.706,
+            "unit": "s"
+          },
+          {
+            "name": "semaphore-depth-10",
+            "value": 0.847,
             "unit": "s"
           }
         ]
