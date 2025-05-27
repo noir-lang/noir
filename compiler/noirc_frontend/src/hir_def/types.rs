@@ -264,7 +264,13 @@ impl Kind {
         match self {
             Kind::IntegerOrField => Some(Type::default_int_or_field_type()),
             Kind::Integer => Some(Type::default_int_type()),
-            Kind::Numeric(typ) => Some(*typ.clone()),
+            Kind::Numeric(_typ) => {
+                // Even though we have a type here, that type cannot be used as
+                // the default type of a numeric generic.
+                // For example, if we have `let N: u32` and we don't know
+                // what `N` is, we can't assume it's `u32`.
+                None
+            }
             Kind::Any | Kind::Normal => None,
         }
     }
@@ -339,6 +345,7 @@ pub struct DataType {
     pub id: TypeId,
 
     pub name: Ident,
+    pub visibility: ItemVisibility,
 
     /// A type's body is private to force struct fields or enum variants to only be
     /// accessed through get_field(), get_fields(), instantiate(), or similar functions
@@ -358,7 +365,7 @@ enum TypeBody {
     Enum(Vec<EnumVariant>),
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct StructField {
     pub visibility: ItemVisibility,
     pub name: Ident,
@@ -446,8 +453,14 @@ impl Ord for DataType {
 }
 
 impl DataType {
-    pub fn new(id: TypeId, name: Ident, location: Location, generics: Generics) -> DataType {
-        DataType { id, name, location, generics, body: TypeBody::None }
+    pub fn new(
+        id: TypeId,
+        name: Ident,
+        location: Location,
+        generics: Generics,
+        visibility: ItemVisibility,
+    ) -> DataType {
+        DataType { id, name, location, generics, body: TypeBody::None, visibility }
     }
 
     /// To account for cyclic references between structs, a struct's
@@ -542,12 +555,12 @@ impl DataType {
     }
 
     /// Retrieve the fields of this type. Returns None if this is not a field type
-    pub fn get_fields(&self, generic_args: &[Type]) -> Option<Vec<(String, Type)>> {
+    pub fn get_fields(&self, generic_args: &[Type]) -> Option<Vec<(String, Type, ItemVisibility)>> {
         let substitutions = self.get_fields_substitutions(generic_args);
 
         Some(vecmap(self.fields_raw()?, |field| {
             let name = field.name.to_string();
-            (name, field.typ.substitute(&substitutions))
+            (name, field.typ.substitute(&substitutions), field.visibility)
         }))
     }
 
@@ -688,6 +701,7 @@ pub struct TypeAlias {
     pub id: TypeAliasId,
     pub typ: Type,
     pub generics: Generics,
+    pub visibility: ItemVisibility,
     pub location: Location,
 }
 
@@ -728,8 +742,9 @@ impl TypeAlias {
         location: Location,
         typ: Type,
         generics: Generics,
+        visibility: ItemVisibility,
     ) -> TypeAlias {
-        TypeAlias { id, typ, name, location, generics }
+        TypeAlias { id, typ, name, location, generics, visibility }
     }
 
     pub fn set_type_and_generics(&mut self, new_typ: Type, new_generics: Generics) {
@@ -1307,7 +1322,7 @@ impl Type {
             Type::Tuple(elements) => elements.iter().all(|elem| elem.is_valid_for_program_input()),
             Type::DataType(definition, generics) => {
                 if let Some(fields) = definition.borrow().get_fields(generics) {
-                    fields.into_iter().all(|(_, field)| field.is_valid_for_program_input())
+                    fields.into_iter().all(|(_, field, _)| field.is_valid_for_program_input())
                 } else {
                     // Arbitrarily disallow enums from program input, though we may support them later
                     false
@@ -1390,7 +1405,7 @@ impl Type {
             Type::DataType(definition, generics) => {
                 if let Some(fields) = definition.borrow().get_fields(generics) {
                     fields.into_iter()
-                    .all(|(_, field)| field.is_valid_non_inlined_function_input())
+                    .all(|(_, field, _)| field.is_valid_non_inlined_function_input())
                 } else {
                     false
                 }
@@ -1444,7 +1459,9 @@ impl Type {
             }
             Type::DataType(definition, generics) => {
                 if let Some(fields) = definition.borrow().get_fields(generics) {
-                    fields.into_iter().all(|(_, field)| field.is_valid_for_unconstrained_boundary())
+                    fields
+                        .into_iter()
+                        .all(|(_, field, _)| field.is_valid_for_unconstrained_boundary())
                 } else {
                     false
                 }
@@ -1590,7 +1607,7 @@ impl Type {
             Type::DataType(def, args) => {
                 let struct_type = def.borrow();
                 if let Some(fields) = struct_type.get_fields(args) {
-                    fields.iter().map(|(_, field_type)| field_type.field_count(location)).sum()
+                    fields.iter().map(|(_, field_type, _)| field_type.field_count(location)).sum()
                 } else if let Some(variants) = struct_type.get_variants(args) {
                     let mut size = 1; // start with the tag size
                     for (_, args) in variants {
@@ -1642,7 +1659,7 @@ impl Type {
             Type::DataType(typ, generics) => {
                 let typ = typ.borrow();
                 if let Some(fields) = typ.get_fields(generics) {
-                    if fields.iter().any(|(_, field)| field.contains_slice()) {
+                    if fields.iter().any(|(_, field, _)| field.contains_slice()) {
                         return true;
                     }
                 } else if let Some(variants) = typ.get_variants(generics) {
@@ -3096,7 +3113,7 @@ impl From<&Type> for PrintableType {
                 let name = data_type.name.to_string();
 
                 if let Some(fields) = data_type.get_fields(args) {
-                    let fields = vecmap(fields, |(name, typ)| (name, typ.into()));
+                    let fields = vecmap(fields, |(name, typ, _)| (name, typ.into()));
                     PrintableType::Struct { fields, name }
                 } else if let Some(variants) = data_type.get_variants(args) {
                     let variants =
