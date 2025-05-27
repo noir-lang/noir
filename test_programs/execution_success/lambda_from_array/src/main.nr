@@ -29,11 +29,6 @@ fn main(x: u32) {
     let lambdas: [fn(()) -> ()] = &[|_: ()| {}];
     lambdas[0](());
     lambdas[x - 1](());
-
-    // Still panics when there are no other lambdas
-    // This should fail either way as we are attempting to access an empty array at zero
-    // let lambdas: [fn(()) -> (); 0] = [];
-    // lambdas[0](());
 }
 
 fn lambdas_in_array_literal(x: u32) {
