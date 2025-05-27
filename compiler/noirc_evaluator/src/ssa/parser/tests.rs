@@ -170,7 +170,7 @@ fn test_jmpif() {
           b0(v0: Field):
             jmpif v0 then: b1, else: b2
           b1():
-            return
+            jmp b2()
           b2():
             return
         }
@@ -182,7 +182,7 @@ fn test_jmpif() {
           b0(v0: Field):
             jmpif v0 then: b2, else: b1
           b1():
-            return
+            jmp b2()
           b2():
             return
         }
@@ -197,10 +197,12 @@ fn test_multiple_jmpif() {
           b0(v0: Field, v1: Field):
             jmpif v0 then: b1, else: b2
           b1():
-            return
+            jmp b4()
           b2():
             jmpif v1 then: b3, else: b1
           b3():
+            jmp b4()
+          b4():
             return
         }
     ";
