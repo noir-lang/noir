@@ -1,87 +1,8 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1748344951813,
+  "lastUpdate": 1748345025511,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
-      {
-        "commit": {
-          "author": {
-            "email": "15848336+TomAFrench@users.noreply.github.com",
-            "name": "Tom French",
-            "username": "TomAFrench"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "9a8a7ec4df8d0a465ae583d8d64ece254e39dca5",
-          "message": "fix: avoid logging all unused params in DIE pass (#8566)",
-          "timestamp": "2025-05-19T13:22:58Z",
-          "tree_id": "5aa8be070dd9715f2a1522e10e0c9d4074486e59",
-          "url": "https://github.com/noir-lang/noir/commit/9a8a7ec4df8d0a465ae583d8d64ece254e39dca5"
-        },
-        "date": 1747663027359,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 316.51,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 572.31,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 231.44,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 1440,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 1470,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-root-empty",
-            "value": 402.95,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-root-single-tx",
-            "value": 7220,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 7220,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 385.02,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-root",
-            "value": 445.93,
-            "unit": "MB"
-          },
-          {
-            "name": "semaphore_depth_10",
-            "value": 128.47,
-            "unit": "MB"
-          }
-        ]
-      },
       {
         "commit": {
           "author": {
@@ -3044,6 +2965,85 @@ window.BENCHMARK_DATA = {
           {
             "name": "rollup-root",
             "value": 470.17,
+            "unit": "MB"
+          },
+          {
+            "name": "semaphore_depth_10",
+            "value": 128.37,
+            "unit": "MB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "mvezenov@gmail.com",
+            "name": "Maxim Vezenov",
+            "username": "vezenovm"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "3da528896a5788976801de6a98b0d2df9a69f3d8",
+          "message": "fix(ssa): Remove the array cache from the function inserter (#8607)\n\nCo-authored-by: Tom French <15848336+TomAFrench@users.noreply.github.com>",
+          "timestamp": "2025-05-27T10:43:55Z",
+          "tree_id": "5c124e6d21d605b1ce67ff1b9d145d1d295ca57f",
+          "url": "https://github.com/noir-lang/noir/commit/3da528896a5788976801de6a98b0d2df9a69f3d8"
+        },
+        "date": 1748345015394,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 337.07,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 577.68,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 236.94,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 1470,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 1630,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root-empty",
+            "value": 431.67,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root-single-tx",
+            "value": 7240,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 7250,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 415.89,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-root",
+            "value": 470.21,
             "unit": "MB"
           },
           {
