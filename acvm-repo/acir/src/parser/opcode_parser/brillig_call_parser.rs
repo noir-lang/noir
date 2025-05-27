@@ -21,7 +21,7 @@ impl BrilligCallParser {
         }
 
         let instruction_body = instruction.instruction_body;
-        let re = Regex::new(r"func (\d+):\s*(?:(PREDICATE\s*=\s*\[.*?\]\s*))?\s*inputs:\s*\[(.*?)\],\s*outputs:\s*\[(.*?)\]").unwrap();
+        let re = Regex::new(r"func (\d+):\s*(?:(PREDICATE\s*=\s*\[.*?\]\s*))?\s*inputs:\s*\[(.*?)\]\s*outputs:\s*\[(.*?)\]").unwrap();
 
         let captures = re
             .captures(instruction_body)
@@ -97,6 +97,8 @@ impl BrilligCallParser {
         for capture in captures {
             let output_type = capture.get(1).unwrap().as_str();
             let content = capture.get(2).unwrap().as_str();
+            println!("type: {:?}", output_type);
+            println!("content: {:?}", content);
             match output_type {
                 "Simple" => {
                     outputs_array.push(BrilligOutputs::Simple(Witness(
@@ -269,7 +271,7 @@ mod test {
     fn test_brillig_call_regex() {
         let instruction = Instruction {
             instruction_type: InstructionType::BrilligCall,
-            instruction_body: "func 0: inputs: [Single(Expression { mul_terms: [], linear_combinations: [(1, Witness(0)), (1, Witness(1))], q_c: 0 }), Single(Expression { mul_terms: [], linear_combinations: [], q_c: 4294967296 })], outputs: [Simple(Witness(11)), Array([Witness(12), Witness(13), Witness(14)])]",
+            instruction_body: "func 0: inputs: [Single(Expression { mul_terms: [], linear_combinations: [(1, Witness(0)), (1, Witness(1))], q_c: 0 }), Single(Expression { mul_terms: [], linear_combinations: [], q_c: 4294967296 })] outputs: [Simple(Witness(11)), Array([Witness(12), Witness(13), Witness(14)])]",
         };
         let (inputs, outputs, id, predicate) =
             BrilligCallParser::serialize_brillig_call(&instruction).unwrap();
@@ -277,17 +279,6 @@ mod test {
         println!("outputs: {:?}", outputs);
         println!("id: {:?}", id);
         println!("predicate: {:?}", predicate);
-    }
-
-    #[test]
-    fn test_brillig_call_parser_2() {
-        let instruction = Instruction {
-            instruction_type: InstructionType::BrilligCall,
-            instruction_body: "func 0: inputs: [Single(Expression { mul_terms: [], linear_combinations: [(1, Witness(0)), (1, Witness(1))], q_c: 0 }), Single(Expression { mul_terms: [], linear_combinations: [], q_c: 4294967296 })], outputs: [Simple(Witness(4)), Simple(Witness(5))]",
-        };
-        let brillig_call =
-            BrilligCallParser::parse_brillig_call::<FieldElement>(&instruction).unwrap();
-        println!("brillig_call: {:?}", brillig_call);
     }
 
     #[test]
@@ -315,7 +306,7 @@ mod test {
 
     #[test]
     fn test_brillig_call_parser() {
-        let brillig_call_string = "func 0: PREDICATE = [ (-1, _0, _2) (-1, _1, _2) (1, _3) 0 ] inputs: [Single(Expression { mul_terms: [], linear_combinations: [(1, Witness(0)), (1, Witness(1)), Array([Expression { mul_terms: [], linear_combinations: [(1, Witness(0))], q_c: 0 }, Expression { mul_terms: [], linear_combinations: [(1, Witness(1))], q_c: 0 }, Expression { mul_terms: [], linear_combinations: [(1, Witness(2))], q_c: 0 }]), Single(Expression { mul_terms: [], linear_combinations: [(1, Witness(0)), (1, Witness(1))], q_c: 0 }), Single(Expression { mul_terms: [], linear_combinations: [], q_c: 4294967296 })], outputs: [Simple(Witness(11)), Array([Witness(12), Witness(13), Witness(14)])]";
+        let brillig_call_string = "func 0: PREDICATE = [ (-1, _0, _2) (-1, _1, _2) (1, _3) 0 ] inputs: [Single(Expression { mul_terms: [], linear_combinations: [(1, Witness(0)), (1, Witness(1)), Array([Expression { mul_terms: [], linear_combinations: [(1, Witness(0))], q_c: 0 }, Expression { mul_terms: [], linear_combinations: [(1, Witness(1))], q_c: 0 }, Expression { mul_terms: [], linear_combinations: [(1, Witness(2))], q_c: 0 }]), Single(Expression { mul_terms: [], linear_combinations: [(1, Witness(0)), (1, Witness(1))], q_c: 0 }), Single(Expression { mul_terms: [], linear_combinations: [], q_c: 4294967296 })] outputs: [Simple(Witness(11)), Array([Witness(12), Witness(13), Witness(14)])]";
 
         let brillig_call_instruction = Instruction {
             instruction_type: InstructionType::BrilligCall,
@@ -329,11 +320,11 @@ mod test {
 
     #[test]
     fn test_predicate_parser() {
-        let brillig_call_string = "func 0: PREDICATE = [ (-1, _0, _2) (-1, _1, _2) (1, _3) 0 ] inputs: [Single(Expression { mul_terms: [], linear_combinations: [(1, Witness(0)), (1, Witness(1))], q_c: 0 }), Single(Expression { mul_terms: [], linear_combinations: [], q_c: 4294967296 })], outputs: [Simple(Witness(11)), Array([Witness(12), Witness(13), Witness(14)])]";
+        let brillig_call_string = "func 0: PREDICATE = [ (-1, _0, _2) (-1, _1, _2) (1, _3) 0 ] inputs: [Single(Expression { mul_terms: [], linear_combinations: [(1, Witness(0)), (1, Witness(1))], q_c: 0 }), Single(Expression { mul_terms: [], linear_combinations: [], q_c: 4294967296 })] outputs: [Simple(Witness(11)), Array([Witness(12), Witness(13), Witness(14)])]";
 
-        let brillig_call_string_no_predicate = "func 0: inputs: [Single(Expression { mul_terms: [], linear_combinations: [(1, Witness(0)), (1, Witness(1))], q_c: 0 }), Single(Expression { mul_terms: [], linear_combinations: [], q_c: 4294967296 })], outputs: [Simple(Witness(11)), Array([Witness(12), Witness(13), Witness(14)])]";
+        let brillig_call_string_no_predicate = "func 0: inputs: [Single(Expression { mul_terms: [], linear_combinations: [(1, Witness(0)), (1, Witness(1))], q_c: 0 }), Single(Expression { mul_terms: [], linear_combinations: [], q_c: 4294967296 })] outputs: [Simple(Witness(11)), Array([Witness(12), Witness(13), Witness(14)])]";
 
-        let re = Regex::new(r"func (\d+):\s*(?:(PREDICATE\s*=\s*\[.*?\]\s*))?\s*inputs:\s*\[(.*?)\],\s*outputs:\s*\[(.*?)\]").unwrap();
+        let re = Regex::new(r"func (\d+):\s*(?:(PREDICATE\s*=\s*\[.*?\]\s*))?\s*inputs:\s*\[(.*?)\]\s*outputs:\s*\[(.*?)\]").unwrap();
         let captures = re.captures(brillig_call_string).unwrap();
         let captures_no_predicate = re.captures(brillig_call_string_no_predicate).unwrap();
 

@@ -49,9 +49,7 @@ impl CallParser {
         Ok(outputs)
     }
 
-    pub(crate) fn parse_call<F: AcirField>(
-        call_instruction: &Instruction,
-    ) -> Result<Opcode<F>, String> {
+    fn parse_call<F: AcirField>(call_instruction: &Instruction) -> Result<Opcode<F>, String> {
         // we first serialize the call string
         let (call_input_string, call_output_string, call_id, predicate_string) =
             Self::serialize_call(call_instruction).map_err(|e| e.to_string())?;

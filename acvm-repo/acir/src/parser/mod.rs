@@ -21,6 +21,9 @@ use super::circuit::opcodes::InvalidInputBitSize;
 use arithmetic_parser::ArithmeticParser;
 use black_box_parser::BlackBoxParser;
 use brillig_call_parser::BrilligCallParser;
+use call_parser::CallParser;
+use mem_init_parser::MemInitParser;
+use mem_parser::MemParser;
 use utils::parse_str_to_field;
 
 #[derive(Debug, Clone, PartialEq)]
@@ -137,7 +140,6 @@ impl AcirParser {
                     }
                 }
 
-
                 l if l.starts_with("CALL") => {
                     if let Some(stripped) = l.strip_prefix("CALL").map(|s| s.trim()) {
                         instructions.push(Instruction {
@@ -146,7 +148,7 @@ impl AcirParser {
                         });
                     }
                 }
-                
+
                 _ => {
                     continue;
                 }
@@ -214,32 +216,51 @@ impl AcirParser {
         }
     }
 
-
-    pub fn parse_acir(input: &str) -> Result<Vec<Opcode>, String> {
+    pub fn parse_acir<F: AcirField>(input: &str) -> Result<Vec<Opcode<F>>, String> {
         let serialized_acir = AcirParser::serialize_acir(input);
         let circuit_description = AcirParser::get_circuit_description(&serialized_acir);
-        // now we go through the instructions and parse them one by one 
+        // now we go through the instructions and parse them one by one
+        let mut opcodes: Vec<Opcode<F>> = Vec::new();
         for instruction in serialized_acir {
             match instruction.instruction_type {
                 InstructionType::Expr => {
-                    let expression = ArithmeticParser::parse_arithmetic_instruction::<FieldElement>(instruction)
-                        .unwrap();
+                    let expression =
+                        ArithmeticParser::parse_arithmetic_instruction::<F>(instruction).unwrap();
+                    opcodes.push(expression);
                 }
                 InstructionType::BlackBoxFuncCall => {
-                    let black_box_func_call = BlackBoxParser::parse_black_box_function_call::<FieldElement>(instruction)
-                        .unwrap();
+                    let black_box_func_call =
+                        BlackBoxParser::parse_black_box_function_call::<F>(instruction).unwrap();
+                    opcodes.push(black_box_func_call);
                 }
                 InstructionType::BrilligCall => {
-                    let brillig_call = BrilligCallParser::parse_brillig_call::<FieldElement>(&instruction)
-                        .unwrap();
+                    let brillig_call =
+                        BrilligCallParser::parse_brillig_call::<F>(&instruction).unwrap();
+                    opcodes.push(brillig_call);
                 }
                 InstructionType::Call => {
-                    let call = CallParser::parse_call::<FieldElement>(instruction)
-                        .unwrap();
+                    let call = CallParser::parse_call::<F>(&instruction).unwrap();
+                    opcodes.push(call);
                 }
-                
+
+                InstructionType::MemoryInit => {
+                    let memory_init =
+                        MemInitParser::parse_mem_init::<F>(instruction.instruction_body).unwrap();
+                    opcodes.push(memory_init);
+                }
+
+                InstructionType::MemoryOp => {
+                    let memory_op = MemParser::parse_mem_op::<F>(&instruction).unwrap();
+                    opcodes.push(memory_op);
+                }
+
+                _ => {
+                    continue;
+                }
             }
         }
+        Ok(opcodes)
+    }
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -263,11 +284,10 @@ impl CircuitDescription {
     }
 }
 
-
 #[cfg(test)]
 mod test {
     use super::*;
-    use acir::FieldElement;
+    use crate::acir_field::FieldElement;
 
     #[test]
     fn test_serialize_acir() {
@@ -439,22 +459,7 @@ mod test {
         EXPR [ (1, _3) (-1, _16) 0 ]";
 
         let serialized_acir = AcirParser::serialize_acir(acir_string);
-        for instruction in serialized_acir {
-            match instruction.instruction_type {
-                InstructionType::BlackBoxFuncCall => {
-                    let black_box_func_call =
-                        BlackBoxParser::parse_black_box_function_call::<FieldElement>(instruction)
-                            .unwrap();
-                    println!("{:?}", black_box_func_call);
-                }
-                InstructionType::Expr => {
-                    let expression =
-                        ArithmeticParser::parse_arithmetic_instruction::<FieldElement>(instruction)
-                            .unwrap();
-                    println!("{:?}", expression);
-                }
-                _ => {}
-            }
-        }
+        let opcodes = AcirParser::parse_acir::<FieldElement>(acir_string).unwrap();
+        println!("{:?}", opcodes);
     }
 }

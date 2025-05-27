@@ -5,15 +5,13 @@ use crate::circuit::Opcode;
 use crate::circuit::brillig::{BrilligFunctionId, BrilligInputs, BrilligOutputs};
 use crate::circuit::opcodes::{AcirFunctionId, BlockId, MemOp};
 use crate::native_types::{Expression, Witness};
-use crate::parser::{InstructionType, brillig_call_parser::BrilligCallParser, parse_str_to_field};
+use crate::parser::{InstructionType, opcode_parser::BrilligCallParser, parse_str_to_field};
 pub use acir_field::AcirField;
 
 pub(crate) struct MemParser {}
 
 impl MemParser {
-    pub(crate) fn parse_mem_op<F: AcirField>(
-        instruction: &Instruction,
-    ) -> Result<Opcode<F>, String> {
+    fn parse_mem_op<F: AcirField>(instruction: &Instruction) -> Result<Opcode<F>, String> {
         // block_id; BlockId
         // op: MemOp<F>
         // predicate: Option<Expression<F>>
