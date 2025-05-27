@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1748349601235,
+  "lastUpdate": 1748349602927,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -17318,85 +17318,6 @@ window.BENCHMARK_DATA = {
             "username": "web-flow"
           },
           "distinct": true,
-          "id": "1feac18e7d54673f78d0d2d32c6c09d470a3841c",
-          "message": "chore(ssa): Add weighted edges to call graph, move callers and callees methods to call graph (#8513)",
-          "timestamp": "2025-05-19T15:23:56Z",
-          "tree_id": "7f08b369233590a02513ae97621467e477039c18",
-          "url": "https://github.com/noir-lang/noir/commit/1feac18e7d54673f78d0d2d32c6c09d470a3841c"
-        },
-        "date": 1747670249149,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 1127.1,
-            "unit": "KB"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 2051.1,
-            "unit": "KB"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 583.1,
-            "unit": "KB"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 5123.2,
-            "unit": "KB"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 3941.8,
-            "unit": "KB"
-          },
-          {
-            "name": "rollup-block-root-empty",
-            "value": 256.8,
-            "unit": "KB"
-          },
-          {
-            "name": "rollup-block-root-single-tx",
-            "value": 25679,
-            "unit": "KB"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 25706,
-            "unit": "KB"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 181.7,
-            "unit": "KB"
-          },
-          {
-            "name": "rollup-root",
-            "value": 473.4,
-            "unit": "KB"
-          },
-          {
-            "name": "semaphore-depth-10",
-            "value": 636.3,
-            "unit": "KB"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
-            "email": "mvezenov@gmail.com",
-            "name": "Maxim Vezenov",
-            "username": "vezenovm"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
           "id": "e33b900bba5abcfe655435c81730169234a52b6f",
           "message": "chore(inlining): Mark functions with <= 10 instructions and no control flow as inline always  (#8533)\n\nCo-authored-by: AztecBot <tech@aztecprotocol.com>",
           "timestamp": "2025-05-19T16:46:45Z",
@@ -20296,6 +20217,85 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/noir-lang/noir/commit/2a79d90851faea8c38dc50d994b2c2c7ba8201ff"
         },
         "date": 1748347267837,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 1133.3,
+            "unit": "KB"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 2156.7,
+            "unit": "KB"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 589,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 5129.7,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 4071.2,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-block-root-empty",
+            "value": 257,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-block-root-single-tx",
+            "value": 25708.1,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 25715.1,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 183.7,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-root",
+            "value": 418.6,
+            "unit": "KB"
+          },
+          {
+            "name": "semaphore-depth-10",
+            "value": 636.3,
+            "unit": "KB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "15848336+TomAFrench@users.noreply.github.com",
+            "name": "Tom French",
+            "username": "TomAFrench"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "9ee2618510d877402aa9ad2f4cdf9e92577fd7e8",
+          "message": "chore: add an assertion when parsing SSA that all functions are well-formed (#8671)",
+          "timestamp": "2025-05-27T12:07:42Z",
+          "tree_id": "821fdb33da3982465aa955318e3fd08873506418",
+          "url": "https://github.com/noir-lang/noir/commit/9ee2618510d877402aa9ad2f4cdf9e92577fd7e8"
+        },
+        "date": 1748349590698,
         "tool": "customSmallerIsBetter",
         "benches": [
           {
