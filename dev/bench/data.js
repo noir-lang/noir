@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1748344784659,
+  "lastUpdate": 1748344786928,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -3058,85 +3058,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "15848336+TomAFrench@users.noreply.github.com",
-            "name": "Tom French",
-            "username": "TomAFrench"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "9a8a7ec4df8d0a465ae583d8d64ece254e39dca5",
-          "message": "fix: avoid logging all unused params in DIE pass (#8566)",
-          "timestamp": "2025-05-19T13:22:58Z",
-          "tree_id": "5aa8be070dd9715f2a1522e10e0c9d4074486e59",
-          "url": "https://github.com/noir-lang/noir/commit/9a8a7ec4df8d0a465ae583d8d64ece254e39dca5"
-        },
-        "date": 1747662712554,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 2.344,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 6.586,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 1.062,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 16.46,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 12.98,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root-empty",
-            "value": 1.396,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root-single-tx",
-            "value": 121,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 142,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 1.106,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-root",
-            "value": 1.66,
-            "unit": "s"
-          },
-          {
-            "name": "semaphore-depth-10",
-            "value": 0.83,
-            "unit": "s"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "mvezenov@gmail.com",
             "name": "Maxim Vezenov",
             "username": "vezenovm"
@@ -6101,6 +6022,85 @@ window.BENCHMARK_DATA = {
           {
             "name": "semaphore-depth-10",
             "value": 0.814,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "mvezenov@gmail.com",
+            "name": "Maxim Vezenov",
+            "username": "vezenovm"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "3da528896a5788976801de6a98b0d2df9a69f3d8",
+          "message": "fix(ssa): Remove the array cache from the function inserter (#8607)\n\nCo-authored-by: Tom French <15848336+TomAFrench@users.noreply.github.com>",
+          "timestamp": "2025-05-27T10:43:55Z",
+          "tree_id": "5c124e6d21d605b1ce67ff1b9d145d1d295ca57f",
+          "url": "https://github.com/noir-lang/noir/commit/3da528896a5788976801de6a98b0d2df9a69f3d8"
+        },
+        "date": 1748344775976,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 2.37,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 6.914,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 1.148,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 18.16,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 14.76,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-empty",
+            "value": 1.342,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-single-tx",
+            "value": 125,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 130,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 1.16,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-root",
+            "value": 1.648,
+            "unit": "s"
+          },
+          {
+            "name": "semaphore-depth-10",
+            "value": 0.815,
             "unit": "s"
           }
         ]
