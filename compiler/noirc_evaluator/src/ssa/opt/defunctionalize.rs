@@ -189,6 +189,8 @@ impl DefunctionalizationContext {
                         let Some(apply_function) =
                             self.get_apply_function(signature, func.runtime())
                         else {
+                            // If there is no apply function then this should be a parameter in a function
+                            // that will never actually be called, and the DIE pass will eventually remove it.
                             continue;
                         };
 
@@ -1249,29 +1251,30 @@ mod tests {
         ");
     }
 
+    /// Test case showing a function that takes two lambdas:
+    /// one by value, one by mutable reference.
     #[test]
-    fn mut_ref_function_matching() {
+    fn mixed_signature() {
         let src = "
-        brillig(inline) fn add_to_tally_public f0 {
-          b0():
-            v4 = allocate -> &mut function
-            store f2 at v4
-            v10 = call f10(v4, f33) -> Field
+        brillig(inline) fn main f0 {
+        b0():
+            v0 = allocate -> &mut function
+            store f1 at v0
+            v4 = call f3(v0, f2) -> &mut function
             return
         }
+        brillig(inline) fn lambda f1 {
+        b0():
+            return Field 0
+        }
         brillig(inline) fn lambda f2 {
-          b0():
-            return Field 1
+        b0(v0: &mut function):
+            return v0
         }
-        brillig(inline) fn at f10 {
-          b0(v4: &mut function, v6: function):
-            v10 = call v6(v4) -> Field
-            return v10
-        }
-        brillig(inline) fn lambda f33 {
-          b0(v4: &mut function):
-            v10 = call v4() -> Field
-            return v10
+        brillig(inline) fn get f3 {
+        b0(v0: &mut function, v1: function):
+            v2 = call v1(v0) -> &mut function
+            return v2
         }
         ";
 
@@ -1279,26 +1282,25 @@ mod tests {
         let ssa = ssa.defunctionalize();
 
         assert_ssa_snapshot!(ssa, @r"
-        brillig(inline) fn add_to_tally_public f0 {
+        brillig(inline) fn main f0 {
           b0():
             v0 = allocate -> &mut Field
             store Field 1 at v0
-            v4 = call f2(v0, Field 3) -> Field
+            v4 = call f3(v0, Field 2) -> &mut Field
             return
         }
         brillig(inline) fn lambda f1 {
           b0():
-            return Field 1
+            return Field 0
         }
-        brillig(inline) fn at f2 {
-          b0(v0: &mut Field, v1: Field):
-            v3 = call f3(v0) -> Field
-            return v3
-        }
-        brillig(inline) fn lambda f3 {
+        brillig(inline) fn lambda f2 {
           b0(v0: &mut Field):
-            v2 = call f1() -> Field
-            return v2
+            return v0
+        }
+        brillig(inline) fn get f3 {
+          b0(v0: &mut Field, v1: Field):
+            v3 = call f2(v0) -> &mut Field
+            return v3
         }
         ");
     }
