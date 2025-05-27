@@ -82,7 +82,12 @@ type Variants = BTreeMap<(Signature, RuntimeType), Vec<FunctionId>>;
 /// Each apply function is handles a specific ([Signature], [RuntimeType]) group.
 /// Maps ([Signature], [RuntimeType]) -> [ApplyFunction]
 type ApplyFunctions = HashMap<(Signature, RuntimeType), ApplyFunction>;
-
+/// Used to ensure that every runtime type has a corresponding placeholder (dummy) function,
+/// which acts as a safe fallback when function calls cannot be resolved (e.g., due to
+/// out-of-bounds function pointer accesses or zero-length function arrays).
+/// These dummy functions are pure, contain no logic, and simply return immediately.
+/// They are necessary to maintain a well-formed IR post-defunctionalization.
+/// Maps [RuntimeType] -> [FunctionId]
 type DummyFunctions = HashMap<RuntimeType, FunctionId>;
 
 /// Performs defunctionalization on all functions
@@ -661,7 +666,7 @@ fn create_dummy_function(ssa: &mut Ssa, caller_runtime: RuntimeType) -> Function
         let mut function_builder = FunctionBuilder::new("apply_dummy".to_string(), id);
 
         // Set the runtime of the dummy function. The dummy function is expect to always be simplified out
-        // but we let the caller set the runtime here as to match the Noir's runtime semantics.
+        // but we let the caller set the runtime here as to match Noir's runtime semantics.
         let runtime = match caller_runtime {
             RuntimeType::Acir(_) => RuntimeType::Acir(InlineType::InlineAlways),
             RuntimeType::Brillig(_) => RuntimeType::Brillig(InlineType::InlineAlways),
