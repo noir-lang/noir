@@ -1037,6 +1037,15 @@ impl<'context, 'string> ItemPrinter<'context, 'string> {
         }
 
         let current_module_parent_id = self.module_id.parent(self.def_maps);
+
+        // Check if module_def_id is the current module's parent
+        if let ModuleDefId::ModuleId(module_id) = module_def_id {
+            if current_module_parent_id == Some(module_id) {
+                self.push_str("super");
+                return "super".to_string();
+            }
+        }
+
         let mut reexport = None;
 
         let is_visible = module_def_id_is_visible(
