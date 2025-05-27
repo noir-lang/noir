@@ -769,7 +769,7 @@
           b1():
             return Field 1
           b2():
-            return Field 2
+            jmp b1()
         }
         "</span>;
         <span class="kw">let </span>ssa = Ssa::from_str(src).unwrap();
