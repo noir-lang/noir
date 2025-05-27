@@ -39,7 +39,8 @@ use crate::{
 };
 
 use super::{
-    BindableTypeVariableKind, Elaborator, LambdaContext, UnsafeBlockStatus, UnstableFeature,
+    Elaborator, LambdaContext, UnsafeBlockStatus, UnstableFeature,
+    function_context::BindableTypeVariableKind,
     path_resolution::{TypedPath, TypedPathSegment},
 };
 

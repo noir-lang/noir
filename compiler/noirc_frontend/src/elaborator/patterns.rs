@@ -28,7 +28,8 @@ use crate::{
 };
 
 use super::{
-    BindableTypeVariableKind, Elaborator, PrimitiveType, ResolverMeta,
+    Elaborator, PrimitiveType, ResolverMeta,
+    function_context::BindableTypeVariableKind,
     path_resolution::{PathResolutionItem, TypedPath, TypedPathSegment},
 };
 

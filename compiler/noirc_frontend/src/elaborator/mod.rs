@@ -4,13 +4,12 @@ use std::{
 };
 
 use crate::{
-    DataType, NamedGeneric, StructField, TypeBindings, TypeVariableId,
-    ast::{IntegerBitSize, ItemVisibility, UnresolvedType},
+    DataType, NamedGeneric, StructField, TypeBindings,
+    ast::{ItemVisibility, UnresolvedType},
     graph::CrateGraph,
-    hir::{comptime::Value, def_collector::dc_crate::UnresolvedTrait},
+    hir::def_collector::dc_crate::UnresolvedTrait,
     hir_def::traits::ResolvedTraitBound,
-    node_interner::{DefinitionId, GlobalValue},
-    shared::Signedness,
+    node_interner::GlobalValue,
     token::SecondaryAttributeKind,
     usage_tracker::UsageTracker,
 };
@@ -45,7 +44,7 @@ use crate::{
         types::{Generics, Kind, ResolvedGeneric},
     },
     node_interner::{
-        DefinitionKind, DependencyId, ExprId, FuncId, FunctionModifiers, GlobalId, NodeInterner,
+        DefinitionKind, DependencyId, FuncId, FunctionModifiers, GlobalId, NodeInterner,
         ReferenceId, TraitId, TraitImplId, TypeAliasId, TypeId,
     },
     parser::{ParserError, ParserErrorReason},
@@ -54,6 +53,7 @@ use crate::{
 mod comptime;
 mod enums;
 mod expressions;
+mod function_context;
 mod lints;
 mod options;
 mod path_resolution;
@@ -66,6 +66,7 @@ mod traits;
 pub mod types;
 mod unquote;
 
+use function_context::FunctionContext;
 use im::HashSet;
 use iter_extended::vecmap;
 use noirc_errors::{Located, Location};
@@ -230,61 +231,6 @@ impl ElaborateReason {
             }
         }
     }
-}
-
-#[derive(Default)]
-struct FunctionContext {
-    /// All type variables created in the current function.
-    /// This map is used to default any integer type variables at the end of
-    /// a function (before checking trait constraints) if a type wasn't already chosen.
-    defaultable_type_variables: Vec<Type>,
-
-    /// Type variables that must be bound at the end of the function.
-    required_type_variables: Vec<RequiredTypeVariable>,
-
-    /// Trait constraints are collected during type checking until they are
-    /// verified at the end of a function. This is because constraints arise
-    /// on each variable, but it is only until function calls when the types
-    /// needed for the trait constraint may become known.
-    /// The `select impl` bool indicates whether, after verifying the trait constraint,
-    /// the resulting trait impl should be the one used for a call (sometimes trait
-    /// constraints are verified but there's no call associated with them, like in the
-    /// case of checking generic arguments)
-    trait_constraints: Vec<(TraitConstraint, ExprId, bool /* select impl */)>,
-
-    /// List of expressions that are at an index position:
-    ///
-    /// ```noir
-    /// foo[index]
-    ///     ^^^^^
-    /// ```
-    ///
-    /// After each function we'll check that the type of those indexes
-    /// is u32 and, if not, produce a deprecation warning.
-    ///
-    /// NOTE: this list should be removed once the deprecation warning is turned
-    /// into an error, because doing that involves a completely different approach
-    /// (just unifying indexes with u32).
-    indexes_to_check: Vec<ExprId>,
-}
-
-/// A type variable that is required to be bound after type-checking a function.
-struct RequiredTypeVariable {
-    type_variable_id: TypeVariableId,
-    typ: Type,
-    kind: BindableTypeVariableKind,
-    location: Location,
-}
-
-/// The kind of required type variable.
-#[derive(Debug, Copy, Clone)]
-enum BindableTypeVariableKind {
-    /// The type variable corresponds to a struct generic, in a constructor.
-    StructGeneric { struct_id: TypeId, index: usize },
-    /// The type variable corresponds to the type of an array literal.
-    ArrayLiteral { is_array: bool },
-    /// The type variable corresponds to an identifier, whose definition ID is the given one.
-    Ident(DefinitionId),
 }
 
 impl<'context> Elaborator<'context> {
@@ -511,7 +457,7 @@ impl<'context> Elaborator<'context> {
         let old_item = self.current_item.replace(DependencyId::Function(id));
 
         self.trait_bounds = func_meta.all_trait_constraints().cloned().collect();
-        self.function_context.push(FunctionContext::default());
+        self.push_function_context();
 
         let modifiers = self.interner.function_modifiers(&id).clone();
 
@@ -613,186 +559,6 @@ impl<'context> Elaborator<'context> {
         self.trait_bounds.clear();
         self.interner.update_fn(id, hir_func);
         self.current_item = old_item;
-    }
-
-    /// Defaults all type variables used in this function context then solves
-    /// all still-unsolved trait constraints in this context.
-    fn check_and_pop_function_context(&mut self) {
-        let context = self.function_context.pop().expect("Imbalanced function_context pushes");
-
-        let u32 = Type::Integer(Signedness::Unsigned, IntegerBitSize::ThirtyTwo);
-        for expr_id in context.indexes_to_check {
-            let typ = self.interner.id_type(expr_id).follow_bindings();
-
-            // If the type is still a type variable after follow_bindings it means it'll
-            // be turned into Field or, eventually, into u32, so this is fine.
-            if let Type::TypeVariable(..) = typ {
-                continue;
-            };
-
-            if typ != u32 {
-                let location = self.interner.expr_location(&expr_id);
-                self.push_err(ResolverError::NonU32Index { location });
-            }
-        }
-
-        self.check_defaultable_type_variables(context.defaultable_type_variables);
-
-        for (mut constraint, expr_id, select_impl) in context.trait_constraints {
-            let location = self.interner.expr_location(&expr_id);
-
-            if matches!(&constraint.typ, Type::Reference(..)) {
-                let (_, dereferenced_typ) =
-                    self.insert_auto_dereferences(expr_id, constraint.typ.clone());
-                constraint.typ = dereferenced_typ;
-            }
-
-            self.verify_trait_constraint(
-                &constraint.typ,
-                constraint.trait_bound.trait_id,
-                &constraint.trait_bound.trait_generics.ordered,
-                &constraint.trait_bound.trait_generics.named,
-                expr_id,
-                select_impl,
-                location,
-            );
-        }
-
-        self.check_required_type_variables(context.required_type_variables);
-    }
-
-    fn check_defaultable_type_variables(&self, type_variables: Vec<Type>) {
-        for typ in type_variables {
-            if let Type::TypeVariable(variable) = typ.follow_bindings() {
-                let msg = "TypeChecker should only track defaultable type vars";
-                variable.bind(variable.kind().default_type().expect(msg));
-            }
-        }
-    }
-
-    fn check_required_type_variables(&mut self, type_variables: Vec<RequiredTypeVariable>) {
-        for var in type_variables {
-            let id = var.type_variable_id;
-            if let Type::TypeVariable(_) = var.typ.follow_bindings() {
-                let location = var.location;
-                match var.kind {
-                    BindableTypeVariableKind::StructGeneric { struct_id, index } => {
-                        let data_type = self.interner.get_type(struct_id);
-                        let generic = &data_type.borrow().generics[index];
-                        let generic_name = generic.name.to_string();
-                        let item_kind = "struct";
-                        let item_name = data_type.borrow().name.to_string();
-                        let is_numeric = matches!(generic.type_var.kind(), Kind::Numeric(..));
-                        self.push_err(TypeCheckError::TypeAnnotationNeededOnItem {
-                            location,
-                            generic_name,
-                            item_kind,
-                            item_name,
-                            is_numeric,
-                        });
-                    }
-                    BindableTypeVariableKind::ArrayLiteral { is_array } => {
-                        self.push_err(TypeCheckError::TypeAnnotationNeededOnArrayLiteral {
-                            location,
-                            is_array,
-                        });
-                    }
-                    BindableTypeVariableKind::Ident(definition_id) => {
-                        let definition = self.interner.definition(definition_id);
-                        let definition_kind = definition.kind.clone();
-                        match definition_kind {
-                            DefinitionKind::Function(func_id) => {
-                                // Try to find the type variable in the function's generic arguments
-                                for generic in
-                                    self.interner.function_meta(&func_id).direct_generics.clone()
-                                {
-                                    if generic.type_var.id() == id {
-                                        let item_name = self
-                                            .interner
-                                            .definition_name(definition_id)
-                                            .to_string();
-                                        let is_numeric =
-                                            matches!(generic.type_var.kind(), Kind::Numeric(..));
-                                        self.push_err(TypeCheckError::TypeAnnotationNeededOnItem {
-                                            location,
-                                            generic_name: generic.name.to_string(),
-                                            item_kind: "function",
-                                            item_name,
-                                            is_numeric,
-                                        });
-                                    }
-                                }
-                                // If we find one in `all_generics` it means it's a generic on the type
-                                // the function is in.
-                                if let Some(Type::DataType(typ, ..)) =
-                                    &self.interner.function_meta(&func_id).self_type
-                                {
-                                    let typ = typ.borrow();
-                                    let item_name = typ.name.to_string();
-                                    let item_kind = if typ.is_struct() { "struct" } else { "enum" };
-                                    drop(typ);
-
-                                    for generic in
-                                        self.interner.function_meta(&func_id).all_generics.clone()
-                                    {
-                                        if generic.type_var.id() == id {
-                                            let is_numeric = matches!(
-                                                generic.type_var.kind(),
-                                                Kind::Numeric(..)
-                                            );
-                                            self.push_err(
-                                                TypeCheckError::TypeAnnotationNeededOnItem {
-                                                    location,
-                                                    generic_name: generic.name.to_string(),
-                                                    item_kind,
-                                                    item_name: item_name.clone(),
-                                                    is_numeric,
-                                                },
-                                            );
-                                        }
-                                    }
-                                }
-                            }
-                            DefinitionKind::Global(global_id) => {
-                                // Check if this global points to an enum variant, then get the enum's generics
-                                // and find the type variable there.
-                                let global = self.interner.get_global(global_id);
-                                let GlobalValue::Resolved(Value::Enum(_, _, Type::Forall(_, typ))) =
-                                    &global.value
-                                else {
-                                    continue;
-                                };
-
-                                let typ: &Type = typ;
-                                let Type::DataType(def, _) = typ else {
-                                    continue;
-                                };
-
-                                let def = def.borrow();
-                                let generics = def.generics.clone();
-                                let item_name = def.name.to_string();
-                                drop(def);
-
-                                for generic in generics {
-                                    if generic.type_var.id() == id {
-                                        let is_numeric =
-                                            matches!(generic.type_var.kind(), Kind::Numeric(..));
-                                        self.push_err(TypeCheckError::TypeAnnotationNeededOnItem {
-                                            location,
-                                            generic_name: generic.name.to_string(),
-                                            item_kind: "enum",
-                                            item_name: item_name.clone(),
-                                            is_numeric,
-                                        });
-                                    }
-                                }
-                            }
-                            _ => (),
-                        }
-                    }
-                }
-            }
-        }
     }
 
     /// This turns function parameters of the form:
