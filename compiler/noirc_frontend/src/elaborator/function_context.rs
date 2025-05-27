@@ -115,9 +115,15 @@ impl Elaborator<'_> {
     /// all still-unsolved trait constraints in this context.
     pub(super) fn check_and_pop_function_context(&mut self) {
         let context = self.function_context.pop().expect("Imbalanced function_context pushes");
+        self.check_indexes_to_check(context.indexes_to_check);
+        self.check_defaultable_type_variables(context.defaultable_type_variables);
+        self.check_trait_constraints(context.trait_constraints);
+        self.check_required_type_variables(context.required_type_variables);
+    }
 
+    fn check_indexes_to_check(&mut self, indexes: Vec<ExprId>) {
         let u32 = Type::Integer(Signedness::Unsigned, IntegerBitSize::ThirtyTwo);
-        for expr_id in context.indexes_to_check {
+        for expr_id in indexes {
             let typ = self.interner.id_type(expr_id).follow_bindings();
 
             // If the type is still a type variable after follow_bindings it means it'll
@@ -131,10 +137,19 @@ impl Elaborator<'_> {
                 self.push_err(ResolverError::NonU32Index { location });
             }
         }
+    }
 
-        self.check_defaultable_type_variables(context.defaultable_type_variables);
+    fn check_defaultable_type_variables(&self, type_variables: Vec<Type>) {
+        for typ in type_variables {
+            if let Type::TypeVariable(variable) = typ.follow_bindings() {
+                let msg = "TypeChecker should only track defaultable type vars";
+                variable.bind(variable.kind().default_type().expect(msg));
+            }
+        }
+    }
 
-        for (mut constraint, expr_id, select_impl) in context.trait_constraints {
+    fn check_trait_constraints(&mut self, trait_constraints: Vec<(TraitConstraint, ExprId, bool)>) {
+        for (mut constraint, expr_id, select_impl) in trait_constraints {
             let location = self.interner.expr_location(&expr_id);
 
             if matches!(&constraint.typ, Type::Reference(..)) {
@@ -152,17 +167,6 @@ impl Elaborator<'_> {
                 select_impl,
                 location,
             );
-        }
-
-        self.check_required_type_variables(context.required_type_variables);
-    }
-
-    fn check_defaultable_type_variables(&self, type_variables: Vec<Type>) {
-        for typ in type_variables {
-            if let Type::TypeVariable(variable) = typ.follow_bindings() {
-                let msg = "TypeChecker should only track defaultable type vars";
-                variable.bind(variable.kind().default_type().expect(msg));
-            }
         }
     }
 
