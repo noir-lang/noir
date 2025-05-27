@@ -54,7 +54,7 @@ pub mod ssa_gen;
 pub enum SsaLogging {
     None,
     All,
-    Contains(String),
+    Contains(Vec<String>),
 }
 
 #[derive(Debug, Clone)]
@@ -724,12 +724,12 @@ impl SsaBuilder {
         let print_ssa_pass = match &self.ssa_logging {
             SsaLogging::None => false,
             SsaLogging::All => true,
-            SsaLogging::Contains(string) => {
+            SsaLogging::Contains(strings) => strings.iter().any(|string| {
                 let string = string.to_lowercase();
                 let string = string.strip_prefix("after ").unwrap_or(&string);
                 let string = string.strip_suffix(':').unwrap_or(string);
                 msg.to_lowercase().contains(string)
-            }
+            }),
         };
 
         if print_ssa_pass {
