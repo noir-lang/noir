@@ -2561,11 +2561,7 @@
 <a href="#2560" id="2560">2560</a>
 <a href="#2561" id="2561">2561</a>
 <a href="#2562" id="2562">2562</a>
-<a href="#2563" id="2563">2563</a>
-<a href="#2564" id="2564">2564</a>
-<a href="#2565" id="2565">2565</a>
-<a href="#2566" id="2566">2566</a>
-<a href="#2567" id="2567">2567</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::borrow::Cow;
+<a href="#2563" id="2563">2563</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::borrow::Cow;
 <span class="kw">use </span>std::collections::HashSet;
 <span class="kw">use </span>std::fmt;
 <span class="kw">use </span>std::hash::Hash;
@@ -2792,9 +2788,6 @@
 
     <span class="doccomment">/// Determins whether to run in LSP mode. In LSP mode references are tracked.
     </span><span class="kw">pub</span>(<span class="kw">crate</span>) lsp_mode: bool,
-
-    <span class="doccomment">/// Whether to avoid comptime println from producing output
-    </span><span class="kw">pub</span>(<span class="kw">crate</span>) disable_comptime_printing: bool,
 
     <span class="doccomment">/// Store the location of the references in the graph.
     /// Edges are directed from reference nodes to referenced nodes.
@@ -3277,7 +3270,6 @@
             interned_unresolved_type_datas: Default::default(),
             interned_patterns: Default::default(),
             lsp_mode: <span class="bool-val">false</span>,
-            disable_comptime_printing: <span class="bool-val">false</span>,
             location_indices: LocationIndices::default(),
             reference_graph: petgraph::graph::DiGraph::new(),
             reference_graph_indices: HashMap::default(),

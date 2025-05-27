@@ -692,7 +692,8 @@
 <a href="#691" id="691">691</a>
 <a href="#692" id="692">692</a>
 <a href="#693" id="693">693</a>
-<a href="#694" id="694">694</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::{collections::BTreeMap, fmt::Display};
+<a href="#694" id="694">694</a>
+<a href="#695" id="695">695</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::{collections::BTreeMap, fmt::Display};
 
 <span class="kw">use </span>iter_extended::vecmap;
 <span class="kw">use </span>noirc_errors::Location;
@@ -783,6 +784,7 @@
             <span class="self">self</span>.def_maps,
             <span class="self">self</span>.usage_tracker,
             <span class="self">self</span>.crate_graph,
+            <span class="self">self</span>.interpreter_output,
             <span class="self">self</span>.crate_id,
             <span class="self">self</span>.interpreter_call_stack.clone(),
             <span class="self">self</span>.options,

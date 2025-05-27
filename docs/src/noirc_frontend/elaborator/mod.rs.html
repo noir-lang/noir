@@ -2404,7 +2404,13 @@
 <a href="#2403" id="2403">2403</a>
 <a href="#2404" id="2404">2404</a>
 <a href="#2405" id="2405">2405</a>
-<a href="#2406" id="2406">2406</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::{
+<a href="#2406" id="2406">2406</a>
+<a href="#2407" id="2407">2407</a>
+<a href="#2408" id="2408">2408</a>
+<a href="#2409" id="2409">2409</a>
+<a href="#2410" id="2410">2410</a>
+<a href="#2411" id="2411">2411</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::{
+    cell::RefCell,
     collections::{BTreeMap, BTreeSet},
     rc::Rc,
 };
@@ -2528,6 +2534,7 @@
     <span class="kw">pub</span>(<span class="kw">crate</span>) def_maps: <span class="kw-2">&amp;</span><span class="lifetime">'context </span><span class="kw-2">mut </span>DefMaps,
     <span class="kw">pub</span>(<span class="kw">crate</span>) usage_tracker: <span class="kw-2">&amp;</span><span class="lifetime">'context </span><span class="kw-2">mut </span>UsageTracker,
     <span class="kw">pub</span>(<span class="kw">crate</span>) crate_graph: <span class="kw-2">&amp;</span><span class="lifetime">'context </span>CrateGraph,
+    <span class="kw">pub</span>(<span class="kw">crate</span>) interpreter_output: <span class="kw-2">&amp;</span><span class="lifetime">'context </span><span class="prelude-ty">Option</span>&lt;Rc&lt;RefCell&lt;<span class="kw">dyn </span>std::io::Write&gt;&gt;&gt;,
 
     unsafe_block_status: UnsafeBlockStatus,
     current_loop: <span class="prelude-ty">Option</span>&lt;Loop&gt;,
@@ -2678,6 +2685,7 @@
         def_maps: <span class="kw-2">&amp;</span><span class="lifetime">'context </span><span class="kw-2">mut </span>DefMaps,
         usage_tracker: <span class="kw-2">&amp;</span><span class="lifetime">'context </span><span class="kw-2">mut </span>UsageTracker,
         crate_graph: <span class="kw-2">&amp;</span><span class="lifetime">'context </span>CrateGraph,
+        interpreter_output: <span class="kw-2">&amp;</span><span class="lifetime">'context </span><span class="prelude-ty">Option</span>&lt;Rc&lt;RefCell&lt;<span class="kw">dyn </span>std::io::Write&gt;&gt;&gt;,
         crate_id: CrateId,
         interpreter_call_stack: im::Vector&lt;Location&gt;,
         options: ElaboratorOptions&lt;<span class="lifetime">'context</span>&gt;,
@@ -2690,6 +2698,7 @@
             def_maps,
             usage_tracker,
             crate_graph,
+            interpreter_output,
             unsafe_block_status: UnsafeBlockStatus::NotInUnsafeBlock,
             current_loop: <span class="prelude-val">None</span>,
             generics: Vec::new(),
@@ -2722,6 +2731,7 @@
             <span class="kw-2">&amp;mut </span>context.def_maps,
             <span class="kw-2">&amp;mut </span>context.usage_tracker,
             <span class="kw-2">&amp;</span>context.crate_graph,
+            <span class="kw-2">&amp;</span>context.interpreter_output,
             crate_id,
             im::Vector::new(),
             options,

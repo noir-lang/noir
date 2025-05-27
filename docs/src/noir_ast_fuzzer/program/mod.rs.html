@@ -558,7 +558,11 @@
 <a href="#557" id="557">557</a>
 <a href="#558" id="558">558</a>
 <a href="#559" id="559">559</a>
-<a href="#560" id="560">560</a></pre></div><pre class="rust"><code><span class="doccomment">//! Module responsible for generating arbitrary [Program] ASTs.
+<a href="#560" id="560">560</a>
+<a href="#561" id="561">561</a>
+<a href="#562" id="562">562</a>
+<a href="#563" id="563">563</a>
+<a href="#564" id="564">564</a></pre></div><pre class="rust"><code><span class="doccomment">//! Module responsible for generating arbitrary [Program] ASTs.
 </span><span class="kw">use </span>std::collections::{BTreeMap, BTreeSet}; <span class="comment">// Using BTree for deterministic enumeration, for repeatability.
 
 </span><span class="kw">use </span>func::{FunctionContext, FunctionDeclaration, can_call};
@@ -1088,6 +1092,7 @@
         printer.show_id = <span class="bool-val">false</span>;
         printer.show_clone_and_drop = <span class="bool-val">false</span>;
         printer.show_print_as_std = <span class="bool-val">true</span>;
+        printer.show_type_in_let = <span class="bool-val">true</span>;
         printer.print_program(<span class="self">self</span>.<span class="number">0</span>, f)
     }
 }
@@ -1105,6 +1110,9 @@
         printer.show_id = <span class="bool-val">false</span>;
         printer.show_clone_and_drop = <span class="bool-val">false</span>;
         printer.show_print_as_std = <span class="bool-val">true</span>;
+        <span class="comment">// Declare the type in `let` so that when we parse snippets we can match the types which
+        // the AST had, otherwise a literal which was a `u32` in the AST might be inferred as `Field`.
+        </span>printer.show_type_in_let = <span class="bool-val">true</span>;
         <span class="kw">for </span>function <span class="kw">in </span><span class="kw-2">&amp;</span><span class="self">self</span>.<span class="number">0</span>.functions {
             <span class="kw">if </span>function.id == Program::main_id() {
                 <span class="kw">let </span><span class="kw-2">mut </span>function = function.clone();

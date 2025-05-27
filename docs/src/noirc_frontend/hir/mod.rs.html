@@ -287,7 +287,17 @@
 <a href="#286" id="286">286</a>
 <a href="#287" id="287">287</a>
 <a href="#288" id="288">288</a>
-<a href="#289" id="289">289</a></pre></div><pre class="rust"><code><span class="kw">pub mod </span>comptime;
+<a href="#289" id="289">289</a>
+<a href="#290" id="290">290</a>
+<a href="#291" id="291">291</a>
+<a href="#292" id="292">292</a>
+<a href="#293" id="293">293</a>
+<a href="#294" id="294">294</a>
+<a href="#295" id="295">295</a>
+<a href="#296" id="296">296</a>
+<a href="#297" id="297">297</a>
+<a href="#298" id="298">298</a>
+<a href="#299" id="299">299</a></pre></div><pre class="rust"><code><span class="kw">pub mod </span>comptime;
 <span class="kw">pub mod </span>def_collector;
 <span class="kw">pub mod </span>def_map;
 <span class="kw">pub mod </span>resolution;
@@ -308,6 +318,7 @@
 <span class="kw">use </span>iter_extended::vecmap;
 <span class="kw">use </span>noirc_errors::Location;
 <span class="kw">use </span>std::borrow::Cow;
+<span class="kw">use </span>std::cell::RefCell;
 <span class="kw">use </span>std::collections::{BTreeMap, HashMap, HashSet};
 <span class="kw">use </span>std::path::PathBuf;
 <span class="kw">use </span>std::rc::Rc;
@@ -341,6 +352,9 @@
     </span><span class="kw">pub </span>parsed_files: Cow&lt;<span class="lifetime">'parsed_files</span>, ParsedFiles&gt;,
 
     <span class="kw">pub </span>package_build_path: PathBuf,
+
+    <span class="doccomment">/// Writer for comptime prints.
+    </span><span class="kw">pub </span>interpreter_output: <span class="prelude-ty">Option</span>&lt;Rc&lt;RefCell&lt;<span class="kw">dyn </span>std::io::Write&gt;&gt;&gt;,
 }
 
 <span class="attr">#[derive(Debug)]
@@ -362,6 +376,7 @@
             debug_instrumenter: DebugInstrumenter::default(),
             parsed_files: Cow::Owned(parsed_files),
             package_build_path: PathBuf::default(),
+            interpreter_output: <span class="prelude-val">Some</span>(Rc::new(RefCell::new(std::io::stdout()))),
         }
     }
 
@@ -379,6 +394,7 @@
             debug_instrumenter: DebugInstrumenter::default(),
             parsed_files: Cow::Borrowed(parsed_files),
             package_build_path: PathBuf::default(),
+            interpreter_output: <span class="prelude-val">Some</span>(Rc::new(RefCell::new(std::io::stdout()))),
         }
     }
 
@@ -573,7 +589,11 @@
     }
 
     <span class="kw">pub fn </span>disable_comptime_printing(<span class="kw-2">&amp;mut </span><span class="self">self</span>) {
-        <span class="self">self</span>.def_interner.disable_comptime_printing = <span class="bool-val">true</span>;
+        <span class="self">self</span>.interpreter_output = <span class="prelude-val">None</span>;
+    }
+
+    <span class="kw">pub fn </span>set_comptime_printing(<span class="kw-2">&amp;mut </span><span class="self">self</span>, output: Rc&lt;RefCell&lt;<span class="kw">dyn </span>std::io::Write&gt;&gt;) {
+        <span class="self">self</span>.interpreter_output = <span class="prelude-val">Some</span>(output);
     }
 }
 </code></pre></div></section></main></body></html>

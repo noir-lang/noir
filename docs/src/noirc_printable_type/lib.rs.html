@@ -797,7 +797,7 @@
 /// A singular '0' will be prepended as well if the trimmed string has an odd length.
 /// A hex string's length needs to be even to decode into bytes, as two digits correspond to
 /// one byte.
-</span><span class="kw">fn </span>format_field_string&lt;F: AcirField&gt;(field: F) -&gt; String {
+</span><span class="kw">pub fn </span>format_field_string&lt;F: AcirField&gt;(field: F) -&gt; String {
     <span class="kw">if </span>field.is_zero() {
         <span class="kw">return </span><span class="string">"0x00"</span>.to_owned();
     }

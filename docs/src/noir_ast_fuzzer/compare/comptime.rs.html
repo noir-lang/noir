@@ -202,10 +202,24 @@
 <a href="#201" id="201">201</a>
 <a href="#202" id="202">202</a>
 <a href="#203" id="203">203</a>
-<a href="#204" id="204">204</a></pre></div><pre class="rust"><code><span class="doccomment">//! Compare an arbitrary AST executed as Noir with the comptime
+<a href="#204" id="204">204</a>
+<a href="#205" id="205">205</a>
+<a href="#206" id="206">206</a>
+<a href="#207" id="207">207</a>
+<a href="#208" id="208">208</a>
+<a href="#209" id="209">209</a>
+<a href="#210" id="210">210</a>
+<a href="#211" id="211">211</a>
+<a href="#212" id="212">212</a>
+<a href="#213" id="213">213</a>
+<a href="#214" id="214">214</a>
+<a href="#215" id="215">215</a>
+<a href="#216" id="216">216</a>
+<a href="#217" id="217">217</a></pre></div><pre class="rust"><code><span class="doccomment">//! Compare an arbitrary AST executed as Noir with the comptime
 //! interpreter vs compiled into bytecode and ran through a VM.
-</span><span class="kw">use </span>std::collections::BTreeMap;
-<span class="kw">use </span>std::path::Path;
+</span><span class="kw">use </span>std::path::Path;
+<span class="kw">use </span>std::rc::Rc;
+<span class="kw">use </span>std::{cell::RefCell, collections::BTreeMap};
 
 <span class="kw">use </span>arbitrary::Unstructured;
 <span class="kw">use </span>bn254_blackbox_solver::Bn254BlackBoxSolver;
@@ -244,11 +258,14 @@
 /// Use `force_brillig` to test it as an unconstrained function without having to change the code.
 /// This is useful for methods that use the `runtime::is_unconstrained()` method to change their behavior.
 /// (copied from nargo_cli/tests/common.rs)
-</span><span class="kw">fn </span>prepare_and_compile_snippet(
+</span><span class="kw">fn </span>prepare_and_compile_snippet&lt;W: std::io::Write + <span class="lifetime">'static</span>&gt;(
     source: String,
     force_brillig: bool,
-) -&gt; CompilationResult&lt;CompiledProgram&gt; {
+    output: W,
+) -&gt; CompilationResult&lt;(CompiledProgram, W)&gt; {
+    <span class="kw">let </span>output = Rc::new(RefCell::new(output));
     <span class="kw">let </span>(<span class="kw-2">mut </span>context, root_crate_id) = prepare_snippet(source);
+    context.set_comptime_printing(output.clone());
     <span class="kw">let </span>options = CompileOptions {
         force_brillig,
         silence_warnings: <span class="bool-val">true</span>,
@@ -256,7 +273,10 @@
         skip_brillig_constraints_check: <span class="bool-val">true</span>,
         ..Default::default()
     };
-    compile_main(<span class="kw-2">&amp;mut </span>context, root_crate_id, <span class="kw-2">&amp;</span>options, <span class="prelude-val">None</span>)
+    <span class="kw">let </span>(program, warnings) = compile_main(<span class="kw-2">&amp;mut </span>context, root_crate_id, <span class="kw-2">&amp;</span>options, <span class="prelude-val">None</span>)<span class="question-mark">?</span>;
+    drop(context);
+    <span class="kw">let </span>output = Rc::into_inner(output).expect(<span class="string">"context is gone"</span>).into_inner();
+    <span class="prelude-val">Ok</span>(((program, output), warnings))
 }
 
 <span class="doccomment">/// Compare the execution of a Noir program in pure comptime (via interpreter)
@@ -272,10 +292,16 @@
 <span class="kw">impl </span>CompareComptime {
     <span class="doccomment">/// Execute the Noir code and the SSA, then compare the results.
     </span><span class="kw">pub fn </span>exec(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; eyre::Result&lt;CompareCompiledResult&gt; {
-        <span class="kw">let </span>program1 = <span class="kw">match </span>prepare_and_compile_snippet(<span class="self">self</span>.source.clone(), <span class="self">self</span>.force_brillig) {
-            <span class="prelude-val">Ok</span>((program, <span class="kw">_</span>)) =&gt; program,
+        <span class="macro">log::debug!</span>(<span class="string">"comptime src:\n{}"</span>, <span class="self">self</span>.source);
+        <span class="kw">let </span>(program1, output1) = <span class="kw">match </span>prepare_and_compile_snippet(
+            <span class="self">self</span>.source.clone(),
+            <span class="self">self</span>.force_brillig,
+            Vec::new(),
+        ) {
+            <span class="prelude-val">Ok</span>(((program, output), <span class="kw">_</span>)) =&gt; (program, output),
             <span class="prelude-val">Err</span>(e) =&gt; <span class="macro">panic!</span>(<span class="string">"failed to compile program:\n{}\n{e:?}"</span>, <span class="self">self</span>.source),
         };
+        <span class="kw">let </span>comptime_print = String::from_utf8(output1).expect(<span class="string">"should be valid utf8 string"</span>);
 
         <span class="kw">let </span>blackbox_solver = Bn254BlackBoxSolver(<span class="bool-val">false</span>);
         <span class="kw">let </span>initial_witness = <span class="self">self</span>.abi.encode(<span class="kw-2">&amp;</span>BTreeMap::new(), <span class="prelude-val">None</span>).wrap_err(<span class="string">"abi::encode"</span>)<span class="question-mark">?</span>;
@@ -302,7 +328,7 @@
         <span class="kw">let </span>(res1, print1) = do_exec(<span class="kw-2">&amp;</span>program1.program);
         <span class="kw">let </span>(res2, print2) = do_exec(<span class="kw-2">&amp;</span><span class="self">self</span>.ssa.artifact.program);
 
-        CompareCompiledResult::new(<span class="kw-2">&amp;</span><span class="self">self</span>.abi, (res1, print1), (res2, print2))
+        CompareCompiledResult::new(<span class="kw-2">&amp;</span><span class="self">self</span>.abi, (res1, comptime_print + <span class="kw-2">&amp;</span>print1), (res2, print2))
     }
 
     <span class="doccomment">/// Generate a random comptime-viable AST, reverse it into
@@ -403,7 +429,7 @@ unconstrained fn func_1_proxy(mut ctx_limit: u32) -&gt; ((str&lt;2&gt;, str&lt;2
 }
         "#</span>;
 
-        <span class="kw">let _ </span>= prepare_and_compile_snippet(src.to_string(), <span class="bool-val">false</span>);
+        <span class="kw">let _ </span>= prepare_and_compile_snippet(src.to_string(), <span class="bool-val">false</span>, std::io::stdout());
     }
 }
 </code></pre></div></section></main></body></html>

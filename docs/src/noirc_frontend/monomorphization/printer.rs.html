@@ -535,7 +535,21 @@
 <a href="#534" id="534">534</a>
 <a href="#535" id="535">535</a>
 <a href="#536" id="536">536</a>
-<a href="#537" id="537">537</a></pre></div><pre class="rust"><code><span class="doccomment">//! This module implements printing of the monomorphized AST, for debugging purposes.
+<a href="#537" id="537">537</a>
+<a href="#538" id="538">538</a>
+<a href="#539" id="539">539</a>
+<a href="#540" id="540">540</a>
+<a href="#541" id="541">541</a>
+<a href="#542" id="542">542</a>
+<a href="#543" id="543">543</a>
+<a href="#544" id="544">544</a>
+<a href="#545" id="545">545</a>
+<a href="#546" id="546">546</a>
+<a href="#547" id="547">547</a>
+<a href="#548" id="548">548</a>
+<a href="#549" id="549">549</a>
+<a href="#550" id="550">550</a>
+<a href="#551" id="551">551</a></pre></div><pre class="rust"><code><span class="doccomment">//! This module implements printing of the monomorphized AST, for debugging purposes.
 
 </span><span class="kw">use crate</span>::{
     ast::UnaryOp,
@@ -564,6 +578,7 @@
     <span class="kw">pub </span>show_id: bool,
     <span class="kw">pub </span>show_clone_and_drop: bool,
     <span class="kw">pub </span>show_print_as_std: bool,
+    <span class="kw">pub </span>show_type_in_let: bool,
 }
 
 <span class="kw">impl </span>Default <span class="kw">for </span>AstPrinter {
@@ -574,6 +589,7 @@
             show_id: <span class="bool-val">true</span>,
             show_clone_and_drop: <span class="bool-val">true</span>,
             show_print_as_std: <span class="bool-val">false</span>,
+            show_type_in_let: <span class="bool-val">false</span>,
         }
     }
 }
@@ -698,11 +714,23 @@
             }
             Expression::Call(call) =&gt; <span class="self">self</span>.print_call(call, f),
             Expression::Let(let_expr) =&gt; {
+                <span class="kw">let </span>typ = <span class="kw">if </span><span class="self">self</span>.show_type_in_let
+                    &amp;&amp; let_expr.expression.needs_type_inference_from_literal()
+                {
+                    <span class="kw-2">&amp;</span>let_expr
+                        .expression
+                        .return_type()
+                        .map(|typ| <span class="macro">format!</span>(<span class="string">": {typ}"</span>))
+                        .unwrap_or_default()
+                } <span class="kw">else </span>{
+                    <span class="string">""
+                </span>};
                 <span class="macro">write!</span>(
                     f,
-                    <span class="string">"let {}{} = "</span>,
+                    <span class="string">"let {}{}{} = "</span>,
                     <span class="kw">if </span>let_expr.mutable { <span class="string">"mut " </span>} <span class="kw">else </span>{ <span class="string">"" </span>},
                     <span class="self">self</span>.fmt_local(<span class="kw-2">&amp;</span>let_expr.name, let_expr.id),
+                    typ
                 )<span class="question-mark">?</span>;
                 <span class="self">self</span>.print_expr(<span class="kw-2">&amp;</span>let_expr.expression, f)
             }

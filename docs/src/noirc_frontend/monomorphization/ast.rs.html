@@ -519,7 +519,143 @@
 <a href="#518" id="518">518</a>
 <a href="#519" id="519">519</a>
 <a href="#520" id="520">520</a>
-<a href="#521" id="521">521</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::{collections::BTreeMap, fmt::Display};
+<a href="#521" id="521">521</a>
+<a href="#522" id="522">522</a>
+<a href="#523" id="523">523</a>
+<a href="#524" id="524">524</a>
+<a href="#525" id="525">525</a>
+<a href="#526" id="526">526</a>
+<a href="#527" id="527">527</a>
+<a href="#528" id="528">528</a>
+<a href="#529" id="529">529</a>
+<a href="#530" id="530">530</a>
+<a href="#531" id="531">531</a>
+<a href="#532" id="532">532</a>
+<a href="#533" id="533">533</a>
+<a href="#534" id="534">534</a>
+<a href="#535" id="535">535</a>
+<a href="#536" id="536">536</a>
+<a href="#537" id="537">537</a>
+<a href="#538" id="538">538</a>
+<a href="#539" id="539">539</a>
+<a href="#540" id="540">540</a>
+<a href="#541" id="541">541</a>
+<a href="#542" id="542">542</a>
+<a href="#543" id="543">543</a>
+<a href="#544" id="544">544</a>
+<a href="#545" id="545">545</a>
+<a href="#546" id="546">546</a>
+<a href="#547" id="547">547</a>
+<a href="#548" id="548">548</a>
+<a href="#549" id="549">549</a>
+<a href="#550" id="550">550</a>
+<a href="#551" id="551">551</a>
+<a href="#552" id="552">552</a>
+<a href="#553" id="553">553</a>
+<a href="#554" id="554">554</a>
+<a href="#555" id="555">555</a>
+<a href="#556" id="556">556</a>
+<a href="#557" id="557">557</a>
+<a href="#558" id="558">558</a>
+<a href="#559" id="559">559</a>
+<a href="#560" id="560">560</a>
+<a href="#561" id="561">561</a>
+<a href="#562" id="562">562</a>
+<a href="#563" id="563">563</a>
+<a href="#564" id="564">564</a>
+<a href="#565" id="565">565</a>
+<a href="#566" id="566">566</a>
+<a href="#567" id="567">567</a>
+<a href="#568" id="568">568</a>
+<a href="#569" id="569">569</a>
+<a href="#570" id="570">570</a>
+<a href="#571" id="571">571</a>
+<a href="#572" id="572">572</a>
+<a href="#573" id="573">573</a>
+<a href="#574" id="574">574</a>
+<a href="#575" id="575">575</a>
+<a href="#576" id="576">576</a>
+<a href="#577" id="577">577</a>
+<a href="#578" id="578">578</a>
+<a href="#579" id="579">579</a>
+<a href="#580" id="580">580</a>
+<a href="#581" id="581">581</a>
+<a href="#582" id="582">582</a>
+<a href="#583" id="583">583</a>
+<a href="#584" id="584">584</a>
+<a href="#585" id="585">585</a>
+<a href="#586" id="586">586</a>
+<a href="#587" id="587">587</a>
+<a href="#588" id="588">588</a>
+<a href="#589" id="589">589</a>
+<a href="#590" id="590">590</a>
+<a href="#591" id="591">591</a>
+<a href="#592" id="592">592</a>
+<a href="#593" id="593">593</a>
+<a href="#594" id="594">594</a>
+<a href="#595" id="595">595</a>
+<a href="#596" id="596">596</a>
+<a href="#597" id="597">597</a>
+<a href="#598" id="598">598</a>
+<a href="#599" id="599">599</a>
+<a href="#600" id="600">600</a>
+<a href="#601" id="601">601</a>
+<a href="#602" id="602">602</a>
+<a href="#603" id="603">603</a>
+<a href="#604" id="604">604</a>
+<a href="#605" id="605">605</a>
+<a href="#606" id="606">606</a>
+<a href="#607" id="607">607</a>
+<a href="#608" id="608">608</a>
+<a href="#609" id="609">609</a>
+<a href="#610" id="610">610</a>
+<a href="#611" id="611">611</a>
+<a href="#612" id="612">612</a>
+<a href="#613" id="613">613</a>
+<a href="#614" id="614">614</a>
+<a href="#615" id="615">615</a>
+<a href="#616" id="616">616</a>
+<a href="#617" id="617">617</a>
+<a href="#618" id="618">618</a>
+<a href="#619" id="619">619</a>
+<a href="#620" id="620">620</a>
+<a href="#621" id="621">621</a>
+<a href="#622" id="622">622</a>
+<a href="#623" id="623">623</a>
+<a href="#624" id="624">624</a>
+<a href="#625" id="625">625</a>
+<a href="#626" id="626">626</a>
+<a href="#627" id="627">627</a>
+<a href="#628" id="628">628</a>
+<a href="#629" id="629">629</a>
+<a href="#630" id="630">630</a>
+<a href="#631" id="631">631</a>
+<a href="#632" id="632">632</a>
+<a href="#633" id="633">633</a>
+<a href="#634" id="634">634</a>
+<a href="#635" id="635">635</a>
+<a href="#636" id="636">636</a>
+<a href="#637" id="637">637</a>
+<a href="#638" id="638">638</a>
+<a href="#639" id="639">639</a>
+<a href="#640" id="640">640</a>
+<a href="#641" id="641">641</a>
+<a href="#642" id="642">642</a>
+<a href="#643" id="643">643</a>
+<a href="#644" id="644">644</a>
+<a href="#645" id="645">645</a>
+<a href="#646" id="646">646</a>
+<a href="#647" id="647">647</a>
+<a href="#648" id="648">648</a>
+<a href="#649" id="649">649</a>
+<a href="#650" id="650">650</a>
+<a href="#651" id="651">651</a>
+<a href="#652" id="652">652</a>
+<a href="#653" id="653">653</a>
+<a href="#654" id="654">654</a>
+<a href="#655" id="655">655</a>
+<a href="#656" id="656">656</a>
+<a href="#657" id="657">657</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::{borrow::Cow, collections::BTreeMap, fmt::Display};
 
 <span class="kw">use </span>iter_extended::vecmap;
 <span class="kw">use </span>noirc_errors::{
@@ -580,6 +716,142 @@
 <span class="kw">impl </span>Expression {
     <span class="kw">pub fn </span>is_array_or_slice_literal(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; bool {
         <span class="macro">matches!</span>(<span class="self">self</span>, Expression::Literal(Literal::Array(<span class="kw">_</span>) | Literal::Slice(<span class="kw">_</span>)))
+    }
+
+    <span class="doccomment">/// The return type of an expression, if it has an obvious one.
+    </span><span class="kw">pub fn </span>return_type(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="prelude-ty">Option</span>&lt;Cow&lt;Type&gt;&gt; {
+        <span class="kw">fn </span>borrowed(typ: <span class="kw-2">&amp;</span>Type) -&gt; <span class="prelude-ty">Option</span>&lt;Cow&lt;Type&gt;&gt; {
+            <span class="prelude-val">Some</span>(Cow::Borrowed(typ))
+        }
+        <span class="kw">let </span>owned = |typ: Type| <span class="prelude-val">Some</span>(Cow::Owned(typ));
+
+        <span class="kw">match </span><span class="self">self </span>{
+            Expression::Ident(ident) =&gt; borrowed(<span class="kw-2">&amp;</span>ident.typ),
+            Expression::Literal(literal) =&gt; <span class="kw">match </span>literal {
+                Literal::Array(literal) | Literal::Slice(literal) =&gt; borrowed(<span class="kw-2">&amp;</span>literal.typ),
+                Literal::Integer(<span class="kw">_</span>, typ, <span class="kw">_</span>) =&gt; borrowed(typ),
+                Literal::Bool(<span class="kw">_</span>) =&gt; borrowed(<span class="kw-2">&amp;</span>Type::Bool),
+                Literal::Unit =&gt; borrowed(<span class="kw-2">&amp;</span>Type::Unit),
+                Literal::Str(s) =&gt; owned(Type::String(s.len() <span class="kw">as </span>u32)),
+                Literal::FmtStr(<span class="kw">_</span>, size, expr) =&gt; expr.return_type().and_then(|typ| {
+                    owned(Type::FmtString(<span class="kw-2">*</span>size <span class="kw">as </span>u32, Box::new(typ.into_owned())))
+                }),
+            },
+            Expression::Block(xs) =&gt; xs.last().and_then(|x| x.return_type()),
+            Expression::Unary(unary) =&gt; borrowed(<span class="kw-2">&amp;</span>unary.result_type),
+            Expression::Binary(binary) =&gt; {
+                <span class="kw">if </span>binary.operator.is_comparator() {
+                    borrowed(<span class="kw-2">&amp;</span>Type::Bool)
+                } <span class="kw">else </span>{
+                    binary.lhs.return_type()
+                }
+            }
+            Expression::Index(index) =&gt; borrowed(<span class="kw-2">&amp;</span>index.element_type),
+            Expression::Cast(cast) =&gt; borrowed(<span class="kw-2">&amp;</span>cast.r#type),
+            Expression::If(if_) =&gt; borrowed(<span class="kw-2">&amp;</span>if_.typ),
+            Expression::ExtractTupleField(x, idx) =&gt; <span class="kw">match </span>x.as_ref() {
+                Expression::Tuple(xs) =&gt; {
+                    <span class="macro">assert!</span>(xs.len() &gt; <span class="kw-2">*</span>idx, <span class="string">"index out of bounds in tuple return type"</span>);
+                    xs[<span class="kw-2">*</span>idx].return_type()
+                }
+                x =&gt; {
+                    <span class="kw">let </span>typ = x.return_type()<span class="question-mark">?</span>;
+                    <span class="kw">let </span>Type::Tuple(types) = typ.as_ref() <span class="kw">else </span>{
+                        <span class="macro">unreachable!</span>(<span class="string">"unexpected type for tuple field extraction: {typ}"</span>);
+                    };
+                    <span class="macro">assert!</span>(types.len() &gt; <span class="kw-2">*</span>idx, <span class="string">"index out of bounds in tuple return type"</span>);
+                    owned(types[<span class="kw-2">*</span>idx].clone())
+                }
+            },
+            Expression::Clone(x) =&gt; x.return_type(),
+            Expression::Call(call) =&gt; borrowed(<span class="kw-2">&amp;</span>call.return_type),
+            Expression::Match(m) =&gt; borrowed(<span class="kw-2">&amp;</span>m.typ),
+
+            Expression::Tuple(xs) =&gt; {
+                <span class="kw">let </span>types = xs
+                    .iter()
+                    .filter_map(|x| x.return_type())
+                    .map(|t| t.into_owned())
+                    .collect::&lt;Vec&lt;<span class="kw">_</span>&gt;&gt;();
+                <span class="kw">if </span>types.len() != xs.len() {
+                    <span class="kw">return </span><span class="prelude-val">None</span>;
+                }
+                owned(Type::Tuple(types))
+            }
+
+            Expression::For(<span class="kw">_</span>)
+            | Expression::Loop(<span class="kw">_</span>)
+            | Expression::While(<span class="kw">_</span>)
+            | Expression::Let(<span class="kw">_</span>)
+            | Expression::Constrain(<span class="kw">_</span>, <span class="kw">_</span>, <span class="kw">_</span>)
+            | Expression::Assign(<span class="kw">_</span>)
+            | Expression::Semi(<span class="kw">_</span>)
+            | Expression::Drop(<span class="kw">_</span>)
+            | Expression::Break
+            | Expression::Continue =&gt; <span class="prelude-val">None</span>,
+        }
+    }
+
+    <span class="doccomment">/// Check if the expression will need to have its type deduced from a literal,
+    /// which could be ambiguous.
+    ///
+    /// For example:
+    /// ```ignore
+    /// let a = 1;
+    /// let b = if (a &gt; 0) { 2 } else { 3 };
+    /// ```
+    </span><span class="kw">pub fn </span>needs_type_inference_from_literal(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; bool {
+        <span class="kw">match </span><span class="self">self </span>{
+            Expression::Literal(<span class="kw">_</span>) =&gt; <span class="bool-val">true</span>,
+
+            Expression::Block(expressions) =&gt; expressions
+                .last()
+                .map(|x| x.needs_type_inference_from_literal())
+                .unwrap_or_default(),
+
+            Expression::Unary(unary) =&gt; unary.rhs.needs_type_inference_from_literal(),
+
+            Expression::Binary(binary) =&gt; {
+                <span class="kw">if </span>binary.operator.is_comparator() {
+                    <span class="bool-val">false
+                </span>} <span class="kw">else </span>{
+                    binary.lhs.needs_type_inference_from_literal()
+                }
+            }
+            Expression::If(if_) =&gt; {
+                if_.consequence.needs_type_inference_from_literal()
+                    &amp;&amp; if_
+                        .alternative
+                        .as_ref()
+                        .map(|x| x.needs_type_inference_from_literal())
+                        .unwrap_or_default()
+            }
+            Expression::Match(m) =&gt; {
+                m.cases.iter().all(|c| c.branch.needs_type_inference_from_literal())
+                    &amp;&amp; m.default_case.as_ref().is_none_or(|x| x.needs_type_inference_from_literal())
+            }
+
+            Expression::Tuple(xs) =&gt; xs.iter().any(|x| x.needs_type_inference_from_literal()),
+
+            Expression::ExtractTupleField(x, <span class="kw">_</span>) =&gt; x.needs_type_inference_from_literal(),
+
+            <span class="comment">// The following expressions either carry an obvious type, or return nothing.
+            </span>Expression::Ident(<span class="kw">_</span>)
+            | Expression::Call(<span class="kw">_</span>)
+            | Expression::Index(<span class="kw">_</span>)
+            | Expression::Cast(<span class="kw">_</span>)
+            | Expression::For(<span class="kw">_</span>)
+            | Expression::Loop(<span class="kw">_</span>)
+            | Expression::While(<span class="kw">_</span>)
+            | Expression::Let(<span class="kw">_</span>)
+            | Expression::Constrain(<span class="kw">_</span>, <span class="kw">_</span>, <span class="kw">_</span>)
+            | Expression::Assign(<span class="kw">_</span>)
+            | Expression::Semi(<span class="kw">_</span>)
+            | Expression::Clone(<span class="kw">_</span>)
+            | Expression::Drop(<span class="kw">_</span>)
+            | Expression::Break
+            | Expression::Continue =&gt; <span class="bool-val">false</span>,
+        }
     }
 }
 

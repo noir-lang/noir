@@ -1638,7 +1638,12 @@
 <a href="#1637" id="1637">1637</a>
 <a href="#1638" id="1638">1638</a>
 <a href="#1639" id="1639">1639</a>
-<a href="#1640" id="1640">1640</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::collections::VecDeque;
+<a href="#1640" id="1640">1640</a>
+<a href="#1641" id="1641">1641</a>
+<a href="#1642" id="1642">1642</a>
+<a href="#1643" id="1643">1643</a>
+<a href="#1644" id="1644">1644</a>
+<a href="#1645" id="1645">1645</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::collections::VecDeque;
 <span class="kw">use </span>std::{collections::hash_map::Entry, rc::Rc};
 
 <span class="kw">use </span>acvm::blackbox_solver::BigIntSolverWithId;
@@ -3048,12 +3053,17 @@
         <span class="self">self</span>.evaluate_statement(statement)
     }
 
-    <span class="kw">fn </span>print_oracle(<span class="kw-2">&amp;</span><span class="self">self</span>, arguments: Vec&lt;(Value, Location)&gt;) -&gt; <span class="prelude-ty">Result</span>&lt;Value, InterpreterError&gt; {
+    <span class="kw">fn </span>print_oracle(
+        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
+        arguments: Vec&lt;(Value, Location)&gt;,
+    ) -&gt; <span class="prelude-ty">Result</span>&lt;Value, InterpreterError&gt; {
         <span class="macro">assert_eq!</span>(arguments.len(), <span class="number">2</span>);
 
-        <span class="kw">if </span><span class="self">self</span>.elaborator.interner.disable_comptime_printing {
+        <span class="kw">let </span><span class="prelude-val">Some</span>(output) = <span class="self">self</span>.elaborator.interpreter_output <span class="kw">else </span>{
             <span class="kw">return </span><span class="prelude-val">Ok</span>(Value::Unit);
-        }
+        };
+
+        <span class="kw">let </span><span class="kw-2">mut </span>output = output.borrow_mut();
 
         <span class="kw">let </span>print_newline = arguments[<span class="number">0</span>].<span class="number">0 </span>== Value::Bool(<span class="bool-val">true</span>);
         <span class="kw">let </span>contents = arguments[<span class="number">1</span>].<span class="number">0</span>.display(<span class="self">self</span>.elaborator.interner);
@@ -3067,9 +3077,9 @@
                 <span class="macro">eprint!</span>(<span class="string">"{}"</span>, contents);
             }
         } <span class="kw">else if </span>print_newline {
-            <span class="macro">println!</span>(<span class="string">"{}"</span>, contents);
+            <span class="macro">writeln!</span>(output, <span class="string">"{}"</span>, contents).expect(<span class="string">"write should succeed"</span>);
         } <span class="kw">else </span>{
-            <span class="macro">print!</span>(<span class="string">"{}"</span>, contents);
+            <span class="macro">write!</span>(output, <span class="string">"{}"</span>, contents).expect(<span class="string">"write should succeed"</span>);
         }
 
         <span class="prelude-val">Ok</span>(Value::Unit)
