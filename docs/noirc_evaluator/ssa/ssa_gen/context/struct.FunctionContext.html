@@ -75,7 +75,7 @@ given signed integer input. When the input is negative, we return its two comple
     lhs: <a class="type" href="../../ir/value/type.ValueId.html" title="type noirc_evaluator::ssa::ir::value::ValueId">ValueId</a>,
     rhs: <a class="type" href="../../ir/value/type.ValueId.html" title="type noirc_evaluator::ssa::ir::value::ValueId">ValueId</a>,
     operator: BinaryOpKind,
-    location: <a class="struct" href="../../../../noirc_errors/position/struct.Location.html" title="struct noirc_errors::position::Location">Location</a>,
+    location: Location,
 ) -&gt; <a class="type" href="../../ir/value/type.ValueId.html" title="type noirc_evaluator::ssa::ir::value::ValueId">ValueId</a></h4></section></summary><div class="docblock"><p>Insert constraints ensuring that the operation does not overflow the bit size of the result</p>
 <p>If the result is unsigned, overflow will be checked during acir-gen (cf. issue #4456), except for
 bit-shifts, because we will convert them to field multiplication</p>
@@ -91,7 +91,7 @@ overflow the bit size, however the operation is still valid (i.e it is not a sig
     result: <a class="type" href="../../ir/value/type.ValueId.html" title="type noirc_evaluator::ssa::ir::value::ValueId">ValueId</a>,
     rhs: <a class="type" href="../../ir/value/type.ValueId.html" title="type noirc_evaluator::ssa::ir::value::ValueId">ValueId</a>,
     bit_size: <a class="primitive" href="https://doc.rust-lang.org/1.85.0/std/primitive.u32.html">u32</a>,
-    location: <a class="struct" href="../../../../noirc_errors/position/struct.Location.html" title="struct noirc_errors::position::Location">Location</a>,
+    location: Location,
 ) -&gt; <a class="type" href="../../ir/value/type.ValueId.html" title="type noirc_evaluator::ssa::ir::value::ValueId">ValueId</a></h4></section></summary><div class="docblock"><p>Overflow checks for bit-shift
 We use Rust behavior for bit-shift:
 If rhs is more or equal than the bit size, then we overflow
@@ -103,7 +103,7 @@ If not, we do not overflow and shift with 0 when bits are falling out of the bit
     rhs: <a class="type" href="../../ir/value/type.ValueId.html" title="type noirc_evaluator::ssa::ir::value::ValueId">ValueId</a>,
     operator: BinaryOpKind,
     bit_size: <a class="primitive" href="https://doc.rust-lang.org/1.85.0/std/primitive.u32.html">u32</a>,
-    location: <a class="struct" href="../../../../noirc_errors/position/struct.Location.html" title="struct noirc_errors::position::Location">Location</a>,
+    location: Location,
 )</h4></section></summary><div class="docblock"><p>Insert constraints ensuring that the operation does not overflow the bit size of the result
 We assume that:
 lhs and rhs are signed integers of bit size bit_size
@@ -120,7 +120,7 @@ then we check that the result has the proper sign, using the rule of signs</p>
     lhs: <a class="type" href="../../ir/value/type.ValueId.html" title="type noirc_evaluator::ssa::ir::value::ValueId">ValueId</a>,
     operator: BinaryOpKind,
     rhs: <a class="type" href="../../ir/value/type.ValueId.html" title="type noirc_evaluator::ssa::ir::value::ValueId">ValueId</a>,
-    location: <a class="struct" href="../../../../noirc_errors/position/struct.Location.html" title="struct noirc_errors::position::Location">Location</a>,
+    location: Location,
 ) -&gt; <a class="enum" href="../value/enum.Tree.html" title="enum noirc_evaluator::ssa::ssa_gen::value::Tree">Tree</a>&lt;<a class="enum" href="../value/enum.Value.html" title="enum noirc_evaluator::ssa::ssa_gen::value::Value">Value</a>&gt;</h4></section></summary><div class="docblock"><p>Insert a binary instruction at the end of the current block.
 Converts the form of the binary instruction as necessary
 (e.g. swapping arguments, inserting a not) to represent it in the IR.
@@ -130,7 +130,7 @@ For example, (a &lt;= b) is represented as !(b &lt; a)</p>
     function: <a class="type" href="../../ir/value/type.ValueId.html" title="type noirc_evaluator::ssa::ir::value::ValueId">ValueId</a>,
     arguments: <a class="struct" href="https://doc.rust-lang.org/1.85.0/alloc/vec/struct.Vec.html" title="struct alloc::vec::Vec">Vec</a>&lt;<a class="type" href="../../ir/value/type.ValueId.html" title="type noirc_evaluator::ssa::ir::value::ValueId">ValueId</a>&gt;,
     result_type: &amp;Type,
-    location: <a class="struct" href="../../../../noirc_errors/position/struct.Location.html" title="struct noirc_errors::position::Location">Location</a>,
+    location: Location,
 ) -&gt; <a class="enum" href="../value/enum.Tree.html" title="enum noirc_evaluator::ssa::ssa_gen::value::Tree">Tree</a>&lt;<a class="enum" href="../value/enum.Value.html" title="enum noirc_evaluator::ssa::ssa_gen::value::Value">Value</a>&gt;</h4></section></summary><div class="docblock"><p>Inserts a call instruction at the end of the current block and returns the results
 of the call.</p>
 <p>Compared to self.builder.insert_call, this version will reshape the returned <code>Vec&lt;ValueId&gt;</code>
@@ -139,7 +139,7 @@ back into a Values tree of the proper shape.</p>
     &amp;mut self,
     value: <a class="type" href="../../ir/value/type.ValueId.html" title="type noirc_evaluator::ssa::ir::value::ValueId">ValueId</a>,
     typ: <a class="enum" href="../../ir/types/enum.NumericType.html" title="enum noirc_evaluator::ssa::ir::types::NumericType">NumericType</a>,
-    location: <a class="struct" href="../../../../noirc_errors/position/struct.Location.html" title="struct noirc_errors::position::Location">Location</a>,
+    location: Location,
 ) -&gt; <a class="type" href="../../ir/value/type.ValueId.html" title="type noirc_evaluator::ssa::ir::value::ValueId">ValueId</a></h4></section></summary><div class="docblock"><p>Inserts a cast instruction at the end of the current block and returns the results
 of the cast.</p>
 <p>Compared to <code>self.builder.insert_cast</code>, this version will automatically truncate <code>value</code> to be a valid <code>typ</code>.</p>
@@ -199,7 +199,7 @@ Returns the variable’s value and whether the variable is mutable.</p>
     &amp;mut self,
     array: &amp;LValue,
     index: &amp;Expression,
-    location: &amp;<a class="struct" href="../../../../noirc_errors/position/struct.Location.html" title="struct noirc_errors::position::Location">Location</a>,
+    location: &amp;Location,
 ) -&gt; <a class="enum" href="https://doc.rust-lang.org/1.85.0/core/result/enum.Result.html" title="enum core::result::Result">Result</a>&lt;(<a class="type" href="../../ir/value/type.ValueId.html" title="type noirc_evaluator::ssa::ir::value::ValueId">ValueId</a>, <a class="type" href="../../ir/value/type.ValueId.html" title="type noirc_evaluator::ssa::ir::value::ValueId">ValueId</a>, <a class="enum" href="enum.LValue.html" title="enum noirc_evaluator::ssa::ssa_gen::context::LValue">LValue</a>, <a class="enum" href="https://doc.rust-lang.org/1.85.0/core/option/enum.Option.html" title="enum core::option::Option">Option</a>&lt;<a class="type" href="../../ir/value/type.ValueId.html" title="type noirc_evaluator::ssa::ir::value::ValueId">ValueId</a>&gt;), <a class="enum" href="../../../errors/enum.RuntimeError.html" title="enum noirc_evaluator::errors::RuntimeError">RuntimeError</a>&gt;</h4></section></summary><div class="docblock"><p>Compile the given <code>array[index]</code> expression as a reference.
 This will return a triple of (array, index, lvalue_ref, <code>Option&lt;length&gt;</code>) where the lvalue_ref records the
 structure of the lvalue expression for use by <code>assign_new_value</code>.
@@ -222,7 +222,7 @@ instruction within an LValue::Ident or LValue::Dereference - see the comment on
     new_value: <a class="enum" href="../value/enum.Tree.html" title="enum noirc_evaluator::ssa::ssa_gen::value::Tree">Tree</a>&lt;<a class="enum" href="../value/enum.Value.html" title="enum noirc_evaluator::ssa::ssa_gen::value::Value">Value</a>&gt;,
     array: <a class="type" href="../../ir/value/type.ValueId.html" title="type noirc_evaluator::ssa::ir::value::ValueId">ValueId</a>,
     index: <a class="type" href="../../ir/value/type.ValueId.html" title="type noirc_evaluator::ssa::ir::value::ValueId">ValueId</a>,
-    location: <a class="struct" href="../../../../noirc_errors/position/struct.Location.html" title="struct noirc_errors::position::Location">Location</a>,
+    location: Location,
 ) -&gt; <a class="type" href="../../ir/value/type.ValueId.html" title="type noirc_evaluator::ssa::ir::value::ValueId">ValueId</a></h4></section><section id="method.element_size" class="method"><a class="src rightside" href="../../../../src/noirc_evaluator/ssa/ssa_gen/context.rs.html#1072-1075">Source</a><h4 class="code-header">fn <a href="#method.element_size" class="fn">element_size</a>(&amp;self, array: <a class="type" href="../../ir/value/type.ValueId.html" title="type noirc_evaluator::ssa::ir::value::ValueId">ValueId</a>) -&gt; FieldElement</h4></section><details class="toggle method-toggle" open><summary><section id="method.assign" class="method"><a class="src rightside" href="../../../../src/noirc_evaluator/ssa/ssa_gen/context.rs.html#1079-1098">Source</a><h4 class="code-header">fn <a href="#method.assign" class="fn">assign</a>(&amp;mut self, lhs: <a class="enum" href="../value/enum.Tree.html" title="enum noirc_evaluator::ssa::ssa_gen::value::Tree">Tree</a>&lt;<a class="enum" href="../value/enum.Value.html" title="enum noirc_evaluator::ssa::ssa_gen::value::Value">Value</a>&gt;, rhs: <a class="enum" href="../value/enum.Tree.html" title="enum noirc_evaluator::ssa::ssa_gen::value::Tree">Tree</a>&lt;<a class="enum" href="../value/enum.Value.html" title="enum noirc_evaluator::ssa::ssa_gen::value::Value">Value</a>&gt;)</h4></section></summary><div class="docblock"><p>Given an lhs containing only references, create a store instruction to store each value of
 rhs into its corresponding value in lhs.</p>
 </div></details><section id="method.enter_loop" class="method"><a class="src rightside" href="../../../../src/noirc_evaluator/ssa/ssa_gen/context.rs.html#1100-1102">Source</a><h4 class="code-header">pub(crate) fn <a href="#method.enter_loop" class="fn">enter_loop</a>(&amp;mut self, loop_: <a class="struct" href="struct.Loop.html" title="struct noirc_evaluator::ssa::ssa_gen::context::Loop">Loop</a>)</h4></section><section id="method.exit_loop" class="method"><a class="src rightside" href="../../../../src/noirc_evaluator/ssa/ssa_gen/context.rs.html#1104-1106">Source</a><h4 class="code-header">pub(crate) fn <a href="#method.exit_loop" class="fn">exit_loop</a>(&amp;mut self)</h4></section><section id="method.current_loop" class="method"><a class="src rightside" href="../../../../src/noirc_evaluator/ssa/ssa_gen/context.rs.html#1108-1111">Source</a><h4 class="code-header">pub(crate) fn <a href="#method.current_loop" class="fn">current_loop</a>(&amp;self) -&gt; <a class="struct" href="struct.Loop.html" title="struct noirc_evaluator::ssa::ssa_gen::context::Loop">Loop</a></h4></section></div></details><details class="toggle implementors-toggle" open><summary><section id="impl-FunctionContext%3C'_%3E" class="impl"><a class="src rightside" href="../../../../src/noirc_evaluator/ssa/ssa_gen/mod.rs.html#136-1141">Source</a><a href="#impl-FunctionContext%3C'_%3E" class="anchor">§</a><h3 class="code-header">impl <a class="struct" href="struct.FunctionContext.html" title="struct noirc_evaluator::ssa::ssa_gen::context::FunctionContext">FunctionContext</a>&lt;'_&gt;</h3></section></summary><div class="impl-items"><details class="toggle method-toggle" open><summary><section id="method.codegen_function_body" class="method"><a class="src rightside" href="../../../../src/noirc_evaluator/ssa/ssa_gen/mod.rs.html#139-145">Source</a><h4 class="code-header">fn <a href="#method.codegen_function_body" class="fn">codegen_function_body</a>(
@@ -290,7 +290,7 @@ constant to be moved into this larger array constant.</p>
     array: <a class="type" href="../../ir/value/type.ValueId.html" title="type noirc_evaluator::ssa::ir::value::ValueId">ValueId</a>,
     index: <a class="type" href="../../ir/value/type.ValueId.html" title="type noirc_evaluator::ssa::ir::value::ValueId">ValueId</a>,
     element_type: &amp;Type,
-    location: <a class="struct" href="../../../../noirc_errors/position/struct.Location.html" title="struct noirc_errors::position::Location">Location</a>,
+    location: Location,
     length: <a class="enum" href="https://doc.rust-lang.org/1.85.0/core/option/enum.Option.html" title="enum core::option::Option">Option</a>&lt;<a class="type" href="../../ir/value/type.ValueId.html" title="type noirc_evaluator::ssa::ir::value::ValueId">ValueId</a>&gt;,
 ) -&gt; <a class="enum" href="https://doc.rust-lang.org/1.85.0/core/result/enum.Result.html" title="enum core::result::Result">Result</a>&lt;<a class="enum" href="../value/enum.Tree.html" title="enum noirc_evaluator::ssa::ssa_gen::value::Tree">Tree</a>&lt;<a class="enum" href="../value/enum.Value.html" title="enum noirc_evaluator::ssa::ssa_gen::value::Value">Value</a>&gt;, <a class="enum" href="../../../errors/enum.RuntimeError.html" title="enum noirc_evaluator::errors::RuntimeError">RuntimeError</a>&gt;</h4></section></summary><div class="docblock"><p>This is broken off from codegen_index so that it can also be
 used to codegen a LValue::Index.</p>
@@ -406,7 +406,7 @@ and intrinsics are also represented by the function call instruction.</p>
     &amp;mut self,
     function: <a class="type" href="../../ir/value/type.ValueId.html" title="type noirc_evaluator::ssa::ir::value::ValueId">ValueId</a>,
     arguments: &amp;[<a class="type" href="../../ir/value/type.ValueId.html" title="type noirc_evaluator::ssa::ir::value::ValueId">ValueId</a>],
-    location: <a class="struct" href="../../../../noirc_errors/position/struct.Location.html" title="struct noirc_errors::position::Location">Location</a>,
+    location: Location,
 )</h4></section><details class="toggle method-toggle" open><summary><section id="method.codegen_let" class="method"><a class="src rightside" href="../../../../src/noirc_evaluator/ssa/ssa_gen/mod.rs.html#1022-1037">Source</a><h4 class="code-header">fn <a href="#method.codegen_let" class="fn">codegen_let</a>(&amp;mut self, let_expr: &amp;Let) -&gt; <a class="enum" href="https://doc.rust-lang.org/1.85.0/core/result/enum.Result.html" title="enum core::result::Result">Result</a>&lt;<a class="enum" href="../value/enum.Tree.html" title="enum noirc_evaluator::ssa::ssa_gen::value::Tree">Tree</a>&lt;<a class="enum" href="../value/enum.Value.html" title="enum noirc_evaluator::ssa::ssa_gen::value::Value">Value</a>&gt;, <a class="enum" href="../../../errors/enum.RuntimeError.html" title="enum noirc_evaluator::errors::RuntimeError">RuntimeError</a>&gt;</h4></section></summary><div class="docblock"><p>Generate SSA for the given variable.
 If the variable is immutable, no special handling is necessary and we can return the given
 ValueId directly. If it is mutable, we’ll need to allocate space for the value and store
@@ -414,7 +414,7 @@ the initial value before returning the allocate instruction.</p>
 </div></details><section id="method.codegen_constrain" class="method"><a class="src rightside" href="../../../../src/noirc_evaluator/ssa/ssa_gen/mod.rs.html#1039-1056">Source</a><h4 class="code-header">fn <a href="#method.codegen_constrain" class="fn">codegen_constrain</a>(
     &amp;mut self,
     expr: &amp;Expression,
-    location: <a class="struct" href="../../../../noirc_errors/position/struct.Location.html" title="struct noirc_errors::position::Location">Location</a>,
+    location: Location,
     assert_payload: &amp;<a class="enum" href="https://doc.rust-lang.org/1.85.0/core/option/enum.Option.html" title="enum core::option::Option">Option</a>&lt;<a class="struct" href="https://doc.rust-lang.org/1.85.0/alloc/boxed/struct.Box.html" title="struct alloc::boxed::Box">Box</a>&lt;(Expression, HirType)&gt;&gt;,
 ) -&gt; <a class="enum" href="https://doc.rust-lang.org/1.85.0/core/result/enum.Result.html" title="enum core::result::Result">Result</a>&lt;<a class="enum" href="../value/enum.Tree.html" title="enum noirc_evaluator::ssa::ssa_gen::value::Tree">Tree</a>&lt;<a class="enum" href="../value/enum.Value.html" title="enum noirc_evaluator::ssa::ssa_gen::value::Value">Value</a>&gt;, <a class="enum" href="../../../errors/enum.RuntimeError.html" title="enum noirc_evaluator::errors::RuntimeError">RuntimeError</a>&gt;</h4></section><section id="method.codegen_constrain_error" class="method"><a class="src rightside" href="../../../../src/noirc_evaluator/ssa/ssa_gen/mod.rs.html#1062-1084">Source</a><h4 class="code-header">fn <a href="#method.codegen_constrain_error" class="fn">codegen_constrain_error</a>(
     &amp;mut self,
