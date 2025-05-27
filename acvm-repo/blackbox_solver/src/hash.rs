@@ -18,6 +18,12 @@ pub fn blake2s(inputs: &[u8]) -> Result<[u8; 32], BlackBoxResolutionError> {
 }
 
 pub fn blake3(inputs: &[u8]) -> Result<[u8; 32], BlackBoxResolutionError> {
+    if inputs.len() > 1024 {
+        return Err(BlackBoxResolutionError::Failed(
+            BlackBoxFunc::Blake3,
+            "the input length should be less than 1024 bytes".to_string(),
+        ));
+    }
     Ok(blake3::hash(inputs).into())
 }
 
