@@ -242,8 +242,8 @@ impl Function {
         let return_blocks: BTreeSet<_> = reachable_blocks
             .iter()
             .filter(|block| {
-                // All blocks must has a terminator instruction of some sort.
-                let terminator = self.dfg[*block].terminator().unwrap_or_else(|| {
+                // All blocks must have a terminator instruction of some sort.
+                let terminator = self.dfg[**block].terminator().unwrap_or_else(|| {
                     panic!("Function {} has no terminator in block {block}", self.id())
                 });
                 matches!(terminator, TerminatorInstruction::Return { .. })
