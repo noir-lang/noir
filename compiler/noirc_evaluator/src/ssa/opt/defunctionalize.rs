@@ -196,7 +196,7 @@ impl DefunctionalizationContext {
                             //
                             // If there is no apply function then this should be a function
                             // that will never actually be called, and the DIE pass will eventually remove it.
-                            // However, even if no variants exist we still except a dummy apply function to be generated.
+                            // However, even if no variants exist we still expect a dummy apply function to be generated.
                             panic!(
                                 "ICE: An apply function should exist for every first-class function"
                             )
