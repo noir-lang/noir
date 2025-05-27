@@ -1,4 +1,0 @@
-{"suite":"noir_rsa","name":"rsa::tests::smoke_test"}
-{"suite":"noir_rsa","name":"rsa::tests::test_verify_sha256_pkcs1v15_1024"}
-{"suite":"noir_rsa","name":"rsa::tests::test_verify_sha256_pkcs1v15_2048"}
-{"suite":"noir_rsa","name":"rsa::tests::test_verify_sha256_pkcs1v15_2048_exponent_3"}
