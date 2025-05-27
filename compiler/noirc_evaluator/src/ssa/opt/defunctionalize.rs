@@ -96,7 +96,7 @@ type DummyFunctions = HashMap<RuntimeType, FunctionId>;
 #[derive(Debug, Clone)]
 struct DefunctionalizationContext {
     apply_functions: ApplyFunctions,
-    dummy_functions: HashMap<RuntimeType, FunctionId>,
+    dummy_functions: DummyFunctions,
 }
 
 impl Ssa {
