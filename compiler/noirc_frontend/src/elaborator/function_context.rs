@@ -203,54 +203,51 @@ impl Elaborator<'_> {
                         match definition_kind {
                             DefinitionKind::Function(func_id) => {
                                 // Try to find the type variable in the function's generic arguments
-                                for generic in
-                                    self.interner.function_meta(&func_id).direct_generics.clone()
-                                {
-                                    if generic.type_var.id() == id {
-                                        let item_name = self
-                                            .interner
-                                            .definition_name(definition_id)
-                                            .to_string();
-                                        let is_numeric =
-                                            matches!(generic.type_var.kind(), Kind::Numeric(..));
-                                        self.push_err(TypeCheckError::TypeAnnotationNeededOnItem {
-                                            location,
-                                            generic_name: generic.name.to_string(),
-                                            item_kind: "function",
-                                            item_name,
-                                            is_numeric,
-                                        });
-                                    }
+                                let mut direct_generics =
+                                    self.interner.function_meta(&func_id).direct_generics.iter();
+                                let generic =
+                                    direct_generics.find(|generic| generic.type_var.id() == id);
+                                if let Some(generic) = generic {
+                                    let item_name =
+                                        self.interner.definition_name(definition_id).to_string();
+                                    let is_numeric =
+                                        matches!(generic.type_var.kind(), Kind::Numeric(..));
+                                    self.push_err(TypeCheckError::TypeAnnotationNeededOnItem {
+                                        location,
+                                        generic_name: generic.name.to_string(),
+                                        item_kind: "function",
+                                        item_name,
+                                        is_numeric,
+                                    });
+                                    continue;
                                 }
+
                                 // If we find one in `all_generics` it means it's a generic on the type
                                 // the function is in.
-                                if let Some(Type::DataType(typ, ..)) =
+                                let Some(Type::DataType(typ, ..)) =
                                     &self.interner.function_meta(&func_id).self_type
-                                {
-                                    let typ = typ.borrow();
-                                    let item_name = typ.name.to_string();
-                                    let item_kind = if typ.is_struct() { "struct" } else { "enum" };
-                                    drop(typ);
+                                else {
+                                    continue;
+                                };
+                                let typ = typ.borrow();
+                                let item_name = typ.name.to_string();
+                                let item_kind = if typ.is_struct() { "struct" } else { "enum" };
+                                drop(typ);
 
-                                    for generic in
-                                        self.interner.function_meta(&func_id).all_generics.clone()
-                                    {
-                                        if generic.type_var.id() == id {
-                                            let is_numeric = matches!(
-                                                generic.type_var.kind(),
-                                                Kind::Numeric(..)
-                                            );
-                                            self.push_err(
-                                                TypeCheckError::TypeAnnotationNeededOnItem {
-                                                    location,
-                                                    generic_name: generic.name.to_string(),
-                                                    item_kind,
-                                                    item_name: item_name.clone(),
-                                                    is_numeric,
-                                                },
-                                            );
-                                        }
-                                    }
+                                let mut all_generics =
+                                    self.interner.function_meta(&func_id).all_generics.iter();
+                                let generic =
+                                    all_generics.find(|generic| generic.type_var.id() == id);
+                                if let Some(generic) = generic {
+                                    let is_numeric =
+                                        matches!(generic.type_var.kind(), Kind::Numeric(..));
+                                    self.push_err(TypeCheckError::TypeAnnotationNeededOnItem {
+                                        location,
+                                        generic_name: generic.name.to_string(),
+                                        item_kind,
+                                        item_name: item_name.clone(),
+                                        is_numeric,
+                                    });
                                 }
                             }
                             DefinitionKind::Global(global_id) => {
@@ -269,22 +266,21 @@ impl Elaborator<'_> {
                                 };
 
                                 let def = def.borrow();
-                                let generics = def.generics.clone();
                                 let item_name = def.name.to_string();
+                                let mut generics = def.generics.iter();
+                                let generic =
+                                    generics.find(|generic| generic.type_var.id() == id).cloned();
                                 drop(def);
-
-                                for generic in generics {
-                                    if generic.type_var.id() == id {
-                                        let is_numeric =
-                                            matches!(generic.type_var.kind(), Kind::Numeric(..));
-                                        self.push_err(TypeCheckError::TypeAnnotationNeededOnItem {
-                                            location,
-                                            generic_name: generic.name.to_string(),
-                                            item_kind: "enum",
-                                            item_name: item_name.clone(),
-                                            is_numeric,
-                                        });
-                                    }
+                                if let Some(generic) = generic {
+                                    let is_numeric =
+                                        matches!(generic.type_var.kind(), Kind::Numeric(..));
+                                    self.push_err(TypeCheckError::TypeAnnotationNeededOnItem {
+                                        location,
+                                        generic_name: generic.name.to_string(),
+                                        item_kind: "enum",
+                                        item_name: item_name.clone(),
+                                        is_numeric,
+                                    });
                                 }
                             }
                             _ => (),
