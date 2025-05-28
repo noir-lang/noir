@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1748447033168,
+  "lastUpdate": 1748450607181,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -15211,48 +15211,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "asterite@gmail.com",
-            "name": "Ary Borenszweig",
-            "username": "asterite"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "4c6426eaa11cbc0a050616f59090652242290dc2",
-          "message": "chore: use insta for execution_success stdout (#8576)",
-          "timestamp": "2025-05-20T13:08:13Z",
-          "tree_id": "c2187a46ffc07c152010ce4754278dd5e5a5a55f",
-          "url": "https://github.com/noir-lang/noir/commit/4c6426eaa11cbc0a050616f59090652242290dc2"
-        },
-        "date": 1747747835583,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 255633,
-            "range": "± 1816",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 225467,
-            "range": "± 2315",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 3210218,
-            "range": "± 2072",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "aakoshh@gmail.com",
             "name": "Akosh Farkash",
             "username": "aakoshh"
@@ -17304,6 +17262,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 3218382,
             "range": "± 1932",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "aakoshh@gmail.com",
+            "name": "Akosh Farkash",
+            "username": "aakoshh"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "f8f230d229115fd8cf3278098929f4d89c1900b7",
+          "message": "chore(fuzz): Fuzz the SSA parser (#8647)",
+          "timestamp": "2025-05-28T16:22:22Z",
+          "tree_id": "dc2f8b351155173f3821cf2a3bd220f94e116b71",
+          "url": "https://github.com/noir-lang/noir/commit/f8f230d229115fd8cf3278098929f4d89c1900b7"
+        },
+        "date": 1748450595765,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 267304,
+            "range": "± 303",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 233441,
+            "range": "± 1310",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 3235034,
+            "range": "± 17260",
             "unit": "ns/iter"
           }
         ]
