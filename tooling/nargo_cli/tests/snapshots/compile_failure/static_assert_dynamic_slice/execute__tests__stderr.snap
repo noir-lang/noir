@@ -2,30 +2,6 @@
 source: tooling/nargo_cli/tests/execute.rs
 expression: stderr
 ---
-[compiler/noirc_evaluator/src/ssa/opt/simplify_cfg.rs:269:5] then_destination = Id(
-    1,
-)
-[compiler/noirc_evaluator/src/ssa/opt/simplify_cfg.rs:270:5] else_destination = Id(
-    2,
-)
-[compiler/noirc_evaluator/src/ssa/opt/simplify_cfg.rs:273:5] then_final = Id(
-    1,
-)
-[compiler/noirc_evaluator/src/ssa/opt/simplify_cfg.rs:274:5] else_final = Id(
-    2,
-)
-[compiler/noirc_evaluator/src/ssa/opt/simplify_cfg.rs:269:5] then_destination = Id(
-    3,
-)
-[compiler/noirc_evaluator/src/ssa/opt/simplify_cfg.rs:270:5] else_destination = Id(
-    4,
-)
-[compiler/noirc_evaluator/src/ssa/opt/simplify_cfg.rs:273:5] then_final = Id(
-    3,
-)
-[compiler/noirc_evaluator/src/ssa/opt/simplify_cfg.rs:274:5] else_final = Id(
-    4,
-)
 error: Failed because the predicate is dynamic:
 
 The predicate must be known at compile time to be evaluated.

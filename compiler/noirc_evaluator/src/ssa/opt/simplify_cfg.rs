@@ -260,6 +260,13 @@ fn check_for_converging_jmpif(
     block: BasicBlockId,
     cfg: &mut ControlFlowGraph,
 ) {
+    if matches!(function.runtime(), RuntimeType::Acir(_)) {
+        // The `flatten_cfg` pass expects two blocks to join to the same block.
+        // If we have a nested if the inner if statement could potentially be a converging jmpif.
+        // This may change the final block we converge into.
+        return;
+    }
+
     let Some(TerminatorInstruction::JmpIf {
         then_destination, else_destination, call_stack, ..
     }) = function.dfg[block].terminator()
@@ -607,6 +614,94 @@ mod test {
             return u32 1
           b2():
             return u32 2
+        }
+        ");
+    }
+
+    #[test]
+    fn do_not_remove_non_converging_jmpif_acir() {
+        let src = r#"
+        acir(inline) predicate_pure fn main f0 {
+          b0(v13: [(u1, u1, [u8; 1], [u8; 1]); 3]):
+            v23 = array_get v13, index u32 8 -> u1
+            jmpif v23 then: b1, else: b2
+          b1():
+            v45 = array_get v13, index u32 4 -> u1
+            jmpif v45 then: b3, else: b4
+          b2():
+            v25 = array_get v13, index u32 4 -> u1
+            jmp b5(v25)
+          b3():
+            v46 = array_get v13, index u32 5 -> u1
+            jmpif v46 then: b6, else: b7
+          b4():
+            jmp b8()
+          b5(v14: u1):
+            return v14
+          b6():
+            v47 = array_get v13, index u32 8 -> u1
+            jmpif v47 then: b11, else: b12
+          b7():
+            jmp b9()
+          b8():
+            jmp b5(u1 0)
+          b9():
+            jmp b8()
+          b10():
+            jmp b9()
+          b11():
+            jmp b13()
+          b12():
+            jmp b13()
+          b13():
+            jmpif v47 then: b14, else: b15
+          b14():
+            jmp b16()
+          b15():
+            jmp b16()
+          b16():
+            jmp b10()
+        }
+        "#;
+
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.simplify_cfg();
+
+        // We only expect the jmpif in b13 to be replaced.
+        // The remaining jmpifs cannot be simplified as the flattening pass expects
+        // to be able to merge into a single block.
+        // We could potentially merge converging jmpifs in an ACIR runtime as well if
+        // this restriction was removed or pre-flattening branch analysis became part
+        // of the regular SSA validation.
+        assert_ssa_snapshot!(ssa, @r"
+        acir(inline) predicate_pure fn main f0 {
+          b0(v0: [(u1, u1, [u8; 1], [u8; 1]); 3]):
+            v3 = array_get v0, index u32 8 -> u1
+            jmpif v3 then: b1, else: b2
+          b1():
+            v6 = array_get v0, index u32 4 -> u1
+            jmpif v6 then: b3, else: b4
+          b2():
+            v5 = array_get v0, index u32 4 -> u1
+            jmp b5(v5)
+          b3():
+            v8 = array_get v0, index u32 5 -> u1
+            jmpif v8 then: b6, else: b7
+          b4():
+            jmp b8()
+          b5(v1: u1):
+            return v1
+          b6():
+            v9 = array_get v0, index u32 8 -> u1
+            jmp b13()
+          b7():
+            jmp b9()
+          b8():
+            jmp b5(u1 0)
+          b9():
+            jmp b8()
+          b13():
+            jmp b8()
         }
         ");
     }
