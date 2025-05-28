@@ -533,7 +533,6 @@ impl FunctionBuilder {
         let mut signed_binary_op = None;
         for block in function.reachable_blocks() {
             for instruction in function.dfg[block].instructions() {
-                let results = function.dfg.instruction_results(*instruction);
                 match &function.dfg[*instruction] {
                     Instruction::Binary(binary) => {
                         signed_binary_op = None;
@@ -549,6 +548,7 @@ impl FunctionBuilder {
                         // Assume rhs_type is the same as lhs_type
                         let lhs_type = function.dfg.type_of_value(binary.lhs);
                         if let Type::Numeric(NumericType::Signed { bit_size }) = lhs_type {
+                            let results = function.dfg.instruction_results(*instruction);
                             signed_binary_op = Some((bit_size, results[0]));
                         }
                     }
