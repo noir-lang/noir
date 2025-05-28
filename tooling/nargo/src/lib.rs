@@ -50,6 +50,13 @@ pub fn prepare_dependencies(
     }
 }
 
+// We will pre-populate the file manager with all the files in the package
+// This is so that we can avoid having to read from disk when we are compiling
+//
+// This does not require parsing because we are interested in the files under the src directory
+// it may turn out that we do not need to include some Noir files that we add to the file
+// manager
+
 pub fn insert_all_files_for_workspace_into_file_manager(
     workspace: &workspace::Workspace,
     file_manager: &mut FileManager,
@@ -67,25 +74,54 @@ pub fn insert_all_files_for_workspace_into_file_manager_with_overrides(
     overrides: &HashMap<PathBuf, &str>,
 ) {
     let mut processed_entry_paths = HashSet::new();
+
+    // We first collect all files, then add the overrides, and sort all of them
+    // so we always get a consistent order of the files, even if an override
+    // doesn't exist in the filesystem.
+    let mut filenames = HashSet::new();
     for package in workspace.clone().into_iter() {
-        insert_all_files_for_package_into_file_manager(
-            package,
-            file_manager,
-            overrides,
-            &mut processed_entry_paths,
-        );
+        collect_all_files_in_package(package, &mut filenames, &mut processed_entry_paths);
     }
+    filenames.extend(overrides.keys().cloned());
+
+    insert_all_files_into_file_manager(file_manager, overrides, filenames);
 }
-// We will pre-populate the file manager with all the files in the package
-// This is so that we can avoid having to read from disk when we are compiling
-//
-// This does not require parsing because we are interested in the files under the src directory
-// it may turn out that we do not need to include some Noir files that we add to the file
-// manager
-fn insert_all_files_for_package_into_file_manager(
-    package: &Package,
+
+pub fn insert_all_files_under_path(
+    file_manager: &mut FileManager,
+    path: &std::path::Path,
+    overrides: &HashMap<PathBuf, &str>,
+) {
+    let mut filenames = HashSet::new();
+    collect_all_files_under_path(path, &mut filenames);
+    filenames.extend(overrides.keys().cloned());
+
+    insert_all_files_into_file_manager(file_manager, overrides, filenames);
+}
+
+fn insert_all_files_into_file_manager(
     file_manager: &mut FileManager,
     overrides: &HashMap<PathBuf, &str>,
+    filenames: HashSet<PathBuf>,
+) {
+    let mut filenames = filenames.into_iter().collect::<Vec<_>>();
+    filenames.sort();
+
+    for filename in filenames {
+        let source = if let Some(src) = overrides.get(&filename) {
+            src.to_string()
+        } else {
+            std::fs::read_to_string(filename.as_path())
+                .unwrap_or_else(|_| panic!("could not read file {:?} into string", filename))
+        };
+
+        file_manager.add_file_with_source(filename.as_path(), source);
+    }
+}
+
+fn collect_all_files_in_package(
+    package: &Package,
+    filenames: &mut HashSet<PathBuf>,
     processed_entry_paths: &mut HashSet<PathBuf>,
 ) {
     if processed_entry_paths.contains(&package.entry_path) {
@@ -99,43 +135,27 @@ fn insert_all_files_for_package_into_file_manager(
         .parent()
         .unwrap_or_else(|| panic!("The entry path is expected to be a single file within a directory and so should have a parent {:?}", package.entry_path));
 
-    insert_all_files_under_path_into_file_manager(file_manager, entry_path_parent, overrides);
+    collect_all_files_under_path(entry_path_parent, filenames);
 
-    insert_all_files_for_packages_dependencies_into_file_manager(
-        package,
-        file_manager,
-        overrides,
-        processed_entry_paths,
-    );
+    collect_all_files_in_packages_dependencies(package, filenames, processed_entry_paths);
 }
 
-// Inserts all files for the dependencies of the package into the file manager
-// too
-fn insert_all_files_for_packages_dependencies_into_file_manager(
+// Collect all files for the dependencies of the package too
+fn collect_all_files_in_packages_dependencies(
     package: &Package,
-    file_manager: &mut FileManager,
-    overrides: &HashMap<PathBuf, &str>,
+    filenames: &mut HashSet<PathBuf>,
     processed_entry_paths: &mut HashSet<PathBuf>,
 ) {
     for (_, dep) in package.dependencies.iter() {
         match dep {
             Dependency::Local { package } | Dependency::Remote { package } => {
-                insert_all_files_for_package_into_file_manager(
-                    package,
-                    file_manager,
-                    overrides,
-                    processed_entry_paths,
-                );
+                collect_all_files_in_package(package, filenames, processed_entry_paths);
             }
         }
     }
 }
 
-pub fn insert_all_files_under_path_into_file_manager(
-    file_manager: &mut FileManager,
-    path: &std::path::Path,
-    overrides: &HashMap<PathBuf, &str>,
-) {
+fn collect_all_files_under_path(path: &std::path::Path, filenames: &mut HashSet<PathBuf>) {
     for entry in WalkDir::new(path).sort_by_file_name() {
         let Ok(entry) = entry else {
             continue;
@@ -150,20 +170,7 @@ pub fn insert_all_files_under_path_into_file_manager(
         };
 
         let path = entry.into_path();
-
-        // Avoid reading the source if the file is already there
-        if file_manager.has_file(&path) {
-            continue;
-        }
-
-        let source = if let Some(src) = overrides.get(path.as_path()) {
-            src.to_string()
-        } else {
-            std::fs::read_to_string(path.as_path())
-                .unwrap_or_else(|_| panic!("could not read file {:?} into string", path))
-        };
-
-        file_manager.add_file_with_source(path.as_path(), source);
+        filenames.insert(path);
     }
 }
 
