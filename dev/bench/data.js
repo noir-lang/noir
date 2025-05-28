@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1748453448822,
+  "lastUpdate": 1748471450737,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -15225,48 +15225,6 @@ window.BENCHMARK_DATA = {
             "name": "GitHub",
             "username": "web-flow"
           },
-          "distinct": false,
-          "id": "0e62fed6423c1c9b25105337f64d7947c9ed2e05",
-          "message": "chore(refactor): Switch unreachable function removal to use centralized call graph (#8578)\n\nCo-authored-by: Ary Borenszweig <asterite@gmail.com>",
-          "timestamp": "2025-05-20T16:10:05Z",
-          "tree_id": "692290f810cfbd786fb8c06e4c6268dbb4c779c9",
-          "url": "https://github.com/noir-lang/noir/commit/0e62fed6423c1c9b25105337f64d7947c9ed2e05"
-        },
-        "date": 1747758576841,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 266084,
-            "range": "± 1966",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 232810,
-            "range": "± 1166",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 3231134,
-            "range": "± 53818",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
-            "email": "mvezenov@gmail.com",
-            "name": "Maxim Vezenov",
-            "username": "vezenovm"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
           "distinct": true,
           "id": "99ac8a06c1de1df33c20c8d7c9bc0c38695aa26a",
           "message": "fix(licm): Account for nested loops being control dependent when analyzing outer loops (#8593)",
@@ -17309,6 +17267,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 3209194,
             "range": "± 1633",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "aakoshh@gmail.com",
+            "name": "Akosh Farkash",
+            "username": "aakoshh"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "1139bbcfe5c782db3b61e93b9346608993048539",
+          "message": "feat(cli): Add `nargo interpret` command (#8700)",
+          "timestamp": "2025-05-28T22:09:46Z",
+          "tree_id": "53be0a2611f9e645351c47724a80959f7527870f",
+          "url": "https://github.com/noir-lang/noir/commit/1139bbcfe5c782db3b61e93b9346608993048539"
+        },
+        "date": 1748471440665,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 255058,
+            "range": "± 1023",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 224502,
+            "range": "± 6512",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 3565946,
+            "range": "± 29092",
             "unit": "ns/iter"
           }
         ]
