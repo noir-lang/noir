@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1748451325408,
+  "lastUpdate": 1748452754231,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -15211,48 +15211,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "aakoshh@gmail.com",
-            "name": "Akosh Farkash",
-            "username": "aakoshh"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "354c5aa6a432d28c0d62be6fc8114f1add09f44e",
-          "message": "chore(test): Allow lambdas in fuzzing (#8584)",
-          "timestamp": "2025-05-20T13:20:03Z",
-          "tree_id": "c96be5db2f52584d94af355bb4ea5e1efc6fca34",
-          "url": "https://github.com/noir-lang/noir/commit/354c5aa6a432d28c0d62be6fc8114f1add09f44e"
-        },
-        "date": 1747748459409,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 255796,
-            "range": "± 1629",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 225285,
-            "range": "± 2099",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 3211535,
-            "range": "± 9837",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "mvezenov@gmail.com",
             "name": "Maxim Vezenov",
             "username": "vezenovm"
@@ -17304,6 +17262,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 3235034,
             "range": "± 17260",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "asterite@gmail.com",
+            "name": "Ary Borenszweig",
+            "username": "asterite"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "9b7320908e74377bfd55a8760f16974ef1d07c05",
+          "message": "chore: more 1-tuple printing fixes (#8699)",
+          "timestamp": "2025-05-28T16:58:36Z",
+          "tree_id": "e4f524f1aa9b8f230596c5991db637f599bb5cb4",
+          "url": "https://github.com/noir-lang/noir/commit/9b7320908e74377bfd55a8760f16974ef1d07c05"
+        },
+        "date": 1748452743859,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 254880,
+            "range": "± 1069",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 225003,
+            "range": "± 2014",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 3209194,
+            "range": "± 1633",
             "unit": "ns/iter"
           }
         ]
