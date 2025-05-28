@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"enum":["RuntimeType"],"struct":["Function","Signature"],"type":["FunctionId"]};
+window.SIDEBAR_ITEMS = {"enum":["RuntimeType"],"fn":["function_values_iter"],"struct":["Function","Signature"],"type":["FunctionId"]};
