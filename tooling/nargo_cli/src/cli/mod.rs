@@ -101,6 +101,7 @@ enum NargoCommand {
     Fmt(fmt_cmd::FormatCommand),
     #[command(alias = "build")]
     Compile(compile_cmd::CompileCommand),
+    #[command(hide = true)]
     Interpret(interpret_cmd::InterpretCommand),
     New(new_cmd::NewCommand),
     Init(init_cmd::InitCommand),
