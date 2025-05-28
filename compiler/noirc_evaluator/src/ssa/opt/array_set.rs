@@ -150,6 +150,15 @@ impl<'f> Context<'f> {
                         self.arrays_from_load.insert(result, is_reference_param);
                     }
                 }
+                Instruction::MakeArray { elements, .. } => {
+                    for element in elements {
+                        if let Some(existing) =
+                            self.array_to_last_use.insert(*element, *instruction_id)
+                        {
+                            self.instructions_that_can_be_made_mutable.remove(&existing);
+                        }
+                    }
+                }
                 _ => (),
             }
         }
