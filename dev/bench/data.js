@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1748453014448,
+  "lastUpdate": 1748453018485,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -17313,85 +17313,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "aakoshh@gmail.com",
-            "name": "Akosh Farkash",
-            "username": "aakoshh"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "354c5aa6a432d28c0d62be6fc8114f1add09f44e",
-          "message": "chore(test): Allow lambdas in fuzzing (#8584)",
-          "timestamp": "2025-05-20T13:20:03Z",
-          "tree_id": "c96be5db2f52584d94af355bb4ea5e1efc6fca34",
-          "url": "https://github.com/noir-lang/noir/commit/354c5aa6a432d28c0d62be6fc8114f1add09f44e"
-        },
-        "date": 1747748725633,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 1129.7,
-            "unit": "KB"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 2050.5,
-            "unit": "KB"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 583.5,
-            "unit": "KB"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 5129.9,
-            "unit": "KB"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 3952.1,
-            "unit": "KB"
-          },
-          {
-            "name": "rollup-block-root-empty",
-            "value": 256.7,
-            "unit": "KB"
-          },
-          {
-            "name": "rollup-block-root-single-tx",
-            "value": 25697.5,
-            "unit": "KB"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 25720.8,
-            "unit": "KB"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 181.7,
-            "unit": "KB"
-          },
-          {
-            "name": "rollup-root",
-            "value": 478.4,
-            "unit": "KB"
-          },
-          {
-            "name": "semaphore-depth-10",
-            "value": 636.3,
-            "unit": "KB"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "mvezenov@gmail.com",
             "name": "Maxim Vezenov",
             "username": "vezenovm"
@@ -20301,6 +20222,85 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/noir-lang/noir/commit/f8f230d229115fd8cf3278098929f4d89c1900b7"
         },
         "date": 1748450861374,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 1133.3,
+            "unit": "KB"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 2156.7,
+            "unit": "KB"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 589,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 5129.7,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 4071.2,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-block-root-empty",
+            "value": 257,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-block-root-single-tx",
+            "value": 25708.1,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 25715.1,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 183.7,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-root",
+            "value": 418.6,
+            "unit": "KB"
+          },
+          {
+            "name": "semaphore-depth-10",
+            "value": 636.3,
+            "unit": "KB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "asterite@gmail.com",
+            "name": "Ary Borenszweig",
+            "username": "asterite"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "9b7320908e74377bfd55a8760f16974ef1d07c05",
+          "message": "chore: more 1-tuple printing fixes (#8699)",
+          "timestamp": "2025-05-28T16:58:36Z",
+          "tree_id": "e4f524f1aa9b8f230596c5991db637f599bb5cb4",
+          "url": "https://github.com/noir-lang/noir/commit/9b7320908e74377bfd55a8760f16974ef1d07c05"
+        },
+        "date": 1748453007052,
         "tool": "customSmallerIsBetter",
         "benches": [
           {
