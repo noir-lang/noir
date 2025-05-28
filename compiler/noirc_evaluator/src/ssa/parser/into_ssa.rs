@@ -195,11 +195,11 @@ impl Translator {
     ) -> Result<Vec<BasicBlockId>, SsaError> {
         let mut seen = HashSet::new();
         let mut ordered = Vec::new();
-        let mut stack = VecDeque::new();
+        let mut queue = VecDeque::new();
 
-        stack.push_back(entry_block_id);
+        queue.push_back(entry_block_id);
 
-        while let Some(block_id) = stack.pop_front() {
+        while let Some(block_id) = queue.pop_front() {
             if seen.contains(&block_id) {
                 continue;
             }
@@ -209,11 +209,11 @@ impl Translator {
             let parsed_block = &parsed_blocks_by_id[&block_id];
             match &parsed_block.terminator {
                 ParsedTerminator::Jmp { destination, .. } => {
-                    stack.push_back(self.lookup_block(destination)?);
+                    queue.push_back(self.lookup_block(destination)?);
                 }
                 ParsedTerminator::Jmpif { then_block, else_block, .. } => {
-                    stack.push_back(self.lookup_block(then_block)?);
-                    stack.push_back(self.lookup_block(else_block)?);
+                    queue.push_back(self.lookup_block(then_block)?);
+                    queue.push_back(self.lookup_block(else_block)?);
                 }
                 ParsedTerminator::Return(..) => (),
             }
