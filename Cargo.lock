@@ -3425,6 +3425,7 @@ dependencies = [
  "proptest",
  "rand 0.8.5",
  "regex",
+ "serde_json",
  "similar-asserts",
  "strum",
 ]
