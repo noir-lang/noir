@@ -499,7 +499,7 @@ fn test_range_check_with_message() {
     let src = r#"
         acir(inline) fn main f0 {
           b0(v0: Field):
-            range_check v0 to 8 bits, "overflow error"
+            range_check v0 to 8 bits, "overflow error\n\t"
             return
         }
         "#;
