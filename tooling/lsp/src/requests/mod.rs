@@ -446,7 +446,7 @@ where
 
     // `path` might be a relative path so we canonicalize it to get an absolute path
     let path_buf = PathBuf::from(path);
-    let path_buf = path_buf.canonicalize().unwrap_or(path_buf);
+    let path_buf = std::path::absolute(path_buf.clone()).unwrap_or(path_buf);
 
     let uri = Url::from_file_path(path_buf.to_str()?).ok()?;
 
