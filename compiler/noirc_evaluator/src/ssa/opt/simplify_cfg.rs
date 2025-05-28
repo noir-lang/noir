@@ -475,7 +475,7 @@ mod test {
             v1 = not v0
             jmpif v1 then: b1, else: b2
           b1():
-            return
+            jmp b2()
           b2():
             return
         }";
@@ -594,7 +594,7 @@ mod test {
           b6():
             jmp b8()
           b7():
-            return u32 1
+            jmp b1()
           b8():
             return u32 2
         }
@@ -609,11 +609,11 @@ mod test {
         brillig(inline) predicate_pure fn main f0 {
           b0(v0: i16):
             v2 = lt i16 1, v0
-            jmpif v2 then: b1, else: b2
+            jmpif v2 then: b2, else: b1
           b1():
-            return u32 1
-          b2():
             return u32 2
+          b2():
+            jmp b2()
         }
         ");
     }
@@ -667,12 +667,12 @@ mod test {
         let ssa = Ssa::from_str(src).unwrap();
         let ssa = ssa.simplify_cfg();
 
-        // We only expect the jmpif in b13 to be replaced.
+        // We expect all jmpifs to remain.
         // The remaining jmpifs cannot be simplified as the flattening pass expects
         // to be able to merge into a single block.
         // We could potentially merge converging jmpifs in an ACIR runtime as well if
-        // this restriction was removed or pre-flattening branch analysis became part
-        // of the regular SSA validation.
+        // this restriction was removed or the SSA input to this pass was validated to pass
+        // branch analysis.
         assert_ssa_snapshot!(ssa, @r"
         acir(inline) predicate_pure fn main f0 {
           b0(v0: [(u1, u1, [u8; 1], [u8; 1]); 3]):
@@ -693,15 +693,25 @@ mod test {
             return v1
           b6():
             v9 = array_get v0, index u32 8 -> u1
-            jmp b13()
+            jmpif v9 then: b10, else: b11
           b7():
             jmp b9()
           b8():
             jmp b5(u1 0)
           b9():
             jmp b8()
+          b10():
+            jmp b12()
+          b11():
+            jmp b12()
+          b12():
+            jmpif v9 then: b13, else: b14
           b13():
-            jmp b8()
+            jmp b15()
+          b14():
+            jmp b15()
+          b15():
+            jmp b9()
         }
         ");
     }
