@@ -1,87 +1,8 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1748453250973,
+  "lastUpdate": 1748453435908,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
-      {
-        "commit": {
-          "author": {
-            "email": "aakoshh@gmail.com",
-            "name": "Akosh Farkash",
-            "username": "aakoshh"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "354c5aa6a432d28c0d62be6fc8114f1add09f44e",
-          "message": "chore(test): Allow lambdas in fuzzing (#8584)",
-          "timestamp": "2025-05-20T13:20:03Z",
-          "tree_id": "c96be5db2f52584d94af355bb4ea5e1efc6fca34",
-          "url": "https://github.com/noir-lang/noir/commit/354c5aa6a432d28c0d62be6fc8114f1add09f44e"
-        },
-        "date": 1747749059998,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 332.44,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 571.71,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 232.24,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 1440,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 1480,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-root-empty",
-            "value": 399.73,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-root-single-tx",
-            "value": 7210,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 7220,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 383.99,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-root",
-            "value": 446.09,
-            "unit": "MB"
-          },
-          {
-            "name": "semaphore_depth_10",
-            "value": 128.35,
-            "unit": "MB"
-          }
-        ]
-      },
       {
         "commit": {
           "author": {
@@ -3044,6 +2965,85 @@ window.BENCHMARK_DATA = {
           {
             "name": "rollup-root",
             "value": 470.21,
+            "unit": "MB"
+          },
+          {
+            "name": "semaphore_depth_10",
+            "value": 128.39,
+            "unit": "MB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "asterite@gmail.com",
+            "name": "Ary Borenszweig",
+            "username": "asterite"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "9b7320908e74377bfd55a8760f16974ef1d07c05",
+          "message": "chore: more 1-tuple printing fixes (#8699)",
+          "timestamp": "2025-05-28T16:58:36Z",
+          "tree_id": "e4f524f1aa9b8f230596c5991db637f599bb5cb4",
+          "url": "https://github.com/noir-lang/noir/commit/9b7320908e74377bfd55a8760f16974ef1d07c05"
+        },
+        "date": 1748453425385,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 337.1,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 577.7,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 236.95,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 1470,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 1630,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root-empty",
+            "value": 431.68,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root-single-tx",
+            "value": 7240,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 7250,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 415.93,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-root",
+            "value": 470.19,
             "unit": "MB"
           },
           {
