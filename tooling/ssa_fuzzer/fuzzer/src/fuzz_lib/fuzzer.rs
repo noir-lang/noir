@@ -113,7 +113,7 @@ impl Fuzzer {
     }
 
     /// Finalizes the function for both contexts, executes and compares the results
-    pub(crate) fn run(
+    pub(crate) fn finalize_and_run(
         mut self,
         initial_witness: WitnessMap<FieldElement>,
         return_instruction_block_idx: usize,

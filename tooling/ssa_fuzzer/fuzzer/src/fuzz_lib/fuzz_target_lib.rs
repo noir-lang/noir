@@ -41,7 +41,8 @@ pub(crate) struct FuzzerData {
     commands: Vec<FuzzerCommand>,
     /// initial witness values for the program as `WitnessValue`
     /// last and last but one values are preserved for the boolean values (true, false)
-    /// fuzz_target func inserts them into the witness map itself
+    /// fuzz_target func inserts them into the witness map itself,
+    ///                                                            ↓ we subtract 2, because fuzz_target func inserts two boolean variables itself
     initial_witness: [WitnessValue; (NUMBER_OF_VARIABLES_INITIAL - 2) as usize],
     return_instruction_block_idx: usize,
 }
@@ -71,10 +72,11 @@ pub(crate) fn fuzz_target(data: FuzzerData, options: FuzzerOptions) -> Option<Fi
         values.push(value);
         types.push(type_);
     }
-    witness_map.insert(Witness(5_u32), FieldElement::from(1_u32));
+    // insert true and false boolean values
+    witness_map.insert(Witness(NUMBER_OF_VARIABLES_INITIAL - 2), FieldElement::from(1_u32));
     values.push(FieldElement::from(1_u32));
     types.push(ValueType::Boolean);
-    witness_map.insert(Witness(6_u32), FieldElement::from(0_u32));
+    witness_map.insert(Witness(NUMBER_OF_VARIABLES_INITIAL - 1), FieldElement::from(0_u32));
     values.push(FieldElement::from(0_u32));
     types.push(ValueType::Boolean);
 
@@ -88,7 +90,7 @@ pub(crate) fn fuzz_target(data: FuzzerData, options: FuzzerOptions) -> Option<Fi
     for command in data.commands {
         fuzzer.process_fuzzer_command(command);
     }
-    fuzzer.run(initial_witness, data.return_instruction_block_idx)
+    fuzzer.finalize_and_run(initial_witness, data.return_instruction_block_idx)
 }
 
 #[cfg(test)]
