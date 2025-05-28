@@ -42,7 +42,7 @@ pub(crate) fn on_workspace_symbol_request(
 
     // If the cache is not initialized yet, put all files in the workspace in the FileManager
     if !cache.initialized {
-        insert_all_files_under_path(&mut file_manager, &root_path, &overrides);
+        insert_all_files_under_path(&mut file_manager, &root_path, Some(&overrides));
         cache.initialized = true;
     }
 
