@@ -758,7 +758,8 @@
 <a href="#757" id="757">757</a>
 <a href="#758" id="758">758</a>
 <a href="#759" id="759">759</a>
-<a href="#760" id="760">760</a></pre></div><pre class="rust"><code><span class="doccomment">//! SSA stands for Single Static Assignment
+<a href="#760" id="760">760</a>
+<a href="#761" id="761">761</a></pre></div><pre class="rust"><code><span class="doccomment">//! SSA stands for Single Static Assignment
 //! The IR presented in this module will already
 //! be in SSA form and will be used to apply
 //! conventional optimizations like Common Subexpression
@@ -1461,8 +1462,9 @@
         </span>F: FnOnce(Ssa) -&gt; <span class="prelude-ty">Result</span>&lt;Ssa, RuntimeError&gt;,
     {
         <span class="comment">// Count the number of times we have seen this message.
-        </span><span class="kw">let </span>cnt = <span class="self">self</span>.passed.entry(msg.to_string()).and_modify(|cnt| <span class="kw-2">*</span>cnt += <span class="number">1</span>).or_insert(<span class="number">1</span>);
-        <span class="kw">let </span>msg = <span class="macro">format!</span>(<span class="string">"{msg} ({cnt})"</span>);
+        </span><span class="kw">let </span>cnt = <span class="kw-2">*</span><span class="self">self</span>.passed.entry(msg.to_string()).and_modify(|cnt| <span class="kw-2">*</span>cnt += <span class="number">1</span>).or_insert(<span class="number">1</span>);
+        <span class="kw">let </span>step = <span class="self">self</span>.passed.values().sum::&lt;usize&gt;();
+        <span class="kw">let </span>msg = <span class="macro">format!</span>(<span class="string">"{msg} ({cnt}) (step {step})"</span>);
 
         <span class="comment">// See if we should skip this pass, including the count, so we can skip the n-th occurrence of a step.
         </span><span class="kw">let </span>skip = <span class="self">self</span>.skip_passes.iter().any(|s| msg.contains(s));
