@@ -185,7 +185,8 @@ fn to_ssa_options(options: &CompileOptions) -> SsaEvaluatorOptions {
 }
 
 fn msg_matches(patterns: &[String], msg: &str) -> bool {
-    patterns.iter().any(|p| msg.contains(p))
+    let msg = msg.to_lowercase();
+    patterns.iter().any(|p| msg.contains(&p.to_lowercase()))
 }
 
 fn print_ssa(options: &SsaEvaluatorOptions, ssa: &mut Ssa, msg: &str) {
