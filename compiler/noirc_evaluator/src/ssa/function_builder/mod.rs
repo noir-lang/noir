@@ -553,22 +553,23 @@ impl FunctionBuilder {
                         }
                     }
                     Instruction::Truncate { value, bit_size, max_bit_size } => {
-                        if let Some((signed_op_bit_size, signed_op_res)) = signed_binary_op {
-                            assert_eq!(
-                                *bit_size, signed_op_bit_size,
-                                "ICE: Correct truncate must follow the result of a checked signed add/sub"
-                            );
-                            assert_eq!(
-                                *max_bit_size,
-                                *bit_size + 1,
-                                "ICE: Correct truncate must follow the result of a checked signed add/sub"
-                            );
-                            assert_eq!(
-                                *value, signed_op_res,
-                                "ICE: Correct truncate must follow the result of a checked signed add/sub"
-                            );
-                        }
-                        signed_binary_op = None;
+                        let Some((signed_op_bit_size, signed_op_res)) = signed_binary_op.take()
+                        else {
+                            continue;
+                        };
+                        assert_eq!(
+                            *bit_size, signed_op_bit_size,
+                            "ICE: Correct truncate must follow the result of a checked signed add/sub"
+                        );
+                        assert_eq!(
+                            *max_bit_size,
+                            *bit_size + 1,
+                            "ICE: Correct truncate must follow the result of a checked signed add/sub"
+                        );
+                        assert_eq!(
+                            *value, signed_op_res,
+                            "ICE: Correct truncate must follow the result of a checked signed add/sub"
+                        );
                     }
                     _ => {
                         signed_binary_op = None;
