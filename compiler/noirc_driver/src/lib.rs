@@ -15,7 +15,8 @@ use noirc_evaluator::brillig::BrilligOptions;
 use noirc_evaluator::create_program;
 use noirc_evaluator::errors::RuntimeError;
 use noirc_evaluator::ssa::{
-    SsaEvaluatorOptions, SsaLogging, SsaProgramArtifact, create_program_with_minimal_passes,
+    OptimizationLevel, SsaEvaluatorOptions, SsaLogging, SsaProgramArtifact,
+    create_program_with_minimal_passes,
 };
 use noirc_frontend::debug::build_debug_crate_file;
 use noirc_frontend::elaborator::{FrontendOptions, UnstableFeature};
@@ -716,9 +717,10 @@ pub fn compile_no_check(
     cached_program: Option<CompiledProgram>,
     force_compile: bool,
 ) -> Result<CompiledProgram, CompileError> {
+    let compiling_for_debug = options.instrument_debug;
     let force_unconstrained = options.force_brillig || options.minimal_ssa;
 
-    let program = if options.instrument_debug {
+    let program = if compiling_for_debug {
         monomorphize_debug(
             main_function,
             &mut context.def_interner,
@@ -762,6 +764,11 @@ pub fn compile_no_check(
             SsaLogging::All
         } else {
             SsaLogging::None
+        },
+        optimization_level: if compiling_for_debug {
+            OptimizationLevel::Debug
+        } else {
+            OptimizationLevel::All
         },
         brillig_options: BrilligOptions {
             enable_debug_trace: options.show_brillig,

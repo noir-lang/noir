@@ -9,6 +9,7 @@ use noirc_errors::{
     call_stack::{CallStack, CallStackId},
     debug_info::{DebugFunctions, DebugInfo, DebugTypes, DebugVariables},
 };
+use noirc_evaluator::ssa::OptimizationLevel;
 use noirc_evaluator::{
     acir::GeneratedAcir,
     brillig::BrilligOptions,
@@ -220,6 +221,7 @@ pub fn evaluator_options(options: &CompileOptions) -> SsaEvaluatorOptions {
         enable_brillig_constraints_check_lookback: options
             .enable_brillig_constraints_check_lookback,
         skip_passes: options.skip_ssa_pass.clone(),
+        optimization_level: OptimizationLevel::All,
     }
 }
 
