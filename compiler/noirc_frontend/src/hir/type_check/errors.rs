@@ -70,6 +70,8 @@ pub enum TypeCheckError {
     InvalidCast { from: Type, location: Location, reason: String },
     #[error("Casting value of type {from} to a smaller type ({to})")]
     DownsizingCast { from: Type, to: Type, location: Location, reason: String },
+    #[error("Cannot cast `{typ}` as `bool`")]
+    CannotCastNumericToBool { typ: Type, location: Location },
     #[error("Expected a function, but found a(n) {found}")]
     ExpectedFunction { found: Type, location: Location },
     #[error("Type {lhs_type} has no member named {field_name}")]
@@ -258,6 +260,7 @@ impl TypeCheckError {
             | TypeCheckError::ArityMisMatch { location, .. }
             | TypeCheckError::InvalidCast { location, .. }
             | TypeCheckError::DownsizingCast { location, .. }
+            | TypeCheckError::CannotCastNumericToBool { location, .. }
             | TypeCheckError::ExpectedFunction { location, .. }
             | TypeCheckError::AccessUnknownMember { location, .. }
             | TypeCheckError::ParameterCountMismatch { location, .. }
@@ -458,6 +461,10 @@ impl<'a> From<&'a TypeCheckError> for Diagnostic {
             }
             TypeCheckError::DownsizingCast { location, reason, .. } => {
                 Diagnostic::simple_warning(error.to_string(), reason.clone(), *location)
+            }
+            TypeCheckError::CannotCastNumericToBool { typ: _, location } => {
+                let secondary = "compare with zero instead: ` != 0`".to_string();
+                Diagnostic::simple_error(error.to_string(), secondary, *location)
             }
 
             TypeCheckError::ExpectedFunction { location, .. }

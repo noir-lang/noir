@@ -175,11 +175,19 @@ comptime fn generate_as_primitive_impls(_: FunctionDefinition) -> Quoted {
     let mut impls = &[];
     for type1 in types {
         for type2 in types {
+            let body = if type1 == type2 {
+                quote { self }
+            } else if type1 == quote { bool } {
+                quote { self != 0 }
+            } else {
+                quote { self as $type1 }
+            };
+
             impls = impls.push_back(
                 quote {
                 impl AsPrimitive<$type1> for $type2 {
                     fn as_(self) -> $type1 {
-                        self as $type1
+                        $body
                     }
                 }
             },
