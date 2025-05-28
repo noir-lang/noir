@@ -12,7 +12,7 @@ libfuzzer_sys::fuzz_target!(|data: FuzzerData| {
         match triage_value.as_str() {
             "FULL" => compile_options.show_ssa = true,
             "FINAL" => {
-                compile_options.show_ssa_pass = Some("Dead Instruction Elimination (3)".to_string())
+                compile_options.show_ssa_pass = vec!["Dead Instruction Elimination (3)".to_string()]
             }
             _ => (),
         }
