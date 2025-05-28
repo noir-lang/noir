@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1748440621018,
+  "lastUpdate": 1748441149527,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -15220,48 +15220,6 @@ window.BENCHMARK_DATA = {
             "name": "GitHub",
             "username": "web-flow"
           },
-          "distinct": true,
-          "id": "1c7e421696da2d733684ee2d3fbc7e424a4a0183",
-          "message": "fix: use predicate expression as binary result (#8583)",
-          "timestamp": "2025-05-20T10:39:30Z",
-          "tree_id": "be7c4f0d293a4a840111634b89d56a88968c149f",
-          "url": "https://github.com/noir-lang/noir/commit/1c7e421696da2d733684ee2d3fbc7e424a4a0183"
-        },
-        "date": 1747738854807,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 257436,
-            "range": "± 679",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 229488,
-            "range": "± 5052",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 3230682,
-            "range": "± 2040",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
-            "email": "47281315+guipublic@users.noreply.github.com",
-            "name": "guipublic",
-            "username": "guipublic"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
           "distinct": false,
           "id": "1be0da333770ee5a026a9952783b16c39b9ab7b4",
           "message": "chore: use generator instead of zero for ec-add predicate (#8552)",
@@ -17304,6 +17262,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 3567589,
             "range": "± 5940",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "asterite@gmail.com",
+            "name": "Ary Borenszweig",
+            "username": "asterite"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "29d137ae036e41dc093202c8a68bf080069ccd98",
+          "message": "fix(SSA): show and parse range_check's assert_message (#8652)",
+          "timestamp": "2025-05-28T13:38:53Z",
+          "tree_id": "17e115745ad7c15a7ea92565166587057f656d05",
+          "url": "https://github.com/noir-lang/noir/commit/29d137ae036e41dc093202c8a68bf080069ccd98"
+        },
+        "date": 1748441138987,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 258632,
+            "range": "± 927",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 228244,
+            "range": "± 3634",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 3216051,
+            "range": "± 5151",
             "unit": "ns/iter"
           }
         ]
