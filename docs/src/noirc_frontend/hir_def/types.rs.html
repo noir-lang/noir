@@ -3404,7 +3404,11 @@
 <a href="#3403" id="3403">3403</a>
 <a href="#3404" id="3404">3404</a>
 <a href="#3405" id="3405">3405</a>
-<a href="#3406" id="3406">3406</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::{borrow::Cow, cell::RefCell, collections::BTreeSet, rc::Rc};
+<a href="#3406" id="3406">3406</a>
+<a href="#3407" id="3407">3407</a>
+<a href="#3408" id="3408">3408</a>
+<a href="#3409" id="3409">3409</a>
+<a href="#3410" id="3410">3410</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::{borrow::Cow, cell::RefCell, collections::BTreeSet, rc::Rc};
 
 <span class="kw">use </span>fxhash::FxHashMap <span class="kw">as </span>HashMap;
 
@@ -6573,7 +6577,11 @@
             Type::TraitAsType(_id, name, generics) =&gt; <span class="macro">write!</span>(f, <span class="string">"impl {}{:?}"</span>, name, generics),
             Type::Tuple(elements) =&gt; {
                 <span class="kw">let </span>elements = vecmap(elements, |arg| <span class="macro">format!</span>(<span class="string">"{:?}"</span>, arg));
-                <span class="macro">write!</span>(f, <span class="string">"({})"</span>, elements.join(<span class="string">", "</span>))
+                <span class="kw">if </span>elements.len() == <span class="number">1 </span>{
+                    <span class="macro">write!</span>(f, <span class="string">"({},)"</span>, elements[<span class="number">0</span>])
+                } <span class="kw">else </span>{
+                    <span class="macro">write!</span>(f, <span class="string">"({})"</span>, elements.join(<span class="string">", "</span>))
+                }
             }
             Type::Bool =&gt; <span class="macro">write!</span>(f, <span class="string">"bool"</span>),
             Type::String(len) =&gt; <span class="macro">write!</span>(f, <span class="string">"str&lt;{len:?}&gt;"</span>),

@@ -655,7 +655,11 @@
 <a href="#654" id="654">654</a>
 <a href="#655" id="655">655</a>
 <a href="#656" id="656">656</a>
-<a href="#657" id="657">657</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::{borrow::Cow, collections::BTreeMap, fmt::Display};
+<a href="#657" id="657">657</a>
+<a href="#658" id="658">658</a>
+<a href="#659" id="659">659</a>
+<a href="#660" id="660">660</a>
+<a href="#661" id="661">661</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::{borrow::Cow, collections::BTreeMap, fmt::Display};
 
 <span class="kw">use </span>iter_extended::vecmap;
 <span class="kw">use </span>noirc_errors::{
@@ -1292,7 +1296,11 @@
             Type::Unit =&gt; <span class="macro">write!</span>(f, <span class="string">"()"</span>),
             Type::Tuple(elements) =&gt; {
                 <span class="kw">let </span>elements = vecmap(elements, ToString::to_string);
-                <span class="macro">write!</span>(f, <span class="string">"({})"</span>, elements.join(<span class="string">", "</span>))
+                <span class="kw">if </span>elements.len() == <span class="number">1 </span>{
+                    <span class="macro">write!</span>(f, <span class="string">"({},)"</span>, elements[<span class="number">0</span>])
+                } <span class="kw">else </span>{
+                    <span class="macro">write!</span>(f, <span class="string">"({})"</span>, elements.join(<span class="string">", "</span>))
+                }
             }
             Type::Function(args, ret, env, unconstrained) =&gt; {
                 <span class="kw">if </span><span class="kw-2">*</span>unconstrained {
