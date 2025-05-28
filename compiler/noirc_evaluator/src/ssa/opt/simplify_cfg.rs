@@ -281,7 +281,7 @@ fn check_for_converging_jmpif(
     if then_final == else_final {
         let jmp = TerminatorInstruction::Jmp {
             destination: then_final,
-            // The blocks in a jmp chain are assumed to have empty arguments
+            // The blocks in a jmp chain are checked to have empty arguments by resolve_jmp_chain
             arguments: Vec::new(),
             call_stack: *call_stack,
         };
