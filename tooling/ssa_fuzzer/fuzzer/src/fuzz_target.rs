@@ -17,39 +17,24 @@ libfuzzer_sys::fuzz_target!(|data: FuzzerData| {
             _ => (),
         }
     }
+
+    // Disable some instructions with bugs that are not fixed yet
     let instruction_options = InstructionOptions {
         cast_enabled: false,
-        xor_enabled: true,
-        and_enabled: true,
-        or_enabled: true,
-        not_enabled: true,
-        add_enabled: true,
-        sub_enabled: true,
-        mul_enabled: true,
-        mod_enabled: false,
-        div_enabled: true,
+        lt_enabled: false,
         shl_enabled: false,
         shr_enabled: false,
-        eq_enabled: true,
-        lt_enabled: false,
-        load_enabled: true,
-        store_enabled: true,
-        alloc_enabled: true,
-    };
-    let fuzzer_command_options = FuzzerCommandOptions {
-        merge_instruction_blocks_enabled: true,
-        jmp_if_enabled: true,
-        jmp_block_enabled: true,
-        switch_to_next_block_enabled: true,
+        mod_enabled: false,
+        ..InstructionOptions::default()
     };
     let options = FuzzerOptions {
-        idempotent_morphing_enabled: false,
+        constrain_idempotent_morphing_enabled: false,
         constant_execution_enabled: false,
         compile_options,
-        max_ssa_blocks_num: 30,
-        max_instructions_num: 500,
+        max_ssa_blocks_num: 30, // it takes too long to run program with more blocks
+        max_instructions_num: 500, // it takes too long to run program with more instructions
         instruction_options,
-        fuzzer_command_options,
+        fuzzer_command_options: FuzzerCommandOptions::default(),
     };
     fuzz_target(data, options);
 });

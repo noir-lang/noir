@@ -64,7 +64,7 @@ impl Fuzzer {
             },
         ));
         let context_non_constant_with_idempotent_morphing =
-            match options.idempotent_morphing_enabled {
+            match options.constrain_idempotent_morphing_enabled {
                 true => Some(FuzzerContext::new(
                     types,
                     instruction_blocks,

@@ -114,6 +114,8 @@ impl FuzzerContext {
     }
 
     /// Creates a new fuzzer context with the given values and inserts them as constants
+    ///
+    /// Used for fuzzing constant folding SSA pass.
     pub(crate) fn new_constant_context(
         values: Vec<impl Into<FieldElement>>,
         types: Vec<ValueType>,
@@ -164,12 +166,18 @@ impl FuzzerContext {
         }
     }
 
+    /// Switches to the block
+    ///
+    /// This function is used to switch to the block in both ACIR and Brillig contexts.
     fn switch_to_block(&mut self, block_id: BasicBlockId) {
         self.acir_builder.switch_to_block(block_id);
         self.brillig_builder.switch_to_block(block_id);
     }
 
     /// Stores variables of the current block
+    ///
+    /// SSA block can use variables from predecessor that is not in branch.
+    /// Look [Self::find_closest_parent] for more details.
     fn store_variables(&mut self) {
         self.stored_variables_for_block
             .insert(self.current_block.block_id, self.current_block.context.stored_values.clone());
@@ -432,6 +440,9 @@ impl FuzzerContext {
     ///    b9
     /// closest parent for b5 and b6 is b4
     /// closest parent for b7 and b8 is b1
+    ///
+    /// SSA block can use variables from predecessor that is not in branch. e.g. b7 can use variables from b4.
+    /// This function is used to determine which block's variables can be inherited by merged block.
     fn find_closest_parent(&mut self, lhs: &StoredBlock, rhs: &StoredBlock) -> BasicBlockId {
         for block in &lhs.context.parent_blocks_history {
             if rhs.context.parent_blocks_history.contains(block) {
@@ -461,6 +472,9 @@ impl FuzzerContext {
     ///    ↙  ↘
     ///   b1   b2
     /// b0 has 2 children blocks b1 and b2, so it has 2 ends, so we return None
+    ///
+    /// This function is used to find end of the block for merging
+    /// If block has no end, it means it has branches in the sub CFG, so we need to merge children blocks first
     fn end_of_block(&self, block_id: BasicBlockId) -> Option<BasicBlockId> {
         let block = match self.stored_blocks.get(&block_id) {
             Some(block) => block,
@@ -492,6 +506,23 @@ impl FuzzerContext {
     }
 
     /// Merges block and return ending block
+    ///
+    /// There are several restrictions for CFG
+    /// 1) We can only have one return block;
+    /// 2) Every block should have not more than two predecessors;
+    /// 3) Every block must be terminated with return/jmp/jmp_if;
+    /// 4) Blocks from different branches should not be merged.
+    /// e.g.
+    ///          b0
+    ///         ↙  ↘
+    ///        b1   b2
+    ///       ↙  ↘    |
+    ///      b3   b4  |
+    ///             ↘ ↙
+    ///              b5
+    /// is incorrect, because b2 and b4 are from different branches, so we cannot merge them.
+    ///
+    /// so to merge blocks we need to merge every branch separately
     fn merge_one_block(&mut self, block_id: BasicBlockId) -> StoredBlock {
         let block = &self.stored_blocks[&block_id];
         let block_end = self.end_of_block(block_id);

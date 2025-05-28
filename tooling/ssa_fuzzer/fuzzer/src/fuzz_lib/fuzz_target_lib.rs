@@ -41,27 +41,17 @@ pub(crate) struct FuzzerData {
     commands: Vec<FuzzerCommand>,
     /// initial witness values for the program as `WitnessValue`
     /// last and last but one values are preserved for the boolean values (true, false)
-    /// fuzz_target func inserts them into the witness map itself,
-    ///                                                            ↓ we subtract 2, because fuzz_target func inserts two boolean variables itself
+    ///                                                            ↓ we subtract 2, because [initialize_witness_map] func inserts two boolean variables itself
     initial_witness: [WitnessValue; (NUMBER_OF_VARIABLES_INITIAL - 2) as usize],
     return_instruction_block_idx: usize,
 }
 
-/// Creates ACIR and Brillig programs from the data, runs and compares them
-pub(crate) fn fuzz_target(data: FuzzerData, options: FuzzerOptions) -> Option<FieldElement> {
+fn initialize_witness_map(
+    data: &FuzzerData,
+) -> (WitnessMap<FieldElement>, Vec<FieldElement>, Vec<ValueType>) {
     let mut witness_map = WitnessMap::new();
     let mut values = vec![];
     let mut types = vec![];
-
-    if data.blocks.is_empty() {
-        return None;
-    }
-    for instr_block in &data.blocks {
-        if instr_block.instructions.is_empty() {
-            return None;
-        }
-    }
-
     for (i, witness_value) in data.initial_witness.iter().enumerate() {
         let (value, type_) = match witness_value {
             WitnessValue::Field(field) => (FieldElement::from(field), ValueType::Field),
@@ -79,18 +69,33 @@ pub(crate) fn fuzz_target(data: FuzzerData, options: FuzzerOptions) -> Option<Fi
     witness_map.insert(Witness(NUMBER_OF_VARIABLES_INITIAL - 1), FieldElement::from(0_u32));
     values.push(FieldElement::from(0_u32));
     types.push(ValueType::Boolean);
+    (witness_map, values, types)
+}
 
-    let initial_witness = witness_map;
-    log::debug!("blocks: {:?}", data.blocks);
-    log::debug!("initial_witness: {:?}", initial_witness);
-    log::debug!("initial_witness_in_data: {:?}", data.initial_witness);
-    log::debug!("commands: {:?}", data.commands);
+/// Creates ACIR and Brillig programs from the data, runs and compares them
+pub(crate) fn fuzz_target(data: FuzzerData, options: FuzzerOptions) -> Option<FieldElement> {
+    // If there are no blocks, [crate::base_context::FuzzerContext::get_return_witness] will try to take witness with index NUMBER_OF_VARIABLES_INITIAL
+    // But we only have our initial witness, and last index in resulting witness map is NUMBER_OF_VARIABLES_INITIAL - 1
+    // So we just skip this case
+    if data.blocks.is_empty() {
+        return None;
+    }
+    for instr_block in &data.blocks {
+        if instr_block.instructions.is_empty() {
+            return None;
+        }
+    }
+
+    let (witness_map, values, types) = initialize_witness_map(&data);
+
+    // to triage
+    log::debug!("initial_witness: {:?}", witness_map);
 
     let mut fuzzer = Fuzzer::new(types, values, data.blocks, options);
     for command in data.commands {
         fuzzer.process_fuzzer_command(command);
     }
-    fuzzer.finalize_and_run(initial_witness, data.return_instruction_block_idx)
+    fuzzer.finalize_and_run(witness_map, data.return_instruction_block_idx)
 }
 
 #[cfg(test)]
@@ -186,7 +191,6 @@ mod tests {
     /// v0 = 0, v2 = 2, so we expect that v10 = 4
     #[test]
     fn test_mutable_variable() {
-        env_logger::init();
         let arg_0_field = Argument { index: 0, value_type: ValueType::Field };
         let arg_2_field = Argument { index: 2, value_type: ValueType::Field };
         let arg_5_field = Argument { index: 5, value_type: ValueType::Field };

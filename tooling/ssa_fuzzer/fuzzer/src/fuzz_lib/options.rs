@@ -106,7 +106,7 @@ impl Default for FuzzerCommandOptions {
 }
 
 pub struct FuzzerOptions {
-    pub idempotent_morphing_enabled: bool,
+    pub constrain_idempotent_morphing_enabled: bool,
     pub constant_execution_enabled: bool,
     pub compile_options: CompileOptions,
     pub max_ssa_blocks_num: usize,
@@ -118,7 +118,7 @@ pub struct FuzzerOptions {
 impl Default for FuzzerOptions {
     fn default() -> Self {
         Self {
-            idempotent_morphing_enabled: false,
+            constrain_idempotent_morphing_enabled: false,
             constant_execution_enabled: false,
             compile_options: CompileOptions::default(),
             max_ssa_blocks_num: 30,

@@ -2,9 +2,23 @@
 
 A fuzzing tool for testing and comparing ACIR and Brillig implementations based on [cargo-fuzz](https://github.com/rust-fuzz/cargo-fuzz).
 
+1) [How to use](#usage)
+2) [How it works](#how-it-works)
+
 ## Overview
 
-This fuzzer generates random sequences of arithmetic and logical operations to craft SSA from scratch and than verify that both ACIR and Brillig implementations produce identical results. It helps catch potential bugs and inconsistencies between the two implementations.
+The SSA Fuzzer generates arbitrary SSA programs and executes them in order to find inconsistencies between ACIR and Brillig implementations.
+
+1) Fuzzer generates test (random bytes);
+2) This test converts into struct, that defines commands to generate program and initial witness;
+3) Fuzzer creates ssa function builders in ACIR and Brillig runtimes;
+4) Fuzzer applies commands to both builders (insert instruction, insert jmp_if etc.);
+5) Fuzzer compiles ssa (from both ACIR and Brillig builders), runs it and compares results;
+6) If results are different, fuzzer crashes, it's a bug.
+
+There are two additional fuzzer modes:
+1) Constrain idempotent morphing mode. There are several idempotent morphing commands defined (e.g `c = a + b - b`). In this mode fuzzer will create two more ACIR and Brillig builders, that will constrain the result of idempotent morphed variable. Then will compare result of execution in normal mode and in Constrain idempotent morphing mode. This was done in order to catch bugs described [here](https://github.com/noir-lang/noir/issues/8095). To enable it set `constrain_idempotent_morphing_enabled` to true in [fuzz target](fuzzer/src/fuzz_target.rs).
+2) Constant execution mode. In this mode fuzzer will create two more ACIR and Brillig builders, that will execute all instructions in constant mode (instead of variables with insert constants into builders). Then will compare result of execution in normal mode and in Constant execution mode. This was done in order to catch bugs in constant_folding SSA pass. To enable it set `constant_execution_enabled` to true in [fuzz target](fuzzer/src/fuzz_target.rs).
 
 
 ## Usage
@@ -145,3 +159,4 @@ Then merges all ssa blocks into one (because noir programs can only have one ret
 
 1) [Branching](fuzzer/src/fuzz_lib/fuzz_target_lib.rs#L110-L170)
 2) [Mutable variables](fuzzer/src/fuzz_lib/fuzz_target_lib.rs#L186-L230)
+
