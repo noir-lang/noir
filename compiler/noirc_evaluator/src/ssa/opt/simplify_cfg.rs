@@ -414,7 +414,7 @@ mod test {
           b1():
             return Field 1
           b2():
-            return Field 2
+            jmp b1()
         }
         ";
         let ssa = Ssa::from_str(src).unwrap();

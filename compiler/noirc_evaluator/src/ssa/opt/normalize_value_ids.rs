@@ -178,7 +178,7 @@ impl IdMaps {
             value @ Value::Instruction { instruction, .. } => {
                 *self.values.get(&old_value).unwrap_or_else(|| {
                     let instruction = &old_function.dfg[*instruction];
-                    unreachable!("Unmapped value with id {old_value}: {value:?}\n  from instruction: {instruction:?}, SSA: {old_function}")
+                    unreachable!("Unmapped value with id {old_value}: {value:?}\n  from instruction: {instruction:?}, from function: {}", old_function.id())
                 })
             }
 

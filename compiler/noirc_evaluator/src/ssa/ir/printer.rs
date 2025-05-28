@@ -264,8 +264,10 @@ fn display_instruction_inner(
         Instruction::DecrementRc { value } => {
             writeln!(f, "dec_rc {}", show(*value))
         }
-        Instruction::RangeCheck { value, max_bit_size, .. } => {
-            writeln!(f, "range_check {} to {} bits", show(*value), *max_bit_size,)
+        Instruction::RangeCheck { value, max_bit_size, assert_message } => {
+            let message =
+                assert_message.as_ref().map(|message| format!(", {message:?}")).unwrap_or_default();
+            writeln!(f, "range_check {} to {} bits{}", show(*value), *max_bit_size, message)
         }
         Instruction::IfElse { then_condition, then_value, else_condition, else_value } => {
             let then_condition = show(*then_condition);
@@ -338,8 +340,12 @@ fn try_byte_array_to_string(elements: &Vector<ValueId>, dfg: &DataFlowGraph) -> 
         if element > 0xFF {
             return None;
         }
-        let byte = element as u8;
-        if byte.is_ascii_alphanumeric() || byte.is_ascii_punctuation() || byte.is_ascii_whitespace()
+        let byte: u8 = element as u8;
+        const FORM_FEED: u8 = 12; // This is the ASCII code for '\f', which isn't a valid escape sequence in strings
+        if byte != FORM_FEED
+            && (byte.is_ascii_alphanumeric()
+                || byte.is_ascii_punctuation()
+                || byte.is_ascii_whitespace())
         {
             string.push(byte as char);
         } else {

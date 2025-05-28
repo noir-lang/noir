@@ -591,7 +591,11 @@ impl Display for ExpressionKind {
             MemberAccess(access) => access.fmt(f),
             Tuple(elements) => {
                 let elements = vecmap(elements, ToString::to_string);
-                write!(f, "({})", elements.join(", "))
+                if elements.len() == 1 {
+                    write!(f, "({},)", elements[0])
+                } else {
+                    write!(f, "({})", elements.join(", "))
+                }
             }
             Lambda(lambda) => lambda.fmt(f),
             Parenthesized(sub_expr) => write!(f, "({sub_expr})"),
