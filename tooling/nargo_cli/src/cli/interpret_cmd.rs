@@ -94,7 +94,7 @@ pub(crate) fn run(args: InterpretCommand, workspace: Workspace) -> Result<(), Cl
 
         print_and_interpret_ssa(&ssa_options, &args.ssa_pass, &mut ssa, "Initial SSA", &ssa_input);
 
-        // Run all SSA passes that match the filter, printing the result after each step.
+        // Run SSA passes in the pipeline and interpret the ones we are interested in.
         for (i, ssa_pass) in ssa_passes.iter().enumerate() {
             let msg = format!("{} (step {})", ssa_pass.msg(), i + 1);
 
