@@ -3167,7 +3167,11 @@ impl std::fmt::Debug for Type {
             Type::TraitAsType(_id, name, generics) => write!(f, "impl {}{:?}", name, generics),
             Type::Tuple(elements) => {
                 let elements = vecmap(elements, |arg| format!("{:?}", arg));
-                write!(f, "({})", elements.join(", "))
+                if elements.len() == 1 {
+                    write!(f, "({},)", elements[0])
+                } else {
+                    write!(f, "({})", elements.join(", "))
+                }
             }
             Type::Bool => write!(f, "bool"),
             Type::String(len) => write!(f, "str<{len:?}>"),
