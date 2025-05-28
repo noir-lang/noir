@@ -17,6 +17,7 @@ pub mod workspace;
 pub use self::errors::NargoError;
 pub use self::ops::FuzzExecutionConfig;
 pub use self::ops::FuzzFolderConfig;
+use std::collections::BTreeSet;
 use std::sync::Mutex;
 use std::sync::mpsc;
 use std::thread;
@@ -75,10 +76,7 @@ pub fn insert_all_files_for_workspace_into_file_manager_with_overrides(
 ) {
     let mut processed_entry_paths = HashSet::new();
 
-    // We first collect all files, then add the overrides, and sort all of them
-    // so we always get a consistent order of the files, even if an override
-    // doesn't exist in the filesystem.
-    let mut filenames = HashSet::new();
+    let mut filenames = BTreeSet::new();
     for package in workspace.clone().into_iter() {
         collect_all_files_in_package(package, &mut filenames, &mut processed_entry_paths);
     }
@@ -92,7 +90,7 @@ pub fn insert_all_files_under_path(
     path: &std::path::Path,
     overrides: &HashMap<PathBuf, &str>,
 ) {
-    let mut filenames = HashSet::new();
+    let mut filenames = BTreeSet::new();
     collect_all_files_under_path(path, &mut filenames);
     filenames.extend(overrides.keys().cloned());
 
@@ -102,11 +100,8 @@ pub fn insert_all_files_under_path(
 fn insert_all_files_into_file_manager(
     file_manager: &mut FileManager,
     overrides: &HashMap<PathBuf, &str>,
-    filenames: HashSet<PathBuf>,
+    filenames: BTreeSet<PathBuf>,
 ) {
-    let mut filenames = filenames.into_iter().collect::<Vec<_>>();
-    filenames.sort();
-
     for filename in filenames {
         let source = if let Some(src) = overrides.get(&filename) {
             src.to_string()
@@ -121,7 +116,7 @@ fn insert_all_files_into_file_manager(
 
 fn collect_all_files_in_package(
     package: &Package,
-    filenames: &mut HashSet<PathBuf>,
+    filenames: &mut BTreeSet<PathBuf>,
     processed_entry_paths: &mut HashSet<PathBuf>,
 ) {
     if processed_entry_paths.contains(&package.entry_path) {
@@ -143,7 +138,7 @@ fn collect_all_files_in_package(
 // Collect all files for the dependencies of the package too
 fn collect_all_files_in_packages_dependencies(
     package: &Package,
-    filenames: &mut HashSet<PathBuf>,
+    filenames: &mut BTreeSet<PathBuf>,
     processed_entry_paths: &mut HashSet<PathBuf>,
 ) {
     for (_, dep) in package.dependencies.iter() {
@@ -155,7 +150,7 @@ fn collect_all_files_in_packages_dependencies(
     }
 }
 
-fn collect_all_files_under_path(path: &std::path::Path, filenames: &mut HashSet<PathBuf>) {
+fn collect_all_files_under_path(path: &std::path::Path, filenames: &mut BTreeSet<PathBuf>) {
     for entry in WalkDir::new(path).sort_by_file_name() {
         let Ok(entry) = entry else {
             continue;
