@@ -12,13 +12,13 @@ mod utils;
 use crate::circuit::{Circuit, ExpressionWidth, Opcode, PublicInputs, opcodes};
 use crate::native_types::{Expression, Witness};
 use acir_field::AcirField;
-
 use arithmetic_parser::ArithmeticParser;
 use black_box_parser::BlackBoxParser;
 use brillig_call_parser::BrilligCallParser;
 use call_parser::CallParser;
 use mem_init_parser::MemInitParser;
 use mem_parser::MemParser;
+use utils::clean_string;
 use utils::parse_str_to_field;
 
 #[derive(Debug, Clone, PartialEq)]
@@ -109,7 +109,7 @@ impl AcirParser {
                 }
 
                 l if l.starts_with("INIT") => {
-                    if let Some(stripped) = l.strip_prefix("INIT").map(|s| s.trim()) {
+                    if let Some(stripped) = Some(l.trim()) {
                         instructions.push(Instruction {
                             instruction_type: InstructionType::MemoryInit,
                             instruction_body: stripped,
@@ -118,12 +118,10 @@ impl AcirParser {
                 }
 
                 l if l.starts_with("MEM") => {
-                    if let Some(stripped) = l.strip_prefix("MEM").map(|s| s.trim()) {
-                        instructions.push(Instruction {
-                            instruction_type: InstructionType::MemoryOp,
-                            instruction_body: stripped,
-                        });
-                    }
+                    instructions.push(Instruction {
+                        instruction_type: InstructionType::MemoryOp,
+                        instruction_body: l,
+                    });
                 }
 
                 l if l.starts_with("BRILLIG CALL") => {
@@ -272,7 +270,6 @@ impl AcirParser {
             assert_messages: vec![],
         };
         Ok(circuit)
-        // Ok(opcodes)
     }
 }
 
@@ -479,5 +476,31 @@ mod test {
         let circuit_serialized = format!("{}", circuit);
         let cleaned_circuit_serialized = circuit_serialized.replace(" ", "");
         assert_eq!(cleaned_circuit_serialized, cleaned_input_string);
+    }
+
+    #[test]
+    fn test_parse_acir_2() {
+        let acir_string = "
+        current witness index : _12
+        private parameters indices : [_0, _1, _2, _3, _4, _5]
+        public parameters indices : []
+        return value indices : [_6]
+        INIT (id: 0, len: 3, witnesses: [_1, _2, _3])
+        BRILLIG CALL func 0: inputs: [Single(Expression { mul_terms: [], linear_combinations: [(1, Witness(4))], q_c: 4294967293 }), Single(Expression { mul_terms: [], linear_combinations: [], q_c: 4294967296 })], outputs: [Simple(Witness(7)), Simple(Witness(8))]
+        BLACKBOX::RANGE [(_8, 32)] []
+        EXPR [ (1, _4) (-4294967296, _7) (-1, _8) 4294967293 ]
+        EXPR [ (-1, _7) 0 ]
+        MEM (id: 0, read at: EXPR [ (1, _4) 0 ], value: EXPR [ (1, _9) 0 ]) 
+        BRILLIG CALL func 0: inputs: [Single(Expression { mul_terms: [], linear_combinations: [(1, Witness(5))], q_c: 4294967293 }), Single(Expression { mul_terms: [], linear_combinations: [], q_c: 4294967296 })], outputs: [Simple(Witness(10)), Simple(Witness(11))]
+        BLACKBOX::RANGE [(_11, 32)] []
+        EXPR [ (1, _5) (-4294967296, _10) (-1, _11) 4294967293 ]
+        EXPR [ (-1, _10) 0 ]
+        MEM (id: 0, read at: EXPR [ (1, _5) 0 ], value: EXPR [ (1, _12) 0 ]) 
+        EXPR [ (-2, _1) (-2, _2) (-2, _3) (1, _6) (-1, _9) (-1, _12) 0 ]
+        ";
+        // remove all spaces from the acir_string
+        let circuit = AcirParser::parse_acir::<FieldElement>(acir_string).unwrap();
+        let circuit_serialized = format!("{}", circuit);
+        assert_eq!(clean_string(&circuit_serialized), clean_string(acir_string));
     }
 }
