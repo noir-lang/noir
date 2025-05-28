@@ -776,7 +776,7 @@ fn parses_variable_from_a_syntantically_following_block_but_logically_preceding_
             v6 = add v3, v5
             return
           b2():
-            return
+            jmp b3()
           b3():
             v3 = add Field 1, Field 2
             v5 = add v3, Field 3
