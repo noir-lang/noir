@@ -23,6 +23,15 @@ pub(crate) fn parse_str_to_field<F: AcirField>(value: &str) -> Result<F, String>
     })
 }
 
+pub(crate) fn clean_string(string: &str) -> String {
+    let mut result_string = string.replace(" ", "").replace("\n", "");
+    if string.starts_with("[") && string.ends_with("]") {
+        result_string =
+            result_string.strip_prefix("[").unwrap().strip_suffix("]").unwrap().to_string();
+    }
+    result_string
+}
+
 mod test {
     use super::*;
     use crate::acir_field::FieldElement;

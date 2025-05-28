@@ -229,8 +229,16 @@ impl AcirParser {
                     opcodes.push(black_box_func_call);
                 }
                 InstructionType::BrilligCall => {
+                    // we have to add a semicolon to the end of the instruction body
+                    // this is an ugly hack because of how the brillig outputs are formed.
+                    // the regex was confusing the end of an output witness array with the end of the instruction body.
+                    let formatted_instruction_body = format!("{};", instruction.instruction_body);
+                    let formatted_instruction = Instruction {
+                        instruction_type: instruction.instruction_type,
+                        instruction_body: formatted_instruction_body.as_str(),
+                    };
                     let brillig_call =
-                        BrilligCallParser::parse_brillig_call::<F>(&instruction).unwrap();
+                        BrilligCallParser::parse_brillig_call::<F>(&formatted_instruction).unwrap();
                     opcodes.push(brillig_call);
                 }
                 InstructionType::Call => {
