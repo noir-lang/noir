@@ -192,7 +192,8 @@
 <a href="#191" id="191">191</a>
 <a href="#192" id="192">192</a>
 <a href="#193" id="193">193</a>
-<a href="#194" id="194">194</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::fmt::{<span class="self">self</span>, Display, Formatter};
+<a href="#194" id="194">194</a>
+<a href="#195" id="195">195</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::fmt::{<span class="self">self</span>, Display, Formatter};
 
 <span class="kw">use </span>acvm::FieldElement;
 <span class="kw">use </span>noirc_errors::Span;
@@ -349,6 +350,7 @@
     RangeCheck {
         value: ParsedValue,
         max_bit_size: u32,
+        assert_message: <span class="prelude-ty">Option</span>&lt;String&gt;,
     },
     Store {
         value: ParsedValue,

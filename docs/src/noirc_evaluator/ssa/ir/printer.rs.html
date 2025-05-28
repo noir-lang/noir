@@ -393,7 +393,9 @@
 <a href="#392" id="392">392</a>
 <a href="#393" id="393">393</a>
 <a href="#394" id="394">394</a>
-<a href="#395" id="395">395</a></pre></div><pre class="rust"><code><span class="doccomment">//! This file is for pretty-printing the SSA IR in a human-readable form for debugging.
+<a href="#395" id="395">395</a>
+<a href="#396" id="396">396</a>
+<a href="#397" id="397">397</a></pre></div><pre class="rust"><code><span class="doccomment">//! This file is for pretty-printing the SSA IR in a human-readable form for debugging.
 </span><span class="kw">use </span>std::fmt::{Display, Formatter, <span class="prelude-ty">Result</span>};
 
 <span class="kw">use </span>acvm::acir::AcirField;
@@ -659,8 +661,10 @@
         Instruction::DecrementRc { value } =&gt; {
             <span class="macro">writeln!</span>(f, <span class="string">"dec_rc {}"</span>, show(<span class="kw-2">*</span>value))
         }
-        Instruction::RangeCheck { value, max_bit_size, .. } =&gt; {
-            <span class="macro">writeln!</span>(f, <span class="string">"range_check {} to {} bits"</span>, show(<span class="kw-2">*</span>value), <span class="kw-2">*</span>max_bit_size,)
+        Instruction::RangeCheck { value, max_bit_size, assert_message } =&gt; {
+            <span class="kw">let </span>message =
+                assert_message.as_ref().map(|message| <span class="macro">format!</span>(<span class="string">", {message:?}"</span>)).unwrap_or_default();
+            <span class="macro">writeln!</span>(f, <span class="string">"range_check {} to {} bits{}"</span>, show(<span class="kw-2">*</span>value), <span class="kw-2">*</span>max_bit_size, message)
         }
         Instruction::IfElse { then_condition, then_value, else_condition, else_value } =&gt; {
             <span class="kw">let </span>then_condition = show(<span class="kw-2">*</span>then_condition);

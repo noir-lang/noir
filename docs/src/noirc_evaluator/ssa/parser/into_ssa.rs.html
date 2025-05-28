@@ -838,9 +838,9 @@
                 <span class="kw">let </span>value_id = <span class="self">self</span>.builder.insert_not(value);
                 <span class="self">self</span>.define_variable(target, value_id)<span class="question-mark">?</span>;
             }
-            ParsedInstruction::RangeCheck { value, max_bit_size } =&gt; {
+            ParsedInstruction::RangeCheck { value, max_bit_size, assert_message } =&gt; {
                 <span class="kw">let </span>value = <span class="self">self</span>.translate_value(value)<span class="question-mark">?</span>;
-                <span class="self">self</span>.builder.insert_range_check(value, max_bit_size, <span class="prelude-val">None</span>);
+                <span class="self">self</span>.builder.insert_range_check(value, max_bit_size, assert_message);
             }
             ParsedInstruction::Store { value, address } =&gt; {
                 <span class="kw">let </span>value = <span class="self">self</span>.translate_value(value)<span class="question-mark">?</span>;
