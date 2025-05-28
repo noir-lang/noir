@@ -331,7 +331,11 @@
 <a href="#330" id="330">330</a>
 <a href="#331" id="331">331</a>
 <a href="#332" id="332">332</a>
-<a href="#333" id="333">333</a></pre></div><pre class="rust"><code><span class="kw">use </span>clap::{Args, Parser, Subcommand};
+<a href="#333" id="333">333</a>
+<a href="#334" id="334">334</a>
+<a href="#335" id="335">335</a>
+<a href="#336" id="336">336</a>
+<a href="#337" id="337">337</a></pre></div><pre class="rust"><code><span class="kw">use </span>clap::{Args, Parser, Subcommand};
 <span class="kw">use </span>const_format::formatcp;
 <span class="kw">use </span>nargo::workspace::Workspace;
 <span class="kw">use </span>nargo_toml::{
@@ -362,6 +366,7 @@
 <span class="kw">mod </span>generate_completion_script_cmd;
 <span class="kw">mod </span>info_cmd;
 <span class="kw">mod </span>init_cmd;
+<span class="kw">mod </span>interpret_cmd;
 <span class="kw">mod </span>lsp_cmd;
 <span class="kw">mod </span>new_cmd;
 <span class="kw">mod </span>test_cmd;
@@ -433,6 +438,8 @@
     Fmt(fmt_cmd::FormatCommand),
     <span class="attr">#[command(alias = <span class="string">"build"</span>)]
     </span>Compile(compile_cmd::CompileCommand),
+    <span class="attr">#[command(hide = <span class="bool-val">true</span>)]
+    </span>Interpret(interpret_cmd::InterpretCommand),
     New(new_cmd::NewCommand),
     Init(init_cmd::InitCommand),
     Execute(execute_cmd::ExecuteCommand),
@@ -478,6 +485,7 @@
         NargoCommand::Init(args) =&gt; init_cmd::run(args, config),
         NargoCommand::Check(args) =&gt; with_workspace(args, config, check_cmd::run),
         NargoCommand::Compile(args) =&gt; compile_with_maybe_dummy_workspace(args, config),
+        NargoCommand::Interpret(args) =&gt; with_workspace(args, config, interpret_cmd::run),
         NargoCommand::Debug(args) =&gt; with_workspace(args, config, debug_cmd::run),
         NargoCommand::Execute(args) =&gt; with_workspace(args, config, execute_cmd::run),
         NargoCommand::Export(args) =&gt; with_workspace(args, config, export_cmd::run),

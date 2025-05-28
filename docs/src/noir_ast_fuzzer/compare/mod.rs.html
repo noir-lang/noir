@@ -139,7 +139,9 @@
 <a href="#138" id="138">138</a>
 <a href="#139" id="139">139</a>
 <a href="#140" id="140">140</a>
-<a href="#141" id="141">141</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::{
+<a href="#141" id="141">141</a>
+<a href="#142" id="142">142</a>
+<a href="#143" id="143">143</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::{
     fmt::{Debug, Display},
     ops::Deref,
 };
@@ -157,7 +159,9 @@
     CompareArtifact, CompareCompiled, CompareCompiledResult, CompareMorph, ComparePipelines,
 };
 <span class="kw">pub use </span>comptime::CompareComptime;
-<span class="kw">pub use </span>interpreted::{CompareInterpreted, CompareInterpretedResult, ComparePass};
+<span class="kw">pub use </span>interpreted::{
+    CompareInterpreted, CompareInterpretedResult, ComparePass, input_values_to_ssa,
+};
 
 <span class="attr">#[derive(Clone, Debug, PartialEq)]
 </span><span class="kw">pub struct </span>ExecOutput&lt;T&gt; {

@@ -483,7 +483,7 @@
 }
 
 <span class="doccomment">/// Convert the ABI encoded inputs to what the SSA interpreter expects.
-</span><span class="kw">fn </span>input_values_to_ssa(abi: <span class="kw-2">&amp;</span>Abi, input_map: <span class="kw-2">&amp;</span>InputMap) -&gt; Vec&lt;ssa::interpreter::value::Value&gt; {
+</span><span class="kw">pub fn </span>input_values_to_ssa(abi: <span class="kw-2">&amp;</span>Abi, input_map: <span class="kw-2">&amp;</span>InputMap) -&gt; Vec&lt;ssa::interpreter::value::Value&gt; {
     <span class="kw">let </span><span class="kw-2">mut </span>inputs = Vec::new();
     <span class="kw">for </span>param <span class="kw">in </span><span class="kw-2">&amp;</span>abi.parameters {
         <span class="kw">let </span>input = <span class="kw-2">&amp;</span>input_map
