@@ -155,6 +155,9 @@ impl FunctionBuilder {
     /// Consume the FunctionBuilder returning all the functions it has generated.
     pub fn finish(mut self) -> Ssa {
         self.finished_functions.push(self.current_function);
+
+        Self::validate_ssa(&self.finished_functions);
+
         Ssa::new(self.finished_functions, self.error_types)
     }
 
@@ -518,6 +521,65 @@ impl FunctionBuilder {
     pub fn record_error_type(&mut self, selector: ErrorSelector, typ: HirType) {
         self.error_types.insert(selector, typ);
     }
+
+    fn validate_ssa(functions: &[Function]) {
+        for function in functions {
+            Self::validate_function(function);
+        }
+    }
+
+    fn validate_function(function: &Function) {
+        // State for tracking the last signed binary addition/subtraction
+        let mut signed_binary_op = None;
+        for block in function.reachable_blocks() {
+            for instruction in function.dfg[block].instructions() {
+                let results = function.dfg.instruction_results(*instruction);
+                match &function.dfg[*instruction] {
+                    Instruction::Binary(binary) => {
+                        signed_binary_op = None;
+
+                        match binary.operator {
+                            // We are only validating addition/subtraction
+                            BinaryOp::Add { unchecked: false }
+                            | BinaryOp::Sub { unchecked: false } => {}
+                            // Otherwise, move onto the next instruction
+                            _ => continue,
+                        }
+
+                        // Assume rhs_type is the same as lhs_type
+                        let lhs_type = function.dfg.type_of_value(binary.lhs);
+                        if let Type::Numeric(NumericType::Signed { bit_size }) = lhs_type {
+                            signed_binary_op = Some((bit_size, results[0]));
+                        }
+                    }
+                    Instruction::Truncate { value, bit_size, max_bit_size } => {
+                        if let Some((signed_op_bit_size, signed_op_res)) = signed_binary_op {
+                            assert_eq!(
+                                *bit_size, signed_op_bit_size,
+                                "ICE: Correct truncate must follow the result of a checked signed add/sub"
+                            );
+                            assert_eq!(
+                                *max_bit_size,
+                                *bit_size + 1,
+                                "ICE: Correct truncate must follow the result of a checked signed add/sub"
+                            );
+                            assert_eq!(
+                                *value, signed_op_res,
+                                "ICE: Correct truncate must follow the result of a checked signed add/sub"
+                            );
+                        }
+                        signed_binary_op = None;
+                    }
+                    _ => {
+                        signed_binary_op = None;
+                    }
+                }
+            }
+        }
+        if signed_binary_op.is_some() {
+            panic!("ICE: Truncate must follow the result of a checked signed add/sub");
+        }
+    }
 }
 
 impl std::ops::Index<ValueId> for FunctionBuilder {
@@ -572,10 +634,13 @@ mod tests {
 
     use acvm::{FieldElement, acir::AcirField};
 
-    use crate::ssa::ir::{
-        instruction::{Endian, Intrinsic},
-        map::Id,
-        types::{NumericType, Type},
+    use crate::ssa::{
+        ir::{
+            instruction::{Endian, Intrinsic},
+            map::Id,
+            types::{NumericType, Type},
+        },
+        ssa_gen::Ssa,
     };
 
     use super::FunctionBuilder;
@@ -602,5 +667,152 @@ mod tests {
         assert_eq!(slice[1], one);
         assert_eq!(slice[2], one);
         assert_eq!(slice[3], zero);
+    }
+
+    #[test]
+    #[should_panic(expected = "ICE: Truncate must follow the result of a checked signed add/sub")]
+    fn lone_signed_sub_acir() {
+        let src = r"
+        acir(inline) pure fn main f0 {
+          b0(v0: i16, v1: i16):
+            v2 = sub v0, v1
+            return v2
+        }
+        ";
+
+        let _ = Ssa::from_str(src);
+    }
+
+    #[test]
+    #[should_panic(expected = "ICE: Truncate must follow the result of a checked signed add/sub")]
+    fn lone_signed_sub_brillig() {
+        // This matches the test above we just want to make sure it holds in the Brillig runtime as well as ACIR
+        let src = r"
+        brillig(inline) pure fn main f0 {
+          b0(v0: i16, v1: i16):
+            v2 = sub v0, v1
+            return v2
+        }
+        ";
+
+        let _ = Ssa::from_str(src);
+    }
+
+    #[test]
+    #[should_panic(expected = "ICE: Truncate must follow the result of a checked signed add/sub")]
+    fn lone_signed_add_acir() {
+        let src = r"
+        acir(inline) pure fn main f0 {
+          b0(v0: i16, v1: i16):
+            v2 = add v0, v1
+            return v2
+        }
+        ";
+
+        let _ = Ssa::from_str(src);
+    }
+
+    #[test]
+    #[should_panic(expected = "ICE: Truncate must follow the result of a checked signed add/sub")]
+    fn lone_signed_add_brillig() {
+        let src = r"
+        brillig(inline) pure fn main f0 {
+          b0(v0: i16, v1: i16):
+            v2 = add v0, v1
+            return v2
+        }
+        ";
+
+        let _ = Ssa::from_str(src);
+    }
+
+    #[test]
+    #[should_panic(
+        expected = "ICE: Correct truncate must follow the result of a checked signed add/sub"
+    )]
+    fn signed_sub_bad_truncate_bit_size() {
+        let src = r"
+        acir(inline) pure fn main f0 {
+          b0(v0: i16, v1: i16):
+            v2 = sub v0, v1
+            v3 = truncate v2 to 32 bits, max_bit_size: 33
+            return v3
+        }
+        ";
+
+        let _ = Ssa::from_str(src);
+    }
+
+    #[test]
+    #[should_panic(
+        expected = "ICE: Correct truncate must follow the result of a checked signed add/sub"
+    )]
+    fn signed_sub_bad_truncate_max_bit_size() {
+        let src = r"
+        acir(inline) pure fn main f0 {
+          b0(v0: i16, v1: i16):
+            v2 = sub v0, v1
+            v3 = truncate v2 to 16 bits, max_bit_size: 18
+            return v3
+        }
+        ";
+
+        let _ = Ssa::from_str(src);
+    }
+
+    #[test]
+    fn truncate_follows_signed_sub_acir() {
+        let src = r"
+        acir(inline) pure fn main f0 {
+          b0(v0: i16, v1: i16):
+            v2 = sub v0, v1
+            v3 = truncate v2 to 16 bits, max_bit_size: 17
+            return v3
+        }
+        ";
+
+        let _ = Ssa::from_str(src);
+    }
+
+    #[test]
+    fn truncate_follows_signed_sub_brillig() {
+        let src = r"
+        brillig(inline) pure fn main f0 {
+          b0(v0: i16, v1: i16):
+            v2 = sub v0, v1
+            v3 = truncate v2 to 16 bits, max_bit_size: 17
+            return v3
+        }
+        ";
+
+        let _ = Ssa::from_str(src);
+    }
+
+    #[test]
+    fn truncate_follows_signed_add_acir() {
+        let src = r"
+        acir(inline) pure fn main f0 {
+          b0(v0: i16, v1: i16):
+            v2 = add v0, v1
+            v3 = truncate v2 to 16 bits, max_bit_size: 17
+            return v3
+        }
+        ";
+
+        let _ = Ssa::from_str(src);
+    }
+
+    #[test]
+    fn truncate_follows_signed_add_brillig() {
+        let src = r"
+        brillig(inline) pure fn main f0 {
+          b0(v0: i16, v1: i16):
+            v2 = add v0, v1
+            v3 = truncate v2 to 16 bits, max_bit_size: 17
+            return v3
+        }
+        ";
+
+        let _ = Ssa::from_str(src);
     }
 }
