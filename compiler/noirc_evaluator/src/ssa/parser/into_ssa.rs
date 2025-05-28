@@ -322,9 +322,9 @@ impl Translator {
                 let value_id = self.builder.insert_not(value);
                 self.define_variable(target, value_id)?;
             }
-            ParsedInstruction::RangeCheck { value, max_bit_size } => {
+            ParsedInstruction::RangeCheck { value, max_bit_size, assert_message } => {
                 let value = self.translate_value(value)?;
-                self.builder.insert_range_check(value, max_bit_size, None);
+                self.builder.insert_range_check(value, max_bit_size, assert_message);
             }
             ParsedInstruction::Store { value, address } => {
                 let value = self.translate_value(value)?;
@@ -502,6 +502,10 @@ impl Translator {
         // that the SSA we parsed was printed by the `SsaBuilder`, which normalizes
         // before each print.
         ssa.normalize_ids();
+
+        for function in ssa.functions.values() {
+            function.assert_valid();
+        }
 
         ssa
     }

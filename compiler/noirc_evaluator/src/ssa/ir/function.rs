@@ -1,6 +1,7 @@
 use std::collections::BTreeSet;
 use std::sync::Arc;
 
+use acvm::FieldElement;
 use iter_extended::vecmap;
 use noirc_frontend::monomorphization::ast::InlineType;
 use serde::{Deserialize, Serialize};
@@ -9,8 +10,8 @@ use super::basic_block::BasicBlockId;
 use super::dfg::{DataFlowGraph, GlobalsGraph};
 use super::instruction::TerminatorInstruction;
 use super::map::Id;
-use super::types::Type;
-use super::value::ValueId;
+use super::types::{NumericType, Type};
+use super::value::{Value, ValueId};
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug, Hash, Serialize, Deserialize, PartialOrd, Ord)]
 pub enum RuntimeType {
@@ -217,6 +218,41 @@ impl Function {
             })
             .sum()
     }
+
+    /// Iterate over the numeric constants in the function.
+    pub fn constants(&self) -> impl Iterator<Item = (&FieldElement, &NumericType)> {
+        let local = self.dfg.values_iter();
+        let global = self.dfg.globals.values_iter();
+        local.chain(global).filter_map(|(_, value)| {
+            if let Value::NumericConstant { constant, typ } = value {
+                Some((constant, typ))
+            } else {
+                None
+            }
+        })
+    }
+
+    /// Asserts that the [`Function`] is well formed.
+    ///
+    /// Panics on malformed functions.
+    pub(crate) fn assert_valid(&self) {
+        let reachable_blocks = self.reachable_blocks();
+
+        // We assume that all functions have a single block which terminates with a `return` instruction.
+        let return_blocks: BTreeSet<_> = reachable_blocks
+            .iter()
+            .filter(|block| {
+                // All blocks must have a terminator instruction of some sort.
+                let terminator = self.dfg[**block].terminator().unwrap_or_else(|| {
+                    panic!("Function {} has no terminator in block {block}", self.id())
+                });
+                matches!(terminator, TerminatorInstruction::Return { .. })
+            })
+            .collect();
+        if return_blocks.len() > 1 {
+            panic!("Function {} has multiple return blocks {return_blocks:?}", self.id())
+        }
+    }
 }
 
 impl Clone for Function {
@@ -250,6 +286,6 @@ pub(crate) struct Signature {
 fn sign_smoke() {
     let mut signature = Signature::default();
 
-    signature.params.push(Type::Numeric(super::types::NumericType::NativeField));
-    signature.returns.push(Type::Numeric(super::types::NumericType::Unsigned { bit_size: 32 }));
+    signature.params.push(Type::Numeric(NumericType::NativeField));
+    signature.returns.push(Type::Numeric(NumericType::Unsigned { bit_size: 32 }));
 }

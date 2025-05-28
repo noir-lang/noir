@@ -1,0 +1,12 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: expanded_code
+---
+fn main() -> pub [[u8; 32]; 2] {
+    let mut result: [[u8; 32]; 2] = [[0; 32]; 2];
+    let actions_data: [Field; 30] = [0; 30];
+    for i in 0..1 {
+        result = [actions_data[i].to_be_bytes::<32>(), actions_data[i + 1].to_be_bytes::<32>()];
+    }
+    result
+}
