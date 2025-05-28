@@ -79,7 +79,7 @@ pub struct CompileOptions {
     /// Only show SSA passes whose name contains the provided string.
     /// This setting takes precedence over `show_ssa` if it's not empty.
     #[arg(long, hide = true)]
-    pub show_ssa_pass: Option<String>,
+    pub show_ssa_pass: Vec<String>,
 
     /// Only show the SSA and ACIR for the contract function with a given name.
     #[arg(long, hide = true)]
@@ -590,7 +590,9 @@ fn compile_contract_inner(
         if let Some(ref name_filter) = options.show_contract_fn {
             let show = name == *name_filter;
             options.show_ssa &= show;
-            options.show_ssa_pass = options.show_ssa_pass.filter(|_| show);
+            if !show {
+                options.show_ssa_pass.clear();
+            }
         };
 
         let function = match compile_no_check(context, &options, function_id, None, true) {
@@ -740,7 +742,7 @@ pub fn compile_no_check(
         || options.show_brillig
         || options.force_brillig
         || options.show_ssa
-        || options.show_ssa_pass.is_some()
+        || !options.show_ssa_pass.is_empty()
         || options.emit_ssa
         || options.minimal_ssa;
 
@@ -756,15 +758,12 @@ pub fn compile_no_check(
 
     let return_visibility = program.return_visibility();
     let ssa_evaluator_options = SsaEvaluatorOptions {
-        ssa_logging: match &options.show_ssa_pass {
-            Some(string) => SsaLogging::Contains(string.clone()),
-            None => {
-                if options.show_ssa {
-                    SsaLogging::All
-                } else {
-                    SsaLogging::None
-                }
-            }
+        ssa_logging: if !options.show_ssa_pass.is_empty() {
+            SsaLogging::Contains(options.show_ssa_pass.clone())
+        } else if options.show_ssa {
+            SsaLogging::All
+        } else {
+            SsaLogging::None
         },
         optimization_level: if compiling_for_debug {
             OptimizationLevel::Debug
