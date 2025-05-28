@@ -635,7 +635,11 @@ impl std::fmt::Display for Type {
             Type::Unit => write!(f, "()"),
             Type::Tuple(elements) => {
                 let elements = vecmap(elements, ToString::to_string);
-                write!(f, "({})", elements.join(", "))
+                if elements.len() == 1 {
+                    write!(f, "({},)", elements[0])
+                } else {
+                    write!(f, "({})", elements.join(", "))
+                }
             }
             Type::Function(args, ret, env, unconstrained) => {
                 if *unconstrained {
