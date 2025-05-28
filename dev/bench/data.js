@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1748446887544,
+  "lastUpdate": 1748447031356,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -8842,75 +8842,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "47281315+guipublic@users.noreply.github.com",
-            "name": "guipublic",
-            "username": "guipublic"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "1be0da333770ee5a026a9952783b16c39b9ab7b4",
-          "message": "chore: use generator instead of zero for ec-add predicate (#8552)",
-          "timestamp": "2025-05-20T11:00:22Z",
-          "tree_id": "9344da7e7ba2beda5c8c66a43859c62b3a85206f",
-          "url": "https://github.com/noir-lang/noir/commit/1be0da333770ee5a026a9952783b16c39b9ab7b4"
-        },
-        "date": 1747740668703,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 240.77,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 263.02,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 216.27,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 547.95,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 540.41,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 1440,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 369.9,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-root",
-            "value": 375.9,
-            "unit": "MB"
-          },
-          {
-            "name": "semaphore_depth_10",
-            "value": 92.92,
-            "unit": "MB"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "asterite@gmail.com",
             "name": "Ary Borenszweig",
             "username": "asterite"
@@ -11520,6 +11451,75 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/noir-lang/noir/commit/29d137ae036e41dc093202c8a68bf080069ccd98"
         },
         "date": 1748441976694,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 246.19,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 270.04,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 221.33,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 580.06,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 576.38,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 1460,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 401.73,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-root",
+            "value": 407.3,
+            "unit": "MB"
+          },
+          {
+            "name": "semaphore_depth_10",
+            "value": 92.96,
+            "unit": "MB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "asterite@gmail.com",
+            "name": "Ary Borenszweig",
+            "username": "asterite"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "984d170d0b390880155bcc3f85311a57048d0e3f",
+          "message": "fix: (SSA parser) translate blocks in logical order rather than syntax order (#8668)",
+          "timestamp": "2025-05-28T15:10:27Z",
+          "tree_id": "110abde8550a6806e5667feca14c1d9dd53a1c3f",
+          "url": "https://github.com/noir-lang/noir/commit/984d170d0b390880155bcc3f85311a57048d0e3f"
+        },
+        "date": 1748447020432,
         "tool": "customSmallerIsBetter",
         "benches": [
           {
