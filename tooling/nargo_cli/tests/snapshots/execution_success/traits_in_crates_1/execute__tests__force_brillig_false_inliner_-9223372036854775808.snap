@@ -33,9 +33,9 @@ expression: artifact
     "return value indices : []",
     "EXPR [ (1, _0) (-1, _1) 10 ]"
   ],
-  "debug_symbols": "jZBNCoMwEIXvMmsXSUUoXqUUiXGUQEjCmAhFvHtHMVUXLV3Nz5tvHrwZOmzT0BjX+xHqxwwtGWvN0FivVTTe8XZeCshjEwmRV3DSmQqK0EWoXbK2gEnZtB2NQbmtRkWsigLQdVz5YW8srt1SHLT4jkpR7rCUB15defmDl/fMlyde/u1/qz58efF/8qS0oUtiIKBezyZFRrUW9xT75PQp1PgKWcmxB/Iau0S4vts0NngD",
+  "debug_symbols": "jZBNCoMwEIXvMmsXSUUoXqUUiXGUQEjCmAhFvHtHMVUXLV3Nz5tvHrwZOmzT0BjX+xHqxwwtGWvN0FivVTTe8XZeCshjEwmRV3DSmQqK0EWoXbK2gEnZtB2NQbmtRkWsigLQdVz5YW8srt1SHLT4jkpR7rCUB17dLrz8wct75ssT/7//rfrw5cX/yZPShi6JgYB6PZsUGdVa3FPsk9OnUOMrZCXHHshr7BLh+m7T2OAN",
   "file_map": {
-    "50": {
+    "52": {
       "source": "use crate1::MyTrait;\n\nfn main(x: Field, y: pub Field) {\n    let mut V = crate2::MyStruct { Q: x };\n    V.Add10();\n    assert(V.Q == y);\n}\n",
       "path": ""
     }
