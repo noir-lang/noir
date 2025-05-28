@@ -2997,11 +2997,11 @@ fn do_not_infer_globals_to_u32_from_type_use() {
                     ^^^^^^^^^^^^^^^^ The numeric generic is not of type `u32`
                     ~~~~~~~~~~~~~~~~ expected `u32`, found `Field`
             let _b: str<STR_LEN> = "hi";
-                    ^^^^^^^^^^^^ The numeric generic is not of type `u32`
-                    ~~~~~~~~~~~~ expected `u32`, found `Field`
+                        ^^^^^^^ The numeric generic is not of type `u32`
+                        ~~~~~~~ expected `u32`, found `Field`
             let _c: fmtstr<FMT_STR_LEN, _> = f"hi";
-                    ^^^^^^^^^^^^^^^^^^^^^^ The numeric generic is not of type `u32`
-                    ~~~~~~~~~~~~~~~~~~~~~~ expected `u32`, found `Field`
+                           ^^^^^^^^^^^ The numeric generic is not of type `u32`
+                           ~~~~~~~~~~~ expected `u32`, found `Field`
         }
     "#;
     check_errors!(src);
@@ -3027,7 +3027,7 @@ fn do_not_infer_partial_global_types() {
         pub global FORMATTED_VALUE: str<5> = "there";
         pub global FMT_STR: fmtstr<_, _> = f"hi {FORMATTED_VALUE}";
                    ^^^^^^^ Globals must have a specified type
-                                           ~~~~~~~~~~~~~~~~~~~~~~~ Inferred type is `fmtstr<20, (str<5>)>`
+                                           ~~~~~~~~~~~~~~~~~~~~~~~ Inferred type is `fmtstr<20, (str<5>,)>`
         pub global TUPLE_WITH_MULTIPLE: ([str<_>], [[Field; _]; 3]) = 
                    ^^^^^^^^^^^^^^^^^^^ Globals must have a specified type
             (&["hi"], [[]; 3]);
@@ -4417,19 +4417,6 @@ fn immutable_references_without_ownership_feature() {
 
 #[named]
 #[test]
-fn errors_on_invalid_integer_bit_size() {
-    let src = r#"
-    fn main() {
-        let _: u42 = 4;
-               ^^^ Use of invalid bit size 42
-               ~~~ Allowed bit sizes for integers are 1, 8, 16, 32, 64, 128
-    }
-    "#;
-    check_errors!(src);
-}
-
-#[named]
-#[test]
 fn mutable_reference_to_array_element_as_func_arg() {
     let src = r#"
     fn foo(x: &mut u32) {
@@ -4714,4 +4701,32 @@ fn only_one_private_error_when_name_in_types_and_values_namespace_collides() {
     }
     ";
     check_errors!(src);
+}
+
+#[named]
+#[test]
+fn cannot_determine_type_of_generic_argument_in_function_call_when_it_is_a_numeric_generic() {
+    let src = r#"
+    struct Foo<let N: u32> {
+        array: [Field; N],
+    }
+
+    impl<let N: u32> Foo<N> {
+        fn new() -> Self {
+            Self { array: [0; N] }
+        }
+    }
+
+    fn foo<let N: u32>() -> Foo<N> {
+        Foo::new()
+    }
+
+    fn main() {
+        let _ = foo();
+                ^^^ Type annotation needed
+                ~~~ Could not determine the value of the generic argument `N` declared on the function `foo`
+    }
+    "#;
+    let features = vec![UnstableFeature::Enums];
+    check_monomorphization_error_using_features!(src, &features);
 }

@@ -196,14 +196,14 @@ fn test_recursion_limit_rewrite() {
     // - main passes the limit to foo by ref
     // - foo passes the limit to bar_proxy by value
     // - bar_proxy passes the limit to baz by ref
-    // - bar does not passes the limit to qux
+    // - bar passes the limit to qux, even though it's unused
     // - baz passes the limit to itself by ref
 
     let code = format!("{}", DisplayAstAsNoir(&program));
 
     insta::assert_snapshot!(code, @r"
     fn main() -> () {
-        let mut ctx_limit = 25;
+        let mut ctx_limit: u32 = 25;
         foo((&mut ctx_limit))
     }
     fn foo(ctx_limit: &mut u32) -> () {
@@ -220,7 +220,7 @@ fn test_recursion_limit_rewrite() {
         } else {
             *ctx_limit = ((*ctx_limit) - 1);
             baz(ctx_limit);
-            qux()
+            qux(ctx_limit)
         }
     }
     unconstrained fn baz(ctx_limit: &mut u32) -> () {
@@ -231,13 +231,10 @@ fn test_recursion_limit_rewrite() {
             baz(ctx_limit)
         }
     }
-    unconstrained fn qux() -> () {
+    unconstrained fn qux(_ctx_limit: &mut u32) -> () {
     }
     unconstrained fn bar_proxy(mut ctx_limit: u32) -> () {
         bar((&mut ctx_limit))
-    }
-    unconstrained fn baz_proxy(mut ctx_limit: u32) -> () {
-        baz((&mut ctx_limit))
     }
     ");
 }

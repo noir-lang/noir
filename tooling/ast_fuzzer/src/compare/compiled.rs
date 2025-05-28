@@ -1,14 +1,17 @@
+//! Compare an arbitrary AST compiled into bytecode and executed with the VM.
+use acir::{FieldElement, native_types::WitnessStack};
+use acvm::pwg::{OpcodeResolutionError, ResolvedAssertionPayload};
 use arbitrary::Unstructured;
 use bn254_blackbox_solver::Bn254BlackBoxSolver;
 use color_eyre::eyre::{self, WrapErr};
-use nargo::foreign_calls::DefaultForeignCallBuilder;
-use noirc_abi::{Abi, InputMap};
+use nargo::{NargoError, errors::ExecutionError, foreign_calls::DefaultForeignCallBuilder};
+use noirc_abi::{Abi, InputMap, input_parser::InputValue};
 use noirc_evaluator::ssa::SsaProgramArtifact;
 use noirc_frontend::monomorphization::ast::Program;
 
 use crate::{Config, arb_inputs, arb_program, program_abi};
 
-use super::{CompareOptions, CompareResult, HasPrograms};
+use super::{Comparable, CompareOptions, CompareResult, ExecOutput, HasPrograms};
 
 pub struct CompareArtifact {
     pub options: CompareOptions,
@@ -27,6 +30,76 @@ impl From<(SsaProgramArtifact, CompareOptions)> for CompareArtifact {
     }
 }
 
+/// The execution result is the value returned from the circuit and any output from `println`.
+type ExecResult = (Result<WitnessStack<FieldElement>, NargoError<FieldElement>>, String);
+
+/// The result of the execution of compiled programs, decoded by their ABI.
+pub type CompareCompiledResult = CompareResult<InputValue, NargoError<FieldElement>>;
+
+impl CompareCompiledResult {
+    pub fn new(
+        abi: &Abi,
+        (res1, print1): ExecResult,
+        (res2, print2): ExecResult,
+    ) -> eyre::Result<Self> {
+        let decode = |ws: WitnessStack<FieldElement>| -> eyre::Result<Option<InputValue>> {
+            let wm = &ws.peek().expect("there should be a main witness").witness;
+            let (_, r) = abi.decode(wm).wrap_err("abi::decode")?;
+            Ok(r)
+        };
+
+        match (res1, res2) {
+            (Err(e1), Err(e2)) => Ok(CompareResult::BothFailed(e1, e2)),
+            (Err(e1), Ok(ws2)) => Ok(CompareResult::LeftFailed(
+                e1,
+                ExecOutput { return_value: decode(ws2)?, print_output: print2 },
+            )),
+            (Ok(ws1), Err(e2)) => Ok(CompareResult::RightFailed(
+                ExecOutput { return_value: decode(ws1)?, print_output: print1 },
+                e2,
+            )),
+            (Ok(ws1), Ok(ws2)) => {
+                let o1 = ExecOutput { return_value: decode(ws1)?, print_output: print1 };
+                let o2 = ExecOutput { return_value: decode(ws2)?, print_output: print2 };
+                Ok(CompareResult::BothPassed(o1, o2))
+            }
+        }
+    }
+}
+
+impl Comparable for NargoError<FieldElement> {
+    fn equivalent(e1: &Self, e2: &Self) -> bool {
+        use ExecutionError::*;
+
+        // For now consider non-execution errors as failures we need to investigate.
+        let NargoError::ExecutionError(ee1) = e1 else {
+            return false;
+        };
+        let NargoError::ExecutionError(ee2) = e2 else {
+            return false;
+        };
+
+        match (ee1, ee2) {
+            (AssertionFailed(p1, _, _), AssertionFailed(p2, _, _)) => p1 == p2,
+            (SolvingError(s1, _), SolvingError(s2, _)) => format!("{s1}") == format!("{s2}"),
+            (SolvingError(s, _), AssertionFailed(p, _, _))
+            | (AssertionFailed(p, _, _), SolvingError(s, _)) => match (s, p) {
+                (
+                    OpcodeResolutionError::UnsatisfiedConstrain { .. },
+                    ResolvedAssertionPayload::String(s),
+                ) => s == "Attempted to divide by zero",
+                _ => false,
+            },
+        }
+    }
+}
+
+impl Comparable for InputValue {
+    fn equivalent(a: &Self, b: &Self) -> bool {
+        a == b
+    }
+}
+
 /// Compare the execution of equivalent programs, compiled in different ways.
 pub struct CompareCompiled<P> {
     pub program: P,
@@ -38,7 +111,7 @@ pub struct CompareCompiled<P> {
 
 impl<P> CompareCompiled<P> {
     /// Execute the two SSAs and compare the results.
-    pub fn exec(&self) -> eyre::Result<CompareResult> {
+    pub fn exec(&self) -> eyre::Result<CompareCompiledResult> {
         let blackbox_solver = Bn254BlackBoxSolver(false);
         let initial_witness = self.abi.encode(&self.input_map, None).wrap_err("abi::encode")?;
 
@@ -64,7 +137,7 @@ impl<P> CompareCompiled<P> {
         let (res1, print1) = do_exec(&self.ssa1.artifact.program);
         let (res2, print2) = do_exec(&self.ssa2.artifact.program);
 
-        CompareResult::new(&self.abi, (res1, print1), (res2, print2))
+        CompareCompiledResult::new(&self.abi, (res1, print1), (res2, print2))
     }
 }
 

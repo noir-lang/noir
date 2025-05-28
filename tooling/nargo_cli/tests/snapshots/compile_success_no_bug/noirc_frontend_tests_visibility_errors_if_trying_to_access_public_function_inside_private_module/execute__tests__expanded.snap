@@ -1,0 +1,13 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: expanded_code
+---
+mod foo {
+    mod bar {
+        pub fn baz() {}
+    }
+}
+
+fn main() {
+    crate::foo::bar::baz()
+}

@@ -679,9 +679,11 @@ mod tests {
             ir::{
                 basic_block::BasicBlockId,
                 dfg::DataFlowGraph,
-                instruction::{BinaryOp, Instruction, Intrinsic, TerminatorInstruction},
+                instruction::{
+                    ArrayOffset, BinaryOp, Instruction, Intrinsic, TerminatorInstruction,
+                },
                 map::Id,
-                types::Type,
+                types::{NumericType, Type},
             },
             opt::assert_normalized_ssa_equals,
         },
@@ -695,14 +697,14 @@ mod tests {
         //     v1 = make_array [Field 1, Field 2]
         //     store v1 in v0
         //     v2 = load v0
-        //     v3 = array_get v2, index 1
+        //     v3 = array_get v2, index u32 1
         //     return v3
         // }
 
         let func_id = Id::test_new(0);
         let mut builder = FunctionBuilder::new("func".into(), func_id);
         let v0 = builder.insert_allocate(Type::Array(Arc::new(vec![Type::field()]), 2));
-        let one = builder.field_constant(FieldElement::one());
+        let one = builder.numeric_constant(FieldElement::one(), NumericType::length_type());
         let two = builder.field_constant(FieldElement::one());
 
         let element_type = Arc::new(vec![Type::field()]);
@@ -711,7 +713,8 @@ mod tests {
 
         builder.insert_store(v0, v1);
         let v2 = builder.insert_load(v0, array_type);
-        let v3 = builder.insert_array_get(v2, one, Type::field());
+        let offset = ArrayOffset::None;
+        let v3 = builder.insert_array_get(v2, one, offset, Type::field());
         builder.terminate_with_return(vec![v3]);
 
         let ssa = builder.finish().mem2reg().fold_constants();

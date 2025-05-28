@@ -4,7 +4,11 @@ use acvm::FieldElement;
 use noirc_errors::Span;
 
 use crate::ssa::{
-    ir::{function::RuntimeType, instruction::BinaryOp, types::Type},
+    ir::{
+        function::RuntimeType,
+        instruction::{ArrayOffset, BinaryOp},
+        types::Type,
+    },
     opt::pure::Purity,
 };
 
@@ -84,6 +88,7 @@ pub(crate) enum ParsedInstruction {
         element_type: Type,
         array: ParsedValue,
         index: ParsedValue,
+        offset: ArrayOffset,
     },
     ArraySet {
         target: Identifier,
@@ -91,6 +96,7 @@ pub(crate) enum ParsedInstruction {
         index: ParsedValue,
         value: ParsedValue,
         mutable: bool,
+        offset: ArrayOffset,
     },
     BinaryOp {
         target: Identifier,
@@ -149,6 +155,7 @@ pub(crate) enum ParsedInstruction {
     RangeCheck {
         value: ParsedValue,
         max_bit_size: u32,
+        assert_message: Option<String>,
     },
     Store {
         value: ParsedValue,

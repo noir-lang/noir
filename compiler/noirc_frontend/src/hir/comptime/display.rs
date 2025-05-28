@@ -2,6 +2,7 @@ use std::fmt::Display;
 
 use iter_extended::vecmap;
 use noirc_errors::Location;
+use noirc_printable_type::format_field_string;
 
 use crate::{
     Type,
@@ -204,15 +205,12 @@ impl<'interner> TokenPrettyPrinter<'interner> {
                 let value = Value::pattern(Pattern::Interned(*id, Location::dummy()));
                 self.print_value(&value, last_was_alphanumeric, f)
             }
+            Token::InternedCrate(_) => write!(f, "$crate"),
             Token::UnquoteMarker(id) => {
                 let value = Value::TypedExpr(TypedExpr::ExprId(*id));
                 self.print_value(&value, last_was_alphanumeric, f)
             }
-            Token::Keyword(..)
-            | Token::Ident(..)
-            | Token::IntType(..)
-            | Token::Int(..)
-            | Token::Bool(..) => {
+            Token::Keyword(..) | Token::Ident(..) | Token::Int(..) | Token::Bool(..) => {
                 if last_was_alphanumeric {
                     write!(f, " ")?;
                 }
@@ -367,7 +365,10 @@ impl Display for ValuePrinter<'_, '_> {
                 let msg = if *value { "true" } else { "false" };
                 write!(f, "{msg}")
             }
-            Value::Field(value) => write!(f, "{value}"),
+            Value::Field(value) => {
+                // write!(f, "{value}") // This would display the Field as a number, but it doesn't match the runtime.
+                write!(f, "{}", format_field_string(value.to_field_element()))
+            }
             Value::I8(value) => write!(f, "{value}"),
             Value::I16(value) => write!(f, "{value}"),
             Value::I32(value) => write!(f, "{value}"),
@@ -385,7 +386,11 @@ impl Display for ValuePrinter<'_, '_> {
             Value::Closure(..) => write!(f, "(closure)"),
             Value::Tuple(fields) => {
                 let fields = vecmap(fields, |field| field.display(self.interner).to_string());
-                write!(f, "({})", fields.join(", "))
+                if fields.len() == 1 {
+                    write!(f, "({},)", fields[0])
+                } else {
+                    write!(f, "({})", fields.join(", "))
+                }
             }
             Value::Struct(fields, typ) => {
                 let typename = match typ.follow_bindings() {
@@ -874,10 +879,6 @@ fn remove_interned_in_unresolved_type_data(
         UnresolvedTypeData::Slice(typ) => {
             UnresolvedTypeData::Slice(Box::new(remove_interned_in_unresolved_type(interner, *typ)))
         }
-        UnresolvedTypeData::FormatString(expr, typ) => UnresolvedTypeData::FormatString(
-            expr,
-            Box::new(remove_interned_in_unresolved_type(interner, *typ)),
-        ),
         UnresolvedTypeData::Parenthesized(typ) => UnresolvedTypeData::Parenthesized(Box::new(
             remove_interned_in_unresolved_type(interner, *typ),
         )),
@@ -920,13 +921,8 @@ fn remove_interned_in_unresolved_type_data(
             }))
         }
         UnresolvedTypeData::Interned(id) => interner.get_unresolved_type_data(id).clone(),
-        UnresolvedTypeData::FieldElement
-        | UnresolvedTypeData::Integer(_, _)
-        | UnresolvedTypeData::Bool
-        | UnresolvedTypeData::Unit
-        | UnresolvedTypeData::String(_)
+        UnresolvedTypeData::Unit
         | UnresolvedTypeData::Resolved(_)
-        | UnresolvedTypeData::Quoted(_)
         | UnresolvedTypeData::Expression(_)
         | UnresolvedTypeData::Unspecified
         | UnresolvedTypeData::Error => typ,
@@ -952,21 +948,25 @@ fn remove_interned_in_generic_type_args(
 fn remove_interned_in_pattern(interner: &NodeInterner, pattern: Pattern) -> Pattern {
     match pattern {
         Pattern::Identifier(_) => pattern,
-        Pattern::Mutable(pattern, span, is_synthesized) => Pattern::Mutable(
+        Pattern::Mutable(pattern, location, is_synthesized) => Pattern::Mutable(
             Box::new(remove_interned_in_pattern(interner, *pattern)),
-            span,
+            location,
             is_synthesized,
         ),
-        Pattern::Tuple(patterns, span) => Pattern::Tuple(
+        Pattern::Tuple(patterns, location) => Pattern::Tuple(
             vecmap(patterns, |pattern| remove_interned_in_pattern(interner, pattern)),
-            span,
+            location,
         ),
-        Pattern::Struct(path, patterns, span) => {
+        Pattern::Struct(path, patterns, location) => {
             let patterns = vecmap(patterns, |(name, pattern)| {
                 (name, remove_interned_in_pattern(interner, pattern))
             });
-            Pattern::Struct(path, patterns, span)
+            Pattern::Struct(path, patterns, location)
         }
+        Pattern::Parenthesized(pattern, location) => Pattern::Parenthesized(
+            Box::new(remove_interned_in_pattern(interner, *pattern)),
+            location,
+        ),
         Pattern::Interned(id, _) => interner.get_pattern(id).clone(),
     }
 }

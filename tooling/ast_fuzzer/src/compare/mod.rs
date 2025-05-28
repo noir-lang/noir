@@ -1,25 +1,28 @@
-use acir::{FieldElement, native_types::WitnessStack};
-use acvm::pwg::{OpcodeResolutionError, ResolvedAssertionPayload};
+use std::{
+    fmt::{Debug, Display},
+    ops::Deref,
+};
+
 use arbitrary::{Arbitrary, Unstructured};
-use color_eyre::eyre::{self, WrapErr, bail};
-use nargo::{NargoError, errors::ExecutionError};
-use noirc_abi::{Abi, input_parser::InputValue};
+use color_eyre::eyre::{self, bail};
 use noirc_evaluator::ssa::SsaEvaluatorOptions;
-use noirc_frontend::monomorphization::ast::Program;
+use noirc_frontend::{Shared, monomorphization::ast::Program};
 
 mod compiled;
 mod comptime;
+mod interpreted;
 
-pub use compiled::{CompareArtifact, CompareCompiled, CompareMorph, ComparePipelines};
+pub use compiled::{
+    CompareArtifact, CompareCompiled, CompareCompiledResult, CompareMorph, ComparePipelines,
+};
 pub use comptime::CompareComptime;
+pub use interpreted::{CompareInterpreted, CompareInterpretedResult, ComparePass};
 
 #[derive(Clone, Debug, PartialEq)]
-pub struct ExecOutput {
-    pub return_value: Option<InputValue>,
+pub struct ExecOutput<T> {
+    pub return_value: Option<T>,
     pub print_output: String,
 }
-
-type ExecResult = (Result<WitnessStack<FieldElement>, NargoError<FieldElement>>, String);
 
 /// Help iterate over the program(s) in the comparable artifact.
 pub trait HasPrograms {
@@ -48,54 +51,58 @@ impl CompareOptions {
     }
 }
 
+/// Help ignore results and errors we find equivalent between executions.
+pub trait Comparable {
+    fn equivalent(a: &Self, b: &Self) -> bool;
+}
+
+impl<T: Comparable> Comparable for Vec<T> {
+    fn equivalent(a: &Self, b: &Self) -> bool {
+        a.len() == b.len() && a.iter().zip(b).all(|(a, b)| Comparable::equivalent(a, b))
+    }
+}
+
+impl<T: Comparable> Comparable for Option<T> {
+    fn equivalent(a: &Self, b: &Self) -> bool {
+        match (a, b) {
+            (Some(a), Some(b)) => Comparable::equivalent(a, b),
+            (None, None) => true,
+            _ => false,
+        }
+    }
+}
+
+impl<T: Comparable> Comparable for Shared<T> {
+    fn equivalent(a: &Self, b: &Self) -> bool {
+        let a = a.borrow();
+        let b = b.borrow();
+        Comparable::equivalent(a.deref(), b.deref())
+    }
+}
+
 /// Possible outcomes of the differential execution of two equivalent programs.
 ///
 /// Use [CompareResult::return_value_or_err] to do the final comparison between
 /// the execution result.
-pub enum CompareResult {
-    BothFailed(NargoError<FieldElement>, NargoError<FieldElement>),
-    LeftFailed(NargoError<FieldElement>, ExecOutput),
-    RightFailed(ExecOutput, NargoError<FieldElement>),
-    BothPassed(ExecOutput, ExecOutput),
+pub enum CompareResult<T, E> {
+    BothFailed(E, E),
+    LeftFailed(E, ExecOutput<T>),
+    RightFailed(ExecOutput<T>, E),
+    BothPassed(ExecOutput<T>, ExecOutput<T>),
 }
 
-impl CompareResult {
-    fn new(
-        abi: &Abi,
-        (res1, print1): ExecResult,
-        (res2, print2): ExecResult,
-    ) -> eyre::Result<Self> {
-        let decode = |ws: WitnessStack<FieldElement>| -> eyre::Result<Option<InputValue>> {
-            let wm = &ws.peek().expect("there should be a main witness").witness;
-            let (_, r) = abi.decode(wm).wrap_err("abi::decode")?;
-            Ok(r)
-        };
-
-        match (res1, res2) {
-            (Err(e1), Err(e2)) => Ok(CompareResult::BothFailed(e1, e2)),
-            (Err(e1), Ok(ws2)) => Ok(CompareResult::LeftFailed(
-                e1,
-                ExecOutput { return_value: decode(ws2)?, print_output: print2 },
-            )),
-            (Ok(ws1), Err(e2)) => Ok(CompareResult::RightFailed(
-                ExecOutput { return_value: decode(ws1)?, print_output: print1 },
-                e2,
-            )),
-            (Ok(ws1), Ok(ws2)) => {
-                let o1 = ExecOutput { return_value: decode(ws1)?, print_output: print1 };
-                let o2 = ExecOutput { return_value: decode(ws2)?, print_output: print2 };
-                Ok(CompareResult::BothPassed(o1, o2))
-            }
-        }
-    }
-
-    /// Check that the programs agree on a return value.
+impl<T, E> CompareResult<T, E>
+where
+    E: Comparable + Display + Debug,
+    T: Comparable + Debug,
+{
+    /// Check that two programs agree on a return value.
     ///
     /// Returns an error if anything is different.
-    pub fn return_value_or_err(&self) -> eyre::Result<Option<&InputValue>> {
+    pub fn return_value_or_err(&self) -> eyre::Result<Option<&T>> {
         match self {
             CompareResult::BothFailed(e1, e2) => {
-                if Self::errors_match(e1, e2) {
+                if Comparable::equivalent(e1, e2) {
                     // Both programs failed the same way.
                     Ok(None)
                 } else {
@@ -108,48 +115,26 @@ impl CompareResult {
             CompareResult::RightFailed(_, e) => {
                 bail!("second program failed: {e}\n{e:?}")
             }
-            CompareResult::BothPassed(o1, o2) => {
-                if o1.return_value != o2.return_value {
-                    bail!(
-                        "programs disagree on return value:\n{:?}\n!=\n{:?}",
-                        o1.return_value,
-                        o2.return_value
-                    )
-                } else if o1.print_output != o2.print_output {
-                    bail!(
-                        "programs disagree on printed output:\n---\n{}\n\n---\n{}\n",
-                        o1.print_output,
-                        o2.print_output
-                    )
-                } else {
-                    Ok(o1.return_value.as_ref())
+            CompareResult::BothPassed(o1, o2) => match (&o1.return_value, &o2.return_value) {
+                (Some(r1), Some(r2)) if !Comparable::equivalent(r1, r2) => {
+                    bail!("programs disagree on return value:\n{r1:?}\n!=\n{r2:?}",)
                 }
-            }
-        }
-    }
-
-    /// Check whether two errors can be considered equivalent.
-    fn errors_match(e1: &NargoError<FieldElement>, e2: &NargoError<FieldElement>) -> bool {
-        use ExecutionError::*;
-
-        // For now consider non-execution errors as failures we need to investigate.
-        let NargoError::ExecutionError(ee1) = e1 else {
-            return false;
-        };
-        let NargoError::ExecutionError(ee2) = e2 else {
-            return false;
-        };
-
-        match (ee1, ee2) {
-            (AssertionFailed(p1, _, _), AssertionFailed(p2, _, _)) => p1 == p2,
-            (SolvingError(s1, _), SolvingError(s2, _)) => format!("{s1}") == format!("{s2}"),
-            (SolvingError(s, _), AssertionFailed(p, _, _))
-            | (AssertionFailed(p, _, _), SolvingError(s, _)) => match (s, p) {
-                (
-                    OpcodeResolutionError::UnsatisfiedConstrain { .. },
-                    ResolvedAssertionPayload::String(s),
-                ) => s == "Attempted to divide by zero",
-                _ => false,
+                (Some(r1), None) => {
+                    bail!("only the first program returned a value: {r1:?}",)
+                }
+                (None, Some(r2)) => {
+                    bail!("only the second program returned a value: {r2:?}",)
+                }
+                (r1, _) => {
+                    if o1.print_output != o2.print_output {
+                        bail!(
+                            "programs disagree on printed output:\n---\n{}\n--- != ---\n{}\n---",
+                            o1.print_output,
+                            o2.print_output
+                        )
+                    }
+                    Ok(r1.as_ref())
+                }
             },
         }
     }

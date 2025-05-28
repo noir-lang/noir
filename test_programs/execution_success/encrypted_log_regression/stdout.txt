@@ -1,1 +1,0 @@
-[encrypted_log_regression] Circuit output: Vec([Field(1), Field(2), Field(3), Field(1), Field(2), Field(0), Field(9), Field(8), Field(7), Field(6), Field(5), Field(4), Field(3), Field(2), Field(1)])

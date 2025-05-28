@@ -1,1 +1,0 @@
-[simple_mut] Circuit output: Field(3)

@@ -1,4 +1,4 @@
-use std::{collections::BTreeMap, fmt::Display};
+use std::{borrow::Cow, collections::BTreeMap, fmt::Display};
 
 use iter_extended::vecmap;
 use noirc_errors::{
@@ -59,6 +59,142 @@ pub enum Expression {
 impl Expression {
     pub fn is_array_or_slice_literal(&self) -> bool {
         matches!(self, Expression::Literal(Literal::Array(_) | Literal::Slice(_)))
+    }
+
+    /// The return type of an expression, if it has an obvious one.
+    pub fn return_type(&self) -> Option<Cow<Type>> {
+        fn borrowed(typ: &Type) -> Option<Cow<Type>> {
+            Some(Cow::Borrowed(typ))
+        }
+        let owned = |typ: Type| Some(Cow::Owned(typ));
+
+        match self {
+            Expression::Ident(ident) => borrowed(&ident.typ),
+            Expression::Literal(literal) => match literal {
+                Literal::Array(literal) | Literal::Slice(literal) => borrowed(&literal.typ),
+                Literal::Integer(_, typ, _) => borrowed(typ),
+                Literal::Bool(_) => borrowed(&Type::Bool),
+                Literal::Unit => borrowed(&Type::Unit),
+                Literal::Str(s) => owned(Type::String(s.len() as u32)),
+                Literal::FmtStr(_, size, expr) => expr.return_type().and_then(|typ| {
+                    owned(Type::FmtString(*size as u32, Box::new(typ.into_owned())))
+                }),
+            },
+            Expression::Block(xs) => xs.last().and_then(|x| x.return_type()),
+            Expression::Unary(unary) => borrowed(&unary.result_type),
+            Expression::Binary(binary) => {
+                if binary.operator.is_comparator() {
+                    borrowed(&Type::Bool)
+                } else {
+                    binary.lhs.return_type()
+                }
+            }
+            Expression::Index(index) => borrowed(&index.element_type),
+            Expression::Cast(cast) => borrowed(&cast.r#type),
+            Expression::If(if_) => borrowed(&if_.typ),
+            Expression::ExtractTupleField(x, idx) => match x.as_ref() {
+                Expression::Tuple(xs) => {
+                    assert!(xs.len() > *idx, "index out of bounds in tuple return type");
+                    xs[*idx].return_type()
+                }
+                x => {
+                    let typ = x.return_type()?;
+                    let Type::Tuple(types) = typ.as_ref() else {
+                        unreachable!("unexpected type for tuple field extraction: {typ}");
+                    };
+                    assert!(types.len() > *idx, "index out of bounds in tuple return type");
+                    owned(types[*idx].clone())
+                }
+            },
+            Expression::Clone(x) => x.return_type(),
+            Expression::Call(call) => borrowed(&call.return_type),
+            Expression::Match(m) => borrowed(&m.typ),
+
+            Expression::Tuple(xs) => {
+                let types = xs
+                    .iter()
+                    .filter_map(|x| x.return_type())
+                    .map(|t| t.into_owned())
+                    .collect::<Vec<_>>();
+                if types.len() != xs.len() {
+                    return None;
+                }
+                owned(Type::Tuple(types))
+            }
+
+            Expression::For(_)
+            | Expression::Loop(_)
+            | Expression::While(_)
+            | Expression::Let(_)
+            | Expression::Constrain(_, _, _)
+            | Expression::Assign(_)
+            | Expression::Semi(_)
+            | Expression::Drop(_)
+            | Expression::Break
+            | Expression::Continue => None,
+        }
+    }
+
+    /// Check if the expression will need to have its type deduced from a literal,
+    /// which could be ambiguous.
+    ///
+    /// For example:
+    /// ```ignore
+    /// let a = 1;
+    /// let b = if (a > 0) { 2 } else { 3 };
+    /// ```
+    pub fn needs_type_inference_from_literal(&self) -> bool {
+        match self {
+            Expression::Literal(_) => true,
+
+            Expression::Block(expressions) => expressions
+                .last()
+                .map(|x| x.needs_type_inference_from_literal())
+                .unwrap_or_default(),
+
+            Expression::Unary(unary) => unary.rhs.needs_type_inference_from_literal(),
+
+            Expression::Binary(binary) => {
+                if binary.operator.is_comparator() {
+                    false
+                } else {
+                    binary.lhs.needs_type_inference_from_literal()
+                }
+            }
+            Expression::If(if_) => {
+                if_.consequence.needs_type_inference_from_literal()
+                    && if_
+                        .alternative
+                        .as_ref()
+                        .map(|x| x.needs_type_inference_from_literal())
+                        .unwrap_or_default()
+            }
+            Expression::Match(m) => {
+                m.cases.iter().all(|c| c.branch.needs_type_inference_from_literal())
+                    && m.default_case.as_ref().is_none_or(|x| x.needs_type_inference_from_literal())
+            }
+
+            Expression::Tuple(xs) => xs.iter().any(|x| x.needs_type_inference_from_literal()),
+
+            Expression::ExtractTupleField(x, _) => x.needs_type_inference_from_literal(),
+
+            // The following expressions either carry an obvious type, or return nothing.
+            Expression::Ident(_)
+            | Expression::Call(_)
+            | Expression::Index(_)
+            | Expression::Cast(_)
+            | Expression::For(_)
+            | Expression::Loop(_)
+            | Expression::While(_)
+            | Expression::Let(_)
+            | Expression::Constrain(_, _, _)
+            | Expression::Assign(_)
+            | Expression::Semi(_)
+            | Expression::Clone(_)
+            | Expression::Drop(_)
+            | Expression::Break
+            | Expression::Continue => false,
+        }
     }
 }
 
@@ -272,8 +408,15 @@ pub enum InlineType {
     Fold,
     /// Functions marked to have no predicates will not be inlined in the default inlining pass
     /// and will be separately inlined after the flattening pass.
-    /// They are different from `Fold` as they are expected to be inlined into the program
+    ///
+    /// Flattening and inlining are necessary compiler passes in the ACIR runtime. More specifically,
+    /// flattening is the removal of control flow through predicating side-effectual instructions.
+    /// In some cases, a user may only want predicates applied to the result of a function call rather
+    /// than all of a function's internal execution. To allow this behavior, we can simply inline a function
+    /// after performing flattening (as ultimately in ACIR a non-entry point function will have to be inlined).
+    /// These functions are different from `Fold` as they are expected to be inlined into the program
     /// entry point before being used in the backend.
+    ///
     /// This attribute is unsafe and can cause a function whose logic relies on predicates from
     /// the flattening pass to fail.
     NoPredicates,
@@ -492,7 +635,11 @@ impl std::fmt::Display for Type {
             Type::Unit => write!(f, "()"),
             Type::Tuple(elements) => {
                 let elements = vecmap(elements, ToString::to_string);
-                write!(f, "({})", elements.join(", "))
+                if elements.len() == 1 {
+                    write!(f, "({},)", elements[0])
+                } else {
+                    write!(f, "({})", elements.join(", "))
+                }
             }
             Type::Function(args, ret, env, unconstrained) => {
                 if *unconstrained {

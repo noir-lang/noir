@@ -89,6 +89,7 @@ impl<'context> Elaborator<'context> {
             self.def_maps,
             self.usage_tracker,
             self.crate_graph,
+            self.interpreter_output,
             self.crate_id,
             self.interpreter_call_stack.clone(),
             self.options,
@@ -249,7 +250,7 @@ impl<'context> Elaborator<'context> {
         arguments.insert(0, (item, location));
 
         let value = interpreter
-            .call_function(function, arguments, TypeBindings::new(), location)
+            .call_function(function, arguments, TypeBindings::default(), location)
             .map_err(CompilationError::from)?;
 
         self.debug_comptime(location, |interner| value.display(interner).to_string());

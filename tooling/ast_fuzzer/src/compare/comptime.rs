@@ -1,5 +1,8 @@
-use std::collections::BTreeMap;
+//! Compare an arbitrary AST executed as Noir with the comptime
+//! interpreter vs compiled into bytecode and ran through a VM.
 use std::path::Path;
+use std::rc::Rc;
+use std::{cell::RefCell, collections::BTreeMap};
 
 use arbitrary::Unstructured;
 use bn254_blackbox_solver::Bn254BlackBoxSolver;
@@ -13,11 +16,8 @@ use noirc_driver::{
 use noirc_evaluator::ssa::SsaProgramArtifact;
 use noirc_frontend::{hir::Context, monomorphization::ast::Program};
 
-use crate::{
-    Config, DisplayAstAsNoirComptime, arb_program_comptime, compare::CompareResult, program_abi,
-};
-
-use super::{CompareArtifact, CompareOptions, HasPrograms};
+use super::{CompareArtifact, CompareCompiledResult, CompareOptions, HasPrograms};
+use crate::{Config, DisplayAstAsNoirComptime, arb_program_comptime, program_abi};
 
 /// Prepare a code snippet.
 /// (copied from nargo_cli/tests/common.rs)
@@ -41,11 +41,14 @@ fn prepare_snippet(source: String) -> (Context<'static, 'static>, CrateId) {
 /// Use `force_brillig` to test it as an unconstrained function without having to change the code.
 /// This is useful for methods that use the `runtime::is_unconstrained()` method to change their behavior.
 /// (copied from nargo_cli/tests/common.rs)
-fn prepare_and_compile_snippet(
+fn prepare_and_compile_snippet<W: std::io::Write + 'static>(
     source: String,
     force_brillig: bool,
-) -> CompilationResult<CompiledProgram> {
+    output: W,
+) -> CompilationResult<(CompiledProgram, W)> {
+    let output = Rc::new(RefCell::new(output));
     let (mut context, root_crate_id) = prepare_snippet(source);
+    context.set_comptime_printing(output.clone());
     let options = CompileOptions {
         force_brillig,
         silence_warnings: true,
@@ -53,7 +56,10 @@ fn prepare_and_compile_snippet(
         skip_brillig_constraints_check: true,
         ..Default::default()
     };
-    compile_main(&mut context, root_crate_id, &options, None)
+    let (program, warnings) = compile_main(&mut context, root_crate_id, &options, None)?;
+    drop(context);
+    let output = Rc::into_inner(output).expect("context is gone").into_inner();
+    Ok(((program, output), warnings))
 }
 
 /// Compare the execution of a Noir program in pure comptime (via interpreter)
@@ -68,11 +74,17 @@ pub struct CompareComptime {
 
 impl CompareComptime {
     /// Execute the Noir code and the SSA, then compare the results.
-    pub fn exec(&self) -> eyre::Result<CompareResult> {
-        let program1 = match prepare_and_compile_snippet(self.source.clone(), self.force_brillig) {
-            Ok((program, _)) => program,
+    pub fn exec(&self) -> eyre::Result<CompareCompiledResult> {
+        log::debug!("comptime src:\n{}", self.source);
+        let (program1, output1) = match prepare_and_compile_snippet(
+            self.source.clone(),
+            self.force_brillig,
+            Vec::new(),
+        ) {
+            Ok(((program, output), _)) => (program, output),
             Err(e) => panic!("failed to compile program:\n{}\n{e:?}", self.source),
         };
+        let comptime_print = String::from_utf8(output1).expect("should be valid utf8 string");
 
         let blackbox_solver = Bn254BlackBoxSolver(false);
         let initial_witness = self.abi.encode(&BTreeMap::new(), None).wrap_err("abi::encode")?;
@@ -99,7 +111,7 @@ impl CompareComptime {
         let (res1, print1) = do_exec(&program1.program);
         let (res2, print2) = do_exec(&self.ssa.artifact.program);
 
-        CompareResult::new(&self.abi, (res1, print1), (res2, print2))
+        CompareCompiledResult::new(&self.abi, (res1, comptime_print + &print1), (res2, print2))
     }
 
     /// Generate a random comptime-viable AST, reverse it into
@@ -127,5 +139,79 @@ impl CompareComptime {
 impl HasPrograms for CompareComptime {
     fn programs(&self) -> Vec<&Program> {
         vec![&self.program]
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::prepare_and_compile_snippet;
+
+    /// Comptime compilation can fail with stack overflow because of how the interpreter is evaluating instructions.
+    /// We could apply `#[inline(always)]` on some of the `Interpreter::elaborate_` functions to make it go further,
+    /// at the cost of compilation speed. Instead, we just need to make sure that compile tests have lower loop and
+    /// recursion limits.
+    #[test]
+    fn test_prepare_and_compile_snippet() {
+        let src = r#"
+fn main() -> pub ((str<2>, str<2>, bool, str<2>), bool, [str<2>; 3]) {
+    comptime {
+        let mut ctx_limit = 10;
+        unsafe { func_1_proxy(ctx_limit) }
+    }
+}
+unconstrained fn func_1(ctx_limit: &mut u32) -> ((str<2>, str<2>, bool, str<2>), bool, [str<2>; 3]) {
+    if ((*ctx_limit) == 0) {
+        (("BD", "GT", false, "EV"), false, ["LJ", "BB", "CE"])
+    } else {
+        *ctx_limit = ((*ctx_limit) - 1);
+        let g = if true {
+            let f = {
+                {
+                    let mut idx_a = 0;
+                    loop {
+                        if (idx_a == 4) {
+                            break
+                        } else {
+                            idx_a = (idx_a + 1);
+                            let mut e = if true {
+                                if func_1(ctx_limit).0.2 {
+                                    {
+                                        let b = 38;
+                                        {
+                                            let mut c = false;
+                                            let d = if c {
+                                                c = false;
+                                                [("ZO", "AF", false, "NY"), ("HJ", "NF", c, "RV"), ("SN", "VK", true, "QJ")]
+                                            } else {
+                                                [("SN", "YR", (b != (27 >> b)), "LS"), ("SW", "ZQ", false, "TQ"), ("AD", "YD", c, "EF")]
+                                            };
+                                            (d[1].3, d[1].1, (!c), "LO")
+                                        }
+                                    }
+                                } else {
+                                    ("HF", "WQ", true, "FZ")
+                                }
+                            } else {
+                                ("YP", "CH", true, "ZG")
+                            };
+                            e = (e.1, "NU", e.2, e.0);
+                        }
+                    }
+                };
+                true
+            };
+            (("HW", "EI", true, "IY"), (!false), ["TO", "WI", "PC"])
+        } else {
+            (("OX", "CE", true, "OV"), false, ["OS", "DT", "CH"])
+        };
+        g
+    }
+}
+unconstrained fn func_1_proxy(mut ctx_limit: u32) -> ((str<2>, str<2>, bool, str<2>), bool, [str<2>; 3]) {
+    func_1((&mut ctx_limit))
+}
+        "#;
+
+        let _ = prepare_and_compile_snippet(src.to_string(), false, std::io::stdout());
     }
 }

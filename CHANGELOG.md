@@ -1,5 +1,43 @@
 # Changelog
 
+## [1.0.0-beta.6](https://github.com/noir-lang/noir/compare/v1.0.0-beta.5...v1.0.0-beta.6) (2025-05-14)
+
+
+### ⚠ BREAKING CHANGES
+
+* **frontend:** Ban zero sized arrays and strings as program input ([#8491](https://github.com/noir-lang/noir/issues/8491))
+* remove `to_be_radix` and `to_le_radix` from stdlib interface ([#8495](https://github.com/noir-lang/noir/issues/8495))
+
+### Features
+
+* `#[test(only_fail_with = "...")]` ([#8460](https://github.com/noir-lang/noir/issues/8460)) ([4775584](https://github.com/noir-lang/noir/commit/47755840374a1e413bc206abf838a017d5526246))
+* Improve bitshift codegen ([#8442](https://github.com/noir-lang/noir/issues/8442)) ([5e3a04e](https://github.com/noir-lang/noir/commit/5e3a04eea96bde4403b291dfb8c326f47770b6da))
+* Primitive types are no longer keywords ([#8470](https://github.com/noir-lang/noir/issues/8470)) ([6f54492](https://github.com/noir-lang/noir/commit/6f544928d9a9cac1ffd42082625fbea263964ff5))
+
+
+### Bug Fixes
+
+* Allowing accessing associated constants via `Self::...` ([#8403](https://github.com/noir-lang/noir/issues/8403)) ([8863c6a](https://github.com/noir-lang/noir/commit/8863c6a93a2e9bad81d0168ba15184e994e8df8b))
+* Always type-check turbofish, and error when it's not allowed ([#8437](https://github.com/noir-lang/noir/issues/8437)) ([944d234](https://github.com/noir-lang/noir/commit/944d23430d2746e25980ca283160f13665f123c3))
+* Change `can_be_main` to be recursive ([#8501](https://github.com/noir-lang/noir/issues/8501)) ([6c76114](https://github.com/noir-lang/noir/commit/6c761141515a7a4ac0cf92297e322424c5b22dc4))
+* Disallow generics on entry points ([#8490](https://github.com/noir-lang/noir/issues/8490)) ([e5bac4e](https://github.com/noir-lang/noir/commit/e5bac4e512e8cd021d2d674873a3ef1f837a768e))
+* Don't produce `index Field` in value merger ([#8492](https://github.com/noir-lang/noir/issues/8492)) ([9c53936](https://github.com/noir-lang/noir/commit/9c5393624ca5accc1573b965f9c42cf1e5312101))
+* Fix nested trait dispatch with associated types ([#8440](https://github.com/noir-lang/noir/issues/8440)) ([2d727b1](https://github.com/noir-lang/noir/commit/2d727b149ce6c85d7b79687e7709436b1b03783f))
+* Fix visibility of methods in `std::meta` ([#8497](https://github.com/noir-lang/noir/issues/8497)) ([7be8f56](https://github.com/noir-lang/noir/commit/7be8f5693adc3047156598781d08ac874c56050f))
+* **frontend:** Ban zero sized arrays and strings as program input ([#8491](https://github.com/noir-lang/noir/issues/8491)) ([648b753](https://github.com/noir-lang/noir/commit/648b7537e7d4388f0f90a24d881dfb6fd8c80345))
+* Incorrect parameter visibility location in monomorphized AST pri… ([#8453](https://github.com/noir-lang/noir/issues/8453)) ([27941c9](https://github.com/noir-lang/noir/commit/27941c993754c784de9e6a0bec5b3ef991c8a730))
+* **inlining:** Use centralized CallGraph structure for inline info computation  ([#8489](https://github.com/noir-lang/noir/issues/8489)) ([d919e6a](https://github.com/noir-lang/noir/commit/d919e6afcd7bc4ebf07e8b355c48ee4439ecd52b))
+* Parenthesized pattern, and correct 1-element tuple printing ([#8482](https://github.com/noir-lang/noir/issues/8482)) ([8cf48fc](https://github.com/noir-lang/noir/commit/8cf48fc155fc4d7db6125a50545a45d461fb898a))
+* Pass Field to ToBits intrinsic in remove_bit_shifts optimization ([#8493](https://github.com/noir-lang/noir/issues/8493)) ([b657b07](https://github.com/noir-lang/noir/commit/b657b076bdcfcf627a318237276a917d8e067e0f))
+* Remove `to_be_radix` and `to_le_radix` from stdlib interface ([#8495](https://github.com/noir-lang/noir/issues/8495)) ([4519387](https://github.com/noir-lang/noir/commit/4519387fa4e3cd00136b1069a06c3d7e5ee072d1))
+* Remove private builtins from `Field` impl ([#8496](https://github.com/noir-lang/noir/issues/8496)) ([f4078e1](https://github.com/noir-lang/noir/commit/f4078e1e175b6003ed25215fb870639ee9900cb7))
+* Remove unused generic in static_assert ([#8488](https://github.com/noir-lang/noir/issues/8488)) ([35ff326](https://github.com/noir-lang/noir/commit/35ff3264b5f9badbd272f6b7aa042095d31b632d))
+* Sign extend in signed cast ([#8264](https://github.com/noir-lang/noir/issues/8264)) ([29f93d5](https://github.com/noir-lang/noir/commit/29f93d51d59695ad9847fd8a28a3516fcbaf65fe))
+* **ssa:** Mark mutually recursive simple functions ([#8447](https://github.com/noir-lang/noir/issues/8447)) ([6d6aca9](https://github.com/noir-lang/noir/commit/6d6aca93ce27809c1f433672526943e9269366b4))
+* Typo in filtering of types that can be used in `main` ([#8477](https://github.com/noir-lang/noir/issues/8477)) ([05ae1f3](https://github.com/noir-lang/noir/commit/05ae1f3ced2bc3afc894830e97e76cef779d81b7))
+* Variable used in fmtstr inside lambda wasn't tracked as captured ([#8487](https://github.com/noir-lang/noir/issues/8487)) ([ef7d21d](https://github.com/noir-lang/noir/commit/ef7d21debb5f5ecaca75fccdf4c2d8c60a195e5c))
+* Warn if no double colon on generic type in type path ([#8471](https://github.com/noir-lang/noir/issues/8471)) ([c41a517](https://github.com/noir-lang/noir/commit/c41a5177cbcdf8b807463071203f9c3a9c667b9a))
+
 ## [1.0.0-beta.5](https://github.com/noir-lang/noir/compare/v1.0.0-beta.4...v1.0.0-beta.5) (2025-05-09)
 
 
