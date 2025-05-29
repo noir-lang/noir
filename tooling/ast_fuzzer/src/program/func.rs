@@ -758,7 +758,14 @@ impl<'a> FunctionContext<'a> {
         let max_depth = self.max_depth();
         let comptime_friendly = self.is_comptime_friendly();
         let typ = self.ctx.gen_type(u, max_depth, false, false, true, comptime_friendly)?;
+
+        // Temporarily set in_loop to false to disallow breaking/continuing out
+        // of the let blocks (which would lead to frontend errors when reversing
+        // the AST into Noir)
+        let was_in_loop = std::mem::replace(&mut self.in_loop, false);
         let expr = self.gen_expr(u, &typ, max_depth, Flags::TOP)?;
+        self.in_loop = was_in_loop;
+
         let mutable = bool::arbitrary(u)?;
         Ok(self.let_var(mutable, typ, expr, true))
     }
