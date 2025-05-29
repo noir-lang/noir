@@ -2603,7 +2603,14 @@
 <a href="#2602" id="2602">2602</a>
 <a href="#2603" id="2603">2603</a>
 <a href="#2604" id="2604">2604</a>
-<a href="#2605" id="2605">2605</a></pre></div><pre class="rust"><code><span class="doccomment">//! Coming after type checking, monomorphization is the last pass in Noir's frontend.
+<a href="#2605" id="2605">2605</a>
+<a href="#2606" id="2606">2606</a>
+<a href="#2607" id="2607">2607</a>
+<a href="#2608" id="2608">2608</a>
+<a href="#2609" id="2609">2609</a>
+<a href="#2610" id="2610">2610</a>
+<a href="#2611" id="2611">2611</a>
+<a href="#2612" id="2612">2612</a></pre></div><pre class="rust"><code><span class="doccomment">//! Coming after type checking, monomorphization is the last pass in Noir's frontend.
 //! It accepts the type checked HIR as input and produces a monomorphized AST as output.
 //! This file implements the pass itself, while the AST is defined in the ast module.
 //!
@@ -5116,7 +5123,7 @@
 }
 
 <span class="kw">pub fn </span>resolve_trait_method(
-    interner: <span class="kw-2">&amp;</span>NodeInterner,
+    interner: <span class="kw-2">&amp;mut </span>NodeInterner,
     method: TraitMethodId,
     expr_id: ExprId,
 ) -&gt; <span class="prelude-ty">Result</span>&lt;node_interner::FuncId, InterpreterError&gt; {
@@ -5136,7 +5143,14 @@
                 <span class="kw-2">&amp;</span>trait_generics.ordered,
                 <span class="kw-2">&amp;</span>trait_generics.named,
             ) {
-                <span class="prelude-val">Ok</span>((TraitImplKind::Normal(impl_id), _instantiation_bindings)) =&gt; impl_id,
+                <span class="prelude-val">Ok</span>((TraitImplKind::Normal(impl_id), instantiation_bindings)) =&gt; {
+                    <span class="comment">// Insert any additional instantiation bindings into this expression's instantiation bindings.
+                    // This is similar to what's done in `verify_trait_constraint` in the frontend.
+                    </span><span class="kw">let </span><span class="kw-2">mut </span>bindings = interner.get_instantiation_bindings(expr_id).clone();
+                    bindings.extend(instantiation_bindings);
+                    interner.store_instantiation_bindings(expr_id, bindings);
+                    impl_id
+                }
                 <span class="prelude-val">Ok</span>((TraitImplKind::Assumed { .. }, _instantiation_bindings)) =&gt; {
                     <span class="kw">return </span><span class="prelude-val">Err</span>(InterpreterError::NoImpl { location });
                 }
