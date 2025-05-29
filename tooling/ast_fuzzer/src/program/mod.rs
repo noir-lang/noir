@@ -188,6 +188,16 @@ impl Context {
                     .unwrap_or_default())
             || bool::arbitrary(u)?;
 
+        // We could return a function as well.
+        let return_type = self.gen_type(
+            u,
+            self.config.max_depth,
+            false,
+            is_main,
+            false,
+            self.config.comptime_friendly,
+        )?;
+
         // Which existing functions we could receive as parameters.
         let func_param_candidates: Vec<FuncId> = if is_main || self.config.avoid_lambdas {
             // Main cannot receive function parameters from outside.
@@ -196,8 +206,15 @@ impl Context {
             self.function_declarations
                 .iter()
                 .filter_map(|(callee_id, callee)| {
-                    can_call(id, unconstrained, *callee_id, callee.unconstrained, callee.has_refs())
-                        .then_some(*callee_id)
+                    can_call(
+                        id,
+                        unconstrained,
+                        types::contains_reference(&return_type),
+                        *callee_id,
+                        callee.unconstrained,
+                        callee.has_refs(),
+                    )
+                    .then_some(*callee_id)
                 })
                 .collect()
         };
@@ -251,16 +268,6 @@ impl Context {
 
             params.push((id, is_mutable, name, typ, visibility));
         }
-
-        // We could return a function as well.
-        let return_type = self.gen_type(
-            u,
-            self.config.max_depth,
-            false,
-            is_main,
-            false,
-            self.config.comptime_friendly,
-        )?;
 
         let return_visibility = if is_main {
             if types::is_unit(&return_type) {

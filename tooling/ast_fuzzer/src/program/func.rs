@@ -60,8 +60,15 @@ impl FunctionDeclaration {
 
     /// Check if any of the parameters or return value contain a reference.
     pub(super) fn has_refs(&self) -> bool {
+        self.takes_refs() || self.returns_refs()
+    }
+
+    pub(super) fn takes_refs(&self) -> bool {
         self.params.iter().any(|(_, _, _, typ, _)| types::contains_reference(typ))
-            || types::contains_reference(&self.return_type)
+    }
+
+    pub(super) fn returns_refs(&self) -> bool {
+        types::contains_reference(&self.return_type)
     }
 }
 
@@ -91,12 +98,20 @@ pub(crate) fn hir_param(
 pub(super) fn can_call(
     caller_id: FuncId,
     caller_unconstrained: bool,
+    caller_returns_ref: bool,
     callee_id: FuncId,
     callee_unconstrained: bool,
     callee_has_refs: bool,
 ) -> bool {
     // Nobody should call `main`.
     if callee_id == Program::main_id() {
+        return false;
+    }
+
+    // The compiler cannot handle returning references from `if-then-else`;
+    // since the `limit` module currently inserts an `if ctx_limit == 0`,
+    // returning a literal, it would violate this if the return has `&mut`.
+    if caller_returns_ref {
         return false;
     }
 
@@ -204,6 +219,7 @@ impl<'a> FunctionContext<'a> {
             if !can_call(
                 id,
                 decl.unconstrained,
+                decl.returns_refs(),
                 *callee_id,
                 callee_decl.unconstrained,
                 callee_decl.has_refs(),
