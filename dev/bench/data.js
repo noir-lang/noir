@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1748541794036,
+  "lastUpdate": 1748541797001,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -17417,35 +17417,6 @@ window.BENCHMARK_DATA = {
             "name": "GitHub",
             "username": "web-flow"
           },
-          "distinct": true,
-          "id": "cafcdcd8d6250936bc089679838485bbd138fe35",
-          "message": "fix!: accept and return visibilities for StructDef (#8420)\n\nCo-authored-by: Tom French <15848336+TomAFrench@users.noreply.github.com>",
-          "timestamp": "2025-05-21T18:06:41Z",
-          "tree_id": "0411a5c02a631d01b998c52d7b45b173365a0923",
-          "url": "https://github.com/noir-lang/noir/commit/cafcdcd8d6250936bc089679838485bbd138fe35"
-        },
-        "date": 1747852707147,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "semaphore-depth-10",
-            "value": 636.3,
-            "unit": "KB"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
-            "email": "asterite@gmail.com",
-            "name": "Ary Borenszweig",
-            "username": "asterite"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
           "distinct": false,
           "id": "72ce94beeac6d15b67141307bc38f9e2b0020b20",
           "message": "fix!: better error message when cannot infer generic numeric type (#7843)\n\nCo-authored-by: Tom French <15848336+TomAFrench@users.noreply.github.com>",
@@ -20396,6 +20367,85 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/noir-lang/noir/commit/d97eea314a13c407af79ef7815332c52eec4ab22"
         },
         "date": 1748539616779,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 1133.3,
+            "unit": "KB"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 2156.7,
+            "unit": "KB"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 589,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 5129.7,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 4071.2,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-block-root-empty",
+            "value": 257,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-block-root-single-tx",
+            "value": 25708.1,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 25715.1,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 183.7,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-root",
+            "value": 418.6,
+            "unit": "KB"
+          },
+          {
+            "name": "semaphore-depth-10",
+            "value": 636.3,
+            "unit": "KB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "mvezenov@gmail.com",
+            "name": "Maxim Vezenov",
+            "username": "vezenovm"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "66f8c6ecf6cf9eae1246a243080358f644673582",
+          "message": "fix(ssa): Validate checked signed add/sub is followed by a truncate (#8706)",
+          "timestamp": "2025-05-29T17:31:56Z",
+          "tree_id": "d90e3fe6f27567642bf761a3a33b7bb4751bc07d",
+          "url": "https://github.com/noir-lang/noir/commit/66f8c6ecf6cf9eae1246a243080358f644673582"
+        },
+        "date": 1748541785372,
         "tool": "customSmallerIsBetter",
         "benches": [
           {
