@@ -1099,12 +1099,16 @@ impl FunctionContext<'_> {
     }
 
     fn codegen_break(&mut self) -> Values {
+        self.builder.close_block();
+
         let loop_end = self.current_loop().loop_end;
         self.builder.terminate_with_jmp(loop_end, Vec::new());
         Self::unit_value()
     }
 
     fn codegen_continue(&mut self) -> Values {
+        self.builder.close_block();
+
         let loop_ = self.current_loop();
 
         // Must remember to increment i before jumping
