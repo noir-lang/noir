@@ -105,10 +105,10 @@ impl ChunkFormatter<'_, '_> {
                 ));
             }
             ExpressionKind::AsTraitPath(as_trait_path) => {
-                group.text(self.chunk(|formatter| formatter.format_as_trait_path(as_trait_path)));
+                group.text(self.chunk(|formatter| formatter.format_as_trait_path(*as_trait_path)));
             }
             ExpressionKind::TypePath(type_path) => {
-                group.group(self.format_type_path(type_path));
+                group.group(self.format_type_path(*type_path));
             }
             ExpressionKind::Resolved(..)
             | ExpressionKind::Interned(..)
