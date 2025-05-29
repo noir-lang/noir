@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1748543067731,
+  "lastUpdate": 1748543069780,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -3055,35 +3055,6 @@ window.BENCHMARK_DATA = {
       }
     ],
     "Compilation Time": [
-      {
-        "commit": {
-          "author": {
-            "email": "asterite@gmail.com",
-            "name": "Ary Borenszweig",
-            "username": "asterite"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "72ce94beeac6d15b67141307bc38f9e2b0020b20",
-          "message": "fix!: better error message when cannot infer generic numeric type (#7843)\n\nCo-authored-by: Tom French <15848336+TomAFrench@users.noreply.github.com>",
-          "timestamp": "2025-05-21T18:34:52Z",
-          "tree_id": "786c56011c8db2e3eae5718d0dc4939f1b4158ba",
-          "url": "https://github.com/noir-lang/noir/commit/72ce94beeac6d15b67141307bc38f9e2b0020b20"
-        },
-        "date": 1747854079265,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "semaphore-depth-10",
-            "value": 0.827,
-            "unit": "s"
-          }
-        ]
-      },
       {
         "commit": {
           "author": {
@@ -6151,6 +6122,85 @@ window.BENCHMARK_DATA = {
           {
             "name": "semaphore-depth-10",
             "value": 0.842,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "asterite@gmail.com",
+            "name": "Ary Borenszweig",
+            "username": "asterite"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "5d4a46c70aa1a716c8f2491765b7b4d1699e7565",
+          "message": "fix: general solution for accessing associated constants (#8417)",
+          "timestamp": "2025-05-29T17:55:03Z",
+          "tree_id": "737af492eb9fd84537dbbfcda291f344a39a973a",
+          "url": "https://github.com/noir-lang/noir/commit/5d4a46c70aa1a716c8f2491765b7b4d1699e7565"
+        },
+        "date": 1748543058536,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 2.692,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 7.044,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 1.114,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 16.86,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 13.92,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-empty",
+            "value": 1.412,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-single-tx",
+            "value": 126,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 125,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 1.17,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-root",
+            "value": 1.622,
+            "unit": "s"
+          },
+          {
+            "name": "semaphore-depth-10",
+            "value": 0.811,
             "unit": "s"
           }
         ]
