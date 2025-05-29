@@ -20,9 +20,52 @@ impl Ssa {
     #[tracing::instrument(level = "trace", skip(self))]
     pub(crate) fn array_set_optimization(mut self) -> Self {
         for func in self.functions.values_mut() {
+            #[cfg(debug_assertions)]
+            array_set_optimization_pre_check(func);
+
             func.array_set_optimization();
+
+            #[cfg(debug_assertions)]
+            array_set_optimization_post_check(func);
         }
         self
+    }
+}
+
+/// Pre-check condition for [Function::array_set_optimization].
+///
+/// Panics if:
+///   - there already exists a mutable array set instruction.
+#[cfg(debug_assertions)]
+fn array_set_optimization_pre_check(func: &Function) {
+    // There should be no mutable array sets.
+    for block_id in func.reachable_blocks() {
+        let instruction_ids = func.dfg[block_id].instructions();
+        for instruction_id in instruction_ids {
+            if matches!(func.dfg[*instruction_id], Instruction::ArraySet { mutable: true, .. }) {
+                panic!("IfElse instruction exists before `array_set_optimization` pass");
+            }
+        }
+    }
+}
+
+/// Post-check condition for [Function::array_set_optimization].
+///
+/// Panics if:
+///   - Mutable array_set optimization has been applied to Brillig function
+#[cfg(debug_assertions)]
+fn array_set_optimization_post_check(func: &Function) {
+    // Brillig functions should be not have any mutable array sets.
+    if func.runtime().is_brillig() {
+        for block_id in func.reachable_blocks() {
+            let instruction_ids = func.dfg[block_id].instructions();
+            for instruction_id in instruction_ids {
+                if matches!(func.dfg[*instruction_id], Instruction::ArraySet { mutable: true, .. })
+                {
+                    panic!("Mutable array set instruction in Brillig function");
+                }
+            }
+        }
     }
 }
 
