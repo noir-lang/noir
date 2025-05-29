@@ -295,9 +295,9 @@ impl<'f> LoopInvariantContext<'f> {
             .collect::<Vec<_>>();
 
         let dfg = &self.inserter.function.dfg;
-        // When hoisting a control dependent instruction, if a side effectual instruction comes in the predecessor block 
+        // When hoisting a control dependent instruction, if a side effectual instruction comes in the predecessor block
         // of that instruction we can no longer hoist the control dependent instruction.
-        // This is important for maintaining ordering semantic correctness of the code. 
+        // This is important for maintaining ordering semantic correctness of the code.
         self.current_block_impure = all_predecessors.iter().any(|block| {
             dfg[*block]
                 .instructions()
@@ -2533,8 +2533,7 @@ mod control_dependence {
                 from_constant(2_u128.into(), NumericType::NativeField),
                 from_constant(3_u128.into(), NumericType::NativeField),
             ])
-            .err()
-            .expect("Should have error");
+            .expect_err("Should have error");
         assert!(matches!(expected, InterpreterError::RangeCheckFailed { .. }));
 
         let mut ssa = ssa.loop_invariant_code_motion();
@@ -2545,8 +2544,7 @@ mod control_dependence {
                 from_constant(2_u128.into(), NumericType::NativeField),
                 from_constant(3_u128.into(), NumericType::NativeField),
             ])
-            .err()
-            .expect("Should have error");
+            .expect_err("Should have error");
         assert_eq!(expected, got);
 
         assert_normalized_ssa_equals(ssa, src);
@@ -2565,7 +2563,7 @@ mod control_dependence {
         //         assert_eq(x, 12);
         //     }
         //  }
-        // 
+        //
         // ```
         // We expect to fail on assert_eq(y, 12) rather than assert_eq(x, 12);
         let src = r"
@@ -2597,9 +2595,7 @@ mod control_dependence {
                 from_constant(2_u128.into(), NumericType::Unsigned { bit_size: 32 }),
                 from_constant(3_u128.into(), NumericType::Unsigned { bit_size: 32 }),
             ])
-            .err()
-            .expect("Should have error");
-        dbg!(&expected);
+            .expect_err("Should have error");
         let InterpreterError::ConstrainEqFailed { lhs_id, .. } = expected else {
             panic!("Expected ConstrainEqFailed");
         };
@@ -2608,21 +2604,19 @@ mod control_dependence {
 
         let mut ssa = ssa.loop_invariant_code_motion();
         ssa.normalize_ids();
-        println!("{}", ssa);
+
         let got = ssa
             .interpret(vec![
                 from_constant(2_u128.into(), NumericType::Unsigned { bit_size: 32 }),
                 from_constant(3_u128.into(), NumericType::Unsigned { bit_size: 32 }),
             ])
-            .err()
-            .expect("Should have error");
+            .expect_err("Should have error");
         dbg!(&got);
         let InterpreterError::ConstrainEqFailed { lhs_id, .. } = got else {
             panic!("Expected ConstrainEqFailed");
         };
         // Make sure that the constrain on v8 is the on that failed
         assert_eq!(lhs_id.to_u32(), 8);
-        // assert_eq!(expected, got);
 
         assert_normalized_ssa_equals(ssa, src);
     }
