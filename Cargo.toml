@@ -106,6 +106,7 @@ noirc_artifacts_info = { path = "tooling/noirc_artifacts_info" }
 noir_artifact_cli = { path = "tooling/artifact_cli" }
 noir_protobuf = { path = "utils/protobuf" }
 noir_ssa_executor = { path = "tooling/ssa_executor" }
+noir_ast_fuzzer = { path = "tooling/ast_fuzzer" }
 
 # Arkworks
 ark-bn254 = { version = "^0.5.0", default-features = false, features = [
