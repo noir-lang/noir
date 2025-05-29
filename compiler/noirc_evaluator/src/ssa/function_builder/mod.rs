@@ -42,7 +42,7 @@ pub struct FunctionBuilder {
     pub current_function: Function,
     current_block: BasicBlockId,
     current_block_closed: bool,
-    closed_blocked: HashSet<BasicBlockId>,
+    closed_blocked: HashSet<(FunctionId, BasicBlockId)>,
     finished_functions: Vec<Function>,
     call_stack: CallStackId,
     error_types: BTreeMap<ErrorSelector, HirType>,
@@ -131,7 +131,8 @@ impl FunctionBuilder {
         let call_stack = self.current_function.dfg.get_call_stack(self.call_stack);
         let mut new_function = Function::new(name, function_id);
         new_function.set_runtime(runtime_type);
-        self.current_block = new_function.entry_block();
+        self.switch_to_block(new_function.entry_block());
+
         let old_function = std::mem::replace(&mut self.current_function, new_function);
         // Copy the call stack to the new function
         self.call_stack =
@@ -205,8 +206,12 @@ impl FunctionBuilder {
     /// Prevents any further instructions from being added to the current block.
     /// That is, calls to add instructions can be called, but they will have no effect.
     pub fn close_block(&mut self) {
-        self.closed_blocked.insert(self.current_block);
+        self.closed_blocked.insert((self.current_function.id(), self.current_block));
         self.current_block_closed = true;
+    }
+
+    pub fn current_block_is_closed(&self) -> bool {
+        self.current_block_closed
     }
 
     /// Adds a parameter with the given type to the given block.
@@ -254,7 +259,8 @@ impl FunctionBuilder {
     /// instructions into a new function, call new_function instead.
     pub fn switch_to_block(&mut self, block: BasicBlockId) {
         self.current_block = block;
-        self.current_block_closed = self.closed_blocked.contains(&block);
+        self.current_block_closed =
+            self.closed_blocked.contains(&(self.current_function.id(), block));
     }
 
     /// Returns the block currently being inserted into

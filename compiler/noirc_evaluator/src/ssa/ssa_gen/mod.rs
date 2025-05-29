@@ -336,6 +336,12 @@ impl FunctionContext<'_> {
         let mut result = Self::unit_value();
         for expr in block {
             result = self.codegen_expression(expr)?;
+
+            // A break or continue might happen in a block, in which case we must
+            // not codegen any further expressions.
+            if self.builder.current_block_is_closed() {
+                break;
+            }
         }
         Ok(result)
     }
@@ -576,8 +582,11 @@ impl FunctionContext<'_> {
         // Compile the loop body
         self.builder.switch_to_block(loop_body);
         self.define(for_expr.index_variable, loop_index.into());
-        self.codegen_expression(&for_expr.block)?;
+
+        // Create the new loop index before the body, because the body might have a break or continue
+        // in it and we wouldn't be able to create it afterwards
         let new_loop_index = self.make_offset(loop_index, 1);
+        self.codegen_expression(&for_expr.block)?;
         self.builder.terminate_with_jmp(loop_entry, vec![new_loop_index]);
 
         // Finish by switching back to the end of the loop
@@ -1099,16 +1108,15 @@ impl FunctionContext<'_> {
     }
 
     fn codegen_break(&mut self) -> Values {
-        self.builder.close_block();
-
         let loop_end = self.current_loop().loop_end;
         self.builder.terminate_with_jmp(loop_end, Vec::new());
+
+        self.builder.close_block();
+
         Self::unit_value()
     }
 
     fn codegen_continue(&mut self) -> Values {
-        self.builder.close_block();
-
         let loop_ = self.current_loop();
 
         // Must remember to increment i before jumping
@@ -1118,6 +1126,9 @@ impl FunctionContext<'_> {
         } else {
             self.builder.terminate_with_jmp(loop_.loop_entry, vec![]);
         }
+
+        self.builder.close_block();
+
         Self::unit_value()
     }
 
