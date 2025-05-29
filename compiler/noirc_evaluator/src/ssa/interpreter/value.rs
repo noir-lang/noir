@@ -282,28 +282,25 @@ impl NumericValue {
             NumericType::Unsigned { bit_size: 128 } => {
                 constant.try_into_u128().map(Self::U128).ok_or(does_not_fit)
             }
-            // Signed cases are a bit weird. We want to allow all values in the corresponding
-            // unsigned range so we have to cast to the unsigned type first to see if it fits.
-            // If it does, any values `>= 2^N / 2` for `iN` are interpreted as negative.
             NumericType::Signed { bit_size: 8 } => constant
-                .try_into_u128()
-                .and_then(|x| u8::try_from(x).ok())
-                .map(|x| Self::I8(x as i8))
+                .try_into_i128()
+                .and_then(|x| x.try_into().ok())
+                .map(Self::I8)
                 .ok_or(does_not_fit),
             NumericType::Signed { bit_size: 16 } => constant
-                .try_into_u128()
-                .and_then(|x| u16::try_from(x).ok())
-                .map(|x| Self::I16(x as i16))
+                .try_into_i128()
+                .and_then(|x| x.try_into().ok())
+                .map(Self::I16)
                 .ok_or(does_not_fit),
             NumericType::Signed { bit_size: 32 } => constant
-                .try_into_u128()
-                .and_then(|x| u32::try_from(x).ok())
-                .map(|x| Self::I32(x as i32))
+                .try_into_i128()
+                .and_then(|x| x.try_into().ok())
+                .map(Self::I32)
                 .ok_or(does_not_fit),
             NumericType::Signed { bit_size: 64 } => constant
-                .try_into_u128()
-                .and_then(|x| u64::try_from(x).ok())
-                .map(|x| Self::I64(x as i64))
+                .try_into_i128()
+                .and_then(|x| x.try_into().ok())
+                .map(Self::I64)
                 .ok_or(does_not_fit),
             typ => Err(Internal(UnsupportedNumericType { typ })),
         }

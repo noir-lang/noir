@@ -1686,3 +1686,31 @@ fn signed_integer_casting_2() {
     let value = expect_value(src);
     assert_eq!(value, Value::Numeric(NumericValue::I64(89)));
 }
+
+#[test]
+fn signed_integer_inputs() {
+    use NumericValue::*;
+
+    let cases = [
+        ("i8", i8::MIN as i128, I8(i8::MIN), NumericType::signed(8)),
+        ("i16", i16::MIN as i128, I16(i16::MIN), NumericType::signed(16)),
+        ("i32", i32::MIN as i128, I32(i32::MIN), NumericType::signed(32)),
+        ("i64", i64::MIN as i128, I64(i64::MIN), NumericType::signed(64)),
+    ];
+
+    for (typ, val_i128, expected, num_type) in cases {
+        let src = format!(
+            r#"
+            acir(inline) predicate_pure fn main f0 {{
+              b0(v0: {typ}):
+                return v0
+            }}
+            "#,
+            typ = typ
+        );
+
+        let value = expect_value_with_args(&src, vec![from_constant(val_i128.into(), num_type)]);
+
+        assert_eq!(value, Value::Numeric(expected), "Failed for type: {typ}");
+    }
+}
