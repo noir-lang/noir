@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1748541954948,
+  "lastUpdate": 1748542725468,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -15306,48 +15306,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "asterite@gmail.com",
-            "name": "Ary Borenszweig",
-            "username": "asterite"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "72ce94beeac6d15b67141307bc38f9e2b0020b20",
-          "message": "fix!: better error message when cannot infer generic numeric type (#7843)\n\nCo-authored-by: Tom French <15848336+TomAFrench@users.noreply.github.com>",
-          "timestamp": "2025-05-21T18:34:52Z",
-          "tree_id": "786c56011c8db2e3eae5718d0dc4939f1b4158ba",
-          "url": "https://github.com/noir-lang/noir/commit/72ce94beeac6d15b67141307bc38f9e2b0020b20"
-        },
-        "date": 1747853828382,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 255611,
-            "range": "± 7392",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 223823,
-            "range": "± 1590",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 3213498,
-            "range": "± 34782",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "aakoshh@gmail.com",
             "name": "Akosh Farkash",
             "username": "aakoshh"
@@ -17399,6 +17357,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 3212300,
             "range": "± 1898",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "asterite@gmail.com",
+            "name": "Ary Borenszweig",
+            "username": "asterite"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "5d4a46c70aa1a716c8f2491765b7b4d1699e7565",
+          "message": "fix: general solution for accessing associated constants (#8417)",
+          "timestamp": "2025-05-29T17:55:03Z",
+          "tree_id": "737af492eb9fd84537dbbfcda291f344a39a973a",
+          "url": "https://github.com/noir-lang/noir/commit/5d4a46c70aa1a716c8f2491765b7b4d1699e7565"
+        },
+        "date": 1748542714905,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 255689,
+            "range": "± 902",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 228042,
+            "range": "± 6103",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 3564624,
+            "range": "± 17112",
             "unit": "ns/iter"
           }
         ]
