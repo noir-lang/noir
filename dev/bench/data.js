@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1748521296382,
+  "lastUpdate": 1748521333354,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -8842,75 +8842,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "15848336+TomAFrench@users.noreply.github.com",
-            "name": "Tom French",
-            "username": "TomAFrench"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "c89efcb9e7266103ac47204e23fde74c7c076cc0",
-          "message": "chore: bump bb to 0.87.0 (#8506)\n\nCo-authored-by: AztecBot <tech@aztecprotocol.com>",
-          "timestamp": "2025-05-21T13:58:55Z",
-          "tree_id": "72ea6e57b1e2f83ac7ca0e7d932b9b42a9c23328",
-          "url": "https://github.com/noir-lang/noir/commit/c89efcb9e7266103ac47204e23fde74c7c076cc0"
-        },
-        "date": 1747837808702,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 240.77,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 263.02,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 216.27,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 547.95,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 540.41,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 1440,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 369.9,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-root",
-            "value": 375.9,
-            "unit": "MB"
-          },
-          {
-            "name": "semaphore_depth_10",
-            "value": 92.92,
-            "unit": "MB"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "asterite@gmail.com",
             "name": "Ary Borenszweig",
             "username": "asterite"
@@ -11520,6 +11451,75 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/noir-lang/noir/commit/f5f2ac354855cbd4061520712ba5798cedbf7928"
         },
         "date": 1748521284820,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 246.19,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 270.04,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 221.33,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 580.06,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 576.38,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 1460,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 401.73,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-root",
+            "value": 407.3,
+            "unit": "MB"
+          },
+          {
+            "name": "semaphore_depth_10",
+            "value": 92.96,
+            "unit": "MB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "rkarabut@users.noreply.github.com",
+            "name": "Ratmir Karabut",
+            "username": "rkarabut"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "af2e5c9cd9933268fc91fda93e8bbd6b1f61004a",
+          "message": "fix(fuzz): Prevent breaking/continuing out from let blocks in the AST fuzzer (#8708)",
+          "timestamp": "2025-05-29T11:48:46Z",
+          "tree_id": "d65cb9c14f7121a734ab9a1d3efddb344e6b31c6",
+          "url": "https://github.com/noir-lang/noir/commit/af2e5c9cd9933268fc91fda93e8bbd6b1f61004a"
+        },
+        "date": 1748521322373,
         "tool": "customSmallerIsBetter",
         "benches": [
           {
