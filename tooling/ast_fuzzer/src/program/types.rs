@@ -21,6 +21,7 @@ pub(crate) fn type_depth(typ: &Type) -> usize {
         Type::Field | Type::Bool | Type::String(_) | Type::Unit | Type::Integer(_, _) => 0,
         Type::Array(_, typ) => 1 + type_depth(typ),
         Type::Tuple(types) => 1 + types.iter().map(type_depth).max().unwrap_or_default(),
+        Type::Reference(typ, _) => 1 + type_depth(typ.as_ref()),
         _ => unreachable!("unexpected type: {typ}"),
     }
 }
@@ -188,13 +189,51 @@ pub(crate) fn is_reference(typ: &Type) -> bool {
     matches!(typ, Type::Reference(_, _))
 }
 
+/// Check if tye type is a function.
+pub(crate) fn is_function(typ: &Type) -> bool {
+    matches!(typ, Type::Function(_, _, _, _))
+}
+
+/// Get the underlying type, if the type is a reference.
+pub(crate) fn as_reference(typ: &Type) -> Option<&Type> {
+    if let Type::Reference(typ, _) = typ { Some(typ.as_ref()) } else { None }
+}
+
+/// Check if the type contains any references.
+pub(crate) fn contains_reference(typ: &Type) -> bool {
+    match typ {
+        Type::Reference(_, _) => true,
+        Type::Field
+        | Type::Integer(_, _)
+        | Type::Bool
+        | Type::String(_)
+        | Type::Unit
+        | Type::FmtString(_, _)
+        | Type::Function(_, _, _, _) => false,
+        Type::Array(_, typ) | Type::Slice(typ) => contains_reference(typ),
+        Type::Tuple(types) => types.iter().any(contains_reference),
+    }
+}
+
+/// Check if the type matches some predicate, or if it's a reference,
+/// then whether underlying type does, recursively.
+pub(crate) fn matches_self_or_ref(typ: &Type, f: impl Fn(&Type) -> bool) -> bool {
+    if f(typ) {
+        return true;
+    }
+    if let Some(typ) = as_reference(typ) {
+        return matches_self_or_ref(typ, f);
+    }
+    false
+}
+
 /// Check if the type can be used with a `println` statement.
 pub(crate) fn is_printable(typ: &Type) -> bool {
     match typ {
         Type::Reference(_, _) => false,
         Type::Field | Type::Integer(_, _) | Type::String(_) | Type::Bool | Type::Unit => true,
         Type::Slice(typ) | Type::Array(_, typ) | Type::FmtString(_, typ) => is_printable(typ),
-        Type::Tuple(typs) => typs.iter().all(is_printable),
+        Type::Tuple(types) => types.iter().all(is_printable),
         // Function signatures are printable, although they might differ when we force things to be Brillig.
         Type::Function(_, _, _, _) => true,
     }
@@ -279,7 +318,8 @@ pub(crate) fn can_binary_op_return_from_input(op: &BinaryOp, input: &Type, outpu
                 || op.is_bitshift() && size != 128 && !(size == 1 && sign_in.is_signed())
                 || op.is_bitwise()
         }
-        (Type::Reference(typ, _), _) => can_binary_op_return_from_input(op, typ, output),
+        // Reference types need to be dereferenced to participate in binary operations.
+        (Type::Reference(_, _), _) => false,
         _ => false,
     }
 }

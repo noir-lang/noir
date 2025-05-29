@@ -196,7 +196,7 @@ impl Context {
             self.function_declarations
                 .iter()
                 .filter_map(|(callee_id, callee)| {
-                    can_call(id, unconstrained, *callee_id, callee.unconstrained)
+                    can_call(id, unconstrained, *callee_id, callee.unconstrained, callee.has_refs())
                         .then_some(*callee_id)
                 })
                 .collect()
@@ -207,7 +207,6 @@ impl Context {
         for p in 0..num_params {
             let id = LocalId(p as u32);
             let name = make_name(p, false);
-            let is_mutable = !is_main && bool::arbitrary(u)?;
 
             let typ = if func_param_candidates.is_empty() || u.ratio(7, 10)? {
                 // Take some kind of data type.
@@ -224,12 +223,20 @@ impl Context {
                 let callee_id = u.choose_iter(&func_param_candidates)?;
                 let callee = &self.function_declarations[callee_id];
                 let param_types = callee.params.iter().map(|p| p.3.clone()).collect::<Vec<_>>();
-                Type::Function(
+                let typ = Type::Function(
                     param_types,
                     Box::new(callee.return_type.clone()),
                     Box::new(Type::Unit),
                     callee.unconstrained,
-                )
+                );
+                if u.ratio(2, 5)? { types::ref_mut(typ) } else { typ }
+            };
+
+            // Not sure if a mutability of the parameter has to match the mutability of a reference type.
+            let is_mutable = if let Type::Reference(_, mutable) = typ {
+                mutable
+            } else {
+                !is_main && bool::arbitrary(u)?
             };
 
             let visibility = if is_main {
@@ -475,6 +482,12 @@ impl Context {
                 break;
             }
         }
+
+        if !is_main && !is_global && u.ratio(1, 5)? {
+            // Read-only references require the experimental "ownership" feature.
+            typ = types::ref_mut(typ);
+        }
+
         self.types.insert(typ.clone());
 
         Ok(typ)

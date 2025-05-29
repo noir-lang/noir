@@ -94,6 +94,11 @@ pub fn gen_literal(u: &mut Unstructured, typ: &Type) -> arbitrary::Result<Expres
             }
             Expression::Tuple(values)
         }
+        Type::Reference(typ, mutable) => {
+            // In Noir we can return a reference for a value created in a function.
+            let value = gen_literal(u, typ.as_ref())?;
+            unary(UnaryOp::Reference { mutable: *mutable }, value, typ.as_ref().clone())
+        }
         _ => unreachable!("unexpected type to generate a literal for: {typ}"),
     };
     Ok(expr)

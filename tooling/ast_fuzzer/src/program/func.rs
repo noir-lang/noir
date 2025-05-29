@@ -57,6 +57,12 @@ impl FunctionDeclaration {
 
         (param_types, return_type)
     }
+
+    /// Check if any of the parameters or return value contain a reference.
+    pub(super) fn has_refs(&self) -> bool {
+        self.params.iter().any(|(_, _, _, typ, _)| types::contains_reference(typ))
+            || types::contains_reference(&self.return_type)
+    }
 }
 
 /// HIR representation of a function parameter.
@@ -87,20 +93,11 @@ pub(super) fn can_call(
     caller_unconstrained: bool,
     callee_id: FuncId,
     callee_unconstrained: bool,
+    callee_has_refs: bool,
 ) -> bool {
     // Nobody should call `main`.
     if callee_id == Program::main_id() {
         return false;
-    }
-
-    // From an ACIR function we can call any Brillig function,
-    // but we avoid creating infinite recursive ACIR calls by
-    // only calling functions with lower IDs than ours,
-    // otherwise the inliner could get stuck.
-    if !caller_unconstrained && !callee_unconstrained {
-        // Higher calls lower, so we can use this rule to pick function parameters
-        // as we create the declarations: we can pass functions already declared.
-        return callee_id < caller_id;
     }
 
     // From a Brillig function we restrict ourselves to only call
@@ -115,7 +112,18 @@ pub(super) fn can_call(
         return callee_unconstrained;
     }
 
-    true
+    // When calling ACIR from ACIR, we avoid creating infinite
+    // recursion by only calling functions with lower IDs,
+    // otherwise the inliner could get stuck.
+    if !callee_unconstrained {
+        // Higher calls lower, so we can use this rule to pick function parameters
+        // as we create the declarations: we can pass functions already declared.
+        return callee_id < caller_id;
+    }
+
+    // When calling Brillig from ACIR, we avoid calling functions that take or return
+    // references, which cannot be passed between the two.
+    !callee_has_refs
 }
 
 /// Control what kind of expressions we can generate, depending on the surrounding context.
@@ -193,7 +201,13 @@ impl<'a> FunctionContext<'a> {
 
         // Consider calling any allowed global function.
         for (callee_id, callee_decl) in &ctx.function_declarations {
-            if !can_call(id, decl.unconstrained, *callee_id, callee_decl.unconstrained) {
+            if !can_call(
+                id,
+                decl.unconstrained,
+                *callee_id,
+                callee_decl.unconstrained,
+                callee_decl.has_refs(),
+            ) {
                 continue;
             }
             let produces = types::types_produced(&callee_decl.return_type);
@@ -297,6 +311,14 @@ impl<'a> FunctionContext<'a> {
                 return Ok(Some(VariableId::Local(id)));
             }
         }
+        if let Type::Reference(typ, true) = typ {
+            // Find an underlying mutable variable we can take a reference over.
+            return self
+                .locals
+                .current()
+                .choose_producer_filtered(u, typ.as_ref(), |_, (mutable, _, _)| *mutable)
+                .map(|id| id.map(VariableId::Local));
+        }
         self.globals.choose_producer(u, typ).map(|id| id.map(VariableId::Global))
     }
 
@@ -336,13 +358,21 @@ impl<'a> FunctionContext<'a> {
         // We could replace `brillig_func_2` with `brillig_func_2_proxy`, but we wouldn't replace `brillig_func_4` with `brillig_func_4_proxy`
         // because that is a parameter of another call. But we would have to deal with the return value.
         // For this reason we handle function parameters directly here.
-        if matches!(typ, Type::Function(_, _, _, _)) {
-            // Prefer functions in variables over globals.
-            return match self.gen_expr_from_vars(u, typ, max_depth)? {
-                Some(expr) => Ok(expr),
-                None => self.find_global_function_with_signature(u, typ),
-            };
-        }
+        if types::matches_self_or_ref(typ, types::is_function) {
+            if let Some(typ) = types::as_reference(typ) {
+                // We might have an `&mut &mut fn(...) -> ...`; we recursively peel
+                // off layers of references until we can generate an expression that
+                // returns an `fn`, and then take a reference over it to restore.
+                let expr = self.gen_expr(u, typ, max_depth, flags)?;
+                return Ok(expr::ref_mut(expr, typ.clone()));
+            } else {
+                // Prefer functions in variables over globals.
+                return match self.gen_expr_from_vars(u, typ, max_depth)? {
+                    Some(expr) => Ok(expr),
+                    None => self.find_global_function_with_signature(u, typ),
+                };
+            }
+        };
 
         let mut freq = Freq::new(u, &self.ctx.config.expr_freqs)?;
 
@@ -477,12 +507,10 @@ impl<'a> FunctionContext<'a> {
                 src_as_tgt()
             }
             (Type::Reference(typ, _), _) if typ.as_ref() == tgt_type => {
-                let e = if bool::arbitrary(u)? {
-                    Expression::Clone(Box::new(src_expr))
-                } else {
-                    expr::deref(src_expr, tgt_type.clone())
-                };
-                Ok(Some(e))
+                Ok(Some(expr::deref(src_expr, tgt_type.clone())))
+            }
+            (_, Type::Reference(typ, true)) if typ.as_ref() == src_type => {
+                Ok(Some(expr::ref_mut(src_expr, typ.as_ref().clone())))
             }
             (Type::Array(len, item_typ), _) if *len > 0 => {
                 // Choose a random index.
