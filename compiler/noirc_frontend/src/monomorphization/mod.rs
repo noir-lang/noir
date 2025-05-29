@@ -2514,7 +2514,7 @@ pub fn perform_impl_bindings(
 }
 
 pub fn resolve_trait_method(
-    interner: &NodeInterner,
+    interner: &mut NodeInterner,
     method: TraitMethodId,
     expr_id: ExprId,
 ) -> Result<node_interner::FuncId, InterpreterError> {
@@ -2534,7 +2534,14 @@ pub fn resolve_trait_method(
                 &trait_generics.ordered,
                 &trait_generics.named,
             ) {
-                Ok((TraitImplKind::Normal(impl_id), _instantiation_bindings)) => impl_id,
+                Ok((TraitImplKind::Normal(impl_id), instantiation_bindings)) => {
+                    // Insert any additional instantiation bindings into this expression's instantiation bindings.
+                    // This is similar to what's done in `verify_trait_constraint` in the frontend.
+                    let mut bindings = interner.get_instantiation_bindings(expr_id).clone();
+                    bindings.extend(instantiation_bindings);
+                    interner.store_instantiation_bindings(expr_id, bindings);
+                    impl_id
+                }
                 Ok((TraitImplKind::Assumed { .. }, _instantiation_bindings)) => {
                     return Err(InterpreterError::NoImpl { location });
                 }

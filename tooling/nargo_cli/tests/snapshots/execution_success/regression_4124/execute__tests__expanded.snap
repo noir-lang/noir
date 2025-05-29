@@ -2,7 +2,7 @@
 source: tooling/nargo_cli/tests/execute.rs
 expression: expanded_code
 ---
-use std::prelude::Option;
+use std::option::Option;
 
 trait MyDeserialize<let N: u32> {
     fn deserialize(fields: [Field; N]) -> Self;

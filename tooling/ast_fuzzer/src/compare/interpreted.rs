@@ -160,7 +160,7 @@ impl Comparable for ssa::interpreter::value::Value {
 }
 
 /// Convert the ABI encoded inputs to what the SSA interpreter expects.
-fn input_values_to_ssa(abi: &Abi, input_map: &InputMap) -> Vec<ssa::interpreter::value::Value> {
+pub fn input_values_to_ssa(abi: &Abi, input_map: &InputMap) -> Vec<ssa::interpreter::value::Value> {
     let mut inputs = Vec::new();
     for param in &abi.parameters {
         let input = &input_map

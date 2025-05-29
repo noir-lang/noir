@@ -718,14 +718,6 @@ impl<'a> FunctionContext<'a> {
         }
 
         if self.unconstrained() {
-            // For now only try prints in unconstrained code, were we don't need to create a proxy.
-            // We don't use this in comptime because comptime prints to stdout which is currently not captured.
-            if freq.enabled_when("print", !self.is_comptime_friendly()) {
-                if let Some(e) = self.gen_print(u)? {
-                    return Ok(e);
-                }
-            }
-
             // Get loop out of the way quick, as it's always disabled for ACIR.
             if freq.enabled_when("loop", self.budget > 1) {
                 return self.gen_loop(u);
@@ -741,6 +733,13 @@ impl<'a> FunctionContext<'a> {
 
             if freq.enabled_when("continue", self.in_loop && !self.ctx.config.avoid_loop_control) {
                 return Ok(Expression::Continue);
+            }
+
+            // For now only try prints in unconstrained code, were we don't need to create a proxy.
+            if freq.enabled("print") {
+                if let Some(e) = self.gen_print(u)? {
+                    return Ok(e);
+                }
             }
         }
 
@@ -759,7 +758,14 @@ impl<'a> FunctionContext<'a> {
         let max_depth = self.max_depth();
         let comptime_friendly = self.is_comptime_friendly();
         let typ = self.ctx.gen_type(u, max_depth, false, false, true, comptime_friendly)?;
+
+        // Temporarily set in_loop to false to disallow breaking/continuing out
+        // of the let blocks (which would lead to frontend errors when reversing
+        // the AST into Noir)
+        let was_in_loop = std::mem::replace(&mut self.in_loop, false);
         let expr = self.gen_expr(u, &typ, max_depth, Flags::TOP)?;
+        self.in_loop = was_in_loop;
+
         let mutable = bool::arbitrary(u)?;
         Ok(self.let_var(mutable, typ, expr, true))
     }
