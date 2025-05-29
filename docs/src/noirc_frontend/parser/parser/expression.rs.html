@@ -2548,11 +2548,11 @@
         <span class="kw">let </span>typ = <span class="self">self</span>.parse_type_or_error();
         <span class="kw">if </span><span class="self">self</span>.eat_keyword(Keyword::As) {
             <span class="kw">let </span>as_trait_path = <span class="self">self</span>.parse_as_trait_path_for_type_after_as_keyword(typ);
-            <span class="prelude-val">Some</span>(ExpressionKind::AsTraitPath(as_trait_path))
+            <span class="prelude-val">Some</span>(ExpressionKind::AsTraitPath(Box::new(as_trait_path)))
         } <span class="kw">else </span>{
             <span class="self">self</span>.eat_or_error(Token::Greater);
             <span class="kw">let </span>type_path = <span class="self">self</span>.parse_type_path_expr_for_type(typ);
-            <span class="prelude-val">Some</span>(ExpressionKind::TypePath(type_path))
+            <span class="prelude-val">Some</span>(ExpressionKind::TypePath(Box::new(type_path)))
         }
     }
 
@@ -2826,7 +2826,7 @@
         <span class="kw">let </span>typ = UnresolvedType { typ, location };
 
         <span class="kw">if </span><span class="self">self</span>.at(Token::DoubleColon) {
-            <span class="prelude-val">Some</span>(ExpressionKind::TypePath(<span class="self">self</span>.parse_type_path_expr_for_type(typ)))
+            <span class="prelude-val">Some</span>(ExpressionKind::TypePath(Box::new(<span class="self">self</span>.parse_type_path_expr_for_type(typ))))
         } <span class="kw">else </span>{
             <span class="comment">// This is the case when we find `Field` or `i32` but `::` doesn't follow it.
             </span><span class="self">self</span>.push_error(ParserErrorReason::ExpectedValueFoundBuiltInType { typ }, location);
@@ -3031,7 +3031,7 @@
 
                 <span class="self">self</span>.push_error(ParserErrorReason::MissingAngleBrackets, location);
 
-                <span class="kw">return </span><span class="prelude-val">Some</span>(ExpressionKind::TypePath(type_path));
+                <span class="kw">return </span><span class="prelude-val">Some</span>(ExpressionKind::TypePath(Box::new(type_path)));
             }
 
             <span class="kw">return </span><span class="prelude-val">Some</span>(ExpressionKind::Literal(Literal::Unit));

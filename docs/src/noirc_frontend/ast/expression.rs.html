@@ -939,8 +939,8 @@
     Unquote(Box&lt;Expression&gt;),
     Comptime(BlockExpression, Location),
     Unsafe(UnsafeExpression),
-    AsTraitPath(AsTraitPath),
-    TypePath(TypePath),
+    AsTraitPath(Box&lt;AsTraitPath&gt;),
+    TypePath(Box&lt;TypePath&gt;),
 
     <span class="comment">// This variant is only emitted when inlining the result of comptime
     // code. It is used to translate function values back into the AST while

@@ -2713,10 +2713,10 @@
                 </span>));
             }
             ExpressionKind::AsTraitPath(as_trait_path) =&gt; {
-                group.text(<span class="self">self</span>.chunk(|formatter| formatter.format_as_trait_path(as_trait_path)));
+                group.text(<span class="self">self</span>.chunk(|formatter| formatter.format_as_trait_path(<span class="kw-2">*</span>as_trait_path)));
             }
             ExpressionKind::TypePath(type_path) =&gt; {
-                group.group(<span class="self">self</span>.format_type_path(type_path));
+                group.group(<span class="self">self</span>.format_type_path(<span class="kw-2">*</span>type_path));
             }
             ExpressionKind::Resolved(..)
             | ExpressionKind::Interned(..)

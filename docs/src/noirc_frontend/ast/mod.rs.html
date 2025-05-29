@@ -610,9 +610,7 @@
 <a href="#609" id="609">609</a>
 <a href="#610" id="610">610</a>
 <a href="#611" id="611">611</a>
-<a href="#612" id="612">612</a>
-<a href="#613" id="613">613</a>
-<a href="#614" id="614">614</a></pre></div><pre class="rust"><code><span class="doccomment">//! The submodules of this module define the various data types required to
+<a href="#612" id="612">612</a></pre></div><pre class="rust"><code><span class="doccomment">//! The submodules of this module define the various data types required to
 //! represent Noir's Ast. Of particular importance are ExpressionKind and Statement
 //! which can be found in expression.rs and statement.rs respectively.
 //!
@@ -1176,9 +1174,7 @@
                 };
                 <span class="prelude-val">Ok</span>(UnresolvedTypeExpression::BinaryOperation(lhs, op, rhs, expr.location))
             }
-            ExpressionKind::AsTraitPath(path) =&gt; {
-                <span class="prelude-val">Ok</span>(UnresolvedTypeExpression::AsTraitPath(Box::new(path)))
-            }
+            ExpressionKind::AsTraitPath(path) =&gt; <span class="prelude-val">Ok</span>(UnresolvedTypeExpression::AsTraitPath(path)),
             ExpressionKind::Parenthesized(expr) =&gt; <span class="self">Self</span>::from_expr_helper(<span class="kw-2">*</span>expr),
             <span class="kw">_ </span>=&gt; <span class="prelude-val">Err</span>(expr),
         }

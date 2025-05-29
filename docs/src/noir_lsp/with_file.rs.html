@@ -1697,10 +1697,10 @@
             })
         }
         ExpressionKind::AsTraitPath(as_trait_path) =&gt; {
-            ExpressionKind::AsTraitPath(as_trait_path_with_file(as_trait_path, file))
+            ExpressionKind::AsTraitPath(Box::new(as_trait_path_with_file(<span class="kw-2">*</span>as_trait_path, file)))
         }
         ExpressionKind::TypePath(type_path) =&gt; {
-            ExpressionKind::TypePath(type_path_with_file(type_path, file))
+            ExpressionKind::TypePath(Box::new(type_path_with_file(<span class="kw-2">*</span>type_path, file)))
         }
         ExpressionKind::Resolved(..)
         | ExpressionKind::Interned(..)

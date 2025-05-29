@@ -1549,9 +1549,9 @@
                 (HirExpression::Error, Type::Error)
             }
             ExpressionKind::AsTraitPath(path) =&gt; {
-                <span class="kw">return </span><span class="self">self</span>.elaborate_as_trait_path(path);
+                <span class="kw">return </span><span class="self">self</span>.elaborate_as_trait_path(<span class="kw-2">*</span>path);
             }
-            ExpressionKind::TypePath(path) =&gt; <span class="kw">return </span><span class="self">self</span>.elaborate_type_path(path),
+            ExpressionKind::TypePath(path) =&gt; <span class="kw">return </span><span class="self">self</span>.elaborate_type_path(<span class="kw-2">*</span>path),
         };
         <span class="kw">let </span>id = <span class="self">self</span>.interner.push_expr(hir_expr);
         <span class="self">self</span>.interner.push_expr_location(id, expr.location);
