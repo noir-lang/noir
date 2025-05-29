@@ -21,6 +21,8 @@ pub fn fuzz(u: &mut Unstructured) -> eyre::Result<()> {
         avoid_err_by_zero: true,
         // and it gets old to have to edit u128 to fit into u32 for the frontend to parse
         avoid_large_int_literals: true,
+        // Avoid break/continue
+        avoid_loop_control: true,
         // Has to only use expressions valid in comptime
         comptime_friendly: true,
         // Force brillig
