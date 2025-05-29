@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1748520470464,
+  "lastUpdate": 1748520609454,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -15216,48 +15216,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "15848336+TomAFrench@users.noreply.github.com",
-            "name": "Tom French",
-            "username": "TomAFrench"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "c89efcb9e7266103ac47204e23fde74c7c076cc0",
-          "message": "chore: bump bb to 0.87.0 (#8506)\n\nCo-authored-by: AztecBot <tech@aztecprotocol.com>",
-          "timestamp": "2025-05-21T13:58:55Z",
-          "tree_id": "72ea6e57b1e2f83ac7ca0e7d932b9b42a9c23328",
-          "url": "https://github.com/noir-lang/noir/commit/c89efcb9e7266103ac47204e23fde74c7c076cc0"
-        },
-        "date": 1747837269321,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 253974,
-            "range": "± 3833",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 223691,
-            "range": "± 2445",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 3563286,
-            "range": "± 29476",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "asterite@gmail.com",
             "name": "Ary Borenszweig",
             "username": "asterite"
@@ -17309,6 +17267,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 3565668,
             "range": "± 10946",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "rkarabut@users.noreply.github.com",
+            "name": "Ratmir Karabut",
+            "username": "rkarabut"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "af2e5c9cd9933268fc91fda93e8bbd6b1f61004a",
+          "message": "fix(fuzz): Prevent breaking/continuing out from let blocks in the AST fuzzer (#8708)",
+          "timestamp": "2025-05-29T11:48:46Z",
+          "tree_id": "d65cb9c14f7121a734ab9a1d3efddb344e6b31c6",
+          "url": "https://github.com/noir-lang/noir/commit/af2e5c9cd9933268fc91fda93e8bbd6b1f61004a"
+        },
+        "date": 1748520599129,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 261223,
+            "range": "± 1134",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 232225,
+            "range": "± 11625",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 3572975,
+            "range": "± 12818",
             "unit": "ns/iter"
           }
         ]
