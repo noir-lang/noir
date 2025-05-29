@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1748540066798,
+  "lastUpdate": 1748540068546,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -8842,75 +8842,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "jfecher11@gmail.com",
-            "name": "jfecher",
-            "username": "jfecher"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "4ee2d1295cfd8a16f002969eebc4cb77e9551ee8",
-          "message": "fix: Prevent negative zero (#8511)\n\nCo-authored-by: Ratmir Karabut <rkarabut@users.noreply.github.com>\nCo-authored-by: Jake Fecher <jake@aztecprotocol.com>\nCo-authored-by: Tom French <15848336+TomAFrench@users.noreply.github.com>",
-          "timestamp": "2025-05-21T17:15:42Z",
-          "tree_id": "b65671246f046d0ad674f5c18270279f1962d6af",
-          "url": "https://github.com/noir-lang/noir/commit/4ee2d1295cfd8a16f002969eebc4cb77e9551ee8"
-        },
-        "date": 1747849780172,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 240.77,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 263.02,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 216.27,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 547.95,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 540.41,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 1440,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 369.9,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-root",
-            "value": 375.9,
-            "unit": "MB"
-          },
-          {
-            "name": "semaphore_depth_10",
-            "value": 92.92,
-            "unit": "MB"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "asterite@gmail.com",
             "name": "Ary Borenszweig",
             "username": "asterite"
@@ -11535,6 +11466,75 @@ window.BENCHMARK_DATA = {
           {
             "name": "private-kernel-tail",
             "value": 221.33,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 580.06,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 576.38,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 1460,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 401.73,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-root",
+            "value": 407.3,
+            "unit": "MB"
+          },
+          {
+            "name": "semaphore_depth_10",
+            "value": 92.96,
+            "unit": "MB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "15848336+TomAFrench@users.noreply.github.com",
+            "name": "Tom French",
+            "username": "TomAFrench"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "d97eea314a13c407af79ef7815332c52eec4ab22",
+          "message": "chore: add pre- and post-check on `array_set` optimization pass (#8714)\n\nCo-authored-by: Ary Borenszweig <asterite@gmail.com>",
+          "timestamp": "2025-05-29T17:00:16Z",
+          "tree_id": "e968bd6dd54933fa1b17709d829d601f83152cbd",
+          "url": "https://github.com/noir-lang/noir/commit/d97eea314a13c407af79ef7815332c52eec4ab22"
+        },
+        "date": 1748540056572,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 246.19,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 270.04,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 221.34,
             "unit": "MB"
           },
           {
