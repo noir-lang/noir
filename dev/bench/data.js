@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1748543464564,
+  "lastUpdate": 1748543467677,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -3105,35 +3105,6 @@ window.BENCHMARK_DATA = {
       }
     ],
     "Compilation Time": [
-      {
-        "commit": {
-          "author": {
-            "email": "aakoshh@gmail.com",
-            "name": "Akosh Farkash",
-            "username": "aakoshh"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "9509cc495131cc1b5c55026df6acc83d53ebe0c4",
-          "message": "feat(fuzz): Generate println statements in unconstrained code (#8604)",
-          "timestamp": "2025-05-21T18:45:41Z",
-          "tree_id": "cdc6591d97e59b1408b8d9964a1f587745af2c71",
-          "url": "https://github.com/noir-lang/noir/commit/9509cc495131cc1b5c55026df6acc83d53ebe0c4"
-        },
-        "date": 1747854953432,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "semaphore-depth-10",
-            "value": 0.856,
-            "unit": "s"
-          }
-        ]
-      },
       {
         "commit": {
           "author": {
@@ -6251,6 +6222,85 @@ window.BENCHMARK_DATA = {
           {
             "name": "semaphore-depth-10",
             "value": 0.811,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "15848336+TomAFrench@users.noreply.github.com",
+            "name": "Tom French",
+            "username": "TomAFrench"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "04e3415e9860bd6c16bb6d2945a91290b8475ec5",
+          "message": "chore: box `AsTraitPath` and `TypePath` in `ExpressionKind` (#8716)",
+          "timestamp": "2025-05-29T18:04:07Z",
+          "tree_id": "9b713bb7627962ca28e5a0d95051447142394305",
+          "url": "https://github.com/noir-lang/noir/commit/04e3415e9860bd6c16bb6d2945a91290b8475ec5"
+        },
+        "date": 1748543457026,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 2.454,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 7.168,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 1.058,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 16.66,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 15.08,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-empty",
+            "value": 1.29,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-single-tx",
+            "value": 130,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 123,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 1.1,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-root",
+            "value": 1.592,
+            "unit": "s"
+          },
+          {
+            "name": "semaphore-depth-10",
+            "value": 0.821,
             "unit": "s"
           }
         ]
