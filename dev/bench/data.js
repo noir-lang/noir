@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1748521335843,
+  "lastUpdate": 1748531580546,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -15216,48 +15216,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "asterite@gmail.com",
-            "name": "Ary Borenszweig",
-            "username": "asterite"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "4b5e356b31bae3c60a2f6c25df0a941836e702ab",
-          "message": "fix(SSA): disallow using `lt` with fields (#8585)",
-          "timestamp": "2025-05-21T14:32:56Z",
-          "tree_id": "ed56d48679f8f5ec37078865086964c97a5c4a69",
-          "url": "https://github.com/noir-lang/noir/commit/4b5e356b31bae3c60a2f6c25df0a941836e702ab"
-        },
-        "date": 1747839508749,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 254584,
-            "range": "± 545",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 224594,
-            "range": "± 1960",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 3211684,
-            "range": "± 897",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "15848336+TomAFrench@users.noreply.github.com",
             "name": "Tom French",
             "username": "TomAFrench"
@@ -17309,6 +17267,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 3572975,
             "range": "± 12818",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "asterite@gmail.com",
+            "name": "Ary Borenszweig",
+            "username": "asterite"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "8665abe6694c8641fb0e999c9b5d420290f5bbec",
+          "message": "fix(fmt): correct indentation when formatting long struct patterns (#8711)",
+          "timestamp": "2025-05-29T14:51:07Z",
+          "tree_id": "872db9baa409764d0134f3336ea2d3b1a1b8e685",
+          "url": "https://github.com/noir-lang/noir/commit/8665abe6694c8641fb0e999c9b5d420290f5bbec"
+        },
+        "date": 1748531569674,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 259989,
+            "range": "± 2177",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 226052,
+            "range": "± 1636",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 3564730,
+            "range": "± 3154",
             "unit": "ns/iter"
           }
         ]
