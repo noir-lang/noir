@@ -384,7 +384,10 @@ impl<'a> FunctionContext<'a> {
             && max_depth == self.ctx.config.max_depth
             && self.budget > 0;
 
-        let allow_if_then = flags.allow_if_then && allow_nested && self.budget > 0;
+        let allow_if_then = flags.allow_if_then
+            && allow_nested
+            && self.budget > 0
+            && !types::contains_reference(typ);
 
         if freq.enabled_when("unary", allow_nested && types::can_unary_return(typ)) {
             if let Some(expr) = self.gen_unary(u, typ, max_depth)? {
