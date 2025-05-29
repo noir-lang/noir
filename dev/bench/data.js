@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1748532415005,
+  "lastUpdate": 1748532769188,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -15216,48 +15216,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "15848336+TomAFrench@users.noreply.github.com",
-            "name": "Tom French",
-            "username": "TomAFrench"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "34350e88722b1d4e684d98b16165223b538c63cd",
-          "message": "chore: clippy fixes (#8600)",
-          "timestamp": "2025-05-21T14:57:58Z",
-          "tree_id": "f0cdb632d6d97349ed91505ed22f123e30f8dafa",
-          "url": "https://github.com/noir-lang/noir/commit/34350e88722b1d4e684d98b16165223b538c63cd"
-        },
-        "date": 1747840936260,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 271355,
-            "range": "± 1551",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 236238,
-            "range": "± 2428",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 3234581,
-            "range": "± 2315",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "jfecher11@gmail.com",
             "name": "jfecher",
             "username": "jfecher"
@@ -17309,6 +17267,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 3564730,
             "range": "± 3154",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "asterite@gmail.com",
+            "name": "Ary Borenszweig",
+            "username": "asterite"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "89783b6a962faad6838e249c933caa1f16a6cae3",
+          "message": "fix: better way to do LSP file overrides (#8702)",
+          "timestamp": "2025-05-29T15:08:50Z",
+          "tree_id": "798bce991c8eb22cff4e52507c53cfba5dfc0590",
+          "url": "https://github.com/noir-lang/noir/commit/89783b6a962faad6838e249c933caa1f16a6cae3"
+        },
+        "date": 1748532758767,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 255579,
+            "range": "± 358",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 223669,
+            "range": "± 1825",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 3564281,
+            "range": "± 2088",
             "unit": "ns/iter"
           }
         ]
