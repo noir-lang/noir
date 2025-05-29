@@ -2603,7 +2603,10 @@
 <a href="#2602" id="2602">2602</a>
 <a href="#2603" id="2603">2603</a>
 <a href="#2604" id="2604">2604</a>
-<a href="#2605" id="2605">2605</a></pre></div><pre class="rust"><code><span class="kw">use </span>noirc_frontend::{
+<a href="#2605" id="2605">2605</a>
+<a href="#2606" id="2606">2606</a>
+<a href="#2607" id="2607">2607</a>
+<a href="#2608" id="2608">2608</a></pre></div><pre class="rust"><code><span class="kw">use </span>noirc_frontend::{
     ast::{
         ArrayLiteral, BinaryOpKind, BlockExpression, CallExpression, CastExpression,
         ConstrainExpression, ConstrainKind, ConstructorExpression, Expression, ExpressionKind,
@@ -2832,12 +2835,15 @@
                     formatter.write_comma();
                     formatter.write_space();
                 }
-                formatter.format_pattern(pattern);
+                <span class="kw">let </span><span class="kw-2">mut </span>pattern_and_type_group = formatter.format_pattern(pattern);
                 <span class="kw">if </span>typ.typ != UnresolvedTypeData::Unspecified {
-                    formatter.write_token(Token::Colon);
-                    formatter.write_space();
-                    formatter.format_type(typ);
+                    pattern_and_type_group.text(formatter.chunk_formatter().chunk(|formatter| {
+                        formatter.write_token(Token::Colon);
+                        formatter.write_space();
+                        formatter.format_type(typ);
+                    }));
                 }
+                formatter.format_chunk_group(pattern_and_type_group);
             }
             formatter.skip_comments_and_whitespace();
             <span class="kw">if </span>formatter.is_at(Token::Comma) {

@@ -313,7 +313,7 @@
 };
 <span class="kw">use </span>fm::{FileManager, FileMap};
 <span class="kw">use </span>fuzzy_matcher::{FuzzyMatcher, skim::SkimMatcherV2};
-<span class="kw">use </span>nargo::{insert_all_files_under_path_into_file_manager, parse_all};
+<span class="kw">use </span>nargo::{insert_all_files_under_path, parse_all};
 <span class="kw">use </span>noirc_errors::{Location, Span};
 <span class="kw">use </span>noirc_frontend::{
     ast::{
@@ -344,7 +344,7 @@
 
     <span class="comment">// If the cache is not initialized yet, put all files in the workspace in the FileManager
     </span><span class="kw">if </span>!cache.initialized {
-        insert_all_files_under_path_into_file_manager(<span class="kw-2">&amp;mut </span>file_manager, <span class="kw-2">&amp;</span>root_path, <span class="kw-2">&amp;</span>overrides);
+        insert_all_files_under_path(<span class="kw-2">&amp;mut </span>file_manager, <span class="kw-2">&amp;</span>root_path, <span class="prelude-val">Some</span>(<span class="kw-2">&amp;</span>overrides));
         cache.initialized = <span class="bool-val">true</span>;
     }
 

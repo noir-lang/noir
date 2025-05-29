@@ -619,7 +619,8 @@
 <a href="#618" id="618">618</a>
 <a href="#619" id="619">619</a>
 <a href="#620" id="620">620</a>
-<a href="#621" id="621">621</a></pre></div><pre class="rust"><code><span class="kw">use </span>noirc_frontend::shared::Visibility;
+<a href="#621" id="621">621</a>
+<a href="#622" id="622">622</a></pre></div><pre class="rust"><code><span class="kw">use </span>noirc_frontend::shared::Visibility;
 <span class="kw">use </span>noirc_frontend::{
     ast::{
         BlockExpression, FunctionReturnType, Ident, ItemVisibility, NoirFunction, Param,
@@ -774,7 +775,8 @@
     }
 
     <span class="kw">fn </span>format_function_param(<span class="kw-2">&amp;mut </span><span class="self">self</span>, param: Param) {
-        <span class="self">self</span>.format_pattern(param.pattern);
+        <span class="kw">let </span>group = <span class="self">self</span>.format_pattern(param.pattern);
+        <span class="self">self</span>.format_chunk_group(group);
         <span class="self">self</span>.skip_comments_and_whitespace();
 
         <span class="comment">// There might not be a colon if the parameter is self

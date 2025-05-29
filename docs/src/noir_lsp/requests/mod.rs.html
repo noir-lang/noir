@@ -753,16 +753,7 @@
 <a href="#752" id="752">752</a>
 <a href="#753" id="753">753</a>
 <a href="#754" id="754">754</a>
-<a href="#755" id="755">755</a>
-<a href="#756" id="756">756</a>
-<a href="#757" id="757">757</a>
-<a href="#758" id="758">758</a>
-<a href="#759" id="759">759</a>
-<a href="#760" id="760">760</a>
-<a href="#761" id="761">761</a>
-<a href="#762" id="762">762</a>
-<a href="#763" id="763">763</a>
-<a href="#764" id="764">764</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::collections::BTreeMap;
+<a href="#755" id="755">755</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::collections::BTreeMap;
 <span class="kw">use </span>std::path::{Path, PathBuf};
 <span class="kw">use </span>std::{collections::HashMap, future::Future};
 
@@ -772,6 +763,7 @@
     types::{CodeLensOptions, InitializeParams},
 };
 <span class="kw">use </span>async_lsp::{ErrorCode, ResponseError};
+<span class="kw">use </span>fm::FileId;
 <span class="kw">use </span>fm::{FileMap, PathString, codespan_files::Error};
 <span class="kw">use </span>lsp_types::{
     CodeActionKind, DeclarationCapability, Location, Position, TextDocumentPositionParams,
@@ -1195,25 +1187,15 @@
     }
 }
 
-<span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>to_lsp_location&lt;<span class="lifetime">'a</span>, F&gt;(
-    files: <span class="kw-2">&amp;</span><span class="lifetime">'a </span>F,
-    file_id: F::FileId,
+<span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>to_lsp_location(
+    files: <span class="kw-2">&amp;</span>FileMap,
+    file_id: FileId,
     definition_span: noirc_errors::Span,
-) -&gt; <span class="prelude-ty">Option</span>&lt;Location&gt;
-<span class="kw">where
-    </span>F: fm::codespan_files::Files&lt;<span class="lifetime">'a</span>&gt; + <span class="question-mark">?</span>Sized,
-{
+) -&gt; <span class="prelude-ty">Option</span>&lt;Location&gt; {
     <span class="kw">let </span>range = <span class="kw">crate</span>::byte_span_to_range(files, file_id, definition_span.into())<span class="question-mark">?</span>;
-    <span class="kw">let </span>file_name = files.name(file_id).ok()<span class="question-mark">?</span>;
-
+    <span class="kw">let </span>file_name = files.get_absolute_name(file_id).ok()<span class="question-mark">?</span>;
     <span class="kw">let </span>path = file_name.to_string();
-
-    <span class="comment">// `path` might be a relative path so we canonicalize it to get an absolute path
-    </span><span class="kw">let </span>path_buf = PathBuf::from(path);
-    <span class="kw">let </span>path_buf = path_buf.canonicalize().unwrap_or(path_buf);
-
-    <span class="kw">let </span>uri = Url::from_file_path(path_buf.to_str()<span class="question-mark">?</span>).ok()<span class="question-mark">?</span>;
-
+    <span class="kw">let </span>uri = Url::from_file_path(path).ok()<span class="question-mark">?</span>;
     <span class="prelude-val">Some</span>(Location { uri, range })
 }
 

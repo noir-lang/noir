@@ -254,7 +254,49 @@
 <a href="#253" id="253">253</a>
 <a href="#254" id="254">254</a>
 <a href="#255" id="255">255</a>
-<a href="#256" id="256">256</a></pre></div><pre class="rust"><code><span class="attr">#![forbid(unsafe_code)]
+<a href="#256" id="256">256</a>
+<a href="#257" id="257">257</a>
+<a href="#258" id="258">258</a>
+<a href="#259" id="259">259</a>
+<a href="#260" id="260">260</a>
+<a href="#261" id="261">261</a>
+<a href="#262" id="262">262</a>
+<a href="#263" id="263">263</a>
+<a href="#264" id="264">264</a>
+<a href="#265" id="265">265</a>
+<a href="#266" id="266">266</a>
+<a href="#267" id="267">267</a>
+<a href="#268" id="268">268</a>
+<a href="#269" id="269">269</a>
+<a href="#270" id="270">270</a>
+<a href="#271" id="271">271</a>
+<a href="#272" id="272">272</a>
+<a href="#273" id="273">273</a>
+<a href="#274" id="274">274</a>
+<a href="#275" id="275">275</a>
+<a href="#276" id="276">276</a>
+<a href="#277" id="277">277</a>
+<a href="#278" id="278">278</a>
+<a href="#279" id="279">279</a>
+<a href="#280" id="280">280</a>
+<a href="#281" id="281">281</a>
+<a href="#282" id="282">282</a>
+<a href="#283" id="283">283</a>
+<a href="#284" id="284">284</a>
+<a href="#285" id="285">285</a>
+<a href="#286" id="286">286</a>
+<a href="#287" id="287">287</a>
+<a href="#288" id="288">288</a>
+<a href="#289" id="289">289</a>
+<a href="#290" id="290">290</a>
+<a href="#291" id="291">291</a>
+<a href="#292" id="292">292</a>
+<a href="#293" id="293">293</a>
+<a href="#294" id="294">294</a>
+<a href="#295" id="295">295</a>
+<a href="#296" id="296">296</a>
+<a href="#297" id="297">297</a>
+<a href="#298" id="298">298</a></pre></div><pre class="rust"><code><span class="attr">#![forbid(unsafe_code)]
 #![warn(unused_crate_dependencies, unused_extern_crates)]
 #![warn(unreachable_pub)]
 #![warn(clippy::semicolon_if_nothing_returned)]
@@ -306,42 +348,96 @@
     }
 }
 
-<span class="kw">pub fn </span>insert_all_files_for_workspace_into_file_manager(
-    workspace: <span class="kw-2">&amp;</span>workspace::Workspace,
-    file_manager: <span class="kw-2">&amp;mut </span>FileManager,
-) {
-    insert_all_files_for_workspace_into_file_manager_with_overrides(
-        workspace,
-        file_manager,
-        <span class="kw-2">&amp;</span>HashMap::new(),
-    );
-}
-
-<span class="kw">pub fn </span>insert_all_files_for_workspace_into_file_manager_with_overrides(
-    workspace: <span class="kw-2">&amp;</span>workspace::Workspace,
-    file_manager: <span class="kw-2">&amp;mut </span>FileManager,
-    overrides: <span class="kw-2">&amp;</span>HashMap&lt;PathBuf, <span class="kw-2">&amp;</span>str&gt;,
-) {
-    <span class="kw">let </span><span class="kw-2">mut </span>processed_entry_paths = HashSet::new();
-    <span class="kw">for </span>package <span class="kw">in </span>workspace.clone().into_iter() {
-        insert_all_files_for_package_into_file_manager(
-            package,
-            file_manager,
-            overrides,
-            <span class="kw-2">&amp;mut </span>processed_entry_paths,
-        );
-    }
-}
 <span class="comment">// We will pre-populate the file manager with all the files in the package
 // This is so that we can avoid having to read from disk when we are compiling
 //
 // This does not require parsing because we are interested in the files under the src directory
 // it may turn out that we do not need to include some Noir files that we add to the file
 // manager
-</span><span class="kw">fn </span>insert_all_files_for_package_into_file_manager(
-    package: <span class="kw-2">&amp;</span>Package,
+
+</span><span class="kw">pub fn </span>insert_all_files_for_workspace_into_file_manager(
+    workspace: <span class="kw-2">&amp;</span>workspace::Workspace,
     file_manager: <span class="kw-2">&amp;mut </span>FileManager,
-    overrides: <span class="kw-2">&amp;</span>HashMap&lt;PathBuf, <span class="kw-2">&amp;</span>str&gt;,
+) {
+    insert_all_files_for_workspace_into_file_manager_with_overrides(workspace, file_manager, <span class="prelude-val">None</span>);
+}
+
+<span class="kw">pub fn </span>insert_all_files_for_workspace_into_file_manager_with_overrides(
+    workspace: <span class="kw-2">&amp;</span>workspace::Workspace,
+    file_manager: <span class="kw-2">&amp;mut </span>FileManager,
+    overrides: <span class="prelude-ty">Option</span>&lt;<span class="kw-2">&amp;</span>HashMap&lt;PathBuf, <span class="kw-2">&amp;</span>str&gt;&gt;,
+) {
+    <span class="kw">let </span><span class="kw-2">mut </span>processed_entry_paths = HashSet::new();
+
+    <span class="comment">// We first collect all files, then add the overrides, and sort all of them
+    // so we always get a consistent order of the files, even if an override
+    // doesn't exist in the filesystem.
+    </span><span class="kw">let </span><span class="kw-2">mut </span>filenames = Vec::new();
+    <span class="kw">let </span><span class="kw-2">mut </span>seen_filenames = HashSet::new();
+    <span class="kw">for </span>package <span class="kw">in </span>workspace.clone().into_iter() {
+        collect_all_files_in_package(
+            package,
+            <span class="kw-2">&amp;mut </span>filenames,
+            <span class="kw-2">&amp;mut </span>seen_filenames,
+            <span class="kw-2">&amp;mut </span>processed_entry_paths,
+        );
+    }
+    <span class="kw">if let </span><span class="prelude-val">Some</span>(overrides) = overrides {
+        filenames.extend(overrides.keys().cloned());
+    }
+
+    insert_all_files_into_file_manager(file_manager, overrides, filenames);
+}
+
+<span class="kw">pub fn </span>insert_all_files_under_path(
+    file_manager: <span class="kw-2">&amp;mut </span>FileManager,
+    path: <span class="kw-2">&amp;</span>std::path::Path,
+    overrides: <span class="prelude-ty">Option</span>&lt;<span class="kw-2">&amp;</span>HashMap&lt;PathBuf, <span class="kw-2">&amp;</span>str&gt;&gt;,
+) {
+    <span class="kw">let </span><span class="kw-2">mut </span>filenames = Vec::new();
+    <span class="kw">let </span><span class="kw-2">mut </span>seen_filenames = HashSet::new();
+    collect_all_files_under_path(path, <span class="kw-2">&amp;mut </span>filenames, <span class="kw-2">&amp;mut </span>seen_filenames);
+
+    <span class="kw">if let </span><span class="prelude-val">Some</span>(overrides) = overrides {
+        <span class="kw">for </span>override_name <span class="kw">in </span>overrides.keys() {
+            <span class="kw">if </span>seen_filenames.insert(override_name.clone()) {
+                filenames.push(override_name.clone());
+            }
+        }
+    }
+
+    <span class="comment">// Overrides can only happen in an LSP session. In that case we need to sort
+    // all filenames for a consistent order.
+    // Outside of LSP there are no overrides and the order given by the filesystem
+    // is good and consistent across machines.
+    </span><span class="kw">if </span>overrides.is_some() {
+        filenames.sort();
+    }
+
+    insert_all_files_into_file_manager(file_manager, overrides, filenames);
+}
+
+<span class="kw">fn </span>insert_all_files_into_file_manager(
+    file_manager: <span class="kw-2">&amp;mut </span>FileManager,
+    overrides: <span class="prelude-ty">Option</span>&lt;<span class="kw-2">&amp;</span>HashMap&lt;PathBuf, <span class="kw-2">&amp;</span>str&gt;&gt;,
+    filenames: Vec&lt;PathBuf&gt;,
+) {
+    <span class="kw">for </span>filename <span class="kw">in </span>filenames {
+        <span class="kw">let </span>source = <span class="kw">if let </span><span class="prelude-val">Some</span>(src) = overrides.and_then(|overrides| overrides.get(<span class="kw-2">&amp;</span>filename)) {
+            src.to_string()
+        } <span class="kw">else </span>{
+            std::fs::read_to_string(filename.as_path())
+                .unwrap_or_else(|<span class="kw">_</span>| <span class="macro">panic!</span>(<span class="string">"could not read file {:?} into string"</span>, filename))
+        };
+
+        file_manager.add_file_with_source(filename.as_path(), source);
+    }
+}
+
+<span class="kw">fn </span>collect_all_files_in_package(
+    package: <span class="kw-2">&amp;</span>Package,
+    filenames: <span class="kw-2">&amp;mut </span>Vec&lt;PathBuf&gt;,
+    seen_filenames: <span class="kw-2">&amp;mut </span>HashSet&lt;PathBuf&gt;,
     processed_entry_paths: <span class="kw-2">&amp;mut </span>HashSet&lt;PathBuf&gt;,
 ) {
     <span class="kw">if </span>processed_entry_paths.contains(<span class="kw-2">&amp;</span>package.entry_path) {
@@ -355,31 +451,30 @@
         .parent()
         .unwrap_or_else(|| <span class="macro">panic!</span>(<span class="string">"The entry path is expected to be a single file within a directory and so should have a parent {:?}"</span>, package.entry_path));
 
-    insert_all_files_under_path_into_file_manager(file_manager, entry_path_parent, overrides);
+    collect_all_files_under_path(entry_path_parent, filenames, seen_filenames);
 
-    insert_all_files_for_packages_dependencies_into_file_manager(
+    collect_all_files_in_packages_dependencies(
         package,
-        file_manager,
-        overrides,
+        filenames,
+        seen_filenames,
         processed_entry_paths,
     );
 }
 
-<span class="comment">// Inserts all files for the dependencies of the package into the file manager
-// too
-</span><span class="kw">fn </span>insert_all_files_for_packages_dependencies_into_file_manager(
+<span class="comment">// Collect all files for the dependencies of the package too
+</span><span class="kw">fn </span>collect_all_files_in_packages_dependencies(
     package: <span class="kw-2">&amp;</span>Package,
-    file_manager: <span class="kw-2">&amp;mut </span>FileManager,
-    overrides: <span class="kw-2">&amp;</span>HashMap&lt;PathBuf, <span class="kw-2">&amp;</span>str&gt;,
+    filenames: <span class="kw-2">&amp;mut </span>Vec&lt;PathBuf&gt;,
+    seen_filenames: <span class="kw-2">&amp;mut </span>HashSet&lt;PathBuf&gt;,
     processed_entry_paths: <span class="kw-2">&amp;mut </span>HashSet&lt;PathBuf&gt;,
 ) {
     <span class="kw">for </span>(<span class="kw">_</span>, dep) <span class="kw">in </span>package.dependencies.iter() {
         <span class="kw">match </span>dep {
             Dependency::Local { package } | Dependency::Remote { package } =&gt; {
-                insert_all_files_for_package_into_file_manager(
+                collect_all_files_in_package(
                     package,
-                    file_manager,
-                    overrides,
+                    filenames,
+                    seen_filenames,
                     processed_entry_paths,
                 );
             }
@@ -387,10 +482,10 @@
     }
 }
 
-<span class="kw">pub fn </span>insert_all_files_under_path_into_file_manager(
-    file_manager: <span class="kw-2">&amp;mut </span>FileManager,
+<span class="kw">fn </span>collect_all_files_under_path(
     path: <span class="kw-2">&amp;</span>std::path::Path,
-    overrides: <span class="kw-2">&amp;</span>HashMap&lt;PathBuf, <span class="kw-2">&amp;</span>str&gt;,
+    filenames: <span class="kw-2">&amp;mut </span>Vec&lt;PathBuf&gt;,
+    seen_filenames: <span class="kw-2">&amp;mut </span>HashSet&lt;PathBuf&gt;,
 ) {
     <span class="kw">for </span>entry <span class="kw">in </span>WalkDir::new(path).sort_by_file_name() {
         <span class="kw">let </span><span class="prelude-val">Ok</span>(entry) = entry <span class="kw">else </span>{
@@ -406,20 +501,9 @@
         };
 
         <span class="kw">let </span>path = entry.into_path();
-
-        <span class="comment">// Avoid reading the source if the file is already there
-        </span><span class="kw">if </span>file_manager.has_file(<span class="kw-2">&amp;</span>path) {
-            <span class="kw">continue</span>;
+        <span class="kw">if </span>seen_filenames.insert(path.clone()) {
+            filenames.push(path);
         }
-
-        <span class="kw">let </span>source = <span class="kw">if let </span><span class="prelude-val">Some</span>(src) = overrides.get(path.as_path()) {
-            src.to_string()
-        } <span class="kw">else </span>{
-            std::fs::read_to_string(path.as_path())
-                .unwrap_or_else(|<span class="kw">_</span>| <span class="macro">panic!</span>(<span class="string">"could not read file {:?} into string"</span>, path))
-        };
-
-        file_manager.add_file_with_source(path.as_path(), source);
     }
 }
 

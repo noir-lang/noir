@@ -1105,7 +1105,11 @@
 <a href="#1104" id="1104">1104</a>
 <a href="#1105" id="1105">1105</a>
 <a href="#1106" id="1106">1106</a>
-<a href="#1107" id="1107">1107</a></pre></div><pre class="rust"><code><span class="doccomment">//! This module has all the logic to format a series of chunks (a piece of text) in a way
+<a href="#1107" id="1107">1107</a>
+<a href="#1108" id="1108">1108</a>
+<a href="#1109" id="1109">1109</a>
+<a href="#1110" id="1110">1110</a>
+<a href="#1111" id="1111">1111</a></pre></div><pre class="rust"><code><span class="doccomment">//! This module has all the logic to format a series of chunks (a piece of text) in a way
 //! that we (almost always) never exceed the configurable maximum line width.
 //!
 //! It's heavily inspired by this excellent blog post:
@@ -1229,13 +1233,17 @@
                 <span class="macro">write!</span>(f, <span class="string">"{}"</span>, text_chunk.string)
             }
             Chunk::TrailingComma =&gt; <span class="macro">write!</span>(f, <span class="string">","</span>),
-            Chunk::Group(chunk_group) =&gt; chunk_group.fmt(f),
-            Chunk::SpaceOrLine =&gt; <span class="macro">write!</span>(f, <span class="string">" "</span>),
-            Chunk::Line { .. }
-            | Chunk::IncreaseIndentation
-            | Chunk::DecreaseIndentation
-            | Chunk::PushIndentation
-            | Chunk::PopIndentation =&gt; <span class="prelude-val">Ok</span>(()),
+            Chunk::Group(chunk_group) =&gt; {
+                <span class="macro">write!</span>(f, <span class="string">"`(`"</span>)<span class="question-mark">?</span>;
+                chunk_group.fmt(f)<span class="question-mark">?</span>;
+                <span class="macro">write!</span>(f, <span class="string">"`)`"</span>)
+            }
+            Chunk::SpaceOrLine =&gt; <span class="macro">write!</span>(f, <span class="string">"`space_or_line`"</span>),
+            Chunk::Line { .. } =&gt; <span class="macro">write!</span>(f, <span class="string">"`line`"</span>),
+            Chunk::IncreaseIndentation =&gt; <span class="macro">write!</span>(f, <span class="string">"`+`"</span>),
+            Chunk::DecreaseIndentation =&gt; <span class="macro">write!</span>(f, <span class="string">"`-`"</span>),
+            Chunk::PushIndentation =&gt; <span class="macro">write!</span>(f, <span class="string">"`push`"</span>),
+            Chunk::PopIndentation =&gt; <span class="macro">write!</span>(f, <span class="string">"`pop`"</span>),
         }
     }
 }
