@@ -43,7 +43,7 @@ fn array_set_optimization_pre_check(func: &Function) {
         let instruction_ids = func.dfg[block_id].instructions();
         for instruction_id in instruction_ids {
             if matches!(func.dfg[*instruction_id], Instruction::ArraySet { mutable: true, .. }) {
-                panic!("IfElse instruction exists before `array_set_optimization` pass");
+                panic!("mutable ArraySet instruction exists before `array_set_optimization` pass");
             }
         }
     }
