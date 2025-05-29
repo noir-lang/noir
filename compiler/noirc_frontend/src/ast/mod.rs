@@ -562,9 +562,7 @@ impl UnresolvedTypeExpression {
                 };
                 Ok(UnresolvedTypeExpression::BinaryOperation(lhs, op, rhs, expr.location))
             }
-            ExpressionKind::AsTraitPath(path) => {
-                Ok(UnresolvedTypeExpression::AsTraitPath(Box::new(path)))
-            }
+            ExpressionKind::AsTraitPath(path) => Ok(UnresolvedTypeExpression::AsTraitPath(path)),
             ExpressionKind::Parenthesized(expr) => Self::from_expr_helper(*expr),
             _ => Err(expr),
         }
