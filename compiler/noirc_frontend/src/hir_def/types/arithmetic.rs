@@ -43,7 +43,7 @@ impl Type {
     /// - `canonicalize[((1 + N) + M) + 2] = (M + N) + 3`
     /// - `canonicalize[A + 2 * B + 3 - 2] = A + (B * 2) + 3 - 2`
     pub fn canonicalize(&self) -> Type {
-        match self.follow_bindings() {
+        let r = match self.follow_bindings() {
             Type::CheckedCast { from, to } => Type::CheckedCast {
                 from: Box::new(from.canonicalize_checked()),
                 to: Box::new(to.canonicalize_unchecked(&mut Default::default())),
@@ -53,7 +53,11 @@ impl Type {
                 let run_simplifications = true;
                 other.canonicalize_helper(non_checked_cast, run_simplifications)
             }
+        };
+        if *self != r {
+            eprintln!("canonicalize {self} = {r}");
         }
+        r
     }
 
     /// Only simplify constants and drop/skip any CheckedCast's

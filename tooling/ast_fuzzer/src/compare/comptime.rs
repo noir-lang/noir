@@ -1,7 +1,8 @@
 //! Compare an arbitrary AST executed as Noir with the comptime
 //! interpreter vs compiled into bytecode and ran through a VM.
-use std::collections::BTreeMap;
 use std::path::Path;
+use std::rc::Rc;
+use std::{cell::RefCell, collections::BTreeMap};
 
 use arbitrary::Unstructured;
 use bn254_blackbox_solver::Bn254BlackBoxSolver;
@@ -40,11 +41,14 @@ fn prepare_snippet(source: String) -> (Context<'static, 'static>, CrateId) {
 /// Use `force_brillig` to test it as an unconstrained function without having to change the code.
 /// This is useful for methods that use the `runtime::is_unconstrained()` method to change their behavior.
 /// (copied from nargo_cli/tests/common.rs)
-fn prepare_and_compile_snippet(
+fn prepare_and_compile_snippet<W: std::io::Write + 'static>(
     source: String,
     force_brillig: bool,
-) -> CompilationResult<CompiledProgram> {
+    output: W,
+) -> CompilationResult<(CompiledProgram, W)> {
+    let output = Rc::new(RefCell::new(output));
     let (mut context, root_crate_id) = prepare_snippet(source);
+    context.set_comptime_printing(output.clone());
     let options = CompileOptions {
         force_brillig,
         silence_warnings: true,
@@ -52,7 +56,10 @@ fn prepare_and_compile_snippet(
         skip_brillig_constraints_check: true,
         ..Default::default()
     };
-    compile_main(&mut context, root_crate_id, &options, None)
+    let (program, warnings) = compile_main(&mut context, root_crate_id, &options, None)?;
+    drop(context);
+    let output = Rc::into_inner(output).expect("context is gone").into_inner();
+    Ok(((program, output), warnings))
 }
 
 /// Compare the execution of a Noir program in pure comptime (via interpreter)
@@ -68,10 +75,16 @@ pub struct CompareComptime {
 impl CompareComptime {
     /// Execute the Noir code and the SSA, then compare the results.
     pub fn exec(&self) -> eyre::Result<CompareCompiledResult> {
-        let program1 = match prepare_and_compile_snippet(self.source.clone(), self.force_brillig) {
-            Ok((program, _)) => program,
+        log::debug!("comptime src:\n{}", self.source);
+        let (program1, output1) = match prepare_and_compile_snippet(
+            self.source.clone(),
+            self.force_brillig,
+            Vec::new(),
+        ) {
+            Ok(((program, output), _)) => (program, output),
             Err(e) => panic!("failed to compile program:\n{}\n{e:?}", self.source),
         };
+        let comptime_print = String::from_utf8(output1).expect("should be valid utf8 string");
 
         let blackbox_solver = Bn254BlackBoxSolver(false);
         let initial_witness = self.abi.encode(&BTreeMap::new(), None).wrap_err("abi::encode")?;
@@ -98,7 +111,7 @@ impl CompareComptime {
         let (res1, print1) = do_exec(&program1.program);
         let (res2, print2) = do_exec(&self.ssa.artifact.program);
 
-        CompareCompiledResult::new(&self.abi, (res1, print1), (res2, print2))
+        CompareCompiledResult::new(&self.abi, (res1, comptime_print + &print1), (res2, print2))
     }
 
     /// Generate a random comptime-viable AST, reverse it into
@@ -199,6 +212,6 @@ unconstrained fn func_1_proxy(mut ctx_limit: u32) -> ((str<2>, str<2>, bool, str
 }
         "#;
 
-        let _ = prepare_and_compile_snippet(src.to_string(), false);
+        let _ = prepare_and_compile_snippet(src.to_string(), false, std::io::stdout());
     }
 }
