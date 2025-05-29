@@ -724,7 +724,10 @@ impl<'a> FunctionContext<'a> {
                 Type::Numeric(NumericType::Signed { bit_size: incoming_type_size }),
                 NumericType::Unsigned { bit_size: target_type_size },
             ) => {
-                if *incoming_type_size != target_type_size {
+                // If the target type size is 1 it means it's a cast to u1. In that case
+                // there's no need to cast to i1 first (which actually isn't a valid type),
+                // because the result will be the least significant bit anyway.
+                if *incoming_type_size != target_type_size && target_type_size != 1 {
                     value = self.insert_safe_cast(
                         value,
                         NumericType::signed(target_type_size),
