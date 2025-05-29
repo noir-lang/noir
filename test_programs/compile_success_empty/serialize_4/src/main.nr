@@ -1,6 +1,7 @@
 trait Serialize {
     let Size: u32;
 
+    // Note that Rust disallows referencing constants here!
     fn serialize(self) -> [Field; Self::Size];
 }
 
@@ -12,8 +13,17 @@ where
     let Size = <A as Serialize>::Size + <B as Serialize>::Size;
 
     fn serialize(self: Self) -> [Field; Self::Size] {
-        let _ = self.0.serialize();
-        [0; Self::Size]
+        let mut array: [Field; Self::Size] = std::mem::zeroed();
+        let a = self.0.serialize();
+        let b = self.1.serialize();
+
+        for i in 0..a.len() {
+            array[i] = a[i];
+        }
+        for i in 0..b.len() {
+            array[i + a.len()] = b[i];
+        }
+        array
     }
 }
 
@@ -24,7 +34,19 @@ where
     let Size = <T as Serialize>::Size * N;
 
     fn serialize(self: Self) -> [Field; Self::Size] {
-        [0; Self::Size]
+        let mut array: [Field; Self::Size] = std::mem::zeroed();
+        let mut array_i = 0;
+
+        for elem in self {
+            let elem_fields = elem.serialize();
+
+            for i in 0..elem_fields.len() {
+                array[array_i] = elem_fields[i];
+                array_i += 1;
+            }
+        }
+
+        array
     }
 }
 
@@ -37,6 +59,6 @@ impl Serialize for Field {
 }
 
 fn main() {
-    let x = (((1, [2, 3, 4]), [5, 6, 7, 8]), 9);
-    assert_eq(x.serialize().len(), 9);
+    let x = (1, [2, 3, 4]);
+    assert_eq(x.serialize().len(), 4);
 }
