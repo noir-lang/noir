@@ -399,11 +399,11 @@ impl Parser<'_> {
         let typ = self.parse_type_or_error();
         if self.eat_keyword(Keyword::As) {
             let as_trait_path = self.parse_as_trait_path_for_type_after_as_keyword(typ);
-            Some(ExpressionKind::AsTraitPath(as_trait_path))
+            Some(ExpressionKind::AsTraitPath(Box::new(as_trait_path)))
         } else {
             self.eat_or_error(Token::Greater);
             let type_path = self.parse_type_path_expr_for_type(typ);
-            Some(ExpressionKind::TypePath(type_path))
+            Some(ExpressionKind::TypePath(Box::new(type_path)))
         }
     }
 
@@ -677,7 +677,7 @@ impl Parser<'_> {
         let typ = UnresolvedType { typ, location };
 
         if self.at(Token::DoubleColon) {
-            Some(ExpressionKind::TypePath(self.parse_type_path_expr_for_type(typ)))
+            Some(ExpressionKind::TypePath(Box::new(self.parse_type_path_expr_for_type(typ))))
         } else {
             // This is the case when we find `Field` or `i32` but `::` doesn't follow it.
             self.push_error(ParserErrorReason::ExpectedValueFoundBuiltInType { typ }, location);
@@ -882,7 +882,7 @@ impl Parser<'_> {
 
                 self.push_error(ParserErrorReason::MissingAngleBrackets, location);
 
-                return Some(ExpressionKind::TypePath(type_path));
+                return Some(ExpressionKind::TypePath(Box::new(type_path)));
             }
 
             return Some(ExpressionKind::Literal(Literal::Unit));
