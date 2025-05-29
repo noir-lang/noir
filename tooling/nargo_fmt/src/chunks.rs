@@ -122,13 +122,17 @@ impl Display for Chunk {
                 write!(f, "{}", text_chunk.string)
             }
             Chunk::TrailingComma => write!(f, ","),
-            Chunk::Group(chunk_group) => chunk_group.fmt(f),
-            Chunk::SpaceOrLine => write!(f, " "),
-            Chunk::Line { .. }
-            | Chunk::IncreaseIndentation
-            | Chunk::DecreaseIndentation
-            | Chunk::PushIndentation
-            | Chunk::PopIndentation => Ok(()),
+            Chunk::Group(chunk_group) => {
+                write!(f, "`(`")?;
+                chunk_group.fmt(f)?;
+                write!(f, "`)`")
+            }
+            Chunk::SpaceOrLine => write!(f, "`space_or_line`"),
+            Chunk::Line { .. } => write!(f, "`line`"),
+            Chunk::IncreaseIndentation => write!(f, "`+`"),
+            Chunk::DecreaseIndentation => write!(f, "`-`"),
+            Chunk::PushIndentation => write!(f, "`push`"),
+            Chunk::PopIndentation => write!(f, "`pop`"),
         }
     }
 }
