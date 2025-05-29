@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1748533078591,
+  "lastUpdate": 1748533080465,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -3058,85 +3058,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "15848336+TomAFrench@users.noreply.github.com",
-            "name": "Tom French",
-            "username": "TomAFrench"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "34350e88722b1d4e684d98b16165223b538c63cd",
-          "message": "chore: clippy fixes (#8600)",
-          "timestamp": "2025-05-21T14:57:58Z",
-          "tree_id": "f0cdb632d6d97349ed91505ed22f123e30f8dafa",
-          "url": "https://github.com/noir-lang/noir/commit/34350e88722b1d4e684d98b16165223b538c63cd"
-        },
-        "date": 1747841190755,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 2.466,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 6.51,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 1.168,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 16.42,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 12.56,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root-empty",
-            "value": 1.302,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root-single-tx",
-            "value": 130,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 129,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 1.068,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-root",
-            "value": 1.682,
-            "unit": "s"
-          },
-          {
-            "name": "semaphore-depth-10",
-            "value": 0.858,
-            "unit": "s"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "jfecher11@gmail.com",
             "name": "jfecher",
             "username": "jfecher"
@@ -6101,6 +6022,85 @@ window.BENCHMARK_DATA = {
           {
             "name": "semaphore-depth-10",
             "value": 0.851,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "asterite@gmail.com",
+            "name": "Ary Borenszweig",
+            "username": "asterite"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "89783b6a962faad6838e249c933caa1f16a6cae3",
+          "message": "fix: better way to do LSP file overrides (#8702)",
+          "timestamp": "2025-05-29T15:08:50Z",
+          "tree_id": "798bce991c8eb22cff4e52507c53cfba5dfc0590",
+          "url": "https://github.com/noir-lang/noir/commit/89783b6a962faad6838e249c933caa1f16a6cae3"
+        },
+        "date": 1748533069786,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 2.472,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 6.796,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 1.112,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 16.26,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 13.66,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-empty",
+            "value": 1.35,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-single-tx",
+            "value": 122,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 129,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 1.176,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-root",
+            "value": 1.664,
+            "unit": "s"
+          },
+          {
+            "name": "semaphore-depth-10",
+            "value": 0.828,
             "unit": "s"
           }
         ]
