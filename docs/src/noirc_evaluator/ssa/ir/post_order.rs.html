@@ -160,7 +160,10 @@
 <a href="#159" id="159">159</a>
 <a href="#160" id="160">160</a>
 <a href="#161" id="161">161</a>
-<a href="#162" id="162">162</a></pre></div><pre class="rust"><code><span class="doccomment">//! The post-order for a given function represented as a vector of basic block ids.
+<a href="#162" id="162">162</a>
+<a href="#163" id="163">163</a>
+<a href="#164" id="164">164</a>
+<a href="#165" id="165">165</a></pre></div><pre class="rust"><code><span class="doccomment">//! The post-order for a given function represented as a vector of basic block ids.
 //!
 //! This ordering is beneficial to the efficiency of various algorithms, such as those for dead
 //! code elimination and calculating dominance trees.
@@ -314,6 +317,9 @@
         // •   •   F
         </span>builder.switch_to_block(block_c_id);
         builder.terminate_with_jmp(block_f_id, <span class="macro">vec!</span>[]);
+
+        builder.switch_to_block(block_f_id);
+        builder.terminate_with_return(<span class="macro">vec!</span>[]);
 
         <span class="kw">let </span>ssa = builder.finish();
         <span class="kw">let </span>func = ssa.main();
