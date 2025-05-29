@@ -216,7 +216,50 @@
 <a href="#215" id="215">215</a>
 <a href="#216" id="216">216</a>
 <a href="#217" id="217">217</a>
-<a href="#218" id="218">218</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::mem;
+<a href="#218" id="218">218</a>
+<a href="#219" id="219">219</a>
+<a href="#220" id="220">220</a>
+<a href="#221" id="221">221</a>
+<a href="#222" id="222">222</a>
+<a href="#223" id="223">223</a>
+<a href="#224" id="224">224</a>
+<a href="#225" id="225">225</a>
+<a href="#226" id="226">226</a>
+<a href="#227" id="227">227</a>
+<a href="#228" id="228">228</a>
+<a href="#229" id="229">229</a>
+<a href="#230" id="230">230</a>
+<a href="#231" id="231">231</a>
+<a href="#232" id="232">232</a>
+<a href="#233" id="233">233</a>
+<a href="#234" id="234">234</a>
+<a href="#235" id="235">235</a>
+<a href="#236" id="236">236</a>
+<a href="#237" id="237">237</a>
+<a href="#238" id="238">238</a>
+<a href="#239" id="239">239</a>
+<a href="#240" id="240">240</a>
+<a href="#241" id="241">241</a>
+<a href="#242" id="242">242</a>
+<a href="#243" id="243">243</a>
+<a href="#244" id="244">244</a>
+<a href="#245" id="245">245</a>
+<a href="#246" id="246">246</a>
+<a href="#247" id="247">247</a>
+<a href="#248" id="248">248</a>
+<a href="#249" id="249">249</a>
+<a href="#250" id="250">250</a>
+<a href="#251" id="251">251</a>
+<a href="#252" id="252">252</a>
+<a href="#253" id="253">253</a>
+<a href="#254" id="254">254</a>
+<a href="#255" id="255">255</a>
+<a href="#256" id="256">256</a>
+<a href="#257" id="257">257</a>
+<a href="#258" id="258">258</a>
+<a href="#259" id="259">259</a>
+<a href="#260" id="260">260</a>
+<a href="#261" id="261">261</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::mem;
 
 <span class="kw">use </span><span class="kw">crate</span>::ssa::{
     ir::{
@@ -238,10 +281,53 @@
     </span><span class="attr">#[tracing::instrument(level = <span class="string">"trace"</span>, skip(<span class="self">self</span>))]
     </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>array_set_optimization(<span class="kw-2">mut </span><span class="self">self</span>) -&gt; <span class="self">Self </span>{
         <span class="kw">for </span>func <span class="kw">in </span><span class="self">self</span>.functions.values_mut() {
+            <span class="attr">#[cfg(debug_assertions)]
+            </span>array_set_optimization_pre_check(func);
+
             func.array_set_optimization();
+
+            <span class="attr">#[cfg(debug_assertions)]
+            </span>array_set_optimization_post_check(func);
         }
         <span class="self">self
     </span>}
+}
+
+<span class="doccomment">/// Pre-check condition for [Function::array_set_optimization].
+///
+/// Panics if:
+///   - there already exists a mutable array set instruction.
+</span><span class="attr">#[cfg(debug_assertions)]
+</span><span class="kw">fn </span>array_set_optimization_pre_check(func: <span class="kw-2">&amp;</span>Function) {
+    <span class="comment">// There should be no mutable array sets.
+    </span><span class="kw">for </span>block_id <span class="kw">in </span>func.reachable_blocks() {
+        <span class="kw">let </span>instruction_ids = func.dfg[block_id].instructions();
+        <span class="kw">for </span>instruction_id <span class="kw">in </span>instruction_ids {
+            <span class="kw">if </span><span class="macro">matches!</span>(func.dfg[<span class="kw-2">*</span>instruction_id], Instruction::ArraySet { mutable: <span class="bool-val">true</span>, .. }) {
+                <span class="macro">panic!</span>(<span class="string">"mutable ArraySet instruction exists before `array_set_optimization` pass"</span>);
+            }
+        }
+    }
+}
+
+<span class="doccomment">/// Post-check condition for [Function::array_set_optimization].
+///
+/// Panics if:
+///   - Mutable array_set optimization has been applied to Brillig function
+</span><span class="attr">#[cfg(debug_assertions)]
+</span><span class="kw">fn </span>array_set_optimization_post_check(func: <span class="kw-2">&amp;</span>Function) {
+    <span class="comment">// Brillig functions should be not have any mutable array sets.
+    </span><span class="kw">if </span>func.runtime().is_brillig() {
+        <span class="kw">for </span>block_id <span class="kw">in </span>func.reachable_blocks() {
+            <span class="kw">let </span>instruction_ids = func.dfg[block_id].instructions();
+            <span class="kw">for </span>instruction_id <span class="kw">in </span>instruction_ids {
+                <span class="kw">if </span><span class="macro">matches!</span>(func.dfg[<span class="kw-2">*</span>instruction_id], Instruction::ArraySet { mutable: <span class="bool-val">true</span>, .. })
+                {
+                    <span class="macro">panic!</span>(<span class="string">"Mutable array set instruction in Brillig function"</span>);
+                }
+            }
+        }
+    }
 }
 
 <span class="kw">impl </span>Function {
