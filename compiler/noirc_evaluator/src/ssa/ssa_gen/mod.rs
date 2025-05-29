@@ -1098,9 +1098,14 @@ impl FunctionContext<'_> {
         // Evaluate the rhs first - when we load the expression in the lvalue we want that
         // to reflect any mutations from evaluating the rhs.
         let rhs = self.codegen_expression(&assign.expression)?;
-        let lhs = self.extract_current_value(&assign.lvalue)?;
 
-        self.assign_new_value(lhs, rhs);
+        // Can't assign to a variable if the expression had an unconditional break in it
+        if !self.builder.current_block_is_closed() {
+            let lhs = self.extract_current_value(&assign.lvalue)?;
+
+            self.assign_new_value(lhs, rhs);
+        }
+
         Ok(Self::unit_value())
     }
 
