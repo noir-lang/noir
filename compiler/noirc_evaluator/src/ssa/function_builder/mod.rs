@@ -3,7 +3,7 @@ pub mod data_bus;
 use std::{borrow::Cow, collections::BTreeMap, sync::Arc};
 
 use acvm::{FieldElement, acir::circuit::ErrorSelector};
-use im::HashSet;
+use fxhash::FxHashSet as HashSet;
 use noirc_errors::{
     Location,
     call_stack::{CallStack, CallStackId},
