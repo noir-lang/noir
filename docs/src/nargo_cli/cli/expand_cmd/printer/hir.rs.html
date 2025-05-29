@@ -915,7 +915,9 @@
 <a href="#914" id="914">914</a>
 <a href="#915" id="915">915</a>
 <a href="#916" id="916">916</a>
-<a href="#917" id="917">917</a></pre></div><pre class="rust"><code><span class="kw">use </span>noirc_frontend::{
+<a href="#917" id="917">917</a>
+<a href="#918" id="918">918</a>
+<a href="#919" id="919">919</a></pre></div><pre class="rust"><code><span class="kw">use </span>noirc_frontend::{
     NamedGeneric, Type, TypeBindings,
     ast::{ItemVisibility, UnaryOp},
     hir::def_map::ModuleDefId,
@@ -1644,7 +1646,9 @@
                     use_import,
                 );
             }
-            DefinitionKind::Local(..) | DefinitionKind::NumericGeneric(..) =&gt; {
+            DefinitionKind::Local(..)
+            | DefinitionKind::NumericGeneric(..)
+            | DefinitionKind::AssociatedConstant(..) =&gt; {
                 <span class="kw">let </span>name = <span class="self">self</span>.interner.definition_name(ident.id);
 
                 <span class="comment">// The compiler uses '$' for some internal identifiers.

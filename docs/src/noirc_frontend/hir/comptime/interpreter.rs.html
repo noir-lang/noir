@@ -1643,7 +1643,30 @@
 <a href="#1642" id="1642">1642</a>
 <a href="#1643" id="1643">1643</a>
 <a href="#1644" id="1644">1644</a>
-<a href="#1645" id="1645">1645</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::collections::VecDeque;
+<a href="#1645" id="1645">1645</a>
+<a href="#1646" id="1646">1646</a>
+<a href="#1647" id="1647">1647</a>
+<a href="#1648" id="1648">1648</a>
+<a href="#1649" id="1649">1649</a>
+<a href="#1650" id="1650">1650</a>
+<a href="#1651" id="1651">1651</a>
+<a href="#1652" id="1652">1652</a>
+<a href="#1653" id="1653">1653</a>
+<a href="#1654" id="1654">1654</a>
+<a href="#1655" id="1655">1655</a>
+<a href="#1656" id="1656">1656</a>
+<a href="#1657" id="1657">1657</a>
+<a href="#1658" id="1658">1658</a>
+<a href="#1659" id="1659">1659</a>
+<a href="#1660" id="1660">1660</a>
+<a href="#1661" id="1661">1661</a>
+<a href="#1662" id="1662">1662</a>
+<a href="#1663" id="1663">1663</a>
+<a href="#1664" id="1664">1664</a>
+<a href="#1665" id="1665">1665</a>
+<a href="#1666" id="1666">1666</a>
+<a href="#1667" id="1667">1667</a>
+<a href="#1668" id="1668">1668</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::collections::VecDeque;
 <span class="kw">use </span>std::{collections::hash_map::Entry, rc::Rc};
 
 <span class="kw">use </span>acvm::blackbox_solver::BigIntSolverWithId;
@@ -2299,6 +2322,29 @@
                 }<span class="question-mark">?</span>;
 
                 <span class="self">self</span>.evaluate_integer(value.into(), id)
+            }
+            DefinitionKind::AssociatedConstant(trait_impl_id, name) =&gt; {
+                <span class="kw">let </span>associated_types =
+                    <span class="self">self</span>.elaborator.interner.get_associated_types_for_impl(<span class="kw-2">*</span>trait_impl_id);
+                <span class="kw">let </span>associated_type = associated_types
+                    .iter()
+                    .find(|typ| typ.name.as_str() == name)
+                    .expect(<span class="string">"Expected to find associated type"</span>);
+                <span class="kw">let </span>Kind::Numeric(numeric_type) = associated_type.typ.kind() <span class="kw">else </span>{
+                    <span class="macro">unreachable!</span>(<span class="string">"Expected associated type to be numeric"</span>);
+                };
+                <span class="kw">let </span>location = <span class="self">self</span>.elaborator.interner.expr_location(<span class="kw-2">&amp;</span>id);
+                <span class="kw">match </span>associated_type
+                    .typ
+                    .evaluate_to_field_element(<span class="kw-2">&amp;</span>associated_type.typ.kind(), location)
+                {
+                    <span class="prelude-val">Ok</span>(value) =&gt; <span class="self">self</span>.evaluate_integer(value.into(), id),
+                    <span class="prelude-val">Err</span>(err) =&gt; <span class="prelude-val">Err</span>(InterpreterError::NonIntegerArrayLength {
+                        typ: associated_type.typ.clone(),
+                        err: <span class="prelude-val">Some</span>(Box::new(err)),
+                        location,
+                    }),
+                }
             }
         }
     }

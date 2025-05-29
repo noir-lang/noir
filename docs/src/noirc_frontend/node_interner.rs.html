@@ -2561,7 +2561,47 @@
 <a href="#2560" id="2560">2560</a>
 <a href="#2561" id="2561">2561</a>
 <a href="#2562" id="2562">2562</a>
-<a href="#2563" id="2563">2563</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::borrow::Cow;
+<a href="#2563" id="2563">2563</a>
+<a href="#2564" id="2564">2564</a>
+<a href="#2565" id="2565">2565</a>
+<a href="#2566" id="2566">2566</a>
+<a href="#2567" id="2567">2567</a>
+<a href="#2568" id="2568">2568</a>
+<a href="#2569" id="2569">2569</a>
+<a href="#2570" id="2570">2570</a>
+<a href="#2571" id="2571">2571</a>
+<a href="#2572" id="2572">2572</a>
+<a href="#2573" id="2573">2573</a>
+<a href="#2574" id="2574">2574</a>
+<a href="#2575" id="2575">2575</a>
+<a href="#2576" id="2576">2576</a>
+<a href="#2577" id="2577">2577</a>
+<a href="#2578" id="2578">2578</a>
+<a href="#2579" id="2579">2579</a>
+<a href="#2580" id="2580">2580</a>
+<a href="#2581" id="2581">2581</a>
+<a href="#2582" id="2582">2582</a>
+<a href="#2583" id="2583">2583</a>
+<a href="#2584" id="2584">2584</a>
+<a href="#2585" id="2585">2585</a>
+<a href="#2586" id="2586">2586</a>
+<a href="#2587" id="2587">2587</a>
+<a href="#2588" id="2588">2588</a>
+<a href="#2589" id="2589">2589</a>
+<a href="#2590" id="2590">2590</a>
+<a href="#2591" id="2591">2591</a>
+<a href="#2592" id="2592">2592</a>
+<a href="#2593" id="2593">2593</a>
+<a href="#2594" id="2594">2594</a>
+<a href="#2595" id="2595">2595</a>
+<a href="#2596" id="2596">2596</a>
+<a href="#2597" id="2597">2597</a>
+<a href="#2598" id="2598">2598</a>
+<a href="#2599" id="2599">2599</a>
+<a href="#2600" id="2600">2600</a>
+<a href="#2601" id="2601">2601</a>
+<a href="#2602" id="2602">2602</a>
+<a href="#2603" id="2603">2603</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::borrow::Cow;
 <span class="kw">use </span>std::collections::HashSet;
 <span class="kw">use </span>std::fmt;
 <span class="kw">use </span>std::hash::Hash;
@@ -2708,6 +2748,9 @@
     /// This is stored outside of the TraitImpl object since it is required before that object is
     /// created, when resolving the type signature of each method in the impl.
     </span>trait_impl_associated_types: HashMap&lt;TraitImplId, Vec&lt;NamedType&gt;&gt;,
+
+    trait_impl_associated_constant_definition_ids:
+        HashMap&lt;TraitImplId, HashMap&lt;String, DefinitionId&gt;&gt;,
 
     <span class="doccomment">/// Trait implementations on each type. This is expected to always have the same length as
     /// `self.trait_implementations`.
@@ -3157,6 +3200,8 @@
     <span class="doccomment">/// Generic types in functions (T, U in `fn foo&lt;T, U&gt;(...)` are declared as variables
     /// in scope in case they resolve to numeric generics later.
     </span>NumericGeneric(TypeVariable, Box&lt;Type&gt;),
+
+    AssociatedConstant(TraitImplId, String),
 }
 
 <span class="kw">impl </span>DefinitionKind {
@@ -3172,6 +3217,7 @@
             DefinitionKind::Global(<span class="kw">_</span>) =&gt; <span class="prelude-val">None</span>,
             DefinitionKind::Local(id) =&gt; <span class="kw-2">*</span>id,
             DefinitionKind::NumericGeneric(<span class="kw">_</span>, <span class="kw">_</span>) =&gt; <span class="prelude-val">None</span>,
+            DefinitionKind::AssociatedConstant(<span class="kw">_</span>, <span class="kw">_</span>) =&gt; <span class="prelude-val">None</span>,
         }
     }
 }
@@ -3277,6 +3323,7 @@
             auto_import_names: HashMap::default(),
             comptime_scopes: <span class="macro">vec!</span>[HashMap::default()],
             trait_impl_associated_types: HashMap::default(),
+            trait_impl_associated_constant_definition_ids: HashMap::default(),
             doc_comments: HashMap::default(),
             reexports: HashMap::default(),
         }
@@ -4838,15 +4885,39 @@
         <span class="self">self</span>.lsp_mode
     }
 
-    <span class="kw">pub fn </span>set_associated_types_for_impl(
+    <span class="doccomment">/// Sets the associated types for the given trait impl.
+    /// Each type in [`NamedType`] will be wrapped in a [`Type::TypeVariable`] if it's of kind [`Kind::Numeric`].
+    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>set_associated_types_for_impl(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
         impl_id: TraitImplId,
         associated_types: Vec&lt;NamedType&gt;,
     ) {
+        <span class="comment">// Wrap the named generics in type variables to be able to refer them as type variables
+        </span><span class="kw">for </span>associated_type <span class="kw">in </span><span class="kw-2">&amp;</span>associated_types {
+            <span class="kw">let </span>Kind::Numeric(..) = associated_type.typ.kind() <span class="kw">else </span>{
+                <span class="kw">continue</span>;
+            };
+
+            <span class="kw">let </span>name = associated_type.name.to_string();
+            <span class="kw">let </span>definition_id = <span class="self">self</span>.push_definition(
+                associated_type.name.to_string(),
+                <span class="bool-val">false</span>,
+                <span class="bool-val">false</span>,
+                DefinitionKind::AssociatedConstant(impl_id, name.clone()),
+                associated_type.name.location(),
+            );
+            <span class="self">self</span>.trait_impl_associated_constant_definition_ids
+                .entry(impl_id)
+                .or_default()
+                .insert(name, definition_id);
+        }
+
         <span class="self">self</span>.trait_impl_associated_types.insert(impl_id, associated_types);
     }
 
-    <span class="kw">pub fn </span>get_associated_types_for_impl(<span class="kw-2">&amp;</span><span class="self">self</span>, impl_id: TraitImplId) -&gt; <span class="kw-2">&amp;</span>[NamedType] {
+    <span class="doccomment">/// Returns the associated types for the given trait impl.
+    /// The Type of each [`NamedType`] that is an associated constant is guaranteed to be a [`Type::TypeVariable`].
+    </span><span class="kw">pub fn </span>get_associated_types_for_impl(<span class="kw-2">&amp;</span><span class="self">self</span>, impl_id: TraitImplId) -&gt; <span class="kw-2">&amp;</span>[NamedType] {
         <span class="kw-2">&amp;</span><span class="self">self</span>.trait_impl_associated_types[<span class="kw-2">&amp;</span>impl_id]
     }
 
@@ -4857,6 +4928,15 @@
     ) -&gt; <span class="prelude-ty">Option</span>&lt;<span class="kw-2">&amp;</span>Type&gt; {
         <span class="kw">let </span>types = <span class="self">self</span>.trait_impl_associated_types.get(<span class="kw-2">&amp;</span>impl_id)<span class="question-mark">?</span>;
         types.iter().find(|typ| typ.name.as_str() == type_name).map(|typ| <span class="kw-2">&amp;</span>typ.typ)
+    }
+
+    <span class="doccomment">/// Returns the definition id for the associated constant of the given type variable.
+    </span><span class="kw">pub fn </span>get_associated_constant_definition_id(
+        <span class="kw-2">&amp;</span><span class="self">self</span>,
+        impl_id: TraitImplId,
+        name: <span class="kw-2">&amp;</span>str,
+    ) -&gt; DefinitionId {
+        <span class="self">self</span>.trait_impl_associated_constant_definition_ids[<span class="kw-2">&amp;</span>impl_id][name]
     }
 
     <span class="doccomment">/// Return a set of TypeBindings to bind types from the parent trait to those from the trait impl.

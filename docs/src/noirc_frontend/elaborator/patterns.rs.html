@@ -1196,7 +1196,15 @@
 <a href="#1195" id="1195">1195</a>
 <a href="#1196" id="1196">1196</a>
 <a href="#1197" id="1197">1197</a>
-<a href="#1198" id="1198">1198</a></pre></div><pre class="rust"><code><span class="kw">use </span>iter_extended::vecmap;
+<a href="#1198" id="1198">1198</a>
+<a href="#1199" id="1199">1199</a>
+<a href="#1200" id="1200">1200</a>
+<a href="#1201" id="1201">1201</a>
+<a href="#1202" id="1202">1202</a>
+<a href="#1203" id="1203">1203</a>
+<a href="#1204" id="1204">1204</a>
+<a href="#1205" id="1205">1205</a>
+<a href="#1206" id="1206">1206</a></pre></div><pre class="rust"><code><span class="kw">use </span>iter_extended::vecmap;
 <span class="kw">use </span>noirc_errors::{Located, Location};
 <span class="kw">use </span>rustc_hash::FxHashSet <span class="kw">as </span>HashSet;
 
@@ -1217,7 +1225,6 @@
     hir_def::{
         expr::{HirExpression, HirIdent, HirLiteral, HirMethodReference, ImplKind, TraitMethod},
         stmt::HirPattern,
-        traits::NamedType,
     },
     node_interner::{
         DefinitionId, DefinitionInfo, DefinitionKind, ExprId, FuncId, GlobalId, TraitImplKind,
@@ -1851,6 +1858,7 @@
             <span class="kw">return </span><span class="prelude-val">None</span>;
         }
 
+        <span class="kw">let </span>location = variable.location;
         <span class="kw">let </span>name = variable.segments[<span class="number">1</span>].ident.as_str();
 
         <span class="comment">// Check the `Self::AssociatedConstant` case when inside a trait
@@ -1862,7 +1870,7 @@
                     // produce code (only trait impl methods do)
                     </span><span class="kw">let </span>numeric_type: Type = <span class="kw-2">*</span>numeric_type.clone();
                     <span class="kw">let </span>value = SignedField::zero();
-                    <span class="kw">return </span><span class="prelude-val">Some</span>(<span class="self">self</span>.constant_integer(numeric_type, value, variable.location));
+                    <span class="kw">return </span><span class="prelude-val">Some</span>(<span class="self">self</span>.constant_integer(numeric_type, value, location));
                 }
             }
         }
@@ -1878,12 +1886,17 @@
         <span class="comment">// Check the `Self::AssociatedConstant` case when inside a trait impl
         </span><span class="kw">let </span>associated_types = <span class="self">self</span>.interner.get_associated_types_for_impl(<span class="kw-2">*</span>trait_impl_id);
         <span class="kw">let </span>associated_type = associated_types.iter().find(|typ| typ.name.as_str() == name);
-        <span class="kw">if let </span><span class="prelude-val">Some</span>(NamedType { typ: Type::Constant(field, Kind::Numeric(numeric_type)), .. }) =
-            associated_type
-        {
-            <span class="kw">let </span>numeric_type: Type = <span class="kw-2">*</span>numeric_type.clone();
-            <span class="kw">let </span>value = SignedField::positive(<span class="kw-2">*</span>field);
-            <span class="kw">return </span><span class="prelude-val">Some</span>(<span class="self">self</span>.constant_integer(numeric_type, value, variable.location));
+        <span class="kw">if let </span><span class="prelude-val">Some</span>(associated_type) = associated_type {
+            <span class="kw">if let </span>Kind::Numeric(numeric_type) = associated_type.typ.kind() {
+                <span class="kw">let </span>definition_id =
+                    <span class="self">self</span>.interner.get_associated_constant_definition_id(<span class="kw-2">*</span>trait_impl_id, name);
+                <span class="kw">let </span>hir_ident = HirIdent::non_trait_method(definition_id, location);
+                <span class="kw">let </span>hir_expr = HirExpression::Ident(hir_ident, <span class="prelude-val">None</span>);
+                <span class="kw">let </span>id = <span class="self">self</span>.interner.push_expr(hir_expr);
+                <span class="self">self</span>.interner.push_expr_location(id, location);
+                <span class="self">self</span>.interner.push_expr_type(id, <span class="kw-2">*</span>numeric_type.clone());
+                <span class="kw">return </span><span class="prelude-val">Some</span>((id, <span class="kw-2">*</span>numeric_type.clone()));
+            }
         }
 
         <span class="comment">// Check the `Self::method_name` case when `Self` is a primitive type
@@ -2162,6 +2175,9 @@
 
                 <span class="self">self</span>.interner.add_local_reference(hir_ident.id, location);
             }
+            DefinitionKind::AssociatedConstant(..) =&gt; {
+                <span class="comment">// Nothing to do here
+            </span>}
         }
     }
 

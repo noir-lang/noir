@@ -4906,7 +4906,7 @@
         }
     }
 
-    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>kind(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; Kind {
+    <span class="kw">pub fn </span>kind(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; Kind {
         <span class="kw">match </span><span class="self">self </span>{
             Type::CheckedCast { to, .. } =&gt; to.kind(),
             Type::NamedGeneric(NamedGeneric { type_var, .. }) =&gt; type_var.kind(),

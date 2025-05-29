@@ -130,7 +130,18 @@
 <a href="#129" id="129">129</a>
 <a href="#130" id="130">130</a>
 <a href="#131" id="131">131</a>
-<a href="#132" id="132">132</a></pre></div><pre class="rust"><code><span class="kw">use </span>noirc_errors::{CustomDiagnostic, Location};
+<a href="#132" id="132">132</a>
+<a href="#133" id="133">133</a>
+<a href="#134" id="134">134</a>
+<a href="#135" id="135">135</a>
+<a href="#136" id="136">136</a>
+<a href="#137" id="137">137</a>
+<a href="#138" id="138">138</a>
+<a href="#139" id="139">139</a>
+<a href="#140" id="140">140</a>
+<a href="#141" id="141">141</a>
+<a href="#142" id="142">142</a>
+<a href="#143" id="143">143</a></pre></div><pre class="rust"><code><span class="kw">use </span>noirc_errors::{CustomDiagnostic, Location};
 
 <span class="kw">use crate</span>::{
     Type,
@@ -184,6 +195,11 @@
         typ: Type,
         location: Location,
     },
+    CannotComputeAssociatedConstant {
+        name: String,
+        err: TypeCheckError,
+        location: Location,
+    },
 }
 
 <span class="kw">impl </span>MonomorphizationError {
@@ -198,7 +214,8 @@
             | MonomorphizationError::CheckedCastFailed { location, .. }
             | MonomorphizationError::RecursiveType { location, .. }
             | MonomorphizationError::NoDefaultType { location, .. }
-            | MonomorphizationError::NoDefaultTypeInItem { location, .. } =&gt; <span class="kw-2">*</span>location,
+            | MonomorphizationError::NoDefaultTypeInItem { location, .. }
+            | MonomorphizationError::CannotComputeAssociatedConstant { location, .. } =&gt; <span class="kw-2">*</span>location,
             MonomorphizationError::InterpreterError(error) =&gt; error.location(),
         }
     }
@@ -255,6 +272,11 @@
                 <span class="kw">let </span>message = <span class="macro">format!</span>(<span class="string">"Type `{typ}` is recursive"</span>);
                 <span class="kw">let </span>secondary = <span class="string">"All types in Noir must have a known size at compile-time"</span>.into();
                 <span class="kw">return </span>CustomDiagnostic::simple_error(message, secondary, <span class="kw-2">*</span>location);
+            }
+            MonomorphizationError::CannotComputeAssociatedConstant { name, err, .. } =&gt; {
+                <span class="macro">format!</span>(
+                    <span class="string">"Could not determine the value of associated constant `{name}`, encountered error: `{err}`"
+                </span>)
             }
         };
 
