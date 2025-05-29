@@ -1,0 +1,19 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: stderr
+---
+error: break is only allowed within loops
+  ┌─ src/main.nr:2:19
+  │
+2 │     let _ = 1 + { break; };
+  │                   ------
+  │
+
+error: Types in a binary operation should match, but found Field and ()
+  ┌─ src/main.nr:2:13
+  │
+2 │     let _ = 1 + { break; };
+  │             --------------
+  │
+
+Aborting due to 2 previous errors
