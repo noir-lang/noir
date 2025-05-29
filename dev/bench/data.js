@@ -1,37 +1,8 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1748543273146,
+  "lastUpdate": 1748543379093,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
-      {
-        "commit": {
-          "author": {
-            "email": "asterite@gmail.com",
-            "name": "Ary Borenszweig",
-            "username": "asterite"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "cafcdcd8d6250936bc089679838485bbd138fe35",
-          "message": "fix!: accept and return visibilities for StructDef (#8420)\n\nCo-authored-by: Tom French <15848336+TomAFrench@users.noreply.github.com>",
-          "timestamp": "2025-05-21T18:06:41Z",
-          "tree_id": "0411a5c02a631d01b998c52d7b45b173365a0923",
-          "url": "https://github.com/noir-lang/noir/commit/cafcdcd8d6250936bc089679838485bbd138fe35"
-        },
-        "date": 1747852724459,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "semaphore_depth_10",
-            "value": 128.35,
-            "unit": "MB"
-          }
-        ]
-      },
       {
         "commit": {
           "author": {
@@ -3044,6 +3015,85 @@ window.BENCHMARK_DATA = {
           {
             "name": "rollup-root",
             "value": 470.24,
+            "unit": "MB"
+          },
+          {
+            "name": "semaphore_depth_10",
+            "value": 128.39,
+            "unit": "MB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "asterite@gmail.com",
+            "name": "Ary Borenszweig",
+            "username": "asterite"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "5d4a46c70aa1a716c8f2491765b7b4d1699e7565",
+          "message": "fix: general solution for accessing associated constants (#8417)",
+          "timestamp": "2025-05-29T17:55:03Z",
+          "tree_id": "737af492eb9fd84537dbbfcda291f344a39a973a",
+          "url": "https://github.com/noir-lang/noir/commit/5d4a46c70aa1a716c8f2491765b7b4d1699e7565"
+        },
+        "date": 1748543368600,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 337.14,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 577.71,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 236.98,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 1470,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 1630,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root-empty",
+            "value": 431.72,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root-single-tx",
+            "value": 7240,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 7250,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 415.93,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-root",
+            "value": 470.22,
             "unit": "MB"
           },
           {
