@@ -1,5 +1,6 @@
 use std::{borrow::Cow, cell::RefCell, collections::BTreeSet, rc::Rc};
 
+use arithmetic::CanonicalizedCache;
 use fxhash::FxHashMap as HashMap;
 
 #[cfg(test)]
@@ -2212,15 +2213,30 @@ impl Type {
         location: Location,
     ) -> Result<acvm::FieldElement, TypeCheckError> {
         let run_simplifications = true;
-        self.evaluate_to_field_element_helper(kind, location, run_simplifications)
+        self.evaluate_to_field_optional_simplifications(kind, location, run_simplifications)
     }
 
-    /// evaluate_to_field_element with optional generic arithmetic simplifications
-    pub(crate) fn evaluate_to_field_element_helper(
+    pub(crate) fn evaluate_to_field_optional_simplifications(
         &self,
         kind: &Kind,
         location: Location,
         run_simplifications: bool,
+    ) -> Result<acvm::FieldElement, TypeCheckError> {
+        self.evaluate_to_field_element_helper(
+            kind,
+            location,
+            run_simplifications,
+            &mut Default::default(),
+        )
+    }
+
+    /// evaluate_to_field_element with optional generic arithmetic simplifications
+    fn evaluate_to_field_element_helper(
+        &self,
+        kind: &Kind,
+        location: Location,
+        run_simplifications: bool,
+        cache: &mut CanonicalizedCache,
     ) -> Result<acvm::FieldElement, TypeCheckError> {
         if let Some((binding, binding_kind)) = self.get_inner_type_variable() {
             if let TypeBinding::Bound(binding) = &*binding.borrow() {
@@ -2229,13 +2245,14 @@ impl Type {
                         &binding_kind,
                         location,
                         run_simplifications,
+                        cache,
                     );
                 }
             }
         }
 
         let could_be_checked_cast = false;
-        match self.canonicalize_helper(could_be_checked_cast, run_simplifications) {
+        match self.canonicalize_memoized_helper(could_be_checked_cast, run_simplifications, cache) {
             Type::Constant(x, constant_kind) => {
                 if kind.unifies(&constant_kind) {
                     kind.ensure_value_fits(x, location)
@@ -2254,11 +2271,13 @@ impl Type {
                         &infix_kind,
                         location,
                         run_simplifications,
+                        cache,
                     )?;
                     let rhs_value = rhs.evaluate_to_field_element_helper(
                         &infix_kind,
                         location,
                         run_simplifications,
+                        cache,
                     )?;
                     op.function(lhs_value, rhs_value, &infix_kind, location)
                 } else {
@@ -2275,9 +2294,12 @@ impl Type {
                 // if both 'to' and 'from' evaluate to a constant,
                 // return None unless they match
                 let skip_simplifications = false;
-                if let Ok(from_value) =
-                    from.evaluate_to_field_element_helper(kind, location, skip_simplifications)
-                {
+                if let Ok(from_value) = from.evaluate_to_field_element_helper(
+                    kind,
+                    location,
+                    skip_simplifications,
+                    cache,
+                ) {
                     if to_value == from_value {
                         Ok(to_value)
                     } else {

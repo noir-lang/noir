@@ -1566,8 +1566,11 @@ impl<'interner> Monomorphizer<'interner> {
         let to_value = to.evaluate_to_field_element(&to.kind(), location);
         if to_value.is_ok() {
             let skip_simplifications = false;
-            let from_value =
-                from.evaluate_to_field_element_helper(&to.kind(), location, skip_simplifications);
+            let from_value = from.evaluate_to_field_optional_simplifications(
+                &to.kind(),
+                location,
+                skip_simplifications,
+            );
             if from_value.is_err() || from_value.unwrap() != to_value.clone().unwrap() {
                 return Err(MonomorphizationError::CheckedCastFailed {
                     actual: HirType::Constant(to_value.unwrap(), to.kind()),
@@ -2511,7 +2514,7 @@ pub fn perform_impl_bindings(
 }
 
 pub fn resolve_trait_method(
-    interner: &NodeInterner,
+    interner: &mut NodeInterner,
     method: TraitMethodId,
     expr_id: ExprId,
 ) -> Result<node_interner::FuncId, InterpreterError> {
@@ -2531,7 +2534,13 @@ pub fn resolve_trait_method(
                 &trait_generics.ordered,
                 &trait_generics.named,
             ) {
-                Ok((TraitImplKind::Normal(impl_id), _instantiation_bindings)) => impl_id,
+                Ok((TraitImplKind::Normal(impl_id), instantiation_bindings)) => {
+                    let mut b = interner.get_instantiation_bindings(expr_id).clone();
+                    b.extend(instantiation_bindings);
+                    interner.store_instantiation_bindings(expr_id, b);
+
+                    impl_id
+                }
                 Ok((TraitImplKind::Assumed { .. }, _instantiation_bindings)) => {
                     return Err(InterpreterError::NoImpl { location });
                 }
