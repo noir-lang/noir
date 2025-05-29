@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1748540068546,
+  "lastUpdate": 1748541290232,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -15225,48 +15225,6 @@ window.BENCHMARK_DATA = {
             "name": "GitHub",
             "username": "web-flow"
           },
-          "distinct": true,
-          "id": "cafcdcd8d6250936bc089679838485bbd138fe35",
-          "message": "fix!: accept and return visibilities for StructDef (#8420)\n\nCo-authored-by: Tom French <15848336+TomAFrench@users.noreply.github.com>",
-          "timestamp": "2025-05-21T18:06:41Z",
-          "tree_id": "0411a5c02a631d01b998c52d7b45b173365a0923",
-          "url": "https://github.com/noir-lang/noir/commit/cafcdcd8d6250936bc089679838485bbd138fe35"
-        },
-        "date": 1747852529568,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 254926,
-            "range": "± 736",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 224324,
-            "range": "± 1805",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 3210603,
-            "range": "± 12008",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
-            "email": "asterite@gmail.com",
-            "name": "Ary Borenszweig",
-            "username": "asterite"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
           "distinct": false,
           "id": "72ce94beeac6d15b67141307bc38f9e2b0020b20",
           "message": "fix!: better error message when cannot infer generic numeric type (#7843)\n\nCo-authored-by: Tom French <15848336+TomAFrench@users.noreply.github.com>",
@@ -17309,6 +17267,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 3567004,
             "range": "± 3043",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "mvezenov@gmail.com",
+            "name": "Maxim Vezenov",
+            "username": "vezenovm"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "66f8c6ecf6cf9eae1246a243080358f644673582",
+          "message": "fix(ssa): Validate checked signed add/sub is followed by a truncate (#8706)",
+          "timestamp": "2025-05-29T17:31:56Z",
+          "tree_id": "d90e3fe6f27567642bf761a3a33b7bb4751bc07d",
+          "url": "https://github.com/noir-lang/noir/commit/66f8c6ecf6cf9eae1246a243080358f644673582"
+        },
+        "date": 1748541280208,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 255031,
+            "range": "± 739",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 224123,
+            "range": "± 4514",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 3212300,
+            "range": "± 1898",
             "unit": "ns/iter"
           }
         ]
