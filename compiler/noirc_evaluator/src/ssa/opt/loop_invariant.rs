@@ -45,21 +45,24 @@
 //! We then can store the PDFs for every block as part of the context of this pass, and use it for checking control dependence.
 //! Using PDFs gets us from a worst case n^2 complexity to a worst case n.
 use crate::ssa::{
+    Ssa,
     ir::{
         basic_block::BasicBlockId,
         cfg::ControlFlowGraph,
-        dfg::{simplify::SimplifyResult, DataFlowGraph},
+        dfg::{DataFlowGraph, simplify::SimplifyResult},
         dom::DominatorTree,
         function::Function,
         function_inserter::FunctionInserter,
         instruction::{
-            binary::eval_constant_binary_op, Binary, BinaryOp, ConstrainError, Instruction, InstructionId
+            Binary, BinaryOp, ConstrainError, Instruction, InstructionId,
+            binary::eval_constant_binary_op,
         },
         integer::IntegerConstant,
         post_order::PostOrder,
         types::{NumericType, Type},
         value::{Value, ValueId},
-    }, opt::pure::Purity, Ssa
+    },
+    opt::pure::Purity,
 };
 use acvm::{FieldElement, acir::AcirField};
 use fxhash::{FxHashMap as HashMap, FxHashSet as HashSet};
@@ -176,7 +179,7 @@ struct LoopInvariantContext<'f> {
     post_dom_frontiers: HashMap<BasicBlockId, HashSet<BasicBlockId>>,
 
     // Tracks whether the current block has a side-effectual instruction.
-    // This is maintained per instruction for hoisting control dependent instructions 
+    // This is maintained per instruction for hoisting control dependent instructions
     current_block_impure: bool,
 
     // Indicates whether the current loop has break or early returns
@@ -226,11 +229,9 @@ impl<'f> LoopInvariantContext<'f> {
             // Reset the per block state
             self.current_block_impure = false;
             self.is_control_dependent_post_pre_header(loop_, *block, all_loops);
-            
+
             for instruction_id in self.inserter.function.dfg[*block].take_instructions() {
-                // let is_block_currently_impure = self.current_block_impure;
                 if self.simplify_from_loop_bounds(instruction_id, loop_, block) {
-                    // If the block has no preceding side-effectual instructions, we should guarantee
                     continue;
                 }
                 let hoist_invariant = self.can_hoist_invariant(instruction_id);
@@ -292,6 +293,17 @@ impl<'f> LoopInvariantContext<'f> {
             .into_iter()
             .filter(|&predecessor| predecessor != block && predecessor != loop_.header)
             .collect::<Vec<_>>();
+
+        let dfg = &self.inserter.function.dfg;
+        // When hoisting a control dependent instruction, if a side effectual instruction comes in the predecessor block 
+        // of that instruction we can no longer hoist the control dependent instruction.
+        // This is important for maintaining ordering semantic correctness of the code. 
+        self.current_block_impure = all_predecessors.iter().any(|block| {
+            dfg[*block]
+                .instructions()
+                .iter()
+                .any(|instruction| has_side_effects(&dfg[*instruction], dfg))
+        });
 
         // Reset the current block control dependent flag, the check will set it to true if needed.
         // If we fail to reset it, a block may be inadvertently labelled
@@ -515,7 +527,9 @@ impl<'f> LoopInvariantContext<'f> {
     /// - The current block is non control dependent
     /// - The loop body is guaranteed to be executed
     fn can_hoist_control_dependent_instruction(&self) -> bool {
-        !self.current_block_control_dependent && self.does_loop_body_execute() && !self.current_block_impure
+        !self.current_block_control_dependent
+            && self.does_loop_body_execute()
+            && !self.current_block_impure
     }
 
     /// Determine whether the loop body is guaranteed to execute.
@@ -1701,7 +1715,12 @@ mod test {
 mod control_dependence {
     use crate::{
         assert_ssa_snapshot,
-        ssa::{opt::assert_normalized_ssa_equals, ssa_gen::Ssa},
+        ssa::{
+            interpreter::{errors::InterpreterError, tests::from_constant},
+            ir::types::NumericType,
+            opt::assert_normalized_ssa_equals,
+            ssa_gen::Ssa,
+        },
     };
 
     #[test]
@@ -2488,29 +2507,123 @@ mod control_dependence {
     }
 
     #[test]
-    fn do_not_hoist_constrain_with_preceding_impure_call() {
-      let src = "
-      brillig(inline) fn main f0 {
-        b0(v0: i32, v1: i32):
-          jmp b1(i32 0)
-        b1(v2: i32):
-          v5 = lt v2, i32 4
-          jmpif v5 then: b3, else: b3
-        b2():
-          v6 = mul v0, v1
-          constrain v6 == i32 6
-          v8 = unchecked_add v2, i32 1
-          jmp b1(v8)
-        b3():
-          return
-      }
-      brillig(inline) impure fn foo f1 {
-        b0():
-          return
-      }
-      ";
-      let ssa = Ssa::from_str(src).unwrap();
-      let ssa = ssa.loop_invariant_code_motion();
+    fn do_not_hoist_constrain_with_preceding_side_effects() {
+        let src = r"
+        acir(inline) predicate_pure fn main f0 {
+          b0(v0: u32, v1: u32):
+            v3 = cast v0 as Field
+            jmp b1(u32 0)
+          b1(v2: u32):
+            v6 = lt v2, u32 4
+            jmpif v6 then: b2, else: b3
+          b2():
+            v7 = cast v2 as Field
+            v8 = add v7, v3
+            range_check v8 to 1 bits
+            constrain v0 == u32 12
+            v11 = unchecked_add v2, u32 1
+            jmp b1(v11)
+          b3():
+            return
+        }
+        ";
+        let ssa = Ssa::from_str(src).unwrap();
+        let expected = ssa
+            .interpret(vec![
+                from_constant(2_u128.into(), NumericType::NativeField),
+                from_constant(3_u128.into(), NumericType::NativeField),
+            ])
+            .err()
+            .expect("Should have error");
+        assert!(matches!(expected, InterpreterError::RangeCheckFailed { .. }));
+
+        let mut ssa = ssa.loop_invariant_code_motion();
+        ssa.normalize_ids();
+
+        let got = ssa
+            .interpret(vec![
+                from_constant(2_u128.into(), NumericType::NativeField),
+                from_constant(3_u128.into(), NumericType::NativeField),
+            ])
+            .err()
+            .expect("Should have error");
+        assert_eq!(expected, got);
+
+        assert_normalized_ssa_equals(ssa, src);
     }
 
+    #[test]
+    fn do_not_hoist_constrain_with_preceding_side_effects_in_another_block() {
+        // The SSA for this program where x = 2 and y = 3:
+        // ```noir
+        // fn main(x: u32, y: u32) {
+        //     for i in 0..4 {
+        //         if x == 2 {
+        //           let y = i + x;
+        //           assert_eq(y, 12);
+        //         }
+        //         assert_eq(x, 12);
+        //     }
+        //  }
+        // 
+        // ```
+        // We expect to fail on assert_eq(y, 12) rather than assert_eq(x, 12);
+        let src = r"
+        acir(inline) predicate_pure fn main f0 {
+          b0(v0: u32, v1: u32):
+            v4 = eq v0, u32 2
+            jmp b1(u32 0)
+          b1(v2: u32):
+            v7 = lt v2, u32 4
+            jmpif v7 then: b2, else: b3
+          b2():
+            jmpif v4 then: b4, else: b5
+          b3():
+            return
+          b4():
+            v8 = add v2, v0
+            constrain v8 == u32 12
+            jmp b5()
+          b5():
+            constrain v0 == u32 12
+            v11 = unchecked_add v2, u32 1
+            jmp b1(v11)
+        }
+        ";
+
+        let ssa = Ssa::from_str(src).unwrap();
+        let expected = ssa
+            .interpret(vec![
+                from_constant(2_u128.into(), NumericType::Unsigned { bit_size: 32 }),
+                from_constant(3_u128.into(), NumericType::Unsigned { bit_size: 32 }),
+            ])
+            .err()
+            .expect("Should have error");
+        dbg!(&expected);
+        let InterpreterError::ConstrainEqFailed { lhs_id, .. } = expected else {
+            panic!("Expected ConstrainEqFailed");
+        };
+        // Make sure that the constrain on v8 is the on that failed
+        assert_eq!(lhs_id.to_u32(), 8);
+
+        let mut ssa = ssa.loop_invariant_code_motion();
+        ssa.normalize_ids();
+        println!("{}", ssa);
+        let got = ssa
+            .interpret(vec![
+                from_constant(2_u128.into(), NumericType::Unsigned { bit_size: 32 }),
+                from_constant(3_u128.into(), NumericType::Unsigned { bit_size: 32 }),
+            ])
+            .err()
+            .expect("Should have error");
+        dbg!(&got);
+        let InterpreterError::ConstrainEqFailed { lhs_id, .. } = got else {
+            panic!("Expected ConstrainEqFailed");
+        };
+        // Make sure that the constrain on v8 is the on that failed
+        assert_eq!(lhs_id.to_u32(), 8);
+        // assert_eq!(expected, got);
+
+        assert_normalized_ssa_equals(ssa, src);
+    }
 }
