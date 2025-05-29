@@ -45,24 +45,21 @@
 //! We then can store the PDFs for every block as part of the context of this pass, and use it for checking control dependence.
 //! Using PDFs gets us from a worst case n^2 complexity to a worst case n.
 use crate::ssa::{
-    Ssa,
     ir::{
         basic_block::BasicBlockId,
         cfg::ControlFlowGraph,
-        dfg::simplify::SimplifyResult,
+        dfg::{simplify::SimplifyResult, DataFlowGraph},
         dom::DominatorTree,
         function::Function,
         function_inserter::FunctionInserter,
         instruction::{
-            Binary, BinaryOp, ConstrainError, Instruction, InstructionId,
-            binary::eval_constant_binary_op,
+            binary::eval_constant_binary_op, Binary, BinaryOp, ConstrainError, Instruction, InstructionId
         },
         integer::IntegerConstant,
         post_order::PostOrder,
         types::{NumericType, Type},
         value::{Value, ValueId},
-    },
-    opt::pure::Purity,
+    }, opt::pure::Purity, Ssa
 };
 use acvm::{FieldElement, acir::AcirField};
 use fxhash::{FxHashMap as HashMap, FxHashSet as HashSet};
@@ -178,6 +175,10 @@ struct LoopInvariantContext<'f> {
     // This map should be precomputed a single time and used for checking control dependence.
     post_dom_frontiers: HashMap<BasicBlockId, HashSet<BasicBlockId>>,
 
+    // Tracks whether the current block has a side-effectual instruction.
+    // This is maintained per instruction for hoisting control dependent instructions 
+    current_block_impure: bool,
+
     // Indicates whether the current loop has break or early returns
     no_break: bool,
     // Helper constants
@@ -207,6 +208,7 @@ impl<'f> LoopInvariantContext<'f> {
             current_block_control_dependent: false,
             nested_loop_control_dependent_blocks: HashSet::default(),
             post_dom_frontiers,
+            current_block_impure: false,
             true_value,
             false_value,
             no_break: false,
@@ -221,10 +223,14 @@ impl<'f> LoopInvariantContext<'f> {
         self.set_values_defined_in_loop(loop_);
 
         for block in loop_.blocks.iter() {
+            // Reset the per block state
+            self.current_block_impure = false;
             self.is_control_dependent_post_pre_header(loop_, *block, all_loops);
-
+            
             for instruction_id in self.inserter.function.dfg[*block].take_instructions() {
+                // let is_block_currently_impure = self.current_block_impure;
                 if self.simplify_from_loop_bounds(instruction_id, loop_, block) {
+                    // If the block has no preceding side-effectual instructions, we should guarantee
                     continue;
                 }
                 let hoist_invariant = self.can_hoist_invariant(instruction_id);
@@ -254,6 +260,8 @@ impl<'f> LoopInvariantContext<'f> {
                             .insert_instruction_and_results(inc_rc, *block, None, call_stack);
                     }
                 } else {
+                    let dfg = &self.inserter.function.dfg;
+                    self.current_block_impure = has_side_effects(&dfg[instruction_id], dfg);
                     self.inserter.push_instruction(instruction_id, *block);
                 }
                 self.extend_values_defined_in_loop_and_invariants(instruction_id, hoist_invariant);
@@ -507,7 +515,7 @@ impl<'f> LoopInvariantContext<'f> {
     /// - The current block is non control dependent
     /// - The loop body is guaranteed to be executed
     fn can_hoist_control_dependent_instruction(&self) -> bool {
-        !self.current_block_control_dependent && self.does_loop_body_execute()
+        !self.current_block_control_dependent && self.does_loop_body_execute() && !self.current_block_impure
     }
 
     /// Determine whether the loop body is guaranteed to execute.
@@ -972,6 +980,63 @@ fn can_be_hoisted(
         Binary(_) | ArrayGet { .. } | ArraySet { .. } => {
             hoist_with_predicate || !instruction.requires_acir_gen_predicate(&function.dfg)
         }
+    }
+}
+
+/// Indicates if the instruction has a side effect, ie. it can fail, or it interacts with memory.
+fn has_side_effects(instruction: &Instruction, dfg: &DataFlowGraph) -> bool {
+    use Instruction::*;
+
+    match instruction {
+        // These either have side-effects or interact with memory
+        EnableSideEffectsIf { .. }
+        | Allocate
+        | Load { .. }
+        | Store { .. }
+        | IncrementRc { .. }
+        | DecrementRc { .. } => true,
+
+        Call { func, .. } => match dfg[*func] {
+            Value::Intrinsic(intrinsic) => intrinsic.has_side_effects(),
+            // Functions known to be pure have no side effects.
+            // `PureWithPredicates` functions may still have side effects.
+            Value::Function(function) => dfg.purity_of(function) != Some(Purity::Pure),
+            _ => true, // Be conservative and assume other functions can have side effects.
+        },
+
+        // These can fail.
+        Constrain(..) | ConstrainNotEqual(..) | RangeCheck { .. } => true,
+
+        // This should never be side-effectual
+        MakeArray { .. } | Noop => false,
+
+        // Some binary math can overflow or underflow
+        Binary(binary) => match binary.operator {
+            BinaryOp::Add { unchecked: false }
+            | BinaryOp::Sub { unchecked: false }
+            | BinaryOp::Mul { unchecked: false }
+            | BinaryOp::Div
+            | BinaryOp::Mod => true,
+            BinaryOp::Add { unchecked: true }
+            | BinaryOp::Sub { unchecked: true }
+            | BinaryOp::Mul { unchecked: true }
+            | BinaryOp::Eq
+            | BinaryOp::Lt
+            | BinaryOp::And
+            | BinaryOp::Or
+            | BinaryOp::Xor
+            | BinaryOp::Shl
+            | BinaryOp::Shr => false,
+        },
+
+        // These don't have side effects
+        Cast(_, _) | Not(_) | Truncate { .. } | IfElse { .. } => false,
+
+        // `ArrayGet`s which read from "known good" indices from an array have no side effects
+        ArrayGet { array, index, offset: _ } => !dfg.is_safe_index(*index, *array),
+
+        // ArraySet has side effects
+        ArraySet { .. } => true,
     }
 }
 
@@ -2421,4 +2486,31 @@ mod control_dependence {
         }
         ");
     }
+
+    #[test]
+    fn do_not_hoist_constrain_with_preceding_impure_call() {
+      let src = "
+      brillig(inline) fn main f0 {
+        b0(v0: i32, v1: i32):
+          jmp b1(i32 0)
+        b1(v2: i32):
+          v5 = lt v2, i32 4
+          jmpif v5 then: b3, else: b3
+        b2():
+          v6 = mul v0, v1
+          constrain v6 == i32 6
+          v8 = unchecked_add v2, i32 1
+          jmp b1(v8)
+        b3():
+          return
+      }
+      brillig(inline) impure fn foo f1 {
+        b0():
+          return
+      }
+      ";
+      let ssa = Ssa::from_str(src).unwrap();
+      let ssa = ssa.loop_invariant_code_motion();
+    }
+
 }
