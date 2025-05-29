@@ -450,7 +450,7 @@ impl Translator {
                 let call_stack = CallStackId::root();
                 self.globals_function
                     .dfg
-                    .insert_instruction_and_results(instruction, block, None, call_stack)
+                    .insert_instruction_and_results(instruction, block, None, call_stack)?
                     .first()
             }
         };

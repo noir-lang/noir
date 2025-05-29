@@ -7,15 +7,18 @@ use bn254_blackbox_solver::derive_generators;
 use iter_extended::vecmap;
 use num_bigint::BigUint;
 
-use crate::ssa::{
-    ir::{
-        basic_block::BasicBlockId,
-        dfg::DataFlowGraph,
-        instruction::{ArrayOffset, Binary, BinaryOp, Endian, Hint, Instruction, Intrinsic},
-        types::{NumericType, Type},
-        value::{Value, ValueId},
+use crate::{
+    errors::RuntimeError,
+    ssa::{
+        ir::{
+            basic_block::BasicBlockId,
+            dfg::DataFlowGraph,
+            instruction::{ArrayOffset, Binary, BinaryOp, Endian, Hint, Instruction, Intrinsic},
+            types::{NumericType, Type},
+            value::{Value, ValueId},
+        },
+        opt::flatten_cfg::value_merger::ValueMerger,
     },
-    opt::flatten_cfg::value_merger::ValueMerger,
 };
 
 use super::SimplifyResult;
@@ -36,10 +39,10 @@ pub(super) fn simplify_call(
     block: BasicBlockId,
     ctrl_typevars: Option<Vec<Type>>,
     call_stack: CallStackId,
-) -> SimplifyResult {
+) -> Result<SimplifyResult, RuntimeError> {
     let intrinsic = match &dfg[func] {
         Value::Intrinsic(intrinsic) => *intrinsic,
-        _ => return SimplifyResult::None,
+        _ => return Ok(SimplifyResult::None),
     };
 
     let return_type = ctrl_typevars.and_then(|return_types| return_types.first().cloned());
@@ -141,10 +144,17 @@ pub(super) fn simplify_call(
                     let new_slice_length = increment_slice_length(arguments[0], dfg, block);
 
                     let new_slice = make_array(dfg, slice, element_type, block, call_stack);
-                    return SimplifyResult::SimplifiedToMultiple(vec![new_slice_length, new_slice]);
+                    SimplifyResult::SimplifiedToMultiple(vec![new_slice_length, new_slice])
+                } else {
+                    simplify_slice_push_back(
+                        slice,
+                        element_type,
+                        arguments,
+                        dfg,
+                        block,
+                        call_stack,
+                    )?
                 }
-
-                simplify_slice_push_back(slice, element_type, arguments, dfg, block, call_stack)
             } else {
                 SimplifyResult::None
             }
@@ -169,12 +179,12 @@ pub(super) fn simplify_call(
             if length.is_none_or(|length| length.is_zero()) {
                 // If the length is zero then we're trying to pop the last element from an empty slice.
                 // Defer the error to acir_gen.
-                return SimplifyResult::None;
+                return Ok(SimplifyResult::None);
             }
 
             let slice = dfg.get_array_constant(arguments[1]);
             if let Some((_, typ)) = slice {
-                simplify_slice_pop_back(typ, arguments, dfg, block, call_stack)
+                simplify_slice_pop_back(typ, arguments, dfg, block, call_stack)?
             } else {
                 SimplifyResult::None
             }
@@ -184,7 +194,7 @@ pub(super) fn simplify_call(
             if length.is_none_or(|length| length.is_zero()) {
                 // If the length is zero then we're trying to pop the first element from an empty slice.
                 // Defer the error to acir_gen.
-                return SimplifyResult::None;
+                return Ok(SimplifyResult::None);
             }
 
             let slice = dfg.get_array_constant(arguments[1]);
@@ -221,7 +231,7 @@ pub(super) fn simplify_call(
                 // Constraints should be generated during SSA gen to tell the user
                 // they are attempting to insert at too large of an index
                 if index > slice.len() {
-                    return SimplifyResult::None;
+                    return Ok(SimplifyResult::None);
                 }
 
                 for elem in &arguments[3..] {
@@ -242,7 +252,7 @@ pub(super) fn simplify_call(
             if length.is_none_or(|length| length.is_zero()) {
                 // If the length is zero then we're trying to remove an element from an empty slice.
                 // Defer the error to acir_gen.
-                return SimplifyResult::None;
+                return Ok(SimplifyResult::None);
             }
 
             let slice = dfg.get_array_constant(arguments[1]);
@@ -257,7 +267,7 @@ pub(super) fn simplify_call(
                 // Constraints should be generated during SSA gen to tell the user
                 // they are attempting to remove at too large of an index.
                 if index >= slice.len() {
-                    return SimplifyResult::None;
+                    return Ok(SimplifyResult::None);
                 }
 
                 for _ in 0..element_count {
@@ -293,10 +303,8 @@ pub(super) fn simplify_call(
             }
 
             if !dfg.is_constant(arguments[1]) {
-                return SimplifyResult::None;
-            }
-
-            if dfg.is_constant_true(arguments[0]) {
+                SimplifyResult::None
+            } else if dfg.is_constant_true(arguments[0]) {
                 SimplifyResult::Remove
             } else {
                 SimplifyResult::None
@@ -361,7 +369,7 @@ pub(super) fn simplify_call(
         );
     }
 
-    simplified_result
+    Ok(simplified_result)
 }
 
 /// Returns a slice (represented by a tuple (len, slice)) of constants corresponding to the limbs of the radix decomposition.
@@ -418,7 +426,7 @@ fn make_constant_array(
     typ: NumericType,
     block: BasicBlockId,
     call_stack: CallStackId,
-) -> ValueId {
+) -> Result<ValueId, RuntimeError> {
     let result_constants: im::Vector<_> =
         results.map(|element| dfg.make_constant(element, typ)).collect();
 
@@ -432,9 +440,10 @@ fn make_array(
     typ: Type,
     block: BasicBlockId,
     call_stack: CallStackId,
-) -> ValueId {
+) -> Result<ValueId, RuntimeError> {
     let instruction = Instruction::MakeArray { elements, typ };
-    dfg.insert_instruction_and_results(instruction, block, None, call_stack).first()
+    dfg.insert_instruction_and_results(instruction, block, None, call_stack)
+        .map(|result| result.first())
 }
 
 /// Slices have a tuple structure (slice length, slice contents) to enable logic
@@ -449,18 +458,19 @@ fn update_slice_length(
     dfg: &mut DataFlowGraph,
     operator: BinaryOp,
     block: BasicBlockId,
-) -> ValueId {
+) -> Result<ValueId, RuntimeError> {
     let one = dfg.make_constant(FieldElement::one(), NumericType::length_type());
     let instruction = Instruction::Binary(Binary { lhs: slice_len, operator, rhs: one });
     let call_stack = dfg.get_value_call_stack_id(slice_len);
-    dfg.insert_instruction_and_results(instruction, block, None, call_stack).first()
+    dfg.insert_instruction_and_results(instruction, block, None, call_stack)
+        .map(|result| result.first())
 }
 
 fn increment_slice_length(
     slice_len: ValueId,
     dfg: &mut DataFlowGraph,
     block: BasicBlockId,
-) -> ValueId {
+) -> Result<ValueId, RuntimeError> {
     update_slice_length(slice_len, dfg, BinaryOp::Add { unchecked: false }, block)
 }
 
@@ -468,7 +478,7 @@ fn decrement_slice_length(
     slice_len: ValueId,
     dfg: &mut DataFlowGraph,
     block: BasicBlockId,
-) -> ValueId {
+) -> Result<ValueId, RuntimeError> {
     update_slice_length(slice_len, dfg, BinaryOp::Sub { unchecked: true }, block)
 }
 
@@ -479,17 +489,17 @@ fn simplify_slice_push_back(
     dfg: &mut DataFlowGraph,
     block: BasicBlockId,
     call_stack: CallStackId,
-) -> SimplifyResult {
+) -> Result<SimplifyResult, RuntimeError> {
     // The capacity must be an integer so that we can compare it against the slice length
     let capacity = dfg.make_constant((slice.len() as u128).into(), NumericType::length_type());
     let len_equals_capacity_instr =
         Instruction::Binary(Binary { lhs: arguments[0], operator: BinaryOp::Eq, rhs: capacity });
     let len_equals_capacity = dfg
-        .insert_instruction_and_results(len_equals_capacity_instr, block, None, call_stack)
+        .insert_instruction_and_results(len_equals_capacity_instr, block, None, call_stack)?
         .first();
     let len_not_equals_capacity_instr = Instruction::Not(len_equals_capacity);
     let len_not_equals_capacity = dfg
-        .insert_instruction_and_results(len_not_equals_capacity_instr, block, None, call_stack)
+        .insert_instruction_and_results(len_not_equals_capacity_instr, block, None, call_stack)?
         .first();
 
     let new_slice_length = increment_slice_length(arguments[0], dfg, block);
@@ -510,7 +520,7 @@ fn simplify_slice_push_back(
     };
 
     let set_last_slice_value = dfg
-        .insert_instruction_and_results(set_last_slice_value_instr, block, None, call_stack)
+        .insert_instruction_and_results(set_last_slice_value_instr, block, None, call_stack)?
         .first();
 
     let mut slice_sizes = HashMap::default();
@@ -524,9 +534,9 @@ fn simplify_slice_push_back(
         len_equals_capacity,
         set_last_slice_value,
         new_slice,
-    );
+    )?;
 
-    SimplifyResult::SimplifiedToMultiple(vec![new_slice_length, new_slice])
+    Ok(SimplifyResult::SimplifiedToMultiple(vec![new_slice_length, new_slice]))
 }
 
 fn simplify_slice_pop_back(
@@ -535,7 +545,7 @@ fn simplify_slice_pop_back(
     dfg: &mut DataFlowGraph,
     block: BasicBlockId,
     call_stack: CallStackId,
-) -> SimplifyResult {
+) -> Result<SimplifyResult, RuntimeError> {
     let element_types = slice_type.element_types();
     let element_count = element_types.len();
     let mut results = VecDeque::with_capacity(element_count + 1);
@@ -549,7 +559,7 @@ fn simplify_slice_pop_back(
     let flattened_len_instr =
         Instruction::binary(BinaryOp::Mul { unchecked: true }, arguments[0], element_size);
     let mut flattened_len =
-        dfg.insert_instruction_and_results(flattened_len_instr, block, None, call_stack).first();
+        dfg.insert_instruction_and_results(flattened_len_instr, block, None, call_stack)?.first();
     flattened_len = decrement_slice_length(flattened_len, dfg, block);
 
     // We must pop multiple elements in the case of a slice of tuples
@@ -563,7 +573,7 @@ fn simplify_slice_pop_back(
 
         let element_type = Some(vec![element_type.clone()]);
         let get_last_elem = dfg
-            .insert_instruction_and_results(get_last_elem_instr, block, element_type, call_stack)
+            .insert_instruction_and_results(get_last_elem_instr, block, element_type, call_stack)?
             .first();
         results.push_front(get_last_elem);
 
@@ -573,7 +583,7 @@ fn simplify_slice_pop_back(
     results.push_front(arguments[1]);
 
     results.push_front(new_slice_length);
-    SimplifyResult::SimplifiedToMultiple(results.into())
+    Ok(SimplifyResult::SimplifiedToMultiple(results.into()))
 }
 
 /// Try to simplify this black box call. If the call can be simplified to a known value,

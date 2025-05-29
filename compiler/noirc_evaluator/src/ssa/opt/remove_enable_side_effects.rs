@@ -66,7 +66,7 @@ impl Function {
                 // If this instruction isn't changing the currently active condition then we can ignore it.
                 if active_condition == *condition {
                     context.remove_current_instruction();
-                    return;
+                    return Ok(());
                 }
 
                 // If we're seeing an `enable_side_effects u1 1` then we want to insert it immediately.
@@ -78,13 +78,13 @@ impl Function {
                 if condition_is_one {
                     last_side_effects_enabled_instruction = None;
                     active_condition = *condition;
-                    return;
+                    return Ok(());
                 }
 
                 last_side_effects_enabled_instruction = Some(instruction_id);
                 active_condition = *condition;
                 context.remove_current_instruction();
-                return;
+                return Ok(());
             }
 
             // If we hit an instruction which is affected by the side effects var then we must insert the
@@ -96,6 +96,7 @@ impl Function {
                     context.insert_instruction(enable_side_effects_instruction_id);
                 }
             }
+            Ok(())
         });
     }
 }

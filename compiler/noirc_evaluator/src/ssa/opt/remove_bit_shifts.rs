@@ -47,11 +47,11 @@ impl Function {
             let instruction = context.instruction();
 
             let Instruction::Binary(Binary { lhs, rhs, operator }) = instruction else {
-                return;
+                return Ok(());
             };
 
             if !matches!(operator, BinaryOp::Shl | BinaryOp::Shr) {
-                return;
+                return Ok(());
             }
 
             let lhs = *lhs;
@@ -78,6 +78,7 @@ impl Function {
             };
 
             context.replace_value(old_result, new_result);
+            Ok(())
         });
 
         #[cfg(debug_assertions)]

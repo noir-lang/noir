@@ -50,7 +50,7 @@ impl Function {
                     let array = *array;
                     let index = *index;
                     if !context.dfg.is_constant(index) {
-                        return;
+                        return Ok(());
                     }
 
                     let (index, offset) = compute_index_and_offset(context, array, index);
@@ -66,7 +66,7 @@ impl Function {
                     let value = *value;
                     let mutable = *mutable;
                     if !context.dfg.is_constant(index) {
-                        return;
+                        return Ok(());
                     }
 
                     let (index, offset) = compute_index_and_offset(context, array, index);
@@ -76,6 +76,7 @@ impl Function {
                 }
                 _ => (),
             }
+            Ok(())
         });
     }
 }

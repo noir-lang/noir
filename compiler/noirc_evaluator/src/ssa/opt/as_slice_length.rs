@@ -33,11 +33,11 @@ impl Function {
 
             let (target_func, arguments) = match &instruction {
                 Instruction::Call { func, arguments } => (func, arguments),
-                _ => return,
+                _ => return Ok(()),
             };
 
             let Value::Intrinsic(Intrinsic::AsSlice) = context.dfg[*target_func] else {
-                return;
+                return Ok(());
             };
 
             let first_argument = arguments.first().unwrap();
@@ -50,6 +50,7 @@ impl Function {
             let original_slice_length = call_returns[0];
             let known_length = context.dfg.make_constant(length.into(), NumericType::length_type());
             context.replace_value(original_slice_length, known_length);
+            Ok(())
         });
     }
 }

@@ -31,14 +31,14 @@ impl Function {
         self.simple_reachable_blocks_optimization(|context| {
             let instruction = context.instruction();
             let Instruction::Binary(binary) = instruction else {
-                return;
+                return Ok(());
             };
             let lhs = binary.lhs;
             let rhs = binary.rhs;
 
             let lhs_type = context.dfg.type_of_value(lhs).unwrap_numeric();
             let NumericType::Unsigned { .. } = lhs_type else {
-                return;
+                return Ok(());
             };
 
             let dfg = &context.dfg;
@@ -58,7 +58,7 @@ impl Function {
                 }
                 BinaryOp::Sub { unchecked: false } => {
                     let Some(lhs_const) = dfg.get_numeric_constant(lhs) else {
-                        return;
+                        return Ok(());
                     };
 
                     let max_lhs_bits = get_max_num_bits(dfg, lhs, &mut value_max_num_bits);
@@ -96,6 +96,7 @@ impl Function {
                 }
                 _ => (),
             }
+            Ok(())
         });
     }
 }

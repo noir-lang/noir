@@ -47,16 +47,17 @@ impl Function {
                 operator: BinaryOp::Mul { unchecked: false },
             }) = instruction
             else {
-                return;
+                return Ok(());
             };
 
             let binary_type = context.dfg.type_of_value(*lhs).unwrap_numeric();
             let NumericType::Unsigned { bit_size: 128 } = binary_type else {
-                return;
+                return Ok(());
             };
 
             let call_stack = context.dfg.get_instruction_call_stack_id(instruction_id);
             check_u128_mul_overflow(*lhs, *rhs, block_id, context, call_stack);
+            Ok(())
         });
     }
 }

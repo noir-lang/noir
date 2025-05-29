@@ -1,8 +1,11 @@
 use std::{borrow::Cow, sync::Arc};
 
-use crate::ssa::{
-    function_builder::data_bus::DataBus,
-    opt::pure::{FunctionPurities, Purity},
+use crate::{
+    errors::RuntimeError,
+    ssa::{
+        function_builder::data_bus::DataBus,
+        opt::pure::{FunctionPurities, Purity},
+    },
 };
 
 use super::{
@@ -306,7 +309,7 @@ impl DataFlowGraph {
         block: BasicBlockId,
         ctrl_typevars: Option<Vec<Type>>,
         call_stack: CallStackId,
-    ) -> InsertInstructionResult {
+    ) -> Result<InsertInstructionResult, RuntimeError> {
         self.insert_instruction_and_results_if_simplified(
             instruction,
             block,
@@ -324,15 +327,15 @@ impl DataFlowGraph {
         ctrl_typevars: Option<Vec<Type>>,
         call_stack: CallStackId,
         existing_id: Option<InstructionId>,
-    ) -> InsertInstructionResult {
+    ) -> Result<InsertInstructionResult, RuntimeError> {
         if !self.is_handled_by_runtime(&instruction) {
             // BUG: With panicking it fails to build the `token_contract`; see:
             // https://github.com/AztecProtocol/aztec-packages/pull/11294#issuecomment-2624379102
             // panic!("Attempted to insert instruction not handled by runtime: {instruction:?}");
-            return InsertInstructionResult::InstructionRemoved;
+            return Ok(InsertInstructionResult::InstructionRemoved);
         }
 
-        match simplify(&instruction, self, block, ctrl_typevars.clone(), call_stack) {
+        Ok(match simplify(&instruction, self, block, ctrl_typevars.clone(), call_stack)? {
             SimplifyResult::SimplifiedTo(simplification) => {
                 InsertInstructionResult::SimplifiedTo(simplification)
             }
@@ -349,10 +352,10 @@ impl DataFlowGraph {
                         if self[id] == instruction {
                             // Just (re)insert into the block, no need to redefine.
                             self.blocks[block].insert_instruction(id);
-                            return InsertInstructionResult::Results(
+                            return Ok(InsertInstructionResult::Results(
                                 id,
                                 self.instruction_results(id),
-                            );
+                            ));
                         }
                     }
                 }
@@ -391,7 +394,7 @@ impl DataFlowGraph {
                     call_stack,
                 )
             }
-        }
+        })
     }
 
     /// Replace an existing instruction with a new one.

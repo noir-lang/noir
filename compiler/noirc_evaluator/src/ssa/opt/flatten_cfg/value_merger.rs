@@ -2,12 +2,15 @@ use acvm::{FieldElement, acir::AcirField};
 use fxhash::FxHashMap as HashMap;
 use noirc_errors::call_stack::CallStackId;
 
-use crate::ssa::ir::{
-    basic_block::BasicBlockId,
-    dfg::DataFlowGraph,
-    instruction::{ArrayOffset, BinaryOp, Instruction},
-    types::{NumericType, Type},
-    value::ValueId,
+use crate::{
+    errors::RuntimeError,
+    ssa::ir::{
+        basic_block::BasicBlockId,
+        dfg::DataFlowGraph,
+        instruction::{ArrayOffset, BinaryOp, Instruction},
+        types::{NumericType, Type},
+        value::ValueId,
+    },
 };
 
 pub(crate) struct ValueMerger<'a> {
@@ -45,28 +48,34 @@ impl<'a> ValueMerger<'a> {
         else_condition: ValueId,
         then_value: ValueId,
         else_value: ValueId,
-    ) -> ValueId {
+    ) -> Result<ValueId, RuntimeError> {
         if then_value == else_value {
-            return then_value;
+            return Ok(then_value);
         }
 
         match self.dfg.type_of_value(then_value) {
-            Type::Numeric(_) => Self::merge_numeric_values(
+            Type::Numeric(_) => Ok(Self::merge_numeric_values(
                 self.dfg,
                 self.block,
                 then_condition,
                 else_condition,
                 then_value,
                 else_value,
-            ),
+            )),
             typ @ Type::Array(_, _) => {
                 self.merge_array_values(typ, then_condition, else_condition, then_value, else_value)
             }
             typ @ Type::Slice(_) => {
                 self.merge_slice_values(typ, then_condition, else_condition, then_value, else_value)
             }
-            Type::Reference(_) => panic!("Cannot return references from an if expression"),
-            Type::Function => panic!("Cannot return functions from an if expression"),
+            Type::Reference(_) => {
+                let call_stack = self.dfg.get_value_call_stack(then_value);
+                Err(RuntimeError::ReturnedReferenceFromDynamicIf { call_stack })
+            }
+            Type::Function => {
+                let call_stack = self.dfg.get_value_call_stack(then_value);
+                Err(RuntimeError::ReturnedFunctionFromDynamicIf { call_stack })
+            }
         }
     }
 
@@ -130,7 +139,7 @@ impl<'a> ValueMerger<'a> {
         else_condition: ValueId,
         then_value: ValueId,
         else_value: ValueId,
-    ) -> ValueId {
+    ) -> Result<ValueId, RuntimeError> {
         let mut merged = im::Vector::new();
 
         let (element_types, len) = match &typ {
@@ -162,14 +171,14 @@ impl<'a> ValueMerger<'a> {
                     else_condition,
                     then_element,
                     else_element,
-                ));
+                )?);
             }
         }
 
         let instruction = Instruction::MakeArray { elements: merged, typ };
-        self.dfg
-            .insert_instruction_and_results(instruction, self.block, None, self.call_stack)
-            .first()
+        let result =
+            self.dfg.insert_instruction_and_results(instruction, self.block, None, self.call_stack);
+        Ok(result.first())
     }
 
     fn merge_slice_values(
@@ -179,7 +188,7 @@ impl<'a> ValueMerger<'a> {
         else_condition: ValueId,
         then_value_id: ValueId,
         else_value_id: ValueId,
-    ) -> ValueId {
+    ) -> Result<ValueId, RuntimeError> {
         let mut merged = im::Vector::new();
 
         let element_types = match &typ {
@@ -243,13 +252,15 @@ impl<'a> ValueMerger<'a> {
                     else_condition,
                     then_element,
                     else_element,
-                ));
+                )?);
             }
         }
 
         let instruction = Instruction::MakeArray { elements: merged, typ };
         let call_stack = self.call_stack;
-        self.dfg.insert_instruction_and_results(instruction, self.block, None, call_stack).first()
+        let result =
+            self.dfg.insert_instruction_and_results(instruction, self.block, None, call_stack);
+        Ok(result.first())
     }
 
     /// Construct a dummy value to be attached to the smaller of two slices being merged.

@@ -2,6 +2,7 @@ use std::collections::hash_map::Entry;
 
 use fxhash::FxHashMap as HashMap;
 
+use crate::errors::RuntimeError;
 use crate::ssa::ir::function::RuntimeType;
 use crate::ssa::ir::instruction::Hint;
 use crate::ssa::ir::value::ValueId;
@@ -55,7 +56,7 @@ struct Context {
 }
 
 impl Context {
-    fn remove_if_else(&mut self, function: &mut Function) {
+    fn remove_if_else(&mut self, function: &mut Function) -> Result<(), RuntimeError> {
         let block = function.entry_block();
 
         // Make sure this optimization runs when there's only one block
@@ -84,16 +85,11 @@ impl Context {
                         else_condition,
                         then_value,
                         else_value,
-                    );
+                    )?;
 
                     let _typ = context.dfg.type_of_value(value);
                     let results = context.dfg.instruction_results(instruction_id);
                     let result = results[0];
-                    // let result = match typ {
-                    //     Type::Array(..) => results[0],
-                    //     Type::Slice(..) => results[1],
-                    //     other => unreachable!("IfElse instructions should only have arrays or slices at this point. Found {other:?}"),
-                    // };
 
                     context.remove_current_instruction();
                     context.replace_value(result, value);
@@ -129,7 +125,8 @@ impl Context {
                 }
                 _ => (),
             }
-        });
+            Ok(())
+        })
     }
 
     fn get_or_find_capacity(&mut self, dfg: &DataFlowGraph, value: ValueId) -> u32 {

@@ -1,9 +1,12 @@
-use crate::ssa::ir::{
-    basic_block::BasicBlockId,
-    dfg::DataFlowGraph,
-    function::Function,
-    instruction::{Instruction, InstructionId},
-    value::{ValueId, ValueMapping},
+use crate::{
+    errors::RuntimeError,
+    ssa::ir::{
+        basic_block::BasicBlockId,
+        dfg::DataFlowGraph,
+        function::Function,
+        instruction::{Instruction, InstructionId},
+        value::{ValueId, ValueMapping},
+    },
 };
 
 impl Function {
@@ -20,9 +23,12 @@ impl Function {
     ///
     /// `replace_value` can be used to replace a value with another one. This substitution will be
     /// performed in all subsequent instructions.
-    pub(crate) fn simple_reachable_blocks_optimization<F>(&mut self, mut f: F)
+    pub(crate) fn simple_reachable_blocks_optimization<F>(
+        &mut self,
+        mut f: F,
+    ) -> Result<(), RuntimeError>
     where
-        F: FnMut(&mut SimpleOptimizationContext<'_, '_>),
+        F: FnMut(&mut SimpleOptimizationContext<'_, '_>) -> Result<(), RuntimeError>,
     {
         let mut values_to_replace = ValueMapping::default();
 
@@ -44,7 +50,7 @@ impl Function {
                     values_to_replace: &mut values_to_replace,
                     insert_current_instruction_at_callback_end: true,
                 };
-                f(&mut context);
+                f(&mut context)?;
 
                 if context.insert_current_instruction_at_callback_end {
                     self.dfg[block_id].insert_instruction(instruction_id);
@@ -55,6 +61,7 @@ impl Function {
         }
 
         self.dfg.data_bus.replace_values(&values_to_replace);
+        Ok(())
     }
 }
 

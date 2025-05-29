@@ -64,6 +64,10 @@ pub enum RuntimeError {
         "Could not resolve some references to the array. All references must be resolved at compile time"
     )]
     UnknownReference { call_stack: CallStack },
+    #[error("Cannot return a reference from a non-static if expression")]
+    ReturnedReferenceFromDynamicIf { call_stack: CallStack },
+    #[error("Cannot return a function from a non-static if expression")]
+    ReturnedFunctionFromDynamicIf { call_stack: CallStack },
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Hash)]
@@ -173,6 +177,8 @@ impl RuntimeError {
             | RuntimeError::BigIntModulus { call_stack, .. }
             | RuntimeError::UnconstrainedSliceReturnToConstrained { call_stack }
             | RuntimeError::UnconstrainedOracleReturnToConstrained { call_stack }
+            | RuntimeError::ReturnedReferenceFromDynamicIf { call_stack }
+            | RuntimeError::ReturnedFunctionFromDynamicIf { call_stack }
             | RuntimeError::UnknownReference { call_stack } => call_stack,
         }
     }
@@ -187,7 +193,7 @@ impl From<RuntimeError> for CustomDiagnostic {
 }
 
 impl RuntimeError {
-    fn into_diagnostic(self) -> CustomDiagnostic {
+    pub fn into_diagnostic(&self) -> CustomDiagnostic {
         match self {
             RuntimeError::InternalError(cause) => {
                 CustomDiagnostic::simple_error(

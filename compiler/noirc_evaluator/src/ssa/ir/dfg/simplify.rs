@@ -1,14 +1,17 @@
-use crate::ssa::{
-    ir::{
-        basic_block::BasicBlockId,
-        instruction::{
-            ArrayOffset, Binary, BinaryOp, Instruction,
-            binary::{truncate, truncate_field},
+use crate::{
+    errors::RuntimeError,
+    ssa::{
+        ir::{
+            basic_block::BasicBlockId,
+            instruction::{
+                ArrayOffset, Binary, BinaryOp, Instruction,
+                binary::{truncate, truncate_field},
+            },
+            types::Type,
+            value::{Value, ValueId},
         },
-        types::Type,
-        value::{Value, ValueId},
+        opt::flatten_cfg::value_merger::ValueMerger,
     },
-    opt::flatten_cfg::value_merger::ValueMerger,
 };
 use acvm::{AcirField as _, FieldElement};
 use binary::simplify_binary;
@@ -72,10 +75,10 @@ pub(crate) fn simplify(
     block: BasicBlockId,
     ctrl_typevars: Option<Vec<Type>>,
     call_stack: CallStackId,
-) -> SimplifyResult {
+) -> Result<SimplifyResult, RuntimeError> {
     use SimplifyResult::*;
 
-    match instruction {
+    Ok(match instruction {
         Instruction::Binary(binary) => simplify_binary(binary, dfg),
         Instruction::Cast(value, typ) => simplify_cast(*value, *typ, dfg),
         Instruction::Not(value) => {
@@ -134,7 +137,7 @@ pub(crate) fn simplify(
                         Option::None,
                         call_stack,
                     );
-                    return SimplifiedTo(new_array.first());
+                    return Ok(SimplifiedTo(new_array.first()));
                 }
             }
 
@@ -142,7 +145,7 @@ pub(crate) fn simplify(
         }
         Instruction::Truncate { value, bit_size, max_bit_size } => {
             if bit_size == max_bit_size {
-                return SimplifiedTo(*value);
+                return Ok(SimplifiedTo(*value));
             }
             if let Some((numeric_constant, typ)) = dfg.get_numeric_constant_with_type(*value) {
                 let truncated_field = truncate_field(numeric_constant, *bit_size);
@@ -186,14 +189,14 @@ pub(crate) fn simplify(
             }
         }
         Instruction::Call { func, arguments } => {
-            simplify_call(*func, arguments, dfg, block, ctrl_typevars, call_stack)
+            simplify_call(*func, arguments, dfg, block, ctrl_typevars, call_stack)?
         }
         Instruction::EnableSideEffectsIf { condition } => {
             if let Some(last) = dfg[block].instructions().last().copied() {
                 let last = &mut dfg[last];
                 if matches!(last, Instruction::EnableSideEffectsIf { .. }) {
                     *last = Instruction::EnableSideEffectsIf { condition: *condition };
-                    return Remove;
+                    return Ok(Remove);
                 }
             }
             None
@@ -214,16 +217,16 @@ pub(crate) fn simplify(
 
             if let Some(constant) = dfg.get_numeric_constant(then_condition) {
                 if constant.is_one() {
-                    return SimplifiedTo(*then_value);
+                    return Ok(SimplifiedTo(*then_value));
                 } else if constant.is_zero() {
-                    return SimplifiedTo(*else_value);
+                    return Ok(SimplifiedTo(*else_value));
                 }
             }
 
             let then_value = *then_value;
             let else_value = *else_value;
             if then_value == else_value {
-                return SimplifiedTo(then_value);
+                return Ok(SimplifiedTo(then_value));
             }
 
             if let Some(Instruction::IfElse {
@@ -239,7 +242,7 @@ pub(crate) fn simplify(
                         else_condition,
                         else_value,
                     };
-                    return SimplifiedToInstruction(instruction);
+                    return Ok(SimplifiedToInstruction(instruction));
                 }
                 // TODO: We could check to see if `then_condition == inner_else_condition`
                 // but we run into issues with duplicate NOT instructions having distinct ValueIds.
@@ -258,7 +261,7 @@ pub(crate) fn simplify(
                         else_condition,
                         else_value: *inner_else_value,
                     };
-                    return SimplifiedToInstruction(instruction);
+                    return Ok(SimplifiedToInstruction(instruction));
                 }
                 // TODO: We could check to see if `then_condition == inner_else_condition`
                 // but we run into issues with duplicate NOT instructions having distinct ValueIds.
@@ -280,7 +283,7 @@ pub(crate) fn simplify(
         }
         Instruction::MakeArray { .. } => None,
         Instruction::Noop => Remove,
-    }
+    })
 }
 
 /// Given a chain of operations like:

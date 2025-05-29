@@ -34,25 +34,26 @@ impl Function {
             let instruction = context.instruction();
 
             let Instruction::Constrain(lhs, rhs, msg) = instruction else {
-                return;
+                return Ok(());
             };
 
             if !context.dfg.get_numeric_constant(*rhs).is_some_and(|constant| constant.is_zero()) {
-                return;
+                return Ok(());
             }
 
             let Value::Instruction { instruction, .. } = &context.dfg[*lhs] else {
-                return;
+                return Ok(());
             };
 
             let Instruction::Binary(Binary { lhs, rhs, operator: BinaryOp::Eq, .. }) =
                 context.dfg[*instruction]
             else {
-                return;
+                return Ok(());
             };
 
             let new_instruction = Instruction::ConstrainNotEqual(lhs, rhs, msg.clone());
             context.replace_current_instruction_with(new_instruction);
+            Ok(())
         });
     }
 }

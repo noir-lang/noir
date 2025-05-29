@@ -25,7 +25,10 @@ use noirc_frontend::{monomorphization::ast::InlineType, token::IntType};
 use thiserror::Error;
 use token::{Keyword, SpannedToken, Token};
 
-use crate::ssa::{ir::function::RuntimeType, parser::ast::ParsedTerminator};
+use crate::{
+    errors::RuntimeError,
+    ssa::{ir::function::RuntimeType, parser::ast::ParsedTerminator},
+};
 
 mod ast;
 mod into_ssa;
@@ -123,6 +126,8 @@ pub(crate) enum SsaError {
     VariableAlreadyDefined(Identifier),
     #[error("Global '{0}' already defined")]
     GlobalAlreadyDefined(Identifier),
+    #[error("{0}")]
+    RuntimeError(RuntimeError),
 }
 
 impl SsaError {
@@ -136,7 +141,17 @@ impl SsaError {
             | SsaError::GlobalAlreadyDefined(identifier)
             | SsaError::UnknownFunction(identifier) => identifier.span,
             SsaError::MismatchedReturnValues { returns, expected: _ } => returns[0].span,
+            SsaError::RuntimeError(error) => {
+                let call_stack = error.into_diagnostic().call_stack;
+                call_stack.last().map(|last| last.span).unwrap_or_default()
+            }
         }
+    }
+}
+
+impl From<RuntimeError> for SsaError {
+    fn from(error: RuntimeError) -> Self {
+        Self::RuntimeError(error)
     }
 }
 
