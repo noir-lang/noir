@@ -227,12 +227,15 @@ impl ChunkFormatter<'_, '_> {
                     formatter.write_comma();
                     formatter.write_space();
                 }
-                formatter.format_pattern(pattern);
+                let mut pattern_and_type_group = formatter.format_pattern(pattern);
                 if typ.typ != UnresolvedTypeData::Unspecified {
-                    formatter.write_token(Token::Colon);
-                    formatter.write_space();
-                    formatter.format_type(typ);
+                    pattern_and_type_group.text(formatter.chunk_formatter().chunk(|formatter| {
+                        formatter.write_token(Token::Colon);
+                        formatter.write_space();
+                        formatter.format_type(typ);
+                    }));
                 }
+                formatter.format_chunk_group(pattern_and_type_group);
             }
             formatter.skip_comments_and_whitespace();
             if formatter.is_at(Token::Comma) {
