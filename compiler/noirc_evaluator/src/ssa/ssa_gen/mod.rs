@@ -583,11 +583,13 @@ impl FunctionContext<'_> {
         self.builder.switch_to_block(loop_body);
         self.define(for_expr.index_variable, loop_index.into());
 
-        // Create the new loop index before the body, because the body might have a break or continue
-        // in it and we wouldn't be able to create it afterwards
-        let new_loop_index = self.make_offset(loop_index, 1);
         self.codegen_expression(&for_expr.block)?;
-        self.builder.terminate_with_jmp(loop_entry, vec![new_loop_index]);
+
+        if !self.builder.current_block_is_closed() {
+            // No need to jump if the current block is already closed
+            let new_loop_index = self.make_offset(loop_index, 1);
+            self.builder.terminate_with_jmp(loop_entry, vec![new_loop_index]);
+        }
 
         // Finish by switching back to the end of the loop
         self.builder.switch_to_block(loop_end);
