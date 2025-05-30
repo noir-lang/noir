@@ -180,7 +180,6 @@ pub(crate) fn try_convert_field_element_to_signed_integer(
 }
 
 pub(crate) fn convert_signed_integer_to_field_element(int: i128, bit_size: u32) -> FieldElement {
-    dbg!(int);
     if int >= 0 {
         FieldElement::from(int)
     } else if bit_size == 128 {
