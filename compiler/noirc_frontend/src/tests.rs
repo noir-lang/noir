@@ -2226,10 +2226,6 @@ fn impl_stricter_than_trait_no_trait_method_constraints() {
     impl<T> MyType<T> {
         fn do_thing_with_serialization_with_extra_steps(self) -> Field {
             process_array(serialize_thing(self))
-                          ^^^^^^^^^^^^^^^ Type annotation needed
-                          ~~~~~~~~~~~~~~~ Could not determine the value of the generic argument `N` declared on the function `serialize_thing`
-            ^^^^^^^^^^^^^ Type annotation needed
-            ~~~~~~~~~~~~~ Could not determine the value of the generic argument `N` declared on the function `process_array`
         }
     }
 
