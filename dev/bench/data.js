@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1748631606031,
+  "lastUpdate": 1748631607889,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -18168,35 +18168,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "asterite@gmail.com",
-            "name": "Ary Borenszweig",
-            "username": "asterite"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "b2bfdb7bb0fc661bfb27da365f108cf131771295",
-          "message": "feat: trait associated type bounds (#8594)\n\nCo-authored-by: Tom French <15848336+TomAFrench@users.noreply.github.com>",
-          "timestamp": "2025-05-21T20:02:08Z",
-          "tree_id": "7b621533fdf49ffda9b67050128d482eaee0f8a2",
-          "url": "https://github.com/noir-lang/noir/commit/b2bfdb7bb0fc661bfb27da365f108cf131771295"
-        },
-        "date": 1747859070248,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "semaphore-depth-10",
-            "value": 636.3,
-            "unit": "KB"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "47281315+guipublic@users.noreply.github.com",
             "name": "guipublic",
             "username": "guipublic"
@@ -21406,6 +21377,85 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/noir-lang/noir/commit/a28ba2f5f56ef765f6687e96fcc861afbd0bcdeb"
         },
         "date": 1748612506731,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 1133.3,
+            "unit": "KB"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 2156.7,
+            "unit": "KB"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 589,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 5129.7,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 4071.2,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-block-root-empty",
+            "value": 257,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-block-root-single-tx",
+            "value": 25708.1,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 25715.1,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 183.7,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-root",
+            "value": 418.6,
+            "unit": "KB"
+          },
+          {
+            "name": "semaphore-depth-10",
+            "value": 636.3,
+            "unit": "KB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "asterite@gmail.com",
+            "name": "Ary Borenszweig",
+            "username": "asterite"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "d6e4ce9cb2e74c4239843ff57c22b56fac4530fe",
+          "message": "fix: cast signed to u1 follow-up (#8730)",
+          "timestamp": "2025-05-30T18:30:18Z",
+          "tree_id": "01b2a3f7dbed49b2238996373b8199f8a74b98bd",
+          "url": "https://github.com/noir-lang/noir/commit/d6e4ce9cb2e74c4239843ff57c22b56fac4530fe"
+        },
+        "date": 1748631596784,
         "tool": "customSmallerIsBetter",
         "benches": [
           {
