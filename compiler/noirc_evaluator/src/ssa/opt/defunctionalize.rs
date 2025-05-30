@@ -1299,7 +1299,7 @@ mod tests {
     }
 
     #[test]
-    fn find_functions_as_values_finds_function_in_arrayset() {
+    fn find_functions_as_values_finds_function_in_array_set() {
         let src = r#"
         acir(inline) fn main f0 {
           b0(v0: u32):
