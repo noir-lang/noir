@@ -1,5 +1,5 @@
 ---
-title: Testing in Noir
+title: Tests
 description: Learn how to use Nargo to test your Noir program in a quick and easy way
 keywords: [Nargo, testing, Noir, compile, test]
 sidebar_position: 1
