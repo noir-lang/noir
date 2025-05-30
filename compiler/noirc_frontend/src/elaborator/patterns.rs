@@ -659,7 +659,6 @@ impl Elaborator<'_> {
             let trait_ = self.interner.get_trait(*trait_id);
             if let Some(associated_type) = trait_.get_associated_type(name) {
                 if let Kind::Numeric(numeric_type) = associated_type.kind() {
-                    println!("1");
                     // We can produce any value here because this trait method is never going to
                     // produce code (only trait impl methods do)
                     let numeric_type: Type = *numeric_type.clone();
