@@ -140,6 +140,9 @@ struct PerFunctionContext<'f> {
     /// Track whether a reference was passed into another entry point
     /// This is needed to determine whether we can remove a store.
     calls_reference_input: HashSet<ValueId>,
+    /// Track whether a reference was passed into a make array instruction
+    /// This is needed to determine whether we can remove a store.
+    make_array_references: HashSet<ValueId>,
 
     /// Track whether a reference has been aliased, and store the respective
     /// instruction that aliased that reference.
@@ -161,6 +164,7 @@ impl<'f> PerFunctionContext<'f> {
             last_loads: HashMap::default(),
             calls_reference_input: HashSet::default(),
             aliased_references: HashMap::default(),
+            make_array_references: HashSet::default(),
         }
     }
 
@@ -187,6 +191,7 @@ impl<'f> PerFunctionContext<'f> {
             terminator.for_each_value(|value| all_terminator_values.insert(value));
         }
 
+        println!("{}", self.inserter.function);
         // If we never load from an address within a function we can remove all stores to that address.
         // This rule does not apply to reference parameters, which we must also check for before removing these stores.
         for (_, block) in self.blocks.iter() {
@@ -207,6 +212,7 @@ impl<'f> PerFunctionContext<'f> {
                     && !store_alias_used
                     && !is_dereference
                 {
+                    dbg!(store_address);
                     self.instructions_to_remove.insert(*store_instruction);
                 }
             }
@@ -241,6 +247,12 @@ impl<'f> PerFunctionContext<'f> {
 
                 let allocation_aliases_parameter =
                     aliases.any(|alias| self.calls_reference_input.contains(&alias));
+                if allocation_aliases_parameter == Some(true) {
+                    return true;
+                }
+
+                let allocation_aliases_parameter =
+                    aliases.any(|alias| self.make_array_references.contains(&alias));
                 if allocation_aliases_parameter == Some(true) {
                     return true;
                 }
@@ -551,6 +563,7 @@ impl<'f> PerFunctionContext<'f> {
 
                     for element in elements {
                         aliases.insert(*element);
+                        self.make_array_references.insert(*element);
                     }
                 }
             }
