@@ -6,7 +6,10 @@ use acvm::{AcirField, FieldElement};
 
 use crate::ssa::{
     interpreter::value::NumericValue,
-    ir::types::{NumericType, Type},
+    ir::{
+        integer::IntegerConstant,
+        types::{NumericType, Type},
+    },
 };
 
 use super::{InterpreterError, Ssa, Value};
@@ -1709,7 +1712,10 @@ fn signed_integer_inputs() {
             typ = typ
         );
 
-        let value = expect_value_with_args(&src, vec![from_constant(val_i128.into(), num_type)]);
+        let int_constant =
+            IntegerConstant::Signed { value: val_i128, bit_size: num_type.bit_size() };
+        let (field_constant, typ) = int_constant.into_numeric_constant();
+        let value = expect_value_with_args(&src, vec![from_constant(field_constant, typ)]);
 
         assert_eq!(value, Value::Numeric(expected), "Failed for type: {typ}");
     }
