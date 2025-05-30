@@ -175,23 +175,24 @@ comptime fn generate_as_primitive_impls(_: FunctionDefinition) -> Quoted {
     let mut impls = &[];
     for type1 in types {
         for type2 in types {
-            let body = if type1 == type2 {
-                quote { self }
-            } else if type1 == quote { bool } {
-                quote { self != 0 }
-            } else {
-                quote { self as $type1 }
-            };
+            // Uncomment one, the serialize_1 program compiles.
+            // Uncomment two, it doesn't compile anymore.
+            // Uncomment three, it compiles again.
+            // Uncomment four, it still compiles.
+            // let a1 = quote {};
+            // let a2 = quote {};
+            // let a3 = quote {};
+            // let a4 = quote {};
 
-            let as_primitive_impl = quote {
+            impls = impls.push_back(
+                quote {
                 impl AsPrimitive<$type1> for $type2 {
                     fn as_(self) -> $type1 {
-                        $body
+                        $crate::default::Default::default()
                     }
                 }
-            };
-
-            impls = impls.push_back(as_primitive_impl);
+            },
+            );
         }
     }
     impls.join(quote {})
