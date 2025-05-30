@@ -724,7 +724,7 @@ mod test {
             v2 = lt i16 3, v0
             jmpif v2 then: b1, else: b2
           b1():
-            v4 = add i16 1, v0
+            v4 = unchecked_add i16 1, v0
             jmp b3()
           b2():
             jmp b3()

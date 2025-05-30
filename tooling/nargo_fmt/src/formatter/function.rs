@@ -153,7 +153,8 @@ impl Formatter<'_> {
     }
 
     fn format_function_param(&mut self, param: Param) {
-        self.format_pattern(param.pattern);
+        let group = self.format_pattern(param.pattern);
+        self.format_chunk_group(group);
         self.skip_comments_and_whitespace();
 
         // There might not be a colon if the parameter is self

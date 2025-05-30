@@ -436,7 +436,7 @@ pub fn insert_all_files_for_workspace_into_file_manager(
     nargo::insert_all_files_for_workspace_into_file_manager_with_overrides(
         workspace,
         file_manager,
-        &overrides,
+        Some(&overrides),
     );
 }
 
