@@ -193,6 +193,15 @@ impl<'f> Context<'f> {
                         self.arrays_from_load.insert(result, is_reference_param);
                     }
                 }
+                Instruction::MakeArray { elements, .. } => {
+                    for element in elements {
+                        if let Some(existing) =
+                            self.array_to_last_use.insert(*element, *instruction_id)
+                        {
+                            self.instructions_that_can_be_made_mutable.remove(&existing);
+                        }
+                    }
+                }
                 _ => (),
             }
         }
@@ -213,7 +222,10 @@ fn make_mutable(dfg: &mut DataFlowGraph, instructions_to_update: &HashSet<Instru
 
 #[cfg(test)]
 mod tests {
-    use crate::ssa::{Ssa, opt::assert_normalized_ssa_equals};
+    use crate::{
+        assert_ssa_snapshot,
+        ssa::{Ssa, opt::assert_normalized_ssa_equals},
+    };
 
     #[test]
     fn array_set_in_loop_with_conditional_clone() {
@@ -257,5 +269,35 @@ mod tests {
         // We expect the same result as above
         let ssa = ssa.array_set_optimization();
         assert_normalized_ssa_equals(ssa, src);
+    }
+
+    #[test]
+    fn does_not_mutate_array_used_in_make_array() {
+        // Regression test for https://github.com/noir-lang/noir/issues/8563
+        // Previously `v2` would be marked as mutable in the first array_set, which results in `v5` being invalid.
+        let src = "
+            acir(inline) fn main f0 {
+              b0():
+                v2 = make_array [Field 0] : [Field; 1]
+                v3 = array_set v2, index u32 0, value Field 2
+                v4 = make_array [v2, v2] : [[Field; 1]; 2]
+                v5 = array_set v4, index u32 0, value v2
+                return v5
+            }
+            ";
+        let ssa = Ssa::from_str(src).unwrap();
+
+        // We expect the same result as above
+        let ssa = ssa.array_set_optimization();
+        assert_ssa_snapshot!(ssa, @r"
+        acir(inline) fn main f0 {
+          b0():
+            v1 = make_array [Field 0] : [Field; 1]
+            v4 = array_set v1, index u32 0, value Field 2
+            v5 = make_array [v1, v1] : [[Field; 1]; 2]
+            v6 = array_set mut v5, index u32 0, value v1
+            return v6
+        }
+        ");
     }
 }
