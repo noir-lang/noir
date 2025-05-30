@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1748637590218,
+  "lastUpdate": 1748637595378,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -10002,35 +10002,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "47281315+guipublic@users.noreply.github.com",
-            "name": "guipublic",
-            "username": "guipublic"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "aea7a383c4c5884179fe7eb8265bbe0ce5fca19a",
-          "message": "fix: restore the all_or_nothing witness/constant for ec-add (#8624)",
-          "timestamp": "2025-05-22T11:26:38Z",
-          "tree_id": "f46a975d23bcff74b6625207f87801806eccf01a",
-          "url": "https://github.com/noir-lang/noir/commit/aea7a383c4c5884179fe7eb8265bbe0ce5fca19a"
-        },
-        "date": 1747914612538,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "semaphore_depth_10",
-            "value": 92.93,
-            "unit": "MB"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "84741533+defkit@users.noreply.github.com",
             "name": "defkit",
             "username": "defkit"
@@ -12920,6 +12891,75 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/noir-lang/noir/commit/bfcff37f7337fb43968b5dee9982e799502016bd"
         },
         "date": 1748636549313,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 201.52,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 225.36,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 176.66,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 501.76,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 498.08,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 1410,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 322.46,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-root",
+            "value": 328.15,
+            "unit": "MB"
+          },
+          {
+            "name": "semaphore_depth_10",
+            "value": 70.97,
+            "unit": "MB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "asterite@gmail.com",
+            "name": "Ary Borenszweig",
+            "username": "asterite"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "0c3a6830e16abde7839a0434bab65b2bbf291e6b",
+          "message": "fix!: require types for trait impl associated constants (#8734)",
+          "timestamp": "2025-05-30T19:59:23Z",
+          "tree_id": "31dd7ca6204016ed95eb0ddb73c03ce45fc3180b",
+          "url": "https://github.com/noir-lang/noir/commit/0c3a6830e16abde7839a0434bab65b2bbf291e6b"
+        },
+        "date": 1748637583784,
         "tool": "customSmallerIsBetter",
         "benches": [
           {
