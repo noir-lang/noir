@@ -1238,7 +1238,9 @@
 <a href="#1237" id="1237">1237</a>
 <a href="#1238" id="1238">1238</a>
 <a href="#1239" id="1239">1239</a>
-<a href="#1240" id="1240">1240</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::collections::BTreeMap;
+<a href="#1240" id="1240">1240</a>
+<a href="#1241" id="1241">1241</a>
+<a href="#1242" id="1242">1242</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::collections::BTreeMap;
 <span class="kw">use </span>std::sync::{Arc, Mutex, RwLock};
 
 <span class="kw">use </span>acvm::{FieldElement, acir::AcirField};
@@ -1957,6 +1959,11 @@
                 }
                 value
             }
+            <span class="comment">// When casting a signed value to u1 we can truncate then cast
+            </span>(
+                Type::Numeric(NumericType::Signed { bit_size: incoming_type_size }),
+                NumericType::Unsigned { bit_size: <span class="number">1 </span>},
+            ) =&gt; <span class="self">self</span>.builder.insert_truncate(value, <span class="number">1</span>, <span class="kw-2">*</span>incoming_type_size),
             <span class="comment">// For mixed sign to unsigned or unsigned to sign;
             // 1. we cast to the required type using the same signedness
             // 2. then we switch the signedness
@@ -1964,10 +1971,7 @@
                 Type::Numeric(NumericType::Signed { bit_size: incoming_type_size }),
                 NumericType::Unsigned { bit_size: target_type_size },
             ) =&gt; {
-                <span class="comment">// If the target type size is 1 it means it's a cast to u1. In that case
-                // there's no need to cast to i1 first (which actually isn't a valid type),
-                // because the result will be the least significant bit anyway.
-                </span><span class="kw">if </span><span class="kw-2">*</span>incoming_type_size != target_type_size &amp;&amp; target_type_size != <span class="number">1 </span>{
+                <span class="kw">if </span><span class="kw-2">*</span>incoming_type_size != target_type_size {
                     value = <span class="self">self</span>.insert_safe_cast(
                         value,
                         NumericType::signed(target_type_size),
