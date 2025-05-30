@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1748637494997,
+  "lastUpdate": 1748637496904,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -3355,35 +3355,6 @@ window.BENCHMARK_DATA = {
       }
     ],
     "Compilation Time": [
-      {
-        "commit": {
-          "author": {
-            "email": "asterite@gmail.com",
-            "name": "Ary Borenszweig",
-            "username": "asterite"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "275e438feaa5d610e21d2e683c3f3cd61b72ebff",
-          "message": "fix(expand): use re-exports for non-visibile items (#8374)\n\nCo-authored-by: Tom French <15848336+TomAFrench@users.noreply.github.com>",
-          "timestamp": "2025-05-22T12:29:41Z",
-          "tree_id": "6cf827d527e96342f0309a59284f824a896369da",
-          "url": "https://github.com/noir-lang/noir/commit/275e438feaa5d610e21d2e683c3f3cd61b72ebff"
-        },
-        "date": 1747918454907,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "semaphore-depth-10",
-            "value": 0.85,
-            "unit": "s"
-          }
-        ]
-      },
       {
         "commit": {
           "author": {
@@ -6801,6 +6772,85 @@ window.BENCHMARK_DATA = {
           {
             "name": "semaphore-depth-10",
             "value": 0.805,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "asterite@gmail.com",
+            "name": "Ary Borenszweig",
+            "username": "asterite"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "cb4951d3249ab7f4f97dddc21595cfa933b08d72",
+          "message": "fix(fmt): correctly format mixed secondary attributes and doc comments (#8735)",
+          "timestamp": "2025-05-30T19:59:55Z",
+          "tree_id": "d38efc00d249bca2d02114a3a62c15f02f868b23",
+          "url": "https://github.com/noir-lang/noir/commit/cb4951d3249ab7f4f97dddc21595cfa933b08d72"
+        },
+        "date": 1748637485132,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 2.334,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 7.078,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 1.052,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 16.02,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 14.08,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-empty",
+            "value": 1.274,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-single-tx",
+            "value": 122,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 126,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 1.062,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-root",
+            "value": 1.594,
+            "unit": "s"
+          },
+          {
+            "name": "semaphore-depth-10",
+            "value": 0.836,
             "unit": "s"
           }
         ]
