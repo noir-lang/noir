@@ -1699,6 +1699,10 @@ fn signed_integer_inputs() {
         ("i16", i16::MIN as i128, I16(i16::MIN), NumericType::signed(16)),
         ("i32", i32::MIN as i128, I32(i32::MIN), NumericType::signed(32)),
         ("i64", i64::MIN as i128, I64(i64::MIN), NumericType::signed(64)),
+        ("i8", i8::MAX as i128, I8(i8::MAX), NumericType::signed(8)),
+        ("i16", i16::MAX as i128, I16(i16::MAX), NumericType::signed(16)),
+        ("i32", i32::MAX as i128, I32(i32::MAX), NumericType::signed(32)),
+        ("i64", i64::MAX as i128, I64(i64::MAX), NumericType::signed(64)),
     ];
 
     for (typ, val_i128, expected, num_type) in cases {

@@ -266,7 +266,7 @@ impl NumericValue {
                     16 => NumericValue::I16(value as i16),
                     32 => NumericValue::I32(value as i32),
                     64 => NumericValue::I64(value as i64),
-                    _ => panic!("unsupported bit size"),
+                    _ => return Err(Internal(UnsupportedNumericType { typ })),
                 }
             }
             (
