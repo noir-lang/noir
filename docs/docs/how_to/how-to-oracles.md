@@ -172,7 +172,7 @@ If the Oracle function is returning an array containing other arrays, such as `[
 
 ## Step 3 - Usage with Nargo
 
-Using the [`nargo` CLI tool](../reference/nargo_commands.md), you can use oracles in the `nargo test` and `nargo execute`  commands by passing a value to `--oracle-resolver`. For example:
+Using Nargo, you can use oracles in the `nargo test` and `nargo execute` commands by passing a value to `--oracle-resolver`. For example:
 
 ```bash
 nargo test --oracle-resolver http://localhost:5555
@@ -198,7 +198,7 @@ As one can see, in NoirJS, the [`foreignCallHandler`](../reference/NoirJS/noir_j
 
 Does this mean you don't have to write an RPC server like in [Step #2](#step-2---write-an-rpc-server)?
 
-You don't technically have to, but then how would you run `nargo test`? To use both `Nargo` and `NoirJS` in your development flow, you will have to write a JSON RPC server.
+You don't technically have to, but then how would you run `nargo test`? To use both Nargo and NoirJS in your development flow, you will have to write a JSON RPC server.
 
 :::
 
