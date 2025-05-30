@@ -9,7 +9,7 @@ where
     A: Serialize,
     B: Serialize,
 {
-    let Size = <A as Serialize>::Size + <B as Serialize>::Size;
+    let Size: u32 = <A as Serialize>::Size + <B as Serialize>::Size;
 
     fn serialize(self: Self) -> [Field; Self::Size] {
         let _ = self.0.serialize();
@@ -21,7 +21,7 @@ impl<T, let N: u32> Serialize for [T; N]
 where
     T: Serialize,
 {
-    let Size = <T as Serialize>::Size * N;
+    let Size: u32 = <T as Serialize>::Size * N;
 
     fn serialize(self: Self) -> [Field; Self::Size] {
         [0; Self::Size]
