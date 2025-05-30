@@ -194,9 +194,14 @@ pub(crate) fn is_function(typ: &Type) -> bool {
     matches!(typ, Type::Function(_, _, _, _))
 }
 
-/// Get the underlying type, if the type is a reference.
-pub(crate) fn as_reference(typ: &Type) -> Option<&Type> {
-    if let Type::Reference(typ, _) = typ { Some(typ.as_ref()) } else { None }
+/// Peel off all reference types, to get to a concrete underlying type.
+pub(crate) fn unref(typ: &Type) -> &Type {
+    if let Type::Reference(typ, _) = typ { unref(typ.as_ref()) } else { typ }
+}
+
+/// Peel off all reference types, to get to a concrete underlying type.
+pub(crate) fn unref_mut(typ: &mut Type) -> &mut Type {
+    if let Type::Reference(typ, _) = typ { unref_mut(typ.as_mut()) } else { typ }
 }
 
 /// Check if the type contains any references.
@@ -213,18 +218,6 @@ pub(crate) fn contains_reference(typ: &Type) -> bool {
         Type::Array(_, typ) | Type::Slice(typ) => contains_reference(typ),
         Type::Tuple(types) => types.iter().any(contains_reference),
     }
-}
-
-/// Check if the type matches some predicate, or if it's a reference,
-/// then whether underlying type does, recursively.
-pub(crate) fn matches_self_or_ref(typ: &Type, f: impl Fn(&Type) -> bool) -> bool {
-    if f(typ) {
-        return true;
-    }
-    if let Some(typ) = as_reference(typ) {
-        return matches_self_or_ref(typ, f);
-    }
-    false
 }
 
 /// Check if the type can be used with a `println` statement.

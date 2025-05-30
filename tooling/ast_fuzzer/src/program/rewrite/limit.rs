@@ -339,7 +339,9 @@ impl<'a> LimitContext<'a> {
                     other => unreachable!("unexpected call target definition: {}", other),
                 };
 
-                let Type::Function(param_types, _, _, callee_unconstrained) = &mut ident.typ else {
+                let Type::Function(param_types, _, _, callee_unconstrained) =
+                    types::unref_mut(&mut ident.typ)
+                else {
                     unreachable!("function type expected");
                 };
 
@@ -449,7 +451,8 @@ fn modify_function_pointer_param_types(param_types: &mut [Type], callee_unconstr
 
 /// Recursively modify function pointers in the param type.
 fn modify_function_pointer_param_type(param_type: &mut Type, callee_unconstrained: bool) {
-    let Type::Function(param_types, _, _, param_unconstrained) = param_type else {
+    let Type::Function(param_types, _, _, param_unconstrained) = types::unref_mut(param_type)
+    else {
         return;
     };
 
@@ -482,8 +485,8 @@ fn modify_function_pointer_param_values(
         }
 
         // If we need to pass by value, then it's going to the proxy, but only if it's a global function,
-        // and not a function parameter, which is we wouldn't know what to change to, and doing so is the
-        // happens when it's first passed as a global.
+        // and not a function parameter, which we wouldn't know what to change to, and doing so happens
+        // when it's first passed as a global.
         let arg = &mut args[i];
         let Expression::Ident(param_func_ident) = arg else {
             unreachable!("functions are passed by ident; got {arg}");

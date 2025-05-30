@@ -456,3 +456,7 @@ pub fn prepend_block(block: Expression, statements: Vec<Expression>) -> Expressi
 
     Expression::Block(result_statements)
 }
+
+pub(crate) fn is_immutable_ident(expr: &Expression) -> bool {
+    matches!(expr, Expression::Ident(Ident { mutable: false, .. }))
+}

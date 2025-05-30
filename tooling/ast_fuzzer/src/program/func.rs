@@ -374,13 +374,19 @@ impl<'a> FunctionContext<'a> {
         // We could replace `brillig_func_2` with `brillig_func_2_proxy`, but we wouldn't replace `brillig_func_4` with `brillig_func_4_proxy`
         // because that is a parameter of another call. But we would have to deal with the return value.
         // For this reason we handle function parameters directly here.
-        if types::matches_self_or_ref(typ, types::is_function) {
-            if let Some(typ) = types::as_reference(typ) {
+        if types::is_function(types::unref(typ)) {
+            if let Type::Reference(typ, _) = typ {
                 // We might have an `&mut &mut fn(...) -> ...`; we recursively peel
                 // off layers of references until we can generate an expression that
                 // returns an `fn`, and then take a reference over it to restore.
                 let expr = self.gen_expr(u, typ, max_depth, flags)?;
-                return Ok(expr::ref_mut(expr, typ.clone()));
+                // If the expression is a read-only ident global ident, then assign a variable first.
+                let expr = if expr::is_immutable_ident(&expr) {
+                    self.indirect_ref_mut(expr, typ.as_ref().clone())
+                } else {
+                    expr::ref_mut(expr, typ.as_ref().clone())
+                };
+                return Ok(expr);
             } else {
                 // Prefer functions in variables over globals.
                 return match self.gen_expr_from_vars(u, typ, max_depth)? {
@@ -1362,6 +1368,20 @@ impl<'a> FunctionContext<'a> {
                 (param_types.clone(), return_type.as_ref().clone())
             }
         }
+    }
+
+    /// Create a block with a let binding, then return a mutable reference to it.
+    /// This is used as a workaround when we need a mutable reference over an immutable value.
+    fn indirect_ref_mut(&mut self, expr: Expression, typ: Type) -> Expression {
+        self.locals.enter();
+        let let_expr = self.let_var(true, typ.clone(), expr.clone(), true);
+        let Expression::Let(Let { id, .. }) = &let_expr else {
+            unreachable!("expected Let; got {let_expr}");
+        };
+        let let_ident = self.local_ident(*id);
+        let ref_expr = expr::ref_mut(Expression::Ident(let_ident), typ);
+        self.locals.exit();
+        Expression::Block(vec![let_expr, ref_expr])
     }
 }
 
