@@ -3,6 +3,7 @@ pub mod data_bus;
 use std::{borrow::Cow, collections::BTreeMap, sync::Arc};
 
 use acvm::{FieldElement, acir::circuit::ErrorSelector};
+use fxhash::FxHashSet as HashSet;
 use noirc_errors::{
     Location,
     call_stack::{CallStack, CallStackId},
@@ -40,6 +41,8 @@ use super::{
 pub struct FunctionBuilder {
     pub current_function: Function,
     current_block: BasicBlockId,
+    current_block_closed: bool,
+    closed_blocked: HashSet<(FunctionId, BasicBlockId)>,
     finished_functions: Vec<Function>,
     call_stack: CallStackId,
     error_types: BTreeMap<ErrorSelector, HirType>,
@@ -61,6 +64,8 @@ impl FunctionBuilder {
         let new_function = Function::new(function_name, function_id);
         Self {
             current_block: new_function.entry_block(),
+            current_block_closed: false,
+            closed_blocked: HashSet::default(),
             current_function: new_function,
             finished_functions: Vec::new(),
             call_stack: CallStackId::root(),
@@ -126,7 +131,8 @@ impl FunctionBuilder {
         let call_stack = self.current_function.dfg.get_call_stack(self.call_stack);
         let mut new_function = Function::new(name, function_id);
         new_function.set_runtime(runtime_type);
-        self.current_block = new_function.entry_block();
+        self.switch_to_block(new_function.entry_block());
+
         let old_function = std::mem::replace(&mut self.current_function, new_function);
         // Copy the call stack to the new function
         self.call_stack =
@@ -200,6 +206,17 @@ impl FunctionBuilder {
         self.current_function.dfg.make_block()
     }
 
+    /// Prevents any further instructions from being added to the current block.
+    /// That is, calls to add instructions can be called, but they will have no effect.
+    pub fn close_block(&mut self) {
+        self.closed_blocked.insert((self.current_function.id(), self.current_block));
+        self.current_block_closed = true;
+    }
+
+    pub fn current_block_is_closed(&self) -> bool {
+        self.current_block_closed
+    }
+
     /// Adds a parameter with the given type to the given block.
     /// Returns the newly-added parameter.
     pub fn add_block_parameter(&mut self, block: BasicBlockId, typ: Type) -> ValueId {
@@ -217,7 +234,12 @@ impl FunctionBuilder {
         instruction: Instruction,
         ctrl_typevars: Option<Vec<Type>>,
     ) -> InsertInstructionResult {
+        if self.current_block_closed {
+            return InsertInstructionResult::InstructionRemoved;
+        }
+
         let block = self.current_block();
+
         if self.simplify {
             self.current_function.dfg.insert_instruction_and_results(
                 instruction,
@@ -240,6 +262,8 @@ impl FunctionBuilder {
     /// instructions into a new function, call new_function instead.
     pub fn switch_to_block(&mut self, block: BasicBlockId) {
         self.current_block = block;
+        self.current_block_closed =
+            self.closed_blocked.contains(&(self.current_function.id(), block));
     }
 
     /// Returns the block currently being inserted into

@@ -192,7 +192,7 @@ impl Elaborator<'_> {
                 }
             } else if matches!(stmt, HirStatement::Break | HirStatement::Continue) {
                 break_or_continue_location = Some(location);
-                block_type = stmt_type;
+                block_type = Type::Unit;
             } else if i + 1 == statements.len() {
                 block_type = stmt_type;
             }
