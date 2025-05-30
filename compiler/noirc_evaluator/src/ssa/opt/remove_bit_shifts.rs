@@ -3,7 +3,7 @@ use std::{borrow::Cow, sync::Arc};
 use acvm::{FieldElement, acir::AcirField};
 use noirc_errors::call_stack::CallStackId;
 
-use crate::ssa::{
+use crate::{errors::RuntimeError, ssa::{
     ir::{
         dfg::InsertInstructionResult,
         function::Function,
@@ -12,7 +12,7 @@ use crate::ssa::{
         value::ValueId,
     },
     ssa_gen::Ssa,
-};
+}};
 
 use super::simple_optimization::SimpleOptimizationContext;
 
@@ -325,8 +325,9 @@ impl Context<'_, '_, '_> {
         func: ValueId,
         arguments: Vec<ValueId>,
         result_types: Vec<Type>,
-    ) -> Cow<[ValueId]> {
-        self.insert_instruction(Instruction::Call { func, arguments }, Some(result_types)).results()
+    ) -> Result<Cow<[ValueId]>, RuntimeError> {
+        let results = self.insert_instruction(Instruction::Call { func, arguments }, Some(result_types))?;
+        Ok(results.results())
     }
 
     /// Insert an instruction to extract an element from an array
@@ -335,18 +336,19 @@ impl Context<'_, '_, '_> {
         array: ValueId,
         index: ValueId,
         element_type: Type,
-    ) -> ValueId {
+    ) -> Result<ValueId, RuntimeError> {
         let element_type = Some(vec![element_type]);
         let offset = ArrayOffset::None;
         let instruction = Instruction::ArrayGet { array, index, offset };
-        self.insert_instruction(instruction, element_type).first()
+        let result = self.insert_instruction(instruction, element_type)?;
+        Ok(result.first())
     }
 
     pub(crate) fn insert_instruction(
         &mut self,
         instruction: Instruction,
         ctrl_typevars: Option<Vec<Type>>,
-    ) -> InsertInstructionResult {
+    ) -> Result<InsertInstructionResult, RuntimeError> {
         self.context.dfg.insert_instruction_and_results(
             instruction,
             self.context.block_id,
