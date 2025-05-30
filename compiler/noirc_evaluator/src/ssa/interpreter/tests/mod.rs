@@ -6,7 +6,10 @@ use acvm::{AcirField, FieldElement};
 
 use crate::ssa::{
     interpreter::value::NumericValue,
-    ir::types::{NumericType, Type},
+    ir::{
+        integer::IntegerConstant,
+        types::{NumericType, Type},
+    },
 };
 
 use super::{InterpreterError, Ssa, Value};
@@ -1685,4 +1688,39 @@ fn signed_integer_casting_2() {
       "#;
     let value = expect_value(src);
     assert_eq!(value, Value::Numeric(NumericValue::I64(89)));
+}
+
+#[test]
+fn signed_integer_inputs() {
+    use NumericValue::*;
+
+    let cases = [
+        ("i8", i8::MIN as i128, I8(i8::MIN), NumericType::signed(8)),
+        ("i16", i16::MIN as i128, I16(i16::MIN), NumericType::signed(16)),
+        ("i32", i32::MIN as i128, I32(i32::MIN), NumericType::signed(32)),
+        ("i64", i64::MIN as i128, I64(i64::MIN), NumericType::signed(64)),
+        ("i8", i8::MAX as i128, I8(i8::MAX), NumericType::signed(8)),
+        ("i16", i16::MAX as i128, I16(i16::MAX), NumericType::signed(16)),
+        ("i32", i32::MAX as i128, I32(i32::MAX), NumericType::signed(32)),
+        ("i64", i64::MAX as i128, I64(i64::MAX), NumericType::signed(64)),
+    ];
+
+    for (typ, val_i128, expected, num_type) in cases {
+        let src = format!(
+            r#"
+            acir(inline) predicate_pure fn main f0 {{
+              b0(v0: {typ}):
+                return v0
+            }}
+            "#,
+            typ = typ
+        );
+
+        let int_constant =
+            IntegerConstant::Signed { value: val_i128, bit_size: num_type.bit_size() };
+        let (field_constant, typ) = int_constant.into_numeric_constant();
+        let value = expect_value_with_args(&src, vec![from_constant(field_constant, typ)]);
+
+        assert_eq!(value, Value::Numeric(expected), "Failed for type: {typ}");
+    }
 }
