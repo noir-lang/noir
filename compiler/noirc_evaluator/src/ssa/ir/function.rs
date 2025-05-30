@@ -7,7 +7,6 @@ use noirc_frontend::monomorphization::ast::InlineType;
 use serde::{Deserialize, Serialize};
 
 use super::basic_block::BasicBlockId;
-use super::cfg::ControlFlowGraph;
 use super::dfg::{DataFlowGraph, GlobalsGraph};
 use super::instruction::{BinaryOp, Instruction, TerminatorInstruction};
 use super::map::Id;
