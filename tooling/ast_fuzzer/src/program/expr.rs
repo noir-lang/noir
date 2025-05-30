@@ -94,6 +94,11 @@ pub fn gen_literal(u: &mut Unstructured, typ: &Type) -> arbitrary::Result<Expres
             }
             Expression::Tuple(values)
         }
+        Type::Reference(typ, mutable) => {
+            // In Noir we can return a reference for a value created in a function.
+            let value = gen_literal(u, typ.as_ref())?;
+            unary(UnaryOp::Reference { mutable: *mutable }, value, typ.as_ref().clone())
+        }
         _ => unreachable!("unexpected type to generate a literal for: {typ}"),
     };
     Ok(expr)
@@ -450,4 +455,14 @@ pub fn prepend_block(block: Expression, statements: Vec<Expression>) -> Expressi
     result_statements.extend(block_stmts);
 
     Expression::Block(result_statements)
+}
+
+/// Is the expression an identifier of an immutable variable
+pub(crate) fn is_immutable_ident(expr: &Expression) -> bool {
+    matches!(expr, Expression::Ident(Ident { mutable: false, .. }))
+}
+
+/// Is the expression dereferencing something.
+pub(crate) fn is_deref(expr: &Expression) -> bool {
+    matches!(expr, Expression::Unary(Unary { operator: UnaryOp::Dereference { .. }, .. }))
 }
