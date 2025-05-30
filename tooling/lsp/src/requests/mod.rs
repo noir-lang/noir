@@ -8,6 +8,7 @@ use crate::{
     types::{CodeLensOptions, InitializeParams},
 };
 use async_lsp::{ErrorCode, ResponseError};
+use fm::FileId;
 use fm::{FileMap, PathString, codespan_files::Error};
 use lsp_types::{
     CodeActionKind, DeclarationCapability, Location, Position, TextDocumentPositionParams,
@@ -431,25 +432,15 @@ fn character_to_line_offset(line: &str, character: u32) -> Result<usize, Error> 
     }
 }
 
-pub(crate) fn to_lsp_location<'a, F>(
-    files: &'a F,
-    file_id: F::FileId,
+pub(crate) fn to_lsp_location(
+    files: &FileMap,
+    file_id: FileId,
     definition_span: noirc_errors::Span,
-) -> Option<Location>
-where
-    F: fm::codespan_files::Files<'a> + ?Sized,
-{
+) -> Option<Location> {
     let range = crate::byte_span_to_range(files, file_id, definition_span.into())?;
-    let file_name = files.name(file_id).ok()?;
-
+    let file_name = files.get_absolute_name(file_id).ok()?;
     let path = file_name.to_string();
-
-    // `path` might be a relative path so we canonicalize it to get an absolute path
-    let path_buf = PathBuf::from(path);
-    let path_buf = path_buf.canonicalize().unwrap_or(path_buf);
-
-    let uri = Url::from_file_path(path_buf.to_str()?).ok()?;
-
+    let uri = Url::from_file_path(path).ok()?;
     Some(Location { uri, range })
 }
 
