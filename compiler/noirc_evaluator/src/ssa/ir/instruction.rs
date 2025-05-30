@@ -411,6 +411,63 @@ impl Instruction {
         }
     }
 
+    /// Indicates if the instruction has a side effect, ie. it can fail, or it interacts with memory.
+    pub(crate) fn has_side_effects(&self, dfg: &DataFlowGraph) -> bool {
+        use Instruction::*;
+
+        match self {
+            // These either have side-effects or interact with memory
+            EnableSideEffectsIf { .. }
+            | Allocate
+            | Load { .. }
+            | Store { .. }
+            | IncrementRc { .. }
+            | DecrementRc { .. } => true,
+
+            Call { func, .. } => match dfg[*func] {
+                Value::Intrinsic(intrinsic) => intrinsic.has_side_effects(),
+                // Functions known to be pure have no side effects.
+                // `PureWithPredicates` functions may still have side effects.
+                Value::Function(function) => dfg.purity_of(function) != Some(Purity::Pure),
+                _ => true, // Be conservative and assume other functions can have side effects.
+            },
+
+            // These can fail.
+            Constrain(..) | ConstrainNotEqual(..) | RangeCheck { .. } => true,
+
+            // This should never be side-effectual
+            MakeArray { .. } | Noop => false,
+
+            // Some binary math can overflow or underflow
+            Binary(binary) => match binary.operator {
+                BinaryOp::Add { unchecked: false }
+                | BinaryOp::Sub { unchecked: false }
+                | BinaryOp::Mul { unchecked: false }
+                | BinaryOp::Div
+                | BinaryOp::Mod => true,
+                BinaryOp::Add { unchecked: true }
+                | BinaryOp::Sub { unchecked: true }
+                | BinaryOp::Mul { unchecked: true }
+                | BinaryOp::Eq
+                | BinaryOp::Lt
+                | BinaryOp::And
+                | BinaryOp::Or
+                | BinaryOp::Xor
+                | BinaryOp::Shl
+                | BinaryOp::Shr => false,
+            },
+
+            // These don't have side effects
+            Cast(_, _) | Not(_) | Truncate { .. } | IfElse { .. } => false,
+
+            // `ArrayGet`s which read from "known good" indices from an array have no side effects
+            ArrayGet { array, index, offset: _ } => !dfg.is_safe_index(*index, *array),
+
+            // ArraySet has side effects
+            ArraySet { .. } => true,
+        }
+    }
+
     /// Replaces values present in this instruction with other values according to the given mapping.
     pub(crate) fn replace_values(&mut self, mapping: &ValueMapping) {
         if !mapping.is_empty() {

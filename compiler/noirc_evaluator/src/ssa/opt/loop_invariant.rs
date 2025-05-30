@@ -49,7 +49,7 @@ use crate::ssa::{
     ir::{
         basic_block::BasicBlockId,
         cfg::ControlFlowGraph,
-        dfg::{DataFlowGraph, simplify::SimplifyResult},
+        dfg::simplify::SimplifyResult,
         dom::DominatorTree,
         function::Function,
         function_inserter::FunctionInserter,
@@ -262,7 +262,7 @@ impl<'f> LoopInvariantContext<'f> {
                     }
                 } else {
                     let dfg = &self.inserter.function.dfg;
-                    self.current_block_impure = has_side_effects(&dfg[instruction_id], dfg);
+                    self.current_block_impure = dfg[instruction_id].has_side_effects(dfg);
                     self.inserter.push_instruction(instruction_id, *block);
                 }
                 self.extend_values_defined_in_loop_and_invariants(instruction_id, hoist_invariant);
@@ -302,7 +302,7 @@ impl<'f> LoopInvariantContext<'f> {
             dfg[*block]
                 .instructions()
                 .iter()
-                .any(|instruction| has_side_effects(&dfg[*instruction], dfg))
+                .any(|instruction| dfg[*instruction].has_side_effects(dfg))
         });
 
         // Reset the current block control dependent flag, the check will set it to true if needed.
@@ -994,63 +994,6 @@ fn can_be_hoisted(
         Binary(_) | ArrayGet { .. } | ArraySet { .. } => {
             hoist_with_predicate || !instruction.requires_acir_gen_predicate(&function.dfg)
         }
-    }
-}
-
-/// Indicates if the instruction has a side effect, ie. it can fail, or it interacts with memory.
-fn has_side_effects(instruction: &Instruction, dfg: &DataFlowGraph) -> bool {
-    use Instruction::*;
-
-    match instruction {
-        // These either have side-effects or interact with memory
-        EnableSideEffectsIf { .. }
-        | Allocate
-        | Load { .. }
-        | Store { .. }
-        | IncrementRc { .. }
-        | DecrementRc { .. } => true,
-
-        Call { func, .. } => match dfg[*func] {
-            Value::Intrinsic(intrinsic) => intrinsic.has_side_effects(),
-            // Functions known to be pure have no side effects.
-            // `PureWithPredicates` functions may still have side effects.
-            Value::Function(function) => dfg.purity_of(function) != Some(Purity::Pure),
-            _ => true, // Be conservative and assume other functions can have side effects.
-        },
-
-        // These can fail.
-        Constrain(..) | ConstrainNotEqual(..) | RangeCheck { .. } => true,
-
-        // This should never be side-effectual
-        MakeArray { .. } | Noop => false,
-
-        // Some binary math can overflow or underflow
-        Binary(binary) => match binary.operator {
-            BinaryOp::Add { unchecked: false }
-            | BinaryOp::Sub { unchecked: false }
-            | BinaryOp::Mul { unchecked: false }
-            | BinaryOp::Div
-            | BinaryOp::Mod => true,
-            BinaryOp::Add { unchecked: true }
-            | BinaryOp::Sub { unchecked: true }
-            | BinaryOp::Mul { unchecked: true }
-            | BinaryOp::Eq
-            | BinaryOp::Lt
-            | BinaryOp::And
-            | BinaryOp::Or
-            | BinaryOp::Xor
-            | BinaryOp::Shl
-            | BinaryOp::Shr => false,
-        },
-
-        // These don't have side effects
-        Cast(_, _) | Not(_) | Truncate { .. } | IfElse { .. } => false,
-
-        // `ArrayGet`s which read from "known good" indices from an array have no side effects
-        ArrayGet { array, index, offset: _ } => !dfg.is_safe_index(*index, *array),
-
-        // ArraySet has side effects
-        ArraySet { .. } => true,
     }
 }
 
