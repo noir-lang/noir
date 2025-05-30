@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1748598064580,
+  "lastUpdate": 1748598075700,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -9352,35 +9352,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "aakoshh@gmail.com",
-            "name": "Akosh Farkash",
-            "username": "aakoshh"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "9509cc495131cc1b5c55026df6acc83d53ebe0c4",
-          "message": "feat(fuzz): Generate println statements in unconstrained code (#8604)",
-          "timestamp": "2025-05-21T18:45:41Z",
-          "tree_id": "cdc6591d97e59b1408b8d9964a1f587745af2c71",
-          "url": "https://github.com/noir-lang/noir/commit/9509cc495131cc1b5c55026df6acc83d53ebe0c4"
-        },
-        "date": 1747854962760,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "semaphore_depth_10",
-            "value": 92.92,
-            "unit": "MB"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "15848336+TomAFrench@users.noreply.github.com",
             "name": "Tom French",
             "username": "TomAFrench"
@@ -12110,6 +12081,75 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/noir-lang/noir/commit/04e3415e9860bd6c16bb6d2945a91290b8475ec5"
         },
         "date": 1748543902051,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 201.52,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 225.36,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 176.66,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 501.76,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 498.08,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 1410,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 322.46,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-root",
+            "value": 328.15,
+            "unit": "MB"
+          },
+          {
+            "name": "semaphore_depth_10",
+            "value": 70.97,
+            "unit": "MB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "47281315+guipublic@users.noreply.github.com",
+            "name": "guipublic",
+            "username": "guipublic"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "33e0c08e5296bfb1733d92614020725fad754b4c",
+          "message": "fix: do not mutate arrays later copied inside other arrays (#8701)\n\nCo-authored-by: Tom French <15848336+TomAFrench@users.noreply.github.com>",
+          "timestamp": "2025-05-30T09:09:11Z",
+          "tree_id": "09b4063d01e0f4a419e9c0b6d13ea6aeb46264d5",
+          "url": "https://github.com/noir-lang/noir/commit/33e0c08e5296bfb1733d92614020725fad754b4c"
+        },
+        "date": 1748598064663,
         "tool": "customSmallerIsBetter",
         "benches": [
           {
