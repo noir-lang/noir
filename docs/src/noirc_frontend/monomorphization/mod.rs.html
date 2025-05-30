@@ -2638,7 +2638,67 @@
 <a href="#2637" id="2637">2637</a>
 <a href="#2638" id="2638">2638</a>
 <a href="#2639" id="2639">2639</a>
-<a href="#2640" id="2640">2640</a></pre></div><pre class="rust"><code><span class="doccomment">//! Coming after type checking, monomorphization is the last pass in Noir's frontend.
+<a href="#2640" id="2640">2640</a>
+<a href="#2641" id="2641">2641</a>
+<a href="#2642" id="2642">2642</a>
+<a href="#2643" id="2643">2643</a>
+<a href="#2644" id="2644">2644</a>
+<a href="#2645" id="2645">2645</a>
+<a href="#2646" id="2646">2646</a>
+<a href="#2647" id="2647">2647</a>
+<a href="#2648" id="2648">2648</a>
+<a href="#2649" id="2649">2649</a>
+<a href="#2650" id="2650">2650</a>
+<a href="#2651" id="2651">2651</a>
+<a href="#2652" id="2652">2652</a>
+<a href="#2653" id="2653">2653</a>
+<a href="#2654" id="2654">2654</a>
+<a href="#2655" id="2655">2655</a>
+<a href="#2656" id="2656">2656</a>
+<a href="#2657" id="2657">2657</a>
+<a href="#2658" id="2658">2658</a>
+<a href="#2659" id="2659">2659</a>
+<a href="#2660" id="2660">2660</a>
+<a href="#2661" id="2661">2661</a>
+<a href="#2662" id="2662">2662</a>
+<a href="#2663" id="2663">2663</a>
+<a href="#2664" id="2664">2664</a>
+<a href="#2665" id="2665">2665</a>
+<a href="#2666" id="2666">2666</a>
+<a href="#2667" id="2667">2667</a>
+<a href="#2668" id="2668">2668</a>
+<a href="#2669" id="2669">2669</a>
+<a href="#2670" id="2670">2670</a>
+<a href="#2671" id="2671">2671</a>
+<a href="#2672" id="2672">2672</a>
+<a href="#2673" id="2673">2673</a>
+<a href="#2674" id="2674">2674</a>
+<a href="#2675" id="2675">2675</a>
+<a href="#2676" id="2676">2676</a>
+<a href="#2677" id="2677">2677</a>
+<a href="#2678" id="2678">2678</a>
+<a href="#2679" id="2679">2679</a>
+<a href="#2680" id="2680">2680</a>
+<a href="#2681" id="2681">2681</a>
+<a href="#2682" id="2682">2682</a>
+<a href="#2683" id="2683">2683</a>
+<a href="#2684" id="2684">2684</a>
+<a href="#2685" id="2685">2685</a>
+<a href="#2686" id="2686">2686</a>
+<a href="#2687" id="2687">2687</a>
+<a href="#2688" id="2688">2688</a>
+<a href="#2689" id="2689">2689</a>
+<a href="#2690" id="2690">2690</a>
+<a href="#2691" id="2691">2691</a>
+<a href="#2692" id="2692">2692</a>
+<a href="#2693" id="2693">2693</a>
+<a href="#2694" id="2694">2694</a>
+<a href="#2695" id="2695">2695</a>
+<a href="#2696" id="2696">2696</a>
+<a href="#2697" id="2697">2697</a>
+<a href="#2698" id="2698">2698</a>
+<a href="#2699" id="2699">2699</a>
+<a href="#2700" id="2700">2700</a></pre></div><pre class="rust"><code><span class="doccomment">//! Coming after type checking, monomorphization is the last pass in Noir's frontend.
 //! It accepts the type checked HIR as input and produces a monomorphized AST as output.
 //! This file implements the pass itself, while the AST is defined in the ast module.
 //!
@@ -3246,7 +3306,14 @@
                     if_expr.alternative.map(|alt| <span class="self">self</span>.expr(alt)).transpose()<span class="question-mark">?</span>.map(Box::new);
 
                 <span class="kw">let </span>location = <span class="self">self</span>.interner.expr_location(<span class="kw-2">&amp;</span>expr);
-                <span class="kw">let </span>typ = <span class="self">Self</span>::convert_type(<span class="kw-2">&amp;</span><span class="self">self</span>.interner.id_type(expr), location)<span class="question-mark">?</span>;
+                <span class="kw">let </span>frontend_type = <span class="self">self</span>.interner.id_type(expr);
+                <span class="kw">let </span>typ = <span class="self">Self</span>::convert_type(<span class="kw-2">&amp;</span>frontend_type, location)<span class="question-mark">?</span>;
+
+                <span class="kw">if </span><span class="self">Self</span>::contains_reference(<span class="kw-2">&amp;</span>frontend_type) {
+                    <span class="kw">let </span>typ = frontend_type.to_string();
+                    <span class="kw">return </span><span class="prelude-val">Err</span>(MonomorphizationError::ReferenceReturnedFromIf { typ, location });
+                }
+
                 ast::Expression::If(ast::If { condition, consequence, alternative: else_, typ })
             }
 
@@ -3271,6 +3338,59 @@
         };
 
         <span class="prelude-val">Ok</span>(expr)
+    }
+
+    <span class="kw">fn </span>contains_reference(typ: <span class="kw-2">&amp;</span>types::Type) -&gt; bool {
+        <span class="kw">match </span>typ {
+            Type::FieldElement
+            | Type::Bool
+            | Type::String(<span class="kw">_</span>)
+            | Type::Integer(..)
+            | Type::Unit
+            | Type::TraitAsType(..)
+            | Type::Constant(..)
+            | Type::Quoted(..)
+            | Type::InfixExpr(..)
+            | Type::Error =&gt; <span class="bool-val">false</span>,
+
+            Type::Reference(<span class="kw">_</span>, <span class="kw">_</span>) =&gt; <span class="bool-val">true</span>,
+
+            Type::Array(_len, element) =&gt; <span class="self">Self</span>::contains_reference(element),
+            Type::Slice(element) =&gt; <span class="self">Self</span>::contains_reference(element),
+            Type::FmtString(<span class="kw">_</span>, environment) =&gt; <span class="self">Self</span>::contains_reference(environment),
+            Type::Tuple(fields) =&gt; fields.iter().any(<span class="self">Self</span>::contains_reference),
+            Type::DataType(datatype, generics) =&gt; {
+                <span class="kw">let </span>datatype = datatype.borrow();
+                <span class="kw">if let </span><span class="prelude-val">Some</span>(fields) = datatype.get_fields(generics) {
+                    fields.iter().any(|(<span class="kw">_</span>, field, <span class="kw">_</span>)| <span class="self">Self</span>::contains_reference(field))
+                } <span class="kw">else if let </span><span class="prelude-val">Some</span>(variants) = datatype.get_variants(generics) {
+                    variants
+                        .iter()
+                        .any(|(<span class="kw">_</span>, variant_args)| variant_args.iter().any(<span class="self">Self</span>::contains_reference))
+                } <span class="kw">else </span>{
+                    <span class="bool-val">false
+                </span>}
+            }
+            Type::Alias(alias, generics) =&gt; {
+                <span class="self">Self</span>::contains_reference(<span class="kw-2">&amp;</span>alias.borrow().get_type(generics))
+            }
+            Type::TypeVariable(type_variable) =&gt; <span class="kw">match </span><span class="kw-2">&amp;*</span>type_variable.borrow() {
+                TypeBinding::Bound(binding) =&gt; <span class="self">Self</span>::contains_reference(binding),
+                TypeBinding::Unbound(..) =&gt; <span class="bool-val">false</span>,
+            },
+            Type::NamedGeneric(named_generic) =&gt; <span class="kw">match </span><span class="kw-2">&amp;*</span>named_generic.type_var.borrow() {
+                TypeBinding::Bound(binding) =&gt; <span class="self">Self</span>::contains_reference(binding),
+                TypeBinding::Unbound(..) =&gt; <span class="bool-val">false</span>,
+            },
+            Type::CheckedCast { to, .. } =&gt; <span class="self">Self</span>::contains_reference(to),
+            Type::Function(_args, _ret, env, _unconstrained) =&gt; {
+                <span class="comment">// Only the environment of a function is counted as an actual reference value.
+                // Otherwise we can't return functions accepting references as arguments from if
+                // expressions.
+                </span><span class="self">Self</span>::contains_reference(env)
+            }
+            Type::Forall(<span class="kw">_</span>, typ) =&gt; <span class="self">Self</span>::contains_reference(typ),
+        }
     }
 
     <span class="kw">fn </span>standard_array(

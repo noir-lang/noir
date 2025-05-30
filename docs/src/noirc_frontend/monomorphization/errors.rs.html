@@ -141,7 +141,21 @@
 <a href="#140" id="140">140</a>
 <a href="#141" id="141">141</a>
 <a href="#142" id="142">142</a>
-<a href="#143" id="143">143</a></pre></div><pre class="rust"><code><span class="kw">use </span>noirc_errors::{CustomDiagnostic, Location};
+<a href="#143" id="143">143</a>
+<a href="#144" id="144">144</a>
+<a href="#145" id="145">145</a>
+<a href="#146" id="146">146</a>
+<a href="#147" id="147">147</a>
+<a href="#148" id="148">148</a>
+<a href="#149" id="149">149</a>
+<a href="#150" id="150">150</a>
+<a href="#151" id="151">151</a>
+<a href="#152" id="152">152</a>
+<a href="#153" id="153">153</a>
+<a href="#154" id="154">154</a>
+<a href="#155" id="155">155</a>
+<a href="#156" id="156">156</a>
+<a href="#157" id="157">157</a></pre></div><pre class="rust"><code><span class="kw">use </span>noirc_errors::{CustomDiagnostic, Location};
 
 <span class="kw">use crate</span>::{
     Type,
@@ -200,6 +214,10 @@
         err: TypeCheckError,
         location: Location,
     },
+    ReferenceReturnedFromIf {
+        typ: String,
+        location: Location,
+    },
 }
 
 <span class="kw">impl </span>MonomorphizationError {
@@ -215,6 +233,7 @@
             | MonomorphizationError::RecursiveType { location, .. }
             | MonomorphizationError::NoDefaultType { location, .. }
             | MonomorphizationError::NoDefaultTypeInItem { location, .. }
+            | MonomorphizationError::ReferenceReturnedFromIf { location, .. }
             | MonomorphizationError::CannotComputeAssociatedConstant { location, .. } =&gt; <span class="kw-2">*</span>location,
             MonomorphizationError::InterpreterError(error) =&gt; error.location(),
         }
@@ -277,6 +296,15 @@
                 <span class="macro">format!</span>(
                     <span class="string">"Could not determine the value of associated constant `{name}`, encountered error: `{err}`"
                 </span>)
+            }
+            MonomorphizationError::ReferenceReturnedFromIf { typ, location } =&gt; {
+                <span class="kw">let </span>message = <span class="string">"Cannot return a reference type from an if expression"</span>.to_string();
+                <span class="kw">let </span>secondary = <span class="kw">if </span>typ.starts_with(<span class="string">"&amp;"</span>) {
+                    <span class="macro">format!</span>(<span class="string">"`{typ}` returned here"</span>)
+                } <span class="kw">else </span>{
+                    <span class="macro">format!</span>(<span class="string">"`{typ}`, which contains a reference type internally, returned here"</span>)
+                };
+                <span class="kw">return </span>CustomDiagnostic::simple_error(message, secondary, <span class="kw-2">*</span>location);
             }
         };
 
