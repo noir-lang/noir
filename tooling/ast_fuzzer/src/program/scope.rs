@@ -101,9 +101,9 @@ where
         }
         let candidates = vs
             .iter()
-            .filter_map(|id| {
+            .filter(|id| {
                 let v = self.get_variable(id);
-                pred(id, v).then_some(id)
+                pred(id, v)
             })
             .collect::<Vec<_>>();
 
