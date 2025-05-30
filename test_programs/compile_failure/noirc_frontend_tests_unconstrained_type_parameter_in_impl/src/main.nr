@@ -4,6 +4,6 @@
         impl<T, U> Foo<T> {}
 
         fn main() {
-            let _ = Foo {};
+            let _ = Foo::<i32> {};
         }
         

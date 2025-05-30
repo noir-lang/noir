@@ -45,6 +45,8 @@ fn turbofish_numeric_generic_nested_method_call() {
 
     fn bar<let N: u32>() -> [u8; N] {
         let _ = Foo::static_method::<N>();
+                     ^^^^^^^^^^^^^ Type annotation needed
+                     ~~~~~~~~~~~~~ Could not determine the type of the generic argument `T` declared on the struct `Foo`
         let x: Foo<u8> = Foo { a: 0 };
         x.impl_method::<N>()
     }
@@ -55,7 +57,7 @@ fn turbofish_numeric_generic_nested_method_call() {
         let _ = bar::<M>();
     }
     "#;
-    assert_no_errors!(src);
+    check_errors!(src);
 }
 
 #[named]
