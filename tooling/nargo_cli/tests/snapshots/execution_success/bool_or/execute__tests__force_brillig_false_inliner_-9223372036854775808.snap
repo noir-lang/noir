@@ -35,8 +35,8 @@ expression: artifact
     "private parameters indices : [_0, _1]",
     "public parameters indices : []",
     "return value indices : []",
-    "BLACKBOX::RANGE [(_0, 1)] []",
-    "BLACKBOX::RANGE [(_1, 1)] []",
+    "BLACKBOX::RANGE [_0]:1 bits []",
+    "BLACKBOX::RANGE [_1]:1 bits []",
     "EXPR [ (-1, _0, _1) (1, _0) (1, _1) -1 ]"
   ],
   "debug_symbols": "nZDBCoMwDIbfJecexM2LrzKG1BqlENIS28EQ331RFPWwi6c0+fv9If8EHbZ5aDz3YYT6NUErnsgPDQVnkw+s02k2sLdNEkQdwUlXKlpBTlBzJjLwsZTXT2O0vNZkRdXCAHKnVQ17T7i8ZnPQxX/0UW3s84CrG3R1od/aWeflci2UUJfzYibetoRbAn1mdwokfeOu7JFFCQ67LLjYrZou+AE=",
