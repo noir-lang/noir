@@ -1,0 +1,41 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: expanded_code
+---
+trait Serialize {
+    let Size: u32;
+
+    fn serialize(self) -> [Field; Size];
+}
+
+impl<A, B> Serialize for (A, B) where A: Serialize, B: Serialize {
+    type Size = <A as Serialize>::Size + <B as Serialize>::Size;
+
+    fn serialize(self) -> [Field; <A as Serialize>::Size + <B as Serialize>::Size] where A: Serialize, B: Serialize {
+        let _: [Field; <A as Serialize>::Size] = Serialize::serialize(self.0);
+        [0; <A as Serialize>::Size + <B as Serialize>::Size]
+    }
+}
+
+impl<let N: u32, T> Serialize for [T; N] where T: Serialize {
+    type Size = N * <T as Serialize>::Size;
+
+    fn serialize(self) -> [Field; N * <T as Serialize>::Size] where T: Serialize {
+        [0; N * <T as Serialize>::Size]
+    }
+}
+
+impl Serialize for Field {
+    let Size: u32 = 1;
+
+    fn serialize(self) -> [Self; 1] {
+        [self]
+    }
+}
+
+fn main() {
+    let x: (((Field, [Field; 3]), [Field; 4]), Field) = (((1, [2, 3, 4]), [5, 6, 7, 8]), 9);
+    assert(x.serialize().len() == 9);
+}
+
+// Warning: the generated code has syntax errors

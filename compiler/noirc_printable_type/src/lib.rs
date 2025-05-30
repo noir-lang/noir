@@ -266,7 +266,7 @@ fn write_template_replacing_interpolations(
 /// A singular '0' will be prepended as well if the trimmed string has an odd length.
 /// A hex string's length needs to be even to decode into bytes, as two digits correspond to
 /// one byte.
-fn format_field_string<F: AcirField>(field: F) -> String {
+pub fn format_field_string<F: AcirField>(field: F) -> String {
     if field.is_zero() {
         return "0x00".to_owned();
     }
