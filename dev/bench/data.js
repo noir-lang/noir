@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1748637681987,
+  "lastUpdate": 1748637684383,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -10052,35 +10052,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "84741533+defkit@users.noreply.github.com",
-            "name": "defkit",
-            "username": "defkit"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "79fb4823b47d3ec06d8d26b1bbf03c52fedcd2fa",
-          "message": "feat(ssa): ssa execution (#8135)\n\nCo-authored-by: defkit <84741533+jewelofchaos9@users.noreply.github.com>\nCo-authored-by: Tom French <15848336+TomAFrench@users.noreply.github.com>",
-          "timestamp": "2025-05-22T11:34:47Z",
-          "tree_id": "b3069a037481210865ee71d3ef6e33e906adcf87",
-          "url": "https://github.com/noir-lang/noir/commit/79fb4823b47d3ec06d8d26b1bbf03c52fedcd2fa"
-        },
-        "date": 1747915122939,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "semaphore_depth_10",
-            "value": 92.93,
-            "unit": "MB"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "asterite@gmail.com",
             "name": "Ary Borenszweig",
             "username": "asterite"
@@ -13010,6 +12981,75 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/noir-lang/noir/commit/0c3a6830e16abde7839a0434bab65b2bbf291e6b"
         },
         "date": 1748637583784,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 201.52,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 225.36,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 176.66,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 501.76,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 498.08,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 1410,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 322.46,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-root",
+            "value": 328.15,
+            "unit": "MB"
+          },
+          {
+            "name": "semaphore_depth_10",
+            "value": 70.97,
+            "unit": "MB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "asterite@gmail.com",
+            "name": "Ary Borenszweig",
+            "username": "asterite"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "cb4951d3249ab7f4f97dddc21595cfa933b08d72",
+          "message": "fix(fmt): correctly format mixed secondary attributes and doc comments (#8735)",
+          "timestamp": "2025-05-30T19:59:55Z",
+          "tree_id": "d38efc00d249bca2d02114a3a62c15f02f868b23",
+          "url": "https://github.com/noir-lang/noir/commit/cb4951d3249ab7f4f97dddc21595cfa933b08d72"
+        },
+        "date": 1748637672035,
         "tool": "customSmallerIsBetter",
         "benches": [
           {
