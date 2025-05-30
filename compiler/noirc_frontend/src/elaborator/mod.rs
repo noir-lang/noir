@@ -67,6 +67,7 @@ mod traits;
 pub mod types;
 mod unquote;
 
+use fxhash::FxHashMap as HashMap;
 use im::HashSet;
 use iter_extended::vecmap;
 use noirc_errors::{Located, Location};
@@ -1586,6 +1587,33 @@ impl<'context> Elaborator<'context> {
 
             let where_clause = self.resolve_trait_constraints(&trait_impl.where_clause);
 
+            if let Some(trait_impl_id) = trait_impl.impl_id {
+                let unresolved_associated_types =
+                    std::mem::take(&mut trait_impl.unresolved_associated_types);
+                let mut unresolved_associated_types =
+                    unresolved_associated_types.into_iter().collect::<HashMap<_, _>>();
+
+                let associated_types =
+                    self.interner.get_associated_types_for_impl(trait_impl_id).to_vec();
+                for associated_type in associated_types {
+                    let Some(unresolved_type) =
+                        unresolved_associated_types.remove(&associated_type.name)
+                    else {
+                        // TODO: find out why this can happen
+                        continue;
+                    };
+                    let resolved_type =
+                        self.resolve_type_with_kind(unresolved_type, &associated_type.typ.kind());
+                    let Type::NamedGeneric(named_generic) = &associated_type.typ else {
+                        panic!(
+                            "Expected associated type to be a NamedGeneric, found: {}",
+                            associated_type.typ
+                        );
+                    };
+                    named_generic.type_var.bind(resolved_type);
+                }
+            }
+
             let trait_ = self.interner.get_trait(trait_id);
 
             // If there are bounds on the trait's associated types, check them now
@@ -2269,7 +2297,22 @@ impl<'context> Elaborator<'context> {
             self.current_trait_impl = Some(impl_id);
 
             // Add each associated type to the list of named type arguments
-            trait_generics.named_args.extend(self.take_unresolved_associated_types(trait_impl));
+            let associated_types = self.take_unresolved_associated_types(trait_impl);
+            let associated_types_behind_type_vars = vecmap(&associated_types, |(name, _typ)| {
+                let new_generic_id = self.interner.next_type_variable_id();
+                let kind = Kind::Any;
+                let type_var = TypeVariable::unbound(new_generic_id, kind);
+                let typ = Type::NamedGeneric(NamedGeneric {
+                    type_var: type_var.clone(),
+                    name: Rc::new(name.to_string()),
+                    implicit: false,
+                });
+                let typ = self.interner.push_quoted_type(typ);
+                let typ = UnresolvedTypeData::Resolved(typ).with_location(name.location());
+                (name.clone(), typ)
+            });
+
+            trait_generics.named_args.extend(associated_types_behind_type_vars);
 
             let (ordered_generics, named_generics) = trait_impl
                 .trait_id
@@ -2299,6 +2342,7 @@ impl<'context> Elaborator<'context> {
 
             trait_impl.resolved_object_type = self.self_type.take();
             trait_impl.impl_id = self.current_trait_impl.take();
+            trait_impl.unresolved_associated_types = associated_types;
             self.generics.clear();
 
             if let Some(trait_id) = trait_id {

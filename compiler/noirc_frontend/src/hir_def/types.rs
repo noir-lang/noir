@@ -28,7 +28,7 @@ use super::{
 
 mod arithmetic;
 
-#[derive(Eq, Clone, Ord, PartialOrd)]
+#[derive(Eq, Clone, Ord, PartialOrd, Debug)]
 pub enum Type {
     /// A primitive Field type
     FieldElement,
@@ -3111,106 +3111,106 @@ impl From<&Type> for PrintableType {
     }
 }
 
-impl std::fmt::Debug for Type {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            Type::FieldElement => {
-                write!(f, "Field")
-            }
-            Type::Array(len, typ) => {
-                write!(f, "[{typ:?}; {len:?}]")
-            }
-            Type::Slice(typ) => {
-                write!(f, "[{typ:?}]")
-            }
-            Type::Integer(sign, num_bits) => match sign {
-                Signedness::Signed => write!(f, "i{num_bits}"),
-                Signedness::Unsigned => write!(f, "u{num_bits}"),
-            },
-            Type::TypeVariable(var) => {
-                let binding = &var.1;
-                if let TypeBinding::Unbound(_, type_var_kind) = &*binding.borrow() {
-                    match type_var_kind {
-                        Kind::Any | Kind::Normal => write!(f, "{:?}", var),
-                        Kind::IntegerOrField => write!(f, "IntOrField{:?}", binding),
-                        Kind::Integer => write!(f, "Int{:?}", binding),
-                        Kind::Numeric(typ) => write!(f, "Numeric({:?}: {:?})", binding, typ),
-                    }
-                } else {
-                    write!(f, "{}", binding.borrow())
-                }
-            }
-            Type::DataType(s, args) => {
-                let args = vecmap(args, |arg| format!("{:?}", arg));
-                if args.is_empty() {
-                    write!(f, "{}", s.borrow())
-                } else {
-                    write!(f, "{}<{}>", s.borrow(), args.join(", "))
-                }
-            }
-            Type::Alias(alias, args) => {
-                let args = vecmap(args, |arg| format!("{:?}", arg));
-                if args.is_empty() {
-                    write!(f, "{}", alias.borrow())
-                } else {
-                    write!(f, "{}<{}>", alias.borrow(), args.join(", "))
-                }
-            }
-            Type::TraitAsType(_id, name, generics) => write!(f, "impl {}{:?}", name, generics),
-            Type::Tuple(elements) => {
-                let elements = vecmap(elements, |arg| format!("{:?}", arg));
-                if elements.len() == 1 {
-                    write!(f, "({},)", elements[0])
-                } else {
-                    write!(f, "({})", elements.join(", "))
-                }
-            }
-            Type::Bool => write!(f, "bool"),
-            Type::String(len) => write!(f, "str<{len:?}>"),
-            Type::FmtString(len, elements) => {
-                write!(f, "fmtstr<{len:?}, {elements:?}>")
-            }
-            Type::Unit => write!(f, "()"),
-            Type::Error => write!(f, "error"),
-            Type::CheckedCast { to, .. } => write!(f, "{:?}", to),
-            Type::NamedGeneric(NamedGeneric { type_var, name, .. }) => match type_var.kind() {
-                Kind::Any | Kind::Normal | Kind::Integer | Kind::IntegerOrField => {
-                    write!(f, "{}{:?}", name, type_var)
-                }
-                Kind::Numeric(typ) => {
-                    write!(f, "({} : {}){:?}", name, typ, type_var)
-                }
-            },
-            Type::Constant(x, kind) => write!(f, "({}: {})", x, kind),
-            Type::Forall(typevars, typ) => {
-                let typevars = vecmap(typevars, |var| format!("{:?}", var));
-                write!(f, "forall {}. {:?}", typevars.join(" "), typ)
-            }
-            Type::Function(args, ret, env, unconstrained) => {
-                if *unconstrained {
-                    write!(f, "unconstrained ")?;
-                }
+// impl std::fmt::Debug for Type {
+//     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+//         match self {
+//             Type::FieldElement => {
+//                 write!(f, "Field")
+//             }
+//             Type::Array(len, typ) => {
+//                 write!(f, "[{typ:?}; {len:?}]")
+//             }
+//             Type::Slice(typ) => {
+//                 write!(f, "[{typ:?}]")
+//             }
+//             Type::Integer(sign, num_bits) => match sign {
+//                 Signedness::Signed => write!(f, "i{num_bits}"),
+//                 Signedness::Unsigned => write!(f, "u{num_bits}"),
+//             },
+//             Type::TypeVariable(var) => {
+//                 let binding = &var.1;
+//                 if let TypeBinding::Unbound(_, type_var_kind) = &*binding.borrow() {
+//                     match type_var_kind {
+//                         Kind::Any | Kind::Normal => write!(f, "{:?}", var),
+//                         Kind::IntegerOrField => write!(f, "IntOrField{:?}", binding),
+//                         Kind::Integer => write!(f, "Int{:?}", binding),
+//                         Kind::Numeric(typ) => write!(f, "Numeric({:?}: {:?})", binding, typ),
+//                     }
+//                 } else {
+//                     write!(f, "{}", binding.borrow())
+//                 }
+//             }
+//             Type::DataType(s, args) => {
+//                 let args = vecmap(args, |arg| format!("{:?}", arg));
+//                 if args.is_empty() {
+//                     write!(f, "{}", s.borrow())
+//                 } else {
+//                     write!(f, "{}<{}>", s.borrow(), args.join(", "))
+//                 }
+//             }
+//             Type::Alias(alias, args) => {
+//                 let args = vecmap(args, |arg| format!("{:?}", arg));
+//                 if args.is_empty() {
+//                     write!(f, "{}", alias.borrow())
+//                 } else {
+//                     write!(f, "{}<{}>", alias.borrow(), args.join(", "))
+//                 }
+//             }
+//             Type::TraitAsType(_id, name, generics) => write!(f, "impl {}{:?}", name, generics),
+//             Type::Tuple(elements) => {
+//                 let elements = vecmap(elements, |arg| format!("{:?}", arg));
+//                 if elements.len() == 1 {
+//                     write!(f, "({},)", elements[0])
+//                 } else {
+//                     write!(f, "({})", elements.join(", "))
+//                 }
+//             }
+//             Type::Bool => write!(f, "bool"),
+//             Type::String(len) => write!(f, "str<{len:?}>"),
+//             Type::FmtString(len, elements) => {
+//                 write!(f, "fmtstr<{len:?}, {elements:?}>")
+//             }
+//             Type::Unit => write!(f, "()"),
+//             Type::Error => write!(f, "error"),
+//             Type::CheckedCast { to, .. } => write!(f, "{:?}", to),
+//             Type::NamedGeneric(NamedGeneric { type_var, name, .. }) => match type_var.kind() {
+//                 Kind::Any | Kind::Normal | Kind::Integer | Kind::IntegerOrField => {
+//                     write!(f, "{}{:?}", name, type_var)
+//                 }
+//                 Kind::Numeric(typ) => {
+//                     write!(f, "({} : {}){:?}", name, typ, type_var)
+//                 }
+//             },
+//             Type::Constant(x, kind) => write!(f, "({}: {})", x, kind),
+//             Type::Forall(typevars, typ) => {
+//                 let typevars = vecmap(typevars, |var| format!("{:?}", var));
+//                 write!(f, "forall {}. {:?}", typevars.join(" "), typ)
+//             }
+//             Type::Function(args, ret, env, unconstrained) => {
+//                 if *unconstrained {
+//                     write!(f, "unconstrained ")?;
+//                 }
 
-                let closure_env_text = match **env {
-                    Type::Unit => "".to_string(),
-                    _ => format!(" with env {env:?}"),
-                };
+//                 let closure_env_text = match **env {
+//                     Type::Unit => "".to_string(),
+//                     _ => format!(" with env {env:?}"),
+//                 };
 
-                let args = vecmap(args.iter(), |arg| format!("{:?}", arg));
+//                 let args = vecmap(args.iter(), |arg| format!("{:?}", arg));
 
-                write!(f, "fn({}) -> {ret:?}{closure_env_text}", args.join(", "))
-            }
-            Type::Reference(element, false) => {
-                write!(f, "&{element:?}")
-            }
-            Type::Reference(element, true) => {
-                write!(f, "&mut {element:?}")
-            }
-            Type::Quoted(quoted) => write!(f, "{}", quoted),
-            Type::InfixExpr(lhs, op, rhs, _) => write!(f, "({lhs:?} {op} {rhs:?})"),
-        }
-    }
-}
+//                 write!(f, "fn({}) -> {ret:?}{closure_env_text}", args.join(", "))
+//             }
+//             Type::Reference(element, false) => {
+//                 write!(f, "&{element:?}")
+//             }
+//             Type::Reference(element, true) => {
+//                 write!(f, "&mut {element:?}")
+//             }
+//             Type::Quoted(quoted) => write!(f, "{}", quoted),
+//             Type::InfixExpr(lhs, op, rhs, _) => write!(f, "({lhs:?} {op} {rhs:?})"),
+//         }
+//     }
+// }
 
 impl std::fmt::Debug for TypeVariableId {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {

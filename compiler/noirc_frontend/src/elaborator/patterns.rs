@@ -567,7 +567,6 @@ impl Elaborator<'_> {
 
     pub(super) fn elaborate_variable(&mut self, variable: Path) -> (ExprId, Type) {
         let variable = self.validate_path(variable);
-
         if let Some((expr_id, typ)) =
             self.elaborate_variable_as_self_method_or_associated_constant(&variable)
         {
@@ -648,6 +647,8 @@ impl Elaborator<'_> {
         &mut self,
         variable: &TypedPath,
     ) -> Option<(ExprId, Type)> {
+        println!("{}", variable);
+
         if !(variable.segments.len() == 2 && variable.segments[0].ident.is_self_type_name()) {
             return None;
         }
@@ -660,6 +661,7 @@ impl Elaborator<'_> {
             let trait_ = self.interner.get_trait(*trait_id);
             if let Some(associated_type) = trait_.get_associated_type(name) {
                 if let Kind::Numeric(numeric_type) = associated_type.kind() {
+                    println!("1");
                     // We can produce any value here because this trait method is never going to
                     // produce code (only trait impl methods do)
                     let numeric_type: Type = *numeric_type.clone();
