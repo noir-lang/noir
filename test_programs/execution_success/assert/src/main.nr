@@ -1,6 +1,6 @@
 fn main(x: Field) {
     assert(x == 1);
-    assert(1 == conditional(x as bool));
+    assert(1 == conditional(x != 0));
 }
 
 fn conditional(x: bool) -> Field {

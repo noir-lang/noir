@@ -45,7 +45,7 @@ expression: artifact
   "debug_symbols": "dZDLDoMgEEX/ZdYsfNTa+CvGGMTRkBAgCE0aw7938NHaRTdzGS7nkpkVRhzC3Es9mQWadoXBSaXk3CsjuJdG0+0KWSr5DZqcQV7tct+l3uVBEiODE+u9Q0zUJYfSLXeoPTQ6KMXgyVXYHi2W6009d+RmDFCPpBQ4SYXpFNmXzv6jZX6wZf2BK6I76riQ7meumHKc5IPCo52CFhfXv+zpnHuxzggcg8OUdFkO1bbIWFF1Mf32Bg==",
   "file_map": {
     "50": {
-      "source": "fn main(x: Field) {\n    assert(x == 1);\n    assert(1 == conditional(x as bool));\n}\n\nfn conditional(x: bool) -> Field {\n    assert(x, f\"Expected x to be true but got {x}\");\n    assert_eq(x, true, f\"Expected x to be true but got {x}\");\n    1\n}\n",
+      "source": "fn main(x: Field) {\n    assert(x == 1);\n    assert(1 == conditional(x != 0));\n}\n\nfn conditional(x: bool) -> Field {\n    assert(x, f\"Expected x to be true but got {x}\");\n    assert_eq(x, true, f\"Expected x to be true but got {x}\");\n    1\n}\n",
       "path": ""
     }
   },
