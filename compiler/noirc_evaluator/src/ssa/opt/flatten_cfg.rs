@@ -870,6 +870,7 @@ impl<'f> Context<'f> {
         }
     }
 
+    #[cfg(feature = "bn254")]
     fn grumpkin_generators() -> Vec<FieldElement> {
         let g1_x = FieldElement::from_hex("0x01").unwrap();
         let g1_y =
@@ -892,6 +893,7 @@ impl<'f> Context<'f> {
     /// - inputs: (point1_x, point1_y, point1_infinite, point2_x, point2_y, point2_infinite)
     /// - generators: [g1_x, g1_y, g2_x, g2_y]
     /// - index: true for abscissa, false for ordinate
+    #[cfg(feature = "bn254")]
     fn predicate_argument(
         &mut self,
         inputs: &[ValueId],
@@ -985,6 +987,7 @@ impl<'f> Context<'f> {
         )
     }
     // Computes: if condition { var } else { other }
+    #[cfg(feature = "bn254")]
     fn var_or(
         &mut self,
         var: ValueId,
@@ -1005,7 +1008,7 @@ impl<'f> Context<'f> {
 
 #[cfg(test)]
 mod test {
-    use acvm::{FieldElement, acir::AcirField};
+    use acvm::acir::AcirField;
 
     use crate::{
         assert_ssa_snapshot,
@@ -1016,7 +1019,6 @@ mod test {
                 instruction::{Instruction, TerminatorInstruction},
                 value::{Value, ValueId},
             },
-            opt::flatten_cfg::Context,
         },
     };
 
@@ -1428,7 +1430,7 @@ mod test {
         let src = "
         acir(inline) fn main f0 {
           b0(v0: [u8; 2]):
-            v2 = array_get v0, index u8 0 -> u8
+            v2 = array_get v0, index u32 0 -> u8
             v3 = cast v2 as u32
             v4 = truncate v3 to 1 bits, max_bit_size: 32
             v5 = cast v4 as u1
@@ -1472,30 +1474,30 @@ mod test {
         assert_ssa_snapshot!(flattened_ssa, @r"
         acir(inline) fn main f0 {
           b0(v0: [u8; 2]):
-            v2 = array_get v0, index u8 0 -> u8
+            v2 = array_get v0, index u32 0 -> u8
             v3 = cast v2 as u32
             v4 = truncate v3 to 1 bits, max_bit_size: 32
             v5 = cast v4 as u1
             v6 = allocate -> &mut Field
             store u8 0 at v6
             enable_side_effects v5
-            v7 = cast v2 as Field
-            v9 = add v7, Field 1
-            v10 = cast v9 as u8
-            v11 = load v6 -> u8
-            v12 = not v5
-            v13 = cast v4 as u8
-            v14 = cast v12 as u8
-            v15 = unchecked_mul v13, v10
+            v8 = cast v2 as Field
+            v10 = add v8, Field 1
+            v11 = cast v10 as u8
+            v12 = load v6 -> u8
+            v13 = not v5
+            v14 = cast v4 as u8
+            v15 = cast v13 as u8
             v16 = unchecked_mul v14, v11
-            v17 = unchecked_add v15, v16
-            store v17 at v6
-            enable_side_effects v12
-            v18 = load v6 -> u8
-            v19 = cast v12 as u8
-            v20 = cast v4 as u8
-            v21 = unchecked_mul v20, v18
-            store v21 at v6
+            v17 = unchecked_mul v15, v12
+            v18 = unchecked_add v16, v17
+            store v18 at v6
+            enable_side_effects v13
+            v19 = load v6 -> u8
+            v20 = cast v13 as u8
+            v21 = cast v4 as u8
+            v22 = unchecked_mul v21, v19
+            store v22 at v6
             enable_side_effects u1 1
             constrain v5 == u1 1
             return
@@ -1511,41 +1513,41 @@ mod test {
         let src = "
         acir(inline) fn main f0 {
           b0():
-            v0 = allocate -> &mut Field
-            store Field 0 at v0
-            v2 = allocate -> &mut Field
-            store Field 2 at v2
-            v4 = load v2 -> Field
-            v5 = lt v4, Field 2
+            v0 = allocate -> &mut u32
+            store u32 0 at v0
+            v2 = allocate -> &mut u32
+            store u32 2 at v2
+            v4 = load v2 -> u32
+            v5 = lt v4, u32 2
             jmpif v5 then: b4, else: b1
           b1():
-            v6 = load v2 -> Field
-            v8 = lt v6, Field 4
+            v6 = load v2 -> u32
+            v8 = lt v6, u32 4
             jmpif v8 then: b2, else: b3
           b2():
-            v9 = load v0 -> Field
-            v10 = load v2 -> Field
-            v12 = mul v10, Field 100
+            v9 = load v0 -> u32
+            v10 = load v2 -> u32
+            v12 = mul v10, u32 100
             v13 = add v9, v12
             store v13 at v0
-            v14 = load v2 -> Field
-            v16 = add v14, Field 1
+            v14 = load v2 -> u32
+            v16 = add v14, u32 1
             store v16 at v2
             jmp b3()
           b3():
             jmp b5()
           b4():
-            v17 = load v0 -> Field
-            v18 = load v2 -> Field
-            v20 = mul v18, Field 10
+            v17 = load v0 -> u32
+            v18 = load v2 -> u32
+            v20 = mul v18, u32 10
             v21 = add v17, v20
             store v21 at v0
-            v22 = load v2 -> Field
-            v23 = add v22, Field 1
+            v22 = load v2 -> u32
+            v23 = add v22, u32 1
             store v23 at v2
             jmp b5()
           b5():
-            v24 = load v0 -> Field
+            v24 = load v0 -> u32
             return v24
         }";
 
@@ -1572,10 +1574,10 @@ mod test {
         assert_ssa_snapshot!(ssa, @r"
         acir(inline) fn main f0 {
           b0():
-            v0 = allocate -> &mut Field
-            v1 = allocate -> &mut Field
+            v0 = allocate -> &mut u32
+            v1 = allocate -> &mut u32
             enable_side_effects u1 1
-            return Field 200
+            return u32 200
         }
         ");
     }
@@ -1608,8 +1610,8 @@ mod test {
             store Field 0 at v1
             jmpif v0 then: b1, else: b2
           b1():
-            store Field 1 at v1 
-            store Field 2 at v1 
+            store Field 1 at v1
+            store Field 2 at v1
             jmp b2()
           b2():
             v3 = load v1 -> Field
@@ -1648,9 +1650,9 @@ mod test {
             jmpif v0 then: b1, else: b2
           b1():
             v4 = make_array [Field 1] : [Field; 1]
-            store v4 at v3 
+            store v4 at v3
             v5 = make_array [Field 2] : [Field; 1]
-            store v5 at v3 
+            store v5 at v3
             jmp b2()
           b2():
             v24 = load v3 -> Field
@@ -1751,6 +1753,9 @@ mod test {
     #[test]
     #[cfg(feature = "bn254")]
     fn test_grumpkin_points() {
+        use crate::ssa::opt::flatten_cfg::Context;
+        use acvm::acir::FieldElement;
+
         let generators = Context::grumpkin_generators();
         let len = generators.len();
         for i in (0..len).step_by(2) {

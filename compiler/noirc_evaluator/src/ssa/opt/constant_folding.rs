@@ -1188,7 +1188,7 @@ mod test {
         // is disabled (only gets from index 0) and thus returns the wrong result.
         let src = "
         acir(inline) fn main f0 {
-          b0(v0: u1, v1: u64):
+          b0(v0: u1, v1: u32):
             enable_side_effects v0
             v4 = make_array [Field 0, Field 1] : [Field; 2]
             v5 = array_get v4, index v1 -> Field
@@ -1482,7 +1482,8 @@ mod test {
             brillig(inline) fn one f1 {
               b0(v0: i32, v1: i32):
                 v2 = add v0, v1
-                return v2
+                v3 = truncate v2 to 32 bits, max_bit_size: 33
+                return v3
             }
             ";
         let ssa = Ssa::from_str(src).unwrap();

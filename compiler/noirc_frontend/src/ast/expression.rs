@@ -42,8 +42,8 @@ pub enum ExpressionKind {
     Unquote(Box<Expression>),
     Comptime(BlockExpression, Location),
     Unsafe(UnsafeExpression),
-    AsTraitPath(AsTraitPath),
-    TypePath(TypePath),
+    AsTraitPath(Box<AsTraitPath>),
+    TypePath(Box<TypePath>),
 
     // This variant is only emitted when inlining the result of comptime
     // code. It is used to translate function values back into the AST while
@@ -591,7 +591,11 @@ impl Display for ExpressionKind {
             MemberAccess(access) => access.fmt(f),
             Tuple(elements) => {
                 let elements = vecmap(elements, ToString::to_string);
-                write!(f, "({})", elements.join(", "))
+                if elements.len() == 1 {
+                    write!(f, "({},)", elements[0])
+                } else {
+                    write!(f, "({})", elements.join(", "))
+                }
             }
             Lambda(lambda) => lambda.fmt(f),
             Parenthesized(sub_expr) => write!(f, "({sub_expr})"),

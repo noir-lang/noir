@@ -8,7 +8,7 @@
 //!
 //! The entry point to this pass is the `monomorphize` function which, starting from a given
 //! function, will monomorphize the entire reachable program.
-use crate::ast::{FunctionKind, IntegerBitSize, UnaryOp};
+use crate::ast::{FunctionKind, IntegerBitSize, ItemVisibility, UnaryOp};
 use crate::hir::comptime::{InterpreterError, Value};
 use crate::hir::type_check::{NoMatchingImplFoundError, TypeCheckError};
 use crate::node_interner::{ExprId, GlobalValue, ImplSearchErrorKind};
@@ -469,7 +469,7 @@ impl<'interner> Monomorphizer<'interner> {
 
                 // Iterate over `struct_field_types` since `unwrap_struct_type` will always
                 // return the fields in the order defined by the struct type.
-                for (field_name, field_type) in struct_field_types {
+                for (field_name, field_type, _) in struct_field_types {
                     let field = fields.remove(&field_name).unwrap_or_else(|| {
                         unreachable!("Expected a field named '{field_name}' in the struct pattern")
                     });
@@ -755,7 +755,8 @@ impl<'interner> Monomorphizer<'interner> {
         let typ = self.interner.id_type(id);
         let field_types = unwrap_struct_type(&typ, location)?;
 
-        let field_type_map = btree_map(&field_types, |x| x.clone());
+        let field_type_map =
+            btree_map(&field_types, |(name, typ, _)| (name.to_string(), typ.clone()));
 
         // Create let bindings for each field value first to preserve evaluation order before
         // they are reordered and packed into the resulting tuple
@@ -782,7 +783,7 @@ impl<'interner> Monomorphizer<'interner> {
         // We must ensure the tuple created from the variables here matches the order
         // of the fields as defined in the type. To do this, we iterate over field_types,
         // rather than field_type_map which is a sorted BTreeMap.
-        let field_idents = vecmap(field_types, |(name, _)| {
+        let field_idents = vecmap(field_types, |(name, _, _)| {
             let (id, typ) = field_vars.remove(&name).unwrap_or_else(|| {
                 unreachable!("Expected field {name} to be present in constructor for {typ}")
             });
@@ -886,7 +887,7 @@ impl<'interner> Monomorphizer<'interner> {
                     btree_map(patterns, |(name, pattern)| (name.into_string(), pattern));
 
                 // We iterate through the type's fields to match the order defined in the struct type
-                let patterns_iter = fields.into_iter().map(|(field_name, field_type)| {
+                let patterns_iter = fields.into_iter().map(|(field_name, field_type, _)| {
                     let pattern = patterns.remove(&field_name).unwrap();
                     (pattern, field_type)
                 });
@@ -1077,6 +1078,34 @@ impl<'interner> Monomorphizer<'interner> {
                 let typ = Self::convert_type(&typ, ident.location)?;
                 let value = SignedField::positive(value);
                 ast::Expression::Literal(ast::Literal::Integer(value, typ, location))
+            }
+            DefinitionKind::AssociatedConstant(trait_impl_id, name) => {
+                let location = ident.location;
+                let associated_types = self.interner.get_associated_types_for_impl(*trait_impl_id);
+                let associated_type = associated_types
+                    .iter()
+                    .find(|typ| typ.name.as_str() == name)
+                    .expect("Expected to find associated type");
+                let Kind::Numeric(numeric_type) = associated_type.typ.kind() else {
+                    unreachable!("Expected associated type to be numeric");
+                };
+                match associated_type
+                    .typ
+                    .evaluate_to_field_element(&associated_type.typ.kind(), location)
+                {
+                    Ok(value) => {
+                        let typ = Self::convert_type(&numeric_type, location)?;
+                        let value = SignedField::positive(value);
+                        ast::Expression::Literal(ast::Literal::Integer(value, typ, location))
+                    }
+                    Err(err) => {
+                        return Err(MonomorphizationError::CannotComputeAssociatedConstant {
+                            name: name.clone(),
+                            err,
+                            location,
+                        });
+                    }
+                }
             }
         };
 
@@ -1284,7 +1313,7 @@ impl<'interner> Monomorphizer<'interner> {
 
                 let def = def.borrow();
                 if let Some(fields) = def.get_fields(args) {
-                    let fields = try_vecmap(fields, |(_, field)| {
+                    let fields = try_vecmap(fields, |(_, field, _)| {
                         Self::convert_type_helper(&field, location, seen_types)
                     })?;
 
@@ -1386,11 +1415,13 @@ impl<'interner> Monomorphizer<'interner> {
                 for generic in &meta.direct_generics {
                     if generic.type_var.id() == id {
                         let item_name = self.interner.definition_name(ident.id).to_string();
+                        let is_numeric = matches!(generic.type_var.kind(), Kind::Numeric(..));
                         return Err(MonomorphizationError::NoDefaultTypeInItem {
                             location,
                             generic_name: generic.name.to_string(),
                             item_kind: "function",
                             item_name,
+                            is_numeric,
                         });
                     }
                 }
@@ -1402,11 +1433,13 @@ impl<'interner> Monomorphizer<'interner> {
                             let typ = typ.borrow();
                             let item_name = typ.name.to_string();
                             let item_kind = if typ.is_struct() { "struct" } else { "enum" };
+                            let is_numeric = matches!(generic.type_var.kind(), Kind::Numeric(..));
                             return Err(MonomorphizationError::NoDefaultTypeInItem {
                                 location,
                                 generic_name: generic.name.to_string(),
                                 item_kind,
                                 item_name,
+                                is_numeric,
                             });
                         }
                     }
@@ -1429,11 +1462,13 @@ impl<'interner> Monomorphizer<'interner> {
                 let def = def.borrow();
                 for generic in &def.generics {
                     if generic.type_var.id() == id {
+                        let is_numeric = matches!(generic.type_var.kind(), Kind::Numeric(..));
                         return Err(MonomorphizationError::NoDefaultTypeInItem {
                             location,
                             generic_name: generic.name.to_string(),
                             item_kind: "enum",
                             item_name: def.name.to_string(),
+                            is_numeric,
                         });
                     }
                 }
@@ -1458,7 +1493,7 @@ impl<'interner> Monomorphizer<'interner> {
             | HirType::Error
             | HirType::Quoted(_) => Ok(()),
             HirType::Constant(_value, kind) => {
-                if kind.is_error() || kind.default_type().is_none() {
+                if kind.is_error() {
                     Err(MonomorphizationError::UnknownConstant { location })
                 } else {
                     Ok(())
@@ -1655,7 +1690,7 @@ impl<'interner> Monomorphizer<'interner> {
                     // Here we append printable type info so we can know how to turn that argument
                     // into a human-readable string.
                     let typ = self.interner.id_type(call.arguments[1]);
-                    self.append_printable_type_info_for_type(typ, &mut arguments);
+                    append_printable_type_info_for_type(typ, &mut arguments);
                 }
             }
         }
@@ -1727,51 +1762,10 @@ impl<'interner> Monomorphizer<'interner> {
         match hir_argument {
             HirExpression::Ident(ident, _) => {
                 let typ = self.interner.definition_type(ident.id);
-                self.append_printable_type_info_for_type(typ, arguments);
+                append_printable_type_info_for_type(typ, arguments);
             }
             _ => unreachable!("logging expr {:?} is not supported", hir_argument),
         }
-    }
-
-    fn append_printable_type_info_for_type(&self, typ: Type, arguments: &mut Vec<ast::Expression>) {
-        let typ: Type = typ.follow_bindings();
-        let is_fmt_str = match typ {
-            // A format string has many different possible types that need to be handled.
-            // Loop over each element in the format string to fetch each type's relevant metadata
-            Type::FmtString(_, elements) => {
-                match *elements {
-                    Type::Tuple(element_types) => {
-                        for typ in element_types {
-                            Self::append_printable_type_info_inner(&typ, arguments);
-                        }
-                    }
-                    _ => unreachable!(
-                        "ICE: format string type should be a tuple but got a {elements}"
-                    ),
-                }
-                true
-            }
-            _ => {
-                Self::append_printable_type_info_inner(&typ, arguments);
-                false
-            }
-        };
-        // The caller needs information as to whether it is handling a format string or a single type
-        arguments.push(ast::Expression::Literal(ast::Literal::Bool(is_fmt_str)));
-    }
-
-    fn append_printable_type_info_inner(typ: &Type, arguments: &mut Vec<ast::Expression>) {
-        // Disallow printing slices and mutable references for consistency,
-        // since they cannot be passed from ACIR into Brillig
-        if matches!(typ, HirType::Reference(..)) {
-            unreachable!("println and format strings do not support references.");
-        }
-
-        let printable_type: PrintableType = typ.into();
-        let abi_as_string = serde_json::to_string(&printable_type)
-            .expect("ICE: expected PrintableType to serialize");
-
-        arguments.push(ast::Expression::Literal(ast::Literal::Str(abi_as_string)));
     }
 
     /// Try to evaluate certain builtin functions (currently only 'array_len' and field modulus methods)
@@ -2434,7 +2428,7 @@ fn unwrap_tuple_type(typ: &HirType) -> Vec<HirType> {
 fn unwrap_struct_type(
     typ: &HirType,
     location: Location,
-) -> Result<Vec<(String, HirType)>, MonomorphizationError> {
+) -> Result<Vec<(String, HirType, ItemVisibility)>, MonomorphizationError> {
     match typ.follow_bindings() {
         HirType::DataType(def, args) => {
             // Some of args might not be mentioned in fields, so we need to check that they aren't unbound.
@@ -2478,11 +2472,13 @@ fn check_struct_generic_type(
 
     let def = def.borrow();
     if let Some(generic) = def.generics.get(index) {
+        let is_numeric = matches!(generic.type_var.kind(), Kind::Numeric(..));
         return Err(MonomorphizationError::NoDefaultTypeInItem {
             location,
             generic_name: generic.name.to_string(),
             item_kind: "struct",
             item_name: def.name.to_string(),
+            is_numeric,
         });
     }
 
@@ -2543,7 +2539,7 @@ pub fn perform_impl_bindings(
 }
 
 pub fn resolve_trait_method(
-    interner: &NodeInterner,
+    interner: &mut NodeInterner,
     method: TraitMethodId,
     expr_id: ExprId,
 ) -> Result<node_interner::FuncId, InterpreterError> {
@@ -2563,7 +2559,14 @@ pub fn resolve_trait_method(
                 &trait_generics.ordered,
                 &trait_generics.named,
             ) {
-                Ok((TraitImplKind::Normal(impl_id), _instantiation_bindings)) => impl_id,
+                Ok((TraitImplKind::Normal(impl_id), instantiation_bindings)) => {
+                    // Insert any additional instantiation bindings into this expression's instantiation bindings.
+                    // This is similar to what's done in `verify_trait_constraint` in the frontend.
+                    let mut bindings = interner.get_instantiation_bindings(expr_id).clone();
+                    bindings.extend(instantiation_bindings);
+                    interner.store_instantiation_bindings(expr_id, bindings);
+                    impl_id
+                }
                 Ok((TraitImplKind::Assumed { .. }, _instantiation_bindings)) => {
                     return Err(InterpreterError::NoImpl { location });
                 }
@@ -2591,4 +2594,47 @@ pub fn resolve_trait_method(
     };
 
     Ok(interner.get_trait_implementation(impl_id).borrow().methods[method.method_index])
+}
+
+/// Extend the arguments to `print` (which is a `bool` to show if newline is needed and
+/// value to be printed itself) with a JSON serialized `PrintableType` to describe the
+/// value, and another `bool` to show if the print is using a format string, or a raw
+/// value.
+pub fn append_printable_type_info_for_type(typ: Type, arguments: &mut Vec<ast::Expression>) {
+    let typ: Type = typ.follow_bindings();
+    let is_fmt_str = match typ {
+        // A format string has many different possible types that need to be handled.
+        // Loop over each element in the format string to fetch each type's relevant metadata
+        Type::FmtString(_, elements) => {
+            match *elements {
+                Type::Tuple(element_types) => {
+                    for typ in element_types {
+                        append_printable_type_info_inner(&typ, arguments);
+                    }
+                }
+                _ => unreachable!("ICE: format string type should be a tuple but got a {elements}"),
+            }
+            true
+        }
+        _ => {
+            append_printable_type_info_inner(&typ, arguments);
+            false
+        }
+    };
+    // The caller needs information as to whether it is handling a format string or a single type
+    arguments.push(ast::Expression::Literal(ast::Literal::Bool(is_fmt_str)));
+}
+
+fn append_printable_type_info_inner(typ: &Type, arguments: &mut Vec<ast::Expression>) {
+    // Disallow printing slices and mutable references for consistency,
+    // since they cannot be passed from ACIR into Brillig
+    if matches!(typ, HirType::Reference(..)) {
+        unreachable!("println and format strings do not support references.");
+    }
+
+    let printable_type: PrintableType = typ.into();
+    let abi_as_string =
+        serde_json::to_string(&printable_type).expect("ICE: expected PrintableType to serialize");
+
+    arguments.push(ast::Expression::Literal(ast::Literal::Str(abi_as_string)));
 }

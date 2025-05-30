@@ -15,6 +15,11 @@ use noirc_frontend::{
 
 use super::{Name, VariableId, types, visitor::visit_expr};
 
+/// Boolean literal.
+pub fn lit_bool(value: bool) -> Expression {
+    Expression::Literal(Literal::Bool(value))
+}
+
 /// Generate a literal expression according to a type.
 pub fn gen_literal(u: &mut Unstructured, typ: &Type) -> arbitrary::Result<Expression> {
     use FieldElement as Field;
@@ -22,12 +27,9 @@ pub fn gen_literal(u: &mut Unstructured, typ: &Type) -> arbitrary::Result<Expres
 
     let expr = match typ {
         Type::Unit => Expression::Literal(Literal::Unit),
-        Type::Bool => Expression::Literal(Literal::Bool(bool::arbitrary(u)?)),
+        Type::Bool => lit_bool(bool::arbitrary(u)?),
         Type::Field => {
-            let field = SignedField {
-                field: Field::from(u128::arbitrary(u)?),
-                is_negative: bool::arbitrary(u)?,
-            };
+            let field = SignedField::new(Field::from(u128::arbitrary(u)?), bool::arbitrary(u)?);
             Expression::Literal(Literal::Integer(field, Type::Field, Location::dummy()))
         }
         Type::Integer(signedness, integer_bit_size) => {
@@ -64,7 +66,7 @@ pub fn gen_literal(u: &mut Unstructured, typ: &Type) -> arbitrary::Result<Expres
                 };
 
             Expression::Literal(Literal::Integer(
-                SignedField { field, is_negative },
+                SignedField::new(field, is_negative),
                 Type::Integer(*signedness, *integer_bit_size),
                 Location::dummy(),
             ))
@@ -190,7 +192,7 @@ pub fn gen_range(
 
     let to_lit = |(field, is_negative)| {
         Expression::Literal(Literal::Integer(
-            SignedField { field, is_negative },
+            SignedField::new(field, is_negative),
             Type::Integer(*signedness, *integer_bit_size),
             Location::dummy(),
         ))
@@ -237,7 +239,7 @@ where
     FieldElement: From<V>,
 {
     Expression::Literal(Literal::Integer(
-        SignedField { field: FieldElement::from(value), is_negative },
+        SignedField::new(value.into(), is_negative),
         typ,
         Location::dummy(),
     ))
@@ -448,52 +450,4 @@ pub fn prepend_block(block: Expression, statements: Vec<Expression>) -> Expressi
     result_statements.extend(block_stmts);
 
     Expression::Block(result_statements)
-}
-
-/// The return type of an expression, if it has an obvious one.
-pub fn return_type(expr: &Expression) -> Option<&Type> {
-    match expr {
-        Expression::Ident(ident) => Some(&ident.typ),
-        Expression::Literal(literal) => match literal {
-            Literal::Array(literal) | Literal::Slice(literal) => Some(&literal.typ),
-            Literal::Integer(_, typ, _) => Some(typ),
-            Literal::Bool(_) => Some(&Type::Bool),
-            Literal::Unit => Some(&Type::Unit),
-            Literal::Str(_) => None, // Need to return owned type for this.
-            Literal::FmtStr(_, _, _) => None,
-        },
-        Expression::Block(xs) => xs.last().and_then(return_type),
-        Expression::Unary(unary) => Some(&unary.result_type),
-        Expression::Binary(binary) => {
-            if binary.operator.is_comparator() {
-                Some(&Type::Bool)
-            } else {
-                return_type(&binary.lhs)
-            }
-        }
-        Expression::Index(index) => Some(&index.element_type),
-        Expression::Cast(cast) => Some(&cast.r#type),
-        Expression::If(if_) => Some(&if_.typ),
-        Expression::ExtractTupleField(x, idx) => match x.as_ref() {
-            Expression::Tuple(xs) if xs.len() > *idx => return_type(&xs[*idx]),
-            _ => None, // Maybe something else that returns a tuple.
-        },
-        Expression::Clone(x) => return_type(x),
-        Expression::Call(call) => Some(&call.return_type),
-
-        Expression::Tuple(_) => None, // Need to return an owned types for this.
-
-        Expression::Match(_) => None, // TODO #7926
-
-        Expression::For(_)
-        | Expression::Loop(_)
-        | Expression::While(_)
-        | Expression::Let(_)
-        | Expression::Constrain(_, _, _)
-        | Expression::Assign(_)
-        | Expression::Semi(_)
-        | Expression::Drop(_)
-        | Expression::Break
-        | Expression::Continue => None,
-    }
 }

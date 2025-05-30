@@ -9,6 +9,7 @@ mod input;
 mod program;
 
 pub use abi::program_abi;
+pub use compare::input_values_to_ssa;
 pub use input::arb_inputs;
 use program::freq::Freqs;
 pub use program::{DisplayAstAsNoir, DisplayAstAsNoirComptime, arb_program, arb_program_comptime};
@@ -96,6 +97,7 @@ impl Default for Config {
             ("while", 15),
             ("let", 20),
             ("call", 5),
+            ("print", 15),
         ]);
         Self {
             max_globals: 3,

@@ -73,7 +73,6 @@ mod trait_impl_method_stub_generator;
 mod types;
 mod use_segment_positions;
 mod utils;
-mod visibility;
 mod with_file;
 
 #[cfg(test)]
@@ -437,7 +436,7 @@ pub fn insert_all_files_for_workspace_into_file_manager(
     nargo::insert_all_files_for_workspace_into_file_manager_with_overrides(
         workspace,
         file_manager,
-        &overrides,
+        Some(&overrides),
     );
 }
 

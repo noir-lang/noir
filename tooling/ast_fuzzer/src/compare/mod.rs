@@ -16,7 +16,9 @@ pub use compiled::{
     CompareArtifact, CompareCompiled, CompareCompiledResult, CompareMorph, ComparePipelines,
 };
 pub use comptime::CompareComptime;
-pub use interpreted::{CompareInterpreted, CompareInterpretedResult, ComparePass};
+pub use interpreted::{
+    CompareInterpreted, CompareInterpretedResult, ComparePass, input_values_to_ssa,
+};
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct ExecOutput<T> {
@@ -128,7 +130,7 @@ where
                 (r1, _) => {
                     if o1.print_output != o2.print_output {
                         bail!(
-                            "programs disagree on printed output:\n---\n{}\n\n---\n{}\n",
+                            "programs disagree on printed output:\n---\n{}\n--- != ---\n{}\n---",
                             o1.print_output,
                             o2.print_output
                         )

@@ -23,6 +23,7 @@ pub enum MonomorphizationError {
         generic_name: String,
         item_kind: &'static str,
         item_name: String,
+        is_numeric: bool,
     },
     InternalError {
         message: &'static str,
@@ -51,6 +52,11 @@ pub enum MonomorphizationError {
         typ: Type,
         location: Location,
     },
+    CannotComputeAssociatedConstant {
+        name: String,
+        err: TypeCheckError,
+        location: Location,
+    },
 }
 
 impl MonomorphizationError {
@@ -65,7 +71,8 @@ impl MonomorphizationError {
             | MonomorphizationError::CheckedCastFailed { location, .. }
             | MonomorphizationError::RecursiveType { location, .. }
             | MonomorphizationError::NoDefaultType { location, .. }
-            | MonomorphizationError::NoDefaultTypeInItem { location, .. } => *location,
+            | MonomorphizationError::NoDefaultTypeInItem { location, .. }
+            | MonomorphizationError::CannotComputeAssociatedConstant { location, .. } => *location,
             MonomorphizationError::InterpreterError(error) => error.location(),
         }
     }
@@ -96,10 +103,12 @@ impl From<MonomorphizationError> for CustomDiagnostic {
                 generic_name,
                 item_kind,
                 item_name,
+                is_numeric,
             } => {
                 let message = "Type annotation needed".into();
+                let type_or_value = if *is_numeric { "value" } else { "type" };
                 let secondary = format!(
-                    "Could not determine the type of the generic argument `{generic_name}` declared on the {item_kind} `{item_name}`"
+                    "Could not determine the {type_or_value} of the generic argument `{generic_name}` declared on the {item_kind} `{item_name}`",
                 );
                 return CustomDiagnostic::simple_error(message, secondary, *location);
             }
@@ -120,6 +129,11 @@ impl From<MonomorphizationError> for CustomDiagnostic {
                 let message = format!("Type `{typ}` is recursive");
                 let secondary = "All types in Noir must have a known size at compile-time".into();
                 return CustomDiagnostic::simple_error(message, secondary, *location);
+            }
+            MonomorphizationError::CannotComputeAssociatedConstant { name, err, .. } => {
+                format!(
+                    "Could not determine the value of associated constant `{name}`, encountered error: `{err}`"
+                )
             }
         };
 
