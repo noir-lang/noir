@@ -7,6 +7,7 @@ use noirc_frontend::monomorphization::ast::InlineType;
 use serde::{Deserialize, Serialize};
 
 use super::basic_block::BasicBlockId;
+use super::cfg::ControlFlowGraph;
 use super::dfg::{DataFlowGraph, GlobalsGraph};
 use super::instruction::{BinaryOp, Instruction, TerminatorInstruction};
 use super::map::Id;
@@ -238,7 +239,7 @@ impl Function {
     pub(crate) fn assert_valid(&self) {
         self.assert_single_return_block();
         self.validate_signed_arithmetic_invariants();
-        self.assert_jmpifs_have_no_reference_arguments();
+        self.validate_reference_arguments();
     }
 
     /// Checks that the function has only one return block.
@@ -262,23 +263,25 @@ impl Function {
     }
 
     /// We cannot merge reference values in flattening so we prevent any references from ever being
-    /// returned from if expressions in the frontend. In Ssa, that means only the entry block of a
-    /// function is allowed to accept references in its block arguments.
-    fn assert_jmpifs_have_no_reference_arguments(&self) {
-        let mut non_entry_blocks = self.reachable_blocks();
-        non_entry_blocks.remove(&self.entry_block);
+    /// returned from if expressions in the frontend. In Ssa, that means that blocks with multiple
+    /// predecessors cannot have reference arguments.
+    fn validate_reference_arguments(&self) {
+        let cfg = ControlFlowGraph::with_function(self);
+        let blocks = self.reachable_blocks();
 
-        for block_id in non_entry_blocks {
-            let block = &self.dfg[block_id];
+        for block_id in blocks {
+            if cfg.predecessors(block_id).len() > 1 {
+                let block = &self.dfg[block_id];
 
-            for parameter in block.parameters() {
-                let parameter_type = self.dfg.type_of_value(*parameter);
+                for parameter in block.parameters() {
+                    let parameter_type = self.dfg.type_of_value(*parameter);
 
-                if parameter_type.contains_reference() {
-                    panic!(
-                        "Function {} has a non-entry block {block_id} with a reference argument {parameter}",
-                        self.id()
-                    );
+                    if parameter_type.contains_reference() {
+                        panic!(
+                            "Function {} has a block {block_id} with multiple predecessors and a reference argument {parameter}",
+                            self.id()
+                        );
+                    }
                 }
             }
         }
