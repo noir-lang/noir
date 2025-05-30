@@ -556,10 +556,10 @@ impl std::ops::Index<BasicBlockId> for FunctionBuilder {
 fn validate_numeric_type(typ: &NumericType) {
     match &typ {
         NumericType::Signed { bit_size } => match bit_size {
-            1 | 8 | 16 | 32 | 64 | 128 => (),
+            8 | 16 | 32 | 64 | 128 => (),
             _ => {
                 panic!(
-                    "Invalid bit size for signed numeric type: {bit_size}. Expected one of 1, 8, 16, 32, 64 or 128."
+                    "Invalid bit size for signed numeric type: {bit_size}. Expected one of 8, 16, 32, 64 or 128."
                 );
             }
         },
