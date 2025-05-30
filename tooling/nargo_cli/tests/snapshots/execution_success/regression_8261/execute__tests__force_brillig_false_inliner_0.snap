@@ -135,7 +135,7 @@ expression: artifact
     "BLACKBOX::RANGE [_17]:1 bits []",
     "BLACKBOX::RANGE [_18]:16 bits []",
     "EXPR [ (-1, _0, _12) (1, _0) (1, _18) (-1, _19) 1050 ]",
-    "BLACKBOX::RANGE [(_19, 16)] []",
+    "BLACKBOX::RANGE [_19]:16 bits []",
     "EXPR [ (64485, _17) (1, _18) (-1, _20) 0 ]",
     "EXPR [ (-1, _0, _12) (1, _0) (-1, _21) 0 ]",
     "EXPR [ (1, _8, _21) (-1, _20, _21) 0 ]",
