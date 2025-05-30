@@ -122,7 +122,7 @@ fn test_add(a: u64, b: u64) {
 }
 ```
 
-The underlying fuzzing mechanism is described in the [Fuzzing](../tooling/fuzzing) documentation.
+The underlying fuzzing mechanism is described in the [Fuzzer](../tooling/fuzzer) documentation.
 
 There are some fuzzing-specific options that can be used with `nargo test`:
        --no-fuzz
