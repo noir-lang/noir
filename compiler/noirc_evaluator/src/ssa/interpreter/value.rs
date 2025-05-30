@@ -289,6 +289,7 @@ impl NumericValue {
                     16 => NumericValue::U16(value as u16),
                     32 => NumericValue::U32(value as u32),
                     64 => NumericValue::U64(value as u64),
+                    128 => NumericValue::U128(value),
                     _ => return Err(Internal(UnsupportedNumericType { typ })),
                 }
             }
