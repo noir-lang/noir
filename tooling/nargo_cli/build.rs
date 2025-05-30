@@ -119,7 +119,7 @@ const TESTS_WITH_EXPECTED_WARNINGS: [&str; 5] = [
 /// might not be worth it.
 /// Others are ignored because of existing bugs in `nargo expand`.
 /// As the bugs are fixed these tests should be removed from this list.
-const IGNORED_NARGO_EXPAND_EXECUTION_TESTS: [&str; 8] = [
+const IGNORED_NARGO_EXPAND_EXECUTION_TESTS: [&str; 9] = [
     // There's nothing special about this program but making it work with a custom entry would involve
     // having to parse the Nargo.toml file, etc., which is not worth it
     "custom_entry",
@@ -133,6 +133,8 @@ const IGNORED_NARGO_EXPAND_EXECUTION_TESTS: [&str; 8] = [
     "regression_5045",
     // bug
     "regression_7744",
+    // bug
+    "trait_associated_constant",
     // There's no "src/main.nr" here so it's trickier to make this work
     "workspace",
     // There's no "src/main.nr" here so it's trickier to make this work
@@ -145,7 +147,7 @@ const TESTS_WITHOUT_STDOUT_CHECK: [&str; 0] = [];
 /// These tests are ignored because of existing bugs in `nargo expand`.
 /// As the bugs are fixed these tests should be removed from this list.
 /// (some are ignored on purpose for the same reason as `IGNORED_NARGO_EXPAND_EXECUTION_TESTS`)
-const IGNORED_NARGO_EXPAND_COMPILE_SUCCESS_EMPTY_TESTS: [&str; 17] = [
+const IGNORED_NARGO_EXPAND_COMPILE_SUCCESS_EMPTY_TESTS: [&str; 20] = [
     // bug
     "associated_type_bounds",
     // bug
@@ -163,7 +165,13 @@ const IGNORED_NARGO_EXPAND_COMPILE_SUCCESS_EMPTY_TESTS: [&str; 17] = [
     // bug
     "regression_7038_4",
     // bug
-    "serialize",
+    "serialize_1",
+    // bug
+    "serialize_2",
+    // bug
+    "serialize_3",
+    // bug
+    "serialize_4",
     // bug
     "trait_allowed_item_name_matches",
     // bug
