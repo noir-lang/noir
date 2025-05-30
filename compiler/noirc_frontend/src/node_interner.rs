@@ -146,6 +146,9 @@ pub struct NodeInterner {
     /// created, when resolving the type signature of each method in the impl.
     trait_impl_associated_types: HashMap<TraitImplId, Vec<NamedType>>,
 
+    trait_impl_associated_constant_definition_ids:
+        HashMap<TraitImplId, HashMap<String, DefinitionId>>,
+
     /// Trait implementations on each type. This is expected to always have the same length as
     /// `self.trait_implementations`.
     ///
@@ -225,9 +228,6 @@ pub struct NodeInterner {
 
     /// Determins whether to run in LSP mode. In LSP mode references are tracked.
     pub(crate) lsp_mode: bool,
-
-    /// Whether to avoid comptime println from producing output
-    pub(crate) disable_comptime_printing: bool,
 
     /// Store the location of the references in the graph.
     /// Edges are directed from reference nodes to referenced nodes.
@@ -597,6 +597,8 @@ pub enum DefinitionKind {
     /// Generic types in functions (T, U in `fn foo<T, U>(...)` are declared as variables
     /// in scope in case they resolve to numeric generics later.
     NumericGeneric(TypeVariable, Box<Type>),
+
+    AssociatedConstant(TraitImplId, String),
 }
 
 impl DefinitionKind {
@@ -612,6 +614,7 @@ impl DefinitionKind {
             DefinitionKind::Global(_) => None,
             DefinitionKind::Local(id) => *id,
             DefinitionKind::NumericGeneric(_, _) => None,
+            DefinitionKind::AssociatedConstant(_, _) => None,
         }
     }
 }
@@ -710,7 +713,6 @@ impl Default for NodeInterner {
             interned_unresolved_type_datas: Default::default(),
             interned_patterns: Default::default(),
             lsp_mode: false,
-            disable_comptime_printing: false,
             location_indices: LocationIndices::default(),
             reference_graph: petgraph::graph::DiGraph::new(),
             reference_graph_indices: HashMap::default(),
@@ -718,6 +720,7 @@ impl Default for NodeInterner {
             auto_import_names: HashMap::default(),
             comptime_scopes: vec![HashMap::default()],
             trait_impl_associated_types: HashMap::default(),
+            trait_impl_associated_constant_definition_ids: HashMap::default(),
             doc_comments: HashMap::default(),
             reexports: HashMap::default(),
         }
@@ -2279,14 +2282,38 @@ impl NodeInterner {
         self.lsp_mode
     }
 
-    pub fn set_associated_types_for_impl(
+    /// Sets the associated types for the given trait impl.
+    /// Each type in [`NamedType`] will be wrapped in a [`Type::TypeVariable`] if it's of kind [`Kind::Numeric`].
+    pub(crate) fn set_associated_types_for_impl(
         &mut self,
         impl_id: TraitImplId,
         associated_types: Vec<NamedType>,
     ) {
+        // Wrap the named generics in type variables to be able to refer them as type variables
+        for associated_type in &associated_types {
+            let Kind::Numeric(..) = associated_type.typ.kind() else {
+                continue;
+            };
+
+            let name = associated_type.name.to_string();
+            let definition_id = self.push_definition(
+                associated_type.name.to_string(),
+                false,
+                false,
+                DefinitionKind::AssociatedConstant(impl_id, name.clone()),
+                associated_type.name.location(),
+            );
+            self.trait_impl_associated_constant_definition_ids
+                .entry(impl_id)
+                .or_default()
+                .insert(name, definition_id);
+        }
+
         self.trait_impl_associated_types.insert(impl_id, associated_types);
     }
 
+    /// Returns the associated types for the given trait impl.
+    /// The Type of each [`NamedType`] that is an associated constant is guaranteed to be a [`Type::TypeVariable`].
     pub fn get_associated_types_for_impl(&self, impl_id: TraitImplId) -> &[NamedType] {
         &self.trait_impl_associated_types[&impl_id]
     }
@@ -2298,6 +2325,15 @@ impl NodeInterner {
     ) -> Option<&Type> {
         let types = self.trait_impl_associated_types.get(&impl_id)?;
         types.iter().find(|typ| typ.name.as_str() == type_name).map(|typ| &typ.typ)
+    }
+
+    /// Returns the definition id for the associated constant of the given type variable.
+    pub fn get_associated_constant_definition_id(
+        &self,
+        impl_id: TraitImplId,
+        name: &str,
+    ) -> DefinitionId {
+        self.trait_impl_associated_constant_definition_ids[&impl_id][name]
     }
 
     /// Return a set of TypeBindings to bind types from the parent trait to those from the trait impl.

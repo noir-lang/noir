@@ -1482,7 +1482,8 @@ mod test {
             brillig(inline) fn one f1 {
               b0(v0: i32, v1: i32):
                 v2 = add v0, v1
-                return v2
+                v3 = truncate v2 to 32 bits, max_bit_size: 33
+                return v3
             }
             ";
         let ssa = Ssa::from_str(src).unwrap();
