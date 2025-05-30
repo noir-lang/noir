@@ -233,7 +233,7 @@ mod tests {
         // from and cloned in a loop. If the array is inadvertently marked mutable, and is cloned in a previous iteration
         // of the loop, its clone will also be altered.
         let src = "
-            acir(inline) fn main f0 {
+            brillig(inline) fn main f0 {
               b0():
                 v2 = make_array [Field 0, Field 0, Field 0, Field 0, Field 0] : [Field; 5]
                 v3 = make_array [v2, v2] : [[Field; 5]; 2]
