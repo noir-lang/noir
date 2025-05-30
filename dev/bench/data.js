@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1748543912682,
+  "lastUpdate": 1748597459458,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -15646,48 +15646,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "15848336+TomAFrench@users.noreply.github.com",
-            "name": "Tom French",
-            "username": "TomAFrench"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "4d7c8f7f13b47c8d9de094135289640a20b78dae",
-          "message": "chore: update warning on `std::verify_proof` (#8598)\n\nCo-authored-by: Savio <72797635+Savio-Sou@users.noreply.github.com>\nCo-authored-by: Maxim Vezenov <mvezenov@gmail.com>",
-          "timestamp": "2025-05-21T19:07:57Z",
-          "tree_id": "c9d33749c88f70cccd235d668faa9e44b634543e",
-          "url": "https://github.com/noir-lang/noir/commit/4d7c8f7f13b47c8d9de094135289640a20b78dae"
-        },
-        "date": 1747855971077,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 255373,
-            "range": "± 669",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 223403,
-            "range": "± 402",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 3209201,
-            "range": "± 16431",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "mvezenov@gmail.com",
             "name": "Maxim Vezenov",
             "username": "vezenovm"
@@ -17739,6 +17697,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 3581902,
             "range": "± 15698",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "47281315+guipublic@users.noreply.github.com",
+            "name": "guipublic",
+            "username": "guipublic"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "33e0c08e5296bfb1733d92614020725fad754b4c",
+          "message": "fix: do not mutate arrays later copied inside other arrays (#8701)\n\nCo-authored-by: Tom French <15848336+TomAFrench@users.noreply.github.com>",
+          "timestamp": "2025-05-30T09:09:11Z",
+          "tree_id": "09b4063d01e0f4a419e9c0b6d13ea6aeb46264d5",
+          "url": "https://github.com/noir-lang/noir/commit/33e0c08e5296bfb1733d92614020725fad754b4c"
+        },
+        "date": 1748597448523,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 255179,
+            "range": "± 798",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 225276,
+            "range": "± 2842",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 3569221,
+            "range": "± 4475",
             "unit": "ns/iter"
           }
         ]
