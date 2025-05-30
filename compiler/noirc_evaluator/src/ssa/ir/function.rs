@@ -238,6 +238,7 @@ impl Function {
     pub(crate) fn assert_valid(&self) {
         self.assert_single_return_block();
         self.validate_signed_arithmetic_invariants();
+        self.assert_jmpifs_have_no_reference_arguments();
     }
 
     /// Checks that the function has only one return block.
@@ -257,6 +258,29 @@ impl Function {
             .collect();
         if return_blocks.len() > 1 {
             panic!("Function {} has multiple return blocks {return_blocks:?}", self.id())
+        }
+    }
+
+    /// We cannot merge reference values in flattening so we prevent any references from ever being
+    /// returned from if expressions in the frontend. In Ssa, that means only the entry block of a
+    /// function is allowed to accept references in its block arguments.
+    fn assert_jmpifs_have_no_reference_arguments(&self) {
+        let mut non_entry_blocks = self.reachable_blocks();
+        non_entry_blocks.remove(&self.entry_block);
+
+        for block_id in non_entry_blocks {
+            let block = &self.dfg[block_id];
+
+            for parameter in block.parameters() {
+                let parameter_type = self.dfg.type_of_value(*parameter);
+
+                if parameter_type.contains_reference() {
+                    panic!(
+                        "Function {} has a non-entry block {block_id} with a reference argument {parameter}",
+                        self.id()
+                    );
+                }
+            }
         }
     }
 

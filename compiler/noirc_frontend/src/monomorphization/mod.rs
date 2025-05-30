@@ -683,10 +683,11 @@ impl<'interner> Monomorphizer<'interner> {
                 TypeBinding::Unbound(..) => false,
             },
             Type::CheckedCast { to, .. } => Self::contains_reference(to),
-            Type::Function(args, ret, env, _unconstrained) => {
-                args.iter().any(Self::contains_reference)
-                    || Self::contains_reference(ret)
-                    || Self::contains_reference(env)
+            Type::Function(_args, _ret, env, _unconstrained) => {
+                // Only the environment of a function is counted as an actual reference value.
+                // Otherwise we can't return functions accepting references as arguments from if
+                // expressions.
+                Self::contains_reference(env)
             }
             Type::Forall(_, typ) => Self::contains_reference(typ),
         }
