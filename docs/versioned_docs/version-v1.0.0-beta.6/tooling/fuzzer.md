@@ -1,11 +1,9 @@
 ---
-title: Noir Fuzzer
+title: Fuzzer
 description: The Noir Fuzzer is a tool that allows you to fuzz your Noir programs.
 keywords: [Fuzzing, Noir, Noir Fuzzer, Security]
-sidebar_position: 2
+sidebar_position: 3
 ---
-
-# Noir Fuzzer
 
 The Noir Fuzzer is a tool that allows you to fuzz your Noir programs. It is a type of testing tool that automatically generates and mutates test inputs to find bugs in programs. This fuzzer in particular, can automatically generate test cases for Noir programs with very little effort from the program writer.
 
