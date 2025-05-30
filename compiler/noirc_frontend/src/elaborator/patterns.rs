@@ -647,8 +647,6 @@ impl Elaborator<'_> {
         &mut self,
         variable: &TypedPath,
     ) -> Option<(ExprId, Type)> {
-        println!("{}", variable);
-
         if !(variable.segments.len() == 2 && variable.segments[0].ident.is_self_type_name()) {
             return None;
         }

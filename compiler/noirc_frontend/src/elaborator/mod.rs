@@ -1587,6 +1587,8 @@ impl<'context> Elaborator<'context> {
 
             let where_clause = self.resolve_trait_constraints(&trait_impl.where_clause);
 
+            // Now solve the actual type of associated types
+            // (before this we only declared them without knowing their type)
             if let Some(trait_impl_id) = trait_impl.impl_id {
                 let unresolved_associated_types =
                     std::mem::take(&mut trait_impl.unresolved_associated_types);
@@ -1595,21 +1597,22 @@ impl<'context> Elaborator<'context> {
 
                 let associated_types =
                     self.interner.get_associated_types_for_impl(trait_impl_id).to_vec();
-                for associated_type in associated_types {
-                    let Some(unresolved_type) =
-                        unresolved_associated_types.remove(&associated_type.name)
-                    else {
-                        // TODO: find out why this can happen
-                        continue;
-                    };
-                    let resolved_type =
-                        self.resolve_type_with_kind(unresolved_type, &associated_type.typ.kind());
+                for associated_type in &associated_types {
                     let Type::NamedGeneric(named_generic) = &associated_type.typ else {
                         panic!(
                             "Expected associated type to be a NamedGeneric, found: {}",
                             associated_type.typ
                         );
                     };
+
+                    let Some(unresolved_type) =
+                        unresolved_associated_types.remove(&associated_type.name)
+                    else {
+                        // This can happen with implicit named generics
+                        continue;
+                    };
+                    let resolved_type =
+                        self.resolve_type_with_kind(unresolved_type, &associated_type.typ.kind());
                     named_generic.type_var.bind(resolved_type);
                 }
             }
@@ -2298,21 +2301,28 @@ impl<'context> Elaborator<'context> {
 
             // Add each associated type to the list of named type arguments
             let associated_types = self.take_unresolved_associated_types(trait_impl);
-            let associated_types_behind_type_vars = vecmap(&associated_types, |(name, _typ)| {
-                let new_generic_id = self.interner.next_type_variable_id();
-                let kind = Kind::Any;
-                let type_var = TypeVariable::unbound(new_generic_id, kind);
-                let typ = Type::NamedGeneric(NamedGeneric {
-                    type_var: type_var.clone(),
-                    name: Rc::new(name.to_string()),
-                    implicit: false,
+
+            // Put every associated type behind a type variable (inside a NamedGeneric).
+            // This way associated types can be referred to even if their actual value (for associated constants)
+            // is not known yet. This is to allow associated constants to refer to associated constants
+            // in other trait impls.
+            let associated_types_behind_type_vars =
+                vecmap(&associated_types, |(name, _typ, kind)| {
+                    let new_generic_id = self.interner.next_type_variable_id();
+                    let type_var = TypeVariable::unbound(new_generic_id, kind.clone());
+                    let typ = Type::NamedGeneric(NamedGeneric {
+                        type_var: type_var.clone(),
+                        name: Rc::new(name.to_string()),
+                        implicit: false,
+                    });
+                    let typ = self.interner.push_quoted_type(typ);
+                    let typ = UnresolvedTypeData::Resolved(typ).with_location(name.location());
+                    (name.clone(), typ)
                 });
-                let typ = self.interner.push_quoted_type(typ);
-                let typ = UnresolvedTypeData::Resolved(typ).with_location(name.location());
-                (name.clone(), typ)
-            });
 
             trait_generics.named_args.extend(associated_types_behind_type_vars);
+
+            let associated_types = vecmap(associated_types, |(name, typ, _kind)| (name, typ));
 
             let (ordered_generics, named_generics) = trait_impl
                 .trait_id
