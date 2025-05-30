@@ -187,6 +187,7 @@ impl<'f> PerFunctionContext<'f> {
             terminator.for_each_value(|value| all_terminator_values.insert(value));
         }
 
+        println!("{}", self.inserter.function);
         // If we never load from an address within a function we can remove all stores to that address.
         // This rule does not apply to reference parameters, which we must also check for before removing these stores.
         for (_, block) in self.blocks.iter() {
@@ -207,6 +208,7 @@ impl<'f> PerFunctionContext<'f> {
                     && !store_alias_used
                     && !is_dereference
                 {
+                    dbg!(store_address);
                     self.instructions_to_remove.insert(*store_instruction);
                 }
             }
@@ -548,6 +550,7 @@ impl<'f> PerFunctionContext<'f> {
 
                     for element in elements {
                         aliases.insert(*element);
+                        self.make_array_references.insert(*element);
                     }
                 }
             }
