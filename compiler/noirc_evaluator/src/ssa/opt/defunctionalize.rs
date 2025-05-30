@@ -646,7 +646,7 @@ fn replacement_type(typ: &Type) -> Type {
 
 #[cfg(test)]
 mod tests {
-    use crate::assert_ssa_snapshot;
+    use crate::{assert_ssa_snapshot, ssa::ir::function::FunctionId};
 
     use super::Ssa;
 
@@ -1323,6 +1323,8 @@ mod tests {
         let main = ssa.main();
 
         let functions = super::find_functions_as_values(main);
-        assert_eq!(functions.len(), 2); // f0 and f1
+        assert_eq!(functions.len(), 2);
+        assert!(functions.contains(&FunctionId::test_new(1))); // foo
+        assert!(functions.contains(&FunctionId::test_new(2))); // bar
     }
 }
