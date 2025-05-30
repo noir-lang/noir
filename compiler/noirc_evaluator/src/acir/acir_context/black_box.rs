@@ -1,9 +1,6 @@
 use acvm::{
     BlackBoxFunctionSolver,
-    acir::{
-        AcirField, BlackBoxFunc,
-        circuit::opcodes::{ConstantOrWitnessEnum, FunctionInput},
-    },
+    acir::{AcirField, BlackBoxFunc, circuit::opcodes::FunctionInput},
 };
 use iter_extended::vecmap;
 use num_bigint::BigUint;
@@ -287,12 +284,11 @@ impl<F: AcirField, B: BlackBoxFunctionSolver<F>> AcirContext<F, B> {
                 if has_constant && has_witness {
                     // Convert the constants to witness if mixed constant and witness,
                     for j in i - 2..i + 1 {
-                        if let ConstantOrWitnessEnum::Constant(constant) = inputs[j][0].input() {
+                        if let FunctionInput::Constant(constant) = inputs[j][0] {
                             let constant = self.add_constant(constant);
                             let witness_var = self.get_or_create_witness_var(constant)?;
                             let witness = self.var_to_witness(witness_var)?;
-                            result[j] =
-                                vec![FunctionInput::witness(witness, inputs[j][0].num_bits())];
+                            result[j] = vec![FunctionInput::Witness(witness)];
                         }
                     }
                 }
