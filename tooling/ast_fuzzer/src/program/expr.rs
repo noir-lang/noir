@@ -457,6 +457,12 @@ pub fn prepend_block(block: Expression, statements: Vec<Expression>) -> Expressi
     Expression::Block(result_statements)
 }
 
+/// Is the expression an identifier of an immutable variable
 pub(crate) fn is_immutable_ident(expr: &Expression) -> bool {
     matches!(expr, Expression::Ident(Ident { mutable: false, .. }))
+}
+
+/// Is the expression dereferencing something.
+pub(crate) fn is_deref(expr: &Expression) -> bool {
+    matches!(expr, Expression::Unary(Unary { operator: UnaryOp::Dereference { .. }, .. }))
 }

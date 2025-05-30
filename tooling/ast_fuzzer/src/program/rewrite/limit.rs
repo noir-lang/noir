@@ -474,6 +474,10 @@ fn modify_function_pointer_param_values(
     proxy_functions: &HashMap<FuncId, Function>,
 ) {
     for i in 0..param_types.len() {
+        // We only consider parameters that take functions, not function references,
+        // because if something can take a function reference, and we can call it,
+        // then it must be a Brillig to Brillig call, and we don't have to change
+        // it to pass the proxy instead.
         let Type::Function(_, _, _, param_unconstrained) = &param_types[i] else {
             continue;
         };
@@ -488,6 +492,12 @@ fn modify_function_pointer_param_values(
         // and not a function parameter, which we wouldn't know what to change to, and doing so happens
         // when it's first passed as a global.
         let arg = &mut args[i];
+
+        // If we are dereferencing a variable, then it's not a global function we are passing.
+        if expr::is_deref(arg) {
+            continue;
+        }
+        // Otherwise we should be passing a function by identifier directly.
         let Expression::Ident(param_func_ident) = arg else {
             unreachable!("functions are passed by ident; got {arg}");
         };
