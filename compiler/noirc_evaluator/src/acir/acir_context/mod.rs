@@ -1106,7 +1106,7 @@ impl<F: AcirField, B: BlackBoxFunctionSolver<F>> AcirContext<F, B> {
 
         // Performs the division using the unsigned values of lhs and rhs
         let (q1, r1) =
-            self.euclidean_division_var(unsigned_lhs, unsigned_rhs, bit_size - 1, predicate)?;
+            self.euclidean_division_var(unsigned_lhs, unsigned_rhs, bit_size, predicate)?;
 
         // Unsigned to signed: derive q and r from q1,r1 and the signs of lhs and rhs
         // Quotient sign is lhs sign * rhs sign, whose resulting sign bit is the XOR of the sign bits
