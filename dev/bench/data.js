@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1748636644838,
+  "lastUpdate": 1748636681172,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -16400,48 +16400,6 @@ window.BENCHMARK_DATA = {
             "name": "GitHub",
             "username": "web-flow"
           },
-          "distinct": true,
-          "id": "275e438feaa5d610e21d2e683c3f3cd61b72ebff",
-          "message": "fix(expand): use re-exports for non-visibile items (#8374)\n\nCo-authored-by: Tom French <15848336+TomAFrench@users.noreply.github.com>",
-          "timestamp": "2025-05-22T12:29:41Z",
-          "tree_id": "6cf827d527e96342f0309a59284f824a896369da",
-          "url": "https://github.com/noir-lang/noir/commit/275e438feaa5d610e21d2e683c3f3cd61b72ebff"
-        },
-        "date": 1747918227033,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 253955,
-            "range": "± 775",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 223600,
-            "range": "± 6121",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 3209533,
-            "range": "± 12426",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
-            "email": "asterite@gmail.com",
-            "name": "Ary Borenszweig",
-            "username": "asterite"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
           "distinct": false,
           "id": "d992ad59d4c787aa12b0176e6f9d12202e4d9f71",
           "message": "fix: error on unused generic in trait impl (#8395)",
@@ -18484,6 +18442,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 3213796,
             "range": "± 11961",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "asterite@gmail.com",
+            "name": "Ary Borenszweig",
+            "username": "asterite"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "cb4951d3249ab7f4f97dddc21595cfa933b08d72",
+          "message": "fix(fmt): correctly format mixed secondary attributes and doc comments (#8735)",
+          "timestamp": "2025-05-30T19:59:55Z",
+          "tree_id": "d38efc00d249bca2d02114a3a62c15f02f868b23",
+          "url": "https://github.com/noir-lang/noir/commit/cb4951d3249ab7f4f97dddc21595cfa933b08d72"
+        },
+        "date": 1748636669936,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 255254,
+            "range": "± 985",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 224321,
+            "range": "± 1041",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 3211138,
+            "range": "± 3949",
             "unit": "ns/iter"
           }
         ]
