@@ -1195,4 +1195,43 @@ mod tests {
         // We expect the program to be unchanged
         assert_normalized_ssa_equals(ssa, src);
     }
+
+    #[test]
+    fn keep_repeat_loads_with_alias_store() {
+        // v7, v8, and v9 alias one another. We want to make sure that a repeat load to v7 with a store
+        // to its aliases in between the repeat loads does not remove those loads.
+        let src = "
+        acir(inline) fn main f0 {
+          b0(v0: u1):
+            jmpif v0 then: b2, else: b1
+          b1():
+            v6 = allocate -> &mut Field
+            store Field 1 at v6
+            jmp b3(v6, v6, v6)
+          b2():
+            v4 = allocate -> &mut Field
+            store Field 0 at v4
+            jmp b3(v4, v4, v4)
+          b3(v1: &mut Field, v2: &mut Field, v3: &mut Field):
+            v8 = load v1 -> Field
+            store Field 2 at v2
+            v10 = load v1 -> Field
+            store Field 1 at v3
+            v11 = load v1 -> Field
+            store Field 3 at v3
+            v13 = load v1 -> Field
+            constrain v8 == Field 0
+            constrain v10 == Field 2
+            constrain v11 == Field 1
+            constrain v13 == Field 3
+            return
+        }
+        ";
+
+        let ssa = Ssa::from_str(src).unwrap();
+
+        let ssa = ssa.mem2reg();
+        // We expect the program to be unchanged
+        assert_normalized_ssa_equals(ssa, src);
+    }
 }

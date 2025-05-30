@@ -239,7 +239,6 @@ impl Function {
     pub(crate) fn assert_valid(&self) {
         self.assert_single_return_block();
         self.validate_signed_arithmetic_invariants();
-        self.validate_reference_arguments();
     }
 
     /// Checks that the function has only one return block.
@@ -259,31 +258,6 @@ impl Function {
             .collect();
         if return_blocks.len() > 1 {
             panic!("Function {} has multiple return blocks {return_blocks:?}", self.id())
-        }
-    }
-
-    /// We cannot merge reference values in flattening so we prevent any references from ever being
-    /// returned from if expressions in the frontend. In Ssa, that means that blocks with multiple
-    /// predecessors cannot have reference arguments.
-    fn validate_reference_arguments(&self) {
-        let cfg = ControlFlowGraph::with_function(self);
-        let blocks = self.reachable_blocks();
-
-        for block_id in blocks {
-            if cfg.predecessors(block_id).len() > 1 {
-                let block = &self.dfg[block_id];
-
-                for parameter in block.parameters() {
-                    let parameter_type = self.dfg.type_of_value(*parameter);
-
-                    if parameter_type.contains_reference() {
-                        panic!(
-                            "Function {} has a block {block_id} with multiple predecessors and a reference argument {parameter}",
-                            self.id()
-                        );
-                    }
-                }
-            }
         }
     }
 
