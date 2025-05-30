@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1748636494506,
+  "lastUpdate": 1748636559708,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -9722,35 +9722,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "asterite@gmail.com",
-            "name": "Ary Borenszweig",
-            "username": "asterite"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "b2bfdb7bb0fc661bfb27da365f108cf131771295",
-          "message": "feat: trait associated type bounds (#8594)\n\nCo-authored-by: Tom French <15848336+TomAFrench@users.noreply.github.com>",
-          "timestamp": "2025-05-21T20:02:08Z",
-          "tree_id": "7b621533fdf49ffda9b67050128d482eaee0f8a2",
-          "url": "https://github.com/noir-lang/noir/commit/b2bfdb7bb0fc661bfb27da365f108cf131771295"
-        },
-        "date": 1747859126030,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "semaphore_depth_10",
-            "value": 92.93,
-            "unit": "MB"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "47281315+guipublic@users.noreply.github.com",
             "name": "guipublic",
             "username": "guipublic"
@@ -12600,6 +12571,75 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/noir-lang/noir/commit/d6e4ce9cb2e74c4239843ff57c22b56fac4530fe"
         },
         "date": 1748631707270,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 201.52,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 225.36,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 176.66,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 501.76,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 498.08,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 1410,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 322.46,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-root",
+            "value": 328.15,
+            "unit": "MB"
+          },
+          {
+            "name": "semaphore_depth_10",
+            "value": 70.97,
+            "unit": "MB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "jfecher11@gmail.com",
+            "name": "jfecher",
+            "username": "jfecher"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "bfcff37f7337fb43968b5dee9982e799502016bd",
+          "message": "fix!: Prevent returning references from if expressions (#8731)",
+          "timestamp": "2025-05-30T19:43:13Z",
+          "tree_id": "53d8b4031ea121c0d1c9dbba3a3356cceede5e23",
+          "url": "https://github.com/noir-lang/noir/commit/bfcff37f7337fb43968b5dee9982e799502016bd"
+        },
+        "date": 1748636549313,
         "tool": "customSmallerIsBetter",
         "benches": [
           {
