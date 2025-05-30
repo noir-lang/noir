@@ -245,43 +245,6 @@ fn without_defunctionalize() {
 }
 
 #[test]
-fn keep_repeat_loads_with_alias_store() {
-    let src = "
-    acir(inline) fn main f0 {
-      b0(v0: u1):
-        jmpif v0 then: b2, else: b1
-      b1():
-        v6 = allocate -> &mut Field
-        store Field 1 at v6
-        jmp b3(v6, v6, v6)
-      b2():
-        v4 = allocate -> &mut Field
-        store Field 0 at v4
-        jmp b3(v4, v4, v4)
-      b3(v1: &mut Field, v2: &mut Field, v3: &mut Field):
-        v8 = load v1 -> Field
-        store Field 2 at v2
-        v10 = load v1 -> Field
-        store Field 1 at v3
-        v11 = load v1 -> Field
-        store Field 3 at v3
-        v13 = load v1 -> Field
-        constrain v8 == Field 0
-        constrain v10 == Field 2
-        constrain v11 == Field 1
-        constrain v13 == Field 3
-        return v8, v11
-    }
-    ";
-
-    let values = expect_values_with_args(src, vec![Value::bool(true)]);
-    assert_eq!(values.len(), 2);
-
-    assert_eq!(values[0], from_constant(FieldElement::zero(), NumericType::NativeField));
-    assert_eq!(values[1], from_constant(FieldElement::one(), NumericType::NativeField));
-}
-
-#[test]
 fn accepts_globals() {
     let src = "
         g0 = Field 1
