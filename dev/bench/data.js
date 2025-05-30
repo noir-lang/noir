@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1748597459458,
+  "lastUpdate": 1748597824046,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -3155,35 +3155,6 @@ window.BENCHMARK_DATA = {
       }
     ],
     "Compilation Time": [
-      {
-        "commit": {
-          "author": {
-            "email": "15848336+TomAFrench@users.noreply.github.com",
-            "name": "Tom French",
-            "username": "TomAFrench"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "4d7c8f7f13b47c8d9de094135289640a20b78dae",
-          "message": "chore: update warning on `std::verify_proof` (#8598)\n\nCo-authored-by: Savio <72797635+Savio-Sou@users.noreply.github.com>\nCo-authored-by: Maxim Vezenov <mvezenov@gmail.com>",
-          "timestamp": "2025-05-21T19:07:57Z",
-          "tree_id": "c9d33749c88f70cccd235d668faa9e44b634543e",
-          "url": "https://github.com/noir-lang/noir/commit/4d7c8f7f13b47c8d9de094135289640a20b78dae"
-        },
-        "date": 1747856126482,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "semaphore-depth-10",
-            "value": 0.854,
-            "unit": "s"
-          }
-        ]
-      },
       {
         "commit": {
           "author": {
@@ -6351,6 +6322,85 @@ window.BENCHMARK_DATA = {
           {
             "name": "semaphore-depth-10",
             "value": 0.821,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "47281315+guipublic@users.noreply.github.com",
+            "name": "guipublic",
+            "username": "guipublic"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "33e0c08e5296bfb1733d92614020725fad754b4c",
+          "message": "fix: do not mutate arrays later copied inside other arrays (#8701)\n\nCo-authored-by: Tom French <15848336+TomAFrench@users.noreply.github.com>",
+          "timestamp": "2025-05-30T09:09:11Z",
+          "tree_id": "09b4063d01e0f4a419e9c0b6d13ea6aeb46264d5",
+          "url": "https://github.com/noir-lang/noir/commit/33e0c08e5296bfb1733d92614020725fad754b4c"
+        },
+        "date": 1748597813733,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 2.704,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 6.698,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 1.07,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 16.28,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 14.62,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-empty",
+            "value": 1.45,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-single-tx",
+            "value": 120,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 123,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 1.068,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-root",
+            "value": 1.586,
+            "unit": "s"
+          },
+          {
+            "name": "semaphore-depth-10",
+            "value": 0.803,
             "unit": "s"
           }
         ]
