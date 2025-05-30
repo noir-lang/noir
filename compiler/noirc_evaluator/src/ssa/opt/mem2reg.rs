@@ -140,6 +140,9 @@ struct PerFunctionContext<'f> {
     /// Track whether a reference was passed into another entry point
     /// This is needed to determine whether we can remove a store.
     calls_reference_input: HashSet<ValueId>,
+    /// Track whether a reference was passed into a make array instruction
+    /// This is needed to determine whether we can remove a store.
+    make_array_references: HashSet<ValueId>,
 
     /// Track whether a reference has been aliased, and store the respective
     /// instruction that aliased that reference.
@@ -161,6 +164,7 @@ impl<'f> PerFunctionContext<'f> {
             last_loads: HashMap::default(),
             calls_reference_input: HashSet::default(),
             aliased_references: HashMap::default(),
+            make_array_references: HashSet::default(),
         }
     }
 
@@ -241,6 +245,12 @@ impl<'f> PerFunctionContext<'f> {
 
                 let allocation_aliases_parameter =
                     aliases.any(|alias| self.calls_reference_input.contains(&alias));
+                if allocation_aliases_parameter == Some(true) {
+                    return true;
+                }
+
+                let allocation_aliases_parameter =
+                    aliases.any(|alias| self.make_array_references.contains(&alias));
                 if allocation_aliases_parameter == Some(true) {
                     return true;
                 }
@@ -551,6 +561,7 @@ impl<'f> PerFunctionContext<'f> {
 
                     for element in elements {
                         aliases.insert(*element);
+                        self.make_array_references.insert(*element);
                     }
                 }
             }
