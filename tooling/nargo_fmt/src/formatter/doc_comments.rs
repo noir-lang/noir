@@ -111,4 +111,12 @@ mod tests {
 ";
         assert_format(src, expected);
     }
+
+    #[test]
+    fn format_struct_outer_doc_comment_after_attribute() {
+        let src = "#[derive(Eq)]
+/// A struct
+struct Foo {}\n";
+        assert_format(src, src);
+    }
 }

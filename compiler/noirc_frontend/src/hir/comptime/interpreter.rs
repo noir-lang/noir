@@ -655,6 +655,29 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
 
                 self.evaluate_integer(value.into(), id)
             }
+            DefinitionKind::AssociatedConstant(trait_impl_id, name) => {
+                let associated_types =
+                    self.elaborator.interner.get_associated_types_for_impl(*trait_impl_id);
+                let associated_type = associated_types
+                    .iter()
+                    .find(|typ| typ.name.as_str() == name)
+                    .expect("Expected to find associated type");
+                let Kind::Numeric(numeric_type) = associated_type.typ.kind() else {
+                    unreachable!("Expected associated type to be numeric");
+                };
+                let location = self.elaborator.interner.expr_location(&id);
+                match associated_type
+                    .typ
+                    .evaluate_to_field_element(&associated_type.typ.kind(), location)
+                {
+                    Ok(value) => self.evaluate_integer(value.into(), id),
+                    Err(err) => Err(InterpreterError::NonIntegerArrayLength {
+                        typ: associated_type.typ.clone(),
+                        err: Some(Box::new(err)),
+                        location,
+                    }),
+                }
+            }
         }
     }
 
@@ -1408,12 +1431,17 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
         self.evaluate_statement(statement)
     }
 
-    fn print_oracle(&self, arguments: Vec<(Value, Location)>) -> Result<Value, InterpreterError> {
+    fn print_oracle(
+        &mut self,
+        arguments: Vec<(Value, Location)>,
+    ) -> Result<Value, InterpreterError> {
         assert_eq!(arguments.len(), 2);
 
-        if self.elaborator.interner.disable_comptime_printing {
+        let Some(output) = self.elaborator.interpreter_output else {
             return Ok(Value::Unit);
-        }
+        };
+
+        let mut output = output.borrow_mut();
 
         let print_newline = arguments[0].0 == Value::Bool(true);
         let contents = arguments[1].0.display(self.elaborator.interner);
@@ -1427,9 +1455,9 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
                 eprint!("{}", contents);
             }
         } else if print_newline {
-            println!("{}", contents);
+            writeln!(output, "{}", contents).expect("write should succeed");
         } else {
-            print!("{}", contents);
+            write!(output, "{}", contents).expect("write should succeed");
         }
 
         Ok(Value::Unit)
