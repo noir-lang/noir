@@ -5,20 +5,20 @@
 
 pub mod builder;
 pub mod compiler;
-pub mod config;
-pub mod helpers;
 pub mod runner;
 pub mod typed_value;
 
 #[cfg(test)]
 mod tests {
     use crate::builder::{FuzzerBuilder, InstructionWithTwoArgs};
-    use crate::config;
     use crate::runner::{CompareResults, run_and_compare};
     use crate::typed_value::{TypedValue, ValueType};
     use acvm::FieldElement;
     use acvm::acir::native_types::{Witness, WitnessMap};
+    use noirc_driver::CompileOptions;
     use rand::RngCore;
+
+    const NUMBER_OF_VARIABLES_INITIAL: u32 = 7;
 
     struct TestHelper {
         acir_builder: FuzzerBuilder,
@@ -49,16 +49,16 @@ mod tests {
         }
 
         fn finalize_function(&mut self, return_value: TypedValue) {
-            self.acir_builder.finalize_function(return_value.clone());
-            self.brillig_builder.finalize_function(return_value);
+            self.acir_builder.finalize_function(&return_value);
+            self.brillig_builder.finalize_function(&return_value);
         }
     }
 
     /// Generates a random array with config::NUMBER_OF_VARIABLES_INITIAL elements
     fn generate_values() -> Vec<u64> {
         let mut rng = rand::thread_rng();
-        let mut values = Vec::with_capacity(config::NUMBER_OF_VARIABLES_INITIAL as usize);
-        for _ in 0..config::NUMBER_OF_VARIABLES_INITIAL {
+        let mut values = Vec::with_capacity(NUMBER_OF_VARIABLES_INITIAL as usize);
+        for _ in 0..NUMBER_OF_VARIABLES_INITIAL {
             values.push(rng.next_u64());
         }
         values
@@ -66,7 +66,7 @@ mod tests {
 
     fn get_witness_map(values: Vec<u64>) -> WitnessMap<FieldElement> {
         let mut witness_map = WitnessMap::new();
-        for i in 0..config::NUMBER_OF_VARIABLES_INITIAL {
+        for i in 0..NUMBER_OF_VARIABLES_INITIAL {
             let witness = Witness(i);
             let value = FieldElement::from(values[i as usize]);
             witness_map.insert(witness, value);
@@ -94,9 +94,10 @@ mod tests {
             test_helper.insert_instruction_double_arg(instruction, lhs, rhs);
         test_helper.finalize_function(acir_result);
         test_helper.finalize_function(brillig_result);
-        let acir_program = test_helper.acir_builder.compile().unwrap();
-        let brillig_program = test_helper.brillig_builder.compile().unwrap();
-        let result_witness = Witness(config::NUMBER_OF_VARIABLES_INITIAL);
+        let acir_program = test_helper.acir_builder.compile(CompileOptions::default()).unwrap();
+        let brillig_program =
+            test_helper.brillig_builder.compile(CompileOptions::default()).unwrap();
+        let result_witness = Witness(NUMBER_OF_VARIABLES_INITIAL);
         let compare_results = run_and_compare(
             &acir_program.program,
             &brillig_program.program,
@@ -110,31 +111,25 @@ mod tests {
             CompareResults::Disagree(acir_result, brillig_result) => {
                 panic!(
                     "ACIR and Brillig results disagree: ACIR: {}, Brillig: {}, values: {:?}",
-                    acir_result,
-                    brillig_result,
-                    values.clone()
+                    acir_result, brillig_result, &values
                 );
             }
             CompareResults::BothFailed(acir_error, brillig_error) => {
                 panic!(
                     "Both ACIR and Brillig failed: ACIR: {}, Brillig: {}, values: {:?}",
-                    acir_error,
-                    brillig_error,
-                    values.clone()
+                    acir_error, brillig_error, &values
                 );
             }
             CompareResults::AcirFailed(acir_error, brillig_result) => {
                 panic!(
                     "ACIR failed: ACIR: {}, Brillig: {}, values: {:?}",
-                    acir_error,
-                    brillig_result,
-                    values.clone()
+                    acir_error, brillig_result, &values
                 );
             }
             CompareResults::BrilligFailed(brillig_error, acir_result) => {
                 panic!(
                     "Brillig failed: Brillig: {}, ACIR: {}, values: {:?}",
-                    brillig_error, acir_result, values
+                    brillig_error, acir_result, &values
                 );
             }
         }
