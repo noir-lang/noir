@@ -785,7 +785,7 @@ fn remove_interned_in_statement_kind(
         StatementKind::Let(let_statement) => StatementKind::Let(LetStatement {
             pattern: remove_interned_in_pattern(interner, let_statement.pattern),
             expression: remove_interned_in_expression(interner, let_statement.expression),
-            r#type: remove_interned_in_unresolved_type(interner, let_statement.r#type),
+            r#type: Box::new(remove_interned_in_unresolved_type(interner, *let_statement.r#type)),
             ..let_statement
         }),
         StatementKind::Expression(expr) => {
@@ -796,16 +796,16 @@ fn remove_interned_in_statement_kind(
             expression: remove_interned_in_expression(interner, assign.expression),
         }),
         StatementKind::For(for_loop) => StatementKind::For(ForLoopStatement {
-            range: match for_loop.range {
+            range: match *for_loop.range {
                 ForRange::Range(ForBounds { start, end, inclusive }) => {
-                    ForRange::Range(ForBounds {
+                    Box::new(ForRange::Range(ForBounds {
                         start: remove_interned_in_expression(interner, start),
                         end: remove_interned_in_expression(interner, end),
                         inclusive,
-                    })
+                    }))
                 }
                 ForRange::Array(expr) => {
-                    ForRange::Array(remove_interned_in_expression(interner, expr))
+                    Box::new(ForRange::Array(remove_interned_in_expression(interner, expr)))
                 }
             },
             block: remove_interned_in_expression(interner, for_loop.block),

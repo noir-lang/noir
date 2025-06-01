@@ -41,10 +41,10 @@ impl HirStatement {
             }),
             HirStatement::For(for_stmt) => StatementKind::For(ForLoopStatement {
                 identifier: for_stmt.identifier.to_display_ast(interner),
-                range: ForRange::range(
+                range: Box::new(ForRange::range(
                     for_stmt.start_range.to_display_ast(interner),
                     for_stmt.end_range.to_display_ast(interner),
-                ),
+                )),
                 block: for_stmt.block.to_display_ast(interner),
                 location,
             }),
@@ -338,7 +338,7 @@ impl HirPattern {
                 };
                 // The name span is lost here
                 let path = Path::from_single(name, *location);
-                Pattern::Struct(path, patterns, *location)
+                Pattern::Struct(Box::new(path), patterns, *location)
             }
         }
     }

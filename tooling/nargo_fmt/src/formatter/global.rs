@@ -64,7 +64,7 @@ impl ChunkFormatter<'_, '_> {
         group.group(self.format_let_or_global(
             Keyword::Global,
             pattern,
-            let_statement.r#type,
+            *let_statement.r#type,
             Some(let_statement.expression),
             Vec::new(), // Attributes
         ));

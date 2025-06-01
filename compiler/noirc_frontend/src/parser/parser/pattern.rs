@@ -202,7 +202,7 @@ impl Parser<'_> {
             Self::parse_struct_pattern_field,
         );
 
-        Pattern::Struct(path, fields, self.location_since(start_location))
+        Pattern::Struct(Box::new(path), fields, self.location_since(start_location))
     }
 
     fn parse_struct_pattern_field(&mut self) -> Option<(Ident, Pattern)> {

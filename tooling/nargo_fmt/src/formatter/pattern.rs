@@ -74,7 +74,7 @@ impl ChunkFormatter<'_, '_> {
                 let mut inner_group = ChunkGroup::new();
 
                 inner_group.text(self.chunk(|formatter| {
-                    formatter.format_path(path);
+                    formatter.format_path(*path);
                     formatter.write_space();
                     formatter.write_left_brace();
                 }));

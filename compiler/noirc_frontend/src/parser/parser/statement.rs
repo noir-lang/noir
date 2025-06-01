@@ -291,7 +291,7 @@ impl Parser<'_> {
 
         Some(ForLoopStatement {
             identifier,
-            range,
+            range: Box::new(range),
             block,
             location: self.location_since(start_location),
         })
@@ -368,7 +368,7 @@ impl Parser<'_> {
         let location = self.location_at_previous_token_end();
         ForLoopStatement {
             identifier,
-            range: ForRange::Array(Expression { kind: ExpressionKind::Error, location }),
+            range: Box::new(ForRange::Array(Expression { kind: ExpressionKind::Error, location })),
             block: Expression { kind: ExpressionKind::Error, location },
             location: self.location_since(start_location),
         }
@@ -455,7 +455,7 @@ impl Parser<'_> {
 
         Some(LetStatement {
             pattern,
-            r#type,
+            r#type: Box::new(r#type),
             expression,
             attributes,
             comptime: false,
@@ -601,7 +601,7 @@ mod tests {
             panic!("Expected for loop");
         };
         assert_eq!(for_loop.identifier.to_string(), "i");
-        let ForRange::Array(expr) = for_loop.range else {
+        let ForRange::Array(expr) = *for_loop.range else {
             panic!("Expected array");
         };
         assert_eq!(expr.to_string(), "x");
@@ -615,7 +615,7 @@ mod tests {
             panic!("Expected for loop");
         };
         assert_eq!(for_loop.identifier.to_string(), "i");
-        let ForRange::Range(bounds) = for_loop.range else {
+        let ForRange::Range(bounds) = *for_loop.range else {
             panic!("Expected range");
         };
         assert_eq!(bounds.start.to_string(), "0");
@@ -631,7 +631,7 @@ mod tests {
             panic!("Expected for loop");
         };
         assert_eq!(for_loop.identifier.to_string(), "i");
-        let ForRange::Range(bounds) = for_loop.range else {
+        let ForRange::Range(bounds) = *for_loop.range else {
             panic!("Expected range");
         };
         assert_eq!(bounds.start.to_string(), "0");
@@ -650,7 +650,7 @@ mod tests {
             panic!("Expected for loop");
         };
         assert_eq!(for_loop.identifier.to_string(), "i");
-        assert!(matches!(for_loop.range, ForRange::Array(..)));
+        assert!(matches!(*for_loop.range, ForRange::Array(..)));
     }
 
     #[test]

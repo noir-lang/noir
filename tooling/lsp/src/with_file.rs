@@ -96,7 +96,7 @@ fn module_declaration_with_file(module: ModuleDeclaration, file: FileId) -> Modu
 fn let_statement_with_file(let_statement: LetStatement, file: FileId) -> LetStatement {
     LetStatement {
         pattern: pattern_with_file(let_statement.pattern, file),
-        r#type: unresolved_type_with_file(let_statement.r#type, file),
+        r#type: Box::new(unresolved_type_with_file(*let_statement.r#type, file)),
         expression: expression_with_file(let_statement.expression, file),
         attributes: secondary_attributes_with_file(let_statement.attributes, file),
         comptime: let_statement.comptime,
@@ -120,7 +120,7 @@ fn pattern_with_file(pattern: Pattern, file: FileId) -> Pattern {
             Pattern::Tuple(patterns_with_file(patterns, file), location_with_file(location, file))
         }
         Pattern::Struct(path, items, location) => Pattern::Struct(
-            path_with_file(path, file),
+            Box::new(path_with_file(*path, file)),
             vecmap(items, |(ident, pattern)| {
                 (ident_with_file(ident, file), pattern_with_file(pattern, file))
             }),
@@ -913,7 +913,7 @@ fn statement_kind_with_file(kind: StatementKind, file: FileId) -> StatementKind 
 fn for_loop_statement_with_file(for_loop: ForLoopStatement, file: FileId) -> ForLoopStatement {
     ForLoopStatement {
         identifier: ident_with_file(for_loop.identifier, file),
-        range: for_range_with_file(for_loop.range, file),
+        range: Box::new(for_range_with_file(*for_loop.range, file)),
         block: expression_with_file(for_loop.block, file),
         location: location_with_file(for_loop.location, file),
     }

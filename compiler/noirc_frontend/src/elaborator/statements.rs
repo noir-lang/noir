@@ -92,7 +92,7 @@ impl Elaborator<'_> {
         global_id: Option<GlobalId>,
     ) -> (HirStatement, Type) {
         let type_contains_unspecified = let_stmt.r#type.contains_unspecified();
-        let annotated_type = self.resolve_inferred_type(let_stmt.r#type);
+        let annotated_type = self.resolve_inferred_type(*let_stmt.r#type);
 
         let pattern_location = let_stmt.pattern.location();
         let expr_location = let_stmt.expression.location;
@@ -192,7 +192,7 @@ impl Elaborator<'_> {
     }
 
     pub(super) fn elaborate_for(&mut self, for_loop: ForLoopStatement) -> (HirStatement, Type) {
-        let (start, end) = match for_loop.range {
+        let (start, end) = match *for_loop.range {
             ForRange::Range(bounds) => bounds.into_half_open(),
             ForRange::Array(_) => {
                 let for_stmt =

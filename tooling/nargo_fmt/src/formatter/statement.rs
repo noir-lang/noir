@@ -112,7 +112,7 @@ impl ChunkFormatter<'_, '_> {
         self.format_let_or_global(
             Keyword::Let,
             let_statement.pattern,
-            let_statement.r#type,
+            *let_statement.r#type,
             Some(let_statement.expression),
             let_statement.attributes,
         )
@@ -245,7 +245,7 @@ impl ChunkFormatter<'_, '_> {
             formatter.write_space();
         }));
 
-        match for_loop.range {
+        match *for_loop.range {
             ForRange::Range(for_bounds) => {
                 self.format_expression(for_bounds.start, &mut group);
                 group.text(self.chunk(|formatter| {

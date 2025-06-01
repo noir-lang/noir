@@ -170,7 +170,7 @@ impl StatementKind {
     ) -> StatementKind {
         StatementKind::Let(LetStatement {
             pattern,
-            r#type,
+            r#type: Box::new(r#type),
             expression,
             comptime: false,
             is_global_let: false,
@@ -539,7 +539,7 @@ impl Display for PathSegment {
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct LetStatement {
     pub pattern: Pattern,
-    pub r#type: UnresolvedType,
+    pub r#type: Box<UnresolvedType>,
     pub expression: Expression,
     pub attributes: Vec<SecondaryAttribute>,
 
@@ -569,7 +569,7 @@ pub enum Pattern {
     Identifier(Ident),
     Mutable(Box<Pattern>, Location, /*is_synthesized*/ bool),
     Tuple(Vec<Pattern>, Location),
-    Struct(Path, Vec<(Ident, Pattern)>, Location),
+    Struct(Box<Path>, Vec<(Ident, Pattern)>, Location),
     Parenthesized(Box<Pattern>, Location),
     Interned(InternedPattern, Location),
 }
@@ -620,7 +620,7 @@ impl Pattern {
                 }
                 Some(Expression {
                     kind: ExpressionKind::Constructor(Box::new(ConstructorExpression {
-                        typ: UnresolvedType::from_path(path.clone()),
+                        typ: UnresolvedType::from_path(*path.clone()),
                         fields,
                     })),
                     location: *location,
@@ -853,7 +853,7 @@ impl ForRange {
                 let for_loop = Statement {
                     kind: StatementKind::For(ForLoopStatement {
                         identifier: fresh_identifier,
-                        range: ForRange::range(start_range, end_range),
+                        range: Box::new(ForRange::range(start_range, end_range)),
                         block: new_block,
                         location: for_loop_location,
                     }),
@@ -875,7 +875,7 @@ impl ForRange {
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct ForLoopStatement {
     pub identifier: Ident,
-    pub range: ForRange,
+    pub range: Box<ForRange>,
     pub block: Expression,
     pub location: Location,
 }
@@ -1000,7 +1000,7 @@ impl Display for Pattern {
 
 impl Display for ForLoopStatement {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let range = match &self.range {
+        let range = match &*self.range {
             ForRange::Range(bounds) => {
                 format!(
                     "{}{}{}",

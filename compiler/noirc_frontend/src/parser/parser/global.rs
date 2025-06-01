@@ -31,7 +31,7 @@ impl Parser<'_> {
             let ident = self.unknown_ident_at_previous_token_end();
             return LetStatement {
                 pattern: ident_to_pattern(ident, mutable),
-                r#type: UnresolvedType { typ: UnresolvedTypeData::Unspecified, location },
+                r#type: Box::new(UnresolvedType { typ: UnresolvedTypeData::Unspecified, location }),
                 expression: Expression { kind: ExpressionKind::Error, location },
                 attributes,
                 comptime,
@@ -53,7 +53,14 @@ impl Parser<'_> {
 
         self.eat_semicolon_or_error();
 
-        LetStatement { pattern, r#type: typ, expression, attributes, comptime, is_global_let }
+        LetStatement {
+            pattern,
+            r#type: Box::new(typ),
+            expression,
+            attributes,
+            comptime,
+            is_global_let,
+        }
     }
 }
 

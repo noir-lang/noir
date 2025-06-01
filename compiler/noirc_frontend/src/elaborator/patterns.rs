@@ -163,7 +163,7 @@ impl Elaborator<'_> {
                 HirPattern::Tuple(fields, location)
             }
             Pattern::Struct(name, fields, location) => {
-                let name = self.validate_path(name);
+                let name = self.validate_path(*name);
                 self.elaborate_struct_pattern(
                     name,
                     fields,

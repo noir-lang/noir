@@ -1827,7 +1827,7 @@ fn expr_as_for(
 ) -> IResult<Value> {
     expr_as(interner, arguments, return_type, location, |expr| {
         if let ExprValue::Statement(StatementKind::For(for_statement)) = expr {
-            if let ForRange::Array(array) = for_statement.range {
+            if let ForRange::Array(array) = *for_statement.range {
                 let token = Token::Ident(for_statement.identifier.into_string());
                 let token = LocatedToken::new(token, location);
                 let identifier = Value::Quoted(Rc::new(vec![token]));
@@ -1852,7 +1852,7 @@ fn expr_as_for_range(
 ) -> IResult<Value> {
     expr_as(interner, arguments, return_type, location, |expr| {
         if let ExprValue::Statement(StatementKind::For(for_statement)) = expr {
-            if let ForRange::Range(bounds) = for_statement.range {
+            if let ForRange::Range(bounds) = *for_statement.range {
                 let (from, to) = bounds.into_half_open();
                 let token = Token::Ident(for_statement.identifier.into_string());
                 let token = LocatedToken::new(token, location);
