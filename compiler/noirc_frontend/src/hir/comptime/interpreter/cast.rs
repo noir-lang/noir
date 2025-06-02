@@ -249,10 +249,11 @@ mod tests {
             // Widen
             (Value::I8(127), unsigned(SixtyFour), Value::U64(127)),
             (Value::I8(127), signed(SixtyFour), Value::I64(127)),
-            // Widen negative: zero extend
+            // Widen signed->unsigned: sign extend
             (Value::I8(-1), unsigned(Sixteen), Value::U16(65535)),
             (Value::I8(-100), unsigned(Sixteen), Value::U16(65436)),
             // Casting a negative integer to a field always results in a positive value
+            // This is the only case we zero-extend signed integers instead of sign-extending them
             (Value::I8(-1), Type::FieldElement, Value::Field(SignedField::positive(255u32))),
             // Widen negative: sign extend
             (Value::I8(-1), signed(Sixteen), Value::I16(-1)),
