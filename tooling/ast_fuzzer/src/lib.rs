@@ -63,6 +63,9 @@ pub struct Config {
     pub avoid_loop_control: bool,
     /// Avoid using function pointers in parameters.
     pub avoid_lambdas: bool,
+    /// Avoid assigning to references in if-then-else, which can cause compiler panics
+    /// with `Cannot return references from an if expression`.
+    pub avoid_assign_ref_in_if: bool,
     /// Only use comptime friendly expressions.
     pub comptime_friendly: bool,
 }
@@ -122,6 +125,7 @@ impl Default for Config {
             avoid_negative_int_literals: false,
             avoid_loop_control: false,
             avoid_lambdas: false,
+            avoid_assign_ref_in_if: true,
             comptime_friendly: false,
         }
     }
