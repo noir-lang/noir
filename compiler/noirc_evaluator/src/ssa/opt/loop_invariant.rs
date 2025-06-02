@@ -531,10 +531,18 @@ impl<'f> LoopInvariantContext<'f> {
     /// This function check the following conditions:
     /// - The current block is non control dependent
     /// - The loop body is guaranteed to be executed
+    /// - The current block is not impure
     fn can_hoist_control_dependent_instruction(&self) -> bool {
         !self.current_block_control_dependent
             && self.does_loop_body_execute()
             && !self.current_block_impure
+    }
+
+    /// A control dependent instruction (e.g. constrain or division) has more strict conditions for simplifying.
+    /// This function matches [LoopInvariantContext::can_hoist_control_dependent_instruction] except
+    /// that simplification does not require that current block is pure to be simplified.
+    fn can_simplify_control_dependent_instruction(&self) -> bool {
+        !self.current_block_control_dependent && self.does_loop_body_execute()
     }
 
     /// Determine whether the loop body is guaranteed to execute.
@@ -737,7 +745,7 @@ impl<'f> LoopInvariantContext<'f> {
             }
             Instruction::Constrain(x, y, err) => {
                 // Ensure the loop is fully executed
-                if self.no_break && self.can_be_hoisted_from_loop_bounds(&instruction) {
+                if self.no_break {
                     self.simplify_induction_in_constrain(*x, *y, err, call_stack)
                 } else {
                     SimplifyResult::None
@@ -745,7 +753,7 @@ impl<'f> LoopInvariantContext<'f> {
             }
             Instruction::ConstrainNotEqual(x, y, err) => {
                 // Ensure the loop is fully executed
-                if self.no_break && self.can_be_hoisted_from_loop_bounds(&instruction) {
+                if self.no_break && self.can_simplify_control_dependent_instruction() {
                     self.simplify_not_equal_constraint(x, y, err, call_stack)
                 } else {
                     SimplifyResult::None
@@ -2099,7 +2107,7 @@ mod control_dependence {
 
     #[test]
     fn simplify_constraint() {
-        // This test shows the simplification of the constraint constrain v17 == u1 1 which is converted into constrain u1 0 == u1 1 in entry block
+        // This test shows the simplification of the constraint constrain v17 == u1 1 which is converted into constrain u1 0 == u1 1 in b5
         let src = "
         brillig(inline) fn main f0 {
           entry(v0: u32, v1: u32, v2: u32):
@@ -2107,7 +2115,7 @@ mod control_dependence {
             store v0 at v4
             jmp b1(u32 0)
           b1(v3: u32):
-            v7 = lt v3, u32 5
+            v7 = lt v3, u32 5d
             jmpif v7 then: b2, else: b3
           b2():
             v12 = lt v3, u32 8
@@ -2133,31 +2141,33 @@ mod control_dependence {
         let ssa = Ssa::from_str(src).unwrap();
 
         let ssa = ssa.loop_invariant_code_motion();
-        // The loop is guaranteed to fully execute, so we expect the constrain to be simplified into constrain u1 0 == u1 1, and then to be hoisted out of the loop
+        // The loop is guaranteed to fully execute, so we expect the constrain to be simplified into constrain u1 0 == u1 1
+        // However, even though the constrain is not a loop invariant we expect it to remain in place
+        // as it is control dependent upon its predecessor blocks which are not pure.
         assert_ssa_snapshot!(ssa, @r"
         brillig(inline) fn main f0 {
           b0(v0: u32, v1: u32, v2: u32):
             v4 = allocate -> &mut u32
             store v0 at v4
-            constrain u1 0 == u1 1
             jmp b1(u32 0)
           b1(v3: u32):
-            v9 = lt v3, u32 5
-            jmpif v9 then: b2, else: b3
+            v7 = lt v3, u32 5
+            jmpif v7 then: b2, else: b3
           b2():
             jmpif u1 1 then: b4, else: b5
           b3():
-            v10 = load v4 -> u32
-            v11 = lt v1, v10
-            constrain v11 == u1 1
+            v8 = load v4 -> u32
+            v9 = lt v1, v8
+            constrain v9 == u1 1
             return
           b4():
-            v12 = load v4 -> u32
-            v14 = add v12, u32 1
-            store v14 at v4
+            v11 = load v4 -> u32
+            v13 = add v11, u32 1
+            store v13 at v4
             jmp b5()
           b5():
-            v16 = lt v3, u32 4
+            v15 = lt v3, u32 4
+            constrain u1 0 == u1 1
             v17 = unchecked_add v3, u32 1
             jmp b1(v17)
         }
