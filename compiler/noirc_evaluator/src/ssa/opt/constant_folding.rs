@@ -2207,7 +2207,7 @@ mod test {
             call f10(v131)
             return
         }
-        brillig(inline) impure fn new f1 {
+        brillig(inline) predicate_pure fn new f1 {
           b0(v4: Field):
             v6 = make_array [Field 0, Field 0, Field 0] : [Field; 3]
             v7 = make_array [Field 0, Field 0, Field 0, Field 0] : [Field; 4]
