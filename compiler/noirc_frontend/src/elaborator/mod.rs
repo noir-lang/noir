@@ -1608,7 +1608,9 @@ impl<'context> Elaborator<'context> {
                     let Some(unresolved_type) =
                         unresolved_associated_types.remove(&associated_type.name)
                     else {
-                        // This can happen with implicit named generics
+                        // This can happen when the associated type is specified via generics on the trait type,
+                        // like `impl<H> BuildHasher<H = H> for BuildHasherDefault<H>`.
+                        // TODO: find out if the type for the associated type is correctly set in this case.
                         continue;
                     };
                     let resolved_type =
