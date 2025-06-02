@@ -547,7 +547,7 @@ impl<'f> PerFunctionContext<'f> {
 
                     for element in elements {
                         aliases.insert(*element);
-                        self.make_array_references.insert(*element);
+                        self.instruction_input_references.insert(*element);
                     }
                 }
             }
