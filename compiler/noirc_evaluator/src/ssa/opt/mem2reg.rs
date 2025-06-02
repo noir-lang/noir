@@ -258,7 +258,6 @@ impl<'f> PerFunctionContext<'f> {
                         false
                     }
                 });
-
                 if all_aliases_set_for_removal == Some(true) {
                     return true;
                 }
