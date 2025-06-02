@@ -205,7 +205,10 @@ impl Parser<'_> {
         let typ = if self.eat_colon() {
             self.parse_type_or_error()
         } else {
-            self.expected_token(Token::Colon);
+            self.push_error(
+                ParserErrorReason::MissingTypeForAssociatedConstant,
+                self.previous_token_location,
+            );
             let location = self.location_at_previous_token_end();
             UnresolvedType { typ: UnresolvedTypeData::Unspecified, location }
         };
@@ -615,6 +618,13 @@ mod tests {
     #[test]
     fn parse_trait_with_constant_missing_semicolon() {
         let src = "trait Foo { let x: Field = 1 }";
+        let (_, errors) = parse_program_with_dummy_file(src);
+        assert!(!errors.is_empty());
+    }
+
+    #[test]
+    fn parse_trait_with_constant_missing_type() {
+        let src = "trait Foo { let x = 1; }";
         let (_, errors) = parse_program_with_dummy_file(src);
         assert!(!errors.is_empty());
     }
