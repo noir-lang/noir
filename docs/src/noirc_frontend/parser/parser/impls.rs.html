@@ -587,7 +587,22 @@
 <a href="#586" id="586">586</a>
 <a href="#587" id="587">587</a>
 <a href="#588" id="588">588</a>
-<a href="#589" id="589">589</a></pre></div><pre class="rust"><code><span class="kw">use </span>noirc_errors::Location;
+<a href="#589" id="589">589</a>
+<a href="#590" id="590">590</a>
+<a href="#591" id="591">591</a>
+<a href="#592" id="592">592</a>
+<a href="#593" id="593">593</a>
+<a href="#594" id="594">594</a>
+<a href="#595" id="595">595</a>
+<a href="#596" id="596">596</a>
+<a href="#597" id="597">597</a>
+<a href="#598" id="598">598</a>
+<a href="#599" id="599">599</a>
+<a href="#600" id="600">600</a>
+<a href="#601" id="601">601</a>
+<a href="#602" id="602">602</a>
+<a href="#603" id="603">603</a>
+<a href="#604" id="604">604</a></pre></div><pre class="rust"><code><span class="kw">use </span>noirc_errors::Location;
 
 <span class="kw">use crate</span>::{
     ast::{
@@ -776,7 +791,15 @@
             }
         };
 
-        <span class="kw">let </span>typ = <span class="self">self</span>.parse_optional_type_annotation();
+        <span class="kw">let </span>typ = <span class="kw">if </span><span class="self">self</span>.eat_colon() {
+            <span class="self">self</span>.parse_type_or_error()
+        } <span class="kw">else </span>{
+            <span class="self">self</span>.push_error(
+                ParserErrorReason::MissingTypeForAssociatedConstant,
+                <span class="self">self</span>.previous_token_location,
+            );
+            <span class="self">self</span>.unspecified_type_at_previous_token_end()
+        };
 
         <span class="kw">let </span>expr = <span class="kw">if </span><span class="self">self</span>.eat_assign() {
             <span class="self">self</span>.parse_expression_or_error()
@@ -1120,6 +1143,13 @@
         <span class="macro">assert_eq!</span>(name.to_string(), <span class="string">"x"</span>);
         <span class="macro">assert_eq!</span>(typ.to_string(), <span class="string">"Field"</span>);
         <span class="macro">assert_eq!</span>(expr.to_string(), <span class="string">"1"</span>);
+    }
+
+    <span class="attr">#[test]
+    </span><span class="kw">fn </span>parse_trait_impl_with_let_missing_type() {
+        <span class="kw">let </span>src = <span class="string">"impl Foo for Field { let x = 1; }"</span>;
+        <span class="kw">let </span>(<span class="kw">_</span>, errors) = parse_program_with_dummy_file(src);
+        <span class="macro">assert!</span>(!errors.is_empty());
     }
 
     <span class="attr">#[test]

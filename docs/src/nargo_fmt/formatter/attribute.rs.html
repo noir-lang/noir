@@ -431,7 +431,11 @@
 <a href="#430" id="430">430</a>
 <a href="#431" id="431">431</a>
 <a href="#432" id="432">432</a>
-<a href="#433" id="433">433</a></pre></div><pre class="rust"><code><span class="kw">use </span>noirc_frontend::token::{
+<a href="#433" id="433">433</a>
+<a href="#434" id="434">434</a>
+<a href="#435" id="435">435</a>
+<a href="#436" id="436">436</a>
+<a href="#437" id="437">437</a></pre></div><pre class="rust"><code><span class="kw">use </span>noirc_frontend::token::{
     Attribute, Attributes, FunctionAttribute, FunctionAttributeKind, FuzzingScope, MetaAttribute,
     MetaAttributeName, SecondaryAttribute, SecondaryAttributeKind, TestScope, Token,
 };
@@ -460,9 +464,13 @@
     }
 
     <span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>format_secondary_attributes(<span class="kw-2">&amp;mut </span><span class="self">self</span>, attributes: Vec&lt;SecondaryAttribute&gt;) {
-        <span class="kw">for </span>attribute <span class="kw">in </span>attributes {
+        <span class="comment">// Attributes and doc comments can be mixed, so between each attribute
+        // we format potential doc comments
+        </span><span class="kw">for </span>attribute <span class="kw">in </span>attributes {
+            <span class="self">self</span>.format_outer_doc_comments();
             <span class="self">self</span>.format_secondary_attribute(attribute);
         }
+        <span class="self">self</span>.format_outer_doc_comments();
     }
 
     <span class="kw">fn </span>format_attribute(<span class="kw-2">&amp;mut </span><span class="self">self</span>, attribute: Attribute) {

@@ -314,7 +314,14 @@
 <a href="#313" id="313">313</a>
 <a href="#314" id="314">314</a>
 <a href="#315" id="315">315</a>
-<a href="#316" id="316">316</a></pre></div><pre class="rust"><code><span class="kw">use </span><span class="kw">crate</span>::ast::{Expression, ItemVisibility, UnresolvedType};
+<a href="#316" id="316">316</a>
+<a href="#317" id="317">317</a>
+<a href="#318" id="318">318</a>
+<a href="#319" id="319">319</a>
+<a href="#320" id="320">320</a>
+<a href="#321" id="321">321</a>
+<a href="#322" id="322">322</a>
+<a href="#323" id="323">323</a></pre></div><pre class="rust"><code><span class="kw">use </span><span class="kw">crate</span>::ast::{Expression, ItemVisibility, UnresolvedType};
 <span class="kw">use </span><span class="kw">crate</span>::lexer::errors::LexerErrorKind;
 <span class="kw">use </span><span class="kw">crate</span>::lexer::token::Token;
 <span class="kw">use </span><span class="kw">crate</span>::token::TokenKind;
@@ -425,6 +432,8 @@
     </span>LogicalAnd,
     <span class="attr">#[error(<span class="string">"Trait bounds are not allowed here"</span>)]
     </span>TraitBoundsNotAllowedHere,
+    <span class="attr">#[error(<span class="string">"Missing type for associated constant"</span>)]
+    </span>MissingTypeForAssociatedConstant,
 }
 
 <span class="doccomment">/// Represents a parsing error, or a parsing error in the making.
@@ -610,6 +619,11 @@
                             </span>.to_string();
                     Diagnostic::simple_error(primary, secondary, error.location)
                 }
+                ParserErrorReason::MissingTypeForAssociatedConstant =&gt; Diagnostic::simple_error(
+                    <span class="string">"Missing type for associated constant"</span>.to_string(),
+                    <span class="string">"Provide a type for the associated constant: `: u32`"</span>.to_string(),
+                    error.location,
+                ),
                 other =&gt; {
                     Diagnostic::simple_error(<span class="macro">format!</span>(<span class="string">"{other}"</span>), String::new(), error.location())
                 }
