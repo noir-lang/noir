@@ -183,10 +183,12 @@ pub trait BuildHasher {
 
 pub struct BuildHasherDefault<H>;
 
-impl<H> BuildHasher<H = H> for BuildHasherDefault<H>
+impl<H> BuildHasher for BuildHasherDefault<H>
 where
     H: Hasher + Default,
 {
+    type H = H;
+
     fn build_hasher(_self: Self) -> H {
         H::default()
     }
