@@ -336,10 +336,13 @@ impl<'a> FunctionContext<'a> {
         // We can't use a global for this, because they are immutable.
         if let Type::Reference(typ, true) = typ {
             // Find an underlying mutable variable we can take a reference over.
+            // We cannot have mutable references to array elements.
             return self
                 .locals
                 .current()
-                .choose_producer_filtered(u, typ.as_ref(), |_, (mutable, _, _)| *mutable)
+                .choose_producer_filtered(u, typ.as_ref(), |_, (mutable, _, prod)| {
+                    *mutable && (typ.as_ref() == prod || !types::is_array_or_slice(prod))
+                })
                 .map(|id| id.map(VariableId::Local));
         }
         self.globals.choose_producer(u, typ).map(|id| id.map(VariableId::Global))

@@ -194,6 +194,11 @@ pub(crate) fn is_function(typ: &Type) -> bool {
     matches!(typ, Type::Function(_, _, _, _))
 }
 
+/// Check if the type is a slice or an array.
+pub(crate) fn is_array_or_slice(typ: &Type) -> bool {
+    matches!(typ, Type::Array(_, _) | Type::Slice(_))
+}
+
 /// Peel off all reference types, to get to a concrete underlying type.
 pub(crate) fn unref(typ: &Type) -> &Type {
     if let Type::Reference(typ, _) = typ { unref(typ.as_ref()) } else { typ }
