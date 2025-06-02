@@ -1601,6 +1601,7 @@ impl<'context> Elaborator<'context> {
                     let Type::NamedGeneric(named_generic) = &associated_type.typ else {
                         // This can happen if the associated type is specified directly in the impl trait generics,
                         // like `impl BuildHasher<H = SomeHasher>` in which case the resolution of `SomeHasher` isn't delayed.
+                        // TODO: panic here when https://github.com/noir-lang/noir/issues/8751 is implemented
                         continue;
                     };
 
@@ -1609,6 +1610,7 @@ impl<'context> Elaborator<'context> {
                     else {
                         // This too can happen if the associated type is specified directly in the impl trait generics,
                         // like `impl<H> BuildHasher<H = H>`, where `H` is a named generic but its resolution isn't delayed.
+                        // TODO: panic here when https://github.com/noir-lang/noir/issues/8751 is implemented
                         continue;
                     };
                     let resolved_type =
