@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1748859812248,
+  "lastUpdate": 1748869726047,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -16941,48 +16941,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "84741533+defkit@users.noreply.github.com",
-            "name": "defkit",
-            "username": "defkit"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "4f22497c1f1d8871ba8050f236e03c2637b17e00",
-          "message": "feat: acir_formal_proofs (#8140)\n\nCo-authored-by: Akosh Farkash <aakoshh@gmail.com>",
-          "timestamp": "2025-05-22T14:12:56Z",
-          "tree_id": "480e888cb20cf723493d1f85f149927bf25261d6",
-          "url": "https://github.com/noir-lang/noir/commit/4f22497c1f1d8871ba8050f236e03c2637b17e00"
-        },
-        "date": 1747924452050,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 255388,
-            "range": "± 1666",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 224613,
-            "range": "± 2257",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 3565627,
-            "range": "± 7821",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "15848336+TomAFrench@users.noreply.github.com",
             "name": "Tom French",
             "username": "TomAFrench"
@@ -19034,6 +18992,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 3563051,
             "range": "± 17338",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "asterite@gmail.com",
+            "name": "Ary Borenszweig",
+            "username": "asterite"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "5984575435cde6c01df3454053da471769f3d856",
+          "message": "chore: remove noir-lang/noir_rsa from external libraries (#8752)",
+          "timestamp": "2025-06-02T12:47:14Z",
+          "tree_id": "3c097e5c220d045b39cbb2953b1df3e721913150",
+          "url": "https://github.com/noir-lang/noir/commit/5984575435cde6c01df3454053da471769f3d856"
+        },
+        "date": 1748869715687,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 254157,
+            "range": "± 767",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 223920,
+            "range": "± 3273",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 3211270,
+            "range": "± 19443",
             "unit": "ns/iter"
           }
         ]
