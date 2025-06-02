@@ -47,7 +47,7 @@ pub fn arb_program_comptime(u: &mut Unstructured, config: Config) -> arbitrary::
 
     let mut ctx = Context::new(config);
 
-    let decl_inner = ctx.gen_function_decl(u, 1)?;
+    let decl_inner = ctx.gen_function_decl(u, 1, true)?;
     ctx.set_function_decl(FuncId(1), decl_inner.clone());
     ctx.gen_function(u, FuncId(1))?;
 
@@ -162,20 +162,23 @@ impl Context {
             u.int_in_range(self.config.min_functions..=self.config.max_functions)?;
 
         for i in 0..(1 + num_non_main_fns) {
-            let d = self.gen_function_decl(u, i)?;
+            let d = self.gen_function_decl(u, i, i == 0)?;
             self.function_declarations.insert(FuncId(i as u32), d);
         }
         Ok(())
     }
 
     /// Generate a random function declaration.
+    ///
+    /// The `is_abi` parameter tells the generator to only use parameters which are ABI compatible.
     fn gen_function_decl(
         &mut self,
         u: &mut Unstructured,
         i: usize,
+        is_abi: bool,
     ) -> arbitrary::Result<FunctionDeclaration> {
         let id = FuncId(i as u32);
-        let is_main = i == 0;
+        let is_main = id == Program::main_id();
         let num_params = u.int_in_range(0..=self.config.max_function_args)?;
 
         // If `main` is unconstrained, it won't call ACIR, so no point generating ACIR functions.
@@ -193,7 +196,7 @@ impl Context {
             u,
             self.config.max_depth,
             false,
-            is_main,
+            is_main || is_abi,
             false,
             self.config.comptime_friendly,
         )?;
@@ -224,7 +227,7 @@ impl Context {
         for p in 0..num_params {
             let id = LocalId(p as u32);
             let name = make_name(p, false);
-            let is_mutable = !is_main && bool::arbitrary(u)?;
+            let is_mutable = bool::arbitrary(u)?;
 
             let typ = if func_param_candidates.is_empty() || u.ratio(7, 10)? {
                 // Take some kind of data type.
@@ -232,7 +235,7 @@ impl Context {
                     u,
                     self.config.max_depth,
                     false,
-                    is_main,
+                    is_main || is_abi,
                     false,
                     self.config.comptime_friendly,
                 )?
@@ -294,7 +297,7 @@ impl Context {
     /// Generate and add main (for testing)
     #[cfg(test)]
     fn gen_main_decl(&mut self, u: &mut Unstructured) {
-        let d = self.gen_function_decl(u, 0).unwrap();
+        let d = self.gen_function_decl(u, 0, true).unwrap();
         self.function_declarations.insert(FuncId(0u32), d);
     }
 
