@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1748870456212,
+  "lastUpdate": 1748870458095,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -10332,35 +10332,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "asterite@gmail.com",
-            "name": "Ary Borenszweig",
-            "username": "asterite"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "d992ad59d4c787aa12b0176e6f9d12202e4d9f71",
-          "message": "fix: error on unused generic in trait impl (#8395)",
-          "timestamp": "2025-05-22T13:11:49Z",
-          "tree_id": "2d531c541093b364423eeeafad5b3989726b5036",
-          "url": "https://github.com/noir-lang/noir/commit/d992ad59d4c787aa12b0176e6f9d12202e4d9f71"
-        },
-        "date": 1747921007799,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "semaphore_depth_10",
-            "value": 92.93,
-            "unit": "MB"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "84741533+defkit@users.noreply.github.com",
             "name": "defkit",
             "username": "defkit"
@@ -13370,6 +13341,75 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/noir-lang/noir/commit/2e69fe88094e96cf62a28067240b775a4064cdc4"
         },
         "date": 1748859799933,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 202.02,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 225.76,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 177.16,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 489.94,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 423.45,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 1400,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 312.01,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-root",
+            "value": 317.7,
+            "unit": "MB"
+          },
+          {
+            "name": "semaphore_depth_10",
+            "value": 70.97,
+            "unit": "MB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "asterite@gmail.com",
+            "name": "Ary Borenszweig",
+            "username": "asterite"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "5984575435cde6c01df3454053da471769f3d856",
+          "message": "chore: remove noir-lang/noir_rsa from external libraries (#8752)",
+          "timestamp": "2025-06-02T12:47:14Z",
+          "tree_id": "3c097e5c220d045b39cbb2953b1df3e721913150",
+          "url": "https://github.com/noir-lang/noir/commit/5984575435cde6c01df3454053da471769f3d856"
+        },
+        "date": 1748870446370,
         "tool": "customSmallerIsBetter",
         "benches": [
           {
