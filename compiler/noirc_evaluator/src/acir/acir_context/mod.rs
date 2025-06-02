@@ -1326,9 +1326,12 @@ impl<F: AcirField, B: BlackBoxFunctionSolver<F>> AcirContext<F, B> {
         // - This is only the case when q == 0 and r == 2^{max_bits} - k
 
         // Predicate is always active as we know `two_max_bits` is always non-zero.
-        let one = self.add_constant(1_u128);
-        let (q, _) =
-            self.euclidean_division_var(comparison_evaluation, two_max_bits, max_bits + 1, predicate)?;
+        let (q, _) = self.euclidean_division_var(
+            comparison_evaluation,
+            two_max_bits,
+            max_bits + 1,
+            predicate,
+        )?;
         Ok(q)
     }
 
