@@ -463,7 +463,7 @@ fn test_binary() {
         let src = format!(
             "
             acir(inline) fn main f0 {{
-              b0(v0: u32, v1: u32):
+              b0(v0: u32, v1: u8):
                 v2 = {op} v0, v1
                 return
             }}

@@ -240,6 +240,12 @@ impl DataFlowGraph {
                     panic!("Cannot use `lt` with field elements");
                 }
             }
+            Instruction::Binary(Binary { lhs: _, rhs, operator: BinaryOp::Shr }) => {
+                let rhs_type = self.type_of_value(*rhs);
+                if !matches!(rhs_type, Type::Numeric(NumericType::Unsigned { bit_size: 8 })) {
+                    panic!("Right-hand side of `shr` must be u8");
+                }
+            }
             Instruction::ArrayGet { index, .. } | Instruction::ArraySet { index, .. } => {
                 let index_type = self.type_of_value(*index);
                 if !matches!(index_type, Type::Numeric(NumericType::Unsigned { bit_size: 32 })) {
