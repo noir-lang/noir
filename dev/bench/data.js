@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1748859754308,
+  "lastUpdate": 1748859810696,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -10151,35 +10151,6 @@ window.BENCHMARK_DATA = {
             "name": "GitHub",
             "username": "web-flow"
           },
-          "distinct": true,
-          "id": "275e438feaa5d610e21d2e683c3f3cd61b72ebff",
-          "message": "fix(expand): use re-exports for non-visibile items (#8374)\n\nCo-authored-by: Tom French <15848336+TomAFrench@users.noreply.github.com>",
-          "timestamp": "2025-05-22T12:29:41Z",
-          "tree_id": "6cf827d527e96342f0309a59284f824a896369da",
-          "url": "https://github.com/noir-lang/noir/commit/275e438feaa5d610e21d2e683c3f3cd61b72ebff"
-        },
-        "date": 1747918533866,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "semaphore_depth_10",
-            "value": 92.93,
-            "unit": "MB"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
-            "email": "asterite@gmail.com",
-            "name": "Ary Borenszweig",
-            "username": "asterite"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
           "distinct": false,
           "id": "d992ad59d4c787aa12b0176e6f9d12202e4d9f71",
           "message": "fix: error on unused generic in trait impl (#8395)",
@@ -13180,6 +13151,75 @@ window.BENCHMARK_DATA = {
           {
             "name": "rollup-root",
             "value": 328.15,
+            "unit": "MB"
+          },
+          {
+            "name": "semaphore_depth_10",
+            "value": 70.97,
+            "unit": "MB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "163862677+noirwhal@users.noreply.github.com",
+            "name": "noirwhal",
+            "username": "noirwhal"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "2e69fe88094e96cf62a28067240b775a4064cdc4",
+          "message": "chore: bump external pinned commits (#8747)\n\nCo-authored-by: noirwhal <tomfrench@aztecprotocol.com>\nCo-authored-by: Tom French <15848336+TomAFrench@users.noreply.github.com>",
+          "timestamp": "2025-06-02T09:48:13Z",
+          "tree_id": "5ff82eb0f05a74be73601a97b171bb235d5d7ffc",
+          "url": "https://github.com/noir-lang/noir/commit/2e69fe88094e96cf62a28067240b775a4064cdc4"
+        },
+        "date": 1748859799933,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 202.02,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 225.76,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 177.16,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 489.94,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 423.45,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 1400,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 312.01,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-root",
+            "value": 317.7,
             "unit": "MB"
           },
           {
