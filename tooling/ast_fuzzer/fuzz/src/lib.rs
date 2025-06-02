@@ -176,7 +176,7 @@ pub fn compare_results_interpreted(
         eprintln!(
             "---\nSSA Inputs:\n{}",
             inputs
-                .input_values
+                .input_values()
                 .iter()
                 .enumerate()
                 .map(|(i, v)| format!("{i}: {v}"))

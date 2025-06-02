@@ -42,8 +42,7 @@ pub struct CompareInterpreted {
     /// We could generate random input for the SSA directly, but it would
     /// make it more difficult to use it with `nargo` if we find a failure.
     pub input_map: InputMap,
-    /// Inputs for the `main` function in the SSA.
-    pub input_values: Vec<ssa::interpreter::value::Value>,
+
     /// Options that influence the pipeline, common to both passes.
     pub options: CompareOptions,
     pub ssa1: ComparePass,
@@ -51,6 +50,13 @@ pub struct CompareInterpreted {
 }
 
 impl CompareInterpreted {
+    /// Inputs for the `main` function in the SSA.
+    ///
+    /// Can't be stored as a field because we need a fresh copy for each interpreter run.
+    pub fn input_values(&self) -> Vec<ssa::interpreter::value::Value> {
+        input_values_to_ssa(&self.abi, &self.input_map)
+    }
+
     /// 1. Generate an arbitrary AST
     /// 2. Stop the compilation at two arbitrary SSA passes
     /// 3. Generate input for the main function of the SSA
@@ -67,9 +73,8 @@ impl CompareInterpreted {
         let (options, ssa1, ssa2) = f(u, program.clone())?;
 
         let input_map = arb_inputs_from_ssa(u, &ssa1.ssa, &abi)?;
-        let input_values = input_values_to_ssa(&abi, &input_map);
 
-        Ok(Self { program, abi, input_map, input_values, options, ssa1, ssa2 })
+        Ok(Self { program, abi, input_map, options, ssa1, ssa2 })
     }
 
     pub fn exec(&self) -> eyre::Result<CompareInterpretedResult> {
@@ -81,7 +86,7 @@ impl CompareInterpreted {
         );
         log::debug!(
             "input values:\n{}\n",
-            self.input_values
+            self.input_values()
                 .iter()
                 .enumerate()
                 .map(|(i, v)| format!("{i}: {v}"))
@@ -89,8 +94,8 @@ impl CompareInterpreted {
                 .join("\n")
         );
         log::debug!("SSA after step {} ({}):\n{}\n", self.ssa1.step, self.ssa1.msg, self.ssa1.ssa);
-        let res1 = self.ssa1.ssa.interpret(self.input_values.clone());
-        let res2 = self.ssa2.ssa.interpret(self.input_values.clone());
+        let res1 = self.ssa1.ssa.interpret(self.input_values());
+        let res2 = self.ssa2.ssa.interpret(self.input_values());
         Ok(CompareInterpretedResult::new(res1, res2))
     }
 }
