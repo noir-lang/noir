@@ -10,16 +10,6 @@ sidebar_position: 15
 Attributes are metadata that can be applied to data types, functions, and some statements and expressions,
 using the following syntax: `#[attribute(value)]`.
 
-Supported attributes include:
-- [`allow(dead_code)`](#allowdead_code)
-- [`allow(unused_variables)`](#allowunused_variables)
-- [`builtin`](#builtin)
-- [`deprecated`](#deprecated)
-- [`field`](#field)
-- [`fuzz`](#fuzz)
-- [`oracle`](#oracle)
-- [`test`](#test)
-
 ### `allow(dead_code)`
 
 When applied to a data type or function, the compiler won't produce a warning if the data type or function
