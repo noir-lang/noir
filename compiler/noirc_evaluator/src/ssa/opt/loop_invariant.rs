@@ -262,7 +262,11 @@ impl<'f> LoopInvariantContext<'f> {
                     }
                 } else {
                     let dfg = &self.inserter.function.dfg;
-                    self.current_block_impure = dfg[instruction_id].has_side_effects(dfg);
+                    // If the block has already been labelled as impure, we do need to check the current
+                    // instruction's side effects.
+                    if !self.current_block_impure {
+                        self.current_block_impure = dfg[instruction_id].has_side_effects(dfg);
+                    }
                     self.inserter.push_instruction(instruction_id, *block);
                 }
                 self.extend_values_defined_in_loop_and_invariants(instruction_id, hoist_invariant);
@@ -298,6 +302,7 @@ impl<'f> LoopInvariantContext<'f> {
         // When hoisting a control dependent instruction, if a side effectual instruction comes in the predecessor block
         // of that instruction we can no longer hoist the control dependent instruction.
         // This is important for maintaining ordering semantic correctness of the code.
+        assert!(!self.current_block_impure, "ICE: Block impurity should be defaulted to false");
         self.current_block_impure = all_predecessors.iter().any(|block| {
             dfg[*block]
                 .instructions()
