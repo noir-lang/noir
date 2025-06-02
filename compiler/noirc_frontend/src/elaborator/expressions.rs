@@ -987,7 +987,7 @@ impl Elaborator<'_> {
         location: Location,
     ) -> (HirExpression, Type) {
         let (lhs, lhs_type) = self.elaborate_expression(cast.lhs);
-        let r#type = self.resolve_type(cast.r#type).follow_bindings();
+        let r#type = self.resolve_type(cast.r#type);
         let result = self.check_cast(&lhs, &lhs_type, &r#type, location);
         let expr = HirExpression::Cast(HirCastExpression { lhs, r#type });
         (expr, result)
