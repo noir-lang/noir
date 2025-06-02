@@ -2554,7 +2554,6 @@ mod control_dependence {
                 from_constant(3_u128.into(), NumericType::Unsigned { bit_size: 32 }),
             ])
             .expect_err("Should have error");
-        dbg!(&got);
         let InterpreterError::ConstrainEqFailed { lhs_id, .. } = got else {
             panic!("Expected ConstrainEqFailed");
         };
