@@ -224,6 +224,7 @@ impl Context {
         for p in 0..num_params {
             let id = LocalId(p as u32);
             let name = make_name(p, false);
+            let is_mutable = !is_main && bool::arbitrary(u)?;
 
             let typ = if func_param_candidates.is_empty() || u.ratio(7, 10)? {
                 // Take some kind of data type.
@@ -247,13 +248,6 @@ impl Context {
                     callee.unconstrained,
                 );
                 if u.ratio(2, 5)? { types::ref_mut(typ) } else { typ }
-            };
-
-            // Not sure if a mutability of the parameter has to match the mutability of a reference type.
-            let is_mutable = if let Type::Reference(_, mutable) = typ {
-                mutable
-            } else {
-                !is_main && bool::arbitrary(u)?
             };
 
             let visibility = if is_main {
