@@ -243,32 +243,32 @@ impl<'f> PerFunctionContext<'f> {
                     return true;
                 }
 
-                let allocation_aliases_parameter =
+                let allocation_aliases_call_args =
                     aliases.any(|alias| self.calls_reference_input.contains(&alias));
-                if allocation_aliases_parameter == Some(true) {
+                if allocation_aliases_call_args == Some(true) {
                     return true;
                 }
 
-                let allocation_aliases_parameter =
+                let allocation_aliases_array_input =
                     aliases.any(|alias| self.make_array_references.contains(&alias));
-                if allocation_aliases_parameter == Some(true) {
+                if allocation_aliases_array_input == Some(true) {
                     return true;
                 }
 
-                let allocation_aliases_parameter =
+                let allocation_aliases_terminator_args =
                     aliases.any(|alias| all_terminator_values.contains(&alias));
-                if allocation_aliases_parameter == Some(true) {
+                if allocation_aliases_terminator_args == Some(true) {
                     return true;
                 }
 
-                let allocation_aliases_parameter = aliases.any(|alias| {
+                let all_aliases_set_for_removal = aliases.any(|alias| {
                     if let Some(alias_instructions) = self.aliased_references.get(&alias) {
                         self.instructions_to_remove.is_disjoint(alias_instructions)
                     } else {
                         false
                     }
                 });
-                if allocation_aliases_parameter == Some(true) {
+                if all_aliases_set_for_removal == Some(true) {
                     return true;
                 }
             }
