@@ -137,12 +137,9 @@ struct PerFunctionContext<'f> {
     /// If a value is not used in anymore loads we can remove the last store to that value.
     last_loads: HashMap<ValueId, (InstructionId, BasicBlockId)>,
 
-    /// Track whether a reference was passed into another entry point
+    /// Track whether a reference was passed into another instruction (e.g. Call or MakeArray)
     /// This is needed to determine whether we can remove a store.
-    calls_reference_input: HashSet<ValueId>,
-    /// Track whether a reference was passed into a make array instruction
-    /// This is needed to determine whether we can remove a store.
-    make_array_references: HashSet<ValueId>,
+    instruction_input_references: HashSet<ValueId>,
 
     /// Track whether a reference has been aliased, and store the respective
     /// instruction that aliased that reference.
@@ -162,9 +159,8 @@ impl<'f> PerFunctionContext<'f> {
             blocks: BTreeMap::new(),
             instructions_to_remove: HashSet::default(),
             last_loads: HashMap::default(),
-            calls_reference_input: HashSet::default(),
             aliased_references: HashMap::default(),
-            make_array_references: HashSet::default(),
+            instruction_input_references: HashSet::default(),
         }
     }
 
@@ -243,15 +239,9 @@ impl<'f> PerFunctionContext<'f> {
                     return true;
                 }
 
-                let allocation_aliases_call_args =
-                    aliases.any(|alias| self.calls_reference_input.contains(&alias));
-                if allocation_aliases_call_args == Some(true) {
-                    return true;
-                }
-
-                let allocation_aliases_array_input =
-                    aliases.any(|alias| self.make_array_references.contains(&alias));
-                if allocation_aliases_array_input == Some(true) {
+                let allocation_aliases_instr_input =
+                    aliases.any(|alias| self.instruction_input_references.contains(&alias));
+                if allocation_aliases_instr_input == Some(true) {
                     return true;
                 }
 
@@ -541,7 +531,7 @@ impl<'f> PerFunctionContext<'f> {
                         if let Some(expression) = references.expressions.get(arg) {
                             if let Some(aliases) = references.aliases.get(expression) {
                                 aliases.for_each(|alias| {
-                                    self.calls_reference_input.insert(alias);
+                                    self.instruction_input_references.insert(alias);
                                 });
                             }
                         }
@@ -561,7 +551,7 @@ impl<'f> PerFunctionContext<'f> {
 
                     for element in elements {
                         aliases.insert(*element);
-                        self.make_array_references.insert(*element);
+                        self.instruction_input_references.insert(*element);
                     }
                 }
             }
