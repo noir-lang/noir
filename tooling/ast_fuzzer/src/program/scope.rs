@@ -96,9 +96,7 @@ where
         let Some(vs) = self.producers.get(typ) else {
             return Ok(None);
         };
-        if vs.is_empty() {
-            return Ok(None);
-        }
+
         let candidates = vs
             .iter()
             .filter(|id| {
@@ -106,6 +104,10 @@ where
                 pred(id, v)
             })
             .collect::<Vec<_>>();
+
+        if candidates.is_empty() {
+            return Ok(None);
+        }
 
         u.choose_iter(candidates).map(Some).map(|v| v.cloned())
     }

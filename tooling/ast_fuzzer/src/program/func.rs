@@ -325,11 +325,15 @@ impl<'a> FunctionContext<'a> {
         u: &mut Unstructured,
         typ: &Type,
     ) -> arbitrary::Result<Option<VariableId>> {
+        // Check if we have something that produces this exact type.
         if u.ratio(7, 10)? {
             if let Some(id) = self.locals.current().choose_producer(u, typ)? {
                 return Ok(Some(VariableId::Local(id)));
             }
         }
+        // If we're looking for a mutable reference, we have to choose some
+        // mutable local variable and take a reference over it.
+        // We can't use a global for this, because they are immutable.
         if let Type::Reference(typ, true) = typ {
             // Find an underlying mutable variable we can take a reference over.
             return self
@@ -1417,7 +1421,6 @@ fn test_loop() {
     fctx.budget = 2;
     let loop_code = format!("{}", fctx.gen_loop(&mut u).unwrap()).replace(" ", "");
 
-    println!("{loop_code}");
     assert!(
         loop_code.starts_with(
             &r#"{
@@ -1443,7 +1446,6 @@ fn test_while() {
     fctx.budget = 2;
     let while_code = format!("{}", fctx.gen_while(&mut u).unwrap()).replace(" ", "");
 
-    println!("{while_code}");
     assert!(
         while_code.starts_with(
             &r#"{
