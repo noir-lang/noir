@@ -48,10 +48,6 @@ libraries:
     repo: noir-lang/sparse_array
     timeout: 3
     critical: true
-  noir_rsa:
-    repo: noir-lang/noir_rsa
-    timeout: 4
-    critical: true
   noir_json_parser:
     repo: noir-lang/noir_json_parser
     timeout: 12
