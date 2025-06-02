@@ -745,7 +745,7 @@ impl<'f> LoopInvariantContext<'f> {
             }
             Instruction::Constrain(x, y, err) => {
                 // Ensure the loop is fully executed
-                if self.no_break {
+                if self.no_break && self.can_simplify_control_dependent_instruction() {
                     self.simplify_induction_in_constrain(*x, *y, err, call_stack)
                 } else {
                     SimplifyResult::None
