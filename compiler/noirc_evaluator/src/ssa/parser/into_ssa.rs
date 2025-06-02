@@ -16,6 +16,7 @@ use crate::ssa::{
         value::ValueId,
     },
     opt::pure::FunctionPurities,
+    validation::validate_function,
 };
 
 use super::{
@@ -558,7 +559,7 @@ impl Translator {
         ssa.normalize_ids();
 
         for function in ssa.functions.values() {
-            function.assert_valid();
+            validate_function(function);
         }
 
         ssa
