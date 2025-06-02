@@ -1599,18 +1599,16 @@ impl<'context> Elaborator<'context> {
                     self.interner.get_associated_types_for_impl(trait_impl_id).to_vec();
                 for associated_type in &associated_types {
                     let Type::NamedGeneric(named_generic) = &associated_type.typ else {
-                        panic!(
-                            "Expected associated type to be a NamedGeneric, found: {}",
-                            associated_type.typ
-                        );
+                        // This can happen if the associated type is specified directly in the impl trait generics,
+                        // like `impl BuildHasher<H = SomeHasher>` in which case the resolution of `SomeHasher` isn't delayed.
+                        continue;
                     };
 
                     let Some(unresolved_type) =
                         unresolved_associated_types.remove(&associated_type.name)
                     else {
-                        // This can happen when the associated type is specified via generics on the trait type,
-                        // like `impl<H> BuildHasher<H = H> for BuildHasherDefault<H>`.
-                        // TODO: find out if the type for the associated type is correctly set in this case.
+                        // This too can happen if the associated type is specified directly in the impl trait generics,
+                        // like `impl<H> BuildHasher<H = H>`, where `H` is a named generic but its resolution isn't delayed.
                         continue;
                     };
                     let resolved_type =
