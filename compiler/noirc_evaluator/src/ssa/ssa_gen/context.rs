@@ -717,6 +717,11 @@ impl<'a> FunctionContext<'a> {
                 }
                 value
             }
+            // When casting a signed value to u1 we can truncate then cast
+            (
+                Type::Numeric(NumericType::Signed { bit_size: incoming_type_size }),
+                NumericType::Unsigned { bit_size: 1 },
+            ) => self.builder.insert_truncate(value, 1, *incoming_type_size),
             // For mixed sign to unsigned or unsigned to sign;
             // 1. we cast to the required type using the same signedness
             // 2. then we switch the signedness
@@ -724,10 +729,7 @@ impl<'a> FunctionContext<'a> {
                 Type::Numeric(NumericType::Signed { bit_size: incoming_type_size }),
                 NumericType::Unsigned { bit_size: target_type_size },
             ) => {
-                // If the target type size is 1 it means it's a cast to u1. In that case
-                // there's no need to cast to i1 first (which actually isn't a valid type),
-                // because the result will be the least significant bit anyway.
-                if *incoming_type_size != target_type_size && target_type_size != 1 {
+                if *incoming_type_size != target_type_size {
                     value = self.insert_safe_cast(
                         value,
                         NumericType::signed(target_type_size),
