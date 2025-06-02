@@ -2115,7 +2115,7 @@ mod control_dependence {
             store v0 at v4
             jmp b1(u32 0)
           b1(v3: u32):
-            v7 = lt v3, u32 5d
+            v7 = lt v3, u32 5
             jmpif v7 then: b2, else: b3
           b2():
             v12 = lt v3, u32 8
