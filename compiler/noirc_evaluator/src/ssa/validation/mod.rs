@@ -1,3 +1,9 @@
+//! Validator that checks whether a function is well formed.
+//!
+//! It validates:
+//! - That the function contains exactly one return block.
+/// - That every checked signed addition or subtraction instruction is
+///   followed by a corresponding truncate instruction with the expected bit sizes.
 use fxhash::FxHashSet as HashSet;
 
 use crate::ssa::ir::instruction::TerminatorInstruction;
@@ -9,6 +15,8 @@ use super::ir::{
     value::ValueId,
 };
 
+/// Aside the function being validated, the validator maintains internal state
+/// during instruction visitation to track patterns that span multiple instructions.
 struct Validator<'f> {
     function: &'f Function,
     // State for truncate-after-signed-sub validation
