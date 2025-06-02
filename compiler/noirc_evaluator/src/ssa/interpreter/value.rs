@@ -13,6 +13,7 @@ use crate::ssa::ir::{
 
 use super::IResult;
 
+/// Be careful when using `Clone`: the `ArrayValue` is backed by a `Shared` data structure.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Value {
     Numeric(NumericValue),
