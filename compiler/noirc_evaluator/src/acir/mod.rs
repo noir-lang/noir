@@ -1052,7 +1052,7 @@ impl<'a> Context<'a> {
                 AcirType::NumericType(NumericType::Signed { .. }) => {
                     self.acir_context.less_than_signed(lhs, rhs, bit_count)
                 }
-                _ => self.acir_context.less_than_var(lhs, rhs, bit_count),
+                _ => self.acir_context.less_than_var(lhs, rhs, bit_count, predicate),
             },
             BinaryOp::Xor => self.acir_context.xor_var(lhs, rhs, binary_type),
             BinaryOp::And => self.acir_context.and_var(lhs, rhs, binary_type),
@@ -1500,10 +1500,10 @@ impl<'a> Context<'a> {
 
                     // Check that we are above the lower bound of the insertion index
                     let greater_eq_than_idx =
-                        self.acir_context.more_than_eq_var(current_index, flat_user_index, 64)?;
+                        self.acir_context.more_than_eq_var(current_index, flat_user_index, 64, one)?;
                     // Check that we are below the upper bound of the insertion index
                     let less_than_idx =
-                        self.acir_context.less_than_var(current_index, max_flat_user_index, 64)?;
+                        self.acir_context.less_than_var(current_index, max_flat_user_index, 64, one)?;
 
                     // Read from the original slice the value we want to insert into our new slice.
                     // We need to make sure that we read the previous element when our current index is greater than insertion index.
@@ -1663,6 +1663,7 @@ impl<'a> Context<'a> {
                             current_index,
                             flat_user_index,
                             64,
+                            one,
                         )?;
 
                         let shifted_value_pred =

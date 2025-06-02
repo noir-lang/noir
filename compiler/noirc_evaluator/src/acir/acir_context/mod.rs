@@ -1253,7 +1253,7 @@ impl<F: AcirField, B: BlackBoxFunctionSolver<F>> AcirContext<F, B> {
         let diff = self.sub_var(no_underflow, rhs)?;
 
         // We check the 'bit sign' of the difference
-        let diff_sign = self.less_than_var(diff, pow, bit_count + 1)?;
+        let diff_sign = self.less_than_var(diff, pow, bit_count + 1, one)?;
 
         // Then the result is simply diff_sign XOR same_sign (can be checked with a truth table)
         self.xor_var(
@@ -1270,6 +1270,7 @@ impl<F: AcirField, B: BlackBoxFunctionSolver<F>> AcirContext<F, B> {
         lhs: AcirVar,
         rhs: AcirVar,
         max_bits: u32,
+        predicate: AcirVar,
     ) -> Result<AcirVar, RuntimeError> {
         // Returns a `Witness` that is constrained to be:
         // - `1` if lhs >= rhs
@@ -1327,7 +1328,7 @@ impl<F: AcirField, B: BlackBoxFunctionSolver<F>> AcirContext<F, B> {
         // Predicate is always active as we know `two_max_bits` is always non-zero.
         let one = self.add_constant(1_u128);
         let (q, _) =
-            self.euclidean_division_var(comparison_evaluation, two_max_bits, max_bits + 1, one)?;
+            self.euclidean_division_var(comparison_evaluation, two_max_bits, max_bits + 1, predicate)?;
         Ok(q)
     }
 
@@ -1338,10 +1339,11 @@ impl<F: AcirField, B: BlackBoxFunctionSolver<F>> AcirContext<F, B> {
         lhs: AcirVar,
         rhs: AcirVar,
         bit_size: u32,
+        predicate: AcirVar,
     ) -> Result<AcirVar, RuntimeError> {
         // Flip the result of calling more than equal method to
         // compute less than.
-        let comparison = self.more_than_eq_var(lhs, rhs, bit_size)?;
+        let comparison = self.more_than_eq_var(lhs, rhs, bit_size, predicate)?;
 
         let one = self.add_constant(F::one());
         self.sub_var(one, comparison) // comparison_negated

@@ -693,12 +693,18 @@ impl Binary {
                 // for unsigned types (here we assume the type of binary.lhs is the same)
                 dfg.type_of_value(self.rhs).is_unsigned()
             }
+            BinaryOp::Lt => {
+                // Some binary math can overflow or underflow, but this is only the case
+                // for unsigned types (here we assume the type of binary.lhs is the same)
+                // Less than performs a euclidean division internally in ACIR that can potentially
+                // trigger an error. 
+                dfg.type_of_value(self.rhs).is_unsigned()
+            }
             BinaryOp::Div | BinaryOp::Mod => true,
             BinaryOp::Add { unchecked: true }
             | BinaryOp::Sub { unchecked: true }
             | BinaryOp::Mul { unchecked: true }
             | BinaryOp::Eq
-            | BinaryOp::Lt
             | BinaryOp::And
             | BinaryOp::Or
             | BinaryOp::Xor
