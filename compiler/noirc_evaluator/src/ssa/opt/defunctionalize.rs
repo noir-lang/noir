@@ -41,6 +41,7 @@ use noirc_frontend::monomorphization::ast::InlineType;
 
 use crate::ssa::{
     function_builder::FunctionBuilder,
+    interpreter::tests::expect_value_with_args,
     ir::{
         basic_block::BasicBlockId,
         function::{Function, FunctionId, RuntimeType, Signature},
@@ -901,8 +902,86 @@ mod tests {
         );
     }
 
-    // test from SSA fuzzing to check behavior of 'defunctionalize' pass on
-    // Brillig 'main' fn that accepts a function parameter (expected to be
+    // TODO
+    // Test from SSA fuzzing (TODO)
+    // Note: the '4' represents which passes were enabled by the ssa_afl_fuzzer
+    // TODO: attempt to run interpreter on this case and/or compare/reproduce with ssa_afl_fuzzer
+    //
+    // When fuzzing, it was panicking with:
+    // thread 'main' panicked at tooling/ssa_afl_fuzzer/src/main.rs:57:25:
+    // assertion `left == right` failed
+    //   left: [Function(Id(1))]
+    //  right: [Numeric(Field(1))]
+    // note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+    #[test]
+    fn todo_some_sort_of_interpreter_vs_pass_error_maybe() {
+        let src = "
+          // 4
+          acir(inline) fn main f0 {
+            b0():
+              call f1()
+              return f1 
+          }
+          acir(inline) fn bar f1 {
+            b0():
+              return
+          }
+        ";
+
+        let defunctionalise_ssa = Ssa::from_str(src).unwrap();
+        let defunctionalise_ssa = ssa.defunctionalize();
+
+        let defunctionalize_results = ssa.interpret(vec![]);
+
+        let interpreter_return_values = expect_value_with_args(src);
+
+        dbg!(defunctionalize_results, interpreter_return_values);
+        panic!("TODO: check result differences");
+
+        assert_ssa_snapshot!(ssa, @r"
+          acir(inline) fn main f0 {
+            b0():
+              call f1()
+              return Field 1
+          }
+          acir(inline) fn bar f1 {
+            b0():
+              return
+          }
+        ");
+    }
+
+
+    // Test from SSA fuzzing to check behavior of 'defunctionalize' pass on
+    // an ACIR 'main' fn that accepts and returns a function parameter 
+    // (expected to be disallowed by the frontend).
+    //
+    // When fuzzing, it was panicking with:
+    // "Could not find apply function"
+    #[test]
+    fn missing_fn_parameter_type() {
+        let src = "
+          acir(inline) fn get_t_c f3 {
+            b0(v0: function):
+              v1 = call v0() -> function
+              return v1
+          }
+        ";
+
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.defunctionalize();
+
+        assert_ssa_snapshot!(ssa, @r"
+          acir(inline) fn get_t_c f0 {
+            b0(v0: Field):
+              v1 = call v0() -> Field
+              return v1
+          }
+        ");
+    }
+
+    // Test from SSA fuzzing to check behavior of 'defunctionalize' pass on
+    // a Brillig 'main' fn that accepts a function parameter (expected to be
     // disallowed by the frontend).
     #[test]
     fn missing_fn() {
