@@ -201,4 +201,4 @@ See [Lambdas](./lambdas.md) for more details.
 
 Attributes are metadata that can be applied to a function, using the following syntax: `#[attribute(value)]`.
 
-See [Attributes](./attributes.md) for more details
+See [Attributes](./attributes.md) for more details.
