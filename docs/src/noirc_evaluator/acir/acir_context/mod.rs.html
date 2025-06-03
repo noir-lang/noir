@@ -2836,7 +2836,7 @@
 
         <span class="comment">// Performs the division using the unsigned values of lhs and rhs
         </span><span class="kw">let </span>(q1, r1) =
-            <span class="self">self</span>.euclidean_division_var(unsigned_lhs, unsigned_rhs, bit_size - <span class="number">1</span>, predicate)<span class="question-mark">?</span>;
+            <span class="self">self</span>.euclidean_division_var(unsigned_lhs, unsigned_rhs, bit_size, predicate)<span class="question-mark">?</span>;
 
         <span class="comment">// Unsigned to signed: derive q and r from q1,r1 and the signs of lhs and rhs
         // Quotient sign is lhs sign * rhs sign, whose resulting sign bit is the XOR of the sign bits
