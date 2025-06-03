@@ -89,13 +89,13 @@ pub(crate) fn run(args: InterpretCommand, workspace: Workspace) -> Result<(), Cl
             noir_artifact_cli::fs::inputs::read_inputs_from_file(&prover_file, &abi)?;
 
         // We need to give a fresh copy of arrays each time, because the shared structures are modified.
-        let ssa_args = || noir_ast_fuzzer::input_values_to_ssa(&abi, &prover_input);
+        let ssa_args = noir_ast_fuzzer::input_values_to_ssa(&abi, &prover_input);
 
         // Generate the initial SSA.
         let mut ssa = generate_ssa(program)
             .map_err(|e| CliError::Generic(format!("failed to generate SSA: {e}")))?;
 
-        print_and_interpret_ssa(&ssa_options, &args.ssa_pass, &mut ssa, "Initial SSA", ssa_args);
+        print_and_interpret_ssa(&ssa_options, &args.ssa_pass, &mut ssa, "Initial SSA", &ssa_args);
 
         // Run SSA passes in the pipeline and interpret the ones we are interested in.
         for (i, ssa_pass) in ssa_passes.iter().enumerate() {
@@ -109,7 +109,7 @@ pub(crate) fn run(args: InterpretCommand, workspace: Workspace) -> Result<(), Cl
                 .run(ssa)
                 .map_err(|e| CliError::Generic(format!("failed to run SSA pass {msg}: {e}")))?;
 
-            print_and_interpret_ssa(&ssa_options, &args.ssa_pass, &mut ssa, &msg, ssa_args);
+            print_and_interpret_ssa(&ssa_options, &args.ssa_pass, &mut ssa, &msg, &ssa_args);
         }
     }
     Ok(())
@@ -204,14 +204,11 @@ fn print_ssa(options: &SsaEvaluatorOptions, ssa: &mut Ssa, msg: &str) {
     }
 }
 
-fn interpret_ssa(
-    passes_to_interpret: &[String],
-    ssa: &Ssa,
-    msg: &str,
-    args: impl Fn() -> Vec<Value>,
-) {
+fn interpret_ssa(passes_to_interpret: &[String], ssa: &Ssa, msg: &str, args: &[Value]) {
     if passes_to_interpret.is_empty() || msg_matches(passes_to_interpret, msg) {
-        let result = ssa.interpret(args());
+        // We need to give a fresh copy of arrays each time, because the shared structures are modified.
+        let args = Value::snapshot_args(args);
+        let result = ssa.interpret(args);
         println!("--- Interpreter result after {msg}:\n{result:?}\n---");
     }
 }
@@ -221,7 +218,7 @@ fn print_and_interpret_ssa(
     passes_to_interpret: &[String],
     ssa: &mut Ssa,
     msg: &str,
-    args: impl Fn() -> Vec<Value>,
+    args: &[Value],
 ) {
     print_ssa(options, ssa, msg);
     interpret_ssa(passes_to_interpret, ssa, msg, args);

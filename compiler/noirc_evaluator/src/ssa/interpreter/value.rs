@@ -13,7 +13,10 @@ use crate::ssa::ir::{
 
 use super::IResult;
 
-/// Be careful when using `Clone`: the `ArrayValue` is backed by a `Shared` data structure.
+/// Be careful when using `Clone`: `ArrayValue` and `ReferenceValue`
+/// are backed by a `Shared` data structure, and for example modifying
+/// an array element would be reflected in the original and the clone
+/// as well. Use `Value::snapshot` to make independent clones.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Value {
     Numeric(NumericValue),
@@ -200,6 +203,35 @@ impl Value {
 
     pub(crate) fn as_field(&self) -> Option<FieldElement> {
         self.as_numeric()?.as_field()
+    }
+
+    /// Clone the value in a way that modifications to it won't affect the original.
+    pub fn snapshot(&self) -> Self {
+        match self {
+            Value::Numeric(n) => Value::Numeric(*n),
+            Value::Reference(r) => Value::Reference(ReferenceValue {
+                original_id: r.original_id,
+                element: Shared::new(r.element.borrow().clone()),
+                element_type: r.element_type.clone(),
+            }),
+            Value::ArrayOrSlice(a) => Value::ArrayOrSlice(ArrayValue {
+                elements: Shared::new(a.elements.borrow().clone()),
+                rc: Shared::new(*a.rc.borrow()),
+                element_types: a.element_types.clone(),
+                is_slice: a.is_slice,
+            }),
+            Value::Function(id) => Value::Function(*id),
+            Value::Intrinsic(i) => Value::Intrinsic(*i),
+            Value::ForeignFunction(s) => Value::ForeignFunction(s.clone()),
+        }
+    }
+
+    /// Take a snapshot of interpreter arguments.
+    ///
+    /// Useful when we want to use the same input to run the interpreter
+    /// after different SSA passes, without them affecting each other.
+    pub fn snapshot_args(args: &[Value]) -> Vec<Value> {
+        args.iter().map(|arg| arg.snapshot()).collect()
     }
 }
 

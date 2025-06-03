@@ -2,7 +2,7 @@
 title: Compile-time Code & Metaprogramming
 description: Learn how to use metaprogramming in Noir to create macros or derive your own traits
 keywords: [Noir, comptime, compile-time, metaprogramming, macros, quote, unquote]
-sidebar_position: 15
+sidebar_position: 16
 ---
 
 ## Overview
@@ -132,7 +132,7 @@ program at that point, and parse it as an expression. To do this, we have to add
 If the value was created locally and there is no function returning it, `std::meta::unquote!(_)` can be used instead.
 Calling such a function at compile-time without `!` will just return the `Quoted` value to be further manipulated. For example:
 
-```rust title="quote-example" showLineNumbers 
+```rust title="quote-example" showLineNumbers
 comptime fn quote_one() -> Quoted {
         quote { 1 }
     }
@@ -231,7 +231,7 @@ Note that formatting a quoted value with multiple tokens will always insert a sp
 undesired, you'll need to only operate on quoted values containing a single token. To do this, you can iterate
 over each token of a larger quoted value with `.tokens()`:
 
-```rust title="concatenate-example" showLineNumbers 
+```rust title="concatenate-example" showLineNumbers
 comptime fn concatenate(q1: Quoted, q2: Quoted) -> Quoted {
         assert(q1.tokens().len() <= 1);
         assert(q2.tokens().len() <= 1);
@@ -296,7 +296,7 @@ Note that expressions are not valid at top-level so you'll get an error trying t
 You can insert other top-level items such as trait impls, structs, or functions this way though.
 For example, this is the mechanism used to insert additional trait implementations into the program when deriving a trait impl from a struct:
 
-```rust title="derive-field-count-example" showLineNumbers 
+```rust title="derive-field-count-example" showLineNumbers
 trait FieldCount {
         fn field_count() -> u32;
     }
@@ -327,7 +327,7 @@ trait FieldCount {
 Arguments may optionally be given to attributes.
 When this is done, these additional arguments are passed to the attribute function after the item argument.
 
-```rust title="annotation-arguments-example" showLineNumbers 
+```rust title="annotation-arguments-example" showLineNumbers
 #[assert_field_is_type(quote { i32 }.as_type())]
     struct MyStruct {
         my_field: i32,
@@ -344,7 +344,7 @@ When this is done, these additional arguments are passed to the attribute functi
 
 We can also take any number of arguments by adding the `varargs` attribute:
 
-```rust title="annotation-varargs-example" showLineNumbers 
+```rust title="annotation-varargs-example" showLineNumbers
 #[assert_three_args(1, 2, 3)]
     struct MyOtherStruct {
         my_other_field: u32,
@@ -456,7 +456,7 @@ struct MyStruct { my_field: u32 }
 To implement `derive` we'll have to create a `comptime` function that accepts
 a variable amount of traits.
 
-```rust title="derive_example" showLineNumbers 
+```rust title="derive_example" showLineNumbers
 // These are needed for the unconstrained hashmap we're using to store derive functions
 use crate::collections::umap::UHashMap;
 use crate::hash::BuildHasherDefault;
@@ -493,7 +493,7 @@ pub comptime fn derive(s: TypeDefinition, traits: [TraitDefinition]) -> Quoted {
 
 Registering a derive function could be done as follows:
 
-```rust title="derive_via" showLineNumbers 
+```rust title="derive_via" showLineNumbers
 // To register a handler for a trait, just add it to our handlers map
 pub comptime fn derive_via(t: TraitDefinition, f: DeriveFunction) {
     HANDLERS.insert(t, f);
@@ -502,7 +502,7 @@ pub comptime fn derive_via(t: TraitDefinition, f: DeriveFunction) {
 > <sup><sub><a href="https://github.com/noir-lang/noir/blob/master/noir_stdlib/src/meta/mod.nr#L68-L75" target="_blank" rel="noopener noreferrer">Source code: noir_stdlib/src/meta/mod.nr#L68-L75</a></sub></sup>
 
 
-```rust title="big-derive-usage-example" showLineNumbers 
+```rust title="big-derive-usage-example" showLineNumbers
 // Finally, to register a handler we call the above function as an annotation
     // with our handler function.
     #[derive_via(derive_do_nothing)]
