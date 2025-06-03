@@ -12,4 +12,3 @@ unconstrained fn func_2(mut b: [(u32, &mut Field); 1]) -> Field {
     }
     (157653526363045079447323020681982670581 / *b[0].1)
 }
-
