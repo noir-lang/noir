@@ -454,8 +454,6 @@ fn test_binary() {
         "and",
         "or",
         "xor",
-        "shl",
-        "shr",
         "unchecked_add",
         "unchecked_sub",
         "unchecked_mul",
@@ -464,6 +462,19 @@ fn test_binary() {
             "
             acir(inline) fn main f0 {{
               b0(v0: u32, v1: u32):
+                v2 = {op} v0, v1
+                return
+            }}
+            "
+        );
+        assert_ssa_roundtrip(&src);
+    }
+
+    for op in ["shl", "shr"] {
+        let src = format!(
+            "
+            acir(inline) fn main f0 {{
+              b0(v0: u32, v1: u8):
                 v2 = {op} v0, v1
                 return
             }}
