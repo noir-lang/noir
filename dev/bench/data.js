@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1748966241514,
+  "lastUpdate": 1748966256213,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -11362,75 +11362,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "aakoshh@gmail.com",
-            "name": "Akosh Farkash",
-            "username": "aakoshh"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "4e352874a4199c95cc69e201a32af2fd04ffd51c",
-          "message": "chore(fuzz): Build the dictionary from the SSA (#8591)",
-          "timestamp": "2025-05-23T15:20:55Z",
-          "tree_id": "22be88bd8f9d5a3c9d6b89b6f8329d87012c7b5e",
-          "url": "https://github.com/noir-lang/noir/commit/4e352874a4199c95cc69e201a32af2fd04ffd51c"
-        },
-        "date": 1748015743339,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 241.49,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 263.53,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 216.67,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 548.28,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 544.36,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 1440,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 370.11,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-root",
-            "value": 376.12,
-            "unit": "MB"
-          },
-          {
-            "name": "semaphore_depth_10",
-            "value": 92.93,
-            "unit": "MB"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "asterite@gmail.com",
             "name": "Ary Borenszweig",
             "username": "asterite"
@@ -14760,6 +14691,75 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/noir-lang/noir/commit/a61aaedcf7e4e455dd7d4f6099bb6dbe02040569"
         },
         "date": 1748964659916,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 202.02,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 225.75,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 177.16,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 489.94,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 423.45,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 1400,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 312.01,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-root",
+            "value": 317.69,
+            "unit": "MB"
+          },
+          {
+            "name": "semaphore_depth_10",
+            "value": 70.96,
+            "unit": "MB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "mvezenov@gmail.com",
+            "name": "Maxim Vezenov",
+            "username": "vezenovm"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "1523ea1a9bb29913f3990f6a64ad8b6d615d88df",
+          "message": "fix(licm): Preserve semantic ordering of side-effectual instructions when hoisting (#8724)",
+          "timestamp": "2025-06-03T15:12:48Z",
+          "tree_id": "28bb6198a08114cd592079d7f2f86f2bc03ac796",
+          "url": "https://github.com/noir-lang/noir/commit/1523ea1a9bb29913f3990f6a64ad8b6d615d88df"
+        },
+        "date": 1748966245530,
         "tool": "customSmallerIsBetter",
         "benches": [
           {
