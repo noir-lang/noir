@@ -221,9 +221,7 @@
 <a href="#220" id="220">220</a>
 <a href="#221" id="221">221</a>
 <a href="#222" id="222">222</a>
-<a href="#223" id="223">223</a>
-<a href="#224" id="224">224</a>
-<a href="#225" id="225">225</a></pre></div><pre class="rust"><code><span class="doccomment">//! Use the SSA Interpreter to execute a SSA after a certain pass.
+<a href="#223" id="223">223</a></pre></div><pre class="rust"><code><span class="doccomment">//! Use the SSA Interpreter to execute a SSA after a certain pass.
 
 </span><span class="kw">use </span>acvm::acir::circuit::ExpressionWidth;
 <span class="kw">use </span>fm::{FileId, FileManager};
@@ -237,6 +235,7 @@
 <span class="kw">use </span>clap::Args;
 <span class="kw">use </span>noirc_errors::CustomDiagnostic;
 <span class="kw">use </span>noirc_evaluator::brillig::BrilligOptions;
+<span class="kw">use </span>noirc_evaluator::ssa::interpreter::value::Value;
 <span class="kw">use </span>noirc_evaluator::ssa::ssa_gen::{Ssa, generate_ssa};
 <span class="kw">use </span>noirc_evaluator::ssa::{SsaEvaluatorOptions, SsaLogging, primary_passes};
 <span class="kw">use </span>noirc_frontend::debug::DebugInstrumenter;
@@ -426,14 +425,11 @@
     }
 }
 
-<span class="kw">fn </span>interpret_ssa(
-    passes_to_interpret: <span class="kw-2">&amp;</span>[String],
-    ssa: <span class="kw-2">&amp;</span>Ssa,
-    msg: <span class="kw-2">&amp;</span>str,
-    args: <span class="kw-2">&amp;</span>[noirc_evaluator::ssa::interpreter::value::Value],
-) {
+<span class="kw">fn </span>interpret_ssa(passes_to_interpret: <span class="kw-2">&amp;</span>[String], ssa: <span class="kw-2">&amp;</span>Ssa, msg: <span class="kw-2">&amp;</span>str, args: <span class="kw-2">&amp;</span>[Value]) {
     <span class="kw">if </span>passes_to_interpret.is_empty() || msg_matches(passes_to_interpret, msg) {
-        <span class="kw">let </span>result = ssa.interpret(args.into());
+        <span class="comment">// We need to give a fresh copy of arrays each time, because the shared structures are modified.
+        </span><span class="kw">let </span>args = Value::snapshot_args(args);
+        <span class="kw">let </span>result = ssa.interpret(args);
         <span class="macro">println!</span>(<span class="string">"--- Interpreter result after {msg}:\n{result:?}\n---"</span>);
     }
 }
@@ -443,7 +439,7 @@
     passes_to_interpret: <span class="kw-2">&amp;</span>[String],
     ssa: <span class="kw-2">&amp;mut </span>Ssa,
     msg: <span class="kw-2">&amp;</span>str,
-    args: <span class="kw-2">&amp;</span>[noirc_evaluator::ssa::interpreter::value::Value],
+    args: <span class="kw-2">&amp;</span>[Value],
 ) {
     print_ssa(options, ssa, msg);
     interpret_ssa(passes_to_interpret, ssa, msg, args);

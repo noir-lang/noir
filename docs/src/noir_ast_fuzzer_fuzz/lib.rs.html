@@ -380,7 +380,7 @@
         </span><span class="macro">eprintln!</span>(
             <span class="string">"---\nSSA Inputs:\n{}"</span>,
             inputs
-                .input_values
+                .ssa_args
                 .iter()
                 .enumerate()
                 .map(|(i, v)| <span class="macro">format!</span>(<span class="string">"{i}: {v}"</span>))

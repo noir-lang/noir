@@ -321,7 +321,11 @@
 <a href="#320" id="320">320</a>
 <a href="#321" id="321">321</a>
 <a href="#322" id="322">322</a>
-<a href="#323" id="323">323</a></pre></div><pre class="rust"><code><span class="doccomment">//! Compare an arbitrary AST compiled into SSA and executed with the
+<a href="#323" id="323">323</a>
+<a href="#324" id="324">324</a>
+<a href="#325" id="325">325</a>
+<a href="#326" id="326">326</a>
+<a href="#327" id="327">327</a></pre></div><pre class="rust"><code><span class="doccomment">//! Compare an arbitrary AST compiled into SSA and executed with the
 //! SSA interpreter at some stage of the SSA pipeline.
 
 </span><span class="kw">use </span>std::sync::{Arc, OnceLock};
@@ -330,7 +334,7 @@
 <span class="kw">use </span>color_eyre::eyre;
 <span class="kw">use </span>iter_extended::vecmap;
 <span class="kw">use </span>noirc_abi::{Abi, AbiType, InputMap, Sign, input_parser::InputValue};
-<span class="kw">use </span>noirc_evaluator::ssa::{<span class="self">self</span>, ir::types::NumericType, ssa_gen::Ssa};
+<span class="kw">use </span>noirc_evaluator::ssa::{<span class="self">self</span>, interpreter::value::Value, ir::types::NumericType, ssa_gen::Ssa};
 <span class="kw">use </span>noirc_frontend::{Shared, monomorphization::ast::Program};
 <span class="kw">use </span>regex::Regex;
 
@@ -350,12 +354,11 @@
     </span><span class="kw">pub </span>ssa: Ssa,
 }
 
-<span class="kw">type </span>InterpretResult =
-    <span class="prelude-ty">Result</span>&lt;Vec&lt;ssa::interpreter::value::Value&gt;, ssa::interpreter::errors::InterpreterError&gt;;
+<span class="kw">type </span>InterpretResult = <span class="prelude-ty">Result</span>&lt;Vec&lt;Value&gt;, ssa::interpreter::errors::InterpreterError&gt;;
 
 <span class="doccomment">/// The result of the SSA interpreter execution.
 </span><span class="kw">pub type </span>CompareInterpretedResult =
-    CompareResult&lt;Vec&lt;ssa::interpreter::value::Value&gt;, ssa::interpreter::errors::InterpreterError&gt;;
+    CompareResult&lt;Vec&lt;Value&gt;, ssa::interpreter::errors::InterpreterError&gt;;
 
 <span class="doccomment">/// Inputs for comparing the interpretation of two SSA states of an arbitrary program.
 </span><span class="kw">pub struct </span>CompareInterpreted {
@@ -365,8 +368,10 @@
     /// We could generate random input for the SSA directly, but it would
     /// make it more difficult to use it with `nargo` if we find a failure.
     </span><span class="kw">pub </span>input_map: InputMap,
-    <span class="doccomment">/// Inputs for the `main` function in the SSA.
-    </span><span class="kw">pub </span>input_values: Vec&lt;ssa::interpreter::value::Value&gt;,
+
+    <span class="doccomment">/// Inputs for the `main` function in the SSA, mapped from the ABI input.
+    </span><span class="kw">pub </span>ssa_args: Vec&lt;Value&gt;,
+
     <span class="doccomment">/// Options that influence the pipeline, common to both passes.
     </span><span class="kw">pub </span>options: CompareOptions,
     <span class="kw">pub </span>ssa1: ComparePass,
@@ -390,21 +395,21 @@
         <span class="kw">let </span>(options, ssa1, ssa2) = f(u, program.clone())<span class="question-mark">?</span>;
 
         <span class="kw">let </span>input_map = arb_inputs_from_ssa(u, <span class="kw-2">&amp;</span>ssa1.ssa, <span class="kw-2">&amp;</span>abi)<span class="question-mark">?</span>;
-        <span class="kw">let </span>input_values = input_values_to_ssa(<span class="kw-2">&amp;</span>abi, <span class="kw-2">&amp;</span>input_map);
+        <span class="kw">let </span>ssa_args = input_values_to_ssa(<span class="kw-2">&amp;</span>abi, <span class="kw-2">&amp;</span>input_map);
 
-        <span class="prelude-val">Ok</span>(<span class="self">Self </span>{ program, abi, input_map, input_values, options, ssa1, ssa2 })
+        <span class="prelude-val">Ok</span>(<span class="self">Self </span>{ program, abi, input_map, ssa_args, options, ssa1, ssa2 })
     }
 
     <span class="kw">pub fn </span>exec(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; eyre::Result&lt;CompareInterpretedResult&gt; {
         <span class="comment">// Debug prints up fron tin case the interpreter panics. Turn them on with `RUST_LOG=debug cargo test ...`
-        </span><span class="macro">log::debug!</span>(<span class="string">"program: \n{}\n"</span>, <span class="kw">crate</span>::DisplayAstAsNoir(<span class="kw-2">&amp;</span><span class="self">self</span>.program));
+        </span><span class="macro">log::debug!</span>(<span class="string">"Program: \n{}\n"</span>, <span class="kw">crate</span>::DisplayAstAsNoir(<span class="kw-2">&amp;</span><span class="self">self</span>.program));
         <span class="macro">log::debug!</span>(
-            <span class="string">"input map: \n{}\n"</span>,
+            <span class="string">"ABI inputs: \n{}\n"</span>,
             noirc_abi::input_parser::Format::Toml.serialize(<span class="kw-2">&amp;</span><span class="self">self</span>.input_map, <span class="kw-2">&amp;</span><span class="self">self</span>.abi).unwrap()
         );
         <span class="macro">log::debug!</span>(
-            <span class="string">"input values:\n{}\n"</span>,
-            <span class="self">self</span>.input_values
+            <span class="string">"SSA inputs:\n{}\n"</span>,
+            <span class="self">self</span>.ssa_args
                 .iter()
                 .enumerate()
                 .map(|(i, v)| <span class="macro">format!</span>(<span class="string">"{i}: {v}"</span>))
@@ -412,8 +417,12 @@
                 .join(<span class="string">"\n"</span>)
         );
         <span class="macro">log::debug!</span>(<span class="string">"SSA after step {} ({}):\n{}\n"</span>, <span class="self">self</span>.ssa1.step, <span class="self">self</span>.ssa1.msg, <span class="self">self</span>.ssa1.ssa);
-        <span class="kw">let </span>res1 = <span class="self">self</span>.ssa1.ssa.interpret(<span class="self">self</span>.input_values.clone());
-        <span class="kw">let </span>res2 = <span class="self">self</span>.ssa2.ssa.interpret(<span class="self">self</span>.input_values.clone());
+
+        <span class="comment">// Interpret an SSA with a fresh copy of the input values.
+        </span><span class="kw">let </span>interpret = |ssa: <span class="kw-2">&amp;</span>Ssa| ssa.interpret(Value::snapshot_args(<span class="kw-2">&amp;</span><span class="self">self</span>.ssa_args));
+
+        <span class="kw">let </span>res1 = interpret(<span class="kw-2">&amp;</span><span class="self">self</span>.ssa1.ssa);
+        <span class="kw">let </span>res2 = interpret(<span class="kw-2">&amp;</span><span class="self">self</span>.ssa2.ssa);
         <span class="prelude-val">Ok</span>(CompareInterpretedResult::new(res1, res2))
     }
 }
@@ -463,9 +472,8 @@
     }
 }
 
-<span class="kw">impl </span>Comparable <span class="kw">for </span>ssa::interpreter::value::Value {
+<span class="kw">impl </span>Comparable <span class="kw">for </span>Value {
     <span class="kw">fn </span>equivalent(a: <span class="kw-2">&amp;</span><span class="self">Self</span>, b: <span class="kw-2">&amp;</span><span class="self">Self</span>) -&gt; bool {
-        <span class="kw">use </span>ssa::interpreter::value::Value;
         <span class="kw">match </span>(a, b) {
             (Value::ArrayOrSlice(a), Value::ArrayOrSlice(b)) =&gt; {
                 <span class="comment">// Ignore the RC
@@ -483,7 +491,7 @@
 }
 
 <span class="doccomment">/// Convert the ABI encoded inputs to what the SSA interpreter expects.
-</span><span class="kw">pub fn </span>input_values_to_ssa(abi: <span class="kw-2">&amp;</span>Abi, input_map: <span class="kw-2">&amp;</span>InputMap) -&gt; Vec&lt;ssa::interpreter::value::Value&gt; {
+</span><span class="kw">pub fn </span>input_values_to_ssa(abi: <span class="kw-2">&amp;</span>Abi, input_map: <span class="kw-2">&amp;</span>InputMap) -&gt; Vec&lt;Value&gt; {
     <span class="kw">let </span><span class="kw-2">mut </span>inputs = Vec::new();
     <span class="kw">for </span>param <span class="kw">in </span><span class="kw-2">&amp;</span>abi.parameters {
         <span class="kw">let </span>input = <span class="kw-2">&amp;</span>input_map
@@ -498,7 +506,7 @@
 <span class="doccomment">/// Convert one ABI encoded input to what the SSA interpreter expects.
 ///
 /// Tuple types are returned flattened.
-</span><span class="kw">fn </span>input_value_to_ssa(typ: <span class="kw-2">&amp;</span>AbiType, input: <span class="kw-2">&amp;</span>InputValue) -&gt; Vec&lt;ssa::interpreter::value::Value&gt; {
+</span><span class="kw">fn </span>input_value_to_ssa(typ: <span class="kw-2">&amp;</span>AbiType, input: <span class="kw-2">&amp;</span>InputValue) -&gt; Vec&lt;Value&gt; {
     <span class="kw">use </span>ssa::interpreter::value::{ArrayValue, NumericValue, Value};
     <span class="kw">use </span>ssa::ir::types::Type;
     <span class="kw">let </span>array_value = |elements: Vec&lt;Vec&lt;Value&gt;&gt;, types: Vec&lt;Type&gt;| {
