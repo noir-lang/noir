@@ -59,7 +59,6 @@ libraries:
   sha512:
     repo: noir-lang/sha512
     timeout: 40
-    critical: true
   keccak256:
     repo: noir-lang/keccak256
     timeout: 3
