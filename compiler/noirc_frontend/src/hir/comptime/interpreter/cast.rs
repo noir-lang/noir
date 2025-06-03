@@ -29,14 +29,13 @@ enum CastType {
         old_bit_size: u32,
         new_bit_size: u32,
     },
-    /// SignedField makes casting signed values more difficult since we need
-    /// to add an offset to make the signed value positive if it is negative,
-    /// and need to store a boolean to remember it is negative
-    SignedToField {
-        old_bit_size: u32,
-    },
     /// No-op also covers the zero-extend case since we convert between
     /// field elements rather than concrete bit sizes
+    ///
+    /// This is also the case for casting signed integers to fields.
+    /// We represent negatives with two's complement, so e.g.
+    /// `-1 as i8` is stored as the field value for `255`, and `255`
+    /// is also the expected result of casting these to a field.
     Noop,
 }
 
@@ -52,7 +51,7 @@ fn classify_cast(input: &Type, output: &Type) -> CastType {
         Ordering::Less => {
             if input_signed {
                 if output.is_field() {
-                    CastType::SignedToField { old_bit_size: input_size }
+                    CastType::Noop // We always zero-extend when casting to a field
                 } else {
                     CastType::SignExtend { old_bit_size: input_size, new_bit_size: output_size }
                 }
@@ -93,21 +92,6 @@ fn perform_cast(kind: CastType, lhs: FieldElement) -> FieldElement {
                 lhs
             }
         }
-        CastType::SignedToField { old_bit_size } => {
-            assert!(old_bit_size < 128, "i128 and above are not supported");
-            let max_positive_value = 2u128.pow(old_bit_size - 1) - 1;
-            let is_negative = lhs > max_positive_value.into();
-
-            if !is_negative {
-                lhs
-            } else {
-                // We only return the FieldElement component of the SignedField, the caller
-                // needs to add the negative sign themselves
-                let max_negative_value = FieldElement::from(2u128.pow(old_bit_size));
-                // E.g. `256 - 255 = 1` or `256 - 128 = 128`
-                max_negative_value - lhs
-            }
-        }
         CastType::Noop => lhs,
     }
 }
@@ -126,11 +110,12 @@ fn convert_to_field(value: Value, location: Location) -> IResult<(FieldElement, 
         Value::U32(value) => ((value as u128).into(), false),
         Value::U64(value) => ((value as u128).into(), false),
         Value::U128(value) => (value.into(), false),
-        // Shared logic from ssa::interpreter::Value::convert_to_field
-        Value::I8(value) => (FieldElement::from(value as u8 as i128), value < 0),
-        Value::I16(value) => (FieldElement::from(value as u16 as i128), value < 0),
-        Value::I32(value) => (FieldElement::from(value as u32 as i128), value < 0),
-        Value::I64(value) => (FieldElement::from(value as u64 as i128), value < 0),
+        // `is_negative` is only used for conversions to Field in which case
+        // these should always be positive so that `-1 as i8 as Field == 255`
+        Value::I8(value) => (FieldElement::from(value as u8 as i128), false),
+        Value::I16(value) => (FieldElement::from(value as u16 as i128), false),
+        Value::I32(value) => (FieldElement::from(value as u32 as i128), false),
+        Value::I64(value) => (FieldElement::from(value as u64 as i128), false),
         Value::Bool(value) => (FieldElement::from(value), false),
         value => {
             let typ = value.get_type().into_owned();
@@ -264,10 +249,12 @@ mod tests {
             // Widen
             (Value::I8(127), unsigned(SixtyFour), Value::U64(127)),
             (Value::I8(127), signed(SixtyFour), Value::I64(127)),
-            // Widen negative: zero extend
+            // Widen signed->unsigned: sign extend
             (Value::I8(-1), unsigned(Sixteen), Value::U16(65535)),
             (Value::I8(-100), unsigned(Sixteen), Value::U16(65436)),
-            (Value::I8(-100), Type::FieldElement, Value::Field(SignedField::negative(100u32))),
+            // Casting a negative integer to a field always results in a positive value
+            // This is the only case we zero-extend signed integers instead of sign-extending them
+            (Value::I8(-1), Type::FieldElement, Value::Field(SignedField::positive(255u32))),
             // Widen negative: sign extend
             (Value::I8(-1), signed(Sixteen), Value::I16(-1)),
             (Value::I8(-100), signed(Sixteen), Value::I16(-100)),
