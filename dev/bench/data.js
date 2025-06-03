@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1748946493366,
+  "lastUpdate": 1748946504697,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -10472,35 +10472,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "84741533+defkit@users.noreply.github.com",
-            "name": "defkit",
-            "username": "defkit"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "4f22497c1f1d8871ba8050f236e03c2637b17e00",
-          "message": "feat: acir_formal_proofs (#8140)\n\nCo-authored-by: Akosh Farkash <aakoshh@gmail.com>",
-          "timestamp": "2025-05-22T14:12:56Z",
-          "tree_id": "480e888cb20cf723493d1f85f149927bf25261d6",
-          "url": "https://github.com/noir-lang/noir/commit/4f22497c1f1d8871ba8050f236e03c2637b17e00"
-        },
-        "date": 1747924647873,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "semaphore_depth_10",
-            "value": 92.93,
-            "unit": "MB"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "15848336+TomAFrench@users.noreply.github.com",
             "name": "Tom French",
             "username": "TomAFrench"
@@ -13550,6 +13521,75 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/noir-lang/noir/commit/5984575435cde6c01df3454053da471769f3d856"
         },
         "date": 1748870446370,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 202.02,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 225.76,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 177.16,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 489.94,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 423.45,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 1400,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 312.01,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-root",
+            "value": 317.7,
+            "unit": "MB"
+          },
+          {
+            "name": "semaphore_depth_10",
+            "value": 70.97,
+            "unit": "MB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "47281315+guipublic@users.noreply.github.com",
+            "name": "guipublic",
+            "username": "guipublic"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "0b94ffca6fadffddc854693afc749c6c85352e80",
+          "message": "fix: correct bitsize in signed division (#8733)",
+          "timestamp": "2025-06-03T09:52:35Z",
+          "tree_id": "4112c9ef79e131edaf9167d49d4d428560e4f2aa",
+          "url": "https://github.com/noir-lang/noir/commit/0b94ffca6fadffddc854693afc749c6c85352e80"
+        },
+        "date": 1748946494311,
         "tool": "customSmallerIsBetter",
         "benches": [
           {
