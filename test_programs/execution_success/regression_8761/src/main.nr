@@ -3,7 +3,7 @@ fn main() -> pub Field {
 
     for _ in 0..1 {} // Without this it compiles
 
-    if (*d[0]) {
+    if *d[0] {
         0
     } else {
         1
