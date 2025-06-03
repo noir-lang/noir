@@ -234,7 +234,7 @@ impl<'a> FunctionContext<'a> {
 
         // Consider function pointers as callable; they are already filtered during construction.
         for (callee_id, _, _, typ, _) in &decl.params {
-            let Type::Function(_, return_type, _, _) = typ else {
+            let Type::Function(_, return_type, _, _) = types::unref(typ) else {
                 continue;
             };
             let produces = types::types_produced(return_type);
@@ -1118,7 +1118,7 @@ impl<'a> FunctionContext<'a> {
         self.has_call = true;
 
         let callee_id = *u.choose_iter(opts)?;
-        let callee_ident = Expression::Ident(self.callable_ident(callee_id));
+        let callee_expr = self.callable_expr(callee_id);
         let (param_types, return_type) = self.callable_signature(callee_id);
 
         // Generate an expression for each argument.
@@ -1128,7 +1128,7 @@ impl<'a> FunctionContext<'a> {
         }
 
         let call_expr = Expression::Call(Call {
-            func: Box::new(callee_ident),
+            func: Box::new(callee_expr),
             arguments: args,
             return_type: return_type.clone(),
             location: Location::dummy(),
@@ -1300,7 +1300,6 @@ impl<'a> FunctionContext<'a> {
             );
         };
 
-        // TODO(#8484): Take the callee ID into account, so we don't create a problem inlining ACIR.
         let candidates = self
             .ctx
             .function_declarations
@@ -1326,11 +1325,29 @@ impl<'a> FunctionContext<'a> {
         Ok(Expression::Ident(callee_ident))
     }
 
-    /// Identifier for passing a reference a global function or local function pointer.
-    fn callable_ident(&mut self, callee_id: CallableId) -> Ident {
+    /// Expression to use in a `Call` for the function (pointer).
+    ///
+    /// If the ID is something like `f: &mut &mut fn(...) -> ...` then it will return `(*(*f))`.
+    fn callable_expr(&mut self, callee_id: CallableId) -> Expression {
         match callee_id {
-            CallableId::Global(id) => self.func_ident(id),
-            CallableId::Local(id) => self.local_ident(id),
+            CallableId::Global(id) => Expression::Ident(self.func_ident(id)),
+            CallableId::Local(id) => {
+                fn deref_function(typ: &Type, ident: Ident) -> Expression {
+                    match typ {
+                        Type::Function(_, _, _, _) => Expression::Ident(ident),
+                        Type::Reference(typ, _) => {
+                            let inner = deref_function(typ.as_ref(), ident);
+                            expr::deref(inner, typ.as_ref().clone())
+                        }
+                        other => {
+                            unreachable!("expected function or function reference; got {other}")
+                        }
+                    }
+                }
+                let ident = self.local_ident(id);
+                let typ = self.local_type(id);
+                deref_function(typ, ident)
+            }
         }
     }
 
@@ -1390,7 +1407,7 @@ impl<'a> FunctionContext<'a> {
             }
             CallableId::Local(id) => {
                 let (_, _, typ) = self.locals.current().get_variable(&id);
-                let Type::Function(param_types, return_type, _, _) = typ else {
+                let Type::Function(param_types, return_type, _, _) = types::unref(typ) else {
                     unreachable!("function pointers should have function type; got {typ}")
                 };
                 (param_types.clone(), return_type.as_ref().clone())
