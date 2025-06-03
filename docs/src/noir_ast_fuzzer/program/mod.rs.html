@@ -562,7 +562,9 @@
 <a href="#561" id="561">561</a>
 <a href="#562" id="562">562</a>
 <a href="#563" id="563">563</a>
-<a href="#564" id="564">564</a></pre></div><pre class="rust"><code><span class="doccomment">//! Module responsible for generating arbitrary [Program] ASTs.
+<a href="#564" id="564">564</a>
+<a href="#565" id="565">565</a>
+<a href="#566" id="566">566</a></pre></div><pre class="rust"><code><span class="doccomment">//! Module responsible for generating arbitrary [Program] ASTs.
 </span><span class="kw">use </span>std::collections::{BTreeMap, BTreeSet}; <span class="comment">// Using BTree for deterministic enumeration, for repeatability.
 
 </span><span class="kw">use </span>func::{FunctionContext, FunctionDeclaration, can_call};
@@ -893,9 +895,11 @@
         <span class="prelude-val">Ok</span>(())
     }
 
-    <span class="doccomment">/// As a post-processing step, identify recursive functions and add a call depth parameter to them.
+    <span class="doccomment">/// Post-processing steps that change functions.
     </span><span class="kw">fn </span>rewrite_functions(<span class="kw-2">&amp;mut </span><span class="self">self</span>, u: <span class="kw-2">&amp;mut </span>Unstructured) -&gt; arbitrary::Result&lt;()&gt; {
-        rewrite::add_recursion_limit(<span class="self">self</span>, u)
+        rewrite::remove_unreachable_functions(<span class="self">self</span>);
+        rewrite::add_recursion_limit(<span class="self">self</span>, u)<span class="question-mark">?</span>;
+        <span class="prelude-val">Ok</span>(())
     }
 
     <span class="doccomment">/// Return the generated [Program].

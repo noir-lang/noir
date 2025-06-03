@@ -549,7 +549,7 @@
 
     <span class="comment">// Create proxies for unconstrained functions called from ACIR.
     </span><span class="kw">let </span><span class="kw-2">mut </span>proxy_functions = HashMap::new();
-    <span class="kw">let </span><span class="kw-2">mut </span>next_func_id = FuncId(ctx.functions.len() <span class="kw">as </span>u32);
+    <span class="kw">let </span><span class="kw-2">mut </span>next_func_id = ctx.functions.len() <span class="kw">as </span>u32;
 
     <span class="kw">for </span>(func_id, func) <span class="kw">in </span><span class="kw-2">&amp;</span>ctx.functions {
         <span class="kw">if </span>!func.unconstrained
@@ -559,11 +559,11 @@
             <span class="kw">continue</span>;
         }
         <span class="kw">let </span><span class="kw-2">mut </span>proxy = func.clone();
-        proxy.id = next_func_id;
+        proxy.id = FuncId(next_func_id);
         proxy.name = <span class="macro">format!</span>(<span class="string">"{}_proxy"</span>, proxy.name);
         <span class="comment">// We will replace the body, update the params, and append the function later.
         </span>proxy_functions.insert(<span class="kw-2">*</span>func_id, proxy);
-        next_func_id = FuncId(next_func_id.<span class="number">0 </span>+ <span class="number">1</span>);
+        next_func_id += <span class="number">1</span>;
     }
 
     <span class="comment">// Rewrite functions.
