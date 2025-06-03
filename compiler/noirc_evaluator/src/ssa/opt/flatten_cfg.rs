@@ -781,8 +781,12 @@ impl<'f> Context<'f> {
                     // Condition needs to be cast to argument type in order to multiply them together.
                     let casted_condition =
                         self.cast_condition_to_value_type(condition, value, call_stack);
-                    let value = self.mul_by_condition(value, casted_condition, call_stack);
-                    Instruction::RangeCheck { value, max_bit_size, assert_message }
+                    let predicate_value =
+                        self.mul_by_condition(value, casted_condition, call_stack);
+                    // Issue #8617: update the value to be the predicated value.
+                    // This ensure the value has the correct bit size in all cases.
+                    self.inserter.map_value(value, predicate_value);
+                    Instruction::RangeCheck { value: predicate_value, max_bit_size, assert_message }
                 }
                 Instruction::Call { func, mut arguments } => match self.inserter.function.dfg[func]
                 {
