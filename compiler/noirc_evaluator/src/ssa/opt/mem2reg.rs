@@ -1237,7 +1237,7 @@ mod tests {
         // This checks that when an array containing references is used in a call
         // that we do not remove the original stores to those internal references
         let src = r"
-        brillig(inline) fn main f0 {
+        acir(inline) pure fn main f0 {
           b0():
             v0 = allocate -> &mut Field
             store Field 1 at v0
