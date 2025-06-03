@@ -282,20 +282,7 @@
 <a href="#281" id="281">281</a>
 <a href="#282" id="282">282</a>
 <a href="#283" id="283">283</a>
-<a href="#284" id="284">284</a>
-<a href="#285" id="285">285</a>
-<a href="#286" id="286">286</a>
-<a href="#287" id="287">287</a>
-<a href="#288" id="288">288</a>
-<a href="#289" id="289">289</a>
-<a href="#290" id="290">290</a>
-<a href="#291" id="291">291</a>
-<a href="#292" id="292">292</a>
-<a href="#293" id="293">293</a>
-<a href="#294" id="294">294</a>
-<a href="#295" id="295">295</a>
-<a href="#296" id="296">296</a>
-<a href="#297" id="297">297</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::cmp::Ordering;
+<a href="#284" id="284">284</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::cmp::Ordering;
 
 <span class="kw">use </span>acvm::{AcirField, FieldElement};
 <span class="kw">use </span>noirc_errors::Location;
@@ -326,14 +313,13 @@
         old_bit_size: u32,
         new_bit_size: u32,
     },
-    <span class="doccomment">/// SignedField makes casting signed values more difficult since we need
-    /// to add an offset to make the signed value positive if it is negative,
-    /// and need to store a boolean to remember it is negative
-    </span>SignedToField {
-        old_bit_size: u32,
-    },
     <span class="doccomment">/// No-op also covers the zero-extend case since we convert between
     /// field elements rather than concrete bit sizes
+    ///
+    /// This is also the case for casting signed integers to fields.
+    /// We represent negatives with two's complement, so e.g.
+    /// `-1 as i8` is stored as the field value for `255`, and `255`
+    /// is also the expected result of casting these to a field.
     </span>Noop,
 }
 
@@ -349,8 +335,8 @@
         Ordering::Less =&gt; {
             <span class="kw">if </span>input_signed {
                 <span class="kw">if </span>output.is_field() {
-                    CastType::SignedToField { old_bit_size: input_size }
-                } <span class="kw">else </span>{
+                    CastType::Noop <span class="comment">// We always zero-extend when casting to a field
+                </span>} <span class="kw">else </span>{
                     CastType::SignExtend { old_bit_size: input_size, new_bit_size: output_size }
                 }
             } <span class="kw">else </span>{
@@ -390,21 +376,6 @@
                 lhs
             }
         }
-        CastType::SignedToField { old_bit_size } =&gt; {
-            <span class="macro">assert!</span>(old_bit_size &lt; <span class="number">128</span>, <span class="string">"i128 and above are not supported"</span>);
-            <span class="kw">let </span>max_positive_value = <span class="number">2u128</span>.pow(old_bit_size - <span class="number">1</span>) - <span class="number">1</span>;
-            <span class="kw">let </span>is_negative = lhs &gt; max_positive_value.into();
-
-            <span class="kw">if </span>!is_negative {
-                lhs
-            } <span class="kw">else </span>{
-                <span class="comment">// We only return the FieldElement component of the SignedField, the caller
-                // needs to add the negative sign themselves
-                </span><span class="kw">let </span>max_negative_value = FieldElement::from(<span class="number">2u128</span>.pow(old_bit_size));
-                <span class="comment">// E.g. `256 - 255 = 1` or `256 - 128 = 128`
-                </span>max_negative_value - lhs
-            }
-        }
         CastType::Noop =&gt; lhs,
     }
 }
@@ -423,11 +394,12 @@
         Value::U32(value) =&gt; ((value <span class="kw">as </span>u128).into(), <span class="bool-val">false</span>),
         Value::U64(value) =&gt; ((value <span class="kw">as </span>u128).into(), <span class="bool-val">false</span>),
         Value::U128(value) =&gt; (value.into(), <span class="bool-val">false</span>),
-        <span class="comment">// Shared logic from ssa::interpreter::Value::convert_to_field
-        </span>Value::I8(value) =&gt; (FieldElement::from(value <span class="kw">as </span>u8 <span class="kw">as </span>i128), value &lt; <span class="number">0</span>),
-        Value::I16(value) =&gt; (FieldElement::from(value <span class="kw">as </span>u16 <span class="kw">as </span>i128), value &lt; <span class="number">0</span>),
-        Value::I32(value) =&gt; (FieldElement::from(value <span class="kw">as </span>u32 <span class="kw">as </span>i128), value &lt; <span class="number">0</span>),
-        Value::I64(value) =&gt; (FieldElement::from(value <span class="kw">as </span>u64 <span class="kw">as </span>i128), value &lt; <span class="number">0</span>),
+        <span class="comment">// `is_negative` is only used for conversions to Field in which case
+        // these should always be positive so that `-1 as i8 as Field == 255`
+        </span>Value::I8(value) =&gt; (FieldElement::from(value <span class="kw">as </span>u8 <span class="kw">as </span>i128), <span class="bool-val">false</span>),
+        Value::I16(value) =&gt; (FieldElement::from(value <span class="kw">as </span>u16 <span class="kw">as </span>i128), <span class="bool-val">false</span>),
+        Value::I32(value) =&gt; (FieldElement::from(value <span class="kw">as </span>u32 <span class="kw">as </span>i128), <span class="bool-val">false</span>),
+        Value::I64(value) =&gt; (FieldElement::from(value <span class="kw">as </span>u64 <span class="kw">as </span>i128), <span class="bool-val">false</span>),
         Value::Bool(value) =&gt; (FieldElement::from(value), <span class="bool-val">false</span>),
         value =&gt; {
             <span class="kw">let </span>typ = value.get_type().into_owned();
@@ -561,10 +533,12 @@
             <span class="comment">// Widen
             </span>(Value::I8(<span class="number">127</span>), unsigned(SixtyFour), Value::U64(<span class="number">127</span>)),
             (Value::I8(<span class="number">127</span>), signed(SixtyFour), Value::I64(<span class="number">127</span>)),
-            <span class="comment">// Widen negative: zero extend
+            <span class="comment">// Widen signed-&gt;unsigned: sign extend
             </span>(Value::I8(-<span class="number">1</span>), unsigned(Sixteen), Value::U16(<span class="number">65535</span>)),
             (Value::I8(-<span class="number">100</span>), unsigned(Sixteen), Value::U16(<span class="number">65436</span>)),
-            (Value::I8(-<span class="number">100</span>), Type::FieldElement, Value::Field(SignedField::negative(<span class="number">100u32</span>))),
+            <span class="comment">// Casting a negative integer to a field always results in a positive value
+            // This is the only case we zero-extend signed integers instead of sign-extending them
+            </span>(Value::I8(-<span class="number">1</span>), Type::FieldElement, Value::Field(SignedField::positive(<span class="number">255u32</span>))),
             <span class="comment">// Widen negative: sign extend
             </span>(Value::I8(-<span class="number">1</span>), signed(Sixteen), Value::I16(-<span class="number">1</span>)),
             (Value::I8(-<span class="number">100</span>), signed(Sixteen), Value::I16(-<span class="number">100</span>)),
