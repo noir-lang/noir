@@ -751,7 +751,19 @@
 <a href="#750" id="750">750</a>
 <a href="#751" id="751">751</a>
 <a href="#752" id="752">752</a>
-<a href="#753" id="753">753</a></pre></div><pre class="rust"><code><span class="kw">use </span>acvm::FieldElement;
+<a href="#753" id="753">753</a>
+<a href="#754" id="754">754</a>
+<a href="#755" id="755">755</a>
+<a href="#756" id="756">756</a>
+<a href="#757" id="757">757</a>
+<a href="#758" id="758">758</a>
+<a href="#759" id="759">759</a>
+<a href="#760" id="760">760</a>
+<a href="#761" id="761">761</a>
+<a href="#762" id="762">762</a>
+<a href="#763" id="763">763</a>
+<a href="#764" id="764">764</a>
+<a href="#765" id="765">765</a></pre></div><pre class="rust"><code><span class="kw">use </span>acvm::FieldElement;
 <span class="kw">pub use </span>noirc_errors::Span;
 <span class="kw">use </span>noirc_errors::{CustomDiagnostic <span class="kw">as </span>Diagnostic, Location};
 <span class="kw">use </span>thiserror::Error;
@@ -931,6 +943,8 @@
     </span>UnconstrainedTypeParameter { ident: Ident },
     <span class="attr">#[error(<span class="string">"Unreachable statement"</span>)]
     </span>UnreachableStatement { location: Location, break_or_continue_location: Location },
+    <span class="attr">#[error(<span class="string">"Associated item constraints are not allowed here"</span>)]
+    </span>AssociatedItemConstraintsNotAllowedInGenerics { location: Location },
 }
 
 <span class="kw">impl </span>ResolverError {
@@ -990,7 +1004,10 @@
             | ResolverError::FoldAttributeOnUnconstrained { location, .. }
             | ResolverError::OracleMarkedAsConstrained { location, .. }
             | ResolverError::LowLevelFunctionOutsideOfStdlib { location }
-            | ResolverError::UnreachableStatement { location, .. } =&gt; <span class="kw-2">*</span>location,
+            | ResolverError::UnreachableStatement { location, .. }
+            | ResolverError::AssociatedItemConstraintsNotAllowedInGenerics { location } =&gt; {
+                <span class="kw-2">*</span>location
+            }
             ResolverError::UnusedVariable { ident }
             | ResolverError::UnusedItem { ident, .. }
             | ResolverError::DuplicateField { field: ident }
@@ -1500,6 +1517,13 @@
                 );
                 diagnostic.add_secondary(<span class="string">"Any code following this expression is unreachable"</span>.to_string(), <span class="kw-2">*</span>break_or_continue_location);
                 diagnostic
+            }
+            ResolverError::AssociatedItemConstraintsNotAllowedInGenerics { location} =&gt; {
+                Diagnostic::simple_error(
+                    <span class="string">"Associated item constraints are not allowed here"</span>.to_string(),
+                    <span class="string">"Consider removing this associated item binding"</span>.to_string(),
+                    <span class="kw-2">*</span>location,
+                )
             }
         }
     }
