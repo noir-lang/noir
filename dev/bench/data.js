@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1748947942865,
+  "lastUpdate": 1748947945417,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -10562,35 +10562,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "15848336+TomAFrench@users.noreply.github.com",
-            "name": "Tom French",
-            "username": "TomAFrench"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "8f660a3a6c8b1e48b9e988d181a65df44e0bc715",
-          "message": "fix: ensure that purity analysis pass explores all functions (#8452)\n\nCo-authored-by: AztecBot <tech@aztecprotocol.com>\nCo-authored-by: Ary Borenszweig <asterite@gmail.com>\nCo-authored-by: Maxim Vezenov <mvezenov@gmail.com>",
-          "timestamp": "2025-05-22T15:59:30Z",
-          "tree_id": "6123d6f139c9509750bdbd8f7ddffb55027f5d20",
-          "url": "https://github.com/noir-lang/noir/commit/8f660a3a6c8b1e48b9e988d181a65df44e0bc715"
-        },
-        "date": 1747931018052,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "semaphore_depth_10",
-            "value": 92.93,
-            "unit": "MB"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "mvezenov@gmail.com",
             "name": "Maxim Vezenov",
             "username": "vezenovm"
@@ -13680,6 +13651,75 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/noir-lang/noir/commit/0b94ffca6fadffddc854693afc749c6c85352e80"
         },
         "date": 1748946494311,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 202.02,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 225.76,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 177.16,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 489.94,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 423.45,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 1400,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 312.01,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-root",
+            "value": 317.7,
+            "unit": "MB"
+          },
+          {
+            "name": "semaphore_depth_10",
+            "value": 70.97,
+            "unit": "MB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "jfecher11@gmail.com",
+            "name": "jfecher",
+            "username": "jfecher"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "81d2ad6adc93b28df107330d536eacbf74562537",
+          "message": "fix: Add missing cases for finding function values in `find_functions_as_values` (#8738)\n\nCo-authored-by: Maxim Vezenov <mvezenov@gmail.com>",
+          "timestamp": "2025-06-03T10:15:55Z",
+          "tree_id": "2e4dc1218822c67573fc754260c615b4b4cb2d37",
+          "url": "https://github.com/noir-lang/noir/commit/81d2ad6adc93b28df107330d536eacbf74562537"
+        },
+        "date": 1748947935164,
         "tool": "customSmallerIsBetter",
         "benches": [
           {
