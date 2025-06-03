@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1748979932695,
+  "lastUpdate": 1748980308732,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -20558,85 +20558,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "jfecher11@gmail.com",
-            "name": "jfecher",
-            "username": "jfecher"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "eb3eef93091ad485b33a7577bb9c948a5404683a",
-          "message": "fix: Make casts in `comptime` consistent with runtime casts (#8669)",
-          "timestamp": "2025-05-23T19:53:05Z",
-          "tree_id": "21bf0e5bcd41eae98dd702857e3fa4197cd7e7fd",
-          "url": "https://github.com/noir-lang/noir/commit/eb3eef93091ad485b33a7577bb9c948a5404683a"
-        },
-        "date": 1748032027331,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 1132.6,
-            "unit": "KB"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 2051,
-            "unit": "KB"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 586.4,
-            "unit": "KB"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 5129.1,
-            "unit": "KB"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 4070.5,
-            "unit": "KB"
-          },
-          {
-            "name": "rollup-block-root-empty",
-            "value": 256.7,
-            "unit": "KB"
-          },
-          {
-            "name": "rollup-block-root-single-tx",
-            "value": 25697.8,
-            "unit": "KB"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 25721.5,
-            "unit": "KB"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 181.6,
-            "unit": "KB"
-          },
-          {
-            "name": "rollup-root",
-            "value": 416.5,
-            "unit": "KB"
-          },
-          {
-            "name": "semaphore-depth-10",
-            "value": 636.3,
-            "unit": "KB"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "15848336+TomAFrench@users.noreply.github.com",
             "name": "Tom French",
             "username": "TomAFrench"
@@ -24446,6 +24367,85 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/noir-lang/noir/commit/b6368569444e304a65065d23d38568860bc37442"
         },
         "date": 1748966413600,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 1133,
+            "unit": "KB"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 2064.4,
+            "unit": "KB"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 588.8,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 4955.9,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 3995.3,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-block-root-empty",
+            "value": 256.7,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-block-root-single-tx",
+            "value": 25707.5,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 25714.4,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 183.4,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-root",
+            "value": 417.9,
+            "unit": "KB"
+          },
+          {
+            "name": "semaphore-depth-10",
+            "value": 636.3,
+            "unit": "KB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "aakoshh@gmail.com",
+            "name": "Akosh Farkash",
+            "username": "aakoshh"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "b21a44cd5fff5261025fb52e091a931ece8a9c91",
+          "message": "chore(fuzz): Remove unreachable functions in the AST fuzzer (#8782)",
+          "timestamp": "2025-06-03T19:24:56Z",
+          "tree_id": "b9be1dd803769cde2621155cf8d0960db76407ab",
+          "url": "https://github.com/noir-lang/noir/commit/b21a44cd5fff5261025fb52e091a931ece8a9c91"
+        },
+        "date": 1748980298108,
         "tool": "customSmallerIsBetter",
         "benches": [
           {
