@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1748955924902,
+  "lastUpdate": 1748956073105,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -10982,35 +10982,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "47281315+guipublic@users.noreply.github.com",
-            "name": "guipublic",
-            "username": "guipublic"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "2c2cf601adc744ef705e7ad5f5dd1f6f25e73534",
-          "message": "fix: disable underflow fix for fields (#8631)",
-          "timestamp": "2025-05-22T19:41:06Z",
-          "tree_id": "2e8c255c559970f016a0699d7211a4631aa59a2e",
-          "url": "https://github.com/noir-lang/noir/commit/2c2cf601adc744ef705e7ad5f5dd1f6f25e73534"
-        },
-        "date": 1747944751780,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "semaphore_depth_10",
-            "value": 92.93,
-            "unit": "MB"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "mvezenov@gmail.com",
             "name": "Maxim Vezenov",
             "username": "vezenovm"
@@ -14220,6 +14191,75 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/noir-lang/noir/commit/946e74d2608e89ca3bdbcdcf88695122235fd525"
         },
         "date": 1748955827397,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 202.02,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 225.76,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 177.16,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 489.94,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 423.45,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 1400,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 312.01,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-root",
+            "value": 317.7,
+            "unit": "MB"
+          },
+          {
+            "name": "semaphore_depth_10",
+            "value": 70.97,
+            "unit": "MB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "asterite@gmail.com",
+            "name": "Ary Borenszweig",
+            "username": "asterite"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "03796c06c7aff8f84865bb92e9ce00ef36e678ac",
+          "message": "chore(SSA): restrict `shr` and `shl` right-hand side to u8 (#8753)",
+          "timestamp": "2025-06-03T12:32:47Z",
+          "tree_id": "cd9c595b2df7b8e5f39a7a8664a3d8f7e44bd274",
+          "url": "https://github.com/noir-lang/noir/commit/03796c06c7aff8f84865bb92e9ce00ef36e678ac"
+        },
+        "date": 1748956062183,
         "tool": "customSmallerIsBetter",
         "benches": [
           {
