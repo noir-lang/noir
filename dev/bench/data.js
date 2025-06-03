@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1748955673393,
+  "lastUpdate": 1748955674532,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -3705,35 +3705,6 @@ window.BENCHMARK_DATA = {
       }
     ],
     "Compilation Time": [
-      {
-        "commit": {
-          "author": {
-            "email": "mvezenov@gmail.com",
-            "name": "Maxim Vezenov",
-            "username": "vezenovm"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "56770d0c6933d53c08d50eaa24a5ff5e7950cad3",
-          "message": "chore(ci): Do not run ast_fuzzer orig vs. morph in ci (#8646)",
-          "timestamp": "2025-05-22T20:42:24Z",
-          "tree_id": "746b2452283995eb0bfbca10e7b7a68d95f1e38e",
-          "url": "https://github.com/noir-lang/noir/commit/56770d0c6933d53c08d50eaa24a5ff5e7950cad3"
-        },
-        "date": 1747947924579,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "semaphore-depth-10",
-            "value": 0.839,
-            "unit": "s"
-          }
-        ]
-      },
       {
         "commit": {
           "author": {
@@ -7501,6 +7472,85 @@ window.BENCHMARK_DATA = {
           {
             "name": "semaphore-depth-10",
             "value": 0.806,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "asterite@gmail.com",
+            "name": "Ary Borenszweig",
+            "username": "asterite"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "03796c06c7aff8f84865bb92e9ce00ef36e678ac",
+          "message": "chore(SSA): restrict `shr` and `shl` right-hand side to u8 (#8753)",
+          "timestamp": "2025-06-03T12:32:47Z",
+          "tree_id": "cd9c595b2df7b8e5f39a7a8664a3d8f7e44bd274",
+          "url": "https://github.com/noir-lang/noir/commit/03796c06c7aff8f84865bb92e9ce00ef36e678ac"
+        },
+        "date": 1748955661405,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 2.532,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 7.514,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 1.096,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 15.82,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 13.62,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-empty",
+            "value": 1.288,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-single-tx",
+            "value": 131,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 128,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 1.122,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-root",
+            "value": 1.542,
+            "unit": "s"
+          },
+          {
+            "name": "semaphore-depth-10",
+            "value": 0.804,
             "unit": "s"
           }
         ]
