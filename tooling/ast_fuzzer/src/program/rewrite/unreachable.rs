@@ -1,4 +1,4 @@
-use std::collections::{BTreeSet, HashSet, VecDeque};
+use std::collections::{BTreeSet, VecDeque};
 
 use im::HashMap;
 use noirc_frontend::monomorphization::ast::{Definition, Expression, FuncId, Ident, Program};
@@ -15,7 +15,7 @@ pub(crate) fn remove_unreachable_functions(ctx: &mut Context) {
     }
     let reachable = find_reachable_functions(ctx);
 
-    // We have to re-assign function IDs, because in the `Program` t
+    // We have to re-assign function IDs, because in the `Program`
     // the ID of the function is expected to match its position.
     let remap = reachable
         .into_iter()
@@ -42,7 +42,7 @@ pub(crate) fn remove_unreachable_functions(ctx: &mut Context) {
         .filter_map(|(id, func)| remap.get(&id).map(|new_id| (*new_id, func)))
         .collect();
 
-    // Remap the old IDs to the new ones.
+    // Remap the old IDs to the new ones wherever the functions are referenced.
     for func in ctx.functions.values_mut() {
         visit_expr_mut(&mut func.body, &mut |expr| {
             if let Expression::Ident(Ident { definition: Definition::Function(id), .. }) = expr {
@@ -58,19 +58,16 @@ pub(crate) fn remove_unreachable_functions(ctx: &mut Context) {
 fn find_reachable_functions(ctx: &Context) -> BTreeSet<FuncId> {
     let mut reachable = BTreeSet::new();
     let mut queue = VecDeque::new();
-    let mut visited = HashSet::new();
 
     // Start from main.
     queue.push_back(Program::main_id());
 
     // Find all global functions referred to by their identifier.
     while let Some(id) = queue.pop_front() {
-        if !visited.insert(id) {
+        if !reachable.insert(id) {
             continue;
         }
         let func = &ctx.functions[&id];
-
-        reachable.insert(func.id);
 
         visit_expr(&func.body, &mut |expr| {
             // Regardless of whether it's in a `Call` or stored in a reference,
