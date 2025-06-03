@@ -1,6 +1,9 @@
-use std::{borrow::Cow, cell::RefCell, collections::BTreeSet, rc::Rc};
-
-use fxhash::FxHashMap as HashMap;
+use std::{
+    borrow::Cow,
+    cell::RefCell,
+    collections::{BTreeMap, BTreeSet},
+    rc::Rc,
+};
 
 #[cfg(test)]
 use proptest_derive::Arbitrary;
@@ -334,7 +337,7 @@ pub enum QuotedType {
 /// A list of (TypeVariableId, Kind)'s to bind to a type. Storing the
 /// TypeVariable in addition to the matching TypeVariableId allows
 /// the binding to later be undone if needed.
-pub type TypeBindings = HashMap<TypeVariableId, (TypeVariable, Kind, Type)>;
+pub type TypeBindings = BTreeMap<TypeVariableId, (TypeVariable, Kind, Type)>;
 
 /// Represents a struct or enum type in the type system. Each instance of this
 /// rust struct will be shared across all Type::DataType variants that represent
@@ -589,10 +592,7 @@ impl DataType {
         Some((name, args))
     }
 
-    fn get_fields_substitutions(
-        &self,
-        generic_args: &[Type],
-    ) -> HashMap<TypeVariableId, (TypeVariable, Kind, Type)> {
+    fn get_fields_substitutions(&self, generic_args: &[Type]) -> TypeBindings {
         assert_eq!(self.generics.len(), generic_args.len());
 
         self.generics
@@ -2352,7 +2352,7 @@ impl Type {
                 let instantiated = typ.force_substitute(&replacements);
                 (instantiated, replacements)
             }
-            other => (other.clone(), HashMap::default()),
+            other => (other.clone(), TypeBindings::default()),
         }
     }
 
@@ -2389,7 +2389,7 @@ impl Type {
                 let instantiated = typ.substitute(&replacements);
                 (instantiated, replacements)
             }
-            other => (other.clone(), HashMap::default()),
+            other => (other.clone(), TypeBindings::default()),
         }
     }
 
