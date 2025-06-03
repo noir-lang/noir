@@ -1,37 +1,8 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1748955674532,
+  "lastUpdate": 1748955831173,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
-      {
-        "commit": {
-          "author": {
-            "email": "asterite@gmail.com",
-            "name": "Ary Borenszweig",
-            "username": "asterite"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "973a76c3130708d11eaea7474e45e85dac831a8b",
-          "message": "fix: revert \"fix: error on unused generic in trait impl (#8395)\" (#8636)",
-          "timestamp": "2025-05-22T18:18:44Z",
-          "tree_id": "fb3a1194c134e2f1afea9fb07b789df7596207bb",
-          "url": "https://github.com/noir-lang/noir/commit/973a76c3130708d11eaea7474e45e85dac831a8b"
-        },
-        "date": 1747939756398,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "semaphore_depth_10",
-            "value": 128.37,
-            "unit": "MB"
-          }
-        ]
-      },
       {
         "commit": {
           "author": {
@@ -3674,6 +3645,85 @@ window.BENCHMARK_DATA = {
           {
             "name": "rollup-block-root-empty",
             "value": 342.96,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root-single-tx",
+            "value": 7150,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 7160,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 327.17,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-root",
+            "value": 381.46,
+            "unit": "MB"
+          },
+          {
+            "name": "semaphore_depth_10",
+            "value": 106.4,
+            "unit": "MB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "15848336+TomAFrench@users.noreply.github.com",
+            "name": "Tom French",
+            "username": "TomAFrench"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "946e74d2608e89ca3bdbcdcf88695122235fd525",
+          "message": "chore: bump some JS packages (#8771)",
+          "timestamp": "2025-06-03T12:30:38Z",
+          "tree_id": "a10dadbab6c7a1575e56a7a409fcecdd2c2d3382",
+          "url": "https://github.com/noir-lang/noir/commit/946e74d2608e89ca3bdbcdcf88695122235fd525"
+        },
+        "date": 1748955820652,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 292.98,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 533.91,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 192.81,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 1380,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 1540,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root-empty",
+            "value": 342.95,
             "unit": "MB"
           },
           {
