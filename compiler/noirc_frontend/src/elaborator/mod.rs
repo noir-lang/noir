@@ -2225,9 +2225,35 @@ impl<'context> Elaborator<'context> {
 
             let (trait_id, mut trait_generics, path_location) = match &trait_impl.r#trait.typ {
                 UnresolvedTypeData::Named(trait_path, trait_generics, _) => {
+                    let mut trait_generics = trait_generics.clone();
                     let location = trait_path.location;
                     let trait_path = self.validate_path(trait_path.clone());
                     let trait_id = self.resolve_trait_by_path(trait_path);
+
+                    // Check and remove and any generic that is specifying an associated item
+                    if !trait_generics.named_args.is_empty() {
+                        if let Some(trait_id) = trait_id {
+                            let associated_types =
+                                self.interner.get_trait(trait_id).associated_types.clone();
+                            trait_generics.named_args.retain(|(name, typ)| {
+                                let associated_type = associated_types.iter().find(|associated_type| {
+                                    associated_type.name.as_str() == name.as_str()
+                                });
+                                if associated_type.is_some() {
+                                    let location = name.location().merge(typ.location);
+                                    self.push_err(
+                                        ResolverError::AssociatedItemConstraintsNotAllowedInGenerics {
+                                            location,
+                                        },
+                                    );
+                                    false
+                                } else {
+                                    true
+                                }
+                            });
+                        }
+                    }
+
                     (trait_id, trait_generics.clone(), location)
                 }
                 UnresolvedTypeData::Resolved(quoted_type_id) => {
