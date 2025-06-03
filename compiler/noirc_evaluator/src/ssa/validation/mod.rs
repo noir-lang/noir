@@ -29,22 +29,6 @@ impl<'f> Validator<'f> {
         Self { function, signed_binary_op: None }
     }
 
-    fn start_function(&mut self) {
-        self.validate_single_return_block();
-        // Reset any state needed at start, if any
-        self.signed_binary_op = None;
-    }
-
-    fn visit_instruction(&mut self, instruction: InstructionId) {
-        self.validate_truncate_after_signed_sub(instruction);
-    }
-
-    fn finish_function(&mut self) {
-        if self.signed_binary_op.is_some() {
-            panic!("ICE: Truncate must follow the result of a checked signed add/sub");
-        }
-    }
-
     /// Validates that any checked signed add/sub is followed by the expected truncate.
     fn validate_truncate_after_signed_sub(&mut self, instruction: InstructionId) {
         let dfg = &self.function.dfg;
@@ -108,23 +92,28 @@ impl<'f> Validator<'f> {
             panic!("Function {} has multiple return blocks {return_blocks:?}", self.function.id())
         }
     }
+
+    fn run(&self) {
+        self.validate_single_return_block();
+
+        for block in self.function.reachable_blocks() {
+            for instruction in self.function.dfg[block].instructions() {
+                self.validate_truncate_after_signed_sub(*instruction);
+            }
+        }
+
+        if self.signed_binary_op.is_some() {
+            panic!("ICE: Truncate must follow the result of a checked signed add/sub");
+        }
+    }
 }
 
 /// Validates that the [Function] is well formed.
 ///
 /// Panics on malformed functions.
 pub(crate) fn validate_function(function: &Function) {
-    let mut validator = Validator::new(function);
-
-    validator.start_function();
-
-    for block in function.reachable_blocks() {
-        for instruction in function.dfg[block].instructions() {
-            validator.visit_instruction(*instruction);
-        }
-    }
-
-    validator.finish_function();
+    let validator = Validator::new(function);
+    validator.run();
 }
 
 #[cfg(test)]
