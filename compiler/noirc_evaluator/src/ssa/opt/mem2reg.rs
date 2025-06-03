@@ -1235,4 +1235,41 @@ mod tests {
         // We expect the program to be unchanged
         assert_normalized_ssa_equals(ssa, src);
     }
+
+    #[test]
+    fn keep_last_store_in_make_array() {
+        let src = r"
+        brillig(inline) fn main f0 {
+          b0():
+            v0 = allocate -> &mut u1
+            store u1 1 at v0
+            v2 = make_array [v0] : [&mut u1; 1]
+            v3 = allocate -> &mut [&mut u1; 1]
+            store v2 at v3
+            v4 = allocate -> &mut u32
+            store u32 0 at v4
+            jmp b1()
+          b1():
+            v6 = load v3 -> [&mut u1; 1]
+            v7 = array_get v6, index u32 0 -> &mut u1
+            v8 = load v7 -> u1
+            jmpif v8 then: b2, else: b3
+          b2():
+            v9 = load v4 -> u32
+            v10 = eq v9, u32 0
+            jmpif v10 then: b4, else: b5
+          b3():
+            return
+          b4():
+            jmp b3()
+          b5():
+            jmp b1()
+        }
+        ";
+        let ssa = Ssa::from_str(src).unwrap();
+
+        let ssa = ssa.mem2reg();
+        // We expect the program to be unchanged
+        assert_normalized_ssa_equals(ssa, src);
+    }
 }
