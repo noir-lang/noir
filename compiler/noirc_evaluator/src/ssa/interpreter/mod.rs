@@ -20,7 +20,7 @@ use value::{ArrayValue, NumericValue, ReferenceValue};
 
 pub mod errors;
 mod intrinsics;
-mod tests;
+pub mod tests;
 pub mod value;
 
 use value::Value;
@@ -59,7 +59,7 @@ impl CallContext {
 }
 
 type IResult<T> = Result<T, InterpreterError>;
-type IResults = IResult<Vec<Value>>;
+pub type IResults = IResult<Vec<Value>>;
 
 #[allow(unused)]
 impl Ssa {

@@ -41,7 +41,6 @@ use noirc_frontend::monomorphization::ast::InlineType;
 
 use crate::ssa::{
     function_builder::FunctionBuilder,
-    interpreter::tests::expect_value_with_args,
     ir::{
         basic_block::BasicBlockId,
         function::{Function, FunctionId, RuntimeType, Signature},
@@ -647,6 +646,11 @@ fn replacement_type(typ: &Type) -> Type {
 
 #[cfg(test)]
 mod tests {
+    use crate::ssa::interpreter::{
+        IResults,
+        tests::expect_value_with_args,
+        value::{NumericValue, Value},
+    };
     use crate::{assert_ssa_snapshot, ssa::ir::function::FunctionId};
 
     use super::Ssa;
@@ -902,21 +906,15 @@ mod tests {
         );
     }
 
-    // TODO
-    // Test from SSA fuzzing (TODO)
-    // Note: the '4' represents which passes were enabled by the ssa_afl_fuzzer
-    // TODO: attempt to run interpreter on this case and/or compare/reproduce with ssa_afl_fuzzer
+    // This test shows that the following SSA returns a `NumericValue::Field` before
+    // `defunctionalize` is run, but returns a `FunctionId` after defunctionalize,
+    // when interpreted.
     //
-    // When fuzzing, it was panicking with:
-    // thread 'main' panicked at tooling/ssa_afl_fuzzer/src/main.rs:57:25:
-    // assertion `left == right` failed
-    //   left: [Function(Id(1))]
-    //  right: [Numeric(Field(1))]
-    // note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+    // Note that the ACIR 'main' fn returns a function
+    // (expected to be disallowed by the frontend).
     #[test]
-    fn todo_some_sort_of_interpreter_vs_pass_error_maybe() {
+    fn interpret_acir_returning_fn() {
         let src = "
-          // 4
           acir(inline) fn main f0 {
             b0():
               call f1()
@@ -928,17 +926,20 @@ mod tests {
           }
         ";
 
-        let defunctionalise_ssa = Ssa::from_str(src).unwrap();
-        let defunctionalise_ssa = ssa.defunctionalize();
+        let defunctionalize_ssa = Ssa::from_str(src).unwrap();
+        let defunctionalize_ssa = defunctionalize_ssa.defunctionalize();
+        let defunctionalize_results = defunctionalize_ssa.interpret(vec![]);
 
-        let defunctionalize_results = ssa.interpret(vec![]);
+        let interpreter_return_values = expect_value_with_args(src, vec![]);
 
-        let interpreter_return_values = expect_value_with_args(src);
+        let expected_interpreter_return_values = Value::Function(FunctionId::test_new(1));
+        let expected_defunctionalize_results: IResults =
+            Ok(vec![Value::Numeric(NumericValue::Field(1u128.into()))]);
 
-        dbg!(defunctionalize_results, interpreter_return_values);
-        panic!("TODO: check result differences");
+        assert_eq!(defunctionalize_results, expected_defunctionalize_results);
+        assert_eq!(interpreter_return_values, expected_interpreter_return_values);
 
-        assert_ssa_snapshot!(ssa, @r"
+        assert_ssa_snapshot!(defunctionalize_ssa, @r"
           acir(inline) fn main f0 {
             b0():
               call f1()
@@ -951,9 +952,8 @@ mod tests {
         ");
     }
 
-
     // Test from SSA fuzzing to check behavior of 'defunctionalize' pass on
-    // an ACIR 'main' fn that accepts and returns a function parameter 
+    // an ACIR 'main' fn that accepts and returns a function parameter
     // (expected to be disallowed by the frontend).
     //
     // When fuzzing, it was panicking with:
