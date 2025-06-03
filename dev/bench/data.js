@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1748959896719,
+  "lastUpdate": 1748959904383,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -20213,35 +20213,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "mvezenov@gmail.com",
-            "name": "Maxim Vezenov",
-            "username": "vezenovm"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "d3cb2b2ff4025f681cc645b75aa28aa4788dc9b5",
-          "message": "chore(defunctionalize): Add regression test for missing lambda variants panic  (#8642)",
-          "timestamp": "2025-05-22T21:23:20Z",
-          "tree_id": "82d945ab941855ad9154c623022574345ebb2353",
-          "url": "https://github.com/noir-lang/noir/commit/d3cb2b2ff4025f681cc645b75aa28aa4788dc9b5"
-        },
-        "date": 1747950384439,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "semaphore-depth-10",
-            "value": 636.3,
-            "unit": "KB"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "asterite@gmail.com",
             "name": "Ary Borenszweig",
             "username": "asterite"
@@ -24001,6 +23972,85 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/noir-lang/noir/commit/03796c06c7aff8f84865bb92e9ce00ef36e678ac"
         },
         "date": 1748955660250,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 1133,
+            "unit": "KB"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 2064.4,
+            "unit": "KB"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 588.8,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 4955.9,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 3995.3,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-block-root-empty",
+            "value": 256.7,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-block-root-single-tx",
+            "value": 25707.5,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 25714.4,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 183.4,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-root",
+            "value": 417.9,
+            "unit": "KB"
+          },
+          {
+            "name": "semaphore-depth-10",
+            "value": 636.3,
+            "unit": "KB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "jfecher11@gmail.com",
+            "name": "jfecher",
+            "username": "jfecher"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "4f8e76776575be2ed8ab1939bb2c736332b25d45",
+          "message": "fix: Fix comptime casts of negative integer to field (#8696)",
+          "timestamp": "2025-06-03T13:41:54Z",
+          "tree_id": "cf538e107a05848db87d7030275c4701d07e0725",
+          "url": "https://github.com/noir-lang/noir/commit/4f8e76776575be2ed8ab1939bb2c736332b25d45"
+        },
+        "date": 1748959893598,
         "tool": "customSmallerIsBetter",
         "benches": [
           {
