@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1748963931280,
+  "lastUpdate": 1748964394881,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -20558,85 +20558,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "aakoshh@gmail.com",
-            "name": "Akosh Farkash",
-            "username": "aakoshh"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "4e352874a4199c95cc69e201a32af2fd04ffd51c",
-          "message": "chore(fuzz): Build the dictionary from the SSA (#8591)",
-          "timestamp": "2025-05-23T15:20:55Z",
-          "tree_id": "22be88bd8f9d5a3c9d6b89b6f8329d87012c7b5e",
-          "url": "https://github.com/noir-lang/noir/commit/4e352874a4199c95cc69e201a32af2fd04ffd51c"
-        },
-        "date": 1748015231072,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 1130,
-            "unit": "KB"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 2051,
-            "unit": "KB"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 583.9,
-            "unit": "KB"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 5130.1,
-            "unit": "KB"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 4067.2,
-            "unit": "KB"
-          },
-          {
-            "name": "rollup-block-root-empty",
-            "value": 256.7,
-            "unit": "KB"
-          },
-          {
-            "name": "rollup-block-root-single-tx",
-            "value": 25697.4,
-            "unit": "KB"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 25720.7,
-            "unit": "KB"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 181.6,
-            "unit": "KB"
-          },
-          {
-            "name": "rollup-root",
-            "value": 478.9,
-            "unit": "KB"
-          },
-          {
-            "name": "semaphore-depth-10",
-            "value": 636.3,
-            "unit": "KB"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "asterite@gmail.com",
             "name": "Ary Borenszweig",
             "username": "asterite"
@@ -24446,6 +24367,85 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/noir-lang/noir/commit/66a69fafe88832ceca1a02ca7e1caeca3fb6aea3"
         },
         "date": 1748963918360,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 1133,
+            "unit": "KB"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 2064.4,
+            "unit": "KB"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 588.8,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 4955.9,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 3995.3,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-block-root-empty",
+            "value": 256.7,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-block-root-single-tx",
+            "value": 25707.5,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 25714.4,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 183.4,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-root",
+            "value": 417.9,
+            "unit": "KB"
+          },
+          {
+            "name": "semaphore-depth-10",
+            "value": 636.3,
+            "unit": "KB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "aakoshh@gmail.com",
+            "name": "Akosh Farkash",
+            "username": "aakoshh"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "a61aaedcf7e4e455dd7d4f6099bb6dbe02040569",
+          "message": "fix: Create SSA interpreter arguments from scratch for each invocation (#8762)",
+          "timestamp": "2025-06-03T14:54:27Z",
+          "tree_id": "28dbaa030935fd6cc9ccdc2cf52fa1e4d917d388",
+          "url": "https://github.com/noir-lang/noir/commit/a61aaedcf7e4e455dd7d4f6099bb6dbe02040569"
+        },
+        "date": 1748964384119,
         "tool": "customSmallerIsBetter",
         "benches": [
           {
