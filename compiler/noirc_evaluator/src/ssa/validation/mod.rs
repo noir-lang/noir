@@ -1,16 +1,24 @@
 //! Validator that checks whether a function is well formed.
 //!
 //! It validates:
+//!
+//! SSA form
+//!
 //! - That the function contains exactly one return block.
-/// - That every checked signed addition or subtraction instruction is
-///   followed by a corresponding truncate instruction with the expected bit sizes.
+//! - That every checked signed addition or subtraction instruction is
+//!   followed by a corresponding truncate instruction with the expected bit sizes.
+//!
+//! Type checking
+//! - Check that the input values of certain instructions matches that instruction's constraint
+//!   At the moment, only [Instruction::Binary], [Instruction::ArrayGet], and [Instruction::ArraySet]
+//!   are type checked.
 use fxhash::FxHashSet as HashSet;
 
 use crate::ssa::ir::instruction::TerminatorInstruction;
 
 use super::ir::{
     function::Function,
-    instruction::{BinaryOp, Instruction, InstructionId},
+    instruction::{Binary, BinaryOp, Instruction, InstructionId},
     types::{NumericType, Type},
     value::ValueId,
 };
@@ -93,12 +101,64 @@ impl<'f> Validator<'f> {
         }
     }
 
-    fn run(&self) {
+    /// Validates that the instruction has the expected types associated with the values in each instruction
+    fn type_check_instruction(&self, instruction: InstructionId) {
+        let dfg = &self.function.dfg;
+        match &dfg[instruction] {
+            Instruction::Binary(Binary { lhs, rhs, operator }) => {
+                let lhs_type = dfg.type_of_value(*lhs);
+                let rhs_type = dfg.type_of_value(*rhs);
+                match operator {
+                    BinaryOp::Lt => {
+                        if lhs_type != rhs_type {
+                            panic!(
+                                "Left-hand side and right-hand side of `lt` must have the same type"
+                            );
+                        }
+
+                        if matches!(lhs_type, Type::Numeric(NumericType::NativeField)) {
+                            panic!("Cannot use `lt` with field elements");
+                        }
+                    }
+                    BinaryOp::Shl => {
+                        if !matches!(rhs_type, Type::Numeric(NumericType::Unsigned { bit_size: 8 }))
+                        {
+                            panic!("Right-hand side of `shl` must be u8");
+                        }
+                    }
+                    BinaryOp::Shr => {
+                        if !matches!(rhs_type, Type::Numeric(NumericType::Unsigned { bit_size: 8 }))
+                        {
+                            panic!("Right-hand side of `shr` must be u8");
+                        }
+                    }
+                    _ => {
+                        if lhs_type != rhs_type {
+                            panic!(
+                                "Left-hand side and right-hand side of `{}` must have the same type",
+                                operator
+                            );
+                        }
+                    }
+                }
+            }
+            Instruction::ArrayGet { index, .. } | Instruction::ArraySet { index, .. } => {
+                let index_type = dfg.type_of_value(*index);
+                if !matches!(index_type, Type::Numeric(NumericType::Unsigned { bit_size: 32 })) {
+                    panic!("ArrayGet/ArraySet index must be u32");
+                }
+            }
+            _ => (),
+        }
+    }
+
+    fn run(&mut self) {
         self.validate_single_return_block();
 
         for block in self.function.reachable_blocks() {
             for instruction in self.function.dfg[block].instructions() {
                 self.validate_truncate_after_signed_sub(*instruction);
+                self.type_check_instruction(*instruction);
             }
         }
 
@@ -112,7 +172,7 @@ impl<'f> Validator<'f> {
 ///
 /// Panics on malformed functions.
 pub(crate) fn validate_function(function: &Function) {
-    let validator = Validator::new(function);
+    let mut validator = Validator::new(function);
     validator.run();
 }
 
@@ -264,6 +324,60 @@ mod tests {
         }
         ";
 
+        let _ = Ssa::from_str(src);
+    }
+
+    #[test]
+    #[should_panic(expected = "Cannot use `lt` with field elements")]
+    fn disallows_comparing_fields_with_lt() {
+        let src = "
+        acir(inline) impure fn main f0 {
+          b0():
+            v2 = lt Field 1, Field 2
+            return
+        }
+        ";
+        let _ = Ssa::from_str(src);
+    }
+
+    #[test]
+    #[should_panic(
+        expected = "Left-hand side and right-hand side of `add` must have the same type"
+    )]
+    fn disallows_binary_add_with_different_types() {
+        let src = "
+        acir(inline) fn main f0 {
+          b0():
+            v2 = add Field 1, i32 2
+            return
+        }
+        ";
+        let _ = Ssa::from_str(src);
+    }
+
+    #[test]
+    #[should_panic(expected = "Right-hand side of `shr` must be u8")]
+    fn disallows_shr_with_non_u8() {
+        let src = "
+        acir(inline) fn main f0 {
+          b0():
+            v2 = shr u32 1, u16 1
+            return
+        }
+        ";
+        let _ = Ssa::from_str(src);
+    }
+
+    #[test]
+    #[should_panic(expected = "Right-hand side of `shl` must be u8")]
+    fn disallows_shl_with_non_u8() {
+        let src = "
+        acir(inline) fn main f0 {
+          b0():
+            v2 = shl u32 1, u16 1
+            return
+        }
+        ";
         let _ = Ssa::from_str(src);
     }
 }
