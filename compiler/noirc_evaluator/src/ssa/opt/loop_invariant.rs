@@ -1403,37 +1403,37 @@ mod test {
         // uses a checked add in `b3`.
         let src = "
         brillig(inline) fn main f0 {
-          b0(v0: i32, v1: i32):
-              jmp b1(i32 0)
-          b1(v2: i32):
-              v5 = lt v2, i32 4
+          b0(v0: u32, v1: u32):
+              jmp b1(u32 0)
+          b1(v2: u32):
+              v5 = lt v2, u32 4
               jmpif v5 then: b3, else: b2
           b2():
               return
           b3():
               v6 = mul v0, v1
-              constrain v6 == i32 6
-              v8 = add v2, i32 1
+              constrain v6 == u32 6
+              v8 = add v2, u32 1
               jmp b1(v8)
         }
         ";
 
         let ssa = Ssa::from_str(src).unwrap();
 
-        // `v8 = add v2, i32 1` in b3 should now be `v9 = unchecked_add v2, i32 1` in b3
+        // `v8 = add v2, u32 1` in b3 should now be `v9 = unchecked_add v2, u32 1` in b3
         let expected = "
         brillig(inline) fn main f0 {
-          b0(v0: i32, v1: i32):
+          b0(v0: u32, v1: u32):
             v3 = mul v0, v1
-            constrain v3 == i32 6
-            jmp b1(i32 0)
-          b1(v2: i32):
-            v7 = lt v2, i32 4
+            constrain v3 == u32 6
+            jmp b1(u32 0)
+          b1(v2: u32):
+            v7 = lt v2, u32 4
             jmpif v7 then: b3, else: b2
           b2():
             return
           b3():
-            v9 = unchecked_add v2, i32 1
+            v9 = unchecked_add v2, u32 1
             jmp b1(v9)
         }
         ";

@@ -676,10 +676,10 @@ fn expression_kind_with_file(kind: ExpressionKind, file: FileId) -> ExpressionKi
             })
         }
         ExpressionKind::AsTraitPath(as_trait_path) => {
-            ExpressionKind::AsTraitPath(as_trait_path_with_file(as_trait_path, file))
+            ExpressionKind::AsTraitPath(Box::new(as_trait_path_with_file(*as_trait_path, file)))
         }
         ExpressionKind::TypePath(type_path) => {
-            ExpressionKind::TypePath(type_path_with_file(type_path, file))
+            ExpressionKind::TypePath(Box::new(type_path_with_file(*type_path, file)))
         }
         ExpressionKind::Resolved(..)
         | ExpressionKind::Interned(..)

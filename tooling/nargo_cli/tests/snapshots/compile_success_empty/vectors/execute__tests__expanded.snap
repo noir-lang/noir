@@ -2,7 +2,7 @@
 source: tooling/nargo_cli/tests/execute.rs
 expression: expanded_code
 ---
-use std::prelude::Vec;
+use std::collections::vec::Vec;
 
 fn main(x: Field, y: pub Field) {
     let mut vector: Vec<u32> = Vec::new();

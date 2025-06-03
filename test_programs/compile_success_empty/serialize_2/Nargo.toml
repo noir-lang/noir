@@ -1,5 +1,5 @@
 [package]
-name = "serialize"
+name = "serialize_2"
 type = "bin"
 authors = [""]
 compiler_version = ">=0.32.0"

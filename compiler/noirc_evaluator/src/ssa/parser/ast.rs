@@ -155,6 +155,7 @@ pub(crate) enum ParsedInstruction {
     RangeCheck {
         value: ParsedValue,
         max_bit_size: u32,
+        assert_message: Option<String>,
     },
     Store {
         value: ParsedValue,

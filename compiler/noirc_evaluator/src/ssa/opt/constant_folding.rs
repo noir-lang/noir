@@ -1368,7 +1368,7 @@ mod test {
                 v2 = lt u32 1000, v0
                 jmpif v2 then: b1, else: b2
               b1():
-                v4 = shl v0, u32 1
+                v4 = shl v0, u8 1
                 v5 = lt v0, v4
                 constrain v5 == u1 1
                 jmp b2()
@@ -1376,7 +1376,7 @@ mod test {
                 v7 = lt u32 1000, v0
                 jmpif v7 then: b3, else: b4
               b3():
-                v8 = shl v0, u32 1
+                v8 = shl v0, u8 1
                 v9 = lt v0, v8
                 constrain v9 == u1 1
                 jmp b4()
@@ -1395,10 +1395,10 @@ mod test {
         brillig(inline) fn main f0 {
           b0(v0: u32):
             v2 = lt u32 1000, v0
-            v4 = shl v0, u32 1
+            v4 = shl v0, u8 1
             jmpif v2 then: b1, else: b2
           b1():
-            v5 = shl v0, u32 1
+            v5 = shl v0, u8 1
             v6 = lt v0, v5
             constrain v6 == u1 1
             jmp b2()
@@ -1482,7 +1482,8 @@ mod test {
             brillig(inline) fn one f1 {
               b0(v0: i32, v1: i32):
                 v2 = add v0, v1
-                return v2
+                v3 = truncate v2 to 32 bits, max_bit_size: 33
+                return v3
             }
             ";
         let ssa = Ssa::from_str(src).unwrap();

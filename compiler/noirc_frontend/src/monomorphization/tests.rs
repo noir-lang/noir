@@ -130,7 +130,7 @@ fn simple_closure_with_no_captured_variables() {
             tmp$l5.1(tmp$l5.0)
         }
     }
-    fn lambda$f1(mut env$l2: (Field)) -> Field {
+    fn lambda$f1(mut env$l2: (Field,)) -> Field {
         env$l2.0
     }
     ");

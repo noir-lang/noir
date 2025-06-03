@@ -1,4 +1,5 @@
 use std::{
+    cell::RefCell,
     collections::{BTreeMap, BTreeSet},
     rc::Rc,
 };
@@ -122,6 +123,7 @@ pub struct Elaborator<'context> {
     pub(crate) def_maps: &'context mut DefMaps,
     pub(crate) usage_tracker: &'context mut UsageTracker,
     pub(crate) crate_graph: &'context CrateGraph,
+    pub(crate) interpreter_output: &'context Option<Rc<RefCell<dyn std::io::Write>>>,
 
     unsafe_block_status: UnsafeBlockStatus,
     current_loop: Option<Loop>,
@@ -272,6 +274,7 @@ impl<'context> Elaborator<'context> {
         def_maps: &'context mut DefMaps,
         usage_tracker: &'context mut UsageTracker,
         crate_graph: &'context CrateGraph,
+        interpreter_output: &'context Option<Rc<RefCell<dyn std::io::Write>>>,
         crate_id: CrateId,
         interpreter_call_stack: im::Vector<Location>,
         options: ElaboratorOptions<'context>,
@@ -284,6 +287,7 @@ impl<'context> Elaborator<'context> {
             def_maps,
             usage_tracker,
             crate_graph,
+            interpreter_output,
             unsafe_block_status: UnsafeBlockStatus::NotInUnsafeBlock,
             current_loop: None,
             generics: Vec::new(),
@@ -316,6 +320,7 @@ impl<'context> Elaborator<'context> {
             &mut context.def_maps,
             &mut context.usage_tracker,
             &context.crate_graph,
+            &context.interpreter_output,
             crate_id,
             im::Vector::new(),
             options,
@@ -2187,9 +2192,35 @@ impl<'context> Elaborator<'context> {
 
             let (trait_id, mut trait_generics, path_location) = match &trait_impl.r#trait.typ {
                 UnresolvedTypeData::Named(trait_path, trait_generics, _) => {
+                    let mut trait_generics = trait_generics.clone();
                     let location = trait_path.location;
                     let trait_path = self.validate_path(trait_path.clone());
                     let trait_id = self.resolve_trait_by_path(trait_path);
+
+                    // Check and remove and any generic that is specifying an associated item
+                    if !trait_generics.named_args.is_empty() {
+                        if let Some(trait_id) = trait_id {
+                            let associated_types =
+                                self.interner.get_trait(trait_id).associated_types.clone();
+                            trait_generics.named_args.retain(|(name, typ)| {
+                                let associated_type = associated_types.iter().find(|associated_type| {
+                                    associated_type.name.as_str() == name.as_str()
+                                });
+                                if associated_type.is_some() {
+                                    let location = name.location().merge(typ.location);
+                                    self.push_err(
+                                        ResolverError::AssociatedItemConstraintsNotAllowedInGenerics {
+                                            location,
+                                        },
+                                    );
+                                    false
+                                } else {
+                                    true
+                                }
+                            });
+                        }
+                    }
+
                     (trait_id, trait_generics.clone(), location)
                 }
                 UnresolvedTypeData::Resolved(quoted_type_id) => {

@@ -16,7 +16,9 @@ pub use compiled::{
     CompareArtifact, CompareCompiled, CompareCompiledResult, CompareMorph, ComparePipelines,
 };
 pub use comptime::CompareComptime;
-pub use interpreted::{CompareInterpreted, CompareInterpretedResult, ComparePass};
+pub use interpreted::{
+    CompareInterpreted, CompareInterpretedResult, ComparePass, input_values_to_ssa,
+};
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct ExecOutput<T> {
