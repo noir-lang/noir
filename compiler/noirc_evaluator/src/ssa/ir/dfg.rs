@@ -901,10 +901,7 @@ impl std::ops::Index<usize> for InsertInstructionResult<'_> {
 #[cfg(test)]
 mod tests {
     use super::DataFlowGraph;
-    use crate::ssa::{
-        ir::{instruction::Instruction, types::Type},
-        ssa_gen::Ssa,
-    };
+    use crate::ssa::{ir::instruction::Instruction, types::Type};
 
     #[test]
     fn make_instruction() {
