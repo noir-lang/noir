@@ -186,7 +186,7 @@ impl<'f> PerFunctionContext<'f> {
             let terminator = self.inserter.function.dfg[*block_id].unwrap_terminator();
             terminator.for_each_value(|value| all_terminator_values.insert(value));
         }
-
+        
         // If we never load from an address within a function we can remove all stores to that address.
         // This rule does not apply to reference parameters, which we must also check for before removing these stores.
         for (_, block) in self.blocks.iter() {
@@ -258,6 +258,7 @@ impl<'f> PerFunctionContext<'f> {
                         false
                     }
                 });
+
                 if all_aliases_set_for_removal == Some(true) {
                     return true;
                 }
@@ -545,9 +546,9 @@ impl<'f> PerFunctionContext<'f> {
                     references.expressions.insert(array, expr.clone());
                     let aliases = references.aliases.entry(expr).or_insert(AliasSet::known_empty());
 
-                    for element in elements {
+                    let elements = elements.iter().map(|value| *value).collect::<Vec<_>>();
+                    for element in elements.iter() {
                         aliases.insert(*element);
-                        self.instruction_input_references.insert(*element);
                     }
                 }
             }
@@ -1237,7 +1238,7 @@ mod tests {
         // This checks that when an array containing references is used in a call
         // that we do not remove the original stores to those internal references
         let src = r"
-        acir(inline) pure fn main f0 {
+        brillig(inline) fn main f0 {
           b0():
             v0 = allocate -> &mut Field
             store Field 1 at v0
