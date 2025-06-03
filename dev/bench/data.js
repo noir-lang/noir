@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1748959398763,
+  "lastUpdate": 1748959892638,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -3805,35 +3805,6 @@ window.BENCHMARK_DATA = {
       }
     ],
     "Compilation Time": [
-      {
-        "commit": {
-          "author": {
-            "email": "mvezenov@gmail.com",
-            "name": "Maxim Vezenov",
-            "username": "vezenovm"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "d3cb2b2ff4025f681cc645b75aa28aa4788dc9b5",
-          "message": "chore(defunctionalize): Add regression test for missing lambda variants panic  (#8642)",
-          "timestamp": "2025-05-22T21:23:20Z",
-          "tree_id": "82d945ab941855ad9154c623022574345ebb2353",
-          "url": "https://github.com/noir-lang/noir/commit/d3cb2b2ff4025f681cc645b75aa28aa4788dc9b5"
-        },
-        "date": 1747950383154,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "semaphore-depth-10",
-            "value": 0.842,
-            "unit": "s"
-          }
-        ]
-      },
       {
         "commit": {
           "author": {
@@ -7651,6 +7622,85 @@ window.BENCHMARK_DATA = {
           {
             "name": "semaphore-depth-10",
             "value": 0.804,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "jfecher11@gmail.com",
+            "name": "jfecher",
+            "username": "jfecher"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "4f8e76776575be2ed8ab1939bb2c736332b25d45",
+          "message": "fix: Fix comptime casts of negative integer to field (#8696)",
+          "timestamp": "2025-06-03T13:41:54Z",
+          "tree_id": "cf538e107a05848db87d7030275c4701d07e0725",
+          "url": "https://github.com/noir-lang/noir/commit/4f8e76776575be2ed8ab1939bb2c736332b25d45"
+        },
+        "date": 1748959882090,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 2.598,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 7.638,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 1.134,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 15.64,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 13.7,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-empty",
+            "value": 1.286,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-single-tx",
+            "value": 126,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 130,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 1.094,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-root",
+            "value": 1.622,
+            "unit": "s"
+          },
+          {
+            "name": "semaphore-depth-10",
+            "value": 0.8,
             "unit": "s"
           }
         ]
