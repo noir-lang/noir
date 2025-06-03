@@ -1448,7 +1448,8 @@
 <a href="#1447" id="1447">1447</a>
 <a href="#1448" id="1448">1448</a>
 <a href="#1449" id="1449">1449</a>
-<a href="#1450" id="1450">1450</a></pre></div><pre class="rust"><code><span class="kw">use </span>acvm::{AcirField, FieldElement};
+<a href="#1450" id="1450">1450</a>
+<a href="#1451" id="1451">1451</a></pre></div><pre class="rust"><code><span class="kw">use </span>acvm::{AcirField, FieldElement};
 <span class="kw">use </span>iter_extended::vecmap;
 <span class="kw">use </span>noirc_errors::{Located, Location};
 <span class="kw">use </span>rustc_hash::FxHashSet <span class="kw">as </span>HashSet;
@@ -1616,9 +1617,7 @@
             <span class="kw">let </span>(id, stmt_type) =
                 <span class="self">self</span>.elaborate_statement_with_target_type(statement, statement_target_type);
 
-            <span class="kw">if </span>break_or_continue_location.is_none() {
-                statements.push(id);
-            }
+            statements.push(id);
 
             <span class="kw">let </span>stmt = <span class="self">self</span>.interner.statement(<span class="kw-2">&amp;</span>id);
 
@@ -1632,6 +1631,8 @@
                 });
             }
 
+            <span class="kw">let </span>is_break_or_continue = <span class="macro">matches!</span>(stmt, HirStatement::Break | HirStatement::Continue);
+
             <span class="kw">if let </span><span class="prelude-val">Some</span>(break_or_continue_location) = break_or_continue_location {
                 <span class="kw">if </span>!errored_unreachable {
                     <span class="self">self</span>.push_err(ResolverError::UnreachableStatement {
@@ -1640,11 +1641,12 @@
                     });
                     errored_unreachable = <span class="bool-val">true</span>;
                 }
-            } <span class="kw">else if </span><span class="macro">matches!</span>(stmt, HirStatement::Break | HirStatement::Continue) {
+            } <span class="kw">else if </span>is_break_or_continue {
                 break_or_continue_location = <span class="prelude-val">Some</span>(location);
-                block_type = stmt_type;
-            } <span class="kw">else if </span>i + <span class="number">1 </span>== statements.len() {
-                block_type = stmt_type;
+            }
+
+            <span class="kw">if </span>i + <span class="number">1 </span>== statements.len() {
+                block_type = <span class="kw">if </span>is_break_or_continue { Type::Unit } <span class="kw">else </span>{ stmt_type };
             }
         }
 
