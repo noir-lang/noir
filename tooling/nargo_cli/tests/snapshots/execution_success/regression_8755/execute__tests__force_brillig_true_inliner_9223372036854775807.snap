@@ -37,7 +37,11 @@ expression: artifact
   "debug_symbols": "tZPBjoMgEIbfhTMHGBRLX6VpGmppQ0LQUN1kY3z3HR3Z2oObjZu98Inw/RMmmYHd3LV/XHy8N092PA3smnwI/nEJTW0730T8OzAxLbJgR8mZLAmaUBEOBDMDBEESgKAIlAKUApQClAKYohBmhhIETCkQQFAETUCv5KwQBLypEUBQhIJQElCoEFjogDAzSkGQBNQNAnUzjpzlRly65NzUh1VnsF+tTS527Bj7EDj7sKGfLz1bG2d2NuGp4MzFGxID7z646WvkL1tsqzq7Urzs8td6ob51taXDv+nSVNk3hx0+ACw+KNjjG7n4art7P/gK8vuV3lNfaZ396o/1q/f6Z9zZ2qe3QR2npOTtNbhle+9jvTrtPtt8kge9TU3tbn1yU9Jq2nE9lZpreca5xtE4aeC6OI9T6S8=",
   "file_map": {
     "50": {
+<<<<<<< HEAD
       "source": "unconstrained fn main() -> pub Field {\n    func_2([(0, &mut -292434322542114415011969994633470574393)])\n}\nunconstrained fn func_2(mut b: [(u32, &mut Field); 1]) -> Field {\n    let mut idx_e: u32 = 0;\n    loop {\n        if idx_e == 1 {\n            break;\n        } else {\n            idx_e = idx_e + 1;\n        }\n    }\n    (157653526363045079447323020681982670581 / *b[0].1)\n}\n",
+=======
+      "source": "unconstrained fn main() -> pub Field {\n    func_2([(0, &mut -292434322542114415011969994633470574393)])\n}\nunconstrained fn func_2(mut b: [(u32, &mut Field); 1]) -> Field {\n    let mut idx_e: u32 = 0;\n    loop {\n        if idx_e == 1 {\n            break;\n        } else {\n            idx_e = idx_e + 1;\n        }\n    }\n    (157653526363045079447323020681982670581 / *b[0].1)\n}\n\n",
+>>>>>>> bf2153b191 (snaps)
       "path": ""
     }
   },
