@@ -1,37 +1,8 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1748960881892,
+  "lastUpdate": 1748960883962,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
-      {
-        "commit": {
-          "author": {
-            "email": "mvezenov@gmail.com",
-            "name": "Maxim Vezenov",
-            "username": "vezenovm"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "d3cb2b2ff4025f681cc645b75aa28aa4788dc9b5",
-          "message": "chore(defunctionalize): Add regression test for missing lambda variants panic  (#8642)",
-          "timestamp": "2025-05-22T21:23:20Z",
-          "tree_id": "82d945ab941855ad9154c623022574345ebb2353",
-          "url": "https://github.com/noir-lang/noir/commit/d3cb2b2ff4025f681cc645b75aa28aa4788dc9b5"
-        },
-        "date": 1747950442401,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "semaphore_depth_10",
-            "value": 128.37,
-            "unit": "MB"
-          }
-        ]
-      },
       {
         "commit": {
           "author": {
@@ -3844,6 +3815,85 @@ window.BENCHMARK_DATA = {
           {
             "name": "rollup-root",
             "value": 381.47,
+            "unit": "MB"
+          },
+          {
+            "name": "semaphore_depth_10",
+            "value": 106.4,
+            "unit": "MB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "asterite@gmail.com",
+            "name": "Ary Borenszweig",
+            "username": "asterite"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "86b363844b4c4c6258fba3377b801e36eb714d3f",
+          "message": "fix: stop inserting instructions after break and continue (#8712)",
+          "timestamp": "2025-06-03T13:54:26Z",
+          "tree_id": "f2e9991de9bd8a61a9bca57cc614a1ba2bd3bf91",
+          "url": "https://github.com/noir-lang/noir/commit/86b363844b4c4c6258fba3377b801e36eb714d3f"
+        },
+        "date": 1748960872001,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 292.88,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 533.91,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 192.8,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 1380,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 1540,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root-empty",
+            "value": 342.96,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root-single-tx",
+            "value": 7150,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 7160,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 327.15,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-root",
+            "value": 381.49,
             "unit": "MB"
           },
           {
