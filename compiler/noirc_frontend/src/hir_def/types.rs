@@ -1311,7 +1311,7 @@ impl Type {
             }
 
             Type::Array(length, element) => {
-                (Self::should_allow_zero_sized_input() || self.array_or_string_len_is_not_zero())
+                self.array_or_string_len_is_not_zero()
                     && length.is_valid_for_program_input()
                     && element.is_valid_for_program_input()
             }
@@ -1332,14 +1332,6 @@ impl Type {
                 lhs.is_valid_for_program_input() && rhs.is_valid_for_program_input()
             }
         }
-    }
-
-    /// Check if it is okay to allow for zero-sized input (e..g zero-sized arrays) to a program.
-    /// This behavior is not well defined and is banned by default.
-    /// However, this ban is a breaking change for some dependent projects so this override
-    /// is provided until those projects migrate away from using zero-sized array input (e.g. <https://github.com/AztecProtocol/aztec-packages/issues/14388>).
-    fn should_allow_zero_sized_input() -> bool {
-        std::env::var("ALLOW_EMPTY_INPUT").ok().map(|v| v == "1" || v == "true").unwrap_or_default()
     }
 
     /// Empty arrays and strings (which are arrays under the hood) are disallowed
@@ -1512,7 +1504,7 @@ impl Type {
         }
     }
 
-    pub(crate) fn kind(&self) -> Kind {
+    pub fn kind(&self) -> Kind {
         match self {
             Type::CheckedCast { to, .. } => to.kind(),
             Type::NamedGeneric(NamedGeneric { type_var, .. }) => type_var.kind(),
@@ -3167,7 +3159,11 @@ impl std::fmt::Debug for Type {
             Type::TraitAsType(_id, name, generics) => write!(f, "impl {}{:?}", name, generics),
             Type::Tuple(elements) => {
                 let elements = vecmap(elements, |arg| format!("{:?}", arg));
-                write!(f, "({})", elements.join(", "))
+                if elements.len() == 1 {
+                    write!(f, "({},)", elements[0])
+                } else {
+                    write!(f, "({})", elements.join(", "))
+                }
             }
             Type::Bool => write!(f, "bool"),
             Type::String(len) => write!(f, "str<{len:?}>"),

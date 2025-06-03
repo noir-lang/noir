@@ -449,7 +449,11 @@ impl<'a> Parser<'a> {
         self.eat_or_error(Token::Keyword(Keyword::To))?;
         let max_bit_size = self.eat_int_or_error()?.to_u128() as u32;
         self.eat_or_error(Token::Keyword(Keyword::Bits))?;
-        Ok(Some(ParsedInstruction::RangeCheck { value, max_bit_size }))
+
+        let assert_message =
+            if self.eat(Token::Comma)? { Some(self.eat_str_or_error()?) } else { None };
+
+        Ok(Some(ParsedInstruction::RangeCheck { value, max_bit_size, assert_message }))
     }
 
     fn parse_store(&mut self) -> ParseResult<Option<ParsedInstruction>> {
@@ -988,6 +992,10 @@ impl<'a> Parser<'a> {
         }
     }
 
+    fn eat_str_or_error(&mut self) -> ParseResult<String> {
+        if let Some(message) = self.eat_str()? { Ok(message) } else { self.expected_string() }
+    }
+
     fn eat_byte_str(&mut self) -> ParseResult<Option<String>> {
         if matches!(self.token.token(), Token::ByteStr(..)) {
             let token = self.bump()?;
@@ -1032,6 +1040,13 @@ impl<'a> Parser<'a> {
 
     fn expected_instruction_or_terminator<T>(&mut self) -> ParseResult<T> {
         Err(ParserError::ExpectedInstructionOrTerminator {
+            found: self.token.token().clone(),
+            span: self.token.span(),
+        })
+    }
+
+    fn expected_string<T>(&mut self) -> ParseResult<T> {
+        Err(ParserError::ExpectedString {
             found: self.token.token().clone(),
             span: self.token.span(),
         })
@@ -1120,6 +1135,8 @@ pub(crate) enum ParserError {
     ExpectedType { found: Token, span: Span },
     #[error("Expected an instruction or terminator, found '{found}'")]
     ExpectedInstructionOrTerminator { found: Token, span: Span },
+    #[error("Expected a string literal, found '{found}'")]
+    ExpectedString { found: Token, span: Span },
     #[error("Expected a string literal or 'data', found '{found}'")]
     ExpectedStringOrData { found: Token, span: Span },
     #[error("Expected a byte string literal, found '{found}'")]
@@ -1146,6 +1163,7 @@ impl ParserError {
             | ParserError::ExpectedInt { span, .. }
             | ParserError::ExpectedType { span, .. }
             | ParserError::ExpectedInstructionOrTerminator { span, .. }
+            | ParserError::ExpectedString { span, .. }
             | ParserError::ExpectedStringOrData { span, .. }
             | ParserError::ExpectedByteString { span, .. }
             | ParserError::ExpectedValue { span, .. }

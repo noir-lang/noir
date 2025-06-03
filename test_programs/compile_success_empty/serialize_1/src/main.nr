@@ -10,7 +10,7 @@ where
     A: Serialize,
     B: Serialize,
 {
-    let Size = <A as Serialize>::Size + <B as Serialize>::Size;
+    let Size: u32 = <A as Serialize>::Size + <B as Serialize>::Size;
 
     fn serialize(self: Self) -> [Field; Self::Size] {
         let mut array: [Field; Self::Size] = std::mem::zeroed();
@@ -31,7 +31,7 @@ impl<T, let N: u32> Serialize for [T; N]
 where
     T: Serialize,
 {
-    let Size = <T as Serialize>::Size * N;
+    let Size: u32 = <T as Serialize>::Size * N;
 
     fn serialize(self: Self) -> [Field; Self::Size] {
         let mut array: [Field; Self::Size] = std::mem::zeroed();
@@ -59,6 +59,6 @@ impl Serialize for Field {
 }
 
 fn main() {
-    let x = ((1, [2, 3, 4]), [5, 6, 7, 8]);
-    assert_eq(x.serialize().len(), 8);
+    let x = (((1, [2, 3, 4]), [5, 6, 7, 8]), 9);
+    assert_eq(x.serialize().len(), 9);
 }
