@@ -322,8 +322,8 @@ impl<'a> LimitContext<'a> {
         // it into the proxy version if necessary.
         visit_expr_mut(&mut body, &mut |expr: &mut Expression| {
             if let Expression::Call(call) = expr {
-                let Expression::Ident(ident) = call.func.as_mut() else {
-                    unreachable!("functions are called by ident");
+                let Expression::Ident(ident) = expr::unref_mut(call.func.as_mut()) else {
+                    unreachable!("functions are called by ident; got {}", call.func);
                 };
 
                 let proxy = match &ident.definition {

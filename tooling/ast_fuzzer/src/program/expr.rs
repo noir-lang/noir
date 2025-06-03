@@ -482,3 +482,12 @@ pub(crate) fn is_immutable_ident(expr: &Expression) -> bool {
 pub(crate) fn is_deref(expr: &Expression) -> bool {
     matches!(expr, Expression::Unary(Unary { operator: UnaryOp::Dereference { .. }, .. }))
 }
+
+/// Peel back any dereference operators until we get to some other kind of expression.
+pub(crate) fn unref_mut(expr: &mut Expression) -> &mut Expression {
+    if let Expression::Unary(Unary { operator: UnaryOp::Dereference { .. }, rhs, .. }) = expr {
+        unref_mut(rhs.as_mut())
+    } else {
+        expr
+    }
+}
