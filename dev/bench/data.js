@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1748966425036,
+  "lastUpdate": 1748966494640,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -11362,75 +11362,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "asterite@gmail.com",
-            "name": "Ary Borenszweig",
-            "username": "asterite"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "a16e84853e2bc20a3756509cf40b3bcd1faad8f1",
-          "message": "fix: always use `u32` for indexing arrays in SSA (#8633)\n\nCo-authored-by: Tom French <15848336+TomAFrench@users.noreply.github.com>",
-          "timestamp": "2025-05-23T17:23:58Z",
-          "tree_id": "3065fc3c6ff8162da8352c2e6335781d652d5817",
-          "url": "https://github.com/noir-lang/noir/commit/a16e84853e2bc20a3756509cf40b3bcd1faad8f1"
-        },
-        "date": 1748022867425,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 242.04,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 264.09,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 217.23,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 577.89,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 574.21,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 1460,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 399.73,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-root",
-            "value": 405.29,
-            "unit": "MB"
-          },
-          {
-            "name": "semaphore_depth_10",
-            "value": 92.93,
-            "unit": "MB"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "15848336+TomAFrench@users.noreply.github.com",
             "name": "Tom French",
             "username": "TomAFrench"
@@ -14760,6 +14691,75 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/noir-lang/noir/commit/1523ea1a9bb29913f3990f6a64ad8b6d615d88df"
         },
         "date": 1748966245530,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 202.02,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 225.75,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 177.16,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 489.94,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 423.45,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 1400,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 312.01,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-root",
+            "value": 317.69,
+            "unit": "MB"
+          },
+          {
+            "name": "semaphore_depth_10",
+            "value": 70.96,
+            "unit": "MB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "72797635+Savio-Sou@users.noreply.github.com",
+            "name": "Savio",
+            "username": "Savio-Sou"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "b6368569444e304a65065d23d38568860bc37442",
+          "message": "chore(docs): Copy attribute docs into versioned docs (#8777)",
+          "timestamp": "2025-06-03T15:16:14Z",
+          "tree_id": "34f434997003e3341172e5372319433bb7766904",
+          "url": "https://github.com/noir-lang/noir/commit/b6368569444e304a65065d23d38568860bc37442"
+        },
+        "date": 1748966483516,
         "tool": "customSmallerIsBetter",
         "benches": [
           {
