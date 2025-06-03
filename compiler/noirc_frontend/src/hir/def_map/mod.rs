@@ -38,6 +38,12 @@ impl LocalModuleId {
     }
 }
 
+impl Into<Index> for LocalModuleId {
+    fn into(self) -> Index {
+        self.0
+    }
+}
+
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub struct ModuleId {
     pub krate: CrateId,

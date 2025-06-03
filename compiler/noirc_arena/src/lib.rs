@@ -16,6 +16,12 @@ impl Index {
     }
 }
 
+impl Into<usize> for Index {
+    fn into(self) -> usize {
+        self.0
+    }
+}
+
 impl fmt::Display for Index {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         self.0.fmt(f)
