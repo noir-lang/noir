@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1748963474546,
+  "lastUpdate": 1748963705111,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -18456,48 +18456,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "aakoshh@gmail.com",
-            "name": "Akosh Farkash",
-            "username": "aakoshh"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "4e352874a4199c95cc69e201a32af2fd04ffd51c",
-          "message": "chore(fuzz): Build the dictionary from the SSA (#8591)",
-          "timestamp": "2025-05-23T15:20:55Z",
-          "tree_id": "22be88bd8f9d5a3c9d6b89b6f8329d87012c7b5e",
-          "url": "https://github.com/noir-lang/noir/commit/4e352874a4199c95cc69e201a32af2fd04ffd51c"
-        },
-        "date": 1748014966892,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 255853,
-            "range": "± 967",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 223823,
-            "range": "± 19127",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 3210275,
-            "range": "± 15203",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "asterite@gmail.com",
             "name": "Ary Borenszweig",
             "username": "asterite"
@@ -20549,6 +20507,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 3572826,
             "range": "± 3006",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "aakoshh@gmail.com",
+            "name": "Akosh Farkash",
+            "username": "aakoshh"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "a61aaedcf7e4e455dd7d4f6099bb6dbe02040569",
+          "message": "fix: Create SSA interpreter arguments from scratch for each invocation (#8762)",
+          "timestamp": "2025-06-03T14:54:27Z",
+          "tree_id": "28dbaa030935fd6cc9ccdc2cf52fa1e4d917d388",
+          "url": "https://github.com/noir-lang/noir/commit/a61aaedcf7e4e455dd7d4f6099bb6dbe02040569"
+        },
+        "date": 1748963694207,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 254529,
+            "range": "± 263",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 224496,
+            "range": "± 5141",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 3565290,
+            "range": "± 3095",
             "unit": "ns/iter"
           }
         ]
