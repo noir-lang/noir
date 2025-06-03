@@ -7,7 +7,7 @@ use arbitrary::{Arbitrary, Unstructured};
 use noirc_frontend::{
     ast::{BinaryOpKind, IntegerBitSize, UnaryOp},
     monomorphization::ast::{
-        ArrayLiteral, Assign, Binary, BinaryOp, Cast, Definition, Expression, FuncId, Ident,
+        ArrayLiteral, Assign, Binary, BinaryOp, Call, Cast, Definition, Expression, FuncId, Ident,
         IdentId, If, LValue, Let, Literal, LocalId, Type, Unary,
     },
     signed_field::SignedField,
@@ -359,9 +359,25 @@ pub fn binary(lhs: Expression, op: BinaryOp, rhs: Expression) -> Expression {
     })
 }
 
-/// Check if an `Expression` contains any `Call` in any of its descendants.
+/// Check if an `Expression` contains any `Call` another function, in any of its descendants.
+/// Calls made to oracles such as `println` don't count.
 pub fn has_call(expr: &Expression) -> bool {
-    exists(expr, |expr| matches!(expr, Expression::Call(_)))
+    exists(expr, |expr| {
+        let Expression::Call(Call { func, .. }) = expr else {
+            return false;
+        };
+        // Check if we are calling an intrinsic or oracle, which don't count as recursion.
+        // If we are calling a function through a reference and not an ident, then it's
+        // not an oracle, so we can just assume it's recursive call.
+        let Expression::Ident(Ident { definition, .. }) = func.as_ref() else {
+            return true;
+        };
+        let is_builtin_or_oracle = matches!(
+            definition,
+            Definition::Builtin(_) | Definition::Oracle(_) | Definition::LowLevel(_)
+        );
+        !is_builtin_or_oracle
+    })
 }
 
 /// Check if an `Expression` or any of its descendants match a predicate.
