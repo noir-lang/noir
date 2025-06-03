@@ -48,7 +48,9 @@ fn arb_program_can_be_executed() {
 
         // Print the AST if something goes wrong, then panic.
         let print_ast_and_panic = |msg: &str| -> ! {
-            eprintln!("{}", DisplayAstAsNoir(&program));
+            if maybe_seed.is_none() {
+                eprintln!("{}", DisplayAstAsNoir(&program));
+            }
             panic!("{msg}")
         };
 
