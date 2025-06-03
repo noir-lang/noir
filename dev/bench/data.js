@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1748966203322,
+  "lastUpdate": 1748966225383,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -3958,85 +3958,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "asterite@gmail.com",
-            "name": "Ary Borenszweig",
-            "username": "asterite"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "a16e84853e2bc20a3756509cf40b3bcd1faad8f1",
-          "message": "fix: always use `u32` for indexing arrays in SSA (#8633)\n\nCo-authored-by: Tom French <15848336+TomAFrench@users.noreply.github.com>",
-          "timestamp": "2025-05-23T17:23:58Z",
-          "tree_id": "3065fc3c6ff8162da8352c2e6335781d652d5817",
-          "url": "https://github.com/noir-lang/noir/commit/a16e84853e2bc20a3756509cf40b3bcd1faad8f1"
-        },
-        "date": 1748022490745,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 2.308,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 6.428,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 1.074,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 16.44,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 13.68,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root-empty",
-            "value": 1.524,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root-single-tx",
-            "value": 129,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 122,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 1.192,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-root",
-            "value": 1.668,
-            "unit": "s"
-          },
-          {
-            "name": "semaphore-depth-10",
-            "value": 0.91,
-            "unit": "s"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "15848336+TomAFrench@users.noreply.github.com",
             "name": "Tom French",
             "username": "TomAFrench"
@@ -7901,6 +7822,85 @@ window.BENCHMARK_DATA = {
           {
             "name": "semaphore-depth-10",
             "value": 0.798,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "mvezenov@gmail.com",
+            "name": "Maxim Vezenov",
+            "username": "vezenovm"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "1523ea1a9bb29913f3990f6a64ad8b6d615d88df",
+          "message": "fix(licm): Preserve semantic ordering of side-effectual instructions when hoisting (#8724)",
+          "timestamp": "2025-06-03T15:12:48Z",
+          "tree_id": "28bb6198a08114cd592079d7f2f86f2bc03ac796",
+          "url": "https://github.com/noir-lang/noir/commit/1523ea1a9bb29913f3990f6a64ad8b6d615d88df"
+        },
+        "date": 1748966213897,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 2.402,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 7.51,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 1.104,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 15.68,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 13.72,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-empty",
+            "value": 1.328,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-single-tx",
+            "value": 129,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 128,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 1.042,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-root",
+            "value": 1.518,
+            "unit": "s"
+          },
+          {
+            "name": "semaphore-depth-10",
+            "value": 0.824,
             "unit": "s"
           }
         ]
