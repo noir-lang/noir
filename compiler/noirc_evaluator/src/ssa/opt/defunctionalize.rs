@@ -901,6 +901,9 @@ mod tests {
         );
     }
 
+    // test from SSA fuzzing to check behavior of 'defunctionalize' pass on
+    // Brillig 'main' fn that accepts a function parameter (expected to be
+    // disallowed by the frontend).
     #[test]
     fn missing_fn() {
         let src = "
