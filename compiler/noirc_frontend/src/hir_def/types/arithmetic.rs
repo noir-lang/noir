@@ -374,6 +374,99 @@ impl Type {
 
         Err(UnificationError)
     }
+
+    /// Try to unify the following equations:
+    /// - `A + rhs = other` -> `A = other - rhs`
+    /// - `A - rhs = other` -> `A = other + rhs`
+    /// - `lhs + B = other` -> `B = other - lhs`
+    /// - `lhs - B = other` -> `B = lhs - other`
+    /// - `other = A + rhs` -> `A = other - rhs`
+    /// - `other = A - rhs` -> `A = other + rhs`
+    /// - `other = lhs + B` -> `B = other - lhs`
+    /// - `other = lhs - B` -> `B = lhs - other`
+    pub(super) fn try_unify_by_isolating_an_unbound_type_variable(
+        &self,
+        other: &Type,
+        bindings: &mut TypeBindings,
+    ) -> Result<(), UnificationError> {
+        self.try_unify_by_isolating_an_unbound_type_variable_in_self(other, bindings).or_else(
+            |_| other.try_unify_by_isolating_an_unbound_type_variable_in_self(self, bindings),
+        )
+    }
+
+    /// Try to unify the following equations:
+    /// - `A + rhs = other` -> `A = other - rhs`
+    /// - `A - rhs = other` -> `A = other + rhs`
+    /// - `lhs + B = other` -> `B = other - lhs`
+    /// - `lhs - B = other` -> `B = lhs - other`
+    fn try_unify_by_isolating_an_unbound_type_variable_in_self(
+        &self,
+        other: &Type,
+        bindings: &mut TypeBindings,
+    ) -> Result<(), UnificationError> {
+        if let Type::InfixExpr(lhs_a, op_a, rhs_a, _) = self {
+            let op_a_inverse = op_a.inverse();
+
+            // Check if it's `A + rhs = other` or `A - rhs = other`
+            if let (Some(op_a_inverse), Type::TypeVariable(lhs_var)) =
+                (op_a_inverse, lhs_a.as_ref())
+            {
+                if lhs_var.1.borrow().is_unbound() {
+                    // We can say that `A = other - rhs` or `A = other + rhs` respectively
+                    let new_rhs =
+                        Type::infix_expr(Box::new(other.clone()), op_a_inverse, rhs_a.clone());
+
+                    let mut tmp_bindings = bindings.clone();
+                    if lhs_a.try_unify(&new_rhs, &mut tmp_bindings).is_ok() {
+                        *bindings = tmp_bindings;
+                        return Ok(());
+                    }
+                }
+            }
+
+            // Check if it's `lhs + B = other`
+            if let (BinaryTypeOperator::Addition, Type::TypeVariable(rhs_var)) =
+                (op_a, rhs_a.as_ref())
+            {
+                if rhs_var.1.borrow().is_unbound() {
+                    // We can say that `B = other - lhs`
+                    let new_rhs = Type::infix_expr(
+                        Box::new(other.clone()),
+                        BinaryTypeOperator::Subtraction,
+                        lhs_a.clone(),
+                    );
+
+                    let mut tmp_bindings = bindings.clone();
+                    if rhs_a.try_unify(&new_rhs, &mut tmp_bindings).is_ok() {
+                        *bindings = tmp_bindings;
+                        return Ok(());
+                    }
+                }
+            }
+
+            // Check if it's `lhs - B = other`
+            if let (BinaryTypeOperator::Subtraction, Type::TypeVariable(rhs_var)) =
+                (op_a, rhs_a.as_ref())
+            {
+                if rhs_var.1.borrow().is_unbound() {
+                    // We can say that `B = lhs - other`
+                    let new_rhs = Type::infix_expr(
+                        lhs_a.clone(),
+                        BinaryTypeOperator::Subtraction,
+                        Box::new(other.clone()),
+                    );
+
+                    let mut tmp_bindings = bindings.clone();
+                    if rhs_a.try_unify(&new_rhs, &mut tmp_bindings).is_ok() {
+                        *bindings = tmp_bindings;
+                        return Ok(());
+                    }
+                }
+            }
+        }
+
+        Err(UnificationError)
+    }
 }
 
 #[cfg(test)]
