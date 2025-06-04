@@ -145,7 +145,7 @@ const TESTS_WITHOUT_STDOUT_CHECK: [&str; 0] = [];
 /// These tests are ignored because of existing bugs in `nargo expand`.
 /// As the bugs are fixed these tests should be removed from this list.
 /// (some are ignored on purpose for the same reason as `IGNORED_NARGO_EXPAND_EXECUTION_TESTS`)
-const IGNORED_NARGO_EXPAND_COMPILE_SUCCESS_EMPTY_TESTS: [&str; 17] = [
+const IGNORED_NARGO_EXPAND_COMPILE_SUCCESS_EMPTY_TESTS: [&str; 20] = [
     // bug
     "associated_type_bounds",
     // bug
@@ -163,7 +163,13 @@ const IGNORED_NARGO_EXPAND_COMPILE_SUCCESS_EMPTY_TESTS: [&str; 17] = [
     // bug
     "regression_7038_4",
     // bug
-    "serialize",
+    "serialize_1",
+    // bug
+    "serialize_2",
+    // bug
+    "serialize_3",
+    // bug
+    "serialize_4",
     // bug
     "trait_allowed_item_name_matches",
     // bug

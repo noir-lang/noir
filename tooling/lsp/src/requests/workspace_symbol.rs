@@ -11,7 +11,7 @@ use async_lsp::lsp_types::{
 };
 use fm::{FileManager, FileMap};
 use fuzzy_matcher::{FuzzyMatcher, skim::SkimMatcherV2};
-use nargo::{insert_all_files_under_path_into_file_manager, parse_all};
+use nargo::{insert_all_files_under_path, parse_all};
 use noirc_errors::{Location, Span};
 use noirc_frontend::{
     ast::{
@@ -42,7 +42,7 @@ pub(crate) fn on_workspace_symbol_request(
 
     // If the cache is not initialized yet, put all files in the workspace in the FileManager
     if !cache.initialized {
-        insert_all_files_under_path_into_file_manager(&mut file_manager, &root_path, &overrides);
+        insert_all_files_under_path(&mut file_manager, &root_path, Some(&overrides));
         cache.initialized = true;
     }
 

@@ -528,6 +528,7 @@ impl std::fmt::Display for DisplayAstAsNoir<'_> {
         printer.show_id = false;
         printer.show_clone_and_drop = false;
         printer.show_print_as_std = true;
+        printer.show_type_in_let = true;
         printer.print_program(self.0, f)
     }
 }
@@ -545,6 +546,9 @@ impl std::fmt::Display for DisplayAstAsNoirComptime<'_> {
         printer.show_id = false;
         printer.show_clone_and_drop = false;
         printer.show_print_as_std = true;
+        // Declare the type in `let` so that when we parse snippets we can match the types which
+        // the AST had, otherwise a literal which was a `u32` in the AST might be inferred as `Field`.
+        printer.show_type_in_let = true;
         for function in &self.0.functions {
             if function.id == Program::main_id() {
                 let mut function = function.clone();

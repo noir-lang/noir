@@ -132,15 +132,19 @@ impl ChunkFormatter<'_, '_> {
             formatter.format_secondary_attributes(attributes);
             formatter.write_keyword(keyword);
             formatter.write_space();
-            formatter.increase_indentation();
-            formatter.format_pattern(pattern);
-            formatter.decrease_indentation();
-            if typ.typ != UnresolvedTypeData::Unspecified {
+        }));
+
+        let mut pattern_and_type_group = self.format_pattern(pattern);
+
+        if typ.typ != UnresolvedTypeData::Unspecified {
+            pattern_and_type_group.text(self.chunk(|formatter| {
                 formatter.write_token(Token::Colon);
                 formatter.write_space();
                 formatter.format_type(typ);
-            }
-        }));
+            }));
+        }
+
+        group.group(pattern_and_type_group);
 
         if let Some(value) = value {
             // If there's a line comment right before the value we'll put
@@ -481,6 +485,22 @@ mod tests {
 }
 ";
         assert_format(src, expected);
+    }
+
+    #[test]
+    fn format_let_statement_with_long_type() {
+        let src = " fn foo() { 
+        let  some_variable: ThisIsAReallyLongType  = 123;
+        foo();
+}
+";
+        let expected = "fn foo() {
+    let some_variable: ThisIsAReallyLongType =
+        123;
+    foo();
+}
+";
+        assert_format_with_max_width(src, expected, 30);
     }
 
     #[test]

@@ -10,7 +10,7 @@ fn main() {
 }
 
 mod a {
-    use std::prelude::{Option, Vec};
+    use std::{collections::vec::Vec, option::Option};
 
     fn main() {
         let _xs: Vec<_> = Vec::new();
