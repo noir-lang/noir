@@ -186,7 +186,7 @@ impl<'f> PerFunctionContext<'f> {
             let terminator = self.inserter.function.dfg[*block_id].unwrap_terminator();
             terminator.for_each_value(|value| all_terminator_values.insert(value));
         }
-        
+
         // If we never load from an address within a function we can remove all stores to that address.
         // This rule does not apply to reference parameters, which we must also check for before removing these stores.
         for (_, block) in self.blocks.iter() {
@@ -462,10 +462,7 @@ impl<'f> PerFunctionContext<'f> {
                 if let Some(expression) = references.expressions.get(&value) {
                     if let Some(aliases) = references.aliases.get(expression) {
                         aliases.for_each(|alias| {
-                            self.aliased_references
-                                .entry(alias)
-                                .or_default()
-                                .insert(instruction);
+                            self.aliased_references.entry(alias).or_default().insert(instruction);
                         });
                     }
                 }
@@ -524,8 +521,8 @@ impl<'f> PerFunctionContext<'f> {
                 }
             }
             Instruction::Call { arguments, .. } => {
-                // We want to fetch all aliases of each argument to be marked unknown as an array 
-                // containing references internally can potentially be aliased by those references. 
+                // We want to fetch all aliases of each argument to be marked unknown as an array
+                // containing references internally can potentially be aliased by those references.
                 let mut all_aliases = Vec::new();
                 for arg in arguments {
                     if let Some(expression) = references.expressions.get(arg) {
@@ -549,8 +546,7 @@ impl<'f> PerFunctionContext<'f> {
                     references.expressions.insert(array, expr.clone());
                     let aliases = references.aliases.entry(expr).or_insert(AliasSet::known_empty());
 
-                    let elements = elements.iter().map(|value| *value).collect::<Vec<_>>();
-                    for element in elements.iter() {
+                    for element in elements {
                         aliases.insert(*element);
                     }
                 }
