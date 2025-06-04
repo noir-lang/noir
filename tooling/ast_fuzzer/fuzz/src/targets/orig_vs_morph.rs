@@ -8,7 +8,9 @@ use noir_ast_fuzzer::compare::{CompareMorph, CompareOptions};
 use noir_ast_fuzzer::visitor;
 use noir_ast_fuzzer::{Config, visitor::visit_expr_mut};
 use noirc_frontend::ast::UnaryOp;
-use noirc_frontend::monomorphization::ast::{Expression, Function, Program, Unary};
+use noirc_frontend::monomorphization::ast::{
+    Call, Definition, Expression, Function, Ident, Program, Unary,
+};
 
 pub fn fuzz(u: &mut Unstructured) -> eyre::Result<()> {
     let rules = rules::all();
@@ -90,9 +92,11 @@ impl MorphContext<'_> {
             match expr {
                 // Treat separately the cases which need change in the context.
                 Expression::For(for_) => {
+                    // Separate context for just the ranges.
                     let range_ctx = rules::Context { is_in_range: true, ..*ctx };
                     self.rewrite_expr(&range_ctx, u, &mut for_.start_range);
                     self.rewrite_expr(&range_ctx, u, &mut for_.end_range);
+                    // Original context for the body.
                     self.rewrite_expr(ctx, u, &mut for_.block);
                     // No need to visit children, we just visited them.
                     false
@@ -102,6 +106,13 @@ impl MorphContext<'_> {
                 ) => {
                     let ctx = rules::Context { is_in_ref_mut: true, ..*ctx };
                     self.rewrite_expr(&ctx, u, &mut unary.rhs);
+                    false
+                }
+                Expression::Call(call) if is_oracle_call(call) => {
+                    let ctx = rules::Context { is_in_oracle_call: true, ..*ctx };
+                    for arg in call.arguments.iter_mut() {
+                        self.rewrite_expr(&ctx, u, arg);
+                    }
                     false
                 }
                 // The rest can just have the rules applied on them, using the same context.
@@ -173,6 +184,11 @@ fn estimate_applicable_rules(
     count
 }
 
+/// Check if we are calling an oracle function.
+fn is_oracle_call(call: &Call) -> bool {
+    matches!(call.func.as_ref(), Expression::Ident(Ident { definition: Definition::Oracle(_), .. }))
+}
+
 /// Metamorphic transformation rules.
 mod rules {
     use arbitrary::{Arbitrary, Unstructured};
@@ -186,10 +202,12 @@ mod rules {
     pub struct Context {
         /// Is the function we're rewriting unconstrained?
         pub unconstrained: bool,
-        /// Are we rewriting an expression which is a range of a `for` loop?
+        /// Are we rewriting an expression which is a `start` or `end` of a `for` loop?
         pub is_in_range: bool,
         /// Are we in an expression that we're just taking a mutable reference to?
         pub is_in_ref_mut: bool,
+        /// Are we processing the arguments of an oracle call?
+        pub is_in_oracle_call: bool,
     }
 
     /// Check if the rule can be applied on an expression.
@@ -273,6 +291,10 @@ mod rules {
     fn bool_rule_matches(ctx: &Context, expr: &Expression) -> bool {
         // If we rewrite `&mut x` into `&mut (x | x)` we will alter the semantics.
         if ctx.is_in_ref_mut {
+            return false;
+        }
+        // We don't want to mess with the arguments of a `println`, because the printer assumes they are bool literals.
+        if ctx.is_in_oracle_call {
             return false;
         }
         // We can apply boolean rule on anything that returns a bool,
