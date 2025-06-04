@@ -1093,7 +1093,7 @@ mod test {
             v9 = unchecked_add v2, i32 1
             jmp b1(v9)
           b6():
-            v10 = mul v0, v1
+            v10 = unchecked_mul v0, v1
             constrain v10 == i32 6
             v12 = unchecked_add v3, i32 1
             jmp b4(v12)
@@ -1110,7 +1110,7 @@ mod test {
         let expected = "
         brillig(inline) fn main f0 {
           b0(v0: i32, v1: i32):
-            v4 = mul v0, v1
+            v4 = unchecked_mul v0, v1
             constrain v4 == i32 6
             jmp b1(i32 0)
           b1(v2: i32):
