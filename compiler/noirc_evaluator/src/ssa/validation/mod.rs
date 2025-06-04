@@ -31,8 +31,6 @@ struct Validator<'f> {
     // State for truncate-after-signed-sub validation
     // Stores: Option<(bit_size, result)>
     signed_binary_op: Option<PendingSignedOverflowOp>,
-    // Tracks values that have been truncated but not yet cast
-    pending_casts: HashSet<ValueId>,
 }
 
 #[derive(Debug)]
@@ -43,7 +41,7 @@ enum PendingSignedOverflowOp {
 
 impl<'f> Validator<'f> {
     fn new(function: &'f Function) -> Self {
-        Self { function, signed_binary_op: None, pending_casts: HashSet::default() }
+        Self { function, signed_binary_op: None }
     }
 
     /// Validates that any checked signed add/sub/mul are followed by the appropriate instructions.
@@ -279,9 +277,6 @@ impl<'f> Validator<'f> {
 
         if self.signed_binary_op.is_some() {
             panic!("Signed binary operation does not follow overflow pattern");
-        }
-        if !self.pending_casts.is_empty() {
-            panic!("Truncated values not followed by cast: {:?}", self.pending_casts);
         }
     }
 }
