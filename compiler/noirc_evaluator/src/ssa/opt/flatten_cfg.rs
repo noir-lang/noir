@@ -665,12 +665,11 @@ impl<'f> Context<'f> {
     fn predicate_value(&mut self, value: ValueId, predicated_value: ValueId) {
         let conditional_context = self.condition_stack.last_mut().unwrap();
 
-        if let std::collections::hash_map::Entry::Vacant(e) =
-            conditional_context.predicated_values.entry(value)
-        {
-            let old_mapping = self.inserter.resolve(value);
-            e.insert(old_mapping);
-        }
+        conditional_context
+            .predicated_values
+            .entry(value)
+            .or_insert_with(|| self.inserter.resolve(value));
+
         self.inserter.map_value(value, predicated_value);
     }
 
@@ -679,7 +678,6 @@ impl<'f> Context<'f> {
         for (value, old_mapping) in conditional_context.predicated_values.drain() {
             self.inserter.map_value(value, old_mapping);
         }
-        conditional_context.predicated_values.clear();
     }
 
     /// Insert a new instruction into the target block.
@@ -814,7 +812,7 @@ impl<'f> Context<'f> {
                     let predicate_value =
                         self.mul_by_condition(value, casted_condition, call_stack);
                     // Issue #8617: update the value to be the predicated value.
-                    // This ensure the value has the correct bit size in all cases.
+                    // This ensures that the value has the correct bit size in all cases.
                     self.predicate_value(value, predicate_value);
                     Instruction::RangeCheck { value: predicate_value, max_bit_size, assert_message }
                 }
