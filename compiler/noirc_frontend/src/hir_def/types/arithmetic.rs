@@ -404,20 +404,20 @@ impl Type {
         other: &Type,
         bindings: &mut TypeBindings,
     ) -> Result<(), UnificationError> {
-        if let Type::InfixExpr(lhs_a, op_a, rhs_a, _) = self {
-            let op_a_inverse = op_a.inverse();
+        if let Type::InfixExpr(lhs_lhs, lhs_op, lhs_rhs, _) = self {
+            let lhs_op_inverse = lhs_op.inverse();
 
             // Check if it's `A + rhs = other` or `A - rhs = other`
-            if let (Some(op_a_inverse), Type::TypeVariable(lhs_var)) =
-                (op_a_inverse, lhs_a.as_ref())
+            if let (Some(op_a_inverse), Type::TypeVariable(lhs_lhs_var)) =
+                (lhs_op_inverse, lhs_lhs.as_ref())
             {
-                if lhs_var.1.borrow().is_unbound() {
+                if lhs_lhs_var.1.borrow().is_unbound() {
                     // We can say that `A = other - rhs` or `A = other + rhs` respectively
                     let new_rhs =
-                        Type::infix_expr(Box::new(other.clone()), op_a_inverse, rhs_a.clone());
+                        Type::infix_expr(Box::new(other.clone()), op_a_inverse, lhs_rhs.clone());
 
                     let mut tmp_bindings = bindings.clone();
-                    if lhs_a.try_unify(&new_rhs, &mut tmp_bindings).is_ok() {
+                    if lhs_lhs.try_unify(&new_rhs, &mut tmp_bindings).is_ok() {
                         *bindings = tmp_bindings;
                         return Ok(());
                     }
@@ -425,19 +425,19 @@ impl Type {
             }
 
             // Check if it's `lhs + B = other`
-            if let (BinaryTypeOperator::Addition, Type::TypeVariable(rhs_var)) =
-                (op_a, rhs_a.as_ref())
+            if let (BinaryTypeOperator::Addition, Type::TypeVariable(lhs_rhs_var)) =
+                (lhs_op, lhs_rhs.as_ref())
             {
-                if rhs_var.1.borrow().is_unbound() {
+                if lhs_rhs_var.1.borrow().is_unbound() {
                     // We can say that `B = other - lhs`
                     let new_rhs = Type::infix_expr(
                         Box::new(other.clone()),
                         BinaryTypeOperator::Subtraction,
-                        lhs_a.clone(),
+                        lhs_lhs.clone(),
                     );
 
                     let mut tmp_bindings = bindings.clone();
-                    if rhs_a.try_unify(&new_rhs, &mut tmp_bindings).is_ok() {
+                    if lhs_rhs.try_unify(&new_rhs, &mut tmp_bindings).is_ok() {
                         *bindings = tmp_bindings;
                         return Ok(());
                     }
@@ -445,19 +445,19 @@ impl Type {
             }
 
             // Check if it's `lhs - B = other`
-            if let (BinaryTypeOperator::Subtraction, Type::TypeVariable(rhs_var)) =
-                (op_a, rhs_a.as_ref())
+            if let (BinaryTypeOperator::Subtraction, Type::TypeVariable(lhs_rhs_var)) =
+                (lhs_op, lhs_rhs.as_ref())
             {
-                if rhs_var.1.borrow().is_unbound() {
+                if lhs_rhs_var.1.borrow().is_unbound() {
                     // We can say that `B = lhs - other`
                     let new_rhs = Type::infix_expr(
-                        lhs_a.clone(),
+                        lhs_lhs.clone(),
                         BinaryTypeOperator::Subtraction,
                         Box::new(other.clone()),
                     );
 
                     let mut tmp_bindings = bindings.clone();
-                    if rhs_a.try_unify(&new_rhs, &mut tmp_bindings).is_ok() {
+                    if lhs_rhs.try_unify(&new_rhs, &mut tmp_bindings).is_ok() {
                         *bindings = tmp_bindings;
                         return Ok(());
                     }
