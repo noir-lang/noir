@@ -1,7 +1,7 @@
 use crate::elaborator::FrontendOptions;
 
-use crate::assert_no_errors;
 use crate::tests::Expect;
+use crate::{assert_no_errors, check_monomorphization_error};
 use crate::{check_errors, get_program_with_options};
 
 #[named]
@@ -1627,4 +1627,48 @@ fn accesses_associated_type_inside_trait_using_self() {
     }
     "#;
     assert_no_errors!(src);
+}
+
+#[named]
+#[test]
+fn serialize_test_with_a_previous_unrelated_definition() {
+    let src = r#"
+    // If you remove this Trait definition, the code compiles fine. That's the bug.
+    pub trait Trait {}
+
+    trait Serialize {
+        let Size: u32;
+
+        fn serialize(self);
+    }
+
+    impl<A, B> Serialize for (A, B)
+    where
+        A: Serialize,
+        B: Serialize,
+    {
+        let Size: u32 = <A as Serialize>::Size + <B as Serialize>::Size;
+
+        fn serialize(self: Self) {
+            self.0.serialize();
+            ^^^^^^^^^^^^^^^^ No matching impl found for `(Field, Field): Serialize<Size = (3 - _)>`
+            ~~~~~~~~~~~~~~~~ No impl for `(Field, Field): Serialize<Size = (3 - _)>`
+        }
+    }
+
+    impl Serialize for Field {
+        let Size: u32 = 1;
+
+        fn serialize(self) { }
+    }
+
+    fn main() {
+        let x = (((1, 2), 5), 9);
+        x.serialize();
+    }
+    "#;
+
+    // In reality there should be no error here, so any error squiggles should be removed.
+    // See https://github.com/noir-lang/noir/issues/8780
+    check_monomorphization_error!(&src);
 }
