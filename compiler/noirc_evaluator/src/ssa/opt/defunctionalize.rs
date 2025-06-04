@@ -625,7 +625,9 @@ fn defunctionalize_post_check(func: &Function) {
 /// Return what type a function value type should be replaced with:
 /// * Global functions are replaced with a `Field`.
 /// * Function references are replaced with a reference to the replacement type of the underlying type, recursively.
-/// * Other types need no replacement.
+/// * Array and slices that contain function types are handled recursively.
+///
+/// If the type doesn't need replacement, `None` is returned.
 fn replacement_type(typ: &Type) -> Option<Type> {
     match typ {
         Type::Function => Some(Type::field()),
@@ -642,6 +644,9 @@ fn replacement_type(typ: &Type) -> Option<Type> {
     }
 }
 
+/// Take a list of types that might need replacement.
+/// Replaces the ones that need replacement, leaving all others as-is.
+/// If no type needs replacement, `None` is returned.
 fn replacement_types(types: &[Type]) -> Option<Vec<Type>> {
     let mut type_reps = Vec::new();
     let mut has_rep = false;
