@@ -1568,6 +1568,10 @@ impl Type {
         rhs: Box<Type>,
         inversion: bool,
     ) -> Type {
+        if *lhs == Type::Error && *rhs == Type::Error {
+            return Type::Error;
+        }
+
         // If an InfixExpr like this is tried to be created:
         //
         // a * (b / a)
