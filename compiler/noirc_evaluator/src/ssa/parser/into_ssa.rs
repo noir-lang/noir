@@ -16,7 +16,6 @@ use crate::ssa::{
         value::ValueId,
     },
     opt::pure::FunctionPurities,
-    validation::validate_function,
 };
 
 use super::{
