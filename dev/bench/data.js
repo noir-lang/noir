@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1749062906760,
+  "lastUpdate": 1749062909223,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -20568,85 +20568,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "15848336+TomAFrench@users.noreply.github.com",
-            "name": "Tom French",
-            "username": "TomAFrench"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "5040ea515b763ef4e1e73a69ea9b7212a6967f30",
-          "message": "chore: reenable fuzzing tests in CI (#8688)",
-          "timestamp": "2025-05-27T09:52:11Z",
-          "tree_id": "89d37a8731af63b5b5957c303caddebe1b6bdbe1",
-          "url": "https://github.com/noir-lang/noir/commit/5040ea515b763ef4e1e73a69ea9b7212a6967f30"
-        },
-        "date": 1748341829297,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 1132.7,
-            "unit": "KB"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 2051.1,
-            "unit": "KB"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 586.6,
-            "unit": "KB"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 5129.2,
-            "unit": "KB"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 4070.6,
-            "unit": "KB"
-          },
-          {
-            "name": "rollup-block-root-empty",
-            "value": 256.7,
-            "unit": "KB"
-          },
-          {
-            "name": "rollup-block-root-single-tx",
-            "value": 25697.8,
-            "unit": "KB"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 25721.5,
-            "unit": "KB"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 181.6,
-            "unit": "KB"
-          },
-          {
-            "name": "rollup-root",
-            "value": 416.5,
-            "unit": "KB"
-          },
-          {
-            "name": "semaphore-depth-10",
-            "value": 636.3,
-            "unit": "KB"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "163862677+noirwhal@users.noreply.github.com",
             "name": "noirwhal",
             "username": "noirwhal"
@@ -24456,6 +24377,85 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/noir-lang/noir/commit/109b5f803e45ebd6435f0e4dff249b1bed4615ce"
         },
         "date": 1749055197126,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 1133,
+            "unit": "KB"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 2064.4,
+            "unit": "KB"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 588.8,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 4955.9,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 3995.3,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-block-root-empty",
+            "value": 256.7,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-block-root-single-tx",
+            "value": 25707.5,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 25714.4,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 183.4,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-root",
+            "value": 417.9,
+            "unit": "KB"
+          },
+          {
+            "name": "semaphore-depth-10",
+            "value": 636.3,
+            "unit": "KB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "15848336+TomAFrench@users.noreply.github.com",
+            "name": "Tom French",
+            "username": "TomAFrench"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "9d44ab793a378f88d700294adfe0ec468960685c",
+          "message": "feat: use `asm` feature flag in arkworks (#8792)",
+          "timestamp": "2025-06-04T18:18:48Z",
+          "tree_id": "75081dfaf68d366f108a6cc07adf8a642ad459a6",
+          "url": "https://github.com/noir-lang/noir/commit/9d44ab793a378f88d700294adfe0ec468960685c"
+        },
+        "date": 1749062895526,
         "tool": "customSmallerIsBetter",
         "benches": [
           {
