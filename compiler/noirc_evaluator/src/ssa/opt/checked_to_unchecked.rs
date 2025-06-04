@@ -324,6 +324,8 @@ mod tests {
           b0(v0: u1, v1: i32):
             v2 = cast v0 as i32
             v3 = mul v2, v1
+            v4 = cast v3 as u64
+            v6 = truncate v4 to 32 bits, max_bit_size: 64
             return v2
         }
         ";
