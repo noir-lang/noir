@@ -228,7 +228,6 @@ impl<'f> Validator<'f> {
 ///
 /// Panics on malformed functions.
 pub(crate) fn validate_function(function: &Function) {
-    dbg!(function.id());
     let mut validator = Validator::new(function);
     validator.run();
 }
