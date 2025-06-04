@@ -245,23 +245,17 @@ fn remove_first_class_functions_in_instruction(
     } else if let Instruction::MakeArray { typ, .. } = instruction {
         match typ {
             Type::Array(element_types, len) => {
-                let new_element_types =
-                    element_types
-                        .iter()
-                        .map(|typ| {
-                            if matches!(typ, Type::Function) { Type::field() } else { typ.clone() }
-                        })
-                        .collect::<Vec<_>>();
+                let new_element_types = element_types
+                    .iter()
+                    .map(|typ| replacement_type(typ).unwrap_or_else(|| typ.clone()))
+                    .collect::<Vec<_>>();
                 *typ = Type::Array(Arc::new(new_element_types), *len);
             }
             Type::Slice(element_types) => {
-                let new_element_types =
-                    element_types
-                        .iter()
-                        .map(|typ| {
-                            if matches!(typ, Type::Function) { Type::field() } else { typ.clone() }
-                        })
-                        .collect::<Vec<_>>();
+                let new_element_types = element_types
+                    .iter()
+                    .map(|typ| replacement_type(typ).unwrap_or_else(|| typ.clone()))
+                    .collect::<Vec<_>>();
                 *typ = Type::Slice(Arc::new(new_element_types));
             }
             _ => {}
