@@ -632,7 +632,28 @@ fn replacement_type(typ: &Type) -> Option<Type> {
         Type::Reference(typ) => {
             replacement_type(typ.as_ref()).map(|typ| Type::Reference(Arc::new(typ)))
         }
-        _ => None,
+        Type::Numeric(_) => None,
+        Type::Array(items, size) => {
+            replacement_types(items.as_ref()).map(|types| Type::Array(Arc::new(types), *size))
+        }
+        Type::Slice(items) => {
+            replacement_types(items.as_ref()).map(|types| Type::Slice(Arc::new(types)))
+        }
+    }
+}
+
+fn replacement_types(types: &[Type]) -> Option<Vec<Type>> {
+    let mut type_reps = Vec::new();
+    let mut has_rep = false;
+    for typ in types {
+        let rep = replacement_type(typ);
+        has_rep |= rep.is_some();
+        type_reps.push((typ, rep));
+    }
+    if !has_rep {
+        None
+    } else {
+        Some(type_reps.into_iter().map(|(typ, rep)| rep.unwrap_or_else(|| typ.clone())).collect())
     }
 }
 
