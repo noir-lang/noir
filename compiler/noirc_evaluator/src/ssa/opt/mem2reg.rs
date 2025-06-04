@@ -186,7 +186,7 @@ impl<'f> PerFunctionContext<'f> {
             let terminator = self.inserter.function.dfg[*block_id].unwrap_terminator();
             terminator.for_each_value(|value| all_terminator_values.insert(value));
         }
-        
+
         // If we never load from an address within a function we can remove all stores to that address.
         // This rule does not apply to reference parameters, which we must also check for before removing these stores.
         for (_, block) in self.blocks.iter() {
@@ -546,8 +546,7 @@ impl<'f> PerFunctionContext<'f> {
                     references.expressions.insert(array, expr.clone());
                     let aliases = references.aliases.entry(expr).or_insert(AliasSet::known_empty());
 
-                    let elements = elements.iter().map(|value| *value).collect::<Vec<_>>();
-                    for element in elements.iter() {
+                    for element in elements {
                         aliases.insert(*element);
                     }
                 }
