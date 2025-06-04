@@ -29,7 +29,13 @@ struct Validator<'f> {
     function: &'f Function,
     // State for truncate-after-signed-sub validation
     // Stores: Option<(bit_size, result)>
-    signed_binary_op: Option<(u32, ValueId)>,
+    signed_binary_op: Option<PendingSignedOverflowOp>,
+}
+
+#[derive(Debug)]
+enum PendingSignedOverflowOp {
+    AddOrSub { bit_size: u32, result: ValueId },
+    Mul { bit_size: u32, mul_result: ValueId, cast_result: Option<ValueId> },
 }
 
 impl<'f> Validator<'f> {
@@ -37,47 +43,97 @@ impl<'f> Validator<'f> {
         Self { function, signed_binary_op: None }
     }
 
-    /// Validates that any checked signed add/sub is followed by the expected truncate.
-    fn validate_truncate_after_signed_sub(&mut self, instruction: InstructionId) {
+    /// Validates that any checked signed add/sub/mul are followed by the appropriate instructions.
+    /// Signed overflow is many instructions but we validate up to the initial truncate.
+    ///
+    /// Expects the following SSA form for signed checked operations:
+    /// Add/Sub -> Truncate
+    /// Mul -> Cast -> Truncate
+    fn validate_signed_op_overflow_pattern(&mut self, instruction: InstructionId) {
         let dfg = &self.function.dfg;
         match &dfg[instruction] {
             Instruction::Binary(binary) => {
-                self.signed_binary_op = None;
-
-                match binary.operator {
-                    // Only validating checked addition/subtraction
-                    BinaryOp::Add { unchecked: false } | BinaryOp::Sub { unchecked: false } => {}
-                    // Otherwise, move onto the next instruction
-                    _ => return,
+                // Only reset if we are starting a new tracked op.
+                // We do not reset on unrelated ops. If we already an op pending, we have an ill formed signed op.
+                if self.signed_binary_op.is_some() {
+                    panic!("Signed binary operation does not follow overflow pattern");
                 }
 
                 // Assumes rhs_type is the same as lhs_type
                 let lhs_type = dfg.type_of_value(binary.lhs);
-                if let Type::Numeric(NumericType::Signed { bit_size }) = lhs_type {
-                    let results = dfg.instruction_results(instruction);
-                    self.signed_binary_op = Some((bit_size, results[0]));
+                let Type::Numeric(NumericType::Signed { bit_size }) = lhs_type else {
+                    return;
+                };
+
+                let result = dfg.instruction_results(instruction)[0];
+                match binary.operator {
+                    BinaryOp::Mul { unchecked: false } => {
+                        self.signed_binary_op = Some(PendingSignedOverflowOp::Mul {
+                            bit_size,
+                            mul_result: result,
+                            cast_result: None,
+                        });
+                    }
+                    BinaryOp::Add { unchecked: false } | BinaryOp::Sub { unchecked: false } => {
+                        self.signed_binary_op =
+                            Some(PendingSignedOverflowOp::AddOrSub { bit_size, result });
+                    }
+                    _ => {}
                 }
             }
             Instruction::Truncate { value, bit_size, max_bit_size } => {
-                let Some((signed_op_bit_size, signed_op_res)) = self.signed_binary_op.take() else {
-                    return;
-                };
-                assert_eq!(
-                    *bit_size, signed_op_bit_size,
-                    "ICE: Correct truncate must follow the result of a checked signed add/sub"
-                );
-                assert_eq!(
-                    *max_bit_size,
-                    *bit_size + 1,
-                    "ICE: Correct truncate must follow the result of a checked signed add/sub"
-                );
-                assert_eq!(
-                    *value, signed_op_res,
-                    "ICE: Correct truncate must follow the result of a checked signed add/sub"
-                );
+                // Only a truncate can reset the signed binary op state
+                match self.signed_binary_op.take() {
+                    Some(PendingSignedOverflowOp::AddOrSub {
+                        bit_size: expected_bit_size,
+                        result,
+                    }) => {
+                        assert_eq!(*bit_size, expected_bit_size);
+                        assert_eq!(*max_bit_size, expected_bit_size + 1);
+                        assert_eq!(*value, result);
+                    }
+                    Some(PendingSignedOverflowOp::Mul {
+                        bit_size: expected_bit_size,
+                        cast_result: Some(cast),
+                        ..
+                    }) => {
+                        assert_eq!(*bit_size, expected_bit_size);
+                        assert_eq!(*max_bit_size, 2 * expected_bit_size);
+                        assert_eq!(*value, cast);
+                    }
+                    None => {
+                        // Do nothing as there is no overflow op pending
+                    },
+                    _ => {
+                        panic!("Truncate not matched to signed overflow pattern");
+                    }
+                }
+            }
+            Instruction::Cast(value, typ) => {
+                match &mut self.signed_binary_op {
+                    Some(PendingSignedOverflowOp::AddOrSub { .. }) => {
+                        panic!(
+                            "Invalid cast inserted after signed checked Add/Sub. It must be followed immediately by truncate"
+                        );
+                    }
+                    Some(PendingSignedOverflowOp::Mul {
+                        bit_size: expected_bit_size,
+                        mul_result,
+                        cast_result,
+                    }) => {
+                        assert_eq!(typ.bit_size(), 2 * *expected_bit_size);
+                        assert_eq!(*value, *mul_result);
+                        *cast_result = Some(dfg.instruction_results(instruction)[0]);
+                    }
+                    None => {
+                        // Do nothing as there is no overflow op pending
+                    }
+                }
             }
             _ => {
-                self.signed_binary_op = None;
+                if self.signed_binary_op.is_some() {
+                    panic!("Signed binary operation does not follow overflow pattern");
+                }
             }
         }
     }
@@ -157,13 +213,13 @@ impl<'f> Validator<'f> {
 
         for block in self.function.reachable_blocks() {
             for instruction in self.function.dfg[block].instructions() {
-                self.validate_truncate_after_signed_sub(*instruction);
+                self.validate_signed_op_overflow_pattern(*instruction);
                 self.type_check_instruction(*instruction);
             }
         }
 
         if self.signed_binary_op.is_some() {
-            panic!("ICE: Truncate must follow the result of a checked signed add/sub");
+            panic!("Signed binary operation does not follow overflow pattern");
         }
     }
 }
@@ -172,6 +228,7 @@ impl<'f> Validator<'f> {
 ///
 /// Panics on malformed functions.
 pub(crate) fn validate_function(function: &Function) {
+    dbg!(function.id());
     let mut validator = Validator::new(function);
     validator.run();
 }
@@ -181,7 +238,7 @@ mod tests {
     use crate::ssa::ssa_gen::Ssa;
 
     #[test]
-    #[should_panic(expected = "ICE: Truncate must follow the result of a checked signed add/sub")]
+    #[should_panic(expected = "Signed binary operation does not follow overflow pattern")]
     fn lone_signed_sub_acir() {
         let src = r"
         acir(inline) pure fn main f0 {
@@ -195,7 +252,7 @@ mod tests {
     }
 
     #[test]
-    #[should_panic(expected = "ICE: Truncate must follow the result of a checked signed add/sub")]
+    #[should_panic(expected = "Signed binary operation does not follow overflow pattern")]
     fn lone_signed_sub_brillig() {
         // This matches the test above we just want to make sure it holds in the Brillig runtime as well as ACIR
         let src = r"
@@ -210,7 +267,7 @@ mod tests {
     }
 
     #[test]
-    #[should_panic(expected = "ICE: Truncate must follow the result of a checked signed add/sub")]
+    #[should_panic(expected = "Signed binary operation does not follow overflow pattern")]
     fn lone_signed_add_acir() {
         let src = r"
         acir(inline) pure fn main f0 {
@@ -224,7 +281,7 @@ mod tests {
     }
 
     #[test]
-    #[should_panic(expected = "ICE: Truncate must follow the result of a checked signed add/sub")]
+    #[should_panic(expected = "Signed binary operation does not follow overflow pattern")]
     fn lone_signed_add_brillig() {
         let src = r"
         brillig(inline) pure fn main f0 {
@@ -238,9 +295,7 @@ mod tests {
     }
 
     #[test]
-    #[should_panic(
-        expected = "ICE: Correct truncate must follow the result of a checked signed add/sub"
-    )]
+    #[should_panic(expected = "assertion `left == right` failed")]
     fn signed_sub_bad_truncate_bit_size() {
         let src = r"
         acir(inline) pure fn main f0 {
@@ -255,9 +310,7 @@ mod tests {
     }
 
     #[test]
-    #[should_panic(
-        expected = "ICE: Correct truncate must follow the result of a checked signed add/sub"
-    )]
+    #[should_panic(expected = "assertion `left == right` failed")]
     fn signed_sub_bad_truncate_max_bit_size() {
         let src = r"
         acir(inline) pure fn main f0 {
@@ -321,6 +374,133 @@ mod tests {
             v2 = add v0, v1
             v3 = truncate v2 to 16 bits, max_bit_size: 17
             return v3
+        }
+        ";
+
+        let _ = Ssa::from_str(src);
+    }
+
+    #[test]
+    #[should_panic(
+        expected = "Invalid cast inserted after signed checked Add/Sub. It must be followed immediately by truncate"
+    )]
+    fn cast_and_truncate_follows_signed_add() {
+        let src = r"
+        brillig(inline) pure fn main f0 {
+          b0(v0: i16, v1: i16):
+            v2 = add v0, v1
+            v3 = cast v2 as i32
+            v4 = truncate v2 to 16 bits, max_bit_size: 17
+            return v4
+        }
+        ";
+
+        let _ = Ssa::from_str(src);
+    }
+
+    #[test]
+    #[should_panic(expected = "Signed binary operation does not follow overflow pattern")]
+    fn signed_mul_followed_by_binary() {
+        let src = "
+        acir(inline) predicate_pure fn main f0 {
+          b0(v0: Field):
+            v1 = truncate v0 to 16 bits, max_bit_size: 254
+            v2 = cast v1 as i16
+            v3 = mul v2, v2
+            v4 = div v3, v2
+            return v4
+        }
+        ";
+        let _ = Ssa::from_str(src);
+    }
+
+    #[test]
+    fn signed_mul_followed_by_cast_and_truncate() {
+        let src = "
+        acir(inline) predicate_pure fn main f0 {
+          b0(v0: i16):
+            v1 = mul v0, v0
+            v2 = cast v1 as u32
+            v3 = truncate v2 to 16 bits, max_bit_size: 32
+            v4 = cast v3 as i16
+            return v4
+        }
+        ";
+        let _ = Ssa::from_str(src);
+    }
+
+    #[test]
+    #[should_panic(expected = "assertion `left == right` failed")]
+    fn signed_mul_followed_by_bad_cast() {
+        let src = "
+        acir(inline) predicate_pure fn main f0 {
+          b0(v0: i16):
+            v1 = mul v0, v0
+            v2 = cast v0 as u16
+            v3 = truncate v2 to 16 bits, max_bit_size: 32
+            v4 = cast v3 as i16
+            return v4
+        }
+        ";
+        let _ = Ssa::from_str(src);
+    }
+
+    #[test]
+    #[should_panic(expected = "assertion `left == right` failed")]
+    fn signed_mul_followed_by_bad_cast_bit_size() {
+        let src = "
+        acir(inline) predicate_pure fn main f0 {
+          b0(v0: i16):
+            v1 = mul v0, v0
+            v2 = cast v1 as u16
+            v3 = truncate v2 to 16 bits, max_bit_size: 32
+            v4 = cast v3 as i16
+            return v4
+        }
+        ";
+        let _ = Ssa::from_str(src);
+    }
+
+    #[test]
+    #[should_panic(expected = "assertion `left == right` failed")]
+    fn signed_mul_followed_by_bad_truncate_bit_size() {
+        let src = "
+        acir(inline) predicate_pure fn main f0 {
+          b0(v0: i16):
+            v1 = mul v0, v0
+            v2 = cast v1 as u32
+            v3 = truncate v2 to 32 bits, max_bit_size: 32
+            v4 = cast v3 as i16
+            return v4
+        }
+        ";
+        let _ = Ssa::from_str(src);
+    }
+
+    #[test]
+    #[should_panic(expected = "assertion `left == right` failed")]
+    fn signed_mul_followed_by_bad_truncate_max_bit_size() {
+        let src = "
+        acir(inline) predicate_pure fn main f0 {
+          b0(v0: i16):
+            v1 = mul v0, v0
+            v2 = cast v1 as u32
+            v3 = truncate v2 to 16 bits, max_bit_size: 33
+            v4 = cast v3 as i16
+            return v4
+        }
+        ";
+        let _ = Ssa::from_str(src);
+    }
+
+    #[test]
+    #[should_panic(expected = "Signed binary operation does not follow overflow pattern")]
+    fn lone_signed_mul_acir() {
+        let src = r"
+        acir(inline) pure fn main f0 {
+          b0(v0: i16, v1: i16):
+            v2 = mul v0, v1
+            return v2
         }
         ";
 

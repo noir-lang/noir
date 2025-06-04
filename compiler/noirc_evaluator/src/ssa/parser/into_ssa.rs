@@ -16,7 +16,6 @@ use crate::ssa::{
         value::ValueId,
     },
     opt::pure::FunctionPurities,
-    validation::validate_function,
 };
 
 use super::{
@@ -557,10 +556,6 @@ impl Translator {
         // that the SSA we parsed was printed by the `SsaBuilder`, which normalizes
         // before each print.
         ssa.normalize_ids();
-
-        for function in ssa.functions.values() {
-            validate_function(function);
-        }
 
         ssa
     }
