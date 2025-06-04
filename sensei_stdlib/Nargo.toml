@@ -1,0 +1,5 @@
+[package]
+name = "std"
+type = "lib"
+authors = [""]
+[dependencies]

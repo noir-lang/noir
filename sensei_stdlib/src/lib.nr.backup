@@ -1,0 +1,36 @@
+use crate::meta::ctstring::AsCtString;
+
+
+#[builtin(dynamic_alloc_zeroed)]
+pub fn raw_malloc_zeroed(size: u256) -> u256 {}
+
+pub type u256 = Field;
+
+pub struct u8 {
+    v: u256
+}
+
+pub enum Option<T> {
+    Some(T),
+    None
+}
+
+
+fn test_not_equal() {
+
+    let x = 10;
+    comptime {
+        let mut a: CtString = "123".as_ctstring();
+    }
+    
+    //a = "bcde";
+    // let b: String = "abc".into();
+
+    // Uncomment to make test fail
+    // assert(not_equal(1, 1));
+}
+
+pub mod meta;
+pub mod cmp;
+pub mod ops;
+pub mod hash;
