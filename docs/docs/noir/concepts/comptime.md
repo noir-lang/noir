@@ -2,7 +2,7 @@
 title: Compile-time Code & Metaprogramming
 description: Learn how to use metaprogramming in Noir to create macros or derive your own traits
 keywords: [Noir, comptime, compile-time, metaprogramming, macros, quote, unquote]
-sidebar_position: 15
+sidebar_position: 16
 ---
 
 ## Overview
