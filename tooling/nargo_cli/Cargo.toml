@@ -44,6 +44,7 @@ nargo_toml.workspace = true
 noir_lsp.workspace = true
 noir_artifact_cli.workspace = true
 noir_debugger.workspace = true
+noirc_evaluator.workspace = true
 noir_tracer.workspace = true
 noirc_driver = { workspace = true, features = ["bn254"] }
 noirc_frontend = { workspace = true, features = ["bn254"] }
@@ -51,6 +52,7 @@ noirc_abi.workspace = true
 noirc_errors.workspace = true
 noirc_artifacts.workspace = true
 noirc_artifacts_info.workspace = true
+noir_ast_fuzzer.workspace = true
 acvm = { workspace = true, features = ["bn254"] }
 bn254_blackbox_solver.workspace = true
 toml.workspace = true

@@ -1152,13 +1152,13 @@ fn error_on_duplicate_impl_with_associated_constant() {
 
         impl Foo for i32 {
              ~~~ Previous impl defined here
-            let Bar = 5;
+            let Bar: u32 = 5;
         }
 
         impl Foo for i32 {
                      ^^^ Impl for type `i32` overlaps with existing impl
                      ~~~ Overlapping impl
-            let Bar = 6;
+            let Bar: u32 = 6;
         }
 
         fn main() {}

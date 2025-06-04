@@ -339,6 +339,12 @@ impl FunctionContext<'_> {
         let mut result = Self::unit_value();
         for expr in block {
             result = self.codegen_expression(expr)?;
+
+            // A break or continue might happen in a block, in which case we must
+            // not codegen any further expressions.
+            if self.builder.current_block_is_closed() {
+                break;
+            }
         }
         Ok(result)
     }
@@ -579,9 +585,14 @@ impl FunctionContext<'_> {
         // Compile the loop body
         self.builder.switch_to_block(loop_body);
         self.define(for_expr.index_variable, loop_index.into());
+
         self.codegen_expression(&for_expr.block)?;
-        let new_loop_index = self.make_offset(loop_index, 1);
-        self.builder.terminate_with_jmp(loop_entry, vec![new_loop_index]);
+
+        if !self.builder.current_block_is_closed() {
+            // No need to jump if the current block is already closed
+            let new_loop_index = self.make_offset(loop_index, 1);
+            self.builder.terminate_with_jmp(loop_entry, vec![new_loop_index]);
+        }
 
         // Finish by switching back to the end of the loop
         self.builder.switch_to_block(loop_end);
@@ -1090,9 +1101,14 @@ impl FunctionContext<'_> {
         // Evaluate the rhs first - when we load the expression in the lvalue we want that
         // to reflect any mutations from evaluating the rhs.
         let rhs = self.codegen_expression(&assign.expression)?;
-        let lhs = self.extract_current_value(&assign.lvalue)?;
 
-        self.assign_new_value(lhs, rhs);
+        // Can't assign to a variable if the expression had an unconditional break in it
+        if !self.builder.current_block_is_closed() {
+            let lhs = self.extract_current_value(&assign.lvalue)?;
+
+            self.assign_new_value(lhs, rhs);
+        }
+
         Ok(Self::unit_value())
     }
 
@@ -1104,6 +1120,9 @@ impl FunctionContext<'_> {
     fn codegen_break(&mut self) -> Values {
         let loop_end = self.current_loop().loop_end;
         self.builder.terminate_with_jmp(loop_end, Vec::new());
+
+        self.builder.close_block();
+
         Self::unit_value()
     }
 
@@ -1117,6 +1136,9 @@ impl FunctionContext<'_> {
         } else {
             self.builder.terminate_with_jmp(loop_.loop_entry, vec![]);
         }
+
+        self.builder.close_block();
+
         Self::unit_value()
     }
 

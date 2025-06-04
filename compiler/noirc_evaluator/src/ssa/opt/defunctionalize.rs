@@ -340,9 +340,6 @@ fn find_variants(ssa: &Ssa) -> Variants {
 }
 
 /// Finds all literal functions used as values in the given function
-///
-/// It is assumed that function values will only ever be used in a call instruction
-/// or a store instruction.
 fn find_functions_as_values(func: &Function) -> BTreeSet<FunctionId> {
     let mut functions_as_values: BTreeSet<FunctionId> = BTreeSet::new();
 
@@ -356,18 +353,14 @@ fn find_functions_as_values(func: &Function) -> BTreeSet<FunctionId> {
         let block = &func.dfg[block_id];
         for instruction_id in block.instructions() {
             let instruction = &func.dfg[*instruction_id];
-            match instruction {
-                Instruction::Call { arguments, .. } => {
-                    arguments.iter().for_each(|value_id| process_value(*value_id));
-                }
-                Instruction::Store { value, .. } => {
-                    process_value(*value);
-                }
-                Instruction::MakeArray { elements, .. } => {
-                    elements.iter().for_each(|element| process_value(*element));
-                }
-                _ => continue,
-            };
+
+            // Handle call instructions separately. Functions used in their function field
+            // don't have to be first-class values.
+            if let Instruction::Call { arguments, .. } = instruction {
+                arguments.iter().for_each(|value_id| process_value(*value_id));
+            } else {
+                instruction.for_each_value(&mut process_value);
+            }
         }
 
         block.unwrap_terminator().for_each_value(&mut process_value);
@@ -653,7 +646,7 @@ fn replacement_type(typ: &Type) -> Type {
 
 #[cfg(test)]
 mod tests {
-    use crate::assert_ssa_snapshot;
+    use crate::{assert_ssa_snapshot, ssa::ir::function::FunctionId};
 
     use super::Ssa;
 
@@ -1303,5 +1296,35 @@ mod tests {
             return v3
         }
         ");
+    }
+
+    #[test]
+    fn find_functions_as_values_finds_function_in_array_set() {
+        let src = r#"
+        acir(inline) fn main f0 {
+          b0(v0: u32):
+            v1 = make_array [f1] : [function; 0]
+            v2 = array_set v1, index u32 0, value f2
+            return v0
+        }
+
+        acir(inline) fn foo f1 {
+          b0(v0: u32):
+            return v0
+        }
+
+        acir(inline) fn bar f2 {
+          b0(v0: u32):
+            return v0
+        }
+        "#;
+
+        let ssa = Ssa::from_str(src).unwrap();
+        let main = ssa.main();
+
+        let functions = super::find_functions_as_values(main);
+        assert_eq!(functions.len(), 2);
+        assert!(functions.contains(&FunctionId::test_new(1))); // foo
+        assert!(functions.contains(&FunctionId::test_new(2))); // bar
     }
 }

@@ -3259,6 +3259,7 @@ dependencies = [
  "nargo_fmt",
  "nargo_toml",
  "noir_artifact_cli",
+ "noir_ast_fuzzer",
  "noir_debugger",
  "noir_lsp",
  "noir_tracer",
@@ -3436,6 +3437,7 @@ dependencies = [
  "proptest",
  "rand 0.8.5",
  "regex",
+ "serde_json",
  "similar-asserts",
  "strum",
 ]

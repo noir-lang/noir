@@ -14,9 +14,11 @@ unconstrained fn foo() -> bool {
     loop {
         if i == 3 {
             break;
+            bug = true;
         } else if i == 2 {
             i = i + 1;
             continue;
+            bug = true;
         };
         i = i + 1;
     }

@@ -435,11 +435,11 @@ impl<'context, 'string> ItemPrinter<'context, 'string> {
 
             self.write_indent();
 
-            if let Type::Constant(_, Kind::Numeric(numeric_type)) = &named_type.typ {
+            if let Kind::Numeric(numeric_type) = named_type.typ.kind() {
                 self.push_str("let ");
                 self.push_str(&named_type.name.to_string());
                 self.push_str(": ");
-                self.show_type(numeric_type);
+                self.show_type(&numeric_type);
                 self.push_str(" = ");
             } else {
                 self.push_str("type ");

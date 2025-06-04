@@ -37,7 +37,7 @@ use crate::{
             dfg::{DataFlowGraph, InsertInstructionResult},
             dom::DominatorTree,
             function::{Function, FunctionId, RuntimeType},
-            instruction::{ArrayOffset, BinaryOp, Instruction, InstructionId},
+            instruction::{ArrayOffset, Instruction, InstructionId},
             types::{NumericType, Type},
             value::{Value, ValueId, ValueMapping},
         },
@@ -543,7 +543,7 @@ impl<'brillig> Context<'brillig> {
         let predicate = self.use_constraint_info && instruction.requires_acir_gen_predicate(dfg);
         let predicate = predicate.then_some(side_effects_enabled_var);
 
-        results_for_instruction.get(&predicate)?.get(block, dom, has_side_effects(instruction, dfg))
+        results_for_instruction.get(&predicate)?.get(block, dom, instruction.has_side_effects(dfg))
     }
 
     /// Checks if the given instruction is a call to a brillig function with all constant arguments.
@@ -830,66 +830,6 @@ fn simplify(dfg: &DataFlowGraph, lhs: ValueId, rhs: ValueId) -> Option<(ValueId,
         (Value::Param { .. }, Value::Instruction { .. }) => Some((rhs, lhs)),
         (Value::Instruction { .. }, Value::Param { .. }) => Some((lhs, rhs)),
         (_, _) => None,
-    }
-}
-
-/// Indicates if the instruction has a side effect, ie. it can fail, or it interacts with memory.
-///
-/// This is similar to `can_be_deduplicated`, but it doesn't depend on whether the caller takes
-/// constraints into account, because it might not use it to isolate the side effects across branches.
-fn has_side_effects(instruction: &Instruction, dfg: &DataFlowGraph) -> bool {
-    use Instruction::*;
-
-    match instruction {
-        // These either have side-effects or interact with memory
-        EnableSideEffectsIf { .. }
-        | Allocate
-        | Load { .. }
-        | Store { .. }
-        | IncrementRc { .. }
-        | DecrementRc { .. } => true,
-
-        Call { func, .. } => match dfg[*func] {
-            Value::Intrinsic(intrinsic) => intrinsic.has_side_effects(),
-            // Functions known to be pure have no side effects.
-            // `PureWithPredicates` functions may still have side effects.
-            Value::Function(function) => dfg.purity_of(function) != Some(Purity::Pure),
-            _ => true, // Be conservative and assume other functions can have side effects.
-        },
-
-        // These can fail.
-        Constrain(..) | ConstrainNotEqual(..) | RangeCheck { .. } => true,
-
-        // This should never be side-effectual
-        MakeArray { .. } | Noop => false,
-
-        // Some binary math can overflow or underflow
-        Binary(binary) => match binary.operator {
-            BinaryOp::Add { unchecked: false }
-            | BinaryOp::Sub { unchecked: false }
-            | BinaryOp::Mul { unchecked: false }
-            | BinaryOp::Div
-            | BinaryOp::Mod => true,
-            BinaryOp::Add { unchecked: true }
-            | BinaryOp::Sub { unchecked: true }
-            | BinaryOp::Mul { unchecked: true }
-            | BinaryOp::Eq
-            | BinaryOp::Lt
-            | BinaryOp::And
-            | BinaryOp::Or
-            | BinaryOp::Xor
-            | BinaryOp::Shl
-            | BinaryOp::Shr => false,
-        },
-
-        // These don't have side effects
-        Cast(_, _) | Not(_) | Truncate { .. } | IfElse { .. } => false,
-
-        // `ArrayGet`s which read from "known good" indices from an array have no side effects
-        ArrayGet { array, index, offset: _ } => !dfg.is_safe_index(*index, *array),
-
-        // ArraySet has side effects
-        ArraySet { .. } => true,
     }
 }
 
@@ -1368,7 +1308,7 @@ mod test {
                 v2 = lt u32 1000, v0
                 jmpif v2 then: b1, else: b2
               b1():
-                v4 = shl v0, u32 1
+                v4 = shl v0, u8 1
                 v5 = lt v0, v4
                 constrain v5 == u1 1
                 jmp b2()
@@ -1376,7 +1316,7 @@ mod test {
                 v7 = lt u32 1000, v0
                 jmpif v7 then: b3, else: b4
               b3():
-                v8 = shl v0, u32 1
+                v8 = shl v0, u8 1
                 v9 = lt v0, v8
                 constrain v9 == u1 1
                 jmp b4()
@@ -1395,10 +1335,10 @@ mod test {
         brillig(inline) fn main f0 {
           b0(v0: u32):
             v2 = lt u32 1000, v0
-            v4 = shl v0, u32 1
+            v4 = shl v0, u8 1
             jmpif v2 then: b1, else: b2
           b1():
-            v5 = shl v0, u32 1
+            v5 = shl v0, u8 1
             v6 = lt v0, v5
             constrain v6 == u1 1
             jmp b2()
@@ -1482,7 +1422,8 @@ mod test {
             brillig(inline) fn one f1 {
               b0(v0: i32, v1: i32):
                 v2 = add v0, v1
-                return v2
+                v3 = truncate v2 to 32 bits, max_bit_size: 33
+                return v3
             }
             ";
         let ssa = Ssa::from_str(src).unwrap();

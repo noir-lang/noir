@@ -233,11 +233,41 @@ impl DataFlowGraph {
 
     fn validate_instruction(&self, instruction: &Instruction) {
         match instruction {
-            Instruction::Binary(Binary { lhs, rhs: _, operator: BinaryOp::Lt }) => {
-                // Assume rhs_type is the same as lhs_type
+            Instruction::Binary(Binary { lhs, rhs, operator }) => {
                 let lhs_type = self.type_of_value(*lhs);
-                if matches!(lhs_type, Type::Numeric(NumericType::NativeField)) {
-                    panic!("Cannot use `lt` with field elements");
+                let rhs_type = self.type_of_value(*rhs);
+                match operator {
+                    BinaryOp::Lt => {
+                        if lhs_type != rhs_type {
+                            panic!(
+                                "Left-hand side and right-hand side of `lt` must have the same type"
+                            );
+                        }
+
+                        if matches!(lhs_type, Type::Numeric(NumericType::NativeField)) {
+                            panic!("Cannot use `lt` with field elements");
+                        }
+                    }
+                    BinaryOp::Shl => {
+                        if !matches!(rhs_type, Type::Numeric(NumericType::Unsigned { bit_size: 8 }))
+                        {
+                            panic!("Right-hand side of `shl` must be u8");
+                        }
+                    }
+                    BinaryOp::Shr => {
+                        if !matches!(rhs_type, Type::Numeric(NumericType::Unsigned { bit_size: 8 }))
+                        {
+                            panic!("Right-hand side of `shr` must be u8");
+                        }
+                    }
+                    _ => {
+                        if lhs_type != rhs_type {
+                            panic!(
+                                "Left-hand side and right-hand side of `{}` must have the same type",
+                                operator
+                            );
+                        }
+                    }
                 }
             }
             Instruction::ArrayGet { index, .. } | Instruction::ArraySet { index, .. } => {
@@ -945,6 +975,47 @@ mod tests {
         acir(inline) impure fn main f0 {
           b0():
             v2 = lt Field 1, Field 2
+            return
+        }
+        ";
+        let _ = Ssa::from_str(src);
+    }
+
+    #[test]
+    #[should_panic(
+        expected = "Left-hand side and right-hand side of `add` must have the same type"
+    )]
+    fn disallows_binary_add_with_different_types() {
+        let src = "
+        acir(inline) fn main f0 {
+          b0():
+            v2 = add Field 1, i32 2
+            return
+        }
+        ";
+        let _ = Ssa::from_str(src);
+    }
+
+    #[test]
+    #[should_panic(expected = "Right-hand side of `shr` must be u8")]
+    fn disallows_shr_with_non_u8() {
+        let src = "
+        acir(inline) fn main f0 {
+          b0():
+            v2 = shr u32 1, u16 1
+            return
+        }
+        ";
+        let _ = Ssa::from_str(src);
+    }
+
+    #[test]
+    #[should_panic(expected = "Right-hand side of `shl` must be u8")]
+    fn disallows_shl_with_non_u8() {
+        let src = "
+        acir(inline) fn main f0 {
+          b0():
+            v2 = shl u32 1, u16 1
             return
         }
         ";
