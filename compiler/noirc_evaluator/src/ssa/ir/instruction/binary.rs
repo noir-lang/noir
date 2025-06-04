@@ -142,8 +142,7 @@ pub(crate) fn eval_constant_binary_op(
                     return None;
                 }
                 BinaryOp::Shr => {
-                    let result = if rhs >= bit_size as i128 { 0 } else { result? };
-                    result
+                    if rhs >= bit_size as i128 { 0 } else { result? }
                 }
 
                 _ => {
