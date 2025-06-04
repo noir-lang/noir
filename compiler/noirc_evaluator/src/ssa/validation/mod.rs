@@ -149,16 +149,21 @@ impl<'f> Validator<'f> {
                 }
             }
             Instruction::Call { func, arguments } => {
-                if let Value::Intrinsic(Intrinsic::ToRadix(_) | Intrinsic::ToBits(_)) = &dfg[*func]
-                {
-                    assert_eq!(arguments.len(), 2);
+                if let Value::Intrinsic(intrinsic) = &dfg[*func] {
                     let value_typ = dfg.type_of_value(arguments[0]);
                     assert!(matches!(value_typ, Type::Numeric(NumericType::NativeField)));
-                    let radix_typ = dfg.type_of_value(arguments[1]);
-                    assert!(matches!(
-                        radix_typ,
-                        Type::Numeric(NumericType::Unsigned { bit_size: 32 })
-                    ));
+
+                    if matches!(intrinsic, Intrinsic::ToRadix(_)) {
+                        assert_eq!(arguments.len(), 2);
+                        let radix_typ = dfg.type_of_value(arguments[1]);
+                        assert!(matches!(
+                            radix_typ,
+                            Type::Numeric(NumericType::Unsigned { bit_size: 32 })
+                        ));
+                    } else {
+                        // Intrinsic::ToBits always has a set radix
+                        assert_eq!(arguments.len(), 1);
+                    }
                 }
             }
             _ => (),
@@ -401,13 +406,57 @@ mod tests {
     fn to_le_radix_on_non_field_value() {
         let src = "
         brillig(inline) predicate_pure fn main f0 {
-          b0(v0: Field):
-            call f1(u1 1, v0)
+          b0():
+            call f1(u1 1)
             return
         }
         brillig(inline) fn foo f1 {
-          b0(v0: u1, v1: [u4; 2]):
+          b0(v0: u1):
             v2 = call to_le_radix(v0, u32 256) -> [u7; 1]
+            return
+        }
+        ";
+        let _ = Ssa::from_str(src);
+    }
+
+    #[test]
+    #[should_panic(
+        expected = "assertion failed: matches!(value_typ, Type::Numeric(NumericType::NativeField))"
+    )]
+    fn to_le_bits_on_non_field_value() {
+        let src = "
+        brillig(inline) predicate_pure fn main f0 {
+          b0():
+            call f1(u1 1)
+            return
+        }
+        brillig(inline) fn foo f1 {
+          b0(v0: u1):
+            v2 = call to_le_bits(v0) -> [u1; 32]
+            return
+        }
+        ";
+        let _ = Ssa::from_str(src);
+    }
+
+    #[test]
+    fn valid_to_le_radix() {
+        let src = "
+        brillig(inline) predicate_pure fn main f0 {
+          b0(v0: Field):
+            v1 = call to_le_bytes(v0, u32 256) -> [u8; 1]
+            return
+        }
+        ";
+        let _ = Ssa::from_str(src);
+    }
+
+    #[test]
+    fn valid_to_le_bits() {
+        let src = "
+        brillig(inline) predicate_pure fn main f0 {
+          b0(v0: Field):
+            v1 = call to_le_bits(v0) -> [u1; 32]
             return
         }
         ";
