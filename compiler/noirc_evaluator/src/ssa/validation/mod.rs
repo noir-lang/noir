@@ -12,6 +12,7 @@
 //! - Check that the input values of certain instructions matches that instruction's constraint
 //!   At the moment, only [Instruction::Binary], [Instruction::ArrayGet], and [Instruction::ArraySet]
 //!   are type checked.
+use acvm::{AcirField, FieldElement};
 use fxhash::FxHashSet as HashSet;
 
 use crate::ssa::ir::instruction::TerminatorInstruction;
@@ -30,6 +31,8 @@ struct Validator<'f> {
     // State for truncate-after-signed-sub validation
     // Stores: Option<(bit_size, result)>
     signed_binary_op: Option<PendingSignedOverflowOp>,
+    // Tracks values that have been truncated but not yet cast
+    pending_casts: HashSet<ValueId>,
 }
 
 #[derive(Debug)]
@@ -40,7 +43,7 @@ enum PendingSignedOverflowOp {
 
 impl<'f> Validator<'f> {
     fn new(function: &'f Function) -> Self {
-        Self { function, signed_binary_op: None }
+        Self { function, signed_binary_op: None, pending_casts: HashSet::default() }
     }
 
     /// Validates that any checked signed add/sub/mul are followed by the appropriate instructions.
@@ -136,6 +139,36 @@ impl<'f> Validator<'f> {
                 }
             }
         }
+    }
+
+    /// Enforces that every cast from Field -> unsigned/signed integer must be preceded by a truncate
+    fn validate_field_to_integer_cast_invariant(&mut self, instruction_id: InstructionId) {
+        let dfg = &self.function.dfg;
+
+        let Instruction::Cast(cast_input, typ) = &dfg[instruction_id] else { return };
+
+        if !matches!(dfg.type_of_value(*cast_input), Type::Numeric(NumericType::NativeField)) {
+            return;
+        }
+
+        let (NumericType::Signed { bit_size: target_type_size }
+        | NumericType::Unsigned { bit_size: target_type_size }) = typ
+        else {
+            return;
+        };
+
+        let Value::Instruction { instruction, .. } = &dfg[*cast_input] else {
+            panic!("Invalid cast from Field, must be preceded by a truncate")
+        };
+
+        let Instruction::Truncate { bit_size, max_bit_size, .. } = &dfg[*instruction] else {
+            panic!("Invalid cast from Field, must be preceded by a truncate")
+        };
+
+        let truncate_result = self.function.dfg.instruction_results(*instruction)[0];
+        assert_eq!(truncate_result, *cast_input);
+        assert_eq!(*bit_size, *target_type_size);
+        assert_eq!(*max_bit_size, FieldElement::max_num_bits());
     }
 
     // Validates there is exactly one return block
@@ -239,12 +272,16 @@ impl<'f> Validator<'f> {
         for block in self.function.reachable_blocks() {
             for instruction in self.function.dfg[block].instructions() {
                 self.validate_signed_op_overflow_pattern(*instruction);
+                self.validate_field_to_integer_cast_invariant(*instruction);
                 self.type_check_instruction(*instruction);
             }
         }
 
         if self.signed_binary_op.is_some() {
             panic!("Signed binary operation does not follow overflow pattern");
+        }
+        if !self.pending_casts.is_empty() {
+            panic!("Truncated values not followed by cast: {:?}", self.pending_casts);
         }
     }
 }
@@ -253,7 +290,6 @@ impl<'f> Validator<'f> {
 ///
 /// Panics on malformed functions.
 pub(crate) fn validate_function(function: &Function) {
-    dbg!(function.id());
     let mut validator = Validator::new(function);
     validator.run();
 }
