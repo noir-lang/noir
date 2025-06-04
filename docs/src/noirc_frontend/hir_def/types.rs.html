@@ -3400,7 +3400,10 @@
 <a href="#3399" id="3399">3399</a>
 <a href="#3400" id="3400">3400</a>
 <a href="#3401" id="3401">3401</a>
-<a href="#3402" id="3402">3402</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::{borrow::Cow, cell::RefCell, collections::BTreeSet, rc::Rc};
+<a href="#3402" id="3402">3402</a>
+<a href="#3403" id="3403">3403</a>
+<a href="#3404" id="3404">3404</a>
+<a href="#3405" id="3405">3405</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::{borrow::Cow, cell::RefCell, collections::BTreeSet, rc::Rc};
 
 <span class="kw">use </span>fxhash::FxHashMap <span class="kw">as </span>HashMap;
 
@@ -5385,13 +5388,16 @@
 
                     <span class="kw">if </span>lhs_result.is_ok() &amp;&amp; rhs_result.is_ok() {
                         <span class="kw-2">*</span>bindings = new_bindings;
-                        <span class="prelude-val">Ok</span>(())
+                        <span class="kw">return </span><span class="prelude-val">Ok</span>(());
                     } <span class="kw">else </span>{
-                        lhs.try_unify_by_moving_constant_terms(<span class="kw-2">&amp;</span>rhs, bindings)
+                        <span class="kw">let </span>result = lhs.try_unify_by_moving_constant_terms(<span class="kw-2">&amp;</span>rhs, bindings);
+                        <span class="kw">if </span>result.is_ok() {
+                            <span class="kw">return </span><span class="prelude-val">Ok</span>(());
+                        }
                     }
-                } <span class="kw">else </span>{
-                    <span class="prelude-val">Err</span>(UnificationError)
                 }
+
+                lhs.try_unify_by_isolating_an_unbound_type_variable(<span class="kw-2">&amp;</span>rhs, bindings)
             }
 
             (Constant(value, kind), other) | (other, Constant(value, kind)) =&gt; {
