@@ -3,8 +3,10 @@ use noirc_frontend::monomorphization::ast::{Expression, Function, Program};
 use super::visitor::visit_expr;
 
 mod limit;
+mod unreachable;
 
 pub(crate) use limit::add_recursion_limit;
+pub(crate) use unreachable::remove_unreachable_functions;
 
 /// Find the next local ID and ident IDs (in that order) that we can use to add
 /// variables to a [Function] during mutations.
