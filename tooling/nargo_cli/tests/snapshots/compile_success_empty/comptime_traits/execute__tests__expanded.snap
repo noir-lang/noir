@@ -1,0 +1,23 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: expanded_code
+---
+use std::ops::Neg;
+
+fn main() {
+    ()
+}
+
+struct MyType {
+    value: i32,
+}
+
+impl Neg for MyType {
+    fn neg(self) -> Self {
+        self
+    }
+}
+
+pub fn neg_at_comptime() {
+    ()
+}

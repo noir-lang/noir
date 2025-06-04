@@ -1,6 +1,6 @@
-use acvm::{acir::native_types::WitnessStack, FieldElement};
+use acvm::{FieldElement, acir::native_types::WitnessStack};
 use js_sys::{Array, Map, Object};
-use wasm_bindgen::prelude::{wasm_bindgen, JsValue};
+use wasm_bindgen::prelude::{JsValue, wasm_bindgen};
 
 use crate::JsWitnessMap;
 

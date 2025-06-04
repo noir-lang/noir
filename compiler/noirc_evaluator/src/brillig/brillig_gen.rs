@@ -8,51 +8,17 @@ pub(crate) mod constant_allocation;
 mod variable_liveness;
 
 use acvm::FieldElement;
-use fxhash::FxHashMap as HashMap;
+use noirc_errors::call_stack::CallStack;
 
-use self::{brillig_block::BrilligBlock, brillig_fn::FunctionContext};
+use self::brillig_fn::FunctionContext;
 use super::{
-    brillig_ir::{
-        artifact::{BrilligArtifact, BrilligParameter, GeneratedBrillig, Label},
-        BrilligContext,
-    },
     Brillig, BrilligOptions, BrilligVariable, ValueId,
+    brillig_ir::{
+        BrilligContext,
+        artifact::{BrilligParameter, GeneratedBrillig},
+    },
 };
-use crate::{
-    errors::InternalError,
-    ssa::ir::{call_stack::CallStack, function::Function, types::NumericType},
-};
-
-/// Converting an SSA function into Brillig bytecode.
-pub(crate) fn convert_ssa_function(
-    func: &Function,
-    options: &BrilligOptions,
-    globals: &HashMap<ValueId, BrilligVariable>,
-    hoisted_global_constants: &HashMap<(FieldElement, NumericType), BrilligVariable>,
-) -> BrilligArtifact<FieldElement> {
-    let mut brillig_context = BrilligContext::new(options);
-
-    let mut function_context = FunctionContext::new(func);
-
-    brillig_context.enter_context(Label::function(func.id()));
-
-    brillig_context.call_check_max_stack_depth_procedure();
-
-    for block in function_context.blocks.clone() {
-        BrilligBlock::compile(
-            &mut function_context,
-            &mut brillig_context,
-            block,
-            &func.dfg,
-            globals,
-            hoisted_global_constants,
-        );
-    }
-
-    let mut artifact = brillig_context.artifact();
-    artifact.name = func.name().to_string();
-    artifact
-}
+use crate::{errors::InternalError, ssa::ir::function::Function};
 
 pub(crate) fn gen_brillig_for(
     func: &Function,
@@ -88,7 +54,7 @@ pub(crate) fn gen_brillig_for(
                 return Err(InternalError::General {
                     message: format!("Cannot find linked fn {unresolved_fn_label}"),
                     call_stack: CallStack::new(),
-                })
+                });
             }
         };
         entry_point.link_with(artifact);

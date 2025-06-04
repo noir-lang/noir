@@ -1,8 +1,8 @@
 use crate::pwg::input_to_value;
 use acir::{
+    AcirField, BlackBoxFunc,
     circuit::opcodes::FunctionInput,
     native_types::{Witness, WitnessMap},
-    AcirField, BlackBoxFunc,
 };
 use acvm_blackbox_solver::BigIntSolver;
 

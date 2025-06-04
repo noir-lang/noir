@@ -6,24 +6,21 @@
 use getrandom as _;
 
 use acvm::{
-    acir::{
-        circuit::RawAssertionPayload,
-        native_types::{WitnessMap, WitnessStack},
-    },
     FieldElement,
+    acir::native_types::{WitnessMap, WitnessStack},
+    pwg::RawAssertionPayload,
 };
 use iter_extended::try_btree_map;
 use noirc_abi::{
-    decode_value, display_abi_error,
+    Abi, AbiErrorType, MAIN_RETURN_NAME, decode_value, display_abi_error,
     errors::InputParserError,
-    input_parser::{json::JsonTypes, InputValue},
-    Abi, AbiErrorType, MAIN_RETURN_NAME,
+    input_parser::{InputValue, json::JsonTypes},
 };
 use serde::Serialize;
 use std::collections::BTreeMap;
 
 use gloo_utils::format::JsValueSerdeExt;
-use wasm_bindgen::{prelude::wasm_bindgen, JsValue};
+use wasm_bindgen::{JsValue, prelude::wasm_bindgen};
 
 mod errors;
 mod js_witness_map;
@@ -129,8 +126,8 @@ pub fn serialise_witness(witness_map: JsWitnessMap) -> Result<Vec<u8>, JsAbiErro
     console_error_panic_hook::set_once();
     let converted_witness: WitnessMap<FieldElement> = witness_map.into();
     let witness_stack: WitnessStack<FieldElement> = converted_witness.into();
-    let output = witness_stack.try_into();
-    output.map_err(|_| JsAbiError::new("Failed to convert to Vec<u8>".to_string()))
+    let output = witness_stack.serialize();
+    output.map_err(|_| JsAbiError::new("Failed to serialize witness stack".to_string()))
 }
 
 #[wasm_bindgen(js_name = abiDecodeError)]

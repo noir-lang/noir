@@ -1,4 +1,4 @@
-use std::io::Write;
+use std::io::{Read, Write};
 use std::path::Path;
 use std::time::Duration;
 
@@ -9,6 +9,9 @@ use nargo::package::Package;
 use nargo::workspace::Workspace;
 use nargo::{insert_all_files_for_workspace_into_file_manager, parse_all};
 use nargo_toml::PackageSelection;
+use noir_artifact_cli::fs::artifact::{
+    read_program_from_file, save_contract_to_file, save_program_to_file,
+};
 use noirc_driver::DEFAULT_EXPRESSION_WIDTH;
 use noirc_driver::NOIR_ARTIFACT_VERSION_STRING;
 use noirc_driver::{CompilationResult, CompileOptions, CompiledContract};
@@ -20,18 +23,17 @@ use notify_debouncer_full::new_debouncer;
 
 use crate::errors::CliError;
 
-use super::fs::program::{read_program_from_file, save_contract_to_file, save_program_to_file};
 use super::{LockType, PackageOptions, WorkspaceCommand};
 use rayon::prelude::*;
 
 /// Compile the program and its secret execution trace into ACIR format
 #[derive(Debug, Clone, Args)]
-pub(crate) struct CompileCommand {
+pub struct CompileCommand {
     #[clap(flatten)]
     pub(super) package_options: PackageOptions,
 
     #[clap(flatten)]
-    compile_options: CompileOptions,
+    pub(super) compile_options: CompileOptions,
 
     /// Watch workspace and recompile on changes.
     #[clap(long, hide = true)]
@@ -50,10 +52,14 @@ impl WorkspaceCommand for CompileCommand {
 
 pub(crate) fn run(args: CompileCommand, workspace: Workspace) -> Result<(), CliError> {
     if args.watch {
+        if args.compile_options.debug_compile_stdin {
+            return Err(CliError::CantWatchStdin);
+        }
         watch_workspace(&workspace, &args.compile_options)
             .map_err(|err| CliError::Generic(err.to_string()))?;
     } else {
-        compile_workspace_full(&workspace, &args.compile_options)?;
+        let debug_compile_stdin = None;
+        compile_workspace_full(&workspace, &args.compile_options, debug_compile_stdin)?;
     }
     Ok(())
 }
@@ -72,7 +78,8 @@ fn watch_workspace(workspace: &Workspace, compile_options: &CompileOptions) -> n
     let mut screen = std::io::stdout();
     write!(screen, "{}", termion::cursor::Save).unwrap();
     screen.flush().unwrap();
-    let _ = compile_workspace_full(workspace, compile_options);
+    let debug_compile_stdin = None;
+    let _ = compile_workspace_full(workspace, compile_options, debug_compile_stdin);
     for res in rx {
         let debounced_events = res.map_err(|mut err| err.remove(0))?;
 
@@ -80,7 +87,7 @@ fn watch_workspace(workspace: &Workspace, compile_options: &CompileOptions) -> n
         let noir_files_modified = debounced_events.iter().any(|event| {
             let mut event_paths = event.event.paths.iter();
             let event_affects_noir_file =
-                event_paths.any(|path| path.extension().map_or(false, |ext| ext == "nr"));
+                event_paths.any(|path| path.extension().is_some_and(|ext| ext == "nr"));
 
             let is_relevant_event_kind = matches!(
                 event.kind,
@@ -93,7 +100,8 @@ fn watch_workspace(workspace: &Workspace, compile_options: &CompileOptions) -> n
         if noir_files_modified {
             write!(screen, "{}{}", termion::cursor::Restore, termion::clear::AfterCursor).unwrap();
             screen.flush().unwrap();
-            let _ = compile_workspace_full(workspace, compile_options);
+            let debug_compile_stdin = None;
+            let _ = compile_workspace_full(workspace, compile_options, debug_compile_stdin);
         }
     }
 
@@ -103,20 +111,38 @@ fn watch_workspace(workspace: &Workspace, compile_options: &CompileOptions) -> n
 }
 
 /// Parse all files in the workspace.
-fn parse_workspace(workspace: &Workspace) -> (FileManager, ParsedFiles) {
+pub fn parse_workspace(
+    workspace: &Workspace,
+    debug_compile_stdin: Option<String>,
+) -> (FileManager, ParsedFiles) {
     let mut file_manager = workspace.new_file_manager();
-    insert_all_files_for_workspace_into_file_manager(workspace, &mut file_manager);
+
+    if let Some(main_nr) = debug_compile_stdin {
+        file_manager.add_file_with_source(Path::new("src/main.nr"), main_nr);
+    } else {
+        insert_all_files_for_workspace_into_file_manager(workspace, &mut file_manager);
+    }
+
     let parsed_files = parse_all(&file_manager);
     (file_manager, parsed_files)
 }
 
 /// Parse and compile the entire workspace, then report errors.
 /// This is the main entry point used by all other commands that need compilation.
-pub(super) fn compile_workspace_full(
+pub fn compile_workspace_full(
     workspace: &Workspace,
     compile_options: &CompileOptions,
+    debug_compile_stdin: Option<String>, // use this String as STDIN if present
 ) -> Result<(), CliError> {
-    let (workspace_file_manager, parsed_files) = parse_workspace(workspace);
+    let mut debug_compile_stdin = debug_compile_stdin;
+    if compile_options.debug_compile_stdin && debug_compile_stdin.is_none() {
+        let mut main_nr = String::new();
+        let stdin = std::io::stdin();
+        let mut stdin_handle = stdin.lock();
+        stdin_handle.read_to_string(&mut main_nr).expect("reading from stdin to succeed");
+        debug_compile_stdin = Some(main_nr);
+    }
+    let (workspace_file_manager, parsed_files) = parse_workspace(workspace, debug_compile_stdin);
 
     let compiled_workspace =
         compile_workspace(&workspace_file_manager, &parsed_files, workspace, compile_options);
@@ -181,7 +207,7 @@ fn compile_programs(
     // The loaded circuit includes backend specific transformations, which might be different from the current target.
     let load_cached_program = |package| {
         let program_artifact_path = workspace.package_build_path(package);
-        read_program_from_file(program_artifact_path)
+        read_program_from_file(&program_artifact_path)
             .ok()
             .filter(|p| p.noir_version == NOIR_ARTIFACT_VERSION_STRING)
             .map(|p| p.into())
@@ -203,20 +229,6 @@ fn compile_programs(
             compile_options,
             cached_program,
         )?;
-
-        if compile_options.check_non_determinism {
-            let (program_two, _) = compile_program(
-                file_manager,
-                parsed_files,
-                workspace,
-                package,
-                compile_options,
-                load_cached_program(package),
-            )?;
-            if fxhash::hash64(&program) != fxhash::hash64(&program_two) {
-                panic!("Non deterministic result compiling {}", package.name);
-            }
-        }
 
         // Choose the target width for the final, backend specific transformation.
         let target_width =
@@ -241,7 +253,8 @@ fn compile_programs(
         // Check solvability.
         nargo::ops::check_program(&program)?;
         // Overwrite the build artifacts with the final circuit, which includes the backend specific transformations.
-        save_program_to_file(&program.into(), &package.name, workspace.target_directory_path());
+        save_program_to_file(&program.into(), &package.name, &workspace.target_directory_path())
+            .expect("failed to save program");
 
         Ok(((), warnings))
     };
@@ -292,7 +305,8 @@ fn save_contract(
         &contract.into(),
         &format!("{}-{}", package.name, contract_name),
         target_dir,
-    );
+    )
+    .expect("failed to save contract");
     if show_artifact_paths {
         println!("Saved contract artifact to: {}", artifact_path.display());
     }
@@ -321,6 +335,7 @@ mod tests {
     use nargo::ops::compile_program;
     use nargo_toml::PackageSelection;
     use noirc_driver::{CompileOptions, CrateName};
+    use noirc_frontend::elaborator::UnstableFeature;
 
     use crate::cli::test_cmd::formatters::diagnostic_to_string;
     use crate::cli::{
@@ -343,7 +358,7 @@ mod tests {
     fn read_test_program_dirs(
         test_programs_dir: &Path,
         test_sub_dir: &str,
-    ) -> impl Iterator<Item = PathBuf> {
+    ) -> impl Iterator<Item = PathBuf> + use<> {
         let test_case_dir = test_programs_dir.join(test_sub_dir);
         std::fs::read_dir(test_case_dir)
             .unwrap()
@@ -393,17 +408,24 @@ mod tests {
 
         assert!(!test_workspaces.is_empty(), "should find some test workspaces");
 
+        // This could be `.par_iter()` but then error messages are no longer reported
         test_workspaces.iter().for_each(|workspace| {
-            let (file_manager, parsed_files) = parse_workspace(workspace);
+            let debug_compile_stdin = None;
+            let (file_manager, parsed_files) = parse_workspace(workspace, debug_compile_stdin);
             let binary_packages = workspace.into_iter().filter(|package| package.is_binary());
 
             for package in binary_packages {
+                let options = CompileOptions {
+                    unstable_features: vec![UnstableFeature::Enums],
+                    ..Default::default()
+                };
+
                 let (program_0, _warnings) = compile_program(
                     &file_manager,
                     &parsed_files,
                     workspace,
                     package,
-                    &CompileOptions::default(),
+                    &options,
                     None,
                 )
                 .unwrap_or_else(|err| {

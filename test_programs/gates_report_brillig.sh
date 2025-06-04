@@ -1,8 +1,16 @@
 #!/usr/bin/env bash
-set -e
+set -eo pipefail
 
-# These tests are incompatible with gas reporting
-excluded_dirs=("workspace" "workspace_default_member" "double_verify_nested_proof" "overlapping_dep_and_mod" "comptime_println")
+# These tests are incompatible with artifact size reporting
+excluded_dirs=(
+  "workspace" 
+  "workspace_default_member" 
+  "double_verify_nested_proof" 
+  "overlapping_dep_and_mod" 
+  "comptime_println" 
+  # This test utilizes enums which are experimental
+  "regression_7323"
+)
 
 current_dir=$(pwd)
 base_path="$current_dir/execution_success"

@@ -33,6 +33,7 @@ fn main() {
 
     generate_execution_success_tests(&mut test_file, &test_dir);
     generate_execution_failure_tests(&mut test_file, &test_dir);
+    generate_execution_panic_tests(&mut test_file, &test_dir);
     generate_noir_test_success_tests(&mut test_file, &test_dir);
     generate_noir_test_failure_tests(&mut test_file, &test_dir);
     generate_compile_success_empty_tests(&mut test_file, &test_dir);
@@ -40,6 +41,29 @@ fn main() {
     generate_compile_success_no_bug_tests(&mut test_file, &test_dir);
     generate_compile_success_with_bug_tests(&mut test_file, &test_dir);
     generate_compile_failure_tests(&mut test_file, &test_dir);
+
+    generate_fuzzing_failure_tests(&mut test_file, &test_dir);
+
+    generate_nargo_expand_execution_success_tests(&mut test_file, &test_dir);
+    generate_nargo_expand_compile_tests_with_ignore_list(
+        "compile_success_empty",
+        &mut test_file,
+        &test_dir,
+        &IGNORED_NARGO_EXPAND_COMPILE_SUCCESS_EMPTY_TESTS,
+    );
+    generate_nargo_expand_compile_tests("compile_success_contract", &mut test_file, &test_dir);
+    generate_nargo_expand_compile_tests_with_ignore_list(
+        "compile_success_no_bug",
+        &mut test_file,
+        &test_dir,
+        &IGNORED_NARGO_EXPAND_COMPILE_SUCCESS_NO_BUG_TESTS,
+    );
+    generate_nargo_expand_compile_tests_with_ignore_list(
+        "compile_success_with_bug",
+        &mut test_file,
+        &test_dir,
+        &IGNORED_NARGO_EXPAND_COMPILE_SUCCESS_WITH_BUG_TESTS,
+    );
 }
 
 /// Some tests are explicitly ignored in brillig due to them failing.
@@ -60,15 +84,26 @@ const IGNORED_BRILLIG_TESTS: [&str; 10] = [
     "is_unconstrained",
 ];
 
-/// Tests which aren't expected to work with the default inliner cases.
+/// Tests which aren't expected to work with the default minimum inliner cases.
 const INLINER_MIN_OVERRIDES: [(&str, i64); 1] = [
     // 0 works if PoseidonHasher::write is tagged as `inline_always`, otherwise 22.
     ("eddsa", 0),
 ];
 
+/// Tests which aren't expected to work with the default maximum inliner cases.
+const INLINER_MAX_OVERRIDES: [(&str, i64); 0] = [];
+
+/// These tests should only be run on exactly 1 inliner setting (the one given here)
+const INLINER_OVERRIDES: [(&str, i64); 4] = [
+    ("reference_counts_inliner_0", 0),
+    ("reference_counts_inliner_min", i64::MIN),
+    ("reference_counts_inliner_max", i64::MAX),
+    ("reference_counts_slices_inliner_0", 0),
+];
+
 /// Some tests are expected to have warnings
 /// These should be fixed and removed from this list.
-const TESTS_WITH_EXPECTED_WARNINGS: [&str; 4] = [
+const TESTS_WITH_EXPECTED_WARNINGS: [&str; 5] = [
     // TODO(https://github.com/noir-lang/noir/issues/6238): remove from list once issue is closed
     "brillig_cast",
     // TODO(https://github.com/noir-lang/noir/issues/6238): remove from list once issue is closed
@@ -76,7 +111,108 @@ const TESTS_WITH_EXPECTED_WARNINGS: [&str; 4] = [
     // We issue a "experimental feature" warning for all enums until they're stabilized
     "enums",
     "comptime_enums",
+    // Testing unreachable instructions
+    "brillig_continue_break",
 ];
+
+/// These tests are ignored because making them work involves a more complex test code that
+/// might not be worth it.
+/// Others are ignored because of existing bugs in `nargo expand`.
+/// As the bugs are fixed these tests should be removed from this list.
+const IGNORED_NARGO_EXPAND_EXECUTION_TESTS: [&str; 9] = [
+    // There's nothing special about this program but making it work with a custom entry would involve
+    // having to parse the Nargo.toml file, etc., which is not worth it
+    "custom_entry",
+    // There's no "src/main.nr" here so it's trickier to make this work
+    "diamond_deps_0",
+    // There's no "src/main.nr" here so it's trickier to make this work
+    "overlapping_dep_and_mod",
+    // bug
+    "poseidonsponge_x5_254",
+    // bug
+    "regression_5045",
+    // bug
+    "regression_7744",
+    // bug
+    "trait_associated_constant",
+    // There's no "src/main.nr" here so it's trickier to make this work
+    "workspace",
+    // There's no "src/main.nr" here so it's trickier to make this work
+    "workspace_default_member",
+];
+
+/// Tests for which we don't check that stdout matches the expected output.
+const TESTS_WITHOUT_STDOUT_CHECK: [&str; 0] = [];
+
+/// These tests are ignored because of existing bugs in `nargo expand`.
+/// As the bugs are fixed these tests should be removed from this list.
+/// (some are ignored on purpose for the same reason as `IGNORED_NARGO_EXPAND_EXECUTION_TESTS`)
+const IGNORED_NARGO_EXPAND_COMPILE_SUCCESS_EMPTY_TESTS: [&str; 20] = [
+    // bug
+    "associated_type_bounds",
+    // bug
+    "enums",
+    // There's no "src/main.nr" here so it's trickier to make this work
+    "overlapping_dep_and_mod",
+    // bug
+    "reexports",
+    // bug
+    "regression_7038",
+    // bug
+    "regression_7038_2",
+    // bug
+    "regression_7038_3",
+    // bug
+    "regression_7038_4",
+    // bug
+    "serialize_1",
+    // bug
+    "serialize_2",
+    // bug
+    "serialize_3",
+    // bug
+    "serialize_4",
+    // bug
+    "trait_allowed_item_name_matches",
+    // bug
+    "trait_default_implementation",
+    // bug
+    "trait_function_calls",
+    // bug
+    "trait_method_mut_self",
+    // bug
+    "trait_override_implementation",
+    // bug
+    "trait_static_methods",
+    // There's no "src/main.nr" here so it's trickier to make this work
+    "workspace_reexport_bug",
+    // bug
+    "nested_trait_associated_type_regression_8252",
+];
+
+/// These tests are ignored because of existing bugs in `nargo expand`.
+/// As the bugs are fixed these tests should be removed from this list.
+const IGNORED_NARGO_EXPAND_COMPILE_SUCCESS_NO_BUG_TESTS: [&str; 16] = [
+    "noirc_frontend_tests_arithmetic_generics_checked_casts_do_not_prevent_canonicalization",
+    "noirc_frontend_tests_check_trait_as_type_as_fn_parameter",
+    "noirc_frontend_tests_check_trait_as_type_as_two_fn_parameters",
+    "noirc_frontend_tests_enums_match_on_empty_enum",
+    "noirc_frontend_tests_resolves_generic_type_argument_via_self",
+    "noirc_frontend_tests_traits_calls_trait_function_if_it_is_in_scope",
+    "noirc_frontend_tests_traits_calls_trait_function_if_it_is_only_candidate_in_scope",
+    "noirc_frontend_tests_traits_calls_trait_function_if_it_is_only_candidate_in_scope_in_nested_module_using_super",
+    "noirc_frontend_tests_traits_trait_alias_polymorphic_inheritance",
+    "noirc_frontend_tests_traits_trait_alias_single_member",
+    "noirc_frontend_tests_traits_trait_alias_two_members",
+    "noirc_frontend_tests_traits_trait_impl_with_where_clause_with_trait_with_associated_type",
+    "noirc_frontend_tests_traits_accesses_associated_type_inside_trait_impl_using_self",
+    "noirc_frontend_tests_traits_accesses_associated_type_inside_trait_using_self",
+    "noirc_frontend_tests_u32_globals_as_sizes_in_types",
+    "noirc_frontend_tests_unused_items_considers_struct_as_constructed_if_trait_method_is_called",
+];
+
+const IGNORED_NARGO_EXPAND_COMPILE_SUCCESS_WITH_BUG_TESTS: [&str; 1] =
+    ["noirc_frontend_tests_cast_negative_one_to_u8_size_checks"];
 
 fn read_test_cases(
     test_data_dir: &Path,
@@ -113,6 +249,8 @@ struct MatrixConfig {
     vary_inliner: bool,
     // If there is a non-default minimum inliner aggressiveness to use with the brillig tests.
     min_inliner: i64,
+    // If there is a non-default maximum inliner aggressiveness to use with the brillig tests.
+    max_inliner: i64,
 }
 
 // Enum to be able to preserve readable test labels and also compare to numbers.
@@ -161,6 +299,9 @@ fn generate_test_cases(
         if !cases.iter().any(|c| c.value() == matrix_config.min_inliner) {
             cases.push(Inliner::Custom(matrix_config.min_inliner));
         }
+        if !cases.iter().any(|c| c.value() == matrix_config.max_inliner) {
+            cases.push(Inliner::Custom(matrix_config.max_inliner));
+        }
         cases
     } else {
         vec![Inliner::Default]
@@ -171,7 +312,8 @@ fn generate_test_cases(
     let mut test_cases = Vec::new();
     for brillig in &brillig_cases {
         for inliner in &inliner_cases {
-            if *brillig && inliner.value() < matrix_config.min_inliner {
+            let inliner_range = matrix_config.min_inliner..=matrix_config.max_inliner;
+            if *brillig && !inliner_range.contains(&inliner.value()) {
                 continue;
             }
             test_cases.push(format!(
@@ -189,25 +331,7 @@ fn generate_test_cases(
 fn test_{test_name}(force_brillig: ForceBrillig, inliner_aggressiveness: Inliner) {{
     let test_program_dir = PathBuf::from("{test_dir}");
 
-    let mut nargo = Command::cargo_bin("nargo").unwrap();
-    nargo.arg("--program-dir").arg(test_program_dir);
-    nargo.arg("{test_command}").arg("--force");
-    nargo.arg("--inliner-aggressiveness").arg(inliner_aggressiveness.0.to_string());
-    // Check whether the test case is non-deterministic
-    nargo.arg("--check-non-determinism");
-    // Allow more bytecode in exchange to catch illegal states.
-    nargo.arg("--enable-brillig-debug-assertions");
-
-    // Enable enums as an unstable feature
-    nargo.arg("-Zenums");
-
-    if force_brillig.0 {{
-        nargo.arg("--force-brillig");
-
-        // Set the maximum increase so that part of the optimization is exercised (it might fail).
-        nargo.arg("--max-bytecode-increase-percent");
-        nargo.arg("50");
-    }}
+    let nargo = setup_nargo(&test_program_dir, "{test_command}", force_brillig, inliner_aggressiveness);
 
     {test_content}
 }}
@@ -216,6 +340,37 @@ fn test_{test_name}(force_brillig: ForceBrillig, inliner_aggressiveness: Inliner
     .expect("Could not write templated test file.");
 }
 
+/// Generate fuzzing tests, where the noir program is fuzzed with one thread for 120 seconds.
+/// We expect that a failure is found in that time
+fn generate_fuzzing_test_case(
+    test_file: &mut File,
+    test_name: &str,
+    test_dir: &std::path::Display,
+    test_content: &str,
+    timeout: usize,
+) {
+    let timeout_str = timeout.to_string();
+    write!(
+        test_file,
+        r#"
+#[test]
+fn test_{test_name}() {{
+
+    let corpus_dir = assert_fs::TempDir::new().unwrap();
+    let fuzzing_failure_dir = assert_fs::TempDir::new().unwrap();
+    let test_program_dir = PathBuf::from("{test_dir}");
+    let mut nargo = Command::cargo_bin("nargo").unwrap();
+    nargo.arg("--program-dir").arg(test_program_dir);
+    nargo.arg("fuzz").arg("--timeout").arg("{timeout_str}");
+    nargo.arg("--corpus-dir").arg(corpus_dir.path());
+    nargo.arg("--fuzzing-failure-dir").arg(fuzzing_failure_dir.path());
+
+    {test_content}
+}}
+"#
+    )
+    .expect("Could not write templated test file.");
+}
 fn generate_execution_success_tests(test_file: &mut File, test_data_dir: &Path) {
     let test_type = "execution_success";
     let test_cases = read_test_cases(test_data_dir, test_type);
@@ -235,21 +390,37 @@ fn generate_execution_success_tests(test_file: &mut File, test_data_dir: &Path) 
             &test_name,
             &test_dir,
             "execute",
-            r#"
-                nargo.assert().success();
-            "#,
+            &format!(
+                "execution_success(nargo, test_program_dir, {}, force_brillig, inliner_aggressiveness);",
+                !TESTS_WITHOUT_STDOUT_CHECK.contains(&test_name.as_str())
+            ),
             &MatrixConfig {
                 vary_brillig: !IGNORED_BRILLIG_TESTS.contains(&test_name.as_str()),
                 vary_inliner: true,
-                min_inliner: INLINER_MIN_OVERRIDES
-                    .iter()
-                    .find(|(n, _)| *n == test_name.as_str())
-                    .map(|(_, i)| *i)
-                    .unwrap_or(i64::MIN),
+                min_inliner: min_inliner(&test_name),
+                max_inliner: max_inliner(&test_name),
             },
         );
     }
     writeln!(test_file, "}}").unwrap();
+}
+
+fn max_inliner(test_name: &str) -> i64 {
+    INLINER_MAX_OVERRIDES
+        .iter()
+        .chain(&INLINER_OVERRIDES)
+        .find(|(n, _)| *n == test_name)
+        .map(|(_, i)| *i)
+        .unwrap_or(i64::MAX)
+}
+
+fn min_inliner(test_name: &str) -> i64 {
+    INLINER_MIN_OVERRIDES
+        .iter()
+        .chain(&INLINER_OVERRIDES)
+        .find(|(n, _)| *n == test_name)
+        .map(|(_, i)| *i)
+        .unwrap_or(i64::MIN)
 }
 
 fn generate_execution_failure_tests(test_file: &mut File, test_data_dir: &Path) {
@@ -271,10 +442,62 @@ fn generate_execution_failure_tests(test_file: &mut File, test_data_dir: &Path) 
             &test_name,
             &test_dir,
             "execute",
-            r#"
-                nargo.assert().failure().stderr(predicate::str::contains("The application panicked (crashed).").not());
-            "#,
+            "execution_failure(nargo);",
             &MatrixConfig::default(),
+        );
+    }
+    writeln!(test_file, "}}").unwrap();
+}
+
+fn generate_execution_panic_tests(test_file: &mut File, test_data_dir: &Path) {
+    let test_type = "execution_panic";
+    let test_cases = read_test_cases(test_data_dir, test_type);
+
+    writeln!(
+        test_file,
+        "mod {test_type} {{
+        use super::*;
+    "
+    )
+    .unwrap();
+    for (test_name, test_dir) in test_cases {
+        let test_dir = test_dir.display();
+
+        generate_test_cases(
+            test_file,
+            &test_name,
+            &test_dir,
+            "execute",
+            "execution_panic(nargo);",
+            &MatrixConfig::default(),
+        );
+    }
+    writeln!(test_file, "}}").unwrap();
+}
+
+/// Generate tests for fuzzing which find failures in the fuzzed program.
+fn generate_fuzzing_failure_tests(test_file: &mut File, test_data_dir: &Path) {
+    let test_type = "fuzzing_failure";
+    let test_cases = read_test_cases(test_data_dir, test_type);
+
+    writeln!(
+        test_file,
+        "mod {test_type} {{
+        use super::*;
+    "
+    )
+    .unwrap();
+    for (test_name, test_dir) in test_cases {
+        let test_dir = test_dir.display();
+
+        generate_fuzzing_test_case(
+            test_file,
+            &test_name,
+            &test_dir,
+            r#"
+                nargo.assert().failure().stderr(predicate::str::contains("Failing input"));
+            "#,
+            240,
         );
     }
     writeln!(test_file, "}}").unwrap();
@@ -299,9 +522,7 @@ fn generate_noir_test_success_tests(test_file: &mut File, test_data_dir: &Path) 
             &test_name,
             &test_dir,
             "test",
-            r#"
-                nargo.assert().success();
-            "#,
+            "noir_test_success(nargo);",
             &MatrixConfig::default(),
         );
     }
@@ -326,9 +547,7 @@ fn generate_noir_test_failure_tests(test_file: &mut File, test_data_dir: &Path) 
             &test_name,
             &test_dir,
             "test",
-            r#"
-                nargo.assert().failure();
-            "#,
+            "noir_test_failure(nargo);",
             &MatrixConfig::default(),
         );
     }
@@ -349,39 +568,14 @@ fn generate_compile_success_empty_tests(test_file: &mut File, test_data_dir: &Pa
     for (test_name, test_dir) in test_cases {
         let test_dir = test_dir.display();
 
-        let mut assert_zero_opcodes = r#"
-        let output = nargo.output().expect("Failed to execute command");
-
-        if !output.status.success() {{
-            panic!("`nargo info` failed with: {}", String::from_utf8(output.stderr).unwrap_or_default());
-        }}
-        "#.to_string();
-
-        if !TESTS_WITH_EXPECTED_WARNINGS.contains(&test_name.as_str()) {
-            assert_zero_opcodes += r#"
-            nargo.assert().success().stderr(predicate::str::contains("warning:").not());
-            "#;
-        }
-
-        assert_zero_opcodes += r#"
-        // `compile_success_empty` tests should be able to compile down to an empty circuit.
-        let json: serde_json::Value = serde_json::from_slice(&output.stdout).unwrap_or_else(|e| {{
-            panic!("JSON was not well-formatted {:?}\n\n{:?}", e, std::str::from_utf8(&output.stdout))
-        }});
-        let num_opcodes = &json["programs"][0]["functions"][0]["opcodes"];
-        assert_eq!(num_opcodes.as_u64().expect("number of opcodes should fit in a u64"), 0, "expected the number of opcodes to be 0");
-        "#;
-
         generate_test_cases(
             test_file,
             &test_name,
             &test_dir,
             "info",
             &format!(
-                r#"
-                nargo.arg("--json");
-                {assert_zero_opcodes}
-            "#,
+                "compile_success_empty(nargo, test_program_dir, {}, force_brillig, inliner_aggressiveness);",
+                !TESTS_WITH_EXPECTED_WARNINGS.contains(&test_name.as_str())
             ),
             &MatrixConfig::default(),
         );
@@ -408,9 +602,7 @@ fn generate_compile_success_contract_tests(test_file: &mut File, test_data_dir: 
             &test_name,
             &test_dir,
             "compile",
-            r#"
-                nargo.assert().success().stderr(predicate::str::contains("warning:").not());
-            "#,
+            "compile_success_contract(nargo, test_program_dir, force_brillig, inliner_aggressiveness);",
             &MatrixConfig::default(),
         );
     }
@@ -437,10 +629,7 @@ fn generate_compile_success_no_bug_tests(test_file: &mut File, test_data_dir: &P
             &test_name,
             &test_dir,
             "compile",
-            r#"
-                nargo.arg("--enable-brillig-constraints-check");
-                nargo.assert().success().stderr(predicate::str::contains("bug:").not());
-            "#,
+            "compile_success_no_bug(nargo);",
             &MatrixConfig::default(),
         );
     }
@@ -467,10 +656,7 @@ fn generate_compile_success_with_bug_tests(test_file: &mut File, test_data_dir: 
             &test_name,
             &test_dir,
             "compile",
-            r#"
-                nargo.arg("--enable-brillig-constraints-check");
-                nargo.assert().success().stderr(predicate::str::contains("bug:"));
-            "#,
+            "compile_success_with_bug(nargo);",
             &MatrixConfig::default(),
         );
     }
@@ -496,11 +682,100 @@ fn generate_compile_failure_tests(test_file: &mut File, test_data_dir: &Path) {
             &test_name,
             &test_dir,
             "compile",
-            r#"
-                nargo.assert().failure().stderr(predicate::str::contains("The application panicked (crashed).").not());
-            "#,
+            "compile_failure(nargo, test_program_dir);",
             &MatrixConfig::default(),
         );
     }
+    writeln!(test_file, "}}").unwrap();
+}
+
+/// Here we check, for every program in `test_programs/exeuction_success`, that:
+/// 1. `nargo expand` works on it
+/// 2. That the output of the original program is the same as the output of the expanded program
+///    (that is, we run `nargo execute` on the original program and the expanded program and compare the output)
+fn generate_nargo_expand_execution_success_tests(test_file: &mut File, test_data_dir: &Path) {
+    let test_type = "execution_success";
+    let test_cases = read_test_cases(test_data_dir, test_type);
+
+    writeln!(
+        test_file,
+        "
+mod nargo_expand_{test_type} {{
+    use super::*;
+    "
+    )
+    .unwrap();
+
+    for (test_name, test_dir) in test_cases {
+        if IGNORED_NARGO_EXPAND_EXECUTION_TESTS.contains(&test_name.as_str()) {
+            continue;
+        }
+
+        let test_dir = test_dir.display();
+
+        write!(
+            test_file,
+            r#"
+    #[test]
+    fn test_{test_name}() {{
+        let test_program_dir = PathBuf::from("{test_dir}");
+        nargo_expand_execute(test_program_dir);
+    }}
+    "#
+        )
+        .unwrap();
+    }
+
+    writeln!(test_file, "}}").unwrap();
+}
+
+/// Here we check, for every program in `test_programs/{test_type}`, that:
+/// 1. `nargo expand` works on it
+/// 2. Compiling the output works fine
+fn generate_nargo_expand_compile_tests(
+    test_type: &'static str,
+    test_file: &mut File,
+    test_data_dir: &Path,
+) {
+    generate_nargo_expand_compile_tests_with_ignore_list(test_type, test_file, test_data_dir, &[]);
+}
+
+fn generate_nargo_expand_compile_tests_with_ignore_list(
+    test_type: &'static str,
+    test_file: &mut File,
+    test_data_dir: &Path,
+    ignore: &[&str],
+) {
+    let test_cases = read_test_cases(test_data_dir, test_type);
+
+    writeln!(
+        test_file,
+        "
+mod nargo_expand_{test_type} {{
+    use super::*;
+    "
+    )
+    .unwrap();
+
+    for (test_name, test_dir) in test_cases {
+        if ignore.contains(&test_name.as_str()) {
+            continue;
+        }
+
+        let test_dir = test_dir.display();
+
+        write!(
+            test_file,
+            r#"
+    #[test]
+    fn test_{test_name}() {{
+        let test_program_dir = PathBuf::from("{test_dir}");
+        nargo_expand_compile(test_program_dir, "{test_type}");
+    }}
+    "#
+        )
+        .unwrap();
+    }
+
     writeln!(test_file, "}}").unwrap();
 }

@@ -2,7 +2,7 @@ use crate::token::DocStyle;
 
 use super::{
     errors::LexerErrorKind,
-    token::{FmtStrFragment, IntType, Keyword, LocatedToken, SpannedToken, Token, Tokens},
+    token::{FmtStrFragment, Keyword, LocatedToken, SpannedToken, Token, Tokens},
 };
 use acvm::{AcirField, FieldElement};
 use fm::FileId;
@@ -102,10 +102,11 @@ impl<'a> Lexer<'a> {
 
     fn ampersand(&mut self) -> SpannedTokenResult {
         if self.peek_char_is('&') {
-            // When we issue this error the first '&' will already be consumed
-            // and the next token issued will be the next '&'.
-            let span = Span::inclusive(self.position, self.position + 1);
-            Err(LexerErrorKind::LogicalAnd { location: self.location(span) })
+            let start = self.position;
+            self.next_char();
+            Ok(Token::LogicalAnd.into_span(start, start + 1))
+        } else if self.peek_char_is('[') {
+            self.single_char_token(Token::SliceStart)
         } else {
             self.single_char_token(Token::Ampersand)
         }
@@ -173,6 +174,21 @@ impl<'a> Lexer<'a> {
             Some('r') => self.eat_raw_string_or_alpha_numeric(),
             Some('q') => self.eat_quote_or_alpha_numeric(),
             Some('#') => self.eat_attribute_start(),
+            Some(ch)
+                if ch.is_whitespace()
+                    // These aren't unicode whitespace but look like '' so they are also misleading
+                    || ch == '\u{180E}'
+                    || ch == '\u{200B}'
+                    || ch == '\u{200C}'
+                    || ch == '\u{200D}'
+                    || ch == '\u{2060}'
+                    || ch == '\u{FEFF}' =>
+            {
+                let span = Span::from(self.position..self.position + 1);
+                let location = Location::new(span, self.file_id);
+                self.next_char();
+                Err(LexerErrorKind::UnicodeCharacterLooksLikeSpaceButIsItNot { char: ch, location })
+            }
             Some(ch) if ch.is_ascii_alphanumeric() || ch == '_' => self.eat_alpha_numeric(ch),
             Some(ch) => {
                 // We don't report invalid tokens in the source as errors until parsing to
@@ -382,15 +398,6 @@ impl<'a> Lexer<'a> {
             return Ok(keyword_token.into_span(start, end));
         }
 
-        // Check if word an int type
-        // if no error occurred, then it is either a valid integer type or it is not an int type
-        let parsed_token = IntType::lookup_int_type(&word);
-
-        // Check if it is an int type
-        if let Some(int_type) = parsed_token {
-            return Ok(Token::IntType(int_type).into_span(start, end));
-        }
-
         // Else it is just an identifier
         let ident_token = Token::Ident(word);
         Ok(ident_token.into_span(start, end))
@@ -443,7 +450,7 @@ impl<'a> Lexer<'a> {
                 return Err(LexerErrorKind::InvalidIntegerLiteral {
                     location: self.location(Span::inclusive(start, end)),
                     found: integer_str,
-                })
+                });
             }
         };
 
@@ -665,11 +672,7 @@ impl<'a> Lexer<'a> {
     }
 
     fn eat_format_string_or_alpha_numeric(&mut self) -> SpannedTokenResult {
-        if self.peek_char_is('"') {
-            self.eat_fmt_string()
-        } else {
-            self.eat_alpha_numeric('f')
-        }
+        if self.peek_char_is('"') { self.eat_fmt_string() } else { self.eat_alpha_numeric('f') }
     }
 
     fn eat_raw_string(&mut self) -> SpannedTokenResult {
@@ -879,15 +882,11 @@ impl<'a> Lexer<'a> {
     }
 }
 
-impl<'a> Iterator for Lexer<'a> {
+impl Iterator for Lexer<'_> {
     type Item = LocatedTokenResult;
 
     fn next(&mut self) -> Option<Self::Item> {
-        if self.done {
-            None
-        } else {
-            Some(self.next_token())
-        }
+        if self.done { None } else { Some(self.next_token()) }
     }
 }
 
@@ -988,26 +987,6 @@ mod tests {
 
         let token = lexer.next_token().unwrap();
         assert_eq!(token.token(), &Token::AttributeStart { is_inner: true, is_tag: true });
-    }
-
-    #[test]
-    fn test_int_type() {
-        let input = "u16 i16 i108 u104.5";
-
-        let expected = vec![
-            Token::IntType(IntType::Unsigned(16)),
-            Token::IntType(IntType::Signed(16)),
-            Token::IntType(IntType::Signed(108)),
-            Token::IntType(IntType::Unsigned(104)),
-            Token::Dot,
-            Token::Int(5_i128.into()),
-        ];
-
-        let mut lexer = Lexer::new_with_dummy_file(input);
-        for token in expected.into_iter() {
-            let got = lexer.next_token().unwrap();
-            assert_eq!(got, token);
-        }
     }
 
     #[test]
@@ -1415,7 +1394,7 @@ mod tests {
             Token::Keyword(Keyword::Let),
             Token::Ident("ten".to_string()),
             Token::Colon,
-            Token::Keyword(Keyword::Field),
+            Token::Ident("Field".to_string()),
             Token::Assign,
             Token::Int(10_i128.into()),
             Token::Semicolon,
@@ -1604,7 +1583,9 @@ mod tests {
             tokens.pop();
             match tokens.pop().unwrap() {
                 Token::Quote(stream) => assert_eq!(stream.0.len(), expected_stream_length),
-                other => panic!("test_quote test failure! Expected a single TokenStream token, got {other} for input `{source}`")
+                other => panic!(
+                    "test_quote test failure! Expected a single TokenStream token, got {other} for input `{source}`"
+                ),
             }
         }
     }
@@ -1633,5 +1614,15 @@ mod tests {
                 "Expected NonAsciiComment error"
             );
         }
+    }
+
+    #[test]
+    fn errors_on_non_unicode_whitespace() {
+        let str = "\u{0085}";
+        let mut lexer = Lexer::new_with_dummy_file(str);
+        assert!(matches!(
+            lexer.next_token(),
+            Err(LexerErrorKind::UnicodeCharacterLooksLikeSpaceButIsItNot { .. })
+        ));
     }
 }

@@ -1,0 +1,25 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: expanded_code
+---
+use poseidon;
+
+global NUM_HASHES: u32 = 3;
+
+global HASH_LENGTH: u32 = 20;
+
+pub fn poseidon_hash<let N: u32>(inputs: [Field; N]) -> Field {
+    poseidon::poseidon2::Poseidon2::hash(inputs, inputs.len())
+}
+
+fn main(to_hash: [[Field; 20]; 3], enable: [bool; 3]) -> pub [Field; 3] {
+    let mut result: [Field; 3] = [0; 3];
+    for i in 0..NUM_HASHES {
+        let enable: bool = enable[i];
+        let to_hash: [Field; 20] = to_hash[i];
+        if enable {
+            result[i] = poseidon_hash(to_hash) + poseidon::poseidon::bn254::sponge(to_hash);
+        }
+    }
+    result
+}

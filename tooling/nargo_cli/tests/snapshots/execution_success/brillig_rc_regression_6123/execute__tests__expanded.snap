@@ -1,0 +1,42 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: expanded_code
+---
+struct Builder {
+    note_hashes: BoundedVec<Field, 2>,
+    nullifiers: BoundedVec<Field, 2>,
+}
+
+impl Builder {
+    fn append_note_hashes_with_logs(&mut self, num_note_hashes: u32) {
+        let index_offset: u32 = self.note_hashes.len();
+        for i in 0..self.note_hashes.max_len() {
+            if i < num_note_hashes {
+                self.add_new_note_hash((index_offset + i) as Field);
+            }
+        }
+    }
+
+    fn add_new_note_hash(&mut self, value: Field) {
+        self.note_hashes.push(value);
+    }
+}
+
+fn swap_items<T, let N: u32>(vec: &mut BoundedVec<T, N>, from_index: u32, to_index: u32) {
+    let tmp: T = vec.get_unchecked(from_index);
+    vec.set_unchecked(from_index, vec.get_unchecked(to_index));
+    vec.set_unchecked(to_index, tmp);
+}
+
+unconstrained fn main() {
+    let mut builder: Builder =
+        Builder { note_hashes: BoundedVec::new(), nullifiers: BoundedVec::new() };
+    builder.append_note_hashes_with_logs(2);
+    builder.nullifiers.set_unchecked(1, 27);
+    let note_hashes: [Field; 2] = builder.note_hashes.storage();
+    let original_first_note_hash: Field = note_hashes[0];
+    swap_items(&mut builder.note_hashes, 1, 0);
+    for i in 0..1 {
+        assert(note_hashes[i] == original_first_note_hash);
+    }
+}

@@ -1,14 +1,10 @@
 use crate::elaborator::FrontendOptions;
 
-use crate::hir::def_collector::dc_crate::CompilationError;
-use crate::hir::def_collector::errors::DefCollectorErrorKind;
-use crate::hir::resolution::errors::ResolverError;
-use crate::hir::resolution::import::PathResolutionError;
-use crate::hir::type_check::TypeCheckError;
-use crate::tests::{get_program_errors, get_program_with_maybe_parser_errors};
+use crate::assert_no_errors;
+use crate::tests::Expect;
+use crate::{check_errors, get_program_with_options};
 
-use super::assert_no_errors;
-
+#[named]
 #[test]
 fn trait_inheritance() {
     let src = r#"
@@ -30,9 +26,10 @@ fn trait_inheritance() {
 
         fn main() {}
     "#;
-    assert_no_errors(src);
+    assert_no_errors!(src);
 }
 
+#[named]
 #[test]
 fn trait_inheritance_with_generics() {
     let src = r#"
@@ -50,9 +47,10 @@ fn trait_inheritance_with_generics() {
 
         fn main() {}
     "#;
-    assert_no_errors(src);
+    assert_no_errors!(src);
 }
 
+#[named]
 #[test]
 fn trait_inheritance_with_generics_2() {
     let src = r#"
@@ -70,9 +68,10 @@ fn trait_inheritance_with_generics_2() {
 
         fn main() {}
     "#;
-    assert_no_errors(src);
+    assert_no_errors!(src);
 }
 
+#[named]
 #[test]
 fn trait_inheritance_with_generics_3() {
     let src = r#"
@@ -86,9 +85,10 @@ fn trait_inheritance_with_generics_3() {
 
         fn main() {}
     "#;
-    assert_no_errors(src);
+    assert_no_errors!(src);
 }
 
+#[named]
 #[test]
 fn trait_inheritance_with_generics_4() {
     let src = r#"
@@ -102,70 +102,57 @@ fn trait_inheritance_with_generics_4() {
 
         fn main() {}
     "#;
-    assert_no_errors(src);
+    assert_no_errors!(src);
 }
 
+#[named]
 #[test]
 fn trait_inheritance_dependency_cycle() {
     let src = r#"
         trait Foo: Bar {}
+              ^^^ Dependency cycle found
+              ~~~ 'Foo' recursively depends on itself: Foo -> Bar -> Foo
         trait Bar: Foo {}
         fn main() {}
     "#;
-    let errors = get_program_errors(src);
-    assert_eq!(errors.len(), 1);
-
-    assert!(matches!(
-        errors[0].0,
-        CompilationError::ResolverError(ResolverError::DependencyCycle { .. })
-    ));
+    check_errors!(src);
 }
 
+#[named]
 #[test]
 fn trait_inheritance_missing_parent_implementation() {
     let src = r#"
         pub trait Foo {}
 
         pub trait Bar: Foo {}
+                       ~~~ required by this bound in `Bar`
 
         pub struct Struct {}
 
         impl Bar for Struct {}
+                     ^^^^^^ The trait bound `Struct: Foo` is not satisfied
+                     ~~~~~~ The trait `Foo` is not implemented for `Struct`
 
         fn main() {
-            let _ = Struct {}; // silence Struct never constructed warning
         }
     "#;
-    let errors = get_program_errors(src);
-    assert_eq!(errors.len(), 1);
-
-    let CompilationError::ResolverError(ResolverError::TraitNotImplemented {
-        impl_trait,
-        missing_trait: the_trait,
-        type_missing_trait: typ,
-        ..
-    }) = &errors[0].0
-    else {
-        panic!("Expected a TraitNotImplemented error, got {:?}", &errors[0].0);
-    };
-
-    assert_eq!(the_trait, "Foo");
-    assert_eq!(typ, "Struct");
-    assert_eq!(impl_trait, "Bar");
+    check_errors!(src);
 }
 
+#[named]
 #[test]
 fn errors_on_unknown_type_in_trait_where_clause() {
     let src = r#"
         pub trait Foo<T> where T: Unknown {}
+                                  ^^^^^^^ Could not resolve 'Unknown' in path
 
         fn main() {
         }
     "#;
-    let errors = get_program_errors(src);
-    assert_eq!(errors.len(), 1);
+    check_errors!(src);
 }
 
+#[named]
 #[test]
 fn does_not_error_if_impl_trait_constraint_is_satisfied_for_concrete_type() {
     let src = r#"
@@ -196,9 +183,10 @@ fn does_not_error_if_impl_trait_constraint_is_satisfied_for_concrete_type() {
 
         fn main() {}
     "#;
-    assert_no_errors(src);
+    assert_no_errors!(src);
 }
 
+#[named]
 #[test]
 fn does_not_error_if_impl_trait_constraint_is_satisfied_for_type_variable() {
     let src = r#"
@@ -220,8 +208,10 @@ fn does_not_error_if_impl_trait_constraint_is_satisfied_for_type_variable() {
         fn main() {
         }
     "#;
-    assert_no_errors(src);
+    assert_no_errors!(src);
 }
+
+#[named]
 #[test]
 fn errors_if_impl_trait_constraint_is_not_satisfied() {
     let src = r#"
@@ -232,6 +222,7 @@ fn errors_if_impl_trait_constraint_is_not_satisfied() {
         pub trait Foo<T>
         where
             T: Greeter,
+               ~~~~~~~ required by this bound in `Foo`
         {
             fn greet<U>(object: U)
             where
@@ -246,27 +237,15 @@ fn errors_if_impl_trait_constraint_is_not_satisfied() {
         pub struct Bar;
 
         impl Foo<SomeGreeter> for Bar {}
+                                  ^^^ The trait bound `SomeGreeter: Greeter` is not satisfied
+                                  ~~~ The trait `Greeter` is not implemented for `SomeGreeter`
 
         fn main() {}
     "#;
-    let errors = get_program_errors(src);
-    assert_eq!(errors.len(), 1);
-
-    let CompilationError::ResolverError(ResolverError::TraitNotImplemented {
-        impl_trait,
-        missing_trait: the_trait,
-        type_missing_trait: typ,
-        ..
-    }) = &errors[0].0
-    else {
-        panic!("Expected a TraitNotImplemented error, got {:?}", &errors[0].0);
-    };
-
-    assert_eq!(the_trait, "Greeter");
-    assert_eq!(typ, "SomeGreeter");
-    assert_eq!(impl_trait, "Foo");
+    check_errors!(src);
 }
 
+#[named]
 #[test]
 // Regression test for https://github.com/noir-lang/noir/issues/6314
 // Baz inherits from a single trait: Foo
@@ -282,9 +261,10 @@ fn regression_6314_single_inheritance() {
 
         fn main() { }
     "#;
-    assert_no_errors(src);
+    assert_no_errors!(src);
 }
 
+#[named]
 #[test]
 // Regression test for https://github.com/noir-lang/noir/issues/6314
 // Baz inherits from two traits: Foo and Bar
@@ -322,9 +302,10 @@ fn regression_6314_double_inheritance() {
             assert(0.foo().bar() == baz(0));
         }"#;
 
-    assert_no_errors(src);
+    assert_no_errors!(src);
 }
 
+#[named]
 #[test]
 fn trait_alias_single_member() {
     let src = r#"
@@ -347,9 +328,10 @@ fn trait_alias_single_member() {
             let _ = baz(x);
         }
     "#;
-    assert_no_errors(src);
+    assert_no_errors!(src);
 }
 
+#[named]
 #[test]
 fn trait_alias_two_members() {
     let src = r#"
@@ -383,9 +365,10 @@ fn trait_alias_two_members() {
             assert(0.foo().bar() == baz(0));
         }"#;
 
-    assert_no_errors(src);
+    assert_no_errors!(src);
 }
 
+#[named]
 #[test]
 fn trait_alias_polymorphic_inheritance() {
     let src = r#"
@@ -419,11 +402,12 @@ fn trait_alias_polymorphic_inheritance() {
             assert(0.foo().bar() == baz(0));
         }"#;
 
-    assert_no_errors(src);
+    assert_no_errors!(src);
 }
 
 // TODO(https://github.com/noir-lang/noir/issues/6467): currently fails with the
 // same errors as the desugared version
+#[named]
 #[test]
 fn trait_alias_polymorphic_where_clause() {
     let src = r#"
@@ -443,6 +427,7 @@ fn trait_alias_polymorphic_where_clause() {
 
         fn qux<T, U>(x: T) -> bool where T: Qux<U> {
             x.foo().bar().baz()
+            ^^^^^^^^^^^^^^^^^^^ No method named 'baz' found for type 'U'
         }
 
         impl Foo for Field {
@@ -465,40 +450,20 @@ fn trait_alias_polymorphic_where_clause() {
 
         fn main() {
             assert(0.foo().bar().baz() == qux(0));
+                                          ^^^ No matching impl found for `T: Baz`
+                                          ~~~ No impl for `T: Baz`
         }
     "#;
 
     // TODO(https://github.com/noir-lang/noir/issues/6467)
-    // assert_no_errors(src);
-    let errors = get_program_errors(src);
-    assert_eq!(errors.len(), 2);
-
-    match &errors[0].0 {
-        CompilationError::TypeError(TypeCheckError::UnresolvedMethodCall {
-            method_name, ..
-        }) => {
-            assert_eq!(method_name, "baz");
-        }
-        other => {
-            panic!("expected UnresolvedMethodCall, but found {:?}", other);
-        }
-    }
-
-    match &errors[1].0 {
-        CompilationError::TypeError(TypeCheckError::NoMatchingImplFound(err)) => {
-            assert_eq!(err.constraints.len(), 2);
-            assert_eq!(err.constraints[0].1, "Baz");
-            assert_eq!(err.constraints[1].1, "Qux<_>");
-        }
-        other => {
-            panic!("expected NoMatchingImplFound, but found {:?}", other);
-        }
-    }
+    // assert_no_errors!(src);
+    check_errors!(src);
 }
 
 // TODO(https://github.com/noir-lang/noir/issues/6467): currently failing, so
 // this just tests that the trait alias has an equivalent error to the expected
 // desugared version
+#[named]
 #[test]
 fn trait_alias_with_where_clause_has_equivalent_errors() {
     let src = r#"
@@ -519,11 +484,20 @@ fn trait_alias_with_where_clause_has_equivalent_errors() {
 
         pub fn qux<T, U>(x: T, _: U) -> bool where U: Qux<T> {
             x.baz()
+            ^^^^^^^ No method named 'baz' found for type 'T'
         }
 
         fn main() {}
     "#;
+    check_errors!(src);
+}
 
+// TODO(https://github.com/noir-lang/noir/issues/6467): currently failing, so
+// this just tests that the trait alias has an equivalent error to the expected
+// desugared version
+#[named]
+#[test]
+fn trait_alias_with_where_clause_has_equivalent_errors_2() {
     let alias_src = r#"
         trait Bar {
             fn bar(self) -> Self;
@@ -537,39 +511,15 @@ fn trait_alias_with_where_clause_has_equivalent_errors() {
 
         pub fn qux<T, U>(x: T, _: U) -> bool where U: Qux<T> {
             x.baz()
+            ^^^^^^^ No method named 'baz' found for type 'T'
         }
 
         fn main() {}
     "#;
-
-    let errors = get_program_errors(src);
-    let alias_errors = get_program_errors(alias_src);
-
-    assert_eq!(errors.len(), 1);
-    assert_eq!(alias_errors.len(), 1);
-
-    match (&errors[0].0, &alias_errors[0].0) {
-        (
-            CompilationError::TypeError(TypeCheckError::UnresolvedMethodCall {
-                method_name,
-                object_type,
-                ..
-            }),
-            CompilationError::TypeError(TypeCheckError::UnresolvedMethodCall {
-                method_name: alias_method_name,
-                object_type: alias_object_type,
-                ..
-            }),
-        ) => {
-            assert_eq!(method_name, alias_method_name);
-            assert_eq!(object_type, alias_object_type);
-        }
-        other => {
-            panic!("expected UnresolvedMethodCall, but found {:?}", other);
-        }
-    }
+    check_errors!(alias_src);
 }
 
+#[named]
 #[test]
 fn removes_assumed_parent_traits_after_function_ends() {
     let src = r#"
@@ -588,9 +538,10 @@ fn removes_assumed_parent_traits_after_function_ends() {
 
     fn main() {}
     "#;
-    assert_no_errors(src);
+    assert_no_errors!(src);
 }
 
+#[named]
 #[test]
 fn trait_bounds_which_are_dependent_on_generic_types_are_resolved_correctly() {
     // Regression test for https://github.com/noir-lang/noir/issues/6420
@@ -639,9 +590,10 @@ fn trait_bounds_which_are_dependent_on_generic_types_are_resolved_correctly() {
             let _ = foo.bar();
         }
     "#;
-    assert_no_errors(src);
+    assert_no_errors!(src);
 }
 
+#[named]
 #[test]
 fn does_not_crash_on_as_trait_path_with_empty_path() {
     let src = r#"
@@ -654,15 +606,18 @@ fn does_not_crash_on_as_trait_path_with_empty_path() {
 
     let allow_parser_errors = true;
     let options = FrontendOptions::test_default();
-    let (_, _, errors) = get_program_with_maybe_parser_errors(src, allow_parser_errors, options);
+    let (_, _, errors) =
+        get_program_with_options!(src, Expect::Error, allow_parser_errors, options);
     assert!(!errors.is_empty());
 }
 
+#[named]
 #[test]
 fn warns_if_trait_is_not_in_scope_for_function_call_and_there_is_only_one_trait_method() {
     let src = r#"
     fn main() {
         let _ = Bar::foo();
+                     ^^^ trait `private_mod::Foo` which provides `foo` is implemented but not in scope, please import it
     }
 
     pub struct Bar {
@@ -680,19 +635,10 @@ fn warns_if_trait_is_not_in_scope_for_function_call_and_there_is_only_one_trait_
         }
     }
     "#;
-    let errors = get_program_errors(src);
-    assert_eq!(errors.len(), 1);
-
-    let CompilationError::ResolverError(ResolverError::PathResolutionError(
-        PathResolutionError::TraitMethodNotInScope { ident, trait_name },
-    )) = &errors[0].0
-    else {
-        panic!("Expected a 'trait method not in scope' error");
-    };
-    assert_eq!(ident.to_string(), "foo");
-    assert_eq!(trait_name, "private_mod::Foo");
+    check_errors!(src);
 }
 
+#[named]
 #[test]
 fn calls_trait_function_if_it_is_in_scope() {
     let src = r#"
@@ -717,9 +663,10 @@ fn calls_trait_function_if_it_is_in_scope() {
         }
     }
     "#;
-    assert_no_errors(src);
+    assert_no_errors!(src);
 }
 
+#[named]
 #[test]
 fn calls_trait_function_if_it_is_only_candidate_in_scope() {
     let src = r#"
@@ -754,9 +701,10 @@ fn calls_trait_function_if_it_is_only_candidate_in_scope() {
         }
     }
     "#;
-    assert_no_errors(src);
+    assert_no_errors!(src);
 }
 
+#[named]
 #[test]
 fn calls_trait_function_if_it_is_only_candidate_in_scope_in_nested_module_using_super() {
     let src = r#"
@@ -784,14 +732,17 @@ fn calls_trait_function_if_it_is_only_candidate_in_scope_in_nested_module_using_
         }
     }
     "#;
-    assert_no_errors(src);
+    assert_no_errors!(src);
 }
 
+#[named]
 #[test]
 fn errors_if_trait_is_not_in_scope_for_function_call_and_there_are_multiple_candidates() {
     let src = r#"
     fn main() {
         let _ = Bar::foo();
+                     ^^^ Could not resolve 'foo' in path
+                     ~~~ The following traits which provide `foo` are implemented but not in scope: `private_mod::Foo2`, `private_mod::Foo`
     }
 
     pub struct Bar {
@@ -819,20 +770,10 @@ fn errors_if_trait_is_not_in_scope_for_function_call_and_there_are_multiple_cand
         }
     }
     "#;
-    let mut errors = get_program_errors(src);
-    assert_eq!(errors.len(), 1);
-
-    let CompilationError::ResolverError(ResolverError::PathResolutionError(
-        PathResolutionError::UnresolvedWithPossibleTraitsToImport { ident, mut traits },
-    )) = errors.remove(0).0
-    else {
-        panic!("Expected a 'trait method not in scope' error");
-    };
-    assert_eq!(ident.to_string(), "foo");
-    traits.sort();
-    assert_eq!(traits, vec!["private_mod::Foo", "private_mod::Foo2"]);
+    check_errors!(src);
 }
 
+#[named]
 #[test]
 fn errors_if_multiple_trait_methods_are_in_scope_for_function_call() {
     let src = r#"
@@ -841,6 +782,8 @@ fn errors_if_multiple_trait_methods_are_in_scope_for_function_call() {
 
     fn main() {
         let _ = Bar::foo();
+                     ^^^ Multiple applicable items in scope
+                     ~~~ All these trait which provide `foo` are implemented and in scope: `private_mod::Foo2`, `private_mod::Foo`
     }
 
     pub struct Bar {
@@ -868,26 +811,17 @@ fn errors_if_multiple_trait_methods_are_in_scope_for_function_call() {
         }
     }
     "#;
-    let mut errors = get_program_errors(src);
-    assert_eq!(errors.len(), 1);
-
-    let CompilationError::ResolverError(ResolverError::PathResolutionError(
-        PathResolutionError::MultipleTraitsInScope { ident, mut traits },
-    )) = errors.remove(0).0
-    else {
-        panic!("Expected a 'trait method not in scope' error");
-    };
-    assert_eq!(ident.to_string(), "foo");
-    traits.sort();
-    assert_eq!(traits, vec!["private_mod::Foo", "private_mod::Foo2"]);
+    check_errors!(src);
 }
 
+#[named]
 #[test]
 fn warns_if_trait_is_not_in_scope_for_method_call_and_there_is_only_one_trait_method() {
     let src = r#"
     fn main() {
         let bar = Bar { x: 42 };
         let _ = bar.foo();
+                ^^^^^^^^^ trait `private_mod::Foo` which provides `foo` is implemented but not in scope, please import it
     }
 
     pub struct Bar {
@@ -906,19 +840,10 @@ fn warns_if_trait_is_not_in_scope_for_method_call_and_there_is_only_one_trait_me
         }
     }
     "#;
-    let errors = get_program_errors(src);
-    assert_eq!(errors.len(), 1);
-
-    let CompilationError::ResolverError(ResolverError::PathResolutionError(
-        PathResolutionError::TraitMethodNotInScope { ident, trait_name },
-    )) = &errors[0].0
-    else {
-        panic!("Expected a 'trait method not in scope' error");
-    };
-    assert_eq!(ident.to_string(), "foo");
-    assert_eq!(trait_name, "private_mod::Foo");
+    check_errors!(src);
 }
 
+#[named]
 #[test]
 fn calls_trait_method_if_it_is_in_scope() {
     let src = r#"
@@ -945,15 +870,18 @@ fn calls_trait_method_if_it_is_in_scope() {
         }
     }
     "#;
-    assert_no_errors(src);
+    assert_no_errors!(src);
 }
 
+#[named]
 #[test]
 fn errors_if_trait_is_not_in_scope_for_method_call_and_there_are_multiple_candidates() {
     let src = r#"
     fn main() {
         let bar = Bar { x: 42 };
         let _ = bar.foo();
+                ^^^^^^^^^ Could not resolve 'foo' in path
+                ~~~~~~~~~ The following traits which provide `foo` are implemented but not in scope: `private_mod::Foo2`, `private_mod::Foo`
     }
 
     pub struct Bar {
@@ -982,20 +910,10 @@ fn errors_if_trait_is_not_in_scope_for_method_call_and_there_are_multiple_candid
         }
     }
     "#;
-    let mut errors = get_program_errors(src);
-    assert_eq!(errors.len(), 1);
-
-    let CompilationError::ResolverError(ResolverError::PathResolutionError(
-        PathResolutionError::UnresolvedWithPossibleTraitsToImport { ident, mut traits },
-    )) = errors.remove(0).0
-    else {
-        panic!("Expected a 'trait method not in scope' error");
-    };
-    assert_eq!(ident.to_string(), "foo");
-    traits.sort();
-    assert_eq!(traits, vec!["private_mod::Foo", "private_mod::Foo2"]);
+    check_errors!(src);
 }
 
+#[named]
 #[test]
 fn errors_if_multiple_trait_methods_are_in_scope_for_method_call() {
     let src = r#"
@@ -1005,6 +923,8 @@ fn errors_if_multiple_trait_methods_are_in_scope_for_method_call() {
     fn main() {
         let bar = Bar { x : 42 };
         let _ = bar.foo();
+                ^^^^^^^^^ Multiple applicable items in scope
+                ~~~~~~~~~ All these trait which provide `foo` are implemented and in scope: `private_mod::Foo2`, `private_mod::Foo`
     }
 
     pub struct Bar {
@@ -1033,20 +953,10 @@ fn errors_if_multiple_trait_methods_are_in_scope_for_method_call() {
         }
     }
     "#;
-    let mut errors = get_program_errors(src);
-    assert_eq!(errors.len(), 1);
-
-    let CompilationError::ResolverError(ResolverError::PathResolutionError(
-        PathResolutionError::MultipleTraitsInScope { ident, mut traits },
-    )) = errors.remove(0).0
-    else {
-        panic!("Expected a 'trait method not in scope' error");
-    };
-    assert_eq!(ident.to_string(), "foo");
-    traits.sort();
-    assert_eq!(traits, vec!["private_mod::Foo", "private_mod::Foo2"]);
+    check_errors!(src);
 }
 
+#[named]
 #[test]
 fn calls_trait_method_if_it_is_in_scope_with_multiple_candidates_but_only_one_decided_by_generics()
 {
@@ -1076,38 +986,29 @@ fn calls_trait_method_if_it_is_in_scope_with_multiple_candidates_but_only_one_de
         let _: u32 = foo.convert();
     }
     "#;
-    assert_no_errors(src);
+    assert_no_errors!(src);
 }
 
+#[named]
 #[test]
 fn type_checks_trait_default_method_and_errors() {
     let src = r#"
         pub trait Foo {
             fn foo(self) -> i32 {
+                            ^^^ expected type i32, found type bool
+                            ~~~ expected i32 because of return type
                 let _ = self;
                 true
+                ~~~~ bool returned here
             }
         }
 
         fn main() {}
     "#;
-
-    let errors = get_program_errors(src);
-    assert_eq!(errors.len(), 1);
-
-    let CompilationError::TypeError(TypeCheckError::TypeMismatchWithSource {
-        expected,
-        actual,
-        ..
-    }) = &errors[0].0
-    else {
-        panic!("Expected a type mismatch error, got {:?}", errors[0].0);
-    };
-
-    assert_eq!(expected.to_string(), "i32");
-    assert_eq!(actual.to_string(), "bool");
+    check_errors!(src);
 }
 
+#[named]
 #[test]
 fn type_checks_trait_default_method_and_does_not_error() {
     let src = r#"
@@ -1120,9 +1021,10 @@ fn type_checks_trait_default_method_and_does_not_error() {
 
         fn main() {}
     "#;
-    assert_no_errors(src);
+    assert_no_errors!(src);
 }
 
+#[named]
 #[test]
 fn type_checks_trait_default_method_and_does_not_error_using_self() {
     let src = r#"
@@ -1139,14 +1041,16 @@ fn type_checks_trait_default_method_and_does_not_error_using_self() {
 
         fn main() {}
     "#;
-    assert_no_errors(src);
+    assert_no_errors!(src);
 }
 
+#[named]
 #[test]
 fn warns_if_trait_is_not_in_scope_for_primitive_function_call_and_there_is_only_one_trait_method() {
     let src = r#"
     fn main() {
         let _ = Field::foo();
+                       ^^^ trait `private_mod::Foo` which provides `foo` is implemented but not in scope, please import it
     }
 
     mod private_mod {
@@ -1161,25 +1065,17 @@ fn warns_if_trait_is_not_in_scope_for_primitive_function_call_and_there_is_only_
         }
     }
     "#;
-    let errors = get_program_errors(src);
-    assert_eq!(errors.len(), 1);
-
-    let CompilationError::ResolverError(ResolverError::PathResolutionError(
-        PathResolutionError::TraitMethodNotInScope { ident, trait_name },
-    )) = &errors[0].0
-    else {
-        panic!("Expected a 'trait method not in scope' error");
-    };
-    assert_eq!(ident.to_string(), "foo");
-    assert_eq!(trait_name, "private_mod::Foo");
+    check_errors!(src);
 }
 
+#[named]
 #[test]
 fn warns_if_trait_is_not_in_scope_for_primitive_method_call_and_there_is_only_one_trait_method() {
     let src = r#"
     fn main() {
         let x: Field = 1;
         let _ = x.foo();
+                ^^^^^^^ trait `private_mod::Foo` which provides `foo` is implemented but not in scope, please import it
     }
 
     mod private_mod {
@@ -1194,25 +1090,17 @@ fn warns_if_trait_is_not_in_scope_for_primitive_method_call_and_there_is_only_on
         }
     }
     "#;
-    let errors = get_program_errors(src);
-    assert_eq!(errors.len(), 1);
-
-    let CompilationError::ResolverError(ResolverError::PathResolutionError(
-        PathResolutionError::TraitMethodNotInScope { ident, trait_name },
-    )) = &errors[0].0
-    else {
-        panic!("Expected a 'trait method not in scope' error");
-    };
-    assert_eq!(ident.to_string(), "foo");
-    assert_eq!(trait_name, "private_mod::Foo");
+    check_errors!(src);
 }
 
+#[named]
 #[test]
 fn warns_if_trait_is_not_in_scope_for_generic_function_call_and_there_is_only_one_trait_method() {
     let src = r#"
     fn main() {
         let x: i32 = 1;
         let _ = x.foo();
+                ^^^^^^^ trait `private_mod::Foo` which provides `foo` is implemented but not in scope, please import it
     }
 
     mod private_mod {
@@ -1227,19 +1115,10 @@ fn warns_if_trait_is_not_in_scope_for_generic_function_call_and_there_is_only_on
         }
     }
     "#;
-    let errors = get_program_errors(src);
-    assert_eq!(errors.len(), 1);
-
-    let CompilationError::ResolverError(ResolverError::PathResolutionError(
-        PathResolutionError::TraitMethodNotInScope { ident, trait_name },
-    )) = &errors[0].0
-    else {
-        panic!("Expected a 'trait method not in scope' error");
-    };
-    assert_eq!(ident.to_string(), "foo");
-    assert_eq!(trait_name, "private_mod::Foo");
+    check_errors!(src);
 }
 
+#[named]
 #[test]
 fn error_on_duplicate_impl_with_associated_type() {
     let src = r#"
@@ -1248,27 +1127,22 @@ fn error_on_duplicate_impl_with_associated_type() {
         }
 
         impl Foo for i32 {
+             ~~~ Previous impl defined here
             type Bar = u32;
         }
 
         impl Foo for i32 {
+                     ^^^ Impl for type `i32` overlaps with existing impl
+                     ~~~ Overlapping impl
             type Bar = u8;
         }
 
         fn main() {}
     "#;
-
-    // Expect "Impl for type `i32` overlaps with existing impl"
-    //    and "Previous impl defined here"
-    let errors = get_program_errors(src);
-    assert_eq!(errors.len(), 2);
-
-    use CompilationError::DefinitionError;
-    use DefCollectorErrorKind::*;
-    assert!(matches!(&errors[0].0, DefinitionError(OverlappingImpl { .. })));
-    assert!(matches!(&errors[1].0, DefinitionError(OverlappingImplNote { .. })));
+    check_errors!(src);
 }
 
+#[named]
 #[test]
 fn error_on_duplicate_impl_with_associated_constant() {
     let src = r#"
@@ -1277,45 +1151,40 @@ fn error_on_duplicate_impl_with_associated_constant() {
         }
 
         impl Foo for i32 {
-            let Bar = 5;
+             ~~~ Previous impl defined here
+            let Bar: u32 = 5;
         }
 
         impl Foo for i32 {
-            let Bar = 6;
+                     ^^^ Impl for type `i32` overlaps with existing impl
+                     ~~~ Overlapping impl
+            let Bar: u32 = 6;
         }
 
         fn main() {}
     "#;
-
-    // Expect "Impl for type `i32` overlaps with existing impl"
-    //    and "Previous impl defined here"
-    let errors = get_program_errors(src);
-    assert_eq!(errors.len(), 2);
-
-    use CompilationError::DefinitionError;
-    use DefCollectorErrorKind::*;
-    assert!(matches!(&errors[0].0, DefinitionError(OverlappingImpl { .. })));
-    assert!(matches!(&errors[1].0, DefinitionError(OverlappingImplNote { .. })));
+    check_errors!(src);
 }
 
 // See https://github.com/noir-lang/noir/issues/6530
+#[named]
 #[test]
 fn regression_6530() {
     let src = r#"
-    pub trait From<T> {
-        fn from(input: T) -> Self;
+    pub trait From2<T> {
+        fn from2(input: T) -> Self;
     }
     
-    pub trait Into<T> {
-        fn into(self) -> T;
+    pub trait Into2<T> {
+        fn into2(self) -> T;
     }
     
-    impl<T, U> Into<T> for U
+    impl<T, U> Into2<T> for U
     where
-        T: From<U>,
+        T: From2<U>,
     {
-        fn into(self) -> T {
-            T::from(self)
+        fn into2(self) -> T {
+            T::from2(self)
         }
     }
     
@@ -1323,8 +1192,8 @@ fn regression_6530() {
         inner: Field,
     }
     
-    impl Into<Field> for Foo {
-        fn into(self) -> Field {
+    impl Into2<Field> for Foo {
+        fn into2(self) -> Field {
             self.inner
         }
     }
@@ -1333,16 +1202,16 @@ fn regression_6530() {
         let foo = Foo { inner: 0 };
     
         // This works:
-        let _: Field = Into::<Field>::into(foo);
+        let _: Field = Into2::<Field>::into2(foo);
     
         // This was failing with 'No matching impl':
-        let _: Field = foo.into();
+        let _: Field = foo.into2();
     }
     "#;
-    let errors = get_program_errors(src);
-    assert_eq!(errors.len(), 0);
+    assert_no_errors!(src);
 }
 
+#[named]
 #[test]
 fn calls_trait_method_using_struct_name_when_multiple_impls_exist() {
     let src = r#"
@@ -1365,9 +1234,10 @@ fn calls_trait_method_using_struct_name_when_multiple_impls_exist() {
         let _ = U60Repr::from2(1);
     }
     "#;
-    assert_no_errors(src);
+    assert_no_errors!(src);
 }
 
+#[named]
 #[test]
 fn calls_trait_method_using_struct_name_when_multiple_impls_exist_and_errors_turbofish() {
     let src = r#"
@@ -1387,12 +1257,374 @@ fn calls_trait_method_using_struct_name_when_multiple_impls_exist_and_errors_tur
     }
     fn main() {
         let _ = U60Repr::<Field>::from2([1, 2, 3]);
+                                        ^^^^^^^^^ Expected type Field, found type [Field; 3]
     }
     "#;
-    let errors = get_program_errors(src);
-    assert_eq!(errors.len(), 1);
-    assert!(matches!(
-        errors[0].0,
-        CompilationError::TypeError(TypeCheckError::TypeMismatch { .. })
-    ));
+    check_errors!(src);
+}
+
+#[named]
+#[test]
+fn as_trait_path_in_expression() {
+    let src = r#"
+        fn main() {
+            cursed::<S>();
+        }
+
+        fn cursed<T>()
+            where T: Foo + Foo2
+        {
+            <T as Foo>::bar(1);
+            <T as Foo2>::bar(());
+
+            // Use each function with different generic arguments
+            <T as Foo>::bar(());
+        }
+
+        trait Foo  { fn bar<U>(x: U); }
+        trait Foo2 { fn bar<U>(x: U); }
+
+        pub struct S {}
+
+        impl Foo for S {
+            fn bar<Z>(_x: Z) {}
+        }
+
+        impl Foo2 for S {
+            fn bar<Z>(_x: Z) {}
+        }
+    "#;
+    assert_no_errors!(src);
+}
+
+#[named]
+#[test]
+fn allows_renaming_trait_during_import() {
+    // Regression test for https://github.com/noir-lang/noir/issues/7632
+    let src = r#"
+    mod trait_mod {
+        pub trait Foo {
+            fn foo(_: Self) {}
+        }
+
+        impl Foo for Field {}
+    }
+
+    use trait_mod::Foo as FooTrait;
+
+    fn main(x: Field) {
+        x.foo();
+    }
+    "#;
+    assert_no_errors!(src);
+}
+
+#[named]
+#[test]
+fn renaming_trait_avoids_name_collisions() {
+    // Regression test for https://github.com/noir-lang/noir/issues/7632
+    let src = r#"
+    mod trait_mod {
+        pub trait Foo {
+            fn foo(_: Self) {}
+        }
+
+        impl Foo for Field {}
+    }
+
+    use trait_mod::Foo as FooTrait;
+
+    pub struct Foo {}
+
+    fn main(x: Field) {
+        x.foo();
+    }
+    "#;
+    assert_no_errors!(src);
+}
+
+#[named]
+#[test]
+fn passes_trait_with_associated_number_to_generic_function() {
+    let src = "
+    trait Trait {
+        let N: u32;
+    }
+
+    pub struct Foo {}
+
+    impl Trait for Foo {
+        let N: u32 = 1;
+    }
+
+    fn main() {
+        foo::<Foo>();
+    }
+
+    fn foo<T>()
+    where
+        T: Trait,
+    {}
+    ";
+    assert_no_errors!(src);
+}
+
+#[named]
+#[test]
+fn passes_trait_with_associated_number_to_generic_function_inside_struct_impl() {
+    let src = "
+    trait Trait {
+        let N: u32;
+    }
+
+    pub struct Foo {}
+
+    impl Trait for Foo {
+        let N: u32 = 1;
+    }
+
+    pub struct Bar<T> {}
+
+    impl<T> Bar<T> {
+        fn bar<U>(self) where U: Trait {
+            let _ = self;
+        }
+    }
+
+    fn main() {
+        let bar = Bar::<i32> {};
+        bar.bar::<Foo>();
+    }
+    ";
+    assert_no_errors!(src);
+}
+
+#[named]
+#[test]
+fn returns_self_in_trait_method_1() {
+    let src = "
+    pub trait MagicNumber {
+        fn from_magic_value() -> Self;
+        fn from_value() -> Self;
+    }
+
+    pub struct Foo {}
+
+    impl MagicNumber for Foo {
+        fn from_magic_value() -> Foo {
+            Self::from_value()
+        }
+        fn from_value() -> Self {
+            Self {}
+        }
+    }
+
+    pub struct Bar {}
+
+    impl MagicNumber for Bar {
+        fn from_magic_value() -> Bar {
+            Self::from_value()
+        }
+        fn from_value() -> Self {
+            Self {}
+        }
+    }
+
+    fn main() {}
+    ";
+    assert_no_errors!(src);
+}
+
+#[named]
+#[test]
+fn returns_self_in_trait_method_2() {
+    let src = "
+    pub trait MagicNumber {
+        fn from_magic_value() -> Self {
+            Self::from_value()
+        }
+        fn from_value() -> Self;
+    }
+
+    pub struct Foo {}
+
+    impl MagicNumber for Foo {
+        fn from_value() -> Self {
+            Self {}
+        }
+    }
+
+    pub struct Bar {}
+
+    impl MagicNumber for Bar {
+        fn from_value() -> Self {
+            Self {}
+        }
+    }
+
+    fn main() {}
+    ";
+    assert_no_errors!(src);
+}
+
+#[named]
+#[test]
+fn returns_self_in_trait_method_3() {
+    let src = "
+    pub trait MagicNumber {
+        fn from_magic_value() -> Self {
+            Self::from_value()
+        }
+        fn from_value() -> Self;
+    }
+
+    impl MagicNumber for i32 {
+        fn from_value() -> Self {
+            0
+        }
+    }
+
+    impl MagicNumber for i64 {
+        fn from_value() -> Self {
+            0
+        }
+    }
+
+    fn main() {}
+    ";
+    assert_no_errors!(src);
+}
+
+#[named]
+#[test]
+fn trait_impl_with_where_clause_with_trait_with_associated_numeric() {
+    let src = "
+    trait Bar {
+        let N: Field;
+    }
+
+    impl Bar for Field {
+        let N: Field = 42;
+    }
+
+    trait Foo {
+        fn foo<B>(b: B) where B: Bar; 
+    }
+
+    impl Foo for Field{
+        fn foo<B>(_: B) where B: Bar {} 
+    }
+
+    fn main() {}
+    ";
+    assert_no_errors!(src);
+}
+
+#[named]
+#[test]
+fn trait_impl_with_where_clause_with_trait_with_associated_type() {
+    let src = "
+    trait Bar {
+        type typ;
+    }
+
+    impl Bar for Field {
+        type typ = Field;
+    }
+
+    trait Foo {
+        fn foo<B>(b: B) where B: Bar; 
+    }
+
+    impl Foo for Field{
+        fn foo<B>(_: B) where B: Bar {} 
+    }
+
+    fn main() {}
+    ";
+    assert_no_errors!(src);
+}
+
+#[named]
+#[test]
+fn errors_if_constrained_trait_definition_has_unconstrained_impl() {
+    let src = r#"
+    pub trait Foo {
+        fn foo() -> Field;
+    }
+
+    impl Foo for Field {
+        unconstrained fn foo() -> Field {
+                         ^^^ foo is not expected to be unconstrained
+            42
+        }
+    }
+    "#;
+    check_errors!(src);
+}
+
+#[named]
+#[test]
+fn errors_if_unconstrained_trait_definition_has_constrained_impl() {
+    let src = r#"
+    pub trait Foo {
+        unconstrained fn foo() -> Field;
+    }
+
+    impl Foo for Field {
+        fn foo() -> Field {
+           ^^^ foo is expected to be unconstrained
+            42
+        }
+    }
+    "#;
+    check_errors!(src);
+}
+
+#[named]
+#[test]
+fn accesses_associated_type_inside_trait_impl_using_self() {
+    let src = r#"
+    pub trait Trait {
+        let N: u32;
+
+        fn foo() -> u32;
+    }
+
+    impl Trait for i32 {
+        let N: u32 = 10;
+
+        fn foo() -> u32 {
+            Self::N
+        }
+    }
+
+    fn main() {
+        let _ = i32::foo();
+    }
+    "#;
+    assert_no_errors!(src);
+}
+
+#[named]
+#[test]
+fn accesses_associated_type_inside_trait_using_self() {
+    let src = r#"
+    pub trait Trait {
+        let N: u32;
+
+        fn foo() -> u32 {
+            Self::N
+        }
+    }
+
+    impl Trait for i32 {
+        let N: u32 = 10;
+    }
+
+    fn main() {
+        let _ = i32::foo();
+    }
+    "#;
+    assert_no_errors!(src);
 }

@@ -2,12 +2,13 @@ use fm::FileId;
 use iter_extended::vecmap;
 use noirc_errors::{Located, Location, Span};
 
+use crate::NamedGeneric;
 use crate::ast::{
     ArrayLiteral, AssignStatement, BlockExpression, CallExpression, CastExpression, ConstrainKind,
     ConstructorExpression, ExpressionKind, ForLoopStatement, ForRange, GenericTypeArgs, Ident,
     IfExpression, IndexExpression, InfixExpression, LValue, Lambda, Literal, MatchExpression,
-    MemberAccessExpression, MethodCallExpression, Path, PathKind, PathSegment, Pattern,
-    PrefixExpression, UnresolvedType, UnresolvedTypeData, UnresolvedTypeExpression, WhileStatement,
+    MemberAccessExpression, Path, PathSegment, Pattern, PrefixExpression, UnresolvedType,
+    UnresolvedTypeData, UnresolvedTypeExpression, UnsafeExpression, WhileStatement,
 };
 use crate::ast::{ConstrainExpression, Expression, Statement, StatementKind};
 use crate::hir_def::expr::{
@@ -16,6 +17,7 @@ use crate::hir_def::expr::{
 use crate::hir_def::stmt::{HirLValue, HirPattern, HirStatement};
 use crate::hir_def::types::{Type, TypeBinding};
 use crate::node_interner::{DefinitionId, ExprId, NodeInterner, StmtId};
+use crate::signed_field::SignedField;
 
 // TODO:
 // - Full path for idents & types
@@ -98,8 +100,8 @@ impl HirExpression {
             HirExpression::Literal(HirLiteral::Bool(value)) => {
                 ExpressionKind::Literal(Literal::Bool(*value))
             }
-            HirExpression::Literal(HirLiteral::Integer(value, sign)) => {
-                ExpressionKind::Literal(Literal::Integer(*value, *sign))
+            HirExpression::Literal(HirLiteral::Integer(value)) => {
+                ExpressionKind::Literal(Literal::Integer(*value))
             }
             HirExpression::Literal(HirLiteral::Str(string)) => {
                 ExpressionKind::Literal(Literal::Str(string.clone()))
@@ -147,19 +149,6 @@ impl HirExpression {
                 let is_macro_call = false;
                 ExpressionKind::Call(Box::new(CallExpression { func, arguments, is_macro_call }))
             }
-            HirExpression::MethodCall(method_call) => {
-                ExpressionKind::MethodCall(Box::new(MethodCallExpression {
-                    object: method_call.object.to_display_ast(interner),
-                    method_name: method_call.method.clone(),
-                    arguments: vecmap(method_call.arguments.clone(), |arg| {
-                        arg.to_display_ast(interner)
-                    }),
-                    generics: method_call.generics.clone().map(|option| {
-                        option.iter().map(|generic| generic.to_display_ast()).collect()
-                    }),
-                    is_macro_call: false,
-                }))
-            }
             HirExpression::Constrain(constrain) => {
                 let expr = constrain.0.to_display_ast(interner);
                 let mut arguments = vec![expr];
@@ -197,12 +186,10 @@ impl HirExpression {
                 ExpressionKind::Lambda(Box::new(Lambda { parameters, return_type, body }))
             }
             HirExpression::Error => ExpressionKind::Error,
-            HirExpression::Comptime(block) => {
-                ExpressionKind::Comptime(block.to_display_ast(interner), location)
-            }
-            HirExpression::Unsafe(block) => {
-                ExpressionKind::Unsafe(block.to_display_ast(interner), location)
-            }
+            HirExpression::Unsafe(block) => ExpressionKind::Unsafe(UnsafeExpression {
+                block: block.to_display_ast(interner),
+                unsafe_keyword_location: location,
+            }),
             HirExpression::Quote(block) => ExpressionKind::Quote(block.clone()),
 
             // A macro was evaluated here: return the quoted result
@@ -215,8 +202,7 @@ impl HirExpression {
                 let segment1 = PathSegment { ident: typ.name.clone(), location, generics: None };
                 let segment2 =
                     PathSegment { ident: variant.name.clone(), location, generics: None };
-                let path =
-                    Path { segments: vec![segment1, segment2], kind: PathKind::Plain, location };
+                let path = Path::plain(vec![segment1, segment2], location);
                 let func = Box::new(Expression::new(ExpressionKind::Variable(path), location));
                 let arguments = vecmap(&constructor.arguments, |arg| arg.to_display_ast(interner));
                 let call = CallExpression { func, arguments, is_macro_call: false };
@@ -232,7 +218,7 @@ impl HirMatch {
     fn to_display_ast(&self, interner: &NodeInterner, location: Location) -> ExpressionKind {
         match self {
             HirMatch::Success(expr) => expr.to_display_ast(interner).kind,
-            HirMatch::Failure => ExpressionKind::Error,
+            HirMatch::Failure { .. } => ExpressionKind::Error,
             HirMatch::Guard { cond, body, otherwise } => {
                 let condition = cond.to_display_ast(interner);
                 let consequence = body.to_display_ast(interner);
@@ -284,9 +270,7 @@ impl Constructor {
             Constructor::True => ExpressionKind::Literal(Literal::Bool(true)),
             Constructor::False => ExpressionKind::Literal(Literal::Bool(false)),
             Constructor::Unit => ExpressionKind::Literal(Literal::Unit),
-            Constructor::Int(value) => {
-                ExpressionKind::Literal(Literal::Integer(value.field, value.is_negative))
-            }
+            Constructor::Int(value) => ExpressionKind::Literal(Literal::Integer(*value)),
             Constructor::Tuple(_) => ExpressionKind::Tuple(arguments),
             Constructor::Variant(typ, index) => {
                 let typ = typ.follow_bindings_shallow();
@@ -345,7 +329,7 @@ impl HirPattern {
                 let name = match typ.follow_bindings() {
                     Type::DataType(struct_def, _) => {
                         let struct_def = struct_def.borrow();
-                        struct_def.name.0.contents.clone()
+                        struct_def.name.to_string()
                     }
                     // This pass shouldn't error so if the type isn't a struct we just get a string
                     // representation of any other type and use that. We're relying on name
@@ -364,7 +348,7 @@ impl HirIdent {
     /// Convert to AST for display (some details lost)
     fn to_display_ast(&self, interner: &NodeInterner) -> Ident {
         let name = interner.definition_name(self.id).to_owned();
-        Ident(Located::from(self.location, name))
+        Ident::new(name, self.location)
     }
 
     fn to_display_expr(
@@ -382,7 +366,7 @@ impl HirIdent {
             location,
         };
 
-        let path = Path { segments: vec![segment], kind: crate::ast::PathKind::Plain, location };
+        let path = Path::plain(vec![segment], location);
 
         ExpressionKind::Variable(path)
     }
@@ -392,7 +376,7 @@ impl Type {
     /// Convert to AST for display (some details lost)
     fn to_display_ast(&self) -> UnresolvedType {
         let typ = match self {
-            Type::FieldElement => UnresolvedTypeData::FieldElement,
+            Type::FieldElement => UnresolvedTypeData::field(Location::dummy()),
             Type::Array(length, element) => {
                 let length = length.to_type_expression();
                 let element = Box::new(element.to_display_ast());
@@ -402,16 +386,18 @@ impl Type {
                 let element = Box::new(element.to_display_ast());
                 UnresolvedTypeData::Slice(element)
             }
-            Type::Integer(sign, bit_size) => UnresolvedTypeData::Integer(*sign, *bit_size),
-            Type::Bool => UnresolvedTypeData::Bool,
+            Type::Integer(sign, bit_size) => {
+                UnresolvedTypeData::integer(*sign, *bit_size, Location::dummy())
+            }
+            Type::Bool => UnresolvedTypeData::bool(Location::dummy()),
             Type::String(length) => {
                 let length = length.to_type_expression();
-                UnresolvedTypeData::String(length)
+                UnresolvedTypeData::str(length, Location::dummy())
             }
             Type::FmtString(length, element) => {
                 let length = length.to_type_expression();
-                let element = Box::new(element.to_display_ast());
-                UnresolvedTypeData::FormatString(length, element)
+                let element = element.to_display_ast();
+                UnresolvedTypeData::fmtstr(length, element, Location::dummy())
             }
             Type::Unit => UnresolvedTypeData::Unit,
             Type::Tuple(fields) => {
@@ -455,7 +441,7 @@ impl Type {
                 let name = Path::from_single(name.as_ref().clone(), Location::dummy());
                 UnresolvedTypeData::TraitAsType(name, generics)
             }
-            Type::NamedGeneric(_var, name) => {
+            Type::NamedGeneric(NamedGeneric { name, .. }) => {
                 let name = Path::from_single(name.as_ref().clone(), Location::dummy());
                 UnresolvedTypeData::Named(name, GenericTypeArgs::default(), true)
             }
@@ -466,9 +452,9 @@ impl Type {
                 let env = Box::new(env.to_display_ast());
                 UnresolvedTypeData::Function(args, ret, env, *unconstrained)
             }
-            Type::MutableReference(element) => {
+            Type::Reference(element, mutable) => {
                 let element = Box::new(element.to_display_ast());
-                UnresolvedTypeData::MutableReference(element)
+                UnresolvedTypeData::Reference(element, *mutable)
             }
             // Type::Forall is only for generic functions which don't store a type
             // in their Ast so they don't need to call to_display_ast for their Forall type.
@@ -476,7 +462,9 @@ impl Type {
             // this to ignore this case since it shouldn't be needed anyway.
             Type::Forall(_, typ) => return typ.to_display_ast(),
             Type::Constant(..) => panic!("Type::Constant where a type was expected: {self:?}"),
-            Type::Quoted(quoted_type) => UnresolvedTypeData::Quoted(*quoted_type),
+            Type::Quoted(quoted_type) => {
+                UnresolvedTypeData::quoted(*quoted_type, Location::dummy())
+            }
             Type::Error => UnresolvedTypeData::Error,
             Type::InfixExpr(lhs, op, rhs, _) => {
                 let lhs = Box::new(lhs.to_type_expression());
@@ -496,7 +484,7 @@ impl Type {
 
         match self.follow_bindings() {
             Type::Constant(length, _kind) => UnresolvedTypeExpression::Constant(length, location),
-            Type::NamedGeneric(_var, name) => {
+            Type::NamedGeneric(NamedGeneric { name, .. }) => {
                 let path = Path::from_single(name.as_ref().clone(), location);
                 UnresolvedTypeExpression::Variable(path)
             }
@@ -520,7 +508,7 @@ impl HirLValue {
                 let index = index.to_display_ast(interner);
                 LValue::Index { array, index, location: *location }
             }
-            HirLValue::Dereference { lvalue, element_type: _, location } => {
+            HirLValue::Dereference { lvalue, element_type: _, location, implicitly_added: _ } => {
                 let lvalue = Box::new(lvalue.to_display_ast(interner));
                 LValue::Dereference(lvalue, *location)
             }
@@ -539,11 +527,13 @@ impl HirArrayLiteral {
                 let repeated_element = Box::new(repeated_element.to_display_ast(interner));
                 let length = match length {
                     Type::Constant(length, _kind) => {
-                        let literal = Literal::Integer(*length, false);
+                        let literal = Literal::Integer(SignedField::positive(*length));
                         let expr_kind = ExpressionKind::Literal(literal);
                         Box::new(Expression::new(expr_kind, location))
                     }
-                    other => panic!("Cannot convert non-constant type for repeated array literal from Hir -> Ast: {other:?}"),
+                    other => panic!(
+                        "Cannot convert non-constant type for repeated array literal from Hir -> Ast: {other:?}"
+                    ),
                 };
                 ArrayLiteral::Repeated { repeated_element, length }
             }

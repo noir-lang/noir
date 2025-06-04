@@ -1,15 +1,15 @@
 use acvm::acir::{
-    brillig::{BlackBoxOp, IntegerBitSize},
     AcirField,
+    brillig::{BlackBoxOp, IntegerBitSize},
 };
 
 use crate::brillig::brillig_ir::BrilligBinaryOp;
 
 use super::{
+    BrilligContext,
     brillig_variable::{BrilligArray, SingleAddrVariable},
     debug_show::DebugToString,
     registers::RegisterAllocator,
-    BrilligContext,
 };
 
 impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<F, Registers> {

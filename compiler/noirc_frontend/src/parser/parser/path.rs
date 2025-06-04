@@ -9,7 +9,7 @@ use crate::{parser::labels::ParsingRuleLabel, token::TokenKind};
 
 use super::Parser;
 
-impl<'a> Parser<'a> {
+impl Parser<'_> {
     #[cfg(test)]
     pub(crate) fn parse_path_or_error(&mut self) -> Path {
         if let Some(path) = self.parse_path() {
@@ -17,11 +17,7 @@ impl<'a> Parser<'a> {
         } else {
             self.expected_label(ParsingRuleLabel::Path);
 
-            Path {
-                segments: Vec::new(),
-                kind: PathKind::Plain,
-                location: self.location_at_previous_token_end(),
-            }
+            Path::plain(Vec::new(), self.location_at_previous_token_end())
         }
     }
 
@@ -44,11 +40,7 @@ impl<'a> Parser<'a> {
         } else {
             self.expected_label(ParsingRuleLabel::Path);
 
-            Path {
-                segments: Vec::new(),
-                kind: PathKind::Plain,
-                location: self.location_at_previous_token_end(),
-            }
+            Path::plain(Vec::new(), self.location_at_previous_token_end())
         }
     }
 
@@ -99,11 +91,7 @@ impl<'a> Parser<'a> {
             start_location,
         );
 
-        if path.segments.is_empty() && path.kind == PathKind::Plain {
-            None
-        } else {
-            Some(path)
-        }
+        if path.segments.is_empty() && path.kind == PathKind::Plain { None } else { Some(path) }
     }
 
     /// Parses a path assuming the path's kind (plain, `crate::`, `super::`, etc.)
@@ -133,7 +121,11 @@ impl<'a> Parser<'a> {
                     None
                 };
 
-                segments.push(PathSegment { ident, generics, location });
+                segments.push(PathSegment {
+                    ident,
+                    generics,
+                    location: self.location_since(location),
+                });
 
                 if self.at(Token::DoubleColon)
                     && matches!(self.next_token.token(), Token::Ident(..))
@@ -151,7 +143,8 @@ impl<'a> Parser<'a> {
             }
         }
 
-        Path { segments, kind, location: self.location_since(start_location) }
+        let location = self.location_since(start_location);
+        Path { segments, kind, kind_location: start_location, location }
     }
 
     /// PathGenerics = GenericTypeArgs
@@ -183,6 +176,10 @@ impl<'a> Parser<'a> {
             PathKind::Dep
         } else if self.eat_keyword(Keyword::Super) {
             PathKind::Super
+        } else if let Token::InternedCrate(crate_id) = self.token.token() {
+            let crate_id = *crate_id;
+            self.bump();
+            PathKind::Resolved(crate_id)
         } else {
             PathKind::Plain
         };
@@ -200,6 +197,14 @@ impl<'a> Parser<'a> {
 
         let typ = self.parse_type_or_error();
         self.eat_keyword_or_error(Keyword::As);
+
+        Some(self.parse_as_trait_path_for_type_after_as_keyword(typ))
+    }
+
+    pub(super) fn parse_as_trait_path_for_type_after_as_keyword(
+        &mut self,
+        typ: UnresolvedType,
+    ) -> AsTraitPath {
         let trait_path = self.parse_path_no_turbofish_or_error();
         let trait_generics = self.parse_generic_type_args();
         self.eat_or_error(Token::Greater);
@@ -211,18 +216,20 @@ impl<'a> Parser<'a> {
             Ident::new(String::new(), self.location_at_previous_token_end())
         };
 
-        Some(AsTraitPath { typ, trait_path, trait_generics, impl_item })
+        AsTraitPath { typ, trait_path, trait_generics, impl_item }
     }
 }
 
 #[cfg(test)]
 mod tests {
 
+    use insta::assert_snapshot;
+
     use crate::{
         ast::{Path, PathKind},
         parser::{
-            parser::tests::{expect_no_errors, get_single_error, get_source_with_error_span},
             Parser,
+            parser::tests::{expect_no_errors, get_single_error, get_source_with_error_span},
         },
     };
 
@@ -351,6 +358,6 @@ mod tests {
         assert!(path.is_none());
 
         let error = get_single_error(&parser.errors, span);
-        assert_eq!(error.to_string(), "Expected an identifier but found end of input");
+        assert_snapshot!(error.to_string(), @"Expected an identifier but found end of input");
     }
 }

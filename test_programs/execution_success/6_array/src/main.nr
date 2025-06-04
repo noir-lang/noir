@@ -1,3 +1,5 @@
+use std::ops::{WrappingAdd, WrappingMul, WrappingSub};
+
 //Basic tests for arrays
 fn main(x: [u32; 5], y: [u32; 5], mut z: u32, t: u32) {
     let mut c = 2301;
@@ -12,8 +14,8 @@ fn main(x: [u32; 5], y: [u32; 5], mut z: u32, t: u32) {
     c = 2301 as u32;
     for i in 0..5 {
         c = t + 2 as u32;
-        c = std::wrapping_mul(std::wrapping_mul(z, z), x[i]);
-        z = std::wrapping_add(z, std::wrapping_sub(x[i] * y[i], c));
+        c = z.wrapping_mul(z).wrapping_mul(x[i]);
+        z = z.wrapping_add((x[i] * y[i]).wrapping_sub(c));
     }
     assert(z == 3814912846);
     //Test 3:
@@ -22,8 +24,8 @@ fn main(x: [u32; 5], y: [u32; 5], mut z: u32, t: u32) {
     for i in 0..5 {
         z = z + x[i] * y[i];
         for _i in 0..3 {
-            c = std::wrapping_sub(i as u32, 2 as u32);
-            z = std::wrapping_mul(z, c);
+            c = (i as u32).wrapping_sub(2 as u32);
+            z = z.wrapping_mul(c);
         }
     }
     assert(z == 41472);

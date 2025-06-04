@@ -7,6 +7,8 @@ use std::collections::HashSet;
 
 use crate::ssa::ir::{basic_block::BasicBlockId, function::Function};
 
+use super::cfg::ControlFlowGraph;
+
 /// Depth-first traversal stack state marker for computing the cfg post-order.
 enum Visit {
     First,
@@ -25,20 +27,29 @@ impl PostOrder {
 impl PostOrder {
     /// Allocate and compute a function's block post-order.
     pub(crate) fn with_function(func: &Function) -> Self {
-        PostOrder(Self::compute_post_order(func))
+        let cfg = ControlFlowGraph::with_function(func);
+        Self::with_cfg(&cfg)
+    }
+
+    /// Allocate and compute a function's block post-order.
+    pub(crate) fn with_cfg(cfg: &ControlFlowGraph) -> Self {
+        PostOrder(Self::compute_post_order(cfg))
     }
 
     pub(crate) fn into_vec(self) -> Vec<BasicBlockId> {
         self.0
     }
 
-    // Computes the post-order of the function by doing a depth-first traversal of the
+    // Computes the post-order of the CFG by doing a depth-first traversal of the
     // function's entry block's previously unvisited children. Each block is sequenced according
     // to when the traversal exits it.
-    fn compute_post_order(func: &Function) -> Vec<BasicBlockId> {
-        let mut stack = vec![(Visit::First, func.entry_block())];
+    fn compute_post_order(cfg: &ControlFlowGraph) -> Vec<BasicBlockId> {
+        let mut stack = vec![];
         let mut visited: HashSet<BasicBlockId> = HashSet::new();
         let mut post_order: Vec<BasicBlockId> = Vec::new();
+
+        // Set root blocks
+        stack.extend(cfg.compute_entry_blocks().into_iter().map(|root| (Visit::First, root)));
 
         while let Some((visit, block_id)) = stack.pop() {
             match visit {
@@ -50,10 +61,10 @@ impl PostOrder {
                         stack.push((Visit::Last, block_id));
                         // Stack successors for visiting. Because items are taken from the top of the
                         // stack, we push the item that's due for a visit first to the top.
-                        for successor_id in func.dfg[block_id].successors().rev() {
+                        for successor_id in cfg.successors(block_id).rev() {
                             if !visited.contains(&successor_id) {
-                                // This not visited check would also be cover by the next
-                                // iteration, but checking here two saves an iteration per successor.
+                                // This not visited check would also be covered by the next
+                                // iteration, but checking here too saves an iteration per successor.
                                 stack.push((Visit::First, successor_id));
                             }
                         }
@@ -141,6 +152,9 @@ mod tests {
         // •   •   F
         builder.switch_to_block(block_c_id);
         builder.terminate_with_jmp(block_f_id, vec![]);
+
+        builder.switch_to_block(block_f_id);
+        builder.terminate_with_return(vec![]);
 
         let ssa = builder.finish();
         let func = ssa.main();

@@ -1,7 +1,7 @@
 use acvm::{
-    acir::{brillig::BitSize, AcirField},
-    brillig_vm::brillig::{HeapValueType, MemoryAddress},
     FieldElement,
+    acir::{AcirField, brillig::BitSize},
+    brillig_vm::brillig::{HeapValueType, MemoryAddress},
 };
 use serde::{Deserialize, Serialize};
 

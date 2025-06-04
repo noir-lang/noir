@@ -1,15 +1,15 @@
 use crate::{brillig::BrilligOptions, ssa::ir::function::FunctionId};
 
 use super::{
+    BrilligBinaryOp, BrilligContext, ReservedRegisters,
     artifact::{BrilligArtifact, BrilligParameter},
     brillig_variable::{BrilligArray, BrilligVariable, BrilligVector, SingleAddrVariable},
     debug_show::DebugToString,
     registers::Stack,
-    BrilligBinaryOp, BrilligContext, ReservedRegisters,
 };
 use acvm::acir::{
-    brillig::{HeapVector, MemoryAddress},
     AcirField,
+    brillig::{HeapVector, MemoryAddress},
 };
 
 pub(crate) const MAX_STACK_SIZE: usize = 16 * MAX_STACK_FRAME_SIZE;
@@ -28,7 +28,7 @@ impl<F: AcirField + DebugToString> BrilligContext<F, Stack> {
     ) -> BrilligArtifact<F> {
         let mut context = BrilligContext::new(options);
 
-        context.globals_memory_size = Some(globals_memory_size);
+        context.set_globals_memory_size(Some(globals_memory_size));
 
         context.codegen_entry_point(&arguments, &return_parameters);
 

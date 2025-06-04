@@ -8,7 +8,7 @@ fn main() {}
 
 mod bar {
     #[use_callers_scope]
-    pub comptime fn struct_attr(_: StructDefinition) {
+    pub comptime fn struct_attr(_: TypeDefinition) {
         let _ = quote { Bar }.as_type();
     }
 

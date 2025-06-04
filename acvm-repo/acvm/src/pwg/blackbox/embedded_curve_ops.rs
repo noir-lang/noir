@@ -1,11 +1,11 @@
 use acir::{
+    AcirField,
     circuit::opcodes::FunctionInput,
     native_types::{Witness, WitnessMap},
-    AcirField,
 };
 use acvm_blackbox_solver::BlackBoxFunctionSolver;
 
-use crate::pwg::{input_to_value, insert_value, OpcodeResolutionError};
+use crate::pwg::{OpcodeResolutionError, input_to_value, insert_value};
 
 pub(super) fn multi_scalar_mul<F: AcirField>(
     backend: &impl BlackBoxFunctionSolver<F>,

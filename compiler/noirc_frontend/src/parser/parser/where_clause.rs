@@ -1,15 +1,15 @@
 use crate::{
-    ast::{GenericTypeArgs, Path, PathKind, TraitBound, UnresolvedTraitConstraint, UnresolvedType},
+    ast::{GenericTypeArgs, Path, TraitBound, UnresolvedTraitConstraint, UnresolvedType},
     parser::labels::ParsingRuleLabel,
     token::{Keyword, Token},
 };
 
 use super::{
-    parse_many::{separated_by, separated_by_comma},
     Parser,
+    parse_many::{separated_by, separated_by_comma},
 };
 
-impl<'a> Parser<'a> {
+impl Parser<'_> {
     /// WhereClause = 'where' WhereClauseItems?
     ///
     /// WhereClauseItems = WhereClauseItem ( ',' WhereClauseItem )* ','?
@@ -70,11 +70,7 @@ impl<'a> Parser<'a> {
 
         self.expected_label(ParsingRuleLabel::TraitBound);
         TraitBound {
-            trait_path: Path {
-                kind: PathKind::Plain,
-                segments: Vec::new(),
-                location: self.location_at_previous_token_end(),
-            },
+            trait_path: Path::plain(Vec::new(), self.location_at_previous_token_end()),
             trait_id: None,
             trait_generics: GenericTypeArgs::default(),
         }
@@ -93,10 +89,10 @@ mod tests {
     use crate::{
         ast::UnresolvedTraitConstraint,
         parser::{
+            Parser, ParserErrorReason,
             parser::tests::{
                 expect_no_errors, get_single_error_reason, get_source_with_error_span,
             },
-            Parser, ParserErrorReason,
         },
         token::Token,
     };

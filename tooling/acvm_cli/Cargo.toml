@@ -19,6 +19,7 @@ workspace = true
 [[bin]]
 name = "acvm"
 path = "src/main.rs"
+doc = false # Avoid conflicts with the `acvm` library when documenting. We just want to document the `acvm` library.
 
 [dependencies]
 color-eyre.workspace = true
@@ -39,4 +40,3 @@ tracing-appender = "0.2.3"
 [dev-dependencies]
 rand.workspace = true
 proptest = "1.2.0"
-paste = "1.0.14"

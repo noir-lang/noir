@@ -1,14 +1,15 @@
 use std::future::{self, Future};
 
 use async_lsp::ResponseError;
-use fm::{FileId, FileMap, PathString};
-use lsp_types::{
+use async_lsp::lsp_types;
+use async_lsp::lsp_types::{
     InlayHint, InlayHintKind, InlayHintLabel, InlayHintLabelPart, InlayHintParams, Position, Range,
     TextDocumentPositionParams, TextEdit,
 };
+use fm::{FileId, FileMap, PathString};
 use noirc_errors::{Location, Span};
 use noirc_frontend::{
-    self,
+    self, Kind, Type, TypeBinding, TypeVariable,
     ast::{
         CallExpression, Expression, ExpressionKind, ForLoopStatement, Ident, Lambda, LetStatement,
         MethodCallExpression, NoirFunction, NoirTraitImpl, Pattern, Statement, TypeImpl,
@@ -17,17 +18,16 @@ use noirc_frontend::{
     hir_def::stmt::HirPattern,
     node_interner::{NodeInterner, ReferenceId},
     parser::{Item, ParsedSubModule},
-    Kind, Type, TypeBinding, TypeVariable,
 };
 
-use crate::{utils, LspState};
+use crate::{LspState, utils};
 
-use super::{process_request, to_lsp_location, InlayHintsOptions};
+use super::{InlayHintsOptions, process_request, to_lsp_location};
 
 pub(crate) fn on_inlay_hint_request(
     state: &mut LspState,
     params: InlayHintParams,
-) -> impl Future<Output = Result<Option<Vec<InlayHint>>, ResponseError>> {
+) -> impl Future<Output = Result<Option<Vec<InlayHint>>, ResponseError>> + use<> {
     let text_document_position_params = TextDocumentPositionParams {
         text_document: params.text_document.clone(),
         position: Position { line: 0, character: 0 },
@@ -256,7 +256,7 @@ impl<'a> InlayHintCollector<'a> {
 
         self.push_type_hint(
             object_lsp_location,
-            &typ,
+            typ,
             false, // not editable
             false, // don't include colon
         );
@@ -302,7 +302,7 @@ impl<'a> InlayHintCollector<'a> {
     }
 
     fn intersects_span(&self, other_span: Span) -> bool {
-        self.span.map_or(true, |span| span.intersects(&other_span))
+        self.span.is_none_or(|span| span.intersects(&other_span))
     }
 
     fn show_closing_brace_hint<F>(&mut self, span: Span, f: F)
@@ -320,7 +320,7 @@ impl<'a> InlayHintCollector<'a> {
     }
 }
 
-impl<'a> Visitor for InlayHintCollector<'a> {
+impl Visitor for InlayHintCollector<'_> {
     fn visit_item(&mut self, item: &Item) -> bool {
         self.intersects_span(item.location.span)
     }
@@ -465,6 +465,9 @@ fn push_type_parts(typ: &Type, parts: &mut Vec<InlayHintLabelPart>, files: &File
                     parts.push(string_part(", "));
                 }
             }
+            if types.len() == 1 {
+                parts.push(string_part(","));
+            }
             parts.push(string_part(")"));
         }
         Type::DataType(struct_type, generics) => {
@@ -512,22 +515,26 @@ fn push_type_parts(typ: &Type, parts: &mut Vec<InlayHintLabelPart>, files: &File
             parts.push(string_part(") -> "));
             push_type_parts(return_type, parts, files);
         }
-        Type::MutableReference(typ) => {
+        Type::Reference(typ, false) => {
+            parts.push(string_part("&"));
+            push_type_parts(typ, parts, files);
+        }
+        Type::Reference(typ, true) => {
             parts.push(string_part("&mut "));
             push_type_parts(typ, parts, files);
         }
-        Type::TypeVariable(binding) => {
-            if let TypeBinding::Unbound(_, kind) = &*binding.borrow() {
-                match kind {
-                    Kind::Any | Kind::Normal => push_type_variable_parts(binding, parts, files),
-                    Kind::Integer => push_type_parts(&Type::default_int_type(), parts, files),
-                    Kind::IntegerOrField => parts.push(string_part("Field")),
-                    Kind::Numeric(ref typ) => push_type_parts(typ, parts, files),
+        Type::TypeVariable(binding) => match &*binding.borrow() {
+            TypeBinding::Unbound(_, kind) => match kind {
+                Kind::Any | Kind::Normal | Kind::Numeric(..) => {
+                    push_type_variable_parts(binding, parts, files);
                 }
-            } else {
+                Kind::Integer => push_type_parts(&Type::default_int_type(), parts, files),
+                Kind::IntegerOrField => parts.push(string_part("Field")),
+            },
+            _ => {
                 push_type_variable_parts(binding, parts, files);
             }
-        }
+        },
         Type::CheckedCast { to, .. } => push_type_parts(to, parts, files),
 
         Type::FieldElement
@@ -606,7 +613,7 @@ mod inlay_hints_tests {
     };
 
     use super::*;
-    use lsp_types::{Range, TextDocumentIdentifier, WorkDoneProgressParams};
+    use async_lsp::lsp_types::{Range, TextDocumentIdentifier, WorkDoneProgressParams};
     use tokio::test;
 
     async fn get_inlay_hints(
@@ -919,8 +926,8 @@ mod inlay_hints_tests {
     }
 
     #[test]
-    async fn test_do_not_show_parameter_inlay_hints_if_single_param_name_is_suffix_of_function_name(
-    ) {
+    async fn test_do_not_show_parameter_inlay_hints_if_single_param_name_is_suffix_of_function_name()
+     {
         let inlay_hints = get_inlay_hints(64, 67, parameter_hints()).await;
         assert!(inlay_hints.is_empty());
     }

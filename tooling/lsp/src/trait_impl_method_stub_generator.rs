@@ -1,6 +1,7 @@
 use std::collections::BTreeMap;
 
 use noirc_frontend::{
+    Kind, NamedGeneric, ResolvedGeneric, Type,
     ast::{NoirTraitImpl, UnresolvedTypeData},
     graph::CrateId,
     hir::{
@@ -8,11 +9,9 @@ use noirc_frontend::{
         type_check::generics::TraitGenerics,
     },
     hir_def::{function::FuncMeta, stmt::HirPattern, traits::Trait},
+    modules::relative_module_id_path,
     node_interner::{FunctionModifiers, NodeInterner, ReferenceId},
-    Kind, ResolvedGeneric, Type,
 };
-
-use crate::modules::relative_module_id_path;
 
 pub(crate) struct TraitImplMethodStubGenerator<'a> {
     name: &'a str,
@@ -98,7 +97,7 @@ impl<'a> TraitImplMethodStubGenerator<'a> {
                 self.append_type(&constraint.typ);
                 self.string.push_str(": ");
                 let trait_ = self.interner.get_trait(constraint.trait_bound.trait_id);
-                self.string.push_str(&trait_.name.0.contents);
+                self.string.push_str(trait_.name.as_str());
                 self.append_trait_generics(&constraint.trait_bound.trait_generics);
             }
         }
@@ -147,7 +146,7 @@ impl<'a> TraitImplMethodStubGenerator<'a> {
                     if index > 0 {
                         self.string.push_str(", ");
                     }
-                    self.string.push_str(&name.0.contents);
+                    self.string.push_str(name.as_str());
                 }
                 self.string.push_str(" }");
                 true
@@ -184,13 +183,13 @@ impl<'a> TraitImplMethodStubGenerator<'a> {
                 let struct_type = struct_type.borrow();
 
                 let current_module_data =
-                    &self.def_maps[&self.module_id.krate].modules()[self.module_id.local_id.0];
+                    &self.def_maps[&self.module_id.krate][self.module_id.local_id];
 
                 // Check if the struct type is already imported/visible in this module
                 let per_ns = current_module_data.find_name(&struct_type.name);
                 if let Some((module_def_id, _, _)) = per_ns.types {
                     if module_def_id == ModuleDefId::TypeId(struct_type.id) {
-                        self.string.push_str(&struct_type.name.0.contents);
+                        self.string.push_str(struct_type.name.as_str());
                         self.append_generics(generics);
                         return;
                     }
@@ -212,20 +211,20 @@ impl<'a> TraitImplMethodStubGenerator<'a> {
                     self.string.push_str(&relative_path);
                     self.string.push_str("::");
                 }
-                self.string.push_str(&struct_type.name.0.contents);
+                self.string.push_str(struct_type.name.as_str());
                 self.append_generics(generics);
             }
             Type::Alias(type_alias, generics) => {
                 let type_alias = type_alias.borrow();
 
                 let current_module_data =
-                    &self.def_maps[&self.module_id.krate].modules()[self.module_id.local_id.0];
+                    &self.def_maps[&self.module_id.krate][self.module_id.local_id];
 
                 // Check if the alias type is already imported/visible in this module
                 let per_ns = current_module_data.find_name(&type_alias.name);
                 if let Some((module_def_id, _, _)) = per_ns.types {
                     if module_def_id == ModuleDefId::TypeAliasId(type_alias.id) {
-                        self.string.push_str(&type_alias.name.0.contents);
+                        self.string.push_str(type_alias.name.as_str());
                         self.append_generics(generics);
                         return;
                     }
@@ -249,23 +248,19 @@ impl<'a> TraitImplMethodStubGenerator<'a> {
                     self.string.push_str(&relative_path);
                     self.string.push_str("::");
                 }
-                self.string.push_str(&type_alias.name.0.contents);
+                self.string.push_str(type_alias.name.as_str());
                 self.append_generics(generics);
             }
             Type::TraitAsType(trait_id, _, trait_generics) => {
                 let trait_ = self.interner.get_trait(*trait_id);
 
-                let current_module_data =
-                    &self.def_maps[&self.module_id.krate].modules()[self.module_id.local_id.0];
-
                 // Check if the trait type is already imported/visible in this module
-                let per_ns = current_module_data.find_name(&trait_.name);
-                if let Some((module_def_id, _, _)) = per_ns.types {
-                    if module_def_id == ModuleDefId::TraitId(*trait_id) {
-                        self.string.push_str(&trait_.name.0.contents);
-                        self.append_trait_generics(trait_generics);
-                        return;
-                    }
+                let current_module_data =
+                    &self.def_maps[&self.module_id.krate][self.module_id.local_id];
+                if current_module_data.find_trait_in_scope(*trait_id).is_some() {
+                    self.string.push_str(trait_.name.as_str());
+                    self.append_trait_generics(trait_generics);
+                    return;
                 }
 
                 let parent_module_id =
@@ -286,7 +281,7 @@ impl<'a> TraitImplMethodStubGenerator<'a> {
                     self.string.push_str(&relative_path);
                     self.string.push_str("::");
                 }
-                self.string.push_str(&trait_.name.0.contents);
+                self.string.push_str(trait_.name.as_str());
                 self.append_trait_generics(trait_generics);
             }
             Type::TypeVariable(typevar) => {
@@ -328,8 +323,8 @@ impl<'a> TraitImplMethodStubGenerator<'a> {
 
                 self.string.push_str("error");
             }
-            Type::NamedGeneric(typevar, _name) => {
-                self.append_type(&Type::TypeVariable(typevar.clone()));
+            Type::NamedGeneric(NamedGeneric { type_var, .. }) => {
+                self.append_type(&Type::TypeVariable(type_var.clone()));
             }
             Type::Function(args, ret, env, unconstrained) => {
                 if *unconstrained {
@@ -359,7 +354,11 @@ impl<'a> TraitImplMethodStubGenerator<'a> {
                     self.append_type(ret);
                 }
             }
-            Type::MutableReference(typ) => {
+            Type::Reference(typ, false) => {
+                self.string.push('&');
+                self.append_type(typ);
+            }
+            Type::Reference(typ, true) => {
                 self.string.push_str("&mut ");
                 self.append_type(typ);
             }
@@ -419,7 +418,7 @@ impl<'a> TraitImplMethodStubGenerator<'a> {
             if index > 0 {
                 self.string.push_str(", ");
             }
-            self.string.push_str(&named_type.name.0.contents);
+            self.string.push_str(named_type.name.as_str());
             self.string.push_str(" = ");
             self.append_type(&named_type.typ);
             index += 1;
@@ -447,7 +446,7 @@ impl<'a> TraitImplMethodStubGenerator<'a> {
             Kind::Any | Kind::Normal | Kind::Integer | Kind::IntegerOrField => {
                 self.string.push_str(&generic.name);
             }
-            Kind::Numeric(ref typ) => {
+            Kind::Numeric(typ) => {
                 self.string.push_str("let ");
                 self.string.push_str(&generic.name);
                 self.string.push_str(": ");

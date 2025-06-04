@@ -4,15 +4,15 @@ use async_lsp::{ErrorCode, ResponseError};
 
 use nargo::{package::Package, workspace::Workspace};
 use noirc_driver::check_crate;
-use noirc_frontend::hir::FunctionNameMatch;
+use noirc_frontend::hir::{FunctionNameMatch, def_map::ModuleId};
 
 use crate::{
-    byte_span_to_range, prepare_source, resolve_workspace_for_source_path,
+    LspState, byte_span_to_range, prepare_source, resolve_workspace_for_source_path,
     types::{CodeLens, CodeLensParams, CodeLensResult, Command},
-    LspState,
 };
 
 const ARROW: &str = "▶\u{fe0e}";
+const GEAR: &str = "⚙";
 const TEST_COMMAND: &str = "nargo.test";
 const TEST_CODELENS_TITLE: &str = "Run Test";
 const COMPILE_COMMAND: &str = "nargo.compile";
@@ -23,6 +23,8 @@ const EXECUTE_COMMAND: &str = "nargo.execute";
 const EXECUTE_CODELENS_TITLE: &str = "Execute";
 const DEBUG_COMMAND: &str = "nargo.debug.dap";
 const DEBUG_CODELENS_TITLE: &str = "Debug";
+const DEBUG_TEST_COMMAND: &str = "nargo.debug.test";
+const DEBUG_TEST_CODELENS_TITLE: &str = "Debug test";
 
 fn with_arrow(title: &str) -> String {
     format!("{ARROW} {title}")
@@ -40,7 +42,7 @@ fn package_selection_args(workspace: &Workspace, package: &Package) -> Vec<serde
 pub(crate) fn on_code_lens_request(
     state: &mut LspState,
     params: CodeLensParams,
-) -> impl Future<Output = Result<CodeLensResult, ResponseError>> {
+) -> impl Future<Output = Result<CodeLensResult, ResponseError>> + use<> {
     future::ready(on_code_lens_request_inner(state, params))
 }
 
@@ -98,7 +100,7 @@ pub(crate) fn collect_lenses_for_package(
     let tests =
         context.get_all_test_functions_in_crate_matching(&crate_id, &FunctionNameMatch::Anything);
     for (func_name, test_function) in tests {
-        let location = context.function_meta(&test_function.get_id()).name.location;
+        let location = context.function_meta(&test_function.id).name.location;
         let file_id = location.file;
 
         // Ignore diagnostics for any file that wasn't the file we saved
@@ -117,7 +119,7 @@ pub(crate) fn collect_lenses_for_package(
             arguments: Some(
                 [
                     package_selection_args(workspace, package),
-                    vec!["--exact".into(), "--show-output".into(), func_name.into()],
+                    vec!["--exact".into(), "--show-output".into(), func_name.clone().into()],
                 ]
                 .concat(),
             ),
@@ -126,6 +128,22 @@ pub(crate) fn collect_lenses_for_package(
         let test_lens = CodeLens { range, command: Some(test_command), data: None };
 
         lenses.push(test_lens);
+
+        let debug_test_command = Command {
+            title: format!("{GEAR} {DEBUG_TEST_CODELENS_TITLE}"),
+            command: DEBUG_TEST_COMMAND.into(),
+            arguments: Some(
+                [
+                    package_selection_args(workspace, package),
+                    vec!["--exact".into(), func_name.into()],
+                ]
+                .concat(),
+            ),
+        };
+
+        let debug_test_lens = CodeLens { range, command: Some(debug_test_command), data: None };
+
+        lenses.push(debug_test_lens);
     }
 
     if package.is_binary() {
@@ -176,7 +194,13 @@ pub(crate) fn collect_lenses_for_package(
 
     if package.is_contract() {
         // Currently not looking to deduplicate this since we don't have a clear decision on if the Contract stuff is staying
-        for contract in context.get_all_contracts(&crate_id) {
+        let def_map =
+            context.def_map(&crate_id).expect("The local crate should be analyzed already");
+
+        for contract in def_map
+            .get_all_contracts()
+            .map(|(local_id, _)| context.module(ModuleId { krate: crate_id, local_id }))
+        {
             let location = contract.location;
             let file_id = location.file;
 

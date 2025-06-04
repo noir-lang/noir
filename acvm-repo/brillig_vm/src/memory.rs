@@ -1,6 +1,6 @@
 use acir::{
-    brillig::{BitSize, IntegerBitSize, MemoryAddress},
     AcirField,
+    brillig::{BitSize, IntegerBitSize, MemoryAddress},
 };
 
 pub const MEMORY_ADDRESSING_BIT_SIZE: IntegerBitSize = IntegerBitSize::U32;
@@ -18,8 +18,12 @@ pub enum MemoryValue<F> {
 
 #[derive(Debug, thiserror::Error)]
 pub enum MemoryTypeError {
-    #[error("Bit size for value {value_bit_size} does not match the expected bit size {expected_bit_size}")]
+    #[error(
+        "Bit size for value {value_bit_size} does not match the expected bit size {expected_bit_size}"
+    )]
     MismatchedBitSize { value_bit_size: u32, expected_bit_size: u32 },
+    #[error("Value is not an integer")]
+    NotAnInteger,
 }
 
 impl<F> MemoryValue<F> {
@@ -91,6 +95,19 @@ impl<F: AcirField> MemoryValue<F> {
             MemoryValue::U32(value) => F::from(*value as u128),
             MemoryValue::U64(value) => F::from(*value as u128),
             MemoryValue::U128(value) => F::from(*value),
+        }
+    }
+
+    /// Converts the memory value to U128, if the value is an integer.
+    pub fn to_u128(&self) -> Result<u128, MemoryTypeError> {
+        match self {
+            MemoryValue::Field(..) => Err(MemoryTypeError::NotAnInteger),
+            MemoryValue::U1(value) => Ok(*value as u8 as u128),
+            MemoryValue::U8(value) => Ok(*value as u128),
+            MemoryValue::U16(value) => Ok(*value as u128),
+            MemoryValue::U32(value) => Ok(*value as u128),
+            MemoryValue::U64(value) => Ok(*value as u128),
+            MemoryValue::U128(value) => Ok(*value),
         }
     }
 

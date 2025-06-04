@@ -1,10 +1,8 @@
-use acvm::{acir::AcirField, FieldElement};
+use acvm::{FieldElement, acir::AcirField};
 use num_traits::ToPrimitive as _;
 use serde::{Deserialize, Serialize};
 
-use super::{
-    DataFlowGraph, Instruction, InstructionResultType, NumericType, SimplifyResult, Type, ValueId,
-};
+use super::{InstructionResultType, NumericType, Type, ValueId};
 
 /// Binary Operations allowed in the IR.
 /// Aside from the comparison operators (Eq and Lt), all operators
@@ -14,7 +12,7 @@ use super::{
 /// e.g. equality for a compound type like a struct, one must add a
 /// separate Eq operation for each field and combine them later with And.
 #[derive(Debug, PartialEq, Eq, Hash, Copy, Clone, Serialize, Deserialize)]
-pub(crate) enum BinaryOp {
+pub enum BinaryOp {
     /// Addition of lhs + rhs.
     Add { unchecked: bool },
     /// Subtraction of lhs - rhs.
@@ -70,7 +68,7 @@ impl std::fmt::Display for BinaryOp {
 
 /// A binary instruction in the IR.
 #[derive(Debug, PartialEq, Eq, Hash, Clone, Serialize, Deserialize)]
-pub(crate) struct Binary {
+pub struct Binary {
     /// Left hand side of the binary operation
     pub(crate) lhs: ValueId,
     /// Right hand side of the binary operation
@@ -86,330 +84,6 @@ impl Binary {
             BinaryOp::Eq | BinaryOp::Lt => InstructionResultType::Known(Type::bool()),
             _ => InstructionResultType::Operand(self.lhs),
         }
-    }
-
-    /// Try to simplify this binary instruction, returning the new value if possible.
-    pub(super) fn simplify(&self, dfg: &mut DataFlowGraph) -> SimplifyResult {
-        let lhs = dfg.resolve(self.lhs);
-        let rhs = dfg.resolve(self.rhs);
-
-        let lhs_value = dfg.get_numeric_constant(lhs);
-        let rhs_value = dfg.get_numeric_constant(rhs);
-
-        let lhs_type = dfg.type_of_value(lhs).unwrap_numeric();
-        let rhs_type = dfg.type_of_value(rhs).unwrap_numeric();
-
-        let operator = self.operator;
-        if operator != BinaryOp::Shl && operator != BinaryOp::Shr {
-            assert_eq!(
-                lhs_type, rhs_type,
-                "ICE - Binary instruction operands must have the same type"
-            );
-        }
-
-        let operator = if lhs_type == NumericType::NativeField {
-            // Unchecked operations between fields or bools don't make sense, so we convert those to non-unchecked
-            // to reduce noise and confusion in the generated SSA.
-            match operator {
-                BinaryOp::Add { unchecked: true } => BinaryOp::Add { unchecked: false },
-                BinaryOp::Sub { unchecked: true } => BinaryOp::Sub { unchecked: false },
-                BinaryOp::Mul { unchecked: true } => BinaryOp::Mul { unchecked: false },
-                _ => operator,
-            }
-        } else if lhs_type == NumericType::bool() {
-            // Unchecked mul between bools doesn't make sense, so we convert that to non-unchecked
-            if let BinaryOp::Mul { unchecked: true } = operator {
-                BinaryOp::Mul { unchecked: false }
-            } else {
-                operator
-            }
-        } else {
-            operator
-        };
-
-        // We never return `SimplifyResult::None` here because `operator` might have changed.
-        let simplified = Instruction::Binary(Binary { lhs, rhs, operator });
-
-        if let (Some(lhs), Some(rhs)) = (lhs_value, rhs_value) {
-            return match eval_constant_binary_op(lhs, rhs, operator, lhs_type) {
-                Some((result, result_type)) => {
-                    let value = dfg.make_constant(result, result_type);
-                    SimplifyResult::SimplifiedTo(value)
-                }
-                None => SimplifyResult::SimplifiedToInstruction(simplified),
-            };
-        }
-
-        let lhs_is_zero = lhs_value.map_or(false, |lhs| lhs.is_zero());
-        let rhs_is_zero = rhs_value.map_or(false, |rhs| rhs.is_zero());
-
-        let lhs_is_one = lhs_value.map_or(false, |lhs| lhs.is_one());
-        let rhs_is_one = rhs_value.map_or(false, |rhs| rhs.is_one());
-
-        match self.operator {
-            BinaryOp::Add { .. } => {
-                if lhs_is_zero {
-                    return SimplifyResult::SimplifiedTo(rhs);
-                }
-                if rhs_is_zero {
-                    return SimplifyResult::SimplifiedTo(lhs);
-                }
-            }
-            BinaryOp::Sub { .. } => {
-                if lhs == rhs {
-                    let zero = dfg.make_constant(FieldElement::zero(), lhs_type);
-                    return SimplifyResult::SimplifiedTo(zero);
-                }
-
-                if rhs_is_zero {
-                    return SimplifyResult::SimplifiedTo(lhs);
-                }
-            }
-            BinaryOp::Mul { .. } => {
-                if lhs_is_one {
-                    return SimplifyResult::SimplifiedTo(rhs);
-                }
-                if rhs_is_one {
-                    return SimplifyResult::SimplifiedTo(lhs);
-                }
-                if lhs_is_zero || rhs_is_zero {
-                    let zero = dfg.make_constant(FieldElement::zero(), lhs_type);
-                    return SimplifyResult::SimplifiedTo(zero);
-                }
-                if dfg.get_value_max_num_bits(lhs) == 1 {
-                    // Squaring a boolean value is a noop.
-                    if lhs == rhs {
-                        return SimplifyResult::SimplifiedTo(lhs);
-                    }
-                    // b*(b*x) = b*x if b is boolean
-                    if let super::Value::Instruction { instruction, .. } = &dfg[rhs] {
-                        if let Instruction::Binary(Binary { lhs: b_lhs, rhs: b_rhs, operator }) =
-                            dfg[*instruction]
-                        {
-                            if matches!(operator, BinaryOp::Mul { .. })
-                                && (lhs == dfg.resolve(b_lhs) || lhs == dfg.resolve(b_rhs))
-                            {
-                                return SimplifyResult::SimplifiedTo(rhs);
-                            }
-                        }
-                    }
-                }
-                // (b*x)*b = b*x if b is boolean
-                if dfg.get_value_max_num_bits(rhs) == 1 {
-                    if let super::Value::Instruction { instruction, .. } = &dfg[lhs] {
-                        if let Instruction::Binary(Binary { lhs: b_lhs, rhs: b_rhs, operator }) =
-                            dfg[*instruction]
-                        {
-                            if matches!(operator, BinaryOp::Mul { .. })
-                                && (rhs == dfg.resolve(b_lhs) || rhs == dfg.resolve(b_rhs))
-                            {
-                                return SimplifyResult::SimplifiedTo(lhs);
-                            }
-                        }
-                    }
-                }
-            }
-            BinaryOp::Div => {
-                if rhs_is_one {
-                    return SimplifyResult::SimplifiedTo(lhs);
-                }
-            }
-            BinaryOp::Mod => {
-                if rhs_is_one {
-                    let zero = dfg.make_constant(FieldElement::zero(), lhs_type);
-                    return SimplifyResult::SimplifiedTo(zero);
-                }
-                if lhs_type.is_unsigned() {
-                    // lhs % 2**bit_size is equivalent to truncating `lhs` to `bit_size` bits.
-                    // We then convert to a truncation for consistency, allowing more optimizations.
-                    if let Some(modulus) = rhs_value {
-                        let modulus = modulus.to_u128();
-                        if modulus.is_power_of_two() {
-                            let bit_size = modulus.ilog2();
-                            return SimplifyResult::SimplifiedToInstruction(
-                                Instruction::Truncate {
-                                    value: lhs,
-                                    bit_size,
-                                    max_bit_size: lhs_type.bit_size(),
-                                },
-                            );
-                        }
-                    }
-                }
-            }
-            BinaryOp::Eq => {
-                if lhs == rhs {
-                    let one = dfg.make_constant(FieldElement::one(), NumericType::bool());
-                    return SimplifyResult::SimplifiedTo(one);
-                }
-
-                if lhs_type == NumericType::bool() {
-                    // Simplify forms of `(boolean == true)` into `boolean`
-                    if lhs_is_one {
-                        return SimplifyResult::SimplifiedTo(rhs);
-                    }
-                    if rhs_is_one {
-                        return SimplifyResult::SimplifiedTo(lhs);
-                    }
-                    // Simplify forms of `(boolean == false)` into `!boolean`
-                    if lhs_is_zero {
-                        return SimplifyResult::SimplifiedToInstruction(Instruction::Not(rhs));
-                    }
-                    if rhs_is_zero {
-                        return SimplifyResult::SimplifiedToInstruction(Instruction::Not(lhs));
-                    }
-                }
-            }
-            BinaryOp::Lt => {
-                if lhs == rhs {
-                    let zero = dfg.make_constant(FieldElement::zero(), NumericType::bool());
-                    return SimplifyResult::SimplifiedTo(zero);
-                }
-                if lhs_type.is_unsigned() {
-                    if rhs_is_zero {
-                        // Unsigned values cannot be less than zero.
-                        let zero = dfg.make_constant(FieldElement::zero(), NumericType::bool());
-                        return SimplifyResult::SimplifiedTo(zero);
-                    } else if rhs_is_one {
-                        let zero = dfg.make_constant(FieldElement::zero(), lhs_type);
-                        return SimplifyResult::SimplifiedToInstruction(Instruction::binary(
-                            BinaryOp::Eq,
-                            lhs,
-                            zero,
-                        ));
-                    }
-                }
-            }
-            BinaryOp::And => {
-                if lhs_is_zero || rhs_is_zero {
-                    let zero = dfg.make_constant(FieldElement::zero(), lhs_type);
-                    return SimplifyResult::SimplifiedTo(zero);
-                }
-                if lhs == rhs {
-                    return SimplifyResult::SimplifiedTo(lhs);
-                }
-                if lhs_type == NumericType::bool() {
-                    // Boolean AND is equivalent to multiplication, which is a cheaper operation.
-                    // (mul unchecked because these are bools so it doesn't matter really)
-                    let instruction =
-                        Instruction::binary(BinaryOp::Mul { unchecked: true }, lhs, rhs);
-                    return SimplifyResult::SimplifiedToInstruction(instruction);
-                }
-                if lhs_type.is_unsigned() {
-                    // It's common in other programming languages to truncate values to a certain bit size using
-                    // a bitwise AND with a bit mask. However this operation is quite inefficient inside a snark.
-                    //
-                    // We then replace this bitwise operation with an equivalent truncation instruction.
-                    match (lhs_value, rhs_value) {
-                        (Some(bitmask), None) | (None, Some(bitmask)) => {
-                            // This substitution requires the bitmask to retain all of the lower bits.
-                            // The bitmask must then be one less than a power of 2.
-                            let bitmask_plus_one = bitmask.to_u128() + 1;
-                            if bitmask_plus_one.is_power_of_two() {
-                                let value = if lhs_value.is_some() { rhs } else { lhs };
-                                let bit_size = bitmask_plus_one.ilog2();
-                                let max_bit_size = lhs_type.bit_size();
-
-                                if bit_size == max_bit_size {
-                                    // If we're truncating a value into the full size of its type then
-                                    // the truncation is a noop.
-                                    return SimplifyResult::SimplifiedTo(value);
-                                } else {
-                                    return SimplifyResult::SimplifiedToInstruction(
-                                        Instruction::Truncate { value, bit_size, max_bit_size },
-                                    );
-                                }
-                            }
-                        }
-
-                        _ => (),
-                    }
-                }
-            }
-            BinaryOp::Or => {
-                if lhs_is_zero {
-                    return SimplifyResult::SimplifiedTo(rhs);
-                }
-                if rhs_is_zero {
-                    return SimplifyResult::SimplifiedTo(lhs);
-                }
-                if lhs_type == NumericType::bool() && (lhs_is_one || rhs_is_one) {
-                    let one = dfg.make_constant(FieldElement::one(), lhs_type);
-                    return SimplifyResult::SimplifiedTo(one);
-                }
-                if lhs == rhs {
-                    return SimplifyResult::SimplifiedTo(lhs);
-                }
-            }
-            BinaryOp::Xor => {
-                if lhs_is_zero {
-                    return SimplifyResult::SimplifiedTo(rhs);
-                }
-                if rhs_is_zero {
-                    return SimplifyResult::SimplifiedTo(lhs);
-                }
-                if lhs == rhs {
-                    let zero = dfg.make_constant(FieldElement::zero(), lhs_type);
-                    return SimplifyResult::SimplifiedTo(zero);
-                }
-            }
-            BinaryOp::Shl => return SimplifyResult::SimplifiedToInstruction(simplified),
-            BinaryOp::Shr => {
-                // Bit shifts by constants can be treated as divisions.
-                if let Some(rhs_const) = rhs_value {
-                    if rhs_const >= FieldElement::from(lhs_type.bit_size() as u128) {
-                        // Shifting by the full width of the operand type, any `lhs` goes to zero.
-                        let zero = dfg.make_constant(FieldElement::zero(), lhs_type);
-                        return SimplifyResult::SimplifiedTo(zero);
-                    }
-                    return SimplifyResult::SimplifiedToInstruction(simplified);
-                }
-            }
-        };
-        SimplifyResult::SimplifiedToInstruction(simplified)
-    }
-
-    /// Check if unsigned overflow is possible, and if so return some message to be used if it fails.
-    pub(crate) fn check_unsigned_overflow_msg(
-        &self,
-        dfg: &DataFlowGraph,
-        bit_size: u32,
-    ) -> Option<&'static str> {
-        // We try to optimize away operations that are guaranteed not to overflow
-        let max_lhs_bits = dfg.get_value_max_num_bits(self.lhs);
-        let max_rhs_bits = dfg.get_value_max_num_bits(self.rhs);
-
-        let msg = match self.operator {
-            BinaryOp::Add { unchecked: false } => {
-                if std::cmp::max(max_lhs_bits, max_rhs_bits) < bit_size {
-                    // `lhs` and `rhs` have both been casted up from smaller types and so cannot overflow.
-                    return None;
-                }
-                "attempt to add with overflow"
-            }
-            BinaryOp::Sub { unchecked: false } => {
-                if dfg.is_constant(self.lhs) && max_lhs_bits > max_rhs_bits {
-                    // `lhs` is a fixed constant and `rhs` is restricted such that `lhs - rhs > 0`
-                    // Note strict inequality as `rhs > lhs` while `max_lhs_bits == max_rhs_bits` is possible.
-                    return None;
-                }
-                "attempt to subtract with overflow"
-            }
-            BinaryOp::Mul { unchecked: false } => {
-                if bit_size == 1
-                    || max_lhs_bits + max_rhs_bits <= bit_size
-                    || max_lhs_bits == 1
-                    || max_rhs_bits == 1
-                {
-                    // Either performing boolean multiplication (which cannot overflow),
-                    // or `lhs` and `rhs` have both been casted up from smaller types and so cannot overflow.
-                    return None;
-                }
-                "attempt to multiply with overflow"
-            }
-            _ => return None,
-        };
-        Some(msg)
     }
 }
 
@@ -485,7 +159,10 @@ pub(crate) fn eval_constant_binary_op(
 /// Values in the range `[0, 2^(bit_size-1))` are interpreted as positive integers
 ///
 /// Values in the range `[2^(bit_size-1), 2^bit_size)` are interpreted as negative integers.
-fn try_convert_field_element_to_signed_integer(field: FieldElement, bit_size: u32) -> Option<i128> {
+pub(crate) fn try_convert_field_element_to_signed_integer(
+    field: FieldElement,
+    bit_size: u32,
+) -> Option<i128> {
     let unsigned_int = truncate(field.try_into_u128()?, bit_size);
 
     let max_positive_value = 1 << (bit_size - 1);
@@ -502,19 +179,22 @@ fn try_convert_field_element_to_signed_integer(field: FieldElement, bit_size: u3
     Some(signed_int)
 }
 
-fn convert_signed_integer_to_field_element(int: i128, bit_size: u32) -> FieldElement {
+pub(crate) fn convert_signed_integer_to_field_element(int: i128, bit_size: u32) -> FieldElement {
     if int >= 0 {
         FieldElement::from(int)
+    } else if bit_size == 128 {
+        // signed to u128 conversion
+        FieldElement::from(int as u128)
     } else {
         // We add an offset of `bit_size` bits to shift the negative values into the range [2^(bitsize-1), 2^bitsize)
-        assert!(bit_size < 128);
+        assert!(bit_size < 128, "{bit_size} is too large");
         let offset_int = (1i128 << bit_size) + int;
         FieldElement::from(offset_int)
     }
 }
 
 /// Truncates `int` to fit within `bit_size` bits.
-pub(super) fn truncate(int: u128, bit_size: u32) -> u128 {
+pub(crate) fn truncate(int: u128, bit_size: u32) -> u128 {
     if bit_size == 128 {
         int
     } else {
@@ -556,7 +236,8 @@ impl BinaryOp {
             BinaryOp::Mul { .. } => Some(std::ops::Mul::mul),
             BinaryOp::Div => Some(std::ops::Div::div),
             BinaryOp::Eq => Some(|x, y| (x == y).into()),
-            BinaryOp::Lt => Some(|x, y| (x < y).into()),
+            // "less then" comparison is not supported for Fields
+            BinaryOp::Lt => None,
             // Bitwise operators are unsupported for Fields
             BinaryOp::Mod => None,
             BinaryOp::And => None,
@@ -609,15 +290,6 @@ impl BinaryOp {
             _ => self,
         }
     }
-
-    pub(crate) fn is_unchecked(self) -> bool {
-        match self {
-            BinaryOp::Add { unchecked }
-            | BinaryOp::Sub { unchecked }
-            | BinaryOp::Mul { unchecked } => unchecked,
-            _ => true,
-        }
-    }
 }
 
 #[cfg(test)]
@@ -625,8 +297,8 @@ mod test {
     use proptest::prelude::*;
 
     use super::{
-        convert_signed_integer_to_field_element, truncate_field,
-        try_convert_field_element_to_signed_integer, BinaryOp,
+        BinaryOp, convert_signed_integer_to_field_element, truncate_field,
+        try_convert_field_element_to_signed_integer,
     };
     use acvm::{AcirField, FieldElement};
     use num_bigint::BigUint;
@@ -666,5 +338,15 @@ mod test {
     fn get_i128_function_shift_works_with_values_larger_than_127() {
         assert!(BinaryOp::Shr.get_i128_function()(1, 128).is_none());
         assert!(BinaryOp::Shl.get_i128_function()(1, 128).is_none());
+    }
+
+    #[test]
+    fn test_plus_minus_one_as_field() {
+        for (i, u) in [(-1i64, u64::MAX), (-2i64, u64::MAX - 1), (1i64, 1u64)] {
+            let i: i128 = i.into();
+            let f = convert_signed_integer_to_field_element(i, 64);
+            assert_eq!(f.to_u128(), u as u128);
+            assert_eq!(i, try_convert_field_element_to_signed_integer(f, 64).unwrap());
+        }
     }
 }

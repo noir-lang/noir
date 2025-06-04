@@ -29,16 +29,16 @@ fn bad() {
 #[test]
 fn test_vec_push_pop() {
     let mut vec: BoundedVec<Field, 3> = BoundedVec::new();
-    assert(vec.len == 0);
+    assert(vec.len() == 0);
     vec.push(2);
-    assert(vec.len == 1);
+    assert(vec.len() == 1);
     vec.push(4);
-    assert(vec.len == 2);
+    assert(vec.len() == 2);
     vec.push(6);
-    assert(vec.len == 3);
+    assert(vec.len() == 3);
     let x = vec.pop();
     assert(x == 6);
-    assert(vec.len == 2);
+    assert(vec.len() == 2);
     assert(vec.get(0) == 2);
     assert(vec.get(1) == 4);
 }
@@ -169,7 +169,7 @@ fn test_vec_extend_from_array() {
     let mut vec: BoundedVec<Field, 3> = BoundedVec::new();
     vec.extend_from_array([2, 4]);
 
-    assert(vec.len == 2);
+    assert(vec.len() == 2);
     assert(vec.get(0) == 2);
     assert(vec.get(1) == 4);
     // docs:end:bounded-vec-extend-from-array-example
@@ -199,7 +199,7 @@ fn test_vec_extend_from_array_out_of_bound() {
 fn test_vec_extend_from_array_twice_out_of_bound() {
     let mut vec: BoundedVec<Field, 2> = BoundedVec::new();
     vec.extend_from_array([2]);
-    assert(vec.len == 1);
+    assert(vec.len() == 1);
     vec.extend_from_array([4, 6]);
 }
 

@@ -1,11 +1,11 @@
 use acir::{
+    AcirField,
     circuit::opcodes::FunctionInput,
     native_types::{Witness, WitnessMap},
-    AcirField,
 };
 use acvm_blackbox_solver::aes128_encrypt;
 
-use crate::{pwg::insert_value, OpcodeResolutionError};
+use crate::{OpcodeResolutionError, pwg::insert_value};
 
 use super::utils::{to_u8_array, to_u8_vec};
 

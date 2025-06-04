@@ -112,11 +112,7 @@ impl<F: PrimeField> From<u32> for FieldElement<F> {
 
 impl<F: PrimeField> From<bool> for FieldElement<F> {
     fn from(boolean: bool) -> FieldElement<F> {
-        if boolean {
-            FieldElement::one()
-        } else {
-            FieldElement::zero()
-        }
+        if boolean { FieldElement::one() } else { FieldElement::zero() }
     }
 }
 
@@ -183,11 +179,7 @@ impl<F: PrimeField> AcirField for FieldElement<F> {
     /// For example, a max bit size of 254 would give a max byte size of 32.
     fn max_num_bytes() -> u32 {
         let num_bytes = Self::max_num_bits() / 8;
-        if Self::max_num_bits() % 8 == 0 {
-            num_bytes
-        } else {
-            num_bytes + 1
-        }
+        if Self::max_num_bits() % 8 == 0 { num_bytes } else { num_bytes + 1 }
     }
 
     fn modulus() -> BigUint {
@@ -225,6 +217,21 @@ impl<F: PrimeField> AcirField for FieldElement<F> {
         let is_negative = self.neg().num_bits() < self.num_bits();
         let bytes = if is_negative { self.neg() } else { self }.to_be_bytes();
         i128::from_be_bytes(bytes[16..32].try_into().unwrap()) * if is_negative { -1 } else { 1 }
+    }
+    fn try_into_i128(self) -> Option<i128> {
+        // Negative integers are represented by the range [p + i128::MIN, p) whilst
+        // positive integers are represented by the range [0, i128::MAX).
+        // We can then differentiate positive from negative values by their MSB.
+        let is_negative = self.neg().num_bits() < self.num_bits();
+        let bytes = if is_negative { self.neg() } else { self }.to_be_bytes();
+        // There is data in the first 16 bytes, so it cannot be represented as an i128
+        if bytes[0..16].iter().any(|b| *b != 0) {
+            return None;
+        }
+        Some(
+            i128::from_be_bytes(bytes[16..32].try_into().unwrap())
+                * if is_negative { -1 } else { 1 },
+        )
     }
 
     fn try_to_u64(&self) -> Option<u64> {
@@ -286,7 +293,7 @@ impl<F: PrimeField> AcirField for FieldElement<F> {
     /// This method truncates
     fn fetch_nearest_bytes(&self, num_bits: usize) -> Vec<u8> {
         fn nearest_bytes(num_bits: usize) -> usize {
-            ((num_bits + 7) / 8) * 8
+            num_bits.div_ceil(8) * 8
         }
 
         let num_bytes = nearest_bytes(num_bits);

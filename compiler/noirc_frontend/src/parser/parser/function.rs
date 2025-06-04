@@ -2,12 +2,13 @@ use crate::ast::{
     BlockExpression, GenericTypeArgs, Ident, Path, Pattern, UnresolvedTraitConstraint,
     UnresolvedType,
 };
+use crate::shared::Visibility;
 use crate::token::{Attribute, Attributes, Keyword, Token};
 use crate::{ast::UnresolvedGenerics, parser::labels::ParsingRuleLabel};
 use crate::{
     ast::{
         FunctionDefinition, FunctionReturnType, ItemVisibility, NoirFunction, Param,
-        UnresolvedTypeData, Visibility,
+        UnresolvedTypeData,
     },
     parser::ParserErrorReason,
 };
@@ -17,7 +18,7 @@ use noirc_errors::{Location, Span};
 
 use super::parse_many::separated_by_comma_until_right_paren;
 use super::pattern::SelfPattern;
-use super::{pattern::PatternOrSelf, Parser};
+use super::{Parser, pattern::PatternOrSelf};
 
 pub(crate) struct FunctionDefinitionWithOptionalBody {
     pub(crate) name: Ident,
@@ -30,7 +31,7 @@ pub(crate) struct FunctionDefinitionWithOptionalBody {
     pub(crate) return_visibility: Visibility,
 }
 
-impl<'a> Parser<'a> {
+impl Parser<'_> {
     /// Function = 'fn' identifier Generics FunctionParameters ( '->' Visibility Type )? WhereClause ( Block | ';' )
     pub(crate) fn parse_function(
         &mut self,
@@ -86,12 +87,20 @@ impl<'a> Parser<'a> {
         allow_optional_body: bool,
         allow_self: bool,
     ) -> FunctionDefinitionWithOptionalBody {
-        let Some(name) = self.eat_ident() else {
+        let name = if let Some(name) = self.eat_ident() {
+            name
+        } else if self.at(Token::LeftParen) || self.at(Token::Less) {
+            // If it's `fn (...` or `fn <...` we assume the user missed the function name but a function
+            // definition follows. This can happen if the user is currently renaming a function by first
+            // erasing the name.
             self.expected_identifier();
-            return empty_function(self.previous_token_location);
+            self.unknown_ident_at_previous_token_end()
+        } else {
+            self.expected_identifier();
+            return empty_function(self.location_at_previous_token_end());
         };
 
-        let generics = self.parse_generics();
+        let generics = self.parse_generics_allowing_trait_bounds();
         let parameters = self.parse_function_parameters(allow_self);
 
         let parameters = match parameters {
@@ -109,10 +118,24 @@ impl<'a> Parser<'a> {
             let visibility = self.parse_visibility();
             (FunctionReturnType::Ty(self.parse_type_or_error()), visibility)
         } else {
-            (
-                FunctionReturnType::Default(self.location_at_previous_token_end()),
-                Visibility::Private,
-            )
+            // This will return the span between `)` and `{`
+            //
+            // fn foo() { }
+            //        ^^^
+            let mut location = self.previous_token_location.merge(self.current_token_location);
+
+            // Here we change it to this (if there's space)
+            //
+            // fn foo() { }
+            //         ^
+            if location.span.end() - location.span.start() >= 3 {
+                location = Location::new(
+                    Span::from(location.span.start() + 1..location.span.end() - 1),
+                    location.file,
+                );
+            }
+
+            (FunctionReturnType::Default(location), Visibility::Private)
         };
 
         let where_clause = self.parse_where_clause();
@@ -124,8 +147,22 @@ impl<'a> Parser<'a> {
             }
 
             None
+        } else if let Some(block) = self.parse_block() {
+            Some(block)
         } else {
-            Some(self.parse_block().unwrap_or_else(empty_body))
+            let mut expected_tokens = Vec::new();
+            if matches!(return_type, FunctionReturnType::Default(_)) {
+                expected_tokens.push(Token::Arrow);
+            }
+            if where_clause.is_empty() {
+                expected_tokens.push(Token::Keyword(Keyword::Where));
+            }
+            if allow_optional_body {
+                expected_tokens.push(Token::Semicolon);
+            }
+            expected_tokens.push(Token::LeftBrace);
+            self.expected_one_of_tokens(&expected_tokens);
+            Some(empty_body())
         };
 
         FunctionDefinitionWithOptionalBody {
@@ -157,6 +194,8 @@ impl<'a> Parser<'a> {
 
     fn parse_function_parameter(&mut self, allow_self: bool) -> Option<Param> {
         loop {
+            self.error_on_outer_doc_comments_on_parameter();
+
             let start_location = self.current_token_location;
 
             let pattern_or_self = if allow_self {
@@ -192,8 +231,8 @@ impl<'a> Parser<'a> {
             );
 
             let visibility = Visibility::Private;
-            let typ =
-                UnresolvedType { typ: UnresolvedTypeData::Error, location: Location::dummy() };
+            let location = self.location_at_previous_token_end();
+            let typ = UnresolvedType { typ: UnresolvedTypeData::Error, location };
             (visibility, typ)
         } else {
             (
@@ -215,7 +254,7 @@ impl<'a> Parser<'a> {
         let mut pattern = Pattern::Identifier(ident);
 
         if self_pattern.reference {
-            self_type = UnresolvedTypeData::MutableReference(Box::new(self_type))
+            self_type = UnresolvedTypeData::Reference(Box::new(self_type), self_pattern.mutable)
                 .with_location(ident_location);
         } else if self_pattern.mutable {
             pattern = Pattern::Mutable(Box::new(pattern), ident_location, true);
@@ -289,15 +328,14 @@ impl<'a> Parser<'a> {
 }
 
 fn empty_function(location: Location) -> FunctionDefinitionWithOptionalBody {
-    let span = Span::from(location.span.end()..location.span.end());
     FunctionDefinitionWithOptionalBody {
-        name: Ident::default(),
+        name: Ident::new(String::new(), location),
         generics: Vec::new(),
         parameters: Vec::new(),
         body: None,
-        location: Location::new(span, location.file),
+        location,
         where_clause: Vec::new(),
-        return_type: FunctionReturnType::Default(Location::dummy()),
+        return_type: FunctionReturnType::Default(location),
         return_visibility: Visibility::Private,
     }
 }
@@ -308,19 +346,19 @@ fn empty_body() -> BlockExpression {
 
 #[cfg(test)]
 mod tests {
+    use insta::assert_snapshot;
+
     use crate::{
-        ast::{
-            IntegerBitSize, ItemVisibility, NoirFunction, Signedness, UnresolvedTypeData,
-            Visibility,
-        },
+        ast::{ExpressionKind, ItemVisibility, NoirFunction, StatementKind},
         parse_program_with_dummy_file,
         parser::{
+            ItemKind, Parser, ParserErrorReason,
             parser::tests::{
                 expect_no_errors, get_single_error, get_single_error_reason,
                 get_source_with_error_span,
             },
-            ItemKind, ParserErrorReason,
         },
+        shared::Visibility,
     };
 
     fn parse_function_no_error(src: &str) -> NoirFunction {
@@ -404,7 +442,7 @@ mod tests {
         let src = "fn foo() -> Field {}";
         let noir_function = parse_function_no_error(src);
         assert_eq!(noir_function.def.return_visibility, Visibility::Private);
-        assert_eq!(noir_function.return_type().typ, UnresolvedTypeData::FieldElement);
+        assert_eq!(noir_function.return_type().typ.to_string(), "Field");
     }
 
     #[test]
@@ -412,14 +450,14 @@ mod tests {
         let src = "fn foo() -> pub Field {}";
         let noir_function = parse_function_no_error(src);
         assert_eq!(noir_function.def.return_visibility, Visibility::Public);
-        assert_eq!(noir_function.return_type().typ, UnresolvedTypeData::FieldElement);
+        assert_eq!(noir_function.return_type().typ.to_string(), "Field");
     }
 
     #[test]
     fn parse_function_unclosed_parentheses() {
         let src = "fn foo(x: i32,";
         let (module, errors) = parse_program_with_dummy_file(src);
-        assert_eq!(errors.len(), 1);
+        assert!(!errors.is_empty());
         assert_eq!(module.items.len(), 1);
         let item = &module.items[0];
         let ItemKind::Function(noir_function) = &item.kind else {
@@ -467,7 +505,7 @@ mod tests {
         assert_eq!(noir_function.parameters().len(), 1);
 
         let error = get_single_error(&errors, span);
-        assert_eq!(error.to_string(), "Expected a pattern but found '1'");
+        assert_snapshot!(error.to_string(), @"Expected a pattern but found '1'");
     }
 
     #[test]
@@ -503,7 +541,7 @@ mod tests {
         assert_eq!(noir_function.parameters().len(), 2);
 
         let error = get_single_error(&errors, span);
-        assert_eq!(error.to_string(), "Expected a type but found ','");
+        assert_snapshot!(error.to_string(), @"Expected a type but found ','");
     }
 
     #[test]
@@ -536,7 +574,7 @@ mod tests {
         let (src, span) = get_source_with_error_span(src);
         let (mut module, errors) = parse_program_with_dummy_file(&src);
         let error = get_single_error(&errors, span);
-        assert_eq!(error.to_string(), "Expected a type but found 'mut'");
+        assert_snapshot!(error.to_string(), @"Expected a type but found 'mut'");
 
         assert_eq!(module.items.len(), 1);
         let item = module.items.remove(0);
@@ -547,13 +585,116 @@ mod tests {
         let params = noir_function.parameters();
         assert_eq!(params.len(), 2);
 
-        assert_eq!(
-            params[0].typ.typ,
-            UnresolvedTypeData::Integer(Signedness::Signed, IntegerBitSize::ThirtyTwo)
-        );
-        assert_eq!(
-            params[1].typ.typ,
-            UnresolvedTypeData::Integer(Signedness::Signed, IntegerBitSize::SixtyFour)
-        );
+        assert_eq!(params[0].typ.typ.to_string(), "i32",);
+        assert_eq!(params[1].typ.typ.to_string(), "i64",);
+    }
+
+    #[test]
+    fn parses_block_followed_by_call() {
+        let src = "fn foo() { { 1 }.bar() }";
+        let noir_function = parse_function_no_error(src);
+        let statements = &noir_function.def.body.statements;
+        assert_eq!(statements.len(), 1);
+
+        let StatementKind::Expression(expr) = &statements[0].kind else {
+            panic!("Expected expression statement");
+        };
+
+        let ExpressionKind::MethodCall(call) = &expr.kind else {
+            panic!("Expected method call expression");
+        };
+
+        assert!(matches!(call.object.kind, ExpressionKind::Block(_)));
+        assert_eq!(call.method_name.to_string(), "bar");
+    }
+
+    #[test]
+    fn parses_if_followed_by_call() {
+        let src = "fn foo() { if 1 { 2 } else { 3 }.bar() }";
+        let noir_function = parse_function_no_error(src);
+        let statements = &noir_function.def.body.statements;
+        assert_eq!(statements.len(), 1);
+
+        let StatementKind::Expression(expr) = &statements[0].kind else {
+            panic!("Expected expression statement");
+        };
+
+        let ExpressionKind::MethodCall(call) = &expr.kind else {
+            panic!("Expected method call expression");
+        };
+
+        assert!(matches!(call.object.kind, ExpressionKind::If(_)));
+        assert_eq!(call.method_name.to_string(), "bar");
+    }
+
+    #[test]
+    fn errors_on_doc_comments_on_parameter() {
+        let src = "
+        fn foo(
+            /// Doc comment
+            x: Field,
+        ) {}
+        ";
+        let (_module, errors) = parse_program_with_dummy_file(src);
+        assert_eq!(errors.len(), 1);
+
+        let reason = errors[0].reason().unwrap();
+        assert_eq!(reason, &ParserErrorReason::DocCommentCannotBeAppliedToFunctionParameters);
+    }
+
+    #[test]
+    fn errors_on_missing_function_braces_1() {
+        let src = "
+          fn foo() struct Foo {}
+                   ^^^^^^
+          ";
+        let (src, span) = get_source_with_error_span(src);
+        let mut parser = Parser::for_str_with_dummy_file(&src);
+        let _ = parser.parse_program();
+
+        let error = get_single_error(&parser.errors, span);
+        assert_snapshot!(error.to_string(), @"Unexpected 'struct', expected one of 'where', '{', '->'");
+    }
+
+    #[test]
+    fn errors_on_missing_function_braces_2() {
+        let src = "
+          fn foo() -> Field struct Foo {}
+                            ^^^^^^
+          ";
+        let (src, span) = get_source_with_error_span(src);
+        let mut parser = Parser::for_str_with_dummy_file(&src);
+        let _ = parser.parse_program();
+
+        let error = get_single_error(&parser.errors, span);
+        assert_snapshot!(error.to_string(), @"Unexpected 'struct', expected one of 'where', '{'");
+    }
+
+    #[test]
+    fn errors_on_missing_function_braces_3() {
+        let src = "
+          fn foo<T>() -> Field where T: Trait struct Foo {}
+                                              ^^^^^^
+          ";
+        let (src, span) = get_source_with_error_span(src);
+        let mut parser = Parser::for_str_with_dummy_file(&src);
+        let _ = parser.parse_program();
+
+        let error = get_single_error(&parser.errors, span);
+        assert_snapshot!(error.to_string(), @"Expected a '{' but found 'struct'");
+    }
+
+    #[test]
+    fn errors_on_missing_function_name() {
+        let src = "
+          fn () {}
+             ^
+          ";
+        let (src, span) = get_source_with_error_span(src);
+        let mut parser = Parser::for_str_with_dummy_file(&src);
+        let _ = parser.parse_program();
+
+        let error = get_single_error(&parser.errors, span);
+        assert_snapshot!(error.to_string(), @"Expected an identifier but found '('");
     }
 }

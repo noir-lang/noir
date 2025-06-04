@@ -1,25 +1,28 @@
-use acvm::acir::circuit::brillig::BrilligFunctionId;
+use acvm::acir::circuit::AcirOpcodeLocation;
 use acvm::acir::circuit::BrilligOpcodeLocation;
 use acvm::acir::circuit::OpcodeLocation;
+use acvm::acir::circuit::brillig::BrilligFunctionId;
 use acvm::compiler::AcirTransformationMap;
 
 use base64::Engine;
+use flate2::Compression;
 use flate2::read::DeflateDecoder;
 use flate2::write::DeflateEncoder;
-use flate2::Compression;
 use serde::Deserializer;
 use serde::Serializer;
-use serde_with::serde_as;
-use serde_with::DisplayFromStr;
+//use serde_with::DisplayFromStr;
+//use serde_with::serde_as;
 use std::collections::BTreeMap;
 use std::io::Read;
 use std::io::Write;
 use std::mem;
 
 use crate::Location;
+use crate::call_stack::CallStackId;
+use crate::call_stack::LocationTree;
 use noirc_printable_type::PrintableType;
 use serde::{
-    de::Error as DeserializationError, ser::Error as SerializationError, Deserialize, Serialize,
+    Deserialize, Serialize, de::Error as DeserializationError, ser::Error as SerializationError,
 };
 
 #[derive(Debug, Clone, Copy, Eq, PartialEq, Hash, PartialOrd, Ord, Deserialize, Serialize)]
@@ -93,16 +96,13 @@ impl ProgramDebugInfo {
     }
 }
 
-#[serde_as]
 #[derive(Default, Debug, Clone, Deserialize, Serialize, Hash)]
 pub struct DebugInfo {
-    /// Map opcode index of an ACIR circuit into the source code location
-    /// Serde does not support mapping keys being enums for json, so we indicate
-    /// that they should be serialized to/from strings.
-    #[serde_as(as = "BTreeMap<DisplayFromStr, _>")]
-    pub locations: BTreeMap<OpcodeLocation, Vec<Location>>,
     pub brillig_locations:
-        BTreeMap<BrilligFunctionId, BTreeMap<BrilligOpcodeLocation, Vec<Location>>>,
+        BTreeMap<BrilligFunctionId, BTreeMap<BrilligOpcodeLocation, CallStackId>>,
+    pub location_tree: LocationTree,
+    /// Map opcode index of an ACIR circuit into the source code location
+    pub acir_locations: BTreeMap<AcirOpcodeLocation, CallStackId>,
     pub variables: DebugVariables,
     pub functions: DebugFunctions,
     pub types: DebugTypes,
@@ -113,11 +113,12 @@ pub struct DebugInfo {
 
 impl DebugInfo {
     pub fn new(
-        locations: BTreeMap<OpcodeLocation, Vec<Location>>,
         brillig_locations: BTreeMap<
             BrilligFunctionId,
-            BTreeMap<BrilligOpcodeLocation, Vec<Location>>,
+            BTreeMap<BrilligOpcodeLocation, CallStackId>,
         >,
+        location_map: BTreeMap<AcirOpcodeLocation, CallStackId>,
+        location_tree: LocationTree,
         variables: DebugVariables,
         functions: DebugFunctions,
         types: DebugTypes,
@@ -126,7 +127,15 @@ impl DebugInfo {
             BTreeMap<ProcedureDebugId, (usize, usize)>,
         >,
     ) -> Self {
-        Self { locations, brillig_locations, variables, functions, types, brillig_procedure_locs }
+        Self {
+            brillig_locations,
+            acir_locations: location_map,
+            location_tree,
+            variables,
+            functions,
+            types,
+            brillig_procedure_locs,
+        }
     }
 
     /// Updates the locations map when the [`Circuit`][acvm::acir::circuit::Circuit] is modified.
@@ -136,16 +145,25 @@ impl DebugInfo {
     /// Note: One old `OpcodeLocation` might have transformed into more than one new `OpcodeLocation`.
     #[tracing::instrument(level = "trace", skip(self, update_map))]
     pub fn update_acir(&mut self, update_map: AcirTransformationMap) {
-        let old_locations = mem::take(&mut self.locations);
+        let old_locations = mem::take(&mut self.acir_locations);
 
         for (old_opcode_location, source_locations) in old_locations {
-            update_map.new_locations(old_opcode_location).for_each(|new_opcode_location| {
-                self.locations.insert(new_opcode_location, source_locations.clone());
+            update_map.new_acir_locations(old_opcode_location).for_each(|new_opcode_location| {
+                self.acir_locations.insert(new_opcode_location, source_locations);
             });
         }
     }
 
+    pub fn acir_opcode_location(&self, loc: &AcirOpcodeLocation) -> Option<Vec<Location>> {
+        self.acir_locations
+            .get(loc)
+            .map(|call_stack_id| self.location_tree.get_call_stack(*call_stack_id))
+    }
+
     pub fn opcode_location(&self, loc: &OpcodeLocation) -> Option<Vec<Location>> {
-        self.locations.get(loc).cloned()
+        match loc {
+            OpcodeLocation::Brillig { .. } => None, //TODO: need brillig function id in order to look into brillig_locations
+            OpcodeLocation::Acir(loc) => self.acir_opcode_location(&AcirOpcodeLocation::new(*loc)),
+        }
     }
 }

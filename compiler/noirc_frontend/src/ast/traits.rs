@@ -10,7 +10,7 @@ use crate::ast::{
 use crate::node_interner::TraitId;
 use crate::token::SecondaryAttribute;
 
-use super::{Documented, GenericTypeArgs, ItemVisibility};
+use super::{Documented, GenericTypeArgs, ItemVisibility, UnresolvedGeneric, UnresolvedTypeData};
 
 /// AST node for trait definitions:
 /// `trait name<generics> { ... items ... }`
@@ -49,6 +49,7 @@ pub enum TraitItem {
     },
     Type {
         name: Ident,
+        bounds: Vec<TraitBound>,
     },
 }
 
@@ -117,7 +118,8 @@ pub enum TraitImplItemKind {
 impl Display for TypeImpl {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let generics = vecmap(&self.generics, |generic| generic.to_string());
-        let generics = if generics.is_empty() { "".into() } else { generics.join(", ") };
+        let generics =
+            if generics.is_empty() { "".into() } else { format!("<{}>", generics.join(", ")) };
 
         writeln!(f, "impl{} {} {{", generics, self.object_type)?;
 
@@ -132,11 +134,11 @@ impl Display for TypeImpl {
     }
 }
 
-// TODO: display where clauses (follow-up issue)
 impl Display for NoirTrait {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let generics = vecmap(&self.generics, |generic| generic.to_string());
-        let generics = if generics.is_empty() { "".into() } else { generics.join(", ") };
+        let generics =
+            if generics.is_empty() { "".into() } else { format!("<{}>", generics.join(", ")) };
 
         write!(f, "trait {}{}", self.name, generics)?;
 
@@ -149,6 +151,12 @@ impl Display for NoirTrait {
             let bounds = vecmap(&self.bounds, |bound| bound.to_string()).join(" + ");
             write!(f, ": {}", bounds)?;
         }
+
+        let where_clause = vecmap(&self.where_clause, ToString::to_string);
+        if !where_clause.is_empty() {
+            write!(f, " where {}", where_clause.join(", "))?;
+        };
+
         writeln!(f, " {{")?;
 
         for item in self.items.iter() {
@@ -197,11 +205,7 @@ impl Display for TraitItem {
                     "{unconstrained}{visibility}{is_comptime}fn {name}<{generics}>({parameters}) -> {return_type} where {where_clause}"
                 )?;
 
-                if let Some(body) = body {
-                    write!(f, "{body}")
-                } else {
-                    write!(f, ";")
-                }
+                if let Some(body) = body { write!(f, "{body}") } else { write!(f, ";") }
             }
             TraitItem::Constant { name, typ, default_value } => {
                 write!(f, "let {name}: {typ}")?;
@@ -212,7 +216,14 @@ impl Display for TraitItem {
                     write!(f, ";")
                 }
             }
-            TraitItem::Type { name } => write!(f, "type {name};"),
+            TraitItem::Type { name, bounds } => {
+                if bounds.is_empty() {
+                    write!(f, "type {name};")
+                } else {
+                    let bounds = vecmap(bounds, |bound| bound.to_string()).join(" + ");
+                    write!(f, "type {name}: {bounds};")
+                }
+            }
         }
     }
 }
@@ -280,6 +291,40 @@ impl Display for TraitImplItemKind {
             TraitImplItemKind::Constant(name, typ, value) => {
                 write!(f, "let {name}: {typ} = {value};")
             }
+        }
+    }
+}
+
+/// Moves trait bounds from generics into where clauses. For example:
+///
+/// ```noir
+/// fn foo<T: Trait>(x: T) -> T {}
+/// ```
+///
+/// becomes:
+///
+/// ```noir
+/// fn foo<T>(x: T) -> T where T: Trait {}
+/// ```
+pub(crate) fn desugar_generic_trait_bounds(
+    generics: &mut Vec<UnresolvedGeneric>,
+    where_clause: &mut Vec<UnresolvedTraitConstraint>,
+) {
+    for generic in generics {
+        let UnresolvedGeneric::Variable(ident, trait_bounds) = generic else {
+            continue;
+        };
+
+        if trait_bounds.is_empty() {
+            continue;
+        }
+
+        for trait_bound in std::mem::take(trait_bounds) {
+            let path = Path::from_ident(ident.clone());
+            let typ = UnresolvedTypeData::Named(path, GenericTypeArgs::default(), true);
+            let typ = UnresolvedType { typ, location: ident.location() };
+            let trait_constraint = UnresolvedTraitConstraint { typ, trait_bound };
+            where_clause.push(trait_constraint);
         }
     }
 }

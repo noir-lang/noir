@@ -56,11 +56,8 @@ pub(crate) fn run(args: FormatCommand, workspace: Workspace) -> Result<(), CliEr
             let is_all_warnings = errors.iter().all(ParserError::is_warning);
             if !is_all_warnings {
                 let errors = errors
-                    .into_iter()
-                    .map(|error| {
-                        let error = CustomDiagnostic::from(&error);
-                        error.in_file(file_id)
-                    })
+                    .iter()
+                    .map(CustomDiagnostic::from)
                     .collect();
 
                 let _ = report_errors::<()>(
@@ -119,7 +116,7 @@ fn visit_noir_files(
             let path = entry.path();
             if path.is_dir() {
                 visit_noir_files(&path, cb)?;
-            } else if entry.path().extension().map_or(false, |extension| extension == "nr") {
+            } else if entry.path().extension().is_some_and(|extension| extension == "nr") {
                 cb(&entry)?;
             }
         }

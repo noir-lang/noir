@@ -190,7 +190,7 @@ mod test {
           b0(v0: [Field; 2]):
             inc_rc v0
             inc_rc v0
-            dec_rc v0 v0
+            dec_rc v0
             v1 = make_array [v0] : [[Field; 2]; 1]
             return v1
         }
@@ -216,9 +216,9 @@ mod test {
             store v0 at v1
             inc_rc v0
             v2 = load v1 -> [Field; 2]
-            v5 = array_set v2, index u64 0, value Field 5
+            v5 = array_set v2, index u32 0, value Field 5
             store v5 at v1
-            dec_rc v0 v0
+            dec_rc v0
             return
         }
         ";
@@ -247,10 +247,10 @@ mod test {
             inc_rc v1
             store v1 at v0
             v2 = load v1 -> [Field; 2]
-            v5 = array_set v2, index u64 0, value Field 5
+            v5 = array_set v2, index u32 0, value Field 5
             store v5 at v0
             v6 = load v0 -> [Field; 2]
-            dec_rc v6 v1
+            dec_rc v1
             store v6 at v0
             return
         }

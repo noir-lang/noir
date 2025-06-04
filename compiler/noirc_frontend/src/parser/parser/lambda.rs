@@ -4,9 +4,9 @@ use crate::{
     token::Token,
 };
 
-use super::{parse_many::separated_by_comma, Parser};
+use super::{Parser, parse_many::separated_by_comma};
 
-impl<'a> Parser<'a> {
+impl Parser<'_> {
     /// Lambda = '|' LambdaParameters? '|' ( '->' Type )? Expression
     ///
     /// LambdaParameters = LambdaParameter ( ',' LambdaParameter )? ','?

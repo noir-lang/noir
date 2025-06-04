@@ -1,13 +1,13 @@
 use std::vec;
 
-use acvm::{acir::brillig::MemoryAddress, AcirField};
+use acvm::{AcirField, acir::brillig::MemoryAddress};
 
 use super::ProcedureId;
 use crate::brillig::brillig_ir::{
+    BrilligContext,
     brillig_variable::SingleAddrVariable,
     debug_show::DebugToString,
     registers::{RegisterAllocator, ScratchSpace},
-    BrilligContext,
 };
 
 impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<F, Registers> {

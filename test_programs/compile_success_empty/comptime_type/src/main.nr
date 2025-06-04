@@ -94,12 +94,12 @@ fn main() {
         let bool_type = type_of(yes);
         assert(bool_type.is_bool());
 
-        // Check Type::as_struct
-        assert(u8_type.as_struct().is_none());
+        // Check Type::as_data_type
+        assert(u8_type.as_data_type().is_none());
 
         let foo = Foo { x: 0 };
         let foo_type = type_of(foo);
-        let (struct_definition, generics) = foo_type.as_struct().unwrap();
+        let (struct_definition, generics) = foo_type.as_data_type().unwrap();
         let fields = struct_definition.fields(generics);
         assert_eq(fields.len(), 1);
 

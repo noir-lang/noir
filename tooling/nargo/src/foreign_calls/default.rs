@@ -1,13 +1,11 @@
 use acvm::AcirField;
 use serde::{Deserialize, Serialize};
 
-use crate::PrintOutput;
-
 use super::{
+    ForeignCallExecutor,
     layers::{self, Either, Layer, Layering},
     mocker::{DisabledMockForeignCallExecutor, MockForeignCallExecutor},
     print::PrintForeignCallExecutor,
-    ForeignCallExecutor,
 };
 
 #[cfg(feature = "rpc")]
@@ -15,8 +13,8 @@ use super::rpc::RPCForeignCallExecutor;
 
 /// A builder for [DefaultForeignCallLayers] where we can enable fields based on feature flags,
 /// which is easier than providing different overrides for a `new` method.
-pub struct DefaultForeignCallBuilder<'a> {
-    pub output: PrintOutput<'a>,
+pub struct DefaultForeignCallBuilder<W> {
+    pub output: W,
     pub enable_mocks: bool,
 
     #[cfg(feature = "rpc")]
@@ -29,10 +27,10 @@ pub struct DefaultForeignCallBuilder<'a> {
     pub package_name: Option<String>,
 }
 
-impl<'a> Default for DefaultForeignCallBuilder<'a> {
+impl Default for DefaultForeignCallBuilder<std::io::Empty> {
     fn default() -> Self {
         Self {
-            output: PrintOutput::default(),
+            output: std::io::empty(),
             enable_mocks: true,
 
             #[cfg(feature = "rpc")]
@@ -47,11 +45,19 @@ impl<'a> Default for DefaultForeignCallBuilder<'a> {
     }
 }
 
-impl<'a> DefaultForeignCallBuilder<'a> {
+impl<W> DefaultForeignCallBuilder<W> {
     /// Override the output.
-    pub fn with_output(mut self, output: PrintOutput<'a>) -> Self {
-        self.output = output;
-        self
+    pub fn with_output<T>(self, output: T) -> DefaultForeignCallBuilder<T> {
+        DefaultForeignCallBuilder {
+            output,
+            enable_mocks: self.enable_mocks,
+            #[cfg(feature = "rpc")]
+            resolver_url: self.resolver_url,
+            #[cfg(feature = "rpc")]
+            root_path: self.root_path,
+            #[cfg(feature = "rpc")]
+            package_name: self.package_name,
+        }
     }
 
     /// Enable or disable mocks.
@@ -60,19 +66,26 @@ impl<'a> DefaultForeignCallBuilder<'a> {
         self
     }
 
+    /// Set or unset resolver url.
+    #[cfg(feature = "rpc")]
+    pub fn with_resolver_url(mut self, resolver_url: Option<String>) -> Self {
+        self.resolver_url = resolver_url;
+        self
+    }
+
     /// Compose the executor layers with [layers::Empty] as the default handler.
-    pub fn build<F>(self) -> DefaultForeignCallLayers<'a, layers::Empty, F>
+    pub fn build<F>(self) -> DefaultForeignCallLayers<W, layers::Empty, F>
     where
-        F: AcirField + Serialize + for<'de> Deserialize<'de> + 'a,
+        F: AcirField + Serialize + for<'de> Deserialize<'de>,
     {
         self.build_with_base(layers::Empty)
     }
 
     /// Compose the executor layers with `base` as the default handler.
-    pub fn build_with_base<B, F>(self, base: B) -> DefaultForeignCallLayers<'a, B, F>
+    pub fn build_with_base<B, F>(self, base: B) -> DefaultForeignCallLayers<W, B, F>
     where
-        F: AcirField + Serialize + for<'de> Deserialize<'de> + 'a,
-        B: ForeignCallExecutor<F> + 'a,
+        F: AcirField + Serialize + for<'de> Deserialize<'de>,
+        B: ForeignCallExecutor<F>,
     {
         let executor = {
             #[cfg(feature = "rpc")]
@@ -80,7 +93,7 @@ impl<'a> DefaultForeignCallBuilder<'a> {
                 use rand::Rng;
 
                 base.add_layer(self.resolver_url.map(|resolver_url| {
-                    let id = rand::thread_rng().gen();
+                    let id = rand::thread_rng().r#gen();
                     RPCForeignCallExecutor::new(
                         &resolver_url,
                         id,
@@ -107,16 +120,16 @@ impl<'a> DefaultForeignCallBuilder<'a> {
 
 /// Facilitate static typing of layers on a base layer, so inner layers can be accessed.
 #[cfg(feature = "rpc")]
-pub type DefaultForeignCallLayers<'a, B, F> = Layer<
-    PrintForeignCallExecutor<'a>,
+pub type DefaultForeignCallLayers<W, B, F> = Layer<
+    PrintForeignCallExecutor<W>,
     Layer<
         Either<MockForeignCallExecutor<F>, DisabledMockForeignCallExecutor>,
         Layer<Option<RPCForeignCallExecutor>, B>,
     >,
 >;
 #[cfg(not(feature = "rpc"))]
-pub type DefaultForeignCallLayers<'a, B, F> = Layer<
-    PrintForeignCallExecutor<'a>,
+pub type DefaultForeignCallLayers<W, B, F> = Layer<
+    PrintForeignCallExecutor<W>,
     Layer<Either<MockForeignCallExecutor<F>, DisabledMockForeignCallExecutor>, B>,
 >;
 
@@ -131,13 +144,14 @@ pub struct DefaultForeignCallExecutor;
 #[cfg(feature = "rpc")]
 impl DefaultForeignCallExecutor {
     #[allow(clippy::new_ret_no_self)]
-    pub fn new<'a, F>(
-        output: PrintOutput<'a>,
+    pub fn new<'a, W, F>(
+        output: W,
         resolver_url: Option<&str>,
         root_path: Option<std::path::PathBuf>,
         package_name: Option<String>,
-    ) -> impl ForeignCallExecutor<F> + 'a
+    ) -> impl ForeignCallExecutor<F> + 'a + use<'a, W, F>
     where
+        W: std::io::Write + 'a,
         F: AcirField + Serialize + for<'de> Deserialize<'de> + 'a,
     {
         DefaultForeignCallBuilder {

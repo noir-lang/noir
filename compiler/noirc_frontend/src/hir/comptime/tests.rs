@@ -1,45 +1,40 @@
 #![cfg(test)]
 
-use std::collections::{BTreeMap, HashMap};
 use std::path::PathBuf;
 
 use fm::{FileId, FileManager};
-use noirc_arena::Index;
 use noirc_errors::Location;
 
+use super::Interpreter;
 use super::errors::InterpreterError;
 use super::value::Value;
-use super::Interpreter;
 use crate::elaborator::{Elaborator, ElaboratorOptions};
 use crate::hir::def_collector::dc_crate::{CompilationError, DefCollector};
 use crate::hir::def_collector::dc_mod::collect_defs;
-use crate::hir::def_map::{CrateDefMap, LocalModuleId, ModuleData};
+use crate::hir::def_map::{CrateDefMap, ModuleData};
 use crate::hir::{Context, ParsedFiles};
 use crate::node_interner::FuncId;
 use crate::parse_program;
+use crate::signed_field::SignedField;
 
 /// Create an interpreter for a code snippet and pass it to a test function.
 ///
 /// The stdlib is not made available as a dependency.
 pub(crate) fn with_interpreter<T>(
     src: &str,
-    f: impl FnOnce(&mut Interpreter, FuncId, &[(CompilationError, FileId)]) -> T,
+    f: impl FnOnce(&mut Interpreter, FuncId, &[CompilationError]) -> T,
 ) -> T {
     let file = FileId::default();
 
-    // Can't use Index::test_new here for some reason, even with #[cfg(test)].
-    let module_id = LocalModuleId(Index::unsafe_zeroed());
-    let mut modules = noirc_arena::Arena::default();
     let location = Location::new(Default::default(), file);
-    let root = LocalModuleId(modules.insert(ModuleData::new(
+    let root_module = ModuleData::new(
         None,
         location,
         Vec::new(),
         Vec::new(),
         false, // is contract
         false, // is struct
-    )));
-    assert_eq!(root, module_id);
+    );
 
     let file_manager = FileManager::new(&PathBuf::new());
     let parsed_files = ParsedFiles::new();
@@ -52,10 +47,11 @@ pub(crate) fn with_interpreter<T>(
     assert_eq!(errors.len(), 0);
     let ast = module.into_sorted();
 
-    let def_map = CrateDefMap { root: module_id, modules, krate, extern_prelude: BTreeMap::new() };
+    let def_map = CrateDefMap::new(krate, root_module);
+    let root_module_id = def_map.root();
     let mut collector = DefCollector::new(def_map);
 
-    collect_defs(&mut collector, ast, FileId::dummy(), module_id, krate, &mut context);
+    collect_defs(&mut collector, ast, FileId::dummy(), root_module_id, krate, &mut context);
     context.def_maps.insert(krate, collector.def_map);
 
     let main = context.get_main_function(&krate).expect("Expected 'main' function");
@@ -79,7 +75,7 @@ fn interpret_helper(src: &str) -> Result<Value, InterpreterError> {
     with_interpreter(src, |interpreter, main, errors| {
         assert_eq!(errors.len(), 0);
         let no_location = Location::dummy();
-        interpreter.call_function(main, Vec::new(), HashMap::new(), no_location)
+        interpreter.call_function(main, Vec::new(), Default::default(), no_location)
     })
 }
 
@@ -97,7 +93,7 @@ fn interpret_expect_error(src: &str) -> InterpreterError {
 fn interpreter_works() {
     let program = "comptime fn main() -> pub Field { 3 }";
     let result = interpret(program);
-    assert_eq!(result, Value::Field(3u128.into()));
+    assert_eq!(result, Value::Field(SignedField::positive(3u128)));
 }
 
 #[test]

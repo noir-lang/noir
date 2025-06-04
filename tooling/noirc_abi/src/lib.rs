@@ -4,16 +4,19 @@
 #![warn(clippy::semicolon_if_nothing_returned)]
 
 use acvm::{
+    AcirField, FieldElement,
     acir::{
         circuit::ErrorSelector,
         native_types::{Witness, WitnessMap},
     },
-    AcirField, FieldElement,
 };
 use errors::AbiError;
 use input_parser::InputValue;
-use iter_extended::{try_btree_map, try_vecmap, vecmap};
-use noirc_printable_type::{PrintableType, PrintableValue, PrintableValueDisplay};
+use iter_extended::{try_btree_map, try_vecmap};
+use noirc_printable_type::{
+    PrintableType, PrintableValue, PrintableValueDisplay, decode_printable_value,
+    decode_string_value,
+};
 use serde::{Deserialize, Serialize};
 use std::borrow::Borrow;
 use std::{collections::BTreeMap, str};
@@ -27,10 +30,7 @@ mod arbitrary;
 
 pub mod errors;
 pub mod input_parser;
-mod printable_type;
 mod serialization;
-
-pub use printable_type::decode_value as decode_printable_value;
 
 /// A map from the fields in an TOML/JSON file which correspond to some ABI to their values
 pub type InputMap = BTreeMap<String, InputValue>;
@@ -202,7 +202,7 @@ impl Abi {
         let has_public_return = self
             .return_type
             .as_ref()
-            .map_or(false, |typ| matches!(typ.visibility, AbiVisibility::Public));
+            .is_some_and(|typ| matches!(typ.visibility, AbiVisibility::Public));
         has_public_args || has_public_return
     }
 
@@ -263,7 +263,7 @@ impl Abi {
                 encoded_inputs.push(encoded_return_fields);
             }
             (None, Some(return_value)) => {
-                return Err(AbiError::UnexpectedReturnValue(return_value))
+                return Err(AbiError::UnexpectedReturnValue(return_value));
             }
             // We allow not passing a return value despite the circuit defining one
             // in order to generate the initial partial witness.
@@ -415,18 +415,6 @@ pub fn decode_value(
     };
 
     Ok(value)
-}
-
-pub fn decode_string_value<F: AcirField>(field_elements: &[F]) -> String {
-    let string_as_slice = vecmap(field_elements, |e| {
-        let mut field_as_bytes = e.to_be_bytes();
-        let char_byte = field_as_bytes.pop().unwrap(); // A character in a string is represented by a u8, thus we just want the last byte of the element
-        assert!(field_as_bytes.into_iter().all(|b| b == 0)); // Assert that the rest of the field element's bytes are empty
-        char_byte
-    });
-
-    let final_string = str::from_utf8(&string_as_slice).unwrap();
-    final_string.to_owned()
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]

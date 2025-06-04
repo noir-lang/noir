@@ -1,0 +1,7 @@
+
+            [package]
+            name = "noirc_frontend_tests_traits_trait_alias_single_member"
+            type = "bin"
+            authors = [""]
+            
+            [dependencies]

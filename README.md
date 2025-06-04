@@ -34,7 +34,7 @@ The current focus is to gather as much feedback as possible while in the alpha p
 
 ## Minimum Rust version
 
-This workspace's minimum supported rustc version is 1.75.0.
+This workspace's minimum supported rustc version is 1.85.0.
 
 ## License
 
@@ -46,5 +46,5 @@ Unless you explicitly state otherwise, any contribution intentionally submitted 
 [Getting Started]: https://noir-lang.org/docs/getting_started/quick_start/
 [Forum]: https://forum.aztec.network/c/noir
 [Discord]: https://discord.gg/JtqzkdeQ6G
-[Documentation]: https://noir-lang.org/docs
+[Documentation]: https://noir-lang.org/docs/
 [Contributing]: CONTRIBUTING.md

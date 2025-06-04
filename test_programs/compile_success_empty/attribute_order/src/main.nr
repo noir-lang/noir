@@ -13,7 +13,7 @@ pub comptime fn assert_run_order_function(_f: FunctionDefinition, order: Field) 
     attributes_run += 1;
 }
 
-pub comptime fn assert_run_order_struct(_s: StructDefinition, order: Field) {
+pub comptime fn assert_run_order_struct(_s: TypeDefinition, order: Field) {
     assert_eq(order, attributes_run);
     attributes_run += 1;
 }

@@ -2,28 +2,32 @@ use std::{borrow::Cow, sync::Arc};
 
 use crate::ssa::{
     function_builder::data_bus::DataBus,
-    ir::instruction::SimplifyResult,
     opt::pure::{FunctionPurities, Purity},
 };
 
 use super::{
     basic_block::{BasicBlock, BasicBlockId},
-    call_stack::{CallStack, CallStackHelper, CallStackId},
     function::{FunctionId, RuntimeType},
     instruction::{
-        Instruction, InstructionId, InstructionResultType, Intrinsic, TerminatorInstruction,
+        Binary, BinaryOp, Instruction, InstructionId, InstructionResultType, Intrinsic,
+        TerminatorInstruction,
     },
+    integer::IntegerConstant,
     map::DenseMap,
     types::{NumericType, Type},
-    value::{Value, ValueId},
+    value::{Value, ValueId, ValueMapping},
 };
 
-use acvm::{acir::AcirField, FieldElement};
+use acvm::{FieldElement, acir::AcirField};
 use fxhash::FxHashMap as HashMap;
 use iter_extended::vecmap;
+use noirc_errors::call_stack::{CallStack, CallStackHelper, CallStackId};
 use serde::{Deserialize, Serialize};
-use serde_with::serde_as;
 use serde_with::DisplayFromStr;
+use serde_with::serde_as;
+use simplify::{SimplifyResult, simplify};
+
+pub(crate) mod simplify;
 
 /// The DataFlowGraph contains most of the actual data in a function including
 /// its blocks, instructions, and values. This struct is largely responsible for
@@ -32,7 +36,7 @@ use serde_with::DisplayFromStr;
 #[serde_as]
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub(crate) struct DataFlowGraph {
-    /// Runtime of the [Function] that owns this [DataFlowGraph].
+    /// Runtime of the [function][super::function::Function] that owns this [DataFlowGraph].
     /// This might change during the `runtime_separation` pass where
     /// ACIR functions are cloned as Brillig functions.
     runtime: RuntimeType,
@@ -82,13 +86,6 @@ pub(crate) struct DataFlowGraph {
     /// All blocks in a function
     blocks: DenseMap<BasicBlock>,
 
-    /// Debugging information about which `ValueId`s have had their underlying `Value` substituted
-    /// for that of another. In theory this information is purely used for printing the SSA,
-    /// and has no material effect on the SSA itself, however in practice the IDs can get out of
-    /// sync and may need this resolution before they can be compared.
-    #[serde(skip)]
-    replaced_value_ids: HashMap<ValueId, ValueId>,
-
     /// Source location of each instruction for debugging and issuing errors.
     ///
     /// The `CallStack` here corresponds to the entire callstack of locations. Initially this
@@ -118,7 +115,7 @@ pub(crate) struct DataFlowGraph {
 /// The global's data will shared across functions and should be accessible inside of a function's DataFlowGraph.
 #[serde_as]
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
-pub(crate) struct GlobalsGraph {
+pub struct GlobalsGraph {
     /// Storage for all of the global values
     values: DenseMap<Value>,
     /// All of the instructions in the global value space.
@@ -227,9 +224,60 @@ impl DataFlowGraph {
         instruction_data: Instruction,
         ctrl_typevars: Option<Vec<Type>>,
     ) -> InstructionId {
+        self.validate_instruction(&instruction_data);
+
         let id = self.instructions.insert(instruction_data);
         self.make_instruction_results(id, ctrl_typevars);
         id
+    }
+
+    fn validate_instruction(&self, instruction: &Instruction) {
+        match instruction {
+            Instruction::Binary(Binary { lhs, rhs, operator }) => {
+                let lhs_type = self.type_of_value(*lhs);
+                let rhs_type = self.type_of_value(*rhs);
+                match operator {
+                    BinaryOp::Lt => {
+                        if lhs_type != rhs_type {
+                            panic!(
+                                "Left-hand side and right-hand side of `lt` must have the same type"
+                            );
+                        }
+
+                        if matches!(lhs_type, Type::Numeric(NumericType::NativeField)) {
+                            panic!("Cannot use `lt` with field elements");
+                        }
+                    }
+                    BinaryOp::Shl => {
+                        if !matches!(rhs_type, Type::Numeric(NumericType::Unsigned { bit_size: 8 }))
+                        {
+                            panic!("Right-hand side of `shl` must be u8");
+                        }
+                    }
+                    BinaryOp::Shr => {
+                        if !matches!(rhs_type, Type::Numeric(NumericType::Unsigned { bit_size: 8 }))
+                        {
+                            panic!("Right-hand side of `shr` must be u8");
+                        }
+                    }
+                    _ => {
+                        if lhs_type != rhs_type {
+                            panic!(
+                                "Left-hand side and right-hand side of `{}` must have the same type",
+                                operator
+                            );
+                        }
+                    }
+                }
+            }
+            Instruction::ArrayGet { index, .. } | Instruction::ArraySet { index, .. } => {
+                let index_type = self.type_of_value(*index);
+                if !matches!(index_type, Type::Numeric(NumericType::Unsigned { bit_size: 32 })) {
+                    panic!("ArrayGet/ArraySet index must be u32");
+                }
+            }
+            _ => (),
+        }
     }
 
     /// Check if the function runtime would simply ignore this instruction.
@@ -239,10 +287,9 @@ impl DataFlowGraph {
                 instruction,
                 Instruction::IncrementRc { .. } | Instruction::DecrementRc { .. }
             ),
-            RuntimeType::Brillig(_) => !matches!(
-                instruction,
-                Instruction::EnableSideEffectsIf { .. } | Instruction::IfElse { .. }
-            ),
+            RuntimeType::Brillig(_) => {
+                !matches!(instruction, Instruction::EnableSideEffectsIf { .. })
+            }
         }
     }
 
@@ -315,7 +362,7 @@ impl DataFlowGraph {
             return InsertInstructionResult::InstructionRemoved;
         }
 
-        match instruction.simplify(self, block, ctrl_typevars.clone(), call_stack) {
+        match simplify(&instruction, self, block, ctrl_typevars.clone(), call_stack) {
             SimplifyResult::SimplifiedTo(simplification) => {
                 InsertInstructionResult::SimplifiedTo(simplification)
             }
@@ -340,14 +387,19 @@ impl DataFlowGraph {
                     }
                 }
                 let mut instructions = instructions.unwrap_or(vec![instruction]);
-                assert!(!instructions.is_empty(), "`SimplifyResult::SimplifiedToInstructionMultiple` must not return empty vector");
+                assert!(
+                    !instructions.is_empty(),
+                    "`SimplifyResult::SimplifiedToInstructionMultiple` must not return empty vector"
+                );
 
                 if instructions.len() > 1 {
                     // There's currently no way to pass results from one instruction in `instructions` on to the next.
                     // We then restrict this to only support multiple instructions if they're all `Instruction::Constrain`
                     // as this instruction type does not have any results.
                     assert!(
-                        instructions.iter().all(|instruction| matches!(instruction, Instruction::Constrain(..))),
+                        instructions
+                            .iter()
+                            .all(|instruction| matches!(instruction, Instruction::Constrain(..))),
                         "`SimplifyResult::SimplifiedToInstructionMultiple` only supports `Constrain` instructions"
                     );
                 }
@@ -372,16 +424,39 @@ impl DataFlowGraph {
         }
     }
 
-    /// Set the value of value_to_replace to refer to the value referred to by new_value.
-    ///
-    /// This is the preferred method to call for optimizations simplifying
-    /// values since other instructions referring to the same ValueId need
-    /// not be modified to refer to a new ValueId.
-    pub(crate) fn set_value_from_id(&mut self, value_to_replace: ValueId, new_value: ValueId) {
-        if value_to_replace != new_value {
-            self.replaced_value_ids.insert(value_to_replace, self.resolve(new_value));
-            let new_value = self.values[new_value].clone();
-            self.values[value_to_replace] = new_value;
+    /// Replace an existing instruction with a new one.
+    pub(crate) fn set_instruction(&mut self, id: InstructionId, instruction: Instruction) {
+        self.instructions[id] = instruction;
+    }
+
+    /// Replaces values in the given block according to the given mapping.
+    pub(crate) fn replace_values_in_block(&mut self, block: BasicBlockId, mapping: &ValueMapping) {
+        self.replace_values_in_block_instructions(block, mapping);
+        self.replace_values_in_block_terminator(block, mapping);
+    }
+
+    /// Replaces values in the given block instructions according to the given mapping.
+    pub(crate) fn replace_values_in_block_instructions(
+        &mut self,
+        block: BasicBlockId,
+        mapping: &ValueMapping,
+    ) {
+        let instruction_ids = self.blocks[block].take_instructions();
+        for instruction_id in &instruction_ids {
+            let instruction = &mut self[*instruction_id];
+            instruction.replace_values(mapping);
+        }
+        *self[block].instructions_mut() = instruction_ids;
+    }
+
+    /// Replaces values in the given block terminator (if it has any) according to the given mapping.
+    pub(crate) fn replace_values_in_block_terminator(
+        &mut self,
+        block: BasicBlockId,
+        mapping: &ValueMapping,
+    ) {
+        if !mapping.is_empty() && self[block].terminator().is_some() {
+            self[block].unwrap_terminator_mut().map_values_mut(|value_id| mapping.get(value_id));
         }
     }
 
@@ -398,17 +473,6 @@ impl DataFlowGraph {
             _ => {
                 unreachable!("ICE: Cannot set type of {:?}", value);
             }
-        }
-    }
-
-    /// If `original_value_id`'s underlying `Value` has been substituted for that of another
-    /// `ValueId`, this function will return the `ValueId` from which the substitution was taken.
-    /// If `original_value_id`'s underlying `Value` has not been substituted, the same `ValueId`
-    /// is returned.
-    pub(crate) fn resolve(&self, original_value_id: ValueId) -> ValueId {
-        match self.replaced_value_ids.get(&original_value_id) {
-            Some(id) => self.resolve(*id),
-            None => original_value_id,
         }
     }
 
@@ -523,7 +587,7 @@ impl DataFlowGraph {
     /// Should `value` be a numeric constant then this function will return the exact number of bits required,
     /// otherwise it will return the minimum number of bits based on type information.
     pub(crate) fn get_value_max_num_bits(&self, value: ValueId) -> u32 {
-        match self[self.resolve(value)] {
+        match self[value] {
             Value::Instruction { instruction, .. } => {
                 let value_bit_size = self.type_of_value(value).bit_size();
                 if let Instruction::Cast(original_value, _) = self[instruction] {
@@ -546,30 +610,6 @@ impl DataFlowGraph {
     /// Using this method over type_of_value avoids cloning the value's type.
     pub(crate) fn value_is_reference(&self, value: ValueId) -> bool {
         matches!(self.values[value].get_type().as_ref(), Type::Reference(_))
-    }
-
-    /// Replaces an instruction result with a fresh id.
-    pub(crate) fn replace_result(
-        &mut self,
-        instruction_id: InstructionId,
-        prev_value_id: ValueId,
-    ) -> ValueId {
-        let typ = self.type_of_value(prev_value_id);
-        let results = self.results.get_mut(&instruction_id).unwrap();
-        let res_position = results
-            .iter()
-            .position(|&id| id == prev_value_id)
-            .expect("Result id not found while replacing");
-
-        let value_id = self.values.insert(Value::Instruction {
-            typ,
-            position: res_position,
-            instruction: instruction_id,
-        });
-
-        // Replace the value in list of results for this instruction
-        results[res_position] = value_id;
-        value_id
     }
 
     /// Returns all of result values which are attached to this instruction.
@@ -595,18 +635,27 @@ impl DataFlowGraph {
     }
 
     /// Returns the field element represented by this value if it is a numeric constant.
-    /// Returns None if the given value is not a numeric constant.
+    /// Returns `None` if the given value is not a numeric constant.
+    ///
+    /// Use `get_integer_constant` if the underlying values need to be compared as signed integers.
     pub(crate) fn get_numeric_constant(&self, value: ValueId) -> Option<FieldElement> {
         self.get_numeric_constant_with_type(value).map(|(value, _typ)| value)
     }
 
+    /// Similar to `get_numeric_constant` but returns the value as a signed or unsigned integer.
+    /// Returns `None` if the given value is not an integer constant.
+    pub(crate) fn get_integer_constant(&self, value: ValueId) -> Option<IntegerConstant> {
+        self.get_numeric_constant_with_type(value)
+            .and_then(|(f, t)| IntegerConstant::from_numeric_constant(f, t))
+    }
+
     /// Returns the field element and type represented by this value if it is a numeric constant.
-    /// Returns None if the given value is not a numeric constant.
+    /// Returns `None` if the given value is not a numeric constant.
     pub(crate) fn get_numeric_constant_with_type(
         &self,
         value: ValueId,
     ) -> Option<(FieldElement, NumericType)> {
-        match &self[self.resolve(value)] {
+        match &self[value] {
             Value::NumericConstant { constant, typ } => Some((*constant, *typ)),
             _ => None,
         }
@@ -615,7 +664,6 @@ impl DataFlowGraph {
     /// Returns the Value::Array associated with this ValueId if it refers to an array constant.
     /// Otherwise, this returns None.
     pub(crate) fn get_array_constant(&self, value: ValueId) -> Option<(im::Vector<ValueId>, Type)> {
-        let value = self.resolve(value);
         if let Some(instruction) = self.get_local_or_global_instruction(value) {
             match instruction {
                 Instruction::MakeArray { elements, typ } => Some((elements.clone(), typ.clone())),
@@ -666,6 +714,7 @@ impl DataFlowGraph {
             _ => false,
         }
     }
+
     /// Sets the terminator instruction for the given basic block
     pub(crate) fn set_block_terminator(
         &mut self,
@@ -703,14 +752,14 @@ impl DataFlowGraph {
     }
 
     pub(crate) fn get_value_call_stack(&self, value: ValueId) -> CallStack {
-        match &self.values[self.resolve(value)] {
+        match &self.values[value] {
             Value::Instruction { instruction, .. } => self.get_instruction_call_stack(*instruction),
             _ => CallStack::new(),
         }
     }
 
     pub(crate) fn get_value_call_stack_id(&self, value: ValueId) -> CallStackId {
-        match &self.values[self.resolve(value)] {
+        match &self.values[value] {
             Value::Instruction { instruction, .. } => {
                 self.get_instruction_call_stack_id(*instruction)
             }
@@ -720,7 +769,6 @@ impl DataFlowGraph {
 
     /// True if the given ValueId refers to a (recursively) constant value
     pub(crate) fn is_constant(&self, argument: ValueId) -> bool {
-        let argument = self.resolve(argument);
         match &self[argument] {
             Value::Param { .. } => false,
             Value::Instruction { .. } => {
@@ -838,7 +886,7 @@ impl std::ops::Index<InstructionId> for GlobalsGraph {
 // be a list of results or a single ValueId if the instruction was simplified
 // to an existing value.
 #[derive(Debug)]
-pub(crate) enum InsertInstructionResult<'dfg> {
+pub enum InsertInstructionResult<'dfg> {
     /// Results is the standard case containing the instruction id and the results of that instruction.
     Results(InstructionId, &'dfg [ValueId]),
     SimplifiedTo(ValueId),
@@ -884,7 +932,7 @@ impl<'dfg> InsertInstructionResult<'dfg> {
     }
 }
 
-impl<'dfg> std::ops::Index<usize> for InsertInstructionResult<'dfg> {
+impl std::ops::Index<usize> for InsertInstructionResult<'_> {
     type Output = ValueId;
 
     fn index(&self, index: usize) -> &Self::Output {
@@ -905,7 +953,10 @@ impl<'dfg> std::ops::Index<usize> for InsertInstructionResult<'dfg> {
 #[cfg(test)]
 mod tests {
     use super::DataFlowGraph;
-    use crate::ssa::ir::{instruction::Instruction, types::Type};
+    use crate::ssa::{
+        ir::{instruction::Instruction, types::Type},
+        ssa_gen::Ssa,
+    };
 
     #[test]
     fn make_instruction() {
@@ -915,5 +966,59 @@ mod tests {
 
         let results = dfg.instruction_results(ins_id);
         assert_eq!(results.len(), 1);
+    }
+
+    #[test]
+    #[should_panic(expected = "Cannot use `lt` with field elements")]
+    fn disallows_comparing_fields_with_lt() {
+        let src = "
+        acir(inline) impure fn main f0 {
+          b0():
+            v2 = lt Field 1, Field 2
+            return
+        }
+        ";
+        let _ = Ssa::from_str(src);
+    }
+
+    #[test]
+    #[should_panic(
+        expected = "Left-hand side and right-hand side of `add` must have the same type"
+    )]
+    fn disallows_binary_add_with_different_types() {
+        let src = "
+        acir(inline) fn main f0 {
+          b0():
+            v2 = add Field 1, i32 2
+            return
+        }
+        ";
+        let _ = Ssa::from_str(src);
+    }
+
+    #[test]
+    #[should_panic(expected = "Right-hand side of `shr` must be u8")]
+    fn disallows_shr_with_non_u8() {
+        let src = "
+        acir(inline) fn main f0 {
+          b0():
+            v2 = shr u32 1, u16 1
+            return
+        }
+        ";
+        let _ = Ssa::from_str(src);
+    }
+
+    #[test]
+    #[should_panic(expected = "Right-hand side of `shl` must be u8")]
+    fn disallows_shl_with_non_u8() {
+        let src = "
+        acir(inline) fn main f0 {
+          b0():
+            v2 = shl u32 1, u16 1
+            return
+        }
+        ";
+        let _ = Ssa::from_str(src);
     }
 }

@@ -1,0 +1,30 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: expanded_code
+---
+use poseidon::{poseidon2::Poseidon2Hasher, poseidon::PoseidonHasher};
+use std::hash::Hasher;
+
+fn main(x: Field, y: pub Field) {
+    let mut hasher: PoseidonHasher = Default::default();
+    hasher.write(x);
+    hasher.write(y);
+    let poseidon_expected_hash: Field = hasher.finish();
+    assert(hash_simple_array::<PoseidonHasher>([x, y]) == poseidon_expected_hash);
+    let mut hasher: Poseidon2Hasher = Default::default();
+    hasher.write(x);
+    hasher.write(y);
+    let poseidon2_expected_hash: Field = hasher.finish();
+    assert(hash_simple_array::<Poseidon2Hasher>([x, y]) == poseidon2_expected_hash);
+}
+
+fn hash_simple_array<H>(input: [Field; 2]) -> Field
+where
+    H: Hasher,
+    H: Default,
+{
+    let mut hasher: H = Default::default();
+    Hasher::write(&mut hasher, input[0]);
+    Hasher::write(&mut hasher, input[1]);
+    Hasher::finish(hasher)
+}

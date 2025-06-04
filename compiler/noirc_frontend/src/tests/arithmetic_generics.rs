@@ -2,12 +2,14 @@
 
 use acvm::{AcirField, FieldElement};
 
-use super::get_program_errors;
+use crate::assert_no_errors;
+use crate::get_monomorphized;
 use crate::hir::type_check::TypeCheckError;
 use crate::hir_def::types::{BinaryTypeOperator, Type};
 use crate::monomorphization::errors::MonomorphizationError;
-use crate::tests::get_monomorphization_error;
+use crate::tests::Expect;
 
+#[named]
 #[test]
 fn arithmetic_generics_canonicalization_deduplication_regression() {
     let source = r#"
@@ -23,10 +25,10 @@ fn arithmetic_generics_canonicalization_deduplication_regression() {
             };
         }
     "#;
-    let errors = get_program_errors(source);
-    assert_eq!(errors.len(), 0);
+    assert_no_errors!(source);
 }
 
+#[named]
 #[test]
 fn checked_casts_do_not_prevent_canonicalization() {
     // Regression test for https://github.com/noir-lang/noir/issues/6495
@@ -51,12 +53,13 @@ fn checked_casts_do_not_prevent_canonicalization() {
             append(self.inner.serialize())
         }
     }
+
+    fn main() { }
     "#;
-    let errors = get_program_errors(source);
-    println!("{:?}", errors);
-    assert_eq!(errors.len(), 0);
+    assert_no_errors!(source);
 }
 
+#[named]
 #[test]
 fn arithmetic_generics_checked_cast_zeros() {
     let source = r#"
@@ -77,14 +80,9 @@ fn arithmetic_generics_checked_cast_zeros() {
         }
     "#;
 
-    let errors = get_program_errors(source);
-    assert_eq!(errors.len(), 0);
-
-    let monomorphization_error = get_monomorphization_error(source);
-    assert!(monomorphization_error.is_some());
+    let monomorphization_error = get_monomorphized!(source, Expect::Error).unwrap_err();
 
     // Expect a CheckedCast (0 % 0) failure
-    let monomorphization_error = monomorphization_error.unwrap();
     if let MonomorphizationError::UnknownArrayLength { ref length, ref err, location: _ } =
         monomorphization_error
     {
@@ -104,6 +102,7 @@ fn arithmetic_generics_checked_cast_zeros() {
     }
 }
 
+#[named]
 #[test]
 fn arithmetic_generics_checked_cast_indirect_zeros() {
     let source = r#"
@@ -124,14 +123,9 @@ fn arithmetic_generics_checked_cast_indirect_zeros() {
         }
     "#;
 
-    let errors = get_program_errors(source);
-    assert_eq!(errors.len(), 0);
-
-    let monomorphization_error = get_monomorphization_error(source);
-    assert!(monomorphization_error.is_some());
+    let monomorphization_error = get_monomorphized!(source, Expect::Error).unwrap_err();
 
     // Expect a CheckedCast (0 % 0) failure
-    let monomorphization_error = monomorphization_error.unwrap();
     if let MonomorphizationError::UnknownArrayLength { ref length, ref err, location: _ } =
         monomorphization_error
     {
@@ -154,6 +148,7 @@ fn arithmetic_generics_checked_cast_indirect_zeros() {
     }
 }
 
+#[named]
 #[test]
 fn global_numeric_generic_larger_than_u32() {
     // Regression test for https://github.com/noir-lang/noir/issues/6125
@@ -166,10 +161,10 @@ fn global_numeric_generic_larger_than_u32() {
         let _ = foo::<A>();
     }
     "#;
-    let errors = get_program_errors(source);
-    assert_eq!(errors.len(), 0);
+    assert_no_errors!(source);
 }
 
+#[named]
 #[test]
 fn global_arithmetic_generic_larger_than_u32() {
     // Regression test for https://github.com/noir-lang/noir/issues/6126
@@ -196,6 +191,5 @@ fn global_arithmetic_generic_larger_than_u32() {
         let _ = foo::<A>().size();
     }
     "#;
-    let errors = get_program_errors(source);
-    assert_eq!(errors.len(), 0);
+    assert_no_errors!(source);
 }

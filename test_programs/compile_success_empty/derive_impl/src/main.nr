@@ -1,4 +1,4 @@
-comptime fn derive_default(typ: StructDefinition) -> Quoted {
+comptime fn derive_default(typ: TypeDefinition) -> Quoted {
     let generics = typ.generics();
     assert_eq(
         generics.len(),
@@ -31,7 +31,7 @@ struct Foo {
     y: Bar,
 }
 
-comptime fn make_field_exprs(fields: [(Quoted, Type)]) -> [Quoted] {
+comptime fn make_field_exprs(fields: [(Quoted, Type, Quoted)]) -> [Quoted] {
     let mut result = &[];
     for my_field in fields {
         let name = my_field.0;

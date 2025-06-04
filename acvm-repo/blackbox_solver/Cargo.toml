@@ -2,7 +2,7 @@
 name = "acvm_blackbox_solver"
 description = "A solver for the blackbox functions found in ACIR and Brillig"
 # x-release-please-start-version
-version = "1.0.0-beta.3"
+version = "1.0.0-beta.6"
 # x-release-please-end
 authors.workspace = true
 edition.workspace = true
@@ -24,14 +24,14 @@ blake2 = "0.10.6"
 blake3 = "1.5.0"
 sha2.workspace = true
 keccak = "0.1.4"
-k256 = { version = "0.11.0", features = [
+k256 = { version = "0.13.4", features = [
     "ecdsa",
     "ecdsa-core",
     "sha256",
     "digest",
     "arithmetic",
 ] }
-p256 = { version = "0.11.0", features = [
+p256 = { version = "0.13.2", features = [
     "ecdsa",
     "ecdsa-core",
     "sha256",

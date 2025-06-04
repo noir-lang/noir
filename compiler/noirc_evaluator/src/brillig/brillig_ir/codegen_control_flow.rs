@@ -1,19 +1,19 @@
 use acvm::{
+    AcirField,
     acir::{
         brillig::{HeapVector, MemoryAddress},
         circuit::ErrorSelector,
     },
-    AcirField,
 };
 
 use crate::ssa::ir::instruction::ErrorType;
 
 use super::{
+    BrilligBinaryOp, BrilligContext, ReservedRegisters,
     artifact::BrilligParameter,
     brillig_variable::{BrilligArray, BrilligVariable, SingleAddrVariable},
     debug_show::DebugToString,
     registers::RegisterAllocator,
-    BrilligBinaryOp, BrilligContext, ReservedRegisters,
 };
 
 impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<F, Registers> {

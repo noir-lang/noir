@@ -1,4 +1,4 @@
-use lsp_types::TextEdit;
+use async_lsp::lsp_types::TextEdit;
 use noirc_errors::Span;
 use noirc_frontend::{
     ast::{ConstructorExpression, UnresolvedTypeData},
@@ -9,7 +9,7 @@ use crate::byte_span_to_range;
 
 use super::CodeActionFinder;
 
-impl<'a> CodeActionFinder<'a> {
+impl CodeActionFinder<'_> {
     pub(super) fn fill_struct_fields(&mut self, constructor: &ConstructorExpression, span: Span) {
         if !self.includes_span(span) {
             return;
@@ -34,7 +34,7 @@ impl<'a> CodeActionFinder<'a> {
 
         // Remove the ones that already exists in the constructor
         for (constructor_field, _) in &constructor.fields {
-            fields.retain(|field| field.name.0.contents != constructor_field.0.contents);
+            fields.retain(|field| field.name.as_str() != constructor_field.as_str());
         }
 
         // Some fields are missing. Let's suggest a quick fix that adds them.
@@ -101,7 +101,7 @@ impl<'a> CodeActionFinder<'a> {
                     new_text.push(' ');
                 }
             }
-            new_text.push_str(&field.name.0.contents);
+            new_text.push_str(field.name.as_str());
             new_text.push_str(": ()");
         }
 

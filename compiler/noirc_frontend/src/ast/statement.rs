@@ -1,7 +1,7 @@
 use std::fmt::Display;
 
-use acvm::acir::AcirField;
 use acvm::FieldElement;
+use acvm::acir::AcirField;
 use iter_extended::vecmap;
 use noirc_errors::{Located, Location, Span};
 
@@ -12,7 +12,7 @@ use super::{
 };
 use crate::ast::UnresolvedTypeData;
 use crate::elaborator::types::SELF_TYPE_NAME;
-use crate::elaborator::Turbofish;
+use crate::graph::CrateId;
 use crate::node_interner::{
     InternedExpressionKind, InternedPattern, InternedStatementKind, NodeInterner,
 };
@@ -104,14 +104,21 @@ impl StatementKind {
             ParserError::with_reason(ParserErrorReason::MissingSeparatingSemi, location);
 
         match self {
-            StatementKind::Let(_)
-            | StatementKind::Assign(_)
+            StatementKind::Let(_) => {
+                // To match rust, a let statement always requires a semicolon, even at the end of a block
+                if semi.is_none() {
+                    let reason = ParserErrorReason::MissingSemicolonAfterLet;
+                    emit_error(ParserError::with_reason(reason, location));
+                }
+                self
+            }
+            StatementKind::Assign(_)
             | StatementKind::Semi(_)
             | StatementKind::Break
             | StatementKind::Continue
             | StatementKind::Error => {
-                // To match rust, statements always require a semicolon, even at the end of a block
-                if semi.is_none() {
+                // These statements can omit the semicolon if they are the last statement in a block
+                if !last_statement_in_block && semi.is_none() {
                     emit_error(missing_semicolon);
                 }
                 self
@@ -172,18 +179,12 @@ impl StatementKind {
     }
 }
 
-#[derive(Eq, Debug, Clone, Default)]
-pub struct Ident(pub Located<String>);
-
-impl Ident {
-    pub fn is_self_type_name(&self) -> bool {
-        self.0.contents == SELF_TYPE_NAME
-    }
-}
+#[derive(Eq, Debug, Clone)]
+pub struct Ident(Located<String>);
 
 impl PartialEq<Ident> for Ident {
     fn eq(&self, other: &Ident) -> bool {
-        self.0.contents == other.0.contents
+        self.as_str() == other.as_str()
     }
 }
 
@@ -195,25 +196,25 @@ impl PartialOrd for Ident {
 
 impl Ord for Ident {
     fn cmp(&self, other: &Self) -> std::cmp::Ordering {
-        self.0.contents.cmp(&other.0.contents)
+        self.as_str().cmp(other.as_str())
     }
 }
 
 impl PartialEq<str> for Ident {
     fn eq(&self, other: &str) -> bool {
-        self.0.contents == other
+        self.as_str() == other
     }
 }
 
 impl std::hash::Hash for Ident {
     fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
-        self.0.contents.hash(state);
+        self.as_str().hash(state);
     }
 }
 
 impl Display for Ident {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        self.0.contents.fmt(f)
+        self.as_str().fmt(f)
     }
 }
 
@@ -243,18 +244,25 @@ impl From<LocatedToken> for Ident {
 
 impl From<Ident> for Expression {
     fn from(i: Ident) -> Expression {
-        Expression {
-            location: i.0.location(),
-            kind: ExpressionKind::Variable(Path {
-                location: i.location(),
-                segments: vec![PathSegment::from(i)],
-                kind: PathKind::Plain,
-            }),
-        }
+        let location = i.location();
+        let kind = ExpressionKind::Variable(Path::plain(vec![PathSegment::from(i)], location));
+        Expression { location, kind }
     }
 }
 
 impl Ident {
+    pub fn new(text: String, location: Location) -> Ident {
+        Ident(Located::from(location, text))
+    }
+
+    pub fn is_self_type_name(&self) -> bool {
+        self.as_str() == SELF_TYPE_NAME
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.as_str().is_empty()
+    }
+
     pub fn location(&self) -> Location {
         self.0.location()
     }
@@ -263,8 +271,16 @@ impl Ident {
         self.0.span()
     }
 
-    pub fn new(text: String, location: Location) -> Ident {
-        Ident(Located::from(location, text))
+    pub fn as_str(&self) -> &str {
+        &self.0.contents
+    }
+
+    pub fn as_string(&self) -> &String {
+        &self.0.contents
+    }
+
+    pub fn into_string(self) -> String {
+        self.0.contents
     }
 }
 
@@ -295,6 +311,8 @@ pub enum PathKind {
     Dep,
     Plain,
     Super,
+    /// This path is a Crate or Dep path which always points to the given crate
+    Resolved(CrateId),
 }
 
 #[derive(Debug, PartialEq, Eq, Clone)]
@@ -349,7 +367,7 @@ impl UseTree {
         match self.kind {
             UseTreeKind::Path(name, alias) => {
                 // Desugar `use foo::{self}` to `use foo`
-                let path = if name.0.contents == "self" { prefix } else { prefix.join(name) };
+                let path = if name.as_str() == "self" { prefix } else { prefix.join(name) };
                 vec![ImportStatement { visibility, path, alias }]
             }
             UseTreeKind::List(trees) => {
@@ -358,6 +376,12 @@ impl UseTree {
             }
         }
     }
+}
+
+#[derive(Debug, PartialEq, Eq, Clone)]
+pub struct UnsafeExpression {
+    pub block: BlockExpression,
+    pub unsafe_keyword_location: Location,
 }
 
 /// A special kind of path in the form `<MyType as Trait>::ident`.
@@ -390,9 +414,15 @@ pub struct Path {
     pub segments: Vec<PathSegment>,
     pub kind: PathKind,
     pub location: Location,
+    // The location of `kind` (this is the same as `location` for plain kinds)
+    pub kind_location: Location,
 }
 
 impl Path {
+    pub fn plain(segments: Vec<PathSegment>, location: Location) -> Self {
+        Self { segments, location, kind: PathKind::Plain, kind_location: location }
+    }
+
     pub fn pop(&mut self) -> PathSegment {
         self.segments.pop().unwrap()
     }
@@ -409,11 +439,8 @@ impl Path {
     }
 
     pub fn from_ident(name: Ident) -> Path {
-        Path {
-            location: name.location(),
-            segments: vec![PathSegment::from(name)],
-            kind: PathKind::Plain,
-        }
+        let location = name.location();
+        Path::plain(vec![PathSegment::from(name)], location)
     }
 
     pub fn span(&self) -> Span {
@@ -430,12 +457,12 @@ impl Path {
     }
 
     pub fn first_name(&self) -> Option<&str> {
-        self.segments.first().map(|segment| segment.ident.0.contents.as_str())
+        self.segments.first().map(|segment| segment.ident.as_str())
     }
 
     pub fn last_name(&self) -> &str {
         assert!(!self.segments.is_empty());
-        &self.segments.last().unwrap().ident.0.contents
+        self.segments.last().unwrap().ident.as_str()
     }
 
     pub fn is_ident(&self) -> bool {
@@ -451,38 +478,12 @@ impl Path {
         self.segments.first().map(|segment| &segment.ident)
     }
 
-    pub fn to_ident(&self) -> Option<Ident> {
-        if !self.is_ident() {
-            return None;
-        }
-        self.segments.first().cloned().map(|segment| segment.ident)
-    }
-
     pub(crate) fn is_wildcard(&self) -> bool {
-        self.to_ident().map(|ident| ident.0.contents) == Some(WILDCARD_TYPE.to_string())
+        if let Some(ident) = self.as_ident() { ident.as_str() == WILDCARD_TYPE } else { false }
     }
 
     pub fn is_empty(&self) -> bool {
         self.segments.is_empty() && self.kind == PathKind::Plain
-    }
-
-    pub fn as_string(&self) -> String {
-        let mut string = String::new();
-
-        let mut segments = self.segments.iter();
-        match segments.next() {
-            None => panic!("empty segment"),
-            Some(seg) => {
-                string.push_str(&seg.ident.0.contents);
-            }
-        }
-
-        for segment in segments {
-            string.push_str("::");
-            string.push_str(&segment.ident.0.contents);
-        }
-
-        string
     }
 }
 
@@ -496,23 +497,22 @@ pub struct PathSegment {
 impl PathSegment {
     /// Returns the span where turbofish happen. For example:
     ///
+    /// ```noir
     ///    foo::<T>
     ///       ~^^^^
+    /// ```
     ///
     /// Returns an empty span at the end of `foo` if there's no turbofish.
     pub fn turbofish_span(&self) -> Span {
-        Span::from(self.ident.span().end()..self.location.span.end())
+        if self.ident.location().file == self.location.file {
+            Span::from(self.ident.span().end()..self.location.span.end())
+        } else {
+            self.location.span
+        }
     }
 
     pub fn turbofish_location(&self) -> Location {
         Location::new(self.turbofish_span(), self.location.file)
-    }
-
-    pub fn turbofish(&self) -> Option<Turbofish> {
-        self.generics.as_ref().map(|generics| Turbofish {
-            location: self.turbofish_location(),
-            generics: generics.clone(),
-        })
     }
 }
 
@@ -570,19 +570,18 @@ pub enum Pattern {
     Mutable(Box<Pattern>, Location, /*is_synthesized*/ bool),
     Tuple(Vec<Pattern>, Location),
     Struct(Path, Vec<(Ident, Pattern)>, Location),
+    Parenthesized(Box<Pattern>, Location),
     Interned(InternedPattern, Location),
 }
 
 impl Pattern {
-    pub fn is_synthesized(&self) -> bool {
-        matches!(self, Pattern::Mutable(_, _, true))
-    }
     pub fn location(&self) -> Location {
         match self {
             Pattern::Identifier(ident) => ident.location(),
             Pattern::Mutable(_, location, _)
             | Pattern::Tuple(_, location)
             | Pattern::Struct(_, _, location)
+            | Pattern::Parenthesized(_, location)
             | Pattern::Interned(_, location) => *location,
         }
     }
@@ -627,6 +626,7 @@ impl Pattern {
                     location: *location,
                 })
             }
+            Pattern::Parenthesized(pattern, _) => pattern.try_as_expression(interner),
             Pattern::Interned(id, _) => interner.get_pattern(*id).try_as_expression(interner),
         }
     }
@@ -754,19 +754,10 @@ impl ForRange {
         Self::Range(ForBounds { start, end, inclusive: false })
     }
 
-    /// Create a range bounded inclusively below and above.
-    pub fn range_inclusive(start: Expression, end: Expression) -> Self {
-        Self::Range(ForBounds { start, end, inclusive: true })
-    }
-
-    /// Create a range over some array.
-    pub fn array(value: Expression) -> Self {
-        Self::Array(value)
-    }
-
     /// Create a 'for' expression taking care of desugaring a 'for e in array' loop
     /// into the following if needed:
     ///
+    /// ```text
     /// {
     ///     let fresh1 = array;
     ///     for fresh2 in 0 .. std::array::len(fresh1) {
@@ -774,6 +765,7 @@ impl ForRange {
     ///         ...
     ///     }
     /// }
+    /// ````
     pub(crate) fn into_for(
         self,
         identifier: Ident,
@@ -812,11 +804,7 @@ impl ForRange {
 
                 // array.len()
                 let segments = vec![PathSegment::from(array_ident)];
-                let array_ident = ExpressionKind::Variable(Path {
-                    segments,
-                    kind: PathKind::Plain,
-                    location: array_location,
-                });
+                let array_ident = ExpressionKind::Variable(Path::plain(segments, array_location));
 
                 let end_range = ExpressionKind::MethodCall(Box::new(MethodCallExpression {
                     object: Expression::new(array_ident.clone(), array_location),
@@ -833,11 +821,7 @@ impl ForRange {
 
                 // array[i]
                 let segments = vec![PathSegment::from(Ident::new(index_name, array_location))];
-                let index_ident = ExpressionKind::Variable(Path {
-                    segments,
-                    kind: PathKind::Plain,
-                    location: array_location,
-                });
+                let index_ident = ExpressionKind::Variable(Path::plain(segments, array_location));
 
                 let loop_element = ExpressionKind::Index(Box::new(IndexExpression {
                     collection: Expression::new(array_ident, array_location),
@@ -972,6 +956,7 @@ impl Display for PathKind {
             PathKind::Dep => write!(f, "dep"),
             PathKind::Super => write!(f, "super"),
             PathKind::Plain => write!(f, "plain"),
+            PathKind::Resolved(_) => write!(f, "$crate"),
         }
     }
 }
@@ -993,11 +978,18 @@ impl Display for Pattern {
             Pattern::Mutable(name, _, _) => write!(f, "mut {name}"),
             Pattern::Tuple(fields, _) => {
                 let fields = vecmap(fields, ToString::to_string);
-                write!(f, "({})", fields.join(", "))
+                if fields.len() == 1 {
+                    write!(f, "({},)", fields[0])
+                } else {
+                    write!(f, "({})", fields.join(", "))
+                }
             }
             Pattern::Struct(typename, fields, _) => {
                 let fields = vecmap(fields, |(name, pattern)| format!("{name}: {pattern}"));
                 write!(f, "{} {{ {} }}", typename, fields.join(", "))
+            }
+            Pattern::Parenthesized(pattern, _) => {
+                write!(f, "({})", pattern)
             }
             Pattern::Interned(_, _) => {
                 write!(f, "?Interned")

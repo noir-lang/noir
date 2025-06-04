@@ -9,7 +9,7 @@
 //! The instructions are low level operations that are printed via debug_show.
 //! They should emit few opcodes. Codegens on the other hand orchestrate the
 //! low level instructions to emit the desired high level operation.
-pub(crate) mod artifact;
+pub mod artifact;
 pub(crate) mod brillig_variable;
 pub(crate) mod debug_show;
 pub(crate) mod procedures;
@@ -27,13 +27,13 @@ mod instructions;
 use artifact::Label;
 use brillig_variable::SingleAddrVariable;
 pub(crate) use instructions::BrilligBinaryOp;
+use noirc_errors::call_stack::CallStackId;
 use registers::{RegisterAllocator, ScratchSpace};
 
 use self::{artifact::BrilligArtifact, debug_show::DebugToString, registers::Stack};
-use crate::ssa::ir::call_stack::CallStack;
 use acvm::{
-    acir::brillig::{MemoryAddress, Opcode as BrilligOpcode},
     AcirField,
+    acir::brillig::{MemoryAddress, Opcode as BrilligOpcode},
 };
 use debug_show::DebugShow;
 
@@ -97,6 +97,8 @@ pub(crate) struct BrilligContext<F, Registers> {
     can_call_procedures: bool,
     /// Insert extra assertions that we expect to be true, at the cost of larger bytecode size.
     enable_debug_assertions: bool,
+    /// Count the number of arrays that are copied, and output this to stdout
+    count_arrays_copied: bool,
 
     globals_memory_size: Option<usize>,
 }
@@ -105,6 +107,34 @@ impl<F, R> BrilligContext<F, R> {
     /// Enable the insertion of bytecode with extra assertions during testing.
     pub(crate) fn enable_debug_assertions(&self) -> bool {
         self.enable_debug_assertions
+    }
+
+    /// Returns the address of the implicit debug variable containing the count of
+    /// implicitly copied arrays as a result of RC's copy on write semantics.
+    pub(crate) fn array_copy_counter_address(&self) -> MemoryAddress {
+        assert!(
+            self.count_arrays_copied,
+            "`count_arrays_copied` is not set, so the array copy counter does not exist"
+        );
+
+        // The copy counter is always put in the first global slot
+        MemoryAddress::Direct(GlobalSpace::start())
+    }
+
+    pub(crate) fn count_array_copies(&self) -> bool {
+        self.count_arrays_copied
+    }
+
+    /// Set the globals memory size if it is not already set.
+    /// If it is already set, this will assert that the two values must be equal.
+    pub(crate) fn set_globals_memory_size(&mut self, new_size: Option<usize>) {
+        if self.globals_memory_size.is_some() {
+            assert_eq!(
+                self.globals_memory_size, new_size,
+                "Tried to change globals_memory_size to a different value"
+            );
+        }
+        self.globals_memory_size = new_size;
     }
 }
 
@@ -119,6 +149,7 @@ impl<F: AcirField + DebugToString> BrilligContext<F, Stack> {
             next_section: 1,
             debug_show: DebugShow::new(options.enable_debug_trace),
             enable_debug_assertions: options.enable_debug_assertions,
+            count_arrays_copied: options.enable_array_copy_counter,
             can_call_procedures: true,
             globals_memory_size: None,
         }
@@ -224,6 +255,7 @@ impl<F: AcirField + DebugToString> BrilligContext<F, ScratchSpace> {
             next_section: 1,
             debug_show: DebugShow::new(options.enable_debug_trace),
             enable_debug_assertions: options.enable_debug_assertions,
+            count_arrays_copied: options.enable_array_copy_counter,
             can_call_procedures: false,
             globals_memory_size: None,
         }
@@ -244,6 +276,7 @@ impl<F: AcirField + DebugToString> BrilligContext<F, GlobalSpace> {
             next_section: 1,
             debug_show: DebugShow::new(options.enable_debug_trace),
             enable_debug_assertions: options.enable_debug_assertions,
+            count_arrays_copied: options.enable_array_copy_counter,
             can_call_procedures: false,
             globals_memory_size: None,
         }
@@ -267,7 +300,7 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
     }
 
     /// Sets a current call stack that the next pushed opcodes will be associated with.
-    pub(crate) fn set_call_stack(&mut self, call_stack: CallStack) {
+    pub(crate) fn set_call_stack(&mut self, call_stack: CallStackId) {
         self.obj.set_call_stack(call_stack);
     }
 }
@@ -281,11 +314,11 @@ pub(crate) mod tests {
         ValueOrArray,
     };
     use acvm::brillig_vm::brillig::HeapValueType;
-    use acvm::brillig_vm::{VMStatus, VM};
+    use acvm::brillig_vm::{VM, VMStatus};
     use acvm::{BlackBoxFunctionSolver, BlackBoxResolutionError, FieldElement};
 
-    use crate::brillig::brillig_ir::{BrilligBinaryOp, BrilligContext};
     use crate::brillig::BrilligOptions;
+    use crate::brillig::brillig_ir::{BrilligBinaryOp, BrilligContext};
     use crate::ssa::ir::function::FunctionId;
 
     use super::artifact::{BrilligParameter, GeneratedBrillig, Label, LabelType};
@@ -331,7 +364,11 @@ pub(crate) mod tests {
     }
 
     pub(crate) fn create_context(id: FunctionId) -> BrilligContext<FieldElement, Stack> {
-        let options = BrilligOptions { enable_debug_trace: true, enable_debug_assertions: true };
+        let options = BrilligOptions {
+            enable_debug_trace: true,
+            enable_debug_assertions: true,
+            enable_array_copy_counter: false,
+        };
         let mut context = BrilligContext::new(&options);
         context.enter_context(Label::function(id));
         context
@@ -345,6 +382,7 @@ pub(crate) mod tests {
         let options = BrilligOptions {
             enable_debug_trace: false,
             enable_debug_assertions: context.enable_debug_assertions,
+            enable_array_copy_counter: context.count_arrays_copied,
         };
         let artifact = context.artifact();
         let mut entry_point_artifact = BrilligContext::new_entry_point_artifact(
@@ -372,7 +410,7 @@ pub(crate) mod tests {
         bytecode: &[BrilligOpcode<FieldElement>],
     ) -> (VM<'_, FieldElement, DummyBlackBoxSolver>, usize, usize) {
         let profiling_active = false;
-        let mut vm = VM::new(calldata, bytecode, &DummyBlackBoxSolver, profiling_active);
+        let mut vm = VM::new(calldata, bytecode, &DummyBlackBoxSolver, profiling_active, None);
 
         let status = vm.process_opcodes();
         if let VMStatus::Finished { return_data_offset, return_data_size } = status {
@@ -395,7 +433,11 @@ pub(crate) mod tests {
         //   let the_sequence = get_number_sequence(12);
         //   assert(the_sequence.len() == 12);
         // }
-        let options = BrilligOptions { enable_debug_trace: true, enable_debug_assertions: true };
+        let options = BrilligOptions {
+            enable_debug_trace: true,
+            enable_debug_assertions: true,
+            enable_array_copy_counter: false,
+        };
         let mut context = BrilligContext::new(&options);
         let r_stack = ReservedRegisters::free_memory_pointer();
         // Start stack pointer at 0
@@ -448,7 +490,7 @@ pub(crate) mod tests {
 
         let bytecode: Vec<BrilligOpcode<FieldElement>> = context.artifact().finish().byte_code;
 
-        let mut vm = VM::new(vec![], &bytecode, &DummyBlackBoxSolver, false);
+        let mut vm = VM::new(vec![], &bytecode, &DummyBlackBoxSolver, false, None);
         let status = vm.process_opcodes();
         assert_eq!(
             status,

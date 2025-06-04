@@ -1,21 +1,20 @@
 use std::future::{self, Future};
 
 use crate::insert_all_files_for_workspace_into_file_manager;
+use async_lsp::lsp_types::{LogMessageParams, MessageType};
 use async_lsp::{ErrorCode, LanguageClient, ResponseError};
-use lsp_types::{LogMessageParams, MessageType};
-use nargo_toml::{find_package_manifest, resolve_workspace_from_toml, PackageSelection};
-use noirc_driver::{check_crate, NOIR_ARTIFACT_VERSION_STRING};
+use nargo_toml::{PackageSelection, find_package_manifest, resolve_workspace_from_toml};
+use noirc_driver::{NOIR_ARTIFACT_VERSION_STRING, check_crate};
 
 use crate::{
-    get_package_tests_in_crate, parse_diff,
+    LspState, get_package_tests_in_crate, parse_diff,
     types::{NargoPackageTests, NargoTestsParams, NargoTestsResult},
-    LspState,
 };
 
 pub(crate) fn on_tests_request(
     state: &mut LspState,
     params: NargoTestsParams,
-) -> impl Future<Output = Result<NargoTestsResult, ResponseError>> {
+) -> impl Future<Output = Result<NargoTestsResult, ResponseError>> + use<> {
     future::ready(on_tests_request_inner(state, params))
 }
 
@@ -73,9 +72,5 @@ fn on_tests_request_inner(
         })
         .collect();
 
-    if package_tests.is_empty() {
-        Ok(None)
-    } else {
-        Ok(Some(package_tests))
-    }
+    if package_tests.is_empty() { Ok(None) } else { Ok(Some(package_tests)) }
 }

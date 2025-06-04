@@ -1,17 +1,18 @@
-use lsp_types::CompletionItemKind;
-use noirc_frontend::{ast::AttributeTarget, token::Keyword};
+use async_lsp::lsp_types::CompletionItemKind;
+use noirc_frontend::{ast::AttributeTarget, elaborator::PrimitiveType, token::Keyword};
 use strum::IntoEnumIterator;
 
 use super::{
+    NodeFinder,
     completion_items::{
         completion_item_with_trigger_parameter_hints_command, simple_completion_item,
         snippet_completion_item,
     },
     kinds::FunctionCompletionKind,
-    name_matches, NodeFinder,
+    name_matches,
 };
 
-impl<'a> NodeFinder<'a> {
+impl NodeFinder<'_> {
     pub(super) fn builtin_functions_completion(
         &mut self,
         prefix: &str,
@@ -62,24 +63,13 @@ impl<'a> NodeFinder<'a> {
     }
 
     pub(super) fn builtin_types_completion(&mut self, prefix: &str) {
-        for keyword in Keyword::iter() {
-            if let Some(typ) = keyword_builtin_type(&keyword) {
-                if name_matches(typ, prefix) {
-                    self.completion_items.push(simple_completion_item(
-                        typ,
-                        CompletionItemKind::STRUCT,
-                        Some(typ.to_string()),
-                    ));
-                }
-            }
-        }
-
-        for typ in builtin_integer_types() {
-            if name_matches(typ, prefix) {
+        for primitive_type in PrimitiveType::iter() {
+            let name = primitive_type.name();
+            if name_matches(name, prefix) {
                 self.completion_items.push(simple_completion_item(
-                    typ,
+                    name,
                     CompletionItemKind::STRUCT,
-                    Some(typ.to_string()),
+                    Some(name.to_string()),
                 ));
             }
         }
@@ -87,12 +77,17 @@ impl<'a> NodeFinder<'a> {
 
     pub(super) fn suggest_builtin_attributes(&mut self, prefix: &str, target: AttributeTarget) {
         match target {
-            AttributeTarget::Module | AttributeTarget::Trait => (),
+            AttributeTarget::Module => (),
+            AttributeTarget::Trait => {
+                self.suggest_allow("dead_code", prefix);
+            }
             AttributeTarget::Struct => {
                 self.suggest_one_argument_attributes(prefix, &["abi"]);
+                self.suggest_allow("dead_code", prefix);
             }
             AttributeTarget::Enum => {
                 self.suggest_one_argument_attributes(prefix, &["abi"]);
+                self.suggest_allow("dead_code", prefix);
             }
             AttributeTarget::Function => {
                 let no_arguments_attributes = &[
@@ -103,6 +98,7 @@ impl<'a> NodeFinder<'a> {
                     "no_predicates",
                     "recursive",
                     "test",
+                    "fuzz",
                     "varargs",
                 ];
                 self.suggest_no_arguments_attributes(prefix, no_arguments_attributes);
@@ -136,84 +132,50 @@ impl<'a> NodeFinder<'a> {
                         None,
                     ));
                 }
-            }
-            AttributeTarget::Let => {
-                if name_matches("allow", prefix) || name_matches("unused_variables", prefix) {
-                    self.completion_items.push(simple_completion_item(
-                        "allow(unused_variables)",
+
+                if name_matches("fuzz", prefix) || name_matches("only_fail_with", prefix) {
+                    self.completion_items.push(snippet_completion_item(
+                        "fuzz(only_fail_with = \"...\")",
                         CompletionItemKind::METHOD,
+                        "fuzz(only_fail_with = \"${1:message}\")",
                         None,
                     ));
                 }
+
+                if name_matches("fuzz", prefix) || name_matches("should_fail", prefix) {
+                    self.completion_items.push(snippet_completion_item(
+                        "fuzz(should_fail)",
+                        CompletionItemKind::METHOD,
+                        "fuzz(should_fail)",
+                        None,
+                    ));
+                }
+
+                if name_matches("fuzz", prefix) || name_matches("should_fail_with", prefix) {
+                    self.completion_items.push(snippet_completion_item(
+                        "fuzz(should_fail_with = \"...\")",
+                        CompletionItemKind::METHOD,
+                        "fuzz(should_fail_with = \"${1:message}\")",
+                        None,
+                    ));
+                }
+
+                self.suggest_allow("dead_code", prefix);
+            }
+            AttributeTarget::Let => {
+                self.suggest_allow("unused_variables", prefix);
             }
         }
     }
-}
 
-pub(super) fn builtin_integer_types() -> [&'static str; 9] {
-    ["i8", "i16", "i32", "i64", "u8", "u16", "u32", "u64", "u128"]
-}
-
-/// If a keyword corresponds to a built-in type, returns that type's name.
-pub(super) fn keyword_builtin_type(keyword: &Keyword) -> Option<&'static str> {
-    match keyword {
-        Keyword::Bool => Some("bool"),
-        Keyword::CtString => Some("CtString"),
-        Keyword::EnumDefinition => Some("EnumDefinition"),
-        Keyword::Expr => Some("Expr"),
-        Keyword::Field => Some("Field"),
-        Keyword::FunctionDefinition => Some("FunctionDefinition"),
-        Keyword::Module => Some("Module"),
-        Keyword::Quoted => Some("Quoted"),
-        Keyword::StructDefinition => Some("StructDefinition"),
-        Keyword::TraitConstraint => Some("TraitConstraint"),
-        Keyword::TraitDefinition => Some("TraitDefinition"),
-        Keyword::TraitImpl => Some("TraitImpl"),
-        Keyword::TypedExpr => Some("TypedExpr"),
-        Keyword::TypeType => Some("Type"),
-        Keyword::UnresolvedType => Some("UnresolvedType"),
-
-        Keyword::As
-        | Keyword::Assert
-        | Keyword::AssertEq
-        | Keyword::Break
-        | Keyword::CallData
-        | Keyword::Char
-        | Keyword::Comptime
-        | Keyword::Constrain
-        | Keyword::Continue
-        | Keyword::Contract
-        | Keyword::Crate
-        | Keyword::Dep
-        | Keyword::Else
-        | Keyword::Enum
-        | Keyword::Fn
-        | Keyword::For
-        | Keyword::FormatString
-        | Keyword::Global
-        | Keyword::If
-        | Keyword::Impl
-        | Keyword::In
-        | Keyword::Let
-        | Keyword::Loop
-        | Keyword::Match
-        | Keyword::Mod
-        | Keyword::Mut
-        | Keyword::Pub
-        | Keyword::Return
-        | Keyword::ReturnData
-        | Keyword::String
-        | Keyword::Struct
-        | Keyword::Super
-        | Keyword::TopLevelItem
-        | Keyword::Trait
-        | Keyword::Type
-        | Keyword::Unchecked
-        | Keyword::Unconstrained
-        | Keyword::Unsafe
-        | Keyword::Use
-        | Keyword::Where
-        | Keyword::While => None,
+    fn suggest_allow(&mut self, name: &'static str, prefix: &str) {
+        if name_matches("allow", prefix) || name_matches(name, prefix) {
+            self.completion_items.push(simple_completion_item(
+                format!("allow({name})"),
+                CompletionItemKind::METHOD,
+                None,
+            ));
+        }
     }
 }
 
@@ -238,26 +200,18 @@ pub(super) fn keyword_builtin_function(keyword: &Keyword) -> Option<BuiltInFunct
         }),
 
         Keyword::As
-        | Keyword::Bool
         | Keyword::Break
         | Keyword::CallData
-        | Keyword::Char
         | Keyword::Comptime
         | Keyword::Constrain
         | Keyword::Continue
         | Keyword::Contract
         | Keyword::Crate
-        | Keyword::CtString
         | Keyword::Dep
         | Keyword::Else
         | Keyword::Enum
-        | Keyword::EnumDefinition
-        | Keyword::Expr
-        | Keyword::Field
         | Keyword::Fn
         | Keyword::For
-        | Keyword::FormatString
-        | Keyword::FunctionDefinition
         | Keyword::Global
         | Keyword::If
         | Keyword::Impl
@@ -266,27 +220,16 @@ pub(super) fn keyword_builtin_function(keyword: &Keyword) -> Option<BuiltInFunct
         | Keyword::Loop
         | Keyword::Match
         | Keyword::Mod
-        | Keyword::Module
         | Keyword::Mut
         | Keyword::Pub
-        | Keyword::Quoted
         | Keyword::Return
         | Keyword::ReturnData
-        | Keyword::String
         | Keyword::Struct
-        | Keyword::StructDefinition
         | Keyword::Super
-        | Keyword::TopLevelItem
         | Keyword::Trait
-        | Keyword::TraitConstraint
-        | Keyword::TraitDefinition
-        | Keyword::TraitImpl
         | Keyword::Type
-        | Keyword::TypedExpr
-        | Keyword::TypeType
         | Keyword::Unchecked
         | Keyword::Unconstrained
-        | Keyword::UnresolvedType
         | Keyword::Unsafe
         | Keyword::Use
         | Keyword::Where

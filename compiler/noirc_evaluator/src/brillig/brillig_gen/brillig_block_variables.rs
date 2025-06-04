@@ -3,12 +3,12 @@ use fxhash::FxHashSet as HashSet;
 
 use crate::{
     brillig::brillig_ir::{
+        BrilligContext,
         brillig_variable::{
-            get_bit_size_from_ssa_type, BrilligArray, BrilligVariable, BrilligVector,
-            SingleAddrVariable,
+            BrilligArray, BrilligVariable, BrilligVector, SingleAddrVariable,
+            get_bit_size_from_ssa_type,
         },
         registers::RegisterAllocator,
-        BrilligContext,
     },
     ssa::ir::{
         dfg::DataFlowGraph,
@@ -55,7 +55,6 @@ impl BlockVariables {
         value_id: ValueId,
         dfg: &DataFlowGraph,
     ) -> BrilligVariable {
-        let value_id = dfg.resolve(value_id);
         let variable = allocate_value(value_id, brillig_context, dfg);
 
         if function_context.ssa_value_allocations.insert(value_id, variable).is_some() {
@@ -104,10 +103,7 @@ impl BlockVariables {
         &mut self,
         function_context: &FunctionContext,
         value_id: ValueId,
-        dfg: &DataFlowGraph,
     ) -> BrilligVariable {
-        let value_id = dfg.resolve(value_id);
-
         assert!(
             self.available_variables.contains(&value_id),
             "ICE: ValueId {value_id:?} is not available"

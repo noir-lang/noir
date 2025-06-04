@@ -7,9 +7,58 @@ on:
   pull_request:
 
 jobs:
+  rust_benchmarks:
+    name: Rust Benchmarks
+    runs-on: ubuntu-22.04
+
+    timeout-minutes: 15
+    permissions:
+      pull-requests: write
+      # deployments permission to deploy GitHub pages website
+      deployments: write
+      # contents permission to update benchmark contents in gh-pages branch
+      contents: write
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup toolchain
+        uses: dtolnay/rust-toolchain@1.85.0
+        with:
+          targets: x86_64-unknown-linux-gnu
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          key: x86_64-unknown-linux-gnu-bench
+          cache-on-failure: true
+          save-if: ${{ github.event_name != 'merge_group' }}
+
+      - name: Run ACVM benchmarks
+        run: |
+          cargo bench -p acvm -- --output-format bencher | tee acvm-bench.txt
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Store ACVM benchmarks result
+        uses: benchmark-action/github-action-benchmark@4de1bed97a47495fc4c5404952da0499e31f5c29
+        with:
+          name: "ACVM Benchmarks"
+          tool: "cargo"
+          output-file-path: ./acvm-bench.txt
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          # We want this to only run on master to avoid garbage data from PRs being added.
+          auto-push: ${{ github.ref == 'refs/heads/master' }}
+          alert-threshold: "120%"
+          comment-on-alert: true
+          comment-always: ${{ contains( github.event.pull_request.labels.*.name, 'bench-show') }}
+          fail-on-alert: false
+          alert-comment-cc-users: "@TomAFrench"
+          max-items-in-chart: 50
+
   benchmark-projects-list:
     name: Load benchmark projects list
     runs-on: ubuntu-22.04
+    timeout-minutes: 5
     outputs:
       projects: ${{ steps.get_bench_projects.outputs.projects }}
 
@@ -20,19 +69,20 @@ jobs:
       - name: Build list of projects
         id: get_bench_projects
         run: |
-          PROJECTS=$(yq ./.github/benchmark_projects.yml -o json | jq -c '.projects | map(.)')
+          PROJECTS=$(yq ./.github/benchmark_projects.yml -o json | jq -c '.projects | to_entries | map(.value + { name: .key })')
           echo "projects=$PROJECTS"
           echo "projects=$PROJECTS" >> $GITHUB_OUTPUT
 
   build-nargo:
     runs-on: ubuntu-22.04
+    timeout-minutes: 15
 
     steps:
       - name: Checkout Noir repo
         uses: actions/checkout@v4
 
       - name: Setup toolchain
-        uses: dtolnay/rust-toolchain@1.75.0
+        uses: dtolnay/rust-toolchain@1.85.0
 
       - uses: Swatinem/rust-cache@v2
         with:
@@ -42,6 +92,8 @@ jobs:
 
       - name: Build Nargo
         run: cargo build --package nargo_cli --release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Package artifacts
         run: |
@@ -58,7 +110,8 @@ jobs:
   compare_gates_reports:
     name: Circuit sizes
     needs: [build-nargo]
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
     permissions:
       pull-requests: write
 
@@ -73,10 +126,13 @@ jobs:
       - name: Download nargo binary
         uses: ./.github/actions/download-nargo
 
+      - name: Build Noir circuits
+        working-directory: ./test_programs
+        run: ./rebuild.sh
+
       - name: Generate gates report
         working-directory: ./test_programs
         run: |
-          ./rebuild.sh
           ./gates_report.sh
           mv gates_report.json ../gates_report.json
 
@@ -99,6 +155,7 @@ jobs:
     name: Brillig bytecode sizes
     needs: [build-nargo]
     runs-on: ubuntu-22.04
+    timeout-minutes: 20
     permissions:
       pull-requests: write
 
@@ -111,6 +168,8 @@ jobs:
       - name: Generate Brillig bytecode size report
         working-directory: ./test_programs
         run: |
+          set -e
+
           mkdir ./reports
 
           ./gates_report_brillig.sh 9223372036854775807
@@ -148,6 +207,7 @@ jobs:
     name: Brillig execution trace sizes
     needs: [build-nargo]
     runs-on: ubuntu-22.04
+    timeout-minutes: 20
     permissions:
       pull-requests: write
 
@@ -160,6 +220,8 @@ jobs:
       - name: Generate Brillig execution report
         working-directory: ./test_programs
         run: |
+          set -e
+
           mkdir ./reports
 
           ./gates_report_brillig_execution.sh 9223372036854775807
@@ -197,6 +259,7 @@ jobs:
     name: Peak memory usage
     needs: [build-nargo]
     runs-on: ubuntu-22.04
+    timeout-minutes: 20
     permissions:
       pull-requests: write
 
@@ -234,48 +297,7 @@ jobs:
           retention-days: 3
           overwrite: true
 
-  generate_compilation_and_execution_report:
-    name: Compilation and execution time
-    needs: [build-nargo]
-    runs-on: ubuntu-22.04
-    permissions:
-      pull-requests: write
-
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Download nargo binary
-        uses: ./.github/actions/download-nargo
-
-      - name: Generate Compilation report
-        working-directory: ./test_programs
-        run: |
-          ./compilation_report.sh 0 1
-          mv compilation_report.json ../compilation_report.json
-
-      - name: Generate Execution report
-        working-directory: ./test_programs
-        run: |
-          ./execution_report.sh 0 1
-          mv execution_report.json ../execution_report.json
-
-      - name: Upload compilation report
-        uses: actions/upload-artifact@v4
-        with:
-          name: in_progress_compilation_report
-          path: compilation_report.json
-          retention-days: 3
-          overwrite: true
-
-      - name: Upload execution report
-        uses: actions/upload-artifact@v4
-        with:
-          name: in_progress_execution_report
-          path: execution_report.json
-          retention-days: 3
-          overwrite: true
-
-  external_repo_compilation_and_execution_report:
+  external_repo_reports:
     needs: [build-nargo, benchmark-projects-list]
     runs-on: ubuntu-22.04
     timeout-minutes: 15
@@ -288,16 +310,11 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          path: scripts
           sparse-checkout: |
             .github/actions/download-nargo/action.yml
-            test_programs/compilation_report.sh
-            test_programs/execution_report.sh
-            test_programs/parse_time.sh
+            scripts/gather_benchmark_data.sh
+            scripts/process_benchmark_data.sh
           sparse-checkout-cone-mode: false
-
-      - name: Download nargo binary
-        uses: ./scripts/.github/actions/download-nargo
 
       - name: Checkout
         uses: actions/checkout@v4
@@ -305,34 +322,36 @@ jobs:
           repository: ${{ matrix.repo }}
           path: test-repo
           ref: ${{ matrix.ref }}
-      
-      - name: Fetch noir dependencies
-        working-directory: ./test-repo/${{ matrix.path }}
-        run: |
-          # We run `nargo check` to pre-fetch any dependencies so we don't measure the time to download these
-          # when benchmarking.
-          nargo check
+
+      - name: Download nargo binary
+        uses: ./.github/actions/download-nargo
 
       - name: Generate compilation report
         id: compilation_report
-        working-directory: ./test-repo/${{ matrix.path }}
         run: |
-          mv /home/runner/work/noir/noir/scripts/test_programs/compilation_report.sh ./compilation_report.sh
-          touch parse_time.sh
-          chmod +x parse_time.sh
-          cp /home/runner/work/noir/noir/scripts/test_programs/parse_time.sh ./parse_time.sh
-          ./compilation_report.sh 1 ${{ matrix.num_runs }}
-
-          PACKAGE_NAME=${{ matrix.path }}
-          PACKAGE_NAME=$(basename $PACKAGE_NAME)
-          REPORT_NAME=compilation_report_$PACKAGE_NAME.json
+          PACKAGE_NAME=$(basename ${{ matrix.path }})
+          REPORT_NAME=external_report_$PACKAGE_NAME.json
           REPORT_PATH=$(pwd)/$REPORT_NAME
-          mv ./compilation_report.json $REPORT_PATH
 
           echo "report_name=$REPORT_NAME" >> $GITHUB_OUTPUT
           echo "report_path=$REPORT_PATH" >> $GITHUB_OUTPUT
+
+      - name: Generate report data
+        run: ./scripts/gather_benchmark_data.sh
         env:
-          FLAGS: ${{ matrix.flags }}
+          REPO_SLUG: ${{ matrix.repo }}
+          PROJECT_TAG: ${{ matrix.ref }}
+          REPO_DIR: test-repo
+          PROJECT_DIR: ${{ matrix.path }}
+          OUTPUT_DIR: ${{ github.workspace }}/output
+          NUM_RUNS: ${{ matrix.num_runs }}
+
+      - name: Process report data
+        run: |
+          ./scripts/process_benchmark_data.sh $INPUT_DIR > ${{ steps.compilation_report.outputs.report_path }}
+        env:
+          INPUT_DIR: ${{ github.workspace }}/output
+          PROJECT_NAME: ${{ matrix.name }}
 
       - name: Upload compilation report
         uses: actions/upload-artifact@v4
@@ -341,37 +360,10 @@ jobs:
           path: ${{ steps.compilation_report.outputs.report_path }}
           retention-days: 3
           overwrite: true
-        
-      - name: Generate execution report
-        id: execution_report
-        working-directory: ./test-repo/${{ matrix.path }}
-        if: ${{ !matrix.cannot_execute }}
-        run: |
-          mv /home/runner/work/noir/noir/scripts/test_programs/execution_report.sh ./execution_report.sh
-          mv /home/runner/work/noir/noir/scripts/test_programs/parse_time.sh ./parse_time.sh
-          ./execution_report.sh 1 ${{ matrix.num_runs }}
-
-          PACKAGE_NAME=${{ matrix.path }}
-          PACKAGE_NAME=$(basename $PACKAGE_NAME)
-          REPORT_NAME=execution_report_$PACKAGE_NAME.json
-          REPORT_PATH=$(pwd)/$REPORT_NAME
-          mv ./execution_report.json $REPORT_PATH
-
-          echo "report_name=$REPORT_NAME" >> $GITHUB_OUTPUT
-          echo "report_path=$REPORT_PATH" >> $GITHUB_OUTPUT
-    
-      - name: Upload execution report
-        if: ${{ !matrix.cannot_execute }}
-        uses: actions/upload-artifact@v4
-        with:
-          name: ${{ steps.execution_report.outputs.report_name }}
-          path: ${{ steps.execution_report.outputs.report_path }}
-          retention-days: 3
-          overwrite: true
 
       - name: Check compilation time limit
         run: |
-          TIME=$(jq '.[0].value' ${{ steps.compilation_report.outputs.report_path }})
+          TIME=$(jq '.compilation_time.value' ${{ steps.compilation_report.outputs.report_path }})
           TIME_LIMIT=${{ matrix.compilation-timeout }}
           if awk 'BEGIN{exit !(ARGV[1]>ARGV[2])}' "$TIME" "$TIME_LIMIT"; then
             # Don't bump this timeout without understanding why this has happened and confirming that you're not the cause.
@@ -384,7 +376,7 @@ jobs:
       - name: Check execution time limit
         if: ${{ !matrix.cannot_execute }}
         run: |
-          TIME=$(jq '.[0].value' ${{ steps.execution_report.outputs.report_path }})
+          TIME=$(jq '.execution_time.value' ${{ steps.execution_report.outputs.report_path }})
           TIME_LIMIT=${{ matrix.execution-timeout }}
           if awk 'BEGIN{exit !(ARGV[1]>ARGV[2])}' "$TIME" "$TIME_LIMIT"; then
             # Don't bump this timeout without understanding why this has happened and confirming that you're not the cause.
@@ -502,10 +494,11 @@ jobs:
             exit 1
           fi
 
-  upload_compilation_report:
-    name: Upload compilation report
-    needs: [generate_compilation_and_execution_report, external_repo_compilation_and_execution_report]
-    # We want this job to run even if one variation of the matrix in `external_repo_compilation_and_execution_report` fails
+  upload_compilation_reports:
+    name: Upload compilation reports
+    needs: [external_repo_reports]
+    timeout-minutes: 5
+    # We want this job to run even if one variation of the matrix in `external_repo_reports` fails
     if: always()
     runs-on: ubuntu-22.04
     permissions:
@@ -518,16 +511,10 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Download initial compilation report
-        uses: actions/download-artifact@v4
-        with:
-          name: in_progress_compilation_report
-          path: ./reports
-
       - name: Download matrix compilation reports
         uses: actions/download-artifact@v4
         with:
-          pattern: compilation_report_*
+          pattern: external_report_*
           path: ./reports
           merge-multiple: true
 
@@ -535,7 +522,7 @@ jobs:
         run: |
           # Github actions seems to not expand "**" in globs by default.
           shopt -s globstar
-          jq --slurp '. | flatten' ./reports/* | tee time_bench.json
+          jq --slurp 'map(.compilation_time | select(.))' ./reports/* | tee time_bench.json
 
       - name: Store benchmark result
         uses: benchmark-action/github-action-benchmark@4de1bed97a47495fc4c5404952da0499e31f5c29
@@ -553,9 +540,102 @@ jobs:
           alert-comment-cc-users: "@TomAFrench"
           max-items-in-chart: 50
 
+  upload_execution_reports:
+    name: Upload execution reports
+    needs: [external_repo_reports]
+    timeout-minutes: 5
+    # We want this job to run even if one variation of the matrix in `external_repo_reports` fails
+    if: always()
+    runs-on: ubuntu-22.04
+    permissions:
+      pull-requests: write
+      # deployments permission to deploy GitHub pages website
+      deployments: write
+      # contents permission to update benchmark contents in gh-pages branch
+      contents: write
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download matrix compilation reports
+        uses: actions/download-artifact@v4
+        with:
+          pattern: external_report_*
+          path: ./reports
+          merge-multiple: true
+
+      - name: Merge execution reports using jq
+        run: |
+          # Github actions seems to not expand "**" in globs by default.
+          shopt -s globstar
+          jq --slurp 'map(.execution_time | select(.))' ./reports/* | tee time_bench.json
+
+      - name: Store benchmark result
+        uses: benchmark-action/github-action-benchmark@4de1bed97a47495fc4c5404952da0499e31f5c29
+        with:
+          name: "Execution Time"
+          tool: "customSmallerIsBetter"
+          output-file-path: ./time_bench.json
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          # We want this to only run on master to avoid garbage data from PRs being added.
+          auto-push: ${{ github.ref == 'refs/heads/master' }}
+          alert-threshold: "120%"
+          comment-on-alert: true
+          comment-always: ${{ contains( github.event.pull_request.labels.*.name, 'bench-show') }}
+          fail-on-alert: false
+          alert-comment-cc-users: "@TomAFrench"
+          max-items-in-chart: 50
+
+  upload_artifact_reports:
+    name: Upload artifact reports
+    needs: [external_repo_reports]
+    timeout-minutes: 5
+    # We want this job to run even if one variation of the matrix in `external_repo_reports` fails
+    if: always()
+    runs-on: ubuntu-22.04
+    permissions:
+      pull-requests: write
+      # deployments permission to deploy GitHub pages website
+      deployments: write
+      # contents permission to update benchmark contents in gh-pages branch
+      contents: write
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download matrix compilation reports
+        uses: actions/download-artifact@v4
+        with:
+          pattern: external_report_*
+          path: ./reports
+          merge-multiple: true
+
+      - name: Merge artifact size reports using jq
+        run: |
+          # Github actions seems to not expand "**" in globs by default.
+          shopt -s globstar
+          jq --slurp 'map(.artifact_size | select(.))' ./reports/* | tee artifact_size.json
+
+      - name: Store benchmark result
+        uses: benchmark-action/github-action-benchmark@4de1bed97a47495fc4c5404952da0499e31f5c29
+        with:
+          name: "Artifact Size"
+          tool: "customSmallerIsBetter"
+          output-file-path: ./artifact_size.json
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          # We want this to only run on master to avoid garbage data from PRs being added.
+          auto-push: ${{ github.ref == 'refs/heads/master' }}
+          alert-threshold: "120%"
+          comment-on-alert: true
+          comment-always: ${{ contains( github.event.pull_request.labels.*.name, 'bench-show') }}
+          fail-on-alert: false
+          alert-comment-cc-users: "@TomAFrench"
+          max-items-in-chart: 50
+
   upload_compilation_memory_report:
     name: Upload compilation memory report
     needs: [generate_memory_report, external_repo_memory_report]
+    timeout-minutes: 5
     # We want this job to run even if one variation of the matrix in `external_repo_memory_report` fails
     if: always()
     runs-on: ubuntu-22.04
@@ -606,6 +686,7 @@ jobs:
   upload_execution_memory_report:
     name: Upload execution memory report
     needs: [generate_memory_report, external_repo_memory_report]
+    timeout-minutes: 5
     # We want this job to run even if one variation of the matrix in `external_repo_memory_report` fails
     if: always()
     runs-on: ubuntu-22.04
@@ -653,70 +734,22 @@ jobs:
           alert-comment-cc-users: "@TomAFrench"
           max-items-in-chart: 50
 
-
-  upload_execution_report:
-    name: Upload execution report
-    needs: [generate_compilation_and_execution_report, external_repo_compilation_and_execution_report]
-    # We want this job to run even if one variation of the matrix in `external_repo_compilation_and_execution_report` fails
-    if: always()
-    runs-on: ubuntu-22.04
-    permissions:
-      pull-requests: write
-      # deployments permission to deploy GitHub pages website
-      deployments: write
-      # contents permission to update benchmark contents in gh-pages branch
-      contents: write
-
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Download initial execution report
-        uses: actions/download-artifact@v4
-        with:
-          name: in_progress_execution_report
-
-      - name: Download matrix execution reports
-        uses: actions/download-artifact@v4
-        with:
-          pattern: execution_report_*
-          path: ./reports
-          merge-multiple: true
-
-      - name: Merge execution reports using jq
-        run: |
-          # Github actions seems to not expand "**" in globs by default.
-          shopt -s globstar
-          jq --slurp '. | flatten' ./reports/* | tee time_bench.json
-
-      - name: Store benchmark result
-        uses: benchmark-action/github-action-benchmark@4de1bed97a47495fc4c5404952da0499e31f5c29
-        with:
-          name: "Execution Time"
-          tool: "customSmallerIsBetter"
-          output-file-path: ./time_bench.json
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-          # We want this to only run on master to avoid garbage data from PRs being added.
-          auto-push: ${{ github.ref == 'refs/heads/master' }}
-          alert-threshold: "120%"
-          comment-on-alert: true
-          comment-always: ${{ contains( github.event.pull_request.labels.*.name, 'bench-show') }}
-          fail-on-alert: false
-          alert-comment-cc-users: "@TomAFrench"
-          max-items-in-chart: 50
-
   # This is a job which depends on all test jobs and reports the overall status.
   # This allows us to add/remove test jobs without having to update the required workflows.
   reports-end:
     name: End
     runs-on: ubuntu-22.04
+    timeout-minutes: 5
     # We want this job to always run (even if the dependant jobs fail) as we want this job to fail rather than skipping.
     if: ${{ always() }}
     needs:
-      - upload_compilation_report
+      - rust_benchmarks
+      - upload_compilation_reports
+      - upload_execution_reports
+      - upload_artifact_reports
       - upload_compilation_memory_report
-      - upload_execution_report
       - upload_execution_memory_report
-     
+
     steps:
         - name: Report overall success
           run: |

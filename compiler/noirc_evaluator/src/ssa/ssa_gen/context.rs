@@ -1,27 +1,30 @@
 use std::collections::BTreeMap;
 use std::sync::{Arc, Mutex, RwLock};
 
-use acvm::{acir::AcirField, FieldElement};
+use acvm::{FieldElement, acir::AcirField};
 use iter_extended::vecmap;
 use noirc_errors::Location;
-use noirc_frontend::ast::{BinaryOpKind, Signedness};
-use noirc_frontend::monomorphization::ast::{self, GlobalId, InlineType, LocalId, Parameters};
-use noirc_frontend::monomorphization::ast::{FuncId, Program};
+use noirc_frontend::ast::BinaryOpKind;
+use noirc_frontend::monomorphization::ast::{
+    self, FuncId, GlobalId, InlineType, LocalId, Parameters, Program,
+};
+use noirc_frontend::shared::Signedness;
+use noirc_frontend::signed_field::SignedField;
 
 use crate::errors::RuntimeError;
 use crate::ssa::function_builder::FunctionBuilder;
 use crate::ssa::ir::basic_block::BasicBlockId;
 use crate::ssa::ir::function::FunctionId as IrFunctionId;
 use crate::ssa::ir::function::{Function, RuntimeType};
-use crate::ssa::ir::instruction::BinaryOp;
 use crate::ssa::ir::instruction::Instruction;
+use crate::ssa::ir::instruction::{ArrayOffset, BinaryOp};
 use crate::ssa::ir::map::AtomicCounter;
 use crate::ssa::ir::types::{NumericType, Type};
 use crate::ssa::ir::value::ValueId;
 
-use super::value::{Tree, Value, Values};
 use super::GlobalsGraph;
-use fxhash::{FxHashMap as HashMap, FxHashSet as HashSet};
+use super::value::{Tree, Value, Values};
+use fxhash::FxHashMap as HashMap;
 
 /// The FunctionContext is the main context object for translating a
 /// function into SSA form during the SSA-gen pass.
@@ -150,7 +153,7 @@ impl<'a> FunctionContext<'a> {
     /// The returned parameter type list will be flattened, so any struct parameters will
     /// be returned as one entry for each field (recursively).
     fn add_parameters_to_scope(&mut self, parameters: &Parameters) {
-        for (id, mutable, _, typ) in parameters {
+        for (id, mutable, _, typ, _visibility) in parameters {
             self.add_parameter_to_scope(*id, typ, *mutable);
         }
     }
@@ -169,8 +172,8 @@ impl<'a> FunctionContext<'a> {
         let parameter_value = Self::map_type(parameter_type, |typ| {
             let value = self.builder.add_parameter(typ);
             if mutable {
-                // This will wrap any `mut var: T` in a reference and increase the rc of an array if needed
-                self.new_mutable_variable(value, true)
+                // This will wrap any `mut var: T` in a reference
+                self.new_mutable_variable(value)
             } else {
                 value.into()
             }
@@ -181,16 +184,8 @@ impl<'a> FunctionContext<'a> {
 
     /// Allocate a single slot of memory and store into it the given initial value of the variable.
     /// Always returns a Value::Mutable wrapping the allocate instruction.
-    pub(super) fn new_mutable_variable(
-        &mut self,
-        value_to_store: ValueId,
-        increment_array_rc: bool,
-    ) -> Value {
+    pub(super) fn new_mutable_variable(&mut self, value_to_store: ValueId) -> Value {
         let element_type = self.builder.current_function.dfg.type_of_value(value_to_store);
-
-        if increment_array_rc {
-            self.builder.increment_array_reference_count(value_to_store);
-        }
 
         let alloc = self.builder.insert_allocate(element_type);
         self.builder.insert_store(alloc, value_to_store);
@@ -216,7 +211,7 @@ impl<'a> FunctionContext<'a> {
             ast::Type::Unit => Tree::empty(),
             // A mutable reference wraps each element into a reference.
             // This can be multiple values if the element type is a tuple.
-            ast::Type::MutableReference(element) => {
+            ast::Type::Reference(element, _) => {
                 Self::map_type_helper(element, &mut |typ| f(Type::Reference(Arc::new(typ))))
             }
             ast::Type::FmtString(len, fields) => {
@@ -269,7 +264,7 @@ impl<'a> FunctionContext<'a> {
             ast::Type::Tuple(_) => panic!("convert_non_tuple_type called on a tuple: {typ}"),
             ast::Type::Function(_, _, _, _) => Type::Function,
             ast::Type::Slice(_) => panic!("convert_non_tuple_type called on a slice: {typ}"),
-            ast::Type::MutableReference(element) => {
+            ast::Type::Reference(element, _) => {
                 // Recursive call to panic if element is a tuple
                 let element = Self::convert_non_tuple_type(element);
                 Type::Reference(Arc::new(element))
@@ -289,33 +284,30 @@ impl<'a> FunctionContext<'a> {
     /// otherwise values like 2^128 can be assigned to a u8 without error or wrapping.
     pub(super) fn checked_numeric_constant(
         &mut self,
-        value: impl Into<FieldElement>,
-        negative: bool,
+        value: SignedField,
         numeric_type: NumericType,
     ) -> Result<ValueId, RuntimeError> {
-        let value = value.into();
-
-        if let Some(range) = numeric_type.value_is_outside_limits(value, negative) {
+        if let Some(range) = numeric_type.value_is_outside_limits(value) {
             let call_stack = self.builder.get_call_stack();
             return Err(RuntimeError::IntegerOutOfBounds {
-                value: if negative { -value } else { value },
+                value,
                 typ: numeric_type,
                 range,
                 call_stack,
             });
         }
 
-        let value = if negative {
+        let value = if value.is_negative() {
             match numeric_type {
-                NumericType::NativeField => -value,
+                NumericType::NativeField => -value.absolute_value(),
                 NumericType::Signed { bit_size } | NumericType::Unsigned { bit_size } => {
                     assert!(bit_size < 128);
                     let base = 1_u128 << bit_size;
-                    FieldElement::from(base) - value
+                    FieldElement::from(base) - value.absolute_value()
                 }
             }
         } else {
-            value
+            value.absolute_value()
         };
 
         Ok(self.builder.numeric_constant(value, numeric_type))
@@ -599,7 +591,7 @@ impl<'a> FunctionContext<'a> {
     /// Inserts a call instruction at the end of the current block and returns the results
     /// of the call.
     ///
-    /// Compared to self.builder.insert_call, this version will reshape the returned Vec<ValueId>
+    /// Compared to self.builder.insert_call, this version will reshape the returned `Vec<ValueId>`
     /// back into a Values tree of the proper shape.
     pub(super) fn insert_call(
         &mut self,
@@ -633,16 +625,145 @@ impl<'a> FunctionContext<'a> {
         location: Location,
     ) -> ValueId {
         self.builder.set_location(location);
+        let incoming_type = self.builder.type_of_value(value);
 
-        // To ensure that `value` is a valid `typ`, we insert an `Instruction::Truncate` instruction beforehand if
-        // we're narrowing the type size.
-        let incoming_type_size = self.builder.type_of_value(value).bit_size();
-        let target_type_size = typ.bit_size();
-        if target_type_size < incoming_type_size {
-            value = self.builder.insert_truncate(value, target_type_size, incoming_type_size);
-        }
-
-        self.builder.insert_cast(value, typ)
+        let result = match (&incoming_type, typ) {
+            // Casting to field is safe
+            (_, NumericType::NativeField) => value,
+            (
+                Type::Numeric(NumericType::Signed { bit_size: incoming_type_size }),
+                NumericType::Signed { bit_size: target_type_size },
+            ) => {
+                match target_type_size.cmp(incoming_type_size) {
+                    std::cmp::Ordering::Less => {
+                        // If target size is smaller, we do a truncation
+                        self.builder.insert_truncate(value, target_type_size, *incoming_type_size)
+                    }
+                    std::cmp::Ordering::Equal => value,
+                    std::cmp::Ordering::Greater => {
+                        // If target size is bigger, we do a sign extension:
+                        // When the value is negative, it is represented in 2-complement form; `2^s-v`, where `s` is the incoming bit size and `v` is the absolute value
+                        // Sign extension in this case will give `2^t-v`, where `t` is the target bit size
+                        // So we simply convert `2^s-v` into `2^t-v` by adding `2^t-2^s` to the value when the value is negative.
+                        // Casting s-bits signed v0 to t-bits will add the following instructions:
+                        // v1 = cast v0 to 's-bits unsigned'
+                        // v2 = lt v1, 2**(s-1)
+                        // v3 = not(v1)
+                        // v4 = cast v3 to 't-bits unsigned'
+                        // v5 = v3 * (2**t - 2**s)
+                        // v6 = cast v1 to 't-bits unsigned'
+                        // return v6 + v5
+                        let value_as_unsigned = self.insert_safe_cast(
+                            value,
+                            NumericType::unsigned(*incoming_type_size),
+                            location,
+                        );
+                        let half_width = self.builder.numeric_constant(
+                            FieldElement::from(2_u128.pow(incoming_type_size - 1)),
+                            NumericType::unsigned(*incoming_type_size),
+                        );
+                        // value_sign is 1 if the value is positive, 0 otherwise
+                        let value_sign =
+                            self.builder.insert_binary(value_as_unsigned, BinaryOp::Lt, half_width);
+                        let max_for_incoming_type_size = if *incoming_type_size == 128 {
+                            u128::MAX
+                        } else {
+                            2_u128.pow(*incoming_type_size) - 1
+                        };
+                        let max_for_target_type_size = if target_type_size == 128 {
+                            u128::MAX
+                        } else {
+                            2_u128.pow(target_type_size) - 1
+                        };
+                        let patch = self.builder.numeric_constant(
+                            FieldElement::from(
+                                max_for_target_type_size - max_for_incoming_type_size,
+                            ),
+                            NumericType::unsigned(target_type_size),
+                        );
+                        let mut is_negative_predicate = self.builder.insert_not(value_sign);
+                        is_negative_predicate = self.insert_safe_cast(
+                            is_negative_predicate,
+                            NumericType::unsigned(target_type_size),
+                            location,
+                        );
+                        // multiplication by a boolean cannot overflow
+                        let patch_with_sign_predicate = self.builder.insert_binary(
+                            patch,
+                            BinaryOp::Mul { unchecked: true },
+                            is_negative_predicate,
+                        );
+                        let value_as_unsigned = self.builder.insert_cast(
+                            value_as_unsigned,
+                            NumericType::unsigned(target_type_size),
+                        );
+                        // Patch the bit sign, which gives a `target_type_size` bit size value, so it does not overflow.
+                        self.builder.insert_binary(
+                            patch_with_sign_predicate,
+                            BinaryOp::Add { unchecked: true },
+                            value_as_unsigned,
+                        )
+                    }
+                }
+            }
+            (
+                Type::Numeric(NumericType::Unsigned { bit_size: incoming_type_size }),
+                NumericType::Unsigned { bit_size: target_type_size },
+            ) => {
+                // If target size is smaller, we do a truncation
+                if target_type_size < *incoming_type_size {
+                    value =
+                        self.builder.insert_truncate(value, target_type_size, *incoming_type_size);
+                }
+                value
+            }
+            // When casting a signed value to u1 we can truncate then cast
+            (
+                Type::Numeric(NumericType::Signed { bit_size: incoming_type_size }),
+                NumericType::Unsigned { bit_size: 1 },
+            ) => self.builder.insert_truncate(value, 1, *incoming_type_size),
+            // For mixed sign to unsigned or unsigned to sign;
+            // 1. we cast to the required type using the same signedness
+            // 2. then we switch the signedness
+            (
+                Type::Numeric(NumericType::Signed { bit_size: incoming_type_size }),
+                NumericType::Unsigned { bit_size: target_type_size },
+            ) => {
+                if *incoming_type_size != target_type_size {
+                    value = self.insert_safe_cast(
+                        value,
+                        NumericType::signed(target_type_size),
+                        location,
+                    );
+                }
+                value
+            }
+            (
+                Type::Numeric(NumericType::Unsigned { bit_size: incoming_type_size }),
+                NumericType::Signed { bit_size: target_type_size },
+            ) => {
+                if *incoming_type_size != target_type_size {
+                    value = self.insert_safe_cast(
+                        value,
+                        NumericType::unsigned(target_type_size),
+                        location,
+                    );
+                }
+                value
+            }
+            (
+                Type::Numeric(NumericType::NativeField),
+                NumericType::Unsigned { bit_size: target_type_size },
+            )
+            | (
+                Type::Numeric(NumericType::NativeField),
+                NumericType::Signed { bit_size: target_type_size },
+            ) => {
+                self.builder.insert_truncate(value, target_type_size, FieldElement::max_num_bits())
+            }
+            _ => unreachable!("Invalid cast from {} to {}", incoming_type, typ),
+        };
+        self.builder.insert_cast(result, typ)
     }
 
     /// Create a const offset of an address for an array load or store
@@ -730,10 +851,12 @@ impl<'a> FunctionContext<'a> {
     /// Method: First `extract_current_value` must recurse on the lvalue to extract the current
     ///         value contained:
     ///
+    /// ```text
     /// v0 = foo.bar                 ; allocate instruction for bar
     /// v1 = load v0                 ; loading the bar array
     /// v2 = add i1, baz_index       ; field offset for index i1, field baz
     /// v3 = array_get v1, index v2  ; foo.bar[i1].baz
+    /// ```
     ///
     /// Method (part 2): Then, `assign_new_value` will recurse in the opposite direction to
     ///                  construct the larger value as needed until we can `store` to the nearest
@@ -757,11 +880,7 @@ impl<'a> FunctionContext<'a> {
         Ok(match lvalue {
             ast::LValue::Ident(ident) => {
                 let (reference, should_auto_deref) = self.ident_lvalue(ident);
-                if should_auto_deref {
-                    LValue::Dereference { reference }
-                } else {
-                    LValue::Ident
-                }
+                if should_auto_deref { LValue::Dereference { reference } } else { LValue::Ident }
             }
             ast::LValue::Index { array, index, location, .. } => {
                 self.index_lvalue(array, index, location)?.2
@@ -796,7 +915,7 @@ impl<'a> FunctionContext<'a> {
     }
 
     /// Compile the given `array[index]` expression as a reference.
-    /// This will return a triple of (array, index, lvalue_ref, Option<length>) where the lvalue_ref records the
+    /// This will return a triple of (array, index, lvalue_ref, `Option<length>`) where the lvalue_ref records the
     /// structure of the lvalue expression for use by `assign_new_value`.
     /// The optional length is for indexing slices rather than arrays since slices
     /// are represented as a tuple in the form: (length, slice contents).
@@ -878,11 +997,33 @@ impl<'a> FunctionContext<'a> {
         match lvalue {
             LValue::Ident => unreachable!("Cannot assign to a variable without a reference"),
             LValue::Index { old_array: mut array, index, array_lvalue, location } => {
+                let array_type = &self.builder.type_of_value(array);
+
+                // Checks for index Out-of-bounds
+                match array_type {
+                    Type::Array(_, len) => {
+                        let len =
+                            self.builder.numeric_constant(*len as u128, NumericType::length_type());
+                        self.codegen_access_check(index, len);
+                    }
+                    _ => unreachable!("must have array or slice but got {array_type}"),
+                }
+
                 array = self.assign_lvalue_index(new_value, array, index, location);
                 self.assign_new_value(*array_lvalue, array.into());
             }
             LValue::SliceIndex { old_slice: slice, index, slice_lvalue, location } => {
                 let mut slice_values = slice.into_value_list(self);
+
+                let array_type = &self.builder.type_of_value(slice_values[1]);
+
+                // Checks for index Out-of-bounds
+                match array_type {
+                    Type::Slice(_) => {
+                        self.codegen_access_check(index, slice_values[0]);
+                    }
+                    _ => unreachable!("must have array or slice but got {array_type}"),
+                }
 
                 slice_values[1] =
                     self.assign_lvalue_index(new_value, slice_values[1], index, location);
@@ -924,7 +1065,9 @@ impl<'a> FunctionContext<'a> {
 
         new_value.for_each(|value| {
             let value = value.eval(self);
-            array = self.builder.insert_array_set(array, index, value);
+            let mutable = false;
+            let offset = ArrayOffset::None;
+            array = self.builder.insert_array_set(array, index, value, mutable, offset);
             // Unchecked add because this can't overflow (it would have overflowed when creating the array)
             index = self.builder.insert_binary(index, BinaryOp::Add { unchecked: true }, one);
         });
@@ -955,61 +1098,6 @@ impl<'a> FunctionContext<'a> {
                 unreachable!(
                     "assign: Expected lhs and rhs values to match but found {lhs:?} and {rhs:?}"
                 )
-            }
-        }
-    }
-
-    /// Increments the reference count of mutable reference array parameters.
-    /// Any mutable-value (`mut a: [T; N]` versus `a: &mut [T; N]`) are already incremented
-    /// by `FunctionBuilder::add_parameter_to_scope`.
-    /// Returns each array id that was incremented.
-    ///
-    /// This is done on parameters rather than call arguments so that we can optimize out
-    /// paired inc/dec instructions within brillig functions more easily.
-    ///
-    /// Returns the list of parameters incremented, together with the value ID of the arrays they refer to.
-    pub(crate) fn increment_parameter_rcs(&mut self) -> Vec<(ValueId, ValueId)> {
-        let entry = self.builder.current_function.entry_block();
-        let parameters = self.builder.current_function.dfg.block_parameters(entry).to_vec();
-
-        let mut incremented = Vec::default();
-        let mut seen_array_types = HashSet::default();
-
-        for parameter in parameters {
-            // Avoid reference counts for immutable arrays that aren't behind references.
-            let typ = self.builder.current_function.dfg.type_of_value(parameter);
-
-            if let Type::Reference(element) = typ {
-                if element.contains_an_array() {
-                    // If we haven't already seen this array type, the value may be possibly
-                    // aliased, so issue an inc_rc for it.
-                    if seen_array_types.insert(element.get_contained_array().clone()) {
-                        continue;
-                    }
-                    if let Some(id) = self.builder.increment_array_reference_count(parameter) {
-                        incremented.push((parameter, id));
-                    }
-                }
-            }
-        }
-
-        incremented
-    }
-
-    /// Ends a local scope of a function.
-    /// This will issue DecrementRc instructions for any arrays in the given starting scope
-    /// block's parameters. Arrays that are also used in terminator instructions for the scope are
-    /// ignored.
-    pub(crate) fn end_scope(
-        &mut self,
-        mut incremented_params: Vec<(ValueId, ValueId)>,
-        terminator_args: &[ValueId],
-    ) {
-        incremented_params.retain(|(parameter, _)| !terminator_args.contains(parameter));
-
-        for (parameter, original) in incremented_params {
-            if self.builder.current_function.dfg.value_is_reference(parameter) {
-                self.builder.decrement_array_reference_count(parameter, original);
             }
         }
     }
@@ -1086,7 +1174,7 @@ impl SharedContext {
             GlobalsGraph::default(),
         );
         let mut globals = BTreeMap::default();
-        for (id, global) in program.globals.iter() {
+        for (id, (_, _, global)) in program.globals.iter() {
             let values = context.codegen_expression(global).unwrap();
             globals.insert(*id, values);
         }

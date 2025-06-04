@@ -442,6 +442,89 @@ impl<T, let MaxLen: u32> BoundedVec<T, MaxLen> {
         ret
     }
 
+    /// Creates a new vector of equal size by calling a closure on each element
+    /// in this vector, along with its index.
+    ///
+    /// Example:
+    ///
+    /// ```noir
+    /// let vec: BoundedVec<u32, 4> = BoundedVec::from_array([1, 2, 3, 4]);
+    /// let result = vec.mapi(|i, value| i + value * 2);
+    ///
+    /// let expected = BoundedVec::from_array([2, 5, 8, 11]);
+    /// assert_eq(result, expected);
+    /// ```
+    pub fn mapi<U, Env>(self, f: fn[Env](u32, T) -> U) -> BoundedVec<U, MaxLen> {
+        let mut ret = BoundedVec::new();
+        ret.len = self.len();
+
+        if is_unconstrained() {
+            for i in 0..self.len() {
+                ret.storage[i] = f(i, self.get_unchecked(i));
+            }
+        } else {
+            for i in 0..MaxLen {
+                if i < self.len() {
+                    ret.storage[i] = f(i, self.get_unchecked(i));
+                }
+            }
+        }
+
+        ret
+    }
+
+    /// Calls a closure on each element in this vector.
+    ///
+    /// Example:
+    ///
+    /// ```noir
+    /// let vec: BoundedVec<u32, 4> = BoundedVec::from_array([1, 2, 3, 4]);
+    /// let mut result = BoundedVec::<u32, 4>::new();
+    /// vec.for_each(|value| result.push(value * 2));
+    ///
+    /// let expected = BoundedVec::from_array([2, 4, 6, 8]);
+    /// assert_eq(result, expected);
+    /// ```
+    pub fn for_each<Env>(self, f: fn[Env](T) -> ()) {
+        if is_unconstrained() {
+            for i in 0..self.len() {
+                f(self.get_unchecked(i));
+            }
+        } else {
+            for i in 0..MaxLen {
+                if i < self.len() {
+                    f(self.get_unchecked(i));
+                }
+            }
+        }
+    }
+
+    /// Calls a closure on each element in this vector, along with its index.
+    ///
+    /// Example:
+    ///
+    /// ```noir
+    /// let vec: BoundedVec<u32, 4> = BoundedVec::from_array([1, 2, 3, 4]);
+    /// let mut result = BoundedVec::<u32, 4>::new();
+    /// vec.for_eachi(|i, value| result.push(i + value * 2));
+    ///
+    /// let expected = BoundedVec::from_array([2, 5, 8, 11]);
+    /// assert_eq(result, expected);
+    /// ```
+    pub fn for_eachi<Env>(self, f: fn[Env](u32, T) -> ()) {
+        if is_unconstrained() {
+            for i in 0..self.len() {
+                f(i, self.get_unchecked(i));
+            }
+        } else {
+            for i in 0..MaxLen {
+                if i < self.len() {
+                    f(i, self.get_unchecked(i));
+                }
+            }
+        }
+    }
+
     /// Creates a new BoundedVec from the given array and length.
     /// The given length must be less than or equal to the length of the array.
     ///
@@ -599,6 +682,150 @@ mod bounded_vec_tests {
         fn does_not_apply_function_past_len() {
             let vec: BoundedVec<u32, 3> = BoundedVec::from_array([0, 1]);
             let result = vec.map(|value| if value == 0 { 5 } else { value });
+            let expected = BoundedVec::from_array([5, 1]);
+
+            assert_eq(result, expected);
+            assert_eq(result.get_unchecked(2), 0);
+        }
+    }
+
+    mod mapi {
+        use crate::collections::bounded_vec::BoundedVec;
+
+        #[test]
+        fn applies_function_correctly() {
+            // docs:start:bounded-vec-mapi-example
+            let vec: BoundedVec<u32, 4> = BoundedVec::from_array([1, 2, 3, 4]);
+            let result = vec.mapi(|i, value| i + value * 2);
+            // docs:end:bounded-vec-mapi-example
+            let expected = BoundedVec::from_array([2, 5, 8, 11]);
+
+            assert_eq(result, expected);
+        }
+
+        #[test]
+        fn applies_function_that_changes_return_type() {
+            let vec: BoundedVec<u32, 4> = BoundedVec::from_array([1, 2, 3, 4]);
+            let result = vec.mapi(|i, value| (i + value * 2) as Field);
+            let expected: BoundedVec<Field, 4> = BoundedVec::from_array([2, 5, 8, 11]);
+
+            assert_eq(result, expected);
+        }
+
+        #[test]
+        fn does_not_apply_function_past_len() {
+            let vec: BoundedVec<u32, 3> = BoundedVec::from_array([0, 1]);
+            let result = vec.mapi(|_, value| if value == 0 { 5 } else { value });
+            let expected = BoundedVec::from_array([5, 1]);
+
+            assert_eq(result, expected);
+            assert_eq(result.get_unchecked(2), 0);
+        }
+    }
+
+    mod for_each {
+        use crate::collections::bounded_vec::BoundedVec;
+
+        // map in terms of for_each
+        fn for_each_map<T, U, Env, let MaxLen: u32>(
+            input: BoundedVec<T, MaxLen>,
+            f: fn[Env](T) -> U,
+        ) -> BoundedVec<U, MaxLen> {
+            let mut output = BoundedVec::<U, MaxLen>::new();
+            let output_ref = &mut output;
+            input.for_each(|x| output_ref.push(f(x)));
+            output
+        }
+
+        #[test]
+        fn smoke_test() {
+            let mut acc = 0;
+            let acc_ref = &mut acc;
+            // docs:start:bounded-vec-for-each-example
+            let vec: BoundedVec<u32, 3> = BoundedVec::from_array([1, 2, 3]);
+            vec.for_each(|value| { *acc_ref += value; });
+            // docs:end:bounded-vec-for-each-example
+            assert_eq(acc, 6);
+        }
+
+        #[test]
+        fn applies_function_correctly() {
+            let vec: BoundedVec<u32, 4> = BoundedVec::from_array([1, 2, 3, 4]);
+            let result = for_each_map(vec, |value| value * 2);
+            let expected = BoundedVec::from_array([2, 4, 6, 8]);
+
+            assert_eq(result, expected);
+        }
+
+        #[test]
+        fn applies_function_that_changes_return_type() {
+            let vec: BoundedVec<u32, 4> = BoundedVec::from_array([1, 2, 3, 4]);
+            let result = for_each_map(vec, |value| (value * 2) as Field);
+            let expected: BoundedVec<Field, 4> = BoundedVec::from_array([2, 4, 6, 8]);
+
+            assert_eq(result, expected);
+        }
+
+        #[test]
+        fn does_not_apply_function_past_len() {
+            let vec: BoundedVec<u32, 3> = BoundedVec::from_array([0, 1]);
+            let result = for_each_map(vec, |value| if value == 0 { 5 } else { value });
+            let expected = BoundedVec::from_array([5, 1]);
+
+            assert_eq(result, expected);
+            assert_eq(result.get_unchecked(2), 0);
+        }
+    }
+
+    mod for_eachi {
+        use crate::collections::bounded_vec::BoundedVec;
+
+        // mapi in terms of for_eachi
+        fn for_eachi_mapi<T, U, Env, let MaxLen: u32>(
+            input: BoundedVec<T, MaxLen>,
+            f: fn[Env](u32, T) -> U,
+        ) -> BoundedVec<U, MaxLen> {
+            let mut output = BoundedVec::<U, MaxLen>::new();
+            let output_ref = &mut output;
+            input.for_eachi(|i, x| output_ref.push(f(i, x)));
+            output
+        }
+
+        #[test]
+        fn smoke_test() {
+            let mut acc = 0;
+            let acc_ref = &mut acc;
+            // docs:start:bounded-vec-for-eachi-example
+            let vec: BoundedVec<u32, 3> = BoundedVec::from_array([1, 2, 3]);
+            vec.for_eachi(|i, value| { *acc_ref += i * value; });
+            // docs:end:bounded-vec-for-eachi-example
+
+            // 0 * 1 + 1 * 2 + 2 * 3
+            assert_eq(acc, 8);
+        }
+
+        #[test]
+        fn applies_function_correctly() {
+            let vec: BoundedVec<u32, 4> = BoundedVec::from_array([1, 2, 3, 4]);
+            let result = for_eachi_mapi(vec, |i, value| i + value * 2);
+            let expected = BoundedVec::from_array([2, 5, 8, 11]);
+
+            assert_eq(result, expected);
+        }
+
+        #[test]
+        fn applies_function_that_changes_return_type() {
+            let vec: BoundedVec<u32, 4> = BoundedVec::from_array([1, 2, 3, 4]);
+            let result = for_eachi_mapi(vec, |i, value| (i + value * 2) as Field);
+            let expected: BoundedVec<Field, 4> = BoundedVec::from_array([2, 5, 8, 11]);
+
+            assert_eq(result, expected);
+        }
+
+        #[test]
+        fn does_not_apply_function_past_len() {
+            let vec: BoundedVec<u32, 3> = BoundedVec::from_array([0, 1]);
+            let result = for_eachi_mapi(vec, |_, value| if value == 0 { 5 } else { value });
             let expected = BoundedVec::from_array([5, 1]);
 
             assert_eq(result, expected);

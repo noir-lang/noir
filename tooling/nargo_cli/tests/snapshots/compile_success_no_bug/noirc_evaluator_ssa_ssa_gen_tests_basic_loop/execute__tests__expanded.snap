@@ -1,0 +1,11 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: expanded_code
+---
+fn main(sum_to_check: u32) {
+    let mut sum: u32 = 0;
+    for i in 0..4 {
+        sum = sum + i;
+    }
+    assert(sum_to_check == sum);
+}

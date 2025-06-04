@@ -1,9 +1,10 @@
 use serde::{Deserialize, Serialize};
 
-// Witness might be a misnomer. This is an index that represents the position a witness will take
+/// An index that represents the position a witness value will take
 #[derive(
     Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord, Default, Serialize, Deserialize,
 )]
+#[cfg_attr(feature = "arb", derive(proptest_derive::Arbitrary))]
 pub struct Witness(pub u32);
 
 impl Witness {

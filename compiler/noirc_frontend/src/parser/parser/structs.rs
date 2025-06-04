@@ -6,9 +6,9 @@ use crate::{
     token::{Attribute, SecondaryAttribute, Token},
 };
 
-use super::{parse_many::separated_by_comma_until_right_brace, Parser};
+use super::{Parser, parse_many::separated_by_comma_until_right_brace};
 
-impl<'a> Parser<'a> {
+impl Parser<'_> {
     /// Struct = 'struct' identifier Generics '{' StructField* '}'
     ///
     /// StructField = OuterDocComments identifier ':' Type
@@ -23,7 +23,7 @@ impl<'a> Parser<'a> {
         let Some(name) = self.eat_ident() else {
             self.expected_identifier();
             return self.empty_struct(
-                Ident::default(),
+                self.unknown_ident_at_previous_token_end(),
                 attributes,
                 visibility,
                 Vec::new(),
@@ -31,7 +31,7 @@ impl<'a> Parser<'a> {
             );
         };
 
-        let generics = self.parse_generics();
+        let generics = self.parse_generics_disallowing_trait_bounds();
 
         if self.eat_semicolons() {
             return self.empty_struct(name, attributes, visibility, generics, start_location);
@@ -128,15 +128,17 @@ impl<'a> Parser<'a> {
 
 #[cfg(test)]
 mod tests {
+    use insta::assert_snapshot;
+
     use crate::{
-        ast::{IntegerBitSize, NoirStruct, Signedness, UnresolvedGeneric, UnresolvedTypeData},
+        ast::{NoirStruct, UnresolvedGeneric},
         parse_program_with_dummy_file,
         parser::{
+            ItemKind, ParserErrorReason,
             parser::tests::{
                 expect_no_errors, get_single_error, get_single_error_reason,
                 get_source_with_error_span,
             },
-            ItemKind, ParserErrorReason,
         },
     };
 
@@ -178,20 +180,18 @@ mod tests {
         assert_eq!(noir_struct.generics.len(), 2);
 
         let generic = noir_struct.generics.remove(0);
-        let UnresolvedGeneric::Variable(ident) = generic else {
+        let UnresolvedGeneric::Variable(ident, trait_bounds) = generic else {
             panic!("Expected generic variable");
         };
         assert_eq!("A", ident.to_string());
+        assert!(trait_bounds.is_empty());
 
         let generic = noir_struct.generics.remove(0);
         let UnresolvedGeneric::Numeric { ident, typ } = generic else {
             panic!("Expected generic numeric");
         };
         assert_eq!("B", ident.to_string());
-        assert_eq!(
-            typ.typ,
-            UnresolvedTypeData::Integer(Signedness::Unsigned, IntegerBitSize::ThirtyTwo)
-        );
+        assert_eq!(typ.typ.to_string(), "u32");
     }
 
     #[test]
@@ -203,14 +203,11 @@ mod tests {
 
         let field = noir_struct.fields.remove(0).item;
         assert_eq!("x", field.name.to_string());
-        assert!(matches!(
-            field.typ.typ,
-            UnresolvedTypeData::Integer(Signedness::Signed, IntegerBitSize::ThirtyTwo)
-        ));
+        assert_eq!(field.typ.typ.to_string(), "i32");
 
         let field = noir_struct.fields.remove(0).item;
         assert_eq!("y", field.name.to_string());
-        assert!(matches!(field.typ.typ, UnresolvedTypeData::FieldElement));
+        assert_eq!(field.typ.typ.to_string(), "Field");
     }
 
     #[test]
@@ -270,6 +267,6 @@ mod tests {
         assert_eq!(noir_struct.fields.len(), 1);
 
         let error = get_single_error(&errors, span);
-        assert_eq!(error.to_string(), "Expected an identifier but found '42'");
+        assert_snapshot!(error.to_string(), @"Expected an identifier but found '42'");
     }
 }

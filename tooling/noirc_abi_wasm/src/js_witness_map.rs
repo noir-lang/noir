@@ -1,11 +1,11 @@
 //! This can most likely be imported from acvm_js to avoid redefining it here.
 
 use acvm::{
-    acir::native_types::{Witness, WitnessMap},
     AcirField, FieldElement,
+    acir::native_types::{Witness, WitnessMap},
 };
 use js_sys::{JsString, Map};
-use wasm_bindgen::prelude::{wasm_bindgen, JsValue};
+use wasm_bindgen::prelude::{JsValue, wasm_bindgen};
 
 // WitnessMap
 #[wasm_bindgen]
@@ -65,21 +65,21 @@ pub(crate) fn field_element_to_js_string(field_element: &FieldElement) -> JsStri
     format!("0x{}", field_element.to_hex()).into()
 }
 
-#[cfg(test)]
+#[cfg(all(test, any(target_arch = "wasm32", target_arch = "wasm64"), target_os = "unknown"))]
 mod test {
-    use wasm_bindgen_test::wasm_bindgen_test as test;
+    use wasm_bindgen_test::*;
 
     use std::collections::BTreeMap;
 
     use acvm::{
-        acir::native_types::{Witness, WitnessMap},
         AcirField, FieldElement,
+        acir::native_types::{Witness, WitnessMap},
     };
     use wasm_bindgen::JsValue;
 
     use crate::JsWitnessMap;
 
-    #[test]
+    #[wasm_bindgen_test]
     fn test_witness_map_to_js() {
         let witness_map = BTreeMap::from([
             (Witness(1), FieldElement::one()),

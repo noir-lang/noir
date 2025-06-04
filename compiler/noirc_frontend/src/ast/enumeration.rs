@@ -21,7 +21,7 @@ pub struct NoirEnumeration {
 
 impl NoirEnumeration {
     pub fn is_abi(&self) -> bool {
-        self.attributes.iter().any(|attr| attr.is_abi())
+        self.attributes.iter().any(|attr| attr.kind.is_abi())
     }
 }
 
@@ -40,7 +40,8 @@ pub struct EnumVariant {
 impl Display for NoirEnumeration {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let generics = vecmap(&self.generics, |generic| generic.to_string());
-        let generics = if generics.is_empty() { "".into() } else { generics.join(", ") };
+        let generics =
+            if generics.is_empty() { "".into() } else { format!("<{}>", generics.join(", ")) };
 
         writeln!(f, "enum {}{} {{", self.name, generics)?;
 

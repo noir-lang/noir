@@ -1,9 +1,10 @@
 use acvm::acir::brillig::Opcode as BrilligOpcode;
 use acvm::acir::circuit::ErrorSelector;
+use noirc_errors::call_stack::CallStackId;
 use std::collections::{BTreeMap, HashMap};
 
-use crate::ssa::ir::{basic_block::BasicBlockId, call_stack::CallStack, function::FunctionId};
 use crate::ErrorType;
+use crate::ssa::ir::{basic_block::BasicBlockId, function::FunctionId};
 
 use super::procedures::ProcedureId;
 
@@ -21,10 +22,10 @@ pub(crate) enum BrilligParameter {
 
 /// The result of compiling and linking brillig artifacts.
 /// This is ready to run bytecode with attached metadata.
-#[derive(Debug, Default)]
+#[derive(Debug, Default, Clone)]
 pub(crate) struct GeneratedBrillig<F> {
     pub(crate) byte_code: Vec<BrilligOpcode<F>>,
-    pub(crate) locations: BTreeMap<OpcodeLocation, CallStack>,
+    pub(crate) locations: BTreeMap<OpcodeLocation, CallStackId>,
     pub(crate) error_types: BTreeMap<ErrorSelector, ErrorType>,
     pub(crate) name: String,
     pub(crate) procedure_locations: BTreeMap<ProcedureId, (OpcodeLocation, OpcodeLocation)>,
@@ -33,7 +34,7 @@ pub(crate) struct GeneratedBrillig<F> {
 #[derive(Default, Debug, Clone)]
 /// Artifacts resulting from the compilation of a function into brillig byte code.
 /// It includes the bytecode of the function and all the metadata that allows linking with other functions.
-pub(crate) struct BrilligArtifact<F> {
+pub struct BrilligArtifact<F> {
     pub(crate) byte_code: Vec<BrilligOpcode<F>>,
     pub(crate) error_types: BTreeMap<ErrorSelector, ErrorType>,
     /// The set of jumps that need to have their locations
@@ -49,9 +50,9 @@ pub(crate) struct BrilligArtifact<F> {
     /// TODO: and have an enum which indicates whether the jump is internal or external
     unresolved_external_call_labels: Vec<(JumpInstructionPosition, Label)>,
     /// Maps the opcodes that are associated with a callstack to it.
-    locations: BTreeMap<OpcodeLocation, CallStack>,
+    locations: BTreeMap<OpcodeLocation, CallStackId>,
     /// The current call stack. All opcodes that are pushed will be associated with this call stack.
-    call_stack: CallStack,
+    call_stack_id: CallStackId,
     /// Name of the function, only used for debugging purposes.
     pub(crate) name: String,
 
@@ -227,14 +228,14 @@ impl<F: Clone + std::fmt::Debug> BrilligArtifact<F> {
         }
 
         for (position_in_bytecode, call_stack) in obj.locations.iter() {
-            self.locations.insert(position_in_bytecode + offset, call_stack.clone());
+            self.locations.insert(position_in_bytecode + offset, *call_stack);
         }
     }
 
     /// Adds a brillig instruction to the brillig byte code
     pub(crate) fn push_opcode(&mut self, opcode: BrilligOpcode<F>) {
-        if !self.call_stack.is_empty() {
-            self.locations.insert(self.index_of_next_opcode(), self.call_stack.clone());
+        if !self.call_stack_id.is_root() {
+            self.locations.insert(self.index_of_next_opcode(), self.call_stack_id);
         }
         self.byte_code.push(opcode);
     }
@@ -304,25 +305,37 @@ impl<F: Clone + std::fmt::Debug> BrilligArtifact<F> {
             let jump_instruction = self.byte_code[*location_of_jump].clone();
             match jump_instruction {
                 BrilligOpcode::Jump { location } => {
-                    assert_eq!(location, 0, "location is not zero, which means that the jump label does not need resolving");
+                    assert_eq!(
+                        location, 0,
+                        "location is not zero, which means that the jump label does not need resolving"
+                    );
 
                     self.byte_code[*location_of_jump] =
                         BrilligOpcode::Jump { location: resolved_location };
                 }
                 BrilligOpcode::JumpIfNot { condition, location } => {
-                    assert_eq!(location, 0, "location is not zero, which means that the jump label does not need resolving");
+                    assert_eq!(
+                        location, 0,
+                        "location is not zero, which means that the jump label does not need resolving"
+                    );
 
                     self.byte_code[*location_of_jump] =
                         BrilligOpcode::JumpIfNot { condition, location: resolved_location };
                 }
                 BrilligOpcode::JumpIf { condition, location } => {
-                    assert_eq!(location, 0, "location is not zero, which means that the jump label does not need resolving");
+                    assert_eq!(
+                        location, 0,
+                        "location is not zero, which means that the jump label does not need resolving"
+                    );
 
                     self.byte_code[*location_of_jump] =
                         BrilligOpcode::JumpIf { condition, location: resolved_location };
                 }
                 BrilligOpcode::Call { location } => {
-                    assert_eq!(location, 0, "location is not zero, which means that the call label does not need resolving");
+                    assert_eq!(
+                        location, 0,
+                        "location is not zero, which means that the call label does not need resolving"
+                    );
 
                     self.byte_code[*location_of_jump] =
                         BrilligOpcode::Call { location: resolved_location };
@@ -334,8 +347,8 @@ impl<F: Clone + std::fmt::Debug> BrilligArtifact<F> {
         }
     }
 
-    pub(crate) fn set_call_stack(&mut self, call_stack: CallStack) {
-        self.call_stack = call_stack;
+    pub(crate) fn set_call_stack(&mut self, call_stack: CallStackId) {
+        self.call_stack_id = call_stack;
     }
 
     #[cfg(test)]

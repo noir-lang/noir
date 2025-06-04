@@ -4,20 +4,20 @@ use noirc_errors::Location;
 use noirc_frontend::{
     ast::MethodCallExpression,
     hir::def_map::ModuleDefId,
+    modules::module_def_id_relative_path,
     node_interner::{ReferenceId, TraitId},
 };
 
 use crate::{
-    modules::module_def_id_relative_path,
     requests::TraitReexport,
     use_segment_positions::{
-        use_completion_item_additional_text_edits, UseCompletionItemAdditionTextEditsRequest,
+        UseCompletionItemAdditionTextEditsRequest, use_completion_item_additional_text_edits,
     },
 };
 
 use super::CodeActionFinder;
 
-impl<'a> CodeActionFinder<'a> {
+impl CodeActionFinder<'_> {
     pub(super) fn import_trait_in_method_call(&mut self, method_call: &MethodCallExpression) {
         // First see if the method name already points to a function.
         let name_location = Location::new(method_call.method_name.span(), self.file);
@@ -42,7 +42,7 @@ impl<'a> CodeActionFinder<'a> {
         };
 
         let trait_methods =
-            self.interner.lookup_trait_methods(&typ, &method_call.method_name.0.contents, true);
+            self.interner.lookup_trait_methods(typ, method_call.method_name.as_str(), true);
         let trait_ids: HashSet<_> = trait_methods.iter().map(|(_, trait_id)| *trait_id).collect();
 
         for trait_id in trait_ids {
@@ -96,8 +96,7 @@ impl<'a> CodeActionFinder<'a> {
         };
 
         // Check if the trait is currently imported. If yes, no need to suggest anything
-        let module_data =
-            &self.def_maps[&self.module_id.krate].modules()[self.module_id.local_id.0];
+        let module_data = &self.def_maps[&self.module_id.krate][self.module_id.local_id];
         if !module_data.scope().find_name(&trait_name).is_none() {
             return;
         }
@@ -108,7 +107,7 @@ impl<'a> CodeActionFinder<'a> {
 
         let Some(full_path) = module_def_id_relative_path(
             module_def_id,
-            &trait_name.0.contents,
+            trait_name.as_str(),
             self.module_id,
             current_module_parent_id,
             defining_module,

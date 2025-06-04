@@ -5,43 +5,48 @@ use builtin_helpers::{
     block_expression_to_value, byte_array_type, check_argument_count,
     check_function_not_yet_resolved, check_one_argument, check_three_arguments,
     check_two_arguments, get_bool, get_expr, get_field, get_format_string, get_function_def,
-    get_module, get_quoted, get_slice, get_struct, get_trait_constraint, get_trait_def,
-    get_trait_impl, get_tuple, get_type, get_typed_expr, get_u32, get_unresolved_type,
-    has_named_attribute, hir_pattern_to_tokens, mutate_func_meta_type, parse, quote_ident,
-    replace_func_meta_parameters, replace_func_meta_return_type,
+    get_module, get_quoted, get_slice, get_trait_constraint, get_trait_def, get_trait_impl,
+    get_tuple, get_type, get_type_id, get_typed_expr, get_u32, get_unresolved_type,
+    has_named_attribute, hir_pattern_to_tokens, mutate_func_meta_type, new_binary_op, new_unary_op,
+    parse, quote_ident, replace_func_meta_parameters, replace_func_meta_return_type,
+    visibility_to_quoted,
 };
 use im::Vector;
 use iter_extended::{try_vecmap, vecmap};
-use noirc_errors::{Location, Span};
+use noirc_errors::Location;
 use num_bigint::BigUint;
 use rustc_hash::FxHashMap as HashMap;
 
 use crate::{
+    Kind, NamedGeneric, QuotedType, ResolvedGeneric, Shared, Type, TypeVariable,
     ast::{
         ArrayLiteral, BlockExpression, ConstrainKind, Expression, ExpressionKind, ForRange,
-        FunctionKind, FunctionReturnType, Ident, IntegerBitSize, ItemVisibility, LValue, Literal,
-        Pattern, Signedness, Statement, StatementKind, UnaryOp, UnresolvedType, UnresolvedTypeData,
-        Visibility,
+        FunctionKind, FunctionReturnType, Ident, IntegerBitSize, LValue, Literal, Pattern,
+        Statement, StatementKind, UnresolvedType, UnresolvedTypeData, UnsafeExpression,
     },
-    elaborator::{ElaborateReason, Elaborator},
+    elaborator::{ElaborateReason, Elaborator, PrimitiveType},
     hir::{
         comptime::{
+            InterpreterError, Value,
+            display::tokens_to_string,
             errors::IResult,
             value::{ExprValue, TypedExpr},
-            InterpreterError, Value,
         },
         def_collector::dc_crate::CollectedItems,
         def_map::ModuleDefId,
+        type_check::generics::TraitGenerics,
     },
     hir_def::{
         self,
-        expr::{HirExpression, HirIdent, HirLiteral},
+        expr::{HirExpression, HirIdent, HirLiteral, ImplKind, TraitMethod},
         function::FunctionBody,
+        traits::{ResolvedTraitBound, TraitConstraint},
     },
-    node_interner::{DefinitionKind, NodeInterner, TraitImplKind},
+    node_interner::{DefinitionKind, NodeInterner, TraitImplKind, TraitMethodId},
     parser::{Parser, StatementOrExpressionOrLValue},
+    shared::{Signedness, Visibility},
+    signed_field::SignedField,
     token::{Attribute, LocatedToken, Token},
-    Kind, QuotedType, ResolvedGeneric, Shared, Type, TypeVariable,
 };
 
 use self::builtin_helpers::{eq_item, get_array, get_ctstring, get_str, get_u8, hash_item, lex};
@@ -49,7 +54,7 @@ use super::Interpreter;
 
 pub(crate) mod builtin_helpers;
 
-impl<'local, 'context> Interpreter<'local, 'context> {
+impl Interpreter<'_, '_> {
     pub(super) fn call_builtin(
         &mut self,
         name: &str,
@@ -166,7 +171,7 @@ impl<'local, 'context> Interpreter<'local, 'context> {
             "quoted_as_module" => quoted_as_module(self, arguments, return_type, location),
             "quoted_as_trait_constraint" => quoted_as_trait_constraint(self, arguments, location),
             "quoted_as_type" => quoted_as_type(self, arguments, location),
-            "quoted_eq" => quoted_eq(arguments, location),
+            "quoted_eq" => quoted_eq(self.elaborator.interner, arguments, location),
             "quoted_hash" => quoted_hash(arguments, location),
             "quoted_tokens" => quoted_tokens(arguments, location),
             "slice_insert" => slice_insert(interner, arguments, location),
@@ -179,24 +184,6 @@ impl<'local, 'context> Interpreter<'local, 'context> {
             "static_assert" => static_assert(interner, arguments, location, call_stack),
             "str_as_bytes" => str_as_bytes(interner, arguments, location),
             "str_as_ctstring" => str_as_ctstring(interner, arguments, location),
-            "struct_def_add_attribute" => struct_def_add_attribute(interner, arguments, location),
-            "struct_def_add_generic" => struct_def_add_generic(interner, arguments, location),
-            "struct_def_as_type" => struct_def_as_type(interner, arguments, location),
-            "struct_def_eq" => struct_def_eq(arguments, location),
-            "struct_def_fields" => struct_def_fields(interner, arguments, location, call_stack),
-            "struct_def_fields_as_written" => {
-                struct_def_fields_as_written(interner, arguments, location)
-            }
-            "struct_def_generics" => {
-                struct_def_generics(interner, arguments, return_type, location)
-            }
-            "struct_def_has_named_attribute" => {
-                struct_def_has_named_attribute(interner, arguments, location)
-            }
-            "struct_def_hash" => struct_def_hash(arguments, location),
-            "struct_def_module" => struct_def_module(self, arguments, location),
-            "struct_def_name" => struct_def_name(interner, arguments, location),
-            "struct_def_set_fields" => struct_def_set_fields(interner, arguments, location),
             "to_be_radix" => to_be_radix(arguments, return_type, location),
             "to_le_radix" => to_le_radix(arguments, return_type, location),
             "to_be_bits" => to_be_bits(arguments, return_type, location),
@@ -220,8 +207,24 @@ impl<'local, 'context> Interpreter<'local, 'context> {
             }
             "type_as_slice" => type_as_slice(arguments, return_type, location),
             "type_as_str" => type_as_str(arguments, return_type, location),
-            "type_as_struct" => type_as_struct(arguments, return_type, location),
+            "type_as_data_type" => type_as_data_type(arguments, return_type, location),
             "type_as_tuple" => type_as_tuple(arguments, return_type, location),
+            "type_def_add_attribute" => type_def_add_attribute(interner, arguments, location),
+            "type_def_add_generic" => type_def_add_generic(interner, arguments, location),
+            "type_def_as_type" => type_def_as_type(interner, arguments, location),
+            "type_def_eq" => type_def_eq(arguments, location),
+            "type_def_fields" => type_def_fields(interner, arguments, location, call_stack),
+            "type_def_fields_as_written" => {
+                type_def_fields_as_written(interner, arguments, location)
+            }
+            "type_def_generics" => type_def_generics(interner, arguments, return_type, location),
+            "type_def_has_named_attribute" => {
+                type_def_has_named_attribute(interner, arguments, location)
+            }
+            "type_def_hash" => type_def_hash(arguments, location),
+            "type_def_module" => type_def_module(self, arguments, location),
+            "type_def_name" => type_def_name(interner, arguments, location),
+            "type_def_set_fields" => type_def_set_fields(self.elaborator, arguments, location),
             "type_eq" => type_eq(arguments, location),
             "type_get_trait_impl" => {
                 type_get_trait_impl(interner, arguments, return_type, location)
@@ -247,7 +250,7 @@ impl<'local, 'context> Interpreter<'local, 'context> {
             "unresolved_type_is_bool" => unresolved_type_is_bool(interner, arguments, location),
             "unresolved_type_is_field" => unresolved_type_is_field(interner, arguments, location),
             "unresolved_type_is_unit" => unresolved_type_is_unit(interner, arguments, location),
-            "zeroed" => Ok(zeroed(return_type, location.span)),
+            "zeroed" => Ok(zeroed(return_type, location)),
             _ => {
                 let item = format!("Comptime evaluation for builtin function '{name}'");
                 Err(InterpreterError::Unimplemented { item, location })
@@ -329,7 +332,7 @@ fn slice_push_back(
     Ok(Value::Slice(values, typ))
 }
 
-// static_assert<let N: u32>(predicate: bool, message: str<N>)
+// static_assert<let N: u32>(predicate: bool, message: T)
 fn static_assert(
     interner: &NodeInterner,
     arguments: Vec<(Value, Location)>,
@@ -338,7 +341,7 @@ fn static_assert(
 ) -> IResult<Value> {
     let (predicate, message) = check_two_arguments(arguments, location)?;
     let predicate = get_bool(predicate)?;
-    let message = get_str(interner, message)?;
+    let message = message.0.display(interner).to_string();
 
     if predicate {
         Ok(Value::Unit)
@@ -376,7 +379,7 @@ fn str_as_ctstring(
 }
 
 // fn add_attribute<let N: u32>(self, attribute: str<N>)
-fn struct_def_add_attribute(
+fn type_def_add_attribute(
     interner: &mut NodeInterner,
     arguments: Vec<(Value, Location)>,
     location: Location,
@@ -393,8 +396,8 @@ fn struct_def_add_attribute(
         });
     };
 
-    let struct_id = get_struct(self_argument)?;
-    interner.update_type_attributes(struct_id, |attributes| {
+    let type_id = get_type_id(self_argument)?;
+    interner.update_type_attributes(type_id, |attributes| {
         attributes.push(attribute);
     });
 
@@ -402,7 +405,7 @@ fn struct_def_add_attribute(
 }
 
 // fn add_generic<let N: u32>(self, generic_name: str<N>)
-fn struct_def_add_generic(
+fn type_def_add_generic(
     interner: &NodeInterner,
     arguments: Vec<(Value, Location)>,
     location: Location,
@@ -426,7 +429,7 @@ fn struct_def_add_generic(
         });
     };
 
-    let struct_id = get_struct(self_argument)?;
+    let struct_id = get_type_id(self_argument)?;
     let the_struct = interner.get_type(struct_id);
     let mut the_struct = the_struct.borrow_mut();
     let name = Rc::new(generic_name);
@@ -444,7 +447,11 @@ fn struct_def_add_generic(
 
     let type_var_kind = Kind::Normal;
     let type_var = TypeVariable::unbound(interner.next_type_variable_id(), type_var_kind);
-    let typ = Type::NamedGeneric(type_var.clone(), name.clone());
+    let typ = Type::NamedGeneric(NamedGeneric {
+        type_var: type_var.clone(),
+        name: name.clone(),
+        implicit: false,
+    });
     let new_generic = ResolvedGeneric { name, type_var, location: generic_location };
     the_struct.generics.push(new_generic);
 
@@ -452,35 +459,33 @@ fn struct_def_add_generic(
 }
 
 /// fn as_type(self) -> Type
-fn struct_def_as_type(
+fn type_def_as_type(
     interner: &NodeInterner,
     arguments: Vec<(Value, Location)>,
     location: Location,
 ) -> IResult<Value> {
     let argument = check_one_argument(arguments, location)?;
-    let struct_id = get_struct(argument)?;
-    let struct_def_rc = interner.get_type(struct_id);
-    let struct_def = struct_def_rc.borrow();
+    let struct_id = get_type_id(argument)?;
+    let type_def_rc = interner.get_type(struct_id);
+    let type_def = type_def_rc.borrow();
 
-    let generics = vecmap(&struct_def.generics, |generic| {
-        Type::NamedGeneric(generic.type_var.clone(), generic.name.clone())
-    });
+    let generics = vecmap(&type_def.generics, |generic| generic.clone().as_named_generic());
 
-    drop(struct_def);
-    Ok(Value::Type(Type::DataType(struct_def_rc, generics)))
+    drop(type_def);
+    Ok(Value::Type(Type::DataType(type_def_rc, generics)))
 }
 
-/// fn generics(self) -> [(Type, Option<Type>)]
-fn struct_def_generics(
+/// fn generics(self) -> [(Type, `Option<Type>`)]
+fn type_def_generics(
     interner: &NodeInterner,
     arguments: Vec<(Value, Location)>,
     return_type: Type,
     location: Location,
 ) -> IResult<Value> {
     let argument = check_one_argument(arguments, location)?;
-    let struct_id = get_struct(argument)?;
-    let struct_def = interner.get_type(struct_id);
-    let struct_def = struct_def.borrow();
+    let type_id = get_type_id(argument)?;
+    let type_def = interner.get_type(type_id);
+    let type_def = type_def.borrow();
 
     let expected = Type::Slice(Box::new(Type::Tuple(vec![
         Type::Quoted(QuotedType::Type),
@@ -499,7 +504,7 @@ fn struct_def_generics(
         _ => return Err(InterpreterError::TypeMismatch { expected, actual, location }),
     };
 
-    let generics = struct_def
+    let generics = type_def
         .generics
         .iter()
         .map(|generic| {
@@ -508,7 +513,7 @@ fn struct_def_generics(
                 Kind::Numeric(numeric_type) => Some(Value::Type(*numeric_type)),
                 _ => None,
             };
-            let numeric_type = option(option_typ.clone(), numeric_type, location.span);
+            let numeric_type = option(option_typ.clone(), numeric_type, location);
             Value::Tuple(vec![Value::Type(generic_as_named), numeric_type])
         })
         .collect();
@@ -516,39 +521,39 @@ fn struct_def_generics(
     Ok(Value::Slice(generics, slice_item_type))
 }
 
-fn struct_def_hash(arguments: Vec<(Value, Location)>, location: Location) -> IResult<Value> {
-    hash_item(arguments, location, get_struct)
+fn type_def_hash(arguments: Vec<(Value, Location)>, location: Location) -> IResult<Value> {
+    hash_item(arguments, location, get_type_id)
 }
 
-fn struct_def_eq(arguments: Vec<(Value, Location)>, location: Location) -> IResult<Value> {
-    eq_item(arguments, location, get_struct)
+fn type_def_eq(arguments: Vec<(Value, Location)>, location: Location) -> IResult<Value> {
+    eq_item(arguments, location, get_type_id)
 }
 
 // fn has_named_attribute<let N: u32>(self, name: str<N>) -> bool {}
-fn struct_def_has_named_attribute(
+fn type_def_has_named_attribute(
     interner: &NodeInterner,
     arguments: Vec<(Value, Location)>,
     location: Location,
 ) -> IResult<Value> {
     let (self_argument, name) = check_two_arguments(arguments, location)?;
-    let struct_id = get_struct(self_argument)?;
+    let type_id = get_type_id(self_argument)?;
 
     let name = get_str(interner, name)?;
 
-    Ok(Value::Bool(has_named_attribute(&name, interner.type_attributes(&struct_id))))
+    Ok(Value::Bool(has_named_attribute(&name, interner.type_attributes(&type_id), interner)))
 }
 
-/// fn fields(self, generic_args: [Type]) -> [(Quoted, Type)]
-/// Returns (name, type) pairs of each field of this StructDefinition.
+/// fn fields(self, generic_args: [Type]) -> [(Quoted, Type, Quoted)]
+/// Returns (name, type, visibility) tuples of each field of this TypeDefinition.
 /// Applies the given generic arguments to each field.
-fn struct_def_fields(
+fn type_def_fields(
     interner: &mut NodeInterner,
     arguments: Vec<(Value, Location)>,
     location: Location,
     call_stack: &im::Vector<Location>,
 ) -> IResult<Value> {
     let (typ, generic_args) = check_two_arguments(arguments, location)?;
-    let struct_id = get_struct(typ)?;
+    let struct_id = get_type_id(typ)?;
     let struct_def = interner.get_type(struct_id);
     let struct_def = struct_def.borrow();
 
@@ -561,7 +566,10 @@ fn struct_def_fields(
     if actual != expected {
         let s = if expected == 1 { "" } else { "s" };
         let was_were = if actual == 1 { "was" } else { "were" };
-        let message = Some(format!("`StructDefinition::fields` expected {expected} generic{s} for `{}` but {actual} {was_were} given", struct_def.name));
+        let message = Some(format!(
+            "`TypeDefinition::fields` expected {expected} generic{s} for `{}` but {actual} {was_were} given",
+            struct_def.name
+        ));
         let location = args_location;
         let call_stack = call_stack.clone();
         return Err(InterpreterError::FailingConstraint { message, location, call_stack });
@@ -570,31 +578,33 @@ fn struct_def_fields(
     let mut fields = im::Vector::new();
 
     if let Some(struct_fields) = struct_def.get_fields(&generic_args) {
-        for (field_name, field_type) in struct_fields {
+        for (field_name, field_type, visibility) in struct_fields {
             let token = LocatedToken::new(Token::Ident(field_name), location);
             let name = Value::Quoted(Rc::new(vec![token]));
-            fields.push_back(Value::Tuple(vec![name, Value::Type(field_type)]));
+            let visibility = visibility_to_quoted(visibility, location);
+            fields.push_back(Value::Tuple(vec![name, Value::Type(field_type), visibility]));
         }
     }
 
     let typ = Type::Slice(Box::new(Type::Tuple(vec![
         Type::Quoted(QuotedType::Quoted),
         Type::Quoted(QuotedType::Type),
+        Type::Quoted(QuotedType::Quoted),
     ])));
     Ok(Value::Slice(fields, typ))
 }
 
-/// fn fields_as_written(self) -> [(Quoted, Type)]
-/// Returns (name, type) pairs of each field of this StructDefinition.
+/// fn fields_as_written(self) -> [(Quoted, Type, Quoted)]
+/// Returns (name, type) pairs of each field of this TypeDefinition.
 ///
 /// Note that any generic arguments won't be applied: if you need them to be, use `fields`.
-fn struct_def_fields_as_written(
+fn type_def_fields_as_written(
     interner: &mut NodeInterner,
     arguments: Vec<(Value, Location)>,
     location: Location,
 ) -> IResult<Value> {
     let argument = check_one_argument(arguments, location)?;
-    let struct_id = get_struct(argument)?;
+    let struct_id = get_type_id(argument)?;
     let struct_def = interner.get_type(struct_id);
     let struct_def = struct_def.borrow();
 
@@ -605,37 +615,39 @@ fn struct_def_fields_as_written(
             let token = LocatedToken::new(Token::Ident(field.name.to_string()), location);
             let name = Value::Quoted(Rc::new(vec![token]));
             let typ = Value::Type(field.typ);
-            fields.push_back(Value::Tuple(vec![name, typ]));
+            let visibility = visibility_to_quoted(field.visibility, location);
+            fields.push_back(Value::Tuple(vec![name, typ, visibility]));
         }
     }
 
     let typ = Type::Slice(Box::new(Type::Tuple(vec![
         Type::Quoted(QuotedType::Quoted),
         Type::Quoted(QuotedType::Type),
+        Type::Quoted(QuotedType::Quoted),
     ])));
     Ok(Value::Slice(fields, typ))
 }
 
 // fn module(self) -> Module
-fn struct_def_module(
+fn type_def_module(
     interpreter: &Interpreter,
     arguments: Vec<(Value, Location)>,
     location: Location,
 ) -> IResult<Value> {
     let self_argument = check_one_argument(arguments, location)?;
-    let struct_id = get_struct(self_argument)?;
+    let struct_id = get_type_id(self_argument)?;
     let parent = struct_id.parent_module_id(interpreter.elaborator.def_maps);
     Ok(Value::ModuleDefinition(parent))
 }
 
 // fn name(self) -> Quoted
-fn struct_def_name(
+fn type_def_name(
     interner: &NodeInterner,
     arguments: Vec<(Value, Location)>,
     location: Location,
 ) -> IResult<Value> {
     let self_argument = check_one_argument(arguments, location)?;
-    let struct_id = get_struct(self_argument)?;
+    let struct_id = get_type_id(self_argument)?;
     let the_struct = interner.get_type(struct_id);
 
     let name = Token::Ident(the_struct.borrow().name.to_string());
@@ -643,63 +655,69 @@ fn struct_def_name(
     Ok(Value::Quoted(Rc::new(vec![token])))
 }
 
-/// fn set_fields(self, new_fields: [(Quoted, Type)]) {}
-/// Returns (name, type) pairs of each field of this StructDefinition
-fn struct_def_set_fields(
-    interner: &mut NodeInterner,
+/// fn set_fields(self, new_fields: [(Quoted, Type, Quoted)]) {}
+/// Returns (name, type) pairs of each field of this TypeDefinition
+fn type_def_set_fields(
+    elaborator: &mut Elaborator,
     arguments: Vec<(Value, Location)>,
     location: Location,
 ) -> IResult<Value> {
     let (the_struct, fields) = check_two_arguments(arguments, location)?;
-    let struct_id = get_struct(the_struct)?;
+    let struct_id = get_type_id(the_struct)?;
 
-    let struct_def = interner.get_type(struct_id);
+    let struct_def = elaborator.interner.get_type(struct_id);
     let mut struct_def = struct_def.borrow_mut();
 
     let field_location = fields.1;
-    let fields = get_slice(interner, fields)?.0;
-
-    let new_fields = fields
+    let fields = get_slice(elaborator.interner, fields)?.0;
+    let fields = fields
         .into_iter()
-        .flat_map(|field_pair| get_tuple(interner, (field_pair, field_location)))
+        .flat_map(|field_pair| get_tuple(elaborator.interner, (field_pair, field_location)))
         .enumerate()
-        .map(|(index, mut field_pair)| {
-            if field_pair.len() == 2 {
-                let typ = field_pair.pop().unwrap();
-                let name_value = field_pair.pop().unwrap();
+        .collect::<Vec<_>>();
 
-                let name_tokens = get_quoted((name_value.clone(), field_location))?;
-                let typ = get_type((typ, field_location))?;
+    let mut new_fields = Vec::new();
 
-                match name_tokens.first().map(|t| t.token()) {
-                    Some(Token::Ident(name)) if name_tokens.len() == 1 => {
-                        Ok(hir_def::types::StructField {
-                            visibility: ItemVisibility::Public,
-                            name: Ident::new(name.clone(), field_location),
-                            typ,
-                        })
-                    }
-                    _ => {
-                        let value = name_value.display(interner).to_string();
-                        let location = field_location;
-                        Err(InterpreterError::ExpectedIdentForStructField {
-                            value,
-                            index,
-                            location,
-                        })
-                    }
+    for (index, mut field_pair) in fields {
+        if field_pair.len() == 3 {
+            let visibility = field_pair.pop().unwrap();
+            let typ = field_pair.pop().unwrap();
+            let name_value = field_pair.pop().unwrap();
+
+            let name_tokens = get_quoted((name_value.clone(), field_location))?;
+            let typ = get_type((typ, field_location))?;
+
+            match name_tokens.first().map(|t| t.token()) {
+                Some(Token::Ident(name)) if name_tokens.len() == 1 => {
+                    let visibility = parse(
+                        elaborator,
+                        (visibility, field_location),
+                        Parser::parse_item_visibility,
+                        "a visibility",
+                    )?;
+
+                    let name = Ident::new(name.clone(), field_location);
+                    new_fields.push(hir_def::types::StructField { visibility, name, typ });
                 }
-            } else {
-                let type_var = interner.next_type_variable();
-                let expected = Type::Tuple(vec![type_var.clone(), type_var]);
-
-                let actual =
-                    Type::Tuple(vecmap(&field_pair, |value| value.get_type().into_owned()));
-
-                Err(InterpreterError::TypeMismatch { expected, actual, location })
+                _ => {
+                    let value = name_value.display(elaborator.interner).to_string();
+                    let location = field_location;
+                    return Err(InterpreterError::ExpectedIdentForStructField {
+                        value,
+                        index,
+                        location,
+                    });
+                }
             }
-        })
-        .collect::<Result<Vec<_>, _>>()?;
+        } else {
+            let type_var = elaborator.interner.next_type_variable();
+            let expected = Type::Tuple(vec![type_var.clone(), type_var]);
+
+            let actual = Type::Tuple(vecmap(&field_pair, |value| value.get_type().into_owned()));
+
+            return Err(InterpreterError::TypeMismatch { expected, actual, location });
+        }
+    }
 
     struct_def.set_fields(new_fields);
     Ok(Value::Unit)
@@ -814,7 +832,7 @@ fn quoted_as_expr(
             },
         );
 
-    Ok(option(return_type, value, location.span))
+    Ok(option(return_type, value, location))
 }
 
 // fn as_module(quoted: Quoted) -> Option<Module>
@@ -830,14 +848,16 @@ fn quoted_as_module(
         parse(interpreter.elaborator, argument, Parser::parse_path_no_turbofish_or_error, "a path")
             .ok();
     let option_value = path.and_then(|path| {
-        let module = interpreter
-            .elaborate_in_function(interpreter.current_function, |elaborator| {
+        let path = interpreter.elaborator.validate_path(path);
+        let reason = Some(ElaborateReason::EvaluatingComptimeCall("Quoted::as_module", location));
+        let module =
+            interpreter.elaborate_in_function(interpreter.current_function, reason, |elaborator| {
                 elaborator.resolve_module_by_path(path)
             });
         module.map(Value::ModuleDefinition)
     });
 
-    Ok(option(return_type, option_value, location.span))
+    Ok(option(return_type, option_value, location))
 }
 
 // fn as_trait_constraint(quoted: Quoted) -> TraitConstraint
@@ -853,9 +873,11 @@ fn quoted_as_trait_constraint(
         Parser::parse_trait_bound_or_error,
         "a trait constraint",
     )?;
+    let reason =
+        Some(ElaborateReason::EvaluatingComptimeCall("Quoted::as_trait_constraint", location));
     let bound = interpreter
-        .elaborate_in_function(interpreter.current_function, |elaborator| {
-            elaborator.resolve_trait_bound(&trait_bound)
+        .elaborate_in_function(interpreter.current_function, reason, |elaborator| {
+            elaborator.use_trait_bound(&trait_bound)
         })
         .ok_or(InterpreterError::FailedToResolveTraitBound { trait_bound, location })?;
 
@@ -870,8 +892,11 @@ fn quoted_as_type(
 ) -> IResult<Value> {
     let argument = check_one_argument(arguments, location)?;
     let typ = parse(interpreter.elaborator, argument, Parser::parse_type_or_error, "a type")?;
-    let typ = interpreter
-        .elaborate_in_function(interpreter.current_function, |elab| elab.resolve_type(typ));
+    let reason = Some(ElaborateReason::EvaluatingComptimeCall("Quoted::as_type", location));
+    let typ =
+        interpreter.elaborate_in_function(interpreter.current_function, reason, |elaborator| {
+            elaborator.use_type(typ)
+        });
     Ok(Value::Type(typ))
 }
 
@@ -948,18 +973,14 @@ fn to_le_radix(
         *element_type == Type::Integer(Signedness::Unsigned, IntegerBitSize::One);
 
     // Decompose the integer into its radix digits in little endian form.
-    let decomposed_integer = compute_to_radix_le(value, radix);
+    let decomposed_integer = compute_to_radix_le(value.to_field_element(), radix);
     let decomposed_integer = vecmap(0..limb_count.to_u128() as usize, |i| {
         let digit = match decomposed_integer.get(i) {
             Some(digit) => *digit,
             None => 0,
         };
         // The only built-ins that use these either return `[u1; N]` or `[u8; N]`
-        if return_type_is_bits {
-            Value::U1(digit != 0)
-        } else {
-            Value::U8(digit)
-        }
+        if return_type_is_bits { Value::U1(digit != 0) } else { Value::U8(digit) }
     });
 
     let result_type = Type::Array(
@@ -1005,7 +1026,7 @@ fn type_as_constant(
         // Prefer to use `evaluate_to_u32` over matching on `Type::Constant`
         // since arithmetic generics may be `Type::InfixExpr`s which evaluate to
         // constants but are not actually the `Type::Constant` variant.
-        match typ.evaluate_to_u32(location.span) {
+        match typ.evaluate_to_u32(location) {
             Ok(constant) => Ok(Some(Value::U32(constant))),
             Err(err) => {
                 // Evaluating to a non-constant returns 'None' in user code
@@ -1042,11 +1063,7 @@ fn type_as_mutable_reference(
     location: Location,
 ) -> IResult<Value> {
     type_as(arguments, return_type, location, |typ| {
-        if let Type::MutableReference(typ) = typ {
-            Some(Value::Type(*typ))
-        } else {
-            None
-        }
+        if let Type::Reference(typ, true) = typ { Some(Value::Type(*typ)) } else { None }
     })
 }
 
@@ -1057,11 +1074,7 @@ fn type_as_slice(
     location: Location,
 ) -> IResult<Value> {
     type_as(arguments, return_type, location, |typ| {
-        if let Type::Slice(slice_type) = typ {
-            Some(Value::Type(*slice_type))
-        } else {
-            None
-        }
+        if let Type::Slice(slice_type) = typ { Some(Value::Type(*slice_type)) } else { None }
     })
 }
 
@@ -1072,16 +1085,12 @@ fn type_as_str(
     location: Location,
 ) -> IResult<Value> {
     type_as(arguments, return_type, location, |typ| {
-        if let Type::String(n) = typ {
-            Some(Value::Type(*n))
-        } else {
-            None
-        }
+        if let Type::String(n) = typ { Some(Value::Type(*n)) } else { None }
     })
 }
 
-// fn as_struct(self) -> Option<(StructDefinition, [Type])>
-fn type_as_struct(
+// fn as_data_type(self) -> Option<(TypeDefinition, [Type])>
+fn type_as_data_type(
     arguments: Vec<(Value, Location)>,
     return_type: Type,
     location: Location,
@@ -1089,7 +1098,7 @@ fn type_as_struct(
     type_as(arguments, return_type, location, |typ| {
         if let Type::DataType(struct_type, generics) = typ {
             Some(Value::Tuple(vec![
-                Value::StructDefinition(struct_type.borrow().id),
+                Value::TypeDefinition(struct_type.borrow().id),
                 Value::Slice(
                     generics.into_iter().map(Value::Type).collect(),
                     Type::Slice(Box::new(Type::Quoted(QuotedType::Type))),
@@ -1149,7 +1158,7 @@ where
 
     let option_value = f(typ)?;
 
-    Ok(option(return_type, option_value, location.span))
+    Ok(option(return_type, option_value, location))
 }
 
 // fn type_eq(_first: Type, _second: Type) -> bool
@@ -1180,11 +1189,11 @@ fn type_get_trait_impl(
         &generics.ordered,
         &generics.named,
     ) {
-        Ok(TraitImplKind::Normal(trait_impl_id)) => Some(Value::TraitImpl(trait_impl_id)),
+        Ok((TraitImplKind::Normal(trait_impl_id), _)) => Some(Value::TraitImpl(trait_impl_id)),
         _ => None,
     };
 
-    Ok(option(return_type, option_value, location.span))
+    Ok(option(return_type, option_value, location))
 }
 
 // fn implements(self, constraint: TraitConstraint) -> bool
@@ -1305,7 +1314,7 @@ fn typed_expr_as_function_definition(
     } else {
         None
     };
-    Ok(option(return_type, option_value, location.span))
+    Ok(option(return_type, option_value, location))
 }
 
 // fn get_type(self) -> Option<Type>
@@ -1319,15 +1328,11 @@ fn typed_expr_get_type(
     let typed_expr = get_typed_expr(self_argument)?;
     let option_value = if let TypedExpr::ExprId(expr_id) = typed_expr {
         let typ = interner.id_type(expr_id);
-        if typ == Type::Error {
-            None
-        } else {
-            Some(Value::Type(typ))
-        }
+        if typ == Type::Error { None } else { Some(Value::Type(typ)) }
     } else {
         None
     };
-    Ok(option(return_type, option_value, location.span))
+    Ok(option(return_type, option_value, location))
 }
 
 // fn as_mutable_reference(self) -> Option<UnresolvedType>
@@ -1338,7 +1343,7 @@ fn unresolved_type_as_mutable_reference(
     location: Location,
 ) -> IResult<Value> {
     unresolved_type_as(interner, arguments, return_type, location, |typ| {
-        if let UnresolvedTypeData::MutableReference(typ) = typ {
+        if let UnresolvedTypeData::Reference(typ, true) = typ {
             Some(Value::UnresolvedType(typ.typ))
         } else {
             None
@@ -1370,7 +1375,22 @@ fn unresolved_type_is_bool(
 ) -> IResult<Value> {
     let self_argument = check_one_argument(arguments, location)?;
     let typ = get_unresolved_type(interner, self_argument)?;
-    Ok(Value::Bool(matches!(typ, UnresolvedTypeData::Bool)))
+
+    // TODO: we should resolve the type here instead of just checking the name
+    // See https://github.com/noir-lang/noir/issues/8505
+    let UnresolvedTypeData::Named(path, generics, _) = typ else {
+        return Ok(Value::Bool(false));
+    };
+    if !generics.is_empty() {
+        return Ok(Value::Bool(false));
+    }
+    let Some(ident) = path.as_ident() else {
+        return Ok(Value::Bool(false));
+    };
+    let Some(primitive_type) = PrimitiveType::lookup_by_name(ident.as_str()) else {
+        return Ok(Value::Bool(false));
+    };
+    Ok(Value::Bool(primitive_type == PrimitiveType::Bool))
 }
 
 // fn is_field(self) -> bool
@@ -1381,7 +1401,22 @@ fn unresolved_type_is_field(
 ) -> IResult<Value> {
     let self_argument = check_one_argument(arguments, location)?;
     let typ = get_unresolved_type(interner, self_argument)?;
-    Ok(Value::Bool(matches!(typ, UnresolvedTypeData::FieldElement)))
+
+    // TODO: we should resolve the type here instead of just checking the name
+    // See https://github.com/noir-lang/noir/issues/8505
+    let UnresolvedTypeData::Named(path, generics, _) = typ else {
+        return Ok(Value::Bool(false));
+    };
+    if !generics.is_empty() {
+        return Ok(Value::Bool(false));
+    }
+    let Some(ident) = path.as_ident() else {
+        return Ok(Value::Bool(false));
+    };
+    let Some(primitive_type) = PrimitiveType::lookup_by_name(ident.as_str()) else {
+        return Ok(Value::Bool(false));
+    };
+    Ok(Value::Bool(primitive_type == PrimitiveType::Field))
 }
 
 // fn is_unit(self) -> bool
@@ -1410,17 +1445,17 @@ where
     let typ = get_unresolved_type(interner, value)?;
 
     let option_value = f(typ);
-    Ok(option(return_type, option_value, location.span))
+    Ok(option(return_type, option_value, location))
 }
 
 // fn zeroed<T>() -> T
-fn zeroed(return_type: Type, span: Span) -> Value {
+fn zeroed(return_type: Type, location: Location) -> Value {
     match return_type {
-        Type::FieldElement => Value::Field(0u128.into()),
+        Type::FieldElement => Value::Field(SignedField::zero()),
         Type::Array(length_type, elem) => {
-            if let Ok(length) = length_type.evaluate_to_u32(span) {
-                let element = zeroed(elem.as_ref().clone(), span);
-                let array = std::iter::repeat(element).take(length as usize).collect();
+            if let Ok(length) = length_type.evaluate_to_u32(location) {
+                let element = zeroed(elem.as_ref().clone(), location);
+                let array = std::iter::repeat_n(element, length as usize).collect();
                 Value::Array(array, Type::Array(length_type, elem))
             } else {
                 // Assume we can resolve the length later
@@ -1444,7 +1479,7 @@ fn zeroed(return_type: Type, span: Span) -> Value {
         },
         Type::Bool => Value::Bool(false),
         Type::String(length_type) => {
-            if let Ok(length) = length_type.evaluate_to_u32(span) {
+            if let Ok(length) = length_type.evaluate_to_u32(location) {
                 Value::String(Rc::new("\0".repeat(length as usize)))
             } else {
                 // Assume we can resolve the length later
@@ -1452,7 +1487,7 @@ fn zeroed(return_type: Type, span: Span) -> Value {
             }
         }
         Type::FmtString(length_type, captures) => {
-            let length = length_type.evaluate_to_u32(span);
+            let length = length_type.evaluate_to_u32(location);
             let typ = Type::FmtString(length_type, captures);
             if let Ok(length) = length {
                 Value::FormatString(Rc::new("\0".repeat(length as usize)), typ)
@@ -1462,15 +1497,15 @@ fn zeroed(return_type: Type, span: Span) -> Value {
             }
         }
         Type::Unit => Value::Unit,
-        Type::Tuple(fields) => Value::Tuple(vecmap(fields, |field| zeroed(field, span))),
+        Type::Tuple(fields) => Value::Tuple(vecmap(fields, |field| zeroed(field, location))),
         Type::DataType(data_type, generics) => {
             let typ = data_type.borrow();
 
             if let Some(fields) = typ.get_fields(&generics) {
                 let mut values = HashMap::default();
 
-                for (field_name, field_type) in fields {
-                    let field_value = zeroed(field_type, span);
+                for (field_name, field_type, _) in fields {
+                    let field_value = zeroed(field_type, location);
                     values.insert(Rc::new(field_name), field_value);
                 }
 
@@ -1484,7 +1519,7 @@ fn zeroed(return_type: Type, span: Span) -> Value {
                 if !variants.is_empty() {
                     // is_empty & swap_remove let us avoid a .clone() we'd need if we did .get(0)
                     let (_name, params) = variants.swap_remove(0);
-                    args = vecmap(params, |param| zeroed(param, span));
+                    args = vecmap(params, |param| zeroed(param, location));
                 }
 
                 drop(typ);
@@ -1494,15 +1529,15 @@ fn zeroed(return_type: Type, span: Span) -> Value {
                 Value::Zeroed(Type::DataType(data_type, generics))
             }
         }
-        Type::Alias(alias, generics) => zeroed(alias.borrow().get_type(&generics), span),
-        Type::CheckedCast { to, .. } => zeroed(*to, span),
+        Type::Alias(alias, generics) => zeroed(alias.borrow().get_type(&generics), location),
+        Type::CheckedCast { to, .. } => zeroed(*to, location),
         typ @ Type::Function(..) => {
             // Using Value::Zeroed here is probably safer than using FuncId::dummy_id() or similar
             Value::Zeroed(typ)
         }
-        Type::MutableReference(element) => {
-            let element = zeroed(*element, span);
-            Value::Pointer(Shared::new(element), false)
+        Type::Reference(element, mutable) => {
+            let element = zeroed(*element, location);
+            Value::Pointer(Shared::new(element), false, mutable)
         }
         // Optimistically assume we can resolve this type later or that the value is unused
         Type::TypeVariable(_)
@@ -1512,7 +1547,7 @@ fn zeroed(return_type: Type, span: Span) -> Value {
         | Type::Quoted(_)
         | Type::Error
         | Type::TraitAsType(..)
-        | Type::NamedGeneric(_, _) => Value::Zeroed(return_type),
+        | Type::NamedGeneric(_) => Value::Zeroed(return_type),
     }
 }
 
@@ -1565,7 +1600,7 @@ fn expr_as_assert(
 
                 let option_type = tuple_types.pop().unwrap();
                 let message = message.map(|msg| Value::expression(msg.kind));
-                let message = option(option_type, message, location.span);
+                let message = option(option_type, message, location);
 
                 Some(Value::Tuple(vec![predicate, message]))
             } else {
@@ -1611,7 +1646,7 @@ fn expr_as_assert_eq(
 
                 let option_type = tuple_types.pop().unwrap();
                 let message = message.map(|message| Value::expression(message.kind));
-                let message = option(option_type, message, location.span);
+                let message = option(option_type, message, location);
 
                 Some(Value::Tuple(vec![lhs, rhs, message]))
             } else {
@@ -1658,17 +1693,10 @@ fn expr_as_binary_op(
 
             tuple_types.pop().unwrap();
             let binary_op_type = tuple_types.pop().unwrap();
-
-            // For the op value we use the enum member index, which should match noir_stdlib/src/meta/op.nr
-            let binary_op_value = infix_expr.operator.contents as u128;
-
-            let mut fields = HashMap::default();
-            fields.insert(Rc::new("op".to_string()), Value::Field(binary_op_value.into()));
-
-            let unary_op = Value::Struct(fields, binary_op_type);
+            let binary_op = new_binary_op(infix_expr.operator, binary_op_type);
             let lhs = Value::expression(infix_expr.lhs.kind);
             let rhs = Value::expression(infix_expr.rhs.kind);
-            Some(Value::Tuple(vec![lhs, unary_op, rhs]))
+            Some(Value::Tuple(vec![lhs, binary_op, rhs]))
         } else {
             None
         }
@@ -1787,7 +1815,7 @@ fn expr_as_constructor(
             None
         };
 
-    Ok(option(return_type, option_value, location.span))
+    Ok(option(return_type, option_value, location))
 }
 
 // fn as_for(self) -> Option<(Quoted, Expr, Expr)>
@@ -1800,7 +1828,7 @@ fn expr_as_for(
     expr_as(interner, arguments, return_type, location, |expr| {
         if let ExprValue::Statement(StatementKind::For(for_statement)) = expr {
             if let ForRange::Array(array) = for_statement.range {
-                let token = Token::Ident(for_statement.identifier.0.contents);
+                let token = Token::Ident(for_statement.identifier.into_string());
                 let token = LocatedToken::new(token, location);
                 let identifier = Value::Quoted(Rc::new(vec![token]));
                 let array = Value::expression(array.kind);
@@ -1826,7 +1854,7 @@ fn expr_as_for_range(
         if let ExprValue::Statement(StatementKind::For(for_statement)) = expr {
             if let ForRange::Range(bounds) = for_statement.range {
                 let (from, to) = bounds.into_half_open();
-                let token = Token::Ident(for_statement.identifier.0.contents);
+                let token = Token::Ident(for_statement.identifier.into_string());
                 let token = LocatedToken::new(token, location);
                 let identifier = Value::Quoted(Rc::new(vec![token]));
                 let from = Value::expression(from.kind);
@@ -1883,7 +1911,7 @@ fn expr_as_if(
             let alternative = option(
                 alternative_option_type,
                 if_expr.alternative.map(|e| Value::expression(e.kind)),
-                location.span,
+                location,
             );
 
             Some(Value::Tuple(vec![
@@ -1924,14 +1952,18 @@ fn expr_as_integer(
     location: Location,
 ) -> IResult<Value> {
     expr_as(interner, arguments, return_type.clone(), location, |expr| match expr {
-        ExprValue::Expression(ExpressionKind::Literal(Literal::Integer(field, sign))) => {
-            Some(Value::Tuple(vec![Value::Field(field), Value::Bool(sign)]))
+        ExprValue::Expression(ExpressionKind::Literal(Literal::Integer(field))) => {
+            Some(Value::Tuple(vec![
+                Value::Field(SignedField::positive(field.absolute_value())),
+                Value::Bool(field.is_negative()),
+            ]))
         }
         ExprValue::Expression(ExpressionKind::Resolved(id)) => {
-            if let HirExpression::Literal(HirLiteral::Integer(field, sign)) =
-                interner.expression(&id)
-            {
-                Some(Value::Tuple(vec![Value::Field(field), Value::Bool(sign)]))
+            if let HirExpression::Literal(HirLiteral::Integer(field)) = interner.expression(&id) {
+                Some(Value::Tuple(vec![
+                    Value::Field(SignedField::positive(field.absolute_value())),
+                    Value::Bool(field.is_negative()),
+                ]))
             } else {
                 None
             }
@@ -1972,7 +2004,7 @@ fn expr_as_lambda(
                     } else {
                         Some(Value::UnresolvedType(typ.typ))
                     };
-                    let typ = option(option_unresolved_type.clone(), typ, location.span);
+                    let typ = option(option_unresolved_type.clone(), typ, location);
                     Value::Tuple(vec![pattern, typ])
                 })
                 .collect();
@@ -1991,7 +2023,7 @@ fn expr_as_lambda(
                 Some(return_type)
             };
             let return_type = return_type.map(Value::UnresolvedType);
-            let return_type = option(option_unresolved_type, return_type, location.span);
+            let return_type = option(option_unresolved_type, return_type, location);
 
             let body = Value::expression(lambda.body.kind);
 
@@ -2025,7 +2057,7 @@ fn expr_as_let(
                 Some(Value::UnresolvedType(let_statement.r#type.typ))
             };
 
-            let typ = option(option_type, typ, location.span);
+            let typ = option(option_type, typ, location);
 
             Some(Value::Tuple(vec![
                 Value::pattern(let_statement.pattern),
@@ -2191,19 +2223,7 @@ fn expr_as_unary_op(
 
             tuple_types.pop().unwrap();
             let unary_op_type = tuple_types.pop().unwrap();
-
-            // These values should match the values used in noir_stdlib/src/meta/op.nr
-            let unary_op_value: u128 = match prefix_expr.operator {
-                UnaryOp::Minus => 0,
-                UnaryOp::Not => 1,
-                UnaryOp::MutableReference => 2,
-                UnaryOp::Dereference { .. } => 3,
-            };
-
-            let mut fields = HashMap::default();
-            fields.insert(Rc::new("op".to_string()), Value::Field(unary_op_value.into()));
-
-            let unary_op = Value::Struct(fields, unary_op_type);
+            let unary_op = new_unary_op(prefix_expr.operator, unary_op_type)?;
             let rhs = Value::expression(prefix_expr.rhs.kind);
             Some(Value::Tuple(vec![unary_op, rhs]))
         } else {
@@ -2220,8 +2240,9 @@ fn expr_as_unsafe(
     location: Location,
 ) -> IResult<Value> {
     expr_as(interner, arguments, return_type, location, |expr| {
-        if let ExprValue::Expression(ExpressionKind::Unsafe(block_expr, _)) = expr {
-            Some(block_expression_to_value(block_expr))
+        if let ExprValue::Expression(ExpressionKind::Unsafe(UnsafeExpression { block, .. })) = expr
+        {
+            Some(block_expression_to_value(block))
         } else {
             None
         }
@@ -2277,7 +2298,7 @@ where
     let expr_value = unwrap_expr_value(interner, expr_value);
 
     let option_value = f(expr_value);
-    Ok(option(return_type, option_value, location.span))
+    Ok(option(return_type, option_value, location))
 }
 
 // fn resolve(self, in_function: Option<FunctionDefinition>) -> TypedExpr
@@ -2310,7 +2331,9 @@ fn expr_resolve(
         interpreter.current_function
     };
 
-    interpreter.elaborate_in_function(function_to_resolve_in, |elaborator| match expr_value {
+    let reason = Some(ElaborateReason::EvaluatingComptimeCall("Expr::resolve", location));
+    interpreter.elaborate_in_function(function_to_resolve_in, reason, |elaborator| match expr_value
+    {
         ExprValue::Expression(expression_kind) => {
             let expr = Expression { kind: expression_kind, location: self_argument_location };
             let (expr_id, _) = elaborator.elaborate_expression(expr);
@@ -2438,13 +2461,39 @@ fn function_def_as_typed_expr(
 ) -> IResult<Value> {
     let self_argument = check_one_argument(arguments, location)?;
     let func_id = get_function_def(self_argument)?;
+    let trait_impl_id = interpreter.elaborator.interner.function_meta(&func_id).trait_impl;
     let definition_id = interpreter.elaborator.interner.function_definition_id(func_id);
-    let hir_ident = HirIdent::non_trait_method(definition_id, location);
+    let hir_ident = if let Some(trait_impl_id) = trait_impl_id {
+        let trait_impl = interpreter.elaborator.interner.get_trait_implementation(trait_impl_id);
+        let trait_impl = trait_impl.borrow();
+        let ordered = trait_impl.trait_generics.clone();
+        let named =
+            interpreter.elaborator.interner.get_associated_types_for_impl(trait_impl_id).to_vec();
+        let trait_generics = TraitGenerics { ordered, named };
+        let trait_bound =
+            ResolvedTraitBound { trait_id: trait_impl.trait_id, trait_generics, location };
+        let constraint = TraitConstraint { typ: trait_impl.typ.clone(), trait_bound };
+        let method_index = trait_impl.methods.iter().position(|id| *id == func_id);
+        let method_index = method_index.expect("Expected to find the method");
+        let method_id = TraitMethodId { trait_id: trait_impl.trait_id, method_index };
+        let trait_method = TraitMethod { method_id, constraint, assumed: true };
+        let id = interpreter.elaborator.interner.trait_method_id(trait_method.method_id);
+        HirIdent { location, id, impl_kind: ImplKind::TraitMethod(trait_method) }
+    } else {
+        HirIdent::non_trait_method(definition_id, location)
+    };
     let generics = None;
     let hir_expr = HirExpression::Ident(hir_ident.clone(), generics.clone());
     let expr_id = interpreter.elaborator.interner.push_expr(hir_expr);
     interpreter.elaborator.interner.push_expr_location(expr_id, location);
-    let typ = interpreter.elaborator.type_check_variable(hir_ident, expr_id, generics);
+    let reason = Some(ElaborateReason::EvaluatingComptimeCall(
+        "FunctionDefinition::as_typed_expr",
+        location,
+    ));
+    let typ =
+        interpreter.elaborate_in_function(interpreter.current_function, reason, |elaborator| {
+            elaborator.type_check_variable(hir_ident, expr_id, generics)
+        });
     interpreter.elaborator.interner.push_expr_type(expr_id, typ);
     Ok(Value::TypedExpr(TypedExpr::ExprId(expr_id)))
 }
@@ -2478,12 +2527,12 @@ fn function_def_has_named_attribute(
 
     let modifiers = interner.function_modifiers(&func_id);
     if let Some(attribute) = modifiers.attributes.function() {
-        if name == attribute.name() {
+        if name == attribute.kind.name() {
             return Ok(Value::Bool(true));
         }
     }
 
-    Ok(Value::Bool(has_named_attribute(name, &modifiers.attributes.secondary)))
+    Ok(Value::Bool(has_named_attribute(name, &modifiers.attributes.secondary, interner)))
 }
 
 fn function_def_hash(arguments: Vec<(Value, Location)>, location: Location) -> IResult<Value> {
@@ -2650,7 +2699,10 @@ fn function_def_set_parameters(
             "a pattern",
         )?;
 
-        let hir_pattern = interpreter.elaborate_in_function(Some(func_id), |elaborator| {
+        let reason =
+            ElaborateReason::EvaluatingComptimeCall("FunctionDefinition::set_parameters", location);
+        let reason = Some(reason);
+        let hir_pattern = interpreter.elaborate_in_function(Some(func_id), reason, |elaborator| {
             elaborator.elaborate_pattern_and_store_ids(
                 parameter_pattern,
                 parameter_type.clone(),
@@ -2765,11 +2817,8 @@ fn module_add_item(
     let parser = Parser::parse_top_level_items;
     let top_level_statements = parse(interpreter.elaborator, item, parser, "a top-level item")?;
 
-    let module_data = interpreter.elaborator.get_module(module_id);
-    interpreter.elaborate_in_module(module_id, module_data.location.file, |elaborator| {
-        let previous_errors = elaborator
-            .push_elaborate_reason_and_take_errors(ElaborateReason::AddingItemToModule, location);
-
+    let reason = Some(ElaborateReason::EvaluatingComptimeCall("Module::add_item", location));
+    interpreter.elaborate_in_module(module_id, reason, |elaborator| {
         let mut generated_items = CollectedItems::default();
 
         for top_level_statement in top_level_statements {
@@ -2779,8 +2828,6 @@ fn module_add_item(
         if !generated_items.is_empty() {
             elaborator.elaborate_items(generated_items);
         }
-
-        elaborator.pop_elaborate_reason(previous_errors);
     });
 
     Ok(Value::Unit)
@@ -2820,7 +2867,7 @@ fn module_functions(
     Ok(Value::Slice(func_ids, slice_type))
 }
 
-// fn structs(self) -> [StructDefinition]
+// fn structs(self) -> [TypeDefinition]
 fn module_structs(
     interpreter: &Interpreter,
     arguments: Vec<(Value, Location)>,
@@ -2835,14 +2882,14 @@ fn module_structs(
         .iter()
         .filter_map(|module_def_id| {
             if let ModuleDefId::TypeId(id) = module_def_id {
-                Some(Value::StructDefinition(*id))
+                Some(Value::TypeDefinition(*id))
             } else {
                 None
             }
         })
         .collect();
 
-    let slice_type = Type::Slice(Box::new(Type::Quoted(QuotedType::StructDefinition)));
+    let slice_type = Type::Slice(Box::new(Type::Quoted(QuotedType::TypeDefinition)));
     Ok(Value::Slice(struct_ids, slice_type))
 }
 
@@ -2858,7 +2905,11 @@ fn module_has_named_attribute(
 
     let name = get_str(interpreter.elaborator.interner, name)?;
 
-    Ok(Value::Bool(has_named_attribute(&name, &module_data.attributes)))
+    Ok(Value::Bool(has_named_attribute(
+        &name,
+        &module_data.attributes,
+        interpreter.elaborator.interner,
+    )))
 }
 
 // fn is_contract(self) -> bool
@@ -2893,7 +2944,7 @@ fn modulus_be_bits(arguments: Vec<(Value, Location)>, location: Location) -> IRe
     let bits = FieldElement::modulus().to_radix_be(2);
     let bits_vector = bits.into_iter().map(|bit| Value::U1(bit != 0)).collect();
 
-    let int_type = Type::Integer(crate::ast::Signedness::Unsigned, IntegerBitSize::One);
+    let int_type = Type::Integer(Signedness::Unsigned, IntegerBitSize::One);
     let typ = Type::Slice(Box::new(int_type));
     Ok(Value::Slice(bits_vector, typ))
 }
@@ -2904,7 +2955,7 @@ fn modulus_be_bytes(arguments: Vec<(Value, Location)>, location: Location) -> IR
     let bytes = FieldElement::modulus().to_bytes_be();
     let bytes_vector = bytes.into_iter().map(Value::U8).collect();
 
-    let int_type = Type::Integer(crate::ast::Signedness::Unsigned, IntegerBitSize::Eight);
+    let int_type = Type::Integer(Signedness::Unsigned, IntegerBitSize::Eight);
     let typ = Type::Slice(Box::new(int_type));
     Ok(Value::Slice(bytes_vector, typ))
 }
@@ -2932,10 +2983,24 @@ fn modulus_num_bits(arguments: Vec<(Value, Location)>, location: Location) -> IR
 }
 
 // fn quoted_eq(_first: Quoted, _second: Quoted) -> bool
-fn quoted_eq(arguments: Vec<(Value, Location)>, location: Location) -> IResult<Value> {
-    eq_item(arguments, location, get_quoted)
-}
+fn quoted_eq(
+    interner: &NodeInterner,
+    arguments: Vec<(Value, Location)>,
+    location: Location,
+) -> IResult<Value> {
+    let (self_arg, other_arg) = check_two_arguments(arguments, location)?;
+    let self_arg = get_quoted(self_arg)?;
+    let other_arg = get_quoted(other_arg)?;
 
+    // Comparing tokens one against each other doesn't work in the general case because tokens
+    // might be refer to interned expressions/statements/etc. We'd need to convert those nodes
+    // to tokens and compare the final result, but comparing their string representation works
+    // equally well and, for simplicity, that's what we do here.
+    let self_string = tokens_to_string(&self_arg, interner);
+    let other_string = tokens_to_string(&other_arg, interner);
+
+    Ok(Value::Bool(self_string == other_string))
+}
 fn quoted_hash(arguments: Vec<(Value, Location)>, location: Location) -> IResult<Value> {
     hash_item(arguments, location, get_quoted)
 }
@@ -2955,12 +3020,12 @@ fn trait_def_as_trait_constraint(
 
 /// Creates a value that holds an `Option`.
 /// `option_type` must be a Type referencing the `Option` type.
-pub(crate) fn option(option_type: Type, value: Option<Value>, span: Span) -> Value {
+pub(crate) fn option(option_type: Type, value: Option<Value>, location: Location) -> Value {
     let t = extract_option_generic_type(option_type.clone());
 
     let (is_some, value) = match value {
         Some(value) => (Value::Bool(true), value),
-        None => (Value::Bool(false), zeroed(t, span)),
+        None => (Value::Bool(false), zeroed(t, location)),
     };
 
     let mut fields = HashMap::default();
@@ -2969,14 +3034,14 @@ pub(crate) fn option(option_type: Type, value: Option<Value>, span: Span) -> Val
     Value::Struct(fields, option_type)
 }
 
-/// Given a type, assert that it's an Option<T> and return the Type for T
+/// Given a type, assert that it's an `Option<T>` and return the Type for T
 pub(crate) fn extract_option_generic_type(typ: Type) -> Type {
     let Type::DataType(struct_type, mut generics) = typ else {
         panic!("Expected type to be a struct");
     };
 
     let struct_type = struct_type.borrow();
-    assert_eq!(struct_type.name.0.contents, "Option");
+    assert_eq!(struct_type.name.as_str(), "Option");
 
     generics.pop().expect("Expected Option to have a T generic type")
 }
@@ -3009,7 +3074,7 @@ fn derive_generators(
         _ => panic!("ICE: Should only have an array return type"),
     };
 
-    let num_generators = size.evaluate_to_u32(location.span).map_err(|err| {
+    let num_generators = size.evaluate_to_u32(location).map_err(|err| {
         let err = Box::new(err);
         InterpreterError::UnknownArrayLength { length: *size, err, location }
     })?;
@@ -3025,16 +3090,20 @@ fn derive_generators(
     let y_field_name: Rc<String> = Rc::new("y".to_owned());
     let is_infinite_field_name: Rc<String> = Rc::new("is_infinite".to_owned());
     let mut results = Vector::new();
-    for gen in generators {
-        let x_big: BigUint = gen.x.into();
+    for generator in generators {
+        let x_big: BigUint = generator.x.into();
         let x = FieldElement::from_be_bytes_reduce(&x_big.to_bytes_be());
-        let y_big: BigUint = gen.y.into();
+        let y_big: BigUint = generator.y.into();
         let y = FieldElement::from_be_bytes_reduce(&y_big.to_bytes_be());
         let mut embedded_curve_point_fields = HashMap::default();
-        embedded_curve_point_fields.insert(x_field_name.clone(), Value::Field(x));
-        embedded_curve_point_fields.insert(y_field_name.clone(), Value::Field(y));
         embedded_curve_point_fields
-            .insert(is_infinite_field_name.clone(), Value::Field(is_infinite));
+            .insert(x_field_name.clone(), Value::Field(SignedField::positive(x)));
+        embedded_curve_point_fields
+            .insert(y_field_name.clone(), Value::Field(SignedField::positive(y)));
+        embedded_curve_point_fields.insert(
+            is_infinite_field_name.clone(),
+            Value::Field(SignedField::positive(is_infinite)),
+        );
         let embedded_curve_point_struct =
             Value::Struct(embedded_curve_point_fields, *elements.clone());
         results.push_back(embedded_curve_point_struct);

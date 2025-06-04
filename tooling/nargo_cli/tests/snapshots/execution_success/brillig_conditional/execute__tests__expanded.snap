@@ -1,0 +1,18 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: expanded_code
+---
+fn main(x: Field) {
+    // Safety: comment added by `nargo expand`
+    unsafe {
+        assert(4 == conditional(x == 1));
+    }
+}
+
+unconstrained fn conditional(x: bool) -> Field {
+    if x {
+        4
+    } else {
+        5
+    }
+}

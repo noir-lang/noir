@@ -3,14 +3,14 @@ use std::str::FromStr;
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
 pub enum UnstableFeature {
     Enums,
-    ArrayOwnership,
+    Ownership,
 }
 
 impl std::fmt::Display for UnstableFeature {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         match self {
             Self::Enums => write!(f, "enums"),
-            Self::ArrayOwnership => write!(f, "array-ownership"),
+            Self::Ownership => write!(f, "ownership"),
         }
     }
 }
@@ -21,7 +21,7 @@ impl FromStr for UnstableFeature {
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s {
             "enums" => Ok(Self::Enums),
-            "array-ownership" => Ok(Self::ArrayOwnership),
+            "ownership" => Ok(Self::Ownership),
             other => Err(format!("Unknown unstable feature '{other}'")),
         }
     }
@@ -50,7 +50,7 @@ pub(crate) type ElaboratorOptions<'a> = GenericOptions<'a, fm::FileId>;
 /// CLI options that need to be passed to the compiler frontend (the elaborator).
 pub type FrontendOptions<'a> = GenericOptions<'a, &'a str>;
 
-impl<'a, T> GenericOptions<'a, T> {
+impl<T> GenericOptions<'_, T> {
     /// A sane default of frontend options for running tests
     pub fn test_default() -> GenericOptions<'static, T> {
         GenericOptions {

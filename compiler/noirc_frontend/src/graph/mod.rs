@@ -87,7 +87,7 @@ impl FromStr for CrateName {
 
 #[cfg(test)]
 mod crate_name {
-    use super::{CrateName, CHARACTER_BLACK_LIST};
+    use super::{CHARACTER_BLACK_LIST, CrateName};
 
     #[test]
     fn it_rejects_empty_string() {
@@ -116,8 +116,8 @@ pub struct CrateGraph {
 impl CrateGraph {
     /// Tries to find the requested crate in the current one's dependencies,
     /// otherwise walks down the crate dependency graph from crate_id until we reach it.
-    /// This is needed in case a library (lib1) re-export a structure defined in another library (lib2)
-    /// In that case, we will get [lib1,lib2] when looking for a struct defined in lib2,
+    /// This is needed in case a library (`lib1`) re-export a structure defined in another library (`lib2`)
+    /// In that case, we will get `[lib1,lib2]` when looking for a struct defined in lib2,
     /// re-exported by lib1 and used by the main crate.
     /// Returns the path from crate_id to target_crate_id
     pub(crate) fn find_dependencies(
@@ -379,7 +379,7 @@ mod tests {
     use super::{CrateGraph, FileId};
 
     fn dummy_file_ids(n: usize) -> Vec<FileId> {
-        use fm::{FileMap, FILE_EXTENSION};
+        use fm::{FILE_EXTENSION, FileMap};
         let mut fm = FileMap::default();
 
         let mut vec_ids = Vec::with_capacity(n);

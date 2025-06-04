@@ -8,7 +8,7 @@ use crate::config::ImportsGranularity;
 
 use super::Formatter;
 
-impl<'a> Formatter<'a> {
+impl Formatter<'_> {
     pub(super) fn format_items(&mut self, mut items: Vec<Item>, mut ignore_next: bool) {
         // Reverse the items because we'll be processing them one by one, and it's a bit
         // more efficient to pop than to shift.
@@ -178,4 +178,29 @@ struct ImportGroup {
     imports: Vec<UseTree>,
     visibility: ItemVisibility,
     span_end: u32,
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::assert_format;
+
+    #[test]
+    fn formats_item_with_mixed_attributes_and_doc_comments() {
+        let src = "
+        /// One
+        #[one]
+        /// Two
+        #[two]
+        /// Three
+        fn  foo( ) { }
+        ";
+        let expected = "/// One
+#[one]
+/// Two
+#[two]
+/// Three
+fn foo() {}
+";
+        assert_format(src, expected);
+    }
 }

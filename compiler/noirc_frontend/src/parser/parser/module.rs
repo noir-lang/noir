@@ -8,26 +8,17 @@ use crate::{
 
 use super::Parser;
 
-impl<'a> Parser<'a> {
+impl Parser<'_> {
     /// ModOrContract
     ///     = ( 'mod' | 'contract' ) identifier ( '{' Module '}' | ';' )
     pub(super) fn parse_mod_or_contract(
         &mut self,
+        ident: Ident,
         attributes: Vec<(Attribute, Location)>,
         is_contract: bool,
         visibility: ItemVisibility,
     ) -> ItemKind {
         let outer_attributes = self.validate_secondary_attributes(attributes);
-
-        let Some(ident) = self.eat_ident() else {
-            self.expected_identifier();
-            return ItemKind::ModuleDecl(ModuleDeclaration {
-                visibility,
-                ident: Ident::default(),
-                outer_attributes,
-                has_semicolon: false,
-            });
-        };
 
         if self.eat_left_brace() {
             let contents = self.parse_module(
@@ -60,7 +51,7 @@ impl<'a> Parser<'a> {
 mod tests {
     use crate::{
         parse_program_with_dummy_file,
-        parser::{parser::tests::expect_no_errors, ItemKind},
+        parser::{ItemKind, parser::tests::expect_no_errors},
     };
 
     #[test]

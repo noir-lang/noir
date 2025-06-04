@@ -1,33 +1,68 @@
+//! The redundant range constraint optimization pass aims to remove any [BlackBoxFunc::Range] opcodes
+//! which doesn't result in additional restrictions on the value of witnesses.
+//!
+//! Suppose we had the following pseudo-code:
+//!
+//! ```noir
+//! let z1 = x as u16;
+//! let z2 = x as u32;
+//! ```
+//! It is clear that if `x` fits inside of a 16-bit integer,
+//! it must also fit inside of a 32-bit integer.
+//!
+//! The generated ACIR may produce two range opcodes however;
+//! - One for the 16 bit range constraint of `x`
+//! - One for the 32-bit range constraint of `x`
+//!
+//! This optimization pass will keep the 16-bit range constraint
+//! and remove the 32-bit range constraint opcode.
+//!
+//! # Implicit range constraints
+//!
+//! We also consider implicit range constraints on witnesses - constraints other than [BlackBoxFunc::Range]
+//! which limit the size of a witness.
+//!
+//! ## Constant assignments
+//!
+//! The most obvious of these are when a witness is constrained to be equal to a constant value.
+//!
+//! ```noir
+//! let z1 = x as u16;
+//! assert_eq(z1, 100);
+//! ```
+//!
+//! We can consider the assertion that `z1 == 100` to be equivalent to a range constraint for `z1` to fit within
+//! 7 bits (the minimum necessary to hold the value `100`).
+//!
+//! ## Array indexing
+//!
+//! Another situation which adds an implicit range constraint are array indexing, for example in the program:
+//!
+//! ```noir
+//! fn main(index: u32) -> pub Field {
+//!     let array: [Field; 10] = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9];
+//!     array[index]
+//! }
+//! ```
+//!
+//! Here the variable `index` is range constrained to fit within 32 bits by the `u32` type however
+//! it's constrained more restrictively by the length of `array`. If `index` were 10 or greater then
+//! it would result in a read past the end of the array, which is invalid. We can then remove the explicit
+//! range constraint on `index` as the usage as an array index more tightly constrains its value.
+//!
+//! [BlackBoxFunc::Range]: acir::circuit::black_box_functions::BlackBoxFunc::RANGE
+
 use acir::{
+    AcirField,
     circuit::{
-        opcodes::{BlackBoxFuncCall, ConstantOrWitnessEnum},
         Circuit, Opcode,
+        opcodes::{BlackBoxFuncCall, BlockId, ConstantOrWitnessEnum, MemOp},
     },
     native_types::Witness,
-    AcirField,
 };
-use std::collections::{BTreeMap, HashSet};
+use std::collections::{BTreeMap, HashMap, HashSet};
 
-/// `RangeOptimizer` will remove redundant range constraints.
-///
-/// # Example
-///
-/// Suppose we had the following pseudo-code:
-///
-/// ```noir
-/// let z1 = x as u16;
-/// let z2 = x as u32;
-/// ```
-/// It is clear that if `x` fits inside of a 16-bit integer,
-/// it must also fit inside of a 32-bit integer.
-///
-/// The generated ACIR may produce two range opcodes however;
-/// - One for the 16 bit range constraint of `x`
-/// - One for the 32-bit range constraint of `x`
-///
-/// This optimization pass will keep the 16-bit range constraint
-/// and remove the 32-bit range constraint opcode.
-pub(crate) struct RangeOptimizer<F> {
+pub(crate) struct RangeOptimizer<F: AcirField> {
     /// Maps witnesses to their lowest known bit sizes.
     lists: BTreeMap<Witness, u32>,
     circuit: Circuit<F>,
@@ -49,6 +84,7 @@ impl<F: AcirField> RangeOptimizer<F> {
     /// be 16 bits.
     fn collect_ranges(circuit: &Circuit<F>) -> BTreeMap<Witness, u32> {
         let mut witness_to_bit_sizes: BTreeMap<Witness, u32> = BTreeMap::new();
+        let mut memory_block_lengths_bit_size: HashMap<BlockId, u32> = HashMap::new();
 
         for opcode in &circuit.opcodes {
             let Some((witness, num_bits)) = (match opcode {
@@ -79,6 +115,23 @@ impl<F: AcirField> RangeOptimizer<F> {
                     } else {
                         None
                     }
+                }
+
+                Opcode::MemoryInit { block_id, init, .. } => {
+                    memory_block_lengths_bit_size
+                        .insert(*block_id, memory_block_implied_max_bits(init));
+                    None
+                }
+
+                Opcode::MemoryOp { block_id, op: MemOp { index, .. }, .. } => {
+                    index.to_witness().map(|witness| {
+                        (
+                            witness,
+                            *memory_block_lengths_bit_size
+                                .get(block_id)
+                                .expect("memory must be initialized before any reads/writes"),
+                        )
+                    })
                 }
 
                 _ => None,
@@ -157,19 +210,38 @@ impl<F: AcirField> RangeOptimizer<F> {
     }
 }
 
+fn memory_block_implied_max_bits(init: &[Witness]) -> u32 {
+    let array_len = init.len() as u32;
+    32 - array_len.leading_zeros()
+}
+
 #[cfg(test)]
 mod tests {
     use std::collections::BTreeSet;
 
-    use crate::compiler::optimizers::redundant_range::RangeOptimizer;
+    use crate::compiler::optimizers::redundant_range::{
+        RangeOptimizer, memory_block_implied_max_bits,
+    };
     use acir::{
+        FieldElement,
         circuit::{
-            opcodes::{BlackBoxFuncCall, FunctionInput},
             Circuit, ExpressionWidth, Opcode, PublicInputs,
+            opcodes::{BlackBoxFuncCall, BlockId, BlockType, FunctionInput, MemOp},
         },
         native_types::{Expression, Witness},
-        FieldElement,
     };
+
+    #[test]
+    fn correctly_calculates_memory_block_implied_max_bits() {
+        assert_eq!(memory_block_implied_max_bits(&[]), 0);
+        assert_eq!(memory_block_implied_max_bits(&[Witness(0); 1]), 1);
+        assert_eq!(memory_block_implied_max_bits(&[Witness(0); 2]), 2);
+        assert_eq!(memory_block_implied_max_bits(&[Witness(0); 3]), 2);
+        assert_eq!(memory_block_implied_max_bits(&[Witness(0); 4]), 3);
+        assert_eq!(memory_block_implied_max_bits(&[Witness(0); 8]), 4);
+        assert_eq!(memory_block_implied_max_bits(&[Witness(0); u8::MAX as usize]), 8);
+        assert_eq!(memory_block_implied_max_bits(&[Witness(0); u16::MAX as usize]), 16);
+    }
 
     fn test_circuit(ranges: Vec<(Witness, u32)>) -> Circuit<FieldElement> {
         fn test_range_constraint(witness: Witness, num_bits: u32) -> Opcode<FieldElement> {
@@ -277,5 +349,31 @@ mod tests {
         let (optimized_circuit, _) = optimizer.replace_redundant_ranges(acir_opcode_positions);
         assert_eq!(optimized_circuit.opcodes.len(), 1);
         assert_eq!(optimized_circuit.opcodes[0], Opcode::AssertZero(Witness(1).into()));
+    }
+
+    #[test]
+    fn array_implied_ranges() {
+        // The optimizer should use knowledge about array lengths and witnesses used to index these to remove range opcodes.
+        let mut circuit = test_circuit(vec![(Witness(1), 16)]);
+
+        let mem_init = Opcode::MemoryInit {
+            block_id: BlockId(0),
+            init: vec![Witness(0); 8],
+            block_type: BlockType::Memory,
+        };
+        let mem_op = Opcode::MemoryOp {
+            block_id: BlockId(0),
+            op: MemOp::read_at_mem_index(Witness(1).into(), Witness(2)),
+            predicate: None,
+        };
+
+        circuit.opcodes.push(mem_init.clone());
+        circuit.opcodes.push(mem_op.clone());
+        let acir_opcode_positions = circuit.opcodes.iter().enumerate().map(|(i, _)| i).collect();
+        let optimizer = RangeOptimizer::new(circuit);
+        let (optimized_circuit, _) = optimizer.replace_redundant_ranges(acir_opcode_positions);
+        assert_eq!(optimized_circuit.opcodes.len(), 2);
+        assert_eq!(optimized_circuit.opcodes[0], mem_init);
+        assert_eq!(optimized_circuit.opcodes[1], mem_op);
     }
 }

@@ -1,15 +1,15 @@
 use std::collections::BTreeMap;
 
-use acvm::acir::circuit::ErrorSelector;
 use acvm::AcirField;
+use acvm::acir::circuit::ErrorSelector;
 use iter_extended::vecmap;
 use noirc_abi::{
     Abi, AbiErrorType, AbiParameter, AbiReturnType, AbiType, AbiValue, AbiVisibility, Sign,
 };
-use noirc_errors::Span;
+use noirc_errors::Location;
 use noirc_evaluator::ErrorType;
-use noirc_frontend::ast::{Signedness, Visibility};
 use noirc_frontend::TypeBinding;
+use noirc_frontend::shared::{Signedness, Visibility};
 use noirc_frontend::{
     hir::Context,
     hir_def::{
@@ -42,11 +42,11 @@ pub(super) fn gen_abi(
 }
 
 // Get the Span of the root crate's main function, or else a dummy span if that fails
-fn get_main_function_span(context: &Context) -> Span {
+fn get_main_function_location(context: &Context) -> Location {
     if let Some(func_id) = context.get_main_function(context.root_crate_id()) {
-        context.function_meta(&func_id).location.span
+        context.function_meta(&func_id).location
     } else {
-        Span::default()
+        Location::dummy()
     }
 }
 
@@ -54,7 +54,7 @@ fn build_abi_error_type(context: &Context, typ: ErrorType) -> AbiErrorType {
     match typ {
         ErrorType::Dynamic(typ) => {
             if let Type::FmtString(len, item_types) = typ {
-                let span = get_main_function_span(context);
+                let span = get_main_function_location(context);
                 let length = len.evaluate_to_u32(span).expect("Cannot evaluate fmt length");
                 let Type::Tuple(item_types) = item_types.as_ref() else {
                     unreachable!("FmtString items must be a tuple")
@@ -74,7 +74,7 @@ pub(super) fn abi_type_from_hir_type(context: &Context, typ: &Type) -> AbiType {
     match typ {
         Type::FieldElement => AbiType::Field,
         Type::Array(size, typ) => {
-            let span = get_main_function_span(context);
+            let span = get_main_function_location(context);
             let length = size
                 .evaluate_to_u32(span)
                 .expect("Cannot have variable sized arrays as a parameter to main");
@@ -103,7 +103,7 @@ pub(super) fn abi_type_from_hir_type(context: &Context, typ: &Type) -> AbiType {
         }
         Type::Bool => AbiType::Boolean,
         Type::String(size) => {
-            let span = get_main_function_span(context);
+            let span = get_main_function_location(context);
             let size = size
                 .evaluate_to_u32(span)
                 .expect("Cannot have variable sized strings as a parameter to main");
@@ -114,7 +114,7 @@ pub(super) fn abi_type_from_hir_type(context: &Context, typ: &Type) -> AbiType {
             let struct_type = def.borrow();
             let fields = struct_type.get_fields(args).unwrap_or_default();
             let fields =
-                vecmap(fields, |(name, typ)| (name, abi_type_from_hir_type(context, &typ)));
+                vecmap(fields, |(name, typ, _)| (name, abi_type_from_hir_type(context, &typ)));
             // For the ABI, we always want to resolve the struct paths from the root crate
             let path = context.fully_qualified_struct_path(context.root_crate_id(), struct_type.id);
             AbiType::Struct { fields, path }
@@ -136,7 +136,7 @@ pub(super) fn abi_type_from_hir_type(context: &Context, typ: &Type) -> AbiType {
         | Type::Slice(_)
         | Type::Function(_, _, _, _) => unreachable!("{typ} cannot be used in the abi"),
         Type::FmtString(_, _) => unreachable!("format strings cannot be used in the abi"),
-        Type::MutableReference(_) => unreachable!("&mut cannot be used in the abi"),
+        Type::Reference(..) => unreachable!("references cannot be used in the abi"),
     }
 }
 
@@ -198,7 +198,7 @@ pub(super) fn value_from_hir_expression(context: &Context, expression: HirExpres
                 .iter()
                 .map(|(ident, expr_id)| {
                     (
-                        ident.0.contents.to_string(),
+                        ident.to_string(),
                         value_from_hir_expression(
                             context,
                             context.def_interner.expression(expr_id),
@@ -226,7 +226,10 @@ pub(super) fn value_from_hir_expression(context: &Context, expression: HirExpres
             },
             HirLiteral::Bool(value) => AbiValue::Boolean { value },
             HirLiteral::Str(value) => AbiValue::String { value },
-            HirLiteral::Integer(field, sign) => AbiValue::Integer { value: field.to_hex(), sign },
+            HirLiteral::Integer(value) => AbiValue::Integer {
+                value: value.absolute_value().to_hex(),
+                sign: value.is_negative(),
+            },
             _ => unreachable!("Literal cannot be used in the abi"),
         },
         _ => unreachable!("Type cannot be used in the abi {:?}", expression),

@@ -1,8 +1,8 @@
 use std::{cmp::Ordering, collections::HashSet};
 
 use acir::{
-    native_types::{Expression, Witness},
     AcirField,
+    native_types::{Expression, Witness},
 };
 use indexmap::IndexMap;
 
@@ -10,9 +10,9 @@ use indexmap::IndexMap;
 pub const MIN_EXPRESSION_WIDTH: usize = 3;
 
 /// A transformer which processes any [`Expression`]s to break them up such that they
-/// fit within the [`ProofSystemCompiler`][crate::ProofSystemCompiler]'s width.
+/// fit within the backend's width.
 ///
-/// This transformer is only used when targeting the [`Bounded`][crate::ExpressionWidth::Bounded] configuration.
+/// This transformer is only used when targeting the [`Bounded`][acir::circuit::ExpressionWidth::Bounded] configuration.
 ///
 /// This is done by creating intermediate variables to hold partial calculations and then combining them
 /// to calculate the original expression.
@@ -66,9 +66,11 @@ impl CSatTransformer {
         self.solvable_witness.insert(witness);
     }
 
-    // Still missing dead witness optimization.
-    // To do this, we will need the whole set of assert-zero opcodes
-    // I think it can also be done before the local optimization seen here, as dead variables will come from the user
+    /// Transform the input arithmetic expression into a new one having the correct 'width'
+    /// by creating intermediate variables as needed.
+    /// Having the correct width means:
+    /// - it has at most one multiplicative term
+    /// - it uses at most 'width-1' witness linear combination terms, to account for the new intermediate variable
     pub(crate) fn transform<F: AcirField>(
         &mut self,
         opcode: Expression<F>,
@@ -201,7 +203,7 @@ impl CSatTransformer {
 
                     // Now we have used up 2 spaces in our assert-zero opcode. The width now dictates, how many more we can add
                     let mut remaining_space = self.width - 2 - 1; // We minus 1 because we need an extra space to contain the intermediate variable
-                                                                  // Keep adding terms until we have no more left, or we reach the width
+                    // Keep adding terms until we have no more left, or we reach the width
                     let mut remaining_linear_terms =
                         Vec::with_capacity(opcode.linear_combinations.len());
                     while remaining_space > 0 {

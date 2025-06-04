@@ -1,12 +1,13 @@
 use noirc_frontend::token::{
-    Attribute, Attributes, FunctionAttribute, MetaAttribute, SecondaryAttribute, TestScope, Token,
+    Attribute, Attributes, FunctionAttribute, FunctionAttributeKind, FuzzingScope, MetaAttribute,
+    MetaAttributeName, SecondaryAttribute, SecondaryAttributeKind, TestScope, Token,
 };
 
 use crate::chunks::ChunkGroup;
 
 use super::Formatter;
 
-impl<'a> Formatter<'a> {
+impl Formatter<'_> {
     pub(super) fn format_attributes(&mut self, attributes: Attributes) {
         let mut all_attributes = Vec::new();
         for attribute in attributes.secondary {
@@ -15,15 +16,24 @@ impl<'a> Formatter<'a> {
         if let Some((function_attribute, index)) = attributes.function {
             all_attributes.insert(index, Attribute::Function(function_attribute));
         }
+
+        // Attributes and doc comments can be mixed, so between each attribute
+        // we format potential doc comments
         for attribute in all_attributes {
+            self.format_outer_doc_comments();
             self.format_attribute(attribute);
         }
+        self.format_outer_doc_comments();
     }
 
     pub(super) fn format_secondary_attributes(&mut self, attributes: Vec<SecondaryAttribute>) {
+        // Attributes and doc comments can be mixed, so between each attribute
+        // we format potential doc comments
         for attribute in attributes {
+            self.format_outer_doc_comments();
             self.format_secondary_attribute(attribute);
         }
+        self.format_outer_doc_comments();
     }
 
     fn format_attribute(&mut self, attribute: Attribute) {
@@ -45,14 +55,19 @@ impl<'a> Formatter<'a> {
             panic!("Expected attribute start, got: {:?}", self.token);
         }
 
-        match attribute {
-            FunctionAttribute::Foreign(_)
-            | FunctionAttribute::Builtin(_)
-            | FunctionAttribute::Oracle(_) => self.format_one_arg_attribute(),
-            FunctionAttribute::Test(test_scope) => self.format_test_attribute(test_scope),
-            FunctionAttribute::Fold
-            | FunctionAttribute::NoPredicates
-            | FunctionAttribute::InlineAlways => self.format_no_args_attribute(),
+        match attribute.kind {
+            FunctionAttributeKind::Foreign(_)
+            | FunctionAttributeKind::Builtin(_)
+            | FunctionAttributeKind::Oracle(_) => self.format_one_arg_attribute(),
+            FunctionAttributeKind::Test(test_scope) => self.format_test_attribute(test_scope),
+            FunctionAttributeKind::FuzzingHarness(fuzz_scope) => {
+                self.format_fuzz_attribute(fuzz_scope);
+            }
+            FunctionAttributeKind::Fold
+            | FunctionAttributeKind::NoPredicates
+            | FunctionAttributeKind::InlineAlways => {
+                self.format_no_args_attribute();
+            }
         }
 
         self.write_line();
@@ -66,25 +81,25 @@ impl<'a> Formatter<'a> {
             panic!("Expected attribute start, got: {:?}", self.token);
         }
 
-        match attribute {
-            SecondaryAttribute::Deprecated(message) => {
+        match attribute.kind {
+            SecondaryAttributeKind::Deprecated(message) => {
                 self.format_deprecated_attribute(message);
             }
-            SecondaryAttribute::ContractLibraryMethod
-            | SecondaryAttribute::Export
-            | SecondaryAttribute::Varargs
-            | SecondaryAttribute::UseCallersScope => {
+            SecondaryAttributeKind::ContractLibraryMethod
+            | SecondaryAttributeKind::Export
+            | SecondaryAttributeKind::Varargs
+            | SecondaryAttributeKind::UseCallersScope => {
                 self.format_no_args_attribute();
             }
-            SecondaryAttribute::Field(_)
-            | SecondaryAttribute::Abi(_)
-            | SecondaryAttribute::Allow(_) => {
+            SecondaryAttributeKind::Field(_)
+            | SecondaryAttributeKind::Abi(_)
+            | SecondaryAttributeKind::Allow(_) => {
                 self.format_one_arg_attribute();
             }
-            SecondaryAttribute::Tag(custom_attribute) => {
-                self.write_and_skip_span_without_formatting(custom_attribute.span);
+            SecondaryAttributeKind::Tag(_) => {
+                self.write_and_skip_span_without_formatting(attribute.location.span);
             }
-            SecondaryAttribute::Meta(meta_attribute) => {
+            SecondaryAttributeKind::Meta(meta_attribute) => {
                 self.format_meta_attribute(meta_attribute);
             }
         }
@@ -120,7 +135,47 @@ impl<'a> Formatter<'a> {
                 self.write_current_token_and_bump(); // should_fail
                 self.write_right_paren(); // )
             }
-            TestScope::ShouldFailWith { reason: Some(..) } => {
+            TestScope::ShouldFailWith { reason: Some(..) } | TestScope::OnlyFailWith { .. } => {
+                self.write_left_paren(); // (
+                self.skip_comments_and_whitespace();
+                self.write_current_token_and_bump(); // should_fail_with | only_fail_with
+                self.write_space();
+                self.write_token(Token::Assign);
+                self.write_space();
+                self.skip_comments_and_whitespace();
+                self.write_current_token_and_bump(); // "reason"
+                self.write_right_paren(); // )
+            }
+        }
+
+        self.write_right_bracket(); // ]
+    }
+
+    fn format_fuzz_attribute(&mut self, fuzz_scope: FuzzingScope) {
+        self.write_current_token_and_bump(); // #[
+        self.skip_comments_and_whitespace();
+        self.write_current_token_and_bump(); // fuzz
+
+        match fuzz_scope {
+            FuzzingScope::None => (),
+            FuzzingScope::OnlyFailWith { .. } => {
+                self.write_left_paren(); // (
+                self.skip_comments_and_whitespace();
+                self.write_current_token_and_bump(); // only_fail_with
+                self.write_space();
+                self.write_token(Token::Assign);
+                self.write_space();
+                self.skip_comments_and_whitespace();
+                self.write_current_token_and_bump(); // "reason"
+                self.write_right_paren(); // )
+            }
+            FuzzingScope::ShouldFailWith { reason: None } => {
+                self.write_left_paren(); // (
+                self.skip_comments_and_whitespace();
+                self.write_current_token_and_bump(); // should_fail
+                self.write_right_paren(); // )
+            }
+            FuzzingScope::ShouldFailWith { reason: Some(..) } => {
                 self.write_left_paren(); // (
                 self.skip_comments_and_whitespace();
                 self.write_current_token_and_bump(); // should_fail_with
@@ -139,7 +194,12 @@ impl<'a> Formatter<'a> {
     fn format_meta_attribute(&mut self, meta_attribute: MetaAttribute) {
         self.write_current_token_and_bump(); // #[
         self.skip_comments_and_whitespace();
-        self.format_path(meta_attribute.name);
+        match meta_attribute.name {
+            MetaAttributeName::Path(path) => self.format_path(path),
+            MetaAttributeName::Resolved(_) => {
+                unreachable!("Resolved MetaAttributeName should not happen when formatting a file")
+            }
+        }
         self.skip_comments_and_whitespace();
         if self.is_at(Token::LeftParen) {
             let comments_count_before_arguments = self.written_comments_count;
@@ -330,6 +390,41 @@ mod tests {
     fn format_test_should_fail_with_reason_attribute() {
         let src = "  #[ test ( should_fail_with=\"reason\" )] ";
         let expected = "#[test(should_fail_with = \"reason\")]";
+        assert_format_attribute(src, expected);
+    }
+
+    #[test]
+    fn format_test_only_fail_with_reason_attribute() {
+        let src = "  #[ test ( only_fail_with=\"reason\" )] ";
+        let expected = "#[test(only_fail_with = \"reason\")]";
+        assert_format_attribute(src, expected);
+    }
+
+    #[test]
+    fn format_fuzz_attribute() {
+        let src = "  #[ fuzz ] ";
+        let expected = "#[fuzz]";
+        assert_format_attribute(src, expected);
+    }
+
+    #[test]
+    fn format_fuzz_only_fail_with_reason_attribute() {
+        let src = "  #[ fuzz ( only_fail_with=\"reason\" )] ";
+        let expected = "#[fuzz(only_fail_with = \"reason\")]";
+        assert_format_attribute(src, expected);
+    }
+
+    #[test]
+    fn format_fuzz_should_fail_attribute() {
+        let src = "  #[ fuzz ( should_fail )] ";
+        let expected = "#[fuzz(should_fail)]";
+        assert_format_attribute(src, expected);
+    }
+
+    #[test]
+    fn format_fuzz_should_fail_with_reason_attribute() {
+        let src = "  #[ fuzz ( should_fail_with=\"reason\" )] ";
+        let expected = "#[fuzz(should_fail_with = \"reason\")]";
         assert_format_attribute(src, expected);
     }
 

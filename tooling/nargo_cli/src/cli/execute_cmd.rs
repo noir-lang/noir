@@ -1,26 +1,14 @@
 use std::path::PathBuf;
 
-use acvm::acir::native_types::WitnessStack;
-use acvm::FieldElement;
-use bn254_blackbox_solver::Bn254BlackBoxSolver;
 use clap::Args;
 
 use nargo::constants::PROVER_INPUT_FILE;
-use nargo::errors::try_to_diagnose_runtime_error;
-use nargo::foreign_calls::DefaultForeignCallBuilder;
-use nargo::package::Package;
 use nargo::workspace::Workspace;
-use nargo::PrintOutput;
 use nargo_toml::PackageSelection;
-use noirc_abi::input_parser::{Format, InputValue};
-use noirc_abi::InputMap;
-use noirc_artifacts::debug::DebugArtifact;
-use noirc_driver::{CompileOptions, CompiledProgram};
+use noirc_driver::CompileOptions;
 
 use super::compile_cmd::compile_workspace_full;
-use super::fs::{inputs::read_inputs_from_file, witness::save_witness_to_dir};
 use super::{LockType, PackageOptions, WorkspaceCommand};
-use crate::cli::fs::program::read_program_from_file;
 use crate::errors::CliError;
 
 /// Executes a circuit to calculate its return value
@@ -43,8 +31,12 @@ pub(crate) struct ExecuteCommand {
     compile_options: CompileOptions,
 
     /// JSON RPC url to solve oracle calls
-    #[clap(long)]
+    #[clap(long, conflicts_with = "oracle_file")]
     oracle_resolver: Option<String>,
+
+    /// Path to the oracle transcript.
+    #[clap(long, conflicts_with = "oracle_resolver")]
+    oracle_file: Option<PathBuf>,
 }
 
 impl WorkspaceCommand for ExecuteCommand {
@@ -59,126 +51,31 @@ impl WorkspaceCommand for ExecuteCommand {
 }
 
 pub(crate) fn run(args: ExecuteCommand, workspace: Workspace) -> Result<(), CliError> {
-    let target_dir = &workspace.target_directory_path();
-
     // Compile the full workspace in order to generate any build artifacts.
-    compile_workspace_full(&workspace, &args.compile_options)?;
+    let debug_compile_stdin = None;
+    compile_workspace_full(&workspace, &args.compile_options, debug_compile_stdin)?;
 
     let binary_packages = workspace.into_iter().filter(|package| package.is_binary());
     for package in binary_packages {
         let program_artifact_path = workspace.package_build_path(package);
-        let program: CompiledProgram =
-            read_program_from_file(program_artifact_path.clone())?.into();
-        let abi = program.abi.clone();
+        let prover_file = package.root_dir.join(&args.prover_name).with_extension("toml");
 
-        let results = execute_program_and_decode(
-            program,
-            package,
-            &args.prover_name,
-            args.oracle_resolver.as_deref(),
-            Some(workspace.root_dir.clone()),
-            Some(package.name.to_string()),
-            args.compile_options.pedantic_solving,
-        )?;
+        let cmd = noir_artifact_cli::commands::execute_cmd::ExecuteCommand {
+            artifact_path: program_artifact_path,
+            prover_file,
+            output_dir: Some(workspace.target_directory_path()),
+            witness_name: Some(
+                args.witness_name.clone().unwrap_or_else(|| package.name.to_string()),
+            ),
+            contract_fn: None,
+            oracle_file: args.oracle_file.clone(),
+            oracle_resolver: args.oracle_resolver.clone(),
+            oracle_root_dir: Some(workspace.root_dir.clone()),
+            oracle_package_name: Some(package.name.to_string()),
+            pedantic_solving: args.compile_options.pedantic_solving,
+        };
 
-        println!("[{}] Circuit witness successfully solved", package.name);
-        if let Some(ref return_value) = results.actual_return {
-            println!("[{}] Circuit output: {return_value:?}", package.name);
-        }
-
-        let package_name = package.name.clone().into();
-        let witness_name = args.witness_name.as_ref().unwrap_or(&package_name);
-        let witness_path = save_witness_to_dir(results.witness_stack, witness_name, target_dir)?;
-        println!("[{}] Witness saved to {}", package.name, witness_path.display());
-
-        // Sanity checks on the return value after the witness has been saved, so it can be inspected if necessary.
-        if let Some(expected) = results.expected_return {
-            if results.actual_return.as_ref() != Some(&expected) {
-                return Err(CliError::UnexpectedReturn { expected, actual: results.actual_return });
-            }
-        }
-        // We can expect that if the circuit returns something, it should be non-empty after execution.
-        if let Some(ref expected) = abi.return_type {
-            if results.actual_return.is_none() {
-                return Err(CliError::MissingReturn { expected: expected.clone() });
-            }
-        }
+        noir_artifact_cli::commands::execute_cmd::run(cmd)?;
     }
     Ok(())
-}
-
-fn execute_program_and_decode(
-    program: CompiledProgram,
-    package: &Package,
-    prover_name: &str,
-    foreign_call_resolver_url: Option<&str>,
-    root_path: Option<PathBuf>,
-    package_name: Option<String>,
-    pedantic_solving: bool,
-) -> Result<ExecutionResults, CliError> {
-    // Parse the initial witness values from Prover.toml
-    let (inputs_map, expected_return) =
-        read_inputs_from_file(&package.root_dir, prover_name, Format::Toml, &program.abi)?;
-    let witness_stack = execute_program(
-        &program,
-        &inputs_map,
-        foreign_call_resolver_url,
-        root_path,
-        package_name,
-        pedantic_solving,
-    )?;
-    // Get the entry point witness for the ABI
-    let main_witness =
-        &witness_stack.peek().expect("Should have at least one witness on the stack").witness;
-    let (_, actual_return) = program.abi.decode(main_witness)?;
-
-    Ok(ExecutionResults { expected_return, actual_return, witness_stack })
-}
-
-struct ExecutionResults {
-    expected_return: Option<InputValue>,
-    actual_return: Option<InputValue>,
-    witness_stack: WitnessStack<FieldElement>,
-}
-
-pub(crate) fn execute_program(
-    compiled_program: &CompiledProgram,
-    inputs_map: &InputMap,
-    foreign_call_resolver_url: Option<&str>,
-    root_path: Option<PathBuf>,
-    package_name: Option<String>,
-    pedantic_solving: bool,
-) -> Result<WitnessStack<FieldElement>, CliError> {
-    let initial_witness = compiled_program.abi.encode(inputs_map, None)?;
-
-    let solved_witness_stack_err = nargo::ops::execute_program(
-        &compiled_program.program,
-        initial_witness,
-        &Bn254BlackBoxSolver(pedantic_solving),
-        &mut DefaultForeignCallBuilder {
-            output: PrintOutput::Stdout,
-            enable_mocks: false,
-            resolver_url: foreign_call_resolver_url.map(|s| s.to_string()),
-            root_path,
-            package_name,
-        }
-        .build(),
-    );
-    match solved_witness_stack_err {
-        Ok(solved_witness_stack) => Ok(solved_witness_stack),
-        Err(err) => {
-            let debug_artifact = DebugArtifact {
-                debug_symbols: compiled_program.debug.clone(),
-                file_map: compiled_program.file_map.clone(),
-            };
-
-            if let Some(diagnostic) =
-                try_to_diagnose_runtime_error(&err, &compiled_program.abi, &compiled_program.debug)
-            {
-                diagnostic.report(&debug_artifact, false);
-            }
-
-            Err(CliError::NargoError(err))
-        }
-    }
 }

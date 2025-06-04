@@ -3,8 +3,8 @@
   "contributors": [
     "The Noir Team <team@noir-lang.org>"
   ],
-  "version": "1.0.0-beta.3",
-  "packageManager": "yarn@3.5.1",
+  "version": "1.0.0-beta.6",
+  "packageManager": "yarn@4.5.2",
   "license": "(MIT OR Apache-2.0)",
   "type": "module",
   "homepage": "https://noir-lang.org/",
@@ -19,7 +19,8 @@
   "dependencies": {
     "@noir-lang/acvm_js": "workspace:*",
     "@noir-lang/noirc_abi": "workspace:*",
-    "@noir-lang/types": "workspace:*"
+    "@noir-lang/types": "workspace:*",
+    "pako": "^2.1.0"
   },
   "files": [
     "lib",
@@ -43,24 +44,25 @@
     "test:node:cjs": "mocha --timeout 25000 --exit --config ./.mocharc.cjs.json",
     "prettier": "prettier 'src/**/*.ts'",
     "prettier:fix": "prettier --write 'src/**/*.ts' 'test/**/*.ts'",
-    "lint": "NODE_NO_WARNINGS=1 eslint . --ext .ts --ignore-path ./.eslintignore  --max-warnings 0",
+    "lint": "NODE_NO_WARNINGS=1 eslint . --max-warnings 0",
     "nightly:version": "jq --arg new_version \"-$(git rev-parse --short HEAD)$1\" '.version = .version + $new_version' package.json > package-tmp.json && mv package-tmp.json package.json",
     "publish": "echo 📡 publishing `$npm_package_name` && yarn npm publish",
     "clean": "rm -rf ./lib"
   },
   "devDependencies": {
     "@types/chai": "^4",
-    "@types/mocha": "^10.0.1",
-    "@types/node": "^20.6.2",
-    "@types/prettier": "^3",
+    "@types/mocha": "^10.0.10",
+    "@types/node": "^22.13.10",
+    "@types/pako": "^2",
+    "@types/prettier": "^3.0.0",
     "chai": "^4.4.1",
-    "eslint": "^8.57.0",
-    "eslint-plugin-prettier": "^5.1.3",
-    "mocha": "^10.2.0",
-    "prettier": "3.2.5",
-    "ts-node": "^10.9.1",
+    "eslint": "^9.28.0",
+    "eslint-plugin-prettier": "^5.4.1",
+    "mocha": "^11.5.0",
+    "prettier": "3.5.3",
+    "ts-node": "^10.9.2",
     "tsc-multi": "^1.1.0",
-    "tsx": "^4.6.2",
-    "typescript": "^5.4.2"
+    "tsx": "^4.19.3",
+    "typescript": "^5.8.3"
   }
 }

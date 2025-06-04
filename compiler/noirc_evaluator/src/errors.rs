@@ -7,12 +7,13 @@
 //! An Error of the former is a user Error
 //!
 //! An Error of the latter is an error in the implementation of the compiler
-use acvm::FieldElement;
 use iter_extended::vecmap;
-use noirc_errors::{CustomDiagnostic as Diagnostic, FileDiagnostic};
+use noirc_errors::{CustomDiagnostic, Location, call_stack::CallStack};
+
+use noirc_frontend::signed_field::SignedField;
 use thiserror::Error;
 
-use crate::ssa::ir::{call_stack::CallStack, types::NumericType};
+use crate::ssa::ir::types::NumericType;
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, PartialEq, Eq, Clone, Error)]
@@ -21,20 +22,18 @@ pub enum RuntimeError {
     InternalError(#[from] InternalError),
     #[error("Range constraint of {num_bits} bits is too large for the Field size")]
     InvalidRangeConstraint { num_bits: u32, call_stack: CallStack },
-    #[error("The value `{value:?}` cannot fit into `{typ}` which has range `{range}`")]
+    #[error("The value `{value}` cannot fit into `{typ}` which has range `{range}`")]
     IntegerOutOfBounds {
-        value: FieldElement,
+        value: SignedField,
         typ: NumericType,
         range: String,
         call_stack: CallStack,
     },
     #[error("Expected array index to fit into a u64")]
     TypeConversion { from: String, into: String, call_stack: CallStack },
-    #[error("{name:?} is not initialized")]
-    UnInitialized { name: String, call_stack: CallStack },
-    #[error("Integer sized {num_bits:?} is over the max supported size of {max_num_bits:?}")]
-    UnsupportedIntegerSize { num_bits: u32, max_num_bits: u32, call_stack: CallStack },
-    #[error("Integer {value}, sized {num_bits:?}, is over the max supported size of {max_num_bits:?} for the blackbox function's inputs")]
+    #[error(
+        "Integer {value}, sized {num_bits:?}, is over the max supported size of {max_num_bits:?} for the blackbox function's inputs"
+    )]
     InvalidBlackBoxInputBitSize {
         value: String,
         num_bits: u32,
@@ -47,8 +46,10 @@ pub enum RuntimeError {
     AssertConstantFailed { call_stack: CallStack },
     #[error("The static_assert message is not constant")]
     StaticAssertDynamicMessage { call_stack: CallStack },
-    #[error("Argument is dynamic")]
-    StaticAssertDynamicPredicate { call_stack: CallStack },
+    #[error(
+        "Failed because the predicate is dynamic:\n{message}\nThe predicate must be known at compile time to be evaluated."
+    )]
+    StaticAssertDynamicPredicate { message: String, call_stack: CallStack },
     #[error("{message}")]
     StaticAssertFailed { message: String, call_stack: CallStack },
     #[error("Nested slices, i.e. slices within an array or slice, are not supported")]
@@ -59,7 +60,9 @@ pub enum RuntimeError {
     UnconstrainedSliceReturnToConstrained { call_stack: CallStack },
     #[error("All `oracle` methods should be wrapped in an unconstrained fn")]
     UnconstrainedOracleReturnToConstrained { call_stack: CallStack },
-    #[error("Could not resolve some references to the array. All references must be resolved at compile time")]
+    #[error(
+        "Could not resolve some references to the array. All references must be resolved at compile time"
+    )]
     UnknownReference { call_stack: CallStack },
 }
 
@@ -69,8 +72,8 @@ pub enum SsaReport {
     Bug(InternalBug),
 }
 
-impl From<SsaReport> for FileDiagnostic {
-    fn from(error: SsaReport) -> FileDiagnostic {
+impl From<SsaReport> for CustomDiagnostic {
+    fn from(error: SsaReport) -> CustomDiagnostic {
         match error {
             SsaReport::Warning(warning) => {
                 let message = warning.to_string();
@@ -79,15 +82,14 @@ impl From<SsaReport> for FileDiagnostic {
                         ("This variable contains a value which is constrained to be a constant. Consider removing this value as additional return values increase proving/verification time".to_string(), call_stack)
                     },
                     InternalWarning::VerifyProof { call_stack } => {
-                        ("verify_proof(...) aggregates data for the verifier, the actual verification will be done when the full proof is verified using nargo verify. nargo prove may generate an invalid proof if bad data is used as input to verify_proof".to_string(), call_stack)
+                        ("The validity of the proof passed to verify_proof(...) can only be checked by the proving backend, so witness execution will defer checking of these proofs to the proving backend. Passing an invalid proof is expected to cause the proving backend to either fail to generate a proof or generate a proof which fails verification".to_string(), call_stack)
                     },
                 };
                 let call_stack = vecmap(call_stack, |location| location);
-                let file_id = call_stack.last().map(|location| location.file).unwrap_or_default();
                 let location = call_stack.last().expect("Expected RuntimeError to have a location");
                 let diagnostic =
-                    Diagnostic::simple_warning(message, secondary_message, location.span);
-                diagnostic.with_call_stack(call_stack).in_file(file_id)
+                    CustomDiagnostic::simple_warning(message, secondary_message, *location);
+                diagnostic.with_call_stack(call_stack)
             }
             SsaReport::Bug(bug) => {
                 let message = bug.to_string();
@@ -101,10 +103,10 @@ impl From<SsaReport> for FileDiagnostic {
                     InternalBug::AssertFailed { call_stack } => ("As a result, the compiled circuit is ensured to fail. Other assertions may also fail during execution".to_string(), call_stack)
                 };
                 let call_stack = vecmap(call_stack, |location| location);
-                let file_id = call_stack.last().map(|location| location.file).unwrap_or_default();
                 let location = call_stack.last().expect("Expected RuntimeError to have a location");
-                let diagnostic = Diagnostic::simple_bug(message, secondary_message, location.span);
-                diagnostic.with_call_stack(call_stack).in_file(file_id)
+                let diagnostic =
+                    CustomDiagnostic::simple_bug(message, secondary_message, *location);
+                diagnostic.with_call_stack(call_stack)
             }
         }
     }
@@ -114,7 +116,7 @@ impl From<SsaReport> for FileDiagnostic {
 pub enum InternalWarning {
     #[error("Return variable contains a constant value")]
     ReturnConstant { call_stack: CallStack },
-    #[error("Calling std::verify_proof(...) does not verify a proof")]
+    #[error("Calling std::verify_proof(...) does not check that the provided proof is valid")]
     VerifyProof { call_stack: CallStack },
 }
 
@@ -160,14 +162,12 @@ impl RuntimeError {
             )
             | RuntimeError::InvalidRangeConstraint { call_stack, .. }
             | RuntimeError::TypeConversion { call_stack, .. }
-            | RuntimeError::UnInitialized { call_stack, .. }
             | RuntimeError::UnknownLoopBound { call_stack }
             | RuntimeError::AssertConstantFailed { call_stack }
             | RuntimeError::StaticAssertDynamicMessage { call_stack }
-            | RuntimeError::StaticAssertDynamicPredicate { call_stack }
+            | RuntimeError::StaticAssertDynamicPredicate { call_stack, .. }
             | RuntimeError::StaticAssertFailed { call_stack, .. }
             | RuntimeError::IntegerOutOfBounds { call_stack, .. }
-            | RuntimeError::UnsupportedIntegerSize { call_stack, .. }
             | RuntimeError::InvalidBlackBoxInputBitSize { call_stack, .. }
             | RuntimeError::NestedSlice { call_stack, .. }
             | RuntimeError::BigIntModulus { call_stack, .. }
@@ -178,24 +178,23 @@ impl RuntimeError {
     }
 }
 
-impl From<RuntimeError> for FileDiagnostic {
-    fn from(error: RuntimeError) -> FileDiagnostic {
+impl From<RuntimeError> for CustomDiagnostic {
+    fn from(error: RuntimeError) -> CustomDiagnostic {
         let call_stack = vecmap(error.call_stack(), |location| *location);
-        let file_id = call_stack.last().map(|location| location.file).unwrap_or_default();
         let diagnostic = error.into_diagnostic();
-        diagnostic.with_call_stack(call_stack).in_file(file_id)
+        diagnostic.with_call_stack(call_stack)
     }
 }
 
 impl RuntimeError {
-    fn into_diagnostic(self) -> Diagnostic {
+    fn into_diagnostic(self) -> CustomDiagnostic {
         match self {
             RuntimeError::InternalError(cause) => {
-                Diagnostic::simple_error(
+                CustomDiagnostic::simple_error(
                     "Internal Consistency Evaluators Errors: \n
                     This is likely a bug. Consider opening an issue at https://github.com/noir-lang/noir/issues".to_owned(),
                     cause.to_string(),
-                    noirc_errors::Span::inclusive(0, 0)
+                    Location::dummy(),
                 )
             }
             RuntimeError::UnknownLoopBound { .. } => {
@@ -203,10 +202,10 @@ impl RuntimeError {
                 let location =
                     self.call_stack().last().expect("Expected RuntimeError to have a location");
 
-                Diagnostic::simple_error(
+                CustomDiagnostic::simple_error(
                     primary_message,
                     "If attempting to fetch the length of a slice, try converting to an array. Slices only use dynamic lengths.".to_string(),
-                    location.span,
+                    *location,
                 )
             }
             _ => {
@@ -214,7 +213,7 @@ impl RuntimeError {
                 let location =
                     self.call_stack().last().unwrap_or_else(|| panic!("Expected RuntimeError to have a location. Error message: {message}"));
 
-                Diagnostic::simple_error(message, String::new(), location.span)
+                CustomDiagnostic::simple_error(message, String::new(), *location)
             }
         }
     }

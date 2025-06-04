@@ -2,17 +2,18 @@
 //! The purpose of this pass is to inline the instructions of each function call
 //! within the function caller. If all function calls are known, there will only
 //! be a single function remaining when the pass finishes.
-use std::collections::{BTreeSet, HashSet, VecDeque};
+use std::collections::{HashSet, VecDeque};
 
 use acvm::acir::AcirField;
 use im::HashMap;
 use iter_extended::{btree_map, vecmap};
+use noirc_errors::call_stack::CallStackId;
 
 use crate::ssa::{
     function_builder::FunctionBuilder,
     ir::{
         basic_block::BasicBlockId,
-        call_stack::CallStackId,
+        call_graph::CallGraph,
         dfg::{GlobalsGraph, InsertInstructionResult},
         function::{Function, FunctionId, RuntimeType},
         instruction::{Instruction, InstructionId, TerminatorInstruction},
@@ -23,7 +24,7 @@ use crate::ssa::{
 
 pub(super) mod inline_info;
 
-pub(super) use inline_info::{compute_inline_infos, InlineInfo, InlineInfos};
+pub(super) use inline_info::{InlineInfo, InlineInfos, compute_inline_infos};
 
 /// An arbitrary limit to the maximum number of recursive call
 /// frames at any point in time.
@@ -50,13 +51,15 @@ impl Ssa {
     /// This step should run after runtime separation, since it relies on the runtime of the called functions being final.
     #[tracing::instrument(level = "trace", skip(self))]
     pub(crate) fn inline_functions(self, aggressiveness: i64) -> Ssa {
-        let inline_infos = compute_inline_infos(&self, false, aggressiveness);
+        let call_graph = CallGraph::from_ssa_weighted(&self);
+        let inline_infos = compute_inline_infos(&self, &call_graph, false, aggressiveness);
         Self::inline_functions_inner(self, &inline_infos, false)
     }
 
     /// Run the inlining pass where functions marked with `InlineType::NoPredicates` as not entry points
     pub(crate) fn inline_functions_with_no_predicates(self, aggressiveness: i64) -> Ssa {
-        let inline_infos = compute_inline_infos(&self, true, aggressiveness);
+        let call_graph = CallGraph::from_ssa_weighted(&self);
+        let inline_infos = compute_inline_infos(&self, &call_graph, true, aggressiveness);
         Self::inline_functions_inner(self, &inline_infos, true)
     }
 
@@ -65,8 +68,10 @@ impl Ssa {
         inline_infos: &InlineInfos,
         inline_no_predicates_functions: bool,
     ) -> Ssa {
-        let inline_targets =
-            inline_infos.iter().filter_map(|(id, info)| info.is_inline_target().then_some(*id));
+        let inline_targets = inline_infos.iter().filter_map(|(id, info)| {
+            let dfg = &self.functions[id].dfg;
+            info.is_inline_target(dfg).then_some(*id)
+        });
 
         let should_inline_call = |callee: &Function| -> bool {
             match callee.runtime() {
@@ -90,33 +95,6 @@ impl Ssa {
             let function = &self.functions[&entry_point];
             let new_function = function.inlined(&self, &should_inline_call);
             (entry_point, new_function)
-        });
-        self
-    }
-
-    pub(crate) fn inline_simple_functions(mut self: Ssa) -> Ssa {
-        let should_inline_call = |callee: &Function| {
-            if let RuntimeType::Acir(_) = callee.runtime() {
-                // Functions marked to not have predicates should be preserved.
-                if callee.is_no_predicates() {
-                    return false;
-                }
-            }
-
-            let entry_block_id = callee.entry_block();
-            let entry_block = &callee.dfg[entry_block_id];
-
-            // Only inline functions with a single block
-            if entry_block.successors().next().is_some() {
-                return false;
-            }
-
-            // Only inline functions with 0 or 1 instructions
-            entry_block.instructions().len() <= 1
-        };
-
-        self.functions = btree_map(self.functions.iter(), |(id, function)| {
-            (*id, function.inlined(&self, &should_inline_call))
         });
 
         self
@@ -183,31 +161,6 @@ struct PerFunctionContext<'function> {
     inlining_entry: bool,
 
     globals: &'function GlobalsGraph,
-}
-
-/// Utility function to find out the direct calls of a function.
-///
-/// Returns the function IDs from all `Call` instructions without deduplication.
-pub(crate) fn called_functions_vec(func: &Function) -> Vec<FunctionId> {
-    let mut called_function_ids = Vec::new();
-    for block_id in func.reachable_blocks() {
-        for instruction_id in func.dfg[block_id].instructions() {
-            let Instruction::Call { func: called_value_id, .. } = &func.dfg[*instruction_id] else {
-                continue;
-            };
-
-            if let Value::Function(function_id) = func.dfg[*called_value_id] {
-                called_function_ids.push(function_id);
-            }
-        }
-    }
-
-    called_function_ids
-}
-
-/// Utility function to find out the deduplicated direct calls made from a function.
-fn called_functions(func: &Function) -> BTreeSet<FunctionId> {
-    called_functions_vec(func).into_iter().collect()
 }
 
 impl InlineContext {
@@ -278,7 +231,9 @@ impl InlineContext {
 
         if self.recursion_level > RECURSION_LIMIT {
             panic!(
-                "Attempted to recur more than {RECURSION_LIMIT} times during inlining function '{}':\n{}", source_function.name(), source_function
+                "Attempted to recur more than {RECURSION_LIMIT} times during inlining function '{}':\n{}",
+                source_function.name(),
+                source_function
             );
         }
 
@@ -327,7 +282,6 @@ impl<'function> PerFunctionContext<'function> {
     /// and blocks respectively. If these assertions trigger it means a value is being used before
     /// the instruction or block that defines the value is inserted.
     fn translate_value(&mut self, id: ValueId) -> ValueId {
-        let id = self.source_function.dfg.resolve(id);
         if let Some(value) = self.values.get(&id) {
             return *value;
         }
@@ -349,10 +303,14 @@ impl<'function> PerFunctionContext<'function> {
                         return id;
                     }
                 }
-                unreachable!("All Value::Instructions should already be known during inlining after creating the original inlined instruction. Unknown value {id} = {value:?}")
+                unreachable!(
+                    "All Value::Instructions should already be known during inlining after creating the original inlined instruction. Unknown value {id} = {value:?}"
+                )
             }
             value @ Value::Param { .. } => {
-                unreachable!("All Value::Params should already be known from previous calls to translate_block. Unknown value {id} = {value:?}")
+                unreachable!(
+                    "All Value::Params should already be known from previous calls to translate_block. Unknown value {id} = {value:?}"
+                )
             }
             Value::NumericConstant { constant, typ } => {
                 // The dfg indexes a global's inner value directly, so we need to check here
@@ -630,8 +588,7 @@ impl<'function> PerFunctionContext<'function> {
             .dfg
             .call_stack_data
             .extend_call_stack(call_stack, &source_call_stack);
-        let results = self.source_function.dfg.instruction_results(id);
-        let results = vecmap(results, |id| self.source_function.dfg.resolve(*id));
+        let results = self.source_function.dfg.instruction_results(id).to_vec();
 
         let ctrl_typevars = instruction
             .requires_ctrl_typevars()
@@ -776,211 +733,136 @@ impl<'function> PerFunctionContext<'function> {
 
 #[cfg(test)]
 mod test {
-    use std::cmp::max;
-
-    use acvm::{acir::AcirField, FieldElement};
-    use noirc_frontend::monomorphization::ast::InlineType;
-
-    use crate::ssa::{
-        function_builder::FunctionBuilder,
-        ir::{
-            basic_block::BasicBlockId,
-            function::RuntimeType,
-            instruction::{BinaryOp, Intrinsic, TerminatorInstruction},
-            map::Id,
-            types::{NumericType, Type},
-        },
-        opt::{assert_normalized_ssa_equals, inlining::inline_info::compute_bottom_up_order},
-        Ssa,
+    use crate::{
+        assert_ssa_snapshot,
+        ssa::{Ssa, opt::assert_normalized_ssa_equals},
     };
 
     #[test]
     fn basic_inlining() {
-        // fn foo {
-        //   b0():
-        //     v0 = call bar()
-        //     return v0
-        // }
-        // fn bar {
-        //   b0():
-        //     return 72
-        // }
-        let foo_id = Id::test_new(0);
-        let mut builder = FunctionBuilder::new("foo".into(), foo_id);
+        let src = "
+        acir(inline) fn foo f0 {
+          b0():
+            v1 = call f1() -> Field
+            return v1
+        }
 
-        let bar_id = Id::test_new(1);
-        let bar = builder.import_function(bar_id);
-        let results = builder.insert_call(bar, Vec::new(), vec![Type::field()]).to_vec();
-        builder.terminate_with_return(results);
-
-        builder.new_function("bar".into(), bar_id, InlineType::default());
-        let expected_return = 72u128;
-        let seventy_two = builder.field_constant(expected_return);
-        builder.terminate_with_return(vec![seventy_two]);
-
-        let ssa = builder.finish();
-        assert_eq!(ssa.functions.len(), 2);
-
-        let inlined = ssa.inline_functions(i64::MAX);
-        assert_eq!(inlined.functions.len(), 1);
+        acir(inline) fn bar f1 {
+          b0():
+            return Field 72
+        }
+        ";
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.inline_functions(i64::MAX);
+        assert_ssa_snapshot!(ssa, @r"
+        acir(inline) fn foo f0 {
+          b0():
+            return Field 72
+        }
+        ");
     }
 
     #[test]
     fn complex_inlining() {
         // This SSA is from issue #1327 which previously failed to inline properly
-        //
-        // fn main f0 {
-        //   b0(v0: Field):
-        //     v7 = call f2(f1)
-        //     v13 = call f3(v7)
-        //     v16 = call v13(v0)
-        //     return v16
-        // }
-        // fn square f1 {
-        //   b0(v0: Field):
-        //     v2 = mul v0, v0
-        //     return v2
-        // }
-        // fn id1 f2 {
-        //   b0(v0: function):
-        //     return v0
-        // }
-        // fn id2 f3 {
-        //   b0(v0: function):
-        //     return v0
-        // }
-        let main_id = Id::test_new(0);
-        let square_id = Id::test_new(1);
-        let id1_id = Id::test_new(2);
-        let id2_id = Id::test_new(3);
+        let src = "
+        acir(inline) fn main f0 {
+          b0(v0: Field):
+            v4 = call f2(f1) -> function
+            v5 = call f3(v4) -> function
+            v6 = call v5(v0) -> Field
+            return v6
+        }
 
-        // Compiling main
-        let mut builder = FunctionBuilder::new("main".into(), main_id);
-        let main_v0 = builder.add_parameter(Type::field());
+        acir(inline) fn square f1 {
+          b0(v0: Field):
+            v1 = mul v0, v0
+            return v1
+        }
 
-        let main_f1 = builder.import_function(square_id);
-        let main_f2 = builder.import_function(id1_id);
-        let main_f3 = builder.import_function(id2_id);
+        acir(inline) fn id1 f2 {
+          b0(v0: function):
+            return v0
+        }
 
-        let main_v7 = builder.insert_call(main_f2, vec![main_f1], vec![Type::Function])[0];
-        let main_v13 = builder.insert_call(main_f3, vec![main_v7], vec![Type::Function])[0];
-        let main_v16 = builder.insert_call(main_v13, vec![main_v0], vec![Type::field()])[0];
-        builder.terminate_with_return(vec![main_v16]);
+        acir(inline) fn id2 f3 {
+          b0(v0: function):
+            return v0
+        }
+        ";
+        let ssa = Ssa::from_str(src).unwrap();
 
-        // Compiling square f1
-        builder.new_function("square".into(), square_id, InlineType::default());
-        let square_v0 = builder.add_parameter(Type::field());
-        let square_v2 =
-            builder.insert_binary(square_v0, BinaryOp::Mul { unchecked: false }, square_v0);
-        builder.terminate_with_return(vec![square_v2]);
-
-        // Compiling id1 f2
-        builder.new_function("id1".into(), id1_id, InlineType::default());
-        let id1_v0 = builder.add_parameter(Type::Function);
-        builder.terminate_with_return(vec![id1_v0]);
-
-        // Compiling id2 f3
-        builder.new_function("id2".into(), id2_id, InlineType::default());
-        let id2_v0 = builder.add_parameter(Type::Function);
-        builder.terminate_with_return(vec![id2_v0]);
-
-        // Done, now we test that we can successfully inline all functions.
-        let ssa = builder.finish();
-        assert_eq!(ssa.functions.len(), 4);
-
-        let inlined = ssa.inline_functions(i64::MAX);
-        assert_eq!(inlined.functions.len(), 1);
+        let ssa = ssa.inline_functions(i64::MAX);
+        assert_ssa_snapshot!(ssa, @r"
+        acir(inline) fn main f0 {
+          b0(v0: Field):
+            v1 = mul v0, v0
+            return v1
+        }
+        ");
     }
 
     #[test]
     fn recursive_functions() {
-        // fn main f0 {
-        //   b0():
-        //     v0 = call factorial(Field 5)
-        //     return v0
-        // }
-        // fn factorial f1 {
-        //   b0(v0: Field):
-        //     v1 = lt v0, Field 1
-        //     jmpif v1, then: b1, else: b2
-        //   b1():
-        //     return Field 1
-        //   b2():
-        //     v2 = sub v0, Field 1
-        //     v3 = call factorial(v2)
-        //     v4 = mul v0, v3
-        //     return v4
-        // }
-        let main_id = Id::test_new(0);
-        let mut builder = FunctionBuilder::new("main".into(), main_id);
-
-        let factorial_id = Id::test_new(1);
-        let factorial = builder.import_function(factorial_id);
-
-        let five = builder.field_constant(5u128);
-        let results = builder.insert_call(factorial, vec![five], vec![Type::field()]).to_vec();
-        builder.terminate_with_return(results);
-
-        builder.new_function("factorial".into(), factorial_id, InlineType::default());
-        let b1 = builder.insert_block();
-        let b2 = builder.insert_block();
-
-        let one = builder.field_constant(1u128);
-
-        let v0 = builder.add_parameter(Type::field());
-        let v1 = builder.insert_binary(v0, BinaryOp::Lt, one);
-        builder.terminate_with_jmpif(v1, b1, b2);
-
-        builder.switch_to_block(b1);
-        builder.terminate_with_return(vec![one]);
-
-        builder.switch_to_block(b2);
-        let factorial_id = builder.import_function(factorial_id);
-        let v2 = builder.insert_binary(v0, BinaryOp::Sub { unchecked: false }, one);
-        let v3 = builder.insert_call(factorial_id, vec![v2], vec![Type::field()])[0];
-        let v4 = builder.insert_binary(v0, BinaryOp::Mul { unchecked: false }, v3);
-        builder.terminate_with_return(vec![v4]);
-
-        let ssa = builder.finish();
-        assert_eq!(ssa.functions.len(), 2);
-
-        // Expected SSA:
-        //
-        // fn main f2 {
-        //   b0():
-        //     jmp b1()
-        //   b1():
-        //     jmp b2()
-        //   b2():
-        //     jmp b3()
-        //   b3():
-        //     jmp b4()
-        //   b4():
-        //     jmp b5()
-        //   b5():
-        //     jmp b6()
-        //   b6():
-        //     return Field 120
-        // }
-        let inlined = ssa.inline_functions(i64::MAX);
-        assert_eq!(inlined.functions.len(), 1);
-
-        let main = inlined.main();
-        let b6_id: BasicBlockId = Id::test_new(6);
-        let b6 = &main.dfg[b6_id];
-
-        match b6.terminator() {
-            Some(TerminatorInstruction::Return { return_values, .. }) => {
-                assert_eq!(return_values.len(), 1);
-                let value = main
-                    .dfg
-                    .get_numeric_constant(return_values[0])
-                    .expect("Expected a constant for the return value")
-                    .to_u128();
-                assert_eq!(value, 120);
-            }
-            other => unreachable!("Unexpected terminator {other:?}"),
+        let src = "
+        acir(inline) fn main f0 {
+          b0():
+            v2 = call f1(u32 5) -> u32
+            return v2
         }
+
+        acir(inline) fn factorial f1 {
+          b0(v1: u32):
+            v2 = lt v1, u32 1
+            jmpif v2 then: b1, else: b2
+          b1():
+            jmp b3(u32 1)
+          b2():
+            v4 = sub v1, u32 1
+            v5 = call f1(v4) -> u32
+            v6 = mul v1, v5
+            jmp b3(v6)
+          b3(v7: u32):
+            return v7
+        }
+        ";
+        let ssa = Ssa::from_str(src).unwrap();
+
+        let ssa = ssa.inline_functions(i64::MAX);
+        assert_ssa_snapshot!(ssa, @r"
+        acir(inline) fn main f0 {
+          b0():
+            jmp b1()
+          b1():
+            jmp b2()
+          b2():
+            jmp b3()
+          b3():
+            jmp b4()
+          b4():
+            jmp b5()
+          b5():
+            jmp b6()
+          b6():
+            jmp b7(u32 1)
+          b7(v0: u32):
+            jmp b8(v0)
+          b8(v1: u32):
+            v8 = mul u32 2, v1
+            jmp b9(v8)
+          b9(v2: u32):
+            v10 = mul u32 3, v2
+            jmp b10(v10)
+          b10(v3: u32):
+            v12 = mul u32 4, v3
+            jmp b11(v12)
+          b11(v4: u32):
+            v14 = mul u32 5, v4
+            jmp b12(v14)
+          b12(v5: u32):
+            return v5
+        }
+        ");
     }
 
     #[test]
@@ -989,77 +871,35 @@ mod test {
         // terminated by returns are badly tracked. As a result, the continuation of a source
         // block after a call instruction could but inlined into a block that's already been
         // terminated, producing an incorrect order and orphaning successors.
+        let src = "
+        acir(inline) fn main f0 {
+          b0(v0: u1):
+            jmpif v0 then: b1, else: b2
+          b1():
+            jmp b3(Field 1)
+          b2():
+            jmp b3(Field 2)
+          b3(v3: Field):
+            call assert_constant(v3)
+            return
+        }
+        ";
+        let ssa = Ssa::from_str(src).unwrap();
 
-        // fn main f0 {
-        //   b0(v0: u1):
-        //     v2 = call f1(v0)
-        //     call assert_constant(v2)
-        //     return
-        // }
-        // fn inner1 f1 {
-        //   b0(v0: u1):
-        //     v2 = call f2(v0)
-        //     return v2
-        // }
-        // fn inner2 f2 {
-        //   b0(v0: u1):
-        //     jmpif v0 then: b1, else: b2
-        //   b1():
-        //     jmp b3(Field 1)
-        //   b3(v3: Field):
-        //     return v3
-        //   b2():
-        //     jmp b3(Field 2)
-        // }
-        let main_id = Id::test_new(0);
-        let mut builder = FunctionBuilder::new("main".into(), main_id);
-
-        let main_cond = builder.add_parameter(Type::bool());
-        let inner1_id = Id::test_new(1);
-        let inner1 = builder.import_function(inner1_id);
-        let main_v2 = builder.insert_call(inner1, vec![main_cond], vec![Type::field()])[0];
-        let assert_constant = builder.import_intrinsic_id(Intrinsic::AssertConstant);
-        builder.insert_call(assert_constant, vec![main_v2], vec![]);
-        builder.terminate_with_return(vec![]);
-
-        builder.new_function("inner1".into(), inner1_id, InlineType::default());
-        let inner1_cond = builder.add_parameter(Type::bool());
-        let inner2_id = Id::test_new(2);
-        let inner2 = builder.import_function(inner2_id);
-        let inner1_v2 = builder.insert_call(inner2, vec![inner1_cond], vec![Type::field()])[0];
-        builder.terminate_with_return(vec![inner1_v2]);
-
-        builder.new_function("inner2".into(), inner2_id, InlineType::default());
-        let inner2_cond = builder.add_parameter(Type::bool());
-        let then_block = builder.insert_block();
-        let else_block = builder.insert_block();
-        let join_block = builder.insert_block();
-        builder.terminate_with_jmpif(inner2_cond, then_block, else_block);
-        builder.switch_to_block(then_block);
-        let one = builder.field_constant(FieldElement::one());
-        builder.terminate_with_jmp(join_block, vec![one]);
-        builder.switch_to_block(else_block);
-        let two = builder.field_constant(FieldElement::from(2_u128));
-        builder.terminate_with_jmp(join_block, vec![two]);
-        let join_param = builder.add_block_parameter(join_block, Type::field());
-        builder.switch_to_block(join_block);
-        builder.terminate_with_return(vec![join_param]);
-
-        let ssa = builder.finish().inline_functions(i64::MAX);
-        // Expected result:
-        // fn main f3 {
-        //   b0(v0: u1):
-        //     jmpif v0 then: b1, else: b2
-        //   b1():
-        //     jmp b3(Field 1)
-        //   b3(v3: Field):
-        //     call assert_constant(v3)
-        //     return
-        //   b2():
-        //     jmp b3(Field 2)
-        // }
-        let main = ssa.main();
-        assert_eq!(main.reachable_blocks().len(), 4);
+        let ssa = ssa.inline_functions(i64::MAX);
+        assert_ssa_snapshot!(ssa, @r"
+        acir(inline) fn main f0 {
+          b0(v0: u1):
+            jmpif v0 then: b1, else: b2
+          b1():
+            jmp b3(Field 1)
+          b2():
+            jmp b3(Field 2)
+          b3(v1: Field):
+            call assert_constant(v1)
+            return
+        }
+        ");
     }
 
     #[test]
@@ -1087,252 +927,67 @@ mod test {
 
     #[test]
     fn inliner_disabled() {
-        // brillig fn foo {
-        //   b0():
-        //     v0 = call bar()
-        //     return v0
-        // }
-        // brillig fn bar {
-        //   b0():
-        //     return 72
-        // }
-        let foo_id = Id::test_new(0);
-        let mut builder = FunctionBuilder::new("foo".into(), foo_id);
-        builder.set_runtime(RuntimeType::Brillig(InlineType::default()));
+        let src = "
+        brillig(inline) fn foo f0 {
+          b0():
+            v1 = call f1() -> Field
+            return v1
+        }
 
-        let bar_id = Id::test_new(1);
-        let bar = builder.import_function(bar_id);
-        let results = builder.insert_call(bar, Vec::new(), vec![Type::field()]).to_vec();
-        builder.terminate_with_return(results);
-
-        builder.new_brillig_function("bar".into(), bar_id, InlineType::default());
-        let expected_return = 72u128;
-        let seventy_two = builder.field_constant(expected_return);
-        builder.terminate_with_return(vec![seventy_two]);
-
-        let ssa = builder.finish();
-        assert_eq!(ssa.functions.len(), 2);
-
-        let inlined = ssa.inline_functions(i64::MIN);
+        brillig(inline) fn bar f1 {
+          b0():
+            return Field 72
+        }
+        ";
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.inline_functions(i64::MIN);
         // No inlining has happened
-        assert_eq!(inlined.functions.len(), 2);
+        assert_normalized_ssa_equals(ssa, src);
     }
 
     #[test]
     fn conditional_inlining() {
         // In this example we call a larger brillig function 3 times so the inliner refuses to inline the function.
-        // brillig fn foo {
-        //   b0():
-        //     v0 = call bar()
-        //     v1 = call bar()
-        //     v2 = call bar()
-        //     return v0
-        // }
-        // brillig fn bar {
-        //   b0():
-        //     jmpif 1 then: b1, else: b2
-        //   b1():
-        //     jmp b3(Field 1)
-        //   b3(v3: Field):
-        //     return v3
-        //   b2():
-        //     jmp b3(Field 2)
-        // }
-        let foo_id = Id::test_new(0);
-        let mut builder = FunctionBuilder::new("foo".into(), foo_id);
-        builder.set_runtime(RuntimeType::Brillig(InlineType::default()));
-
-        let bar_id = Id::test_new(1);
-        let bar = builder.import_function(bar_id);
-        let v0 = builder.insert_call(bar, Vec::new(), vec![Type::field()]).to_vec();
-        let _v1 = builder.insert_call(bar, Vec::new(), vec![Type::field()]).to_vec();
-        let _v2 = builder.insert_call(bar, Vec::new(), vec![Type::field()]).to_vec();
-        builder.terminate_with_return(v0);
-
-        builder.new_brillig_function("bar".into(), bar_id, InlineType::default());
-        let bar_v0 = builder.numeric_constant(1_usize, NumericType::bool());
-        let then_block = builder.insert_block();
-        let else_block = builder.insert_block();
-        let join_block = builder.insert_block();
-        builder.terminate_with_jmpif(bar_v0, then_block, else_block);
-        builder.switch_to_block(then_block);
-        let one = builder.field_constant(FieldElement::one());
-        builder.terminate_with_jmp(join_block, vec![one]);
-        builder.switch_to_block(else_block);
-        let two = builder.field_constant(FieldElement::from(2_u128));
-        builder.terminate_with_jmp(join_block, vec![two]);
-        let join_param = builder.add_block_parameter(join_block, Type::field());
-        builder.switch_to_block(join_block);
-        builder.terminate_with_return(vec![join_param]);
-
-        let ssa = builder.finish();
-        assert_eq!(ssa.functions.len(), 2);
-
-        let inlined = ssa.inline_functions(0);
-        // No inlining has happened
-        assert_eq!(inlined.functions.len(), 2);
-    }
-
-    #[test]
-    fn bottom_up_order_and_weights() {
         let src = "
-          brillig(inline) fn main f0 {
-            b0(v0: u32, v1: u1):
-              v3 = call f2(v0) -> u1
-              v4 = eq v3, v1
-              constrain v3 == v1
-              return
-          }
-          brillig(inline) fn is_even f1 {
-            b0(v0: u32):
-              v3 = eq v0, u32 0
-              jmpif v3 then: b2, else: b1
-            b1():
-              v5 = call f3(v0) -> u32
-              v7 = call f2(v5) -> u1
-              jmp b3(v7)
-            b2():
-              jmp b3(u1 1)
-            b3(v1: u1):
-              return v1
-          }
-          brillig(inline) fn is_odd f2 {
-            b0(v0: u32):
-              v3 = eq v0, u32 0
-              jmpif v3 then: b2, else: b1
-            b1():
-              v5 = call f3(v0) -> u32
-              v7 = call f1(v5) -> u1
-              jmp b3(v7)
-            b2():
-              jmp b3(u1 0)
-            b3(v1: u1):
-              return v1
-          }
-          brillig(inline) fn decrement f3 {
-            b0(v0: u32):
-              v2 = sub v0, u32 1
-              return v2
-          }
-        ";
-        // main
-        //   |
-        //   V
-        // is_odd <-> is_even
-        //      |     |
-        //      V     V
-        //      decrement
-
-        let ssa = Ssa::from_str(src).unwrap();
-        let order = compute_bottom_up_order(&ssa);
-
-        assert_eq!(order.len(), 4);
-        let (ids, ws): (Vec<_>, Vec<_>) = order.into_iter().map(|(id, w)| (id.to_u32(), w)).unzip();
-        let (ows, tws): (Vec<_>, Vec<_>) = ws.into_iter().unzip();
-
-        // Check order
-        assert_eq!(ids[0], 3, "decrement: first, it doesn't call anything");
-        assert_eq!(ids[1], 1, "is_even: called by is_odd; removing first avoids cutting the graph");
-        assert_eq!(ids[2], 2, "is_odd: called by is_odd and main");
-        assert_eq!(ids[3], 0, "main: last, it's the entry");
-
-        // Check own weights
-        assert_eq!(ows, [2, 7, 7, 4]);
-
-        // Check transitive weights
-        assert_eq!(tws[0], ows[0], "decrement");
-        assert_eq!(
-            tws[1],
-            ows[1] + // own
-            tws[0] + // pushed from decrement
-            (ows[2] + tws[0]), // pulled from is_odd at the time is_even is emitted
-            "is_even"
-        );
-        assert_eq!(
-            tws[2],
-            ows[2] + // own
-            tws[0] + // pushed from decrement
-            tws[1], // pushed from is_even
-            "is_odd"
-        );
-        assert_eq!(
-            tws[3],
-            ows[3] + // own
-            tws[2], // pushed from is_odd
-            "main"
-        );
-        assert!(tws[3] > max(tws[1], tws[2]), "ideally 'main' has the most weight");
-    }
-
-    #[test]
-    fn inline_simple_functions_with_zero_instructions() {
-        let src = "
-        acir(inline) fn main f0 {
-        b0(v0: Field):
-          v2 = call f1(v0) -> Field
-          v3 = call f1(v0) -> Field
-          v4 = add v2, v3
-          return v4
+        brillig(inline) fn foo f0 {
+          b0():
+            v1 = call f1() -> Field
+            v2 = call f1() -> Field
+            v3 = call f1() -> Field
+            return v1
         }
 
-        acir(inline) fn foo f1 {
-        b0(v0: Field):
-          return v0
+        brillig(inline) fn bar f1 {
+          b0():
+            jmpif u1 1 then: b1, else: b2
+          b1():
+            jmp b3(Field 1)
+          b2():
+            jmp b3(Field 2)
+          b3(v3: Field):
+            return v3
         }
         ";
         let ssa = Ssa::from_str(src).unwrap();
 
-        let expected = "
-        acir(inline) fn main f0 {
-        b0(v0: Field):
-          v1 = add v0, v0
-          return v1
+        let ssa = ssa.inline_functions(0);
+        // No inlining has happened in f0
+        assert_ssa_snapshot!(ssa, @r"
+        brillig(inline) fn foo f0 {
+          b0():
+            v1 = call f1() -> Field
+            v2 = call f1() -> Field
+            v3 = call f1() -> Field
+            return v1
         }
-        acir(inline) fn foo f1 {
-        b0(v0: Field):
-          return v0
+        brillig(inline) fn bar f1 {
+          b0():
+            jmp b1()
+          b1():
+            jmp b2(Field 1)
+          b2(v0: Field):
+            return v0
         }
-        ";
-
-        let ssa = ssa.inline_simple_functions();
-        assert_normalized_ssa_equals(ssa, expected);
-    }
-
-    #[test]
-    fn inline_simple_functions_with_one_instruction() {
-        let src = "
-        acir(inline) fn main f0 {
-        b0(v0: Field):
-          v2 = call f1(v0) -> Field
-          v3 = call f1(v0) -> Field
-          v4 = add v2, v3
-          return v4
-        }
-
-        acir(inline) fn foo f1 {
-        b0(v0: Field):
-          v2 = add v0, Field 1
-          return v2
-        }
-        ";
-        let ssa = Ssa::from_str(src).unwrap();
-
-        let expected = "
-        acir(inline) fn main f0 {
-        b0(v0: Field):
-          v2 = add v0, Field 1
-          v3 = add v0, Field 1
-          v4 = add v2, v3
-          return v4
-        }
-        acir(inline) fn foo f1 {
-        b0(v0: Field):
-          v2 = add v0, Field 1
-          return v2
-        }
-        ";
-
-        let ssa = ssa.inline_simple_functions();
-        assert_normalized_ssa_equals(ssa, expected);
+        ");
     }
 }

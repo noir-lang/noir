@@ -3,7 +3,7 @@ use iter_extended::vecmap;
 use crate::{
     brillig::brillig_ir::{
         artifact::BrilligParameter,
-        brillig_variable::{get_bit_size_from_ssa_type, BrilligVariable},
+        brillig_variable::{BrilligVariable, get_bit_size_from_ssa_type},
     },
     ssa::ir::{
         basic_block::BasicBlockId,
@@ -30,11 +30,13 @@ pub(crate) struct FunctionContext {
     pub(crate) liveness: VariableLiveness,
     /// Information on where to allocate constants
     pub(crate) constant_allocation: ConstantAllocation,
+    /// True if this function is a brillig entry point
+    pub(crate) is_entry_point: bool,
 }
 
 impl FunctionContext {
     /// Creates a new function context. It will allocate parameters for all blocks and compute the liveness of every variable.
-    pub(crate) fn new(function: &Function) -> Self {
+    pub(crate) fn new(function: &Function, is_entry_point: bool) -> Self {
         let id = function.id();
 
         let mut reverse_post_order = Vec::new();
@@ -49,6 +51,7 @@ impl FunctionContext {
             ssa_value_allocations: HashMap::default(),
             blocks: reverse_post_order,
             liveness,
+            is_entry_point,
             constant_allocation: constants,
         }
     }

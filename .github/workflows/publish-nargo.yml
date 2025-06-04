@@ -38,15 +38,8 @@ jobs:
         with:
           ref: ${{ inputs.tag || env.GITHUB_REF }}
 
-      - name: Setup for Apple Silicon
-        if: matrix.target == 'aarch64-apple-darwin'
-        run: |
-          sudo xcode-select -s /Applications/Xcode_15.4.0.app/Contents/Developer/
-          echo "SDKROOT=$(xcrun -sdk macosx$(sw_vers -productVersion) --show-sdk-path)" >> $GITHUB_ENV
-          echo "MACOSX_DEPLOYMENT_TARGET=$(xcrun -sdk macosx$(sw_vers -productVersion) --show-sdk-platform-version)" >> $GITHUB_ENV
-
       - name: Setup toolchain
-        uses: dtolnay/rust-toolchain@1.75.0
+        uses: dtolnay/rust-toolchain@1.85.0
         with:
           targets: ${{ matrix.target }}
 
@@ -61,7 +54,9 @@ jobs:
           cargo build --package nargo_cli --release --target ${{ matrix.target }} --no-default-features --features "${{ inputs.features }}"
           cargo build --package noir_profiler --release --target ${{ matrix.target }} --no-default-features --features "${{ inputs.features }}"
           cargo build --package noir_inspector --release --target ${{ matrix.target }} --no-default-features --features "${{ inputs.features }}"
-      
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
       - name: Package artifacts
         run: |
           mkdir dist
@@ -151,7 +146,7 @@ jobs:
           ref: ${{ inputs.tag || env.GITHUB_REF }}
 
       - name: Setup toolchain
-        uses: dtolnay/rust-toolchain@1.75.0
+        uses: dtolnay/rust-toolchain@1.85.0
         with:
           targets: ${{ matrix.target }}
 
@@ -171,6 +166,8 @@ jobs:
           cross build --package nargo_cli --release --target=${{ matrix.target }} --no-default-features --features "${{ inputs.features }}"
           cross build --package noir_profiler --release --target=${{ matrix.target }} --no-default-features --features "${{ inputs.features }}"
           cross build --package noir_inspector --release --target ${{ matrix.target }} --no-default-features --features "${{ inputs.features }}"
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Package artifacts
         run: |
@@ -244,5 +241,3 @@ jobs:
           make_latest: false
           overwrite: true
           tag: ${{ format('{0}-{1}', 'nightly', steps.date.outputs.date) }}
-
-  

@@ -1,9 +1,9 @@
 use std::path::Path;
 
 use fm::FileId;
-use noirc_driver::{file_manager_with_stdlib, prepare_crate, CompileOptions, ErrorsAndWarnings};
+use noirc_driver::{CompileOptions, ErrorsAndWarnings, file_manager_with_stdlib, prepare_crate};
 use noirc_errors::CustomDiagnostic;
-use noirc_frontend::hir::{def_map::parse_file, Context};
+use noirc_frontend::hir::{Context, def_map::parse_file};
 
 #[test]
 fn reject_crates_containing_multiple_contracts() -> Result<(), ErrorsAndWarnings> {
@@ -33,8 +33,10 @@ contract Bar {}";
 
     assert_eq!(
         errors,
-        vec![CustomDiagnostic::from_message("Packages are limited to a single contract")
-            .in_file(FileId::default())],
+        vec![CustomDiagnostic::from_message(
+            "Packages are limited to a single contract",
+            FileId::default()
+        )],
         "stdlib is producing warnings"
     );
 

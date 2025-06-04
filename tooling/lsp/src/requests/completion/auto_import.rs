@@ -1,20 +1,23 @@
-use noirc_frontend::{ast::ItemVisibility, hir::def_map::ModuleDefId, node_interner::Reexport};
+use noirc_frontend::{
+    ast::ItemVisibility, hir::def_map::ModuleDefId, modules::module_def_id_relative_path,
+    node_interner::Reexport,
+};
 
 use crate::{
-    modules::{get_ancestor_module_reexport, module_def_id_relative_path},
+    modules::get_ancestor_module_reexport,
     use_segment_positions::{
-        use_completion_item_additional_text_edits, UseCompletionItemAdditionTextEditsRequest,
+        UseCompletionItemAdditionTextEditsRequest, use_completion_item_additional_text_edits,
     },
 };
 
 use super::{
+    NodeFinder,
     kinds::{FunctionCompletionKind, FunctionKind, RequestedItems},
     name_matches,
     sort_text::auto_import_sort_text,
-    NodeFinder,
 };
 
-impl<'a> NodeFinder<'a> {
+impl NodeFinder<'_> {
     pub(super) fn complete_auto_imports(
         &mut self,
         prefix: &str,

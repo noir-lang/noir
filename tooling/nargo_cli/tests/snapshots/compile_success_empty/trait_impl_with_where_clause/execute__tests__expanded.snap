@@ -1,0 +1,36 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: expanded_code
+---
+fn main() {
+    let array: [Field; 3] = [1, 2, 3];
+    assert(array.my_eq(array));
+    let array: [Field; 3] = [1, 2, 3];
+    assert(array.my_eq(array));
+}
+
+trait MyEq {
+    fn my_eq(self, other: Self) -> bool;
+}
+
+impl<T> MyEq for [T; 3]
+where
+    T: MyEq,
+{
+    fn my_eq(self, other: Self) -> bool
+    where
+        T: MyEq,
+    {
+        let mut ret: bool = true;
+        for i in 0..self.len() {
+            ret = ret & MyEq::my_eq(self[i], other[i]);
+        }
+        ret
+    }
+}
+
+impl MyEq for Field {
+    fn my_eq(self, other: Self) -> bool {
+        self == other
+    }
+}

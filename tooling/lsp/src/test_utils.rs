@@ -1,7 +1,7 @@
 use crate::LspState;
 use acvm::blackbox_solver::StubbedBlackBoxSolver;
 use async_lsp::ClientSocket;
-use lsp_types::{Position, Range, Url};
+use async_lsp::lsp_types::{InitializeParams, Position, Range, Url, WorkDoneProgressParams};
 
 pub(crate) async fn init_lsp_server(directory: &str) -> (LspState, Url) {
     let client = ClientSocket::new_closed();
@@ -19,16 +19,17 @@ pub(crate) async fn init_lsp_server(directory: &str) -> (LspState, Url) {
         Some(Url::from_file_path(root_path.as_path()).expect("Could not convert root path to URI"));
 
     #[allow(deprecated)]
-    let initialize_params = lsp_types::InitializeParams {
+    let initialize_params = InitializeParams {
         process_id: Default::default(),
         root_path: None,
         root_uri,
         initialization_options: None,
         capabilities: Default::default(),
-        trace: Some(lsp_types::TraceValue::Verbose),
+        trace: Some(async_lsp::lsp_types::TraceValue::Verbose),
         workspace_folders: None,
         client_info: None,
         locale: None,
+        work_done_progress_params: WorkDoneProgressParams::default(),
     };
 
     let _initialize_response = crate::requests::on_initialize(&mut state, initialize_params)

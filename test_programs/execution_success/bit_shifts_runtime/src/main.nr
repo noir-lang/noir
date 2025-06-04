@@ -1,10 +1,13 @@
-fn main(x: u64, y: u8, z: i16) {
+fn main(x: u64, y: u8, z: i16, u: i64) {
     // runtime shifts on compile-time known values
     assert(64 << y == 128);
     assert(64 >> y == 32);
     // runtime shifts on runtime values
     assert(x << y == 128);
     assert(x >> y == 32);
+    // regression tests for issue #8176
+    assert(u >> (x as u8) == 0);
+    assert(z >> (x as u8) == 0);
 
     // Bit-shift with signed integers
     let mut a: i8 = y as i8;

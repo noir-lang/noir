@@ -117,13 +117,16 @@ fn test_ecdsa_secp256r1() {
 
 /// Test that sha256_compression is implemented.
 #[test]
-fn test_sha256() {
+fn test_sha256_compression() {
+    let input: [u32; 16] = [0xbd; 16];
+    let state: [u32; 8] = [0; 8];
+
     let hash = comptime {
-        let input: [u8; 1] = [0xbd];
-        std::hash::sha256(input)
+        let input: [u32; 16] = [0xbd; 16];
+        let state: [u32; 8] = [0; 8];
+        std::hash::sha256_compression(input, state)
     };
-    assert_eq(hash[0], 0x68);
-    assert_eq(hash[31], 0x2b);
+    assert_eq(hash, std::hash::sha256_compression(input, state));
 }
 
 /// Test that `embedded_curve_add` and `multi_scalar_mul` are implemented.
@@ -132,11 +135,7 @@ fn test_embedded_curve_ops() {
     let (sum, mul) = comptime {
         let s1 = EmbeddedCurveScalar { lo: 1, hi: 0 };
         let s2 = EmbeddedCurveScalar { lo: 2, hi: 0 };
-        let g1 = EmbeddedCurvePoint {
-            x: 1,
-            y: 17631683881184975370165255887551781615748388533673675138860,
-            is_infinite: false,
-        };
+        let g1 = EmbeddedCurvePoint::generator();
         let g2 = multi_scalar_mul([g1], [s2]);
         let sum = g1 + g2;
         let mul = multi_scalar_mul([g1, g2], [s1, s1]);

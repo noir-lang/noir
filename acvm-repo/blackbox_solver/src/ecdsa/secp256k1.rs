@@ -1,15 +1,15 @@
-use k256::elliptic_curve::sec1::FromEncodedPoint;
 use k256::elliptic_curve::PrimeField;
+use k256::elliptic_curve::sec1::FromEncodedPoint;
 
 use blake2::digest::generic_array::GenericArray;
-use k256::{ecdsa::Signature, Scalar};
 use k256::{
-    elliptic_curve::{
-        sec1::{Coordinates, ToEncodedPoint},
-        IsHigh,
-    },
     AffinePoint, EncodedPoint, ProjectivePoint, PublicKey,
+    elliptic_curve::{
+        scalar::IsHigh,
+        sec1::{Coordinates, ToEncodedPoint},
+    },
 };
+use k256::{Scalar, ecdsa::Signature};
 
 pub(super) fn verify_signature(
     hashed_msg: &[u8],

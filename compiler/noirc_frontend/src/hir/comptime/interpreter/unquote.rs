@@ -7,7 +7,7 @@ use crate::{
 
 use super::Interpreter;
 
-impl<'local, 'interner> Interpreter<'local, 'interner> {
+impl Interpreter<'_, '_> {
     /// Evaluates any expressions within UnquoteMarkers in the given token list
     /// and replaces the expression held by the marker with the evaluated value
     /// in expression form.

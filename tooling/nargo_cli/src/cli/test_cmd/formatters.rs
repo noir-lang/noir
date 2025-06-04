@@ -2,8 +2,8 @@ use std::{io::Write, panic::RefUnwindSafe, time::Duration};
 
 use fm::FileManager;
 use nargo::ops::TestStatus;
-use noirc_errors::{reporter::stack_trace, FileDiagnostic};
-use serde_json::{json, Map};
+use noirc_errors::{CustomDiagnostic, reporter::stack_trace};
+use serde_json::{Map, json};
 use termcolor::{Color, ColorChoice, ColorSpec, StandardStream, StandardStreamLock, WriteColor};
 
 use super::TestResult;
@@ -16,15 +16,15 @@ use super::TestResult;
 /// 3. For each test, one `test_start_async` event
 ///    (there's no `test_start_sync` event because it would happen right before `test_end_sync`)
 /// 4. For each package, sequentially:
-///     a. A `package_start_sync` event
-///     b. One `test_end` event for each test
-///     a. A `package_end` event
+///     1. A `package_start_sync` event
+///     2. One `test_end` event for each test
+///     3. A `package_end` event
 ///
 /// The reason we have some `sync` and `async` events is that formatters that show output
 /// to humans rely on the `sync` events to show a more predictable output (package by package),
 /// and formatters that output to a machine-readable format (like JSON) rely on the `async`
 /// events to show things as soon as they happen, regardless of a package ordering.
-pub(super) trait Formatter: Send + Sync + RefUnwindSafe {
+pub(crate) trait Formatter: Send + Sync + RefUnwindSafe {
     fn package_start_async(&self, package_name: &str, test_count: usize) -> std::io::Result<()>;
 
     fn package_start_sync(&self, package_name: &str, test_count: usize) -> std::io::Result<()>;
@@ -64,7 +64,7 @@ pub(super) trait Formatter: Send + Sync + RefUnwindSafe {
     ) -> std::io::Result<()>;
 }
 
-pub(super) struct PrettyFormatter;
+pub(crate) struct PrettyFormatter;
 
 impl Formatter for PrettyFormatter {
     fn package_start_async(&self, _package_name: &str, _test_count: usize) -> std::io::Result<()> {
@@ -100,7 +100,7 @@ impl Formatter for PrettyFormatter {
         deny_warnings: bool,
         silence_warnings: bool,
     ) -> std::io::Result<()> {
-        let writer = StandardStream::stderr(ColorChoice::Always);
+        let writer = stdout();
         let mut writer = writer.lock();
 
         let is_slow = test_result.time_to_run >= Duration::from_secs(30);
@@ -116,7 +116,7 @@ impl Formatter for PrettyFormatter {
         writer.flush()?;
 
         match &test_result.status {
-            TestStatus::Pass { .. } => {
+            TestStatus::Pass => {
                 writer.set_color(ColorSpec::new().set_fg(Some(Color::Green)))?;
                 write!(writer, "ok")?;
                 writer.reset()?;
@@ -138,7 +138,7 @@ impl Formatter for PrettyFormatter {
                     );
                 }
             }
-            TestStatus::Skipped { .. } => {
+            TestStatus::Skipped => {
                 writer.set_color(ColorSpec::new().set_fg(Some(Color::Yellow)))?;
                 write!(writer, "skipped")?;
                 writer.reset()?;
@@ -174,7 +174,7 @@ impl Formatter for PrettyFormatter {
         _deny_warnings: bool,
         _silence_warnings: bool,
     ) -> std::io::Result<()> {
-        let writer = StandardStream::stderr(ColorChoice::Always);
+        let writer = stdout();
         let mut writer = writer.lock();
 
         let failed_tests: Vec<_> = test_results
@@ -257,7 +257,7 @@ impl Formatter for TerseFormatter {
         _deny_warnings: bool,
         _silence_warnings: bool,
     ) -> std::io::Result<()> {
-        let writer = StandardStream::stderr(ColorChoice::Always);
+        let writer = stdout();
         let mut writer = writer.lock();
 
         match &test_result.status {
@@ -299,7 +299,7 @@ impl Formatter for TerseFormatter {
         deny_warnings: bool,
         silence_warnings: bool,
     ) -> std::io::Result<()> {
-        let writer = StandardStream::stderr(ColorChoice::Always);
+        let writer = stdout();
         let mut writer = writer.lock();
 
         if !test_results.is_empty() {
@@ -438,7 +438,7 @@ impl Formatter for JsonFormatter {
                 stdout.push_str(message.trim());
 
                 if let Some(diagnostic) = error_diagnostic {
-                    if !(diagnostic.diagnostic.is_warning() && silence_warnings) {
+                    if !(diagnostic.is_warning() && silence_warnings) {
                         stdout.push('\n');
                         stdout.push_str(&diagnostic_to_string(diagnostic, file_manager));
                     }
@@ -450,7 +450,7 @@ impl Formatter for JsonFormatter {
             TestStatus::CompileError(diagnostic) => {
                 json.insert("event".to_string(), json!("failed"));
 
-                if !(diagnostic.diagnostic.is_warning() && silence_warnings) {
+                if !(diagnostic.is_warning() && silence_warnings) {
                     if !stdout.is_empty() {
                         stdout.push('\n');
                     }
@@ -515,12 +515,11 @@ fn package_start(package_name: &str, test_count: usize) -> std::io::Result<()> {
 }
 
 pub(crate) fn diagnostic_to_string(
-    file_diagnostic: &FileDiagnostic,
+    custom_diagnostic: &CustomDiagnostic,
     file_manager: &FileManager,
 ) -> String {
     let file_map = file_manager.as_file_map();
 
-    let custom_diagnostic = &file_diagnostic.diagnostic;
     let mut message = String::new();
     message.push_str(custom_diagnostic.message.trim());
 
@@ -529,7 +528,7 @@ pub(crate) fn diagnostic_to_string(
         message.push_str(note.trim());
     }
 
-    if let Ok(name) = file_map.get_name(file_diagnostic.file_id) {
+    if let Ok(name) = file_map.get_name(custom_diagnostic.file) {
         message.push('\n');
         message.push_str(&format!("at {name}"));
     }
@@ -540,4 +539,8 @@ pub(crate) fn diagnostic_to_string(
     }
 
     message
+}
+
+fn stdout() -> StandardStream {
+    StandardStream::stdout(ColorChoice::Always)
 }

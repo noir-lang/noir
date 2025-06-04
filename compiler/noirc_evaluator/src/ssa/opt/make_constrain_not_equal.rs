@@ -30,43 +30,56 @@ impl Function {
             return;
         }
 
-        for block in self.reachable_blocks() {
-            let instructions = self.dfg[block].instructions().to_vec();
+        self.simple_reachable_blocks_optimization(|context| {
+            let instruction = context.instruction();
 
-            for instruction in instructions {
-                let constrain_ne: Instruction = match &self.dfg[instruction] {
-                    Instruction::Constrain(lhs, rhs, msg) => {
-                        if self
-                            .dfg
-                            .get_numeric_constant(*rhs)
-                            .map_or(false, |constant| constant.is_zero())
-                        {
-                            if let Value::Instruction { instruction, .. } =
-                                &self.dfg[self.dfg.resolve(*lhs)]
-                            {
-                                if let Instruction::Binary(Binary {
-                                    lhs,
-                                    rhs,
-                                    operator: BinaryOp::Eq,
-                                    ..
-                                }) = self.dfg[*instruction]
-                                {
-                                    Instruction::ConstrainNotEqual(lhs, rhs, msg.clone())
-                                } else {
-                                    continue;
-                                }
-                            } else {
-                                continue;
-                            }
-                        } else {
-                            continue;
-                        }
-                    }
-                    _ => continue,
-                };
+            let Instruction::Constrain(lhs, rhs, msg) = instruction else {
+                return;
+            };
 
-                self.dfg[instruction] = constrain_ne;
+            if !context.dfg.get_numeric_constant(*rhs).is_some_and(|constant| constant.is_zero()) {
+                return;
             }
+
+            let Value::Instruction { instruction, .. } = &context.dfg[*lhs] else {
+                return;
+            };
+
+            let Instruction::Binary(Binary { lhs, rhs, operator: BinaryOp::Eq, .. }) =
+                context.dfg[*instruction]
+            else {
+                return;
+            };
+
+            let new_instruction = Instruction::ConstrainNotEqual(lhs, rhs, msg.clone());
+            context.replace_current_instruction_with(new_instruction);
+        });
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::{assert_ssa_snapshot, ssa::ssa_gen::Ssa};
+
+    #[test]
+    fn test_make_constrain_not_equals() {
+        let src = "
+        acir(inline) fn main f1 {
+          b0(v0: Field, v1: Field):
+            v2 = eq v0, v1
+            constrain v2 == u1 0
+            return
         }
+        ";
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.make_constrain_not_equal_instructions();
+        assert_ssa_snapshot!(ssa, @r"
+        acir(inline) fn main f0 {
+          b0(v0: Field, v1: Field):
+            v2 = eq v0, v1
+            constrain v0 != v1
+            return
+        }
+        ");
     }
 }

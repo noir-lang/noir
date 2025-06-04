@@ -21,7 +21,7 @@ impl Module {
 
     #[builtin(module_structs)]
     // docs:start:structs
-    pub comptime fn structs(self) -> [StructDefinition] {}
+    pub comptime fn structs(self) -> [TypeDefinition] {}
     // docs:end:structs
 
     #[builtin(module_name)]

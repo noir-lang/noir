@@ -5,24 +5,41 @@ use std::cmp::Ordering;
 mod operators;
 mod ordering;
 
-// In the addition polynomial
-// We can have arbitrary fan-in/out, so we need more than wL,wR and wO
-// When looking at the assert-zero opcode for the quotient polynomial in standard plonk
-// You can think of it as fan-in 2 and fan out-1 , or you can think of it as fan-in 1 and fan-out 2
-//
-// In the multiplication polynomial
-// XXX: If we allow the degree of the quotient polynomial to be arbitrary, then we will need a vector of wire values
+/// An expression representing a quadratic polynomial.
+///
+/// This struct is primarily used to express arithmetic relations between variables.
+/// It includes multiplication terms, linear combinations, and a constant term.
+///
+/// # Addition polynomial
+/// - Unlike standard plonk constraints with fixed wire assignments (wL, wR, wO),
+///   we allow arbitrary fan-in and fan-out. This means we need a more flexible representation
+///   and we need more than wL, wR, and wO.
+/// - When looking at the quotient polynomial for the assert-zero opcode in standard plonk,
+///   you can interpret the structure in two ways:
+///   1. Fan-in 2 and fan-out 1
+///   2. Fan-in 1 and fan-out 2
+///
+/// # Multiplication polynomial
+/// - If we were allow the degree of the quotient polynomial to be arbitrary, then we will need a vector of wire values.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, Hash)]
+#[cfg_attr(feature = "arb", derive(proptest_derive::Arbitrary))]
 pub struct Expression<F> {
-    // To avoid having to create intermediate variables pre-optimization
-    // We collect all of the multiplication terms in the assert-zero opcode
-    // A multiplication term if of the form q_M * wL * wR
-    // Hence this vector represents the following sum: q_M1 * wL1 * wR1 + q_M2 * wL2 * wR2 + .. +
+    /// Collection of multiplication terms.
+    ///
+    /// To avoid having to create intermediate variables pre-optimization
+    /// We collect all of the multiplication terms in the assert-zero opcode
+    /// A multiplication term is of the form q_M * wL * wR
+    /// Hence this vector represents the following sum: q_M1 * wL1 * wR1 + q_M2 * wL2 * wR2 + .. +
     pub mul_terms: Vec<(F, Witness, Witness)>,
 
+    /// Collection of linear terms in the expression.
+    ///
+    /// Each term follows the form: `q_L * w`, where `q_L` is a coefficient
+    /// and `w` is a witness.
     pub linear_combinations: Vec<(F, Witness)>,
+    /// A constant term in the expression
     // TODO: rename q_c to `constant` moreover q_X is not clear to those who
-    // TODO are not familiar with PLONK
+    // TODO: are not familiar with PLONK
     pub q_c: F,
 }
 
@@ -32,13 +49,18 @@ impl<F: AcirField> Default for Expression<F> {
     }
 }
 
-impl<F: AcirField> std::fmt::Display for Expression<F> {
+impl<F: std::fmt::Display> std::fmt::Display for Expression<F> {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        if let Some(witness) = self.to_witness() {
-            write!(f, "x{}", witness.witness_index())
-        } else {
-            write!(f, "%{:?}%", crate::circuit::opcodes::Opcode::AssertZero(self.clone()))
+        write!(f, "EXPR [ ")?;
+        for i in &self.mul_terms {
+            write!(f, "({}, _{}, _{}) ", i.0, i.1.witness_index(), i.2.witness_index())?;
         }
+        for i in &self.linear_combinations {
+            write!(f, "({}, _{}) ", i.0, i.1.witness_index())?;
+        }
+        write!(f, "{}", self.q_c)?;
+
+        write!(f, " ]")
     }
 }
 

@@ -1,12 +1,12 @@
-use acvm::{acir::brillig::MemoryAddress, AcirField};
+use acvm::{AcirField, acir::brillig::MemoryAddress};
 
 use crate::ssa::ir::function::FunctionId;
 
 use super::{
+    BrilligBinaryOp, BrilligContext, ReservedRegisters,
     brillig_variable::{BrilligVariable, SingleAddrVariable},
     debug_show::DebugToString,
     registers::{RegisterAllocator, Stack},
-    BrilligBinaryOp, BrilligContext, ReservedRegisters,
 };
 
 impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<F, Registers> {

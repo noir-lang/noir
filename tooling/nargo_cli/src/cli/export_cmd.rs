@@ -1,6 +1,7 @@
 use nargo::errors::CompileError;
-use nargo::ops::report_errors;
-use noirc_errors::FileDiagnostic;
+use nargo::ops::{check_crate_and_report_errors, report_errors};
+use noir_artifact_cli::fs::artifact::save_program_to_file;
+use noirc_errors::CustomDiagnostic;
 use noirc_frontend::hir::ParsedFiles;
 use rayon::prelude::*;
 
@@ -11,17 +12,15 @@ use nargo::prepare_package;
 use nargo::workspace::Workspace;
 use nargo::{insert_all_files_for_workspace_into_file_manager, parse_all};
 use nargo_toml::PackageSelection;
-use noirc_driver::{compile_no_check, CompileOptions, CompiledProgram};
+use noirc_driver::{CompileOptions, CompiledProgram, compile_no_check};
 
 use clap::Args;
 
 use crate::errors::CliError;
 
-use super::check_cmd::check_crate_and_report_errors;
-
-use super::fs::program::save_program_to_file;
 use super::{LockType, PackageOptions, WorkspaceCommand};
 
+#[allow(rustdoc::broken_intra_doc_links)]
 /// Exports functions marked with #[export] attribute
 #[derive(Debug, Clone, Args)]
 pub(crate) struct ExportCommand {
@@ -82,7 +81,7 @@ fn compile_exported_functions(
         |(function_name, function_id)| -> Result<(String, CompiledProgram), CompileError> {
             // TODO: We should to refactor how to deal with compilation errors to avoid this.
             let program = compile_no_check(&mut context, compile_options, function_id, None, false)
-                .map_err(|error| vec![FileDiagnostic::from(error)]);
+                .map_err(|error| vec![CustomDiagnostic::from(error)]);
 
             let program = report_errors(
                 program.map(|program| (program, Vec::new())),
@@ -97,7 +96,7 @@ fn compile_exported_functions(
 
     let export_dir = workspace.export_directory_path();
     for (function_name, program) in exported_programs {
-        save_program_to_file(&program.into(), &function_name.parse().unwrap(), &export_dir);
+        save_program_to_file(&program.into(), &function_name.parse().unwrap(), &export_dir)?;
     }
     Ok(())
 }

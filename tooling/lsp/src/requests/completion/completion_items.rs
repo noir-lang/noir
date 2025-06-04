@@ -1,31 +1,29 @@
-use lsp_types::{
+use async_lsp::lsp_types::{
     Command, CompletionItem, CompletionItemKind, CompletionItemLabelDetails, Documentation,
     InsertTextFormat, MarkupContent, MarkupKind,
 };
 use noirc_frontend::{
+    QuotedType, Type,
     ast::AttributeTarget,
     hir::def_map::{ModuleDefId, ModuleId},
     hir_def::{function::FuncMeta, stmt::HirPattern},
+    modules::{relative_module_full_path, relative_module_id_path},
     node_interner::{FuncId, GlobalId, ReferenceId, TraitId, TypeAliasId, TypeId},
-    QuotedType, Type,
 };
 
-use crate::{
-    modules::{relative_module_full_path, relative_module_id_path},
-    use_segment_positions::{
-        use_completion_item_additional_text_edits, UseCompletionItemAdditionTextEditsRequest,
-    },
+use crate::use_segment_positions::{
+    UseCompletionItemAdditionTextEditsRequest, use_completion_item_additional_text_edits,
 };
 
 use super::{
+    FunctionCompletionKind, FunctionKind, NodeFinder, RequestedItems, TraitReexport,
     sort_text::{
         crate_or_module_sort_text, default_sort_text, new_sort_text, operator_sort_text,
         self_mismatch_sort_text,
     },
-    FunctionCompletionKind, FunctionKind, NodeFinder, RequestedItems, TraitReexport,
 };
 
-impl<'a> NodeFinder<'a> {
+impl NodeFinder<'_> {
     pub(super) fn module_def_id_completion_items(
         &self,
         module_def_id: ModuleDefId,
@@ -44,7 +42,7 @@ impl<'a> NodeFinder<'a> {
             },
             RequestedItems::OnlyTraits => match module_def_id {
                 ModuleDefId::FunctionId(_) | ModuleDefId::GlobalId(_) | ModuleDefId::TypeId(_) => {
-                    return Vec::new()
+                    return Vec::new();
                 }
                 ModuleDefId::ModuleId(_)
                 | ModuleDefId::TypeAliasId(_)
@@ -62,8 +60,8 @@ impl<'a> NodeFinder<'a> {
             if let RequestedItems::OnlyAttributeFunctions(target) = requested_items {
                 match target {
                     AttributeTarget::Module => Some(Type::Quoted(QuotedType::Module)),
-                    AttributeTarget::Struct => Some(Type::Quoted(QuotedType::StructDefinition)),
-                    AttributeTarget::Enum => Some(Type::Quoted(QuotedType::EnumDefinition)),
+                    AttributeTarget::Struct => Some(Type::Quoted(QuotedType::TypeDefinition)),
+                    AttributeTarget::Enum => Some(Type::Quoted(QuotedType::TypeDefinition)),
                     AttributeTarget::Trait => Some(Type::Quoted(QuotedType::TraitDefinition)),
                     AttributeTarget::Function => Some(Type::Quoted(QuotedType::FunctionDefinition)),
                     AttributeTarget::Let => {
@@ -188,8 +186,8 @@ impl<'a> NodeFinder<'a> {
 
         let func_self_type = if let Some((pattern, typ, _)) = func_meta.parameters.0.first() {
             if self.hir_pattern_is_self_type(pattern) {
-                if let Type::MutableReference(mut_typ) = typ {
-                    let typ: &Type = mut_typ;
+                if let Type::Reference(elem_type, _) = typ {
+                    let typ: &Type = elem_type;
                     Some(typ)
                 } else {
                     Some(typ)
@@ -222,9 +220,8 @@ impl<'a> NodeFinder<'a> {
                         // Check that the pattern type is the same as self type.
                         // We do this because some types (only Field and integer types)
                         // have their methods in the same HashMap.
-
-                        if let Type::MutableReference(mut_typ) = self_type {
-                            self_type = mut_typ;
+                        if let Type::Reference(elem_type, _) = self_type {
+                            self_type = elem_type;
                         }
 
                         if self_type != func_self_type {
@@ -401,8 +398,7 @@ impl<'a> NodeFinder<'a> {
             trait_.name.clone()
         };
 
-        let module_data =
-            &self.def_maps[&self.module_id.krate].modules()[self.module_id.local_id.0];
+        let module_data = &self.def_maps[&self.module_id.krate][self.module_id.local_id];
         if !module_data.scope().find_name(&trait_name).is_none() {
             return None;
         }
@@ -597,7 +593,7 @@ fn func_meta_type_to_string(func_meta: &FuncMeta, name: &str, has_self_type: boo
 }
 
 fn type_to_self_string(typ: &Type, string: &mut String) {
-    if let Type::MutableReference(..) = typ {
+    if let Type::Reference(..) = typ {
         string.push_str("&mut self");
     } else {
         string.push_str("self");

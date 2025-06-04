@@ -5,7 +5,7 @@ use noirc_frontend::{
 
 use super::Formatter;
 
-impl<'a> Formatter<'a> {
+impl Formatter<'_> {
     pub(super) fn format_where_clause(
         &mut self,
         constraints: Vec<UnresolvedTraitConstraint>,
@@ -23,7 +23,8 @@ impl<'a> Formatter<'a> {
         // To format it we'll have to skip the second type `F` if we find a `+` token.
         let mut write_type = true;
 
-        for constraint in constraints {
+        let constrains_len = constraints.len();
+        for (index, constraint) in constraints.into_iter().enumerate() {
             if write_type {
                 self.write_line();
                 self.write_indentation();
@@ -45,7 +46,9 @@ impl<'a> Formatter<'a> {
 
             write_type = true;
 
-            if self.is_at(Token::Comma) {
+            if index < constrains_len - 1 {
+                self.write_token(Token::Comma);
+            } else if self.is_at(Token::Comma) {
                 if write_trailing_comma_and_new_line {
                     self.write_token(Token::Comma);
                 } else {
@@ -62,6 +65,17 @@ impl<'a> Formatter<'a> {
         if write_trailing_comma_and_new_line {
             self.write_line();
             self.write_indentation();
+        }
+    }
+
+    pub(super) fn format_trait_bounds(&mut self, trait_bounds: Vec<TraitBound>) {
+        for (index, trait_bound) in trait_bounds.into_iter().enumerate() {
+            if index > 0 {
+                self.write_space();
+                self.write_token(Token::Plus);
+                self.write_space();
+            }
+            self.format_trait_bound(trait_bound);
         }
     }
 

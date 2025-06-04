@@ -1,7 +1,7 @@
-use acvm::{acir::brillig::MemoryAddress, AcirField};
+use acvm::{AcirField, acir::brillig::MemoryAddress};
 use fxhash::{FxHashMap as HashMap, FxHashSet as HashSet};
 
-use super::{debug_show::DebugToString, registers::RegisterAllocator, BrilligContext};
+use super::{BrilligContext, debug_show::DebugToString, registers::RegisterAllocator};
 
 impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<F, Registers> {
     /// This function moves values from a set of registers to another set of registers.
@@ -126,15 +126,15 @@ impl LoopDetector {
 #[cfg(test)]
 mod tests {
     use acvm::{
-        acir::brillig::{MemoryAddress, Opcode},
         FieldElement,
+        acir::brillig::{MemoryAddress, Opcode},
     };
     use fxhash::{FxHashMap as HashMap, FxHashSet as HashSet};
 
     use crate::{
         brillig::{
-            brillig_ir::{artifact::Label, registers::Stack, BrilligContext},
             BrilligOptions,
+            brillig_ir::{BrilligContext, artifact::Label, registers::Stack},
         },
         ssa::ir::function::FunctionId,
     };
@@ -207,7 +207,11 @@ mod tests {
     }
 
     pub(crate) fn create_context() -> BrilligContext<FieldElement, Stack> {
-        let options = BrilligOptions { enable_debug_trace: true, enable_debug_assertions: true };
+        let options = BrilligOptions {
+            enable_debug_trace: true,
+            enable_debug_assertions: true,
+            enable_array_copy_counter: false,
+        };
         let mut context = BrilligContext::new(&options);
         context.enter_context(Label::function(FunctionId::test_new(0)));
         context

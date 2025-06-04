@@ -1,0 +1,44 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: expanded_code
+---
+global ONE: Field = 1;
+
+global TWO: Field = 2;
+
+global THREE: Field = 3;
+
+fn main(x: Field, y: pub Field) {
+    // Safety: comment added by `nargo expand`
+    unsafe {
+        entry_point_no_global(x, y);
+        entry_point_inner_func_globals(x, y);
+        entry_point_one_global(x, y);
+        entry_point_one_diff_global(x, y);
+    }
+}
+
+unconstrained fn entry_point_no_global(x: Field, y: Field) {
+    assert((x + y) != 100);
+}
+
+unconstrained fn entry_point_one_global(x: Field, y: Field) {
+    let z: Field = (TWO + x) + y;
+    assert(z == 3);
+}
+
+unconstrained fn entry_point_inner_func_globals(x: Field, y: Field) {
+    wrapper(x, y);
+}
+
+unconstrained fn wrapper(x: Field, y: Field) {
+    let z: Field = (ONE + x) + y;
+    assert(z == 2);
+    entry_point_one_global(x, y);
+    entry_point_one_diff_global(y, x);
+}
+
+unconstrained fn entry_point_one_diff_global(x: Field, y: Field) {
+    let z: Field = (THREE + x) + y;
+    assert(z == 4);
+}

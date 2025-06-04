@@ -47,7 +47,8 @@ process_dir() {
 
 export -f process_dir
 
-excluded_dirs=("workspace" "workspace_default_member")
+# Reactive `regression_7323` once enums are ready
+excluded_dirs=("workspace" "workspace_default_member" "regression_7323")
 current_dir=$(pwd)
 base_path="$current_dir/execution_success"
 dirs_to_process=()

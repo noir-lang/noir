@@ -1,8 +1,8 @@
-use acvm::{acir::brillig::MemoryAddress, AcirField};
+use acvm::{AcirField, acir::brillig::MemoryAddress};
 
 use super::{
-    debug_show::DebugToString, instructions::BrilligBinaryOp, registers::RegisterAllocator,
-    BrilligContext, ReservedRegisters,
+    BrilligContext, ReservedRegisters, debug_show::DebugToString, instructions::BrilligBinaryOp,
+    registers::RegisterAllocator,
 };
 
 impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<F, Registers> {

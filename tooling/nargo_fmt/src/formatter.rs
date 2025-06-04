@@ -1,10 +1,10 @@
 use buffer::Buffer;
 use noirc_frontend::{
+    ParsedModule,
     ast::Ident,
     hir::resolution::errors::Span,
     lexer::Lexer,
     token::{Keyword, SpannedToken, Token},
-    ParsedModule,
 };
 
 use crate::Config;
@@ -125,7 +125,7 @@ impl<'a> Formatter<'a> {
         let Token::Ident(..) = self.token else {
             panic!("Expected identifier, got {:?}", self.token);
         };
-        self.write(&ident.0.contents);
+        self.write(ident.as_str());
         self.bump();
     }
 
@@ -135,7 +135,7 @@ impl<'a> Formatter<'a> {
         if !matches!(self.token, Token::Ident(..) | Token::Int(..)) {
             panic!("Expected identifier or integer, got {:?}", self.token);
         }
-        self.write(&ident.0.contents);
+        self.write(ident.as_str());
         self.bump();
     }
 

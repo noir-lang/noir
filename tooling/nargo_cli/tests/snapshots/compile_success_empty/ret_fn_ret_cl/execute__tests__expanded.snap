@@ -1,0 +1,23 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: expanded_code
+---
+fn f(x: Field) -> Field {
+    x + 1
+}
+
+fn ret_fn() -> fn(Field) -> Field {
+    f
+}
+
+fn ret_lambda() -> fn(Field) -> Field {
+    let cl: fn(Field) -> Field = |z: Field| -> Field { z + 1 };
+    cl
+}
+
+fn main(x: Field) {
+    let result_fn: fn(Field) -> Field = ret_fn();
+    assert(result_fn(x) == (x + 1));
+    let result_lambda: fn(Field) -> Field = ret_lambda();
+    assert(result_lambda(x) == (x + 1));
+}

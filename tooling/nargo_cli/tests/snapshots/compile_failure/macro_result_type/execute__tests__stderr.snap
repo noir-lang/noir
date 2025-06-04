@@ -1,0 +1,19 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: stderr
+---
+error: trait `meta::ctstring::AsCtString` which provides `as_ctstring` is implemented but not in scope, please import it
+  ┌─ src/main.nr:4:25
+  │
+4 │         let signature = "hello".as_ctstring();
+  │                         ---------------------
+  │
+
+error: Non-integer array length: `_`
+   ┌─ src/main.nr:12:5
+   │
+12 │     N / 2
+   │     - Array lengths must be integers, but evaluating `_` resulted in `Expected a constant, but found `_``
+   │
+
+Aborting due to 2 previous errors

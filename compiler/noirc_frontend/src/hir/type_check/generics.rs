@@ -3,9 +3,11 @@ use std::cell::Ref;
 use iter_extended::vecmap;
 
 use crate::{
+    DataType, Kind, ResolvedGeneric, Type,
+    ast::IntegerBitSize,
     hir_def::traits::NamedType,
     node_interner::{FuncId, NodeInterner, TraitId, TypeAliasId},
-    DataType, ResolvedGeneric, Type,
+    shared::Signedness,
 };
 
 /// Represents something that can be generic over type variables
@@ -20,8 +22,8 @@ pub trait Generic {
     /// The name of this item, usually named by a user. E.g. "Foo" for "struct Foo {}"
     fn item_name(&self, interner: &NodeInterner) -> String;
 
-    /// Each ordered generic on this type, excluding any named generics.
-    fn generics(&self, interner: &NodeInterner) -> Vec<ResolvedGeneric>;
+    /// Each ordered generic kind on this type, excluding any named generics.
+    fn generic_kinds(&self, interner: &NodeInterner) -> Vec<Kind>;
 
     /// True if this item kind can ever accept named type arguments.
     /// Currently, this is only true for traits. Structs & aliases can never have named args.
@@ -39,8 +41,8 @@ impl Generic for TraitId {
         interner.get_trait(*self).name.to_string()
     }
 
-    fn generics(&self, interner: &NodeInterner) -> Vec<ResolvedGeneric> {
-        interner.get_trait(*self).generics.clone()
+    fn generic_kinds(&self, interner: &NodeInterner) -> Vec<Kind> {
+        interner.get_trait(*self).generics.iter().map(|generic| generic.kind()).collect()
     }
 
     fn accepts_named_type_args(&self) -> bool {
@@ -61,8 +63,14 @@ impl Generic for TypeAliasId {
         interner.get_type_alias(*self).borrow().name.to_string()
     }
 
-    fn generics(&self, interner: &NodeInterner) -> Vec<ResolvedGeneric> {
-        interner.get_type_alias(*self).borrow().generics.clone()
+    fn generic_kinds(&self, interner: &NodeInterner) -> Vec<Kind> {
+        interner
+            .get_type_alias(*self)
+            .borrow()
+            .generics
+            .iter()
+            .map(|generic| generic.kind())
+            .collect()
     }
 
     fn accepts_named_type_args(&self) -> bool {
@@ -83,8 +91,8 @@ impl Generic for Ref<'_, DataType> {
         self.name.to_string()
     }
 
-    fn generics(&self, _interner: &NodeInterner) -> Vec<ResolvedGeneric> {
-        self.generics.clone()
+    fn generic_kinds(&self, _interner: &NodeInterner) -> Vec<Kind> {
+        self.generics.iter().map(|generic| generic.kind()).collect()
     }
 
     fn accepts_named_type_args(&self) -> bool {
@@ -105,8 +113,61 @@ impl Generic for FuncId {
         interner.function_name(self).to_string()
     }
 
-    fn generics(&self, interner: &NodeInterner) -> Vec<ResolvedGeneric> {
-        interner.function_meta(self).direct_generics.clone()
+    fn generic_kinds(&self, interner: &NodeInterner) -> Vec<Kind> {
+        interner.function_meta(self).direct_generics.iter().map(|generic| generic.kind()).collect()
+    }
+
+    fn accepts_named_type_args(&self) -> bool {
+        false
+    }
+
+    fn named_generics(&self, _interner: &NodeInterner) -> Vec<ResolvedGeneric> {
+        Vec::new()
+    }
+}
+
+pub struct StrPrimitiveType;
+
+impl Generic for StrPrimitiveType {
+    fn item_kind(&self) -> &'static str {
+        "primitive type"
+    }
+
+    fn item_name(&self, _interner: &NodeInterner) -> String {
+        "str".to_string()
+    }
+
+    fn generic_kinds(&self, _interner: &NodeInterner) -> Vec<Kind> {
+        let length =
+            Kind::Numeric(Box::new(Type::Integer(Signedness::Unsigned, IntegerBitSize::ThirtyTwo)));
+        vec![length]
+    }
+
+    fn accepts_named_type_args(&self) -> bool {
+        false
+    }
+
+    fn named_generics(&self, _interner: &NodeInterner) -> Vec<ResolvedGeneric> {
+        Vec::new()
+    }
+}
+
+pub struct FmtstrPrimitiveType;
+
+impl Generic for FmtstrPrimitiveType {
+    fn item_kind(&self) -> &'static str {
+        "primitive type"
+    }
+
+    fn item_name(&self, _interner: &NodeInterner) -> String {
+        "fmtstr".to_string()
+    }
+
+    fn generic_kinds(&self, _interner: &NodeInterner) -> Vec<Kind> {
+        let length =
+            Kind::Numeric(Box::new(Type::Integer(Signedness::Unsigned, IntegerBitSize::ThirtyTwo)));
+        let element = Kind::Normal;
+        vec![length, element]
     }
 
     fn accepts_named_type_args(&self) -> bool {

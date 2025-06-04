@@ -1,26 +1,31 @@
 use std::collections::HashMap;
 
 use acir::{
+    AcirField,
     circuit::opcodes::MemOp,
     native_types::{Expression, Witness, WitnessMap},
-    AcirField,
 };
 
+use super::{ErrorLocation, OpcodeResolutionError};
 use super::{
     arithmetic::ExpressionSolver, get_value, insert_value, is_predicate_false, witness_to_value,
 };
-use super::{ErrorLocation, OpcodeResolutionError};
 
 type MemoryIndex = u32;
 
 /// Maintains the state for solving [`MemoryInit`][`acir::circuit::Opcode::MemoryInit`] and [`MemoryOp`][`acir::circuit::Opcode::MemoryOp`] opcodes.
 #[derive(Default)]
 pub(crate) struct MemoryOpSolver<F> {
+    /// Known values of the memory block, based on the index
+    /// This map evolves as we process the opcodes
     pub(super) block_value: HashMap<MemoryIndex, F>,
+    /// Length of the block, i.e the number of elements stored into the memory block.
     pub(super) block_len: u32,
 }
 
 impl<F: AcirField> MemoryOpSolver<F> {
+    /// Convert a field element into a memory index
+    /// Only 32 bits values are valid memory indices
     fn index_from_field(&self, index: F) -> Result<MemoryIndex, OpcodeResolutionError<F>> {
         if index.num_bits() <= 32 {
             let memory_index = index.try_to_u64().unwrap() as MemoryIndex;
@@ -34,6 +39,8 @@ impl<F: AcirField> MemoryOpSolver<F> {
         }
     }
 
+    /// Update the 'block_value' map with the provided index/value
+    /// Returns an 'IndexOutOfBounds' error if the index is outside the block range.
     fn write_memory_index(
         &mut self,
         index: MemoryIndex,
@@ -50,6 +57,8 @@ impl<F: AcirField> MemoryOpSolver<F> {
         Ok(())
     }
 
+    /// Returns the value stored in the 'block_value' map for the provided index
+    /// Returns an 'IndexOutOfBounds' error if the index is not in the map.
     fn read_memory_index(&self, index: MemoryIndex) -> Result<F, OpcodeResolutionError<F>> {
         self.block_value.get(&index).copied().ok_or(OpcodeResolutionError::IndexOutOfBounds {
             opcode_location: ErrorLocation::Unresolved,
@@ -74,6 +83,24 @@ impl<F: AcirField> MemoryOpSolver<F> {
         Ok(())
     }
 
+    /// Update the 'block_values' by processing the provided Memory opcode
+    /// The opcode 'op' contains the index and value of the operation and the type
+    /// of the operation.
+    /// They are all stored as an [Expression]
+    /// The type of 'operation' is '0' for a read and '1' for a write. It must be a constant
+    /// expression.
+    /// Index is not required to be constant but it must reduce to a known value
+    /// for processing the opcode. This is done by doing the (partial) evaluation of its expression,
+    /// using the provided witness map.
+    ///
+    /// READ: read the block at index op.index and update op.value with the read value
+    /// - 'op.value' must reduce to a witness (after the evaluation of its expression)
+    /// - the value is updated in the provided witness map, for the 'op.value' witness
+    ///
+    /// WRITE: update the block at index 'op.index' with 'op.value'
+    /// - 'op.value' must reduce to a known value
+    ///
+    /// If a requirement is not met, it returns an error.
     pub(crate) fn solve_memory_op(
         &mut self,
         op: &MemOp<F>,
@@ -140,9 +167,9 @@ mod tests {
     use std::collections::BTreeMap;
 
     use acir::{
+        AcirField, FieldElement,
         circuit::opcodes::MemOp,
         native_types::{Expression, Witness, WitnessMap},
-        AcirField, FieldElement,
     };
 
     use super::MemoryOpSolver;

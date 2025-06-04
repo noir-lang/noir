@@ -1,0 +1,18 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: stderr
+---
+error: Expected an identifier, `crate`, `dep` or `super` but found '(type)'
+  ┌─ src/main.nr:1:1
+  │
+1 │ #[foo]
+  │ ------ Failed to parse macro's token stream into top-level item
+  ·
+8 │     quote { use $t; }
+  │     -----------------
+  │
+  = The resulting token stream was: (stream starts on next line)
+      use Field;
+  = To avoid this error in the future, try adding input validation to your macro. Erroring out early with an `assert` can be a good way to provide a user-friendly error message
+
+Aborting due to 1 previous error

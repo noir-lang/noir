@@ -44,13 +44,13 @@ jobs:
 
       - uses: actions/setup-node@v3
         with:
-          node-version: 18.19.0
+          node-version: 20.18.3
           cache: 'yarn'
           cache-dependency-path: 'yarn.lock'
-      
+
       - name: Update yarn.lock
         run: yarn
-        
+
       - name: Configure git
         run: |
           git config user.name noirwhal
@@ -61,13 +61,13 @@ jobs:
           git add .
           git commit -m 'chore: Update root workspace acvm versions and lockfile'
           git push
-  
+
   update-docs:
     name: Update docs
     needs: [release-please, update-acvm-workspace-package-versions]
     if: ${{ needs.release-please.outputs.release-pr }}
     runs-on: ubuntu-22.04
- 
+
     steps:
       - name: Checkout release branch
         uses: actions/checkout@v4
@@ -81,7 +81,7 @@ jobs:
       - name: Install wasm-bindgen-cli
         uses: taiki-e/install-action@v2
         with:
-          tool: wasm-bindgen-cli@0.2.86
+          tool: wasm-bindgen-cli@0.2.100
 
       - name: Install wasm-opt
         run: |
@@ -95,7 +95,7 @@ jobs:
 
       - name: Cut a new version
         working-directory: ./docs
-        run: yarn version ${{ steps.noir-version.outputs.semver }}
+        run: yarn cut_version ${{ steps.noir-version.outputs.semver }}
 
       - name: Configure git
         run: |
@@ -113,7 +113,7 @@ jobs:
     runs-on: ubuntu-22.04
     # We want this job to always run (even if the dependant jobs fail) as we need apply changes to the sticky comment.
     if: ${{ always() }}
-    
+
     needs:
       - release-please
       - update-acvm-workspace-package-versions
@@ -123,7 +123,7 @@ jobs:
       # We treat any skipped or failing jobs as a failure for the workflow as a whole.
       FAIL: ${{ contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled') || contains(needs.*.result, 'skipped') }}
 
-    steps:  
+    steps:
       - name: Add warning to sticky comment
         uses: marocchino/sticky-pull-request-comment@v2
         with:
@@ -175,7 +175,7 @@ jobs:
     needs: [release-please]
     if: ${{ needs.release-please.outputs.tag-name }}
     runs-on: ubuntu-22.04
-    
+
     steps:
       - name: Dispatch to publish-acvm
         uses: benc-uk/workflow-dispatch@v1

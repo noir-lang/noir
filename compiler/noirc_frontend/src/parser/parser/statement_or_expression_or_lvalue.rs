@@ -12,7 +12,7 @@ pub enum StatementOrExpressionOrLValue {
     LValue(LValue),
 }
 
-impl<'a> Parser<'a> {
+impl Parser<'_> {
     /// Parses either a statement, an expression or an LValue. Returns `StatementKind::Error`
     /// if none can be parsed, recording an error if so.
     ///

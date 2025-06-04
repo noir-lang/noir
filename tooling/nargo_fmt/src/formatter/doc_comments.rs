@@ -2,7 +2,7 @@ use noirc_frontend::token::{DocStyle, Token};
 
 use super::Formatter;
 
-impl<'a> Formatter<'a> {
+impl Formatter<'_> {
     pub(super) fn format_inner_doc_comments(&mut self) {
         loop {
             self.skip_comments_and_whitespace();
@@ -110,5 +110,13 @@ mod tests {
 #![world]
 ";
         assert_format(src, expected);
+    }
+
+    #[test]
+    fn format_struct_outer_doc_comment_after_attribute() {
+        let src = "#[derive(Eq)]
+/// A struct
+struct Foo {}\n";
+        assert_format(src, src);
     }
 }

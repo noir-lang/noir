@@ -1,7 +1,8 @@
+use noirc_frontend::shared::Visibility;
 use noirc_frontend::{
     ast::{
         BlockExpression, FunctionReturnType, Ident, ItemVisibility, NoirFunction, Param,
-        UnresolvedGenerics, UnresolvedTraitConstraint, Visibility,
+        UnresolvedGenerics, UnresolvedTraitConstraint,
     },
     token::{Attributes, Keyword, Token},
 };
@@ -22,7 +23,7 @@ pub(super) struct FunctionToFormat {
     pub(super) skip_visibility: bool,
 }
 
-impl<'a> Formatter<'a> {
+impl Formatter<'_> {
     pub(super) fn format_function(&mut self, func: NoirFunction, skip_visibility: bool) {
         self.format_function_impl(FunctionToFormat {
             attributes: func.def.attributes,
@@ -152,7 +153,8 @@ impl<'a> Formatter<'a> {
     }
 
     fn format_function_param(&mut self, param: Param) {
-        self.format_pattern(param.pattern);
+        let group = self.format_pattern(param.pattern);
+        self.format_chunk_group(group);
         self.skip_comments_and_whitespace();
 
         // There might not be a colon if the parameter is self
@@ -353,8 +355,8 @@ mod tests {
 
     #[test]
     fn format_function_generics() {
-        let src = "fn  foo < A, B, >( ) {  }";
-        let expected = "fn foo<A, B>() {}\n";
+        let src = "fn  foo < A, B:  X  +  Y , >( ) {  }";
+        let expected = "fn foo<A, B: X + Y>() {}\n";
         assert_format(src, expected);
     }
 

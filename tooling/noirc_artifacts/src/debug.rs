@@ -1,6 +1,6 @@
 use codespan_reporting::files::{Error, Files, SimpleFile};
 use noirc_driver::{CompiledContract, CompiledProgram, DebugFile};
-use noirc_errors::{debug_info::DebugInfo, Location};
+use noirc_errors::{Location, debug_info::DebugInfo};
 use serde::{Deserialize, Serialize};
 use std::{
     collections::{BTreeMap, BTreeSet},
@@ -26,23 +26,28 @@ impl DebugArtifact {
         let mut files_with_debug_symbols: BTreeSet<FileId> = debug_symbols
             .iter()
             .flat_map(|function_symbols| {
-                function_symbols
-                    .locations
-                    .values()
-                    .flat_map(|call_stack| call_stack.iter().map(|location| location.file))
+                function_symbols.acir_locations.values().flat_map(|call_stack_id| {
+                    function_symbols
+                        .location_tree
+                        .get_call_stack(*call_stack_id)
+                        .into_iter()
+                        .map(|location| location.file)
+                })
             })
             .collect();
 
         let files_with_brillig_debug_symbols: BTreeSet<FileId> = debug_symbols
             .iter()
             .flat_map(|function_symbols| {
-                let brillig_location_maps =
-                    function_symbols.brillig_locations.values().flat_map(|brillig_location_map| {
-                        brillig_location_map
-                            .values()
-                            .flat_map(|call_stack| call_stack.iter().map(|location| location.file))
-                    });
-                brillig_location_maps
+                function_symbols.brillig_locations.values().flat_map(|brillig_location_map| {
+                    brillig_location_map.values().flat_map(|call_stack_id| {
+                        function_symbols
+                            .location_tree
+                            .get_call_stack(*call_stack_id)
+                            .into_iter()
+                            .map(|location| location.file)
+                    })
+                })
             })
             .collect();
 
@@ -177,7 +182,18 @@ impl<'a> Files<'a> for DebugArtifact {
     type Source = &'a str;
 
     fn name(&self, file_id: Self::FileId) -> Result<Self::Name, Error> {
-        self.file_map.get(&file_id).ok_or(Error::FileMissing).map(|file| file.path.clone().into())
+        let name = self.file_map.get(&file_id).ok_or(Error::FileMissing);
+        let name: Self::Name = name.map(|file| file.path.clone().into())?;
+
+        // See if we can make the file path a bit shorter/easier to read if it starts with the current directory
+        if let Ok(current_dir) = std::env::current_dir() {
+            if let Ok(name_without_prefix) = name.clone().into_path_buf().strip_prefix(current_dir)
+            {
+                return Ok(PathString::from_path(name_without_prefix.to_path_buf()));
+            }
+        }
+
+        Ok(name)
     }
 
     fn source(&'a self, file_id: Self::FileId) -> Result<Self::Source, Error> {
@@ -202,14 +218,15 @@ impl<'a> Files<'a> for DebugArtifact {
 #[cfg(test)]
 mod tests {
     use crate::debug::DebugArtifact;
-    use acvm::acir::circuit::OpcodeLocation;
+    use acvm::acir::circuit::AcirOpcodeLocation;
     use fm::FileManager;
-    use noirc_errors::{debug_info::DebugInfo, Location, Span};
+    use noirc_errors::call_stack::{CallStackId, LocationNodeDebugInfo, LocationTree};
+    use noirc_errors::{Location, Span, debug_info::DebugInfo};
     use std::collections::BTreeMap;
     use std::ops::Range;
     use std::path::Path;
     use std::path::PathBuf;
-    use tempfile::{tempdir, TempDir};
+    use tempfile::{TempDir, tempdir};
 
     // Returns the absolute path to the file
     fn create_dummy_file(dir: &TempDir, file_name: &Path) -> PathBuf {
@@ -255,12 +272,20 @@ mod tests {
 
         // We don't care about opcodes in this context,
         // we just use a dummy to construct debug_symbols
-        let mut opcode_locations = BTreeMap::<OpcodeLocation, Vec<Location>>::new();
-        opcode_locations.insert(OpcodeLocation::Acir(42), vec![loc]);
+        let mut opcode_locations = BTreeMap::<AcirOpcodeLocation, CallStackId>::new();
+        opcode_locations.insert(AcirOpcodeLocation::new(42), CallStackId::new(1));
+        let mut location_tree = LocationTree::default();
+        location_tree
+            .locations
+            .push(LocationNodeDebugInfo { parent: None, value: Location::dummy() });
+        location_tree
+            .locations
+            .push(LocationNodeDebugInfo { parent: Some(CallStackId::root()), value: loc });
 
         let debug_symbols = vec![DebugInfo::new(
-            opcode_locations,
             BTreeMap::default(),
+            opcode_locations,
+            location_tree,
             BTreeMap::default(),
             BTreeMap::default(),
             BTreeMap::default(),

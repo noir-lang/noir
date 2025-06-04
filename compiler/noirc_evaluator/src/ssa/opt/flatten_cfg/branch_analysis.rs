@@ -2,14 +2,15 @@
 //!
 //! The algorithm is split into two parts:
 //! 1. The outer part:
-//!    A. An (unrolled) CFG can be though of as a linear sequence of blocks where some nodes split
+//!    1. An (unrolled) CFG can be though of as a linear sequence of blocks where some nodes split
 //!       off, but eventually rejoin to a new node and continue the linear sequence.
-//!    B. Follow this sequence in order, and whenever a split is found call
+//!
+//!    2. Follow this sequence in order, and whenever a split is found call
 //!       `find_join_point_of_branches` and then recur from the join point it returns until the
 //!       return instruction is found.
 //!
 //! 2. The inner part defined by `find_join_point_of_branches`:
-//!    A. For each of the two branches in a jmpif block:
+//!    1. For each of the two branches in a jmpif block:
 //!     - Check if either has multiple predecessors. If so, it is a join point.
 //!     - If not, continue to search the linear sequence of successor blocks from that block.
 //!       - If another split point is found, recur in `find_join_point_of_branches`
@@ -102,7 +103,9 @@ impl<'cfg> Context<'cfg> {
         } else if successors.len() == 1 {
             self.find_join_point(successors.next().unwrap())
         } else if successors.len() == 0 {
-            unreachable!("return encountered before a join point was found. This can only happen if early-return was added to the language without implementing it by jmping to a join block first")
+            unreachable!(
+                "return encountered before a join point was found. This can only happen if early-return was added to the language without implementing it by jmping to a join block first"
+            )
         } else {
             unreachable!("A block can only have 0, 1, or 2 successors");
         }
@@ -116,6 +119,7 @@ mod test {
         function_builder::FunctionBuilder,
         ir::{cfg::ControlFlowGraph, map::Id, types::Type},
         opt::flatten_cfg::branch_analysis::find_branch_ends,
+        ssa_gen::Ssa,
     };
 
     #[test]
@@ -254,6 +258,63 @@ mod test {
         builder.terminate_with_return(vec![]);
 
         let ssa = builder.finish();
+        let function = ssa.main();
+        let cfg = ControlFlowGraph::with_function(function);
+        find_branch_ends(function, &cfg);
+    }
+
+    #[test]
+    fn apply_function() {
+        // Make sure that our dynamic dispatch function created during defunctionalization
+        // passes branch analysis.
+        let src = "
+        acir(inline_always) fn apply f5 {
+          b0(v0: Field, v1: u32):
+            v4 = eq v0, Field 2
+            jmpif v4 then: b3, else: b2
+          b1(v2: u32):
+            return v2
+          b2():
+            v9 = eq v0, Field 3
+            jmpif v9 then: b6, else: b5
+          b3():
+            v6 = call f2(v1) -> u32
+            jmp b4(v6)
+          b4(v7: u32):
+            jmp b10(v7)
+          b5():
+            constrain v0 == Field 4
+            v15 = call f4(v1) -> u32
+            jmp b8(v15)
+          b6():
+            v11 = call f3(v1) -> u32
+            jmp b7(v11)
+          b7(v12: u32):
+            jmp b9(v12)
+          b8(v16: u32):
+            jmp b9(v16)
+          b9(v17: u32):
+            jmp b10(v17)
+          b10(v18: u32):
+            jmp b1(v18)
+        }
+        acir(inline) fn lambda f2 {
+          b0(v0: u32):
+            return v0
+        }
+        acir(inline) fn lambda f3 {
+          b0(v0: u32):
+            v2 = add v0, u32 1
+            return v2
+        }
+        acir(inline) fn lambda f4 {
+          b0(v0: u32):
+            v2 = add v0, u32 2
+            return v2
+        }
+        ";
+
+        let ssa = Ssa::from_str(src).unwrap();
         let function = ssa.main();
         let cfg = ControlFlowGraph::with_function(function);
         find_branch_ends(function, &cfg);

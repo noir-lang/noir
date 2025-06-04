@@ -42,11 +42,7 @@ impl<'a> Parser<'a> {
         F: FnMut(&mut Parser<'a>) -> Option<T>,
     {
         let f = |x: &mut Parser<'a>| {
-            if let Some(result) = f(x) {
-                vec![result]
-            } else {
-                vec![]
-            }
+            if let Some(result) = f(x) { vec![result] } else { vec![] }
         };
         self.parse_many_to_many_return_trailing_separator_if_any(items, separated_by, f)
     }

@@ -1,4 +1,4 @@
-use acvm::{acir::circuit::Program, FieldElement};
+use acvm::{FieldElement, acir::circuit::Program};
 use iter_extended::vecmap;
 use noirc_driver::{CompiledContract, CompiledProgram};
 use noirc_errors::debug_info::DebugInfo;

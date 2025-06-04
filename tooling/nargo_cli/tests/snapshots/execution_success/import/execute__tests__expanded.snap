@@ -1,0 +1,17 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: expanded_code
+---
+use import::hello;
+
+mod import {
+    pub fn hello(x: Field) -> Field {
+        x
+    }
+}
+
+fn main(x: Field, y: Field) {
+    let _k: std::embedded_curve_ops::EmbeddedCurvePoint = std::hash::pedersen_commitment([x]);
+    let _l: Field = hello(x);
+    assert(x != hello(y));
+}

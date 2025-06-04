@@ -1,18 +1,28 @@
-pub mod poseidon;
-pub mod poseidon2;
-pub mod keccak;
-pub mod sha256;
-pub mod sha512;
+// Exposed only for usage in `std::meta`
+pub(crate) mod poseidon2;
 
 use crate::default::Default;
 use crate::embedded_curve_ops::{
     EmbeddedCurvePoint, EmbeddedCurveScalar, multi_scalar_mul, multi_scalar_mul_array_return,
 };
 use crate::meta::derive_via;
-use crate::uint128::U128;
 
-// Kept for backwards compatibility
-pub use sha256::{digest, sha256, sha256_compression, sha256_var};
+#[foreign(sha256_compression)]
+// docs:start:sha256_compression
+pub fn sha256_compression(input: [u32; 16], state: [u32; 8]) -> [u32; 8] {}
+// docs:end:sha256_compression
+
+#[foreign(keccakf1600)]
+// docs:start:keccakf1600
+pub fn keccakf1600(input: [u64; 25]) -> [u64; 25] {}
+// docs:end:keccakf1600
+
+pub mod keccak {
+    #[deprecated("This function has been moved to std::hash::keccakf1600")]
+    pub fn keccakf1600(input: [u64; 25]) -> [u64; 25] {
+        super::keccakf1600(input)
+    }
+}
 
 #[foreign(blake2s)]
 // docs:start:blake2s
@@ -20,11 +30,23 @@ pub fn blake2s<let N: u32>(input: [u8; N]) -> [u8; 32]
 // docs:end:blake2s
 {}
 
-#[foreign(blake3)]
 // docs:start:blake3
 pub fn blake3<let N: u32>(input: [u8; N]) -> [u8; 32]
 // docs:end:blake3
-{}
+{
+    if crate::runtime::is_unconstrained() {
+        // Temporary measure while Barretenberg is main proving system.
+        // Please open an issue if you're working on another proving system and running into problems due to this.
+        crate::static_assert(
+            N <= 1024,
+            "Barretenberg cannot prove blake3 hashes with inputs larger than 1024 bytes",
+        );
+    }
+    __blake3(input)
+}
+
+#[foreign(blake3)]
+fn __blake3<let N: u32>(input: [u8; N]) -> [u8; 32] {}
 
 // docs:start:pedersen_commitment
 pub fn pedersen_commitment<let N: u32>(input: [Field; N]) -> EmbeddedCurvePoint {
@@ -70,7 +92,7 @@ pub fn pedersen_hash_with_separator<let N: u32>(input: [Field; N], separator: u3
     let length_generator: [EmbeddedCurvePoint; 1] =
         derive_generators("pedersen_hash_length".as_bytes(), 0);
     generators[N] = length_generator[0];
-    multi_scalar_mul_array_return(generators, scalars)[0]
+    multi_scalar_mul_array_return(generators, scalars)[0].x
 }
 
 #[field(bn254)]
@@ -114,13 +136,6 @@ pub fn hash_to_field(inputs: [Field]) -> Field {
     sum
 }
 
-// docs:start:keccak256
-pub fn keccak256<let N: u32>(input: [u8; N], message_size: u32) -> [u8; 32]
-// docs:end:keccak256
-{
-    crate::hash::keccak::keccak256(input, message_size)
-}
-
 #[foreign(poseidon2_permutation)]
 pub fn poseidon2_permutation<let N: u32>(_input: [Field; N], _state_length: u32) -> [Field; N] {}
 
@@ -136,9 +151,9 @@ pub trait Hash {
 }
 
 // docs:start:derive_hash
-comptime fn derive_hash(s: StructDefinition) -> Quoted {
-    let name = quote { Hash };
-    let signature = quote { fn hash<H>(_self: Self, _state: &mut H) where H: std::hash::Hasher };
+comptime fn derive_hash(s: TypeDefinition) -> Quoted {
+    let name = quote { $crate::hash::Hash };
+    let signature = quote { fn hash<H>(_self: Self, _state: &mut H) where H: $crate::hash::Hasher };
     let for_each_field = |name| quote { _self.$name.hash(_state); };
     crate::meta::make_trait_impl(
         s,
@@ -160,19 +175,20 @@ pub trait Hasher {
 }
 
 // BuildHasher is a factory trait, responsible for production of specific Hasher.
-pub trait BuildHasher<H>
-where
-    H: Hasher,
-{
+pub trait BuildHasher {
+    type H: Hasher;
+
     fn build_hasher(self) -> H;
 }
 
 pub struct BuildHasherDefault<H>;
 
-impl<H> BuildHasher<H> for BuildHasherDefault<H>
+impl<H> BuildHasher for BuildHasherDefault<H>
 where
     H: Hasher + Default,
 {
+    type H = H;
+
     fn build_hasher(_self: Self) -> H {
         H::default()
     }
@@ -300,16 +316,6 @@ impl Hash for () {
     where
         H: Hasher,
     {}
-}
-
-impl Hash for U128 {
-    fn hash<H>(self, state: &mut H)
-    where
-        H: Hasher,
-    {
-        H::write(state, self.lo as Field);
-        H::write(state, self.hi as Field);
-    }
 }
 
 impl<T, let N: u32> Hash for [T; N]

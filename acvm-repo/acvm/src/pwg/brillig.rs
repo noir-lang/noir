@@ -1,22 +1,27 @@
 use std::collections::HashMap;
 
 use acir::{
+    AcirField,
     brillig::{ForeignCallParam, ForeignCallResult, Opcode as BrilligOpcode},
     circuit::{
+        OpcodeLocation,
         brillig::{BrilligFunctionId, BrilligInputs, BrilligOutputs},
         opcodes::BlockId,
-        ErrorSelector, OpcodeLocation, RawAssertionPayload, ResolvedAssertionPayload,
     },
     native_types::WitnessMap,
-    AcirField,
 };
 use acvm_blackbox_solver::BlackBoxFunctionSolver;
-use brillig_vm::{BrilligProfilingSamples, FailureReason, MemoryValue, VMStatus, VM};
+use brillig_vm::{
+    BranchToFeatureMap, BrilligProfilingSamples, FailureReason, MemoryValue, VM, VMStatus,
+};
 use serde::{Deserialize, Serialize};
 
-use crate::{pwg::OpcodeNotSolvable, OpcodeResolutionError};
+use crate::{OpcodeResolutionError, pwg::OpcodeNotSolvable};
 
-use super::{get_value, insert_value, memory_op::MemoryOpSolver};
+use super::{
+    ErrorSelector, RawAssertionPayload, ResolvedAssertionPayload, get_value, insert_value,
+    memory_op::MemoryOpSolver,
+};
 
 #[derive(Debug)]
 pub enum BrilligSolverStatus<F> {
@@ -25,6 +30,8 @@ pub enum BrilligSolverStatus<F> {
     ForeignCallWait(ForeignCallWaitInfo<F>),
 }
 
+/// Specific solver for Brillig opcodes
+/// It maintains a Brillig VM that can execute the bytecode of the called brillig function
 pub struct BrilligSolver<'b, F, B: BlackBoxFunctionSolver<F>> {
     vm: VM<'b, F, B>,
     acir_index: usize,
@@ -35,7 +42,7 @@ pub struct BrilligSolver<'b, F, B: BlackBoxFunctionSolver<F>> {
 }
 
 impl<'b, B: BlackBoxFunctionSolver<F>, F: AcirField> BrilligSolver<'b, F, B> {
-    /// Assigns the zero value to all outputs of the given [`Brillig`] bytecode.
+    /// Assigns the zero value to all outputs of a given [brillig call][acir::circuit::opcodes::Opcode::BrilligCall].
     pub(super) fn zero_out_brillig_outputs(
         initial_witness: &mut WitnessMap<F>,
         outputs: &[BrilligOutputs],
@@ -67,6 +74,7 @@ impl<'b, B: BlackBoxFunctionSolver<F>, F: AcirField> BrilligSolver<'b, F, B> {
         acir_index: usize,
         brillig_function_id: BrilligFunctionId,
         profiling_active: bool,
+        with_branch_to_feature_map: Option<&BranchToFeatureMap>,
     ) -> Result<Self, OpcodeResolutionError<F>> {
         let vm = Self::setup_brillig_vm(
             initial_witness,
@@ -75,10 +83,14 @@ impl<'b, B: BlackBoxFunctionSolver<F>, F: AcirField> BrilligSolver<'b, F, B> {
             brillig_bytecode,
             bb_solver,
             profiling_active,
+            with_branch_to_feature_map,
         )?;
         Ok(Self { vm, acir_index, function_id: brillig_function_id })
     }
 
+    /// Get a BrilligVM for executing the provided bytecode
+    /// 1. Reduce the input expressions into a known value, or error if they do not reduce to a value.
+    /// 2. Instantiate the Brillig VM with the bytecode and the reduced inputs.
     fn setup_brillig_vm(
         initial_witness: &WitnessMap<F>,
         memory: &HashMap<BlockId, MemoryOpSolver<F>>,
@@ -86,6 +98,7 @@ impl<'b, B: BlackBoxFunctionSolver<F>, F: AcirField> BrilligSolver<'b, F, B> {
         brillig_bytecode: &'b [BrilligOpcode<F>],
         bb_solver: &'b B,
         profiling_active: bool,
+        with_branch_to_feature_map: Option<&BranchToFeatureMap>,
     ) -> Result<VM<'b, F, B>, OpcodeResolutionError<F>> {
         // Set input values
         let mut calldata: Vec<F> = Vec::new();
@@ -100,7 +113,7 @@ impl<'b, B: BlackBoxFunctionSolver<F>, F: AcirField> BrilligSolver<'b, F, B> {
                     Err(_) => {
                         return Err(OpcodeResolutionError::OpcodeNotSolvable(
                             OpcodeNotSolvable::ExpressionHasTooManyUnknowns(expr.clone()),
-                        ))
+                        ));
                     }
                 },
                 BrilligInputs::Array(expr_arr) => {
@@ -111,7 +124,7 @@ impl<'b, B: BlackBoxFunctionSolver<F>, F: AcirField> BrilligSolver<'b, F, B> {
                             Err(_) => {
                                 return Err(OpcodeResolutionError::OpcodeNotSolvable(
                                     OpcodeNotSolvable::ExpressionHasTooManyUnknowns(expr.clone()),
-                                ))
+                                ));
                             }
                         }
                     }
@@ -133,7 +146,13 @@ impl<'b, B: BlackBoxFunctionSolver<F>, F: AcirField> BrilligSolver<'b, F, B> {
 
         // Instantiate a Brillig VM given the solved calldata
         // along with the Brillig bytecode.
-        let vm = VM::new(calldata, brillig_bytecode, bb_solver, profiling_active);
+        let vm = VM::new(
+            calldata,
+            brillig_bytecode,
+            bb_solver,
+            profiling_active,
+            with_branch_to_feature_map,
+        );
         Ok(vm)
     }
 
@@ -147,6 +166,10 @@ impl<'b, B: BlackBoxFunctionSolver<F>, F: AcirField> BrilligSolver<'b, F, B> {
 
     pub fn get_call_stack(&self) -> Vec<usize> {
         self.vm.get_call_stack()
+    }
+
+    pub fn get_fuzzing_trace(&self) -> Vec<u32> {
+        self.vm.get_fuzzing_trace()
     }
 
     pub(crate) fn solve(&mut self) -> Result<BrilligSolverStatus<F>, OpcodeResolutionError<F>> {
@@ -163,14 +186,14 @@ impl<'b, B: BlackBoxFunctionSolver<F>, F: AcirField> BrilligSolver<'b, F, B> {
         self.vm.program_counter()
     }
 
+    /// Returns the status of the Brillig VM as a 'BrilligSolverStatus' resolution.
+    /// It may be finished, in-progress, failed, or may be waiting for results of a foreign call.
+    /// Return the "resolution" to the caller who may choose to make subsequent calls
+    /// (when it gets foreign call results for example).
     fn handle_vm_status(
         &self,
         vm_status: VMStatus<F>,
     ) -> Result<BrilligSolverStatus<F>, OpcodeResolutionError<F>> {
-        // Check the status of the Brillig VM and return a resolution.
-        // It may be finished, in-progress, failed, or may be waiting for results of a foreign call.
-        // Return the "resolution" to the caller who may choose to make subsequent calls
-        // (when it gets foreign call results for example).
         match vm_status {
             VMStatus::Finished { .. } => Ok(BrilligSolverStatus::Finished),
             VMStatus::InProgress => Ok(BrilligSolverStatus::InProgress),
@@ -216,6 +239,7 @@ impl<'b, B: BlackBoxFunctionSolver<F>, F: AcirField> BrilligSolver<'b, F, B> {
         self.finalize_inner(witness, outputs)
     }
 
+    /// Finalize the VM and return the profiling samples.
     pub(crate) fn finalize_with_profiling(
         mut self,
         witness: &mut WitnessMap<F>,
@@ -226,6 +250,7 @@ impl<'b, B: BlackBoxFunctionSolver<F>, F: AcirField> BrilligSolver<'b, F, B> {
         Ok(self.vm.take_profiling_samples())
     }
 
+    /// Finalize the VM execution and write the outputs to the provided witness map.
     fn finalize_inner(
         &self,
         witness: &mut WitnessMap<F>,
@@ -242,6 +267,7 @@ impl<'b, B: BlackBoxFunctionSolver<F>, F: AcirField> BrilligSolver<'b, F, B> {
         }
     }
 
+    /// Write VM execution results into the witness map
     fn write_brillig_outputs(
         &self,
         witness_map: &mut WitnessMap<F>,
@@ -249,7 +275,6 @@ impl<'b, B: BlackBoxFunctionSolver<F>, F: AcirField> BrilligSolver<'b, F, B> {
         return_data_size: usize,
         outputs: &[BrilligOutputs],
     ) -> Result<(), OpcodeResolutionError<F>> {
-        // Write VM execution results into the witness map
         let memory = self.vm.get_memory();
         let mut current_ret_data_idx = return_data_offset;
         for output in outputs.iter() {
@@ -313,7 +338,7 @@ fn extract_failure_payload_from_memory<F: AcirField>(
     }
 }
 
-/// Encapsulates a request from a Brillig VM process that encounters a [foreign call opcode][acir::brillig_vm::Opcode::ForeignCall]
+/// Encapsulates a request from a Brillig VM process that encounters a [foreign call opcode][brillig_vm::brillig::Opcode::ForeignCall]
 /// where the result of the foreign call has not yet been provided.
 ///
 /// The caller must resolve this opcode externally based upon the information in the request.

@@ -1,4 +1,4 @@
-use acvm::{acir::brillig::ForeignCallResult, pwg::ForeignCallWaitInfo, AcirField};
+use acvm::{AcirField, acir::brillig::ForeignCallResult, pwg::ForeignCallWaitInfo};
 
 use super::{ForeignCallError, ForeignCallExecutor};
 

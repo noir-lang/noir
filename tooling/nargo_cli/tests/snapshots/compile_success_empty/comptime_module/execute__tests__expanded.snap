@@ -1,0 +1,109 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: expanded_code
+---
+mod foo {
+    pub fn x() {}
+
+    pub fn y() {}
+
+    pub fn z() {}
+
+    pub struct Struct1 {}
+
+    pub struct Struct2 {}
+
+    pub struct Struct3 {}
+}
+
+contract bar {}
+
+mod another_module {}
+
+mod yet_another_module {
+    pub fn foo() {}
+
+    pub fn generated_outer_function() {}
+
+    pub fn generated_inner_function() {}
+}
+
+comptime mut global counter: u32 = 4;
+
+comptime fn increment_counter() {
+    counter = counter + 1;
+}
+
+comptime fn outer_attribute_func(m: Module) -> Quoted {
+    assert(m.name() == quote { yet_another_module });
+    increment_counter();
+    quote {
+        pub fn generated_outer_function() {
+            
+        }
+    }
+}
+
+comptime fn inner_attribute_func(m: Module) -> Quoted {
+    assert(m.name() == quote { yet_another_module });
+    increment_counter();
+    quote {
+        pub fn generated_inner_function() {
+            
+        }
+    }
+}
+
+comptime fn outer_attribute_separate_module(m: Module) {
+    assert(m.name() == quote { separate_module });
+    increment_counter();
+}
+
+pub struct Foo {}
+
+mod add_to_me {
+    fn add_to_me_function() {}
+
+    pub fn added_function() -> super::Foo {
+        add_to_me_function();
+        super::Foo {}
+    }
+}
+
+comptime fn add_function(m: Module) {
+    m.add_item(
+        quote {
+        pub fn added_function() -> super::Foo {
+            add_to_me_function();
+            super::Foo {
+                
+            }
+        }
+    },
+    );
+}
+
+fn main() {
+    let _: foo::Struct1 = foo::Struct1 {};
+    ();
+    assert(counter == 4);
+    yet_another_module::generated_outer_function();
+    yet_another_module::generated_inner_function();
+    let _: Foo = add_to_me::added_function();
+}
+
+mod baz {
+    pub mod qux {}
+}
+
+#[test]
+fn as_module_test() {
+    ()
+}
+
+mod separate_module {
+    comptime fn inner_attribute_separate_module(m: Module) {
+        assert(m.name() == quote { separate_module });
+        super::increment_counter();
+    }
+}

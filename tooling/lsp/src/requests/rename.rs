@@ -4,6 +4,7 @@ use std::{
 };
 
 use async_lsp::ResponseError;
+use async_lsp::lsp_types;
 use lsp_types::{
     PrepareRenameResponse, RenameParams, TextDocumentPositionParams, TextEdit, Url, WorkspaceEdit,
 };
@@ -16,7 +17,7 @@ use super::{find_all_references_in_workspace, process_request};
 pub(crate) fn on_prepare_rename_request(
     state: &mut LspState,
     params: TextDocumentPositionParams,
-) -> impl Future<Output = Result<Option<PrepareRenameResponse>, ResponseError>> {
+) -> impl Future<Output = Result<Option<PrepareRenameResponse>, ResponseError>> + use<> {
     let result = process_request(state, params, |args| {
         let reference_id = args.interner.reference_at_location(args.location);
         let rename_possible = match reference_id {
@@ -33,7 +34,7 @@ pub(crate) fn on_prepare_rename_request(
 pub(crate) fn on_rename_request(
     state: &mut LspState,
     params: RenameParams,
-) -> impl Future<Output = Result<Option<WorkspaceEdit>, ResponseError>> {
+) -> impl Future<Output = Result<Option<WorkspaceEdit>, ResponseError>> + use<> {
     let result = process_request(state, params.text_document_position, |args| {
         let rename_changes = find_all_references_in_workspace(
             args.location,
@@ -71,7 +72,7 @@ pub(crate) fn on_rename_request(
 mod rename_tests {
     use super::*;
     use crate::test_utils::{self, search_in_file};
-    use lsp_types::{Range, WorkDoneProgressParams};
+    use async_lsp::lsp_types::{Range, WorkDoneProgressParams};
     use tokio::test;
 
     async fn check_rename_succeeds(directory: &str, name: &str) {
@@ -111,7 +112,10 @@ mod rename_tests {
                     changes.iter().filter(|range| !ranges.contains(range)).collect();
                 let extra_in_ranges: Vec<_> =
                     ranges.iter().filter(|range| !changes.contains(range)).collect();
-                panic!("Rename locations did not match.\nThese renames were not found: {:?}\nThese renames should not have been found: {:?}", extra_in_ranges, extra_in_changes);
+                panic!(
+                    "Rename locations did not match.\nThese renames were not found: {:?}\nThese renames should not have been found: {:?}",
+                    extra_in_ranges, extra_in_changes
+                );
             }
             assert_eq!(changes, ranges);
         }

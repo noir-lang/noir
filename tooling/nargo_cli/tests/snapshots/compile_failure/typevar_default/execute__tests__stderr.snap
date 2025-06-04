@@ -1,0 +1,26 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: stderr
+---
+error: Type provided when a numeric generic was expected
+  ┌─ src/main.nr:6:41
+  │
+6 │ fn slice_to_array<N>(slice: [Field]) -> [Field; N] {
+  │                                         ---------- the numeric generic is not of type `u32`
+  │
+
+error: Type provided when a numeric generic was expected
+  ┌─ src/main.nr:7:25
+  │
+7 │     let mut array = [0; N];
+  │                         - the numeric generic is not of type `u32`
+  │
+
+error: cannot find `N` in this scope
+  ┌─ src/main.nr:8:19
+  │
+8 │     for i in 0 .. N {
+  │                   - not found in this scope
+  │
+
+Aborting due to 3 previous errors

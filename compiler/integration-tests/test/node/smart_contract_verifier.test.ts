@@ -6,19 +6,19 @@ import { resolve } from 'path';
 import toml from 'toml';
 
 import { Noir } from '@noir-lang/noir_js';
-import { UltraPlonkBackend } from '@aztec/bb.js';
+import { UltraHonkBackend } from '@aztec/bb.js';
 
 import { compile, createFileManager } from '@noir-lang/noir_wasm';
 
 const test_cases = [
   {
     case: 'test_programs/execution_success/1_mul',
-    compiled: 'contracts/1_mul.sol:UltraVerifier',
+    compiled: 'contracts/1_mul.sol:HonkVerifier',
     numPublicInputs: 0,
   },
   {
     case: 'test_programs/execution_success/assert_statement',
-    compiled: 'contracts/assert_statement.sol:UltraVerifier',
+    compiled: 'contracts/assert_statement.sol:HonkVerifier',
     numPublicInputs: 1,
   },
 ];
@@ -46,12 +46,12 @@ test_cases.forEach((testInfo) => {
     const inputs = toml.parse(prover_toml);
     const { witness } = await program.execute(inputs);
 
-    const backend = new UltraPlonkBackend(noir_program.bytecode, {}, { recursive: false });
-    const proofData = await backend.generateProof(witness);
+    const backend = new UltraHonkBackend(noir_program.bytecode, {}, { recursive: false });
+    const proofData = await backend.generateProof(witness, { keccak: true });
 
     // JS verification
 
-    const verified = await backend.verifyProof(proofData);
+    const verified = await backend.verifyProof(proofData, { keccak: true });
     expect(verified, 'Proof fails verification in JS').to.be.true;
 
     // Smart contract verification

@@ -1,27 +1,30 @@
 use std::hash::Hash;
 use std::{hash::Hasher, rc::Rc};
 
-use acvm::FieldElement;
-use iter_extended::try_vecmap;
+use iter_extended::{try_vecmap, vecmap};
 use noirc_errors::Location;
 
+use crate::ast::{BinaryOp, ItemVisibility, UnaryOp};
 use crate::elaborator::Elaborator;
 use crate::hir::comptime::display::tokens_to_string;
 use crate::hir::comptime::value::unwrap_rc;
 use crate::hir::def_collector::dc_crate::CompilationError;
 use crate::lexer::Lexer;
 use crate::parser::{Parser, ParserError};
-use crate::token::LocatedToken;
+use crate::signed_field::SignedField;
+use crate::token::{Keyword, LocatedToken, SecondaryAttributeKind};
+use crate::{DataType, Kind, Shared};
 use crate::{
+    QuotedType, Type,
     ast::{
-        BlockExpression, ExpressionKind, Ident, IntegerBitSize, LValue, Pattern, Signedness,
-        StatementKind, UnresolvedTypeData,
+        BlockExpression, ExpressionKind, Ident, IntegerBitSize, LValue, Pattern, StatementKind,
+        UnresolvedTypeData,
     },
     hir::{
         comptime::{
+            Interpreter, InterpreterError, Value,
             errors::IResult,
             value::{ExprValue, TypedExpr},
-            Interpreter, InterpreterError, Value,
         },
         def_map::ModuleId,
         type_check::generics::TraitGenerics,
@@ -31,10 +34,9 @@ use crate::{
         stmt::HirPattern,
     },
     node_interner::{FuncId, NodeInterner, TraitId, TraitImplId, TypeId},
+    shared::Signedness,
     token::{SecondaryAttribute, Token, Tokens},
-    QuotedType, Type,
 };
-use crate::{DataType, Kind, Shared};
 use rustc_hash::FxHashMap as HashMap;
 
 pub(crate) fn check_argument_count(
@@ -115,6 +117,7 @@ pub(crate) fn get_struct_fields(
                 Ident::new(name.to_string(), location),
                 location,
                 Vec::new(),
+                ItemVisibility::Public,
             );
             let expected = Type::DataType(Shared::new(expected), Vec::new());
             type_mismatch(value, expected, location)
@@ -239,7 +242,7 @@ pub(crate) fn get_tuple(
     }
 }
 
-pub(crate) fn get_field((value, location): (Value, Location)) -> IResult<FieldElement> {
+pub(crate) fn get_field((value, location): (Value, Location)) -> IResult<SignedField> {
     match value {
         Value::Field(value) => Ok(value),
         value => type_mismatch(value, Type::FieldElement, location),
@@ -328,10 +331,10 @@ pub(crate) fn get_module((value, location): (Value, Location)) -> IResult<Module
     }
 }
 
-pub(crate) fn get_struct((value, location): (Value, Location)) -> IResult<TypeId> {
+pub(crate) fn get_type_id((value, location): (Value, Location)) -> IResult<TypeId> {
     match value {
-        Value::StructDefinition(id) => Ok(id),
-        _ => type_mismatch(value, Type::Quoted(QuotedType::StructDefinition), location),
+        Value::TypeDefinition(id) => Ok(id),
+        _ => type_mismatch(value, Type::Quoted(QuotedType::TypeDefinition), location),
     }
 }
 
@@ -448,7 +451,7 @@ fn gather_hir_pattern_tokens(
                     tokens.push(Token::Comma);
                 }
 
-                let field_name = &field_name.0.contents;
+                let field_name = field_name.as_str();
                 tokens.push(Token::Ident(field_name.to_string()));
 
                 // If we have a pattern like `Foo { x }`, that's internally represented as `Foo { x: x }` so
@@ -509,9 +512,8 @@ where
     let (result, warnings) =
         parse_tokens(tokens, quoted, elaborator.interner, location, parser, rule)?;
     for warning in warnings {
-        let location = warning.location();
         let warning: CompilationError = warning.into();
-        elaborator.push_err(warning, location.file);
+        elaborator.push_err(warning);
     }
     Ok(result)
 }
@@ -575,9 +577,13 @@ pub(super) fn block_expression_to_value(block_expr: BlockExpression) -> Value {
     Value::Slice(statements, typ)
 }
 
-pub(super) fn has_named_attribute(name: &str, attributes: &[SecondaryAttribute]) -> bool {
+pub(super) fn has_named_attribute(
+    name: &str,
+    attributes: &[SecondaryAttribute],
+    interner: &NodeInterner,
+) -> bool {
     for attribute in attributes {
-        if let Some(attribute_name) = attribute.name() {
+        if let Some(attribute_name) = secondary_attribute_name(attribute, interner) {
             if name == attribute_name {
                 return true;
             }
@@ -587,12 +593,36 @@ pub(super) fn has_named_attribute(name: &str, attributes: &[SecondaryAttribute])
     false
 }
 
+fn secondary_attribute_name(
+    attribute: &SecondaryAttribute,
+    interner: &NodeInterner,
+) -> Option<String> {
+    match &attribute.kind {
+        SecondaryAttributeKind::Deprecated(_) => Some("deprecated".to_string()),
+        SecondaryAttributeKind::ContractLibraryMethod => {
+            Some("contract_library_method".to_string())
+        }
+        SecondaryAttributeKind::Export => Some("export".to_string()),
+        SecondaryAttributeKind::Field(_) => Some("field".to_string()),
+        SecondaryAttributeKind::Tag(contents) => {
+            let mut lexer = Lexer::new_with_dummy_file(contents);
+            let token = lexer.next()?.ok()?;
+            if let Token::Ident(ident) = token.into_token() { Some(ident) } else { None }
+        }
+        SecondaryAttributeKind::Meta(meta) => interner.get_meta_attribute_name(meta),
+        SecondaryAttributeKind::Abi(_) => Some("abi".to_string()),
+        SecondaryAttributeKind::Varargs => Some("varargs".to_string()),
+        SecondaryAttributeKind::UseCallersScope => Some("use_callers_scope".to_string()),
+        SecondaryAttributeKind::Allow(_) => Some("allow".to_string()),
+    }
+}
+
 pub(super) fn quote_ident(ident: &Ident, location: Location) -> Value {
     Value::Quoted(ident_to_tokens(ident, location))
 }
 
 fn ident_to_tokens(ident: &Ident, location: Location) -> Rc<Vec<LocatedToken>> {
-    let token = Token::Ident(ident.0.contents.clone());
+    let token = Token::Ident(ident.to_string());
     let token = LocatedToken::new(token, location);
     Rc::new(vec![token])
 }
@@ -608,7 +638,7 @@ pub(super) fn hash_item<T: Hash>(
     let mut hasher = std::collections::hash_map::DefaultHasher::new();
     item.hash(&mut hasher);
     let hash = hasher.finish();
-    Ok(Value::Field((hash as u128).into()))
+    Ok(Value::Field(SignedField::positive(hash as u128)))
 }
 
 pub(super) fn eq_item<T: Eq>(
@@ -645,15 +675,6 @@ pub(crate) fn to_byte_slice(values: &[u8]) -> Value {
     Value::Slice(values.iter().copied().map(Value::U8).collect(), byte_slice_type())
 }
 
-/// Create a `Value::Array` from fields.
-pub(crate) fn to_field_array(values: &[FieldElement]) -> Value {
-    let typ = Type::Array(
-        Box::new(Type::Constant(values.len().into(), Kind::u32())),
-        Box::new(Type::FieldElement),
-    );
-    Value::Array(values.iter().copied().map(Value::Field).collect(), typ)
-}
-
 /// Create a `Value::Struct` from fields and the expected return type.
 pub(crate) fn to_struct(
     fields: impl IntoIterator<Item = (&'static str, Value)>,
@@ -661,4 +682,48 @@ pub(crate) fn to_struct(
 ) -> Value {
     let fields = fields.into_iter().map(|(k, v)| (Rc::new(k.to_string()), v)).collect();
     Value::Struct(fields, typ)
+}
+
+pub(crate) fn new_unary_op(operator: UnaryOp, typ: Type) -> Option<Value> {
+    // These values should match the values used in noir_stdlib/src/meta/op.nr
+    let unary_op_value: u128 = match operator {
+        UnaryOp::Minus => 0,
+        UnaryOp::Not => 1,
+        UnaryOp::Reference { mutable: true } => 2,
+        UnaryOp::Reference { mutable: false } => {
+            // `&` alone is experimental and currently hidden from the comptime API
+            return None;
+        }
+        UnaryOp::Dereference { .. } => 3,
+    };
+
+    let mut fields = HashMap::default();
+    fields.insert(Rc::new("op".to_string()), Value::Field(SignedField::positive(unary_op_value)));
+
+    Some(Value::Struct(fields, typ))
+}
+
+pub(crate) fn new_binary_op(operator: BinaryOp, typ: Type) -> Value {
+    // For the op value we use the enum member index, which should match noir_stdlib/src/meta/op.nr
+    let binary_op_value = operator.contents as u128;
+
+    let mut fields = HashMap::default();
+    fields.insert(Rc::new("op".to_string()), Value::Field(SignedField::positive(binary_op_value)));
+
+    Value::Struct(fields, typ)
+}
+
+pub(crate) fn visibility_to_quoted(visibility: ItemVisibility, location: Location) -> Value {
+    let tokens = match visibility {
+        ItemVisibility::Private => vec![],
+        ItemVisibility::PublicCrate => vec![
+            Token::Keyword(Keyword::Pub),
+            Token::LeftParen,
+            Token::Keyword(Keyword::Crate),
+            Token::RightParen,
+        ],
+        ItemVisibility::Public => vec![Token::Keyword(Keyword::Pub)],
+    };
+    let tokens = vecmap(tokens, |token| LocatedToken::new(token, location));
+    Value::Quoted(Rc::new(tokens))
 }

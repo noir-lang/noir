@@ -1,13 +1,19 @@
-use acir::circuit::{brillig::BrilligInputs, opcodes::BlockId, Circuit, Opcode};
+use acir::{
+    AcirField,
+    circuit::{Circuit, Opcode, brillig::BrilligInputs, opcodes::BlockId},
+};
 use std::collections::HashSet;
 
 /// `UnusedMemoryOptimizer` will remove initializations of memory blocks which are unused.
-pub(crate) struct UnusedMemoryOptimizer<F> {
+/// A first pass collects all memory blocks which are initialized but discards the ones
+/// which are used in a MemoryOp or as input to a BrilligCall.
+/// The second pass removes the opcodes tagged as unused by the first pass.
+pub(crate) struct UnusedMemoryOptimizer<F: AcirField> {
     unused_memory_initializations: HashSet<BlockId>,
     circuit: Circuit<F>,
 }
 
-impl<F> UnusedMemoryOptimizer<F> {
+impl<F: AcirField> UnusedMemoryOptimizer<F> {
     /// Creates a new `UnusedMemoryOptimizer ` by collecting unused memory init
     /// opcodes from `Circuit`.
     pub(crate) fn new(circuit: Circuit<F>) -> Self {

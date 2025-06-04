@@ -1,8 +1,8 @@
 use std::collections::HashMap;
 
 use acir::{
-    circuit::{AssertionPayload, Circuit, ExpressionWidth, OpcodeLocation},
     AcirField,
+    circuit::{AcirOpcodeLocation, AssertionPayload, Circuit, ExpressionWidth, OpcodeLocation},
 };
 
 // The various passes that we can use over ACIR
@@ -14,7 +14,7 @@ pub use optimizers::optimize;
 use optimizers::optimize_internal;
 pub use simulator::CircuitSimulator;
 use transformers::transform_internal;
-pub use transformers::{transform, MIN_EXPRESSION_WIDTH};
+pub use transformers::{MIN_EXPRESSION_WIDTH, transform};
 
 /// This module moves and decomposes acir opcodes. The transformation map allows consumers of this module to map
 /// metadata they had about the opcodes to the new opcode structure generated after the transformation.
@@ -26,7 +26,7 @@ pub struct AcirTransformationMap {
 
 impl AcirTransformationMap {
     /// Builds a map from a vector of pointers to the old acir opcodes.
-    /// The index of the vector is the new opcode index.
+    /// The index in the vector is the new opcode index.
     /// The value of the vector is the old opcode index pointed.
     fn new(acir_opcode_positions: &[usize]) -> Self {
         let mut old_indices_to_new_indices = HashMap::with_capacity(acir_opcode_positions.len());
@@ -36,6 +36,7 @@ impl AcirTransformationMap {
         AcirTransformationMap { old_indices_to_new_indices }
     }
 
+    /// Returns the new opcode location(s) corresponding to the old opcode.
     pub fn new_locations(
         &self,
         old_location: OpcodeLocation,
@@ -56,8 +57,22 @@ impl AcirTransformationMap {
             },
         )
     }
+
+    pub fn new_acir_locations(
+        &self,
+        old_location: AcirOpcodeLocation,
+    ) -> impl Iterator<Item = AcirOpcodeLocation> + '_ {
+        let old_acir_index = old_location.index();
+
+        self.old_indices_to_new_indices.get(&old_acir_index).into_iter().flat_map(
+            move |new_indices| {
+                new_indices.iter().map(move |new_index| AcirOpcodeLocation::new(*new_index))
+            },
+        )
+    }
 }
 
+/// Update the assert messages to point to the new opcode locations.
 fn transform_assert_messages<F: Clone>(
     assert_messages: Vec<(OpcodeLocation, AssertionPayload<F>)>,
     map: &AcirTransformationMap,
@@ -71,7 +86,7 @@ fn transform_assert_messages<F: Clone>(
         .collect()
 }
 
-/// Applies [`ProofSystemCompiler`][crate::ProofSystemCompiler] specific optimizations to a [`Circuit`].
+/// Applies backend specific optimizations to a [`Circuit`].
 ///
 /// Runs multiple passes until the output stabilizes.
 pub fn compile<F: AcirField>(

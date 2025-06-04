@@ -2,13 +2,14 @@ use std::{collections::BTreeMap, sync::Arc};
 
 use crate::ssa::ir::{
     function::RuntimeType,
+    instruction::ArrayOffset,
     types::{NumericType, Type},
-    value::ValueId,
+    value::{ValueId, ValueMapping},
 };
 use acvm::FieldElement;
 use fxhash::FxHashMap as HashMap;
-use noirc_frontend::ast;
 use noirc_frontend::hir_def::function::FunctionSignature;
+use noirc_frontend::shared::Visibility;
 use serde::{Deserialize, Serialize};
 
 use super::FunctionBuilder;
@@ -48,9 +49,9 @@ impl DataBusBuilder {
 
         for param in &main_signature.0 {
             let is_databus = match param.2 {
-                ast::Visibility::Public | ast::Visibility::Private => DatabusVisibility::None,
-                ast::Visibility::CallData(id) => DatabusVisibility::CallData(id),
-                ast::Visibility::ReturnData => DatabusVisibility::ReturnData,
+                Visibility::Public | Visibility::Private => DatabusVisibility::None,
+                Visibility::CallData(id) => DatabusVisibility::CallData(id),
+                Visibility::ReturnData => DatabusVisibility::ReturnData,
             };
             let len = param.1.field_count(&param.0.location()) as usize;
             params_is_databus.extend(vec![is_databus; len]);
@@ -92,6 +93,12 @@ impl DataBus {
             })
             .collect();
         DataBus { call_data, return_data: self.return_data.map(&mut f) }
+    }
+
+    pub(crate) fn replace_values(&mut self, mapping: &ValueMapping) {
+        if !mapping.is_empty() {
+            self.map_values_mut(|value_id| mapping.get(value_id));
+        }
     }
 
     /// Updates the databus values in place with the provided function
@@ -150,7 +157,14 @@ impl FunctionBuilder {
                         let index_var = FieldElement::from(index as i128);
                         let index_var =
                             self.current_function.dfg.make_constant(index_var, length_type);
-                        let element = self.insert_array_get(value, index_var, subitem_typ.clone());
+                        // If we do not check for an empty array we will have an unused array get
+                        // as an array of length zero will not be actually added to the databus' values.
+                        if let Type::Array(_, 0) = subitem_typ {
+                            continue;
+                        }
+                        let offset = ArrayOffset::None;
+                        let element =
+                            self.insert_array_get(value, index_var, offset, subitem_typ.clone());
                         index += match subitem_typ {
                             Type::Array(_, _) | Type::Slice(_) => subitem_typ.element_size(),
                             Type::Numeric(_) => 1,
@@ -224,6 +238,7 @@ impl FunctionBuilder {
                 }
             }
         }
+
         // create the call-data-bus from the filtered lists
         let mut result = Vec::new();
         for id in databus_param.keys() {

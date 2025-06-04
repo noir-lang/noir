@@ -9,7 +9,7 @@ use crate::{
 
 use super::Formatter;
 
-impl<'a> Formatter<'a> {
+impl Formatter<'_> {
     pub(super) fn merge_and_format_imports(
         &mut self,
         imports: Vec<UseTree>,
@@ -122,7 +122,7 @@ enum Segment {
     /// Represents the end of a path.
     /// This is needed because we have want to merge "foo" and "foo::bar",
     /// we need to know that "foo" is the end of a path, and "foo::bar" is another one.
-    /// If we don't, merging "foo" and "foo::bar" will result in just "foo::bar", loosing "foo",
+    /// If we don't, merging "foo" and "foo::bar" will result in just "foo::bar", losing "foo",
     /// when we actually want "foo::{self, bar}".
     SelfReference,
     Crate,
@@ -180,11 +180,7 @@ impl Ord for Segment {
         if let (Segment::Plain(self_string), Segment::Plain(other_string)) = (self, other) {
             // Case-insensitive comparison for plain segments
             let ordering = self_string.to_lowercase().cmp(&other_string.to_lowercase());
-            if ordering == Ordering::Equal {
-                self_string.cmp(other_string)
-            } else {
-                ordering
-            }
+            if ordering == Ordering::Equal { self_string.cmp(other_string) } else { ordering }
         } else {
             order_number_ordering
         }
@@ -272,6 +268,7 @@ fn merge_imports_in_tree(imports: Vec<UseTree>, mut tree: &mut ImportTree) {
             PathKind::Super => tree.insert(Segment::Super),
             PathKind::Dep => tree.insert(Segment::Dep),
             PathKind::Plain => &mut tree,
+            PathKind::Resolved(_) => unreachable!("$crate shouldn't be possible here"),
         };
 
         for segment in import.prefix.segments {
@@ -283,7 +280,7 @@ fn merge_imports_in_tree(imports: Vec<UseTree>, mut tree: &mut ImportTree) {
                 if let Some(alias) = alias {
                     tree = tree.insert(Segment::Plain(format!("{} as {}", ident, alias)));
                     tree.insert(Segment::SelfReference);
-                } else if ident.0.contents == "self" {
+                } else if ident.as_str() == "self" {
                     tree.insert(Segment::SelfReference);
                 } else {
                     tree = tree.insert(Segment::Plain(ident.to_string()));
@@ -299,7 +296,7 @@ fn merge_imports_in_tree(imports: Vec<UseTree>, mut tree: &mut ImportTree) {
 
 #[cfg(test)]
 mod tests {
-    use crate::{assert_format_with_config, config::ImportsGranularity, Config};
+    use crate::{Config, assert_format_with_config, config::ImportsGranularity};
 
     fn assert_format(src: &str, expected: &str) {
         let config = Config {

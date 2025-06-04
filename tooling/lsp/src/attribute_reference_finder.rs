@@ -9,20 +9,19 @@ use std::collections::BTreeMap;
 use fm::FileId;
 use noirc_errors::Span;
 use noirc_frontend::{
+    ParsedModule,
     ast::{AttributeTarget, Visitor},
     graph::CrateId,
     hir::{
         def_map::{CrateDefMap, LocalModuleId, ModuleId},
         resolution::import::resolve_import,
     },
+    modules::module_def_id_to_reference_id,
     node_interner::ReferenceId,
     parser::ParsedSubModule,
-    token::MetaAttribute,
+    token::{MetaAttribute, MetaAttributeName},
     usage_tracker::UsageTracker,
-    ParsedModule,
 };
-
-use crate::modules::module_def_id_to_reference_id;
 
 pub(crate) struct AttributeReferenceFinder<'a> {
     byte_index: usize,
@@ -46,7 +45,7 @@ impl<'a> AttributeReferenceFinder<'a> {
         let local_id = if let Some((module_index, _)) =
             def_map.modules().iter().find(|(_, module_data)| module_data.location.file == file)
         {
-            LocalModuleId(module_index)
+            LocalModuleId::new(module_index)
         } else {
             def_map.root()
         };
@@ -65,13 +64,13 @@ impl<'a> AttributeReferenceFinder<'a> {
     }
 }
 
-impl<'a> Visitor for AttributeReferenceFinder<'a> {
+impl Visitor for AttributeReferenceFinder<'_> {
     fn visit_parsed_submodule(&mut self, parsed_sub_module: &ParsedSubModule, _span: Span) -> bool {
         // Switch `self.module_id` to the submodule
         let previous_module_id = self.module_id;
 
         let def_map = &self.def_maps[&self.module_id.krate];
-        if let Some(module_data) = def_map.modules().get(self.module_id.local_id.0) {
+        if let Some(module_data) = def_map.get(self.module_id.local_id) {
             if let Some(child_module) = module_data.children.get(&parsed_sub_module.name) {
                 self.module_id = ModuleId { krate: self.module_id.krate, local_id: *child_module };
             }
@@ -89,12 +88,16 @@ impl<'a> Visitor for AttributeReferenceFinder<'a> {
         &mut self,
         attribute: &MetaAttribute,
         _target: AttributeTarget,
+        span: Span,
     ) -> bool {
-        if !self.includes_span(attribute.location.span) {
+        if !self.includes_span(span) {
             return false;
         }
 
-        let path = attribute.name.clone();
+        let MetaAttributeName::Path(path) = attribute.name.clone() else {
+            return false;
+        };
+
         // The path here must resolve to a function and it's a simple path (can't have turbofish)
         // so it can (and must) be solved as an import.
         let Ok(Some((module_def_id, _, _))) = resolve_import(

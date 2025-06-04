@@ -1,14 +1,15 @@
-use acvm::FieldElement;
 use fm::FileId;
+use iter_extended::vecmap;
 use noirc_errors::Location;
 
+use crate::Shared;
 use crate::ast::{BinaryOp, BinaryOpKind, Ident, UnaryOp};
 use crate::hir::type_check::generics::TraitGenerics;
 use crate::node_interner::{
     DefinitionId, DefinitionKind, ExprId, FuncId, NodeInterner, StmtId, TraitMethodId,
 };
+use crate::signed_field::SignedField;
 use crate::token::{FmtStrFragment, Tokens};
-use crate::Shared;
 
 use super::stmt::HirPattern;
 use super::traits::{ResolvedTraitBound, TraitConstraint};
@@ -33,7 +34,6 @@ pub enum HirExpression {
     EnumConstructor(HirEnumConstructorExpression),
     MemberAccess(HirMemberAccess),
     Call(HirCallExpression),
-    MethodCall(HirMethodCallExpression),
     Constrain(HirConstrainExpression),
     Cast(HirCastExpression),
     If(HirIfExpression),
@@ -42,7 +42,6 @@ pub enum HirExpression {
     Lambda(HirLambda),
     Quote(Tokens),
     Unquote(Tokens),
-    Comptime(HirBlockExpression),
     Unsafe(HirBlockExpression),
     Error,
 }
@@ -115,7 +114,7 @@ pub enum HirLiteral {
     Array(HirArrayLiteral),
     Slice(HirArrayLiteral),
     Bool(bool),
-    Integer(FieldElement, bool), //true for negative integer and false for positive
+    Integer(SignedField),
     Str(String),
     FmtStr(Vec<FmtStrFragment>, Vec<ExprId>, u32 /* length */),
     Unit,
@@ -249,11 +248,10 @@ impl HirMethodReference {
             }
             HirMethodReference::TraitMethodId(method_id, trait_generics, assumed) => {
                 let id = interner.trait_method_id(method_id);
-                let span = location.span;
                 let trait_id = method_id.trait_id;
                 let constraint = TraitConstraint {
                     typ: object_type,
-                    trait_bound: ResolvedTraitBound { trait_id, trait_generics, span },
+                    trait_bound: ResolvedTraitBound { trait_id, trait_generics, location },
                 };
 
                 (id, ImplKind::TraitMethod(TraitMethod { method_id, constraint, assumed }))
@@ -359,15 +357,13 @@ pub enum HirMatch {
     /// Jump directly to ExprId
     Success(ExprId),
 
-    Failure,
+    /// A Failure node in the match. `missing_case` is true if this node is the result of a missing
+    /// case of the match for which we should later reconstruct an example of.
+    Failure { missing_case: bool },
 
     /// Run `body` if the given expression is true.
     /// Otherwise continue with the given decision tree.
-    Guard {
-        cond: ExprId,
-        body: ExprId,
-        otherwise: Box<HirMatch>,
-    },
+    Guard { cond: ExprId, body: ExprId, otherwise: Box<HirMatch> },
 
     /// Switch on the given variable with the given cases to test.
     /// The final argument is an optional match-all case to take if
@@ -388,50 +384,7 @@ impl Case {
     }
 }
 
-#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
-pub struct SignedField {
-    pub field: FieldElement,
-    pub is_negative: bool,
-}
-
-impl SignedField {
-    pub fn new(field: FieldElement, is_negative: bool) -> Self {
-        Self { field, is_negative }
-    }
-}
-
-impl std::ops::Neg for SignedField {
-    type Output = Self;
-
-    fn neg(mut self) -> Self::Output {
-        self.is_negative = !self.is_negative;
-        self
-    }
-}
-
-impl std::cmp::PartialOrd for SignedField {
-    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
-        if self.is_negative != other.is_negative {
-            if self.is_negative {
-                return Some(std::cmp::Ordering::Less);
-            } else {
-                return Some(std::cmp::Ordering::Greater);
-            }
-        }
-        self.field.partial_cmp(&other.field)
-    }
-}
-
-impl std::fmt::Display for SignedField {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        if self.is_negative {
-            write!(f, "-")?;
-        }
-        write!(f, "{}", self.field)
-    }
-}
-
-#[derive(Debug, Clone, Hash, PartialEq, Eq)]
+#[derive(Debug, Clone, Hash, PartialEq, Eq, PartialOrd, Ord)]
 pub enum Constructor {
     True,
     False,
@@ -479,6 +432,41 @@ impl Constructor {
                 _ => false,
             },
             _ => false,
+        }
+    }
+
+    /// Return all the constructors of this type from one constructor. Intended to be used
+    /// for error reporting in cases where there are at least 2 constructors.
+    pub(crate) fn all_constructors(&self) -> Vec<(Constructor, /*arg count:*/ usize)> {
+        match self {
+            Constructor::True | Constructor::False => {
+                vec![(Constructor::True, 0), (Constructor::False, 0)]
+            }
+            Constructor::Unit => vec![(Constructor::Unit, 0)],
+            Constructor::Tuple(args) => vec![(self.clone(), args.len())],
+            Constructor::Variant(typ, _) => {
+                let typ = typ.follow_bindings();
+                let Type::DataType(def, generics) = &typ else {
+                    unreachable!(
+                        "Constructor::Variant should have a DataType type, but found {typ:?}"
+                    );
+                };
+
+                let def_ref = def.borrow();
+                if let Some(variants) = def_ref.get_variants(generics) {
+                    vecmap(variants.into_iter().enumerate(), |(i, (_, fields))| {
+                        (Constructor::Variant(typ.clone(), i), fields.len())
+                    })
+                } else
+                /* def is a struct */
+                {
+                    let field_count = def_ref.fields_raw().map(|fields| fields.len()).unwrap_or(0);
+                    vec![(Constructor::Variant(typ.clone(), 0), field_count)]
+                }
+            }
+
+            // Nothing great to return for these
+            Constructor::Int(_) | Constructor::Range(..) => Vec::new(),
         }
     }
 }

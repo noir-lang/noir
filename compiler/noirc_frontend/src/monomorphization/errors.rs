@@ -1,21 +1,66 @@
-use noirc_errors::{CustomDiagnostic, FileDiagnostic, Location};
+use noirc_errors::{CustomDiagnostic, Location};
 
 use crate::{
-    hir::{comptime::InterpreterError, type_check::TypeCheckError},
     Type,
+    hir::{comptime::InterpreterError, type_check::TypeCheckError},
 };
 
 #[derive(Debug)]
 pub enum MonomorphizationError {
-    UnknownArrayLength { length: Type, err: TypeCheckError, location: Location },
-    UnknownConstant { location: Location },
-    NoDefaultType { location: Location },
-    InternalError { message: &'static str, location: Location },
+    UnknownArrayLength {
+        length: Type,
+        err: TypeCheckError,
+        location: Location,
+    },
+    UnknownConstant {
+        location: Location,
+    },
+    NoDefaultType {
+        location: Location,
+    },
+    NoDefaultTypeInItem {
+        location: Location,
+        generic_name: String,
+        item_kind: &'static str,
+        item_name: String,
+        is_numeric: bool,
+    },
+    InternalError {
+        message: &'static str,
+        location: Location,
+    },
     InterpreterError(InterpreterError),
-    ComptimeFnInRuntimeCode { name: String, location: Location },
-    ComptimeTypeInRuntimeCode { typ: String, location: Location },
-    CheckedTransmuteFailed { actual: Type, expected: Type, location: Location },
-    CheckedCastFailed { actual: Type, expected: Type, location: Location },
+    ComptimeFnInRuntimeCode {
+        name: String,
+        location: Location,
+    },
+    ComptimeTypeInRuntimeCode {
+        typ: String,
+        location: Location,
+    },
+    CheckedTransmuteFailed {
+        actual: Type,
+        expected: Type,
+        location: Location,
+    },
+    CheckedCastFailed {
+        actual: Type,
+        expected: Type,
+        location: Location,
+    },
+    RecursiveType {
+        typ: Type,
+        location: Location,
+    },
+    CannotComputeAssociatedConstant {
+        name: String,
+        err: TypeCheckError,
+        location: Location,
+    },
+    ReferenceReturnedFromIf {
+        typ: String,
+        location: Location,
+    },
 }
 
 impl MonomorphizationError {
@@ -28,24 +73,19 @@ impl MonomorphizationError {
             | MonomorphizationError::ComptimeTypeInRuntimeCode { location, .. }
             | MonomorphizationError::CheckedTransmuteFailed { location, .. }
             | MonomorphizationError::CheckedCastFailed { location, .. }
-            | MonomorphizationError::NoDefaultType { location, .. } => *location,
-            MonomorphizationError::InterpreterError(error) => error.get_location(),
+            | MonomorphizationError::RecursiveType { location, .. }
+            | MonomorphizationError::NoDefaultType { location, .. }
+            | MonomorphizationError::NoDefaultTypeInItem { location, .. }
+            | MonomorphizationError::ReferenceReturnedFromIf { location, .. }
+            | MonomorphizationError::CannotComputeAssociatedConstant { location, .. } => *location,
+            MonomorphizationError::InterpreterError(error) => error.location(),
         }
     }
 }
 
-impl From<MonomorphizationError> for FileDiagnostic {
-    fn from(error: MonomorphizationError) -> FileDiagnostic {
-        let location = error.location();
-        let call_stack = vec![location];
-        let diagnostic = error.into_diagnostic();
-        diagnostic.with_call_stack(call_stack).in_file(location.file)
-    }
-}
-
-impl MonomorphizationError {
-    fn into_diagnostic(self) -> CustomDiagnostic {
-        let message = match &self {
+impl From<MonomorphizationError> for CustomDiagnostic {
+    fn from(error: MonomorphizationError) -> CustomDiagnostic {
+        let message = match &error {
             MonomorphizationError::UnknownArrayLength { length, err, .. } => {
                 format!("Could not determine array length `{length}`, encountered error: `{err}`")
             }
@@ -61,7 +101,21 @@ impl MonomorphizationError {
             MonomorphizationError::NoDefaultType { location } => {
                 let message = "Type annotation needed".into();
                 let secondary = "Could not determine type of generic argument".into();
-                return CustomDiagnostic::simple_error(message, secondary, location.span);
+                return CustomDiagnostic::simple_error(message, secondary, *location);
+            }
+            MonomorphizationError::NoDefaultTypeInItem {
+                location,
+                generic_name,
+                item_kind,
+                item_name,
+                is_numeric,
+            } => {
+                let message = "Type annotation needed".into();
+                let type_or_value = if *is_numeric { "value" } else { "type" };
+                let secondary = format!(
+                    "Could not determine the {type_or_value} of the generic argument `{generic_name}` declared on the {item_kind} `{item_name}`",
+                );
+                return CustomDiagnostic::simple_error(message, secondary, *location);
             }
             MonomorphizationError::InterpreterError(error) => return error.into(),
             MonomorphizationError::InternalError { message, .. } => message.to_string(),
@@ -69,16 +123,35 @@ impl MonomorphizationError {
                 let message = format!("Comptime function {name} used in runtime code");
                 let secondary =
                     "Comptime functions must be in a comptime block to be called".into();
-                return CustomDiagnostic::simple_error(message, secondary, location.span);
+                return CustomDiagnostic::simple_error(message, secondary, *location);
             }
             MonomorphizationError::ComptimeTypeInRuntimeCode { typ, location } => {
                 let message = format!("Comptime-only type `{typ}` used in runtime code");
                 let secondary = "Comptime type used here".into();
-                return CustomDiagnostic::simple_error(message, secondary, location.span);
+                return CustomDiagnostic::simple_error(message, secondary, *location);
+            }
+            MonomorphizationError::RecursiveType { typ, location } => {
+                let message = format!("Type `{typ}` is recursive");
+                let secondary = "All types in Noir must have a known size at compile-time".into();
+                return CustomDiagnostic::simple_error(message, secondary, *location);
+            }
+            MonomorphizationError::CannotComputeAssociatedConstant { name, err, .. } => {
+                format!(
+                    "Could not determine the value of associated constant `{name}`, encountered error: `{err}`"
+                )
+            }
+            MonomorphizationError::ReferenceReturnedFromIf { typ, location } => {
+                let message = "Cannot return a reference type from an if expression".to_string();
+                let secondary = if typ.starts_with("&") {
+                    format!("`{typ}` returned here")
+                } else {
+                    format!("`{typ}`, which contains a reference type internally, returned here")
+                };
+                return CustomDiagnostic::simple_error(message, secondary, *location);
             }
         };
 
-        let location = self.location();
-        CustomDiagnostic::simple_error(message, String::new(), location.span)
+        let location = error.location();
+        CustomDiagnostic::simple_error(message, String::new(), location)
     }
 }

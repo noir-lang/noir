@@ -1,0 +1,56 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: expanded_code
+---
+trait Empty {
+    fn empty() -> Self;
+}
+
+impl Empty for Field {
+    fn empty() -> Self {
+        0
+    }
+}
+
+pub fn is_empty<T>(item: T) -> bool
+where
+    T: Empty,
+    T: Eq,
+{
+    Eq::eq(item, Empty::empty())
+}
+
+pub fn array_to_bounded_vec<T, let N: u32>(array: [T; N]) -> BoundedVec<T, N>
+where
+    T: Empty,
+    T: Eq,
+{
+    let mut len: u32 = 0;
+    {
+        let ___i0: [T; N] = array;
+        for ___i1 in 0..___i0.len() {
+            let elem: T = ___i0[___i1];
+            {
+                if !is_empty(elem) {
+                    len = len + 1;
+                }
+            }
+        }
+    };
+    BoundedVec::from_parts_unchecked(array, len)
+}
+
+global TX_SIZE: u32 = 5;
+
+global APP_CALL_SIZE: u32 = 2;
+
+fn main(a: [Field; 5], b: [Field; 2]) -> return_data [Field; 5] {
+    let mut a_as_bounded_vec: BoundedVec<Field, 5> = array_to_bounded_vec(a);
+    for i in 0..APP_CALL_SIZE {
+        let value: Field = b[i];
+        if value != 0 {
+            a_as_bounded_vec.push(value);
+        }
+    }
+    a_as_bounded_vec.storage()
+}

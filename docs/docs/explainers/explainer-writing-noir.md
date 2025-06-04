@@ -215,6 +215,5 @@ The compiler will mostly be correct and optimal, but this may help some near ter
 Note: When used incorrectly it will create **less** efficient circuits (higher gate count).
 
 ## References
-- Guillaume's ["`Cryptdoku`" talk](https://www.youtube.com/watch?v=MrQyzuogxgg) (Jun'23)
-- Tips from Tom, Jake and Zac.
+- Guillaume's ["`Crypdoku`" talk](https://www.youtube.com/watch?v=MrQyzuogxgg) (Jun'23)
 - [Idiomatic Noir](https://www.vlayer.xyz/blog/idiomatic-noir-part-1-collections) blog post

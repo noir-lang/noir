@@ -1,20 +1,20 @@
 use std::collections::HashMap;
 
+use async_lsp::lsp_types::TextEdit;
 use fm::FileId;
-use lsp_types::TextEdit;
 use noirc_errors::{Location, Span};
 use noirc_frontend::{
+    ParsedModule,
     ast::{Ident, ItemVisibility, UseTree, UseTreeKind},
     parser::{Item, ItemKind},
     usage_tracker::UnusedItem,
-    ParsedModule,
 };
 
 use crate::byte_span_to_range;
 
 use super::CodeActionFinder;
 
-impl<'a> CodeActionFinder<'a> {
+impl CodeActionFinder<'_> {
     pub(super) fn remove_unused_import(
         &mut self,
         use_tree: &UseTree,
@@ -81,11 +81,7 @@ fn use_tree_without_unused_import(
     match &use_tree.kind {
         UseTreeKind::Path(name, alias) => {
             let ident = alias.as_ref().unwrap_or(name);
-            if unused_items.contains_key(ident) {
-                (None, 1)
-            } else {
-                (Some(use_tree.clone()), 0)
-            }
+            if unused_items.contains_key(ident) { (None, 1) } else { (Some(use_tree.clone()), 0) }
         }
         UseTreeKind::List(use_trees) => {
             let mut new_use_trees: Vec<UseTree> = Vec::new();

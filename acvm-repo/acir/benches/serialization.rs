@@ -1,10 +1,10 @@
-use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion, Throughput};
+use criterion::{BenchmarkId, Criterion, Throughput, criterion_group, criterion_main};
 use std::{collections::BTreeSet, time::Duration};
 
 use acir::{
+    FieldElement,
     circuit::{Circuit, ExpressionWidth, Opcode, Program, PublicInputs},
     native_types::{Expression, Witness},
-    FieldElement,
 };
 
 use pprof::criterion::{Output, PProfProfiler};

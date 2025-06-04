@@ -4,7 +4,7 @@
 // - library will be default
 
 use std::{
-    iter::{once, Once},
+    iter::{Once, once},
     path::PathBuf,
     slice,
 };

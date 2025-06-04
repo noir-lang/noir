@@ -1,21 +1,37 @@
 ---
-title: Noir Profiler
+title: Profiler
 description: Learn about the Noir Profiler, how to generate execution flamegraphs, identify bottlenecks, and visualize optimizations.
 keywords: [profiling, profiler, flamegraph]
-sidebar_position: 0
+sidebar_position: 3
 ---
 
-## Noir Profiler
+The profiler is a sampling profiler designed to analyze and visualize Noir programs. It assists developers to identify bottlenecks by mapping execution data back to the original source code.
 
-`noir-profiler` is a sampling profiler designed to analyze and visualize Noir programs. It assists developers to identify bottlenecks by mapping execution data back to the original source code.
+## Installation
 
-### Installation
+The profiler is automatically installed with Nargo starting noirup v0.1.4.
 
-`noir-profiler` comes out of the box with [noirup](../getting_started/noir_installation.md). Test that you have the profiler installed by running `noir-profiler --version`.
+Check if the profiler is already installed by running `noir-profiler --version`. If the profiler is not found, update noirup and install the profiler by [reinstalling both noirup and Nargo](../getting_started/quick_start.md#noir).
 
-### Usage
+## Usage
 
-Let's start by creating a simple Noir program. All this program aims to do is zero out an array past some dynamic index.
+### Profiling ACIR opcodes
+
+The profiler provides the ability to flamegraph a Noir program's ACIR opcodes footprint. This is useful for _approximately_ identifying bottlenecks in constrained execution and proving of Noir programs.
+
+:::note
+
+"_Approximately_" as:
+- Execution speeds depend on the constrained execution trace compiled from ACIR opcodes
+- Proving speeds depend on the how the proving backend of choice interprets the ACIR opcodes
+
+:::
+
+#### Create a demonstrative project
+
+Let's start by creating a simple Noir program that aims to zero out an array past some dynamic index.
+
+Run `nargo new program` to create a new project named _program_, then copy in the following as source code:
 
 ```rust
 fn main(ptr: pub u32, mut array: [u32; 32]) -> pub [u32; 32] {
@@ -27,32 +43,32 @@ fn main(ptr: pub u32, mut array: [u32; 32]) -> pub [u32; 32] {
     array
 }
 ```
-You can use these values for the `Prover.toml`:
-```toml
-ptr = 1
-array = [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]
-```
 
-Running `nargo info` we can get some information about the opcodes produced by this program, but it doesn't give us a lot of info on its own. Compile and execute this program normally using `nargo compile` and `nargo execute`.
+Change into the project directory and compile the program using `nargo compile`. We are now ready to try out the profiler.
 
-### Generating an ACIR opcode flamegraph
+#### Flamegraphing
 
-The program on its own is quite high-level. Let's get a more granular look at what is happening by using `noir-profiler`.
+Let's take a granular look at our program's ACIR opcode footprint using the profiler, running:
 
-After compiling the program, run the following:
 ```sh
 noir-profiler opcodes --artifact-path ./target/program.json --output ./target/
 ```
-Below you can see an example flamegraph with a total 387 opcodes (using `nargo` version 1.0.0-beta.2):
+
+The command generates a flamegraph in your _target_ folder that maps the number of ACIR opcodes to their corresponding locations in your program's source code.
+
+Opening the flamegraph in a web browser will provide a more interactive experience, allowing you to click into different regions of the graph and examine them.
+
+Flamegraph of the demonstrative project generated with Nargo v1.0.0-beta.2:
+
 ![ACIR Flamegraph Unoptimized](@site/static/img/tooling/profiler/acir-flamegraph-unoptimized.png)
 
-You should now have a flamegraph that maps ACIR opcodes to their corresponding locations in the source code. We strongly recommend generating these graphs yourself as you follow this guide. Opening the flamegraph in a browser provides a more interactive experience, allowing you to click into and examine different regions of the graph. Simply viewing the image file won't offer the same level of insight.
+The demonstrative project consists of 387 ACIR opcodes in total. From the flamegraph, we can see that the majority come from the write to `array[i]`.
 
-We can see that the majority of opcodes come from the write to `array[i]`. Now that we have some more information about our program's bottlenecks, let's optimize it.
+With insight into our program's bottleneck, let's optimize it.
 
-#### Transform conditional writes into reads
+#### Visualizing optimizations
 
-We can improve our circuit's efficiency using [unconstrained functions](../noir/concepts/unconstrained.md).
+We can improve our program's performance using [unconstrained functions](../noir/concepts/unconstrained.md).
 
 Let's replace expensive array writes with array gets with the new code below:
 ```rust
@@ -78,38 +94,132 @@ unconstrained fn zero_out_array(ptr: u32, mut array: [u32; 32]) -> [u32; 32] {
     array
 }
 ```
-We chose to instead write our array inside of the unconstrained function. Then inside of our circuit we assert on every value in the array returned from the unconstrained function.
 
-This new program produces the following ACIR opcodes flamegraph with a total of 284 opcodes:
+Instead of writing our array in a fully constrained context, we first write our array inside an unconstrained function. Then, we assert every value in the array returned from the unconstrained function in a constrained context.
+
+This brings the ACIR opcodes count of our program down to a total of 284 opcodes:
+
 ![ACIR Flamegraph Optimized](@site/static/img/tooling/profiler/acir-flamegraph-optimized.png)
 
-In the above image we searched for the ACIR opcodes due to `i > ptr` in the source code. Trigger a search by clicking on "Search" in the top right corner of the flamegraph. In the bottom right corner of the image above, you will note that the flamegraph displays the percentage of all opcodes associated with that search.  Searching for `memory::op` in the optimized flamegraph will result in no matches. This is due to no longer using a dynamic array in our circuit. By dynamic array, we are referring to using a dynamic index (values reliant upon witness inputs) when working with arrays. Most of the memory operations, have now been replaced with arithmetic operations as we are reading two arrays from known constant indices.
+#### Searching
 
-### Generate a backend gates flamegraph
+The `i > ptr` region in the above image is highlighted purple as we were searching for it.
 
-Unfortunately, ACIR opcodes do not give us a full picture of where the cost of this program lies.
-The `gates` command also accepts a backend binary. In the [quick start guide](../getting_started/quick_start.md#proving-backend) you can see how to get started with the [Barretenberg proving backend](https://github.com/AztecProtocol/aztec-packages/tree/master/barretenberg).
+Click "Search" in the top right corner of the flamegraph to start a search (e.g. i > ptr).
 
-Run the following command:
+Check "Matched" in the bottom right corner to learn the percentage out of total opcodes associated with the search (e.g. 43.3%).
+
+:::tip
+
+If you try searching for `memory::op` before and after the optimization, you will find that the search will no longer have matches after the optimization.
+
+This comes from the optimization removing the use of a dynamic array (i.e. an array with a dynamic index, that is its values rely on witness inputs). After the optimization, the program reads from two arrays with known constant indices, replacing the original memory operations with simple arithmetic operations.
+
+:::
+
+### Profiling proving backend gates
+
+The profiler further provides the ability to flamegraph a Noir program's proving backend gates footprint. This is useful for fully identifying proving bottlenecks of Noir programs.
+
+This feature depends on the proving backend you are using and whether it supports the profiler with a gate profiling API. We will use [Barretenberg](https://github.com/AztecProtocol/aztec-packages/tree/master/barretenberg) as an example here. Follow the [quick start guide](../getting_started/quick_start.md#proving-backend) to install it if you have not already.
+
+#### Flamegraphing
+
+Let's take a granular look at our program's proving backend gates footprint using the profiler, running:
+
 ```sh
-noir-profiler gates --artifact-path ./target/program.json --backend-path bb --output ./target
+noir-profiler gates --artifact-path ./target/program.json --backend-path bb --output ./target -- --include_gates_per_opcode
 ```
-`--backend-path` accepts a path to the backend binary. In the above command we assume that you have the backend binary path saved in your PATH. If you do not, you will have to pass the binary's absolute path.
 
-This produces the following flamegraph with 3,737 total backend gates (using `bb` version 0.76.4):
-![Gates Flamegraph Unoptimized](@site/static/img/tooling/profiler/gates-flamegraph-unoptimized.png)
+The `--backend-path` flag takes in the path to your proving backend binary.
 
-Searching for ACIR `memory::op` opcodes, they look to cause about 18.2% of the backend gates.
+The above command assumes you have Barretenberg (bb) installed and that its path is saved in your PATH. If that is not the case, you can pass in the absolute path to your proving backend binary instead.
 
-You will notice that the majority of the backend gates come from the ACIR range opcodes. This is due to the way UltraHonk handles range constraints, which is the backend used in this example. UltraHonk uses lookup tables internally for its range gates. These can take up the majority of the gates for a small circuit, but whose impact becomes more meaningful in larger circuits. If our array was much larger, range gates would become a much smaller percentage of our total circuit.
-Here is an example backend gates flamegraph for the same program in this guide but with an array of size 2048:
-![Gates Flamegraph Unoptimized 2048](@site/static/img/tooling/profiler/gates-flamegraph-unoptimized-2048.png)
-Every backend implements ACIR opcodes differently, so it is important to profile both the ACIR and the backend gates to get a full picture.
+Flamegraph of the optimized demonstrative project generated with bb v0.76.4:
 
-Now let's generate a graph for our optimized circuit with an array of size 32. We get the following flamegraph that produces 3,062 total backend gates:
 ![Gates Flamegraph Optimized](@site/static/img/tooling/profiler/gates-flamegraph-optimized.png)
 
-In the optimized flamegraph, we searched for the backend gates due to `i > ptr` in the source code. The backend gates associated with this call stack were only 3.8% of the total backend gates. If we look back to the ACIR flamegraph, that same code was the cause of 43.3% ACIR opcodes. This discrepancy reiterates the earlier point about profiling both the ACIR opcodes and backend gates.
+The demonstrative project consists of 3,062 proving backend gates in total.
 
-For posterity, here is the flamegraph for the same program with a size 2048 array:
+:::note
+
+If you try searching for `i > ptr` in the source code, you will notice that this call stack is only contributing 3.8% of the total proving backend gates, versus the 43.3% ACIR opcodes it contributes.
+
+This illustrates that number of ACIR opcodes are at best approximations of proving performances, where actual proving performances depend on how the proving backend interprets and translates ACIR opcodes into proving gates.
+
+:::
+
+#### Understanding bottlenecks
+
+Profiling your program with different parameters is good way to understand your program's bottlenecks as it scales.
+
+From the flamegraph above, you will notice that `blackbox::range` contributes the majority of the backend gates. This comes from how Barretenberg UltraHonk uses lookup tables for its range gates under the hood, which comes with a considerable but fixed setup cost in terms of proving gates.
+
+If our array is larger, range gates would become a much smaller percentage of our total circuit. See this flamegraph for the same optimized program but with an array of size 2,048 (versus originally 32) in comparison:
+
 ![Gates Flamegraph Optimized 2048](@site/static/img/tooling/profiler/gates-flamegraph-optimized-2048.png)
+
+Where `blackbox::range` contributes a considerably smaller portion of the total proving gates.
+
+Every proving backend interprets ACIR opcodes differently, so it is important to profile proving backend gates to get the full picture of proving performance.
+
+As additional reference, this is the flamegraph of the pre-optimization demonstrative project at array size 32:
+
+![Gates Flamegraph Unoptimized](@site/static/img/tooling/profiler/gates-flamegraph-unoptimized.png)
+
+And at array size 2,048:
+
+![Gates Flamegraph Unoptimized 2048](@site/static/img/tooling/profiler/gates-flamegraph-unoptimized-2048.png)
+
+### Profiling execution traces (unconstrained)
+
+The profiler also provides the ability to flamegraph a Noir program's execution trace. This is useful for identifying execution bottlenecks of Noir programs.
+
+The profiler supports profiling fully unconstrained Noir programs at this moment.
+
+#### Updating the demonstrative project
+
+Let's turn our demonstrative program into an unconstrained program by adding an `unconstrained` modifier to the main function:
+
+```rust
+unconstrained fn main(...){...}
+```
+
+Since we are profiling the execution trace, we will also need to provide a set of inputs to execute the program with.
+
+Run `nargo check` to generate a _Prover.toml_ file, which you can fill it in with:
+
+```toml
+ptr = 1
+array = [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]
+```
+
+#### Flamegraphing
+
+Let's take a granular look at our program's unconstrained execution trace footprint using the profiler, running:
+
+```sh
+noir-profiler execution-opcodes --artifact-path ./target/program.json --prover-toml-path Prover.toml --output ./target
+```
+
+This is similar to the `opcodes` command, except it additionally takes in the _Prover.toml_ file to profile execution with a specific set of inputs.
+
+Flamegraph of the demonstrative project generated with Nargo v1.0.0-beta.2:
+![Brillig Trace "Optimized"](@site/static/img/tooling/profiler/brillig-trace-opt-32.png)
+
+Note that unconstrained Noir functions compile down to Brillig opcodes, which is what the counts in this flamegraph stand for, rather than constrained ACIR opcodes like in the previous section.
+
+#### Balancing proving and execution optimizations
+
+Rewriting constrained operations with unconstrained operations like what we did in [the optimization section](#visualizing-optimizations) helps remove ACIR opcodes (hence shorter proving times), but would introduce more Brillig opcodes (hence longer execution times).
+
+For example, we can find a 13.9% match `new_array` in the flamegraph above.
+
+In contrast, if we profile the pre-optimization demonstrative project:
+![Brillig Trace Initial Program](@site/static/img/tooling/profiler/brillig-trace-initial-32.png)
+
+You will notice that it does not contain `new_array` and executes a smaller total of 1,582 Brillig opcodes (versus 2,125 Brillig opcodes post-optimization).
+
+As new unconstrained functions were added, it is reasonable that the program would consist of more Brillig opcodes. That said, the tradeoff is often easily justifiable by the fact that proving speeds are more commonly the major bottleneck of Noir programs versus execution speeds.
+
+This is however good to keep in mind in case you start noticing execution speeds being the bottleneck of your program, or if you are simply looking to optimize your program's execution speeds.

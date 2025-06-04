@@ -1,12 +1,13 @@
 use std::future::{self, Future};
 
 use async_lsp::ResponseError;
-use fm::{FileId, PathString};
-use lsp_types::{
+use async_lsp::lsp_types::{
     ParameterInformation, ParameterLabel, SignatureHelp, SignatureHelpParams, SignatureInformation,
 };
+use fm::{FileId, PathString};
 use noirc_errors::{Location, Span};
 use noirc_frontend::{
+    ParsedModule, Type,
     ast::{
         CallExpression, ConstrainExpression, ConstrainKind, Expression, FunctionReturnType,
         MethodCallExpression, Statement, Visitor,
@@ -14,10 +15,9 @@ use noirc_frontend::{
     hir_def::{function::FuncMeta, stmt::HirPattern},
     node_interner::{NodeInterner, ReferenceId},
     parser::Item,
-    ParsedModule, Type,
 };
 
-use crate::{utils, LspState};
+use crate::{LspState, utils};
 
 use super::process_request;
 
@@ -26,7 +26,7 @@ mod tests;
 pub(crate) fn on_signature_help_request(
     state: &mut LspState,
     params: SignatureHelpParams,
-) -> impl Future<Output = Result<Option<SignatureHelp>, ResponseError>> {
+) -> impl Future<Output = Result<Option<SignatureHelp>, ResponseError>> + use<> {
     let uri = params.text_document_position_params.clone().text_document.uri;
 
     let result = process_request(state, params.text_document_position_params.clone(), |args| {
@@ -98,8 +98,8 @@ impl<'a> SignatureFinder<'a> {
         }
 
         // Otherwise, the call must be a reference to an fn type
-        if let Some(mut typ) = self.interner.type_at_location(location) {
-            typ = typ.follow_bindings();
+        if let Some(typ) = self.interner.type_at_location(location) {
+            let mut typ = typ.follow_bindings();
             if let Type::Forall(_, forall_typ) = typ {
                 typ = *forall_typ;
             }
@@ -132,7 +132,7 @@ impl<'a> SignatureFinder<'a> {
 
         if let Some(enum_type_id) = enum_type_id {
             label.push_str("enum ");
-            label.push_str(&self.interner.get_type(enum_type_id).borrow().name.0.contents);
+            label.push_str(self.interner.get_type(enum_type_id).borrow().name.as_str());
             label.push_str("::");
         } else {
             label.push_str("fn ");
@@ -146,11 +146,13 @@ impl<'a> SignatureFinder<'a> {
             }
 
             if has_self && index == 0 {
-                if let Type::MutableReference(..) = typ {
-                    label.push_str("&mut self");
-                } else {
-                    label.push_str("self");
+                if let Type::Reference(_, mutable) = typ {
+                    label.push('&');
+                    if *mutable {
+                        label.push_str("mut ");
+                    }
                 }
+                label.push_str("self");
             } else {
                 let parameter_start = label.chars().count();
 
@@ -332,7 +334,7 @@ impl<'a> SignatureFinder<'a> {
     }
 }
 
-impl<'a> Visitor for SignatureFinder<'a> {
+impl Visitor for SignatureFinder<'_> {
     fn visit_item(&mut self, item: &Item) -> bool {
         self.includes_span(item.location.span)
     }

@@ -1,11 +1,11 @@
 use crate::elaborator::FrontendOptions;
 use crate::graph::{CrateGraph, CrateId};
-use crate::hir::def_collector::dc_crate::{CompilationError, DefCollector};
 use crate::hir::Context;
-use crate::node_interner::{FuncId, GlobalId, NodeInterner, TypeId};
+use crate::hir::def_collector::dc_crate::{CompilationError, DefCollector};
+use crate::node_interner::{FuncId, NodeInterner};
 use crate::parse_program;
 use crate::parser::{ParsedModule, ParserError};
-use crate::token::{FunctionAttribute, SecondaryAttribute, TestScope};
+use crate::token::{FunctionAttributeKind, FuzzingScope, TestScope};
 use fm::{FileId, FileManager};
 use noirc_arena::{Arena, Index};
 use noirc_errors::Location;
@@ -26,9 +26,13 @@ pub const MAIN_FUNCTION: &str = "main";
 /// Lets first check if this is offered by any external crate
 /// XXX: RA has made this a crate on crates.io
 #[derive(Debug, PartialEq, Eq, Copy, Clone, Hash, PartialOrd, Ord)]
-pub struct LocalModuleId(pub Index);
+pub struct LocalModuleId(Index);
 
 impl LocalModuleId {
+    pub fn new(index: Index) -> LocalModuleId {
+        LocalModuleId(index)
+    }
+
     pub fn dummy_id() -> LocalModuleId {
         LocalModuleId(Index::dummy())
     }
@@ -51,7 +55,7 @@ impl ModuleId {
 
     /// Returns this module's parent, if there's any.
     pub fn parent(self, def_maps: &DefMaps) -> Option<ModuleId> {
-        let module_data = &def_maps[&self.krate].modules()[self.local_id.0];
+        let module_data = &def_maps[&self.krate][self.local_id];
         module_data.parent.map(|local_id| ModuleId { krate: self.krate, local_id })
     }
 }
@@ -63,29 +67,54 @@ pub type DefMaps = BTreeMap<CrateId, CrateDefMap>;
 /// The definitions of the crate are accessible indirectly via the scopes of each module.
 #[derive(Debug)]
 pub struct CrateDefMap {
-    pub(crate) root: LocalModuleId,
+    krate: CrateId,
 
-    pub(crate) modules: Arena<ModuleData>,
+    root: LocalModuleId,
 
-    pub(crate) krate: CrateId,
+    modules: Arena<ModuleData>,
 
     /// Maps an external dependency's name to its root module id.
     pub(crate) extern_prelude: BTreeMap<String, ModuleId>,
 }
 
+impl std::ops::Index<LocalModuleId> for CrateDefMap {
+    type Output = ModuleData;
+    fn index(&self, local_module_id: LocalModuleId) -> &ModuleData {
+        &self.modules[local_module_id.0]
+    }
+}
+
+impl std::ops::IndexMut<LocalModuleId> for CrateDefMap {
+    fn index_mut(&mut self, local_module_id: LocalModuleId) -> &mut ModuleData {
+        &mut self.modules[local_module_id.0]
+    }
+}
+
 impl CrateDefMap {
+    /// Constructs a new `CrateDefMap`, containing only the crate's root module.
+    ///
+    /// # Arguments
+    ///
+    /// - `krate`: The [CrateId] of the crate for which this `CrateDefMap` refers to.
+    /// - `root_module`: The [ModuleData] for the root module of the crate.
+    pub fn new(krate: CrateId, root_module: ModuleData) -> CrateDefMap {
+        let mut modules = Arena::default();
+        let root = LocalModuleId::new(modules.insert(root_module));
+        CrateDefMap { krate, root, modules, extern_prelude: BTreeMap::default() }
+    }
+
     /// Collect all definitions in the crate
     pub fn collect_defs(
         crate_id: CrateId,
         context: &mut Context,
         options: FrontendOptions,
-    ) -> Vec<(CompilationError, FileId)> {
+    ) -> Vec<CompilationError> {
         // Check if this Crate has already been compiled
         // XXX: There is probably a better alternative for this.
         // Without this check, the compiler will panic as it does not
         // expect the same crate to be processed twice. It would not
         // make the implementation wrong, if the same crate was processed twice, it just makes it slow.
-        let mut errors: Vec<(CompilationError, FileId)> = vec![];
+        let mut errors: Vec<CompilationError> = vec![];
         if context.def_map(&crate_id).is_some() {
             return errors;
         }
@@ -95,24 +124,17 @@ impl CrateDefMap {
         let (ast, parsing_errors) = context.parsed_file_results(root_file_id);
         let ast = ast.into_sorted();
 
-        // Allocate a default Module for the root, giving it a ModuleId
-        let mut modules: Arena<ModuleData> = Arena::default();
         let location = Location::new(Default::default(), root_file_id);
-        let root = modules.insert(ModuleData::new(
+
+        let root_module = ModuleData::new(
             None,
             location,
             Vec::new(),
             ast.inner_attributes.clone(),
             false, // is contract
             false, // is struct
-        ));
-
-        let def_map = CrateDefMap {
-            root: LocalModuleId(root),
-            modules,
-            krate: crate_id,
-            extern_prelude: BTreeMap::new(),
-        };
+        );
+        let def_map = CrateDefMap::new(crate_id, root_module);
 
         // Now we want to populate the CrateDefMap using the DefCollector
         errors.extend(DefCollector::collect_crate_and_dependencies(
@@ -123,9 +145,7 @@ impl CrateDefMap {
             options,
         ));
 
-        errors.extend(
-            parsing_errors.iter().map(|e| (e.clone().into(), root_file_id)).collect::<Vec<_>>(),
-        );
+        errors.extend(parsing_errors.iter().map(|e| e.clone().into()).collect::<Vec<_>>());
 
         errors
     }
@@ -133,12 +153,22 @@ impl CrateDefMap {
     pub fn root(&self) -> LocalModuleId {
         self.root
     }
+
+    /// Returns a reference to the [ModuleData] stored at [LocalModuleId] `id` or `None` if none exists.
+    pub fn get(&self, id: LocalModuleId) -> Option<&ModuleData> {
+        self.modules.get(id.0)
+    }
+
     pub fn modules(&self) -> &Arena<ModuleData> {
         &self.modules
     }
 
     pub fn modules_mut(&mut self) -> &mut Arena<ModuleData> {
         &mut self.modules
+    }
+
+    pub(crate) fn insert_module(&mut self, module: ModuleData) -> LocalModuleId {
+        LocalModuleId::new(self.modules.insert(module))
     }
 
     pub fn krate(&self) -> CrateId {
@@ -171,11 +201,13 @@ impl CrateDefMap {
         self.modules.iter().flat_map(|(_, module)| {
             module.value_definitions().filter_map(|id| {
                 if let Some(func_id) = id.as_function() {
+                    let has_arguments = !interner.function_meta(&func_id).parameters.is_empty();
                     let attributes = interner.function_attributes(&func_id);
-                    match attributes.function() {
-                        Some(FunctionAttribute::Test(scope)) => {
+                    match attributes.function().map(|attr| &attr.kind) {
+                        Some(FunctionAttributeKind::Test(scope)) => {
                             let location = interner.function_meta(&func_id).name.location;
-                            Some(TestFunction::new(func_id, scope.clone(), location))
+                            let scope = scope.clone();
+                            Some(TestFunction { id: func_id, scope, location, has_arguments })
                         }
                         _ => None,
                     }
@@ -187,7 +219,31 @@ impl CrateDefMap {
     }
 
     /// Go through all modules in this crate, and find all functions in
-    /// each module with the #[export] attribute
+    /// each module with the `#[fuzz]` attribute
+    pub fn get_all_fuzzing_harnesses<'a>(
+        &'a self,
+        interner: &'a NodeInterner,
+    ) -> impl Iterator<Item = FuzzingHarness> + 'a {
+        self.modules.iter().flat_map(|(_, module)| {
+            module.value_definitions().filter_map(|id| {
+                if let Some(func_id) = id.as_function() {
+                    let attributes = interner.function_attributes(&func_id);
+                    match attributes.function().map(|attr| &attr.kind) {
+                        Some(FunctionAttributeKind::FuzzingHarness(scope)) => {
+                            let location = interner.function_meta(&func_id).name.location;
+                            Some(FuzzingHarness { id: func_id, scope: scope.clone(), location })
+                        }
+                        _ => None,
+                    }
+                } else {
+                    None
+                }
+            })
+        })
+    }
+
+    /// Go through all modules in this crate, and find all functions in
+    /// each module with the `#[export]` attribute
     pub fn get_all_exported_functions<'a>(
         &'a self,
         interner: &'a NodeInterner,
@@ -204,70 +260,38 @@ impl CrateDefMap {
         })
     }
 
-    /// Go through all modules in this crate, find all `contract ... { ... }` declarations,
-    /// and collect them all into a Vec.
-    pub fn get_all_contracts(&self, interner: &NodeInterner) -> Vec<Contract> {
-        self.modules
-            .iter()
-            .filter_map(|(id, module)| {
-                if module.is_contract {
-                    let functions = module
-                        .value_definitions()
-                        .filter_map(|id| {
-                            id.as_function().map(|function_id| {
-                                let is_entry_point = interner
-                                    .function_attributes(&function_id)
-                                    .is_contract_entry_point();
-                                ContractFunctionMeta { function_id, is_entry_point }
-                            })
-                        })
-                        .collect();
-
-                    let mut outputs =
-                        ContractOutputs { structs: HashMap::new(), globals: HashMap::new() };
-
-                    interner.get_all_globals().iter().for_each(|global_info| {
-                        interner.global_attributes(&global_info.id).iter().for_each(|attr| {
-                            if let SecondaryAttribute::Abi(tag) = attr {
-                                if let Some(tagged) = outputs.globals.get_mut(tag) {
-                                    tagged.push(global_info.id);
-                                } else {
-                                    outputs.globals.insert(tag.to_string(), vec![global_info.id]);
-                                }
-                            }
-                        });
-                    });
-
-                    module.type_definitions().for_each(|id| {
-                        if let ModuleDefId::TypeId(struct_id) = id {
-                            interner.type_attributes(&struct_id).iter().for_each(|attr| {
-                                if let SecondaryAttribute::Abi(tag) = attr {
-                                    if let Some(tagged) = outputs.structs.get_mut(tag) {
-                                        tagged.push(struct_id);
-                                    } else {
-                                        outputs.structs.insert(tag.to_string(), vec![struct_id]);
-                                    }
-                                }
-                            });
-                        }
-                    });
-
-                    let name = self.get_module_path(id, module.parent);
-                    Some(Contract { name, location: module.location, functions, outputs })
-                } else {
-                    None
-                }
-            })
-            .collect()
+    /// Returns an iterator over all contract modules within the crate.
+    pub fn get_all_contracts(&self) -> impl Iterator<Item = (LocalModuleId, String)> {
+        self.modules.iter().filter_map(|(id, module)| {
+            if module.is_contract {
+                let name = self.get_module_path(LocalModuleId::new(id), module.parent);
+                Some((LocalModuleId(id), name))
+            } else {
+                None
+            }
+        })
     }
 
     /// Find a child module's name by inspecting its parent.
     /// Currently required as modules do not store their own names.
-    pub fn get_module_path(&self, child_id: Index, parent: Option<LocalModuleId>) -> String {
+    pub fn get_module_path(
+        &self,
+        child_id: LocalModuleId,
+        parent: Option<LocalModuleId>,
+    ) -> String {
         self.get_module_path_with_separator(child_id, parent, ".")
     }
 
     pub fn get_module_path_with_separator(
+        &self,
+        child_id: LocalModuleId,
+        parent: Option<LocalModuleId>,
+        separator: &str,
+    ) -> String {
+        self.get_module_path_with_separator_inner(child_id.0, parent, separator)
+    }
+
+    fn get_module_path_with_separator_inner(
         &self,
         child_id: Index,
         parent: Option<LocalModuleId>,
@@ -279,10 +303,11 @@ impl CrateDefMap {
                 .children
                 .iter()
                 .find(|(_, id)| id.0 == child_id)
-                .map(|(name, _)| &name.0.contents)
+                .map(|(name, _)| name.as_str())
                 .expect("Child module was not a child of the given parent module");
 
-            let parent_name = self.get_module_path_with_separator(id.0, parent.parent, separator);
+            let parent_name =
+                self.get_module_path_with_separator_inner(id.0, parent.parent, separator);
             if parent_name.is_empty() {
                 name.to_string()
             } else {
@@ -323,7 +348,7 @@ pub fn fully_qualified_module_path(
     crate_id: &CrateId,
     module_id: ModuleId,
 ) -> String {
-    let child_id = module_id.local_id.0;
+    let child_id = module_id.local_id;
 
     let def_map =
         def_maps.get(&module_id.krate).expect("The local crate should be analyzed already");
@@ -342,78 +367,27 @@ pub fn fully_qualified_module_path(
     }
 }
 
-/// Specifies a contract function and extra metadata that
-/// one can use when processing a contract function.
-///
-/// One of these is whether the contract function is an entry point.
-/// The caller should only type-check these functions and not attempt
-/// to create a circuit for them.
-pub struct ContractFunctionMeta {
-    pub function_id: FuncId,
-    /// Indicates whether the function is an entry point
-    pub is_entry_point: bool,
-}
-
-pub struct ContractOutputs {
-    pub structs: HashMap<String, Vec<TypeId>>,
-    pub globals: HashMap<String, Vec<GlobalId>>,
-}
-
-/// A 'contract' in Noir source code with a given name, functions and events.
-/// This is not an AST node, it is just a convenient form to return for CrateDefMap::get_all_contracts.
-pub struct Contract {
-    /// To keep `name` semi-unique, it is prefixed with the names of parent modules via CrateDefMap::get_module_path
-    pub name: String,
-    pub location: Location,
-    pub functions: Vec<ContractFunctionMeta>,
-    pub outputs: ContractOutputs,
-}
-
 /// Given a FileId, fetch the File, from the FileManager and parse it's content
 pub fn parse_file(fm: &FileManager, file_id: FileId) -> (ParsedModule, Vec<ParserError>) {
     let file_source = fm.fetch_file(file_id).expect("File does not exist");
     parse_program(file_source, file_id)
 }
 
-impl std::ops::Index<LocalModuleId> for CrateDefMap {
-    type Output = ModuleData;
-    fn index(&self, local_module_id: LocalModuleId) -> &ModuleData {
-        &self.modules[local_module_id.0]
-    }
-}
-impl std::ops::IndexMut<LocalModuleId> for CrateDefMap {
-    fn index_mut(&mut self, local_module_id: LocalModuleId) -> &mut ModuleData {
-        &mut self.modules[local_module_id.0]
-    }
-}
-
 pub struct TestFunction {
-    id: FuncId,
-    scope: TestScope,
-    location: Location,
+    pub id: FuncId,
+    pub scope: TestScope,
+    pub location: Location,
+    pub has_arguments: bool,
 }
 
 impl TestFunction {
-    fn new(id: FuncId, scope: TestScope, location: Location) -> Self {
-        TestFunction { id, scope, location }
-    }
-
-    /// Returns the function id of the test function
-    pub fn get_id(&self) -> FuncId {
-        self.id
-    }
-
-    pub fn file_id(&self) -> FileId {
-        self.location.file
-    }
-
     /// Returns true if the test function has been specified to fail
     /// This is done by annotating the function with `#[test(should_fail)]`
     /// or `#[test(should_fail_with = "reason")]`
     pub fn should_fail(&self) -> bool {
         match self.scope {
             TestScope::ShouldFailWith { .. } => true,
-            TestScope::None => false,
+            TestScope::OnlyFailWith { .. } | TestScope::None => false,
         }
     }
 
@@ -423,6 +397,46 @@ impl TestFunction {
         match &self.scope {
             TestScope::None => None,
             TestScope::ShouldFailWith { reason } => reason.as_deref(),
+            TestScope::OnlyFailWith { reason } => Some(reason.as_str()),
+        }
+    }
+}
+
+pub struct FuzzingHarness {
+    pub id: FuncId,
+    pub scope: FuzzingScope,
+    pub location: Location,
+}
+
+impl FuzzingHarness {
+    /// Returns true if the fuzzing harness has been specified to fail only under specific reason
+    /// This is done by annotating the function with
+    /// `#[fuzz(only_fail_with = "reason")]`
+    pub fn only_fail_enabled(&self) -> bool {
+        match self.scope {
+            FuzzingScope::OnlyFailWith { .. } => true,
+            FuzzingScope::None => false,
+            FuzzingScope::ShouldFailWith { .. } => false,
+        }
+    }
+    /// Returns true if the fuzzing harness has been specified to fail
+    /// This is done by annotating the function with `#[fuzz(should_fail)]`
+    /// or `#[fuzz(should_fail_with = "reason")]`
+    pub fn should_fail_enabled(&self) -> bool {
+        match self.scope {
+            FuzzingScope::OnlyFailWith { .. } => false,
+            FuzzingScope::None => false,
+            FuzzingScope::ShouldFailWith { .. } => true,
+        }
+    }
+
+    /// Returns the reason for the fuzzing harness to fail if specified
+    /// by the user.
+    pub fn failure_reason(&self) -> Option<String> {
+        match &self.scope {
+            FuzzingScope::None => None,
+            FuzzingScope::OnlyFailWith { reason } => Some(reason.clone()),
+            FuzzingScope::ShouldFailWith { reason } => reason.clone(),
         }
     }
 }

@@ -4,23 +4,21 @@ use crate::insert_all_files_for_workspace_into_file_manager;
 use async_lsp::{ErrorCode, ResponseError};
 use nargo::{
     foreign_calls::DefaultForeignCallBuilder,
-    ops::{run_test, TestStatus},
-    PrintOutput,
+    ops::{TestStatus, run_test},
 };
-use nargo_toml::{find_package_manifest, resolve_workspace_from_toml, PackageSelection};
-use noirc_driver::{check_crate, CompileOptions, NOIR_ARTIFACT_VERSION_STRING};
+use nargo_toml::{PackageSelection, find_package_manifest, resolve_workspace_from_toml};
+use noirc_driver::{CompileOptions, NOIR_ARTIFACT_VERSION_STRING, check_crate};
 use noirc_frontend::hir::FunctionNameMatch;
 
 use crate::{
-    parse_diff,
+    LspState, parse_diff,
     types::{NargoTestRunParams, NargoTestRunResult},
-    LspState,
 };
 
 pub(crate) fn on_test_run_request(
     state: &mut LspState,
     params: NargoTestRunParams,
-) -> impl Future<Output = Result<NargoTestRunResult, ResponseError>> {
+) -> impl Future<Output = Result<NargoTestRunResult, ResponseError>> + use<> {
     future::ready(on_test_run_request_inner(state, params))
 }
 
@@ -88,7 +86,7 @@ fn on_test_run_request_inner(
                 &state.solver,
                 &mut context,
                 &test_function,
-                PrintOutput::Stdout,
+                std::io::stdout(),
                 &CompileOptions::default(),
                 |output, base| {
                     DefaultForeignCallBuilder {
@@ -120,7 +118,7 @@ fn on_test_run_request_inner(
                 TestStatus::CompileError(diag) => NargoTestRunResult {
                     id: params.id.clone(),
                     result: "error".to_string(),
-                    message: Some(diag.diagnostic.message),
+                    message: Some(diag.message),
                 },
             };
             Ok(result)

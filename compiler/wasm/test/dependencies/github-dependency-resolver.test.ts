@@ -41,7 +41,6 @@ describe('GithubDependencyResolver', () => {
 
     pkg = new Package('/test_contract', '/test_contract/src', {
       dependencies: {
-        // eslint-disable-next-line camelcase
         lib_c: libDependency,
       },
       package: {

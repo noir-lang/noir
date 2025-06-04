@@ -1,13 +1,13 @@
 use iter_extended::vecmap;
 use rustc_hash::FxHashMap as HashMap;
 
+use crate::ResolvedGeneric;
 use crate::ast::{Ident, ItemVisibility, NoirFunction};
 use crate::hir::type_check::generics::TraitGenerics;
-use crate::ResolvedGeneric;
 use crate::{
+    Generics, Type, TypeBindings, TypeVariable,
     graph::CrateId,
     node_interner::{FuncId, TraitId, TraitMethodId},
-    Generics, Type, TypeBindings, TypeVariable,
 };
 use fm::FileId;
 use noirc_errors::{Location, Span};
@@ -62,6 +62,7 @@ pub struct Trait {
     pub method_ids: HashMap<String, FuncId>,
 
     pub associated_types: Generics,
+    pub associated_type_bounds: HashMap<String, Vec<ResolvedTraitBound>>,
 
     pub name: Ident,
     pub generics: Generics,
@@ -78,11 +79,14 @@ pub struct Trait {
     pub trait_bounds: Vec<ResolvedTraitBound>,
 
     pub where_clause: Vec<TraitConstraint>,
+
+    pub all_generics: Generics,
 }
 
 #[derive(Debug)]
 pub struct TraitImpl {
     pub ident: Ident,
+    pub location: Location,
     pub typ: Type,
     pub trait_id: TraitId,
 
@@ -95,6 +99,7 @@ pub struct TraitImpl {
     pub trait_generics: Vec<Type>,
 
     pub file: FileId,
+    pub crate_id: CrateId,
     pub methods: Vec<FuncId>, // methods[i] is the implementation of trait.methods[i] for Type typ
 
     /// The where clause, if present, contains each trait requirement which must
@@ -121,7 +126,7 @@ impl TraitConstraint {
 pub struct ResolvedTraitBound {
     pub trait_id: TraitId,
     pub trait_generics: TraitGenerics,
-    pub span: Span,
+    pub location: Location,
 }
 
 impl ResolvedTraitBound {
@@ -165,6 +170,17 @@ impl Trait {
         self.visibility = visibility;
     }
 
+    pub fn set_all_generics(&mut self, generics: Generics) {
+        self.all_generics = generics;
+    }
+
+    pub fn set_associated_type_bounds(
+        &mut self,
+        associated_type_bounds: HashMap<String, Vec<ResolvedTraitBound>>,
+    ) {
+        self.associated_type_bounds = associated_type_bounds;
+    }
+
     pub fn find_method(&self, name: &str) -> Option<TraitMethodId> {
         for (idx, method) in self.methods.iter().enumerate() {
             if &method.name == name {
@@ -198,11 +214,10 @@ impl Trait {
     /// Returns a TraitConstraint for this trait using Self as the object
     /// type and the uninstantiated generics for any trait generics.
     pub fn as_constraint(&self, location: Location) -> TraitConstraint {
-        let span = location.span;
         let trait_generics = self.get_trait_generics(location);
         TraitConstraint {
             typ: Type::TypeVariable(self.self_type_typevar.clone()),
-            trait_bound: ResolvedTraitBound { trait_generics, trait_id: self.id, span },
+            trait_bound: ResolvedTraitBound { trait_generics, trait_id: self.id, location },
         }
     }
 }

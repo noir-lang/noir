@@ -9,14 +9,14 @@ use thiserror::Error;
 
 /// A unique ID corresponding to a value of type T.
 /// This type can be used to retrieve a value of type T from
-/// either a DenseMap<T> or SparseMap<T>.
+/// either a `DenseMap<T>` or `SparseMap<T>`.
 ///
 /// Note that there is nothing in an Id binding it to a particular
 /// DenseMap or SparseMap. If an Id was created to correspond to one
 /// particular map type, users need to take care not to use it with
 /// another map where it will likely be invalid.
 #[derive(Serialize, Deserialize)]
-pub(crate) struct Id<T> {
+pub struct Id<T> {
     index: u32,
     // If we do not skip this field it will simply serialize as `"_marker":null` which is useless extra data
     #[serde(skip)]
@@ -28,12 +28,12 @@ impl<T> Id<T> {
     ///
     /// This is private so that we can guarantee ids created from this function
     /// point to valid T values in their external maps.
-    fn new(index: u32) -> Self {
+    pub fn new(index: u32) -> Self {
         Self { index, _marker: std::marker::PhantomData }
     }
 
     /// Returns the underlying index of this Id.
-    pub(crate) fn to_u32(self) -> u32 {
+    pub fn to_u32(self) -> u32 {
         self.index
     }
 
@@ -118,12 +118,12 @@ impl std::fmt::Display for Id<super::instruction::Instruction> {
 }
 
 #[derive(Error, Debug)]
-pub(crate) enum IdDisplayFromStrErr {
+pub enum IdDisplayFromStrErr {
     #[error("Invalid id when deserializing SSA: {0}")]
     InvalidId(String),
 }
 
-/// The implementation of display and FromStr allows serializing and deserializing an Id<T> to a string.
+/// The implementation of display and FromStr allows serializing and deserializing an `Id<T>` to a string.
 /// This is useful when used as key in a map that has to be serialized to JSON/TOML.
 impl FromStr for Id<super::basic_block::BasicBlock> {
     type Err = IdDisplayFromStrErr;
@@ -272,7 +272,7 @@ impl<T> std::ops::IndexMut<Id<T>> for SparseMap<T> {
 ///
 /// This type wraps an AtomicUsize so it can safely be used across threads.
 #[derive(Debug, Serialize, Deserialize)]
-pub(crate) struct AtomicCounter<T> {
+pub struct AtomicCounter<T> {
     next: AtomicU32,
     _marker: std::marker::PhantomData<T>,
 }

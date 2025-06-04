@@ -5,11 +5,12 @@ use noirc_errors::{Location, Span};
 
 use crate::{
     ast::{Ident, ItemVisibility},
-    lexer::{lexer::LocatedTokenResult, Lexer},
-    token::{FmtStrFragment, IntType, Keyword, LocatedToken, Token, TokenKind, Tokens},
+    lexer::{Lexer, lexer::LocatedTokenResult},
+    node_interner::ExprId,
+    token::{FmtStrFragment, Keyword, LocatedToken, Token, TokenKind, Tokens},
 };
 
-use super::{labels::ParsingRuleLabel, ParsedModule, ParserError, ParserErrorReason};
+use super::{ParsedModule, ParserError, ParserErrorReason, labels::ParsingRuleLabel};
 
 mod arguments;
 mod attributes;
@@ -65,7 +66,7 @@ enum TokenStream<'a> {
     Tokens(Tokens),
 }
 
-impl<'a> TokenStream<'a> {
+impl TokenStream<'_> {
     fn next(&mut self) -> Option<LocatedTokenResult> {
         match self {
             TokenStream::Lexer(lexer) => lexer.next(),
@@ -172,11 +173,7 @@ impl<'a> Parser<'a> {
         }
 
         let all_warnings = self.errors.iter().all(|error| error.is_warning());
-        if all_warnings {
-            Ok((item, self.errors))
-        } else {
-            Err(self.errors)
-        }
+        if all_warnings { Ok((item, self.errors)) } else { Err(self.errors) }
     }
 
     /// Bumps this parser by one token. Returns the token that was previously the "current" token.
@@ -212,6 +209,9 @@ impl<'a> Parser<'a> {
             match self.tokens.next() {
                 Some(Ok(token)) => match token.token() {
                     Token::LineComment(comment, None) | Token::BlockComment(comment, None) => {
+                        if !last_comments.is_empty() {
+                            last_comments.push('\n');
+                        }
                         last_comments.push_str(comment);
                         continue;
                     }
@@ -226,11 +226,7 @@ impl<'a> Parser<'a> {
     }
 
     fn eat_kind(&mut self, kind: TokenKind) -> Option<LocatedToken> {
-        if self.token.kind() == kind {
-            Some(self.bump())
-        } else {
-            None
-        }
+        if self.token.kind() == kind { Some(self.bump()) } else { None }
     }
 
     fn eat_keyword(&mut self, keyword: Keyword) -> bool {
@@ -266,19 +262,6 @@ impl<'a> Parser<'a> {
         }
 
         false
-    }
-
-    fn eat_int_type(&mut self) -> Option<IntType> {
-        let is_int_type = matches!(self.token.token(), Token::IntType(..));
-        if is_int_type {
-            let token = self.bump();
-            match token.into_token() {
-                Token::IntType(int_type) => Some(int_type),
-                _ => unreachable!(),
-            }
-        } else {
-            None
-        }
     }
 
     fn eat_int(&mut self) -> Option<FieldElement> {
@@ -353,6 +336,19 @@ impl<'a> Parser<'a> {
         }
     }
 
+    fn eat_unquote_marker(&mut self) -> Option<ExprId> {
+        if let Some(token) = self.eat_kind(TokenKind::UnquoteMarker) {
+            match token.into_token() {
+                Token::UnquoteMarker(expr_id) => return Some(expr_id),
+                _ => {
+                    unreachable!("Expected only `UnquoteMarker` to have `TokenKind::UnquoteMarker`")
+                }
+            }
+        }
+
+        None
+    }
+
     fn eat_attribute_start(&mut self) -> Option<bool> {
         if matches!(self.token.token(), Token::AttributeStart { is_inner: false, .. }) {
             let token = self.bump();
@@ -381,17 +377,6 @@ impl<'a> Parser<'a> {
         self.eat(Token::Comma)
     }
 
-    fn eat_commas(&mut self) -> bool {
-        if self.eat_comma() {
-            while self.eat_comma() {
-                self.push_error(ParserErrorReason::UnexpectedComma, self.previous_token_location);
-            }
-            true
-        } else {
-            false
-        }
-    }
-
     fn eat_semicolon(&mut self) -> bool {
         self.eat(Token::Semicolon)
     }
@@ -407,6 +392,12 @@ impl<'a> Parser<'a> {
             true
         } else {
             false
+        }
+    }
+
+    fn eat_semicolon_or_error(&mut self) {
+        if !self.eat_semicolons() {
+            self.expected_token(Token::Semicolon);
         }
     }
 
@@ -515,15 +506,22 @@ impl<'a> Parser<'a> {
     }
 
     fn location_at_previous_token_end(&self) -> Location {
-        Location::new(self.span_at_previous_token_end(), self.previous_token_location.file)
+        let span_at_previous_token_end = Span::from(
+            self.previous_token_location.span.end()..self.previous_token_location.span.end(),
+        );
+        Location::new(span_at_previous_token_end, self.previous_token_location.file)
     }
 
-    fn span_at_previous_token_end(&self) -> Span {
-        Span::from(self.previous_token_location.span.end()..self.previous_token_location.span.end())
+    fn unknown_ident_at_previous_token_end(&self) -> Ident {
+        Ident::new("(unknown)".to_string(), self.location_at_previous_token_end())
     }
 
     fn expected_identifier(&mut self) {
         self.expected_label(ParsingRuleLabel::Identifier);
+    }
+
+    fn expected_string(&mut self) {
+        self.expected_label(ParsingRuleLabel::String);
     }
 
     fn expected_token(&mut self, token: Token) {
@@ -562,6 +560,7 @@ impl<'a> Parser<'a> {
         );
     }
 
+    #[allow(unused)]
     fn expected_mut_after_ampersand(&mut self) {
         self.push_error(
             ParserErrorReason::ExpectedMutAfterAmpersand { found: self.token.token().clone() },

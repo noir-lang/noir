@@ -1,0 +1,6 @@
+[package]
+name = "loop_small_break"
+type = "bin"
+authors = [""]
+
+[dependencies]

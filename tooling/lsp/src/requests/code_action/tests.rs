@@ -1,8 +1,11 @@
 #![cfg(test)]
 
-use crate::{notifications::on_did_open_text_document, test_utils, tests::apply_text_edits};
+use crate::{
+    notifications::on_did_open_text_document, test_utils, tests::apply_text_edits,
+    utils::get_cursor_line_and_column,
+};
 
-use lsp_types::{
+use async_lsp::lsp_types::{
     CodeActionContext, CodeActionOrCommand, CodeActionParams, CodeActionResponse,
     DidOpenTextDocumentParams, PartialResultParams, Position, Range, TextDocumentIdentifier,
     TextDocumentItem, WorkDoneProgressParams,
@@ -10,16 +13,12 @@ use lsp_types::{
 
 use super::on_code_action_request;
 
-async fn get_code_action(src: &str) -> CodeActionResponse {
+/// Given a string with ">|<" (cursor) in it, returns all code actions that are available
+/// at that position together with the string with ">|<" removed.
+async fn get_code_action(src: &str) -> (CodeActionResponse, String) {
     let (mut state, noir_text_document) = test_utils::init_lsp_server("document_symbol").await;
 
-    let (line, column) = src
-        .lines()
-        .enumerate()
-        .find_map(|(line_index, line)| line.find(">|<").map(|char_index| (line_index, char_index)))
-        .expect("Expected to find one >|< in the source code");
-
-    let src = src.replace(">|<", "");
+    let (line, column, src) = get_cursor_line_and_column(src);
 
     on_did_open_text_document(
         &mut state,
@@ -35,7 +34,7 @@ async fn get_code_action(src: &str) -> CodeActionResponse {
 
     let position = Position { line: line as u32, character: column as u32 };
 
-    on_code_action_request(
+    let response = on_code_action_request(
         &mut state,
         CodeActionParams {
             text_document: TextDocumentIdentifier { uri: noir_text_document },
@@ -47,20 +46,17 @@ async fn get_code_action(src: &str) -> CodeActionResponse {
     )
     .await
     .expect("Could not execute on_code_action_request")
-    .expect("Expected to get a CodeActionResponse, got None")
+    .expect("Expected to get a CodeActionResponse, got None");
+    (response, src)
 }
 
 pub(crate) async fn assert_code_action(title: &str, src: &str, expected: &str) {
-    let actions = get_code_action(src).await;
+    let (actions, src) = get_code_action(src).await;
     let action = actions
         .iter()
         .filter_map(|action| {
             if let CodeActionOrCommand::CodeAction(action) = action {
-                if action.title == title {
-                    Some(action)
-                } else {
-                    None
-                }
+                if action.title == title { Some(action) } else { None }
             } else {
                 None
             }

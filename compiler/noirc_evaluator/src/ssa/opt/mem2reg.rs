@@ -3,7 +3,7 @@
 //! any `Store` instructions within a block that are no longer needed because no more loads occur in
 //! between the Store in question and the next Store.
 //!
-//! The pass works as follows:
+//! ## How the pass works:
 //! - Each block in each function is iterated in forward-order.
 //! - The starting value of each reference in the block is the unification of the same references
 //!   at the end of each direct predecessor block to the current block.
@@ -201,7 +201,7 @@ impl<'f> PerFunctionContext<'f> {
                 let is_dereference = block
                     .expressions
                     .get(store_address)
-                    .map_or(false, |expression| matches!(expression, Expression::Dereference(_)));
+                    .is_some_and(|expression| matches!(expression, Expression::Dereference(_)));
 
                 if !self.last_loads.contains_key(store_address)
                     && !store_alias_used
@@ -411,7 +411,7 @@ impl<'f> PerFunctionContext<'f> {
 
         match &self.inserter.function.dfg[instruction] {
             Instruction::Load { address } => {
-                let address = self.inserter.function.dfg.resolve(*address);
+                let address = *address;
 
                 let result = self.inserter.function.dfg.instruction_results(instruction)[0];
                 references.remember_dereference(self.inserter.function, address, result);
@@ -450,8 +450,8 @@ impl<'f> PerFunctionContext<'f> {
                 references.set_last_load(address, instruction);
             }
             Instruction::Store { address, value } => {
-                let address = self.inserter.function.dfg.resolve(*address);
-                let value = self.inserter.function.dfg.resolve(*value);
+                let address = *address;
+                let value = *value;
 
                 // If there was another store to this instruction without any (unremoved) loads or
                 // function calls in-between, we can remove the previous store.
@@ -474,7 +474,7 @@ impl<'f> PerFunctionContext<'f> {
 
                 references.set_known_value(address, value);
                 // If we see a store to an address, the last load to that address needs to remain.
-                references.keep_last_load_for(address, self.inserter.function);
+                references.keep_last_load_for(address);
                 references.last_stores.insert(address, instruction);
             }
             Instruction::Allocate => {
@@ -488,7 +488,7 @@ impl<'f> PerFunctionContext<'f> {
                 references.mark_value_used(*array, self.inserter.function);
 
                 if self.inserter.function.dfg.value_is_reference(result) {
-                    let array = self.inserter.function.dfg.resolve(*array);
+                    let array = *array;
                     let expression = Expression::ArrayElement(Box::new(Expression::Other(array)));
 
                     if let Some(aliases) = references.aliases.get_mut(&expression) {
@@ -502,7 +502,7 @@ impl<'f> PerFunctionContext<'f> {
 
                 if Self::contains_references(&element_type) {
                     let result = self.inserter.function.dfg.instruction_results(instruction)[0];
-                    let array = self.inserter.function.dfg.resolve(*array);
+                    let array = *array;
 
                     let expression = Expression::ArrayElement(Box::new(Expression::Other(array)));
 
@@ -579,12 +579,12 @@ impl<'f> PerFunctionContext<'f> {
     fn mark_all_unknown(&self, values: &[ValueId], references: &mut Block) {
         for value in values {
             if self.inserter.function.dfg.value_is_reference(*value) {
-                let value = self.inserter.function.dfg.resolve(*value);
+                let value = *value;
                 references.set_unknown(value);
                 references.mark_value_used(value, self.inserter.function);
 
                 // If a reference is an argument to a call, the last load to that address and its aliases needs to remain.
-                references.keep_last_load_for(value, self.inserter.function);
+                references.keep_last_load_for(value);
             }
         }
     }
@@ -625,7 +625,7 @@ impl<'f> PerFunctionContext<'f> {
                 // Add an alias for each reference parameter
                 for (parameter, argument) in destination_parameters.iter().zip(arguments) {
                     if self.inserter.function.dfg.value_is_reference(*parameter) {
-                        let argument = self.inserter.function.dfg.resolve(*argument);
+                        let argument = *argument;
 
                         if let Some(expression) = references.expressions.get(&argument) {
                             if let Some(aliases) = references.aliases.get_mut(expression) {
@@ -668,20 +668,25 @@ impl<'f> PerFunctionContext<'f> {
 mod tests {
     use std::sync::Arc;
 
-    use acvm::{acir::AcirField, FieldElement};
+    use acvm::{FieldElement, acir::AcirField};
     use im::vector;
 
-    use crate::ssa::{
-        function_builder::FunctionBuilder,
-        ir::{
-            basic_block::BasicBlockId,
-            dfg::DataFlowGraph,
-            instruction::{BinaryOp, Instruction, Intrinsic, TerminatorInstruction},
-            map::Id,
-            types::Type,
+    use crate::{
+        assert_ssa_snapshot,
+        ssa::{
+            Ssa,
+            function_builder::FunctionBuilder,
+            ir::{
+                basic_block::BasicBlockId,
+                dfg::DataFlowGraph,
+                instruction::{
+                    ArrayOffset, BinaryOp, Instruction, Intrinsic, TerminatorInstruction,
+                },
+                map::Id,
+                types::{NumericType, Type},
+            },
+            opt::assert_normalized_ssa_equals,
         },
-        opt::assert_normalized_ssa_equals,
-        Ssa,
     };
 
     #[test]
@@ -692,14 +697,14 @@ mod tests {
         //     v1 = make_array [Field 1, Field 2]
         //     store v1 in v0
         //     v2 = load v0
-        //     v3 = array_get v2, index 1
+        //     v3 = array_get v2, index u32 1
         //     return v3
         // }
 
         let func_id = Id::test_new(0);
         let mut builder = FunctionBuilder::new("func".into(), func_id);
         let v0 = builder.insert_allocate(Type::Array(Arc::new(vec![Type::field()]), 2));
-        let one = builder.field_constant(FieldElement::one());
+        let one = builder.numeric_constant(FieldElement::one(), NumericType::length_type());
         let two = builder.field_constant(FieldElement::one());
 
         let element_type = Arc::new(vec![Type::field()]);
@@ -708,7 +713,8 @@ mod tests {
 
         builder.insert_store(v0, v1);
         let v2 = builder.insert_load(v0, array_type);
-        let v3 = builder.insert_array_get(v2, one, Type::field());
+        let offset = ArrayOffset::None;
+        let v3 = builder.insert_array_get(v2, one, offset, Type::field());
         builder.terminate_with_return(vec![v3]);
 
         let ssa = builder.finish().mem2reg().fold_constants();
@@ -1014,9 +1020,8 @@ mod tests {
         builder.insert_constrain(v9, two, None);
         let v11 = builder.insert_load(v2, v2_type);
         let v12 = builder.insert_load(v11, Type::field());
-        let _ = builder.insert_binary(v12, BinaryOp::Eq, two);
 
-        builder.insert_constrain(v11, two, None);
+        builder.insert_constrain(v12, two, None);
         builder.terminate_with_return(vec![]);
 
         let ssa = builder.finish();
@@ -1111,11 +1116,13 @@ mod tests {
 
         let ssa = Ssa::from_str(src).unwrap();
 
+        let ssa = ssa.mem2reg();
+
         // The repeated load from v3 should be removed
         // b3 should only have three loads now rather than four previously
         //
         // All stores are expected to remain.
-        let expected = "
+        assert_ssa_snapshot!(ssa, @r"
         acir(inline) fn main f0 {
           b0():
             v1 = allocate -> &mut Field
@@ -1125,8 +1132,13 @@ mod tests {
             jmp b1(Field 0)
           b1(v0: Field):
             v4 = eq v0, Field 0
-            jmpif v4 then: b3, else: b2
+            jmpif v4 then: b2, else: b3
           b2():
+            v11 = load v3 -> &mut Field
+            store Field 2 at v11
+            v13 = add v0, Field 1
+            jmp b1(v13)
+          b3():
             v5 = load v1 -> Field
             v7 = eq v5, Field 2
             constrain v5 == Field 2
@@ -1135,16 +1147,8 @@ mod tests {
             v10 = eq v9, Field 2
             constrain v9 == Field 2
             return
-          b3():
-            v11 = load v3 -> &mut Field
-            store Field 2 at v11
-            v13 = add v0, Field 1
-            jmp b1(v13)
         }
-        ";
-
-        let ssa = ssa.mem2reg();
-        assert_normalized_ssa_equals(ssa, expected);
+        ");
     }
 
     #[test]
@@ -1163,21 +1167,21 @@ mod tests {
             v4 = eq v0, Field 0
             jmpif v4 then: b3, else: b2
           b2():
-            v5 = load v1 -> Field
-            v7 = eq v5, Field 2
-            constrain v5 == Field 2
-            v8 = load v3 -> &mut Field
+            v9 = load v1 -> Field
+            v10 = eq v9, Field 2
+            constrain v9 == Field 2
+            v11 = load v3 -> &mut Field
             call f1(v3)
-            v10 = load v3 -> &mut Field
-            v11 = load v10 -> Field
-            v12 = eq v11, Field 2
-            constrain v11 == Field 2
+            v13 = load v3 -> &mut Field
+            v14 = load v13 -> Field
+            v15 = eq v14, Field 2
+            constrain v14 == Field 2
             return
           b3():
-            v13 = load v3 -> &mut Field
-            store Field 2 at v13
-            v15 = add v0, Field 1
-            jmp b1(v15)
+            v5 = load v3 -> &mut Field
+            store Field 2 at v5
+            v8 = add v0, Field 1
+            jmp b1(v8)
         }
         acir(inline) fn foo f1 {
           b0(v0: &mut Field):
@@ -1201,13 +1205,13 @@ mod tests {
           b0(v0: u1):
             jmpif v0 then: b2, else: b1
           b1():
-            v4 = allocate -> &mut Field
-            store Field 1 at v4
-            jmp b3(v4, v4, v4)
-          b2():
             v6 = allocate -> &mut Field
-            store Field 0 at v6
+            store Field 1 at v6
             jmp b3(v6, v6, v6)
+          b2():
+            v4 = allocate -> &mut Field
+            store Field 0 at v4
+            jmp b3(v4, v4, v4)
           b3(v1: &mut Field, v2: &mut Field, v3: &mut Field):
             v8 = load v1 -> Field
             store Field 2 at v2
