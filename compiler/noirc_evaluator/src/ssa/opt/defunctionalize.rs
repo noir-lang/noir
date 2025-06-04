@@ -648,17 +648,22 @@ fn replacement_type(typ: &Type) -> Option<Type> {
 /// Replaces the ones that need replacement, leaving all others as-is.
 /// If no type needs replacement, `None` is returned.
 fn replacement_types(types: &[Type]) -> Option<Vec<Type>> {
-    let mut type_reps = Vec::new();
+    let mut reps = Vec::new();
     let mut has_rep = false;
     for typ in types {
         let rep = replacement_type(typ);
         has_rep |= rep.is_some();
-        type_reps.push((typ, rep));
+        reps.push(rep);
     }
     if !has_rep {
         None
     } else {
-        Some(type_reps.into_iter().map(|(typ, rep)| rep.unwrap_or_else(|| typ.clone())).collect())
+        Some(
+            reps.into_iter()
+                .zip(types)
+                .map(|(rep, typ)| rep.unwrap_or_else(|| typ.clone()))
+                .collect(),
+        )
     }
 }
 
