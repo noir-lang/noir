@@ -42,7 +42,7 @@ pub(crate) fn add_recursion_limit(
 
     // Create proxies for unconstrained functions called from ACIR.
     let mut proxy_functions = HashMap::new();
-    let mut next_func_id = FuncId(ctx.functions.len() as u32);
+    let mut next_func_id = ctx.functions.len() as u32;
 
     for (func_id, func) in &ctx.functions {
         if !func.unconstrained
@@ -52,11 +52,11 @@ pub(crate) fn add_recursion_limit(
             continue;
         }
         let mut proxy = func.clone();
-        proxy.id = next_func_id;
+        proxy.id = FuncId(next_func_id);
         proxy.name = format!("{}_proxy", proxy.name);
         // We will replace the body, update the params, and append the function later.
         proxy_functions.insert(*func_id, proxy);
-        next_func_id = FuncId(next_func_id.0 + 1);
+        next_func_id += 1;
     }
 
     // Rewrite functions.
