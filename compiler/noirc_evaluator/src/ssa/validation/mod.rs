@@ -18,9 +18,9 @@ use crate::ssa::ir::instruction::TerminatorInstruction;
 
 use super::ir::{
     function::Function,
-    instruction::{Binary, BinaryOp, Instruction, InstructionId},
+    instruction::{Binary, BinaryOp, Instruction, InstructionId, Intrinsic},
     types::{NumericType, Type},
-    value::ValueId,
+    value::{Value, ValueId},
 };
 
 /// Aside the function being validated, the validator maintains internal state
@@ -146,6 +146,19 @@ impl<'f> Validator<'f> {
                 let index_type = dfg.type_of_value(*index);
                 if !matches!(index_type, Type::Numeric(NumericType::Unsigned { bit_size: 32 })) {
                     panic!("ArrayGet/ArraySet index must be u32");
+                }
+            }
+            Instruction::Call { func, arguments } => {
+                if let Value::Intrinsic(Intrinsic::ToRadix(_) | Intrinsic::ToBits(_)) = &dfg[*func]
+                {
+                    assert_eq!(arguments.len(), 2);
+                    let value_typ = dfg.type_of_value(arguments[0]);
+                    assert!(matches!(value_typ, Type::Numeric(NumericType::NativeField)));
+                    let radix_typ = dfg.type_of_value(arguments[1]);
+                    assert!(matches!(
+                        radix_typ,
+                        Type::Numeric(NumericType::Unsigned { bit_size: 32 })
+                    ));
                 }
             }
             _ => (),
@@ -375,6 +388,26 @@ mod tests {
         acir(inline) fn main f0 {
           b0():
             v2 = shl u32 1, u16 1
+            return
+        }
+        ";
+        let _ = Ssa::from_str(src);
+    }
+
+    #[test]
+    #[should_panic(
+        expected = "assertion failed: matches!(value_typ, Type::Numeric(NumericType::NativeField))"
+    )]
+    fn to_le_radix_on_non_field_value() {
+        let src = "
+        brillig(inline) predicate_pure fn main f0 {
+          b0(v0: Field):
+            call f1(u1 1, v0)
+            return
+        }
+        brillig(inline) fn foo f1 {
+          b0(v0: u1, v1: [u4; 2]):
+            v2 = call to_le_radix(v0, u32 256) -> [u7; 1]
             return
         }
         ";
