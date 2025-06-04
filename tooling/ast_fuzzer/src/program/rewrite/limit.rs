@@ -31,11 +31,11 @@ pub(crate) fn add_recursion_limit(
     ctx: &mut Context,
     u: &mut Unstructured,
 ) -> arbitrary::Result<()> {
-    // Collect functions called from ACIR; they will need proxy functions.
+    // Collect functions potentially called from ACIR; they will need proxy functions.
     let called_from_acir = ctx.functions.values().filter(|func| !func.unconstrained).fold(
         HashSet::<FuncId>::new(),
         |mut acc, func| {
-            acc.extend(expr::callees(&func.body));
+            acc.extend(expr::reachable_functions(&func.body));
             acc
         },
     );

@@ -391,28 +391,18 @@ pub fn exists(expr: &Expression, pred: impl Fn(&Expression) -> bool) -> bool {
     exists
 }
 
-/// Collect all the functions called in the expression and its descendants.
-pub fn callees(expr: &Expression) -> HashSet<FuncId> {
-    let mut callees = HashSet::default();
+/// Collect all the functions referred to by their ID in the expression and its descendants.
+pub fn reachable_functions(expr: &Expression) -> HashSet<FuncId> {
+    let mut reachable = HashSet::default();
     visit_expr(expr, &mut |expr| {
-        if let Expression::Call(call) = expr {
-            if let Expression::Ident(ident) = call.func.as_ref() {
-                if let Definition::Function(func_id) = ident.definition {
-                    callees.insert(func_id);
-                }
-            }
-            // Consider functions passed as arguments as at least callable.
-            for arg in &call.arguments {
-                if let Expression::Ident(ident) = arg {
-                    if let Definition::Function(func_id) = ident.definition {
-                        callees.insert(func_id);
-                    }
-                }
-            }
+        // Regardless of whether it's in a `Call` or stored in a reference,
+        // it will appear in an identifier at some point.
+        if let Expression::Ident(Ident { definition: Definition::Function(func_id), .. }) = expr {
+            reachable.insert(*func_id);
         }
         true
     });
-    callees
+    reachable
 }
 
 /// Prepend an expression to a destination.
