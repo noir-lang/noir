@@ -99,9 +99,9 @@ impl Elaborator<'_> {
                 (HirExpression::Error, Type::Error)
             }
             ExpressionKind::AsTraitPath(path) => {
-                return self.elaborate_as_trait_path(path);
+                return self.elaborate_as_trait_path(*path);
             }
-            ExpressionKind::TypePath(path) => return self.elaborate_type_path(path),
+            ExpressionKind::TypePath(path) => return self.elaborate_type_path(*path),
         };
         let id = self.interner.push_expr(hir_expr);
         self.interner.push_expr_location(id, expr.location);
@@ -166,9 +166,7 @@ impl Elaborator<'_> {
             let (id, stmt_type) =
                 self.elaborate_statement_with_target_type(statement, statement_target_type);
 
-            if break_or_continue_location.is_none() {
-                statements.push(id);
-            }
+            statements.push(id);
 
             let stmt = self.interner.statement(&id);
 
@@ -182,6 +180,8 @@ impl Elaborator<'_> {
                 });
             }
 
+            let is_break_or_continue = matches!(stmt, HirStatement::Break | HirStatement::Continue);
+
             if let Some(break_or_continue_location) = break_or_continue_location {
                 if !errored_unreachable {
                     self.push_err(ResolverError::UnreachableStatement {
@@ -190,11 +190,12 @@ impl Elaborator<'_> {
                     });
                     errored_unreachable = true;
                 }
-            } else if matches!(stmt, HirStatement::Break | HirStatement::Continue) {
+            } else if is_break_or_continue {
                 break_or_continue_location = Some(location);
-                block_type = stmt_type;
-            } else if i + 1 == statements.len() {
-                block_type = stmt_type;
+            }
+
+            if i + 1 == statements.len() {
+                block_type = if is_break_or_continue { Type::Unit } else { stmt_type };
             }
         }
 
