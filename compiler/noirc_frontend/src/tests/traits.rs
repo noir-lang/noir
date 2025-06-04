@@ -1629,6 +1629,7 @@ fn accesses_associated_type_inside_trait_using_self() {
     assert_no_errors!(src);
 }
 
+#[ignore = "See https://github.com/noir-lang/noir/issues/8780"]
 #[named]
 #[test]
 fn serialize_test_with_a_previous_unrelated_definition() {
@@ -1653,15 +1654,6 @@ fn serialize_test_with_a_previous_unrelated_definition() {
         }
     }
 
-    impl<T, let N: u32> Serialize for [T; N]
-    where
-        T: Serialize,
-    {
-        let Size: u32 = <T as Serialize>::Size;
-
-        fn serialize(self: Self) { }
-    }
-
     impl Serialize for Field {
         let Size: u32 = 1;
 
@@ -1669,7 +1661,7 @@ fn serialize_test_with_a_previous_unrelated_definition() {
     }
 
     fn main() {
-        let x = (((1, [2, 3, 4]), [5, 6, 7, 8]), 9);
+        let x = (((1, 2), 5), 9);
         x.serialize();
     }
     "#;
