@@ -1638,7 +1638,7 @@ fn serialize_test_with_a_previous_unrelated_definition() {
     trait Serialize {
         let Size: u32;
 
-        fn serialize(self) -> [Field; Self::Size];
+        fn serialize(self);
     }
 
     impl<A, B> Serialize for (A, B)
@@ -1648,10 +1648,8 @@ fn serialize_test_with_a_previous_unrelated_definition() {
     {
         let Size: u32 = <A as Serialize>::Size + <B as Serialize>::Size;
 
-        fn serialize(self: Self) -> [Field; Self::Size] {
-            let _ = self.0.serialize();
-            let _ = self.1.serialize();
-            [0; Self::Size]
+        fn serialize(self: Self) {
+            self.0.serialize();
         }
     }
 
@@ -1659,24 +1657,20 @@ fn serialize_test_with_a_previous_unrelated_definition() {
     where
         T: Serialize,
     {
-        let Size: u32 = (<T as Serialize>::Size * N);
+        let Size: u32 = <T as Serialize>::Size;
 
-        fn serialize(self: Self) -> [Field; Self::Size] {
-            [0; Self::Size]
-        }
+        fn serialize(self: Self) { }
     }
 
     impl Serialize for Field {
         let Size: u32 = 1;
 
-        fn serialize(self) -> [Field; Self::Size] {
-            [self]
-        }
+        fn serialize(self) { }
     }
 
     fn main() {
         let x = (((1, [2, 3, 4]), [5, 6, 7, 8]), 9);
-        let _ = x.serialize();
+        x.serialize();
     }
     "#;
     check_monomorphization_error!(&src);
