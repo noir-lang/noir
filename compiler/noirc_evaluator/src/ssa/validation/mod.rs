@@ -103,7 +103,7 @@ impl<'f> Validator<'f> {
                     }
                     None => {
                         // Do nothing as there is no overflow op pending
-                    },
+                    }
                     _ => {
                         panic!("Truncate not matched to signed overflow pattern");
                     }
