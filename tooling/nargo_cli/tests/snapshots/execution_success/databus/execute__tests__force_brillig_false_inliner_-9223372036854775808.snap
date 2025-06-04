@@ -92,7 +92,7 @@ expression: artifact
     "unconstrained func 1",
     "[Const { destination: Direct(10), bit_size: Integer(U32), value: 2 }, Const { destination: Direct(11), bit_size: Integer(U32), value: 0 }, CalldataCopy { destination_address: Direct(0), size_address: Direct(10), offset_address: Direct(11) }, BinaryFieldOp { destination: Direct(2), op: IntegerDiv, lhs: Direct(0), rhs: Direct(1) }, BinaryFieldOp { destination: Direct(1), op: Mul, lhs: Direct(2), rhs: Direct(1) }, BinaryFieldOp { destination: Direct(1), op: Sub, lhs: Direct(0), rhs: Direct(1) }, Mov { destination: Direct(0), source: Direct(2) }, Stop { return_data: HeapVector { pointer: Direct(11), size: Direct(10) } }]"
   ],
-  "debug_symbols": "nZLNjoMgFEbf5a5ZeMFqy6sYY1BpQ0LQUGgyMb77XGSY6SyaNN1wRDj342+DWY/xNhh3Xe4guw1Gb6w1t8EukwpmcfR3gyo12IBEBthmnDMuBzjNwH1nULQheK2T9VSHqq/KaxdAumgtg4ey8Zh0X5U7GJSn0YqBdjORCl6N1elrZ3929VrlDf+RedP+6qe3faxKOFb1J77A4ouP8nn7wu+ppybj/98M0sHTjhEzeIYAKQh1xglkzY7rSzt6KG/UaHXSU0B0U6lG3fC1lpHyEla/THqOXqfkp+dAbccF4+c+53f8wgT2e1rqNw==",
+  "debug_symbols": "nZLLisQgEEX/pdYufOT9KyEEk9iNICbYycAQ/PcpdezpWTQ02dT1dW6VVJ2wqOm4j9re1gd0/QmT08bo+2jWWe56tXh6Ag2BVdAxAqxO0iRpo3B8wbwnkLFxd0oF6sUH3TfplN2hs4cxBL6kOeKjxyZt1F06vKUElF1Q0fCmjQorT/5o+h7lFf+FeVU/8fJjntHMMyou8fTJF1d4wTIvLtXP6zf8gDs5a/e/s9hT/HAdYxNjGyPDhgoUloQnEdAVKEWSEo1JHIvSh4qclpNRwTYkPuycs+B2/97yTZ6wza2zWg6nQkUvY4ax54LwZkj5e94SwQYfvvAD",
   "file_map": {
     "50": {
       "source": "fn main(mut x: u32, y: call_data(0) u32, z: call_data(0) [u32; 4]) -> return_data u32 {\n    let a = z[x];\n    unsafe {\n        a + foo(y)\n    }\n}\n\n// Use an unconstrained function to force the compiler to avoid inlining\nunconstrained fn foo(x: u32) -> u32 {\n    x + 1\n}\n",
