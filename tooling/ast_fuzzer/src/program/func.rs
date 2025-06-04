@@ -874,7 +874,7 @@ impl<'a> FunctionContext<'a> {
             .current()
             .variables()
             .filter(|(_, (mutable, _, typ))| {
-                // Trying to re-assign a mutable reference
+                // Trying to re-assign a mutable reference in an if leads to panics or errors
                 *mutable
                     && !(self.in_if
                         && self.ctx.config.avoid_assign_ref_in_if
