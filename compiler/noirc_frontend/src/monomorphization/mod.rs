@@ -611,7 +611,10 @@ impl<'interner> Monomorphizer<'interner> {
 
                 if Self::contains_reference(&frontend_type) {
                     let typ = frontend_type.to_string();
-                    return Err(MonomorphizationError::ReferenceReturnedFromIf { typ, location });
+                    return Err(MonomorphizationError::ReferenceReturnedFromIfOrMatch {
+                        typ,
+                        location,
+                    });
                 }
 
                 ast::Expression::If(ast::If { condition, consequence, alternative: else_, typ })
@@ -1971,6 +1974,13 @@ impl<'interner> Monomorphizer<'interner> {
         &mut self,
         assign: HirAssignStatement,
     ) -> Result<ast::Expression, MonomorphizationError> {
+        let expression_type = self.interner.id_type(assign.expression);
+        let location = self.interner.expr_location(&assign.expression);
+        if Self::contains_reference(&expression_type) {
+            let typ = expression_type.to_string();
+            return Err(MonomorphizationError::AssignedToVarContainingReference { typ, location });
+        }
+
         let expression = Box::new(self.expr(assign.expression)?);
         let lvalue = self.lvalue(assign.lvalue)?;
         Ok(ast::Expression::Assign(ast::Assign { expression, lvalue }))
@@ -2216,6 +2226,14 @@ impl<'interner> Monomorphizer<'interner> {
         match_expr: HirMatch,
         expr_id: ExprId,
     ) -> Result<ast::Expression, MonomorphizationError> {
+        let result_type = self.interner.id_type(expr_id);
+        let location = self.interner.expr_location(&expr_id);
+
+        if Self::contains_reference(&result_type) {
+            let typ = result_type.to_string();
+            return Err(MonomorphizationError::ReferenceReturnedFromIfOrMatch { typ, location });
+        }
+
         match match_expr {
             HirMatch::Success(id) => self.expr(id),
             HirMatch::Failure { .. } => {
@@ -2229,15 +2247,13 @@ impl<'interner> Monomorphizer<'interner> {
                 let msg_type = HirType::String(Box::new(length));
 
                 let msg = Some(Box::new((msg_expr, msg_type)));
-                let location = self.interner.expr_location(&expr_id);
                 Ok(ast::Expression::Constrain(false_, location, msg))
             }
             HirMatch::Guard { cond, body, otherwise } => {
                 let condition = Box::new(self.expr(cond)?);
                 let consequence = Box::new(self.expr(body)?);
                 let alternative = Some(Box::new(self.match_expr(*otherwise, expr_id)?));
-                let location = self.interner.expr_location(&expr_id);
-                let typ = Self::convert_type(&self.interner.id_type(expr_id), location)?;
+                let typ = Self::convert_type(&result_type, location)?;
                 Ok(ast::Expression::If(ast::If { condition, consequence, alternative, typ }))
             }
             HirMatch::Switch(variable_to_match, cases, default) => {
@@ -2261,8 +2277,7 @@ impl<'interner> Monomorphizer<'interner> {
                     None => None,
                 };
 
-                let location = self.interner.expr_location(&expr_id);
-                let typ = Self::convert_type(&self.interner.id_type(expr_id), location)?;
+                let typ = Self::convert_type(&result_type, location)?;
                 Ok(ast::Expression::Match(ast::Match {
                     variable_to_match,
                     cases,
