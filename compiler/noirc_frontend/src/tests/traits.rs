@@ -1629,11 +1629,11 @@ fn accesses_associated_type_inside_trait_using_self() {
     assert_no_errors!(src);
 }
 
-#[ignore = "See https://github.com/noir-lang/noir/issues/8780"]
 #[named]
 #[test]
 fn serialize_test_with_a_previous_unrelated_definition() {
     let src = r#"
+    // If you remove this Trait definition, the code compiles fine. That's the bug.
     pub trait Trait {}
 
     trait Serialize {
@@ -1651,6 +1651,8 @@ fn serialize_test_with_a_previous_unrelated_definition() {
 
         fn serialize(self: Self) {
             self.0.serialize();
+            ^^^^^^^^^^^^^^^^ No matching impl found for `(Field, Field): Serialize<Size = (3 - _)>`
+            ~~~~~~~~~~~~~~~~ No impl for `(Field, Field): Serialize<Size = (3 - _)>`
         }
     }
 
@@ -1665,5 +1667,8 @@ fn serialize_test_with_a_previous_unrelated_definition() {
         x.serialize();
     }
     "#;
+
+    // In reality there should be no error here, so any error squiggles should be removed.
+    // See https://github.com/noir-lang/noir/issues/8780
     check_monomorphization_error!(&src);
 }
