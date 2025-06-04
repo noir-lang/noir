@@ -45,7 +45,7 @@ fn expect_values_with_args(src: &str, args: Vec<Value>) -> Vec<Value> {
 }
 
 #[track_caller]
-pub fn expect_value_with_args(src: &str, args: Vec<Value>) -> Value {
+pub(crate) fn expect_value_with_args(src: &str, args: Vec<Value>) -> Value {
     let mut results = expect_values_with_args(src, args);
     assert_eq!(results.len(), 1);
     results.pop().unwrap()
