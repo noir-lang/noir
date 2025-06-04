@@ -111,18 +111,22 @@ pub struct FuzzerOptions {
     pub compile_options: CompileOptions,
     pub max_ssa_blocks_num: usize,
     pub max_instructions_num: usize,
+    pub max_cycles_num: usize,
     pub instruction_options: InstructionOptions,
     pub fuzzer_command_options: FuzzerCommandOptions,
 }
 
 impl Default for FuzzerOptions {
     fn default() -> Self {
+        let mut compile_options = CompileOptions::default();
+        compile_options.show_ssa = true;
         Self {
             constrain_idempotent_morphing_enabled: false,
             constant_execution_enabled: false,
-            compile_options: CompileOptions::default(),
+            compile_options,
             max_ssa_blocks_num: 30,
             max_instructions_num: 500,
+            max_cycles_num: 10,
             instruction_options: InstructionOptions::default(),
             fuzzer_command_options: FuzzerCommandOptions::default(),
         }

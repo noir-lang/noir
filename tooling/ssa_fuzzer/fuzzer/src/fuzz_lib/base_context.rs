@@ -23,18 +23,35 @@ use std::{
 #[derive(Arbitrary, Debug, Clone, Hash)]
 pub(crate) enum FuzzerCommand {
     /// Adds instructions to current_block_context from stored instruction_blocks
-    InsertSimpleInstructionBlock { instruction_block_idx: usize },
+    InsertSimpleInstructionBlock {
+        instruction_block_idx: usize,
+    },
     /// Merges two instruction blocks, stores result in instruction_blocks
-    MergeInstructionBlocks { first_block_idx: usize, second_block_idx: usize },
+    MergeInstructionBlocks {
+        first_block_idx: usize,
+        second_block_idx: usize,
+    },
     /// terminates current SSA block with jmp_if_else. Creates two new SSA blocks from chosen InstructionBlocks.
     /// Switches current_block_context to then_branch.
     /// Adds else_branch to the next_block_queue. If current SSA block is already terminated, skip.
-    InsertJmpIfBlock { block_then_idx: usize, block_else_idx: usize },
+    InsertJmpIfBlock {
+        block_then_idx: usize,
+        block_else_idx: usize,
+    },
     /// Terminates current SSA block with jmp. Creates new SSA block from chosen InstructionBlock.
     /// Switches current_block_context to jmp_destination.
-    InsertJmpBlock { block_idx: usize },
+    InsertJmpBlock {
+        block_idx: usize,
+    },
     /// Adds current SSA block to the next_block_queue. Switches context to stored in next_block_queue.
     SwitchToNextBlock,
+
+    InsertCycle {
+        block_body_idx: usize,
+        block_end_idx: usize,
+        start_iter: u8,
+        end_iter: u8,
+    },
 }
 
 #[derive(Clone)]
@@ -308,6 +325,7 @@ impl FuzzerContext {
             &mut self.acir_builder,
             &mut self.brillig_builder,
             destination_block_id,
+            vec![],
         );
         self.stored_blocks.insert(self.current_block.block_id, self.current_block.clone());
 
@@ -315,6 +333,129 @@ impl FuzzerContext {
         self.switch_to_block(destination_block_id);
         self.current_block =
             StoredBlock { context: destination_block_context, block_id: destination_block_id };
+    }
+
+    fn process_cycle_command(
+        &mut self,
+        block_body_idx: usize,
+        block_end_idx: usize,
+        start_iter: usize,
+        end_iter: usize,
+    ) {
+        let block_end =
+            self.instruction_blocks[block_end_idx % self.instruction_blocks.len()].clone();
+        let block_body =
+            self.instruction_blocks[block_body_idx % self.instruction_blocks.len()].clone();
+        if block_body.instructions.len()
+            + block_end.instructions.len()
+            + self.inserted_instructions_count
+            > self.context_options.max_instructions_num
+        {
+            return;
+        }
+
+        self.inserted_instructions_count += block_body.instructions.len();
+        self.inserted_instructions_count += block_end.instructions.len();
+        // body
+        // if
+        // iter
+        // end
+        self.inserted_ssa_blocks_count += 4;
+
+        let block_body_id = self.acir_builder.insert_block();
+        assert_eq!(block_body_id, self.brillig_builder.insert_block());
+        log::debug!("block_body_id: {:?}", block_body_id);
+        let block_end_id = self.acir_builder.insert_block();
+        assert_eq!(block_end_id, self.brillig_builder.insert_block());
+        log::debug!("block_end_id: {:?}", block_end_id);
+
+        let start_id = self.acir_builder.insert_constant(start_iter, ValueType::U32);
+        assert_eq!(start_id, self.brillig_builder.insert_constant(start_iter, ValueType::U32));
+        let end_id = self.acir_builder.insert_constant(end_iter, ValueType::U32);
+        assert_eq!(end_id, self.brillig_builder.insert_constant(end_iter, ValueType::U32));
+        let one_id = self.acir_builder.insert_constant(1_u32, ValueType::U32);
+        assert_eq!(one_id, self.brillig_builder.insert_constant(1_u32, ValueType::U32));
+
+        // create if block
+        let block_if_id = self.acir_builder.insert_block();
+        assert_eq!(block_if_id, self.brillig_builder.insert_block());
+        self.switch_to_block(block_if_id);
+        log::debug!("block_if_id: {:?}", block_if_id);
+        // create iter
+        let real_iter_id = self.acir_builder.add_block_parameter(block_if_id, ValueType::U32);
+        assert_eq!(
+            real_iter_id,
+            self.brillig_builder.add_block_parameter(block_if_id, ValueType::U32)
+        );
+        let condition =
+            self.acir_builder.insert_lt_instruction(real_iter_id.clone(), end_id.clone()).value_id;
+        assert_eq!(
+            condition,
+            self.brillig_builder
+                .insert_lt_instruction(real_iter_id.clone(), end_id.clone())
+                .value_id
+        );
+        self.acir_builder.insert_jmpif_instruction(condition, block_body_id, block_end_id);
+        self.brillig_builder.insert_jmpif_instruction(condition, block_body_id, block_end_id);
+
+        // create iter block
+        let block_iter_id = self.acir_builder.insert_block();
+        assert_eq!(block_iter_id, self.brillig_builder.insert_block());
+        self.switch_to_block(block_iter_id);
+        // j = i + 1
+        let iterator_plus_one =
+            self.acir_builder.insert_add_instruction_checked(real_iter_id.clone(), one_id.clone());
+        assert_eq!(
+            iterator_plus_one,
+            self.brillig_builder.insert_add_instruction_checked(real_iter_id.clone(), one_id)
+        );
+        self.acir_builder.insert_jmp_instruction(block_if_id, vec![iterator_plus_one.clone()]);
+        self.brillig_builder.insert_jmp_instruction(block_if_id, vec![iterator_plus_one]);
+
+        //
+        self.switch_to_block(self.current_block.block_id);
+        self.acir_builder.insert_jmp_instruction(block_if_id, vec![start_id.clone()]);
+        self.brillig_builder.insert_jmp_instruction(block_if_id, vec![start_id]);
+
+        // fill body block
+        let mut block_body_context = BlockContext::new(
+            self.current_block.context.stored_values.clone(),
+            self.current_block.context.memory_addresses.clone(),
+            self.current_block.context.parent_blocks_history.clone(),
+            SsaBlockOptions::from(self.context_options.clone()),
+        );
+        self.switch_to_block(block_body_id);
+        block_body_context.insert_instructions(
+            &mut self.acir_builder,
+            &mut self.brillig_builder,
+            &block_body.instructions,
+        );
+        block_body_context.finalize_block_with_jmp(
+            &mut self.acir_builder,
+            &mut self.brillig_builder,
+            block_iter_id,
+            vec![],
+        );
+
+        // fill end block
+        let mut block_end_context = BlockContext::new(
+            self.current_block.context.stored_values.clone(),
+            self.current_block.context.memory_addresses.clone(),
+            block_body_context.parent_blocks_history,
+            SsaBlockOptions::from(self.context_options.clone()),
+        );
+
+        self.switch_to_block(block_end_id);
+        block_end_context.insert_instructions(
+            &mut self.acir_builder,
+            &mut self.brillig_builder,
+            &block_end.instructions,
+        );
+        let end_block_stored = StoredBlock { context: block_end_context, block_id: block_end_id };
+        self.current_block.context.children_blocks.push(end_block_stored.block_id);
+        self.stored_blocks.insert(self.current_block.block_id, self.current_block.clone());
+        self.stored_blocks.insert(end_block_stored.block_id, end_block_stored.clone());
+        self.current_block = end_block_stored;
     }
 
     pub(crate) fn process_fuzzer_command(&mut self, command: &FuzzerCommand) {
@@ -374,6 +515,14 @@ impl FuzzerContext {
                 self.current_block = self.not_terminated_blocks.pop_front().unwrap();
                 self.switch_to_block(self.current_block.block_id);
             }
+            FuzzerCommand::InsertCycle { block_body_idx, block_end_idx, start_iter, end_iter } => {
+                self.process_cycle_command(
+                    *block_body_idx,
+                    *block_end_idx,
+                    *start_iter as usize,
+                    *end_iter as usize,
+                );
+            }
         }
     }
 
@@ -407,6 +556,7 @@ impl FuzzerContext {
             &mut self.acir_builder,
             &mut self.brillig_builder,
             merged_block_id,
+            vec![],
         );
         self.stored_blocks.insert(first_block.block_id, first_block.clone());
 
@@ -415,6 +565,7 @@ impl FuzzerContext {
             &mut self.acir_builder,
             &mut self.brillig_builder,
             merged_block_id,
+            vec![],
         );
         self.stored_blocks.insert(second_block.block_id, second_block.clone());
 
@@ -572,6 +723,7 @@ impl FuzzerContext {
             &mut self.acir_builder,
             &mut self.brillig_builder,
             return_block_id,
+            vec![],
         );
 
         // add instructions to the return block

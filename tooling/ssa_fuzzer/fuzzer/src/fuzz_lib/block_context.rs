@@ -4,8 +4,18 @@ use noir_ssa_fuzzer::{
     builder::{FuzzerBuilder, InstructionWithOneArg, InstructionWithTwoArgs},
     typed_value::{TypedValue, ValueType},
 };
-use noirc_evaluator::ssa::ir::basic_block::BasicBlockId;
+use noirc_evaluator::ssa::ir::{basic_block::BasicBlockId, value::ValueId};
 use std::collections::{HashMap, VecDeque};
+
+/// Context for the cycle
+#[derive(Debug, Clone)]
+pub(crate) struct CycleContext {
+    iterator_id: ValueId,
+    end_id: ValueId,
+    block_if_id: ValueId,
+    block_end_id: ValueId,
+    number_of_iterations: usize,
+}
 
 /// Main context for the ssa block containing both ACIR and Brillig builders and their state
 /// It works with indices of variables Ids, because it cannot handle Ids logic for ACIR and Brillig
@@ -23,6 +33,8 @@ pub(crate) struct BlockContext {
     pub(crate) children_blocks: Vec<BasicBlockId>,
     /// Options for the block
     pub(crate) options: SsaBlockOptions,
+    /// Context for the cycle
+    pub(crate) cycle_context: Option<CycleContext>,
 }
 
 /// Returns a typed value from the map
@@ -63,6 +75,7 @@ impl BlockContext {
             parent_blocks_history,
             children_blocks: Vec::new(),
             options,
+            cycle_context: None,
         }
     }
 
@@ -487,9 +500,10 @@ impl BlockContext {
         acir_builder: &mut FuzzerBuilder,
         brillig_builder: &mut FuzzerBuilder,
         jmp_destination: BasicBlockId,
+        args: Vec<TypedValue>,
     ) {
-        acir_builder.insert_jmp_instruction(jmp_destination, vec![]);
-        brillig_builder.insert_jmp_instruction(jmp_destination, vec![]);
+        acir_builder.insert_jmp_instruction(jmp_destination, args.clone());
+        brillig_builder.insert_jmp_instruction(jmp_destination, args);
         self.children_blocks.push(jmp_destination);
     }
 
