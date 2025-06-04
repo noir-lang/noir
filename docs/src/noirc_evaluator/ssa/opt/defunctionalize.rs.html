@@ -1328,7 +1328,16 @@
 <a href="#1327" id="1327">1327</a>
 <a href="#1328" id="1328">1328</a>
 <a href="#1329" id="1329">1329</a>
-<a href="#1330" id="1330">1330</a></pre></div><pre class="rust"><code><span class="doccomment">//! This module defines the defunctionalization pass for the SSA IR.
+<a href="#1330" id="1330">1330</a>
+<a href="#1331" id="1331">1331</a>
+<a href="#1332" id="1332">1332</a>
+<a href="#1333" id="1333">1333</a>
+<a href="#1334" id="1334">1334</a>
+<a href="#1335" id="1335">1335</a>
+<a href="#1336" id="1336">1336</a>
+<a href="#1337" id="1337">1337</a>
+<a href="#1338" id="1338">1338</a>
+<a href="#1339" id="1339">1339</a></pre></div><pre class="rust"><code><span class="doccomment">//! This module defines the defunctionalization pass for the SSA IR.
 //! Certain IR targets (e.g., Brillig and ACIR) do not support higher-order functions directly.
 //!
 //! The pass eliminates higher-order functions (a function which accepts function values as arguments or returns functions)
@@ -1460,8 +1469,8 @@
             </span><span class="kw">let </span>parameters = block.take_parameters();
             <span class="kw">for </span>parameter <span class="kw">in </span><span class="kw-2">&amp;</span>parameters {
                 <span class="kw">let </span>typ = <span class="kw-2">&amp;</span>func.dfg.type_of_value(<span class="kw-2">*</span>parameter);
-                <span class="kw">if </span>is_function_type(typ) {
-                    func.dfg.set_type_of_value(<span class="kw-2">*</span>parameter, replacement_type(typ));
+                <span class="kw">if let </span><span class="prelude-val">Some</span>(rep) = replacement_type(typ) {
+                    func.dfg.set_type_of_value(<span class="kw-2">*</span>parameter, rep);
                 }
             }
 
@@ -1490,8 +1499,8 @@
                 <span class="attr">#[allow(clippy::unnecessary_to_owned)] </span><span class="comment">// clippy is wrong here
                 </span><span class="kw">for </span>result <span class="kw">in </span>func.dfg.instruction_results(instruction_id).to_vec() {
                     <span class="kw">let </span>typ = <span class="kw-2">&amp;</span>func.dfg.type_of_value(result);
-                    <span class="kw">if </span>is_function_type(typ) {
-                        func.dfg.set_type_of_value(result, replacement_type(typ));
+                    <span class="kw">if let </span><span class="prelude-val">Some</span>(rep) = replacement_type(typ) {
+                        func.dfg.set_type_of_value(result, rep);
                     }
                 }
 
@@ -1573,28 +1582,8 @@
             <span class="kw-2">*</span>arg = map_value(<span class="kw-2">*</span>arg);
         }
     } <span class="kw">else if let </span>Instruction::MakeArray { typ, .. } = instruction {
-        <span class="kw">match </span>typ {
-            Type::Array(element_types, len) =&gt; {
-                <span class="kw">let </span>new_element_types =
-                    element_types
-                        .iter()
-                        .map(|typ| {
-                            <span class="kw">if </span><span class="macro">matches!</span>(typ, Type::Function) { Type::field() } <span class="kw">else </span>{ typ.clone() }
-                        })
-                        .collect::&lt;Vec&lt;<span class="kw">_</span>&gt;&gt;();
-                <span class="kw-2">*</span>typ = Type::Array(Arc::new(new_element_types), <span class="kw-2">*</span>len);
-            }
-            Type::Slice(element_types) =&gt; {
-                <span class="kw">let </span>new_element_types =
-                    element_types
-                        .iter()
-                        .map(|typ| {
-                            <span class="kw">if </span><span class="macro">matches!</span>(typ, Type::Function) { Type::field() } <span class="kw">else </span>{ typ.clone() }
-                        })
-                        .collect::&lt;Vec&lt;<span class="kw">_</span>&gt;&gt;();
-                <span class="kw-2">*</span>typ = Type::Slice(Arc::new(new_element_types));
-            }
-            <span class="kw">_ </span>=&gt; {}
+        <span class="kw">if let </span><span class="prelude-val">Some</span>(rep) = replacement_type(typ) {
+            <span class="kw-2">*</span>typ = rep;
         }
         instruction.map_values_mut(map_value);
 
@@ -1610,7 +1599,7 @@
 /// Returns none if the given value was not a function or doesn't need to be mapped.
 </span><span class="kw">fn </span>map_function_to_field(func: <span class="kw-2">&amp;mut </span>Function, value: ValueId) -&gt; <span class="prelude-ty">Option</span>&lt;ValueId&gt; {
     <span class="kw">let </span>typ = func.dfg[value].get_type();
-    <span class="kw">if </span>is_function_type(typ.as_ref()) {
+    <span class="kw">if let </span><span class="prelude-val">Some</span>(rep) = replacement_type(typ.as_ref()) {
         <span class="kw">match </span><span class="kw-2">&amp;</span>func.dfg[value] {
             <span class="comment">// If the value is a static function, transform it to the function id
             </span>Value::Function(id) =&gt; {
@@ -1619,7 +1608,7 @@
             }
             <span class="comment">// If the value is a function used as value, just change the type of it
             </span>Value::Instruction { .. } | Value::Param { .. } =&gt; {
-                func.dfg.set_type_of_value(value, replacement_type(typ.as_ref()));
+                func.dfg.set_type_of_value(value, rep);
             }
             <span class="kw">_ </span>=&gt; (),
         }
@@ -1754,15 +1743,15 @@
         <span class="comment">// Update the shared function signature of the higher-order function variants
         // to replace any function passed as a value to a numeric field type.
         </span><span class="kw">for </span>param <span class="kw">in </span><span class="kw-2">&amp;mut </span>signature.params {
-            <span class="kw">if </span>is_function_type(param) {
-                <span class="kw-2">*</span>param = replacement_type(param);
+            <span class="kw">if let </span><span class="prelude-val">Some</span>(rep) = replacement_type(param) {
+                <span class="kw-2">*</span>param = rep;
             }
         }
 
         <span class="comment">// Update the return value types as we did for the signature parameters above.
         </span><span class="kw">for </span>ret <span class="kw">in </span><span class="kw-2">&amp;mut </span>signature.returns {
-            <span class="kw">if </span>is_function_type(ret) {
-                <span class="kw-2">*</span>ret = replacement_type(ret);
+            <span class="kw">if let </span><span class="prelude-val">Some</span>(rep) = replacement_type(ret) {
+                <span class="kw-2">*</span>ret = rep;
             }
         }
 
@@ -1949,7 +1938,7 @@
                 <span class="macro">panic!</span>(<span class="string">"unexpected parameter value: {value:?}"</span>);
             };
             <span class="macro">assert!</span>(
-                !is_function_type(typ),
+                replacement_type(typ).is_none(),
                 <span class="string">"Blocks are not expected to take function parameters any more. Got '{typ}' in param {param} of block {block_id} in function {} {}"</span>,
                 func.name(),
                 func.id()
@@ -1958,19 +1947,48 @@
     }
 }
 
-<span class="kw">fn </span>is_function_type(typ: <span class="kw-2">&amp;</span>Type) -&gt; bool {
+<span class="doccomment">/// Return what type a function value type should be replaced with:
+/// * Global functions are replaced with a `Field`.
+/// * Function references are replaced with a reference to the replacement type of the underlying type, recursively.
+/// * Array and slices that contain function types are handled recursively.
+///
+/// If the type doesn't need replacement, `None` is returned.
+</span><span class="kw">fn </span>replacement_type(typ: <span class="kw-2">&amp;</span>Type) -&gt; <span class="prelude-ty">Option</span>&lt;Type&gt; {
     <span class="kw">match </span>typ {
-        Type::Function =&gt; <span class="bool-val">true</span>,
-        Type::Reference(typ) =&gt; is_function_type(typ),
-        <span class="kw">_ </span>=&gt; <span class="bool-val">false</span>,
+        Type::Function =&gt; <span class="prelude-val">Some</span>(Type::field()),
+        Type::Reference(typ) =&gt; {
+            replacement_type(typ.as_ref()).map(|typ| Type::Reference(Arc::new(typ)))
+        }
+        Type::Numeric(<span class="kw">_</span>) =&gt; <span class="prelude-val">None</span>,
+        Type::Array(items, size) =&gt; {
+            replacement_types(items.as_ref()).map(|types| Type::Array(Arc::new(types), <span class="kw-2">*</span>size))
+        }
+        Type::Slice(items) =&gt; {
+            replacement_types(items.as_ref()).map(|types| Type::Slice(Arc::new(types)))
+        }
     }
 }
 
-<span class="kw">fn </span>replacement_type(typ: <span class="kw-2">&amp;</span>Type) -&gt; Type {
-    <span class="kw">if </span><span class="macro">matches!</span>(typ, Type::Reference(<span class="kw">_</span>)) {
-        Type::Reference(Arc::new(Type::field()))
-    } <span class="kw">else </span>{
-        Type::field()
+<span class="doccomment">/// Take a list of types that might need replacement.
+/// Replaces the ones that need replacement, leaving all others as-is.
+/// If no type needs replacement, `None` is returned.
+</span><span class="kw">fn </span>replacement_types(types: <span class="kw-2">&amp;</span>[Type]) -&gt; <span class="prelude-ty">Option</span>&lt;Vec&lt;Type&gt;&gt; {
+    <span class="kw">let </span><span class="kw-2">mut </span>reps = Vec::new();
+    <span class="kw">let </span><span class="kw-2">mut </span>has_rep = <span class="bool-val">false</span>;
+    <span class="kw">for </span>typ <span class="kw">in </span>types {
+        <span class="kw">let </span>rep = replacement_type(typ);
+        has_rep |= rep.is_some();
+        reps.push(rep);
+    }
+    <span class="kw">if </span>!has_rep {
+        <span class="prelude-val">None
+    </span>} <span class="kw">else </span>{
+        <span class="prelude-val">Some</span>(
+            reps.into_iter()
+                .zip(types)
+                .map(|(rep, typ)| rep.unwrap_or_else(|| typ.clone()))
+                .collect(),
+        )
     }
 }
 
