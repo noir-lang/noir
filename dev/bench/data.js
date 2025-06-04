@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1749053129653,
+  "lastUpdate": 1749053131125,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -7910,75 +7910,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "mvezenov@gmail.com",
-            "name": "Maxim Vezenov",
-            "username": "vezenovm"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "c37ded98c518722c2de111ed7d53796e6ed31fe9",
-          "message": "fix(defunctionalize): Higher order functions (HOF) dynamic dispatch and HOFs in arrays (#8672)",
-          "timestamp": "2025-05-23T22:17:31Z",
-          "tree_id": "9146ecc58436caf0796f64adc8d985cab501f511",
-          "url": "https://github.com/noir-lang/noir/commit/c37ded98c518722c2de111ed7d53796e6ed31fe9"
-        },
-        "date": 1748040177156,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 0.028,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 0.162,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 0.011,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 0.314,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 0.199,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 11.8,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 0.004,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-root",
-            "value": 0.009,
-            "unit": "s"
-          },
-          {
-            "name": "semaphore-depth-10",
-            "value": 0.019,
-            "unit": "s"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "aakoshh@gmail.com",
             "name": "Akosh Farkash",
             "username": "aakoshh"
@@ -11353,6 +11284,75 @@ window.BENCHMARK_DATA = {
           {
             "name": "semaphore-depth-10",
             "value": 0.02,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "aakoshh@gmail.com",
+            "name": "Akosh Farkash",
+            "username": "aakoshh"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "d3ee1a3016b301772626d342fe16b638611b239f",
+          "message": "chore: Adjust the frequency of 'for' statements in ACIR fuzz generation (#8788)",
+          "timestamp": "2025-06-04T15:38:29Z",
+          "tree_id": "69bf4d279011d363c04910ea50f6940f0e631b49",
+          "url": "https://github.com/noir-lang/noir/commit/d3ee1a3016b301772626d342fe16b638611b239f"
+        },
+        "date": 1749053118603,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 0.028,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 0.164,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 0.011,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 0.297,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 0.191,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 11.1,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 0.004,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-root",
+            "value": 0.009,
+            "unit": "s"
+          },
+          {
+            "name": "semaphore-depth-10",
+            "value": 0.019,
             "unit": "s"
           }
         ]
