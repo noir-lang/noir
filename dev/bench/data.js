@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1749049059549,
+  "lastUpdate": 1749049105085,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -11362,75 +11362,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "jfecher11@gmail.com",
-            "name": "jfecher",
-            "username": "jfecher"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "eb3eef93091ad485b33a7577bb9c948a5404683a",
-          "message": "fix: Make casts in `comptime` consistent with runtime casts (#8669)",
-          "timestamp": "2025-05-23T19:53:05Z",
-          "tree_id": "21bf0e5bcd41eae98dd702857e3fa4197cd7e7fd",
-          "url": "https://github.com/noir-lang/noir/commit/eb3eef93091ad485b33a7577bb9c948a5404683a"
-        },
-        "date": 1748032243166,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 242.04,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 264.09,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 217.23,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 577.89,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 574.21,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 1460,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 399.73,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-root",
-            "value": 405.29,
-            "unit": "MB"
-          },
-          {
-            "name": "semaphore_depth_10",
-            "value": 92.93,
-            "unit": "MB"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "15848336+TomAFrench@users.noreply.github.com",
             "name": "Tom French",
             "username": "TomAFrench"
@@ -14760,6 +14691,75 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/noir-lang/noir/commit/b21a44cd5fff5261025fb52e091a931ece8a9c91"
         },
         "date": 1748980638174,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 202.02,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 225.75,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 177.16,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 489.94,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 423.45,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 1400,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 312.01,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-root",
+            "value": 317.69,
+            "unit": "MB"
+          },
+          {
+            "name": "semaphore_depth_10",
+            "value": 70.96,
+            "unit": "MB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "aakoshh@gmail.com",
+            "name": "Akosh Farkash",
+            "username": "aakoshh"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "879926c2e258626b309606bf90329a855f17c49d",
+          "message": "fix: Merge `replacement_type` and `is_function_type` in `defunctionalization` (#8784)",
+          "timestamp": "2025-06-04T14:17:38Z",
+          "tree_id": "fff01d00f5cd3b0dfd9311b7068624af9dc69190",
+          "url": "https://github.com/noir-lang/noir/commit/879926c2e258626b309606bf90329a855f17c49d"
+        },
+        "date": 1749049093917,
         "tool": "customSmallerIsBetter",
         "benches": [
           {
