@@ -489,7 +489,7 @@ impl Type {
     ) -> Result<(), UnificationError> {
         if let Type::InfixExpr(lhs_lhs, lhs_op, lhs_rhs, _) = self {
             if let Some(lhs_op_inverse) = lhs_op.inverse() {
-                let kind = lhs_lhs.infix_kind(&lhs_rhs);
+                let kind = lhs_lhs.infix_kind(lhs_rhs);
                 let dummy_location = Location::dummy();
                 if lhs_rhs.evaluate_to_field_element(&kind, dummy_location).is_ok() {
                     let new_rhs =
