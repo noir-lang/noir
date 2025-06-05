@@ -24,12 +24,15 @@ if [ ! -f "$MAIN_PATH" ]; then
     usage "$MAIN_PATH is not a file"
 fi
 
-PROVER_PATH=$1
-if [ -z "$PROVER_PATH" ] && [ "$CMD" == "execute" ]; then
-    PROVER_PATH=$(dirname $MAIN_PATH)/../Prover.toml
-fi
-if [ ! -z "$PROVER_PATH" ] && [ ! -f "$PROVER_PATH" ]; then
-    usage "$PROVER_PATH is not a file"
+PROVER_PATH=${1:-$(dirname $MAIN_PATH)/../Prover.toml}
+if [ ! -f "$PROVER_PATH" ]; then
+    if [ "$CMD" == "execute" ]; then
+        usage "$PROVER_PATH is not a file"
+    else
+        # `compile` doesn't need a Prover.toml file, but to keep `docker run`
+        # simple we can create an empty one.
+        touch $PROVER_PATH
+    fi
 fi
 
 # Make a copy because the minimizer will modify the file in-place.
