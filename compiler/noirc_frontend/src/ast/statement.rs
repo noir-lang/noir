@@ -183,7 +183,7 @@ impl StatementKind {
 pub struct Ident(Located<String>);
 
 impl Ident {
-    /// Gets the underying identifier without its location.
+    /// Gets the underlying identifier without its location.
     pub fn identifier(&self) -> &str {
         &self.0.contents
     }

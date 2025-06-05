@@ -36,10 +36,9 @@ impl LocalModuleId {
     pub fn dummy_id() -> LocalModuleId {
         LocalModuleId(Index::dummy())
     }
-}
 
-impl Into<Index> for LocalModuleId {
-    fn into(self) -> Index {
+    /// Gets the index that underlies this local module ID.
+    pub fn as_index(self) -> Index {
         self.0
     }
 }

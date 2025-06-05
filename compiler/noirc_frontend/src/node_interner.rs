@@ -280,18 +280,6 @@ pub struct NodeInterner {
     pub reexports: HashMap<ModuleDefId, Vec<Reexport>>,
 }
 
-impl NodeInterner {
-    /// Gets the dependency graph from the node interner.
-    pub fn dependency_graph(&self) -> &DiGraph<DependencyId, ()> {
-        &self.dependency_graph
-    }
-
-    /// Gets the trait implementations from the node interner.
-    pub fn trait_implementations(&self) -> &HashMap<TraitImplId, Shared<TraitImpl>> {
-        &self.trait_implementations
-    }
-}
-
 /// A dependency in the dependency graph may be a type or a definition.
 /// Types can depend on definitions too. E.g. `Foo` depends on `COUNT` in:
 ///
@@ -442,12 +430,6 @@ impl DefinitionId {
     }
 }
 
-impl Into<usize> for DefinitionId {
-    fn into(self) -> usize {
-        self.0
-    }
-}
-
 /// An ID for a global value
 #[derive(Debug, Eq, PartialEq, Hash, Clone, Copy, PartialOrd, Ord)]
 pub struct GlobalId(usize);
@@ -456,12 +438,6 @@ impl GlobalId {
     // Dummy id for error reporting
     pub fn dummy_id() -> Self {
         GlobalId(usize::MAX)
-    }
-}
-
-impl Into<usize> for GlobalId {
-    fn into(self) -> usize {
-        self.0
     }
 }
 
@@ -477,20 +453,8 @@ impl StmtId {
     }
 }
 
-impl Into<usize> for StmtId {
-    fn into(self) -> usize {
-        self.0.into()
-    }
-}
-
 #[derive(Debug, Eq, PartialEq, Hash, Copy, Clone, PartialOrd, Ord)]
 pub struct ExprId(Index);
-
-impl Into<usize> for ExprId {
-    fn into(self) -> usize {
-        self.0.into()
-    }
-}
 
 #[derive(Debug, Eq, PartialEq, Hash, Copy, Clone)]
 pub struct FuncId(Index);
@@ -501,12 +465,6 @@ impl FuncId {
     // after resolution
     pub fn dummy_id() -> FuncId {
         FuncId(Index::dummy())
-    }
-}
-
-impl Into<usize> for FuncId {
-    fn into(self) -> usize {
-        self.0.into()
     }
 }
 
@@ -2469,6 +2427,16 @@ impl NodeInterner {
                 self.try_definition(ident.id).map(|def| def.name.clone())
             }
         }
+    }
+
+    /// Gets the dependency graph from the node interner.
+    pub fn dependency_graph(&self) -> &DiGraph<DependencyId, ()> {
+        &self.dependency_graph
+    }
+
+    /// Gets the trait implementations from the node interner.
+    pub fn trait_implementations(&self) -> &HashMap<TraitImplId, Shared<TraitImpl>> {
+        &self.trait_implementations
     }
 }
 
