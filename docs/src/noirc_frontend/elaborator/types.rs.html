@@ -2385,7 +2385,21 @@
 <a href="#2384" id="2384">2384</a>
 <a href="#2385" id="2385">2385</a>
 <a href="#2386" id="2386">2386</a>
-<a href="#2387" id="2387">2387</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::{borrow::Cow, rc::Rc};
+<a href="#2387" id="2387">2387</a>
+<a href="#2388" id="2388">2388</a>
+<a href="#2389" id="2389">2389</a>
+<a href="#2390" id="2390">2390</a>
+<a href="#2391" id="2391">2391</a>
+<a href="#2392" id="2392">2392</a>
+<a href="#2393" id="2393">2393</a>
+<a href="#2394" id="2394">2394</a>
+<a href="#2395" id="2395">2395</a>
+<a href="#2396" id="2396">2396</a>
+<a href="#2397" id="2397">2397</a>
+<a href="#2398" id="2398">2398</a>
+<a href="#2399" id="2399">2399</a>
+<a href="#2400" id="2400">2400</a>
+<a href="#2401" id="2401">2401</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::{borrow::Cow, rc::Rc};
 
 <span class="kw">use </span>im::HashSet;
 <span class="kw">use </span>iter_extended::vecmap;
@@ -3581,7 +3595,21 @@
         <span class="kw">match </span>to {
             Type::Integer(sign, bits) =&gt; Type::Integer(sign, bits),
             Type::FieldElement =&gt; Type::FieldElement,
-            Type::Bool =&gt; Type::Bool,
+            Type::Bool =&gt; {
+                <span class="kw">let </span>from_is_numeric = <span class="kw">match </span>from_follow_bindings {
+                    Type::Integer(..) | Type::FieldElement =&gt; <span class="bool-val">true</span>,
+                    Type::TypeVariable(<span class="kw-2">ref </span>var) =&gt; var.is_integer() || var.is_integer_or_field(),
+                    <span class="kw">_ </span>=&gt; <span class="bool-val">false</span>,
+                };
+                <span class="kw">if </span>from_is_numeric {
+                    <span class="self">self</span>.push_err(TypeCheckError::CannotCastNumericToBool {
+                        typ: from_follow_bindings,
+                        location,
+                    });
+                }
+
+                Type::Bool
+            }
             Type::Error =&gt; Type::Error,
             <span class="kw">_ </span>=&gt; {
                 <span class="self">self</span>.push_err(TypeCheckError::UnsupportedCast { location });

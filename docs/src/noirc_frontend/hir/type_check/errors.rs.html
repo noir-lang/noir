@@ -754,7 +754,14 @@
 <a href="#753" id="753">753</a>
 <a href="#754" id="754">754</a>
 <a href="#755" id="755">755</a>
-<a href="#756" id="756">756</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::collections::BTreeSet;
+<a href="#756" id="756">756</a>
+<a href="#757" id="757">757</a>
+<a href="#758" id="758">758</a>
+<a href="#759" id="759">759</a>
+<a href="#760" id="760">760</a>
+<a href="#761" id="761">761</a>
+<a href="#762" id="762">762</a>
+<a href="#763" id="763">763</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::collections::BTreeSet;
 <span class="kw">use </span>std::rc::Rc;
 
 <span class="kw">use </span>acvm::FieldElement;
@@ -826,6 +833,8 @@
     </span>InvalidCast { from: Type, location: Location, reason: String },
     <span class="attr">#[error(<span class="string">"Casting value of type {from} to a smaller type ({to})"</span>)]
     </span>DownsizingCast { from: Type, to: Type, location: Location, reason: String },
+    <span class="attr">#[error(<span class="string">"Cannot cast `{typ}` as `bool`"</span>)]
+    </span>CannotCastNumericToBool { typ: Type, location: Location },
     <span class="attr">#[error(<span class="string">"Expected a function, but found a(n) {found}"</span>)]
     </span>ExpectedFunction { found: Type, location: Location },
     <span class="attr">#[error(<span class="string">"Type {lhs_type} has no member named {field_name}"</span>)]
@@ -1014,6 +1023,7 @@
             | TypeCheckError::ArityMisMatch { location, .. }
             | TypeCheckError::InvalidCast { location, .. }
             | TypeCheckError::DownsizingCast { location, .. }
+            | TypeCheckError::CannotCastNumericToBool { location, .. }
             | TypeCheckError::ExpectedFunction { location, .. }
             | TypeCheckError::AccessUnknownMember { location, .. }
             | TypeCheckError::ParameterCountMismatch { location, .. }
@@ -1214,6 +1224,10 @@
             }
             TypeCheckError::DownsizingCast { location, reason, .. } =&gt; {
                 Diagnostic::simple_warning(error.to_string(), reason.clone(), <span class="kw-2">*</span>location)
+            }
+            TypeCheckError::CannotCastNumericToBool { typ: <span class="kw">_</span>, location } =&gt; {
+                <span class="kw">let </span>secondary = <span class="string">"compare with zero instead: ` != 0`"</span>.to_string();
+                Diagnostic::simple_error(error.to_string(), secondary, <span class="kw-2">*</span>location)
             }
 
             TypeCheckError::ExpectedFunction { location, .. }
