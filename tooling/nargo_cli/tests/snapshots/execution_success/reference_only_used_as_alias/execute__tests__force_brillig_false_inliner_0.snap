@@ -43,7 +43,17 @@ expression: artifact
       }
     }
   },
-  "bytecode": "H4sIAAAAAAAA/7VTUQ6CMAydMNRpNEaj3x6hBAh88uFFFgnn4OhCfA21wS+2Jku7tXt7r4WN+Vo2rgTxZlwp/HT+HJcVOW181sLTOsuzcFj0Q5JFbBX5BIItBP8zFvqAd/C6cW2gRjj1bkj8hsrKLegLyL9wor+x+sOYEfBpB5zXMONrLUZ4rtN3pvwJsfyBuGaPPMdnxE7diTH/iPOh2wJ/fusIrRex5+/RDuH51A0R80iBn5l5dtKsyMv6O/YHoYe9XcGzr33eF773le+68u2vCt+ovn0AOGj+sLUFAAA=",
+  "bytecode": [
+    "func 0",
+    "current witness index : _5",
+    "private parameters indices : [_0, _1, _2, _3, _4, _5]",
+    "public parameters indices : []",
+    "return value indices : []",
+    "BLACKBOX::RANGE [(_5, 32)] []",
+    "BRILLIG CALL func 0: inputs: [Single(Expression { mul_terms: [], linear_combinations: [(1, Witness(5))], q_c: 0 })], outputs: []",
+    "unconstrained func 0",
+    "[Const { destination: Direct(2), bit_size: Integer(U32), value: 1 }, Const { destination: Direct(1), bit_size: Integer(U32), value: 32837 }, Const { destination: Direct(0), bit_size: Integer(U32), value: 3 }, Const { destination: Relative(2), bit_size: Integer(U32), value: 1 }, Const { destination: Relative(3), bit_size: Integer(U32), value: 0 }, CalldataCopy { destination_address: Direct(32836), size_address: Relative(2), offset_address: Relative(3) }, Cast { destination: Direct(32836), source: Direct(32836), bit_size: Integer(U32) }, Mov { destination: Relative(1), source: Direct(32836) }, Call { location: 13 }, Call { location: 14 }, Const { destination: Relative(1), bit_size: Integer(U32), value: 32837 }, Const { destination: Relative(2), bit_size: Integer(U32), value: 0 }, Stop { return_data: HeapVector { pointer: Relative(1), size: Relative(2) } }, Return, Call { location: 16 }, Return, Const { destination: Direct(32772), bit_size: Integer(U32), value: 30720 }, BinaryIntOp { destination: Direct(32771), op: LessThan, bit_size: U32, lhs: Direct(0), rhs: Direct(32772) }, JumpIf { condition: Direct(32771), location: 21 }, IndirectConst { destination_pointer: Direct(1), bit_size: Integer(U64), value: 17843811134343075018 }, Trap { revert_data: HeapVector { pointer: Direct(1), size: Direct(2) } }, Return]"
+  ],
   "debug_symbols": "fZBBCoQwDEXvknUXRkcdvIqIVI1SKFVqKwzi3act6ujC2TRNfv4L/BU6auxQC9WPMxTlCo0WUoqhlmPLjRiVm64bg6OtjSZyI7jozjVxTcpAoayUDBYubViaJ65CNVw7NWJAqnPVAXshyf829nNHz9YYo2x3x4j5CUjvBPxDeJ2A9NEfP/sxSd87AJM8uREq1/FW6FtqgFD4tYVrwRtJe5K9Ve0lWPOZDuWIftJjS53V5HGBFAWce0vMWIzV5k9+AQ==",
   "file_map": {
     "50": {

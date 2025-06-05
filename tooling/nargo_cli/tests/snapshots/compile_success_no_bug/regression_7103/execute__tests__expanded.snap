@@ -1,0 +1,19 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: expanded_code
+---
+fn main() {
+    // Safety: comment added by `nargo expand`
+    unsafe { loophole() };
+}
+
+unconstrained fn loophole() {
+    let mut i: Field = 0;
+    loop {
+        println(i);
+        i = i + 1;
+        if false {
+            break;
+        }
+    }
+}

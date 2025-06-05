@@ -1,0 +1,6 @@
+[package]
+name = "associated_type_bounds"
+type = "bin"
+authors = [""]
+
+[dependencies]

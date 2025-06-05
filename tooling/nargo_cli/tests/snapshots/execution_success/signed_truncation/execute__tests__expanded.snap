@@ -1,0 +1,10 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: expanded_code
+---
+fn main(x: i64) {
+    assert((x as i8) == -1);
+    assert((x as i16) == -1);
+    assert((x as i32) == -1);
+    assert((x as i64) == 9223372036854775807);
+}

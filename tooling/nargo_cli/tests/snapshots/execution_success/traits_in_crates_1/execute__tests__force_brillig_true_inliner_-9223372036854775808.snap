@@ -30,8 +30,17 @@ expression: artifact
       }
     }
   },
-  "bytecode": "H4sIAAAAAAAA/71UwU7DMAx9oa0gTMAEZ7jAiVPGCtuxB/Yh0aZ+Rz99i2ZvrptctmRPqpzI6fOzHcfgCENfQE32DlPwmY6suw6LjFyupE5TSOdJqFwbpAv/TdZi3KTgrzImbCOacvGvXftnI/ll1L+0grMA/w/z12X43T3x/A9jfqi4TxgPr/yHfXKQN+R7ID+vn2ltFV+JvktNuev2FtHPsWaU64eqXSXqYxIWGNefwdxzTHtkblDTA1rOo8YU7GtUbCD+zlRqL3WH2n0JXn2O8ZLIF5F9g3S/GnX2nWzp2XsVvFCxZji/vfWQP/5q7RzHrYZzHXRfZPxGnf+k/WMij+5Cnf3KL/ql7/2v3+3ardd1CkjNGt8JOfd6PmSO3YUaFbzMGyK2fn8C5pjeRdn3PYppcdotCQAA",
-  "debug_symbols": "nZHBqsMgEEX/ZdYuNNO8l+ZXSgkmMUUQE6w+eAT/vaM2bboolG48juO9d2BWGFUfLp2203yF9rRC77Qx+tKZeZBez5ZeV+DpEA20goE4ZlS8QBRUBVhwKKihrQg/Bb8FTQaWCqlCwjHjQJ4YI4MtvPNOqZS9m4ZmXKRT1kNrgzEM/qQJ+dN1kTbTS0ddzkDZkUiGkzYq3SJ7qvl7qeB4FwvxlNef66t60yN+oxfNQ7/LFzGeqZKDdi/7icnJadkbdS+nYIdd1/8vW2fb7+LmQY3BqeS0WzKdJ+QM63NMaTc=",
+  "bytecode": [
+    "func 0",
+    "current witness index : _1",
+    "private parameters indices : [_0]",
+    "public parameters indices : [_1]",
+    "return value indices : []",
+    "BRILLIG CALL func 0: inputs: [Single(Expression { mul_terms: [], linear_combinations: [(1, Witness(0))], q_c: 0 }), Single(Expression { mul_terms: [], linear_combinations: [(1, Witness(1))], q_c: 0 })], outputs: []",
+    "unconstrained func 0",
+    "[Const { destination: Direct(2), bit_size: Integer(U32), value: 1 }, Const { destination: Direct(1), bit_size: Integer(U32), value: 32838 }, Const { destination: Direct(0), bit_size: Integer(U32), value: 3 }, Const { destination: Relative(3), bit_size: Integer(U32), value: 2 }, Const { destination: Relative(4), bit_size: Integer(U32), value: 0 }, CalldataCopy { destination_address: Direct(32836), size_address: Relative(3), offset_address: Relative(4) }, Mov { destination: Relative(1), source: Direct(32836) }, Mov { destination: Relative(2), source: Direct(32837) }, Call { location: 13 }, Call { location: 14 }, Const { destination: Relative(1), bit_size: Integer(U32), value: 32838 }, Const { destination: Relative(2), bit_size: Integer(U32), value: 0 }, Stop { return_data: HeapVector { pointer: Relative(1), size: Relative(2) } }, Return, Call { location: 22 }, Const { destination: Relative(3), bit_size: Field, value: 10 }, BinaryFieldOp { destination: Relative(4), op: Add, lhs: Relative(1), rhs: Relative(3) }, BinaryFieldOp { destination: Relative(1), op: Equals, lhs: Relative(4), rhs: Relative(2) }, JumpIf { condition: Relative(1), location: 21 }, Const { destination: Relative(3), bit_size: Integer(U32), value: 0 }, Trap { revert_data: HeapVector { pointer: Direct(1), size: Relative(3) } }, Return, Const { destination: Direct(32772), bit_size: Integer(U32), value: 30720 }, BinaryIntOp { destination: Direct(32771), op: LessThan, bit_size: U32, lhs: Direct(0), rhs: Direct(32772) }, JumpIf { condition: Direct(32771), location: 27 }, IndirectConst { destination_pointer: Direct(1), bit_size: Integer(U64), value: 17843811134343075018 }, Trap { revert_data: HeapVector { pointer: Direct(1), size: Direct(2) } }, Return]"
+  ],
+  "debug_symbols": "jZHLDoMgEEX/ZdYsBGIf/krTGNSxISFoEJo0hn/v4KPqok03XIaZc2/CjNBgFR6ltm03QHEboXLaGP0oTVcrrztLryNk6eA5FIIBP81yhkKSXGa5TiJoUMbIYKVL7xATvLOjkF45tB4KG4xh8FQmTENDr+ykXjnqZgzQNqRk2GqD6RbZRmffUZ7JBeZ8w/Mjz3/w/LLycsfzv/NF/uHlIf9Olaq1O3xwTE5Oq8rgUrbB1ruuf/VrZ11Q77oam+AwOe22ROdNCCbO95jS3g==",
   "file_map": {
     "50": {
       "source": "use crate1::MyTrait;\n\nfn main(x: Field, y: pub Field) {\n    let mut V = crate2::MyStruct { Q: x };\n    V.Add10();\n    assert(V.Q == y);\n}\n",

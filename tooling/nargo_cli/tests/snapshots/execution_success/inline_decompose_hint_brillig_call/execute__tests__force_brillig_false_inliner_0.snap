@@ -15,8 +15,15 @@ expression: artifact
     },
     "error_types": {}
   },
-  "bytecode": "H4sIAAAAAAAA/6XOQQqAMAwEwBZ8UNukJr35lSQm/3+CCIqIenIuC3tYNqdLTk9ntxxZ/qm3LaVwKcBMJIjV0VpFYGPRwCjeA5vNrCq0FgttDn20IOUaMGL/NqV3OX3bAEqN/m30AAAA",
-  "debug_symbols": "nZNbroMgFEXnwrcfoMijU7m5MajYkBA0FJo0pnMvNdBqU0zjFxy2a7sPjxn0svXnRplhvIDT3wxaq7RW50aPnXBqNGF1vhcglY2zUoYlsNIDNQkrjQMn47UuwFVov3x0mYRZRidsUGEBpOnDGAwHpeVzdi/eNMyjDJYRZiV54YhueJTnCcaRJ3V1hGco8Ywd4lPzFGb/v9c/r1L/nB/geUUiz2ua40meRwjSOjqEOV/tAfs1A8HkyxnU2zvAdjJgSFMEXK0SkI0D30nACXodAyw3Dv+hEp2ynzf/KqwSrZaxHLzpVqq7TUlJL2eyYyd7b+XTadGC9wM=",
+  "bytecode": [
+    "func 0",
+    "current witness index : _0",
+    "private parameters indices : []",
+    "public parameters indices : []",
+    "return value indices : [_0]",
+    "EXPR [ (1, _0) 5201446015539463454305911014159497107782029740116487985773310470301159650207 ]"
+  ],
+  "debug_symbols": "nZNRroMgEEX3wrcfoDhCt/LyYlCxISFoKDRpTPdeaqTVppjGLxgu5zKTGSbUycafa2X64YJOfxNqrNJanWs9tMKpwYTT6Z6hGNbOShmO0EoP1CisNA6djNc6Q1eh/XzpMgozr07YoOIMSdOFNRj2Ssvn7p69aZxGGc4XmOXwwkm14UmaB0oXHsriCM9I5Bk7xMfiK5x8f69+XsT6OT/A8wIWnpdVioc0TwimsQNhD+Xbg/2aA1D40oNyOwNsJweKq5gCLVZdgI0D38mAA3m1Aecbh/8QiVbZz8m/CqtEo+US9t60K9XdxqjEnzPaoZWdt/LpNGvB+wE=",
   "file_map": {},
   "names": [
     "main"

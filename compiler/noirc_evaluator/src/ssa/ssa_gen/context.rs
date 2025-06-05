@@ -16,8 +16,8 @@ use crate::ssa::function_builder::FunctionBuilder;
 use crate::ssa::ir::basic_block::BasicBlockId;
 use crate::ssa::ir::function::FunctionId as IrFunctionId;
 use crate::ssa::ir::function::{Function, RuntimeType};
-use crate::ssa::ir::instruction::BinaryOp;
 use crate::ssa::ir::instruction::Instruction;
+use crate::ssa::ir::instruction::{ArrayOffset, BinaryOp};
 use crate::ssa::ir::map::AtomicCounter;
 use crate::ssa::ir::types::{NumericType, Type};
 use crate::ssa::ir::value::ValueId;
@@ -153,7 +153,7 @@ impl<'a> FunctionContext<'a> {
     /// The returned parameter type list will be flattened, so any struct parameters will
     /// be returned as one entry for each field (recursively).
     fn add_parameters_to_scope(&mut self, parameters: &Parameters) {
-        for (id, mutable, _, typ) in parameters {
+        for (id, mutable, _, typ, _visibility) in parameters {
             self.add_parameter_to_scope(*id, typ, *mutable);
         }
     }
@@ -297,17 +297,17 @@ impl<'a> FunctionContext<'a> {
             });
         }
 
-        let value = if value.is_negative {
+        let value = if value.is_negative() {
             match numeric_type {
-                NumericType::NativeField => -value.field,
+                NumericType::NativeField => -value.absolute_value(),
                 NumericType::Signed { bit_size } | NumericType::Unsigned { bit_size } => {
                     assert!(bit_size < 128);
                     let base = 1_u128 << bit_size;
-                    FieldElement::from(base) - value.field
+                    FieldElement::from(base) - value.absolute_value()
                 }
             }
         } else {
-            value.field
+            value.absolute_value()
         };
 
         Ok(self.builder.numeric_constant(value, numeric_type))
@@ -625,16 +625,145 @@ impl<'a> FunctionContext<'a> {
         location: Location,
     ) -> ValueId {
         self.builder.set_location(location);
+        let incoming_type = self.builder.type_of_value(value);
 
-        // To ensure that `value` is a valid `typ`, we insert an `Instruction::Truncate` instruction beforehand if
-        // we're narrowing the type size.
-        let incoming_type_size = self.builder.type_of_value(value).bit_size();
-        let target_type_size = typ.bit_size();
-        if target_type_size < incoming_type_size {
-            value = self.builder.insert_truncate(value, target_type_size, incoming_type_size);
-        }
-
-        self.builder.insert_cast(value, typ)
+        let result = match (&incoming_type, typ) {
+            // Casting to field is safe
+            (_, NumericType::NativeField) => value,
+            (
+                Type::Numeric(NumericType::Signed { bit_size: incoming_type_size }),
+                NumericType::Signed { bit_size: target_type_size },
+            ) => {
+                match target_type_size.cmp(incoming_type_size) {
+                    std::cmp::Ordering::Less => {
+                        // If target size is smaller, we do a truncation
+                        self.builder.insert_truncate(value, target_type_size, *incoming_type_size)
+                    }
+                    std::cmp::Ordering::Equal => value,
+                    std::cmp::Ordering::Greater => {
+                        // If target size is bigger, we do a sign extension:
+                        // When the value is negative, it is represented in 2-complement form; `2^s-v`, where `s` is the incoming bit size and `v` is the absolute value
+                        // Sign extension in this case will give `2^t-v`, where `t` is the target bit size
+                        // So we simply convert `2^s-v` into `2^t-v` by adding `2^t-2^s` to the value when the value is negative.
+                        // Casting s-bits signed v0 to t-bits will add the following instructions:
+                        // v1 = cast v0 to 's-bits unsigned'
+                        // v2 = lt v1, 2**(s-1)
+                        // v3 = not(v1)
+                        // v4 = cast v3 to 't-bits unsigned'
+                        // v5 = v3 * (2**t - 2**s)
+                        // v6 = cast v1 to 't-bits unsigned'
+                        // return v6 + v5
+                        let value_as_unsigned = self.insert_safe_cast(
+                            value,
+                            NumericType::unsigned(*incoming_type_size),
+                            location,
+                        );
+                        let half_width = self.builder.numeric_constant(
+                            FieldElement::from(2_u128.pow(incoming_type_size - 1)),
+                            NumericType::unsigned(*incoming_type_size),
+                        );
+                        // value_sign is 1 if the value is positive, 0 otherwise
+                        let value_sign =
+                            self.builder.insert_binary(value_as_unsigned, BinaryOp::Lt, half_width);
+                        let max_for_incoming_type_size = if *incoming_type_size == 128 {
+                            u128::MAX
+                        } else {
+                            2_u128.pow(*incoming_type_size) - 1
+                        };
+                        let max_for_target_type_size = if target_type_size == 128 {
+                            u128::MAX
+                        } else {
+                            2_u128.pow(target_type_size) - 1
+                        };
+                        let patch = self.builder.numeric_constant(
+                            FieldElement::from(
+                                max_for_target_type_size - max_for_incoming_type_size,
+                            ),
+                            NumericType::unsigned(target_type_size),
+                        );
+                        let mut is_negative_predicate = self.builder.insert_not(value_sign);
+                        is_negative_predicate = self.insert_safe_cast(
+                            is_negative_predicate,
+                            NumericType::unsigned(target_type_size),
+                            location,
+                        );
+                        // multiplication by a boolean cannot overflow
+                        let patch_with_sign_predicate = self.builder.insert_binary(
+                            patch,
+                            BinaryOp::Mul { unchecked: true },
+                            is_negative_predicate,
+                        );
+                        let value_as_unsigned = self.builder.insert_cast(
+                            value_as_unsigned,
+                            NumericType::unsigned(target_type_size),
+                        );
+                        // Patch the bit sign, which gives a `target_type_size` bit size value, so it does not overflow.
+                        self.builder.insert_binary(
+                            patch_with_sign_predicate,
+                            BinaryOp::Add { unchecked: true },
+                            value_as_unsigned,
+                        )
+                    }
+                }
+            }
+            (
+                Type::Numeric(NumericType::Unsigned { bit_size: incoming_type_size }),
+                NumericType::Unsigned { bit_size: target_type_size },
+            ) => {
+                // If target size is smaller, we do a truncation
+                if target_type_size < *incoming_type_size {
+                    value =
+                        self.builder.insert_truncate(value, target_type_size, *incoming_type_size);
+                }
+                value
+            }
+            // When casting a signed value to u1 we can truncate then cast
+            (
+                Type::Numeric(NumericType::Signed { bit_size: incoming_type_size }),
+                NumericType::Unsigned { bit_size: 1 },
+            ) => self.builder.insert_truncate(value, 1, *incoming_type_size),
+            // For mixed sign to unsigned or unsigned to sign;
+            // 1. we cast to the required type using the same signedness
+            // 2. then we switch the signedness
+            (
+                Type::Numeric(NumericType::Signed { bit_size: incoming_type_size }),
+                NumericType::Unsigned { bit_size: target_type_size },
+            ) => {
+                if *incoming_type_size != target_type_size {
+                    value = self.insert_safe_cast(
+                        value,
+                        NumericType::signed(target_type_size),
+                        location,
+                    );
+                }
+                value
+            }
+            (
+                Type::Numeric(NumericType::Unsigned { bit_size: incoming_type_size }),
+                NumericType::Signed { bit_size: target_type_size },
+            ) => {
+                if *incoming_type_size != target_type_size {
+                    value = self.insert_safe_cast(
+                        value,
+                        NumericType::unsigned(target_type_size),
+                        location,
+                    );
+                }
+                value
+            }
+            (
+                Type::Numeric(NumericType::NativeField),
+                NumericType::Unsigned { bit_size: target_type_size },
+            )
+            | (
+                Type::Numeric(NumericType::NativeField),
+                NumericType::Signed { bit_size: target_type_size },
+            ) => {
+                self.builder.insert_truncate(value, target_type_size, FieldElement::max_num_bits())
+            }
+            _ => unreachable!("Invalid cast from {} to {}", incoming_type, typ),
+        };
+        self.builder.insert_cast(result, typ)
     }
 
     /// Create a const offset of an address for an array load or store
@@ -936,7 +1065,9 @@ impl<'a> FunctionContext<'a> {
 
         new_value.for_each(|value| {
             let value = value.eval(self);
-            array = self.builder.insert_array_set(array, index, value);
+            let mutable = false;
+            let offset = ArrayOffset::None;
+            array = self.builder.insert_array_set(array, index, value, mutable, offset);
             // Unchecked add because this can't overflow (it would have overflowed when creating the array)
             index = self.builder.insert_binary(index, BinaryOp::Add { unchecked: true }, one);
         });

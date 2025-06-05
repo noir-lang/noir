@@ -1,0 +1,11 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: expanded_code
+---
+global len: u32 = 4900;
+
+fn main(x: Field) {
+    let ped_input: [Field; 4900] = [x; 4900];
+    let mut val: Field = poseidon::poseidon2::Poseidon2::hash(ped_input, len);
+    assert(val != 0);
+}

@@ -204,12 +204,14 @@ impl Context {
 
     /// Whenever an ident is used it is always cloned unless it is the last use of the ident (not in a loop).
     fn should_clone_ident(&self, ident: &Ident) -> bool {
-        if let Definition::Local(local_id) = &ident.definition {
-            if contains_array_or_str_type(&ident.typ) && !self.should_move(*local_id, ident.id) {
-                return true;
+        match &ident.definition {
+            Definition::Local(local_id) => {
+                contains_array_or_str_type(&ident.typ) && !self.should_move(*local_id, ident.id)
             }
+            // Globals are always cloned if they contain arrays
+            Definition::Global(_) => contains_array_or_str_type(&ident.typ),
+            _ => false,
         }
-        false
     }
 
     fn handle_ident(&self, expr: &mut Expression) {

@@ -18,7 +18,7 @@ use color_eyre::eyre;
 use crate::errors::CliError;
 
 mod check_cmd;
-mod compile_cmd;
+pub mod compile_cmd;
 mod dap_cmd;
 mod debug_cmd;
 mod execute_cmd;
@@ -29,6 +29,7 @@ mod fuzz_cmd;
 mod generate_completion_script_cmd;
 mod info_cmd;
 mod init_cmd;
+mod interpret_cmd;
 mod lsp_cmd;
 mod new_cmd;
 mod test_cmd;
@@ -57,7 +58,7 @@ struct NargoCli {
 
 #[non_exhaustive]
 #[derive(Args, Clone, Debug)]
-pub(crate) struct NargoConfig {
+pub struct NargoConfig {
     // REMINDER: Also change this flag in the LSP test lens if renamed
     #[arg(long, hide = true, global = true, default_value = "./", value_parser = parse_path)]
     program_dir: PathBuf,
@@ -100,6 +101,8 @@ enum NargoCommand {
     Fmt(fmt_cmd::FormatCommand),
     #[command(alias = "build")]
     Compile(compile_cmd::CompileCommand),
+    #[command(hide = true)]
+    Interpret(interpret_cmd::InterpretCommand),
     New(new_cmd::NewCommand),
     Init(init_cmd::InitCommand),
     Execute(execute_cmd::ExecuteCommand),
@@ -145,6 +148,7 @@ pub(crate) fn start_cli() -> eyre::Result<()> {
         NargoCommand::Init(args) => init_cmd::run(args, config),
         NargoCommand::Check(args) => with_workspace(args, config, check_cmd::run),
         NargoCommand::Compile(args) => compile_with_maybe_dummy_workspace(args, config),
+        NargoCommand::Interpret(args) => with_workspace(args, config, interpret_cmd::run),
         NargoCommand::Debug(args) => with_workspace(args, config, debug_cmd::run),
         NargoCommand::Execute(args) => with_workspace(args, config, execute_cmd::run),
         NargoCommand::Export(args) => with_workspace(args, config, export_cmd::run),

@@ -216,7 +216,7 @@ mod test {
             store v0 at v1
             inc_rc v0
             v2 = load v1 -> [Field; 2]
-            v5 = array_set v2, index u64 0, value Field 5
+            v5 = array_set v2, index u32 0, value Field 5
             store v5 at v1
             dec_rc v0
             return
@@ -247,7 +247,7 @@ mod test {
             inc_rc v1
             store v1 at v0
             v2 = load v1 -> [Field; 2]
-            v5 = array_set v2, index u64 0, value Field 5
+            v5 = array_set v2, index u32 0, value Field 5
             store v5 at v0
             v6 = load v0 -> [Field; 2]
             dec_rc v1

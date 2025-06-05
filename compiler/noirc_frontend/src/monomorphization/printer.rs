@@ -1,6 +1,9 @@
 //! This module implements printing of the monomorphized AST, for debugging purposes.
 
-use crate::{ast::UnaryOp, monomorphization::ast::Ident, shared::Visibility};
+use crate::{
+    ast::UnaryOp,
+    monomorphization::ast::{Ident, Literal},
+};
 
 use super::ast::{
     Definition, Expression, FuncId, Function, GlobalId, LValue, LocalId, Program, Type, While,
@@ -10,7 +13,6 @@ use std::fmt::{Display, Formatter};
 
 #[derive(Default)]
 pub struct FunctionPrintOptions {
-    pub return_visibility: Option<Visibility>,
     /// Wraps function body in a `comptime` block. Used to make
     /// comptime function callers in fuzzing.
     pub comptime_wrap_body: bool,
@@ -24,11 +26,20 @@ pub struct AstPrinter {
     in_unconstrained: bool,
     pub show_id: bool,
     pub show_clone_and_drop: bool,
+    pub show_print_as_std: bool,
+    pub show_type_in_let: bool,
 }
 
 impl Default for AstPrinter {
     fn default() -> Self {
-        Self { indent_level: 0, in_unconstrained: false, show_id: true, show_clone_and_drop: true }
+        Self {
+            indent_level: 0,
+            in_unconstrained: false,
+            show_id: true,
+            show_clone_and_drop: true,
+            show_print_as_std: false,
+            show_type_in_let: false,
+        }
     }
 }
 
@@ -54,9 +65,7 @@ impl AstPrinter {
             self.print_global(id, global, f)?;
         }
         for function in &program.functions {
-            let return_visibility =
-                (function.id == Program::main_id()).then_some(program.return_visibility);
-            let fpo = FunctionPrintOptions { return_visibility, ..Default::default() };
+            let fpo = FunctionPrintOptions::default();
             self.print_function(function, f, fpo)?;
         }
         Ok(())
@@ -80,20 +89,21 @@ impl AstPrinter {
         f: &mut Formatter,
         options: FunctionPrintOptions,
     ) -> std::fmt::Result {
-        let params = vecmap(&function.parameters, |(id, mutable, name, typ)| {
-            format!("{}{}: {}", if *mutable { "mut " } else { "" }, self.fmt_local(name, *id), typ)
+        let params = vecmap(&function.parameters, |(id, mutable, name, typ, visibility)| {
+            let vis = visibility.to_string();
+            let vis = if vis.is_empty() { vis } else { format!("{vis} ") };
+            format!(
+                "{}{}: {}{}",
+                if *mutable { "mut " } else { "" },
+                self.fmt_local(name, *id),
+                vis,
+                typ
+            )
         })
         .join(", ");
 
-        let vis = options
-            .return_visibility
-            .map(|vis| match vis {
-                Visibility::Private => "".to_string(),
-                Visibility::Public => "pub ".to_string(),
-                Visibility::ReturnData => "return_data ".to_string(),
-                Visibility::CallData(i) => format!("call_data({i}) "),
-            })
-            .unwrap_or_default();
+        let vis = function.return_visibility.to_string();
+        let vis = if vis.is_empty() { vis } else { format!("{vis} ") };
 
         let unconstrained = if function.unconstrained { "unconstrained " } else { "" };
         let comptime = if options.comptime { "comptime " } else { "" };
@@ -153,11 +163,23 @@ impl AstPrinter {
             }
             Expression::Call(call) => self.print_call(call, f),
             Expression::Let(let_expr) => {
+                let typ = if self.show_type_in_let
+                    && let_expr.expression.needs_type_inference_from_literal()
+                {
+                    &let_expr
+                        .expression
+                        .return_type()
+                        .map(|typ| format!(": {typ}"))
+                        .unwrap_or_default()
+                } else {
+                    ""
+                };
                 write!(
                     f,
-                    "let {}{} = ",
+                    "let {}{}{} = ",
                     if let_expr.mutable { "mut " } else { "" },
                     self.fmt_local(&let_expr.name, let_expr.id),
+                    typ
                 )?;
                 self.print_expr(&let_expr.expression, f)
             }
@@ -219,7 +241,13 @@ impl AstPrinter {
             }
             super::ast::Literal::Integer(x, _, _) => x.fmt(f),
             super::ast::Literal::Bool(x) => x.fmt(f),
-            super::ast::Literal::Str(s) => write!(f, "\"{s}\""),
+            super::ast::Literal::Str(s) => {
+                if s.contains("\"") {
+                    write!(f, "r#\"{s}\"#")
+                } else {
+                    write!(f, "\"{s}\"")
+                }
+            }
             super::ast::Literal::FmtStr(fragments, _, _) => {
                 write!(f, "f\"")?;
                 for fragment in fragments {
@@ -438,12 +466,22 @@ impl AstPrinter {
         call: &super::ast::Call,
         f: &mut Formatter,
     ) -> Result<(), std::fmt::Error> {
-        let print_unsafe = match call.func.as_ref() {
-            Expression::Ident(Ident { typ: Type::Function(_, _, _, unconstrained), .. }) => {
-                *unconstrained && !self.in_unconstrained
+        let (print_unsafe, print_oracle) = match call.func.as_ref() {
+            Expression::Ident(Ident {
+                typ: Type::Function(_, _, _, unconstrained),
+                definition,
+                ..
+            }) => {
+                let is_unsafe = *unconstrained && !self.in_unconstrained;
+                let is_print = matches!(definition, Definition::Oracle(s) if s == "print");
+                (is_unsafe, is_print)
             }
-            _ => false,
+            _ => (false, false),
         };
+        // If this is the print oracle and we want to display it as Noir, we need to use the stdlib.
+        if print_oracle && self.show_print_as_std {
+            return self.print_println(&call.arguments, f);
+        }
         if print_unsafe {
             write!(f, "unsafe {{ ")?;
         }
@@ -454,6 +492,27 @@ impl AstPrinter {
         if print_unsafe {
             write!(f, " }}")?;
         }
+        Ok(())
+    }
+
+    /// Instead of printing a call to the print oracle as a regular function,
+    /// print it in a way that makes it look like Noir: without the type
+    /// information and bool flags.
+    fn print_println(&mut self, args: &[Expression], f: &mut Formatter) -> std::fmt::Result {
+        assert_eq!(args.len(), 4, "print has 4 arguments");
+        let Expression::Literal(Literal::Bool(with_newline)) = args[0] else {
+            unreachable!("the first arg of print is a bool");
+        };
+        if with_newline {
+            write!(f, "println")?;
+        } else {
+            write!(f, "print")?;
+        }
+        write!(f, "(")?;
+        // The 2nd parameter is the printed value. The 3rd and 4th parameter don't appear in Noir;
+        // they are inserted automatically by the monomorphizer in the AST. Here we ignore them.
+        self.print_expr(&args[1], f)?;
+        write!(f, ")")?;
         Ok(())
     }
 

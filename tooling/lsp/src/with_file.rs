@@ -126,6 +126,10 @@ fn pattern_with_file(pattern: Pattern, file: FileId) -> Pattern {
             }),
             location_with_file(location, file),
         ),
+        Pattern::Parenthesized(pattern, location) => Pattern::Parenthesized(
+            Box::new(pattern_with_file(*pattern, file)),
+            location_with_file(location, file),
+        ),
         Pattern::Interned(interned_pattern, location) => {
             Pattern::Interned(interned_pattern, location_with_file(location, file))
         }
@@ -278,7 +282,10 @@ fn trait_item_with_file(item: TraitItem, file: FileId) -> TraitItem {
             typ: unresolved_type_with_file(typ, file),
             default_value: default_value.map(|value| expression_with_file(value, file)),
         },
-        TraitItem::Type { name } => TraitItem::Type { name: ident_with_file(name, file) },
+        TraitItem::Type { name, bounds } => TraitItem::Type {
+            name: ident_with_file(name, file),
+            bounds: trait_bounds_with_file(bounds, file),
+        },
     }
 }
 
@@ -463,13 +470,6 @@ fn unresolved_type_data_with_file(typ: UnresolvedTypeData, file: FileId) -> Unre
         UnresolvedTypeData::Expression(expr) => {
             UnresolvedTypeData::Expression(unresolved_type_expression_with_file(expr, file))
         }
-        UnresolvedTypeData::String(expr) => {
-            UnresolvedTypeData::String(unresolved_type_expression_with_file(expr, file))
-        }
-        UnresolvedTypeData::FormatString(expr, typ) => UnresolvedTypeData::FormatString(
-            unresolved_type_expression_with_file(expr, file),
-            Box::new(unresolved_type_with_file(*typ, file)),
-        ),
         UnresolvedTypeData::Parenthesized(typ) => {
             UnresolvedTypeData::Parenthesized(Box::new(unresolved_type_with_file(*typ, file)))
         }
@@ -503,13 +503,9 @@ fn unresolved_type_data_with_file(typ: UnresolvedTypeData, file: FileId) -> Unre
         UnresolvedTypeData::AsTraitPath(as_trait_path) => {
             UnresolvedTypeData::AsTraitPath(Box::new(as_trait_path_with_file(*as_trait_path, file)))
         }
-        UnresolvedTypeData::Quoted(..)
-        | UnresolvedTypeData::Resolved(..)
+        UnresolvedTypeData::Resolved(..)
         | UnresolvedTypeData::Interned(..)
         | UnresolvedTypeData::Unit
-        | UnresolvedTypeData::Bool
-        | UnresolvedTypeData::Integer(..)
-        | UnresolvedTypeData::FieldElement
         | UnresolvedTypeData::Unspecified
         | UnresolvedTypeData::Error => typ,
     }
@@ -680,10 +676,10 @@ fn expression_kind_with_file(kind: ExpressionKind, file: FileId) -> ExpressionKi
             })
         }
         ExpressionKind::AsTraitPath(as_trait_path) => {
-            ExpressionKind::AsTraitPath(as_trait_path_with_file(as_trait_path, file))
+            ExpressionKind::AsTraitPath(Box::new(as_trait_path_with_file(*as_trait_path, file)))
         }
         ExpressionKind::TypePath(type_path) => {
-            ExpressionKind::TypePath(type_path_with_file(type_path, file))
+            ExpressionKind::TypePath(Box::new(type_path_with_file(*type_path, file)))
         }
         ExpressionKind::Resolved(..)
         | ExpressionKind::Interned(..)

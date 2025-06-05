@@ -1,4 +1,4 @@
-define: &AZ_COMMIT d0dccf50800b33605b7525cc31b171ff434ab1d8
+define: &AZ_COMMIT ad837fe0687a4c9e58c43c7295ea31e39420060e
 libraries:
   noir_check_shuffle:
     repo: noir-lang/noir_check_shuffle
@@ -48,10 +48,6 @@ libraries:
     repo: noir-lang/sparse_array
     timeout: 3
     critical: true
-  noir_rsa:
-    repo: noir-lang/noir_rsa
-    timeout: 4
-    critical: true
   noir_json_parser:
     repo: noir-lang/noir_json_parser
     timeout: 12
@@ -63,7 +59,6 @@ libraries:
   sha512:
     repo: noir-lang/sha512
     timeout: 40
-    critical: true
   keccak256:
     repo: noir-lang/keccak256
     timeout: 3
@@ -76,13 +71,13 @@ libraries:
     repo: AztecProtocol/aztec-packages
     ref: *AZ_COMMIT
     path: noir-projects/aztec-nr
-    timeout: 60
+    timeout: 70
     critical: false
   noir_contracts:
     repo: AztecProtocol/aztec-packages
     ref: *AZ_COMMIT
     path: noir-projects/noir-contracts
-    timeout: 100
+    timeout: 120
     critical: false
   blob:
     repo: AztecProtocol/aztec-packages
@@ -112,7 +107,7 @@ libraries:
     repo: AztecProtocol/aztec-packages
     ref: *AZ_COMMIT
     path: noir-projects/noir-protocol-circuits/crates/types
-    timeout: 60
+    timeout: 75
     critical: false
   protocol_circuits_rollup_lib:
     repo: AztecProtocol/aztec-packages
@@ -135,12 +130,12 @@ libraries:
     critical: false
   noir_jwt:
     repo: zkemail/noir-jwt
-    ref: d461d01b24432c42c17a149e7075974b2a7bce3d
+    ref: 899ff2ca9ec196bc80be6dbe87fcb8ed721695b7
     timeout: 20
     critical: false
   zkemail:
     repo: zkemail/zkemail.nr
-    ref: 07053e865447b3167b670f9167f256e971fdb5c8
+    ref: 0a2cc39293fea71cdd0beaff8928abf54e555a36
     path: lib
     timeout: 20
     critical: false

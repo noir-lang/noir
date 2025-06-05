@@ -6,10 +6,8 @@ use thiserror::Error;
 use crate::{
     Kind, Type,
     ast::{Ident, UnsupportedNumericGenericType},
-    hir::{
-        comptime::{InterpreterError, Value},
-        type_check::TypeCheckError,
-    },
+    elaborator::TypedPath,
+    hir::{comptime::Value, type_check::TypeCheckError},
     parser::ParserError,
     usage_tracker::UnusedItem,
 };
@@ -36,8 +34,6 @@ pub enum ResolverError {
     UnconditionalRecursion { name: String, location: Location },
     #[error("Could not find variable in this scope")]
     VariableNotDeclared { name: String, location: Location },
-    #[error("path is not an identifier")]
-    PathIsNotIdent { location: Location },
     #[error("could not resolve path")]
     PathResolutionError(#[from] PathResolutionError),
     #[error("Expected")]
@@ -54,22 +50,10 @@ pub enum ResolverError {
     UnnecessaryPub { ident: Ident, position: PubPosition },
     #[error("Required 'pub', main function must return public value")]
     NecessaryPub { ident: Ident },
-    #[error("Missing expression for declared constant")]
-    MissingRhsExpr { name: String, location: Location },
-    #[error("Expression invalid in an array length context")]
-    InvalidArrayLengthExpr { location: Location },
-    #[error("Integer too large to be evaluated in an array length context")]
-    IntegerTooLarge { location: Location },
     #[error("No global or generic type parameter found with the given name")]
-    NoSuchNumericTypeVariable { path: crate::ast::Path },
-    #[error("Closures cannot capture mutable variables")]
-    CapturedMutableVariable { location: Location },
-    #[error("Test functions are not allowed to have any parameters")]
-    TestFunctionHasParameters { location: Location },
+    NoSuchNumericTypeVariable { path: TypedPath },
     #[error("Only struct types can be used in constructor expressions")]
     NonStructUsedInConstructor { typ: String, location: Location },
-    #[error("Only struct types can have generics")]
-    NonStructWithGenerics { location: Location },
     #[error("Cannot apply generics on Self type")]
     GenericsOnSelfType { location: Location },
     #[error("Cannot apply generics on an associated type")]
@@ -124,10 +108,6 @@ pub enum ResolverError {
     NoPredicatesAttributeOnUnconstrained { ident: Ident, location: Location },
     #[error("#[fold] attribute is only allowed on constrained functions")]
     FoldAttributeOnUnconstrained { ident: Ident, location: Location },
-    #[error("expected type, found numeric generic parameter")]
-    NumericGenericUsedForType { name: String, location: Location },
-    #[error("Invalid array length construction")]
-    ArrayLengthInterpreter { error: InterpreterError },
     #[error("The unquote operator '$' can only be used within a quote expression")]
     UnquoteUsedOutsideQuote { location: Location },
     #[error("Invalid syntax in macro call")]
@@ -162,8 +142,6 @@ pub enum ResolverError {
     UnsupportedNumericGenericType(#[from] UnsupportedNumericGenericType),
     #[error("Type `{typ}` is more private than item `{item}`")]
     TypeIsMorePrivateThenItem { typ: String, item: String, location: Location },
-    #[error("Unable to parse attribute `{attribute}`")]
-    UnableToParseAttribute { attribute: String, location: Location },
     #[error("Attribute function `{function}` is not a path")]
     AttributeFunctionIsNotAPath { function: String, location: Location },
     #[error("Attribute function `{name}` is not in scope")]
@@ -176,8 +154,6 @@ pub enum ResolverError {
         location: Location,
         missing_trait_location: Location,
     },
-    #[error("`loop` statements are not yet implemented")]
-    LoopNotYetSupported { location: Location },
     #[error("Expected a trait but found {found}")]
     ExpectedTrait { found: String, location: Location },
     #[error("Invalid syntax in match pattern")]
@@ -200,6 +176,10 @@ pub enum ResolverError {
         "The type parameter `{ident}` is not constrained by the impl trait, self type, or predicates"
     )]
     UnconstrainedTypeParameter { ident: Ident },
+    #[error("Unreachable statement")]
+    UnreachableStatement { location: Location, break_or_continue_location: Location },
+    #[error("Associated item constraints are not allowed here")]
+    AssociatedItemConstraintsNotAllowedInGenerics { location: Location },
 }
 
 impl ResolverError {
@@ -207,25 +187,16 @@ impl ResolverError {
         match self {
             ResolverError::DuplicateDefinition { second_location: location, .. }
             | ResolverError::UnconditionalRecursion { location, .. }
-            | ResolverError::PathIsNotIdent { location }
             | ResolverError::Expected { location, .. }
             | ResolverError::VariableNotDeclared { location, .. }
             | ResolverError::MissingFields { location, .. }
             | ResolverError::UnnecessaryMut { second_mut: location, .. }
             | ResolverError::TypeIsMorePrivateThenItem { location, .. }
-            | ResolverError::UnableToParseAttribute { location, .. }
             | ResolverError::AttributeFunctionIsNotAPath { location, .. }
             | ResolverError::AttributeFunctionNotInScope { location, .. }
             | ResolverError::TraitNotImplemented { location, .. }
-            | ResolverError::LoopNotYetSupported { location }
             | ResolverError::ExpectedTrait { location, .. }
-            | ResolverError::MissingRhsExpr { location, .. }
-            | ResolverError::InvalidArrayLengthExpr { location }
-            | ResolverError::IntegerTooLarge { location }
-            | ResolverError::CapturedMutableVariable { location }
-            | ResolverError::TestFunctionHasParameters { location }
             | ResolverError::NonStructUsedInConstructor { location, .. }
-            | ResolverError::NonStructWithGenerics { location }
             | ResolverError::GenericsOnSelfType { location }
             | ResolverError::GenericsOnAssociatedType { location }
             | ResolverError::InvalidClosureEnvironment { location, .. }
@@ -245,7 +216,6 @@ impl ResolverError {
             | ResolverError::NonIntegralGlobalType { location, .. }
             | ResolverError::GlobalLargerThanKind { location, .. }
             | ResolverError::SelfReferentialType { location }
-            | ResolverError::NumericGenericUsedForType { location, .. }
             | ResolverError::UnquoteUsedOutsideQuote { location }
             | ResolverError::InvalidSyntaxInMacroCall { location }
             | ResolverError::MacroIsNotComptime { location }
@@ -268,7 +238,11 @@ impl ResolverError {
             | ResolverError::NoPredicatesAttributeOnUnconstrained { location, .. }
             | ResolverError::FoldAttributeOnUnconstrained { location, .. }
             | ResolverError::OracleMarkedAsConstrained { location, .. }
-            | ResolverError::LowLevelFunctionOutsideOfStdlib { location } => *location,
+            | ResolverError::LowLevelFunctionOutsideOfStdlib { location }
+            | ResolverError::UnreachableStatement { location, .. }
+            | ResolverError::AssociatedItemConstraintsNotAllowedInGenerics { location } => {
+                *location
+            }
             ResolverError::UnusedVariable { ident }
             | ResolverError::UnusedItem { ident, .. }
             | ResolverError::DuplicateField { field: ident }
@@ -276,7 +250,6 @@ impl ResolverError {
             | ResolverError::UnnecessaryPub { ident, .. }
             | ResolverError::NecessaryPub { ident }
             | ResolverError::UnconstrainedTypeParameter { ident } => ident.location(),
-            ResolverError::ArrayLengthInterpreter { error } => error.location(),
             ResolverError::PathResolutionError(path_resolution_error) => {
                 path_resolution_error.location()
             }
@@ -355,11 +328,6 @@ impl<'a> From<&'a ResolverError> for Diagnostic {
                     )
                 }
             },
-            ResolverError::PathIsNotIdent { location } => Diagnostic::simple_error(
-                "cannot use path as an identifier".to_string(),
-                String::new(),
-                *location,
-            ),
             ResolverError::PathResolutionError(error) => error.into(),
             ResolverError::Expected { location, expected, got } => Diagnostic::simple_error(
                 format!("expected {expected} got {got}"),
@@ -432,46 +400,14 @@ impl<'a> From<&'a ResolverError> for Diagnostic {
                 diag.add_note("The `pub` keyword is mandatory for the entry-point function return type because the verifier cannot retrieve private witness and thus the function will not be able to return a 'priv' value".to_owned());
                 diag
             }
-            ResolverError::MissingRhsExpr { name, location } => Diagnostic::simple_error(
-                format!(
-                    "no expression specifying the value stored by the constant variable {name}"
-                ),
-                "expected expression to be stored for let statement".to_string(),
-                *location,
-            ),
-            ResolverError::InvalidArrayLengthExpr { location } => Diagnostic::simple_error(
-                "Expression invalid in an array-length context".into(),
-                "Array-length expressions can only have simple integer operations and any variables used must be global constants".into(),
-                *location,
-            ),
-            ResolverError::IntegerTooLarge { location } => Diagnostic::simple_error(
-                "Integer too large to be evaluated to an array-length".into(),
-                "Array-lengths may be a maximum size of usize::MAX, including intermediate calculations".into(),
-                *location,
-            ),
             ResolverError::NoSuchNumericTypeVariable { path } => Diagnostic::simple_error(
                 format!("Cannot find a global or generic type parameter named `{path}`"),
                 "Only globals or generic type parameters are allowed to be used as an array type's length".to_string(),
                 path.location,
             ),
-            ResolverError::CapturedMutableVariable { location } => Diagnostic::simple_error(
-                "Closures cannot capture mutable variables".into(),
-                "Mutable variable".into(),
-                *location,
-            ),
-            ResolverError::TestFunctionHasParameters { location } => Diagnostic::simple_error(
-                "Test functions cannot have any parameters".into(),
-                "Try removing the parameters or moving the test into a wrapper function".into(),
-                *location,
-            ),
             ResolverError::NonStructUsedInConstructor { typ, location } => Diagnostic::simple_error(
                 "Only struct types can be used in constructor expressions".into(),
                 format!("{typ} has no fields to construct it with"),
-                *location,
-            ),
-            ResolverError::NonStructWithGenerics { location } => Diagnostic::simple_error(
-                "Only struct types can have generic arguments".into(),
-                "Try removing the generic arguments".into(),
                 *location,
             ),
             ResolverError::GenericsOnSelfType { location } => Diagnostic::simple_error(
@@ -634,14 +570,6 @@ impl<'a> From<&'a ResolverError> for Diagnostic {
                 diag.add_note("The `#[fold]` attribute specifies whether a constrained function should be treated as a separate circuit rather than inlined into the program entry point".to_owned());
                 diag
             }
-            ResolverError::NumericGenericUsedForType { name, location } => {
-                Diagnostic::simple_error(
-                    format!("expected type, found numeric generic parameter {name}"),
-                    String::from("not a type"),
-                    *location,
-                )
-            }
-            ResolverError::ArrayLengthInterpreter { error } => Diagnostic::from(error),
             ResolverError::UnquoteUsedOutsideQuote { location } => {
                 Diagnostic::simple_error(
                     "The unquote operator '$' can only be used within a quote expression".into(),
@@ -734,13 +662,6 @@ impl<'a> From<&'a ResolverError> for Diagnostic {
                     *location,
                 )
             },
-            ResolverError::UnableToParseAttribute { attribute, location } => {
-                Diagnostic::simple_error(
-                    format!("Unable to parse attribute `{attribute}`"),
-                    "Attribute should be a function or function call".into(),
-                    *location,
-                )
-            },
             ResolverError::AttributeFunctionIsNotAPath { function, location } => {
                 Diagnostic::simple_error(
                     format!("Attribute function `{function}` is not a path"),
@@ -763,10 +684,6 @@ impl<'a> From<&'a ResolverError> for Diagnostic {
                 diagnostic.add_secondary(format!("required by this bound in `{impl_trait}`"), *missing_trait_location);
                 diagnostic
             },
-            ResolverError::LoopNotYetSupported { location  } => {
-                let msg = "`loop` statements are not yet implemented".to_string();
-                Diagnostic::simple_error(msg, String::new(), *location)
-            }
             ResolverError::ExpectedTrait { found, location  } => {
                 Diagnostic::simple_error(
                     format!("Expected a trait, found {found}"), 
@@ -825,6 +742,22 @@ impl<'a> From<&'a ResolverError> for Diagnostic {
                     format!("The type parameter `{ident}` is not constrained by the impl trait, self type, or predicates"),
                     format!("Hint: remove the `{ident}` type parameter"),
                     ident.location(),
+                )
+            }
+            ResolverError::UnreachableStatement { location, break_or_continue_location} => {
+                let mut diagnostic = Diagnostic::simple_warning(
+                    "Unreachable statement".to_string(),
+                    "Unreachable statement".to_string(),
+                    *location,
+                );
+                diagnostic.add_secondary("Any code following this expression is unreachable".to_string(), *break_or_continue_location);
+                diagnostic
+            }
+            ResolverError::AssociatedItemConstraintsNotAllowedInGenerics { location} => {
+                Diagnostic::simple_error(
+                    "Associated item constraints are not allowed here".to_string(),
+                    "Consider removing this associated item binding".to_string(),
+                    *location,
                 )
             }
         }

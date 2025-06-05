@@ -349,10 +349,7 @@ mod tests {
     use insta::assert_snapshot;
 
     use crate::{
-        ast::{
-            ExpressionKind, IntegerBitSize, ItemVisibility, NoirFunction, StatementKind,
-            UnresolvedTypeData,
-        },
+        ast::{ExpressionKind, ItemVisibility, NoirFunction, StatementKind},
         parse_program_with_dummy_file,
         parser::{
             ItemKind, Parser, ParserErrorReason,
@@ -361,7 +358,7 @@ mod tests {
                 get_source_with_error_span,
             },
         },
-        shared::{Signedness, Visibility},
+        shared::Visibility,
     };
 
     fn parse_function_no_error(src: &str) -> NoirFunction {
@@ -445,7 +442,7 @@ mod tests {
         let src = "fn foo() -> Field {}";
         let noir_function = parse_function_no_error(src);
         assert_eq!(noir_function.def.return_visibility, Visibility::Private);
-        assert_eq!(noir_function.return_type().typ, UnresolvedTypeData::FieldElement);
+        assert_eq!(noir_function.return_type().typ.to_string(), "Field");
     }
 
     #[test]
@@ -453,7 +450,7 @@ mod tests {
         let src = "fn foo() -> pub Field {}";
         let noir_function = parse_function_no_error(src);
         assert_eq!(noir_function.def.return_visibility, Visibility::Public);
-        assert_eq!(noir_function.return_type().typ, UnresolvedTypeData::FieldElement);
+        assert_eq!(noir_function.return_type().typ.to_string(), "Field");
     }
 
     #[test]
@@ -588,14 +585,8 @@ mod tests {
         let params = noir_function.parameters();
         assert_eq!(params.len(), 2);
 
-        assert_eq!(
-            params[0].typ.typ,
-            UnresolvedTypeData::Integer(Signedness::Signed, IntegerBitSize::ThirtyTwo)
-        );
-        assert_eq!(
-            params[1].typ.typ,
-            UnresolvedTypeData::Integer(Signedness::Signed, IntegerBitSize::SixtyFour)
-        );
+        assert_eq!(params[0].typ.typ.to_string(), "i32",);
+        assert_eq!(params[1].typ.typ.to_string(), "i64",);
     }
 
     #[test]

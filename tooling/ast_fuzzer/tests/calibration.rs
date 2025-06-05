@@ -11,7 +11,7 @@
 use std::collections::BTreeMap;
 
 use arbtest::arbtest;
-use noir_ast_fuzzer::{Config, arb_program, visit_expr};
+use noir_ast_fuzzer::{Config, arb_program, visitor::visit_expr};
 use noirc_frontend::monomorphization::ast::{Expression, Type};
 
 #[test]

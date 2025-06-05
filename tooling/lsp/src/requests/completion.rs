@@ -26,6 +26,7 @@ use noirc_frontend::{
         Statement, TraitBound, TraitImplItemKind, TypeImpl, TypePath, UnresolvedGeneric,
         UnresolvedGenerics, UnresolvedType, UnresolvedTypeData, UseTree, UseTreeKind, Visitor,
     },
+    elaborator::PrimitiveType,
     graph::{CrateId, Dependency},
     hir::{
         def_map::{CrateDefMap, LocalModuleId, ModuleDefId, ModuleId},
@@ -34,6 +35,7 @@ use noirc_frontend::{
         },
     },
     hir_def::traits::Trait,
+    modules::module_def_id_is_visible,
     node_interner::{FuncId, NodeInterner, ReferenceId, TypeId},
     parser::{Item, ItemKind, ParsedSubModule},
     token::{MetaAttribute, MetaAttributeName, Token, Tokens},
@@ -43,7 +45,7 @@ use sort_text::underscore_sort_text;
 use crate::{
     LspState, requests::to_lsp_location,
     trait_impl_method_stub_generator::TraitImplMethodStubGenerator,
-    use_segment_positions::UseSegmentPositions, utils, visibility::module_def_id_is_visible,
+    use_segment_positions::UseSegmentPositions, utils,
 };
 
 use super::{TraitReexport, process_request};
@@ -319,7 +321,22 @@ impl<'a> NodeFinder<'a> {
         if idents.is_empty() {
             module_id = self.module_id;
         } else {
-            let Some(module_def_id) = self.resolve_path(idents) else {
+            let Some(module_def_id) = self.resolve_path(idents.clone()) else {
+                // Check if the first segment refers to a primitive type
+                if idents.len() != 1 {
+                    return;
+                }
+                let Some(primitive_type) = PrimitiveType::lookup_by_name(idents[0].as_str()) else {
+                    return;
+                };
+                let typ = primitive_type.to_type();
+                self.complete_type_methods(
+                    &typ,
+                    &prefix,
+                    FunctionKind::Any,
+                    FunctionCompletionKind::NameAndParameters,
+                    false, // self_prefix
+                );
                 return;
             };
 
@@ -546,6 +563,9 @@ impl<'a> NodeFinder<'a> {
                     self.collect_local_variables(pattern);
                 }
             }
+            Pattern::Parenthesized(pattern, _) => {
+                self.collect_local_variables(pattern);
+            }
             Pattern::Interned(..) => (),
         }
     }
@@ -758,7 +778,7 @@ impl<'a> NodeFinder<'a> {
         };
 
         let func_meta = self.interner.function_meta(&func_id);
-        for constraint in &func_meta.trait_constraints {
+        for constraint in func_meta.all_trait_constraints() {
             if *typ == constraint.typ {
                 let trait_ = self.interner.get_trait(constraint.trait_bound.trait_id);
                 self.complete_trait_methods(
@@ -888,6 +908,13 @@ impl<'a> NodeFinder<'a> {
                 }
                 PathKind::Dep => (),
                 PathKind::Plain => (),
+                PathKind::Resolved(crate_id) => {
+                    let def_map = &self.def_maps[&crate_id];
+                    let Some(root_module_data) = def_map.get(def_map.root()) else {
+                        return;
+                    };
+                    module_data = root_module_data;
+                }
             }
         }
 
@@ -1100,7 +1127,9 @@ impl<'a> NodeFinder<'a> {
                     }
                 }
             }
-            Pattern::Mutable(pattern, ..) => self.try_set_self_type(pattern),
+            Pattern::Mutable(pattern, ..) | Pattern::Parenthesized(pattern, _) => {
+                self.try_set_self_type(pattern);
+            }
             Pattern::Tuple(..) | Pattern::Struct(..) | Pattern::Interned(..) => (),
         }
     }

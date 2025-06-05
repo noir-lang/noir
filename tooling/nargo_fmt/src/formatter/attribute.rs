@@ -27,9 +27,13 @@ impl Formatter<'_> {
     }
 
     pub(super) fn format_secondary_attributes(&mut self, attributes: Vec<SecondaryAttribute>) {
+        // Attributes and doc comments can be mixed, so between each attribute
+        // we format potential doc comments
         for attribute in attributes {
+            self.format_outer_doc_comments();
             self.format_secondary_attribute(attribute);
         }
+        self.format_outer_doc_comments();
     }
 
     fn format_attribute(&mut self, attribute: Attribute) {
@@ -131,10 +135,10 @@ impl Formatter<'_> {
                 self.write_current_token_and_bump(); // should_fail
                 self.write_right_paren(); // )
             }
-            TestScope::ShouldFailWith { reason: Some(..) } => {
+            TestScope::ShouldFailWith { reason: Some(..) } | TestScope::OnlyFailWith { .. } => {
                 self.write_left_paren(); // (
                 self.skip_comments_and_whitespace();
-                self.write_current_token_and_bump(); // should_fail_with
+                self.write_current_token_and_bump(); // should_fail_with | only_fail_with
                 self.write_space();
                 self.write_token(Token::Assign);
                 self.write_space();
@@ -390,6 +394,13 @@ mod tests {
     }
 
     #[test]
+    fn format_test_only_fail_with_reason_attribute() {
+        let src = "  #[ test ( only_fail_with=\"reason\" )] ";
+        let expected = "#[test(only_fail_with = \"reason\")]";
+        assert_format_attribute(src, expected);
+    }
+
+    #[test]
     fn format_fuzz_attribute() {
         let src = "  #[ fuzz ] ";
         let expected = "#[fuzz]";
@@ -397,7 +408,7 @@ mod tests {
     }
 
     #[test]
-    fn format_test_only_fail_with_reason_attribute() {
+    fn format_fuzz_only_fail_with_reason_attribute() {
         let src = "  #[ fuzz ( only_fail_with=\"reason\" )] ";
         let expected = "#[fuzz(only_fail_with = \"reason\")]";
         assert_format_attribute(src, expected);

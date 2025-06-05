@@ -2,7 +2,7 @@ use noirc_frontend::{NamedGeneric, Type, TypeBinding, hir::def_map::ModuleDefId}
 
 use super::ItemPrinter;
 
-impl ItemPrinter<'_, '_, '_> {
+impl ItemPrinter<'_, '_> {
     pub(super) fn show_types_separated_by_comma(&mut self, types: &[Type]) {
         self.show_separated_by_comma(types, |this, typ| {
             this.show_type(typ);
@@ -47,7 +47,11 @@ impl ItemPrinter<'_, '_, '_> {
             Type::DataType(data_type, generics) => {
                 let data_type = data_type.borrow();
                 let use_import = true;
-                self.show_reference_to_module_def_id(ModuleDefId::TypeId(data_type.id), use_import);
+                self.show_reference_to_module_def_id(
+                    ModuleDefId::TypeId(data_type.id),
+                    data_type.visibility,
+                    use_import,
+                );
                 if !generics.is_empty() {
                     self.push_str("<");
                     self.show_types_separated_by_comma(generics);
@@ -59,6 +63,7 @@ impl ItemPrinter<'_, '_, '_> {
                 let use_import = true;
                 self.show_reference_to_module_def_id(
                     ModuleDefId::TypeAliasId(type_alias.id),
+                    type_alias.visibility,
                     use_import,
                 );
                 if !generics.is_empty() {
@@ -81,8 +86,12 @@ impl ItemPrinter<'_, '_, '_> {
                 self.push_str(trait_.name.as_str());
                 self.show_trait_generics(generics);
             }
-            Type::NamedGeneric(NamedGeneric { name, .. }) => {
-                self.push_str(name);
+            Type::NamedGeneric(NamedGeneric { name, type_var, .. }) => {
+                if let TypeBinding::Bound(typ) = &*type_var.borrow() {
+                    self.show_type(typ);
+                } else {
+                    self.push_str(name);
+                }
             }
             Type::CheckedCast { from: _, to } => {
                 self.show_type(to);

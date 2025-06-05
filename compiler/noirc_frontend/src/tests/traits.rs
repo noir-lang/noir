@@ -1,7 +1,7 @@
 use crate::elaborator::FrontendOptions;
 
-use crate::assert_no_errors;
 use crate::tests::Expect;
+use crate::{assert_no_errors, check_monomorphization_error};
 use crate::{check_errors, get_program_with_options};
 
 #[named]
@@ -1152,13 +1152,13 @@ fn error_on_duplicate_impl_with_associated_constant() {
 
         impl Foo for i32 {
              ~~~ Previous impl defined here
-            let Bar = 5;
+            let Bar: u32 = 5;
         }
 
         impl Foo for i32 {
                      ^^^ Impl for type `i32` overlaps with existing impl
                      ~~~ Overlapping impl
-            let Bar = 6;
+            let Bar: u32 = 6;
         }
 
         fn main() {}
@@ -1579,4 +1579,92 @@ fn errors_if_unconstrained_trait_definition_has_constrained_impl() {
     }
     "#;
     check_errors!(src);
+}
+
+#[named]
+#[test]
+fn accesses_associated_type_inside_trait_impl_using_self() {
+    let src = r#"
+    pub trait Trait {
+        let N: u32;
+
+        fn foo() -> u32;
+    }
+
+    impl Trait for i32 {
+        let N: u32 = 10;
+
+        fn foo() -> u32 {
+            Self::N
+        }
+    }
+
+    fn main() {
+        let _ = i32::foo();
+    }
+    "#;
+    assert_no_errors!(src);
+}
+
+#[named]
+#[test]
+fn accesses_associated_type_inside_trait_using_self() {
+    let src = r#"
+    pub trait Trait {
+        let N: u32;
+
+        fn foo() -> u32 {
+            Self::N
+        }
+    }
+
+    impl Trait for i32 {
+        let N: u32 = 10;
+    }
+
+    fn main() {
+        let _ = i32::foo();
+    }
+    "#;
+    assert_no_errors!(src);
+}
+
+#[named]
+#[test]
+fn serialize_test_with_a_previous_unrelated_definition() {
+    let src = r#"
+    // There used to be a bug where this unrelated definition would cause compilation to fail
+    // with a "No impl found" error.
+    pub trait Trait {}
+
+    trait Serialize {
+        let Size: u32;
+
+        fn serialize(self);
+    }
+
+    impl<A, B> Serialize for (A, B)
+    where
+        A: Serialize,
+        B: Serialize,
+    {
+        let Size: u32 = <A as Serialize>::Size + <B as Serialize>::Size;
+
+        fn serialize(self: Self) {
+            self.0.serialize();
+        }
+    }
+
+    impl Serialize for Field {
+        let Size: u32 = 1;
+
+        fn serialize(self) { }
+    }
+
+    fn main() {
+        let x = (((1, 2), 5), 9);
+        x.serialize();
+    }
+    "#;
+    check_monomorphization_error!(&src);
 }

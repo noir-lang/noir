@@ -1,13 +1,12 @@
 //! Compare the execution of random ASTs between the normal execution
 //! vs when everything is forced to be Brillig.
-use crate::{compare_results, create_ssa_or_die, default_ssa_options};
+use crate::{compare_results_compiled, create_ssa_or_die, default_ssa_options};
 use arbitrary::Arbitrary;
 use arbitrary::Unstructured;
 use color_eyre::eyre;
 use noir_ast_fuzzer::Config;
-use noir_ast_fuzzer::change_all_functions_into_unconstrained;
-use noir_ast_fuzzer::compare::CompareOptions;
-use noir_ast_fuzzer::compare::ComparePasses;
+use noir_ast_fuzzer::compare::{CompareOptions, ComparePipelines};
+use noir_ast_fuzzer::rewrite::change_all_functions_into_unconstrained;
 
 pub fn fuzz(u: &mut Unstructured) -> eyre::Result<()> {
     let config = Config {
@@ -20,7 +19,7 @@ pub fn fuzz(u: &mut Unstructured) -> eyre::Result<()> {
         ..Default::default()
     };
 
-    let inputs = ComparePasses::arb(
+    let inputs = ComparePipelines::arb(
         u,
         config,
         |u, program| {
@@ -42,20 +41,12 @@ pub fn fuzz(u: &mut Unstructured) -> eyre::Result<()> {
 
     let result = inputs.exec()?;
 
-    compare_results(&inputs, &result)
+    compare_results_compiled(&inputs, &result)
 }
 
 #[cfg(test)]
 mod tests {
-    use arbtest::arbtest;
-    use std::time::Duration;
 
-    use crate::targets::tests::{seed_from_env, should_ignore_on_ci};
-
-    /// `cargo fuzz` takes a long time to ramp up the complexity.
-    /// This test catches crash bugs much faster.
-    ///
-    /// Run it with for example:
     /// ```ignore
     /// NOIR_ARBTEST_SEED=0x6819c61400001000 \
     /// NOIR_AST_FUZZER_SHOW_AST=1 \
@@ -63,21 +54,6 @@ mod tests {
     /// ```
     #[test]
     fn fuzz_with_arbtest() {
-        if should_ignore_on_ci() {
-            return;
-        }
-        let mut prop = arbtest(|u| {
-            super::fuzz(u).unwrap();
-            Ok(())
-        })
-        .budget(Duration::from_secs(10))
-        .size_min(1 << 12)
-        .size_max(1 << 20);
-
-        if let Some(seed) = seed_from_env() {
-            prop = prop.seed(seed);
-        }
-
-        prop.run();
+        crate::targets::tests::fuzz_with_arbtest(super::fuzz);
     }
 }

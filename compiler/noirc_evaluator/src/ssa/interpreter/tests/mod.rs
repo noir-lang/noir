@@ -4,22 +4,22 @@ use std::sync::Arc;
 
 use acvm::{AcirField, FieldElement};
 
-use crate::{
-    errors::RuntimeError,
-    ssa::{
-        interpreter::value::NumericValue,
-        ir::types::{NumericType, Type},
-    },
+use crate::ssa::{
+    interpreter::value::NumericValue,
+    ir::types::{NumericType, Type},
 };
 
-use super::{Ssa, Value};
+use super::{InterpreterError, Ssa, Value};
 
+mod black_box;
 mod instructions;
 
 #[track_caller]
 fn executes_with_no_errors(src: &str) {
     let ssa = Ssa::from_str(src).unwrap();
-    assert!(ssa.interpret(Vec::new()).is_ok());
+    if let Err(error) = ssa.interpret(Vec::new()) {
+        panic!("{error}");
+    }
 }
 
 #[track_caller]
@@ -33,7 +33,7 @@ fn expect_value(src: &str) -> Value {
 }
 
 #[track_caller]
-fn expect_error(src: &str) -> RuntimeError {
+fn expect_error(src: &str) -> InterpreterError {
     let ssa = Ssa::from_str(src).unwrap();
     ssa.interpret(Vec::new()).unwrap_err()
 }
@@ -49,6 +49,16 @@ fn expect_value_with_args(src: &str, args: Vec<Value>) -> Value {
     let mut results = expect_values_with_args(src, args);
     assert_eq!(results.len(), 1);
     results.pop().unwrap()
+}
+
+pub(crate) fn from_constant(constant: FieldElement, typ: NumericType) -> Value {
+    Value::from_constant(constant, typ).unwrap()
+}
+
+fn from_u32_slice(slice: &[u32], typ: NumericType) -> Value {
+    let values = slice.iter().map(|v| from_constant((*v as u128).into(), typ)).collect();
+    let types = slice.iter().map(|_| Type::Numeric(typ)).collect();
+    Value::array(values, types)
 }
 
 #[test]
@@ -67,7 +77,7 @@ fn return_all_numeric_constant_types() {
     let src = "
         acir(inline) fn main f0 {
           b0():
-            return Field 0, u1 1, u8 2, u16 3, u32 4, u64 5, u128 6, i8 -1, i16 -2, i32 -3, i64 -4
+            return Field 0, u1 1, u8 2, u16 3, u32 4, u64 5, u128 6, i8 255, i16 65534, i32 4294967293, i64 18446744073709551612
         }
     ";
     let returns = expect_values(src);
@@ -177,11 +187,61 @@ fn loads_passed_to_a_call() {
     acir(inline) fn foo f1 {
       b0(v0: &mut Field):
         return
-    }  
+    }
     ";
 
     let value = expect_value(src);
-    assert_eq!(value, Value::from_constant(2_u128.into(), NumericType::NativeField));
+    assert_eq!(value, from_constant(2_u128.into(), NumericType::NativeField));
+}
+
+#[test]
+fn without_defunctionalize() {
+    let src = "
+  acir(inline) fn main f0 {
+    b0(v0: u1):
+      v1 = allocate -> &mut function
+      store f1 at v1
+      jmpif v0 then: b1, else: b2
+    b1():
+      call f2(v1, f1)
+      jmp b3()
+    b2():
+      call f2(v1, f3)
+      jmp b3()
+    b3():
+      v5 = load v1 -> function
+      v7 = call f4(v5) -> u1
+      constrain v7 == u1 1
+      return
+  }
+  acir(inline) fn f f1 {
+    b0(v0: u8):
+      v2 = eq v0, u8 0
+      return v2
+  }
+  acir(inline) fn bar f2 {
+    b0(v0: &mut function, v1: function):
+      store v1 at v0
+      return
+  }
+  acir(inline) fn g f3 {
+    b0(v0: u8):
+      v2 = eq v0, u8 1
+      return v2
+  }
+  acir(inline) fn foo f4 {
+    b0(v0: function):
+      v2 = call v0(u8 0) -> u1
+      v4 = call v0(u8 1) -> u1
+      v5 = eq v2, v4
+      v6 = not v5
+      return v6
+  }
+      ";
+    let values =
+        expect_values_with_args(src, vec![from_constant(0_u128.into(), NumericType::bool())]);
+
+    assert!(values.is_empty());
 }
 
 #[test]
@@ -217,8 +277,8 @@ fn keep_repeat_loads_with_alias_store() {
     let values = expect_values_with_args(src, vec![Value::bool(true)]);
     assert_eq!(values.len(), 2);
 
-    assert_eq!(values[0], Value::from_constant(FieldElement::zero(), NumericType::NativeField));
-    assert_eq!(values[1], Value::from_constant(FieldElement::one(), NumericType::NativeField));
+    assert_eq!(values[0], from_constant(FieldElement::zero(), NumericType::NativeField));
+    assert_eq!(values[1], from_constant(FieldElement::one(), NumericType::NativeField));
 }
 
 #[test]
@@ -254,10 +314,8 @@ fn accepts_print() {
             return
         }
     "#;
-    let values = expect_values_with_args(
-        src,
-        vec![Value::from_constant(5u128.into(), NumericType::NativeField)],
-    );
+    let values =
+        expect_values_with_args(src, vec![from_constant(5u128.into(), NumericType::NativeField)]);
     assert_eq!(values.len(), 0);
 }
 
@@ -290,8 +348,8 @@ fn calls_with_higher_order_function() {
     "#;
 
     // Program simplifies to `mul v0, v0` if inlined
-    let input = Value::from_constant(4u128.into(), NumericType::NativeField);
-    let output = Value::from_constant(16u128.into(), NumericType::NativeField);
+    let input = from_constant(4u128.into(), NumericType::NativeField);
+    let output = from_constant(16u128.into(), NumericType::NativeField);
     let result = expect_value_with_args(src, vec![input]);
     assert_eq!(result, output);
 }
@@ -338,10 +396,8 @@ fn is_odd_is_even_recursive_calls() {
             return v2
         }
     "#;
-    let values = expect_values_with_args(
-        src,
-        vec![Value::from_constant(7_u128.into(), NumericType::unsigned(32)), Value::bool(true)],
-    );
+    let seven = from_constant(7_u128.into(), NumericType::unsigned(32));
+    let values = expect_values_with_args(src, vec![seven, Value::bool(true)]);
     assert!(values.is_empty());
 }
 
@@ -1496,9 +1552,137 @@ acir(inline) fn eq f31 {
     let values = expect_values_with_args(
         src,
         vec![
-            Value::from_constant(5_u128.into(), NumericType::NativeField),
-            Value::from_constant(10_u128.into(), NumericType::NativeField),
+            from_constant(5_u128.into(), NumericType::NativeField),
+            from_constant(10_u128.into(), NumericType::NativeField),
         ],
     );
     assert!(values.is_empty());
+}
+
+#[test]
+fn signed_integer_conversions() {
+    // fn main() -> pub i16 {
+    //   foo() as i16
+    // }
+    // fn foo() -> i8 {
+    //   -65
+    // }
+    let src = r#"
+        acir(inline) fn main f0 {
+          b0():
+            v1 = call f1() -> i8
+            v2 = cast v1 as u8
+            v4 = lt v2, u8 128
+            v5 = not v4
+            v6 = cast v5 as u16
+            v8 = unchecked_mul u16 65280, v6
+            v9 = cast v1 as u16
+            v10 = unchecked_add v8, v9
+            v11 = cast v10 as i16
+            return v11
+        }
+        acir(inline) fn foo f1 {
+          b0():
+            return i8 191
+        }
+    "#;
+    executes_with_no_errors(src);
+}
+
+#[test]
+fn signed_integer_casting() {
+    //  fn main() -> pub i8 {
+    //      let a: i8 = 28;
+    //      let b = (1, -a, 0);
+    //      let mut c = (a + (((b.1 as i64) << (b.2 as u8)) as i8));
+    //      c = -c;
+    //      c
+    //  }
+
+    let src = r#"
+      acir(inline) fn main f0 {
+        b0():
+          v1 = cast u8 228 as i8
+          v2 = cast u8 228 as u8
+          v4 = lt v2, u8 128
+          v5 = not v4
+          v6 = cast v5 as u64
+          v8 = unchecked_mul u64 18446744073709551360, v6
+          v9 = cast u8 228 as u64
+          v10 = unchecked_add v8, v9
+          v11 = cast v10 as i64
+          v13 = shl v11, u8 0
+          v14 = truncate v13 to 64 bits, max_bit_size: 65
+          v15 = truncate v14 to 8 bits, max_bit_size: 64
+          v16 = cast v15 as i8
+          v18 = add i8 28, v16
+          v19 = truncate v18 to 8 bits, max_bit_size: 9
+          v20 = cast v19 as u8
+          v21 = cast v15 as u8
+          v22 = lt v21, u8 128
+          v23 = lt v20, u8 128
+          v24 = unchecked_mul v23, v22
+          constrain v24 == v22, "attempt to add with overflow"
+          v25 = cast v19 as i8
+          v26 = allocate -> &mut i8
+          store v25 at v26
+          v27 = load v26 -> i8
+          v29 = sub i8 0, v27
+          v30 = truncate v29 to 8 bits, max_bit_size: 9
+          v31 = cast v30 as u8
+          v32 = cast v27 as u8
+          v33 = lt v32, u8 128
+          v34 = not v33
+          v35 = lt v31, u8 128
+          v36 = unchecked_mul v35, v34
+          constrain v36 == v34, "attempt to subtract with overflow"
+          v37 = cast v30 as i8
+          store v37 at v26
+          v38 = load v26 -> i8
+          return v38
+      }
+      "#;
+    let value = expect_value(src);
+    assert_eq!(value, Value::Numeric(NumericValue::I8(0)));
+}
+
+#[test]
+fn signed_integer_casting_2() {
+    // fn main() -> pub i64 {
+    //     (-(func_4() as i64))
+    // }
+    // fn func_4() -> i8 {
+    //     -89
+    // }
+    let src = r#"
+      acir(inline) fn main f0 {
+        b0():
+          v1 = call f1() -> i8
+          v2 = cast v1 as u8
+          v4 = lt v2, u8 128
+          v5 = not v4
+          v6 = cast v5 as u64
+          v8 = unchecked_mul u64 18446744073709551360, v6
+          v9 = cast v1 as u64
+          v10 = unchecked_add v8, v9
+          v11 = cast v10 as i64
+          v13 = sub i64 0, v11
+          v14 = truncate v13 to 64 bits, max_bit_size: 65
+          v15 = cast v14 as u64
+          v16 = cast v10 as u64
+          v18 = lt v16, u64 9223372036854775808
+          v19 = not v18
+          v20 = lt v15, u64 9223372036854775808
+          v21 = unchecked_mul v20, v19
+          constrain v21 == v19, "attempt to subtract with overflow"
+          v22 = cast v14 as i64
+          return v22
+      }
+      acir(inline_always) fn func_4 f1 {
+        b0():
+          return i8 167
+      }
+      "#;
+    let value = expect_value(src);
+    assert_eq!(value, Value::Numeric(NumericValue::I64(89)));
 }

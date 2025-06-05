@@ -23,7 +23,7 @@ where
     K: Ord + Clone + Copy + Debug,
 {
     /// Create the initial scope from function parameters.
-    pub fn new(vars: impl Iterator<Item = (K, bool, Name, Type)>) -> Self {
+    pub(super) fn new(vars: impl Iterator<Item = (K, bool, Name, Type)>) -> Self {
         let mut scope = Self { variables: im::OrdMap::new(), producers: im::OrdMap::new() };
         for (id, mutable, name, typ) in vars {
             scope.add(id, mutable, name, typ);
@@ -72,7 +72,7 @@ where
     }
 
     /// Choose a random producer of a type, if there is one.
-    pub fn choose_producer(
+    pub(super) fn choose_producer(
         &self,
         u: &mut Unstructured,
         typ: &Type,
@@ -87,7 +87,7 @@ where
     }
 
     /// Get a variable in scope.
-    pub fn get_variable(&self, id: &K) -> &Variable {
+    pub(super) fn get_variable(&self, id: &K) -> &Variable {
         self.variables.get(id).unwrap_or_else(|| panic!("variable doesn't exist: {:?}", id))
     }
 }
@@ -97,22 +97,22 @@ where
     K: Ord,
 {
     /// Check if there are any variables in scope.
-    pub fn is_empty(&self) -> bool {
+    pub(super) fn is_empty(&self) -> bool {
         self.variables.is_empty()
     }
 
     /// Iterate the variables in scope.
-    pub fn variables(&self) -> impl ExactSizeIterator<Item = (&K, &Variable)> {
+    pub(super) fn variables(&self) -> impl ExactSizeIterator<Item = (&K, &Variable)> {
         self.variables.iter()
     }
 
     /// Iterate the IDs of the variables in scope.
-    pub fn variable_ids(&self) -> impl ExactSizeIterator<Item = &K> {
+    pub(super) fn variable_ids(&self) -> impl ExactSizeIterator<Item = &K> {
         self.variables.keys()
     }
 
     /// Iterate the types we can produce from other variables.
-    pub fn types_produced(&self) -> impl ExactSizeIterator<Item = &Type> {
+    pub(super) fn types_produced(&self) -> impl ExactSizeIterator<Item = &Type> {
         self.producers.keys()
     }
 }
@@ -125,34 +125,34 @@ where
     K: Ord + Clone + Copy + Debug,
 {
     /// Create a stack from the base variables.
-    pub fn new(vars: impl Iterator<Item = (K, bool, Name, Type)>) -> Self {
+    pub(super) fn new(vars: impl Iterator<Item = (K, bool, Name, Type)>) -> Self {
         Self(vec![Scope::new(vars)])
     }
 
     /// The top scope in the stack.
-    pub fn current(&self) -> &Scope<K> {
+    pub(super) fn current(&self) -> &Scope<K> {
         self.0.last().expect("there is always the base layer")
     }
 
     /// Push a new scope on top of the current one.
-    pub fn enter(&mut self) {
+    pub(super) fn enter(&mut self) {
         // Instead of shallow cloning an immutable map, we could loop through layers when looking up variables.
         self.0.push(self.current().clone());
     }
 
     /// Remove the last layer of block variables.
-    pub fn exit(&mut self) {
+    pub(super) fn exit(&mut self) {
         self.0.pop();
         assert!(!self.0.is_empty(), "never pop the base layer");
     }
 
     /// Add a new variable to the current scope.
-    pub fn add(&mut self, id: K, mutable: bool, name: String, typ: Type) {
+    pub(super) fn add(&mut self, id: K, mutable: bool, name: String, typ: Type) {
         self.0.last_mut().expect("there is always a layer").add(id, mutable, name, typ);
     }
 
     /// Remove a variable from all scopes.
-    pub fn remove(&mut self, id: &K) {
+    pub(super) fn remove(&mut self, id: &K) {
         for scope in self.0.iter_mut() {
             scope.remove(id);
         }

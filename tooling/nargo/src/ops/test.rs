@@ -49,6 +49,7 @@ impl TestStatus {
 
 pub struct FuzzConfig {
     pub folder_config: FuzzFolderConfig,
+    pub execution_config: FuzzExecutionConfig,
 }
 
 /// Runs a test function. This will either run the test or fuzz it, depending on whether the function has arguments.
@@ -232,6 +233,7 @@ where
         TestScope::ShouldFailWith { reason } => {
             FuzzingScope::ShouldFailWith { reason: reason.clone() }
         }
+        TestScope::OnlyFailWith { reason } => FuzzingScope::OnlyFailWith { reason: reason.clone() },
         TestScope::None => FuzzingScope::None,
     };
     let location = test_function.location;
@@ -258,9 +260,7 @@ where
         fuzzing_failure_dir: Some(fuzzing_failure_dir.to_string_lossy().to_string()),
         minimized_corpus_dir: fuzz_config.folder_config.minimized_corpus_dir,
     };
-    // TODO: allow configuring this. See https://github.com/noir-lang/noir/issues/8214
-    let fuzz_execution_config =
-        FuzzExecutionConfig { timeout: 1, num_threads: 1, show_progress: false };
+    let fuzz_execution_config = fuzz_config.execution_config;
 
     // TODO: show output?
     let show_output = false;

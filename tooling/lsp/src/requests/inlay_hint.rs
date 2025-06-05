@@ -465,6 +465,9 @@ fn push_type_parts(typ: &Type, parts: &mut Vec<InlayHintLabelPart>, files: &File
                     parts.push(string_part(", "));
                 }
             }
+            if types.len() == 1 {
+                parts.push(string_part(","));
+            }
             parts.push(string_part(")"));
         }
         Type::DataType(struct_type, generics) => {
@@ -522,10 +525,11 @@ fn push_type_parts(typ: &Type, parts: &mut Vec<InlayHintLabelPart>, files: &File
         }
         Type::TypeVariable(binding) => match &*binding.borrow() {
             TypeBinding::Unbound(_, kind) => match kind {
-                Kind::Any | Kind::Normal => push_type_variable_parts(binding, parts, files),
+                Kind::Any | Kind::Normal | Kind::Numeric(..) => {
+                    push_type_variable_parts(binding, parts, files);
+                }
                 Kind::Integer => push_type_parts(&Type::default_int_type(), parts, files),
                 Kind::IntegerOrField => parts.push(string_part("Field")),
-                Kind::Numeric(typ) => push_type_parts(typ, parts, files),
             },
             _ => {
                 push_type_variable_parts(binding, parts, files);

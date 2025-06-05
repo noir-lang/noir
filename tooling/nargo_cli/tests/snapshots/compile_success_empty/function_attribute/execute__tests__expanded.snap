@@ -1,0 +1,29 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: expanded_code
+---
+pub fn foo() {}
+
+struct Foo {}
+
+impl Default for Foo {
+    fn default() -> Self {
+        Self {}
+    }
+}
+
+comptime fn function_attr(_f: FunctionDefinition) -> Quoted {
+    quote {
+        impl Default for Foo {
+            fn default() -> Foo {
+                Foo {
+                    
+                }
+            }
+        }
+    }
+}
+
+fn main() {
+    let _: Foo = Default::default();
+}

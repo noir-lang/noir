@@ -12,7 +12,7 @@ use crate::ssa::{
         basic_block::{BasicBlock, BasicBlockId},
         dfg::DataFlowGraph,
         function::{Function, FunctionId},
-        instruction::{BinaryOp, Instruction, InstructionId, Intrinsic},
+        instruction::{BinaryOp, Instruction, InstructionId, Intrinsic, TerminatorInstruction},
         post_order::PostOrder,
         types::Type,
         value::{Value, ValueId},
@@ -41,9 +41,45 @@ impl Ssa {
         self.dead_instruction_elimination_with_pruning(true, true)
     }
 
-    fn dead_instruction_elimination_with_pruning(self, flattened: bool, skip_brillig: bool) -> Ssa {
-        let (ssa, result) = self.dead_instruction_elimination_inner(flattened, skip_brillig);
-        ssa.prune_dead_parameters(result.unused_parameters)
+    /// The elimination of certain unused instructions assumes that the DIE pass runs after
+    /// the flattening of the CFG, but if that's not the case then we should not eliminate
+    /// them just yet.
+    #[tracing::instrument(level = "trace", skip(self))]
+    pub(crate) fn dead_instruction_elimination_pre_flattening(self) -> Ssa {
+        self.dead_instruction_elimination_with_pruning(false, false)
+    }
+
+    fn dead_instruction_elimination_with_pruning(
+        mut self,
+        flattened: bool,
+        skip_brillig: bool,
+    ) -> Ssa {
+        let mut previous_unused_params = None;
+        loop {
+            let (new_ssa, result) =
+                self.dead_instruction_elimination_inner(flattened, skip_brillig);
+
+            // Determine whether we have any unused variables
+            let has_unused = result
+                .unused_parameters
+                .values()
+                .any(|block_map| block_map.values().any(|params| !params.is_empty()));
+            // If there are no unused parameters, return early
+            if !has_unused {
+                return new_ssa;
+            }
+
+            if let Some(previous) = &previous_unused_params {
+                // If no changes to dead parameters occurred, return early
+                if previous == &result.unused_parameters {
+                    return new_ssa;
+                }
+            }
+
+            // Prune unused parameters and repeat
+            self = new_ssa.prune_dead_parameters(&result.unused_parameters);
+            previous_unused_params = Some(result.unused_parameters);
+        }
     }
 
     fn dead_instruction_elimination_inner(
@@ -97,6 +133,12 @@ impl Ssa {
 impl Function {
     /// Removes any unused instructions in the reachable blocks of the given function.
     ///
+    /// This method is designed to be run within the context of the full SSA, not in isolation.
+    /// Running DIE on a single function may cause inconsistencies, such as leaving dangling unused parameters.
+    /// The pruning of block parameters depends on the full SSA context.
+    /// Therefore, this method must remain private, and DIE should run over the entire SSA,
+    /// ensuring proper tracking of unused parameters across all blocks.
+    ///
     /// The blocks of the function are iterated in post order, such that any blocks containing
     /// instructions that reference results from an instruction in another block are evaluated first.
     /// If we did not iterate blocks in this order we could not safely say whether or not the results
@@ -107,7 +149,7 @@ impl Function {
     ///   After processing all functions, the union of these sets enables determining the unused globals.
     /// - A mapping of (block id -> unused parameters) for the given function.
     ///   This can be used by follow-up passes to prune unused parameters from blocks.
-    pub(crate) fn dead_instruction_elimination(
+    fn dead_instruction_elimination(
         &mut self,
         flattened: bool,
         skip_brillig: bool,
@@ -129,13 +171,20 @@ impl Function {
         for block in blocks.as_slice() {
             context.remove_unused_instructions_in_block(self, *block);
 
-            let unused_params = self.dfg[*block]
-                .parameters()
+            let parameters = self.dfg[*block].parameters();
+            let mut keep_list = Vec::with_capacity(parameters.len());
+            let unused_params = parameters
                 .iter()
-                .filter(|value| !context.used_values.contains(value))
+                .filter(|value| {
+                    let keep = context.used_values.contains(value);
+                    keep_list.push(keep);
+                    !keep
+                })
                 .copied()
                 .collect::<Vec<_>>();
+
             unused_params_per_block.insert(*block, unused_params);
+            context.parameter_keep_list.insert(*block, keep_list);
         }
 
         context.remove_rc_instructions(&mut self.dfg);
@@ -170,6 +219,17 @@ struct Context {
 
     /// Track IncrementRc instructions per block to determine whether they are useless.
     rc_tracker: RcTracker,
+
+    /// A per-block list indicating which block parameters are still considered alive.
+    ///
+    /// Each entry maps a [BasicBlockId] to a `Vec<bool>`, where the `i`th boolean corresponds to
+    /// the `i`th parameter of that block. A value of `true` means the parameter is used and should
+    /// be preserved. A value of `false` means it is unused and can be pruned.
+    ///
+    /// This keep list is used during terminator analysis to avoid incorrectly marking values as used
+    /// simply because they appear as terminator arguments. Only parameters marked as live here
+    /// should result in values being marked as used in terminator arguments.
+    parameter_keep_list: HashMap<BasicBlockId, Vec<bool>>,
 }
 
 impl Context {
@@ -246,8 +306,19 @@ impl Context {
 
     /// Adds values referenced by the terminator to the set of used values.
     fn mark_terminator_values_as_used(&mut self, function: &Function, block: &BasicBlock) {
-        block.unwrap_terminator().for_each_value(|value| {
-            self.mark_used_instruction_results(&function.dfg, value);
+        let terminator = block.unwrap_terminator();
+        let jmp_destination = if let TerminatorInstruction::Jmp { destination, .. } = terminator {
+            Some(*destination)
+        } else {
+            None
+        };
+
+        block.unwrap_terminator().for_eachi_value(|index, value| {
+            let keep_list = jmp_destination.and_then(|dest| self.parameter_keep_list.get(&dest));
+            let should_keep = keep_list.is_none_or(|list| list[index]);
+            if should_keep {
+                self.mark_used_instruction_results(&function.dfg, value);
+            }
         });
     }
 
@@ -553,6 +624,7 @@ mod test {
             function_builder::FunctionBuilder,
             ir::{
                 function::RuntimeType,
+                instruction::ArrayOffset,
                 map::Id,
                 types::{NumericType, Type},
             },
@@ -575,7 +647,7 @@ mod test {
                 store Field 1 at v8
                 v9 = load v8 -> Field
                 v10 = add v9, Field 1
-                v11 = add v9, Field 2
+                v11 = add v1, Field 2
                 v13 = add v9, Field 3
                 v14 = add v13, v13
                 call assert_constant(v10)
@@ -595,7 +667,7 @@ mod test {
             store Field 1 at v4
             v6 = load v4 -> Field
             v7 = add v6, Field 1
-            v8 = add v6, Field 2
+            v8 = add v1, Field 2
             call assert_constant(v7)
             return v8
         }
@@ -699,7 +771,9 @@ mod test {
 
         let v3 = builder.insert_load(v2, array_type);
         let one = builder.numeric_constant(1u128, NumericType::unsigned(32));
-        let v5 = builder.insert_array_set(v3, zero, one);
+        let mutable = false;
+        let offset = ArrayOffset::None;
+        let v5 = builder.insert_array_set(v3, zero, one, mutable, offset);
         builder.terminate_with_return(vec![v5]);
 
         let ssa = builder.finish();

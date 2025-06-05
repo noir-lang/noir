@@ -1,0 +1,78 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: expanded_code
+---
+trait Trait {
+    fn foo(self);
+}
+
+pub fn foo<T>(x: T)
+where
+    T: Trait,
+{
+    Trait::foo(x);
+}
+
+pub struct Foo {}
+
+impl Foo {
+    fn foo<T>(x: T)
+    where
+        T: Trait,
+    {
+        Trait::foo(x);
+    }
+}
+
+impl Trait2 for Foo {
+    fn foo<T>(self, x: T)
+    where
+        T: Trait,
+    {
+        Trait::foo(x);
+    }
+}
+
+trait Trait2 {
+    fn foo<T>(self, x: T)
+    where
+        T: Trait,
+    {
+        let _: Self = self;
+        Trait::foo(x);
+    }
+}
+
+pub struct Bar<T> {}
+
+impl<T> Bar<T> {
+    fn bar(x: T)
+    where
+        T: Trait,
+    {
+        Trait::foo(x);
+    }
+
+    fn baz(self)
+    where
+        T: Trait,
+    {
+        let _: Self = self;
+    }
+}
+
+impl<U> Trait2 for Bar<U>
+where
+    U: Trait,
+{
+    fn foo<T>(self, x: T)
+    where
+        T: Trait,
+        U: Trait,
+    {
+        self.baz();
+        Trait::foo(x);
+    }
+}
+
+fn main() {}

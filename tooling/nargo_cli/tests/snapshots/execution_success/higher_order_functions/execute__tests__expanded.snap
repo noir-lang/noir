@@ -1,0 +1,70 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: expanded_code
+---
+fn main(w: Field) -> pub Field {
+    let f: fn() -> [u32; 2] = if (3 * 7) > (200 as u32) { foo } else { bar };
+    assert(f()[1] == 2);
+    assert(twice(|x: Field| -> Field { x * 2 }, 5) == 20);
+    assert((|x: Field, y: Field| -> Field { (x + y) + 1 })(2, 3) == 6);
+    assert((|a: Field, b: Field| -> Field { a + (|c: Field| -> Field { c + 2 })(b) })(0, 1) == 3);
+    let a: Field = 42;
+    let g: fn[(Field,)]() -> Field = || -> Field a;
+    assert(g() == 42);
+    let mut x: Field = 2;
+    x = x + 1;
+    let z: Field = x;
+    x = x + 1;
+    assert((|y: Field| -> Field { y + z })(1) == 4);
+    let closure_capturing_mutable: fn[(Field,)](Field) -> Field = |y: Field| -> Field { y + x };
+    assert(closure_capturing_mutable(1) == 5);
+    x = x + 1;
+    assert(closure_capturing_mutable(1) == 5);
+    regression_2154();
+    let ret: Field = twice(add1, 3);
+    test_array_functions();
+    w + ret
+}
+
+/// Test the array functions in std::array
+fn test_array_functions() {
+    let two: i32 = 2;
+    let myarray: [i32; 3] = [1, 2, 3];
+    assert(myarray.any(|n: i32| -> bool { n > 2 }));
+    assert(myarray.any(|n: i32| -> bool { n > two }));
+    let evens: [i32; 3] = myarray.map(|n: i32| -> i32 { n * two });
+    assert(evens.all(|n: i32| -> bool { n > 1 }));
+    assert(evens.all(|n: i32| -> bool { n >= two }));
+    assert(evens.fold(0, |a: i32, b: i32| -> i32 { a + b }) == 12);
+    assert(evens.fold(0, |a: i32, b: i32| -> i32 { (a + b) + two }) == 18);
+    assert(evens.reduce(|a: i32, b: i32| -> i32 { a + b }) == 12);
+    assert(evens.reduce(|a: i32, b: i32| -> i32 { (a + b) + two }) == 16);
+    assert(evens.map(|n: i32| -> i32 { n / 2 }) == myarray);
+    assert(evens.map(|n: i32| -> i32 { n / two }) == myarray);
+}
+
+fn foo() -> [u32; 2] {
+    [1, 3]
+}
+
+fn bar() -> [u32; 2] {
+    [3, 2]
+}
+
+fn add1(x: Field) -> Field {
+    x + 1
+}
+
+fn twice(f: fn(Field) -> Field, x: Field) -> Field {
+    f(f(x))
+}
+
+fn regression_2154() {
+    let x: u32 = 32;
+    let closure_if_else: fn[(u32,)]() -> u32 = if x > 2 {
+        || -> u32 x
+    } else {
+        || -> u32 { x + 2342 }
+    };
+    assert(closure_if_else() == 32);
+}

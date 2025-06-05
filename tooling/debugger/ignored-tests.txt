@@ -1,4 +1,5 @@
 brillig_references
+comptime_return_minus_one_as_i32
 debug_logs
 is_unconstrained
 macros

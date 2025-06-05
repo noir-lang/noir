@@ -27,7 +27,8 @@ fn arb_program_can_be_executed() {
     let maybe_seed = seed_from_env();
 
     let mut prop = arbtest(|u| {
-        let program = arb_program(u, Config::default())?;
+        let config = Config::default();
+        let program = arb_program(u, config)?;
         let abi = program_abi(&program);
 
         let options = ssa::SsaEvaluatorOptions {
@@ -41,11 +42,14 @@ fn arb_program_can_be_executed() {
             enable_brillig_constraints_check_lookback: false,
             inliner_aggressiveness: 0,
             max_bytecode_increase_percent: None,
+            skip_passes: Default::default(),
         };
 
         // Print the AST if something goes wrong, then panic.
         let print_ast_and_panic = |msg: &str| -> ! {
-            eprintln!("{}", DisplayAstAsNoir(&program));
+            if maybe_seed.is_none() {
+                eprintln!("{}", DisplayAstAsNoir(&program));
+            }
             panic!("{msg}")
         };
 

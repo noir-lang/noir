@@ -89,6 +89,7 @@ impl<'context> Elaborator<'context> {
             self.def_maps,
             self.usage_tracker,
             self.crate_graph,
+            self.interpreter_output,
             self.crate_id,
             self.interpreter_call_stack.clone(),
             self.options,
@@ -249,7 +250,7 @@ impl<'context> Elaborator<'context> {
         arguments.insert(0, (item, location));
 
         let value = interpreter
-            .call_function(function, arguments, TypeBindings::new(), location)
+            .call_function(function, arguments, TypeBindings::default(), location)
             .map_err(CompilationError::from)?;
 
         self.debug_comptime(location, |interner| value.display(interner).to_string());
@@ -323,10 +324,13 @@ impl<'context> Elaborator<'context> {
 
             if *param_type == Type::Quoted(crate::QuotedType::TraitDefinition) {
                 let trait_id = match arg.kind {
-                    ExpressionKind::Variable(path) => interpreter
-                        .elaborator
-                        .resolve_trait_by_path(path)
-                        .ok_or(InterpreterError::FailedToResolveTraitDefinition { location }),
+                    ExpressionKind::Variable(path) => {
+                        let path = interpreter.elaborator.validate_path(path);
+                        interpreter
+                            .elaborator
+                            .resolve_trait_by_path(path)
+                            .ok_or(InterpreterError::FailedToResolveTraitDefinition { location })
+                    }
                     _ => Err(InterpreterError::TraitDefinitionMustBeAPath { location }),
                 }?;
                 push_arg(Value::TraitDefinition(trait_id));
@@ -419,6 +423,7 @@ impl<'context> Elaborator<'context> {
                     resolved_object_type: None,
                     resolved_generics: Vec::new(),
                     resolved_trait_generics: Vec::new(),
+                    unresolved_associated_types: Vec::new(),
                 });
             }
             ItemKind::Global(global, visibility) => {

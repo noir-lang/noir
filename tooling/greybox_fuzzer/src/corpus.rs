@@ -193,12 +193,12 @@ impl Sequence {
 
     /// Resets the sequence by setting remaining executions to 0
     pub fn clear(&mut self) {
-        self.executions_left = 0
+        self.executions_left = 0;
     }
 
     /// Decrements the number of remaining executions by 1
     pub fn decrement(&mut self) {
-        self.executions_left -= 1
+        self.executions_left -= 1;
     }
 }
 
@@ -377,7 +377,7 @@ impl Corpus {
             self.corpus_file_manager.save_testcase_to_disk(
                 &serialize_to_json(&new_testcase_value, &self.corpus_file_manager.abi)
                     .expect("Shouldn't be any issues with serializing input map"),
-            )?
+            )?;
         }
         self.brillig_orchestrator.new_testcase(testcase_id);
         self.acir_orchestrator.new_testcase(testcase_id);

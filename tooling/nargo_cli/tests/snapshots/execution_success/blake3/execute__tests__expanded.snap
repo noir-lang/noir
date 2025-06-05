@@ -1,0 +1,8 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: expanded_code
+---
+fn main(x: [u8; 5], result: [u8; 32]) {
+    let digest: [u8; 32] = std::hash::blake3(x);
+    assert(digest == result);
+}

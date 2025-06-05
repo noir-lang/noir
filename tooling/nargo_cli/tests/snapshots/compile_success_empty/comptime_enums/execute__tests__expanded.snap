@@ -1,0 +1,13 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: expanded_code
+---
+fn main() {
+    ()
+}
+
+enum Foo {
+    Couple(i32, i32),
+    One(i32),
+    None,
+}

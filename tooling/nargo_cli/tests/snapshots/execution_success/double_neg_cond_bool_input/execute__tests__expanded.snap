@@ -1,0 +1,11 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: expanded_code
+---
+unconstrained fn main(a: bool) -> pub Field {
+    if !a > !a {
+        --(a as Field)
+    } else {
+        --(a as Field)
+    }
+}

@@ -1,21 +1,24 @@
 use acvm::{AcirField, FieldElement};
 
 use arbitrary::Unstructured;
+use dictionary::build_dictionary_from_ssa;
 use noir_greybox_fuzzer::build_dictionary_from_program;
 use noirc_abi::{Abi, AbiType, InputMap, Sign, input_parser::InputValue};
+use noirc_evaluator::ssa::ssa_gen::Ssa;
 use proptest::{
     prelude::*,
     test_runner::{Config, RngAlgorithm, TestRng, TestRunner},
 };
-use std::collections::{BTreeMap, HashSet};
+use std::collections::{BTreeMap, BTreeSet};
 
+mod dictionary;
 mod int;
 mod uint;
 
 use int::IntStrategy;
 use uint::UintStrategy;
 
-/// Generate an arbitrary input according to the ABI.
+/// Generate arbitrary inputs for a compiled program according to the ABI.
 pub fn arb_inputs(
     u: &mut Unstructured,
     program: &acir::circuit::Program<FieldElement>,
@@ -23,7 +26,28 @@ pub fn arb_inputs(
 ) -> arbitrary::Result<InputMap> {
     // Reuse the proptest strategy in `noir_fuzzer` to generate random inputs.
     let dictionary = build_dictionary_from_program(program);
+    let dictionary = BTreeSet::from_iter(dictionary);
     let strategy = arb_input_map(abi, &dictionary);
+    arb_value_tree(u, strategy)
+}
+
+/// Generate arbitrary inputs for an SSA of a program, according to the ABI.
+pub(crate) fn arb_inputs_from_ssa(
+    u: &mut Unstructured,
+    ssa: &Ssa,
+    abi: &Abi,
+) -> arbitrary::Result<InputMap> {
+    // Reuse the proptest strategy in `noir_fuzzer` to generate random inputs.
+    let dictionary = build_dictionary_from_ssa(ssa);
+    let strategy = arb_input_map(abi, &dictionary);
+    arb_value_tree(u, strategy)
+}
+
+/// Generate a seed and use it to generate an arbitrary value using the proptest strategy.
+fn arb_value_tree(
+    u: &mut Unstructured,
+    strategy: BoxedStrategy<InputMap>,
+) -> arbitrary::Result<InputMap> {
     // The strategy needs a runner, although all it really uses is the RNG from it.
     let seed: [u8; 16] = u.arbitrary()?;
     let rng = TestRng::from_seed(RngAlgorithm::XorShift, &seed);
@@ -35,7 +59,7 @@ pub fn arb_inputs(
 /// Given the [Abi] description of a Noir program, generate random [InputValue]s for each circuit parameter.
 ///
 /// Use the `dictionary` to draw values from for numeric types.
-fn arb_input_map(abi: &Abi, dictionary: &HashSet<FieldElement>) -> BoxedStrategy<InputMap> {
+fn arb_input_map(abi: &Abi, dictionary: &BTreeSet<FieldElement>) -> BoxedStrategy<InputMap> {
     let values: Vec<_> = abi
         .parameters
         .iter()
@@ -55,7 +79,7 @@ fn arb_input_map(abi: &Abi, dictionary: &HashSet<FieldElement>) -> BoxedStrategy
 /// Uses the `dictionary` for unsigned integer types.
 fn arb_value_from_abi_type(
     abi_type: &AbiType,
-    dictionary: &HashSet<FieldElement>,
+    dictionary: &BTreeSet<FieldElement>,
 ) -> SBoxedStrategy<InputValue> {
     match abi_type {
         AbiType::Field => proptest::collection::vec(any::<u8>(), 32)
@@ -77,7 +101,7 @@ fn arb_value_from_abi_type(
             IntStrategy::new(width as usize)
                 .prop_map(move |mut int| {
                     if int < 0 {
-                        int += shift
+                        int += shift;
                     }
                     InputValue::Field(int.into())
                 })

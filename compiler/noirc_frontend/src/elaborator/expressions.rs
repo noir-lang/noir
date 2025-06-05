@@ -9,9 +9,9 @@ use crate::{
         ArrayLiteral, AsTraitPath, BinaryOpKind, BlockExpression, CallExpression, CastExpression,
         ConstrainExpression, ConstrainKind, ConstructorExpression, Expression, ExpressionKind,
         Ident, IfExpression, IndexExpression, InfixExpression, ItemVisibility, Lambda, Literal,
-        MatchExpression, MemberAccessExpression, MethodCallExpression, Path, PathSegment,
-        PrefixExpression, StatementKind, TraitBound, UnaryOp, UnresolvedTraitConstraint,
-        UnresolvedTypeData, UnresolvedTypeExpression, UnsafeExpression,
+        MatchExpression, MemberAccessExpression, MethodCallExpression, PrefixExpression,
+        StatementKind, TraitBound, UnaryOp, UnresolvedTraitConstraint, UnresolvedTypeData,
+        UnresolvedTypeExpression, UnsafeExpression,
     },
     hir::{
         comptime::{self, InterpreterError},
@@ -38,7 +38,10 @@ use crate::{
     token::{FmtStrFragment, Tokens},
 };
 
-use super::{Elaborator, LambdaContext, UnsafeBlockStatus, UnstableFeature};
+use super::{
+    Elaborator, LambdaContext, UnsafeBlockStatus, UnstableFeature,
+    path_resolution::{TypedPath, TypedPathSegment},
+};
 
 impl Elaborator<'_> {
     pub(crate) fn elaborate_expression(&mut self, expr: Expression) -> (ExprId, Type) {
@@ -96,9 +99,9 @@ impl Elaborator<'_> {
                 (HirExpression::Error, Type::Error)
             }
             ExpressionKind::AsTraitPath(path) => {
-                return self.elaborate_as_trait_path(path);
+                return self.elaborate_as_trait_path(*path);
             }
-            ExpressionKind::TypePath(path) => return self.elaborate_type_path(path),
+            ExpressionKind::TypePath(path) => return self.elaborate_type_path(*path),
         };
         let id = self.interner.push_expr(hir_expr);
         self.interner.push_expr_location(id, expr.location);
@@ -151,13 +154,23 @@ impl Elaborator<'_> {
         let statements_len = block.statements.len();
         let mut statements = Vec::with_capacity(statements_len);
 
+        // If we found a break or continue statement, this holds its location (only for the first one)
+        let mut break_or_continue_location = None;
+        // When encountering a statement after a break or continue we'll error saying it's unreachable,
+        // but we only want to error for the first statement.
+        let mut errored_unreachable = false;
+
         for (i, statement) in block.statements.into_iter().enumerate() {
+            let location = statement.location;
             let statement_target_type = if i == statements_len - 1 { target_type } else { None };
             let (id, stmt_type) =
                 self.elaborate_statement_with_target_type(statement, statement_target_type);
+
             statements.push(id);
 
-            if let HirStatement::Semi(expr) = self.interner.statement(&id) {
+            let stmt = self.interner.statement(&id);
+
+            if let HirStatement::Semi(expr) = stmt {
                 let inner_expr_type = self.interner.id_type(expr);
                 let location = self.interner.expr_location(&expr);
 
@@ -167,8 +180,22 @@ impl Elaborator<'_> {
                 });
             }
 
+            let is_break_or_continue = matches!(stmt, HirStatement::Break | HirStatement::Continue);
+
+            if let Some(break_or_continue_location) = break_or_continue_location {
+                if !errored_unreachable {
+                    self.push_err(ResolverError::UnreachableStatement {
+                        location,
+                        break_or_continue_location,
+                    });
+                    errored_unreachable = true;
+                }
+            } else if is_break_or_continue {
+                break_or_continue_location = Some(location);
+            }
+
             if i + 1 == statements.len() {
-                block_type = stmt_type;
+                block_type = if is_break_or_continue { Type::Unit } else { stmt_type };
             }
         }
 
@@ -303,29 +330,31 @@ impl Elaborator<'_> {
 
         for fragment in &fragments {
             if let FmtStrFragment::Interpolation(ident_name, location) = fragment {
-                let scope_tree = self.scopes.current_scope_tree();
-                let variable = scope_tree.find(ident_name);
+                let ident = Ident::new(ident_name.clone(), *location);
 
-                let hir_ident = if let Some((old_value, _)) = variable {
-                    old_value.num_times_used += 1;
-                    old_value.ident.clone()
-                } else if let Ok((definition_id, _)) =
-                    self.lookup_global(Path::from_single(ident_name.to_string(), *location))
-                {
-                    HirIdent::non_trait_method(definition_id, *location)
-                } else {
-                    self.push_err(ResolverError::VariableNotDeclared {
-                        name: ident_name.to_owned(),
-                        location: *location,
-                    });
-                    continue;
-                };
+                let (hir_ident, var_scope_index) =
+                    if let Ok((ident, var_scope_index)) = self.use_variable(&ident) {
+                        (ident, var_scope_index)
+                    } else if let Ok((definition_id, _)) = self
+                        .lookup_global(TypedPath::from_single(ident_name.to_string(), *location))
+                    {
+                        (HirIdent::non_trait_method(definition_id, *location), 0)
+                    } else {
+                        self.push_err(ResolverError::VariableNotDeclared {
+                            name: ident_name.to_owned(),
+                            location: *location,
+                        });
+                        continue;
+                    };
+
+                self.handle_hir_ident(&hir_ident, var_scope_index, *location);
 
                 let hir_expr = HirExpression::Ident(hir_ident.clone(), None);
                 let expr_id = self.interner.push_expr(hir_expr);
                 self.interner.push_expr_location(expr_id, *location);
                 let typ = self.type_check_variable(hir_ident, expr_id, None);
                 self.interner.push_expr_type(expr_id, typ.clone());
+
                 capture_types.push(typ);
                 fmt_str_idents.push(expr_id);
             }
@@ -544,12 +573,15 @@ impl Elaborator<'_> {
                         &mut object_type,
                         &mut object,
                     );
-
-                    self.resolve_function_turbofish_generics(
-                        &func_id,
-                        method_call.generics,
-                        location,
-                    )
+                    let generics = method_call.generics;
+                    let generics = generics.map(|generics| {
+                        vecmap(generics, |generic| {
+                            let location = generic.location;
+                            let typ = self.use_type_with_kind(generic, &Kind::Any);
+                            Located::from(location, typ)
+                        })
+                    });
+                    self.resolve_function_turbofish_generics(&func_id, generics, location)
                 } else {
                     None
                 };
@@ -763,6 +795,7 @@ impl Elaborator<'_> {
             last_segment.generics = Some(generics.ordered_args);
         }
 
+        let path = self.validate_path(path);
         let last_segment = path.last_segment();
 
         let Some(typ) = self.lookup_type_or_error(path) else {
@@ -777,7 +810,7 @@ impl Elaborator<'_> {
         typ: Type,
         fields: Vec<(Ident, Expression)>,
         location: Location,
-        last_segment: Option<PathSegment>,
+        last_segment: Option<TypedPathSegment>,
     ) -> (HirExpression, Type) {
         let typ = typ.follow_bindings_shallow();
         let (r#type, generics) = match typ.as_ref() {

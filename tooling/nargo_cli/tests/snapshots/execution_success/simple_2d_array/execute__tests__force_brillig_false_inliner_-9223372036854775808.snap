@@ -40,8 +40,18 @@ expression: artifact
     "return_type": null,
     "error_types": {}
   },
-  "bytecode": "H4sIAAAAAAAA/7WTUQrDMAiGk7bZeTRqo2+7ysLS+x9hK81gbA99qPlAfBDk+0FjOEjvWsI/U+/33glW5lZyQ8IHZKsqwFJXRUVReWYlasparFoBQ6aGmxhtcPC9C66Bk98uGJk5OmaeB2WOzpkXP08a6ZkcPXe3zw/dfpz3m5r7PIVzXmosormYAwAA",
-  "debug_symbols": "pZLLyoMwEIXfZdZZ5PJb//oqpUjUsQRClDQpFMm7dxTTy6It2E2SmTPfGQJngg6beKqN64czVIcJGm+sNafaDq0OZnDUnRKDXNbBI1ILnnSiRu3RBahctJbBRdu4DJ1H7ZY7aE8qZ4Cuo5sMe2NxfiX2oPl7VIi/FRby/44XW3glfuR3W/gif17syt/4Um7gpdqvvCzUJl5858sPPBdlNuCyeDikdKRCt8a/RA44VIqBoAkGcrFWdKZ5gze6sbgGs4+ufcppuI5ZyUke/dBiFz3OCxaNVt4A",
+  "bytecode": [
+    "func 0",
+    "current witness index : _5",
+    "private parameters indices : [_0, _1, _2, _3, _4, _5]",
+    "public parameters indices : []",
+    "return value indices : []",
+    "EXPR [ (-1, _0) (1, _2) 0 ]",
+    "EXPR [ (-1, _1) (1, _3) 0 ]",
+    "EXPR [ (-1, _4) 3 ]",
+    "EXPR [ (-1, _5) 3 ]"
+  ],
+  "debug_symbols": "pZLNDoIwDMffpecd2CaivIoxZEAxS5ZB5mZiyN7dQpjiQU3wsn7+2jT7j9BiHS6Vtl1/hfI0Qu20MfpSmb5RXveWsmNkkMLKO0RKwapO1KAcWg+lDcYwuCkT5qbroOxsvXJUzRigbcnSwE4bnLzIXnT2GeV8t8BcHJ54voWX/E9+v4XP0/F8X/zHF2IDL+Rx4UUuN/H8N1984TOZDiB39YMxnilQjXZvkoMMSsmAUwcDMY+W9MZpg9OqNrgIswu2WenU34dUSUoeXN9gGxxOC+YarXwA",
   "file_map": {
     "50": {
       "source": "// Test accessing a multidimensional array\nfn main(x: Field, y: Field, array_input: [[Field; 2]; 2]) {\n    assert(array_input[0][0] == x);\n    assert(array_input[0][1] == y);\n\n    let arr: [[Field; 2]; 1] = [[3, 3]];\n    assert_eq(arr[0], array_input[1]);\n}\n",

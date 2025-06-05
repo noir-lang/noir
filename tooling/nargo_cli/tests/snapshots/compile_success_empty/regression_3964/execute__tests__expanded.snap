@@ -1,0 +1,9 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: expanded_code
+---
+fn main() {
+    let one: u8 = 1;
+    let p: ((u8, Field), (Field, Field)) = ((one, 2), (3, 4));
+    assert(p == p);
+}

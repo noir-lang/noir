@@ -96,6 +96,12 @@ The easiest way to do this is to have multiple Conventional Commits while you wo
 
 Significant changes, like new features or important bug fixes, typically have a more pronounced impact on the project’s overall development. For smaller fixes, such as typos, we encourage you to report them instead of opening PRs. This approach helps us manage our resources effectively and ensures that every change contributes meaningfully to the project. PRs involving such smaller fixes will likely be closed and incorporated in PRs authored by the core team.
 
+### AI generated PRs
+
+Please do not create PRs which consist of entirely AI generated code. While AI makes it easier to create PRs, we've found that these PRs suck up a disproportionate amount of review time as the authors are not properly engaged with the codebase.
+
+We can definitely tell when PRs are piped straight from an LLM and these PRs are likely to be closed.
+
 ### Reviews
 
 For any repository in the noir-lang organization, we require code review & approval by __one__ Noir team member before the changes are merged, as enforced by GitHub branch protection. Non-breaking pull requests may be merged at any time. Breaking pull requests should only be merged when the team has general agreement of the changes and is preparing a breaking release.

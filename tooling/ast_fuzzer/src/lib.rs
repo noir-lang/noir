@@ -1,16 +1,19 @@
+#![forbid(unsafe_code)]
+#![warn(unreachable_pub)]
+#![warn(clippy::semicolon_if_nothing_returned)]
+#![cfg_attr(not(test), warn(unused_crate_dependencies, unused_extern_crates))]
+
 mod abi;
 pub mod compare;
 mod input;
 mod program;
 
 pub use abi::program_abi;
+pub use compare::input_values_to_ssa;
 pub use input::arb_inputs;
 use program::freq::Freqs;
-pub use program::visitor::{visit_expr, visit_expr_mut};
-pub use program::{
-    DisplayAstAsNoir, DisplayAstAsNoirComptime, arb_program, arb_program_comptime,
-    change_all_functions_into_unconstrained,
-};
+pub use program::{DisplayAstAsNoir, DisplayAstAsNoirComptime, arb_program, arb_program_comptime};
+pub use program::{expr, rewrite, visitor};
 
 /// AST generation configuration.
 #[derive(Debug, Clone)]
@@ -56,6 +59,12 @@ pub struct Config {
     pub avoid_negative_int_literals: bool,
     /// Avoid using large integer literals where the frontend expects 32 bits.
     pub avoid_large_int_literals: bool,
+    /// Avoid using loop control (break/continue).
+    pub avoid_loop_control: bool,
+    /// Avoid using function pointers in parameters.
+    pub avoid_lambdas: bool,
+    /// Only use comptime friendly expressions.
+    pub comptime_friendly: bool,
 }
 
 impl Default for Config {
@@ -73,7 +82,7 @@ impl Default for Config {
             ("drop", 0), // The `ownership` module says it will insert `Drop` and `Clone`.
             ("assign", 30),
             ("if", 10),
-            ("for", 18),
+            ("for", 22),
             ("let", 25),
             ("call", 5),
         ]);
@@ -88,6 +97,7 @@ impl Default for Config {
             ("while", 15),
             ("let", 20),
             ("call", 5),
+            ("print", 15),
         ]);
         Self {
             max_globals: 3,
@@ -110,6 +120,9 @@ impl Default for Config {
             avoid_err_by_zero: false,
             avoid_large_int_literals: false,
             avoid_negative_int_literals: false,
+            avoid_loop_control: false,
+            avoid_lambdas: false,
+            comptime_friendly: false,
         }
     }
 }

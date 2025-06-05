@@ -9,7 +9,7 @@ use crate::{
     Generics, Kind, NamedGeneric, ResolvedGeneric, Type, TypeBinding, TypeBindings,
     UnificationError,
     ast::{
-        AsTraitPath, BinaryOpKind, GenericTypeArgs, Ident, IntegerBitSize, Path, PathKind, UnaryOp,
+        AsTraitPath, BinaryOpKind, GenericTypeArgs, Ident, IntegerBitSize, PathKind, UnaryOp,
         UnresolvedGeneric, UnresolvedGenerics, UnresolvedType, UnresolvedTypeData,
         UnresolvedTypeExpression, WILDCARD_TYPE,
     },
@@ -20,7 +20,7 @@ use crate::{
         resolution::{errors::ResolverError, import::PathResolutionError},
         type_check::{
             NoMatchingImplFoundError, Source, TypeCheckError,
-            generics::{Generic, TraitGenerics},
+            generics::{FmtstrPrimitiveType, Generic, StrPrimitiveType, TraitGenerics},
         },
     },
     hir_def::{
@@ -37,13 +37,13 @@ use crate::{
         TraitMethodId,
     },
     shared::Signedness,
-    signed_field::SignedField,
     token::SecondaryAttributeKind,
 };
 
 use super::{
-    Elaborator, FunctionContext, UnsafeBlockStatus, lints,
-    path_resolution::{PathResolutionItem, PathResolutionMode},
+    Elaborator, FunctionContext, PathResolutionTarget, UnsafeBlockStatus, lints,
+    path_resolution::{PathResolutionItem, PathResolutionMode, TypedPath},
+    primitive_types::PrimitiveType,
 };
 
 pub const SELF_TYPE_NAME: &str = "Self";
@@ -56,17 +56,26 @@ pub(super) struct TraitPathResolution {
 
 impl Elaborator<'_> {
     pub(crate) fn resolve_type(&mut self, typ: UnresolvedType) -> Type {
-        self.resolve_type_inner(typ, PathResolutionMode::MarkAsReferenced)
+        self.resolve_type_inner(typ, &Kind::Normal, PathResolutionMode::MarkAsReferenced)
     }
 
     pub(crate) fn use_type(&mut self, typ: UnresolvedType) -> Type {
-        self.resolve_type_inner(typ, PathResolutionMode::MarkAsUsed)
+        self.use_type_with_kind(typ, &Kind::Normal)
+    }
+
+    pub(crate) fn use_type_with_kind(&mut self, typ: UnresolvedType, kind: &Kind) -> Type {
+        self.resolve_type_inner(typ, kind, PathResolutionMode::MarkAsUsed)
     }
 
     /// Translates an UnresolvedType to a Type with a `TypeKind::Normal`
-    fn resolve_type_inner(&mut self, typ: UnresolvedType, mode: PathResolutionMode) -> Type {
+    fn resolve_type_inner(
+        &mut self,
+        typ: UnresolvedType,
+        kind: &Kind,
+        mode: PathResolutionMode,
+    ) -> Type {
         let location = typ.location;
-        let resolved_type = self.resolve_type_with_kind_inner(typ, &Kind::Normal, mode);
+        let resolved_type = self.resolve_type_with_kind_inner(typ, kind, mode);
         if resolved_type.is_nested_slice() {
             self.push_err(ResolverError::NestedSlices { location });
         }
@@ -75,10 +84,6 @@ impl Elaborator<'_> {
 
     pub(crate) fn resolve_type_with_kind(&mut self, typ: UnresolvedType, kind: &Kind) -> Type {
         self.resolve_type_with_kind_inner(typ, kind, PathResolutionMode::MarkAsReferenced)
-    }
-
-    pub(crate) fn use_type_with_kind(&mut self, typ: UnresolvedType, kind: &Kind) -> Type {
-        self.resolve_type_with_kind_inner(typ, kind, PathResolutionMode::MarkAsUsed)
     }
 
     /// Translates an UnresolvedType into a Type and appends any
@@ -104,7 +109,6 @@ impl Elaborator<'_> {
             };
 
         let resolved_type = match typ.typ {
-            FieldElement => Type::FieldElement,
             Array(size, elem) => {
                 let elem = Box::new(self.resolve_type_with_kind_inner(*elem, kind, mode));
                 let size = self.convert_expression_type(size, &Kind::u32(), location);
@@ -115,26 +119,6 @@ impl Elaborator<'_> {
                 Type::Slice(elem)
             }
             Expression(expr) => self.convert_expression_type(expr, kind, location),
-            Integer(sign, bits) => Type::Integer(sign, bits),
-            Bool => Type::Bool,
-            String(size) => {
-                let resolved_size = self.convert_expression_type(size, &Kind::u32(), location);
-                Type::String(Box::new(resolved_size))
-            }
-            FormatString(size, fields) => {
-                let resolved_size = self.convert_expression_type(size, &Kind::u32(), location);
-                let fields = self.resolve_type_with_kind_inner(*fields, kind, mode);
-                Type::FmtString(Box::new(resolved_size), Box::new(fields))
-            }
-            Quoted(quoted) => {
-                let in_function = matches!(self.current_item, Some(DependencyId::Function(_)));
-                if in_function && !self.in_comptime_context() {
-                    let location = typ.location;
-                    let typ = quoted.to_string();
-                    self.push_err(ResolverError::ComptimeTypeInRuntimeCode { location, typ });
-                }
-                Type::Quoted(quoted)
-            }
             Unit => Type::Unit,
             Unspecified => {
                 let location = typ.location;
@@ -142,8 +126,14 @@ impl Elaborator<'_> {
                 Type::Error
             }
             Error => Type::Error,
-            Named(path, args, _) => self.resolve_named_type(path, args, mode),
-            TraitAsType(path, args) => self.resolve_trait_as_type(path, args, mode),
+            Named(path, args, _) => {
+                let path = self.validate_path(path);
+                self.resolve_named_type(path, args, mode)
+            }
+            TraitAsType(path, args) => {
+                let path = self.validate_path(path);
+                self.resolve_trait_as_type(path, args, mode)
+            }
 
             Tuple(fields) => Type::Tuple(vecmap(fields, |field| {
                 self.resolve_type_with_kind_inner(field, kind, mode)
@@ -209,17 +199,7 @@ impl Elaborator<'_> {
             _ => (),
         }
 
-        if !kind.unifies(&resolved_type.kind()) {
-            let expected_typ_err = CompilationError::TypeError(TypeCheckError::TypeKindMismatch {
-                expected_kind: kind.clone(),
-                expr_kind: resolved_type.kind(),
-                expr_location: location,
-            });
-            self.push_err(expected_typ_err);
-            return Type::Error;
-        }
-
-        resolved_type
+        self.check_kind(resolved_type, kind, location)
     }
 
     pub fn find_generic(&self, target_name: &str) -> Option<&ResolvedGeneric> {
@@ -227,7 +207,7 @@ impl Elaborator<'_> {
     }
 
     // Resolve Self::Foo to an associated type on the current trait or trait impl
-    fn lookup_associated_type_on_self(&self, path: &Path) -> Option<Type> {
+    fn lookup_associated_type_on_self(&self, path: &TypedPath) -> Option<Type> {
         if path.segments.len() == 2 && path.first_name() == Some(SELF_TYPE_NAME) {
             if let Some(trait_id) = self.current_trait {
                 let the_trait = self.interner.get_trait(trait_id);
@@ -248,7 +228,7 @@ impl Elaborator<'_> {
 
     fn resolve_named_type(
         &mut self,
-        path: Path,
+        path: TypedPath,
         args: GenericTypeArgs,
         mode: PathResolutionMode,
     ) -> Type {
@@ -260,25 +240,7 @@ impl Elaborator<'_> {
 
         // Check if the path is a type variable first. We currently disallow generics on type
         // variables since we do not support higher-kinded types.
-        if path.segments.len() == 1 {
-            let name = path.last_name();
-
-            if name == SELF_TYPE_NAME {
-                if let Some(self_type) = self.self_type.clone() {
-                    if !args.is_empty() {
-                        self.push_err(ResolverError::GenericsOnSelfType {
-                            location: path.location,
-                        });
-                    }
-                    return self_type;
-                }
-            } else if name == WILDCARD_TYPE {
-                return self.interner.next_type_variable_with_kind(Kind::Any);
-            }
-        } else if let Some(typ) = self.lookup_associated_type_on_self(&path) {
-            if !args.is_empty() {
-                self.push_err(ResolverError::GenericsOnAssociatedType { location: path.location });
-            }
+        if let Some(typ) = self.lookup_type_variable(&path, &args) {
             return typ;
         }
 
@@ -304,8 +266,11 @@ impl Elaborator<'_> {
             return Type::Alias(type_alias, args);
         }
 
-        match self.lookup_datatype_or_error(path, mode) {
-            Some(data_type) => {
+        let location = path.location;
+        match self.resolve_path_or_error_inner(path.clone(), PathResolutionTarget::Type, mode) {
+            Ok(PathResolutionItem::Type(type_id)) => {
+                let data_type = self.get_type(type_id);
+
                 if self.resolving_ids.contains(&data_type.borrow().id) {
                     self.push_err(ResolverError::SelfReferentialType {
                         location: data_type.borrow().name.location(),
@@ -336,13 +301,130 @@ impl Elaborator<'_> {
 
                 Type::DataType(data_type, args)
             }
-            None => Type::Error,
+            Ok(PathResolutionItem::PrimitiveType(primitive_type)) => {
+                let typ = self.instantiate_primitive_type(primitive_type, args, location);
+                if let Type::Quoted(quoted) = typ {
+                    let in_function = matches!(self.current_item, Some(DependencyId::Function(_)));
+                    if in_function && !self.in_comptime_context() {
+                        let typ = quoted.to_string();
+                        self.push_err(ResolverError::ComptimeTypeInRuntimeCode { location, typ });
+                    }
+                }
+                typ
+            }
+            Ok(item) => {
+                self.push_err(ResolverError::Expected {
+                    expected: "type",
+                    got: item.description(),
+                    location,
+                });
+
+                Type::Error
+            }
+            Err(err) => {
+                self.push_err(err);
+
+                Type::Error
+            }
         }
+    }
+
+    fn lookup_type_variable(&mut self, path: &TypedPath, args: &GenericTypeArgs) -> Option<Type> {
+        if path.segments.len() != 1 {
+            return None;
+        }
+
+        let name = path.last_name();
+        match name {
+            SELF_TYPE_NAME => {
+                let self_type = self.self_type.clone()?;
+                if !args.is_empty() {
+                    self.push_err(ResolverError::GenericsOnSelfType { location: path.location });
+                }
+                Some(self_type)
+            }
+            WILDCARD_TYPE => Some(self.interner.next_type_variable_with_kind(Kind::Any)),
+            _ => None,
+        }
+    }
+
+    fn instantiate_primitive_type(
+        &mut self,
+        primitive_type: PrimitiveType,
+        args: GenericTypeArgs,
+        location: Location,
+    ) -> Type {
+        match primitive_type {
+            PrimitiveType::Bool
+            | PrimitiveType::CtString
+            | PrimitiveType::Expr
+            | PrimitiveType::Field
+            | PrimitiveType::FunctionDefinition
+            | PrimitiveType::I8
+            | PrimitiveType::I16
+            | PrimitiveType::I32
+            | PrimitiveType::I64
+            | PrimitiveType::U1
+            | PrimitiveType::U8
+            | PrimitiveType::U16
+            | PrimitiveType::U32
+            | PrimitiveType::U64
+            | PrimitiveType::U128
+            | PrimitiveType::Module
+            | PrimitiveType::Quoted
+            | PrimitiveType::StructDefinition
+            | PrimitiveType::TraitConstraint
+            | PrimitiveType::TraitDefinition
+            | PrimitiveType::TraitImpl
+            | PrimitiveType::TypeDefinition
+            | PrimitiveType::TypedExpr
+            | PrimitiveType::Type
+            | PrimitiveType::UnresolvedType => {
+                if !args.is_empty() {
+                    let found = args.ordered_args.len() + args.named_args.len();
+                    self.push_err(CompilationError::TypeError(
+                        TypeCheckError::GenericCountMismatch {
+                            item: primitive_type.name().to_string(),
+                            expected: 0,
+                            found,
+                            location,
+                        },
+                    ));
+                }
+            }
+            PrimitiveType::Str => {
+                let item = StrPrimitiveType;
+                let (mut args, _) = self.resolve_type_args_inner(
+                    args,
+                    item,
+                    location,
+                    PathResolutionMode::MarkAsReferenced,
+                );
+                assert_eq!(args.len(), 1);
+                let length = args.pop().unwrap();
+                return Type::String(Box::new(length));
+            }
+            PrimitiveType::Fmtstr => {
+                let item = FmtstrPrimitiveType;
+                let (mut args, _) = self.resolve_type_args_inner(
+                    args,
+                    item,
+                    location,
+                    PathResolutionMode::MarkAsReferenced,
+                );
+                assert_eq!(args.len(), 2);
+                let element = args.pop().unwrap();
+                let length = args.pop().unwrap();
+                return Type::FmtString(Box::new(length), Box::new(element));
+            }
+        }
+
+        primitive_type.to_type()
     }
 
     fn resolve_trait_as_type(
         &mut self,
-        path: Path,
+        path: TypedPath,
         args: GenericTypeArgs,
         mode: PathResolutionMode,
     ) -> Type {
@@ -401,7 +483,7 @@ impl Elaborator<'_> {
         allow_implicit_named_args: bool,
         mode: PathResolutionMode,
     ) -> (Vec<Type>, Vec<NamedType>) {
-        let expected_kinds = item.generics(self.interner);
+        let expected_kinds = item.generic_kinds(self.interner);
 
         if args.ordered_args.len() != expected_kinds.len() {
             self.push_err(TypeCheckError::GenericCountMismatch {
@@ -415,9 +497,8 @@ impl Elaborator<'_> {
         }
 
         let ordered_args = expected_kinds.iter().zip(args.ordered_args);
-        let ordered = vecmap(ordered_args, |(generic, typ)| {
-            self.resolve_type_with_kind_inner(typ, &generic.kind(), mode)
-        });
+        let ordered =
+            vecmap(ordered_args, |(kind, typ)| self.resolve_type_with_kind_inner(typ, kind, mode));
 
         let mut associated = Vec::new();
 
@@ -492,7 +573,7 @@ impl Elaborator<'_> {
 
     fn lookup_generic_or_global_type(
         &mut self,
-        path: &Path,
+        path: &TypedPath,
         mode: PathResolutionMode,
     ) -> Option<Type> {
         if path.segments.len() == 1 {
@@ -502,11 +583,18 @@ impl Elaborator<'_> {
                 return Some(generic.as_named_generic());
             }
         } else if let Some(typ) = self.lookup_associated_type_on_self(path) {
+            if let Some(last_segment) = path.segments.last() {
+                if last_segment.generics.is_some() {
+                    self.push_err(ResolverError::GenericsOnAssociatedType {
+                        location: last_segment.turbofish_location(),
+                    });
+                }
+            }
             return Some(typ);
         }
 
         // If we cannot find a local generic of the same name, try to look up a global
-        match self.resolve_path_or_error_inner(path.clone(), mode) {
+        match self.resolve_path_or_error_inner(path.clone(), PathResolutionTarget::Value, mode) {
             Ok(PathResolutionItem::Global(id)) => {
                 if let Some(current_item) = self.current_item {
                     self.interner.add_global_dependency(current_item, id);
@@ -575,6 +663,7 @@ impl Elaborator<'_> {
     ) -> Type {
         match length {
             UnresolvedTypeExpression::Variable(path) => {
+                let path = self.validate_path(path);
                 let mode = PathResolutionMode::MarkAsReferenced;
                 let typ = self.resolve_named_type(path, GenericTypeArgs::default(), mode);
                 self.check_kind(typ, expected_kind, location)
@@ -622,7 +711,12 @@ impl Elaborator<'_> {
         }
     }
 
-    fn check_kind(&mut self, typ: Type, expected_kind: &Kind, location: Location) -> Type {
+    pub(super) fn check_kind(
+        &mut self,
+        typ: Type,
+        expected_kind: &Kind,
+        location: Location,
+    ) -> Type {
         if !typ.kind().unifies(expected_kind) {
             self.push_err(TypeCheckError::TypeKindMismatch {
                 expected_kind: expected_kind.clone(),
@@ -636,7 +730,8 @@ impl Elaborator<'_> {
 
     fn resolve_as_trait_path(&mut self, path: AsTraitPath) -> Type {
         let location = path.trait_path.location;
-        let Some(trait_id) = self.resolve_trait_by_path(path.trait_path.clone()) else {
+        let trait_path = self.validate_path(path.trait_path.clone());
+        let Some(trait_id) = self.resolve_trait_by_path(trait_path) else {
             // Error should already be pushed in the None case
             return Type::Error;
         };
@@ -645,7 +740,9 @@ impl Elaborator<'_> {
         let object_type = self.use_type(path.typ.clone());
 
         match self.interner.lookup_trait_implementation(&object_type, trait_id, &ordered, &named) {
-            Ok(impl_kind) => self.get_associated_type_from_trait_impl(path, impl_kind),
+            Ok((impl_kind, _instantiation_bindings)) => {
+                self.get_associated_type_from_trait_impl(path, impl_kind)
+            }
             Err(constraints) => {
                 self.push_trait_constraint_error(&object_type, constraints, location);
                 Type::Error
@@ -681,7 +778,10 @@ impl Elaborator<'_> {
     //
     // Returns the trait method, trait constraint, and whether the impl is assumed to exist by a where clause or not
     // E.g. `t.method()` with `where T: Foo<Bar>` in scope will return `(Foo::method, T, vec![Bar])`
-    fn resolve_trait_static_method_by_self(&mut self, path: &Path) -> Option<TraitPathResolution> {
+    fn resolve_trait_static_method_by_self(
+        &mut self,
+        path: &TypedPath,
+    ) -> Option<TraitPathResolution> {
         // If we are inside a trait impl, `Self` is known to be a concrete type so we don't have
         // to solve the path via trait method lookup.
         if self.current_trait_impl.is_some() {
@@ -717,8 +817,8 @@ impl Elaborator<'_> {
     //
     // Returns the trait method, trait constraint, and whether the impl is assumed to exist by a where clause or not
     // E.g. `t.method()` with `where T: Foo<Bar>` in scope will return `(Foo::method, T, vec![Bar])`
-    fn resolve_trait_static_method(&mut self, path: &Path) -> Option<TraitPathResolution> {
-        let path_resolution = self.use_path(path.clone()).ok()?;
+    fn resolve_trait_static_method(&mut self, path: &TypedPath) -> Option<TraitPathResolution> {
+        let path_resolution = self.use_path_as_type(path.clone()).ok()?;
         let func_id = path_resolution.item.function_id()?;
         let meta = self.interner.try_function_meta(&func_id)?;
         let the_trait = self.interner.get_trait(meta.trait_id?);
@@ -738,7 +838,7 @@ impl Elaborator<'_> {
     // E.g. `t.method()` with `where T: Foo<Bar>` in scope will return `(Foo::method, T, vec![Bar])`
     fn resolve_trait_method_by_named_generic(
         &mut self,
-        path: &Path,
+        path: &TypedPath,
     ) -> Option<TraitPathResolution> {
         if path.segments.len() != 2 {
             return None;
@@ -765,7 +865,7 @@ impl Elaborator<'_> {
     }
 
     /// This resolves a method in the form `Type::method` where `method` is a trait method
-    fn resolve_type_trait_method(&mut self, path: &Path) -> Option<TraitPathResolution> {
+    fn resolve_type_trait_method(&mut self, path: &TypedPath) -> Option<TraitPathResolution> {
         if path.segments.len() < 2 {
             return None;
         }
@@ -775,7 +875,7 @@ impl Elaborator<'_> {
         let last_segment = path.pop();
         let before_last_segment = path.last_segment();
 
-        let path_resolution = self.use_path(path).ok()?;
+        let path_resolution = self.use_path_as_type(path).ok()?;
         let PathResolutionItem::Type(type_id) = path_resolution.item else {
             return None;
         };
@@ -824,7 +924,7 @@ impl Elaborator<'_> {
     // E.g. `t.method()` with `where T: Foo<Bar>` in scope will return `(Foo::method, T, vec![Bar])`
     pub(super) fn resolve_trait_generic_path(
         &mut self,
-        path: &Path,
+        path: &TypedPath,
     ) -> Option<TraitPathResolution> {
         self.resolve_trait_static_method_by_self(path)
             .or_else(|| self.resolve_trait_static_method(path))
@@ -852,7 +952,7 @@ impl Elaborator<'_> {
         expected: &Type,
         make_error: impl FnOnce() -> TypeCheckError,
     ) {
-        let mut bindings = TypeBindings::new();
+        let mut bindings = TypeBindings::default();
         if actual.try_unify(expected, &mut bindings).is_err() {
             let error: CompilationError = make_error().into();
             self.push_err(error);
@@ -1036,11 +1136,14 @@ impl Elaborator<'_> {
         to: &Type,
         location: Location,
     ) -> Type {
+        let to = to.follow_bindings();
         let from_follow_bindings = from.follow_bindings();
 
         use HirExpression::Literal;
         let from_value_opt = match self.interner.expression(from_expr_id) {
-            Literal(HirLiteral::Integer(SignedField { field, is_negative: false })) => Some(field),
+            Literal(HirLiteral::Integer(field)) if !field.is_negative() => {
+                Some(field.absolute_value())
+            }
 
             // TODO(https://github.com/noir-lang/noir/issues/6247):
             // handle negative literals
@@ -1089,7 +1192,7 @@ impl Elaborator<'_> {
         }
 
         match to {
-            Type::Integer(sign, bits) => Type::Integer(*sign, *bits),
+            Type::Integer(sign, bits) => Type::Integer(sign, bits),
             Type::FieldElement => Type::FieldElement,
             Type::Bool => Type::Bool,
             Type::Error => Type::Error,
@@ -1292,7 +1395,26 @@ impl Elaborator<'_> {
                 Ok((FieldElement, false))
             }
 
-            (Bool, Bool) => Ok((Bool, false)),
+            (Bool, Bool) => match op.kind {
+                BinaryOpKind::Add
+                | BinaryOpKind::Subtract
+                | BinaryOpKind::Multiply
+                | BinaryOpKind::Divide
+                | BinaryOpKind::ShiftRight
+                | BinaryOpKind::ShiftLeft
+                | BinaryOpKind::Modulo => {
+                    Err(TypeCheckError::InvalidBoolInfixOp { op: op.kind, location })
+                }
+                BinaryOpKind::Equal
+                | BinaryOpKind::NotEqual
+                | BinaryOpKind::Less
+                | BinaryOpKind::LessEqual
+                | BinaryOpKind::Greater
+                | BinaryOpKind::GreaterEqual
+                | BinaryOpKind::And
+                | BinaryOpKind::Or
+                | BinaryOpKind::Xor => Ok((Bool, false)),
+            },
 
             (lhs, rhs) => {
                 if op.kind == BinaryOpKind::ShiftLeft || op.kind == BinaryOpKind::ShiftRight {
@@ -1450,6 +1572,7 @@ impl Elaborator<'_> {
                     object_type.clone(),
                 ),
             );
+
             self.interner.select_impl_for_expression(
                 expr_id,
                 TraitImplKind::Assumed { object_type, trait_generics },
@@ -1760,7 +1883,7 @@ impl Elaborator<'_> {
             }
         }
 
-        for constraint in &func_meta.trait_constraints {
+        for constraint in func_meta.all_trait_constraints() {
             if *object_type == constraint.typ {
                 if let Some(the_trait) =
                     self.interner.try_get_trait(constraint.trait_bound.trait_id)
@@ -2050,8 +2173,38 @@ impl Elaborator<'_> {
             trait_generics,
             associated_types,
         ) {
-            Ok(impl_kind) => {
+            Ok((impl_kind, instantiation_bindings)) => {
                 if select_impl {
+                    // Insert any additional instantiation bindings into this expression's
+                    // instantiation bindings. We should avoid doing this if `select_impl` is
+                    // not true since that means we're not solving for this expressions exact
+                    // impl anyway. If we ignore this, we may rarely overwrite existing type
+                    // bindings causing incorrect types. The `slice_regex` test is one example
+                    // of that happening without this being behind `select_impl`.
+                    let mut bindings =
+                        self.interner.get_instantiation_bindings(function_ident_id).clone();
+
+                    // These can clash in the `slice_regex` test which causes us to insert
+                    // incorrect type bindings if they override the previous bindings.
+                    for (id, binding) in instantiation_bindings {
+                        let existing = bindings.insert(id, binding.clone());
+
+                        if let Some((_, type_var, existing)) = existing {
+                            let existing = existing.follow_bindings();
+                            let new = binding.2.follow_bindings();
+
+                            // Exact equality on types is intential here, we never want to
+                            // overwrite even type variables but should probably avoid a panic if
+                            // the types are exactly the same.
+                            if existing != new {
+                                panic!(
+                                    "Overwriting an existing type binding with a different type!\n  {type_var:?} <- {existing:?}\n  {type_var:?} <- {new:?}"
+                                );
+                            }
+                        }
+                    }
+
+                    self.interner.store_instantiation_bindings(function_ident_id, bindings);
                     self.interner.select_impl_for_expression(function_ident_id, impl_kind);
                 }
             }
@@ -2059,7 +2212,7 @@ impl Elaborator<'_> {
         }
     }
 
-    fn push_trait_constraint_error(
+    pub(super) fn push_trait_constraint_error(
         &mut self,
         object_type: &Type,
         error: ImplSearchErrorKind,
@@ -2179,7 +2332,7 @@ impl Elaborator<'_> {
         trait_bound: &ResolvedTraitBound,
         parent_trait_bound: &ResolvedTraitBound,
     ) -> ResolvedTraitBound {
-        let mut bindings = TypeBindings::new();
+        let mut bindings = TypeBindings::default();
         self.bind_generics_from_trait_bound(trait_bound, &mut bindings);
         ResolvedTraitBound {
             trait_generics: parent_trait_bound.trait_generics.map(|typ| typ.substitute(&bindings)),

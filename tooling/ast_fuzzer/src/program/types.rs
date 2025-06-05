@@ -1,6 +1,7 @@
 use std::collections::HashSet;
 
 use acir::FieldElement;
+use iter_extended::vecmap;
 use noirc_frontend::{
     ast::{BinaryOpKind, IntegerBitSize},
     hir_def,
@@ -33,6 +34,21 @@ pub(crate) fn can_be_global(typ: &Type) -> bool {
         Type::Integer(Signedness::Signed, IntegerBitSize::One | IntegerBitSize::HundredTwentyEight)
             | Type::Integer(Signedness::Unsigned, IntegerBitSize::One)
     )
+}
+
+/// Check if a type can be used in the `main` function.
+///
+/// We decided we will avoid 0 length arrays in the main inputs and outputs, because we don't generate
+/// witnesses for them anyway, and they are tricky to handle consistently when they can be regular inputs
+/// as well as part of the databus. They are not expected in real programs as they don't do anything useful.
+pub(crate) fn can_be_main(typ: &Type) -> bool {
+    match typ {
+        Type::String(size) => *size > 0,
+        Type::Array(size, typ) => *size > 0 && can_be_main(typ),
+        Type::Tuple(types) => types.iter().all(can_be_main),
+        Type::Bool | Type::Field | Type::Integer(_, _) => true,
+        _ => false,
+    }
 }
 
 /// Collect all the sub-types produced by a type.
@@ -139,10 +155,14 @@ pub(crate) fn to_hir_type(typ: &Type) -> hir_def::types::Type {
         Type::String(size) => HirType::String(size_const(*size)),
         Type::Array(size, typ) => HirType::Array(size_const(*size), Box::new(to_hir_type(typ))),
         Type::Tuple(items) => HirType::Tuple(items.iter().map(to_hir_type).collect()),
-        Type::FmtString(_, _)
-        | Type::Slice(_)
-        | Type::Reference(_, _)
-        | Type::Function(_, _, _, _) => {
+        Type::Function(param_types, return_type, env_type, unconstrained) => HirType::Function(
+            vecmap(param_types, to_hir_type),
+            Box::new(to_hir_type(return_type)),
+            Box::new(to_hir_type(env_type)),
+            *unconstrained,
+        ),
+        Type::Reference(typ, mutable) => HirType::Reference(Box::new(to_hir_type(typ)), *mutable),
+        Type::FmtString(_, _) | Type::Slice(_) => {
             unreachable!("unexpected type converting to HIR: {}", typ)
         }
     }
@@ -161,6 +181,23 @@ pub(crate) fn is_unit(typ: &Type) -> bool {
 /// Check if the type works with `UnaryOp::Not`
 pub(crate) fn is_bool(typ: &Type) -> bool {
     matches!(typ, Type::Bool)
+}
+
+/// Check if the type is a reference wrapping another.
+pub(crate) fn is_reference(typ: &Type) -> bool {
+    matches!(typ, Type::Reference(_, _))
+}
+
+/// Check if the type can be used with a `println` statement.
+pub(crate) fn is_printable(typ: &Type) -> bool {
+    match typ {
+        Type::Reference(_, _) => false,
+        Type::Field | Type::Integer(_, _) | Type::String(_) | Type::Bool | Type::Unit => true,
+        Type::Slice(typ) | Type::Array(_, typ) | Type::FmtString(_, typ) => is_printable(typ),
+        Type::Tuple(typs) => typs.iter().all(is_printable),
+        // Function signatures are printable, although they might differ when we force things to be Brillig.
+        Type::Function(_, _, _, _) => true,
+    }
 }
 
 /// Can the type be returned by some `UnaryOp`.

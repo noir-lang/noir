@@ -1,0 +1,15 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: stdout
+---
+hello from compile-time!
+quote {
+    struct Foo {
+        fn foo() {
+            // Some comment
+            [[1, 2, 3]]
+        }
+    }
+    
+}
+0x03

@@ -1,0 +1,32 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: expanded_code
+---
+fn main() {
+    { Foo::static() };
+    let _: Field = Field::from_be_bytes([1]);
+    let _: () = Trait::method();
+    let _: [i32; 3] = Trait::method();
+}
+
+pub struct Foo {}
+
+impl Foo {
+    fn static() {}
+}
+
+trait Trait {
+    fn method() -> Self;
+}
+
+impl Trait for () {
+    fn method() {
+        ()
+    }
+}
+
+impl Trait for [i32; 3] {
+    fn method() -> Self {
+        [1, 2, 3]
+    }
+}

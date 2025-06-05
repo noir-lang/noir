@@ -28,7 +28,7 @@ use self::{
 
 use super::ir::basic_block::BasicBlockId;
 use super::ir::dfg::GlobalsGraph;
-use super::ir::instruction::ErrorType;
+use super::ir::instruction::{ArrayOffset, ErrorType};
 use super::ir::types::NumericType;
 use super::{
     function_builder::data_bus::DataBus,
@@ -49,7 +49,7 @@ pub fn generate_ssa(program: Program) -> Result<Ssa, RuntimeError> {
     // see which parameter has call_data/return_data attribute
     let is_databus = DataBusBuilder::is_databus(&program.main_function_signature);
 
-    let is_return_data = matches!(program.return_visibility, Visibility::ReturnData);
+    let is_return_data = matches!(program.return_visibility(), Visibility::ReturnData);
 
     let return_location = program.return_location;
     let mut context = SharedContext::new(program);
@@ -336,6 +336,12 @@ impl FunctionContext<'_> {
         let mut result = Self::unit_value();
         for expr in block {
             result = self.codegen_expression(expr)?;
+
+            // A break or continue might happen in a block, in which case we must
+            // not codegen any further expressions.
+            if self.builder.current_block_is_closed() {
+                break;
+            }
         }
         Ok(result)
     }
@@ -472,13 +478,14 @@ impl FunctionContext<'_> {
 
         let mut field_index = 0u128;
         Ok(Self::map_type(element_type, |typ| {
-            let offset = self.make_offset(base_index, field_index);
+            let index = self.make_offset(base_index, field_index);
             field_index += 1;
 
             // Reference counting in brillig relies on us incrementing reference
             // counts when nested arrays/slices are constructed or indexed. This
             // has no effect in ACIR code.
-            let result = self.builder.insert_array_get(array, offset, typ);
+            let offset = ArrayOffset::None;
+            let result = self.builder.insert_array_get(array, index, offset, typ);
             result.into()
         }))
     }
@@ -575,9 +582,14 @@ impl FunctionContext<'_> {
         // Compile the loop body
         self.builder.switch_to_block(loop_body);
         self.define(for_expr.index_variable, loop_index.into());
+
         self.codegen_expression(&for_expr.block)?;
-        let new_loop_index = self.make_offset(loop_index, 1);
-        self.builder.terminate_with_jmp(loop_entry, vec![new_loop_index]);
+
+        if !self.builder.current_block_is_closed() {
+            // No need to jump if the current block is already closed
+            let new_loop_index = self.make_offset(loop_index, 1);
+            self.builder.terminate_with_jmp(loop_entry, vec![new_loop_index]);
+        }
 
         // Finish by switching back to the end of the loop
         self.builder.switch_to_block(loop_end);
@@ -1083,10 +1095,17 @@ impl FunctionContext<'_> {
     }
 
     fn codegen_assign(&mut self, assign: &ast::Assign) -> Result<Values, RuntimeError> {
-        let lhs = self.extract_current_value(&assign.lvalue)?;
+        // Evaluate the rhs first - when we load the expression in the lvalue we want that
+        // to reflect any mutations from evaluating the rhs.
         let rhs = self.codegen_expression(&assign.expression)?;
 
-        self.assign_new_value(lhs, rhs);
+        // Can't assign to a variable if the expression had an unconditional break in it
+        if !self.builder.current_block_is_closed() {
+            let lhs = self.extract_current_value(&assign.lvalue)?;
+
+            self.assign_new_value(lhs, rhs);
+        }
+
         Ok(Self::unit_value())
     }
 
@@ -1098,6 +1117,9 @@ impl FunctionContext<'_> {
     fn codegen_break(&mut self) -> Values {
         let loop_end = self.current_loop().loop_end;
         self.builder.terminate_with_jmp(loop_end, Vec::new());
+
+        self.builder.close_block();
+
         Self::unit_value()
     }
 
@@ -1111,6 +1133,9 @@ impl FunctionContext<'_> {
         } else {
             self.builder.terminate_with_jmp(loop_.loop_entry, vec![]);
         }
+
+        self.builder.close_block();
+
         Self::unit_value()
     }
 

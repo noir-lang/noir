@@ -9,13 +9,11 @@ use noirc_frontend::{
 /// Generate the [Abi] interface of a [Program].
 pub fn program_abi(program: &Program) -> Abi {
     let main = program.main();
-    let param_vis = program.main_function_signature.0.iter().map(|(_, _, vis)| vis);
 
     let parameters = main
         .parameters
         .iter()
-        .zip(param_vis)
-        .map(|((_id, _is_mutable, name, typ), vis)| AbiParameter {
+        .map(|(_id, _is_mutable, name, typ, vis)| AbiParameter {
             name: name.clone(),
             typ: to_abi_type(typ),
             visibility: to_abi_visibility(vis),
@@ -26,7 +24,7 @@ pub fn program_abi(program: &Program) -> Abi {
         Type::Unit => None,
         typ => Some(AbiReturnType {
             abi_type: to_abi_type(typ),
-            visibility: to_abi_visibility(&program.return_visibility),
+            visibility: to_abi_visibility(&program.return_visibility()),
         }),
     };
 

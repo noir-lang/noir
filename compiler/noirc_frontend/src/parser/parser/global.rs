@@ -72,10 +72,7 @@ mod tests {
     use insta::assert_snapshot;
 
     use crate::{
-        ast::{
-            ExpressionKind, IntegerBitSize, ItemVisibility, LetStatement, Literal, Pattern,
-            UnresolvedTypeData,
-        },
+        ast::{ExpressionKind, ItemVisibility, LetStatement, Literal, Pattern, UnresolvedTypeData},
         parse_program_with_dummy_file,
         parser::{
             ItemKind, ParserErrorReason,
@@ -84,7 +81,6 @@ mod tests {
                 get_source_with_error_span,
             },
         },
-        shared::Signedness,
     };
 
     fn parse_global_no_errors(src: &str) -> (LetStatement, ItemVisibility) {
@@ -120,10 +116,7 @@ mod tests {
             panic!("Expected identifier pattern");
         };
         assert_eq!("foo", name.to_string());
-        assert!(matches!(
-            let_statement.r#type.typ,
-            UnresolvedTypeData::Integer(Signedness::Signed, IntegerBitSize::ThirtyTwo)
-        ));
+        assert_eq!(let_statement.r#type.typ.to_string(), "i32");
     }
 
     #[test]
@@ -190,7 +183,7 @@ mod tests {
             panic!("Expected integer literal expression, got {:?}", let_statement.expression.kind);
         };
 
-        assert!(value.is_negative);
-        assert_eq!(value.field, FieldElement::from(17u128));
+        assert!(value.is_negative());
+        assert_eq!(value.absolute_value(), FieldElement::from(17u128));
     }
 }

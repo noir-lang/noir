@@ -79,7 +79,7 @@ fn build_dictionary_from_circuit<F: AcirField>(circuit: &Circuit<F>) -> HashSet<
                     }
                 }
                 if let Some(predicate) = predicate {
-                    insert_expr(&mut constants, predicate)
+                    insert_expr(&mut constants, predicate);
                 }
             }
 

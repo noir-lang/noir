@@ -1,4 +1,4 @@
-use std::collections::HashSet;
+use std::collections::BTreeSet;
 
 use acvm::{AcirField, FieldElement};
 use proptest::{
@@ -33,7 +33,7 @@ impl UintStrategy {
     /// # Arguments
     /// * `bits` - Size of uint in bits
     /// * `fixtures` - Set of `FieldElements` representing values which the fuzzer weight towards testing.
-    pub(super) fn new(bits: usize, fixtures: &HashSet<FieldElement>) -> Self {
+    pub(super) fn new(bits: usize, fixtures: &BTreeSet<FieldElement>) -> Self {
         Self {
             bits,
             // We can only consider the fixtures which fit into the bit width.

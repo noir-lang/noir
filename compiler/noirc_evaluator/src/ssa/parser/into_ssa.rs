@@ -1,4 +1,7 @@
-use std::{collections::HashMap, sync::Arc};
+use std::{
+    collections::{HashMap, HashSet, VecDeque},
+    sync::Arc,
+};
 
 use acvm::acir::circuit::ErrorSelector;
 use noirc_errors::call_stack::CallStackId;
@@ -76,7 +79,7 @@ impl Translator {
         // A FunctionBuilder must be created with a main Function, so here wer remove it
         // from the parsed SSA to avoid adding it twice later on.
         let main_function = parsed_ssa.functions.remove(0);
-        let main_id = FunctionId::test_new(0);
+        let main_id = FunctionId::new(0);
         let mut builder = FunctionBuilder::new(main_function.external_name.clone(), main_id);
         builder.set_runtime(main_function.runtime_type);
         builder.simplify = simplify;
@@ -89,7 +92,7 @@ impl Translator {
         let mut function_id_counter = 1;
         let mut functions = HashMap::new();
         for function in &parsed_ssa.functions {
-            let function_id = FunctionId::test_new(function_id_counter);
+            let function_id = FunctionId::new(function_id_counter);
             function_id_counter += 1;
 
             functions.insert(function.internal_name.clone(), function_id);
@@ -157,15 +160,66 @@ impl Translator {
             } else {
                 self.builder.insert_block()
             };
-            let entry = self.blocks.entry(self.current_function_id()).or_default();
-            entry.insert(block.name.clone(), block_id);
+            let blocks = self.blocks.entry(self.current_function_id()).or_default();
+            blocks.insert(block.name.clone(), block_id);
         }
 
-        for block in function.blocks {
-            self.translate_block(block)?;
+        let entry_block_id = self.blocks[&self.current_function_id()][&function.blocks[0].name];
+
+        let mut parsed_blocks_by_id = function
+            .blocks
+            .into_iter()
+            .map(|block| {
+                let block_id = self.blocks[&self.current_function_id()][&block.name];
+                (block_id, block)
+            })
+            .collect::<HashMap<_, _>>();
+
+        let blocks_order = self.compute_blocks_order(entry_block_id, &parsed_blocks_by_id)?;
+        for block_id in blocks_order {
+            let parsed_block = parsed_blocks_by_id.remove(&block_id).unwrap();
+            self.translate_block(parsed_block)?;
         }
 
         Ok(())
+    }
+
+    /// Computes the order in which blocks should be translated. The order will be according
+    /// to the block terminators, starting from the entry block. This is needed because a variable
+    /// in a block might refer to a variable that syntantically happens afterwards, but logically
+    /// happens before.
+    fn compute_blocks_order(
+        &self,
+        entry_block_id: BasicBlockId,
+        parsed_blocks_by_id: &HashMap<BasicBlockId, ParsedBlock>,
+    ) -> Result<Vec<BasicBlockId>, SsaError> {
+        let mut seen = HashSet::new();
+        let mut ordered = Vec::new();
+        let mut queue = VecDeque::new();
+
+        queue.push_back(entry_block_id);
+
+        while let Some(block_id) = queue.pop_front() {
+            if seen.contains(&block_id) {
+                continue;
+            }
+            seen.insert(block_id);
+            ordered.push(block_id);
+
+            let parsed_block = &parsed_blocks_by_id[&block_id];
+            match &parsed_block.terminator {
+                ParsedTerminator::Jmp { destination, .. } => {
+                    queue.push_back(self.lookup_block(destination)?);
+                }
+                ParsedTerminator::Jmpif { then_block, else_block, .. } => {
+                    queue.push_back(self.lookup_block(then_block)?);
+                    queue.push_back(self.lookup_block(else_block)?);
+                }
+                ParsedTerminator::Return(..) => (),
+            }
+        }
+
+        Ok(ordered)
     }
 
     fn translate_block(&mut self, block: ParsedBlock) -> Result<(), SsaError> {
@@ -208,21 +262,17 @@ impl Translator {
                 let value_id = self.builder.insert_allocate(typ);
                 self.define_variable(target, value_id)?;
             }
-            ParsedInstruction::ArrayGet { target, element_type, array, index } => {
+            ParsedInstruction::ArrayGet { target, element_type, array, index, offset } => {
                 let array = self.translate_value(array)?;
                 let index = self.translate_value(index)?;
-                let value_id = self.builder.insert_array_get(array, index, element_type);
+                let value_id = self.builder.insert_array_get(array, index, offset, element_type);
                 self.define_variable(target, value_id)?;
             }
-            ParsedInstruction::ArraySet { target, array, index, value, mutable } => {
+            ParsedInstruction::ArraySet { target, array, index, value, mutable, offset } => {
                 let array = self.translate_value(array)?;
                 let index = self.translate_value(index)?;
                 let value = self.translate_value(value)?;
-                let value_id = if mutable {
-                    self.builder.insert_mutable_array_set(array, index, value)
-                } else {
-                    self.builder.insert_array_set(array, index, value)
-                };
+                let value_id = self.builder.insert_array_set(array, index, value, mutable, offset);
                 self.define_variable(target, value_id)?;
             }
             ParsedInstruction::BinaryOp { target, lhs, op, rhs } => {
@@ -326,9 +376,9 @@ impl Translator {
                 let value_id = self.builder.insert_not(value);
                 self.define_variable(target, value_id)?;
             }
-            ParsedInstruction::RangeCheck { value, max_bit_size } => {
+            ParsedInstruction::RangeCheck { value, max_bit_size, assert_message } => {
                 let value = self.translate_value(value)?;
-                self.builder.insert_range_check(value, max_bit_size, None);
+                self.builder.insert_range_check(value, max_bit_size, assert_message);
             }
             ParsedInstruction::Store { value, address } => {
                 let value = self.translate_value(value)?;
@@ -425,7 +475,7 @@ impl Translator {
         Ok(())
     }
 
-    fn lookup_variable(&mut self, identifier: &Identifier) -> Result<ValueId, SsaError> {
+    fn lookup_variable(&self, identifier: &Identifier) -> Result<ValueId, SsaError> {
         if let Some(value_id) = self
             .variables
             .get(&self.current_function_id())
@@ -452,7 +502,7 @@ impl Translator {
         Ok(())
     }
 
-    fn lookup_global(&mut self, identifier: Identifier) -> Result<ValueId, SsaError> {
+    fn lookup_global(&self, identifier: Identifier) -> Result<ValueId, SsaError> {
         if let Some(value_id) = self.global_values.get(&identifier.name) {
             Ok(*value_id)
         } else {
@@ -460,7 +510,7 @@ impl Translator {
         }
     }
 
-    fn lookup_block(&mut self, identifier: &Identifier) -> Result<BasicBlockId, SsaError> {
+    fn lookup_block(&self, identifier: &Identifier) -> Result<BasicBlockId, SsaError> {
         if let Some(block_id) = self.blocks[&self.current_function_id()].get(&identifier.name) {
             Ok(*block_id)
         } else {
@@ -468,7 +518,7 @@ impl Translator {
         }
     }
 
-    fn lookup_function(&mut self, identifier: &Identifier) -> Result<FunctionId, SsaError> {
+    fn lookup_function(&self, identifier: &Identifier) -> Result<FunctionId, SsaError> {
         if let Some(function_id) = self.functions.get(&identifier.name) {
             Ok(*function_id)
         } else {
@@ -506,6 +556,10 @@ impl Translator {
         // that the SSA we parsed was printed by the `SsaBuilder`, which normalizes
         // before each print.
         ssa.normalize_ids();
+
+        for function in ssa.functions.values() {
+            function.assert_valid();
+        }
 
         ssa
     }

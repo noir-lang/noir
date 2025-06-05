@@ -1,0 +1,21 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: expanded_code
+---
+fn main(x: Field) -> pub Field {
+    let arr: [u8; 2] = [1, 2];
+    if arr[0] != arr[1] {
+        for i in 0..1 {
+            assert(i != 2);
+        }
+    };
+    x + safe_inverse(0)
+}
+
+fn safe_inverse(n: Field) -> Field {
+    if n == 0 {
+        0
+    } else {
+        1 / n
+    }
+}

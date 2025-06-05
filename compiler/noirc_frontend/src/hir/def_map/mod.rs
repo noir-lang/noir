@@ -387,7 +387,7 @@ impl TestFunction {
     pub fn should_fail(&self) -> bool {
         match self.scope {
             TestScope::ShouldFailWith { .. } => true,
-            TestScope::None => false,
+            TestScope::OnlyFailWith { .. } | TestScope::None => false,
         }
     }
 
@@ -397,6 +397,7 @@ impl TestFunction {
         match &self.scope {
             TestScope::None => None,
             TestScope::ShouldFailWith { reason } => reason.as_deref(),
+            TestScope::OnlyFailWith { reason } => Some(reason.as_str()),
         }
     }
 }

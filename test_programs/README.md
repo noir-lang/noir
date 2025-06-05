@@ -9,6 +9,10 @@ Integration tests for the Noir compiler are broken down into the following direc
 - `execution_panic`: a temporary location for tests that panic, but may or may not be valid or satisfiable Noir code. These tests should:
     + Each have a corresponding open issue 
     + Be moved into another test folder once the panic is addressed
+- `execution_stack_overflow`: a temporary location for tests that stack overflow, but may or may not be valid or satisfiable Noir code. These tests should:
+    + Each have a corresponding open issue 
+    + Be moved into another test folder once the stack overflow is addressed
+    + NOTE: these tests are not currently run, either locally or CI
 
 The current testing flow can be thought of as shown:
 ```mermaid

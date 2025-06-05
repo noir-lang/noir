@@ -62,7 +62,37 @@ expression: artifact
       }
     }
   },
-  "bytecode": "H4sIAAAAAAAA/9VWS07DMBCdfGiTpi1ICCR2PYKdT+PsYMEl2BFINqw4FReBDefgINSKnUxdpxtPpOZJ0SRja/z8Jn6yBx22h+devXuHJ1BRPjsj51tygSUXWnJXltxC5UK1vg+n8FR8VJG5gVPUajs0Frqutbl+wVpEKsZmk2IlIEYwoWAZ2+d5U6YNz/grS6taFCwv6r3ggheieE9FljUiF2VVVyWreJ41vC2qtFW1IvdamarF4okaaf5wrjwjul4w2VsfhoOiD6XmjMcwqNYf04i5gcMMOK4oOc7U8d6A/ueyOl6i4loLoh1PJnYGgUt2vATonGQ9USOpHS8BWscLYbgi6G95nVjAcFXx0RwMKh5jWjE3zML5NhNw7JtJSZTQoo827XogtoQCYjOUdXdwDJ9Y0+WF6hAgHSSWMFyFQpTT0CZhGoiJAL3HvaY325fvjx887/rM2K2Kd39PD5+/X8+Yg0Rk1F+h8YBOo1TXT6apz7C+YOwFrwu9Vh1sRu2NfPtGPDfXzOPcxjKma+p+Yb56H/9bDy/UKA8AAA==",
+  "bytecode": [
+    "func 0",
+    "current witness index : _14",
+    "private parameters indices : [_0, _1, _2, _3, _4, _5, _6]",
+    "public parameters indices : []",
+    "return value indices : []",
+    "BLACKBOX::RANGE [(_1, 32)] []",
+    "BLACKBOX::RANGE [(_2, 32)] []",
+    "BLACKBOX::RANGE [(_3, 32)] []",
+    "BLACKBOX::RANGE [(_4, 32)] []",
+    "BLACKBOX::RANGE [(_5, 32)] []",
+    "BLACKBOX::RANGE [(_6, 32)] []",
+    "BRILLIG CALL func 0: inputs: [Single(Expression { mul_terms: [], linear_combinations: [(1, Witness(0))], q_c: 4294967294 }), Single(Expression { mul_terms: [], linear_combinations: [], q_c: 4294967296 })], outputs: [Simple(Witness(8)), Simple(Witness(9))]",
+    "BLACKBOX::RANGE [(_9, 32)] []",
+    "EXPR [ (1, _0) (-4294967296, _8) (-1, _9) 4294967294 ]",
+    "EXPR [ (-1, _8) 0 ]",
+    "INIT CALLDATA 0 (id: 2, len: 2, witnesses: [_1, _2])",
+    "MEM (id: 2, read at: EXPR [ (1, _0) 0 ], value: EXPR [ (1, _10) 0 ]) ",
+    "BRILLIG CALL func 0: inputs: [Single(Expression { mul_terms: [], linear_combinations: [(1, Witness(0))], q_c: 4294967292 }), Single(Expression { mul_terms: [], linear_combinations: [], q_c: 4294967296 })], outputs: [Simple(Witness(11)), Simple(Witness(12))]",
+    "BLACKBOX::RANGE [(_12, 32)] []",
+    "EXPR [ (1, _0) (-4294967296, _11) (-1, _12) 4294967292 ]",
+    "EXPR [ (-1, _11) 0 ]",
+    "INIT CALLDATA 1 (id: 4, len: 4, witnesses: [_3, _4, _5, _6])",
+    "MEM (id: 4, read at: EXPR [ (1, _0) 0 ], value: EXPR [ (1, _13) 0 ]) ",
+    "EXPR [ (1, _10) (1, _13) (-1, _14) 0 ]",
+    "BLACKBOX::RANGE [(_14, 32)] []",
+    "EXPR [ (1, _7) (-1, _14) 0 ]",
+    "INIT RETURNDATA (id: 3, len: 1, witnesses: [_7])",
+    "unconstrained func 0",
+    "[Const { destination: Direct(10), bit_size: Integer(U32), value: 2 }, Const { destination: Direct(11), bit_size: Integer(U32), value: 0 }, CalldataCopy { destination_address: Direct(0), size_address: Direct(10), offset_address: Direct(11) }, BinaryFieldOp { destination: Direct(2), op: IntegerDiv, lhs: Direct(0), rhs: Direct(1) }, BinaryFieldOp { destination: Direct(1), op: Mul, lhs: Direct(2), rhs: Direct(1) }, BinaryFieldOp { destination: Direct(1), op: Sub, lhs: Direct(0), rhs: Direct(1) }, Mov { destination: Direct(0), source: Direct(2) }, Stop { return_data: HeapVector { pointer: Direct(11), size: Direct(10) } }]"
+  ],
   "debug_symbols": "nZHBCoMwDIbfJecerHVz+ipjSNUohVKltoMhvvuiVaeHwdjpa/PnK6EZocbSt4UyTTdAfh+htEpr1Ra6q6RTnaHqODHYroWziFSCQ05WLy0aB7nxWjN4Su2XpqGXZqGTltKIAZqaSA82SuN8mtjHjr6rPEpXmXOx65ff/Xj3xV++yDY/SU7+g26yUvb0Y8Aj6mTAeUAcIAKSgEvAFfKYkAbcIBeEjDDN41glS43rFhpvqsNS3Kvfkm1tve0qrL3FeZwlowHf",
   "file_map": {
     "50": {

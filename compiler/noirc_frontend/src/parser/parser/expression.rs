@@ -30,6 +30,7 @@ enum ArrayLiteralOrError {
 }
 
 impl Parser<'_> {
+    #[inline(always)]
     pub(crate) fn parse_expression_or_error(&mut self) -> Expression {
         self.parse_expression_or_error_impl(true) // allow constructors
     }
@@ -48,6 +49,7 @@ impl Parser<'_> {
         self.parse_expression_or_error_impl(false) // allow constructors
     }
 
+    #[inline(always)]
     pub(crate) fn parse_expression_or_error_impl(
         &mut self,
         allow_constructors: bool,
@@ -251,7 +253,11 @@ impl Parser<'_> {
             return (atom, false);
         }
 
-        let typ = self.parse_type_or_error();
+        // Here we don't allow generics on a type so that `x as u8 < 3` parses without error.
+        // In Rust the above is a syntax error as `u8<` would denote a generic type.
+        // In Noir it's unlikely we'd want generic types in casts and, to avoid a breaking change,
+        // we disallow generics in that position.
+        let typ = self.parse_type_or_error_without_generics();
         let kind = ExpressionKind::Cast(Box::new(CastExpression { lhs: atom, r#type: typ }));
         let location = self.location_since(start_location);
         let atom = Expression { kind, location };
@@ -393,11 +399,11 @@ impl Parser<'_> {
         let typ = self.parse_type_or_error();
         if self.eat_keyword(Keyword::As) {
             let as_trait_path = self.parse_as_trait_path_for_type_after_as_keyword(typ);
-            Some(ExpressionKind::AsTraitPath(as_trait_path))
+            Some(ExpressionKind::AsTraitPath(Box::new(as_trait_path)))
         } else {
             self.eat_or_error(Token::Greater);
             let type_path = self.parse_type_path_expr_for_type(typ);
-            Some(ExpressionKind::TypePath(type_path))
+            Some(ExpressionKind::TypePath(Box::new(type_path)))
         }
     }
 
@@ -671,7 +677,7 @@ impl Parser<'_> {
         let typ = UnresolvedType { typ, location };
 
         if self.at(Token::DoubleColon) {
-            Some(ExpressionKind::TypePath(self.parse_type_path_expr_for_type(typ)))
+            Some(ExpressionKind::TypePath(Box::new(self.parse_type_path_expr_for_type(typ))))
         } else {
             // This is the case when we find `Field` or `i32` but `::` doesn't follow it.
             self.push_error(ParserErrorReason::ExpectedValueFoundBuiltInType { typ }, location);
@@ -876,7 +882,7 @@ impl Parser<'_> {
 
                 self.push_error(ParserErrorReason::MissingAngleBrackets, location);
 
-                return Some(ExpressionKind::TypePath(type_path));
+                return Some(ExpressionKind::TypePath(Box::new(type_path)));
             }
 
             return Some(ExpressionKind::Literal(Literal::Unit));
@@ -1826,6 +1832,25 @@ mod tests {
     }
 
     #[test]
+    fn parses_cast_comparison() {
+        // Note: in Rust this is a syntax error because `u8 <` is parsed as a generic type reference.
+        // In Noir we allow this syntax, for now, mainly to avoid a breaking change and because
+        // it's unlikely we'd want generic types in this context.
+        let src = "1 as u8 < 3";
+        let expr = parse_expression_no_errors(src);
+        let ExpressionKind::Infix(infix_expr) = expr.kind else {
+            panic!("Expected infix");
+        };
+        let ExpressionKind::Cast(cast_expr) = infix_expr.lhs.kind else {
+            panic!("Expected cast");
+        };
+        assert_eq!(cast_expr.lhs.to_string(), "1");
+        assert_eq!(cast_expr.r#type.to_string(), "u8");
+
+        assert_eq!(infix_expr.rhs.to_string(), "3");
+    }
+
+    #[test]
     fn parses_index() {
         let src = "1[2]";
         let expr = parse_expression_no_errors(src);
@@ -1943,7 +1968,7 @@ mod tests {
 
         let (pattern, typ) = lambda.parameters.remove(0);
         assert_eq!(pattern.to_string(), "y");
-        assert!(matches!(typ.typ, UnresolvedTypeData::FieldElement));
+        assert_eq!(typ.typ.to_string(), "Field");
     }
 
     #[test]
@@ -1955,7 +1980,7 @@ mod tests {
         };
         assert!(lambda.parameters.is_empty());
         assert_eq!(lambda.body.to_string(), "1");
-        assert!(matches!(lambda.return_type.typ, UnresolvedTypeData::FieldElement));
+        assert_eq!(lambda.return_type.typ.to_string(), "Field");
     }
 
     #[test]
@@ -1979,30 +2004,6 @@ mod tests {
             panic!("Expected comptime block");
         };
         assert_eq!(block.statements.len(), 1);
-    }
-
-    #[test]
-    fn parses_type_path() {
-        let src = "Field::foo";
-        let expr = parse_expression_no_errors(src);
-        let ExpressionKind::TypePath(type_path) = expr.kind else {
-            panic!("Expected type_path");
-        };
-        assert_eq!(type_path.typ.to_string(), "Field");
-        assert_eq!(type_path.item.to_string(), "foo");
-        assert!(type_path.turbofish.is_none());
-    }
-
-    #[test]
-    fn parses_type_path_with_generics() {
-        let src = "Field::foo::<T>";
-        let expr = parse_expression_no_errors(src);
-        let ExpressionKind::TypePath(type_path) = expr.kind else {
-            panic!("Expected type_path");
-        };
-        assert_eq!(type_path.typ.to_string(), "Field");
-        assert_eq!(type_path.item.to_string(), "foo");
-        assert!(type_path.turbofish.is_some());
     }
 
     #[test]
@@ -2080,22 +2081,6 @@ mod tests {
 
         let reason = get_single_error_reason(&parser.errors, span);
         assert!(matches!(reason, ParserErrorReason::MissingAngleBrackets));
-    }
-
-    #[test]
-    fn parses_primitive_type_errors() {
-        let src = "
-        Field
-        ^^^^^
-        ";
-        let (src, span) = get_source_with_error_span(src);
-        let mut parser = Parser::for_str_with_dummy_file(&src);
-        let expr = parser.parse_expression_or_error();
-        let ExpressionKind::Error = expr.kind else {
-            panic!("Expected error");
-        };
-        let reason = get_single_error_reason(&parser.errors, span);
-        assert_eq!(reason.to_string(), "Expected value, found built-in type `Field`");
     }
 
     #[test]

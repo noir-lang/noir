@@ -2,7 +2,7 @@
 //! The purpose of this pass is to inline the instructions of each function call
 //! within the function caller. If all function calls are known, there will only
 //! be a single function remaining when the pass finishes.
-use std::collections::{BTreeSet, HashSet, VecDeque};
+use std::collections::{HashSet, VecDeque};
 
 use acvm::acir::AcirField;
 use im::HashMap;
@@ -13,6 +13,7 @@ use crate::ssa::{
     function_builder::FunctionBuilder,
     ir::{
         basic_block::BasicBlockId,
+        call_graph::CallGraph,
         dfg::{GlobalsGraph, InsertInstructionResult},
         function::{Function, FunctionId, RuntimeType},
         instruction::{Instruction, InstructionId, TerminatorInstruction},
@@ -50,13 +51,15 @@ impl Ssa {
     /// This step should run after runtime separation, since it relies on the runtime of the called functions being final.
     #[tracing::instrument(level = "trace", skip(self))]
     pub(crate) fn inline_functions(self, aggressiveness: i64) -> Ssa {
-        let inline_infos = compute_inline_infos(&self, false, aggressiveness);
+        let call_graph = CallGraph::from_ssa_weighted(&self);
+        let inline_infos = compute_inline_infos(&self, &call_graph, false, aggressiveness);
         Self::inline_functions_inner(self, &inline_infos, false)
     }
 
     /// Run the inlining pass where functions marked with `InlineType::NoPredicates` as not entry points
     pub(crate) fn inline_functions_with_no_predicates(self, aggressiveness: i64) -> Ssa {
-        let inline_infos = compute_inline_infos(&self, true, aggressiveness);
+        let call_graph = CallGraph::from_ssa_weighted(&self);
+        let inline_infos = compute_inline_infos(&self, &call_graph, true, aggressiveness);
         Self::inline_functions_inner(self, &inline_infos, true)
     }
 
@@ -65,8 +68,10 @@ impl Ssa {
         inline_infos: &InlineInfos,
         inline_no_predicates_functions: bool,
     ) -> Ssa {
-        let inline_targets =
-            inline_infos.iter().filter_map(|(id, info)| info.is_inline_target().then_some(*id));
+        let inline_targets = inline_infos.iter().filter_map(|(id, info)| {
+            let dfg = &self.functions[id].dfg;
+            info.is_inline_target(dfg).then_some(*id)
+        });
 
         let should_inline_call = |callee: &Function| -> bool {
             match callee.runtime() {
@@ -91,6 +96,7 @@ impl Ssa {
             let new_function = function.inlined(&self, &should_inline_call);
             (entry_point, new_function)
         });
+
         self
     }
 }
@@ -155,31 +161,6 @@ struct PerFunctionContext<'function> {
     inlining_entry: bool,
 
     globals: &'function GlobalsGraph,
-}
-
-/// Utility function to find out the direct calls of a function.
-///
-/// Returns the function IDs from all `Call` instructions without deduplication.
-pub(crate) fn called_functions_vec(func: &Function) -> Vec<FunctionId> {
-    let mut called_function_ids = Vec::new();
-    for block_id in func.reachable_blocks() {
-        for instruction_id in func.dfg[block_id].instructions() {
-            let Instruction::Call { func: called_value_id, .. } = &func.dfg[*instruction_id] else {
-                continue;
-            };
-
-            if let Value::Function(function_id) = func.dfg[*called_value_id] {
-                called_function_ids.push(function_id);
-            }
-        }
-    }
-
-    called_function_ids
-}
-
-/// Utility function to find out the deduplicated direct calls made from a function.
-fn called_functions(func: &Function) -> BTreeSet<FunctionId> {
-    called_functions_vec(func).into_iter().collect()
 }
 
 impl InlineContext {
@@ -752,14 +733,9 @@ impl<'function> PerFunctionContext<'function> {
 
 #[cfg(test)]
 mod test {
-    use std::cmp::max;
-
     use crate::{
         assert_ssa_snapshot,
-        ssa::{
-            Ssa,
-            opt::{assert_normalized_ssa_equals, inlining::inline_info::compute_bottom_up_order},
-        },
+        ssa::{Ssa, opt::assert_normalized_ssa_equals},
     };
 
     #[test]
@@ -831,21 +807,23 @@ mod test {
         let src = "
         acir(inline) fn main f0 {
           b0():
-            v2 = call f1(Field 5) -> Field
+            v2 = call f1(u32 5) -> u32
             return v2
         }
 
         acir(inline) fn factorial f1 {
-          b0(v1: Field):
-            v2 = lt v1, Field 1
+          b0(v1: u32):
+            v2 = lt v1, u32 1
             jmpif v2 then: b1, else: b2
           b1():
-            return Field 1
+            jmp b3(u32 1)
           b2():
-            v4 = sub v1, Field 1
-            v5 = call f1(v4) -> Field
+            v4 = sub v1, u32 1
+            v5 = call f1(v4) -> u32
             v6 = mul v1, v5
-            return v6
+            jmp b3(v6)
+          b3(v7: u32):
+            return v7
         }
         ";
         let ssa = Ssa::from_str(src).unwrap();
@@ -866,7 +844,23 @@ mod test {
           b5():
             jmp b6()
           b6():
-            return Field 120
+            jmp b7(u32 1)
+          b7(v0: u32):
+            jmp b8(v0)
+          b8(v1: u32):
+            v8 = mul u32 2, v1
+            jmp b9(v8)
+          b9(v2: u32):
+            v10 = mul u32 3, v2
+            jmp b10(v10)
+          b10(v3: u32):
+            v12 = mul u32 4, v3
+            jmp b11(v12)
+          b11(v4: u32):
+            v14 = mul u32 5, v4
+            jmp b12(v14)
+          b12(v5: u32):
+            return v5
         }
         ");
     }
@@ -995,96 +989,5 @@ mod test {
             return v0
         }
         ");
-    }
-
-    #[test]
-    fn bottom_up_order_and_weights() {
-        let src = "
-          brillig(inline) fn main f0 {
-            b0(v0: u32, v1: u1):
-              v3 = call f2(v0) -> u1
-              v4 = eq v3, v1
-              constrain v3 == v1
-              return
-          }
-          brillig(inline) fn is_even f1 {
-            b0(v0: u32):
-              v3 = eq v0, u32 0
-              jmpif v3 then: b2, else: b1
-            b1():
-              v5 = call f3(v0) -> u32
-              v7 = call f2(v5) -> u1
-              jmp b3(v7)
-            b2():
-              jmp b3(u1 1)
-            b3(v1: u1):
-              return v1
-          }
-          brillig(inline) fn is_odd f2 {
-            b0(v0: u32):
-              v3 = eq v0, u32 0
-              jmpif v3 then: b2, else: b1
-            b1():
-              v5 = call f3(v0) -> u32
-              v7 = call f1(v5) -> u1
-              jmp b3(v7)
-            b2():
-              jmp b3(u1 0)
-            b3(v1: u1):
-              return v1
-          }
-          brillig(inline) fn decrement f3 {
-            b0(v0: u32):
-              v2 = sub v0, u32 1
-              return v2
-          }
-        ";
-        // main
-        //   |
-        //   V
-        // is_odd <-> is_even
-        //      |     |
-        //      V     V
-        //      decrement
-
-        let ssa = Ssa::from_str(src).unwrap();
-        let order = compute_bottom_up_order(&ssa);
-
-        assert_eq!(order.len(), 4);
-        let (ids, ws): (Vec<_>, Vec<_>) = order.into_iter().map(|(id, w)| (id.to_u32(), w)).unzip();
-        let (ows, tws): (Vec<_>, Vec<_>) = ws.into_iter().unzip();
-
-        // Check order
-        assert_eq!(ids[0], 3, "decrement: first, it doesn't call anything");
-        assert_eq!(ids[1], 1, "is_even: called by is_odd; removing first avoids cutting the graph");
-        assert_eq!(ids[2], 2, "is_odd: called by is_odd and main");
-        assert_eq!(ids[3], 0, "main: last, it's the entry");
-
-        // Check own weights
-        assert_eq!(ows, [2, 7, 7, 4]);
-
-        // Check transitive weights
-        assert_eq!(tws[0], ows[0], "decrement");
-        assert_eq!(
-            tws[1],
-            ows[1] + // own
-            tws[0] + // pushed from decrement
-            (ows[2] + tws[0]), // pulled from is_odd at the time is_even is emitted
-            "is_even"
-        );
-        assert_eq!(
-            tws[2],
-            ows[2] + // own
-            tws[0] + // pushed from decrement
-            tws[1], // pushed from is_even
-            "is_odd"
-        );
-        assert_eq!(
-            tws[3],
-            ows[3] + // own
-            tws[2], // pushed from is_odd
-            "main"
-        );
-        assert!(tws[3] > max(tws[1], tws[2]), "ideally 'main' has the most weight");
     }
 }

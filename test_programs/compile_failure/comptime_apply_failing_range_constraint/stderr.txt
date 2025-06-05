@@ -1,8 +1,0 @@
-error: failed to solve blackbox function: range, reason: value exceeds range check bounds
-   ┌─ std/field/mod.nr:17:9
-   │
-17 │         self.__assert_max_bit_size(BIT_SIZE);
-   │         ------------------------------------
-   │
-
-Aborting due to 1 previous error

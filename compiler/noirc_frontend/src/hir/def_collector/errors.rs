@@ -1,4 +1,5 @@
-use crate::ast::{Ident, ItemVisibility, Path, UnsupportedNumericGenericType};
+use crate::ast::{Ident, ItemVisibility, UnsupportedNumericGenericType};
+use crate::elaborator::TypedPath;
 use crate::hir::resolution::import::PathResolutionError;
 use crate::hir::type_check::generics::TraitGenerics;
 
@@ -46,9 +47,9 @@ pub enum DefCollectorErrorKind {
     #[error("Method is not defined in trait")]
     MethodNotInTrait { trait_name: Ident, impl_method: Ident },
     #[error("Only traits can be implemented")]
-    NotATrait { not_a_trait_name: Path },
+    NotATrait { not_a_trait_name: TypedPath },
     #[error("Trait not found")]
-    TraitNotFound { trait_path: Path },
+    TraitNotFound { trait_path: TypedPath },
     #[error("Missing Trait method implementation")]
     TraitMissingMethod { trait_name: Ident, method_name: Ident, trait_impl_location: Location },
     #[error("Module is already part of the crate")]
@@ -66,12 +67,18 @@ pub enum DefCollectorErrorKind {
         trait_method_name: String,
         trait_method_location: Location,
     },
-    #[error("{0}")]
-    UnsupportedNumericGenericType(#[from] UnsupportedNumericGenericType),
     #[error("The `#[test]` attribute may only be used on a non-associated function")]
     TestOnAssociatedFunction { location: Location },
     #[error("The `#[export]` attribute may only be used on a non-associated function")]
     ExportOnAssociatedFunction { location: Location },
+    #[error(
+        "The `#[test(only_fail_with = \"..\")]` attribute may only be used on functions with parameters"
+    )]
+    TestOnlyFailWithWithoutParameters { location: Location },
+    #[error("The `#[fuzz]` attribute may only be used on functions with parameters")]
+    FuzzingHarnessWithoutParameters { location: Location },
+    #[error("`{name}` entry-point function is not allowed to have generic parameters")]
+    EntryPointWithGenerics { name: String, location: Location },
 }
 
 impl DefCollectorErrorKind {
@@ -103,12 +110,12 @@ impl DefCollectorErrorKind {
             | DefCollectorErrorKind::ModuleOriginallyDefined { location, .. }
             | DefCollectorErrorKind::TraitImplOrphaned { location }
             | DefCollectorErrorKind::TraitMissingMethod { trait_impl_location: location, .. }
-            | DefCollectorErrorKind::ForeignImpl { location, .. } => *location,
+            | DefCollectorErrorKind::ForeignImpl { location, .. }
+            | DefCollectorErrorKind::TestOnlyFailWithWithoutParameters { location }
+            | DefCollectorErrorKind::FuzzingHarnessWithoutParameters { location }
+            | DefCollectorErrorKind::EntryPointWithGenerics { location, .. } => *location,
             DefCollectorErrorKind::NotATrait { not_a_trait_name: path }
             | DefCollectorErrorKind::TraitNotFound { trait_path: path } => path.location,
-            DefCollectorErrorKind::UnsupportedNumericGenericType(
-                unsupported_numeric_generic_type,
-            ) => unsupported_numeric_generic_type.ident.location(),
         }
     }
 }
@@ -267,7 +274,6 @@ impl<'a> From<&'a DefCollectorErrorKind> for Diagnostic {
                 diag.add_secondary(format!("definition of `{trait_method_name}` from trait"), *trait_method_location);
                 diag
             }
-            DefCollectorErrorKind::UnsupportedNumericGenericType(err) => err.into(),
             DefCollectorErrorKind::TestOnAssociatedFunction { location } => Diagnostic::simple_error(
                 "The `#[test]` attribute is disallowed on `impl` methods".into(),
                 String::new(),
@@ -275,6 +281,21 @@ impl<'a> From<&'a DefCollectorErrorKind> for Diagnostic {
             ),
             DefCollectorErrorKind::ExportOnAssociatedFunction { location } => Diagnostic::simple_error(
                 "The `#[export]` attribute is disallowed on `impl` methods".into(),
+                String::new(),
+                *location,
+            ),
+            DefCollectorErrorKind::TestOnlyFailWithWithoutParameters { location } => Diagnostic::simple_error(
+                "The `#[test(only_fail_with = \"..\")]` attribute may only be used on functions with parameters".into(),
+                String::new(),
+                *location,
+            ),
+            DefCollectorErrorKind::FuzzingHarnessWithoutParameters { location } => Diagnostic::simple_error(
+                "The `#[fuzz]` attribute may only be used on functions with parameters".into(),
+                String::new(),
+                *location,
+            ),
+            DefCollectorErrorKind::EntryPointWithGenerics { name, location } => Diagnostic::simple_error(
+                format!("`{name}` entry-point function is not allowed to have generic parameters"),
                 String::new(),
                 *location,
             ),

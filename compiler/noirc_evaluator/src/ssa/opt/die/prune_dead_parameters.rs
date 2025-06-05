@@ -55,13 +55,13 @@ use crate::ssa::{
 
 impl Ssa {
     /// See [`prune_dead_parameters`][self] module for more information.
-    #[tracing::instrument(level = "trace", skip(self))]
+    #[tracing::instrument(level = "trace", skip_all)]
     pub(crate) fn prune_dead_parameters(
         mut self,
-        unused_parameters: HashMap<FunctionId, HashMap<BasicBlockId, Vec<ValueId>>>,
+        unused_parameters: &HashMap<FunctionId, HashMap<BasicBlockId, Vec<ValueId>>>,
     ) -> Self {
         for (func_id, unused_parameters) in unused_parameters {
-            let function = self.functions.get_mut(&func_id).expect("ICE: Function should exist");
+            let function = self.functions.get_mut(func_id).expect("ICE: Function should exist");
             function.prune_dead_parameters(unused_parameters);
         }
         self
@@ -70,7 +70,7 @@ impl Ssa {
 
 impl Function {
     /// See [`prune_dead_parameters`][self] module for more information
-    fn prune_dead_parameters(&mut self, unused_params: HashMap<BasicBlockId, Vec<ValueId>>) {
+    fn prune_dead_parameters(&mut self, unused_params: &HashMap<BasicBlockId, Vec<ValueId>>) {
         let cfg = ControlFlowGraph::with_function(self);
         let post_order = PostOrder::with_cfg(&cfg);
 
@@ -169,7 +169,7 @@ mod tests {
         assert_eq!(b1_unused[0].to_u32(), 0);
         assert_eq!(b1_unused[1].to_u32(), 2);
 
-        let ssa = ssa.prune_dead_parameters(die_result.unused_parameters);
+        let ssa = ssa.prune_dead_parameters(&die_result.unused_parameters);
 
         assert_ssa_snapshot!(ssa, @r#"
         brillig(inline) fn test f0 {
@@ -226,7 +226,8 @@ mod tests {
         assert_eq!(b3_unused.len(), 1);
         assert_eq!(b3_unused[0].to_u32(), 2);
 
-        let ssa = ssa.prune_dead_parameters(die_result.unused_parameters);
+        let ssa = ssa.prune_dead_parameters(&die_result.unused_parameters);
+        let (ssa, _) = ssa.dead_instruction_elimination_inner(false, false);
 
         // We expect b3 to have no parameters anymore and both predecessors (b1 and b2)
         // should no longer pass any arguments to their terminator (which jumps to b3).
@@ -240,7 +241,6 @@ mod tests {
             jmpif v5 then: b1, else: b2
           b1():
             v7 = mul u32 601072115, u32 2825334515
-            v8 = cast v7 as u64
             jmp b3()
           b2():
             jmp b3()
@@ -275,7 +275,7 @@ mod tests {
         let b1_unused = function.get(&Id::test_new(1)).expect("Should have unused parameters");
         assert!(b1_unused.is_empty());
 
-        let ssa = ssa.prune_dead_parameters(die_result.unused_parameters);
+        let ssa = ssa.prune_dead_parameters(&die_result.unused_parameters);
 
         // b0 still has both parameters even though v0 is unused
         // as b0 is the entry block which would also change the function signature.
@@ -338,6 +338,7 @@ mod tests {
         }
         "#;
         let ssa = Ssa::from_str(src).unwrap();
+
         // DIE is necessary to fetch the block parameters liveness information
         let (ssa, die_result) = ssa.dead_instruction_elimination_inner(false, false);
 
@@ -350,39 +351,83 @@ mod tests {
             if block_id.to_u32() == 9 {
                 assert!(unused_params.len() == 1);
                 assert_eq!(unused_params[0].to_u32(), 3);
+            } else if block_id.to_u32() == 5 {
+                assert!(unused_params.len() == 1);
+                assert_eq!(unused_params[0].to_u32(), 1);
+            } else if block_id.to_u32() == 6 {
+                assert!(unused_params.len() == 1);
+                assert_eq!(unused_params[0].to_u32(), 2);
             } else {
                 assert!(unused_params.is_empty());
             }
         }
 
-        let ssa = ssa.prune_dead_parameters(die_result.unused_parameters);
+        let ssa = ssa.prune_dead_parameters(&die_result.unused_parameters);
 
-        // We only expect b9 to have v3 pruned.
-        // Only v1 in b5 is marked as used with a single DIE pass.
-        // Another DIE pass on the resulting SSA below would be necessary to now see v1 in b5 as unused.
+        let (ssa, die_result) = ssa.dead_instruction_elimination_inner(false, false);
+
+        assert!(die_result.unused_parameters.len() == 1);
+        let function = die_result
+            .unused_parameters
+            .get(&Id::test_new(0))
+            .expect("Should have unused parameters");
+        for unused_params in function.values() {
+            assert!(unused_params.is_empty());
+        }
+
         assert_ssa_snapshot!(ssa, @r#"
         brillig(inline) predicate_pure fn main f0 {
           b0(v0: i16):
-            v4 = lt i16 3, v0
-            jmpif v4 then: b1, else: b2
+            v2 = lt i16 3, v0
+            jmpif v2 then: b1, else: b2
           b1():
-            v7 = lt i16 4, v0
-            jmpif v7 then: b3, else: b4
+            v4 = lt i16 4, v0
+            jmpif v4 then: b3, else: b4
           b2():
-            jmp b5(Field 3)
+            jmp b5()
           b3():
-            jmp b6(Field 1)
+            jmp b6()
           b4():
-            jmp b6(Field 2)
-          b5(v1: Field):
-            v11 = lt i16 5, v0
-            jmpif v11 then: b7, else: b8
-          b6(v2: Field):
-            jmp b5(v2)
+            jmp b6()
+          b5():
+            v6 = lt i16 5, v0
+            jmpif v6 then: b7, else: b8
+          b6():
+            jmp b5()
           b7():
             jmp b9()
           b8():
-            v12 = add v1, Field 1
+            jmp b9()
+          b9():
+            return
+        }
+        "#);
+
+        // Now check that calling the DIE -> parameter pruning feedback loop produces the same result
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.dead_instruction_elimination_with_pruning(false, false);
+        assert_ssa_snapshot!(ssa, @r#"
+        brillig(inline) predicate_pure fn main f0 {
+          b0(v0: i16):
+            v2 = lt i16 3, v0
+            jmpif v2 then: b1, else: b2
+          b1():
+            v4 = lt i16 4, v0
+            jmpif v4 then: b3, else: b4
+          b2():
+            jmp b5()
+          b3():
+            jmp b6()
+          b4():
+            jmp b6()
+          b5():
+            v6 = lt i16 5, v0
+            jmpif v6 then: b7, else: b8
+          b6():
+            jmp b5()
+          b7():
+            jmp b9()
+          b8():
             jmp b9()
           b9():
             return

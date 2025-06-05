@@ -33,6 +33,7 @@ fn generate_ssa_from_body(body: Expression) -> ssa_gen::Ssa {
         parameters: Vec::new(),
         body,
         return_type: Type::Unit,
+        return_visibility: Visibility::Private,
         unconstrained: false,
         inline_type: InlineType::Inline,
         func_sig: (Vec::new(), None),
@@ -45,7 +46,6 @@ fn generate_ssa_from_body(body: Expression) -> ssa_gen::Ssa {
         main_function_signature: sigs[0].clone(),
         function_signatures: sigs,
         return_location: None,
-        return_visibility: Visibility::Private,
         globals: Default::default(),
         debug_variables: Default::default(),
         debug_functions: Default::default(),
@@ -91,7 +91,6 @@ fn test_modulo_of_negative_literals_in_range() {
         v3 = lt v0, i64 18446744073709551615
         jmpif v3 then: b2, else: b3
       b2():
-        v5 = unchecked_add v0, i64 1
         jmp b3()
       b3():
         return
@@ -146,6 +145,7 @@ fn test_recursion_limit_rewrite() {
             parameters: vec![],
             body: Expression::Block(calls),
             return_type: Type::Unit,
+            return_visibility: Visibility::Private,
             unconstrained,
             inline_type: InlineType::InlineAlways,
             func_sig: (vec![], None),
@@ -156,7 +156,6 @@ fn test_recursion_limit_rewrite() {
             FunctionDeclaration {
                 name: name.to_string(),
                 params: vec![],
-                param_visibilities: vec![],
                 return_type: Type::Unit,
                 return_visibility: Visibility::Private,
                 inline_type: func.inline_type,
@@ -196,14 +195,14 @@ fn test_recursion_limit_rewrite() {
     // - main passes the limit to foo by ref
     // - foo passes the limit to bar_proxy by value
     // - bar_proxy passes the limit to baz by ref
-    // - bar does not passes the limit to qux
+    // - bar passes the limit to qux, even though it's unused
     // - baz passes the limit to itself by ref
 
     let code = format!("{}", DisplayAstAsNoir(&program));
 
     insta::assert_snapshot!(code, @r"
     fn main() -> () {
-        let mut ctx_limit = 25;
+        let mut ctx_limit: u32 = 25;
         foo((&mut ctx_limit))
     }
     fn foo(ctx_limit: &mut u32) -> () {
@@ -220,7 +219,7 @@ fn test_recursion_limit_rewrite() {
         } else {
             *ctx_limit = ((*ctx_limit) - 1);
             baz(ctx_limit);
-            qux()
+            qux(ctx_limit)
         }
     }
     unconstrained fn baz(ctx_limit: &mut u32) -> () {
@@ -231,13 +230,10 @@ fn test_recursion_limit_rewrite() {
             baz(ctx_limit)
         }
     }
-    unconstrained fn qux() -> () {
+    unconstrained fn qux(_ctx_limit: &mut u32) -> () {
     }
     unconstrained fn bar_proxy(mut ctx_limit: u32) -> () {
         bar((&mut ctx_limit))
-    }
-    unconstrained fn baz_proxy(mut ctx_limit: u32) -> () {
-        baz((&mut ctx_limit))
     }
     ");
 }

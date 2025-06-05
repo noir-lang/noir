@@ -30,7 +30,10 @@
 //!
 //! After this pass all first-class functions are replaced with numeric IDs
 //! and calls are routed via the newly generated `apply` functions.
-use std::collections::{BTreeMap, BTreeSet};
+use std::{
+    collections::{BTreeMap, BTreeSet},
+    sync::Arc,
+};
 
 use acvm::FieldElement;
 use iter_extended::vecmap;
@@ -101,12 +104,17 @@ impl Ssa {
 
         // Run defunctionalization over all functions in the SSA
         context.defunctionalize_all(&mut self);
+
+        // Check that we have established the properties expected from this pass.
+        #[cfg(debug_assertions)]
+        self.functions.values().for_each(defunctionalize_post_check);
+
         self
     }
 }
 
 impl DefunctionalizationContext {
-    /// Defunctionalize all functions in the Ssa
+    /// Defunctionalize all functions in the SSA
     fn defunctionalize_all(mut self, ssa: &mut Ssa) {
         for function in ssa.functions.values_mut() {
             self.defunctionalize(function);
@@ -121,8 +129,9 @@ impl DefunctionalizationContext {
             // Temporarily take the parameters here just to avoid cloning them
             let parameters = block.take_parameters();
             for parameter in &parameters {
-                if func.dfg.type_of_value(*parameter) == Type::Function {
-                    func.dfg.set_type_of_value(*parameter, Type::field());
+                let typ = &func.dfg.type_of_value(*parameter);
+                if let Some(rep) = replacement_type(typ) {
+                    func.dfg.set_type_of_value(*parameter, rep);
                 }
             }
 
@@ -150,8 +159,9 @@ impl DefunctionalizationContext {
 
                 #[allow(clippy::unnecessary_to_owned)] // clippy is wrong here
                 for result in func.dfg.instruction_results(instruction_id).to_vec() {
-                    if func.dfg.type_of_value(result) == Type::Function {
-                        func.dfg.set_type_of_value(result, Type::field());
+                    let typ = &func.dfg.type_of_value(result);
+                    if let Some(rep) = replacement_type(typ) {
+                        func.dfg.set_type_of_value(result, rep);
                     }
                 }
 
@@ -176,7 +186,13 @@ impl DefunctionalizationContext {
                         };
 
                         // Find the correct apply function
-                        let apply_function = self.get_apply_function(signature, func.runtime());
+                        let Some(apply_function) =
+                            self.get_apply_function(signature, func.runtime())
+                        else {
+                            // If there is no apply function then this should be a parameter in a function
+                            // that will never actually be called, and the DIE pass will eventually remove it.
+                            continue;
+                        };
 
                         // Replace the instruction with a call to apply
                         let apply_function_value_id = func.dfg.import_function(apply_function.id);
@@ -196,8 +212,12 @@ impl DefunctionalizationContext {
     }
 
     /// Returns the apply function for the given signature
-    fn get_apply_function(&self, signature: Signature, runtime: RuntimeType) -> ApplyFunction {
-        *self.apply_functions.get(&(signature, runtime)).expect("Could not find apply function")
+    fn get_apply_function(
+        &self,
+        signature: Signature,
+        runtime: RuntimeType,
+    ) -> Option<ApplyFunction> {
+        self.apply_functions.get(&(signature, runtime)).copied()
     }
 }
 
@@ -222,6 +242,13 @@ fn remove_first_class_functions_in_instruction(
         for arg in arguments {
             *arg = map_value(*arg);
         }
+    } else if let Instruction::MakeArray { typ, .. } = instruction {
+        if let Some(rep) = replacement_type(typ) {
+            *typ = rep;
+        }
+        instruction.map_values_mut(map_value);
+
+        modified = true;
     } else {
         instruction.map_values_mut(map_value);
     }
@@ -232,7 +259,8 @@ fn remove_first_class_functions_in_instruction(
 /// Try to map the given function literal to a field, returning Some(field) on success.
 /// Returns none if the given value was not a function or doesn't need to be mapped.
 fn map_function_to_field(func: &mut Function, value: ValueId) -> Option<ValueId> {
-    if let Type::Function = func.dfg[value].get_type().as_ref() {
+    let typ = func.dfg[value].get_type();
+    if let Some(rep) = replacement_type(typ.as_ref()) {
         match &func.dfg[value] {
             // If the value is a static function, transform it to the function id
             Value::Function(id) => {
@@ -241,7 +269,7 @@ fn map_function_to_field(func: &mut Function, value: ValueId) -> Option<ValueId>
             }
             // If the value is a function used as value, just change the type of it
             Value::Instruction { .. } | Value::Param { .. } => {
-                func.dfg.set_type_of_value(value, Type::field());
+                func.dfg.set_type_of_value(value, rep);
             }
             _ => (),
         }
@@ -292,9 +320,6 @@ fn find_variants(ssa: &Ssa) -> Variants {
 }
 
 /// Finds all literal functions used as values in the given function
-///
-/// It is assumed that function values will only ever be used in a call instruction
-/// or a store instruction.
 fn find_functions_as_values(func: &Function) -> BTreeSet<FunctionId> {
     let mut functions_as_values: BTreeSet<FunctionId> = BTreeSet::new();
 
@@ -308,15 +333,14 @@ fn find_functions_as_values(func: &Function) -> BTreeSet<FunctionId> {
         let block = &func.dfg[block_id];
         for instruction_id in block.instructions() {
             let instruction = &func.dfg[*instruction_id];
-            match instruction {
-                Instruction::Call { arguments, .. } => {
-                    arguments.iter().for_each(|value_id| process_value(*value_id));
-                }
-                Instruction::Store { value, .. } => {
-                    process_value(*value);
-                }
-                _ => continue,
-            };
+
+            // Handle call instructions separately. Functions used in their function field
+            // don't have to be first-class values.
+            if let Instruction::Call { arguments, .. } = instruction {
+                arguments.iter().for_each(|value_id| process_value(*value_id));
+            } else {
+                instruction.for_each_value(&mut process_value);
+            }
         }
 
         block.unwrap_terminator().for_each_value(&mut process_value);
@@ -371,24 +395,24 @@ fn find_dynamic_dispatches(func: &Function) -> BTreeSet<Signature> {
 fn create_apply_functions(ssa: &mut Ssa, variants_map: Variants) -> ApplyFunctions {
     let mut apply_functions = HashMap::default();
     for ((mut signature, runtime), variants) in variants_map.into_iter() {
-        assert!(
-            !variants.is_empty(),
-            "ICE: at least one variant should exist for a dynamic call {signature:?}"
-        );
+        if variants.is_empty() {
+            // If no variants exist for a dynamic call we leave removing those dead parameters to DIE
+            continue;
+        }
         let dispatches_to_multiple_functions = variants.len() > 1;
 
         // Update the shared function signature of the higher-order function variants
         // to replace any function passed as a value to a numeric field type.
         for param in &mut signature.params {
-            if *param == Type::Function {
-                *param = Type::field();
+            if let Some(rep) = replacement_type(param) {
+                *param = rep;
             }
         }
 
         // Update the return value types as we did for the signature parameters above.
         for ret in &mut signature.returns {
-            if *ret == Type::Function {
-                *ret = Type::field();
+            if let Some(rep) = replacement_type(ret) {
+                *ret = rep;
             }
         }
 
@@ -467,7 +491,17 @@ fn create_apply_function(
 
         let entry_block = function_builder.current_block();
 
-        let return_block = build_return_block(&mut function_builder, &signature.returns);
+        let make_end_block = |builder: &mut FunctionBuilder| -> (BasicBlockId, Vec<ValueId>) {
+            let block = builder.insert_block();
+            // The values that will be ultimately returned from the function.
+            let params =
+                vecmap(&signature.returns, |typ| builder.add_block_parameter(block, typ.clone()));
+            (block, params)
+        };
+
+        let (end_block, end_results) = make_end_block(&mut function_builder);
+        let mut blocks_to_merge = Vec::with_capacity(function_ids.len());
+
         // Switch back to the entry block to build the rest of the dispatch function
         function_builder.switch_to_block(entry_block);
 
@@ -502,41 +536,126 @@ fn create_apply_function(
                 .insert_call(target_function_value, params_ids.clone(), signature.returns.clone())
                 .to_vec();
 
-            // Jump to the return block
-            function_builder.terminate_with_jmp(return_block, call_results);
+            let local_end_block = make_end_block(&mut function_builder);
+            // Jump to the end block
+            function_builder.terminate_with_jmp(local_end_block.0, call_results);
+            blocks_to_merge.push(local_end_block);
 
             if let Some(next_block) = next_function_block {
                 // Switch to the next block for the else branch
                 function_builder.switch_to_block(next_block);
             }
         }
+
+        // Merge blocks as last-in first-out:
+        //
+        // local_end_block0-----------------------------------------\
+        //                                                           end block
+        //                                                          /
+        // local_end_block1---------------------\                  /
+        //                                       new merge block2-/
+        // local_end_block2--\                  /
+        //                    new merge block1-/
+        // local_end_block3--/
+        //
+        // This is necessary since SSA panics during flattening if we immediately
+        // try to jump directly to end block instead: https://github.com/noir-lang/noir/issues/7323.
+        //
+        // It'd also be more efficient to merge them tournament-bracket style but that
+        // also leads to panics during flattening for similar reasons.
+        while let Some((block, results)) = blocks_to_merge.pop() {
+            function_builder.switch_to_block(block);
+
+            if let Some((block2, results2)) = blocks_to_merge.pop() {
+                // Merge two blocks in the queue together
+                let (new_merge, new_merge_results) = make_end_block(&mut function_builder);
+                blocks_to_merge.push((new_merge, new_merge_results));
+
+                function_builder.terminate_with_jmp(new_merge, results);
+
+                function_builder.switch_to_block(block2);
+                function_builder.terminate_with_jmp(new_merge, results2);
+            } else {
+                // Finally done, jump to the end
+                function_builder.terminate_with_jmp(end_block, results);
+            }
+        }
+
+        function_builder.switch_to_block(end_block);
+        function_builder.terminate_with_return(end_results);
+
         function_builder.current_function
     })
 }
 
-/// Create the final return block for an apply function.
+/// Check post-execution properties:
+/// * All blocks which took function parameters should receive a discriminator instead
+#[cfg(debug_assertions)]
+fn defunctionalize_post_check(func: &Function) {
+    for block_id in func.reachable_blocks() {
+        for param in func.dfg[block_id].parameters() {
+            let value = &func.dfg[*param];
+            let Value::Param { typ, .. } = value else {
+                panic!("unexpected parameter value: {value:?}");
+            };
+            assert!(
+                replacement_type(typ).is_none(),
+                "Blocks are not expected to take function parameters any more. Got '{typ}' in param {param} of block {block_id} in function {} {}",
+                func.name(),
+                func.id()
+            );
+        }
+    }
+}
+
+/// Return what type a function value type should be replaced with:
+/// * Global functions are replaced with a `Field`.
+/// * Function references are replaced with a reference to the replacement type of the underlying type, recursively.
+/// * Array and slices that contain function types are handled recursively.
 ///
-/// The return block is meant to be shared among all branches of the apply function.
-/// The apply function will jump to this block after calling the appropriate
-/// target function.
-///
-/// # Arguments
-/// * `builder` - [FunctionBuilder] used to construct the function's SSA.
-/// * `passed_types` - A slice of [Type]s representing the values to be returned from the function.
-///
-/// # Returns
-/// A [BasicBlockId] representing the newly created return block.
-fn build_return_block(builder: &mut FunctionBuilder, passed_types: &[Type]) -> BasicBlockId {
-    let return_block = builder.insert_block();
-    builder.switch_to_block(return_block);
-    let params = vecmap(passed_types, |typ| builder.add_block_parameter(return_block, typ.clone()));
-    builder.terminate_with_return(params);
-    return_block
+/// If the type doesn't need replacement, `None` is returned.
+fn replacement_type(typ: &Type) -> Option<Type> {
+    match typ {
+        Type::Function => Some(Type::field()),
+        Type::Reference(typ) => {
+            replacement_type(typ.as_ref()).map(|typ| Type::Reference(Arc::new(typ)))
+        }
+        Type::Numeric(_) => None,
+        Type::Array(items, size) => {
+            replacement_types(items.as_ref()).map(|types| Type::Array(Arc::new(types), *size))
+        }
+        Type::Slice(items) => {
+            replacement_types(items.as_ref()).map(|types| Type::Slice(Arc::new(types)))
+        }
+    }
+}
+
+/// Take a list of types that might need replacement.
+/// Replaces the ones that need replacement, leaving all others as-is.
+/// If no type needs replacement, `None` is returned.
+fn replacement_types(types: &[Type]) -> Option<Vec<Type>> {
+    let mut reps = Vec::new();
+    let mut has_rep = false;
+    for typ in types {
+        let rep = replacement_type(typ);
+        has_rep |= rep.is_some();
+        reps.push(rep);
+    }
+    if !has_rep {
+        None
+    } else {
+        Some(
+            reps.into_iter()
+                .zip(types)
+                .map(|(rep, typ)| rep.unwrap_or_else(|| typ.clone()))
+                .collect(),
+        )
+    }
 }
 
 #[cfg(test)]
 mod tests {
-    use crate::assert_ssa_snapshot;
+    use crate::{assert_ssa_snapshot, ssa::ir::function::FunctionId};
 
     use super::Ssa;
 
@@ -623,23 +742,33 @@ mod tests {
         }
         brillig(inline_always) fn apply f5 {
           b0(v0: Field, v1: u32):
-            v4 = eq v0, Field 2
-            jmpif v4 then: b3, else: b2
+            v9 = eq v0, Field 2
+            jmpif v9 then: b3, else: b2
           b1(v2: u32):
             return v2
           b2():
-            v8 = eq v0, Field 3
-            jmpif v8 then: b5, else: b4
+            v13 = eq v0, Field 3
+            jmpif v13 then: b6, else: b5
           b3():
-            v6 = call f2(v1) -> u32
-            jmp b1(v6)
-          b4():
-            constrain v0 == Field 4
-            v13 = call f4(v1) -> u32
-            jmp b1(v13)
+            v11 = call f2(v1) -> u32
+            jmp b4(v11)
+          b4(v3: u32):
+            jmp b10(v3)
           b5():
-            v10 = call f3(v1) -> u32
-            jmp b1(v10)
+            constrain v0 == Field 4
+            v18 = call f4(v1) -> u32
+            jmp b8(v18)
+          b6():
+            v15 = call f3(v1) -> u32
+            jmp b7(v15)
+          b7(v4: u32):
+            jmp b9(v4)
+          b8(v5: u32):
+            jmp b9(v5)
+          b9(v6: u32):
+            jmp b10(v6)
+          b10(v7: u32):
+            jmp b1(v7)
         }
         ");
     }
@@ -688,5 +817,523 @@ mod tests {
         assert_eq!(applies.len(), 2);
         assert!(applies.iter().any(|f| f.runtime().is_acir()));
         assert!(applies.iter().any(|f| f.runtime().is_brillig()));
+    }
+
+    #[test]
+    fn apply_created_for_stored_functions() {
+        let src = "
+        acir(inline) fn main f0 {
+          b0(v0: u1):
+            v1 = allocate -> &mut function
+            store f1 at v1
+            jmpif v0 then: b1, else: b2
+          b1():
+            store f2 at v1
+            jmp b2()
+          b2():
+            v4 = load v1 -> function
+            v6 = call f3(v4) -> u32
+            return v6
+        }
+        acir(inline) fn foo f1 {
+          b0():
+            return u32 1
+        }
+        acir(inline) fn bar f2 {
+          b0():
+            return u32 2
+        }
+        acir(inline) fn caller f3 {
+          b0(v0: function):
+            v1 = call v0() -> u32
+            v2 = call v0() -> u32
+            v3 = add v1, v2
+            return v3
+        }
+        ";
+
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.defunctionalize();
+
+        assert_ssa_snapshot!(
+            ssa,
+            @r"
+        acir(inline) fn main f0 {
+          b0(v0: u1):
+            v1 = allocate -> &mut Field
+            store Field 1 at v1
+            jmpif v0 then: b1, else: b2
+          b1():
+            store Field 2 at v1
+            jmp b2()
+          b2():
+            v4 = load v1 -> Field
+            v6 = call f3(v4) -> u32
+            return v6
+        }
+        acir(inline) fn foo f1 {
+          b0():
+            return u32 1
+        }
+        acir(inline) fn bar f2 {
+          b0():
+            return u32 2
+        }
+        acir(inline) fn caller f3 {
+          b0(v0: Field):
+            v2 = call f4(v0) -> u32
+            v3 = call f4(v0) -> u32
+            v4 = add v2, v3
+            return v4
+        }
+        acir(inline_always) fn apply f4 {
+          b0(v0: Field):
+            v6 = eq v0, Field 1
+            jmpif v6 then: b3, else: b2
+          b1(v1: u32):
+            return v1
+          b2():
+            constrain v0 == Field 2
+            v11 = call f2() -> u32
+            jmp b5(v11)
+          b3():
+            v8 = call f1() -> u32
+            jmp b4(v8)
+          b4(v2: u32):
+            jmp b6(v2)
+          b5(v3: u32):
+            jmp b6(v3)
+          b6(v4: u32):
+            jmp b1(v4)
+        }
+        "
+        );
+    }
+
+    #[test]
+    fn missing_fn_variant() {
+        let src = "
+        brillig(inline) fn main f0 {
+          b0():
+            v2 = call f1(f2) -> i64
+            return v2
+        }
+        brillig(inline) fn func_3 f1 {
+          b0(v0: function):
+            return i64 0
+        }
+        brillig(inline) fn func_2 f2 {
+          b0(v0: function):
+            v2 = call v0(u128 1) -> u1
+            return v2
+        }
+        ";
+
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.defunctionalize();
+
+        // We still expect all parameters with a function type to be replaced.
+        // However, this is fine as a function with no variants means that function
+        // was never actually called.
+        assert_ssa_snapshot!(ssa, @r"
+        brillig(inline) fn main f0 {
+          b0():
+            v2 = call f1(Field 2) -> i64
+            return v2
+        }
+        brillig(inline) fn func_3 f1 {
+          b0(v0: Field):
+            return i64 0
+        }
+        brillig(inline) fn func_2 f2 {
+          b0(v0: Field):
+            v2 = call v0(u128 1) -> u1
+            return v2
+        }
+        ");
+    }
+
+    #[test]
+    fn apply_function_with_dynamic_dispatch_id() {
+        // This checks that we generate an apply function correctly when
+        // we have a dynamic dispatch.
+        // The flattening pass
+        let src = "
+        acir(inline) fn main f0 {
+          b0(v0: u32):
+            v2 = sub v0, u32 1
+            v4 = call f2(v2) -> u32
+            return v4
+        }
+        acir(inline) fn lambdas_with_input_and_return_values f1 {
+          b0(v0: u32):
+            v4 = eq v0, u32 0
+            jmpif v4 then: b1, else: b2
+          b1():
+            jmp b3(f2)
+          b2():
+            v6 = eq v0, u32 1
+            jmpif v6 then: b4, else: b5
+          b3(v1: function):
+            v10 = call v1(v0) -> u32
+            return v10
+          b4():
+            jmp b6(f3)
+          b5():
+            jmp b6(f4)
+          b6(v2: function):
+            jmp b3(v2)
+        }
+        acir(inline) fn lambda f2 {
+          b0(v0: u32):
+            return v0
+        }
+        acir(inline) fn lambda f3 {
+          b0(v0: u32):
+            v2 = add v0, u32 1
+            return v2
+        }
+        acir(inline) fn lambda f4 {
+          b0(v0: u32):
+            v2 = add v0, u32 2
+            return v2
+        }
+        ";
+
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.defunctionalize();
+
+        assert_ssa_snapshot!(ssa, @r"
+        acir(inline) fn main f0 {
+          b0(v0: u32):
+            v2 = sub v0, u32 1
+            v4 = call f2(v2) -> u32
+            return v4
+        }
+        acir(inline) fn lambdas_with_input_and_return_values f1 {
+          b0(v0: u32):
+            v4 = eq v0, u32 0
+            jmpif v4 then: b1, else: b2
+          b1():
+            jmp b3(Field 2)
+          b2():
+            v6 = eq v0, u32 1
+            jmpif v6 then: b4, else: b5
+          b3(v1: Field):
+            v11 = call f5(v1, v0) -> u32
+            return v11
+          b4():
+            jmp b6(Field 3)
+          b5():
+            jmp b6(Field 4)
+          b6(v2: Field):
+            jmp b3(v2)
+        }
+        acir(inline) fn lambda f2 {
+          b0(v0: u32):
+            return v0
+        }
+        acir(inline) fn lambda f3 {
+          b0(v0: u32):
+            v2 = add v0, u32 1
+            return v2
+        }
+        acir(inline) fn lambda f4 {
+          b0(v0: u32):
+            v2 = add v0, u32 2
+            return v2
+        }
+        acir(inline_always) fn apply f5 {
+          b0(v0: Field, v1: u32):
+            v9 = eq v0, Field 2
+            jmpif v9 then: b3, else: b2
+          b1(v2: u32):
+            return v2
+          b2():
+            v13 = eq v0, Field 3
+            jmpif v13 then: b6, else: b5
+          b3():
+            v11 = call f2(v1) -> u32
+            jmp b4(v11)
+          b4(v3: u32):
+            jmp b10(v3)
+          b5():
+            constrain v0 == Field 4
+            v18 = call f4(v1) -> u32
+            jmp b8(v18)
+          b6():
+            v15 = call f3(v1) -> u32
+            jmp b7(v15)
+          b7(v4: u32):
+            jmp b9(v4)
+          b8(v5: u32):
+            jmp b9(v5)
+          b9(v6: u32):
+            jmp b10(v6)
+          b10(v7: u32):
+            jmp b1(v7)
+        }
+        ");
+    }
+
+    #[test]
+    fn fn_in_array() {
+        let src = r#"
+        acir(inline) fn main f0 {
+          b0(v0: u32):
+            v5 = make_array [f1, f2, f3, f4] : [function; 4]
+            v7 = lt v0, u32 4
+            constrain v7 == u1 1, "Index out of bounds"
+            v9 = array_get v5, index v0 -> function
+            call v9()
+            return
+        }
+        acir(inline) fn lambda f1 {
+          b0():
+            return
+        }
+        acir(inline) fn lambda f2 {
+          b0():
+            return
+        }
+        acir(inline) fn lambda f3 {
+          b0():
+            return
+        }
+        acir(inline) fn lambda f4 {
+          b0():
+            return
+        }
+        "#;
+
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.defunctionalize();
+
+        assert_ssa_snapshot!(ssa, @r#"
+        acir(inline) fn main f0 {
+          b0(v0: u32):
+            v5 = make_array [Field 1, Field 2, Field 3, Field 4] : [Field; 4]
+            v7 = lt v0, u32 4
+            constrain v7 == u1 1, "Index out of bounds"
+            v9 = array_get v5, index v0 -> Field
+            call f5(v9)
+            return
+        }
+        acir(inline) fn lambda f1 {
+          b0():
+            return
+        }
+        acir(inline) fn lambda f2 {
+          b0():
+            return
+        }
+        acir(inline) fn lambda f3 {
+          b0():
+            return
+        }
+        acir(inline) fn lambda f4 {
+          b0():
+            return
+        }
+        acir(inline_always) fn apply f5 {
+          b0(v0: Field):
+            v2 = eq v0, Field 1
+            jmpif v2 then: b3, else: b2
+          b1():
+            return
+          b2():
+            v5 = eq v0, Field 2
+            jmpif v5 then: b6, else: b5
+          b3():
+            call f1()
+            jmp b4()
+          b4():
+            jmp b14()
+          b5():
+            v8 = eq v0, Field 3
+            jmpif v8 then: b9, else: b8
+          b6():
+            call f2()
+            jmp b7()
+          b7():
+            jmp b13()
+          b8():
+            constrain v0 == Field 4
+            call f4()
+            jmp b11()
+          b9():
+            call f3()
+            jmp b10()
+          b10():
+            jmp b12()
+          b11():
+            jmp b12()
+          b12():
+            jmp b13()
+          b13():
+            jmp b14()
+          b14():
+            jmp b1()
+        }
+        "#);
+    }
+
+    #[test]
+    fn empty_make_array_updates_type() {
+        let src = r#"
+        acir(inline) fn main f0 {
+          b0(v0: u32):
+            v1 = make_array [] : [function; 0]
+            constrain u1 0 == u1 1, "Index out of bounds"
+            v5 = array_get v1, index u32 0 -> function
+            call v5()
+            return
+        }
+        "#;
+
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.defunctionalize();
+
+        // Guarantee that we still accurately modify the make_array instruction type for an empty array
+        assert_ssa_snapshot!(ssa, @r#"
+        acir(inline) fn main f0 {
+          b0(v0: u32):
+            v1 = make_array [] : [Field; 0]
+            constrain u1 0 == u1 1, "Index out of bounds"
+            v5 = array_get v1, index u32 0 -> Field
+            call v5()
+            return
+        }
+        "#);
+    }
+
+    #[test]
+    fn mut_ref_function() {
+        let src = "
+        acir(inline) fn main f0 {
+          b0():
+            v0 = allocate -> &mut function
+            store f1 at v0
+            v3 = call f2(v0) -> u1
+            return v3
+        }
+        acir(inline) fn bar f1 {
+          b0():
+            return u1 0
+        }
+        acir(inline) fn foo f2 {
+          b0(v0: &mut function):
+            v1 = load v0 -> function
+            v2 = call v1() -> u1
+            return v2
+        }
+        ";
+
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.defunctionalize();
+
+        assert_ssa_snapshot!(ssa, @r"
+        acir(inline) fn main f0 {
+          b0():
+            v0 = allocate -> &mut Field
+            store Field 1 at v0
+            v3 = call f2(v0) -> u1
+            return v3
+        }
+        acir(inline) fn bar f1 {
+          b0():
+            return u1 0
+        }
+        acir(inline) fn foo f2 {
+          b0(v0: &mut Field):
+            v1 = load v0 -> Field
+            v3 = call f1() -> u1
+            return v3
+        }
+        ");
+    }
+
+    /// Test case showing a function that takes two lambdas:
+    /// one by value, one by mutable reference.
+    #[test]
+    fn mixed_signature() {
+        let src = "
+        brillig(inline) fn main f0 {
+        b0():
+            v0 = allocate -> &mut function
+            store f1 at v0
+            v4 = call f3(v0, f2) -> &mut function
+            return
+        }
+        brillig(inline) fn lambda f1 {
+        b0():
+            return Field 0
+        }
+        brillig(inline) fn lambda f2 {
+        b0(v0: &mut function):
+            return v0
+        }
+        brillig(inline) fn get f3 {
+        b0(v0: &mut function, v1: function):
+            v2 = call v1(v0) -> &mut function
+            return v2
+        }
+        ";
+
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.defunctionalize();
+
+        assert_ssa_snapshot!(ssa, @r"
+        brillig(inline) fn main f0 {
+          b0():
+            v0 = allocate -> &mut Field
+            store Field 1 at v0
+            v4 = call f3(v0, Field 2) -> &mut Field
+            return
+        }
+        brillig(inline) fn lambda f1 {
+          b0():
+            return Field 0
+        }
+        brillig(inline) fn lambda f2 {
+          b0(v0: &mut Field):
+            return v0
+        }
+        brillig(inline) fn get f3 {
+          b0(v0: &mut Field, v1: Field):
+            v3 = call f2(v0) -> &mut Field
+            return v3
+        }
+        ");
+    }
+
+    #[test]
+    fn find_functions_as_values_finds_function_in_array_set() {
+        let src = r#"
+        acir(inline) fn main f0 {
+          b0(v0: u32):
+            v1 = make_array [f1] : [function; 0]
+            v2 = array_set v1, index u32 0, value f2
+            return v0
+        }
+
+        acir(inline) fn foo f1 {
+          b0(v0: u32):
+            return v0
+        }
+
+        acir(inline) fn bar f2 {
+          b0(v0: u32):
+            return v0
+        }
+        "#;
+
+        let ssa = Ssa::from_str(src).unwrap();
+        let main = ssa.main();
+
+        let functions = super::find_functions_as_values(main);
+        assert_eq!(functions.len(), 2);
+        assert!(functions.contains(&FunctionId::test_new(1))); // foo
+        assert!(functions.contains(&FunctionId::test_new(2))); // bar
     }
 }

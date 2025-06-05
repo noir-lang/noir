@@ -133,13 +133,16 @@ impl<F: AcirField, B: BlackBoxFunctionSolver<F>> AcirContext<F, B> {
             context: &mut AcirContext<G, C>,
             value: &AcirValue,
         ) -> Result<(), RuntimeError> {
+            let one = context.add_constant(G::one());
             match value {
                 AcirValue::Var(var, typ) => {
                     let numeric_type = match typ {
                         AcirType::NumericType(numeric_type) => numeric_type,
                         _ => unreachable!("`AcirValue::Var` may only hold primitive values"),
                     };
-                    context.range_constrain_var(*var, numeric_type, None)?;
+                    // Predicate is one so that the constrain is always applied, because
+                    // values returned from Brillig will be 0 under a false predicate.
+                    context.range_constrain_var(*var, numeric_type, None, one)?;
                 }
                 AcirValue::Array(values) => {
                     for value in values {

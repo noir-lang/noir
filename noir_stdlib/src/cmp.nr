@@ -20,7 +20,7 @@ comptime fn derive_eq(s: TypeDefinition) -> Quoted {
     };
     crate::meta::make_trait_impl(
         s,
-        quote { Eq },
+        quote { $crate::cmp::Eq },
         signature,
         for_each_field,
         quote { & },
@@ -220,18 +220,19 @@ pub trait Ord {
 
 // docs:start:derive_ord
 comptime fn derive_ord(s: TypeDefinition) -> Quoted {
-    let signature = quote { fn cmp(_self: Self, _other: Self) -> std::cmp::Ordering };
+    let name = quote { $crate::cmp::Ord };
+    let signature = quote { fn cmp(_self: Self, _other: Self) -> $crate::cmp::Ordering };
     let for_each_field = |name| quote {
-        if result == std::cmp::Ordering::equal() {
+        if result == $crate::cmp::Ordering::equal() {
             result = _self.$name.cmp(_other.$name);
         }
     };
     let body = |fields| quote {
-        let mut result = std::cmp::Ordering::equal();
+        let mut result = $crate::cmp::Ordering::equal();
         $fields
         result
     };
-    crate::meta::make_trait_impl(s, quote { Ord }, signature, for_each_field, quote {}, body)
+    crate::meta::make_trait_impl(s, name, signature, for_each_field, quote {}, body)
 }
 // docs:end:derive_ord
 

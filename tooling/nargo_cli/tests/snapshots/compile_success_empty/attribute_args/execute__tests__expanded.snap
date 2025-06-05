@@ -1,0 +1,26 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: expanded_code
+---
+pub struct Foo {}
+
+comptime fn attr_with_args(s: TypeDefinition, a: Field, b: Field) {
+    let _: TypeDefinition = s;
+    let _: Field = a;
+    let _: Field = b;
+}
+
+#[varargs]
+comptime fn attr_with_varargs(s: TypeDefinition, t: [Field]) {
+    let _: TypeDefinition = s;
+    {
+        let ___i0: [Field] = t;
+        for ___i1 in 0..___i0.len() {
+            let _: Field = ___i0[___i1];
+            {}
+        }
+    };
+    assert(t.len() < 5);
+}
+
+fn main() {}

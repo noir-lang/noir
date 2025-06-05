@@ -115,7 +115,7 @@ impl<let N: u32> From<Node> for ShowState<N> {
 }
 
 impl<let N: u32> ShowState<N> {
-    pub fn step<let M: u32>(&mut self) -> Option<Id> {
+    pub fn step(&mut self) -> Option<Id> {
         if self.done {
             Option::none()
         } else {

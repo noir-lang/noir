@@ -442,7 +442,7 @@ mod tests {
 
         let ssa = Ssa::from_str(src).unwrap();
         // Need to run SSA pass that sets up Brillig array gets
-        let ssa = ssa.brillig_array_gets();
+        let ssa = ssa.brillig_array_get_and_set();
         // Need to run DIE to generate the used globals map, which is necessary for Brillig globals generation.
         let mut ssa = ssa.dead_instruction_elimination();
 

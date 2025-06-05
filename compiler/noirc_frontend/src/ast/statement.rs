@@ -11,8 +11,8 @@ use super::{
     MethodCallExpression, UnresolvedType,
 };
 use crate::ast::UnresolvedTypeData;
-use crate::elaborator::Turbofish;
 use crate::elaborator::types::SELF_TYPE_NAME;
+use crate::graph::CrateId;
 use crate::node_interner::{
     InternedExpressionKind, InternedPattern, InternedStatementKind, NodeInterner,
 };
@@ -311,6 +311,8 @@ pub enum PathKind {
     Dep,
     Plain,
     Super,
+    /// This path is a Crate or Dep path which always points to the given crate
+    Resolved(CrateId),
 }
 
 #[derive(Debug, PartialEq, Eq, Clone)]
@@ -476,38 +478,12 @@ impl Path {
         self.segments.first().map(|segment| &segment.ident)
     }
 
-    pub fn to_ident(&self) -> Option<Ident> {
-        if !self.is_ident() {
-            return None;
-        }
-        self.segments.first().cloned().map(|segment| segment.ident)
-    }
-
     pub(crate) fn is_wildcard(&self) -> bool {
         if let Some(ident) = self.as_ident() { ident.as_str() == WILDCARD_TYPE } else { false }
     }
 
     pub fn is_empty(&self) -> bool {
         self.segments.is_empty() && self.kind == PathKind::Plain
-    }
-
-    pub fn as_string(&self) -> String {
-        let mut string = String::new();
-
-        let mut segments = self.segments.iter();
-        match segments.next() {
-            None => panic!("empty segment"),
-            Some(seg) => {
-                string.push_str(seg.ident.as_str());
-            }
-        }
-
-        for segment in segments {
-            string.push_str("::");
-            string.push_str(segment.ident.as_str());
-        }
-
-        string
     }
 }
 
@@ -537,13 +513,6 @@ impl PathSegment {
 
     pub fn turbofish_location(&self) -> Location {
         Location::new(self.turbofish_span(), self.location.file)
-    }
-
-    pub fn turbofish(&self) -> Option<Turbofish> {
-        self.generics.as_ref().map(|generics| Turbofish {
-            location: self.turbofish_location(),
-            generics: generics.clone(),
-        })
     }
 }
 
@@ -601,19 +570,18 @@ pub enum Pattern {
     Mutable(Box<Pattern>, Location, /*is_synthesized*/ bool),
     Tuple(Vec<Pattern>, Location),
     Struct(Path, Vec<(Ident, Pattern)>, Location),
+    Parenthesized(Box<Pattern>, Location),
     Interned(InternedPattern, Location),
 }
 
 impl Pattern {
-    pub fn is_synthesized(&self) -> bool {
-        matches!(self, Pattern::Mutable(_, _, true))
-    }
     pub fn location(&self) -> Location {
         match self {
             Pattern::Identifier(ident) => ident.location(),
             Pattern::Mutable(_, location, _)
             | Pattern::Tuple(_, location)
             | Pattern::Struct(_, _, location)
+            | Pattern::Parenthesized(_, location)
             | Pattern::Interned(_, location) => *location,
         }
     }
@@ -658,6 +626,7 @@ impl Pattern {
                     location: *location,
                 })
             }
+            Pattern::Parenthesized(pattern, _) => pattern.try_as_expression(interner),
             Pattern::Interned(id, _) => interner.get_pattern(*id).try_as_expression(interner),
         }
     }
@@ -783,16 +752,6 @@ impl ForRange {
     /// Create a half-open range, bounded inclusively below and exclusively above.
     pub fn range(start: Expression, end: Expression) -> Self {
         Self::Range(ForBounds { start, end, inclusive: false })
-    }
-
-    /// Create a range bounded inclusively below and above.
-    pub fn range_inclusive(start: Expression, end: Expression) -> Self {
-        Self::Range(ForBounds { start, end, inclusive: true })
-    }
-
-    /// Create a range over some array.
-    pub fn array(value: Expression) -> Self {
-        Self::Array(value)
     }
 
     /// Create a 'for' expression taking care of desugaring a 'for e in array' loop
@@ -997,6 +956,7 @@ impl Display for PathKind {
             PathKind::Dep => write!(f, "dep"),
             PathKind::Super => write!(f, "super"),
             PathKind::Plain => write!(f, "plain"),
+            PathKind::Resolved(_) => write!(f, "$crate"),
         }
     }
 }
@@ -1018,11 +978,18 @@ impl Display for Pattern {
             Pattern::Mutable(name, _, _) => write!(f, "mut {name}"),
             Pattern::Tuple(fields, _) => {
                 let fields = vecmap(fields, ToString::to_string);
-                write!(f, "({})", fields.join(", "))
+                if fields.len() == 1 {
+                    write!(f, "({},)", fields[0])
+                } else {
+                    write!(f, "({})", fields.join(", "))
+                }
             }
             Pattern::Struct(typename, fields, _) => {
                 let fields = vecmap(fields, |(name, pattern)| format!("{name}: {pattern}"));
                 write!(f, "{} {{ {} }}", typename, fields.join(", "))
+            }
+            Pattern::Parenthesized(pattern, _) => {
+                write!(f, "({})", pattern)
             }
             Pattern::Interned(_, _) => {
                 write!(f, "?Interned")

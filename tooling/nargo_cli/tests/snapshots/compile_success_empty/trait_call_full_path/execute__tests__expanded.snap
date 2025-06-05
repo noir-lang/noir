@@ -1,0 +1,23 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: expanded_code
+---
+use foo::Trait::{self, me};
+
+mod foo {
+    pub trait Trait {
+        fn me(self) -> Self;
+    }
+
+    impl Trait for Field {
+        fn me(self) -> Self {
+            self
+        }
+    }
+}
+
+fn main(x: Field) {
+    let _: Field = Trait::me(x);
+    let _: Field = Trait::me(x);
+    let _: Field = Trait::me(x);
+}

@@ -6,7 +6,7 @@ pub mod opcodes;
 
 use crate::{
     native_types::{Expression, Witness},
-    serialization::{bincode_deserialize, bincode_serialize},
+    serialization::{deserialize_any_format, serialize_with_format_from_env},
 };
 use acir_field::AcirField;
 pub use opcodes::Opcode;
@@ -268,7 +268,9 @@ impl<F: AcirField> Circuit<F> {
 impl<F: Serialize + AcirField> Program<F> {
     /// Serialize and compress the [Program] into bytes.
     fn write<W: Write>(&self, writer: W) -> std::io::Result<()> {
-        let buf = bincode_serialize(self)?;
+        let buf = serialize_with_format_from_env(self)?;
+
+        // Compress the data, which should help with formats that uses field names.
         let mut encoder = flate2::write::GzEncoder::new(writer, Compression::default());
         encoder.write_all(&buf)?;
         encoder.finish()?;
@@ -298,7 +300,7 @@ impl<F: AcirField + for<'a> Deserialize<'a>> Program<F> {
         let mut gz_decoder = flate2::read::GzDecoder::new(reader);
         let mut buf = Vec::new();
         gz_decoder.read_to_end(&mut buf)?;
-        let program = bincode_deserialize(&buf)?;
+        let program = deserialize_any_format(&buf)?;
         Ok(program)
     }
 
@@ -679,8 +681,8 @@ mod tests {
         #[test]
         fn prop_witness_stack_roundtrip() {
             run_with_max_size_range(10, |witness: WitnessStack<TestField>| {
-                let bz = Vec::<u8>::try_from(&witness)?;
-                let de = WitnessStack::try_from(bz.as_slice())?;
+                let bz = witness.serialize()?;
+                let de = WitnessStack::deserialize(bz.as_slice())?;
                 prop_assert_eq!(witness, de);
                 Ok(())
             });
@@ -719,8 +721,8 @@ mod tests {
         #[test]
         fn prop_witness_map_roundtrip() {
             run_with_max_size_range(10, |witness: WitnessMap<TestField>| {
-                let bz = Vec::<u8>::try_from(witness.clone())?;
-                let de = WitnessMap::try_from(bz.as_slice())?;
+                let bz = witness.serialize()?;
+                let de = WitnessMap::deserialize(bz.as_slice())?;
                 prop_assert_eq!(witness, de);
                 Ok(())
             });

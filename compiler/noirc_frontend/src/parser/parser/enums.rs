@@ -122,13 +122,12 @@ mod tests {
     use insta::assert_snapshot;
 
     use crate::{
-        ast::{IntegerBitSize, NoirEnumeration, UnresolvedGeneric, UnresolvedTypeData},
+        ast::{NoirEnumeration, UnresolvedGeneric},
         parse_program_with_dummy_file,
         parser::{
             ItemKind, ParserErrorReason,
             parser::tests::{expect_no_errors, get_source_with_error_span},
         },
-        shared::Signedness,
     };
 
     fn parse_enum_no_errors(src: &str) -> NoirEnumeration {
@@ -171,10 +170,7 @@ mod tests {
             panic!("Expected generic numeric");
         };
         assert_eq!("B", ident.to_string());
-        assert_eq!(
-            typ.typ,
-            UnresolvedTypeData::Integer(Signedness::Unsigned, IntegerBitSize::ThirtyTwo)
-        );
+        assert_eq!(typ.typ.to_string(), "u32");
     }
 
     #[test]
@@ -186,16 +182,13 @@ mod tests {
 
         let variant = noir_enum.variants.remove(0).item;
         assert_eq!("X", variant.name.to_string());
-        assert!(matches!(
-            variant.parameters.as_ref().unwrap()[0].typ,
-            UnresolvedTypeData::Integer(Signedness::Signed, IntegerBitSize::ThirtyTwo)
-        ));
+        assert_eq!(variant.parameters.as_ref().unwrap()[0].typ.to_string(), "i32");
 
         let variant = noir_enum.variants.remove(0).item;
         assert_eq!("y", variant.name.to_string());
         let parameters = variant.parameters.as_ref().unwrap();
-        assert!(matches!(parameters[0].typ, UnresolvedTypeData::FieldElement));
-        assert!(matches!(parameters[1].typ, UnresolvedTypeData::Integer(..)));
+        assert_eq!(parameters[0].typ.to_string(), "Field");
+        assert_eq!(parameters[1].typ.to_string(), "u32");
 
         let variant = noir_enum.variants.remove(0).item;
         assert_eq!("Z", variant.name.to_string());

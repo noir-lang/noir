@@ -1,6 +1,5 @@
 #![cfg(test)]
 
-use std::collections::HashMap;
 use std::path::PathBuf;
 
 use fm::{FileId, FileManager};
@@ -16,6 +15,7 @@ use crate::hir::def_map::{CrateDefMap, ModuleData};
 use crate::hir::{Context, ParsedFiles};
 use crate::node_interner::FuncId;
 use crate::parse_program;
+use crate::signed_field::SignedField;
 
 /// Create an interpreter for a code snippet and pass it to a test function.
 ///
@@ -75,7 +75,7 @@ fn interpret_helper(src: &str) -> Result<Value, InterpreterError> {
     with_interpreter(src, |interpreter, main, errors| {
         assert_eq!(errors.len(), 0);
         let no_location = Location::dummy();
-        interpreter.call_function(main, Vec::new(), HashMap::new(), no_location)
+        interpreter.call_function(main, Vec::new(), Default::default(), no_location)
     })
 }
 
@@ -93,7 +93,7 @@ fn interpret_expect_error(src: &str) -> InterpreterError {
 fn interpreter_works() {
     let program = "comptime fn main() -> pub Field { 3 }";
     let result = interpret(program);
-    assert_eq!(result, Value::Field(3u128.into()));
+    assert_eq!(result, Value::Field(SignedField::positive(3u128)));
 }
 
 #[test]

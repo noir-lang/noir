@@ -1,0 +1,13 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: expanded_code
+---
+unconstrained fn main() {
+    let mut count: Field = 0;
+    for i in 0..10 {
+        if i == 2 { continue; };
+        if i == 5 { break; };
+        count = count + 1;
+    }
+    assert(count == 4);
+}

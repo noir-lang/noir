@@ -533,9 +533,7 @@ mod tests {
         let UnresolvedTypeData::Parenthesized(typ) = typ.typ else {
             panic!("Expected parenthesized type");
         };
-        let UnresolvedTypeData::FieldElement = typ.typ else {
-            panic!("Expected field type");
-        };
+        assert_eq!(typ.typ.to_string(), "Field");
     }
 
     #[test]
@@ -555,12 +553,8 @@ mod tests {
         let UnresolvedTypeData::Tuple(types) = typ.typ else {
             panic!("Expected tuple type");
         };
-        let UnresolvedTypeData::FieldElement = types[0].typ else {
-            panic!("Expected field type");
-        };
-        let UnresolvedTypeData::Bool = types[1].typ else {
-            panic!("Expected bool type");
-        };
+        assert_eq!(types[0].typ.to_string(), "Field");
+        assert_eq!(types[1].typ.to_string(), "bool");
     }
 
     #[test]
@@ -584,12 +578,8 @@ mod tests {
         let UnresolvedTypeData::Tuple(types) = typ.typ else {
             panic!("Expected tuple type");
         };
-        let UnresolvedTypeData::FieldElement = types[0].typ else {
-            panic!("Expected field type");
-        };
-        let UnresolvedTypeData::Bool = types[1].typ else {
-            panic!("Expected bool type");
-        };
+        assert_eq!(types[0].typ.to_string(), "Field");
+        assert_eq!(types[1].typ.to_string(), "bool");
     }
 
     #[test]
@@ -602,9 +592,7 @@ mod tests {
             panic!("Expected tuple type");
         };
         assert_eq!(types.len(), 1);
-        let UnresolvedTypeData::FieldElement = types[0].typ else {
-            panic!("Expected field type");
-        };
+        assert_eq!(types[0].typ.to_string(), "Field");
     }
 
     #[test]

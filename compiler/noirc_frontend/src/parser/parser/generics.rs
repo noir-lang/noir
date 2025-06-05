@@ -95,21 +95,19 @@ impl Parser<'_> {
                 ParserErrorReason::MissingTypeForNumericGeneric,
                 self.current_token_location,
             );
+            let location = self.location_at_previous_token_end();
             let typ = UnresolvedType {
-                typ: UnresolvedTypeData::Integer(Signedness::Unsigned, IntegerBitSize::ThirtyTwo),
-                location: self.location_at_previous_token_end(),
+                typ: UnresolvedTypeData::integer(
+                    Signedness::Unsigned,
+                    IntegerBitSize::ThirtyTwo,
+                    location,
+                ),
+                location,
             };
             return Some(UnresolvedGeneric::Numeric { ident, typ });
         }
 
         let typ = self.parse_type_or_error();
-        if let UnresolvedTypeData::Integer(signedness, bit_size) = &typ.typ {
-            if matches!(signedness, Signedness::Signed)
-                || matches!(bit_size, IntegerBitSize::SixtyFour)
-            {
-                self.push_error(ParserErrorReason::ForbiddenNumericGenericType, typ.location);
-            }
-        }
 
         Some(UnresolvedGeneric::Numeric { ident, typ })
     }
@@ -187,14 +185,13 @@ impl Parser<'_> {
 #[cfg(test)]
 mod tests {
     use crate::{
-        ast::{GenericTypeArgs, IntegerBitSize, UnresolvedGeneric, UnresolvedTypeData},
+        ast::{GenericTypeArgs, UnresolvedGeneric},
         parser::{
             Parser, ParserErrorReason,
             parser::tests::{
                 expect_no_errors, get_single_error_reason, get_source_with_error_span,
             },
         },
-        shared::Signedness,
     };
 
     fn parse_generics_no_errors(src: &str) -> Vec<UnresolvedGeneric> {
@@ -236,10 +233,7 @@ mod tests {
             panic!("Expected generic numeric");
         };
         assert_eq!("B", ident.to_string());
-        assert_eq!(
-            typ.typ,
-            UnresolvedTypeData::Integer(Signedness::Unsigned, IntegerBitSize::ThirtyTwo)
-        );
+        assert_eq!(typ.typ.to_string(), "u32",);
 
         let generic = generics.remove(0);
         let UnresolvedGeneric::Variable(ident, trait_bounds) = generic else {
@@ -288,19 +282,6 @@ mod tests {
         assert!(!generics.is_empty());
         assert_eq!(generics.ordered_args.len(), 1);
         assert_eq!(generics.ordered_args[0].to_string(), "1");
-    }
-
-    #[test]
-    fn parse_numeric_generic_error_if_invalid_integer() {
-        let src = "
-        <let N: u64>
-                ^^^
-        ";
-        let (src, span) = get_source_with_error_span(src);
-        let mut parser = Parser::for_str_with_dummy_file(&src);
-        parser.parse_generics(true);
-        let reason = get_single_error_reason(&parser.errors, span);
-        assert!(matches!(reason, ParserErrorReason::ForbiddenNumericGenericType));
     }
 
     #[test]

@@ -49,6 +49,10 @@ pub struct SortedModule {
 
 impl std::fmt::Display for SortedModule {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        for inner_attribute in &self.inner_attributes {
+            write!(f, "#![{}]", inner_attribute.kind.contents())?;
+        }
+
         for decl in &self.module_decls {
             writeln!(f, "{decl};")?;
         }
@@ -64,13 +68,24 @@ impl std::fmt::Display for SortedModule {
         for type_ in &self.structs {
             write!(f, "{type_}")?;
         }
+        for type_ in &self.enums {
+            write!(f, "{type_}")?;
+        }
 
         for function in &self.functions {
             write!(f, "{function}")?;
         }
 
+        for trait_ in &self.traits {
+            write!(f, "{trait_}")?;
+        }
+
         for impl_ in &self.impls {
             write!(f, "{impl_}")?;
+        }
+
+        for trait_impl in &self.trait_impls {
+            write!(f, "{trait_impl}")?;
         }
 
         for type_alias in &self.type_aliases {

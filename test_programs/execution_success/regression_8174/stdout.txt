@@ -1,1 +1,0 @@
-[regression_8174] Circuit output: Vec([Vec([String("LNV"), String("ZIH")])])

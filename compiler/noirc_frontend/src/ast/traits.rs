@@ -49,6 +49,7 @@ pub enum TraitItem {
     },
     Type {
         name: Ident,
+        bounds: Vec<TraitBound>,
     },
 }
 
@@ -133,11 +134,11 @@ impl Display for TypeImpl {
     }
 }
 
-// TODO: display where clauses (follow-up issue)
 impl Display for NoirTrait {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let generics = vecmap(&self.generics, |generic| generic.to_string());
-        let generics = if generics.is_empty() { "".into() } else { generics.join(", ") };
+        let generics =
+            if generics.is_empty() { "".into() } else { format!("<{}>", generics.join(", ")) };
 
         write!(f, "trait {}{}", self.name, generics)?;
 
@@ -150,6 +151,12 @@ impl Display for NoirTrait {
             let bounds = vecmap(&self.bounds, |bound| bound.to_string()).join(" + ");
             write!(f, ": {}", bounds)?;
         }
+
+        let where_clause = vecmap(&self.where_clause, ToString::to_string);
+        if !where_clause.is_empty() {
+            write!(f, " where {}", where_clause.join(", "))?;
+        };
+
         writeln!(f, " {{")?;
 
         for item in self.items.iter() {
@@ -209,7 +216,14 @@ impl Display for TraitItem {
                     write!(f, ";")
                 }
             }
-            TraitItem::Type { name } => write!(f, "type {name};"),
+            TraitItem::Type { name, bounds } => {
+                if bounds.is_empty() {
+                    write!(f, "type {name};")
+                } else {
+                    let bounds = vecmap(bounds, |bound| bound.to_string()).join(" + ");
+                    write!(f, "type {name}: {bounds};")
+                }
+            }
         }
     }
 }

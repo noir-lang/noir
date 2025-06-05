@@ -4,13 +4,14 @@ use std::fmt::Display;
 use thiserror::Error;
 
 use crate::ast::{
-    Ident, ItemVisibility, Path, Pattern, Statement, StatementKind, UnresolvedTraitConstraint,
-    UnresolvedType, UnresolvedTypeData,
+    Ident, ItemVisibility, Path, Pattern, Statement, UnresolvedTraitConstraint, UnresolvedType,
+    UnresolvedTypeData,
 };
+use crate::elaborator::PrimitiveType;
 use crate::node_interner::{ExprId, InternedExpressionKind, InternedStatementKind, QuotedTypeId};
 use crate::shared::Visibility;
 use crate::signed_field::SignedField;
-use crate::token::{Attributes, FmtStrFragment, FunctionAttributeKind, Token, Tokens};
+use crate::token::{Attributes, FmtStrFragment, Token, Tokens};
 use crate::{Kind, Type};
 use acvm::FieldElement;
 use iter_extended::vecmap;
@@ -41,8 +42,8 @@ pub enum ExpressionKind {
     Unquote(Box<Expression>),
     Comptime(BlockExpression, Location),
     Unsafe(UnsafeExpression),
-    AsTraitPath(AsTraitPath),
-    TypePath(TypePath),
+    AsTraitPath(Box<AsTraitPath>),
+    TypePath(Box<TypePath>),
 
     // This variant is only emitted when inlining the result of comptime
     // code. It is used to translate function values back into the AST while
@@ -116,17 +117,24 @@ impl UnresolvedGeneric {
         &self,
         typ: &UnresolvedType,
     ) -> Result<Type, UnsupportedNumericGenericType> {
-        use crate::ast::UnresolvedTypeData::{FieldElement, Integer};
+        // TODO: this should be done with resolved types
+        // See https://github.com/noir-lang/noir/issues/8504
+        use crate::ast::UnresolvedTypeData::Named;
 
-        match typ.typ {
-            FieldElement => Ok(Type::FieldElement),
-            Integer(sign, bits) => Ok(Type::Integer(sign, bits)),
-            // Only fields and integers are supported for numeric kinds
-            _ => Err(UnsupportedNumericGenericType {
-                ident: self.ident().clone(),
-                typ: typ.typ.clone(),
-            }),
+        if let Named(path, _generics, _) = &typ.typ {
+            if path.segments.len() == 1 {
+                if let Some(primitive_type) =
+                    PrimitiveType::lookup_by_name(path.segments[0].ident.as_str())
+                {
+                    if let Some(typ) = primitive_type.to_integer_or_field() {
+                        return Ok(typ);
+                    }
+                }
+            }
         }
+
+        // Only fields and integers are supported for numeric kinds
+        Err(UnsupportedNumericGenericType { ident: self.ident().clone(), typ: typ.typ.clone() })
     }
 
     pub(crate) fn ident(&self) -> &Ident {
@@ -168,20 +176,6 @@ impl From<Ident> for UnresolvedGeneric {
 }
 
 impl ExpressionKind {
-    pub fn into_path(self) -> Option<Path> {
-        match self {
-            ExpressionKind::Variable(path) => Some(path),
-            _ => None,
-        }
-    }
-
-    pub fn into_infix(self) -> Option<InfixExpression> {
-        match self {
-            ExpressionKind::Infix(infix) => Some(*infix),
-            _ => None,
-        }
-    }
-
     pub fn prefix(operator: UnaryOp, rhs: Expression) -> ExpressionKind {
         match (operator, &rhs) {
             (
@@ -190,28 +184,6 @@ impl ExpressionKind {
             ) => ExpressionKind::Literal(Literal::Integer(-*field)),
             _ => ExpressionKind::Prefix(Box::new(PrefixExpression { operator, rhs })),
         }
-    }
-
-    pub fn array(contents: Vec<Expression>) -> ExpressionKind {
-        ExpressionKind::Literal(Literal::Array(ArrayLiteral::Standard(contents)))
-    }
-
-    pub fn repeated_array(repeated_element: Expression, length: Expression) -> ExpressionKind {
-        ExpressionKind::Literal(Literal::Array(ArrayLiteral::Repeated {
-            repeated_element: Box::new(repeated_element),
-            length: Box::new(length),
-        }))
-    }
-
-    pub fn slice(contents: Vec<Expression>) -> ExpressionKind {
-        ExpressionKind::Literal(Literal::Slice(ArrayLiteral::Standard(contents)))
-    }
-
-    pub fn repeated_slice(repeated_element: Expression, length: Expression) -> ExpressionKind {
-        ExpressionKind::Literal(Literal::Slice(ArrayLiteral::Repeated {
-            repeated_element: Box::new(repeated_element),
-            length: Box::new(length),
-        }))
     }
 
     pub fn integer(contents: FieldElement) -> ExpressionKind {
@@ -232,12 +204,6 @@ impl ExpressionKind {
 
     pub fn format_string(fragments: Vec<FmtStrFragment>, length: u32) -> ExpressionKind {
         ExpressionKind::Literal(Literal::FmtStr(fragments, length))
-    }
-
-    pub fn constructor(
-        (typ, fields): (UnresolvedType, Vec<(Ident, Expression)>),
-    ) -> ExpressionKind {
-        ExpressionKind::Constructor(Box::new(ConstructorExpression { typ, fields }))
     }
 }
 
@@ -374,48 +340,6 @@ impl BinaryOpKind {
                 | BinaryOpKind::NotEqual
         )
     }
-
-    pub fn as_string(self) -> &'static str {
-        match self {
-            BinaryOpKind::Add => "+",
-            BinaryOpKind::Subtract => "-",
-            BinaryOpKind::Multiply => "*",
-            BinaryOpKind::Divide => "/",
-            BinaryOpKind::Equal => "==",
-            BinaryOpKind::NotEqual => "!=",
-            BinaryOpKind::Less => "<",
-            BinaryOpKind::LessEqual => "<=",
-            BinaryOpKind::Greater => ">",
-            BinaryOpKind::GreaterEqual => ">=",
-            BinaryOpKind::And => "&",
-            BinaryOpKind::Or => "|",
-            BinaryOpKind::Xor => "^",
-            BinaryOpKind::ShiftRight => ">>",
-            BinaryOpKind::ShiftLeft => "<<",
-            BinaryOpKind::Modulo => "%",
-        }
-    }
-
-    pub fn as_token(self) -> Token {
-        match self {
-            BinaryOpKind::Add => Token::Plus,
-            BinaryOpKind::Subtract => Token::Minus,
-            BinaryOpKind::Multiply => Token::Star,
-            BinaryOpKind::Divide => Token::Slash,
-            BinaryOpKind::Equal => Token::Equal,
-            BinaryOpKind::NotEqual => Token::NotEqual,
-            BinaryOpKind::Less => Token::Less,
-            BinaryOpKind::LessEqual => Token::LessEqual,
-            BinaryOpKind::Greater => Token::Greater,
-            BinaryOpKind::GreaterEqual => Token::GreaterEqual,
-            BinaryOpKind::And => Token::Ampersand,
-            BinaryOpKind::Or => Token::Pipe,
-            BinaryOpKind::Xor => Token::Caret,
-            BinaryOpKind::ShiftLeft => Token::ShiftLeft,
-            BinaryOpKind::ShiftRight => Token::ShiftRight,
-            BinaryOpKind::Modulo => Token::Percent,
-        }
-    }
 }
 
 #[derive(PartialEq, PartialOrd, Eq, Ord, Hash, Debug, Copy, Clone)]
@@ -524,20 +448,6 @@ pub struct FunctionDefinition {
     pub return_visibility: Visibility,
 }
 
-impl FunctionDefinition {
-    pub fn is_private(&self) -> bool {
-        self.visibility == ItemVisibility::Private
-    }
-
-    pub fn is_test(&self) -> bool {
-        if let Some(attribute) = self.attributes.function() {
-            matches!(attribute.kind, FunctionAttributeKind::Test(..))
-        } else {
-            false
-        }
-    }
-}
-
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct Param {
     pub visibility: Visibility,
@@ -601,14 +511,6 @@ pub struct BlockExpression {
 }
 
 impl BlockExpression {
-    pub fn pop(&mut self) -> Option<StatementKind> {
-        self.statements.pop().map(|stmt| stmt.kind)
-    }
-
-    pub fn len(&self) -> usize {
-        self.statements.len()
-    }
-
     pub fn is_empty(&self) -> bool {
         self.statements.is_empty()
     }
@@ -689,7 +591,11 @@ impl Display for ExpressionKind {
             MemberAccess(access) => access.fmt(f),
             Tuple(elements) => {
                 let elements = vecmap(elements, ToString::to_string);
-                write!(f, "({})", elements.join(", "))
+                if elements.len() == 1 {
+                    write!(f, "({},)", elements[0])
+                } else {
+                    write!(f, "({})", elements.join(", "))
+                }
             }
             Lambda(lambda) => lambda.fmt(f),
             Parenthesized(sub_expr) => write!(f, "({sub_expr})"),
