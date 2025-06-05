@@ -715,30 +715,30 @@ mod tests {
             self.next_type_variable_id += 1;
             (Type::TypeVariable(TypeVariable::unbound(id, kind)), id)
         }
+    }
 
-        fn num(value: u128) -> Type {
-            Type::Constant(value.into(), Kind::Any)
-        }
+    fn num(value: u128) -> Type {
+        Type::Constant(value.into(), Kind::Any)
+    }
 
-        fn add(a: &Type, b: &Type) -> Type {
-            Self::binary(a, BinaryTypeOperator::Addition, b)
-        }
+    fn add(a: &Type, b: &Type) -> Type {
+        binary(a, BinaryTypeOperator::Addition, b)
+    }
 
-        fn subtract(a: &Type, b: &Type) -> Type {
-            Self::binary(a, BinaryTypeOperator::Subtraction, b)
-        }
+    fn subtract(a: &Type, b: &Type) -> Type {
+        binary(a, BinaryTypeOperator::Subtraction, b)
+    }
 
-        fn multiply(a: &Type, b: &Type) -> Type {
-            Self::binary(a, BinaryTypeOperator::Multiplication, b)
-        }
+    fn multiply(a: &Type, b: &Type) -> Type {
+        binary(a, BinaryTypeOperator::Multiplication, b)
+    }
 
-        fn divide(a: &Type, b: &Type) -> Type {
-            Self::binary(a, BinaryTypeOperator::Division, b)
-        }
+    fn divide(a: &Type, b: &Type) -> Type {
+        binary(a, BinaryTypeOperator::Division, b)
+    }
 
-        fn binary(a: &Type, op: BinaryTypeOperator, b: &Type) -> Type {
-            Type::infix_expr(Box::new(a.clone()), op, Box::new(b.clone()))
-        }
+    fn binary(a: &Type, op: BinaryTypeOperator, b: &Type) -> Type {
+        Type::infix_expr(Box::new(a.clone()), op, Box::new(b.clone()))
     }
 
     #[test]
@@ -763,13 +763,13 @@ mod tests {
         // A + B = 1
         let (a, id_a) = types.type_variable();
         let (b, _) = types.type_variable();
-        let one = Types::num(1);
+        let one = num(1);
 
-        let addition = Types::add(&a, &b);
+        let addition = add(&a, &b);
         assert!(addition.try_unify(&one, &mut bindings).is_ok());
 
         // A = 1 - B
-        assert_eq!(bindings[&id_a].2, Types::subtract(&one, &b));
+        assert_eq!(bindings[&id_a].2, subtract(&one, &b));
     }
 
     #[test]
@@ -783,12 +783,12 @@ mod tests {
         let (c, _) = types.type_variable();
         let (d, _) = types.type_variable();
 
-        let left = Types::add(&a, &b);
-        let right = Types::multiply(&c, &d);
+        let left = add(&a, &b);
+        let right = multiply(&c, &d);
         assert!(left.try_unify(&right, &mut bindings).is_ok());
 
         // A = (C * D) - B
-        assert_eq!(bindings[&id_a].2, Types::subtract(&right, &b));
+        assert_eq!(bindings[&id_a].2, subtract(&right, &b));
     }
 
     #[test]
@@ -799,12 +799,12 @@ mod tests {
         // A - B = 1
         let (a, id_a) = types.type_variable();
         let (b, _) = types.type_variable();
-        let subtraction = Types::subtract(&a, &b);
-        let one = Types::num(1);
+        let subtraction = subtract(&a, &b);
+        let one = num(1);
         assert!(subtraction.try_unify(&one, &mut bindings).is_ok());
 
         // A = B + 1
-        assert_eq!(bindings[&id_a].2, Types::add(&b, &one));
+        assert_eq!(bindings[&id_a].2, add(&b, &one));
     }
 
     #[test]
@@ -816,14 +816,14 @@ mod tests {
         let (a, id_a) = types.type_variable();
         let (b, _) = types.type_variable();
         let (c, _) = types.type_variable();
-        let one = Types::num(1);
+        let one = num(1);
 
-        let left = Types::subtract(&one, &a);
-        let right = Types::multiply(&b, &c);
+        let left = subtract(&one, &a);
+        let right = multiply(&b, &c);
         assert!(left.try_unify(&right, &mut bindings).is_ok());
 
         // A = 1 - (B * C)
-        assert_eq!(bindings[&id_a].2, Types::subtract(&one, &right));
+        assert_eq!(bindings[&id_a].2, subtract(&one, &right));
     }
 
     #[test]
@@ -834,16 +834,16 @@ mod tests {
         // A + 1 = B + 3
         let (a, id_a) = types.type_variable();
         let (b, _) = types.type_variable();
-        let one = Types::num(1);
-        let two = Types::num(2);
-        let three = Types::num(3);
+        let one = num(1);
+        let two = num(2);
+        let three = num(3);
 
-        let left = Types::add(&a, &one);
-        let right = Types::add(&b, &three);
+        let left = add(&a, &one);
+        let right = add(&b, &three);
         assert!(left.try_unify(&right, &mut bindings).is_ok());
 
         // A = B + 2
-        assert_eq!(bindings[&id_a].2, Types::add(&b, &two));
+        assert_eq!(bindings[&id_a].2, add(&b, &two));
     }
 
     #[test]
@@ -855,15 +855,15 @@ mod tests {
         let (a, id_a) = types.type_variable();
         let (b, _) = types.type_variable();
         let (c, _) = types.type_variable();
-        let one = Types::num(1);
-        let three = Types::num(3);
+        let one = num(1);
+        let three = num(3);
 
-        let left = Types::subtract(&Types::subtract(&three, &a), &one);
-        let right = Types::multiply(&b, &c);
+        let left = subtract(&subtract(&three, &a), &one);
+        let right = multiply(&b, &c);
         assert!(left.try_unify(&right, &mut bindings).is_ok());
 
         // A = 3 - ((B * C) + 1)
-        assert_eq!(bindings[&id_a].2, Types::subtract(&three, &Types::add(&right, &one)));
+        assert_eq!(bindings[&id_a].2, subtract(&three, &add(&right, &one)));
     }
 
     #[test]
@@ -876,10 +876,10 @@ mod tests {
         let (b, _) = types.type_variable();
         let (c, _) = types.type_variable();
         let (d, _) = types.type_variable();
-        let one = Types::num(1);
+        let one = num(1);
 
-        let left = Types::subtract(&Types::divide(&a, &b), &one);
-        let right = Types::multiply(&c, &d);
+        let left = subtract(&divide(&a, &b), &one);
+        let right = multiply(&c, &d);
 
         // This shouldn't unify. The idea is the compiler will try to do this:
         //
