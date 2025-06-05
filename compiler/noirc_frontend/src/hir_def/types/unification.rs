@@ -20,6 +20,17 @@ enum FunctionCoercionResult {
     UnconstrainedMismatch(Type),
 }
 
+/// When unifying types we sometimes need to adjust the algorithm a bit.
+#[derive(Copy, Clone, Debug, Eq, PartialEq)]
+enum UnificationFlags {
+    /// Nothing special to do.
+    None,
+    /// If the left-hand side is `expr op constant`, don't try to move the constant to the right-hand side.
+    DoNotMoveConstantsOnTheLeft,
+    /// If the right-hand side is `expr op constant`, don't try to move the constant to the left-hand side.
+    DoNotMoveConstantsOnTheRight,
+}
+
 impl Kind {
     /// Unifies this kind with the other. Returns true on success
     pub(crate) fn unifies(&self, other: &Kind) -> bool {
@@ -77,6 +88,15 @@ impl Type {
     pub fn try_unify(
         &self,
         other: &Type,
+        bindings: &mut TypeBindings,
+    ) -> Result<(), UnificationError> {
+        self.try_unify_with_flags(other, UnificationFlags::None, bindings)
+    }
+
+    fn try_unify_with_flags(
+        &self,
+        other: &Type,
+        flags: UnificationFlags,
         bindings: &mut TypeBindings,
     ) -> Result<(), UnificationError> {
         use Type::*;
@@ -252,8 +272,9 @@ impl Type {
                     }
                 }
 
-                lhs.try_unify_by_isolating_an_unbound_type_variable(&rhs, bindings)
-                    .or_else(|_| lhs.try_unify_by_moving_single_constant_term(&rhs, bindings))
+                lhs.try_unify_by_isolating_an_unbound_type_variable(&rhs, bindings).or_else(|_| {
+                    lhs.try_unify_by_moving_single_constant_term(&rhs, flags, bindings)
+                })
             }
 
             (Constant(value, kind), other) | (other, Constant(value, kind)) => {
@@ -470,13 +491,31 @@ impl Type {
     /// - `(..a..) - 1 = (..b..)` -> `(..a..) = (..b..) + 1`
     /// - `(..a..) = (..b..) + 1` -> `(..b..) = (..a..) - 1`
     /// - `(..a..) = (..b..) - 1` -> `(..b..) = (..a..) + 1`
-    pub(super) fn try_unify_by_moving_single_constant_term(
+    fn try_unify_by_moving_single_constant_term(
         &self,
         other: &Type,
+        flags: UnificationFlags,
         bindings: &mut TypeBindings,
     ) -> Result<(), UnificationError> {
-        self.try_unify_by_moving_single_constant_term_in_self(other, bindings)
-            .or_else(|_| other.try_unify_by_moving_single_constant_term_in_self(self, bindings))
+        if flags != UnificationFlags::DoNotMoveConstantsOnTheLeft {
+            let result = self.try_unify_by_moving_single_constant_term_in_self(
+                other, bindings, true, /* left */
+            );
+            if result.is_ok() {
+                return Ok(());
+            }
+        }
+
+        if flags != UnificationFlags::DoNotMoveConstantsOnTheRight {
+            let result = other.try_unify_by_moving_single_constant_term_in_self(
+                self, bindings, false, /* left */
+            );
+            if result.is_ok() {
+                return Ok(());
+            }
+        }
+
+        Err(UnificationError)
     }
 
     /// Try to unify the following equations:
@@ -486,6 +525,7 @@ impl Type {
         &self,
         other: &Type,
         bindings: &mut TypeBindings,
+        left: bool,
     ) -> Result<(), UnificationError> {
         if let Type::InfixExpr(lhs_lhs, lhs_op, lhs_rhs, _) = self {
             if let Some(lhs_op_inverse) = lhs_op.inverse() {
@@ -496,7 +536,15 @@ impl Type {
                         Type::infix_expr(Box::new(other.clone()), lhs_op_inverse, lhs_rhs.clone());
 
                     let mut tmp_bindings = bindings.clone();
-                    if lhs_lhs.try_unify(&new_rhs, &mut tmp_bindings).is_ok() {
+
+                    // Since we are going to move a constant from one side to the other, we don't want
+                    // to try moving the constant back to where it was because it would lead to infinite recursion.
+                    let flags = if left {
+                        UnificationFlags::DoNotMoveConstantsOnTheRight
+                    } else {
+                        UnificationFlags::DoNotMoveConstantsOnTheLeft
+                    };
+                    if lhs_lhs.try_unify_with_flags(&new_rhs, flags, &mut tmp_bindings).is_ok() {
                         *bindings = tmp_bindings;
                         return Ok(());
                     }
@@ -696,6 +744,10 @@ mod tests {
             Self::binary(a, BinaryTypeOperator::Multiplication, b)
         }
 
+        fn divide(a: &Type, b: &Type) -> Type {
+            Self::binary(a, BinaryTypeOperator::Division, b)
+        }
+
         fn binary(a: &Type, op: BinaryTypeOperator, b: &Type) -> Type {
             Type::infix_expr(Box::new(a.clone()), op, Box::new(b.clone()))
         }
@@ -824,5 +876,30 @@ mod tests {
 
         // A = 3 - ((B * C) + 1)
         assert_eq!(bindings[&id_a].2, Types::subtract(&three, &Types::add(&right, &one)));
+    }
+
+    #[test]
+    fn does_not_recurse_forever_when_moving_single_constant_terms() {
+        let mut types = Types::new();
+        let mut bindings = TypeBindings::default();
+
+        // (A / B) - 1 = C * D
+        let (a, _) = types.type_variable();
+        let (b, _) = types.type_variable();
+        let (c, _) = types.type_variable();
+        let (d, _) = types.type_variable();
+        let one = Types::num(1);
+
+        let left = Types::subtract(&Types::divide(&a, &b), &one);
+        let right = Types::multiply(&c, &d);
+
+        // This shouldn't unify. The idea is the compiler will try to do this:
+        //
+        // 1. (A / B) - 1 = C * D
+        // 2. (A / B) = (C * D) + 1
+        //
+        // It can't solve either A or B, so it will try to move the `1` back to
+        // the right side... except that we prevent that recursion.
+        assert!(left.try_unify(&right, &mut bindings).is_err());
     }
 }
