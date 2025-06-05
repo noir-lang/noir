@@ -1025,19 +1025,32 @@ impl Interpreter<'_> {
         let dfg = self.dfg();
         let result = match binary.operator {
             BinaryOp::Add { unchecked: false } => {
-                apply_int_binop_opt!(dfg, lhs, rhs, binary, num_traits::CheckedAdd::checked_add)
+                if lhs.get_type().is_unsigned() {
+                    apply_int_binop_opt!(dfg, lhs, rhs, binary, num_traits::CheckedAdd::checked_add)
+                } else {
+                    apply_int_binop!(lhs, rhs, binary, num_traits::WrappingAdd::wrapping_add)
+                }
             }
             BinaryOp::Add { unchecked: true } => {
                 apply_int_binop!(lhs, rhs, binary, num_traits::WrappingAdd::wrapping_add)
             }
             BinaryOp::Sub { unchecked: false } => {
-                apply_int_binop_opt!(dfg, lhs, rhs, binary, num_traits::CheckedSub::checked_sub)
+                if lhs.get_type().is_unsigned() {
+                    apply_int_binop_opt!(dfg, lhs, rhs, binary, num_traits::CheckedSub::checked_sub)
+                } else {
+                    apply_int_binop!(lhs, rhs, binary, num_traits::WrappingSub::wrapping_sub)
+                }
             }
             BinaryOp::Sub { unchecked: true } => {
                 apply_int_binop!(lhs, rhs, binary, num_traits::WrappingSub::wrapping_sub)
             }
             BinaryOp::Mul { unchecked: false } => {
-                apply_int_binop_opt!(dfg, lhs, rhs, binary, num_traits::CheckedMul::checked_mul)
+                // Only unsigned multiplication has side effects
+                if lhs.get_type().is_unsigned() {
+                    apply_int_binop_opt!(dfg, lhs, rhs, binary, num_traits::CheckedMul::checked_mul)
+                } else {
+                    apply_int_binop!(lhs, rhs, binary, num_traits::WrappingMul::wrapping_mul)
+                }
             }
             BinaryOp::Mul { unchecked: true } => {
                 apply_int_binop!(lhs, rhs, binary, num_traits::WrappingMul::wrapping_mul)
