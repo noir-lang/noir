@@ -685,7 +685,7 @@ pub(crate) fn to_struct(
 }
 
 pub(crate) fn new_unary_op(operator: UnaryOp, typ: Type) -> Option<Value> {
-    // These values should match the values used in noir_stdlib/src/meta/op.nr
+    // These values should match the values used in sensei_stdlib/src/meta/op.nr
     let unary_op_value: u128 = match operator {
         UnaryOp::Minus => 0,
         UnaryOp::Not => 1,
@@ -704,7 +704,7 @@ pub(crate) fn new_unary_op(operator: UnaryOp, typ: Type) -> Option<Value> {
 }
 
 pub(crate) fn new_binary_op(operator: BinaryOp, typ: Type) -> Value {
-    // For the op value we use the enum member index, which should match noir_stdlib/src/meta/op.nr
+    // For the op value we use the enum member index, which should match sensei_stdlib/src/meta/op.nr
     let binary_op_value = operator.contents as u128;
 
     let mut fields = HashMap::default();

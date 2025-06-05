@@ -9,7 +9,7 @@ fn main() {
         build_data::no_debug_rebuilds();
     }
 
-    let stdlib_src_dir = Path::new("../../noir_stdlib/");
+    let stdlib_src_dir = Path::new("../../sensei_stdlib/");
     rerun_if_stdlib_changes(stdlib_src_dir);
 }
 

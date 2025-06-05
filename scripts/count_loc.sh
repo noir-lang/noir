@@ -30,4 +30,4 @@ tokei ./tooling --sort code
 
 echo ""
 echo "Standard Library:"
-tokei ./noir_stdlib --sort code
+tokei ./sensei_stdlib --sort code

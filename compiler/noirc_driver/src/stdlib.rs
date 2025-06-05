@@ -1,7 +1,7 @@
 use rust_embed::RustEmbed;
 
 #[derive(RustEmbed)]
-#[folder = "../../noir_stdlib/src"]
+#[folder = "../../sensei_stdlib/src"]
 #[cfg_attr(not(target_os = "windows"), prefix = "std/")]
 #[cfg_attr(target_os = "windows", prefix = r"std\")] // Note reversed slash direction
 struct StdLibAssets;
