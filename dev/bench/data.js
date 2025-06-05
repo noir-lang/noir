@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1749152115932,
+  "lastUpdate": 1749161214048,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -18476,48 +18476,6 @@ window.BENCHMARK_DATA = {
             "username": "web-flow"
           },
           "distinct": true,
-          "id": "176cfd416d7a28501c1f00405c6daf25b514ce4e",
-          "message": "chore(test): Add regression test for defunctionalize (#8691)",
-          "timestamp": "2025-05-27T13:19:34Z",
-          "tree_id": "3fc3b8c111e12aa75778c9597d43e3708a6b954d",
-          "url": "https://github.com/noir-lang/noir/commit/176cfd416d7a28501c1f00405c6daf25b514ce4e"
-        },
-        "date": 1748353248095,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 255242,
-            "range": "± 1260",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 225131,
-            "range": "± 6405",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 3566390,
-            "range": "± 13832",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
-            "email": "aakoshh@gmail.com",
-            "name": "Akosh Farkash",
-            "username": "aakoshh"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
           "id": "4a263b1dd444f1a4c9de1e89cbdc6cbf141cee50",
           "message": "feat(cli): Show multiple SSA passes (#8692)",
           "timestamp": "2025-05-27T15:38:19Z",
@@ -20559,6 +20517,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2778710,
             "range": "± 30990",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "asterite@gmail.com",
+            "name": "Ary Borenszweig",
+            "username": "asterite"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "56410604d4be68bab90ee59ea1af4e808cb19072",
+          "message": "fix: type unification tests, and try moving constants to the other side (#8807)",
+          "timestamp": "2025-06-05T21:45:53Z",
+          "tree_id": "a9844f089bb5ce09850c73fa7c2018d90f0b02bb",
+          "url": "https://github.com/noir-lang/noir/commit/56410604d4be68bab90ee59ea1af4e808cb19072"
+        },
+        "date": 1749161203539,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 249215,
+            "range": "± 741",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 219860,
+            "range": "± 4726",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2779137,
+            "range": "± 1652",
             "unit": "ns/iter"
           }
         ]
