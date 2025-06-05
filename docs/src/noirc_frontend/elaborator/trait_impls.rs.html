@@ -261,8 +261,10 @@
 <a href="#260" id="260">260</a>
 <a href="#261" id="261">261</a>
 <a href="#262" id="262">262</a>
-<a href="#263" id="263">263</a></pre></div><pre class="rust"><code><span class="kw">use crate</span>::{
-    NamedGeneric, ResolvedGeneric,
+<a href="#263" id="263">263</a>
+<a href="#264" id="264">264</a>
+<a href="#265" id="265">265</a></pre></div><pre class="rust"><code><span class="kw">use crate</span>::{
+    Kind, NamedGeneric, ResolvedGeneric,
     ast::{Ident, UnresolvedType, UnresolvedTypeData, UnresolvedTypeExpression},
     graph::CrateId,
     hir::def_collector::{
@@ -505,9 +507,11 @@
     <span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>take_unresolved_associated_types(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
         trait_impl: <span class="kw-2">&amp;mut </span>UnresolvedTraitImpl,
-    ) -&gt; Vec&lt;(Ident, UnresolvedType)&gt; {
+    ) -&gt; Vec&lt;(Ident, UnresolvedType, Kind)&gt; {
         <span class="kw">let </span><span class="kw-2">mut </span>associated_types = Vec::new();
-        <span class="kw">for </span>(name, <span class="kw">_</span>, expr) <span class="kw">in </span>trait_impl.associated_constants.drain(..) {
+        <span class="kw">for </span>(name, typ, expr) <span class="kw">in </span>trait_impl.associated_constants.drain(..) {
+            <span class="kw">let </span>resolved_type = <span class="self">self</span>.resolve_type(typ);
+            <span class="kw">let </span>kind = Kind::Numeric(Box::new(resolved_type));
             <span class="kw">let </span>location = expr.location;
             <span class="kw">let </span>typ = <span class="kw">match </span>UnresolvedTypeExpression::from_expr(expr, location) {
                 <span class="prelude-val">Ok</span>(expr) =&gt; UnresolvedTypeData::Expression(expr).with_location(location),
@@ -516,10 +520,10 @@
                     UnresolvedTypeData::Error.with_location(location)
                 }
             };
-            associated_types.push((name, typ));
+            associated_types.push((name, typ, kind));
         }
         <span class="kw">for </span>(name, typ) <span class="kw">in </span>trait_impl.associated_types.drain(..) {
-            associated_types.push((name, typ));
+            associated_types.push((name, typ, Kind::Any));
         }
         associated_types
     }

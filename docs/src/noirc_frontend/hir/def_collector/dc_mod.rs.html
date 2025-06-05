@@ -1754,7 +1754,8 @@
 <a href="#1753" id="1753">1753</a>
 <a href="#1754" id="1754">1754</a>
 <a href="#1755" id="1755">1755</a>
-<a href="#1756" id="1756">1756</a></pre></div><pre class="rust"><code><span class="kw">use </span>core::str;
+<a href="#1756" id="1756">1756</a>
+<a href="#1757" id="1757">1757</a></pre></div><pre class="rust"><code><span class="kw">use </span>core::str;
 <span class="kw">use </span>std::path::Path;
 <span class="kw">use </span>std::rc::Rc;
 <span class="kw">use </span>std::vec;
@@ -2009,6 +2010,7 @@
                 resolved_object_type: <span class="prelude-val">None</span>,
                 resolved_generics: Vec::new(),
                 resolved_trait_generics: Vec::new(),
+                unresolved_associated_types: Vec::new(),
             };
 
             <span class="self">self</span>.def_collector.items.trait_impls.push(unresolved_trait_impl);

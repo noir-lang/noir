@@ -2435,7 +2435,62 @@
 <a href="#2434" id="2434">2434</a>
 <a href="#2435" id="2435">2435</a>
 <a href="#2436" id="2436">2436</a>
-<a href="#2437" id="2437">2437</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::{
+<a href="#2437" id="2437">2437</a>
+<a href="#2438" id="2438">2438</a>
+<a href="#2439" id="2439">2439</a>
+<a href="#2440" id="2440">2440</a>
+<a href="#2441" id="2441">2441</a>
+<a href="#2442" id="2442">2442</a>
+<a href="#2443" id="2443">2443</a>
+<a href="#2444" id="2444">2444</a>
+<a href="#2445" id="2445">2445</a>
+<a href="#2446" id="2446">2446</a>
+<a href="#2447" id="2447">2447</a>
+<a href="#2448" id="2448">2448</a>
+<a href="#2449" id="2449">2449</a>
+<a href="#2450" id="2450">2450</a>
+<a href="#2451" id="2451">2451</a>
+<a href="#2452" id="2452">2452</a>
+<a href="#2453" id="2453">2453</a>
+<a href="#2454" id="2454">2454</a>
+<a href="#2455" id="2455">2455</a>
+<a href="#2456" id="2456">2456</a>
+<a href="#2457" id="2457">2457</a>
+<a href="#2458" id="2458">2458</a>
+<a href="#2459" id="2459">2459</a>
+<a href="#2460" id="2460">2460</a>
+<a href="#2461" id="2461">2461</a>
+<a href="#2462" id="2462">2462</a>
+<a href="#2463" id="2463">2463</a>
+<a href="#2464" id="2464">2464</a>
+<a href="#2465" id="2465">2465</a>
+<a href="#2466" id="2466">2466</a>
+<a href="#2467" id="2467">2467</a>
+<a href="#2468" id="2468">2468</a>
+<a href="#2469" id="2469">2469</a>
+<a href="#2470" id="2470">2470</a>
+<a href="#2471" id="2471">2471</a>
+<a href="#2472" id="2472">2472</a>
+<a href="#2473" id="2473">2473</a>
+<a href="#2474" id="2474">2474</a>
+<a href="#2475" id="2475">2475</a>
+<a href="#2476" id="2476">2476</a>
+<a href="#2477" id="2477">2477</a>
+<a href="#2478" id="2478">2478</a>
+<a href="#2479" id="2479">2479</a>
+<a href="#2480" id="2480">2480</a>
+<a href="#2481" id="2481">2481</a>
+<a href="#2482" id="2482">2482</a>
+<a href="#2483" id="2483">2483</a>
+<a href="#2484" id="2484">2484</a>
+<a href="#2485" id="2485">2485</a>
+<a href="#2486" id="2486">2486</a>
+<a href="#2487" id="2487">2487</a>
+<a href="#2488" id="2488">2488</a>
+<a href="#2489" id="2489">2489</a>
+<a href="#2490" id="2490">2490</a>
+<a href="#2491" id="2491">2491</a>
+<a href="#2492" id="2492">2492</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::{
     cell::RefCell,
     collections::{BTreeMap, BTreeSet},
     rc::Rc,
@@ -2504,6 +2559,7 @@
 <span class="kw">pub mod </span>types;
 <span class="kw">mod </span>unquote;
 
+<span class="kw">use </span>fxhash::FxHashMap <span class="kw">as </span>HashMap;
 <span class="kw">use </span>im::HashSet;
 <span class="kw">use </span>iter_extended::vecmap;
 <span class="kw">use </span>noirc_errors::{Located, Location};
@@ -4023,6 +4079,37 @@
 
             <span class="kw">let </span>where_clause = <span class="self">self</span>.resolve_trait_constraints(<span class="kw-2">&amp;</span>trait_impl.where_clause);
 
+            <span class="comment">// Now solve the actual type of associated types
+            // (before this we only declared them without knowing their type)
+            </span><span class="kw">if let </span><span class="prelude-val">Some</span>(trait_impl_id) = trait_impl.impl_id {
+                <span class="kw">let </span>unresolved_associated_types =
+                    std::mem::take(<span class="kw-2">&amp;mut </span>trait_impl.unresolved_associated_types);
+                <span class="kw">let </span><span class="kw-2">mut </span>unresolved_associated_types =
+                    unresolved_associated_types.into_iter().collect::&lt;HashMap&lt;<span class="kw">_</span>, <span class="kw">_</span>&gt;&gt;();
+
+                <span class="kw">let </span>associated_types =
+                    <span class="self">self</span>.interner.get_associated_types_for_impl(trait_impl_id).to_vec();
+                <span class="kw">for </span>associated_type <span class="kw">in </span><span class="kw-2">&amp;</span>associated_types {
+                    <span class="kw">let </span>Type::NamedGeneric(named_generic) = <span class="kw-2">&amp;</span>associated_type.typ <span class="kw">else </span>{
+                        <span class="comment">// This can happen if the associated type is specified directly in the impl trait generics,
+                        // This can't be done in code, but it could happen with unquoted types.
+                        </span><span class="kw">continue</span>;
+                    };
+
+                    <span class="kw">let </span><span class="prelude-val">Some</span>(unresolved_type) =
+                        unresolved_associated_types.remove(<span class="kw-2">&amp;</span>associated_type.name)
+                    <span class="kw">else </span>{
+                        <span class="comment">// This too can happen if the associated type is specified directly in the impl trait generics,
+                        // like `impl&lt;H&gt; BuildHasher&lt;H = H&gt;`, where `H` is a named generic but its resolution isn't delayed.
+                        // This can't be done in code, but it could happen with unquoted types.
+                        </span><span class="kw">continue</span>;
+                    };
+                    <span class="kw">let </span>resolved_type =
+                        <span class="self">self</span>.resolve_type_with_kind(unresolved_type, <span class="kw-2">&amp;</span>associated_type.typ.kind());
+                    named_generic.type_var.bind(resolved_type);
+                }
+            }
+
             <span class="kw">let </span>trait_ = <span class="self">self</span>.interner.get_trait(trait_id);
 
             <span class="comment">// If there are bounds on the trait's associated types, check them now
@@ -4732,7 +4819,29 @@
             <span class="self">self</span>.current_trait_impl = <span class="prelude-val">Some</span>(impl_id);
 
             <span class="comment">// Add each associated type to the list of named type arguments
-            </span>trait_generics.named_args.extend(<span class="self">self</span>.take_unresolved_associated_types(trait_impl));
+            </span><span class="kw">let </span>associated_types = <span class="self">self</span>.take_unresolved_associated_types(trait_impl);
+
+            <span class="comment">// Put every associated type behind a type variable (inside a NamedGeneric).
+            // This way associated types can be referred to even if their actual value (for associated constants)
+            // is not known yet. This is to allow associated constants to refer to associated constants
+            // in other trait impls.
+            </span><span class="kw">let </span>associated_types_behind_type_vars =
+                vecmap(<span class="kw-2">&amp;</span>associated_types, |(name, _typ, kind)| {
+                    <span class="kw">let </span>new_generic_id = <span class="self">self</span>.interner.next_type_variable_id();
+                    <span class="kw">let </span>type_var = TypeVariable::unbound(new_generic_id, kind.clone());
+                    <span class="kw">let </span>typ = Type::NamedGeneric(NamedGeneric {
+                        type_var: type_var.clone(),
+                        name: Rc::new(name.to_string()),
+                        implicit: <span class="bool-val">false</span>,
+                    });
+                    <span class="kw">let </span>typ = <span class="self">self</span>.interner.push_quoted_type(typ);
+                    <span class="kw">let </span>typ = UnresolvedTypeData::Resolved(typ).with_location(name.location());
+                    (name.clone(), typ)
+                });
+
+            trait_generics.named_args.extend(associated_types_behind_type_vars);
+
+            <span class="kw">let </span>associated_types = vecmap(associated_types, |(name, typ, _kind)| (name, typ));
 
             <span class="kw">let </span>(ordered_generics, named_generics) = trait_impl
                 .trait_id
@@ -4762,6 +4871,7 @@
 
             trait_impl.resolved_object_type = <span class="self">self</span>.self_type.take();
             trait_impl.impl_id = <span class="self">self</span>.current_trait_impl.take();
+            trait_impl.unresolved_associated_types = associated_types;
             <span class="self">self</span>.generics.clear();
 
             <span class="kw">if let </span><span class="prelude-val">Some</span>(trait_id) = trait_id {

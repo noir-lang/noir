@@ -2384,7 +2384,8 @@
 <a href="#2383" id="2383">2383</a>
 <a href="#2384" id="2384">2384</a>
 <a href="#2385" id="2385">2385</a>
-<a href="#2386" id="2386">2386</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::{borrow::Cow, rc::Rc};
+<a href="#2386" id="2386">2386</a>
+<a href="#2387" id="2387">2387</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::{borrow::Cow, rc::Rc};
 
 <span class="kw">use </span>im::HashSet;
 <span class="kw">use </span>iter_extended::vecmap;
@@ -3522,6 +3523,7 @@
         to: <span class="kw-2">&amp;</span>Type,
         location: Location,
     ) -&gt; Type {
+        <span class="kw">let </span>to = to.follow_bindings();
         <span class="kw">let </span>from_follow_bindings = from.follow_bindings();
 
         <span class="kw">use </span>HirExpression::Literal;
@@ -3577,7 +3579,7 @@
         }
 
         <span class="kw">match </span>to {
-            Type::Integer(sign, bits) =&gt; Type::Integer(<span class="kw-2">*</span>sign, <span class="kw-2">*</span>bits),
+            Type::Integer(sign, bits) =&gt; Type::Integer(sign, bits),
             Type::FieldElement =&gt; Type::FieldElement,
             Type::Bool =&gt; Type::Bool,
             Type::Error =&gt; Type::Error,

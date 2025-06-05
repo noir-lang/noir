@@ -612,7 +612,8 @@
 <a href="#611" id="611">611</a>
 <a href="#612" id="612">612</a>
 <a href="#613" id="613">613</a>
-<a href="#614" id="614">614</a></pre></div><pre class="rust"><code><span class="kw">use </span><span class="kw">super</span>::dc_mod::collect_defs;
+<a href="#614" id="614">614</a>
+<a href="#615" id="615">615</a></pre></div><pre class="rust"><code><span class="kw">use </span><span class="kw">super</span>::dc_mod::collect_defs;
 <span class="kw">use </span><span class="kw">super</span>::errors::{DefCollectorErrorKind, DuplicateType};
 <span class="kw">use </span><span class="kw">crate</span>::elaborator::Elaborator;
 <span class="kw">use </span><span class="kw">crate</span>::graph::CrateId;
@@ -713,6 +714,7 @@
     <span class="kw">pub </span>impl_id: <span class="prelude-ty">Option</span>&lt;TraitImplId&gt;,
     <span class="kw">pub </span>resolved_object_type: <span class="prelude-ty">Option</span>&lt;Type&gt;,
     <span class="kw">pub </span>resolved_generics: Generics,
+    <span class="kw">pub </span>unresolved_associated_types: Vec&lt;(Ident, UnresolvedType)&gt;,
 
     <span class="comment">// The resolved generic on the trait itself. E.g. it is the `&lt;C, D&gt;` in
     // `impl&lt;A, B&gt; Foo&lt;C, D&gt; for Bar&lt;E, F&gt; { ... }`

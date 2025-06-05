@@ -2600,8 +2600,7 @@
 <a href="#2599" id="2599">2599</a>
 <a href="#2600" id="2600">2600</a>
 <a href="#2601" id="2601">2601</a>
-<a href="#2602" id="2602">2602</a>
-<a href="#2603" id="2603">2603</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::borrow::Cow;
+<a href="#2602" id="2602">2602</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::borrow::Cow;
 <span class="kw">use </span>std::collections::HashSet;
 <span class="kw">use </span>std::fmt;
 <span class="kw">use </span>std::hash::Hash;
@@ -2749,8 +2748,7 @@
     /// created, when resolving the type signature of each method in the impl.
     </span>trait_impl_associated_types: HashMap&lt;TraitImplId, Vec&lt;NamedType&gt;&gt;,
 
-    trait_impl_associated_constant_definition_ids:
-        HashMap&lt;TraitImplId, HashMap&lt;String, DefinitionId&gt;&gt;,
+    trait_impl_associated_constants: HashMap&lt;TraitImplId, HashMap&lt;String, (DefinitionId, Type)&gt;&gt;,
 
     <span class="doccomment">/// Trait implementations on each type. This is expected to always have the same length as
     /// `self.trait_implementations`.
@@ -3323,7 +3321,7 @@
             auto_import_names: HashMap::default(),
             comptime_scopes: <span class="macro">vec!</span>[HashMap::default()],
             trait_impl_associated_types: HashMap::default(),
-            trait_impl_associated_constant_definition_ids: HashMap::default(),
+            trait_impl_associated_constants: HashMap::default(),
             doc_comments: HashMap::default(),
             reexports: HashMap::default(),
         }
@@ -4894,7 +4892,7 @@
     ) {
         <span class="comment">// Wrap the named generics in type variables to be able to refer them as type variables
         </span><span class="kw">for </span>associated_type <span class="kw">in </span><span class="kw-2">&amp;</span>associated_types {
-            <span class="kw">let </span>Kind::Numeric(..) = associated_type.typ.kind() <span class="kw">else </span>{
+            <span class="kw">let </span>Kind::Numeric(numeric_type) = associated_type.typ.kind() <span class="kw">else </span>{
                 <span class="kw">continue</span>;
             };
 
@@ -4906,10 +4904,10 @@
                 DefinitionKind::AssociatedConstant(impl_id, name.clone()),
                 associated_type.name.location(),
             );
-            <span class="self">self</span>.trait_impl_associated_constant_definition_ids
+            <span class="self">self</span>.trait_impl_associated_constants
                 .entry(impl_id)
                 .or_default()
-                .insert(name, definition_id);
+                .insert(name, (definition_id, <span class="kw-2">*</span>numeric_type));
         }
 
         <span class="self">self</span>.trait_impl_associated_types.insert(impl_id, associated_types);
@@ -4931,12 +4929,12 @@
     }
 
     <span class="doccomment">/// Returns the definition id for the associated constant of the given type variable.
-    </span><span class="kw">pub fn </span>get_associated_constant_definition_id(
+    </span><span class="kw">pub fn </span>get_trait_impl_associated_constant(
         <span class="kw-2">&amp;</span><span class="self">self</span>,
         impl_id: TraitImplId,
         name: <span class="kw-2">&amp;</span>str,
-    ) -&gt; DefinitionId {
-        <span class="self">self</span>.trait_impl_associated_constant_definition_ids[<span class="kw-2">&amp;</span>impl_id][name]
+    ) -&gt; <span class="prelude-ty">Option</span>&lt;<span class="kw-2">&amp;</span>(DefinitionId, Type)&gt; {
+        <span class="self">self</span>.trait_impl_associated_constants.get(<span class="kw-2">&amp;</span>impl_id).and_then(|map| map.get(name))
     }
 
     <span class="doccomment">/// Return a set of TypeBindings to bind types from the parent trait to those from the trait impl.

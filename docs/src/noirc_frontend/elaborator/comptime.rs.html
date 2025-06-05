@@ -693,7 +693,8 @@
 <a href="#692" id="692">692</a>
 <a href="#693" id="693">693</a>
 <a href="#694" id="694">694</a>
-<a href="#695" id="695">695</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::{collections::BTreeMap, fmt::Display};
+<a href="#695" id="695">695</a>
+<a href="#696" id="696">696</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::{collections::BTreeMap, fmt::Display};
 
 <span class="kw">use </span>iter_extended::vecmap;
 <span class="kw">use </span>noirc_errors::Location;
@@ -1118,6 +1119,7 @@
                     resolved_object_type: <span class="prelude-val">None</span>,
                     resolved_generics: Vec::new(),
                     resolved_trait_generics: Vec::new(),
+                    unresolved_associated_types: Vec::new(),
                 });
             }
             ItemKind::Global(global, visibility) =&gt; {
