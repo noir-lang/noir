@@ -12,6 +12,7 @@ use noirc_driver::{CompilationResult, CompileOptions};
 use clap::Args;
 use noirc_errors::CustomDiagnostic;
 use noirc_evaluator::brillig::BrilligOptions;
+use noirc_evaluator::ssa::interpreter::value::Value;
 use noirc_evaluator::ssa::ssa_gen::{Ssa, generate_ssa};
 use noirc_evaluator::ssa::{SsaEvaluatorOptions, SsaLogging, primary_passes};
 use noirc_frontend::debug::DebugInstrumenter;
@@ -201,14 +202,11 @@ fn print_ssa(options: &SsaEvaluatorOptions, ssa: &mut Ssa, msg: &str) {
     }
 }
 
-fn interpret_ssa(
-    passes_to_interpret: &[String],
-    ssa: &Ssa,
-    msg: &str,
-    args: &[noirc_evaluator::ssa::interpreter::value::Value],
-) {
+fn interpret_ssa(passes_to_interpret: &[String], ssa: &Ssa, msg: &str, args: &[Value]) {
     if passes_to_interpret.is_empty() || msg_matches(passes_to_interpret, msg) {
-        let result = ssa.interpret(args.into());
+        // We need to give a fresh copy of arrays each time, because the shared structures are modified.
+        let args = Value::snapshot_args(args);
+        let result = ssa.interpret(args);
         println!("--- Interpreter result after {msg}:\n{result:?}\n---");
     }
 }
@@ -218,7 +216,7 @@ fn print_and_interpret_ssa(
     passes_to_interpret: &[String],
     ssa: &mut Ssa,
     msg: &str,
-    args: &[noirc_evaluator::ssa::interpreter::value::Value],
+    args: &[Value],
 ) {
     print_ssa(options, ssa, msg);
     interpret_ssa(passes_to_interpret, ssa, msg, args);
