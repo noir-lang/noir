@@ -31,13 +31,13 @@ fn main(mut x: [Foo; 4], y: pub Field) {
     assert(x[3].a == 50);
     if y == 2 {
         {
-            let i_3774: Field = y - 1;
-            x[i_3774].b = [50, 51, 52];
+            let i_3775: Field = y - 1;
+            x[i_3775].b = [50, 51, 52];
         }
     } else {
         {
-            let i_3775: Field = y - 1;
-            x[i_3775].b = [100, 101, 102];
+            let i_3776: Field = y - 1;
+            x[i_3776].b = [100, 101, 102];
         }
     };
     assert(x[2].b == [100, 101, 102]);
@@ -56,39 +56,39 @@ fn main(mut x: [Foo; 4], y: pub Field) {
     assert(foo_parents[1].foos[1].b == [5, 6, 21]);
     if y == 2 {
         {
-            let i_3779: Field = y - 2;
             let i_3780: Field = y - 2;
-            foo_parents[i_3779].foos[i_3780].b = [10, 9, 8];
+            let i_3781: Field = y - 2;
+            foo_parents[i_3780].foos[i_3781].b = [10, 9, 8];
         }
     } else {
         {
-            let i_3781: Field = y - 2;
             let i_3782: Field = y - 2;
-            foo_parents[i_3781].foos[i_3782].b = [20, 19, 18];
+            let i_3783: Field = y - 2;
+            foo_parents[i_3782].foos[i_3783].b = [20, 19, 18];
         }
     };
     assert(foo_parents[1].foos[1].b == [20, 19, 18]);
     assert(foo_parents[1].foos[1].b[2] == 18);
     if y == 3 {
         {
-            let i_3783: Field = y - 2;
             let i_3784: Field = y - 2;
-            let i_3785: Field = y - 1;
-            foo_parents[i_3783].foos[i_3784].b[i_3785] = 5000;
+            let i_3785: Field = y - 2;
+            let i_3786: Field = y - 1;
+            foo_parents[i_3784].foos[i_3785].b[i_3786] = 5000;
         }
     } else {
         {
-            let i_3786: Field = y - 2;
             let i_3787: Field = y - 2;
-            let i_3788: Field = y - 1;
-            foo_parents[i_3786].foos[i_3787].b[i_3788] = 1000;
+            let i_3788: Field = y - 2;
+            let i_3789: Field = y - 1;
+            foo_parents[i_3787].foos[i_3788].b[i_3789] = 1000;
         }
     };
     assert(foo_parents[1].foos[1].b[2] == 5000);
     {
-        let i_3789: Field = y - 2;
-        let i_3790: Field = y - 3;
-        foo_parents[i_3789].foos[i_3790].b = foo_parents[y - 2].foos[y - 2].b;
+        let i_3790: Field = y - 2;
+        let i_3791: Field = y - 3;
+        foo_parents[i_3790].foos[i_3791].b = foo_parents[y - 2].foos[y - 2].b;
     };
     assert(foo_parents[1].foos[0].b == [20, 19, 5000]);
 }

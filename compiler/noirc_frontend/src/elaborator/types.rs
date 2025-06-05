@@ -1136,6 +1136,7 @@ impl Elaborator<'_> {
         to: &Type,
         location: Location,
     ) -> Type {
+        let to = to.follow_bindings();
         let from_follow_bindings = from.follow_bindings();
 
         use HirExpression::Literal;
@@ -1191,7 +1192,7 @@ impl Elaborator<'_> {
         }
 
         match to {
-            Type::Integer(sign, bits) => Type::Integer(*sign, *bits),
+            Type::Integer(sign, bits) => Type::Integer(sign, bits),
             Type::FieldElement => Type::FieldElement,
             Type::Bool => Type::Bool,
             Type::Error => Type::Error,
