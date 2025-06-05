@@ -521,8 +521,8 @@ impl<'f> PerFunctionContext<'f> {
                 // We want to fetch all aliases of each argument to be marked unknown as an array
                 // of references can potentially be aliased by those internal references.
                 let mut all_aliases = Vec::new();
-                let aliases = references.collect_all_aliases(arguments);
-                aliases.for_each(|alias| {
+                let aliases = references.collect_all_aliases_no_unify(arguments);
+                aliases.into_iter().for_each(|alias| {
                     self.instruction_input_references.insert(alias);
                     all_aliases.push(alias);
                 });
@@ -647,8 +647,8 @@ impl<'f> PerFunctionContext<'f> {
                 // We want to fetch all aliases of each return value to be marked unknown as an array
                 // of references can potentially be aliased by those internal references.
                 let mut all_aliases = Vec::new();
-                let aliases = references.collect_all_aliases(return_values);
-                aliases.for_each(|alias| {
+                let aliases = references.collect_all_aliases_no_unify(return_values);
+                aliases.into_iter().for_each(|alias| {
                     all_aliases.push(alias);
                 });
                 // Removing all `last_stores` for each returned reference is more important here
