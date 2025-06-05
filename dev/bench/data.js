@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1749152091726,
+  "lastUpdate": 1749152096668,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -11371,75 +11371,6 @@ window.BENCHMARK_DATA = {
             "name": "GitHub",
             "username": "web-flow"
           },
-          "distinct": true,
-          "id": "2a79d90851faea8c38dc50d994b2c2c7ba8201ff",
-          "message": "feat!: prevent compiling blake3 hashes which barretenberg cannot prove (#8690)",
-          "timestamp": "2025-05-27T11:14:28Z",
-          "tree_id": "c30b61196176132e139a47c23266da24c61fcd78",
-          "url": "https://github.com/noir-lang/noir/commit/2a79d90851faea8c38dc50d994b2c2c7ba8201ff"
-        },
-        "date": 1748347610994,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 246.19,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 270.04,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 221.33,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 580.05,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 576.38,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 1460,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 401.73,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-root",
-            "value": 407.29,
-            "unit": "MB"
-          },
-          {
-            "name": "semaphore_depth_10",
-            "value": 92.96,
-            "unit": "MB"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
-            "email": "15848336+TomAFrench@users.noreply.github.com",
-            "name": "Tom French",
-            "username": "TomAFrench"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
           "distinct": false,
           "id": "9ee2618510d877402aa9ad2f4cdf9e92577fd7e8",
           "message": "chore: add an assertion when parsing SSA that all functions are well-formed (#8671)",
@@ -14805,6 +14736,75 @@ window.BENCHMARK_DATA = {
           {
             "name": "semaphore_depth_10",
             "value": 70.96,
+            "unit": "MB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "asterite@gmail.com",
+            "name": "Ary Borenszweig",
+            "username": "asterite"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "c2cedd44270a93b47c43d8c2358b2ff6cb05078f",
+          "message": "fix!: disallow casting numeric to bool (#8703)",
+          "timestamp": "2025-06-05T18:36:12Z",
+          "tree_id": "6ab61bcdcab207776ac937fe954e30c234db51ca",
+          "url": "https://github.com/noir-lang/noir/commit/c2cedd44270a93b47c43d8c2358b2ff6cb05078f"
+        },
+        "date": 1749152085413,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 202.11,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 225.85,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 177.26,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 490.25,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 423.96,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 1400,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 312.3,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-root",
+            "value": 317.99,
+            "unit": "MB"
+          },
+          {
+            "name": "semaphore_depth_10",
+            "value": 70.98,
             "unit": "MB"
           }
         ]
