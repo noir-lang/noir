@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1749070010288,
+  "lastUpdate": 1749111996714,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -18466,48 +18466,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "mvezenov@gmail.com",
-            "name": "Maxim Vezenov",
-            "username": "vezenovm"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "3da528896a5788976801de6a98b0d2df9a69f3d8",
-          "message": "fix(ssa): Remove the array cache from the function inserter (#8607)\n\nCo-authored-by: Tom French <15848336+TomAFrench@users.noreply.github.com>",
-          "timestamp": "2025-05-27T10:43:55Z",
-          "tree_id": "5c124e6d21d605b1ce67ff1b9d145d1d295ca57f",
-          "url": "https://github.com/noir-lang/noir/commit/3da528896a5788976801de6a98b0d2df9a69f3d8"
-        },
-        "date": 1748344279161,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 255915,
-            "range": "± 1478",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 224742,
-            "range": "± 3601",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 3214547,
-            "range": "± 29011",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "15848336+TomAFrench@users.noreply.github.com",
             "name": "Tom French",
             "username": "TomAFrench"
@@ -20559,6 +20517,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2779224,
             "range": "± 1902",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "47281315+guipublic@users.noreply.github.com",
+            "name": "guipublic",
+            "username": "guipublic"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "7a252703d7f2c11409f9b8034df8224c438f768f",
+          "message": "fix: right shift overflow to 0 (#8772)",
+          "timestamp": "2025-06-05T08:05:51Z",
+          "tree_id": "45a28864df8d0d4fbb0e14f50d68b6b6b24defa1",
+          "url": "https://github.com/noir-lang/noir/commit/7a252703d7f2c11409f9b8034df8224c438f768f"
+        },
+        "date": 1749111985941,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 248535,
+            "range": "± 910",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 217937,
+            "range": "± 5354",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2811413,
+            "range": "± 4821",
             "unit": "ns/iter"
           }
         ]
