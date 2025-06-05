@@ -1,5 +1,5 @@
 use crate::{
-    NamedGeneric, ResolvedGeneric,
+    Kind, NamedGeneric, ResolvedGeneric,
     ast::{Ident, UnresolvedType, UnresolvedTypeData, UnresolvedTypeExpression},
     graph::CrateId,
     hir::def_collector::{
@@ -242,9 +242,11 @@ impl Elaborator<'_> {
     pub(super) fn take_unresolved_associated_types(
         &mut self,
         trait_impl: &mut UnresolvedTraitImpl,
-    ) -> Vec<(Ident, UnresolvedType)> {
+    ) -> Vec<(Ident, UnresolvedType, Kind)> {
         let mut associated_types = Vec::new();
-        for (name, _, expr) in trait_impl.associated_constants.drain(..) {
+        for (name, typ, expr) in trait_impl.associated_constants.drain(..) {
+            let resolved_type = self.resolve_type(typ);
+            let kind = Kind::Numeric(Box::new(resolved_type));
             let location = expr.location;
             let typ = match UnresolvedTypeExpression::from_expr(expr, location) {
                 Ok(expr) => UnresolvedTypeData::Expression(expr).with_location(location),
@@ -253,10 +255,10 @@ impl Elaborator<'_> {
                     UnresolvedTypeData::Error.with_location(location)
                 }
             };
-            associated_types.push((name, typ));
+            associated_types.push((name, typ, kind));
         }
         for (name, typ) in trait_impl.associated_types.drain(..) {
-            associated_types.push((name, typ));
+            associated_types.push((name, typ, Kind::Any));
         }
         associated_types
     }

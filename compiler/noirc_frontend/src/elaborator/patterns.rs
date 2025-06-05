@@ -568,7 +568,6 @@ impl Elaborator<'_> {
 
     pub(super) fn elaborate_variable(&mut self, variable: Path) -> (ExprId, Type) {
         let variable = self.validate_path(variable);
-
         if let Some((expr_id, typ)) =
             self.elaborate_variable_as_self_method_or_associated_constant(&variable)
         {
@@ -687,19 +686,15 @@ impl Elaborator<'_> {
         };
 
         // Check the `Self::AssociatedConstant` case when inside a trait impl
-        let associated_types = self.interner.get_associated_types_for_impl(*trait_impl_id);
-        let associated_type = associated_types.iter().find(|typ| typ.name.as_str() == name);
-        if let Some(associated_type) = associated_type {
-            if let Kind::Numeric(numeric_type) = associated_type.typ.kind() {
-                let definition_id =
-                    self.interner.get_associated_constant_definition_id(*trait_impl_id, name);
-                let hir_ident = HirIdent::non_trait_method(definition_id, location);
-                let hir_expr = HirExpression::Ident(hir_ident, None);
-                let id = self.interner.push_expr(hir_expr);
-                self.interner.push_expr_location(id, location);
-                self.interner.push_expr_type(id, *numeric_type.clone());
-                return Some((id, *numeric_type.clone()));
-            }
+        if let Some((definition_id, numeric_type)) =
+            self.interner.get_trait_impl_associated_constant(*trait_impl_id, name).cloned()
+        {
+            let hir_ident = HirIdent::non_trait_method(definition_id, location);
+            let hir_expr = HirExpression::Ident(hir_ident, None);
+            let id = self.interner.push_expr(hir_expr);
+            self.interner.push_expr_location(id, location);
+            self.interner.push_expr_type(id, numeric_type.clone());
+            return Some((id, numeric_type));
         }
 
         // Check the `Self::method_name` case when `Self` is a primitive type
