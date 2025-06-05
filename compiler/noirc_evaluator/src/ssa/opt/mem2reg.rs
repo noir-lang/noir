@@ -504,7 +504,7 @@ impl<'f> PerFunctionContext<'f> {
                     } else if let Some((elements, _)) =
                         self.inserter.function.dfg.get_array_constant(array)
                     {
-                        let aliases = references.collect_all_aliases(&elements);
+                        let aliases = references.collect_all_aliases(elements);
                         self.set_aliases(references, array, aliases.clone());
                         aliases
                     } else {
