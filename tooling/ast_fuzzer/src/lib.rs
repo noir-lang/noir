@@ -87,7 +87,7 @@ impl Default for Config {
             ("drop", 0), // The `ownership` module says it will insert `Drop` and `Clone`.
             ("assign", 30),
             ("if", 10),
-            ("for", 18),
+            ("for", 22),
             ("let", 25),
             ("call", 5),
         ]);
