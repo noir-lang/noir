@@ -390,7 +390,7 @@ impl<'a> FunctionContext<'a> {
                 // off layers of references until we can generate an expression that
                 // returns an `fn`, and then take a reference over it to restore.
                 let expr = self.gen_expr(u, typ, max_depth, flags)?;
-                // If the expression is a read-only ident global ident, then assign a variable first.
+                // If the expression is a read-only global ident, then assign a variable first.
                 let expr = if expr::is_immutable_ident(&expr) {
                     self.indirect_ref_mut(expr, typ.as_ref().clone())
                 } else {
