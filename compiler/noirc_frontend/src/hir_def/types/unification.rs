@@ -25,8 +25,6 @@ enum FunctionCoercionResult {
 enum UnificationFlags {
     /// Nothing special to do.
     None,
-    /// If the left-hand side is `expr op constant`, don't try to move the constant to the right-hand side.
-    DoNotMoveConstantsOnTheLeft,
     /// If the right-hand side is `expr op constant`, don't try to move the constant to the left-hand side.
     DoNotMoveConstantsOnTheRight,
 }
@@ -126,35 +124,35 @@ impl Type {
 
             (Alias(alias, args), other) | (other, Alias(alias, args)) => {
                 let alias = alias.borrow().get_type(args);
-                alias.try_unify(other, bindings)
+                alias.try_unify_with_flags(other, flags, bindings)
             }
 
             (TypeVariable(var), other) | (other, TypeVariable(var)) => match &*var.borrow() {
                 TypeBinding::Bound(typ) => {
                     if typ.is_numeric_value() {
-                        other.try_unify_to_type_variable(var, bindings, |bindings| {
+                        other.try_unify_to_type_variable(var, flags, bindings, |bindings| {
                             let only_integer = matches!(typ, Type::Integer(..));
                             other.try_bind_to_polymorphic_int(var, bindings, only_integer)
                         })
                     } else {
-                        other.try_unify_to_type_variable(var, bindings, |bindings| {
+                        other.try_unify_to_type_variable(var, flags, bindings, |bindings| {
                             other.try_bind_to(var, bindings, typ.kind())
                         })
                     }
                 }
                 TypeBinding::Unbound(_id, Kind::IntegerOrField) => other
-                    .try_unify_to_type_variable(var, bindings, |bindings| {
+                    .try_unify_to_type_variable(var, flags, bindings, |bindings| {
                         let only_integer = false;
                         other.try_bind_to_polymorphic_int(var, bindings, only_integer)
                     }),
                 TypeBinding::Unbound(_id, Kind::Integer) => {
-                    other.try_unify_to_type_variable(var, bindings, |bindings| {
+                    other.try_unify_to_type_variable(var, flags, bindings, |bindings| {
                         let only_integer = true;
                         other.try_bind_to_polymorphic_int(var, bindings, only_integer)
                     })
                 }
                 TypeBinding::Unbound(_id, type_var_kind) => {
-                    other.try_unify_to_type_variable(var, bindings, |bindings| {
+                    other.try_unify_to_type_variable(var, flags, bindings, |bindings| {
                         other.try_bind_to(var, bindings, type_var_kind.clone())
                     })
                 }
@@ -200,7 +198,7 @@ impl Type {
             }
 
             (CheckedCast { to, .. }, other) | (other, CheckedCast { to, .. }) => {
-                to.try_unify(other, bindings)
+                to.try_unify_with_flags(other, flags, bindings)
             }
 
             (NamedGeneric(types::NamedGeneric { type_var, .. }), other)
@@ -208,7 +206,7 @@ impl Type {
                 if !type_var.borrow().is_unbound() =>
             {
                 if let TypeBinding::Bound(link) = &*type_var.borrow() {
-                    link.try_unify(other, bindings)
+                    link.try_unify_with_flags(other, flags, bindings)
                 } else {
                     unreachable!("If guard ensures binding is bound")
                 }
@@ -319,6 +317,7 @@ impl Type {
     fn try_unify_to_type_variable(
         &self,
         type_variable: &TypeVariable,
+        flags: UnificationFlags,
         bindings: &mut TypeBindings,
 
         // Bind the type variable to a type. This is factored out since depending on the
@@ -328,7 +327,7 @@ impl Type {
     ) -> Result<(), UnificationError> {
         match &*type_variable.borrow() {
             // If it is already bound, unify against what it is bound to
-            TypeBinding::Bound(link) => link.try_unify(self, bindings),
+            TypeBinding::Bound(link) => link.try_unify_with_flags(self, flags, bindings),
             TypeBinding::Unbound(id, _) => {
                 // We may have already "bound" this type variable in this call to
                 // try_unify, so check those bindings as well.
@@ -337,7 +336,7 @@ impl Type {
                         if !kind.unifies(&binding.kind()) {
                             return Err(UnificationError);
                         }
-                        binding.clone().try_unify(self, bindings)
+                        binding.clone().try_unify_with_flags(self, flags, bindings)
                     }
 
                     // Otherwise, bind it
@@ -497,19 +496,13 @@ impl Type {
         flags: UnificationFlags,
         bindings: &mut TypeBindings,
     ) -> Result<(), UnificationError> {
-        if flags != UnificationFlags::DoNotMoveConstantsOnTheLeft {
-            let result = self.try_unify_by_moving_single_constant_term_in_self(
-                other, bindings, true, /* left */
-            );
-            if result.is_ok() {
-                return Ok(());
-            }
+        let result = self.try_unify_by_moving_single_constant_term_in_self(other, bindings);
+        if result.is_ok() {
+            return Ok(());
         }
 
         if flags != UnificationFlags::DoNotMoveConstantsOnTheRight {
-            let result = other.try_unify_by_moving_single_constant_term_in_self(
-                self, bindings, false, /* left */
-            );
+            let result = other.try_unify_by_moving_single_constant_term_in_self(self, bindings);
             if result.is_ok() {
                 return Ok(());
             }
@@ -525,7 +518,6 @@ impl Type {
         &self,
         other: &Type,
         bindings: &mut TypeBindings,
-        left: bool,
     ) -> Result<(), UnificationError> {
         if let Type::InfixExpr(lhs_lhs, lhs_op, lhs_rhs, _) = self {
             if let Some(lhs_op_inverse) = lhs_op.inverse() {
@@ -539,11 +531,7 @@ impl Type {
 
                     // Since we are going to move a constant from one side to the other, we don't want
                     // to try moving the constant back to where it was because it would lead to infinite recursion.
-                    let flags = if left {
-                        UnificationFlags::DoNotMoveConstantsOnTheRight
-                    } else {
-                        UnificationFlags::DoNotMoveConstantsOnTheLeft
-                    };
+                    let flags = UnificationFlags::DoNotMoveConstantsOnTheRight;
                     if lhs_lhs.try_unify_with_flags(&new_rhs, flags, &mut tmp_bindings).is_ok() {
                         *bindings = tmp_bindings;
                         return Ok(());
