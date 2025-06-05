@@ -84,6 +84,11 @@ pub(crate) struct FuzzerContext {
     inserted_instructions_count: usize,
     /// Number of SSA blocks inserted in the program
     inserted_ssa_blocks_count: usize,
+
+    /// body -> (iter_block_id, end_block_id, iter_value_id)
+    cycle_bodies_to_iters_ids: HashMap<BasicBlockId, (BasicBlockId, BasicBlockId, TypedValue)>,
+
+    parent_iters_count: usize,
 }
 
 impl FuzzerContext {
@@ -127,6 +132,8 @@ impl FuzzerContext {
             context_options,
             inserted_instructions_count: 0,
             inserted_ssa_blocks_count: 0,
+            cycle_bodies_to_iters_ids: HashMap::new(),
+            parent_iters_count: 1,
         }
     }
 
@@ -180,6 +187,8 @@ impl FuzzerContext {
             context_options,
             inserted_instructions_count: 0,
             inserted_ssa_blocks_count: 0,
+            cycle_bodies_to_iters_ids: HashMap::new(),
+            parent_iters_count: 1,
         }
     }
 
@@ -201,13 +210,61 @@ impl FuzzerContext {
     }
 
     fn process_jmp_if_command(&mut self, block_then_idx: usize, block_else_idx: usize) {
-        self.store_variables();
-
-        // find instruction block to be inserted
         let block_then_instruction_block =
             self.instruction_blocks[block_then_idx % self.instruction_blocks.len()].clone();
         let block_else_instruction_block =
             self.instruction_blocks[block_else_idx % self.instruction_blocks.len()].clone();
+
+        // TODO: add support of nested jmp_if in cycles
+        // TODO: refactor? How?
+        if self.cycle_bodies_to_iters_ids.contains_key(&self.current_block.block_id) {
+            return;
+            let current_block = self.current_block.context.clone();
+            let (block_iter_id, block_end_id, _) =
+                self.cycle_bodies_to_iters_ids[&self.current_block.block_id].clone();
+            // init then branch
+            let block_then_id = self.acir_builder.insert_block();
+            assert_eq!(block_then_id, self.brillig_builder.insert_block());
+            self.switch_to_block(block_then_id);
+            // context shared with predecessor
+            self.current_block.context.insert_instructions(
+                &mut self.acir_builder,
+                &mut self.brillig_builder,
+                &block_then_instruction_block.instructions,
+            );
+            self.acir_builder.insert_jmp_instruction(block_iter_id, vec![]);
+            self.brillig_builder.insert_jmp_instruction(block_iter_id, vec![]);
+
+            // init else branch
+            let block_else_id = self.acir_builder.insert_block();
+            assert_eq!(block_else_id, self.brillig_builder.insert_block());
+            self.switch_to_block(block_else_id);
+            // context shared with predecessor
+            self.current_block.context.insert_instructions(
+                &mut self.acir_builder,
+                &mut self.brillig_builder,
+                &block_else_instruction_block.instructions,
+            );
+            self.acir_builder.insert_jmp_instruction(block_iter_id, vec![]);
+            self.brillig_builder.insert_jmp_instruction(block_iter_id, vec![]);
+
+            // finalize current block
+            self.switch_to_block(self.current_block.block_id);
+            self.current_block.context.finalize_block_with_jmp_if(
+                &mut self.acir_builder,
+                &mut self.brillig_builder,
+                block_then_id,
+                block_else_id,
+            );
+            // remove children blocks not to merge them (they already jumped to iter block)
+            self.current_block.context.children_blocks.pop();
+            self.current_block.context.children_blocks.pop();
+            self.current_block = StoredBlock { context: current_block, block_id: block_end_id };
+            self.switch_to_block(self.current_block.block_id);
+            return;
+        }
+
+        self.store_variables();
 
         if block_then_instruction_block.instructions.len()
             + block_else_instruction_block.instructions.len()
@@ -282,6 +339,21 @@ impl FuzzerContext {
     }
 
     fn process_jmp_block(&mut self, block_idx: usize) {
+        if self.cycle_bodies_to_iters_ids.contains_key(&self.current_block.block_id) {
+            let (block_iter_id, block_end_id, _) =
+                self.cycle_bodies_to_iters_ids[&self.current_block.block_id].clone();
+            self.switch_to_block(self.current_block.block_id);
+            self.acir_builder.insert_jmp_instruction(block_iter_id, vec![]);
+            self.brillig_builder.insert_jmp_instruction(block_iter_id, vec![]);
+
+            self.cycle_bodies_to_iters_ids.remove(&self.current_block.block_id);
+
+            // WTF
+            let current_block = self.stored_blocks[&block_end_id].context.clone();
+            self.current_block = StoredBlock { context: current_block, block_id: block_end_id };
+            self.switch_to_block(self.current_block.block_id);
+            return;
+        }
         self.store_variables();
 
         // find instruction block to be inserted
@@ -342,33 +414,34 @@ impl FuzzerContext {
         start_iter: usize,
         end_iter: usize,
     ) {
+        // TODO DELETE BLOCK_END
         let block_end =
             self.instruction_blocks[block_end_idx % self.instruction_blocks.len()].clone();
         let block_body =
             self.instruction_blocks[block_body_idx % self.instruction_blocks.len()].clone();
-        if block_body.instructions.len()
-            + block_end.instructions.len()
-            + self.inserted_instructions_count
-            > self.context_options.max_instructions_num
-        {
-            return;
-        }
 
-        self.inserted_instructions_count += block_body.instructions.len();
-        self.inserted_instructions_count += block_end.instructions.len();
-        // body
-        // if
-        // iter
-        // end
-        self.inserted_ssa_blocks_count += 4;
+        if end_iter >= start_iter {
+            let parent_iters_count = self.parent_iters_count * (end_iter - start_iter + 1);
+            if parent_iters_count > self.context_options.max_iterations_num {
+                return;
+            }
+            self.inserted_instructions_count +=
+                block_body.instructions.len() * (end_iter - start_iter + 1);
+            // we insert 4 blocks: body, if, iter, end
+            self.inserted_ssa_blocks_count += 4;
+        }
 
         let block_body_id = self.acir_builder.insert_block();
         assert_eq!(block_body_id, self.brillig_builder.insert_block());
-        log::debug!("block_body_id: {:?}", block_body_id);
-        let block_end_id = self.acir_builder.insert_block();
-        assert_eq!(block_end_id, self.brillig_builder.insert_block());
-        log::debug!("block_end_id: {:?}", block_end_id);
-
+        let mut block_end_id = block_body_id;
+        if self.cycle_bodies_to_iters_ids.contains_key(&self.current_block.block_id) {
+            let (last_block_iter_id, _, _) =
+                self.cycle_bodies_to_iters_ids[&self.current_block.block_id].clone();
+            block_end_id = last_block_iter_id;
+        } else {
+            block_end_id = self.acir_builder.insert_block();
+            assert_eq!(block_end_id, self.brillig_builder.insert_block());
+        }
         let start_id = self.acir_builder.insert_constant(start_iter, ValueType::U32);
         assert_eq!(start_id, self.brillig_builder.insert_constant(start_iter, ValueType::U32));
         let end_id = self.acir_builder.insert_constant(end_iter, ValueType::U32);
@@ -380,7 +453,6 @@ impl FuzzerContext {
         let block_if_id = self.acir_builder.insert_block();
         assert_eq!(block_if_id, self.brillig_builder.insert_block());
         self.switch_to_block(block_if_id);
-        log::debug!("block_if_id: {:?}", block_if_id);
         // create iter
         let real_iter_id = self.acir_builder.add_block_parameter(block_if_id, ValueType::U32);
         assert_eq!(
@@ -407,7 +479,8 @@ impl FuzzerContext {
             self.acir_builder.insert_add_instruction_checked(real_iter_id.clone(), one_id.clone());
         assert_eq!(
             iterator_plus_one,
-            self.brillig_builder.insert_add_instruction_checked(real_iter_id.clone(), one_id)
+            self.brillig_builder
+                .insert_add_instruction_checked(real_iter_id.clone(), one_id.clone())
         );
         self.acir_builder.insert_jmp_instruction(block_if_id, vec![iterator_plus_one.clone()]);
         self.brillig_builder.insert_jmp_instruction(block_if_id, vec![iterator_plus_one]);
@@ -430,32 +503,20 @@ impl FuzzerContext {
             &mut self.brillig_builder,
             &block_body.instructions,
         );
-        block_body_context.finalize_block_with_jmp(
-            &mut self.acir_builder,
-            &mut self.brillig_builder,
-            block_iter_id,
-            vec![],
-        );
-
-        // fill end block
-        let mut block_end_context = BlockContext::new(
+        let block_end_context = BlockContext::new(
             self.current_block.context.stored_values.clone(),
             self.current_block.context.memory_addresses.clone(),
-            block_body_context.parent_blocks_history,
+            block_body_context.parent_blocks_history.clone(),
             SsaBlockOptions::from(self.context_options.clone()),
         );
 
-        self.switch_to_block(block_end_id);
-        block_end_context.insert_instructions(
-            &mut self.acir_builder,
-            &mut self.brillig_builder,
-            &block_end.instructions,
-        );
         let end_block_stored = StoredBlock { context: block_end_context, block_id: block_end_id };
         self.current_block.context.children_blocks.push(end_block_stored.block_id);
         self.stored_blocks.insert(self.current_block.block_id, self.current_block.clone());
         self.stored_blocks.insert(end_block_stored.block_id, end_block_stored.clone());
-        self.current_block = end_block_stored;
+        self.current_block = StoredBlock { context: block_body_context, block_id: block_body_id };
+        self.cycle_bodies_to_iters_ids
+            .insert(block_body_id, (block_iter_id, block_end_id, real_iter_id));
     }
 
     pub(crate) fn process_fuzzer_command(&mut self, command: &FuzzerCommand) {
@@ -536,6 +597,7 @@ impl FuzzerContext {
     ) -> StoredBlock {
         let merged_block_id = self.acir_builder.insert_block();
         assert_eq!(merged_block_id, self.brillig_builder.insert_block());
+        log::debug!("merging blocks {:?} and {:?}", first_block.block_id, second_block.block_id);
 
         let mut parent_blocks_history = first_block.context.parent_blocks_history.clone();
         parent_blocks_history.push_front(first_block.block_id);
@@ -676,6 +738,7 @@ impl FuzzerContext {
     /// so to merge blocks we need to merge every branch separately
     fn merge_one_block(&mut self, block_id: BasicBlockId) -> StoredBlock {
         let block = &self.stored_blocks[&block_id];
+        log::debug!("merging block {:?}", block_id);
         let block_end = self.end_of_block(block_id);
         if let Some(block_end) = block_end {
             return self.stored_blocks[&block_end].clone();
@@ -701,9 +764,19 @@ impl FuzzerContext {
         self.merge_one_block(main_block.block_id)
     }
 
+    fn finalize_cycles(&mut self) {
+        for (body_id, (block_iter_id, _, _)) in self.cycle_bodies_to_iters_ids.clone().into_iter() {
+            log::debug!("body_id: {:?}, iter_id: {:?}", body_id, block_iter_id);
+            self.switch_to_block(body_id);
+            self.acir_builder.insert_jmp_instruction(block_iter_id, vec![]);
+            self.brillig_builder.insert_jmp_instruction(block_iter_id, vec![]);
+        }
+    }
+
     /// Creates return block and terminates all blocks from current_block_queue with return
     pub(crate) fn finalize(&mut self, return_instruction_block_idx: usize) {
         // save all not-terminated blocks to stored_blocks
+        self.finalize_cycles();
         self.not_terminated_blocks.push_back(self.current_block.clone());
         for block in self.not_terminated_blocks.iter() {
             self.stored_blocks.insert(block.block_id, block.clone());

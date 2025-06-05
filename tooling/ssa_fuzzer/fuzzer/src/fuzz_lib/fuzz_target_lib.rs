@@ -245,7 +245,7 @@ mod tests {
     ///   y
     /// }
     #[test]
-    fn test_cycle() {
+    fn test_simple_loop() {
         let arg_2_field = Argument { index: 2, value_type: ValueType::Field };
         let arg_5_field = Argument { index: 5, value_type: ValueType::Field };
         let arg_6_field = Argument { index: 6, value_type: ValueType::Field };
@@ -280,6 +280,236 @@ mod tests {
         let result = fuzz_target(data, FuzzerOptions::default());
         match result {
             Some(result) => assert_eq!(result, FieldElement::from(1024_u32)),
+            None => panic!("Program failed to execute"),
+        }
+    }
+
+    /// fn main(x: Field) -> pub Field{
+    ///   let mut y = x;
+    ///   for i in 0..4 {
+    ///     y *= x;
+    ///     for j in 1..4 {
+    ///       y *= x;
+    ///     }
+    ///   }
+    ///   y
+    /// }
+    /// x = 2; so we expect y = x * x ^ (4 * 4) = 2 * 2 ^ 16 = 2 ^ 17
+    #[test]
+    fn test_nested_loop() {
+        let arg_2_field = Argument { index: 2, value_type: ValueType::Field };
+        let arg_5_field = Argument { index: 5, value_type: ValueType::Field };
+        let arg_6_field = Argument { index: 6, value_type: ValueType::Field };
+        let arg_7_field = Argument { index: 7, value_type: ValueType::Field };
+        let arg_8_field = Argument { index: 8, value_type: ValueType::Field };
+        let add_to_memory_block =
+            InstructionBlock { instructions: vec![Instruction::AddToMemory { lhs: arg_2_field }] };
+        let typed_memory_0 = Argument { index: 0, value_type: ValueType::Field };
+        let load_block = InstructionBlock {
+            instructions: vec![Instruction::LoadFromMemory { memory_addr: typed_memory_0 }],
+        };
+        let load_mul_set_block = InstructionBlock {
+            instructions: vec![
+                Instruction::LoadFromMemory { memory_addr: typed_memory_0 },
+                Instruction::MulChecked { lhs: arg_5_field, rhs: arg_2_field },
+                Instruction::SetToMemory { memory_addr_index: 0, value: arg_6_field },
+            ],
+        };
+        let load_mul_set_block2 = InstructionBlock {
+            instructions: vec![
+                Instruction::LoadFromMemory { memory_addr: typed_memory_0 },
+                Instruction::MulChecked { lhs: arg_7_field, rhs: arg_2_field },
+                Instruction::SetToMemory { memory_addr_index: 0, value: arg_8_field },
+            ],
+        };
+        let commands = vec![
+            FuzzerCommand::InsertSimpleInstructionBlock { instruction_block_idx: 0 }, // add v2 to memory
+            FuzzerCommand::InsertCycle {
+                block_body_idx: 2,
+                block_end_idx: 1,
+                start_iter: 0,
+                end_iter: 4,
+            },
+            FuzzerCommand::InsertCycle {
+                block_body_idx: 3,
+                block_end_idx: 1,
+                start_iter: 1,
+                end_iter: 4,
+            },
+        ];
+        let data = FuzzerData {
+            blocks: vec![add_to_memory_block, load_block, load_mul_set_block, load_mul_set_block2],
+            commands,
+            initial_witness: default_witness(),
+            return_instruction_block_idx: 1, // last block returns v6
+        };
+        let result = fuzz_target(data, FuzzerOptions::default());
+        match result {
+            Some(result) => assert_eq!(result, FieldElement::from(131072_u32)),
+            None => panic!("Program failed to execute"),
+        }
+    }
+
+    /// fn main(x: Field) -> pub Field{
+    ///   let mut y = x;
+    ///   for i in 0..10 {
+    ///     y *= x;
+    ///   }
+    ///   y *= x;
+    ///   y
+    /// }
+    /// x = 2; y = 2 ^ 12
+    #[test]
+    fn test_loop_broken_with_jmp() {
+        let arg_2_field = Argument { index: 2, value_type: ValueType::Field };
+        let arg_5_field = Argument { index: 5, value_type: ValueType::Field };
+        let arg_6_field = Argument { index: 6, value_type: ValueType::Field };
+        let arg_7_field = Argument { index: 7, value_type: ValueType::Field };
+        let arg_8_field = Argument { index: 8, value_type: ValueType::Field };
+        let add_to_memory_block =
+            InstructionBlock { instructions: vec![Instruction::AddToMemory { lhs: arg_2_field }] };
+        let typed_memory_0 = Argument { index: 0, value_type: ValueType::Field };
+        let load_block = InstructionBlock {
+            instructions: vec![Instruction::LoadFromMemory { memory_addr: typed_memory_0 }],
+        };
+        let load_mul_set_block = InstructionBlock {
+            instructions: vec![
+                Instruction::LoadFromMemory { memory_addr: typed_memory_0 },
+                Instruction::MulChecked { lhs: arg_5_field, rhs: arg_2_field },
+                Instruction::SetToMemory { memory_addr_index: 0, value: arg_6_field },
+            ],
+        };
+        let load_mul_set_block2 = InstructionBlock {
+            instructions: vec![
+                Instruction::LoadFromMemory { memory_addr: typed_memory_0 },
+                Instruction::MulChecked { lhs: arg_7_field, rhs: arg_2_field },
+                Instruction::SetToMemory { memory_addr_index: 0, value: arg_8_field },
+            ],
+        };
+        let commands = vec![
+            FuzzerCommand::InsertSimpleInstructionBlock { instruction_block_idx: 0 }, // add v2 to memory
+            FuzzerCommand::InsertCycle {
+                block_body_idx: 2,
+                block_end_idx: 1,
+                start_iter: 0,
+                end_iter: 10,
+            },
+            FuzzerCommand::InsertJmpBlock { block_idx: 1 },
+            FuzzerCommand::InsertSimpleInstructionBlock { instruction_block_idx: 3 },
+        ];
+        let data = FuzzerData {
+            blocks: vec![add_to_memory_block, load_block, load_mul_set_block, load_mul_set_block2],
+            commands,
+            initial_witness: default_witness(),
+            return_instruction_block_idx: 1,
+        };
+        let result = fuzz_target(data, FuzzerOptions::default());
+        match result {
+            Some(result) => assert_eq!(result, FieldElement::from(4096_u32)),
+            None => panic!("Program failed to execute"),
+        }
+    }
+
+    /// fn main(x: Field, cond: bool) -> pub Field{
+    ///   let mut y = x;
+    ///   for i in 0..10 {
+    ///     if cond {
+    ///       y *= x;
+    ///     } else {
+    ///       y += x;
+    ///     }
+    ///   }
+    ///   y
+    /// }
+    /// x = 2; if cond = 1: y = 2 * 2 ^ 10, if cond = 0: y = 2 + 10 * 2 = 22
+    #[test]
+    fn test_jmp_if_in_cycle() {
+        let arg_2_field = Argument { index: 2, value_type: ValueType::Field };
+        let arg_6_field = Argument { index: 6, value_type: ValueType::Field };
+        let arg_8_field = Argument { index: 8, value_type: ValueType::Field };
+        let arg_9_field = Argument { index: 9, value_type: ValueType::Field };
+        let add_to_memory_block =
+            InstructionBlock { instructions: vec![Instruction::AddToMemory { lhs: arg_2_field }] };
+        let typed_memory_0 = Argument { index: 0, value_type: ValueType::Field };
+        let load_block = InstructionBlock {
+            instructions: vec![Instruction::LoadFromMemory { memory_addr: typed_memory_0 }],
+        };
+        let load_mul_set_block = InstructionBlock {
+            instructions: vec![
+                Instruction::LoadFromMemory { memory_addr: typed_memory_0 },
+                Instruction::MulChecked { lhs: arg_6_field, rhs: arg_2_field },
+                Instruction::SetToMemory { memory_addr_index: 0, value: arg_6_field },
+            ],
+        };
+        let load_add_set_block = InstructionBlock {
+            instructions: vec![
+                Instruction::LoadFromMemory { memory_addr: typed_memory_0 },
+                Instruction::AddChecked { lhs: arg_8_field, rhs: arg_2_field },
+                Instruction::SetToMemory { memory_addr_index: 0, value: arg_9_field },
+            ],
+        };
+        let commands = vec![
+            FuzzerCommand::InsertSimpleInstructionBlock { instruction_block_idx: 0 }, // add v2 to memory
+            FuzzerCommand::InsertCycle {
+                block_body_idx: 1,
+                block_end_idx: 1,
+                start_iter: 0,
+                end_iter: 10,
+            },
+            FuzzerCommand::InsertJmpIfBlock { block_then_idx: 2, block_else_idx: 3 },
+        ];
+        let data = FuzzerData {
+            blocks: vec![
+                add_to_memory_block.clone(),
+                load_block.clone(),
+                load_mul_set_block.clone(),
+                load_add_set_block.clone(),
+            ],
+            commands,
+            initial_witness: default_witness(),
+            return_instruction_block_idx: 1,
+        };
+        let result = fuzz_target(data, FuzzerOptions::default());
+        match result {
+            Some(result) => assert_eq!(result, FieldElement::from(22_u32)),
+            None => panic!("Program failed to execute"),
+        }
+
+        // replaced args order
+        let load_mul_set_block = InstructionBlock {
+            instructions: vec![
+                Instruction::LoadFromMemory { memory_addr: typed_memory_0 },
+                Instruction::MulChecked { lhs: arg_8_field, rhs: arg_2_field },
+                Instruction::SetToMemory { memory_addr_index: 0, value: arg_9_field },
+            ],
+        };
+        let load_add_set_block = InstructionBlock {
+            instructions: vec![
+                Instruction::LoadFromMemory { memory_addr: typed_memory_0 },
+                Instruction::AddChecked { lhs: arg_6_field, rhs: arg_2_field },
+                Instruction::SetToMemory { memory_addr_index: 0, value: arg_6_field },
+            ],
+        };
+
+        let commands = vec![
+            FuzzerCommand::InsertSimpleInstructionBlock { instruction_block_idx: 0 }, // add v2 to memory
+            FuzzerCommand::InsertCycle {
+                block_body_idx: 1,
+                block_end_idx: 1,
+                start_iter: 0,
+                end_iter: 10,
+            },
+            FuzzerCommand::InsertJmpIfBlock { block_then_idx: 3, block_else_idx: 2 }, // replaced blocks order
+        ];
+        let data = FuzzerData {
+            blocks: vec![add_to_memory_block, load_block, load_mul_set_block, load_add_set_block],
+            commands,
+            initial_witness: default_witness(),
+            return_instruction_block_idx: 1,
+        };
+        let result = fuzz_target(data, FuzzerOptions::default());
+        match result {
+            Some(result) => assert_eq!(result, FieldElement::from(2048_u32)),
             None => panic!("Program failed to execute"),
         }
     }

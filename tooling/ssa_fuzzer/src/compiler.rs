@@ -17,6 +17,7 @@ fn optimize_into_acir(
     options: SsaEvaluatorOptions,
 ) -> Result<ArtifactsAndWarnings, RuntimeError> {
     let ssa = builder.finish();
+    log::debug!("SSA: {:}", ssa);
     optimize_ssa_into_acir(ssa, options)
 }
 

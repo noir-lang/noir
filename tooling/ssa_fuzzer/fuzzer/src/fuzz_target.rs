@@ -20,11 +20,11 @@ libfuzzer_sys::fuzz_target!(|data: FuzzerData| {
 
     // Disable some instructions with bugs that are not fixed yet
     let instruction_options = InstructionOptions {
-        cast_enabled: false,
-        lt_enabled: false,
+        cast_enabled: true,
+        lt_enabled: true,
         shl_enabled: false,
         shr_enabled: false,
-        mod_enabled: false,
+        mod_enabled: true,
         ..InstructionOptions::default()
     };
     let options = FuzzerOptions {
@@ -32,7 +32,8 @@ libfuzzer_sys::fuzz_target!(|data: FuzzerData| {
         constant_execution_enabled: false,
         compile_options,
         max_ssa_blocks_num: 30, // it takes too long to run program with more blocks
-        max_instructions_num: 500, // it takes too long to run program with more instructions
+        max_instructions_num: 1500, // it takes too long to run program with more instructions
+        max_iterations_num: 10,
         instruction_options,
         fuzzer_command_options: FuzzerCommandOptions::default(),
     };
