@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1749112812745,
+  "lastUpdate": 1749125870791,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -18475,48 +18475,6 @@ window.BENCHMARK_DATA = {
             "name": "GitHub",
             "username": "web-flow"
           },
-          "distinct": true,
-          "id": "2a79d90851faea8c38dc50d994b2c2c7ba8201ff",
-          "message": "feat!: prevent compiling blake3 hashes which barretenberg cannot prove (#8690)",
-          "timestamp": "2025-05-27T11:14:28Z",
-          "tree_id": "c30b61196176132e139a47c23266da24c61fcd78",
-          "url": "https://github.com/noir-lang/noir/commit/2a79d90851faea8c38dc50d994b2c2c7ba8201ff"
-        },
-        "date": 1748346678366,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 254235,
-            "range": "± 1077",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 223381,
-            "range": "± 4195",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 3585666,
-            "range": "± 5523",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
-            "email": "15848336+TomAFrench@users.noreply.github.com",
-            "name": "Tom French",
-            "username": "TomAFrench"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
           "distinct": false,
           "id": "9ee2618510d877402aa9ad2f4cdf9e92577fd7e8",
           "message": "chore: add an assertion when parsing SSA that all functions are well-formed (#8671)",
@@ -20559,6 +20517,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2811413,
             "range": "± 4821",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "asterite@gmail.com",
+            "name": "Ary Borenszweig",
+            "username": "asterite"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "ce2fc37fd6286094df139308b90177df4a95c608",
+          "message": "fix: delay associated constants resolution (#8744)",
+          "timestamp": "2025-06-05T11:57:20Z",
+          "tree_id": "4567dc5934d9449d61a52052109453d7b89249e2",
+          "url": "https://github.com/noir-lang/noir/commit/ce2fc37fd6286094df139308b90177df4a95c608"
+        },
+        "date": 1749125859227,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 250237,
+            "range": "± 856",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 219724,
+            "range": "± 2376",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2813355,
+            "range": "± 3956",
             "unit": "ns/iter"
           }
         ]
