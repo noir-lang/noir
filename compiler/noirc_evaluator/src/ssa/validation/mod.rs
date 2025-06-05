@@ -150,19 +150,26 @@ impl<'f> Validator<'f> {
             }
             Instruction::Call { func, arguments } => {
                 if let Value::Intrinsic(intrinsic) = &dfg[*func] {
-                    let value_typ = dfg.type_of_value(arguments[0]);
-                    assert!(matches!(value_typ, Type::Numeric(NumericType::NativeField)));
+                    match intrinsic {
+                        Intrinsic::ToRadix(_) => {
+                            assert_eq!(arguments.len(), 2);
 
-                    if matches!(intrinsic, Intrinsic::ToRadix(_)) {
-                        assert_eq!(arguments.len(), 2);
-                        let radix_typ = dfg.type_of_value(arguments[1]);
-                        assert!(matches!(
-                            radix_typ,
-                            Type::Numeric(NumericType::Unsigned { bit_size: 32 })
-                        ));
-                    } else {
-                        // Intrinsic::ToBits always has a set radix
-                        assert_eq!(arguments.len(), 1);
+                            let value_typ = dfg.type_of_value(arguments[0]);
+                            assert!(matches!(value_typ, Type::Numeric(NumericType::NativeField)));
+
+                            let radix_typ = dfg.type_of_value(arguments[1]);
+                            assert!(matches!(
+                                radix_typ,
+                                Type::Numeric(NumericType::Unsigned { bit_size: 32 })
+                            ));
+                        }
+                        Intrinsic::ToBits(_) => {
+                            // Intrinsic::ToBits always has a set radix
+                            assert_eq!(arguments.len(), 1);
+                            let value_typ = dfg.type_of_value(arguments[0]);
+                            assert!(matches!(value_typ, Type::Numeric(NumericType::NativeField)));
+                        }
+                        _ => {}
                     }
                 }
             }
