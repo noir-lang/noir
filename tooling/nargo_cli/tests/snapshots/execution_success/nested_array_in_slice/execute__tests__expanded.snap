@@ -32,25 +32,25 @@ fn main(y: Field) {
     assert(x[y].bar.inner == [109, 110, 111]);
     if y != 2 {
         {
-            let i_3780: Field = y - 2;
-            x[i_3780].a = 50;
+            let i_3779: Field = y - 2;
+            x[i_3779].a = 50;
         }
     } else {
         {
-            let i_3781: Field = y - 2;
-            x[i_3781].a = 100;
+            let i_3780: Field = y - 2;
+            x[i_3780].a = 100;
         }
     };
     assert(x[y - 2].a == 50);
     if y == 2 {
         {
-            let i_3782: Field = y - 1;
-            x[i_3782].b = [50, 51, 52];
+            let i_3781: Field = y - 1;
+            x[i_3781].b = [50, 51, 52];
         }
     } else {
         {
-            let i_3783: Field = y - 1;
-            x[i_3783].b = [100, 101, 102];
+            let i_3782: Field = y - 1;
+            x[i_3782].b = [100, 101, 102];
         }
     };
     assert(x[2].b == [100, 101, 102]);
