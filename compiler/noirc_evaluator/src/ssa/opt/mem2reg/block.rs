@@ -240,23 +240,6 @@ impl Block {
         Cow::Owned(AliasSet::unknown())
     }
 
-    /// Collect all aliases used by the given value list similarly, but without
-    /// unifying the [AliasSet] for each value like in [Block::collect_all_aliases]
-    pub(super) fn collect_all_aliases_no_unify<'a>(
-        &self,
-        values: impl IntoIterator<Item = &'a ValueId>,
-    ) -> Vec<ValueId> {
-        let mut all_aliases = Vec::new();
-        for value in values {
-            if let Some(expression) = self.expressions.get(value) {
-                if let Some(aliases) = self.aliases.get(expression) {
-                    aliases.for_each(|alias| all_aliases.push(alias));
-                }
-            }
-        }
-        all_aliases
-    }
-
     pub(super) fn set_last_load(&mut self, address: ValueId, instruction: InstructionId) {
         self.last_loads.insert(address, instruction);
     }

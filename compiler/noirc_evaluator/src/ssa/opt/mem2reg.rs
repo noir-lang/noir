@@ -518,15 +518,7 @@ impl<'f> PerFunctionContext<'f> {
                 }
             }
             Instruction::Call { arguments, .. } => {
-                // We want to fetch all aliases of each argument to be marked unknown as an array
-                // of references can potentially be aliased by those internal references.
-                let mut all_aliases = Vec::new();
-                let aliases = references.collect_all_aliases_no_unify(arguments);
-                aliases.into_iter().for_each(|alias| {
-                    self.instruction_input_references.insert(alias);
-                    all_aliases.push(alias);
-                });
-                self.mark_all_unknown(&all_aliases, references);
+                self.mark_all_unknown(arguments, references);
             }
             Instruction::MakeArray { elements, typ } => {
                 // If `array` is an array constant that contains reference types, then insert each element
@@ -567,7 +559,8 @@ impl<'f> PerFunctionContext<'f> {
 
     fn mark_all_unknown(&self, values: &[ValueId], references: &mut Block) {
         for value in values {
-            if self.inserter.function.dfg.value_is_reference(*value) {
+            let typ = self.inserter.function.dfg.type_of_value(*value);
+            if Self::contains_references(&typ) {
                 let value = *value;
                 references.set_unknown(value);
                 references.mark_value_used(value, self.inserter.function);
@@ -644,17 +637,10 @@ impl<'f> PerFunctionContext<'f> {
                 }
             }
             TerminatorInstruction::Return { return_values, .. } => {
-                // We want to fetch all aliases of each return value to be marked unknown as an array
-                // of references can potentially be aliased by those internal references.
-                let mut all_aliases = Vec::new();
-                let aliases = references.collect_all_aliases_no_unify(return_values);
-                aliases.into_iter().for_each(|alias| {
-                    all_aliases.push(alias);
-                });
                 // Removing all `last_stores` for each returned reference is more important here
                 // than setting them all to ReferenceValue::Unknown since no other block should
                 // have a block with a Return terminator as a predecessor anyway.
-                self.mark_all_unknown(&all_aliases, references);
+                self.mark_all_unknown(return_values, references);
             }
         }
     }
