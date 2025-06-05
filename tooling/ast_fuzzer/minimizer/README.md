@@ -37,11 +37,13 @@ the path to `main.nr`, or it is assumed to be in the parent directory of `main.n
 
 The script makes a `main.nr.bkp` backup file, because the tool will minimize the Noir code in-place.
 
-## Example
+## Examples
+
+> Note that the errors in this examples hopefully will have been fixed. They are here for illustration only.
+
+### Assertion failure in `execute`
 
 Say we have this code, which found by the fuzzer for https://github.com/noir-lang/noir/issues/8803
-
-> Note that the error in this example hopefully will have been fixed, so it's here for illustration only.
 
 <details>
 <summary>Problematic `main.nr` found by the fuzzer</summary>
@@ -284,4 +286,137 @@ unconstrained fn main() {
 }
 ```
 
-</summary>
+</details>
+
+### Crash in `compile`
+
+Another example is the code found by the fuzzer in https://github.com/noir-lang/noir/issues/8741
+
+The original code looked as follows:
+
+<details>
+<summary>Problematic `main.nr` found by the fuzzer</summary>
+
+```rust
+global G_A: bool = false;
+fn main(a: pub [(bool, bool, str<3>, bool); 4], b: (bool, bool, str<3>, bool), c: str<4>) -> return_data bool {
+    let mut ctx_limit: u32 = 25;
+    let i = unsafe { func_2_proxy(ctx_limit) };
+    let h = if b.0 {
+        let d = b.2;
+        let mut g = if b.3 {
+            let f: [&mut [&mut bool; 2]; 2] = {
+                let mut e: &mut bool = (&mut false);
+                e = {
+                    e = e;
+                    if b.3 {
+                        e = (&mut false);
+                        e = e;
+                        e = e;
+                        e = e;
+                    };
+                    e
+                };
+                [(&mut [(&mut true), (&mut false)]), (&mut [(&mut false), (&mut true)])]
+            };
+            if false {
+                a
+            } else {
+                a
+            }
+        } else {
+            a
+        };
+        c
+    } else {
+        c
+    };
+    b.0
+}
+fn func_1(ctx_limit: &mut u32) -> bool {
+    if ((*ctx_limit) == 0) {
+        true
+    } else {
+        *ctx_limit = ((*ctx_limit) - 1);
+        let mut h: str<4> = {
+            let mut a = (unsafe { func_2_proxy((*ctx_limit)) }.1 as Field);
+            for idx_b in 48 .. 48 {
+                for idx_c in 37919 .. 37925 {
+                    a = (unsafe { func_2_proxy((*ctx_limit)) }.1 as Field);
+                };
+                for idx_d in 17890133749029059494 .. 17890133749029059501 {
+                    for idx_e in 2936542607166930997 .. 2936542607166930989 {
+                        a = (((idx_d as Field) * (G_A as Field)) / (unsafe { func_2_proxy((*ctx_limit)) }.0 as Field));
+                        let g: &mut bool = {
+                            let mut f: Field = {
+                                308424986754900546907368585881390441546
+                            };
+                            (&mut true)
+                        };
+                        a = (-(G_A as Field));
+                    };
+                    a = (-(idx_d as Field));
+                };
+                a = -216918869032603336751134960482740787067;
+            };
+            "OULD"
+        };
+        true
+    }
+}
+unconstrained fn func_2(ctx_limit: &mut u32) -> (bool, bool, str<3>, bool) {
+    if ((*ctx_limit) == 0) {
+        (false, true, "SUY", false)
+    } else {
+        *ctx_limit = ((*ctx_limit) - 1);
+        func_2(ctx_limit)
+    }
+}
+unconstrained fn func_2_proxy(mut ctx_limit: u32) -> (bool, bool, str<3>, bool) {
+    func_2((&mut ctx_limit))
+}
+```
+
+</details>
+
+It consists of 4 functions. Trying to compile it crashed the compiler:
+
+```console
+❯ cargo run -q -p nargo_cli -- compile
+The application panicked (crashed).
+Message:  Cannot return references from an if expression
+Location: compiler/noirc_evaluator/src/ssa/opt/flatten_cfg/value_merger.rs:68
+```
+
+See if we can minimize it:
+
+```console
+❯ scripts/minimize.sh "Cannot return references from an if expression" execute /Users/aakoshh/Work/aztec/noir/test_programs/execution_success/fuzz_testing/src/main.nr
+00:00:00 INFO ===< 10 >===
+00:00:00 INFO running 14 interestingness tests in parallel
+00:00:00 INFO INITIAL PASSES
+00:00:00 INFO ===< BlankPass >===
+00:00:00 INFO ===< LinesPass::0 >===
+00:00:00 INFO (48.2%, 1320 bytes, 5 lines)
+...
+00:00:53 INFO ===< IndentPass::final >===
+00:00:53 INFO (94.8%, 133 bytes, 5 lines)
+00:00:53 INFO ===================== done ====================
+===< PASS statistics >===
+  pass name                                              time (s) time (%)   worked   failed  total executed
+  ClexPass::rm-tok-pattern-4                                 7.88    14.63        9      894            1041
+  ...
+  IntsPass::d                                                0.00     0.00        0        0               0
+
+Runtime: 54 seconds
+Reduced test-cases:
+
+--- /noir/main.nr ---
+fn main(b : (bool, bool, str<3>, bool))->return_data bool {
+  let mut e = &mut false;
+  e = { if b .3 {e = &mut false} e };
+  b .0
+}
+```
+
+That's pretty much spot on, almost the same as the one in the ticket!
