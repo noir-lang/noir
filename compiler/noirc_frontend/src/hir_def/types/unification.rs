@@ -613,3 +613,40 @@ fn convert_array_expression_to_slice(
         Type::Function(vec![array_type], Box::new(target_type), Box::new(Type::Unit), false);
     interner.push_expr_type(func, func_type);
 }
+
+#[cfg(test)]
+mod tests {
+    use crate::{Kind, Type, TypeBindings, TypeVariable, TypeVariableId};
+
+    struct Types {
+        next_type_variable_id: usize,
+    }
+
+    impl Types {
+        fn new() -> Self {
+            Self { next_type_variable_id: 0 }
+        }
+
+        fn type_variable(&mut self) -> (Type, TypeVariableId) {
+            self.type_variable_with_kind(Kind::Any)
+        }
+
+        fn type_variable_with_kind(&mut self, kind: Kind) -> (Type, TypeVariableId) {
+            let id = TypeVariableId(self.next_type_variable_id);
+            self.next_type_variable_id += 1;
+            (Type::TypeVariable(TypeVariable::unbound(id, kind)), id)
+        }
+    }
+
+    #[test]
+    fn unifies_two_type_variables() {
+        let mut types = Types::new();
+        let mut bindings = TypeBindings::default();
+
+        let (a, id_a) = types.type_variable();
+        let (b, _id_b) = types.type_variable();
+        assert!(a.try_unify(&b, &mut bindings).is_ok());
+
+        assert_eq!(bindings[&id_a].2, b);
+    }
+}
