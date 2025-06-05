@@ -667,7 +667,7 @@ mod tests {
         }
     }
 
-    fn num(value: u128) -> Type {
+    fn constant(value: u128) -> Type {
         Type::Constant(value.into(), Kind::Any)
     }
 
@@ -713,7 +713,7 @@ mod tests {
         // A + B = 1
         let (a, id_a) = types.type_variable();
         let (b, _) = types.type_variable();
-        let one = num(1);
+        let one = constant(1);
 
         let addition = add(&a, &b);
         assert!(addition.try_unify(&one, &mut bindings).is_ok());
@@ -750,7 +750,7 @@ mod tests {
         let (a, id_a) = types.type_variable();
         let (b, _) = types.type_variable();
         let subtraction = subtract(&a, &b);
-        let one = num(1);
+        let one = constant(1);
         assert!(subtraction.try_unify(&one, &mut bindings).is_ok());
 
         // A = B + 1
@@ -766,7 +766,7 @@ mod tests {
         let (a, id_a) = types.type_variable();
         let (b, _) = types.type_variable();
         let (c, _) = types.type_variable();
-        let one = num(1);
+        let one = constant(1);
 
         let left = subtract(&one, &a);
         let right = multiply(&b, &c);
@@ -784,9 +784,9 @@ mod tests {
         // A + 1 = B + 3
         let (a, id_a) = types.type_variable();
         let (b, _) = types.type_variable();
-        let one = num(1);
-        let two = num(2);
-        let three = num(3);
+        let one = constant(1);
+        let two = constant(2);
+        let three = constant(3);
 
         let left = add(&a, &one);
         let right = add(&b, &three);
@@ -805,8 +805,8 @@ mod tests {
         let (a, id_a) = types.type_variable();
         let (b, _) = types.type_variable();
         let (c, _) = types.type_variable();
-        let one = num(1);
-        let three = num(3);
+        let one = constant(1);
+        let three = constant(3);
 
         let left = subtract(&subtract(&three, &a), &one);
         let right = multiply(&b, &c);
@@ -826,7 +826,7 @@ mod tests {
         let (b, _) = types.type_variable();
         let (c, _) = types.type_variable();
         let (d, _) = types.type_variable();
-        let one = num(1);
+        let one = constant(1);
 
         let left = subtract(&divide(&a, &b), &one);
         let right = multiply(&c, &d);
