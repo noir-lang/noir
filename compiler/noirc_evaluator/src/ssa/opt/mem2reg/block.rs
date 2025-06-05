@@ -219,13 +219,13 @@ impl Block {
     }
 
     /// Collect all aliases used by the given value list
-    pub(super) fn collect_all_aliases(
+    pub(super) fn collect_all_aliases<'a>(
         &self,
-        values: impl IntoIterator<Item = ValueId>,
+        values: impl IntoIterator<Item = &'a ValueId>,
     ) -> AliasSet {
         let mut aliases = AliasSet::known_empty();
         for value in values {
-            aliases.unify(&self.get_aliases_for_value(value));
+            aliases.unify(&self.get_aliases_for_value(*value));
         }
         aliases
     }

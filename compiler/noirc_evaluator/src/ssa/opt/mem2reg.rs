@@ -459,13 +459,10 @@ impl<'f> PerFunctionContext<'f> {
                     self.instructions_to_remove.insert(*last_store);
                 }
 
-                if let Some(expression) = references.expressions.get(&value) {
-                    if let Some(aliases) = references.aliases.get(expression) {
-                        aliases.for_each(|alias| {
-                            self.aliased_references.entry(alias).or_default().insert(instruction);
-                        });
-                    }
-                }
+                let aliases = references.get_aliases_for_value(value);
+                aliases.for_each(|alias| {
+                    self.aliased_references.entry(alias).or_default().insert(instruction);
+                });
 
                 references.set_known_value(address, value);
                 // If we see a store to an address, the last load to that address needs to remain.
@@ -507,7 +504,7 @@ impl<'f> PerFunctionContext<'f> {
                     } else if let Some((elements, _)) =
                         self.inserter.function.dfg.get_array_constant(array)
                     {
-                        let aliases = references.collect_all_aliases(elements);
+                        let aliases = references.collect_all_aliases(&elements);
                         self.set_aliases(references, array, aliases.clone());
                         aliases
                     } else {
@@ -524,16 +521,11 @@ impl<'f> PerFunctionContext<'f> {
                 // We want to fetch all aliases of each argument to be marked unknown as an array
                 // of references can potentially be aliased by those internal references.
                 let mut all_aliases = Vec::new();
-                for arg in arguments {
-                    if let Some(expression) = references.expressions.get(arg) {
-                        if let Some(aliases) = references.aliases.get(expression) {
-                            aliases.for_each(|alias| {
-                                self.instruction_input_references.insert(alias);
-                                all_aliases.push(alias);
-                            });
-                        }
-                    }
-                }
+                let aliases = references.collect_all_aliases(arguments);
+                aliases.for_each(|alias| {
+                    self.instruction_input_references.insert(alias);
+                    all_aliases.push(alias);
+                });
                 self.mark_all_unknown(&all_aliases, references);
             }
             Instruction::MakeArray { elements, typ } => {
@@ -655,15 +647,10 @@ impl<'f> PerFunctionContext<'f> {
                 // We want to fetch all aliases of each return value to be marked unknown as an array
                 // of references can potentially be aliased by those internal references.
                 let mut all_aliases = Vec::new();
-                for return_value in return_values {
-                    if let Some(expression) = references.expressions.get(return_value) {
-                        if let Some(aliases) = references.aliases.get(expression) {
-                            aliases.for_each(|alias| {
-                                all_aliases.push(alias);
-                            });
-                        }
-                    }
-                }
+                let aliases = references.collect_all_aliases(return_values);
+                aliases.for_each(|alias| {
+                    all_aliases.push(alias);
+                });
                 // Removing all `last_stores` for each returned reference is more important here
                 // than setting them all to ReferenceValue::Unknown since no other block should
                 // have a block with a Return terminator as a predecessor anyway.
