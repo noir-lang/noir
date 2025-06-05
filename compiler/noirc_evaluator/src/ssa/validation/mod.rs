@@ -101,11 +101,14 @@ impl<'f> Validator<'f> {
                         assert_eq!(*max_bit_size, 2 * expected_bit_size);
                         assert_eq!(*value, cast);
                     }
+                    Some(PendingSignedOverflowOp::Mul {
+                        cast_result: None,
+                        ..
+                    }) => {
+                        panic!("Truncate not matched to signed overflow pattern");
+                    }
                     None => {
                         // Do nothing as there is no overflow op pending
-                    }
-                    _ => {
-                        panic!("Truncate not matched to signed overflow pattern");
                     }
                 }
             }
@@ -519,7 +522,7 @@ mod tests {
 
     #[test]
     #[should_panic(expected = "Signed binary operation does not follow overflow pattern")]
-    fn lone_signed_mul_acir() {
+    fn lone_signed_mul() {
         let src = r"
         acir(inline) pure fn main f0 {
           b0(v0: i16, v1: i16):
@@ -528,6 +531,33 @@ mod tests {
         }
         ";
 
+        let _ = Ssa::from_str(src);
+    }
+
+    #[test]
+    #[should_panic(expected = "Truncate not matched to signed overflow pattern")]
+    fn signed_mul_followed_by_truncate_but_no_cast() {
+        let src = r"
+        acir(inline) pure fn main f0 {
+          b0(v0: i16, v1: i16):
+            v2 = mul v0, v1
+            v3 = truncate v2 to 16 bits, max_bit_size: 33
+            return v3
+        }
+        ";
+
+        let _ = Ssa::from_str(src);
+    }
+
+    #[test]
+    fn lone_truncate() {
+        let src = r"
+        acir(inline) pure fn main f0 {
+          b0(v0: i16):
+            v1 = truncate v0 to 8 bits, max_bit_size: 8
+            return v1
+        }
+        ";
         let _ = Ssa::from_str(src);
     }
 
