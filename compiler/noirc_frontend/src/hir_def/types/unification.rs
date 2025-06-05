@@ -616,8 +616,6 @@ fn convert_array_expression_to_slice(
 
 #[cfg(test)]
 mod tests {
-    use acvm::{AcirField, FieldElement};
-
     use crate::{BinaryTypeOperator, Kind, Type, TypeBindings, TypeVariable, TypeVariableId};
 
     struct Types {
@@ -639,8 +637,8 @@ mod tests {
             (Type::TypeVariable(TypeVariable::unbound(id, kind)), id)
         }
 
-        fn one() -> Type {
-            Type::Constant(FieldElement::one(), Kind::Integer)
+        fn num(value: u128) -> Type {
+            Type::Constant(value.into(), Kind::Any)
         }
 
         fn add(a: &Type, b: &Type) -> Type {
@@ -682,7 +680,7 @@ mod tests {
         // A + B = 1
         let (a, id_a) = types.type_variable();
         let (b, _) = types.type_variable();
-        let one = Types::one();
+        let one = Types::num(1);
 
         let addition = Types::add(&a, &b);
         assert!(addition.try_unify(&one, &mut bindings).is_ok());
@@ -719,7 +717,7 @@ mod tests {
         let (a, id_a) = types.type_variable();
         let (b, _) = types.type_variable();
         let subtraction = Types::subtract(&a, &b);
-        let one = Types::one();
+        let one = Types::num(1);
         assert!(subtraction.try_unify(&one, &mut bindings).is_ok());
 
         // A = B + 1
@@ -735,7 +733,7 @@ mod tests {
         let (a, id_a) = types.type_variable();
         let (b, _) = types.type_variable();
         let (c, _) = types.type_variable();
-        let one = Types::one();
+        let one = Types::num(1);
 
         let left = Types::subtract(&one, &a);
         let right = Types::multiply(&b, &c);
@@ -743,5 +741,25 @@ mod tests {
 
         // A = 1 - (B * C)
         assert_eq!(bindings[&id_a].2, Types::subtract(&one, &right));
+    }
+
+    #[test]
+    fn unifies_constant_added_in_both_sides() {
+        let mut types = Types::new();
+        let mut bindings = TypeBindings::default();
+
+        // A + 1 = B + 3
+        let (a, id_a) = types.type_variable();
+        let (b, _) = types.type_variable();
+        let one = Types::num(1);
+        let two = Types::num(2);
+        let three = Types::num(3);
+
+        let left = Types::add(&a, &one);
+        let right = Types::add(&b, &three);
+        assert!(left.try_unify(&right, &mut bindings).is_ok());
+
+        // A = B + 2
+        assert_eq!(bindings[&id_a].2, Types::add(&b, &two));
     }
 }
