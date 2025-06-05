@@ -189,7 +189,7 @@ pub(crate) fn is_reference(typ: &Type) -> bool {
     matches!(typ, Type::Reference(_, _))
 }
 
-/// Check if tye type is a function.
+/// Check if the type is a function.
 pub(crate) fn is_function(typ: &Type) -> bool {
     matches!(typ, Type::Function(_, _, _, _))
 }
