@@ -1983,13 +1983,16 @@ impl Type {
 
                     if lhs_result.is_ok() && rhs_result.is_ok() {
                         *bindings = new_bindings;
-                        Ok(())
+                        return Ok(());
                     } else {
-                        lhs.try_unify_by_moving_constant_terms(&rhs, bindings)
+                        let result = lhs.try_unify_by_moving_constant_terms(&rhs, bindings);
+                        if result.is_ok() {
+                            return Ok(());
+                        }
                     }
-                } else {
-                    Err(UnificationError)
                 }
+
+                lhs.try_unify_by_isolating_an_unbound_type_variable(&rhs, bindings)
             }
 
             (Constant(value, kind), other) | (other, Constant(value, kind)) => {
