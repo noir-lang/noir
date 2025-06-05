@@ -101,10 +101,7 @@ impl<'f> Validator<'f> {
                         assert_eq!(*max_bit_size, 2 * expected_bit_size);
                         assert_eq!(*value, cast);
                     }
-                    Some(PendingSignedOverflowOp::Mul {
-                        cast_result: None,
-                        ..
-                    }) => {
+                    Some(PendingSignedOverflowOp::Mul { cast_result: None, .. }) => {
                         panic!("Truncate not matched to signed overflow pattern");
                     }
                     None => {
