@@ -262,11 +262,6 @@ impl Type {
                     if lhs_result.is_ok() && rhs_result.is_ok() {
                         *bindings = new_bindings;
                         return Ok(());
-                    } else {
-                        let result = lhs.try_unify_by_moving_constant_terms(&rhs, bindings);
-                        if result.is_ok() {
-                            return Ok(());
-                        }
                     }
                 }
 
@@ -346,52 +341,6 @@ impl Type {
         }
     }
 
-    /// Try to unify equations like `(..) + 3 = (..) + 1`
-    /// by transforming them to `(..) + 2 =  (..)`
-    pub(super) fn try_unify_by_moving_constant_terms(
-        &self,
-        other: &Type,
-        bindings: &mut TypeBindings,
-    ) -> Result<(), UnificationError> {
-        if let Type::InfixExpr(lhs_a, op_a, rhs_a, _) = self {
-            if let Some(inverse) = op_a.approx_inverse() {
-                let kind = lhs_a.infix_kind(rhs_a);
-                let dummy_location = Location::dummy();
-                if let Ok(rhs_a_value) = rhs_a.evaluate_to_field_element(&kind, dummy_location) {
-                    let rhs_a = Box::new(Type::Constant(rhs_a_value, kind));
-                    let new_other =
-                        Type::inverted_infix_expr(Box::new(other.clone()), inverse, rhs_a);
-
-                    let mut tmp_bindings = bindings.clone();
-                    if lhs_a.try_unify(&new_other, &mut tmp_bindings).is_ok() {
-                        *bindings = tmp_bindings;
-                        return Ok(());
-                    }
-                }
-            }
-        }
-
-        if let Type::InfixExpr(lhs_b, op_b, rhs_b, inversion) = other {
-            if let Some(inverse) = op_b.approx_inverse() {
-                let kind = lhs_b.infix_kind(rhs_b);
-                let dummy_location = Location::dummy();
-                if let Ok(rhs_b_value) = rhs_b.evaluate_to_field_element(&kind, dummy_location) {
-                    let rhs_b = Box::new(Type::Constant(rhs_b_value, kind));
-                    let new_self =
-                        Type::InfixExpr(Box::new(self.clone()), inverse, rhs_b, !inversion);
-
-                    let mut tmp_bindings = bindings.clone();
-                    if new_self.try_unify(lhs_b, &mut tmp_bindings).is_ok() {
-                        *bindings = tmp_bindings;
-                        return Ok(());
-                    }
-                }
-            }
-        }
-
-        Err(UnificationError)
-    }
-
     /// Try to unify the following equations:
     /// - `A + rhs = other` -> `A = other - rhs`
     /// - `A - rhs = other` -> `A = other + rhs`
@@ -447,7 +396,7 @@ impl Type {
             {
                 if lhs_rhs_var.1.borrow().is_unbound() {
                     // We can say that `B = other - lhs`
-                    let new_rhs = Type::infix_expr(
+                    let new_rhs = Type::inverted_infix_expr(
                         Box::new(other.clone()),
                         BinaryTypeOperator::Subtraction,
                         lhs_lhs.clone(),
@@ -467,7 +416,7 @@ impl Type {
             {
                 if lhs_rhs_var.1.borrow().is_unbound() {
                     // We can say that `B = lhs - other`
-                    let new_rhs = Type::infix_expr(
+                    let new_rhs = Type::inverted_infix_expr(
                         lhs_lhs.clone(),
                         BinaryTypeOperator::Subtraction,
                         Box::new(other.clone()),
@@ -520,12 +469,13 @@ impl Type {
         bindings: &mut TypeBindings,
     ) -> Result<(), UnificationError> {
         if let Type::InfixExpr(lhs_lhs, lhs_op, lhs_rhs, _) = self {
-            if let Some(lhs_op_inverse) = lhs_op.inverse() {
+            if let Some(lhs_op_inverse) = lhs_op.approx_inverse() {
                 let kind = lhs_lhs.infix_kind(lhs_rhs);
                 let dummy_location = Location::dummy();
-                if lhs_rhs.evaluate_to_field_element(&kind, dummy_location).is_ok() {
+                if let Ok(value) = lhs_rhs.evaluate_to_field_element(&kind, dummy_location) {
+                    let lhs_rhs = Box::new(Type::Constant(value, kind));
                     let new_rhs =
-                        Type::infix_expr(Box::new(other.clone()), lhs_op_inverse, lhs_rhs.clone());
+                        Type::inverted_infix_expr(Box::new(other.clone()), lhs_op_inverse, lhs_rhs);
 
                     let mut tmp_bindings = bindings.clone();
 
