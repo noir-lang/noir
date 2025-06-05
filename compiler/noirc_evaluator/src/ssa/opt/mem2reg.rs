@@ -522,7 +522,7 @@ impl<'f> PerFunctionContext<'f> {
             }
             Instruction::Call { arguments, .. } => {
                 // We want to fetch all aliases of each argument to be marked unknown as an array
-                // containing references internally can potentially be aliased by those references.
+                // of references can potentially be aliased by those internal references.
                 let mut all_aliases = Vec::new();
                 for arg in arguments {
                     if let Some(expression) = references.expressions.get(arg) {
@@ -652,10 +652,22 @@ impl<'f> PerFunctionContext<'f> {
                 }
             }
             TerminatorInstruction::Return { return_values, .. } => {
+                // We want to fetch all aliases of each return value to be marked unknown as an array
+                // of references can potentially be aliased by those internal references.
+                let mut all_aliases = Vec::new();
+                for return_value in return_values {
+                    if let Some(expression) = references.expressions.get(return_value) {
+                        if let Some(aliases) = references.aliases.get(expression) {
+                            aliases.for_each(|alias| {
+                                all_aliases.push(alias);
+                            });
+                        }
+                    }
+                }
                 // Removing all `last_stores` for each returned reference is more important here
                 // than setting them all to ReferenceValue::Unknown since no other block should
                 // have a block with a Return terminator as a predecessor anyway.
-                self.mark_all_unknown(return_values, references);
+                self.mark_all_unknown(&all_aliases, references);
             }
         }
     }
@@ -1294,6 +1306,30 @@ mod tests {
         let ssa = Ssa::from_str(src).unwrap();
         let ssa = ssa.mem2reg();
 
+        assert_normalized_ssa_equals(ssa, src);
+    }
+
+    #[test]
+    fn keep_last_store_used_in_make_array_returned_from_function() {
+        let src = "
+        brillig(inline) fn main f0 {
+          b0():
+            v0 = call f1() -> [&mut u1; 2]
+            return
+        }
+        brillig(inline) fn foo f1 {
+          b0():
+            v0 = allocate -> &mut u1
+            store u1 1 at v0
+            v2 = allocate -> &mut u1
+            store u1 0 at v2
+            v4 = make_array [v0, v2] : [&mut u1; 2]
+            return v4
+        }
+        ";
+
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.mem2reg();
         assert_normalized_ssa_equals(ssa, src);
     }
 }
