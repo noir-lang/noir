@@ -38,7 +38,8 @@ fn add_signed() {
         acir(inline) fn main f0 {
           b0():
             v0 = add i32 2, i32 100
-            return v0
+            v1 = truncate v0 to 32 bits, max_bit_size: 33
+            return v1
         }
     ",
     );
