@@ -1332,4 +1332,26 @@ mod tests {
         let ssa = ssa.mem2reg();
         assert_normalized_ssa_equals(ssa, src);
     }
+
+    #[test]
+    fn keep_last_store_in_make_array_where_aliases_are_none() {
+        let src = "
+        brillig(inline) fn foo f1 {
+          b0(v0: &mut u1):
+            v1 = call f2() -> &mut u1
+            store u1 1 at v1
+            v3 = make_array [v1] : [&mut u1; 1]
+            return v3
+        }
+        brillig(inline) fn get_ref f2 {
+          b0():
+            v0 = allocate -> &mut u1
+            store u1 1 at v0
+            return v0
+        }
+        ";
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.mem2reg();
+        assert_normalized_ssa_equals(ssa, src);
+    }
 }
