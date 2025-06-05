@@ -1,0 +1,43 @@
+#!/usr/bin/env bash
+
+function usage {
+    echo $1
+    echo "usage: ./minimize.sh 'error message' (compile|execute) path/to/main.nr [path/to/Prover.toml]"
+    exit 1
+}
+
+MSG=$1; shift
+if [ -z "$MSG" ]; then
+    usage "missing error message"
+fi
+
+CMD=$1; shift
+if [ -z "$CMD" ]; then
+    usage "missing command"
+fi
+
+MAIN_PATH=$1; shift
+if [ -z "$MAIN_PATH" ]; then
+    usage "missing path to main.nr"
+fi
+if [ ! -f "$MAIN_PATH" ]; then
+    usage "$MAIN_PATH is not a file"
+fi
+
+PROVER_PATH=$1
+if [ -z "$PROVER_PATH" ] && [ "$CMD" == "execute" ]; then
+    PROVER_PATH=$(dirname $MAIN_PATH)/../Prover.toml
+fi
+if [ ! -z "$PROVER_PATH" ] && [ ! -f "$PROVER_PATH" ]; then
+    usage "$PROVER_PATH is not a file"
+fi
+
+# Make a copy because the minimizer will modify the file in-place.
+cp $MAIN_PATH $MAIN_PATH.bkp
+
+exec docker run --init -it --rm \
+    -v "$MAIN_PATH":/noir/main.nr \
+    -v "$PROVER_PATH":/noir/Prover.toml \
+    -e MSG="$MSG" \
+    -e CMD="$CMD" \
+    noir-minimizer
