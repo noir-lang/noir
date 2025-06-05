@@ -4453,7 +4453,7 @@ fn object_type_must_be_known_in_method_call() {
 
 #[named]
 #[test]
-fn indexing_array_with_default_numeric_type_does_not_produce_a_warning() {
+fn indexing_array_with_default_numeric_type_does_not_produce_an_error() {
     let src = r#"
     fn main() {
         let index = 0;
