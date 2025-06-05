@@ -606,7 +606,14 @@ impl<'interner> Monomorphizer<'interner> {
                     if_expr.alternative.map(|alt| self.expr(alt)).transpose()?.map(Box::new);
 
                 let location = self.interner.expr_location(&expr);
-                let typ = Self::convert_type(&self.interner.id_type(expr), location)?;
+                let frontend_type = self.interner.id_type(expr);
+                let typ = Self::convert_type(&frontend_type, location)?;
+
+                if Self::contains_reference(&frontend_type) {
+                    let typ = frontend_type.to_string();
+                    return Err(MonomorphizationError::ReferenceReturnedFromIf { typ, location });
+                }
+
                 ast::Expression::If(ast::If { condition, consequence, alternative: else_, typ })
             }
 
@@ -631,6 +638,59 @@ impl<'interner> Monomorphizer<'interner> {
         };
 
         Ok(expr)
+    }
+
+    fn contains_reference(typ: &types::Type) -> bool {
+        match typ {
+            Type::FieldElement
+            | Type::Bool
+            | Type::String(_)
+            | Type::Integer(..)
+            | Type::Unit
+            | Type::TraitAsType(..)
+            | Type::Constant(..)
+            | Type::Quoted(..)
+            | Type::InfixExpr(..)
+            | Type::Error => false,
+
+            Type::Reference(_, _) => true,
+
+            Type::Array(_len, element) => Self::contains_reference(element),
+            Type::Slice(element) => Self::contains_reference(element),
+            Type::FmtString(_, environment) => Self::contains_reference(environment),
+            Type::Tuple(fields) => fields.iter().any(Self::contains_reference),
+            Type::DataType(datatype, generics) => {
+                let datatype = datatype.borrow();
+                if let Some(fields) = datatype.get_fields(generics) {
+                    fields.iter().any(|(_, field, _)| Self::contains_reference(field))
+                } else if let Some(variants) = datatype.get_variants(generics) {
+                    variants
+                        .iter()
+                        .any(|(_, variant_args)| variant_args.iter().any(Self::contains_reference))
+                } else {
+                    false
+                }
+            }
+            Type::Alias(alias, generics) => {
+                Self::contains_reference(&alias.borrow().get_type(generics))
+            }
+            Type::TypeVariable(type_variable) => match &*type_variable.borrow() {
+                TypeBinding::Bound(binding) => Self::contains_reference(binding),
+                TypeBinding::Unbound(..) => false,
+            },
+            Type::NamedGeneric(named_generic) => match &*named_generic.type_var.borrow() {
+                TypeBinding::Bound(binding) => Self::contains_reference(binding),
+                TypeBinding::Unbound(..) => false,
+            },
+            Type::CheckedCast { to, .. } => Self::contains_reference(to),
+            Type::Function(_args, _ret, env, _unconstrained) => {
+                // Only the environment of a function is counted as an actual reference value.
+                // Otherwise we can't return functions accepting references as arguments from if
+                // expressions.
+                Self::contains_reference(env)
+            }
+            Type::Forall(_, typ) => Self::contains_reference(typ),
+        }
     }
 
     fn standard_array(

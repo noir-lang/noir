@@ -1,4 +1,4 @@
-define: &AZ_COMMIT 829b919289cc8461cf7a24a3e5fe0861c61d0322
+define: &AZ_COMMIT 42d5984235d2ffcaf5545e88e77eeb698e147416
 libraries:
   noir_check_shuffle:
     repo: noir-lang/noir_check_shuffle
@@ -48,10 +48,6 @@ libraries:
     repo: noir-lang/sparse_array
     timeout: 3
     critical: true
-  noir_rsa:
-    repo: noir-lang/noir_rsa
-    timeout: 4
-    critical: true
   noir_json_parser:
     repo: noir-lang/noir_json_parser
     timeout: 12
@@ -63,7 +59,6 @@ libraries:
   sha512:
     repo: noir-lang/sha512
     timeout: 40
-    critical: true
   keccak256:
     repo: noir-lang/keccak256
     timeout: 3

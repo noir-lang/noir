@@ -57,6 +57,10 @@ pub enum MonomorphizationError {
         err: TypeCheckError,
         location: Location,
     },
+    ReferenceReturnedFromIf {
+        typ: String,
+        location: Location,
+    },
 }
 
 impl MonomorphizationError {
@@ -72,6 +76,7 @@ impl MonomorphizationError {
             | MonomorphizationError::RecursiveType { location, .. }
             | MonomorphizationError::NoDefaultType { location, .. }
             | MonomorphizationError::NoDefaultTypeInItem { location, .. }
+            | MonomorphizationError::ReferenceReturnedFromIf { location, .. }
             | MonomorphizationError::CannotComputeAssociatedConstant { location, .. } => *location,
             MonomorphizationError::InterpreterError(error) => error.location(),
         }
@@ -134,6 +139,15 @@ impl From<MonomorphizationError> for CustomDiagnostic {
                 format!(
                     "Could not determine the value of associated constant `{name}`, encountered error: `{err}`"
                 )
+            }
+            MonomorphizationError::ReferenceReturnedFromIf { typ, location } => {
+                let message = "Cannot return a reference type from an if expression".to_string();
+                let secondary = if typ.starts_with("&") {
+                    format!("`{typ}` returned here")
+                } else {
+                    format!("`{typ}`, which contains a reference type internally, returned here")
+                };
+                return CustomDiagnostic::simple_error(message, secondary, *location);
             }
         };
 
