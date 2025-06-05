@@ -616,7 +616,9 @@ fn convert_array_expression_to_slice(
 
 #[cfg(test)]
 mod tests {
-    use crate::{Kind, Type, TypeBindings, TypeVariable, TypeVariableId};
+    use acvm::{AcirField, FieldElement};
+
+    use crate::{BinaryTypeOperator, Kind, Type, TypeBindings, TypeVariable, TypeVariableId};
 
     struct Types {
         next_type_variable_id: usize,
@@ -636,6 +638,22 @@ mod tests {
             self.next_type_variable_id += 1;
             (Type::TypeVariable(TypeVariable::unbound(id, kind)), id)
         }
+
+        fn one() -> Type {
+            Type::Constant(FieldElement::one(), Kind::Integer)
+        }
+
+        fn add(a: &Type, b: &Type) -> Type {
+            Self::binary(a, BinaryTypeOperator::Addition, b)
+        }
+
+        fn subtract(a: &Type, b: &Type) -> Type {
+            Self::binary(a, BinaryTypeOperator::Subtraction, b)
+        }
+
+        fn binary(a: &Type, op: BinaryTypeOperator, b: &Type) -> Type {
+            Type::infix_expr(Box::new(a.clone()), op, Box::new(b.clone()))
+        }
     }
 
     #[test]
@@ -643,10 +661,28 @@ mod tests {
         let mut types = Types::new();
         let mut bindings = TypeBindings::default();
 
+        // A = B
         let (a, id_a) = types.type_variable();
         let (b, _id_b) = types.type_variable();
         assert!(a.try_unify(&b, &mut bindings).is_ok());
 
+        // A = B
         assert_eq!(bindings[&id_a].2, b);
+    }
+
+    #[test]
+    fn unifies_addition_equals_constant() {
+        let mut types = Types::new();
+        let mut bindings = TypeBindings::default();
+
+        // A + B = 1
+        let (a, id_a) = types.type_variable();
+        let (b, _id_b) = types.type_variable();
+        let addition = Types::add(&a, &b);
+        let one = Types::one();
+        assert!(addition.try_unify(&one, &mut bindings).is_ok());
+
+        // A = 1 - B
+        assert_eq!(bindings[&id_a].2, Types::subtract(&one, &b));
     }
 }
