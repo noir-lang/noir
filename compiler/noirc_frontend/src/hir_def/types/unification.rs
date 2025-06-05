@@ -253,6 +253,7 @@ impl Type {
                 }
 
                 lhs.try_unify_by_isolating_an_unbound_type_variable(&rhs, bindings)
+                    .or_else(|_| lhs.try_unify_by_moving_single_constant_term(&rhs, bindings))
             }
 
             (Constant(value, kind), other) | (other, Constant(value, kind)) => {
@@ -454,6 +455,48 @@ impl Type {
 
                     let mut tmp_bindings = bindings.clone();
                     if lhs_rhs.try_unify(&new_rhs, &mut tmp_bindings).is_ok() {
+                        *bindings = tmp_bindings;
+                        return Ok(());
+                    }
+                }
+            }
+        }
+
+        Err(UnificationError)
+    }
+
+    /// Try to unify the following equations:
+    /// - `(..a..) + 1 = (..b..)` -> `(..a..) = (..b..) - 1`
+    /// - `(..a..) - 1 = (..b..)` -> `(..a..) = (..b..) + 1`
+    /// - `(..a..) = (..b..) + 1` -> `(..b..) = (..a..) - 1`
+    /// - `(..a..) = (..b..) - 1` -> `(..b..) = (..a..) + 1`
+    pub(super) fn try_unify_by_moving_single_constant_term(
+        &self,
+        other: &Type,
+        bindings: &mut TypeBindings,
+    ) -> Result<(), UnificationError> {
+        self.try_unify_by_moving_single_constant_term_in_self(other, bindings)
+            .or_else(|_| other.try_unify_by_moving_single_constant_term_in_self(self, bindings))
+    }
+
+    /// Try to unify the following equations:
+    /// - `(..a..) + 1 = (..b..)` -> `(..a..) = (..b..) - 1`
+    /// - `(..a..) - 1 = (..b..)` -> `(..a..) = (..b..) + 1`
+    fn try_unify_by_moving_single_constant_term_in_self(
+        &self,
+        other: &Type,
+        bindings: &mut TypeBindings,
+    ) -> Result<(), UnificationError> {
+        if let Type::InfixExpr(lhs_lhs, lhs_op, lhs_rhs, _) = self {
+            if let Some(lhs_op_inverse) = lhs_op.inverse() {
+                let kind = lhs_lhs.infix_kind(&lhs_rhs);
+                let dummy_location = Location::dummy();
+                if lhs_rhs.evaluate_to_field_element(&kind, dummy_location).is_ok() {
+                    let new_rhs =
+                        Type::infix_expr(Box::new(other.clone()), lhs_op_inverse, lhs_rhs.clone());
+
+                    let mut tmp_bindings = bindings.clone();
+                    if lhs_lhs.try_unify(&new_rhs, &mut tmp_bindings).is_ok() {
                         *bindings = tmp_bindings;
                         return Ok(());
                     }
@@ -761,5 +804,25 @@ mod tests {
 
         // A = B + 2
         assert_eq!(bindings[&id_a].2, Types::add(&b, &two));
+    }
+
+    #[test]
+    fn unifies_infix_subtraction_against_multiplication() {
+        let mut types = Types::new();
+        let mut bindings = TypeBindings::default();
+
+        // (3 - A) - 1 = B * C
+        let (a, id_a) = types.type_variable();
+        let (b, _) = types.type_variable();
+        let (c, _) = types.type_variable();
+        let one = Types::num(1);
+        let three = Types::num(3);
+
+        let left = Types::subtract(&Types::subtract(&three, &a), &one);
+        let right = Types::multiply(&b, &c);
+        assert!(left.try_unify(&right, &mut bindings).is_ok());
+
+        // A = 3 - ((B * C) + 1)
+        assert_eq!(bindings[&id_a].2, Types::subtract(&three, &Types::add(&right, &one)));
     }
 }
