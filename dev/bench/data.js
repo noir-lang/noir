@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1749126895641,
+  "lastUpdate": 1749127031786,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -11362,75 +11362,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "mvezenov@gmail.com",
-            "name": "Maxim Vezenov",
-            "username": "vezenovm"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "3da528896a5788976801de6a98b0d2df9a69f3d8",
-          "message": "fix(ssa): Remove the array cache from the function inserter (#8607)\n\nCo-authored-by: Tom French <15848336+TomAFrench@users.noreply.github.com>",
-          "timestamp": "2025-05-27T10:43:55Z",
-          "tree_id": "5c124e6d21d605b1ce67ff1b9d145d1d295ca57f",
-          "url": "https://github.com/noir-lang/noir/commit/3da528896a5788976801de6a98b0d2df9a69f3d8"
-        },
-        "date": 1748345028870,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 246.16,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 270.01,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 221.31,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 580.03,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 576.35,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 1460,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 401.7,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-root",
-            "value": 407.27,
-            "unit": "MB"
-          },
-          {
-            "name": "semaphore_depth_10",
-            "value": 92.93,
-            "unit": "MB"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "15848336+TomAFrench@users.noreply.github.com",
             "name": "Tom French",
             "username": "TomAFrench"
@@ -14800,6 +14731,75 @@ window.BENCHMARK_DATA = {
           {
             "name": "rollup-root",
             "value": 317.69,
+            "unit": "MB"
+          },
+          {
+            "name": "semaphore_depth_10",
+            "value": 70.96,
+            "unit": "MB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "asterite@gmail.com",
+            "name": "Ary Borenszweig",
+            "username": "asterite"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "ce2fc37fd6286094df139308b90177df4a95c608",
+          "message": "fix: delay associated constants resolution (#8744)",
+          "timestamp": "2025-06-05T11:57:20Z",
+          "tree_id": "4567dc5934d9449d61a52052109453d7b89249e2",
+          "url": "https://github.com/noir-lang/noir/commit/ce2fc37fd6286094df139308b90177df4a95c608"
+        },
+        "date": 1749127020814,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 202.02,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 225.76,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 177.16,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 490.04,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 423.55,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 1400,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 312.11,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-root",
+            "value": 317.8,
             "unit": "MB"
           },
           {
