@@ -2147,7 +2147,7 @@ fn numeric_generics_value_kind_mismatch_u32_u64() {
             assert(self.len < MaxLen, "push out of bounds");
                    ^^^^^^^^^^^^^^^^^ Integers must have the same bit width LHS is 64, RHS is 32
             self.storage[self.len] = elem;
-                         ^^^^^^^^ Indexing an array or slice with a type other than `u32` is deprecated and will soon be an error
+                         ^^^^^^^^ Indexing arrays and slices must be done with `u32`, not `u64`
             self.len += 1;
         }
     }
@@ -4466,7 +4466,7 @@ fn indexing_array_with_default_numeric_type_does_not_produce_a_warning() {
 
 #[named]
 #[test]
-fn indexing_array_with_u32_does_not_produce_a_warning() {
+fn indexing_array_with_u32_does_not_produce_an_error() {
     let src = r#"
     fn main() {
         let index: u32 = 0;
@@ -4479,13 +4479,13 @@ fn indexing_array_with_u32_does_not_produce_a_warning() {
 
 #[named]
 #[test]
-fn indexing_array_with_non_u32_produces_a_warning() {
+fn indexing_array_with_non_u32_produces_an_error() {
     let src = r#"
     fn main() {
         let index: Field = 0;
         let array = [1, 2, 3];
         let _ = array[index];
-                      ^^^^^ Indexing an array or slice with a type other than `u32` is deprecated and will soon be an error
+                      ^^^^^ Indexing arrays and slices must be done with `u32`, not `Field`
     }
     "#;
     check_errors!(src);
@@ -4493,13 +4493,13 @@ fn indexing_array_with_non_u32_produces_a_warning() {
 
 #[named]
 #[test]
-fn indexing_array_with_non_u32_on_lvalue_produces_a_warning() {
+fn indexing_array_with_non_u32_on_lvalue_produces_an_error() {
     let src = r#"
     fn main() {
         let index: Field = 0;
         let mut array = [1, 2, 3];
         array[index] = 0;
-              ^^^^^ Indexing an array or slice with a type other than `u32` is deprecated and will soon be an error
+              ^^^^^ Indexing arrays and slices must be done with `u32`, not `Field`
     }
     "#;
     check_errors!(src);

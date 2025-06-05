@@ -2286,10 +2286,6 @@ impl Elaborator<'_> {
         self.get_function_context().trait_constraints.push((constraint, expr_id, select_impl));
     }
 
-    pub(super) fn push_index_to_check(&mut self, index: ExprId) {
-        self.get_function_context().indexes_to_check.push(index);
-    }
-
     fn get_function_context(&mut self) -> &mut FunctionContext {
         let context = self.function_context.last_mut();
         context.expect("The function_context stack should always be non-empty")
