@@ -248,7 +248,7 @@ impl Block {
     ) -> Vec<ValueId> {
         let mut all_aliases = Vec::new();
         for value in values {
-            if let Some(expression) = self.expressions.get(&value) {
+            if let Some(expression) = self.expressions.get(value) {
                 if let Some(aliases) = self.aliases.get(expression) {
                     aliases.for_each(|alias| all_aliases.push(alias));
                 }
