@@ -651,6 +651,10 @@ mod tests {
             Self::binary(a, BinaryTypeOperator::Subtraction, b)
         }
 
+        fn multiply(a: &Type, b: &Type) -> Type {
+            Self::binary(a, BinaryTypeOperator::Multiplication, b)
+        }
+
         fn binary(a: &Type, op: BinaryTypeOperator, b: &Type) -> Type {
             Type::infix_expr(Box::new(a.clone()), op, Box::new(b.clone()))
         }
@@ -663,7 +667,7 @@ mod tests {
 
         // A = B
         let (a, id_a) = types.type_variable();
-        let (b, _id_b) = types.type_variable();
+        let (b, _) = types.type_variable();
         assert!(a.try_unify(&b, &mut bindings).is_ok());
 
         // A = B
@@ -671,18 +675,73 @@ mod tests {
     }
 
     #[test]
-    fn unifies_addition_equals_constant() {
+    fn unifies_addition_1() {
         let mut types = Types::new();
         let mut bindings = TypeBindings::default();
 
         // A + B = 1
         let (a, id_a) = types.type_variable();
-        let (b, _id_b) = types.type_variable();
-        let addition = Types::add(&a, &b);
+        let (b, _) = types.type_variable();
         let one = Types::one();
+
+        let addition = Types::add(&a, &b);
         assert!(addition.try_unify(&one, &mut bindings).is_ok());
 
         // A = 1 - B
         assert_eq!(bindings[&id_a].2, Types::subtract(&one, &b));
+    }
+
+    #[test]
+    fn unifies_addition_2() {
+        let mut types = Types::new();
+        let mut bindings = TypeBindings::default();
+
+        // A + B = C * D
+        let (a, id_a) = types.type_variable();
+        let (b, _) = types.type_variable();
+        let (c, _) = types.type_variable();
+        let (d, _) = types.type_variable();
+
+        let left = Types::add(&a, &b);
+        let right = Types::multiply(&c, &d);
+        assert!(left.try_unify(&right, &mut bindings).is_ok());
+
+        // A = (C * D) - B
+        assert_eq!(bindings[&id_a].2, Types::subtract(&right, &b));
+    }
+
+    #[test]
+    fn unifies_subtraction_1() {
+        let mut types = Types::new();
+        let mut bindings = TypeBindings::default();
+
+        // A - B = 1
+        let (a, id_a) = types.type_variable();
+        let (b, _) = types.type_variable();
+        let subtraction = Types::subtract(&a, &b);
+        let one = Types::one();
+        assert!(subtraction.try_unify(&one, &mut bindings).is_ok());
+
+        // A = B + 1
+        assert_eq!(bindings[&id_a].2, Types::add(&b, &one));
+    }
+
+    #[test]
+    fn unifies_subtraction_2() {
+        let mut types = Types::new();
+        let mut bindings = TypeBindings::default();
+
+        // 1 - A = B * C
+        let (a, id_a) = types.type_variable();
+        let (b, _) = types.type_variable();
+        let (c, _) = types.type_variable();
+        let one = Types::one();
+
+        let left = Types::subtract(&one, &a);
+        let right = Types::multiply(&b, &c);
+        assert!(left.try_unify(&right, &mut bindings).is_ok());
+
+        // A = 1 - (B * C)
+        assert_eq!(bindings[&id_a].2, Types::subtract(&one, &right));
     }
 }
