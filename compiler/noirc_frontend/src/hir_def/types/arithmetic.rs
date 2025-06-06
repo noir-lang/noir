@@ -30,10 +30,7 @@ impl Type {
         }
     }
 
-    pub(crate) fn canonicalize_with_simplifications(
-        &self,
-        run_simplifications: bool,
-    ) -> Type {
+    pub(crate) fn canonicalize_with_simplifications(&self, run_simplifications: bool) -> Type {
         self.follow_bindings().canonicalize_helper(false, run_simplifications)
     }
 
@@ -66,11 +63,7 @@ impl Type {
     ///
     /// Otherwise also attempt try_simplify_partial_constants, sort_commutative,
     /// and other simplifications
-    fn canonicalize_helper(
-        &self,
-        found_checked_cast: bool,
-        run_simplifications: bool,
-    ) -> Type {
+    fn canonicalize_helper(&self, found_checked_cast: bool, run_simplifications: bool) -> Type {
         match self {
             Type::InfixExpr(lhs, op, rhs, inversion) => {
                 let kind = lhs.infix_kind(&rhs);
