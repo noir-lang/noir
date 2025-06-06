@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1749240469203,
+  "lastUpdate": 1749240476393,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -11362,75 +11362,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "mvezenov@gmail.com",
-            "name": "Maxim Vezenov",
-            "username": "vezenovm"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "00d636c75d21a699e4561a7e15e4927ee89ce7ef",
-          "message": "feat: Replace converging jmpif with empty block destinations with a single jmp (#8613)\n\nCo-authored-by: Michael J Klein <michaeljklein@users.noreply.github.com>",
-          "timestamp": "2025-05-28T23:08:27Z",
-          "tree_id": "b37c7cb9be2331ee819daed4a86bb4ea20b3122a",
-          "url": "https://github.com/noir-lang/noir/commit/00d636c75d21a699e4561a7e15e4927ee89ce7ef"
-        },
-        "date": 1748475564658,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 246.19,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 270.04,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 221.33,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 580.06,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 576.38,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 1460,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 401.73,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-root",
-            "value": 407.3,
-            "unit": "MB"
-          },
-          {
-            "name": "semaphore_depth_10",
-            "value": 92.96,
-            "unit": "MB"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "15848336+TomAFrench@users.noreply.github.com",
             "name": "Tom French",
             "username": "TomAFrench"
@@ -14760,6 +14691,75 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/noir-lang/noir/commit/53cf56f443982b570f09085a74118deceb299002"
         },
         "date": 1749233417472,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 202.1,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 225.82,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 177.36,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 489.98,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 423.33,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 1400,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 312.18,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-root",
+            "value": 317.87,
+            "unit": "MB"
+          },
+          {
+            "name": "semaphore_depth_10",
+            "value": 70.96,
+            "unit": "MB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "mvezenov@gmail.com",
+            "name": "Maxim Vezenov",
+            "username": "vezenovm"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "851cfd208d8fadd69dfc74324405c6d72d286651",
+          "message": "fix(interpreter): Do not overflow on signed checked ops (#8806)",
+          "timestamp": "2025-06-06T19:30:12Z",
+          "tree_id": "48071e03dc896099c71d637e14e3d047b7ca5792",
+          "url": "https://github.com/noir-lang/noir/commit/851cfd208d8fadd69dfc74324405c6d72d286651"
+        },
+        "date": 1749240464287,
         "tool": "customSmallerIsBetter",
         "benches": [
           {
