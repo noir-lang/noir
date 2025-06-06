@@ -134,6 +134,17 @@ impl Comparable for ssa::interpreter::errors::InterpreterError {
                 }
                 details_or_sanitize(i1) == details_or_sanitize(i2)
             }
+            (
+                ConstrainEqFailed { lhs: lhs1, rhs: rhs1, .. },
+                ConstrainEqFailed { lhs: lhs2, rhs: rhs2, .. },
+            )
+            | (
+                ConstrainNeFailed { lhs: lhs1, rhs: rhs1, .. },
+                ConstrainNeFailed { lhs: lhs2, rhs: rhs2, .. },
+            ) => {
+                // The sides might be flipped
+                lhs1 == lhs2 && rhs1 == rhs2 || lhs1 == rhs2 && rhs1 == lhs2
+            }
             (e1, e2) => {
                 // The format strings contain SSA instructions,
                 // where the only difference might be the value ID.
