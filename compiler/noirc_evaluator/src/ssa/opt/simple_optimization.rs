@@ -1,10 +1,10 @@
-use crate::ssa::ir::{
+use crate::{errors::RtResult, ssa::ir::{
     basic_block::BasicBlockId,
     dfg::DataFlowGraph,
     function::Function,
     instruction::{Instruction, InstructionId},
     value::{ValueId, ValueMapping},
-};
+}};
 
 impl Function {
     /// Performs a simple optimization according to the given callback.
@@ -23,6 +23,30 @@ impl Function {
     pub(crate) fn simple_reachable_blocks_optimization<F>(&mut self, mut f: F)
     where
         F: FnMut(&mut SimpleOptimizationContext<'_, '_>),
+    {
+        self.simple_reachable_blocks_optimization_result(move |context| {
+            f(context);
+            Ok(())
+        }).expect("`f` cannot error internally so this should be unreachable");
+    }
+
+    /// Performs a simple optimization according to the given callback, returning early if
+    /// an error occurred.
+    ///
+    /// The function's [`Function::reachable_blocks`] are traversed in turn, and instructions in those blocks
+    /// are then traversed in turn. For each one, `f` will be called with a context.
+    ///
+    /// The current instruction will be inserted at the end of the callback given to `mutate` unless
+    /// `remove_current_instruction` or `insert_current_instruction` are called.
+    ///
+    /// `insert_current_instruction` is useful if you need to insert new instructions after the current
+    /// one, so this can be done before the callback ends.
+    ///
+    /// `replace_value` can be used to replace a value with another one. This substitution will be
+    /// performed in all subsequent instructions.
+    pub(crate) fn simple_reachable_blocks_optimization_result<F>(&mut self, mut f: F) -> RtResult<()>
+    where
+        F: FnMut(&mut SimpleOptimizationContext<'_, '_>) -> RtResult<()>,
     {
         let mut values_to_replace = ValueMapping::default();
 
@@ -44,7 +68,7 @@ impl Function {
                     values_to_replace: &mut values_to_replace,
                     insert_current_instruction_at_callback_end: true,
                 };
-                f(&mut context);
+                f(&mut context)?;
 
                 if context.insert_current_instruction_at_callback_end {
                     self.dfg[block_id].insert_instruction(instruction_id);
@@ -55,6 +79,7 @@ impl Function {
         }
 
         self.dfg.data_bus.replace_values(&values_to_replace);
+        Ok(())
     }
 }
 
