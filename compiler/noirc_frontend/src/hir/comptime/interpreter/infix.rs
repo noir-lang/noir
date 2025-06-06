@@ -299,6 +299,14 @@ mod test {
         let result = interpret(src);
         // 255 % 64 == 63, so 64 >> 63 => -1
         assert_eq!(result, Value::I64(-1));
+
+        let src = "
+        comptime fn main() -> pub i32 {
+            -1360887544 >> 141
+        }
+        ";
+        let result = interpret(src);
+        assert_eq!(result, Value::I32(-1));
     }
 
     #[test]
@@ -318,6 +326,14 @@ mod test {
         ";
         let result = interpret(src);
         assert_eq!(result, Value::I64(0));
+
+        let src = "
+        comptime fn main() -> pub i32 {
+            1360887544 >> 141
+        }
+        ";
+        let result = interpret(src);
+        assert_eq!(result, Value::I32(0));
     }
 
     #[test]
