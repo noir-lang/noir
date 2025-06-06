@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1749233142640,
+  "lastUpdate": 1749233144905,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -20568,85 +20568,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "mvezenov@gmail.com",
-            "name": "Maxim Vezenov",
-            "username": "vezenovm"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "00d636c75d21a699e4561a7e15e4927ee89ce7ef",
-          "message": "feat: Replace converging jmpif with empty block destinations with a single jmp (#8613)\n\nCo-authored-by: Michael J Klein <michaeljklein@users.noreply.github.com>",
-          "timestamp": "2025-05-28T23:08:27Z",
-          "tree_id": "b37c7cb9be2331ee819daed4a86bb4ea20b3122a",
-          "url": "https://github.com/noir-lang/noir/commit/00d636c75d21a699e4561a7e15e4927ee89ce7ef"
-        },
-        "date": 1748475226099,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 1133.3,
-            "unit": "KB"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 2156.7,
-            "unit": "KB"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 589,
-            "unit": "KB"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 5129.7,
-            "unit": "KB"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 4071.2,
-            "unit": "KB"
-          },
-          {
-            "name": "rollup-block-root-empty",
-            "value": 257,
-            "unit": "KB"
-          },
-          {
-            "name": "rollup-block-root-single-tx",
-            "value": 25708.1,
-            "unit": "KB"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 25715.1,
-            "unit": "KB"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 183.7,
-            "unit": "KB"
-          },
-          {
-            "name": "rollup-root",
-            "value": 418.6,
-            "unit": "KB"
-          },
-          {
-            "name": "semaphore-depth-10",
-            "value": 636.3,
-            "unit": "KB"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "15848336+TomAFrench@users.noreply.github.com",
             "name": "Tom French",
             "username": "TomAFrench"
@@ -24456,6 +24377,85 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/noir-lang/noir/commit/28a57a2ae2de8077e0ca6165fac01c7d72aefa7c"
         },
         "date": 1749232527959,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 1133.6,
+            "unit": "KB"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 2070.7,
+            "unit": "KB"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 587.9,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 4957.3,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 4003.5,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-block-root-empty",
+            "value": 258.9,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-block-root-single-tx",
+            "value": 25707.2,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 25722.8,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 185.1,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-root",
+            "value": 419.4,
+            "unit": "KB"
+          },
+          {
+            "name": "semaphore-depth-10",
+            "value": 636.4,
+            "unit": "KB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "15848336+TomAFrench@users.noreply.github.com",
+            "name": "Tom French",
+            "username": "TomAFrench"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "53cf56f443982b570f09085a74118deceb299002",
+          "message": "feat: short circuit creation of `Type::InfixExpr` containing errors (#8826)",
+          "timestamp": "2025-06-06T17:29:08Z",
+          "tree_id": "77470e7f82ed3a226954894fef3dd9f2f71d624f",
+          "url": "https://github.com/noir-lang/noir/commit/53cf56f443982b570f09085a74118deceb299002"
+        },
+        "date": 1749233132411,
         "tool": "customSmallerIsBetter",
         "benches": [
           {
