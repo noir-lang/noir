@@ -1,5 +1,6 @@
 use std::sync::Arc;
 
+use acvm::FieldElement;
 use iter_extended::vecmap;
 use noirc_frontend::Shared;
 
@@ -10,6 +11,7 @@ use crate::ssa::{
         value::ReferenceValue,
     },
     ir::{
+        integer::IntegerConstant,
         types::{NumericType, Type},
         value::ValueId,
     },
@@ -316,7 +318,7 @@ fn shl_overflow() {
 }
 
 #[test]
-fn shr() {
+fn shr_unsigned() {
     let values = expect_values(
         "
         acir(inline) fn main f0 {
@@ -334,8 +336,33 @@ fn shr() {
 }
 
 #[test]
-/// shr does not error on overflow. It just returns 0. See https://github.com/noir-lang/noir/pull/7509.
-fn shr_overflow() {
+fn shr_signed() {
+    let values = expect_values(
+        "
+        acir(inline) fn main f0 {
+          b0():
+            v0 = shr i16 65520, u8 2      
+            v1 = shr i16 65533, u8 1      
+            v2 = shr i16 65528, u8 3 
+            return v0, v1, v2
+        }
+    ",
+    );
+
+    let neg_four = IntegerConstant::Signed { value: -4, bit_size: 16 };
+    let (neg_four_constant, typ) = neg_four.into_numeric_constant();
+    assert_eq!(values[0], from_constant(neg_four_constant, typ));
+    let neg_two = IntegerConstant::Signed { value: -2, bit_size: 16 };
+    let (neg_two_constant, typ) = neg_two.into_numeric_constant();
+    assert_eq!(values[1], from_constant(neg_two_constant, typ));
+    let neg_one = IntegerConstant::Signed { value: -1, bit_size: 16 };
+    let (neg_one_constant, typ) = neg_one.into_numeric_constant();
+    assert_eq!(values[2], from_constant(neg_one_constant, typ));
+}
+
+#[test]
+/// shr on unsigned integer does not error on overflow. It just returns 0. See https://github.com/noir-lang/noir/pull/7509.
+fn shr_overflow_unsigned() {
     let value = expect_value(
         "
         acir(inline) fn main f0 {
@@ -346,6 +373,24 @@ fn shr_overflow() {
     ",
     );
     assert_eq!(value, from_constant(0_u128.into(), NumericType::unsigned(8)));
+}
+
+#[test]
+/// shr on signed integers does not error on overflow. It just returns -1. See https://github.com/noir-lang/noir/pull/8805.
+fn shr_overflow_signed() {
+    let value = expect_value(
+        "
+        acir(inline) fn main f0 {
+          b0():
+            v0 = shr i8 192, u8 9
+            return v0
+        }
+    ",
+    );
+
+    let neg_one = IntegerConstant::Signed { value: -1, bit_size: 8 };
+    let (neg_one_constant, typ) = neg_one.into_numeric_constant();
+    assert_eq!(value, from_constant(neg_one_constant, typ));
 }
 
 #[test]

@@ -209,6 +209,8 @@ pub(super) fn evaluate_infix(
 
 #[cfg(test)]
 mod test {
+    use crate::hir::comptime::tests::interpret;
+
     use super::{BinaryOpKind, HirBinaryOp, Location, Value};
 
     use super::evaluate_infix;
@@ -223,5 +225,67 @@ mod test {
         let result = evaluate_infix(lhs, rhs, operator, location).unwrap();
 
         assert_eq!(result, Value::U128(170141183460469231731687303715884105727));
+    }
+
+    #[test]
+    fn shr_unsigned() {
+        let src = r#"
+            comptime fn main() -> pub u64 {
+                64 >> 1
+            }
+        "#;
+        let result = interpret(src);
+        assert_eq!(result, Value::U64(32));
+    }
+
+    #[test]
+    fn shr_unsigned_overflow_shift() {
+        let src = r#"
+            comptime fn main() -> pub u64 {
+                64 >> 63
+            }
+        "#;
+        let result = interpret(src);
+        assert_eq!(result, Value::U64(0));
+
+        let src = r#"
+            comptime fn main() -> pub u64 {
+                64 >> 255
+            }
+        "#;
+        let result = interpret(src);
+        // 255 % 64 == 63, so 64 >> 63 => 0
+        assert_eq!(result, Value::U64(0));
+    }
+
+    #[test]
+    fn shr_signed_overflow() {
+        let src = "
+        comptime fn main() -> pub i64 {
+            -64 >> 63
+        }
+        ";
+        let result = interpret(src);
+        assert_eq!(result, Value::I64(-1));
+
+        let src = "
+        comptime fn main() -> pub i64 {
+            -64 >> 255
+        }
+        ";
+        let result = interpret(src);
+        // 255 % 64 == 63, so 64 >> 63 => -1
+        assert_eq!(result, Value::I64(-1));
+    }
+
+    #[test]
+    fn shr_signed() {
+        let src = r#"
+            comptime fn main() -> pub i64 {
+                -64 >> 1
+            }
+        "#;
+        let result = interpret(src);
+        assert_eq!(result, Value::I64(-32));
     }
 }
