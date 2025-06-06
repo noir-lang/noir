@@ -9,21 +9,21 @@ warning: MyTrait is private and not visible from the current module
   │              ------- MyTrait is private
   │
 
-warning: MyStruct is private and not visible from the current module
+error: MyStruct is private and not visible from the current module
   ┌─ src/main.nr:1:34
   │
 1 │ impl crate1::MyTrait for crate2::MyStruct {
   │                                  -------- MyStruct is private
   │
 
-warning: MyStruct is private and not visible from the current module
+error: MyStruct is private and not visible from the current module
   ┌─ src/main.nr:1:34
   │
 1 │ impl crate1::MyTrait for crate2::MyStruct {
   │                                  -------- MyStruct is private
   │
 
-warning: MyStruct is private and not visible from the current module
+error: MyStruct is private and not visible from the current module
   ┌─ src/main.nr:1:34
   │
 1 │ impl crate1::MyTrait for crate2::MyStruct {
@@ -37,4 +37,4 @@ error: Orphaned trait implementation
   │                          ---------------- Either the type or the trait must be from the same crate as the trait implementation
   │
 
-Aborting due to 1 previous error
+Aborting due to 5 previous errors
