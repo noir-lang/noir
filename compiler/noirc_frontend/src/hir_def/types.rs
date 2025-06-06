@@ -912,6 +912,16 @@ impl TypeVariable {
         }
     }
 
+    /// Check that if bound, it's a signed integer
+    pub fn is_signed(&self) -> bool {
+        match &*self.borrow() {
+            TypeBinding::Bound(binding) => {
+                matches!(binding.follow_bindings(), Type::Integer(Signedness::Signed, _))
+            }
+            _ => false,
+        }
+    }
+
     /// If value_level, only check for Type::FieldElement,
     /// else only check for a type-level FieldElement
     fn is_field_element(&self, value_level: bool) -> bool {
