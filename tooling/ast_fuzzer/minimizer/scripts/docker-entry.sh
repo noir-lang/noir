@@ -8,6 +8,8 @@ set -e
 # Create a check script which creates a new project with the contents we want to test,
 # run a `nargo` command, and checks the presence of the error message in the output.
 # If it's not present, it means the latest reduction step was not interesting.
+# We could have the script read env vars on the fly instead of splicing them in verbatim,
+# but this is perhaps closer to how `cvise` wants an parameterless script.
 cat > check.sh <<EOF
 nargo new test_project
 cp main.nr test_project/src
