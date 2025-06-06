@@ -23,12 +23,12 @@ fn add() {
         "
         acir(inline) fn main f0 {
           b0():
-            v0 = add i32 2, i32 100
+            v0 = add u32 2, u32 100
             return v0
         }
     ",
     );
-    assert_eq!(value, Value::Numeric(NumericValue::I32(102)));
+    assert_eq!(value, Value::Numeric(NumericValue::U32(102)));
 }
 
 #[test]
@@ -64,12 +64,12 @@ fn sub() {
         "
         acir(inline) fn main f0 {
           b0():
-            v0 = sub i32 10101, i32 101
+            v0 = sub u32 10101, u32 101
             return v0
         }
     ",
     );
-    assert_eq!(value, Value::Numeric(NumericValue::I32(10000)));
+    assert_eq!(value, Value::Numeric(NumericValue::U32(10000)));
 }
 
 #[test]
@@ -79,7 +79,8 @@ fn sub_underflow() {
         acir(inline) fn main f0 {
           b0():
             v0 = sub i8 136, i8 10  // -120 - 10
-            return v0
+            v1 = truncate v0 to 8 bits, max_bit_size: 9
+            return v1
         }
     ",
     );

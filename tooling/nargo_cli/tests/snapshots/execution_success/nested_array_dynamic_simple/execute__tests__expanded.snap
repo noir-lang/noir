@@ -2,7 +2,7 @@
 source: tooling/nargo_cli/tests/execute.rs
 expression: expanded_code
 ---
-fn main(x: Field) {
+fn main(x: u32) {
     let array: [[(Field, [Field; 1], [Field; 1]); 1]; 1] = [[(1, [2], [3])]];
     let fetched_value: [(Field, [Field; 1], [Field; 1]); 1] = array[x - 3];
     assert(fetched_value[0].0 == 1);

@@ -3249,6 +3249,7 @@ dependencies = [
  "nargo_fmt",
  "nargo_toml",
  "noir_artifact_cli",
+ "noir_ast_fuzzer",
  "noir_debugger",
  "noir_lsp",
  "noirc_abi",

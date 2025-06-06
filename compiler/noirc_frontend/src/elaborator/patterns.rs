@@ -19,7 +19,6 @@ use crate::{
     hir_def::{
         expr::{HirExpression, HirIdent, HirLiteral, HirMethodReference, ImplKind, TraitMethod},
         stmt::HirPattern,
-        traits::NamedType,
     },
     node_interner::{
         DefinitionId, DefinitionInfo, DefinitionKind, ExprId, FuncId, GlobalId, TraitImplKind,
@@ -568,7 +567,6 @@ impl Elaborator<'_> {
 
     pub(super) fn elaborate_variable(&mut self, variable: Path) -> (ExprId, Type) {
         let variable = self.validate_path(variable);
-
         if let Some((expr_id, typ)) =
             self.elaborate_variable_as_self_method_or_associated_constant(&variable)
         {
@@ -653,6 +651,7 @@ impl Elaborator<'_> {
             return None;
         }
 
+        let location = variable.location;
         let name = variable.segments[1].ident.as_str();
 
         // Check the `Self::AssociatedConstant` case when inside a trait
@@ -664,7 +663,7 @@ impl Elaborator<'_> {
                     // produce code (only trait impl methods do)
                     let numeric_type: Type = *numeric_type.clone();
                     let value = SignedField::zero();
-                    return Some(self.constant_integer(numeric_type, value, variable.location));
+                    return Some(self.constant_integer(numeric_type, value, location));
                 }
             }
         }
@@ -678,14 +677,15 @@ impl Elaborator<'_> {
         };
 
         // Check the `Self::AssociatedConstant` case when inside a trait impl
-        let associated_types = self.interner.get_associated_types_for_impl(*trait_impl_id);
-        let associated_type = associated_types.iter().find(|typ| typ.name.as_str() == name);
-        if let Some(NamedType { typ: Type::Constant(field, Kind::Numeric(numeric_type)), .. }) =
-            associated_type
+        if let Some((definition_id, numeric_type)) =
+            self.interner.get_trait_impl_associated_constant(*trait_impl_id, name).cloned()
         {
-            let numeric_type: Type = *numeric_type.clone();
-            let value = SignedField::positive(*field);
-            return Some(self.constant_integer(numeric_type, value, variable.location));
+            let hir_ident = HirIdent::non_trait_method(definition_id, location);
+            let hir_expr = HirExpression::Ident(hir_ident, None);
+            let id = self.interner.push_expr(hir_expr);
+            self.interner.push_expr_location(id, location);
+            self.interner.push_expr_type(id, numeric_type.clone());
+            return Some((id, numeric_type));
         }
 
         // Check the `Self::method_name` case when `Self` is a primitive type
@@ -963,6 +963,9 @@ impl Elaborator<'_> {
                 self.resolve_local_variable(hir_ident.clone(), var_scope_index);
 
                 self.interner.add_local_reference(hir_ident.id, location);
+            }
+            DefinitionKind::AssociatedConstant(..) => {
+                // Nothing to do here
             }
         }
     }

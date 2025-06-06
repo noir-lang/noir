@@ -9,6 +9,7 @@ mod input;
 mod program;
 
 pub use abi::program_abi;
+pub use compare::input_values_to_ssa;
 pub use input::arb_inputs;
 use program::freq::Freqs;
 pub use program::{DisplayAstAsNoir, DisplayAstAsNoirComptime, arb_program, arb_program_comptime};
@@ -81,7 +82,7 @@ impl Default for Config {
             ("drop", 0), // The `ownership` module says it will insert `Drop` and `Clone`.
             ("assign", 30),
             ("if", 10),
-            ("for", 18),
+            ("for", 22),
             ("let", 25),
             ("call", 5),
         ]);
