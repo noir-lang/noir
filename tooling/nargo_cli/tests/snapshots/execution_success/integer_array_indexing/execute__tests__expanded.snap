@@ -7,6 +7,6 @@ global ARRAY_LEN: u32 = 3;
 fn main(arr: [Field; 3], x: u32) -> pub Field {
     let mut value: Field = arr[ARRAY_LEN - 1];
     value = value + arr[0 as u32];
-    value = value + arr[1 as Field];
+    value = value + arr[1 as u32];
     value + (x as Field)
 }

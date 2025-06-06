@@ -12,7 +12,10 @@ fn main(expected: pub Field, first: Field, input: [Field; 20]) {
             hasher_slice[i_3780] = 100;
         }
     } else {
-        hasher_slice[expected] = 100;
+        {
+            let i_3778: u32 = expected as u32;
+            hasher_slice[i_3778] = 100;
+        }
     };
     assert(hasher_slice[0] == expected);
 }
