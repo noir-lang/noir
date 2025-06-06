@@ -17,4 +17,11 @@ error: No matching impl found for `T: Baz`
    │
    = Required by `Field: Qux<_>`
 
-Aborting due to 2 previous errors
+error: Type annotation needed
+   ┌─ src/main.nr:39:43
+   │
+39 │             assert(0.foo().bar().baz() == qux(0));
+   │                                           --- Could not determine the type of the generic argument `U` declared on the function `qux`
+   │
+
+Aborting due to 3 previous errors

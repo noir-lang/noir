@@ -16,4 +16,11 @@ error: Expected type, found numeric generic
   │                                      - not a type
   │
 
-Aborting due to 1 previous error
+error: Type annotation needed
+  ┌─ src/main.nr:8:9
+  │
+8 │         x.zeroed()
+  │         -------- Could not determine the type of the generic argument `T` declared on the function `zeroed`
+  │
+
+Aborting due to 2 previous errors

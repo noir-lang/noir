@@ -41,7 +41,7 @@ use crate::{
 };
 
 use super::{
-    Elaborator, FunctionContext, PathResolutionTarget, UnsafeBlockStatus, lints,
+    Elaborator, PathResolutionTarget, UnsafeBlockStatus, lints,
     path_resolution::{PathResolutionItem, PathResolutionMode, TypedPath},
     primitive_types::PrimitiveType,
 };
@@ -984,7 +984,7 @@ impl Elaborator<'_> {
     /// in self.type_variables to default it later.
     pub(super) fn polymorphic_integer_or_field(&mut self) -> Type {
         let typ = Type::polymorphic_integer_or_field(self.interner);
-        self.push_type_variable(typ.clone());
+        self.push_defaultable_type_variable(typ.clone());
         typ
     }
 
@@ -992,7 +992,7 @@ impl Elaborator<'_> {
     /// in self.type_variables to default it later.
     pub(super) fn polymorphic_integer(&mut self) -> Type {
         let typ = Type::polymorphic_integer(self.interner);
-        self.push_type_variable(typ.clone());
+        self.push_defaultable_type_variable(typ.clone());
         typ
     }
 
@@ -1000,7 +1000,7 @@ impl Elaborator<'_> {
     /// in self.type_variables to default it later.
     pub(super) fn type_variable_with_kind(&mut self, type_var_kind: Kind) -> Type {
         let typ = Type::type_variable_with_kind(self.interner, type_var_kind);
-        self.push_type_variable(typ.clone());
+        self.push_defaultable_type_variable(typ.clone());
         typ
     }
 
@@ -2281,28 +2281,6 @@ impl Elaborator<'_> {
         } else {
             self.generics.push(resolved_generic.clone());
         }
-    }
-
-    /// Push a type variable into the current FunctionContext to be defaulted if needed
-    /// at the end of the earlier of either the current function or the current comptime scope.
-    fn push_type_variable(&mut self, typ: Type) {
-        self.get_function_context().type_variables.push(typ);
-    }
-
-    /// Push a trait constraint into the current FunctionContext to be solved if needed
-    /// at the end of the earlier of either the current function or the current comptime scope.
-    pub fn push_trait_constraint(
-        &mut self,
-        constraint: TraitConstraint,
-        expr_id: ExprId,
-        select_impl: bool,
-    ) {
-        self.get_function_context().trait_constraints.push((constraint, expr_id, select_impl));
-    }
-
-    fn get_function_context(&mut self) -> &mut FunctionContext {
-        let context = self.function_context.last_mut();
-        context.expect("The function_context stack should always be non-empty")
     }
 
     pub fn bind_generics_from_trait_constraint(

@@ -24,7 +24,7 @@ use crate::{
     token::{MetaAttribute, MetaAttributeName, SecondaryAttribute, SecondaryAttributeKind},
 };
 
-use super::{ElaborateReason, Elaborator, FunctionContext, ResolverMeta};
+use super::{ElaborateReason, Elaborator, ResolverMeta};
 
 #[derive(Debug, Copy, Clone)]
 struct AttributeContext {
@@ -96,7 +96,7 @@ impl<'context> Elaborator<'context> {
             self.elaborate_reasons.clone(),
         );
 
-        elaborator.function_context.push(FunctionContext::default());
+        elaborator.push_function_context();
         elaborator.scopes.start_function();
 
         elaborator.local_module = self.local_module;
@@ -644,7 +644,7 @@ impl<'context> Elaborator<'context> {
         // in this comptime block early before the function as a whole finishes elaborating.
         // Otherwise the interpreter below may find expressions for which the underlying trait
         // call is not yet solved for.
-        self.function_context.push(Default::default());
+        self.push_function_context();
 
         let result = f(self);
 
