@@ -137,9 +137,9 @@ struct PerFunctionContext<'f> {
     /// If a value is not used in anymore loads we can remove the last store to that value.
     last_loads: HashMap<ValueId, (InstructionId, BasicBlockId)>,
 
-    /// Track whether a reference was passed into another entry point
+    /// Track whether a reference was passed into another instruction (e.g. Call)
     /// This is needed to determine whether we can remove a store.
-    calls_reference_input: HashSet<ValueId>,
+    instruction_input_references: HashSet<ValueId>,
 
     /// Track whether a reference has been aliased, and store the respective
     /// instruction that aliased that reference.
@@ -159,8 +159,8 @@ impl<'f> PerFunctionContext<'f> {
             blocks: BTreeMap::new(),
             instructions_to_remove: HashSet::default(),
             last_loads: HashMap::default(),
-            calls_reference_input: HashSet::default(),
             aliased_references: HashMap::default(),
+            instruction_input_references: HashSet::default(),
         }
     }
 
@@ -239,26 +239,27 @@ impl<'f> PerFunctionContext<'f> {
                     return true;
                 }
 
-                let allocation_aliases_parameter =
-                    aliases.any(|alias| self.calls_reference_input.contains(&alias));
-                if allocation_aliases_parameter == Some(true) {
+                let allocation_aliases_instr_input =
+                    aliases.any(|alias| self.instruction_input_references.contains(&alias));
+                if allocation_aliases_instr_input == Some(true) {
                     return true;
                 }
 
-                let allocation_aliases_parameter =
+                let allocation_aliases_terminator_args =
                     aliases.any(|alias| all_terminator_values.contains(&alias));
-                if allocation_aliases_parameter == Some(true) {
+                if allocation_aliases_terminator_args == Some(true) {
                     return true;
                 }
 
-                let allocation_aliases_parameter = aliases.any(|alias| {
+                let all_aliases_set_for_removal = aliases.any(|alias| {
                     if let Some(alias_instructions) = self.aliased_references.get(&alias) {
                         self.instructions_to_remove.is_disjoint(alias_instructions)
                     } else {
                         false
                     }
                 });
-                if allocation_aliases_parameter == Some(true) {
+
+                if all_aliases_set_for_removal == Some(true) {
                     return true;
                 }
             }
@@ -384,7 +385,6 @@ impl<'f> PerFunctionContext<'f> {
                 if let Some(aliases) = references.aliases.get(expression) {
                     let allocation_aliases_parameter =
                         aliases.any(|alias| reference_parameters.contains(&alias));
-
                     // If `allocation_aliases_parameter` is known to be false
                     if allocation_aliases_parameter == Some(false) {
                         self.instructions_to_remove.insert(*instruction);
@@ -459,16 +459,11 @@ impl<'f> PerFunctionContext<'f> {
                     self.instructions_to_remove.insert(*last_store);
                 }
 
-                if self.inserter.function.dfg.value_is_reference(value) {
-                    if let Some(expression) = references.expressions.get(&value) {
-                        if let Some(aliases) = references.aliases.get(expression) {
-                            aliases.for_each(|alias| {
-                                self.aliased_references
-                                    .entry(alias)
-                                    .or_default()
-                                    .insert(instruction);
-                            });
-                        }
+                if let Some(expression) = references.expressions.get(&value) {
+                    if let Some(aliases) = references.aliases.get(expression) {
+                        aliases.for_each(|alias| {
+                            self.aliased_references.entry(alias).or_default().insert(instruction);
+                        });
                     }
                 }
 
@@ -526,18 +521,20 @@ impl<'f> PerFunctionContext<'f> {
                 }
             }
             Instruction::Call { arguments, .. } => {
+                // We want to fetch all aliases of each argument to be marked unknown as an array
+                // containing references internally can potentially be aliased by those references.
+                let mut all_aliases = Vec::new();
                 for arg in arguments {
-                    if self.inserter.function.dfg.value_is_reference(*arg) {
-                        if let Some(expression) = references.expressions.get(arg) {
-                            if let Some(aliases) = references.aliases.get(expression) {
-                                aliases.for_each(|alias| {
-                                    self.calls_reference_input.insert(alias);
-                                });
-                            }
+                    if let Some(expression) = references.expressions.get(arg) {
+                        if let Some(aliases) = references.aliases.get(expression) {
+                            aliases.for_each(|alias| {
+                                self.instruction_input_references.insert(alias);
+                                all_aliases.push(alias);
+                            });
                         }
                     }
                 }
-                self.mark_all_unknown(arguments, references);
+                self.mark_all_unknown(&all_aliases, references);
             }
             Instruction::MakeArray { elements, typ } => {
                 // If `array` is an array constant that contains reference types, then insert each element
@@ -547,7 +544,7 @@ impl<'f> PerFunctionContext<'f> {
 
                     let expr = Expression::ArrayElement(Box::new(Expression::Other(array)));
                     references.expressions.insert(array, expr.clone());
-                    let aliases = references.aliases.entry(expr).or_default();
+                    let aliases = references.aliases.entry(expr).or_insert(AliasSet::known_empty());
 
                     for element in elements {
                         aliases.insert(*element);
@@ -1232,6 +1229,71 @@ mod tests {
 
         let ssa = ssa.mem2reg();
         // We expect the program to be unchanged
+        assert_normalized_ssa_equals(ssa, src);
+    }
+
+    #[test]
+    fn keep_last_store_in_make_array_used_in_call_single_block() {
+        // This checks that when an array containing references is used in a call
+        // that we do not remove the original stores to those internal references
+        let src = r"
+        brillig(inline) fn main f0 {
+          b0():
+            v0 = allocate -> &mut Field
+            store Field 1 at v0
+            v3 = make_array [u32 0, v0] : [(u32, &mut Field); 1]
+            v5 = call f1(v3) -> Field
+            v6 = load v0 -> Field   // make sure this isn't optimized to Field 1
+            return v3
+        }
+        brillig(inline) fn foo f1 {
+          b0(v0: [(u32, &mut Field); 1]):
+            v2 = array_get v0, index u32 1 -> &mut Field
+            v3 = load v2 -> Field
+            store Field 77 at v2
+            return v3
+        }
+        ";
+
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.mem2reg();
+        assert_normalized_ssa_equals(ssa, src);
+    }
+
+    #[test]
+    fn keep_last_store_used_in_make_array_used_as_reference() {
+        let src = r"
+        acir(inline) fn main f0 {
+          b0():
+            v2 = allocate -> &mut u1
+            store u1 0 at v2
+            v4 = make_array [v2] : [&mut u1; 1]
+            v5 = allocate -> &mut [&mut u1; 1]
+            store v4 at v5
+            jmp b1(u32 0)
+          b1(v0: u32):
+            v7 = eq v0, u32 0
+            jmpif v7 then: b2, else: b3
+          b2():
+            v14 = unchecked_add v0, u32 1
+            jmp b1(v14)
+          b3():
+            v8 = load v5 -> [&mut u1; 1]
+            v9 = array_get v8, index u32 0 -> &mut u1
+            v10 = load v9 -> u1
+            jmpif v10 then: b4, else: b5
+          b4():
+            jmp b6(Field 0)
+          b5():
+            jmp b6(Field 1)
+          b6(v1: Field):
+            return v1
+        }
+        ";
+
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.mem2reg();
+
         assert_normalized_ssa_equals(ssa, src);
     }
 }
