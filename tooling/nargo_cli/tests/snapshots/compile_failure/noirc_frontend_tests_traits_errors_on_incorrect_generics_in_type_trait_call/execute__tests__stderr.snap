@@ -3,9 +3,9 @@ source: tooling/nargo_cli/tests/execute.rs
 expression: stderr
 ---
 error: struct U60Repr expects 0 generics but 1 was given
-   ┌─ src/main.nr:17:24
+   ┌─ src/main.nr:18:24
    │
-17 │         let _ = U60Repr::<Field>::from2([1, 2, 3]);
+18 │         let _ = U60Repr::<Field>::from2([1, 2, 3]);
    │                        ---------
    │
 
