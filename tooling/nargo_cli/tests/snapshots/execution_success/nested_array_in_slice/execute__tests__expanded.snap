@@ -32,24 +32,24 @@ fn main(y: u32) {
     assert(x[y].bar.inner == [109, 110, 111]);
     if y != 2 {
         {
-            let i_3782: Field = y - 2;
+            let i_3782: u32 = y - 2;
             x[i_3782].a = 50;
         }
     } else {
         {
-            let i_3783: Field = y - 2;
+            let i_3783: u32 = y - 2;
             x[i_3783].a = 100;
         }
     };
     assert(x[y - 2].a == 50);
     if y == 2 {
         {
-            let i_3784: Field = y - 1;
+            let i_3784: u32 = y - 1;
             x[i_3784].b = [50, 51, 52];
         }
     } else {
         {
-            let i_3785: Field = y - 1;
+            let i_3785: u32 = y - 1;
             x[i_3785].b = [100, 101, 102];
         }
     };
