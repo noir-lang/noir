@@ -18,7 +18,7 @@ that contains `cvise` and `nargo`, which it repeatedly invokes to compile the No
 Execute the following command to build the image. This needs to be done every time `nargo` itself changes:
 
 ```shell
-scripts/docker-build.sh
+tooling/ast_fuzzer/minimizer/scripts/docker-build.sh
 ```
 
 ### Minimize Noir
@@ -29,7 +29,7 @@ and we need a single line of the error message we are looking to preserve from i
 With that, we need to invoke the `minimize.sh` script as follows:
 
 ```shell
-scripts/minimize.sh "<error-message>" execute /absolute/path/to/main.nr
+tooling/ast_fuzzer/minimizer/scripts/minimize.sh "<error-message>" execute path/to/main.nr
 ```
 
 The command can be `compile` or `execute`. The latter needs a `Prover.toml` file, which can be given following
@@ -191,7 +191,7 @@ That's pretty clear, but the code is a bit large. See if we can reduce it.
 First try with a related, but different error message, just to see what happens:
 
 ```console
-❯ scripts/minimize.sh "condition value is not a boolean: MismatchedBitSize" execute /Users/aakoshh/Work/aztec/noir/test_programs/execution_success/fuzz_testing/src/main.nr
+❯ tooling/ast_fuzzer/minimizer/scripts/scripts/minimize.sh "condition value is not a boolean: MismatchedBitSize" execute test_programs/execution_success/fuzz_testing/src/main.nr
 C-Vise cannot run because the interestingness test does not return
 zero. Please ensure that it does so not only in the directory where
 you are invoking C-Vise, but also in an arbitrary temporary
@@ -214,7 +214,7 @@ So `cvise` is telling us that the script the tool prepared did not return 0, whi
 Try again, with the correct message:
 
 ```console
-❯ scripts/minimize.sh "Bit size for rhs 254 does not match op bit size 1" execute /Users/aakoshh/Work/aztec/noir/test_programs/execution_success/fuzz_testing/src/main.nr
+❯ tooling/ast_fuzzer/minimizer/scripts/minimize.sh "Bit size for rhs 254 does not match op bit size 1" execute test_programs/execution_success/fuzz_testing/src/main.nr
 00:00:00 INFO ===< 9 >===
 00:00:00 INFO running 14 interestingness tests in parallel
 00:00:00 INFO INITIAL PASSES
@@ -391,7 +391,7 @@ Location: compiler/noirc_evaluator/src/ssa/opt/flatten_cfg/value_merger.rs:68
 See if we can minimize it:
 
 ```console
-❯ scripts/minimize.sh "Cannot return references from an if expression" execute /Users/aakoshh/Work/aztec/noir/test_programs/execution_success/fuzz_testing/src/main.nr
+❯ tooling/ast_fuzzer/minimizer/scripts/minimize.sh "Cannot return references from an if expression" execute $PWD/test_programs/execution_success/fuzz_testing/src/main.nr
 00:00:00 INFO ===< 10 >===
 00:00:00 INFO running 14 interestingness tests in parallel
 00:00:00 INFO INITIAL PASSES

@@ -20,6 +20,10 @@ MAIN_PATH=$1; shift
 if [ -z "$MAIN_PATH" ]; then
     usage "missing path to main.nr"
 fi
+# We need an absolute path for mounting a docker volume
+if [[ $MAIN_PATH != /* ]]; then
+    MAIN_PATH=$PWD/$MAIN_PATH;
+fi
 if [ ! -f "$MAIN_PATH" ]; then
     usage "$MAIN_PATH is not a file"
 fi
