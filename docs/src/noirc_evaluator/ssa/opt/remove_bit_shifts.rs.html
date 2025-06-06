@@ -513,7 +513,35 @@
 <a href="#512" id="512">512</a>
 <a href="#513" id="513">513</a>
 <a href="#514" id="514">514</a>
-<a href="#515" id="515">515</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::{borrow::Cow, sync::Arc};
+<a href="#515" id="515">515</a>
+<a href="#516" id="516">516</a>
+<a href="#517" id="517">517</a>
+<a href="#518" id="518">518</a>
+<a href="#519" id="519">519</a>
+<a href="#520" id="520">520</a>
+<a href="#521" id="521">521</a>
+<a href="#522" id="522">522</a>
+<a href="#523" id="523">523</a>
+<a href="#524" id="524">524</a>
+<a href="#525" id="525">525</a>
+<a href="#526" id="526">526</a>
+<a href="#527" id="527">527</a>
+<a href="#528" id="528">528</a>
+<a href="#529" id="529">529</a>
+<a href="#530" id="530">530</a>
+<a href="#531" id="531">531</a>
+<a href="#532" id="532">532</a>
+<a href="#533" id="533">533</a>
+<a href="#534" id="534">534</a>
+<a href="#535" id="535">535</a>
+<a href="#536" id="536">536</a>
+<a href="#537" id="537">537</a>
+<a href="#538" id="538">538</a>
+<a href="#539" id="539">539</a>
+<a href="#540" id="540">540</a>
+<a href="#541" id="541">541</a>
+<a href="#542" id="542">542</a>
+<a href="#543" id="543">543</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::{borrow::Cow, sync::Arc};
 
 <span class="kw">use </span>acvm::{FieldElement, acir::AcirField};
 <span class="kw">use </span>noirc_errors::call_stack::CallStackId;
@@ -685,6 +713,8 @@
         <span class="kw">let </span>rhs_is_less_than_bit_size = <span class="self">self</span>.insert_binary(rhs, BinaryOp::Lt, bit_size_value);
         <span class="kw">let </span>rhs_is_less_than_bit_size_with_rhs_typ =
             <span class="self">self</span>.insert_cast(rhs_is_less_than_bit_size, rhs_typ);
+        <span class="kw">let </span>rhs_is_less_than_bit_size_with_lhs_typ =
+            <span class="self">self</span>.insert_cast(rhs_is_less_than_bit_size, lhs_typ);
         <span class="comment">// Nullify rhs in case of overflow, to ensure that pow returns a value compatible with lhs
         </span><span class="kw">let </span>rhs = <span class="self">self</span>.insert_binary(
             rhs_is_less_than_bit_size_with_rhs_typ,
@@ -693,49 +723,75 @@
         );
         <span class="kw">let </span>pow = <span class="self">self</span>.pow(base, rhs);
         <span class="kw">let </span>pow = <span class="self">self</span>.insert_cast(pow, lhs_typ);
-        <span class="kw">let </span>result = <span class="kw">if </span>lhs_typ.is_unsigned() {
-            <span class="comment">// unsigned right bit shift is just a normal division
-            </span><span class="self">self</span>.insert_binary(lhs, BinaryOp::Div, pow)
-        } <span class="kw">else </span>{
-            <span class="comment">// Get the sign of the operand; positive signed operand will just do a division as well
-            </span><span class="kw">let </span>zero = <span class="self">self</span>.numeric_constant(FieldElement::zero(), NumericType::signed(bit_size));
-            <span class="kw">let </span>lhs_sign = <span class="self">self</span>.insert_binary(lhs, BinaryOp::Lt, zero);
-            <span class="kw">let </span>lhs_sign_as_field = <span class="self">self</span>.insert_cast(lhs_sign, NumericType::NativeField);
-            <span class="kw">let </span>lhs_as_field = <span class="self">self</span>.insert_cast(lhs, NumericType::NativeField);
-            <span class="comment">// For negative numbers, convert to 1-complement using wrapping addition of a + 1
-            // Unchecked add as these are fields
-            </span><span class="kw">let </span>one_complement = <span class="self">self</span>.insert_binary(
-                lhs_sign_as_field,
-                BinaryOp::Add { unchecked: <span class="bool-val">true </span>},
-                lhs_as_field,
-            );
-            <span class="kw">let </span>one_complement = <span class="self">self</span>.insert_truncate(one_complement, bit_size, bit_size + <span class="number">1</span>);
-            <span class="kw">let </span>one_complement = <span class="self">self</span>.insert_cast(one_complement, NumericType::signed(bit_size));
-            <span class="comment">// Performs the division on the 1-complement (or the operand if positive)
-            </span><span class="kw">let </span>shifted_complement = <span class="self">self</span>.insert_binary(one_complement, BinaryOp::Div, pow);
-            <span class="comment">// Convert back to 2-complement representation if operand is negative
-            </span><span class="kw">let </span>lhs_sign_as_int = <span class="self">self</span>.insert_cast(lhs_sign, lhs_typ);
 
-            <span class="comment">// The requirements for this to underflow are all of these:
-            // - lhs &lt; 0
-            // - ones_complement(lhs) / (2^rhs) == 0
-            // As the upper bit is set for the ones complement of negative numbers we'd need 2^rhs
-            // to be larger than the lhs bitsize for this to overflow.
-            </span><span class="kw">let </span>shifted = <span class="self">self</span>.insert_binary(
-                shifted_complement,
-                BinaryOp::Sub { unchecked: <span class="bool-val">true </span>},
-                lhs_sign_as_int,
+        <span class="kw">if </span>lhs_typ.is_unsigned() {
+            <span class="comment">// unsigned right bit shift is just a normal division
+            </span><span class="kw">let </span>result = <span class="self">self</span>.insert_binary(lhs, BinaryOp::Div, pow);
+            <span class="comment">// In  case of overflow, pow is 1, because rhs was nullified, so we return explicitly 0.
+            </span><span class="kw">return </span><span class="self">self</span>.insert_binary(
+                rhs_is_less_than_bit_size_with_lhs_typ,
+                BinaryOp::Mul { unchecked: <span class="bool-val">true </span>},
+                result,
             );
-            <span class="self">self</span>.insert_truncate(shifted, bit_size, bit_size + <span class="number">1</span>)
-        };
-        <span class="comment">// Returns 0 in case of overflow
-        </span><span class="kw">let </span>rhs_is_less_than_bit_size_with_lhs_typ =
-            <span class="self">self</span>.insert_cast(rhs_is_less_than_bit_size, lhs_typ);
-        <span class="self">self</span>.insert_binary(
+        }
+        <span class="comment">// Get the sign of the operand; positive signed operand will just do a division as well
+        </span><span class="kw">let </span>zero = <span class="self">self</span>.numeric_constant(FieldElement::zero(), NumericType::signed(bit_size));
+        <span class="kw">let </span>lhs_sign = <span class="self">self</span>.insert_binary(lhs, BinaryOp::Lt, zero);
+        <span class="kw">let </span>lhs_sign_as_field = <span class="self">self</span>.insert_cast(lhs_sign, NumericType::NativeField);
+        <span class="kw">let </span>lhs_as_field = <span class="self">self</span>.insert_cast(lhs, NumericType::NativeField);
+        <span class="comment">// For negative numbers, convert to 1-complement using wrapping addition of a + 1
+        // Unchecked add as these are fields
+        </span><span class="kw">let </span>one_complement =
+            <span class="self">self</span>.insert_binary(lhs_sign_as_field, BinaryOp::Add { unchecked: <span class="bool-val">true </span>}, lhs_as_field);
+        <span class="kw">let </span>one_complement = <span class="self">self</span>.insert_truncate(one_complement, bit_size, bit_size + <span class="number">1</span>);
+        <span class="kw">let </span>one_complement = <span class="self">self</span>.insert_cast(one_complement, NumericType::signed(bit_size));
+        <span class="comment">// Performs the division on the 1-complement (or the operand if positive)
+        </span><span class="kw">let </span>shifted_complement = <span class="self">self</span>.insert_binary(one_complement, BinaryOp::Div, pow);
+        <span class="comment">// Convert back to 2-complement representation if operand is negative
+        </span><span class="kw">let </span>lhs_sign_as_int = <span class="self">self</span>.insert_cast(lhs_sign, lhs_typ);
+
+        <span class="comment">// The requirements for this to underflow are all of these:
+        // - lhs &lt; 0
+        // - ones_complement(lhs) / (2^rhs) == 0
+        // As the upper bit is set for the ones complement of negative numbers we'd need 2^rhs
+        // to be larger than the lhs bitsize for this to overflow.
+        </span><span class="kw">let </span>shifted = <span class="self">self</span>.insert_binary(
+            shifted_complement,
+            BinaryOp::Sub { unchecked: <span class="bool-val">true </span>},
+            lhs_sign_as_int,
+        );
+        <span class="kw">let </span>result = <span class="self">self</span>.insert_truncate(shifted, bit_size, bit_size + <span class="number">1</span>);
+
+        <span class="comment">// Returns 0 or -1 in case of overflow:
+        // In  case of overflow, and because rhs was nullified, we need to
+        // return the correct value, which is 0 or -1 depending on the sign of lhs
+
+        // Computes -1, or 0 if lhs is positive: is the expected result if there is an overflow
+        </span><span class="kw">let </span>minus_one = <span class="self">self</span>.numeric_constant(
+            NumericType::Unsigned { bit_size }.max_value().expect(<span class="string">"Invalid bit size"</span>),
+            lhs_typ,
+        );
+        <span class="kw">let </span>minus_one_or_zero =
+            <span class="self">self</span>.insert_binary(minus_one, BinaryOp::Mul { unchecked: <span class="bool-val">true </span>}, lhs_sign_as_int);
+        <span class="comment">// -1, or 0 if lhs is positve or if there is no overflow
+        </span><span class="kw">let </span>one = <span class="self">self</span>.numeric_constant(FieldElement::one(), lhs_typ);
+        <span class="kw">let </span>no_overflow = <span class="self">self</span>.insert_binary(
+            one,
+            BinaryOp::Sub { unchecked: <span class="bool-val">true </span>},
+            rhs_is_less_than_bit_size_with_lhs_typ,
+        );
+        <span class="kw">let </span>minus_one_or_zero =
+            <span class="self">self</span>.insert_binary(minus_one_or_zero, BinaryOp::Mul { unchecked: <span class="bool-val">true </span>}, no_overflow);
+
+        <span class="comment">// predicated result: 0 if overflow, else: result
+        </span><span class="kw">let </span>result = <span class="self">self</span>.insert_binary(
             rhs_is_less_than_bit_size_with_lhs_typ,
             BinaryOp::Mul { unchecked: <span class="bool-val">true </span>},
             result,
-        )
+        );
+
+        <span class="comment">// result + minus_one_or_zero gives the expected result in all cases
+        </span><span class="self">self</span>.insert_binary(result, BinaryOp::Add { unchecked: <span class="bool-val">true </span>}, minus_one_or_zero)
     }
 
     <span class="doccomment">/// Computes lhs^rhs via square&amp;multiply, using the bits decomposition of rhs

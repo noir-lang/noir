@@ -3850,7 +3850,7 @@
 
         <span class="self">self</span>.brillig_context.codegen_branch(left_is_negative.address, |ctx, is_negative| {
             <span class="kw">if </span>is_negative {
-                <span class="comment">// If right value is greater than the left bit size, return 0
+                <span class="comment">// If right value is greater than the left bit size, return -1
                 </span><span class="kw">let </span>rhs_does_not_overflow = SingleAddrVariable::new(ctx.allocate_register(), <span class="number">1</span>);
                 <span class="kw">let </span>lhs_bit_size =
                     ctx.make_constant_instruction(left.bit_size.into(), right.bit_size);
@@ -3886,7 +3886,7 @@
                         ctx.deallocate_single_addr(two_pow);
                         ctx.deallocate_single_addr(right_u32);
                     } <span class="kw">else </span>{
-                        ctx.const_instruction(result, <span class="number">0_u128</span>.into());
+                        ctx.const_instruction(result, ((<span class="number">1_u128 </span>&lt;&lt; left.bit_size) - <span class="number">1</span>).into());
                     }
                 });
 

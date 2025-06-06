@@ -225,8 +225,7 @@
 <a href="#224" id="224">224</a>
 <a href="#225" id="225">225</a>
 <a href="#226" id="226">226</a>
-<a href="#227" id="227">227</a>
-<a href="#228" id="228">228</a></pre></div><pre class="rust"><code><span class="kw">use </span><span class="kw">crate</span>::ast::BinaryOpKind;
+<a href="#227" id="227">227</a></pre></div><pre class="rust"><code><span class="kw">use </span><span class="kw">crate</span>::ast::BinaryOpKind;
 <span class="kw">use </span><span class="kw">crate</span>::hir::Location;
 <span class="kw">use </span><span class="kw">crate</span>::hir_def::expr::HirBinaryOp;
 
@@ -424,8 +423,7 @@
             (lhs_value <span class="kw">as </span>lhs <span class="string">"^" </span>rhs_value <span class="kw">as </span>rhs) =&gt; lhs ^ rhs
         },
         BinaryOpKind::ShiftRight =&gt; <span class="macro">match_bitshift!</span> {
-            <span class="comment">// Overflow on shift-right returns 0 in Noir
-            </span>(lhs_value <span class="kw">as </span>lhs <span class="string">"&gt;&gt;" </span>rhs_value <span class="kw">as </span>rhs) =&gt; lhs.checked_shr(rhs.into()).or(<span class="prelude-val">Some</span>(<span class="number">0</span>))
+            (lhs_value <span class="kw">as </span>lhs <span class="string">"&gt;&gt;" </span>rhs_value <span class="kw">as </span>rhs) =&gt; <span class="prelude-val">Some</span>(lhs.wrapping_shr(rhs.into()))
         },
         BinaryOpKind::ShiftLeft =&gt; <span class="macro">match_bitshift!</span> {
             (lhs_value <span class="kw">as </span>lhs <span class="string">"&lt;&lt;" </span>rhs_value <span class="kw">as </span>rhs) =&gt; lhs.checked_shl(rhs.into()).or(<span class="prelude-val">Some</span>(<span class="number">0</span>))

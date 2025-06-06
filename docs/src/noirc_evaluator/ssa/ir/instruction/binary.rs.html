@@ -510,8 +510,8 @@
                 }
                 BinaryOp::Shr =&gt; {
                     <span class="kw">if </span>rhs &gt;= bit_size <span class="kw">as </span>i128 {
-                        <span class="number">0
-                    </span>} <span class="kw">else </span>{
+                        <span class="kw">if </span>lhs &gt;= <span class="number">0 </span>{ <span class="number">0 </span>} <span class="kw">else </span>{ -<span class="number">1 </span>}
+                    } <span class="kw">else </span>{
                         result<span class="question-mark">?
                     </span>}
                 }

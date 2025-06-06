@@ -303,7 +303,9 @@
 <a href="#302" id="302">302</a>
 <a href="#303" id="303">303</a>
 <a href="#304" id="304">304</a>
-<a href="#305" id="305">305</a></pre></div><pre class="rust"><code><span class="kw">use </span>acvm::{AcirField <span class="kw">as _</span>, FieldElement};
+<a href="#305" id="305">305</a>
+<a href="#306" id="306">306</a>
+<a href="#307" id="307">307</a></pre></div><pre class="rust"><code><span class="kw">use </span>acvm::{AcirField <span class="kw">as _</span>, FieldElement};
 
 <span class="kw">use </span><span class="kw">crate</span>::ssa::ir::{
     dfg::DataFlowGraph,
@@ -598,9 +600,11 @@
             <span class="comment">// Bit shifts by constants can be treated as divisions.
             </span><span class="kw">if let </span><span class="prelude-val">Some</span>(rhs_const) = rhs_value {
                 <span class="kw">if </span>rhs_const &gt;= FieldElement::from(lhs_type.bit_size() <span class="kw">as </span>u128) {
-                    <span class="comment">// Shifting by the full width of the operand type, any `lhs` goes to zero.
-                    </span><span class="kw">let </span>zero = dfg.make_constant(FieldElement::zero(), lhs_type);
-                    <span class="kw">return </span>SimplifyResult::SimplifiedTo(zero);
+                    <span class="comment">// Shifting by the full width of the operand type, any unsigned `lhs` goes to zero.
+                    </span><span class="kw">if </span>lhs_type.is_unsigned() {
+                        <span class="kw">let </span>zero = dfg.make_constant(FieldElement::zero(), lhs_type);
+                        <span class="kw">return </span>SimplifyResult::SimplifiedTo(zero);
+                    }
                 }
                 <span class="kw">return </span>SimplifyResult::SimplifiedToInstruction(simplified);
             }
