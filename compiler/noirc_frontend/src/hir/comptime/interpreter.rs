@@ -173,13 +173,23 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
         let previous_state = self.enter_function();
 
         for ((parameter, typ, _), (argument, arg_location)) in parameters.iter().zip(arguments) {
-            self.define_pattern(parameter, typ, argument, arg_location)?;
+            let result = self.define_pattern(parameter, typ, argument, arg_location);
+            if let Err(err) = result {
+                self.exit_function(previous_state);
+                return Err(err);
+            }
         }
 
-        let function_body = self.get_function_body(function, location)?;
-        let result = self.evaluate(function_body)?;
+        let function_body = match self.get_function_body(function, location) {
+            Ok(body) => body,
+            Err(err) => {
+                self.exit_function(previous_state);
+                return Err(err);
+            }
+        };
+        let result = self.evaluate(function_body);
         self.exit_function(previous_state);
-        Ok(result)
+        result
     }
 
     /// Try to retrieve a function's body.
@@ -299,17 +309,21 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
 
         let parameters = closure.parameters.iter().zip(arguments);
         for ((parameter, typ), (argument, arg_location)) in parameters {
-            self.define_pattern(parameter, typ, argument, arg_location)?;
+            let result = self.define_pattern(parameter, typ, argument, arg_location);
+            if let Err(err) = result {
+                self.exit_function(previous_state);
+                return Err(err);
+            }
         }
 
         for (param, arg) in closure.captures.into_iter().zip(environment) {
             self.define(param.ident.id, arg);
         }
 
-        let result = self.evaluate(closure.body)?;
+        let result = self.evaluate(closure.body);
 
         self.exit_function(previous_state);
-        Ok(result)
+        result
     }
 
     /// Enters a function, pushing a new scope and resetting any required state.
@@ -338,7 +352,8 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
     }
 
     pub(super) fn pop_scope(&mut self) {
-        self.elaborator.interner.comptime_scopes.pop();
+        self.elaborator.interner.comptime_scopes.pop().expect("Expected a scope to exist");
+        assert!(!self.elaborator.interner.comptime_scopes.is_empty());
     }
 
     fn current_scope_mut(&mut self) -> &mut HashMap<DefinitionId, Value> {
@@ -686,6 +701,29 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
 
                 self.evaluate_integer(value.into(), id)
             }
+            DefinitionKind::AssociatedConstant(trait_impl_id, name) => {
+                let associated_types =
+                    self.elaborator.interner.get_associated_types_for_impl(*trait_impl_id);
+                let associated_type = associated_types
+                    .iter()
+                    .find(|typ| typ.name.as_str() == name)
+                    .expect("Expected to find associated type");
+                let Kind::Numeric(numeric_type) = associated_type.typ.kind() else {
+                    unreachable!("Expected associated type to be numeric");
+                };
+                let location = self.elaborator.interner.expr_location(&id);
+                match associated_type
+                    .typ
+                    .evaluate_to_field_element(&associated_type.typ.kind(), location)
+                {
+                    Ok(value) => self.evaluate_integer(value.into(), id),
+                    Err(err) => Err(InterpreterError::NonIntegerArrayLength {
+                        typ: associated_type.typ.clone(),
+                        err: Some(Box::new(err)),
+                        location,
+                    }),
+                }
+            }
         }
     }
 
@@ -765,7 +803,11 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
         self.push_scope();
 
         for statement in block.statements {
-            self.evaluate_statement(statement)?;
+            let result = self.evaluate_statement(statement);
+            if result.is_err() {
+                self.pop_scope();
+                return result;
+            }
         }
 
         let result = if let Some(statement) = last_statement {
@@ -1066,7 +1108,11 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
             if if_.alternative.is_some() {
                 self.evaluate(if_.consequence)
             } else {
-                self.evaluate(if_.consequence)?;
+                let result = self.evaluate(if_.consequence);
+                if result.is_err() {
+                    self.pop_scope();
+                    return result;
+                }
                 Ok(Value::Unit)
             }
         } else {
@@ -1431,12 +1477,17 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
         self.evaluate_statement(statement)
     }
 
-    fn print_oracle(&self, arguments: Vec<(Value, Location)>) -> Result<Value, InterpreterError> {
+    fn print_oracle(
+        &mut self,
+        arguments: Vec<(Value, Location)>,
+    ) -> Result<Value, InterpreterError> {
         assert_eq!(arguments.len(), 2);
 
-        if self.elaborator.interner.disable_comptime_printing {
+        let Some(output) = self.elaborator.interpreter_output else {
             return Ok(Value::Unit);
-        }
+        };
+
+        let mut output = output.borrow_mut();
 
         let print_newline = arguments[0].0 == Value::Bool(true);
         let contents = arguments[1].0.display(self.elaborator.interner);
@@ -1450,9 +1501,9 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
                 eprint!("{}", contents);
             }
         } else if print_newline {
-            println!("{}", contents);
+            writeln!(output, "{}", contents).expect("write should succeed");
         } else {
-            print!("{}", contents);
+            write!(output, "{}", contents).expect("write should succeed");
         }
 
         Ok(Value::Unit)

@@ -20,9 +20,17 @@ comptime fn my_comptime_fn(typ: TypeDefinition) {
 }
 
 comptime fn mutate_struct_fields(s: TypeDefinition) {
-    let fields: [(Quoted, Type)] =
-        &[(quote { x }, quote { i32 }.as_type()), (quote { y }, quote { Field }.as_type())];
+    let fields: [(Quoted, Type, Quoted)] = &[
+        (quote { x }, quote { i32 }.as_type(), quote { pub }),
+        (quote { y }, quote { Field }.as_type(), quote { pub(crate) }),
+    ];
     s.set_fields(fields);
+    let fields: [(Quoted, Type, Quoted)] = s.fields([].as_slice());
+    assert(fields[0].2 == quote { pub });
+    assert(fields[1].2 == quote { pub(crate) });
+    let fields: [(Quoted, Type, Quoted)] = s.fields_as_written();
+    assert(fields[0].2 == quote { pub });
+    assert(fields[1].2 == quote { pub(crate) });
 }
 
 mod foo {

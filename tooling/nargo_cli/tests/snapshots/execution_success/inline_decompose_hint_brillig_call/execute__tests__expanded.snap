@@ -4,7 +4,7 @@ expression: expanded_code
 ---
 use std::{
     embedded_curve_ops::{EmbeddedCurvePoint, EmbeddedCurveScalar, fixed_base_scalar_mul},
-    ops::arith::Add,
+    ops::Add,
 };
 
 fn main() -> pub Field {

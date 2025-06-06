@@ -1,5 +1,5 @@
 #![allow(dead_code)]
-use crate::compiler::compile;
+use crate::compiler::compile_from_builder;
 use crate::helpers::{id_to_int, u32_to_id_value};
 use crate::typed_value::{TypedValue, ValueType};
 use acvm::FieldElement;
@@ -66,7 +66,7 @@ impl FuzzerBuilder {
     /// Compiles the built function into a CompiledProgram, to run it with nargo execute
     pub fn compile(self) -> Result<CompiledProgram, FuzzerBuilderError> {
         let result = std::panic::catch_unwind(AssertUnwindSafe(|| {
-            compile(self.builder, &CompileOptions::default())
+            compile_from_builder(self.builder, &CompileOptions::default())
         }));
         match result {
             Ok(result) => match result {

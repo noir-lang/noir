@@ -111,7 +111,7 @@ fn watch_workspace(workspace: &Workspace, compile_options: &CompileOptions) -> n
 }
 
 /// Parse all files in the workspace.
-fn parse_workspace(
+pub fn parse_workspace(
     workspace: &Workspace,
     debug_compile_stdin: Option<String>,
 ) -> (FileManager, ParsedFiles) {

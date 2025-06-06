@@ -20,7 +20,7 @@ use value::{ArrayValue, NumericValue, ReferenceValue};
 
 pub mod errors;
 mod intrinsics;
-mod tests;
+pub(crate) mod tests;
 pub mod value;
 
 use value::Value;
@@ -1069,12 +1069,6 @@ impl Interpreter<'_> {
                     }));
                 };
 
-                let overflow = || {
-                    let instruction =
-                        format!("`{}` ({lhs} << {rhs})", display_binary(binary, self.dfg()));
-                    InterpreterError::Overflow { instruction }
-                };
-
                 let rhs = rhs as u32;
                 use NumericValue::*;
                 match lhs {
@@ -1084,22 +1078,16 @@ impl Interpreter<'_> {
                             typ: "Field",
                         }));
                     }
-                    U1(value) => {
-                        if rhs == 0 {
-                            U1(value)
-                        } else {
-                            return Err(overflow());
-                        }
-                    }
-                    U8(value) => U8(value.checked_shl(rhs).ok_or_else(overflow)?),
-                    U16(value) => U16(value.checked_shl(rhs).ok_or_else(overflow)?),
-                    U32(value) => U32(value.checked_shl(rhs).ok_or_else(overflow)?),
-                    U64(value) => U64(value.checked_shl(rhs).ok_or_else(overflow)?),
-                    U128(value) => U128(value.checked_shl(rhs).ok_or_else(overflow)?),
-                    I8(value) => I8(value.checked_shl(rhs).ok_or_else(overflow)?),
-                    I16(value) => I16(value.checked_shl(rhs).ok_or_else(overflow)?),
-                    I32(value) => I32(value.checked_shl(rhs).ok_or_else(overflow)?),
-                    I64(value) => I64(value.checked_shl(rhs).ok_or_else(overflow)?),
+                    U1(value) => U1(if rhs == 0 { value } else { false }),
+                    U8(value) => U8(value.checked_shl(rhs).unwrap_or(0)),
+                    U16(value) => U16(value.checked_shl(rhs).unwrap_or(0)),
+                    U32(value) => U32(value.checked_shl(rhs).unwrap_or(0)),
+                    U64(value) => U64(value.checked_shl(rhs).unwrap_or(0)),
+                    U128(value) => U128(value.checked_shl(rhs).unwrap_or(0)),
+                    I8(value) => I8(value.checked_shl(rhs).unwrap_or(0)),
+                    I16(value) => I16(value.checked_shl(rhs).unwrap_or(0)),
+                    I32(value) => I32(value.checked_shl(rhs).unwrap_or(0)),
+                    I64(value) => I64(value.checked_shl(rhs).unwrap_or(0)),
                 }
             }
             BinaryOp::Shr => {

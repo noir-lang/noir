@@ -248,6 +248,8 @@ struct ConditionalContext {
     else_branch: Option<ConditionalBranch>,
     // Call stack where the final location is that of the entire `if` expression
     call_stack: CallStackId,
+    // List of predicated values, and their previous mapping
+    predicated_values: HashMap<ValueId, ValueId>,
 }
 
 /// Flattens the control flow graph of the function such that it is left with a
@@ -497,6 +499,7 @@ impl<'f> Context<'f> {
             then_branch: branch,
             else_branch: None,
             call_stack,
+            predicated_values: HashMap::default(),
         };
         self.condition_stack.push(cond_context);
         self.insert_current_side_effects_enabled();
@@ -516,6 +519,7 @@ impl<'f> Context<'f> {
     /// Switch context to the 'else-branch':
     /// - Negates the condition for the 'else_branch' and set it in the ConditionalContext
     /// - Move the local allocations to the 'else_branch'
+    /// - Reset the predicated values to their old mapping in the inserter
     /// - Issues the 'enable_side_effect' instruction
     /// - Returns the exit block of the conditional statement
     fn then_stop(&mut self, block: &BasicBlockId) -> Vec<BasicBlockId> {
@@ -537,6 +541,7 @@ impl<'f> Context<'f> {
         };
         cond_context.then_branch.local_allocations.clear();
         cond_context.else_branch = Some(else_branch);
+        self.reset_predicated_values(&mut cond_context);
         self.condition_stack.push(cond_context);
 
         self.insert_current_side_effects_enabled();
@@ -558,6 +563,7 @@ impl<'f> Context<'f> {
 
     /// Process the 'exit' block of a conditional statement:
     /// - Retrieves the local allocations from the Conditional Context
+    /// - Reset the predicated values to their old mapping in the inserter
     /// - Issues the 'enable_side_effect' instruction
     /// - Joins the arguments from both branches
     fn else_stop(&mut self, block: &BasicBlockId) -> Vec<BasicBlockId> {
@@ -574,6 +580,8 @@ impl<'f> Context<'f> {
         self.local_allocations = std::mem::take(&mut else_branch.local_allocations);
         else_branch.last_block = *block;
         cond_context.else_branch = Some(else_branch);
+
+        self.reset_predicated_values(&mut cond_context);
 
         // We must remember to reset whether side effects are enabled when both branches
         // end, in addition to resetting the value of old_condition since it is set to
@@ -650,6 +658,26 @@ impl<'f> Context<'f> {
         self.arguments_stack.pop();
         self.arguments_stack.push(args);
         destination
+    }
+
+    /// Map the value to its predicated value, and store the previous mapping
+    /// to the 'predicated_values' map if not already stored.
+    fn predicate_value(&mut self, value: ValueId, predicated_value: ValueId) {
+        let conditional_context = self.condition_stack.last_mut().unwrap();
+
+        conditional_context
+            .predicated_values
+            .entry(value)
+            .or_insert_with(|| self.inserter.resolve(value));
+
+        self.inserter.map_value(value, predicated_value);
+    }
+
+    /// Restore the previous mapping of predicated values.
+    fn reset_predicated_values(&mut self, conditional_context: &mut ConditionalContext) {
+        for (value, old_mapping) in conditional_context.predicated_values.drain() {
+            self.inserter.map_value(value, old_mapping);
+        }
     }
 
     /// Insert a new instruction into the target block.
@@ -781,8 +809,12 @@ impl<'f> Context<'f> {
                     // Condition needs to be cast to argument type in order to multiply them together.
                     let casted_condition =
                         self.cast_condition_to_value_type(condition, value, call_stack);
-                    let value = self.mul_by_condition(value, casted_condition, call_stack);
-                    Instruction::RangeCheck { value, max_bit_size, assert_message }
+                    let predicate_value =
+                        self.mul_by_condition(value, casted_condition, call_stack);
+                    // Issue #8617: update the value to be the predicated value.
+                    // This ensures that the value has the correct bit size in all cases.
+                    self.predicate_value(value, predicate_value);
+                    Instruction::RangeCheck { value: predicate_value, max_bit_size, assert_message }
                 }
                 Instruction::Call { func, mut arguments } => match self.inserter.function.dfg[func]
                 {
@@ -870,6 +902,7 @@ impl<'f> Context<'f> {
         }
     }
 
+    #[cfg(feature = "bn254")]
     fn grumpkin_generators() -> Vec<FieldElement> {
         let g1_x = FieldElement::from_hex("0x01").unwrap();
         let g1_y =
@@ -892,6 +925,7 @@ impl<'f> Context<'f> {
     /// - inputs: (point1_x, point1_y, point1_infinite, point2_x, point2_y, point2_infinite)
     /// - generators: [g1_x, g1_y, g2_x, g2_y]
     /// - index: true for abscissa, false for ordinate
+    #[cfg(feature = "bn254")]
     fn predicate_argument(
         &mut self,
         inputs: &[ValueId],
@@ -985,6 +1019,7 @@ impl<'f> Context<'f> {
         )
     }
     // Computes: if condition { var } else { other }
+    #[cfg(feature = "bn254")]
     fn var_or(
         &mut self,
         var: ValueId,
@@ -1005,7 +1040,7 @@ impl<'f> Context<'f> {
 
 #[cfg(test)]
 mod test {
-    use acvm::{FieldElement, acir::AcirField};
+    use acvm::acir::AcirField;
 
     use crate::{
         assert_ssa_snapshot,
@@ -1016,7 +1051,6 @@ mod test {
                 instruction::{Instruction, TerminatorInstruction},
                 value::{Value, ValueId},
             },
-            opt::flatten_cfg::Context,
         },
     };
 
@@ -1428,7 +1462,7 @@ mod test {
         let src = "
         acir(inline) fn main f0 {
           b0(v0: [u8; 2]):
-            v2 = array_get v0, index u8 0 -> u8
+            v2 = array_get v0, index u32 0 -> u8
             v3 = cast v2 as u32
             v4 = truncate v3 to 1 bits, max_bit_size: 32
             v5 = cast v4 as u1
@@ -1472,30 +1506,30 @@ mod test {
         assert_ssa_snapshot!(flattened_ssa, @r"
         acir(inline) fn main f0 {
           b0(v0: [u8; 2]):
-            v2 = array_get v0, index u8 0 -> u8
+            v2 = array_get v0, index u32 0 -> u8
             v3 = cast v2 as u32
             v4 = truncate v3 to 1 bits, max_bit_size: 32
             v5 = cast v4 as u1
             v6 = allocate -> &mut Field
             store u8 0 at v6
             enable_side_effects v5
-            v7 = cast v2 as Field
-            v9 = add v7, Field 1
-            v10 = cast v9 as u8
-            v11 = load v6 -> u8
-            v12 = not v5
-            v13 = cast v4 as u8
-            v14 = cast v12 as u8
-            v15 = unchecked_mul v13, v10
+            v8 = cast v2 as Field
+            v10 = add v8, Field 1
+            v11 = cast v10 as u8
+            v12 = load v6 -> u8
+            v13 = not v5
+            v14 = cast v4 as u8
+            v15 = cast v13 as u8
             v16 = unchecked_mul v14, v11
-            v17 = unchecked_add v15, v16
-            store v17 at v6
-            enable_side_effects v12
-            v18 = load v6 -> u8
-            v19 = cast v12 as u8
-            v20 = cast v4 as u8
-            v21 = unchecked_mul v20, v18
-            store v21 at v6
+            v17 = unchecked_mul v15, v12
+            v18 = unchecked_add v16, v17
+            store v18 at v6
+            enable_side_effects v13
+            v19 = load v6 -> u8
+            v20 = cast v13 as u8
+            v21 = cast v4 as u8
+            v22 = unchecked_mul v21, v19
+            store v22 at v6
             enable_side_effects u1 1
             constrain v5 == u1 1
             return
@@ -1511,41 +1545,41 @@ mod test {
         let src = "
         acir(inline) fn main f0 {
           b0():
-            v0 = allocate -> &mut Field
-            store Field 0 at v0
-            v2 = allocate -> &mut Field
-            store Field 2 at v2
-            v4 = load v2 -> Field
-            v5 = lt v4, Field 2
+            v0 = allocate -> &mut u32
+            store u32 0 at v0
+            v2 = allocate -> &mut u32
+            store u32 2 at v2
+            v4 = load v2 -> u32
+            v5 = lt v4, u32 2
             jmpif v5 then: b4, else: b1
           b1():
-            v6 = load v2 -> Field
-            v8 = lt v6, Field 4
+            v6 = load v2 -> u32
+            v8 = lt v6, u32 4
             jmpif v8 then: b2, else: b3
           b2():
-            v9 = load v0 -> Field
-            v10 = load v2 -> Field
-            v12 = mul v10, Field 100
+            v9 = load v0 -> u32
+            v10 = load v2 -> u32
+            v12 = mul v10, u32 100
             v13 = add v9, v12
             store v13 at v0
-            v14 = load v2 -> Field
-            v16 = add v14, Field 1
+            v14 = load v2 -> u32
+            v16 = add v14, u32 1
             store v16 at v2
             jmp b3()
           b3():
             jmp b5()
           b4():
-            v17 = load v0 -> Field
-            v18 = load v2 -> Field
-            v20 = mul v18, Field 10
+            v17 = load v0 -> u32
+            v18 = load v2 -> u32
+            v20 = mul v18, u32 10
             v21 = add v17, v20
             store v21 at v0
-            v22 = load v2 -> Field
-            v23 = add v22, Field 1
+            v22 = load v2 -> u32
+            v23 = add v22, u32 1
             store v23 at v2
             jmp b5()
           b5():
-            v24 = load v0 -> Field
+            v24 = load v0 -> u32
             return v24
         }";
 
@@ -1572,10 +1606,10 @@ mod test {
         assert_ssa_snapshot!(ssa, @r"
         acir(inline) fn main f0 {
           b0():
-            v0 = allocate -> &mut Field
-            v1 = allocate -> &mut Field
+            v0 = allocate -> &mut u32
+            v1 = allocate -> &mut u32
             enable_side_effects u1 1
-            return Field 200
+            return u32 200
         }
         ");
     }
@@ -1608,8 +1642,8 @@ mod test {
             store Field 0 at v1
             jmpif v0 then: b1, else: b2
           b1():
-            store Field 1 at v1 
-            store Field 2 at v1 
+            store Field 1 at v1
+            store Field 2 at v1
             jmp b2()
           b2():
             v3 = load v1 -> Field
@@ -1648,9 +1682,9 @@ mod test {
             jmpif v0 then: b1, else: b2
           b1():
             v4 = make_array [Field 1] : [Field; 1]
-            store v4 at v3 
+            store v4 at v3
             v5 = make_array [Field 2] : [Field; 1]
-            store v5 at v3 
+            store v5 at v3
             jmp b2()
           b2():
             v24 = load v3 -> Field
@@ -1751,6 +1785,9 @@ mod test {
     #[test]
     #[cfg(feature = "bn254")]
     fn test_grumpkin_points() {
+        use crate::ssa::opt::flatten_cfg::Context;
+        use acvm::acir::FieldElement;
+
         let generators = Context::grumpkin_generators();
         let len = generators.len();
         for i in (0..len).step_by(2) {
@@ -1761,5 +1798,49 @@ mod test {
                     == FieldElement::zero()
             );
         }
+    }
+
+    #[test]
+    fn use_predicated_value() {
+        let src = "
+        acir(inline) fn main f0 {
+          b0(v0: bool, v1: u32):
+            v3 = add u32 42, v1
+            jmpif v0 then: b1, else: b2
+          b1():
+            range_check v3 to 16 bits
+            jmp b3(v3)
+          b2():
+            v4 = add u32 3, v3
+            jmp b3(v4)
+          b3(v5: u32):
+            return v5
+        }";
+
+        let ssa = Ssa::from_str(src).unwrap();
+
+        let ssa = ssa.flatten_cfg();
+
+        assert_ssa_snapshot!(ssa, @r"
+        acir(inline) fn main f0 {
+          b0(v0: u1, v1: u32):
+            v3 = add u32 42, v1
+            enable_side_effects v0
+            v4 = cast v0 as u32
+            v5 = cast v0 as u32
+            v6 = unchecked_mul v3, v5
+            range_check v6 to 16 bits
+            v7 = not v0
+            enable_side_effects v7
+            v9 = add u32 3, v3
+            enable_side_effects u1 1
+            v11 = cast v0 as u32
+            v12 = cast v7 as u32
+            v13 = unchecked_mul v11, v3
+            v14 = unchecked_mul v12, v9
+            v15 = unchecked_add v13, v14
+            return v15
+        }
+        ");
     }
 }

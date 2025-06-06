@@ -7,6 +7,7 @@ use noirc_errors::CustomDiagnostic as Diagnostic;
 use noirc_errors::Location;
 use thiserror::Error;
 
+use crate::ast::BinaryOpKind;
 use crate::ast::{ConstrainKind, FunctionReturnType, Ident, IntegerBitSize};
 use crate::hir::resolution::errors::ResolverError;
 use crate::hir_def::traits::TraitConstraint;
@@ -26,6 +27,8 @@ pub enum Source {
     Assignment,
     #[error("Return")]
     Return(FunctionReturnType, Location),
+    #[error("ArrayIndex")]
+    ArrayIndex,
 }
 
 #[derive(Error, Debug, Clone, PartialEq, Eq)]
@@ -69,6 +72,8 @@ pub enum TypeCheckError {
     InvalidCast { from: Type, location: Location, reason: String },
     #[error("Casting value of type {from} to a smaller type ({to})")]
     DownsizingCast { from: Type, to: Type, location: Location, reason: String },
+    #[error("Cannot cast `{typ}` as `bool`")]
+    CannotCastNumericToBool { typ: Type, location: Location },
     #[error("Expected a function, but found a(n) {found}")]
     ExpectedFunction { found: Type, location: Location },
     #[error("Type {lhs_type} has no member named {field_name}")]
@@ -121,6 +126,8 @@ pub enum TypeCheckError {
         "The bit count in a bit-shift operation must fit in a u8, try casting the right hand side into a u8 first"
     )]
     InvalidShiftSize { location: Location },
+    #[error("Cannot `bool {op} bool`")]
+    InvalidBoolInfixOp { op: BinaryOpKind, location: Location },
     #[error("Error with additional context")]
     Context { err: Box<TypeCheckError>, ctx: &'static str },
     #[error("Array is not homogeneous")]
@@ -255,6 +262,7 @@ impl TypeCheckError {
             | TypeCheckError::ArityMisMatch { location, .. }
             | TypeCheckError::InvalidCast { location, .. }
             | TypeCheckError::DownsizingCast { location, .. }
+            | TypeCheckError::CannotCastNumericToBool { location, .. }
             | TypeCheckError::ExpectedFunction { location, .. }
             | TypeCheckError::AccessUnknownMember { location, .. }
             | TypeCheckError::ParameterCountMismatch { location, .. }
@@ -277,6 +285,7 @@ impl TypeCheckError {
             | TypeCheckError::FieldNot { location }
             | TypeCheckError::FieldComparison { location }
             | TypeCheckError::InvalidShiftSize { location }
+            | TypeCheckError::InvalidBoolInfixOp { location, .. }
             | TypeCheckError::NonHomogeneousArray { first_location: location, .. }
             | TypeCheckError::TypeAnnotationsNeededForMethodCall { location }
             | TypeCheckError::TypeAnnotationsNeededForFieldAccess { location }
@@ -455,6 +464,10 @@ impl<'a> From<&'a TypeCheckError> for Diagnostic {
             TypeCheckError::DownsizingCast { location, reason, .. } => {
                 Diagnostic::simple_warning(error.to_string(), reason.clone(), *location)
             }
+            TypeCheckError::CannotCastNumericToBool { typ: _, location } => {
+                let secondary = "compare with zero instead: ` != 0`".to_string();
+                Diagnostic::simple_error(error.to_string(), secondary, *location)
+            }
 
             TypeCheckError::ExpectedFunction { location, .. }
             | TypeCheckError::AccessUnknownMember { location, .. }
@@ -480,6 +493,27 @@ impl<'a> From<&'a TypeCheckError> for Diagnostic {
             | TypeCheckError::StringIndexAssign { location }
             | TypeCheckError::InvalidShiftSize { location } => {
                 Diagnostic::simple_error(error.to_string(), String::new(), *location)
+            }
+            TypeCheckError::InvalidBoolInfixOp { op, location } => {
+                let primary = match op {
+                    BinaryOpKind::Add => "Cannot add a `bool` to a `bool",
+                    BinaryOpKind::Subtract => "Cannot subtract a `bool` from a `bool",
+                    BinaryOpKind::Multiply => "Cannot multiply a `bool` by a `bool",
+                    BinaryOpKind::Divide => "Cannot divide a `bool` by a `bool`",
+                    BinaryOpKind::ShiftRight => "No implementation for `bool >> bool`",
+                    BinaryOpKind::ShiftLeft => "No implementation for `bool << bool`",
+                    BinaryOpKind::Modulo => "Cannot calculate the remainder of a `bool` divided by a `bool`",
+                    BinaryOpKind::Equal |
+                    BinaryOpKind::NotEqual |
+                    BinaryOpKind::Less |
+                    BinaryOpKind::LessEqual |
+                    BinaryOpKind::Greater |
+                    BinaryOpKind::GreaterEqual |
+                    BinaryOpKind::And |
+                    BinaryOpKind::Or |
+                    BinaryOpKind::Xor => panic!("Unexpected op in InvalidBoolInfixOp error: {op}"),
+                };
+                Diagnostic::simple_error(primary.to_string(), String::new(), *location)
             }
             TypeCheckError::MutableCaptureWithoutRef { name, location } => Diagnostic::simple_error(
                 format!("Mutable variable {name} captured in lambda must be a mutable reference"),
@@ -539,6 +573,7 @@ impl<'a> From<&'a TypeCheckError> for Diagnostic {
 
                         return diagnostic
                     },
+                    Source::ArrayIndex => format!("Indexing arrays and slices must be done with `{expected}`, not `{actual}`"),
                 };
 
                 Diagnostic::simple_error(message, String::new(), *location)

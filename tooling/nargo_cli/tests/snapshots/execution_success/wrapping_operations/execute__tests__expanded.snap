@@ -2,7 +2,7 @@
 source: tooling/nargo_cli/tests/execute.rs
 expression: expanded_code
 ---
-use std::ops::arith::{WrappingAdd, WrappingMul, WrappingSub};
+use std::ops::{WrappingAdd, WrappingMul, WrappingSub};
 
 fn main(x: u8, y: u8) {
     assert(x.wrapping_sub(1) == y);

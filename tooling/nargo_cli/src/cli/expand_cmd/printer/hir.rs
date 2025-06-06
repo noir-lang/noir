@@ -1,6 +1,6 @@
 use noirc_frontend::{
     NamedGeneric, Type, TypeBindings,
-    ast::UnaryOp,
+    ast::{ItemVisibility, UnaryOp},
     hir::def_map::ModuleDefId,
     hir_def::{
         expr::{
@@ -15,7 +15,7 @@ use noirc_frontend::{
 
 use super::ItemPrinter;
 
-impl ItemPrinter<'_, '_, '_> {
+impl ItemPrinter<'_, '_> {
     fn show_hir_expression_id(&mut self, expr_id: ExprId) {
         let hir_expr = self.interner.expression(&expr_id);
         self.show_hir_expression(hir_expr);
@@ -129,6 +129,7 @@ impl ItemPrinter<'_, '_, '_> {
                     let use_import = true;
                     self.show_reference_to_module_def_id(
                         ModuleDefId::TypeId(data_type.id),
+                        data_type.visibility,
                         use_import,
                     );
 
@@ -153,7 +154,11 @@ impl ItemPrinter<'_, '_, '_> {
             HirExpression::EnumConstructor(constructor) => {
                 let data_type = constructor.r#type.borrow();
                 let use_import = true;
-                self.show_reference_to_module_def_id(ModuleDefId::TypeId(data_type.id), use_import);
+                self.show_reference_to_module_def_id(
+                    ModuleDefId::TypeId(data_type.id),
+                    data_type.visibility,
+                    use_import,
+                );
 
                 let variant = data_type.variant_at(constructor.variant_index);
                 self.push_str("::");
@@ -288,7 +293,7 @@ impl ItemPrinter<'_, '_, '_> {
                             self.push('{');
                             self.show_separated_by_comma(
                                 &case.arguments.into_iter().zip(fields).collect::<Vec<_>>(),
-                                |this, (argument, (name, _))| {
+                                |this, (argument, (name, _, _))| {
                                     this.push_str(name);
                                     this.push_str(": ");
                                     this.show_definition_id(*argument);
@@ -705,8 +710,10 @@ impl ItemPrinter<'_, '_, '_> {
                     self.push_str(name);
                 } else {
                     let use_import = true;
+                    let visibility = self.interner.function_visibility(func_id);
                     self.show_reference_to_module_def_id(
                         ModuleDefId::FunctionId(func_id),
+                        visibility,
                         use_import,
                     );
                 }
@@ -725,9 +732,15 @@ impl ItemPrinter<'_, '_, '_> {
                     }
                 }
                 let use_import = true;
-                self.show_reference_to_module_def_id(ModuleDefId::GlobalId(global_id), use_import);
+                self.show_reference_to_module_def_id(
+                    ModuleDefId::GlobalId(global_id),
+                    global_info.visibility,
+                    use_import,
+                );
             }
-            DefinitionKind::Local(..) | DefinitionKind::NumericGeneric(..) => {
+            DefinitionKind::Local(..)
+            | DefinitionKind::NumericGeneric(..)
+            | DefinitionKind::AssociatedConstant(..) => {
                 let name = self.interner.definition_name(ident.id);
 
                 // The compiler uses '$' for some internal identifiers.
@@ -906,7 +919,7 @@ fn hir_expression_needs_parentheses(hir_expr: &HirExpression) -> bool {
     }
 }
 
-fn get_type_fields(typ: &Type) -> Option<Vec<(String, Type)>> {
+fn get_type_fields(typ: &Type) -> Option<Vec<(String, Type, ItemVisibility)>> {
     match typ.follow_bindings() {
         Type::DataType(data_type, generics) => {
             let data_type = data_type.borrow();

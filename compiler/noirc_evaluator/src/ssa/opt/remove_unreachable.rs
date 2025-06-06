@@ -11,18 +11,19 @@
 //!   Even if not immediately called, it may later be dynamically loaded and invoked.
 //!   This marking is conservative but ensures correctness. We should instead rely on [mem2reg][crate::ssa::opt::mem2reg]
 //!   for resolving loads/stores.
+//! - A function is reachable if it is used in a block terminator (e.g., returned from a function)
 //!
-//! The pass performs a recursive traversal starting from all entry points and marks
-//! any transitively reachable functions. It then discards the rest.
+//! The pass builds a call graph based upon the definition of reachability above.
+//! It then identifies all entry points and uses the [CallGraph::reachable_from] utility
+//! to mark all transitively reachable functions. It then discards the rest.
 //!
 //! This pass helps shrink the SSA before compilation stages like inlining and dead code elimination.
 
 use std::collections::BTreeSet;
 
-use fxhash::FxHashSet as HashSet;
-
 use crate::ssa::{
     ir::{
+        call_graph::CallGraph,
         function::{Function, FunctionId},
         instruction::Instruction,
         value::Value,
@@ -33,63 +34,26 @@ use crate::ssa::{
 impl Ssa {
     /// See [`remove_unreachable`][self] module for more information.
     pub(crate) fn remove_unreachable_functions(mut self) -> Self {
-        let mut reachable_functions = HashSet::default();
-
-        // Go through all the functions, and if we have an entry point, extend the set of all
-        // functions which are reachable.
-        for (id, function) in self.functions.iter() {
+        // Identify entry points
+        let entry_points = self.functions.iter().filter_map(|(&id, func)| {
             // Not using `Ssa::is_entry_point` because it could leave Brillig functions that nobody calls in the SSA,
             // because it considers every Brillig function as an entry point.
-            let is_entry_point = function.id() == self.main_id
-                || function.runtime().is_acir() && function.runtime().is_entry_point();
+            let is_entry_point =
+                id == self.main_id || func.runtime().is_acir() && func.runtime().is_entry_point();
+            is_entry_point.then_some(id)
+        });
 
-            if is_entry_point {
-                collect_reachable_functions(&self, *id, &mut reachable_functions);
-            }
-        }
+        // Build call graph dependencies using this passes definition of reachability.
+        let dependencies =
+            self.functions.iter().map(|(&id, func)| (id, used_functions(func))).collect();
+        let call_graph = CallGraph::from_deps(dependencies);
+
+        // Traverse the call graph from all entry points
+        let reachable_functions = call_graph.reachable_from(entry_points);
 
         // Discard all functions not marked as reachable
         self.functions.retain(|id, _| reachable_functions.contains(id));
         self
-    }
-}
-
-/// Recursively determine the reachable functions from a given function.
-/// This function is only intended to be called on functions that are already known
-/// to be entry points or transitively reachable from one.
-///
-/// # Arguments
-/// - `ssa`: The full [Ssa] structure containing all functions.
-/// - `current_func_id`: The [FunctionId] from which to begin a traversal.
-/// - `reachable_functions`: A mutable set used to collect all reachable functions.
-///   It serves both as the final output of this traversal and as a visited set
-///   to prevent cycles and redundant recursion.
-fn collect_reachable_functions(
-    ssa: &Ssa,
-    current_func_id: FunctionId,
-    reachable_functions: &mut HashSet<FunctionId>,
-) {
-    // If this function has already been determine as reachable, then we have already
-    // processed the given function and we can simply return.
-    if reachable_functions.contains(&current_func_id) {
-        return;
-    }
-    // Mark the given function as reachable
-    reachable_functions.insert(current_func_id);
-
-    // If the debugger is used, its possible for function inlining
-    // to remove functions that the debugger still references
-    let Some(func) = ssa.functions.get(&current_func_id) else {
-        return;
-    };
-
-    // Get the set of reachable functions from the given function
-    let used_functions = used_functions(func);
-
-    // For each reachable function within the given function recursively collect
-    // any more reachable functions.
-    for called_func_id in used_functions.iter() {
-        collect_reachable_functions(ssa, *called_func_id, reachable_functions);
     }
 }
 
@@ -118,7 +82,12 @@ fn used_functions(func: &Function) -> BTreeSet<FunctionId> {
         for instruction_id in block.instructions() {
             let instruction = &func.dfg[*instruction_id];
 
-            if matches!(instruction, Instruction::Store { .. } | Instruction::Call { .. }) {
+            if matches!(
+                instruction,
+                Instruction::Store { .. }
+                    | Instruction::Call { .. }
+                    | Instruction::MakeArray { .. }
+            ) {
                 instruction.for_each_value(&mut find_functions);
             }
         }
@@ -211,6 +180,35 @@ mod tests {
         let ssa = ssa.remove_unreachable_functions();
 
         // It should not remove anything.
+        assert_normalized_ssa_equals(ssa, src);
+    }
+
+    #[test]
+    fn keep_functions_used_in_array() {
+        // f1 and f2 are used within an array. Thus, we do not want to remove them.
+        let src = r#"
+        acir(inline) fn main f0 {
+          b0(v0: u32):
+            v5 = make_array [f1, f2] : [function; 2]
+            v7 = lt v0, u32 4
+            constrain v7 == u1 1, "Index out of bounds"
+            v9 = array_get v5, index v0 -> function
+            call v9()
+            return
+        }
+        acir(inline) fn lambda f1 {
+          b0():
+            return
+        }
+        acir(inline) fn lambda f2 {
+          b0():
+            return
+        }
+        "#;
+
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.remove_unreachable_functions();
+
         assert_normalized_ssa_equals(ssa, src);
     }
 }

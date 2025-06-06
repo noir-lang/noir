@@ -1,0 +1,19 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: stderr
+---
+error: Associated item constraints are not allowed here
+  ┌─ src/main.nr:5:12
+  │
+5 │ impl Trait<T = i32> for bool {
+  │            ------- Consider removing this associated item binding
+  │
+
+error: `Trait` is missing the associated type `T`
+  ┌─ src/main.nr:5:6
+  │
+5 │ impl Trait<T = i32> for bool {
+  │      -----
+  │
+
+Aborting due to 2 previous errors

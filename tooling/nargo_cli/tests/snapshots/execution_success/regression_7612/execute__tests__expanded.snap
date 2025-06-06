@@ -8,7 +8,7 @@ pub struct Data {
 }
 
 fn main(array: [Data; 1], x: bool) {
-    let index: Field = if x { 0 } else { 1 };
+    let index: u32 = if x { 0 } else { 1 };
     if index != 0 {
         assert(array[index - 1].counter < 3);
     }

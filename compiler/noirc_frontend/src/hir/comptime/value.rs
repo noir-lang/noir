@@ -551,10 +551,10 @@ impl Value {
                 }
             }
             Value::Field(value) => {
-                if value.is_negative {
-                    vec![Token::Minus, Token::Int(value.field)]
+                if value.is_negative() {
+                    vec![Token::Minus, Token::Int(value.absolute_value())]
                 } else {
-                    vec![Token::Int(value.field)]
+                    vec![Token::Int(value.absolute_value())]
                 }
             }
             other => vec![Token::UnquoteMarker(other.into_hir_expression(interner, location)?)],
@@ -590,10 +590,10 @@ impl Value {
     pub(crate) fn to_field_element(&self) -> Option<FieldElement> {
         match self {
             Self::Field(value) => {
-                if value.is_negative {
+                if value.is_negative() {
                     None
                 } else {
-                    Some(value.field)
+                    Some(value.absolute_value())
                 }
             }
 

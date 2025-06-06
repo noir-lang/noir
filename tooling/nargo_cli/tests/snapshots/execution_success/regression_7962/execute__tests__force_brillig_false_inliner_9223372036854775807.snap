@@ -41,10 +41,10 @@ expression: artifact
     "BLACKBOX::RANGE [(_0, 64)] []",
     "EXPR [ (1, _0) (-1, _2) -1 ]",
     "BLACKBOX::RANGE [(_2, 64)] []",
-    "BRILLIG CALL func 0: inputs: [Single(Expression { mul_terms: [], linear_combinations: [(1, Witness(2))], q_c: 2 }), Single(Expression { mul_terms: [], linear_combinations: [], q_c: 2 })], outputs: [Simple(Witness(3)), Simple(Witness(4))]",
+    "BRILLIG CALL func 0: inputs: [Single(Expression { mul_terms: [], linear_combinations: [(1, Witness(2))], q_c: 18446744073709551616 }), Single(Expression { mul_terms: [], linear_combinations: [], q_c: 2 })], outputs: [Simple(Witness(3)), Simple(Witness(4))]",
     "BLACKBOX::RANGE [(_3, 64)] []",
     "BLACKBOX::RANGE [(_4, 1)] []",
-    "EXPR [ (1, _2) (-2, _3) (-1, _4) 2 ]",
+    "EXPR [ (1, _2) (-2, _3) (-1, _4) 18446744073709551616 ]",
     "EXPR [ (1, _1) (-1, _4) 0 ]",
     "unconstrained func 0",
     "[Const { destination: Direct(10), bit_size: Integer(U32), value: 2 }, Const { destination: Direct(11), bit_size: Integer(U32), value: 0 }, CalldataCopy { destination_address: Direct(0), size_address: Direct(10), offset_address: Direct(11) }, BinaryFieldOp { destination: Direct(2), op: IntegerDiv, lhs: Direct(0), rhs: Direct(1) }, BinaryFieldOp { destination: Direct(1), op: Mul, lhs: Direct(2), rhs: Direct(1) }, BinaryFieldOp { destination: Direct(1), op: Sub, lhs: Direct(0), rhs: Direct(1) }, Mov { destination: Direct(0), source: Direct(2) }, Stop { return_data: HeapVector { pointer: Direct(11), size: Direct(10) } }]"

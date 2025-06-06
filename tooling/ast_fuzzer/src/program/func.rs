@@ -2,6 +2,7 @@ use nargo::errors::Location;
 use std::{
     collections::{BTreeMap, BTreeSet, HashSet},
     fmt::Debug,
+    ops::Deref,
 };
 use strum::IntoEnumIterator;
 
@@ -9,10 +10,13 @@ use arbitrary::{Arbitrary, Unstructured};
 use noirc_frontend::{
     ast::{IntegerBitSize, UnaryOp},
     hir_def::{self, expr::HirIdent, stmt::HirPattern},
-    monomorphization::ast::{
-        ArrayLiteral, Assign, BinaryOp, Call, Definition, Expression, For, FuncId, GlobalId, Ident,
-        IdentId, Index, InlineType, LValue, Let, Literal, LocalId, Parameters, Program, Type,
-        While,
+    monomorphization::{
+        append_printable_type_info_for_type,
+        ast::{
+            ArrayLiteral, Assign, BinaryOp, Call, Definition, Expression, For, FuncId, GlobalId,
+            Ident, IdentId, Index, InlineType, LValue, Let, Literal, LocalId, Parameters, Program,
+            Type, While,
+        },
     },
     node_interner::DefinitionId,
     shared::{Signedness, Visibility},
@@ -689,7 +693,6 @@ impl<'a> FunctionContext<'a> {
             Freq::new(u, &self.ctx.config.stmt_freqs_acir)?
         };
         // TODO(#7926): Match
-        // TODO(#7931): print
         // TODO(#7932): Constrain
 
         // Start with `drop`, it doesn't need to be frequent even if others are disabled.
@@ -731,6 +734,13 @@ impl<'a> FunctionContext<'a> {
             if freq.enabled_when("continue", self.in_loop && !self.ctx.config.avoid_loop_control) {
                 return Ok(Expression::Continue);
             }
+
+            // For now only try prints in unconstrained code, were we don't need to create a proxy.
+            if freq.enabled("print") {
+                if let Some(e) = self.gen_print(u)? {
+                    return Ok(e);
+                }
+            }
         }
 
         if freq.enabled("assign") {
@@ -748,7 +758,14 @@ impl<'a> FunctionContext<'a> {
         let max_depth = self.max_depth();
         let comptime_friendly = self.is_comptime_friendly();
         let typ = self.ctx.gen_type(u, max_depth, false, false, true, comptime_friendly)?;
+
+        // Temporarily set in_loop to false to disallow breaking/continuing out
+        // of the let blocks (which would lead to frontend errors when reversing
+        // the AST into Noir)
+        let was_in_loop = std::mem::replace(&mut self.in_loop, false);
         let expr = self.gen_expr(u, &typ, max_depth, Flags::TOP)?;
+        self.in_loop = was_in_loop;
+
         let mutable = bool::arbitrary(u)?;
         Ok(self.let_var(mutable, typ, expr, true))
     }
@@ -785,19 +802,13 @@ impl<'a> FunctionContext<'a> {
             return Ok(None);
         }
         let id = *u.choose_iter(self.locals.current().variable_ids())?;
-        let (mutable, name, typ) = self.locals.current().get_variable(&id).clone();
 
         // Remove variable so we stop using it.
         self.locals.remove(&id);
 
-        let ident_id = self.next_ident_id();
-        Ok(Some(Expression::Drop(Box::new(expr::ident(
-            VariableId::Local(id),
-            ident_id,
-            mutable,
-            name,
-            typ,
-        )))))
+        let ident = self.local_ident(id);
+
+        Ok(Some(Expression::Drop(Box::new(Expression::Ident(ident)))))
     }
 
     /// Assign to a mutable variable, if we have one in scope.
@@ -814,13 +825,11 @@ impl<'a> FunctionContext<'a> {
         }
 
         let id = *u.choose_iter(opts)?;
-        let (mutable, name, typ) = self.locals.current().get_variable(&id).clone();
-        let ident_id = self.next_ident_id();
-        let ident = expr::ident_inner(VariableId::Local(id), ident_id, mutable, name, typ.clone());
+        let ident = self.local_ident(id);
         let ident = LValue::Ident(ident);
 
         // For arrays and tuples we can consider assigning to their items.
-        let (lvalue, typ) = match typ {
+        let (lvalue, typ) = match self.local_type(id).clone() {
             Type::Array(len, typ) if len > 0 && bool::arbitrary(u)? => {
                 let idx = self.gen_index(u, len, self.max_depth())?;
                 let lvalue = LValue::Index {
@@ -829,7 +838,7 @@ impl<'a> FunctionContext<'a> {
                     element_type: typ.as_ref().clone(),
                     location: Location::dummy(),
                 };
-                (lvalue, *typ)
+                (lvalue, typ.deref().clone())
             }
             Type::Tuple(items) if bool::arbitrary(u)? => {
                 let idx = u.choose_index(items.len())?;
@@ -837,13 +846,64 @@ impl<'a> FunctionContext<'a> {
                 let lvalue = LValue::MemberAccess { object: Box::new(ident), field_index: idx };
                 (lvalue, typ)
             }
-            _ => (ident, typ),
+            typ => (ident, typ),
         };
 
         // Generate the assigned value.
         let expr = self.gen_expr(u, &typ, self.max_depth(), Flags::TOP)?;
 
         Ok(Some(Expression::Assign(Assign { lvalue, expression: Box::new(expr) })))
+    }
+
+    /// Generate a `println` statement, if there is some printable local variable.
+    ///
+    /// For now this only works in unconstrained code. For constrained code we will
+    /// need to generate a proxy function, which we can do as a follow-up pass,
+    /// as it has to be done once per function signature.
+    fn gen_print(&mut self, u: &mut Unstructured) -> arbitrary::Result<Option<Expression>> {
+        let opts = self
+            .locals
+            .current()
+            .variables()
+            .filter_map(|(id, (_, _, typ))| types::is_printable(typ).then_some((id, typ)))
+            .collect::<Vec<_>>();
+
+        if opts.is_empty() {
+            return Ok(None);
+        }
+
+        // Print one of the variables as-is.
+        let (id, typ) = u.choose_iter(opts)?;
+
+        // The print oracle takes 2 parameters: the newline marker and the value,
+        // but it takes 2 more arguments: the type descriptor and the format string marker,
+        // which are inserted automatically by the monomorphizer.
+        let param_types = vec![Type::Bool, typ.clone()];
+        let hir_type = types::to_hir_type(typ);
+        let ident = self.local_ident(*id);
+        let mut args = vec![
+            expr::lit_bool(true), // include newline,
+            Expression::Ident(ident),
+        ];
+        append_printable_type_info_for_type(hir_type, &mut args);
+
+        let print_oracle_ident = Ident {
+            location: None,
+            definition: Definition::Oracle("print".to_string()),
+            mutable: false,
+            name: "print_oracle".to_string(),
+            typ: Type::Function(param_types, Box::new(Type::Unit), Box::new(Type::Unit), true),
+            id: self.next_ident_id(),
+        };
+
+        let call = Expression::Call(Call {
+            func: Box::new(Expression::Ident(print_oracle_ident)),
+            arguments: args,
+            return_type: Type::Unit,
+            location: Location::dummy(),
+        });
+
+        Ok(Some(call))
     }
 
     /// Generate an if-then-else statement or expression.
@@ -984,7 +1044,7 @@ impl<'a> FunctionContext<'a> {
         self.has_call = true;
 
         let callee_id = *u.choose_iter(opts)?;
-        let callee_ident = self.function_ident(callee_id);
+        let callee_ident = Expression::Ident(self.callable_ident(callee_id));
         let (param_types, return_type) = self.callable_signature(callee_id);
 
         // Generate an expression for each argument.
@@ -1011,8 +1071,8 @@ impl<'a> FunctionContext<'a> {
         u: &mut Unstructured,
         callee_id: FuncId,
     ) -> arbitrary::Result<Expression> {
-        let callee = self.ctx.function_decl(callee_id).clone();
-        let param_types = callee.params.iter().map(|p| p.3.clone()).collect::<Vec<_>>();
+        let callee_ident = self.func_ident(callee_id);
+        let (param_types, return_type) = self.callable_signature(CallableId::Global(callee_id));
 
         let mut args = Vec::new();
         for typ in &param_types {
@@ -1020,21 +1080,9 @@ impl<'a> FunctionContext<'a> {
         }
 
         let call_expr = Expression::Call(Call {
-            func: Box::new(Expression::Ident(Ident {
-                location: None,
-                definition: Definition::Function(callee_id),
-                mutable: false,
-                name: callee.name.clone(),
-                typ: Type::Function(
-                    param_types,
-                    Box::new(callee.return_type.clone()),
-                    Box::new(Type::Unit),
-                    callee.unconstrained,
-                ),
-                id: self.next_ident_id(),
-            })),
+            func: Box::new(Expression::Ident(callee_ident)),
             arguments: args,
-            return_type: callee.return_type,
+            return_type,
             location: Location::dummy(),
         });
 
@@ -1046,13 +1094,7 @@ impl<'a> FunctionContext<'a> {
         // Declare break index variable visible in the loop body. Do not include it
         // in the locals the generator would be able to manipulate, as it could
         // lead to the loop becoming infinite.
-        let idx_type = types::U32;
-        let idx_local_id = self.next_local_id();
-        let idx_id = self.next_ident_id();
-        let idx_name = format!("idx_{}", make_name(idx_local_id.0 as usize, false));
-        let idx_variable_id = VariableId::Local(idx_local_id);
-        let idx_ident =
-            expr::ident_inner(idx_variable_id, idx_id, true, idx_name.clone(), idx_type);
+        let (idx_local_id, idx_name, idx_ident) = self.next_loop_index();
         let idx_expr = Expression::Ident(idx_ident.clone());
 
         // Decrease budget so we don't nest endlessly.
@@ -1092,13 +1134,7 @@ impl<'a> FunctionContext<'a> {
         // Declare break index variable visible in the loop body. Do not include it
         // in the locals the generator would be able to manipulate, as it could
         // lead to the loop becoming infinite.
-        let idx_type = types::U32;
-        let idx_local_id = self.next_local_id();
-        let idx_id = self.next_ident_id();
-        let idx_name = format!("idx_{}", make_name(idx_local_id.0 as usize, false));
-        let idx_variable_id = VariableId::Local(idx_local_id);
-        let idx_ident =
-            expr::ident_inner(idx_variable_id, idx_id, true, idx_name.clone(), idx_type);
+        let (idx_local_id, idx_name, idx_ident) = self.next_loop_index();
         let idx_expr = Expression::Ident(idx_ident.clone());
 
         // Decrease budget so we don't nest endlessly.
@@ -1211,42 +1247,62 @@ impl<'a> FunctionContext<'a> {
         }
 
         let callee_id = u.choose_iter(candidates)?;
+        let callee_ident = self.func_ident(callee_id);
 
-        Ok(self.function_ident(CallableId::Global(callee_id)))
+        Ok(Expression::Ident(callee_ident))
     }
 
-    /// Generate an identifier for calling a global function.
-    fn function_ident(&mut self, callee_id: CallableId) -> Expression {
+    /// Identifier for passing a reference a global function or local function pointer.
+    fn callable_ident(&mut self, callee_id: CallableId) -> Ident {
         match callee_id {
-            CallableId::Global(id) => {
-                let callee = self.ctx.function_decl(id).clone();
-                let param_types = callee.params.iter().map(|p| p.3.clone()).collect::<Vec<_>>();
-                Expression::Ident(Ident {
-                    location: None,
-                    definition: Definition::Function(id),
-                    mutable: false,
-                    name: callee.name.clone(),
-                    typ: Type::Function(
-                        param_types,
-                        Box::new(callee.return_type.clone()),
-                        Box::new(Type::Unit),
-                        callee.unconstrained,
-                    ),
-                    id: self.next_ident_id(),
-                })
-            }
-            CallableId::Local(id) => {
-                let (mutable, name, typ) = self.locals.current().get_variable(&id);
-                Expression::Ident(Ident {
-                    location: None,
-                    definition: Definition::Local(id),
-                    mutable: *mutable,
-                    name: name.clone(),
-                    typ: typ.clone(),
-                    id: self.next_ident_id(),
-                })
-            }
+            CallableId::Global(id) => self.func_ident(id),
+            CallableId::Local(id) => self.local_ident(id),
         }
+    }
+
+    /// Identifier for a global function.
+    fn func_ident(&mut self, callee_id: FuncId) -> Ident {
+        let callee = self.ctx.function_decl(callee_id).clone();
+        let param_types = callee.params.iter().map(|p| p.3.clone()).collect::<Vec<_>>();
+
+        Ident {
+            location: None,
+            definition: Definition::Function(callee_id),
+            mutable: false,
+            name: callee.name.clone(),
+            typ: Type::Function(
+                param_types,
+                Box::new(callee.return_type.clone()),
+                Box::new(Type::Unit),
+                callee.unconstrained,
+            ),
+            id: self.next_ident_id(),
+        }
+    }
+
+    /// Identifier for a local variable.
+    fn local_ident(&mut self, id: LocalId) -> Ident {
+        let (mutable, name, typ) = self.locals.current().get_variable(&id).clone();
+        let ident_id = self.next_ident_id();
+        expr::ident_inner(VariableId::Local(id), ident_id, mutable, name, typ.clone())
+    }
+
+    /// Type of a local variable.
+    fn local_type(&self, id: LocalId) -> &Type {
+        let (_, _, typ) = self.locals.current().get_variable(&id);
+        typ
+    }
+
+    /// Create a loop index variable.
+    fn next_loop_index(&mut self) -> (LocalId, String, Ident) {
+        let idx_type = types::U32;
+        let idx_local_id = self.next_local_id();
+        let idx_id = self.next_ident_id();
+        let idx_name = format!("idx_{}", make_name(idx_local_id.0 as usize, false));
+        let idx_variable_id = VariableId::Local(idx_local_id);
+        let idx_ident =
+            expr::ident_inner(idx_variable_id, idx_id, true, idx_name.clone(), idx_type);
+        (idx_local_id, idx_name, idx_ident)
     }
 
     /// Get the parameter types and return type of a callable function.

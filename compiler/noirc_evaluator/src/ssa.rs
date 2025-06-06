@@ -47,15 +47,14 @@ pub mod function_builder;
 pub mod interpreter;
 pub mod ir;
 pub(crate) mod opt;
-#[cfg(test)]
-pub(crate) mod parser;
+pub mod parser;
 pub mod ssa_gen;
 
 #[derive(Debug, Clone)]
 pub enum SsaLogging {
     None,
     All,
-    Contains(String),
+    Contains(Vec<String>),
 }
 
 #[derive(Debug, Clone)]
@@ -702,8 +701,9 @@ impl SsaBuilder {
         F: FnOnce(Ssa) -> Result<Ssa, RuntimeError>,
     {
         // Count the number of times we have seen this message.
-        let cnt = self.passed.entry(msg.to_string()).and_modify(|cnt| *cnt += 1).or_insert(1);
-        let msg = format!("{msg} ({cnt})");
+        let cnt = *self.passed.entry(msg.to_string()).and_modify(|cnt| *cnt += 1).or_insert(1);
+        let step = self.passed.values().sum::<usize>();
+        let msg = format!("{msg} ({cnt}) (step {step})");
 
         // See if we should skip this pass, including the count, so we can skip the n-th occurrence of a step.
         let skip = self.skip_passes.iter().any(|s| msg.contains(s));
@@ -725,12 +725,12 @@ impl SsaBuilder {
         let print_ssa_pass = match &self.ssa_logging {
             SsaLogging::None => false,
             SsaLogging::All => true,
-            SsaLogging::Contains(string) => {
+            SsaLogging::Contains(strings) => strings.iter().any(|string| {
                 let string = string.to_lowercase();
                 let string = string.strip_prefix("after ").unwrap_or(&string);
                 let string = string.strip_suffix(':').unwrap_or(string);
                 msg.to_lowercase().contains(string)
-            }
+            }),
         };
 
         if print_ssa_pass {

@@ -17,29 +17,29 @@ impl ExecutionResult {
     }
 }
 
-fn modify_in_inlined_constrained(original: [Field; 5], index: u64) -> ExecutionResult {
+fn modify_in_inlined_constrained(original: [Field; 5], index: u32) -> ExecutionResult {
     let mut modified: [Field; 5] = original;
     modified[index] = 27;
     let modified_once: [Field; 5] = modified;
     {
-        let i_3783: u64 = index + 1;
-        modified[i_3783] = 27;
+        let i_3788: u32 = index + 1;
+        modified[i_3788] = 27;
     };
     ExecutionResult { original: original, modified_once: modified_once, modified_twice: modified }
 }
 
-unconstrained fn modify_in_unconstrained(original: [Field; 5], index: u64) -> ExecutionResult {
+unconstrained fn modify_in_unconstrained(original: [Field; 5], index: u32) -> ExecutionResult {
     let mut modified: [Field; 5] = original;
     modified[index] = 27;
     let modified_once: [Field; 5] = modified;
     {
-        let i_3786: u64 = index + 1;
-        modified[i_3786] = 27;
+        let i_3791: u32 = index + 1;
+        modified[i_3791] = 27;
     };
     ExecutionResult { original: original, modified_once: modified_once, modified_twice: modified }
 }
 
-unconstrained fn main(original: [Field; 5], index: u64, expected_result: ExecutionResult) {
+unconstrained fn main(original: [Field; 5], index: u32, expected_result: ExecutionResult) {
     assert(expected_result.is_equal(modify_in_unconstrained(original, index)));
     assert(expected_result.is_equal(modify_in_inlined_constrained(original, index)));
 }

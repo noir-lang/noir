@@ -183,8 +183,21 @@ pub(crate) fn is_bool(typ: &Type) -> bool {
     matches!(typ, Type::Bool)
 }
 
+/// Check if the type is a reference wrapping another.
 pub(crate) fn is_reference(typ: &Type) -> bool {
     matches!(typ, Type::Reference(_, _))
+}
+
+/// Check if the type can be used with a `println` statement.
+pub(crate) fn is_printable(typ: &Type) -> bool {
+    match typ {
+        Type::Reference(_, _) => false,
+        Type::Field | Type::Integer(_, _) | Type::String(_) | Type::Bool | Type::Unit => true,
+        Type::Slice(typ) | Type::Array(_, typ) | Type::FmtString(_, typ) => is_printable(typ),
+        Type::Tuple(typs) => typs.iter().all(is_printable),
+        // Function signatures are printable, although they might differ when we force things to be Brillig.
+        Type::Function(_, _, _, _) => true,
+    }
 }
 
 /// Can the type be returned by some `UnaryOp`.

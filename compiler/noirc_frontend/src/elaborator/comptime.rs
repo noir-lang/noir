@@ -89,6 +89,7 @@ impl<'context> Elaborator<'context> {
             self.def_maps,
             self.usage_tracker,
             self.crate_graph,
+            self.interpreter_output,
             self.crate_id,
             self.interpreter_call_stack.clone(),
             self.options,
@@ -422,6 +423,7 @@ impl<'context> Elaborator<'context> {
                     resolved_object_type: None,
                     resolved_generics: Vec::new(),
                     resolved_trait_generics: Vec::new(),
+                    unresolved_associated_types: Vec::new(),
                 });
             }
             ItemKind::Global(global, visibility) => {

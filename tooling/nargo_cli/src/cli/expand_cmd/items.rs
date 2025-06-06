@@ -83,10 +83,10 @@ pub(super) struct Import {
     pub(super) is_prelude: bool,
 }
 
-pub(super) struct ItemBuilder<'interner, 'def_map> {
+pub(super) struct ItemBuilder<'context> {
     crate_id: CrateId,
-    interner: &'interner NodeInterner,
-    def_maps: &'def_map DefMaps,
+    interner: &'context NodeInterner,
+    def_maps: &'context DefMaps,
     /// This set is initially created with all the trait impls in the crate.
     /// As we traverse traits, will gather trait impls associated to those traits
     /// that aren't associated to types in the current crate.
@@ -96,11 +96,11 @@ pub(super) struct ItemBuilder<'interner, 'def_map> {
     trait_impls: HashSet<TraitImplId>,
 }
 
-impl<'interner, 'def_map> ItemBuilder<'interner, 'def_map> {
+impl<'context> ItemBuilder<'context> {
     pub(super) fn new(
         crate_id: CrateId,
-        interner: &'interner NodeInterner,
-        def_maps: &'def_map DefMaps,
+        interner: &'context NodeInterner,
+        def_maps: &'context DefMaps,
     ) -> Self {
         let trait_impls = interner.get_trait_implementations_in_crate(crate_id);
         Self { crate_id, interner, def_maps, trait_impls }

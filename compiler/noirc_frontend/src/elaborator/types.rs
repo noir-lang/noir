@@ -37,7 +37,6 @@ use crate::{
         TraitMethodId,
     },
     shared::Signedness,
-    signed_field::SignedField,
     token::SecondaryAttributeKind,
 };
 
@@ -1137,11 +1136,14 @@ impl Elaborator<'_> {
         to: &Type,
         location: Location,
     ) -> Type {
+        let to = to.follow_bindings();
         let from_follow_bindings = from.follow_bindings();
 
         use HirExpression::Literal;
         let from_value_opt = match self.interner.expression(from_expr_id) {
-            Literal(HirLiteral::Integer(SignedField { field, is_negative: false })) => Some(field),
+            Literal(HirLiteral::Integer(field)) if !field.is_negative() => {
+                Some(field.absolute_value())
+            }
 
             // TODO(https://github.com/noir-lang/noir/issues/6247):
             // handle negative literals
@@ -1190,9 +1192,23 @@ impl Elaborator<'_> {
         }
 
         match to {
-            Type::Integer(sign, bits) => Type::Integer(*sign, *bits),
+            Type::Integer(sign, bits) => Type::Integer(sign, bits),
             Type::FieldElement => Type::FieldElement,
-            Type::Bool => Type::Bool,
+            Type::Bool => {
+                let from_is_numeric = match from_follow_bindings {
+                    Type::Integer(..) | Type::FieldElement => true,
+                    Type::TypeVariable(ref var) => var.is_integer() || var.is_integer_or_field(),
+                    _ => false,
+                };
+                if from_is_numeric {
+                    self.push_err(TypeCheckError::CannotCastNumericToBool {
+                        typ: from_follow_bindings,
+                        location,
+                    });
+                }
+
+                Type::Bool
+            }
             Type::Error => Type::Error,
             _ => {
                 self.push_err(TypeCheckError::UnsupportedCast { location });
@@ -1393,7 +1409,26 @@ impl Elaborator<'_> {
                 Ok((FieldElement, false))
             }
 
-            (Bool, Bool) => Ok((Bool, false)),
+            (Bool, Bool) => match op.kind {
+                BinaryOpKind::Add
+                | BinaryOpKind::Subtract
+                | BinaryOpKind::Multiply
+                | BinaryOpKind::Divide
+                | BinaryOpKind::ShiftRight
+                | BinaryOpKind::ShiftLeft
+                | BinaryOpKind::Modulo => {
+                    Err(TypeCheckError::InvalidBoolInfixOp { op: op.kind, location })
+                }
+                BinaryOpKind::Equal
+                | BinaryOpKind::NotEqual
+                | BinaryOpKind::Less
+                | BinaryOpKind::LessEqual
+                | BinaryOpKind::Greater
+                | BinaryOpKind::GreaterEqual
+                | BinaryOpKind::And
+                | BinaryOpKind::Or
+                | BinaryOpKind::Xor => Ok((Bool, false)),
+            },
 
             (lhs, rhs) => {
                 if op.kind == BinaryOpKind::ShiftLeft || op.kind == BinaryOpKind::ShiftRight {
@@ -1862,7 +1897,7 @@ impl Elaborator<'_> {
             }
         }
 
-        for constraint in &func_meta.trait_constraints {
+        for constraint in func_meta.all_trait_constraints() {
             if *object_type == constraint.typ {
                 if let Some(the_trait) =
                     self.interner.try_get_trait(constraint.trait_bound.trait_id)
@@ -2191,7 +2226,7 @@ impl Elaborator<'_> {
         }
     }
 
-    fn push_trait_constraint_error(
+    pub(super) fn push_trait_constraint_error(
         &mut self,
         object_type: &Type,
         error: ImplSearchErrorKind,
@@ -2263,10 +2298,6 @@ impl Elaborator<'_> {
         select_impl: bool,
     ) {
         self.get_function_context().trait_constraints.push((constraint, expr_id, select_impl));
-    }
-
-    pub(super) fn push_index_to_check(&mut self, index: ExprId) {
-        self.get_function_context().indexes_to_check.push(index);
     }
 
     fn get_function_context(&mut self) -> &mut FunctionContext {

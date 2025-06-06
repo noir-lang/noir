@@ -39,17 +39,7 @@ impl Formatter<'_> {
                 if !trait_bounds.is_empty() {
                     self.write_token(Token::Colon);
                     self.write_space();
-
-                    let len = trait_bounds.len();
-                    for (index, trait_bound) in trait_bounds.into_iter().enumerate() {
-                        self.format_trait_bound(trait_bound);
-
-                        if index < len - 1 {
-                            self.write_space();
-                            self.write_token(Token::Plus);
-                            self.write_space();
-                        }
-                    }
+                    self.format_trait_bounds(trait_bounds);
                 }
             }
             UnresolvedGeneric::Numeric { ident, typ } => {
