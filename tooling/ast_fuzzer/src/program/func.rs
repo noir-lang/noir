@@ -704,6 +704,13 @@ impl<'a> FunctionContext<'a> {
             }
         }
 
+        // We don't want constraints to get too frequent, as it could dominate all outcome.
+        if freq.enabled_when("constrain", !self.ctx.config.avoid_constrain) {
+            if let Some(e) = self.gen_constrain(u)? {
+                return Ok(e);
+            }
+        }
+
         // Require a positive budget, so that we have some for the block itself and its contents.
         if freq.enabled_when("if", self.budget > 1) {
             return self.gen_if(u, &Type::Unit, self.max_depth(), Flags::TOP);
@@ -747,12 +754,6 @@ impl<'a> FunctionContext<'a> {
 
         if freq.enabled("assign") {
             if let Some(e) = self.gen_assign(u)? {
-                return Ok(e);
-            }
-        }
-
-        if freq.enabled_when("constrain", !self.ctx.config.avoid_constrain) {
-            if let Some(e) = self.gen_constrain(u)? {
                 return Ok(e);
             }
         }
