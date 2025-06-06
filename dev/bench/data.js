@@ -1,87 +1,8 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1749244118116,
+  "lastUpdate": 1749244256360,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
-      {
-        "commit": {
-          "author": {
-            "email": "rkarabut@users.noreply.github.com",
-            "name": "Ratmir Karabut",
-            "username": "rkarabut"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "af2e5c9cd9933268fc91fda93e8bbd6b1f61004a",
-          "message": "fix(fuzz): Prevent breaking/continuing out from let blocks in the AST fuzzer (#8708)",
-          "timestamp": "2025-05-29T11:48:46Z",
-          "tree_id": "d65cb9c14f7121a734ab9a1d3efddb344e6b31c6",
-          "url": "https://github.com/noir-lang/noir/commit/af2e5c9cd9933268fc91fda93e8bbd6b1f61004a"
-        },
-        "date": 1748521324325,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 337.15,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 577.7,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 236.97,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 1470,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 1630,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-root-empty",
-            "value": 431.71,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-root-single-tx",
-            "value": 7240,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 7250,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 415.91,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-root",
-            "value": 470.23,
-            "unit": "MB"
-          },
-          {
-            "name": "semaphore_depth_10",
-            "value": 128.39,
-            "unit": "MB"
-          }
-        ]
-      },
       {
         "commit": {
           "author": {
@@ -3924,6 +3845,85 @@ window.BENCHMARK_DATA = {
           {
             "name": "rollup-block-root-empty",
             "value": 343.09,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root-single-tx",
+            "value": 7830,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 7830,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 327.3,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-root",
+            "value": 381.66,
+            "unit": "MB"
+          },
+          {
+            "name": "semaphore_depth_10",
+            "value": 106.39,
+            "unit": "MB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "72797635+Savio-Sou@users.noreply.github.com",
+            "name": "Savio",
+            "username": "Savio-Sou"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "582123ddbad7cae84bc9a10de8ffc54e8fcde577",
+          "message": "chore(docs): Add experimental warning in Debugger docs (#8824)",
+          "timestamp": "2025-06-06T20:35:47Z",
+          "tree_id": "afcf51ae7c055f1bfda41cf0dca96a90fbb31258",
+          "url": "https://github.com/noir-lang/noir/commit/582123ddbad7cae84bc9a10de8ffc54e8fcde577"
+        },
+        "date": 1749244245166,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 292.95,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 534.03,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 191.56,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 1380,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 1550,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root-empty",
+            "value": 343.08,
             "unit": "MB"
           },
           {
