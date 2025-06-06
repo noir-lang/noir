@@ -18,7 +18,7 @@ use crate::ssa::{
 use super::{executes_with_no_errors, expect_error};
 
 #[test]
-fn add() {
+fn add_unsigned() {
     let value = expect_value(
         "
         acir(inline) fn main f0 {
@@ -32,7 +32,22 @@ fn add() {
 }
 
 #[test]
-fn add_overflow() {
+fn add_signed() {
+    let value = expect_value(
+        "
+        acir(inline) fn main f0 {
+          b0():
+            v0 = add i32 2, i32 100
+            v1 = truncate v0 to 32 bits, max_bit_size: 33
+            return v1
+        }
+    ",
+    );
+    assert_eq!(value, Value::Numeric(NumericValue::I32(102)));
+}
+
+#[test]
+fn add_overflow_unsigned() {
     let error = expect_error(
         "
         acir(inline) fn main f0 {
@@ -46,7 +61,22 @@ fn add_overflow() {
 }
 
 #[test]
-fn add_unchecked() {
+fn add_overflow_signed() {
+    let value = expect_value(
+        "
+        acir(inline) fn main f0 {
+          b0():
+            v0 = add i8 2, i8 127
+            v1 = truncate v0 to 8 bits, max_bit_size: 9
+            return v1
+        }
+    ",
+    );
+    assert_eq!(value, Value::Numeric(NumericValue::I8(-127)));
+}
+
+#[test]
+fn add_unchecked_unsigned() {
     executes_with_no_errors(
         "
         acir(inline) fn main f0 {
@@ -59,7 +89,21 @@ fn add_unchecked() {
 }
 
 #[test]
-fn sub() {
+fn add_unchecked_signed() {
+    let value = expect_value(
+        "
+        acir(inline) fn main f0 {
+          b0():
+            v0 = unchecked_add i8 2, i8 127
+            return v0
+        }
+    ",
+    );
+    assert_eq!(value, Value::Numeric(NumericValue::I8(-127)));
+}
+
+#[test]
+fn sub_unsigned() {
     let value = expect_value(
         "
         acir(inline) fn main f0 {
@@ -73,12 +117,27 @@ fn sub() {
 }
 
 #[test]
-fn sub_underflow() {
+fn sub_signed() {
+    let value = expect_value(
+        "
+        acir(inline) fn main f0 {
+          b0():
+            v0 = sub i32 10101, i32 10102
+            v1 = truncate v0 to 32 bits, max_bit_size: 33
+            return v0
+        }
+    ",
+    );
+    assert_eq!(value, Value::Numeric(NumericValue::I32(-1)));
+}
+
+#[test]
+fn sub_underflow_unsigned() {
     let error = expect_error(
         "
         acir(inline) fn main f0 {
           b0():
-            v0 = sub i8 136, i8 10  // -120 - 10
+            v0 = sub u8 0, u8 10  // 0 - 10
             v1 = truncate v0 to 8 bits, max_bit_size: 9
             return v1
         }
@@ -88,7 +147,39 @@ fn sub_underflow() {
 }
 
 #[test]
-fn sub_unchecked() {
+fn sub_underflow_signed() {
+    let value = expect_value(
+        "
+        acir(inline) fn main f0 {
+          b0():
+            v0 = sub i8 136, i8 10  // -120 - 10
+            v1 = truncate v0 to 8 bits, max_bit_size: 9
+            return v1
+        }
+    ",
+    );
+    // Expected wrapping sub:
+    // i8 can only be -128 to 127
+    // -120 - 10 = -130 = 126
+    assert!(matches!(value, Value::Numeric(NumericValue::I8(126))));
+}
+
+#[test]
+fn sub_unchecked_unsigned() {
+    let value = expect_value(
+        "
+        acir(inline) fn main f0 {
+          b0():
+            v0 = unchecked_sub u8 0, u8 10  // 0 - 10
+            return v0
+        }
+    ",
+    );
+    assert!(matches!(value, Value::Numeric(NumericValue::U8(246))));
+}
+
+#[test]
+fn sub_unchecked_signed() {
     let value = expect_value(
         "
         acir(inline) fn main f0 {
@@ -102,7 +193,7 @@ fn sub_unchecked() {
 }
 
 #[test]
-fn mul() {
+fn mul_unsigned() {
     let value = expect_value(
         "
         acir(inline) fn main f0 {
@@ -116,7 +207,21 @@ fn mul() {
 }
 
 #[test]
-fn mul_overflow() {
+fn mul_signed() {
+    let value = expect_value(
+        "
+        acir(inline) fn main f0 {
+          b0():
+            v0 = mul i64 2, i64 100
+            return v0
+        }
+    ",
+    );
+    assert_eq!(value, Value::Numeric(NumericValue::I64(200)));
+}
+
+#[test]
+fn mul_overflow_unsigned() {
     let error = expect_error(
         "
         acir(inline) fn main f0 {
@@ -130,7 +235,21 @@ fn mul_overflow() {
 }
 
 #[test]
-fn mul_unchecked() {
+fn mul_overflow_signed() {
+    let value = expect_value(
+        "
+        acir(inline) fn main f0 {
+          b0():
+            v0 = mul i8 127, i8 2
+            return v0
+        }
+    ",
+    );
+    assert_eq!(value, Value::Numeric(NumericValue::I8(-2)));
+}
+
+#[test]
+fn mul_unchecked_unsigned() {
     let value = expect_value(
         "
         acir(inline) fn main f0 {
@@ -141,6 +260,20 @@ fn mul_unchecked() {
     ",
     );
     assert_eq!(value, Value::Numeric(NumericValue::U8(0)));
+}
+
+#[test]
+fn mul_unchecked_signed() {
+    let value = expect_value(
+        "
+        acir(inline) fn main f0 {
+          b0():
+            v0 = unchecked_mul i8 127, i8 2
+            return v0
+        }
+    ",
+    );
+    assert_eq!(value, Value::Numeric(NumericValue::I8(-2)));
 }
 
 #[test]
