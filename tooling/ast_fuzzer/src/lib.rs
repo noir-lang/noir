@@ -63,6 +63,8 @@ pub struct Config {
     pub avoid_loop_control: bool,
     /// Avoid using function pointers in parameters.
     pub avoid_lambdas: bool,
+    /// Avoid using constrain statements.
+    pub avoid_constrain: bool,
     /// Only use comptime friendly expressions.
     pub comptime_friendly: bool,
 }
@@ -85,6 +87,7 @@ impl Default for Config {
             ("for", 22),
             ("let", 25),
             ("call", 5),
+            ("constrain", 5),
         ]);
         let stmt_freqs_brillig = Freqs::new(&[
             ("drop", 0),
@@ -98,6 +101,7 @@ impl Default for Config {
             ("let", 20),
             ("call", 5),
             ("print", 15),
+            ("constrain", 10),
         ]);
         Self {
             max_globals: 3,
@@ -122,6 +126,7 @@ impl Default for Config {
             avoid_negative_int_literals: false,
             avoid_loop_control: false,
             avoid_lambdas: false,
+            avoid_constrain: false,
             comptime_friendly: false,
         }
     }

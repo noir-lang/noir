@@ -5,7 +5,9 @@ use super::{
     ir::{
         dfg::DataFlowGraph,
         function::{Function, FunctionId, RuntimeType},
-        instruction::{ArrayOffset, Binary, BinaryOp, Instruction, TerminatorInstruction},
+        instruction::{
+            ArrayOffset, Binary, BinaryOp, ConstrainError, Instruction, TerminatorInstruction,
+        },
         types::Type,
         value::ValueId,
     },
@@ -413,7 +415,18 @@ impl<'ssa> Interpreter<'ssa> {
                     let rhs = rhs.to_string();
                     let lhs_id = *lhs_id;
                     let rhs_id = *rhs_id;
-                    return Err(InterpreterError::ConstrainEqFailed { lhs, lhs_id, rhs, rhs_id });
+                    let msg = if let Some(ConstrainError::StaticString(msg)) = constrain_error {
+                        format!(", \"{msg}\"")
+                    } else {
+                        "".to_string()
+                    };
+                    return Err(InterpreterError::ConstrainEqFailed {
+                        lhs,
+                        lhs_id,
+                        rhs,
+                        rhs_id,
+                        msg,
+                    });
                 }
                 Ok(())
             }
@@ -425,7 +438,18 @@ impl<'ssa> Interpreter<'ssa> {
                     let rhs = rhs.to_string();
                     let lhs_id = *lhs_id;
                     let rhs_id = *rhs_id;
-                    return Err(InterpreterError::ConstrainNeFailed { lhs, lhs_id, rhs, rhs_id });
+                    let msg = if let Some(ConstrainError::StaticString(msg)) = constrain_error {
+                        format!(", \"{msg}\"")
+                    } else {
+                        "".to_string()
+                    };
+                    return Err(InterpreterError::ConstrainNeFailed {
+                        lhs,
+                        lhs_id,
+                        rhs,
+                        rhs_id,
+                        msg,
+                    });
                 }
                 Ok(())
             }
