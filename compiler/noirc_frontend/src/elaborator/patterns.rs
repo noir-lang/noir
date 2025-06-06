@@ -12,10 +12,7 @@ use crate::{
     hir::{
         def_collector::dc_crate::CompilationError,
         resolution::{errors::ResolverError, import::PathResolutionError},
-        type_check::{
-            Source, TypeCheckError,
-            generics::{FmtstrPrimitiveType, Generic, StrPrimitiveType},
-        },
+        type_check::{Source, TypeCheckError},
     },
     hir_def::{
         expr::{HirExpression, HirIdent, HirLiteral, HirMethodReference, ImplKind, TraitMethod},
@@ -28,7 +25,7 @@ use crate::{
 };
 
 use super::{
-    Elaborator, PrimitiveType, ResolverMeta,
+    Elaborator, ResolverMeta,
     path_resolution::{PathResolutionItem, TypedPath, TypedPathSegment},
 };
 
@@ -832,80 +829,15 @@ impl Elaborator<'_> {
                 (Vec::new(), Some(self_type))
             }
             PathResolutionItem::PrimitiveFunction(primitive_type, turbofish, _func_id) => {
-                let generics = match primitive_type {
-                    PrimitiveType::Bool
-                    | PrimitiveType::CtString
-                    | PrimitiveType::Expr
-                    | PrimitiveType::Field
-                    | PrimitiveType::FunctionDefinition
-                    | PrimitiveType::I8
-                    | PrimitiveType::I16
-                    | PrimitiveType::I32
-                    | PrimitiveType::I64
-                    | PrimitiveType::U1
-                    | PrimitiveType::U8
-                    | PrimitiveType::U16
-                    | PrimitiveType::U32
-                    | PrimitiveType::U64
-                    | PrimitiveType::U128
-                    | PrimitiveType::Module
-                    | PrimitiveType::Quoted
-                    | PrimitiveType::StructDefinition
-                    | PrimitiveType::TraitConstraint
-                    | PrimitiveType::TraitDefinition
-                    | PrimitiveType::TraitImpl
-                    | PrimitiveType::TypeDefinition
-                    | PrimitiveType::TypedExpr
-                    | PrimitiveType::Type
-                    | PrimitiveType::UnresolvedType => {
-                        if let Some(turbofish) = turbofish {
-                            self.push_err(CompilationError::TypeError(
-                                TypeCheckError::GenericCountMismatch {
-                                    item: primitive_type.name().to_string(),
-                                    expected: 0,
-                                    found: turbofish.generics.len(),
-                                    location: turbofish.location,
-                                },
-                            ));
-                        }
-                        Vec::new()
+                let typ = self.instantiate_primitive_type_with_turbofish(primitive_type, turbofish);
+                let generics = match typ {
+                    Type::String(length) => {
+                        vec![*length]
                     }
-                    PrimitiveType::Str => {
-                        if let Some(turbofish) = turbofish {
-                            let item = StrPrimitiveType;
-                            let item_generic_kinds = item.generic_kinds(self.interner);
-                            let kind = item_generic_kinds[0].clone();
-                            let generics = vec![self.interner.next_type_variable_with_kind(kind)];
-                            self.resolve_item_turbofish_generics(
-                                item.item_kind(),
-                                &item.item_name(self.interner),
-                                item_generic_kinds,
-                                generics,
-                                Some(turbofish.generics),
-                                turbofish.location,
-                            )
-                        } else {
-                            Vec::new()
-                        }
+                    Type::FmtString(length, element) => {
+                        vec![*length, *element]
                     }
-                    PrimitiveType::Fmtstr => {
-                        if let Some(turbofish) = turbofish {
-                            let item_generic_kinds =
-                                FmtstrPrimitiveType {}.generic_kinds(self.interner);
-                            let kind = item_generic_kinds[0].clone();
-                            let generics = vec![self.interner.next_type_variable_with_kind(kind)];
-                            self.resolve_item_turbofish_generics(
-                                "primitive type",
-                                "fmtstr",
-                                item_generic_kinds,
-                                generics,
-                                Some(turbofish.generics),
-                                turbofish.location,
-                            )
-                        } else {
-                            Vec::new()
-                        }
-                    }
+                    _ => Vec::new(),
                 };
                 (generics, None)
             }

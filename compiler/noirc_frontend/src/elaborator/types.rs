@@ -20,7 +20,7 @@ use crate::{
         resolution::{errors::ResolverError, import::PathResolutionError},
         type_check::{
             NoMatchingImplFoundError, Source, TypeCheckError,
-            generics::{FmtstrPrimitiveType, Generic, StrPrimitiveType, TraitGenerics},
+            generics::{Generic, TraitGenerics},
         },
     },
     hir_def::{
@@ -43,7 +43,6 @@ use crate::{
 use super::{
     Elaborator, FunctionContext, PathResolutionTarget, UnsafeBlockStatus, lints,
     path_resolution::{PathResolutionItem, PathResolutionMode, TypedPath},
-    primitive_types::PrimitiveType,
 };
 
 pub const SELF_TYPE_NAME: &str = "Self";
@@ -351,80 +350,6 @@ impl Elaborator<'_> {
             WILDCARD_TYPE => Some(self.interner.next_type_variable_with_kind(Kind::Any)),
             _ => None,
         }
-    }
-
-    fn instantiate_primitive_type(
-        &mut self,
-        primitive_type: PrimitiveType,
-        args: GenericTypeArgs,
-        location: Location,
-    ) -> Type {
-        match primitive_type {
-            PrimitiveType::Bool
-            | PrimitiveType::CtString
-            | PrimitiveType::Expr
-            | PrimitiveType::Field
-            | PrimitiveType::FunctionDefinition
-            | PrimitiveType::I8
-            | PrimitiveType::I16
-            | PrimitiveType::I32
-            | PrimitiveType::I64
-            | PrimitiveType::U1
-            | PrimitiveType::U8
-            | PrimitiveType::U16
-            | PrimitiveType::U32
-            | PrimitiveType::U64
-            | PrimitiveType::U128
-            | PrimitiveType::Module
-            | PrimitiveType::Quoted
-            | PrimitiveType::StructDefinition
-            | PrimitiveType::TraitConstraint
-            | PrimitiveType::TraitDefinition
-            | PrimitiveType::TraitImpl
-            | PrimitiveType::TypeDefinition
-            | PrimitiveType::TypedExpr
-            | PrimitiveType::Type
-            | PrimitiveType::UnresolvedType => {
-                if !args.is_empty() {
-                    let found = args.ordered_args.len() + args.named_args.len();
-                    self.push_err(CompilationError::TypeError(
-                        TypeCheckError::GenericCountMismatch {
-                            item: primitive_type.name().to_string(),
-                            expected: 0,
-                            found,
-                            location,
-                        },
-                    ));
-                }
-            }
-            PrimitiveType::Str => {
-                let item = StrPrimitiveType;
-                let (mut args, _) = self.resolve_type_args_inner(
-                    args,
-                    item,
-                    location,
-                    PathResolutionMode::MarkAsReferenced,
-                );
-                assert_eq!(args.len(), 1);
-                let length = args.pop().unwrap();
-                return Type::String(Box::new(length));
-            }
-            PrimitiveType::Fmtstr => {
-                let item = FmtstrPrimitiveType;
-                let (mut args, _) = self.resolve_type_args_inner(
-                    args,
-                    item,
-                    location,
-                    PathResolutionMode::MarkAsReferenced,
-                );
-                assert_eq!(args.len(), 2);
-                let element = args.pop().unwrap();
-                let length = args.pop().unwrap();
-                return Type::FmtString(Box::new(length), Box::new(element));
-            }
-        }
-
-        primitive_type.to_type()
     }
 
     fn resolve_trait_as_type(
@@ -912,7 +837,21 @@ impl Elaborator<'_> {
                 };
                 type_alias.get_type(&generics)
             }
-            _ => return None,
+            PathResolutionItem::PrimitiveType(primitive_type) => {
+                self.instantiate_primitive_type_with_turbofish(primitive_type, turbofish)
+            }
+            PathResolutionItem::Module(..)
+            | PathResolutionItem::Trait(..)
+            | PathResolutionItem::Global(..)
+            | PathResolutionItem::ModuleFunction(..)
+            | PathResolutionItem::Method(..)
+            | PathResolutionItem::SelfMethod(..)
+            | PathResolutionItem::TypeAliasFunction(..)
+            | PathResolutionItem::TraitFunction(..)
+            | PathResolutionItem::TypeTraitFunction(..)
+            | PathResolutionItem::PrimitiveFunction(..) => {
+                return None;
+            }
         };
 
         let method_name = last_segment.ident.as_str();
