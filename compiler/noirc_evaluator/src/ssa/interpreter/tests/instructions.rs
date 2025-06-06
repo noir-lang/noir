@@ -1,6 +1,5 @@
 use std::sync::Arc;
 
-use acvm::{AcirField, FieldElement};
 use iter_extended::vecmap;
 use noirc_frontend::Shared;
 
@@ -377,7 +376,7 @@ fn shr_overflow_unsigned() {
 
 #[test]
 /// shr on signed integers does not error on overflow.
-/// If the value being shifted is positive we return 0, and -1 if it is negative. 
+/// If the value being shifted is positive we return 0, and -1 if it is negative.
 /// See https://github.com/noir-lang/noir/pull/8805.
 fn shr_overflow_signed_negative_lhs() {
     let value = expect_value(
@@ -397,7 +396,7 @@ fn shr_overflow_signed_negative_lhs() {
 
 #[test]
 /// shr on signed integers does not error on overflow.
-/// If the value being shifted is positive we return 0, and -1 if it is negative. 
+/// If the value being shifted is positive we return 0, and -1 if it is negative.
 /// See https://github.com/noir-lang/noir/pull/8805.
 fn shr_overflow_signed_positive_lhs() {
     let value = expect_value(
@@ -410,9 +409,7 @@ fn shr_overflow_signed_positive_lhs() {
     ",
     );
 
-    // let neg_one = IntegerConstant::Signed { value: -1, bit_size: 8 };
-    // let (neg_one_constant, typ) = neg_one.into_numeric_constant();
-    assert_eq!(value, from_constant(FieldElement::zero(), NumericType::Signed { bit_size: 8 }));
+    assert_eq!(value, Value::Numeric(NumericValue::I8(0)));
 }
 
 #[test]

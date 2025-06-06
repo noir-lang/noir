@@ -1092,10 +1092,10 @@ impl Interpreter<'_> {
             }
             BinaryOp::Shr => {
                 let fallback = || {
-                    if lhs.get_type().is_unsigned() {
-                        NumericValue::zero(lhs.get_type())
-                    } else {
+                    if lhs.is_negative() {
                         NumericValue::neg_one(lhs.get_type())
+                    } else {
+                        NumericValue::zero(lhs.get_type())
                     }
                 };
 

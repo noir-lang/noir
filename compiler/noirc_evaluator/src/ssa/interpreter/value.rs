@@ -368,6 +368,16 @@ impl NumericValue {
             NumericValue::I64(value) => FieldElement::from(*value as u64 as i128),
         }
     }
+
+    pub fn is_negative(&self) -> bool {
+        match self {
+            NumericValue::I8(v) => *v < 0,
+            NumericValue::I16(v) => *v < 0,
+            NumericValue::I32(v) => *v < 0,
+            NumericValue::I64(v) => *v < 0,
+            _ => false,
+        }
+    }
 }
 
 impl std::fmt::Display for Value {
