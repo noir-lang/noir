@@ -2943,8 +2943,7 @@
 <a href="#2942" id="2942">2942</a>
 <a href="#2943" id="2943">2943</a>
 <a href="#2944" id="2944">2944</a>
-<a href="#2945" id="2945">2945</a>
-<a href="#2946" id="2946">2946</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::{borrow::Cow, cell::RefCell, collections::BTreeSet, rc::Rc};
+<a href="#2945" id="2945">2945</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::{borrow::Cow, cell::RefCell, collections::BTreeSet, rc::Rc};
 
 <span class="kw">use </span>fxhash::FxHashMap <span class="kw">as </span>HashMap;
 
@@ -4749,8 +4748,7 @@
             }
         }
 
-        <span class="kw">let </span>could_be_checked_cast = <span class="bool-val">false</span>;
-        <span class="kw">match </span><span class="self">self</span>.canonicalize_helper(could_be_checked_cast, run_simplifications) {
+        <span class="kw">match </span><span class="self">self</span>.canonicalize_with_simplifications(run_simplifications) {
             Type::Constant(x, constant_kind) =&gt; {
                 <span class="kw">if </span>kind.unifies(<span class="kw-2">&amp;</span>constant_kind) {
                     kind.ensure_value_fits(x, location)

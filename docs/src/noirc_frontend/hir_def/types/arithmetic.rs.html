@@ -632,7 +632,14 @@
 <a href="#631" id="631">631</a>
 <a href="#632" id="632">632</a>
 <a href="#633" id="633">633</a>
-<a href="#634" id="634">634</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::collections::BTreeMap;
+<a href="#634" id="634">634</a>
+<a href="#635" id="635">635</a>
+<a href="#636" id="636">636</a>
+<a href="#637" id="637">637</a>
+<a href="#638" id="638">638</a>
+<a href="#639" id="639">639</a>
+<a href="#640" id="640">640</a>
+<a href="#641" id="641">641</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::collections::BTreeMap;
 
 <span class="kw">use </span>acvm::{AcirField, FieldElement};
 <span class="kw">use </span>noirc_errors::Location;
@@ -664,36 +671,43 @@
         }
     }
 
+    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>canonicalize_with_simplifications(<span class="kw-2">&amp;</span><span class="self">self</span>, run_simplifications: bool) -&gt; Type {
+        <span class="self">self</span>.follow_bindings().canonicalize_helper(<span class="bool-val">false</span>, run_simplifications)
+    }
+
     <span class="doccomment">/// Only simplify constants and drop/skip any CheckedCast's
     </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>canonicalize_checked(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; Type {
+        <span class="self">self</span>.follow_bindings().canonicalize_checked_helper()
+    }
+
+    <span class="doccomment">/// Only simplify constants and drop/skip any CheckedCast's
+    </span><span class="kw">fn </span>canonicalize_checked_helper(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; Type {
         <span class="kw">let </span>found_checked_cast = <span class="bool-val">true</span>;
         <span class="kw">let </span>skip_simplifications = <span class="bool-val">false</span>;
-        <span class="self">self</span>.canonicalize_helper(found_checked_cast, skip_simplifications)
+        <span class="comment">// We expect `self` to have already called `follow_bindings`
+        </span><span class="self">self</span>.canonicalize_helper(found_checked_cast, skip_simplifications)
     }
 
     <span class="doccomment">/// Run all simplifications and drop/skip any CheckedCast's
     </span><span class="kw">fn </span>canonicalize_unchecked(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; Type {
         <span class="kw">let </span>found_checked_cast = <span class="bool-val">true</span>;
         <span class="kw">let </span>run_simplifications = <span class="bool-val">true</span>;
-        <span class="self">self</span>.canonicalize_helper(found_checked_cast, run_simplifications)
+        <span class="comment">// We expect `self` to have already called `follow_bindings`
+        </span><span class="self">self</span>.canonicalize_helper(found_checked_cast, run_simplifications)
     }
 
-    <span class="doccomment">/// If found_checked_cast, then drop additional CheckedCast's
+    <span class="doccomment">/// If `found_checked_cast`, then drop additional CheckedCast's
     ///
-    /// If run_simplifications is false, then only:
+    /// If `run_simplifications` is false, then only:
     /// - Attempt to evaluate each sub-expression to a constant
     /// - Drop nested CheckedCast's
     ///
     /// Otherwise also attempt try_simplify_partial_constants, sort_commutative,
     /// and other simplifications
-    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>canonicalize_helper(
-        <span class="kw-2">&amp;</span><span class="self">self</span>,
-        found_checked_cast: bool,
-        run_simplifications: bool,
-    ) -&gt; Type {
-        <span class="kw">match </span><span class="self">self</span>.follow_bindings() {
+    </span><span class="kw">fn </span>canonicalize_helper(<span class="kw-2">&amp;</span><span class="self">self</span>, found_checked_cast: bool, run_simplifications: bool) -&gt; Type {
+        <span class="kw">match </span><span class="self">self </span>{
             Type::InfixExpr(lhs, op, rhs, inversion) =&gt; {
-                <span class="kw">let </span>kind = lhs.infix_kind(<span class="kw-2">&amp;</span>rhs);
+                <span class="kw">let </span>kind = lhs.infix_kind(rhs);
                 <span class="kw">let </span>dummy_location = Location::dummy();
                 <span class="comment">// evaluate_to_field_element also calls canonicalize so if we just called
                 // `self.evaluate_to_field_element(..)` we'd get infinite recursion.
@@ -716,28 +730,28 @@
                 <span class="kw">let </span>rhs = rhs.canonicalize_helper(found_checked_cast, run_simplifications);
 
                 <span class="kw">if </span>!run_simplifications {
-                    <span class="kw">return </span>Type::InfixExpr(Box::new(lhs), op, Box::new(rhs), inversion);
+                    <span class="kw">return </span>Type::InfixExpr(Box::new(lhs), <span class="kw-2">*</span>op, Box::new(rhs), <span class="kw-2">*</span>inversion);
                 }
 
-                <span class="kw">if let </span><span class="prelude-val">Some</span>(result) = <span class="self">Self</span>::try_simplify_non_constants_in_lhs(<span class="kw-2">&amp;</span>lhs, op, <span class="kw-2">&amp;</span>rhs) {
+                <span class="kw">if let </span><span class="prelude-val">Some</span>(result) = <span class="self">Self</span>::try_simplify_non_constants_in_lhs(<span class="kw-2">&amp;</span>lhs, <span class="kw-2">*</span>op, <span class="kw-2">&amp;</span>rhs) {
                     <span class="kw">return </span>result.canonicalize_unchecked();
                 }
 
-                <span class="kw">if let </span><span class="prelude-val">Some</span>(result) = <span class="self">Self</span>::try_simplify_non_constants_in_rhs(<span class="kw-2">&amp;</span>lhs, op, <span class="kw-2">&amp;</span>rhs) {
+                <span class="kw">if let </span><span class="prelude-val">Some</span>(result) = <span class="self">Self</span>::try_simplify_non_constants_in_rhs(<span class="kw-2">&amp;</span>lhs, <span class="kw-2">*</span>op, <span class="kw-2">&amp;</span>rhs) {
                     <span class="kw">return </span>result.canonicalize_unchecked();
                 }
 
                 <span class="comment">// Try to simplify partially constant expressions in the form `(N op1 C1) op2 C2`
                 // where C1 and C2 are constants that can be combined (e.g. N + 5 - 3 = N + 2)
-                </span><span class="kw">if let </span><span class="prelude-val">Some</span>(result) = <span class="self">Self</span>::try_simplify_partial_constants(<span class="kw-2">&amp;</span>lhs, op, <span class="kw-2">&amp;</span>rhs) {
+                </span><span class="kw">if let </span><span class="prelude-val">Some</span>(result) = <span class="self">Self</span>::try_simplify_partial_constants(<span class="kw-2">&amp;</span>lhs, <span class="kw-2">*</span>op, <span class="kw-2">&amp;</span>rhs) {
                     <span class="kw">return </span>result.canonicalize_unchecked();
                 }
 
                 <span class="kw">if </span>op.is_commutative() {
-                    <span class="kw">return </span><span class="self">Self</span>::sort_commutative(<span class="kw-2">&amp;</span>lhs, op, <span class="kw-2">&amp;</span>rhs);
+                    <span class="kw">return </span><span class="self">Self</span>::sort_commutative(<span class="kw-2">&amp;</span>lhs, <span class="kw-2">*</span>op, <span class="kw-2">&amp;</span>rhs);
                 }
 
-                Type::InfixExpr(Box::new(lhs), op, Box::new(rhs), inversion)
+                Type::InfixExpr(Box::new(lhs), <span class="kw-2">*</span>op, Box::new(rhs), <span class="kw-2">*</span>inversion)
             }
             Type::CheckedCast { from, to } =&gt; {
                 <span class="kw">let </span>inner_found_checked_cast = <span class="bool-val">true</span>;
@@ -751,7 +765,7 @@
 
                 Type::CheckedCast { from: Box::new(from), to: Box::new(to) }
             }
-            other =&gt; other,
+            other =&gt; other.clone(),
         }
     }
 
@@ -829,24 +843,24 @@
         op: BinaryTypeOperator,
         rhs: <span class="kw-2">&amp;</span>Type,
     ) -&gt; <span class="prelude-ty">Option</span>&lt;Type&gt; {
-        <span class="kw">match </span>lhs.follow_bindings() {
+        <span class="kw">match </span>lhs {
             Type::CheckedCast { from, to } =&gt; {
                 <span class="comment">// Apply operation directly to `from` while attempting simplification to `to`.
-                </span><span class="kw">let </span>from = Type::infix_expr(from, op, Box::new(rhs.clone()));
-                <span class="kw">let </span>to = <span class="self">Self</span>::try_simplify_non_constants_in_lhs(<span class="kw-2">&amp;</span>to, op, rhs)<span class="question-mark">?</span>;
+                </span><span class="kw">let </span>from = Type::infix_expr(from.clone(), op, Box::new(rhs.clone()));
+                <span class="kw">let </span>to = <span class="self">Self</span>::try_simplify_non_constants_in_lhs(to, op, rhs)<span class="question-mark">?</span>;
                 <span class="prelude-val">Some</span>(Type::CheckedCast { from: Box::new(from), to: Box::new(to) })
             }
             Type::InfixExpr(l_lhs, l_op, l_rhs, <span class="kw">_</span>) =&gt; {
                 <span class="comment">// Note that this is exact, syntactic equality, not unification.
                 // `rhs` is expected to already be in canonical form.
                 </span><span class="kw">if </span>l_op.approx_inverse() != <span class="prelude-val">Some</span>(op)
-                    || l_op == BinaryTypeOperator::Division
+                    || <span class="kw-2">*</span>l_op == BinaryTypeOperator::Division
                     || l_rhs.canonicalize_unchecked() != <span class="kw-2">*</span>rhs
                 {
                     <span class="kw">return </span><span class="prelude-val">None</span>;
                 }
 
-                <span class="prelude-val">Some</span>(<span class="kw-2">*</span>l_lhs)
+                <span class="prelude-val">Some</span>(<span class="kw-2">*</span>l_lhs.clone())
             }
             <span class="kw">_ </span>=&gt; <span class="prelude-val">None</span>,
         }
@@ -866,17 +880,17 @@
         op: BinaryTypeOperator,
         rhs: <span class="kw-2">&amp;</span>Type,
     ) -&gt; <span class="prelude-ty">Option</span>&lt;Type&gt; {
-        <span class="kw">match </span>rhs.follow_bindings() {
+        <span class="kw">match </span>rhs {
             Type::CheckedCast { from, to } =&gt; {
                 <span class="comment">// Apply operation directly to `from` while attempting simplification to `to`.
-                </span><span class="kw">let </span>from = Type::infix_expr(Box::new(lhs.clone()), op, from);
-                <span class="kw">let </span>to = <span class="self">Self</span>::try_simplify_non_constants_in_rhs(lhs, op, <span class="kw-2">&amp;</span>to)<span class="question-mark">?</span>;
+                </span><span class="kw">let </span>from = Type::infix_expr(Box::new(lhs.clone()), op, from.clone());
+                <span class="kw">let </span>to = <span class="self">Self</span>::try_simplify_non_constants_in_rhs(lhs, op, to)<span class="question-mark">?</span>;
                 <span class="prelude-val">Some</span>(Type::CheckedCast { from: Box::new(from), to: Box::new(to) })
             }
             Type::InfixExpr(r_lhs, r_op, r_rhs, <span class="kw">_</span>) =&gt; {
                 <span class="comment">// `N / (M * N)` should be simplified to `1 / M`, but we only handle
                 // simplifying to `M` in this function.
-                </span><span class="kw">if </span>op == BinaryTypeOperator::Division &amp;&amp; r_op == BinaryTypeOperator::Multiplication
+                </span><span class="kw">if </span>op == BinaryTypeOperator::Division &amp;&amp; <span class="kw-2">*</span>r_op == BinaryTypeOperator::Multiplication
                 {
                     <span class="kw">return </span><span class="prelude-val">None</span>;
                 }
@@ -887,7 +901,7 @@
                     <span class="kw">return </span><span class="prelude-val">None</span>;
                 }
 
-                <span class="prelude-val">Some</span>(<span class="kw-2">*</span>r_lhs)
+                <span class="prelude-val">Some</span>(<span class="kw-2">*</span>r_lhs.clone())
             }
             <span class="kw">_ </span>=&gt; <span class="prelude-val">None</span>,
         }
