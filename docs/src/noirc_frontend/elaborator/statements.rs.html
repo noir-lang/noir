@@ -696,8 +696,8 @@
 <span class="kw">use crate</span>::{
     DataType, Type,
     ast::{
-        AssignStatement, Expression, ForLoopStatement, ForRange, Ident, ItemVisibility, LValue,
-        LetStatement, Statement, StatementKind, WhileStatement,
+        AssignStatement, Expression, ForLoopStatement, ForRange, Ident, IntegerBitSize,
+        ItemVisibility, LValue, LetStatement, Statement, StatementKind, WhileStatement,
     },
     hir::{
         resolution::{
@@ -714,6 +714,7 @@
         },
     },
     node_interner::{DefinitionId, DefinitionKind, ExprId, GlobalId, StmtId},
+    shared::Signedness,
 };
 
 <span class="kw">use super</span>::{Elaborator, Loop, TypedPath, lints};
@@ -1146,13 +1147,12 @@
                 <span class="kw">let </span>expr_location = index.location;
                 <span class="kw">let </span>(<span class="kw-2">mut </span>index, index_type) = <span class="self">self</span>.elaborate_expression(index);
 
-                <span class="self">self</span>.push_index_to_check(index);
-
-                <span class="kw">let </span>expected = <span class="self">self</span>.polymorphic_integer_or_field();
-                <span class="self">self</span>.unify(<span class="kw-2">&amp;</span>index_type, <span class="kw-2">&amp;</span>expected, || TypeCheckError::TypeMismatch {
-                    expected_typ: <span class="string">"an integer"</span>.to_owned(),
-                    expr_typ: index_type.to_string(),
-                    expr_location,
+                <span class="kw">let </span>expected = Type::Integer(Signedness::Unsigned, IntegerBitSize::ThirtyTwo);
+                <span class="self">self</span>.unify(<span class="kw-2">&amp;</span>index_type, <span class="kw-2">&amp;</span>expected, || TypeCheckError::TypeMismatchWithSource {
+                    expected: expected.clone(),
+                    actual: index_type.clone(),
+                    location: expr_location,
+                    source: Source::ArrayIndex,
                 });
 
                 <span class="kw">let </span>(<span class="kw-2">mut </span>lvalue, <span class="kw-2">mut </span>lvalue_type, <span class="kw-2">mut </span>mutable, <span class="kw-2">mut </span>statements) =

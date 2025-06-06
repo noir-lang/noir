@@ -2458,39 +2458,7 @@
 <a href="#2457" id="2457">2457</a>
 <a href="#2458" id="2458">2458</a>
 <a href="#2459" id="2459">2459</a>
-<a href="#2460" id="2460">2460</a>
-<a href="#2461" id="2461">2461</a>
-<a href="#2462" id="2462">2462</a>
-<a href="#2463" id="2463">2463</a>
-<a href="#2464" id="2464">2464</a>
-<a href="#2465" id="2465">2465</a>
-<a href="#2466" id="2466">2466</a>
-<a href="#2467" id="2467">2467</a>
-<a href="#2468" id="2468">2468</a>
-<a href="#2469" id="2469">2469</a>
-<a href="#2470" id="2470">2470</a>
-<a href="#2471" id="2471">2471</a>
-<a href="#2472" id="2472">2472</a>
-<a href="#2473" id="2473">2473</a>
-<a href="#2474" id="2474">2474</a>
-<a href="#2475" id="2475">2475</a>
-<a href="#2476" id="2476">2476</a>
-<a href="#2477" id="2477">2477</a>
-<a href="#2478" id="2478">2478</a>
-<a href="#2479" id="2479">2479</a>
-<a href="#2480" id="2480">2480</a>
-<a href="#2481" id="2481">2481</a>
-<a href="#2482" id="2482">2482</a>
-<a href="#2483" id="2483">2483</a>
-<a href="#2484" id="2484">2484</a>
-<a href="#2485" id="2485">2485</a>
-<a href="#2486" id="2486">2486</a>
-<a href="#2487" id="2487">2487</a>
-<a href="#2488" id="2488">2488</a>
-<a href="#2489" id="2489">2489</a>
-<a href="#2490" id="2490">2490</a>
-<a href="#2491" id="2491">2491</a>
-<a href="#2492" id="2492">2492</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::{
+<a href="#2460" id="2460">2460</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::{
     cell::RefCell,
     collections::{BTreeMap, BTreeSet},
     rc::Rc,
@@ -2498,12 +2466,11 @@
 
 <span class="kw">use crate</span>::{
     DataType, NamedGeneric, StructField, TypeBindings,
-    ast::{IntegerBitSize, ItemVisibility, UnresolvedType},
+    ast::{ItemVisibility, UnresolvedType},
     graph::CrateGraph,
     hir::def_collector::dc_crate::UnresolvedTrait,
     hir_def::traits::ResolvedTraitBound,
     node_interner::GlobalValue,
-    shared::Signedness,
     token::SecondaryAttributeKind,
     usage_tracker::UsageTracker,
 };
@@ -2743,21 +2710,6 @@
     /// constraints are verified but there's no call associated with them, like in the
     /// case of checking generic arguments)
     </span>trait_constraints: Vec&lt;(TraitConstraint, ExprId, bool <span class="comment">/* select impl */</span>)&gt;,
-
-    <span class="doccomment">/// List of expressions that are at an index position:
-    ///
-    /// ```noir
-    /// foo[index]
-    ///     ^^^^^
-    /// ```
-    ///
-    /// After each function we'll check that the type of those indexes
-    /// is u32 and, if not, produce a deprecation warning.
-    ///
-    /// NOTE: this list should be removed once the deprecation warning is turned
-    /// into an error, because doing that involves a completely different approach
-    /// (just unifying indexes with u32).
-    </span>indexes_to_check: Vec&lt;ExprId&gt;,
 }
 
 <span class="kw">impl</span>&lt;<span class="lifetime">'context</span>&gt; Elaborator&lt;<span class="lifetime">'context</span>&gt; {
@@ -3095,22 +3047,6 @@
     /// all still-unsolved trait constraints in this context.
     </span><span class="kw">fn </span>check_and_pop_function_context(<span class="kw-2">&amp;mut </span><span class="self">self</span>) {
         <span class="kw">let </span>context = <span class="self">self</span>.function_context.pop().expect(<span class="string">"Imbalanced function_context pushes"</span>);
-
-        <span class="kw">let </span>u32 = Type::Integer(Signedness::Unsigned, IntegerBitSize::ThirtyTwo);
-        <span class="kw">for </span>expr_id <span class="kw">in </span>context.indexes_to_check {
-            <span class="kw">let </span>typ = <span class="self">self</span>.interner.id_type(expr_id).follow_bindings();
-
-            <span class="comment">// If the type is still a type variable after follow_bindings it means it'll
-            // be turned into Field or, eventually, into u32, so this is fine.
-            </span><span class="kw">if let </span>Type::TypeVariable(..) = typ {
-                <span class="kw">continue</span>;
-            };
-
-            <span class="kw">if </span>typ != u32 {
-                <span class="kw">let </span>location = <span class="self">self</span>.interner.expr_location(<span class="kw-2">&amp;</span>expr_id);
-                <span class="self">self</span>.push_err(ResolverError::NonU32Index { location });
-            }
-        }
 
         <span class="kw">for </span>typ <span class="kw">in </span>context.type_variables {
             <span class="kw">if let </span>Type::TypeVariable(variable) = typ.follow_bindings() {

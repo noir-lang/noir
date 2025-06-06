@@ -2395,11 +2395,7 @@
 <a href="#2394" id="2394">2394</a>
 <a href="#2395" id="2395">2395</a>
 <a href="#2396" id="2396">2396</a>
-<a href="#2397" id="2397">2397</a>
-<a href="#2398" id="2398">2398</a>
-<a href="#2399" id="2399">2399</a>
-<a href="#2400" id="2400">2400</a>
-<a href="#2401" id="2401">2401</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::{borrow::Cow, rc::Rc};
+<a href="#2397" id="2397">2397</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::{borrow::Cow, rc::Rc};
 
 <span class="kw">use </span>im::HashSet;
 <span class="kw">use </span>iter_extended::vecmap;
@@ -4699,10 +4695,6 @@
         select_impl: bool,
     ) {
         <span class="self">self</span>.get_function_context().trait_constraints.push((constraint, expr_id, select_impl));
-    }
-
-    <span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>push_index_to_check(<span class="kw-2">&amp;mut </span><span class="self">self</span>, index: ExprId) {
-        <span class="self">self</span>.get_function_context().indexes_to_check.push(index);
     }
 
     <span class="kw">fn </span>get_function_context(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; <span class="kw-2">&amp;mut </span>FunctionContext {

@@ -761,7 +761,10 @@
 <a href="#760" id="760">760</a>
 <a href="#761" id="761">761</a>
 <a href="#762" id="762">762</a>
-<a href="#763" id="763">763</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::collections::BTreeSet;
+<a href="#763" id="763">763</a>
+<a href="#764" id="764">764</a>
+<a href="#765" id="765">765</a>
+<a href="#766" id="766">766</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::collections::BTreeSet;
 <span class="kw">use </span>std::rc::Rc;
 
 <span class="kw">use </span>acvm::FieldElement;
@@ -790,6 +793,8 @@
     </span>Assignment,
     <span class="attr">#[error(<span class="string">"Return"</span>)]
     </span>Return(FunctionReturnType, Location),
+    <span class="attr">#[error(<span class="string">"ArrayIndex"</span>)]
+    </span>ArrayIndex,
 }
 
 <span class="attr">#[derive(Error, Debug, Clone, PartialEq, Eq)]
@@ -1334,6 +1339,7 @@
 
                         <span class="kw">return </span>diagnostic
                     },
+                    Source::ArrayIndex =&gt; <span class="macro">format!</span>(<span class="string">"Indexing arrays and slices must be done with `{expected}`, not `{actual}`"</span>),
                 };
 
                 Diagnostic::simple_error(message, String::new(), <span class="kw-2">*</span>location)
