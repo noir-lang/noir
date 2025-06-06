@@ -877,6 +877,21 @@ impl<'ssa> Interpreter<'ssa> {
     }
 }
 
+/// Applies an infallible integer binary operation to two `NumericValue`s.
+///
+/// # Parameters
+/// - `$lhs`, `$rhs`: The left hand side and right hand side operands (must be the same variant).
+/// - `$binary`: The binary instruction, used for error handling if types mismatch.
+/// - `$f`: A function (e.g., `wrapping_add`) that applies the operation on the raw numeric types.
+///
+/// # Panics
+/// - If either operand is a [NumericValue::Field] or [NumericValue::U1] variant, this macro will panic with unreachable.
+///
+/// # Errors
+/// - If the operand types don't match, returns an [InternalError::MismatchedTypesInBinaryOperator].
+///
+/// # Returns
+/// A `NumericValue` containing the result of the operation, matching the original type.
 macro_rules! apply_int_binop {
     ($lhs:expr, $rhs:expr, $binary:expr, $f:expr) => {{
         use value::NumericValue::*;
@@ -908,6 +923,24 @@ macro_rules! apply_int_binop {
     }};
 }
 
+/// Applies a fallible integer binary operation (e.g., checked arithmetic) to two `NumericValue`s.
+///
+/// # Parameters
+/// - `$dfg`: The data flow graph, used for formatting diagnostic error messages.
+/// - `$lhs`, `$rhs`: The left-hand side and right-hand side operands (must be the same variant).
+/// - `$binary`: The binary instruction, used for diagnostics and overflow reporting.
+/// - `$f`: A fallible operation function that returns an `Option<_>` (e.g., `checked_add`).
+///
+/// # Panics
+/// - If either operand is a [NumericValue::Field]or [NumericValue::U1], this macro panics as those types are not supported.
+///
+/// # Errors
+/// - Returns [InterpreterError::Overflow] if the checked operation returns `None`.
+/// - Returns [InterpreterError::DivisionByZero] for `Div` and `Mod` on zero.
+/// - Returns [InternalError::MismatchedTypesInBinaryOperator] if the operand types don't match.
+///
+/// # Returns
+/// A `NumericValue` containing the result of the operation, or an `Err` with the appropriate error.
 macro_rules! apply_int_binop_opt {
     ($dfg:expr, $lhs:expr, $rhs:expr, $binary:expr, $f:expr) => {{
         use value::NumericValue::*;
