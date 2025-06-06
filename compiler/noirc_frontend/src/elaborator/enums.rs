@@ -713,8 +713,9 @@ impl Elaborator<'_> {
             | PathResolutionItem::PrimitiveType(_)
             | PathResolutionItem::Trait(_)
             | PathResolutionItem::ModuleFunction(_)
-            | PathResolutionItem::TypeAliasFunction(_, _, _)
-            | PathResolutionItem::TraitFunction(_, _, _)
+            | PathResolutionItem::TypeAliasFunction(..)
+            | PathResolutionItem::TraitFunction(..)
+            | PathResolutionItem::TypeTraitFunction(..)
             | PathResolutionItem::PrimitiveFunction(..) => {
                 // This variable refers to an existing item
                 if let Some(name) = name {

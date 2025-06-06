@@ -906,15 +906,16 @@ impl Elaborator<'_> {
         let trait_id = trait_method_id.trait_id;
         let trait_ = self.interner.get_trait(trait_id);
         let mut constraint = trait_.as_constraint(location);
-        constraint.typ = typ;
+        constraint.typ = typ.clone();
 
         let method = TraitMethod { method_id: trait_method_id, constraint, assumed: false };
         let turbofish = before_last_segment.turbofish();
-        let item = PathResolutionItem::TraitFunction(trait_id, turbofish, func_id);
+        let item = PathResolutionItem::TypeTraitFunction(typ, trait_id, turbofish, func_id);
         let mut errors = path_resolution.errors;
         if let Some(error) = error {
             errors.push(error);
         }
+
         Some(TraitPathResolution { method, item: Some(item), errors })
     }
 
@@ -1194,7 +1195,21 @@ impl Elaborator<'_> {
         match to {
             Type::Integer(sign, bits) => Type::Integer(sign, bits),
             Type::FieldElement => Type::FieldElement,
-            Type::Bool => Type::Bool,
+            Type::Bool => {
+                let from_is_numeric = match from_follow_bindings {
+                    Type::Integer(..) | Type::FieldElement => true,
+                    Type::TypeVariable(ref var) => var.is_integer() || var.is_integer_or_field(),
+                    _ => false,
+                };
+                if from_is_numeric {
+                    self.push_err(TypeCheckError::CannotCastNumericToBool {
+                        typ: from_follow_bindings,
+                        location,
+                    });
+                }
+
+                Type::Bool
+            }
             Type::Error => Type::Error,
             _ => {
                 self.push_err(TypeCheckError::UnsupportedCast { location });
@@ -2284,10 +2299,6 @@ impl Elaborator<'_> {
         select_impl: bool,
     ) {
         self.get_function_context().trait_constraints.push((constraint, expr_id, select_impl));
-    }
-
-    pub(super) fn push_index_to_check(&mut self, index: ExprId) {
-        self.get_function_context().indexes_to_check.push(index);
     }
 
     fn get_function_context(&mut self) -> &mut FunctionContext {

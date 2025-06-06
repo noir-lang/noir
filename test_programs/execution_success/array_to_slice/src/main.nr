@@ -8,7 +8,7 @@ fn as_slice_push<T, let N: u32>(xs: [T; N]) -> [T] {
 }
 
 // Expected that x == 0 and y == 1
-fn main(x: Field, y: pub Field) {
+fn main(x: u32, y: pub u32) {
     let xs: [Field; 0] = [];
     let ys: [Field; 1] = [1];
     let zs: [Field; 2] = [1, 2];
@@ -36,7 +36,7 @@ fn main(x: Field, y: pub Field) {
     regression_4609_append_dynamic_slices(x, y);
 }
 
-fn regression_4609_append_slices(x: Field, y: Field) {
+fn regression_4609_append_slices(x: u32, y: u32) {
     let sl = [x, 1, 2, 3].as_slice();
     let sl2 = [y, 5, 6].as_slice();
     let sl3 = sl.append(sl2);
@@ -44,7 +44,7 @@ fn regression_4609_append_slices(x: Field, y: Field) {
     assert(sl3[4] == y);
 }
 
-fn regression_4609_append_dynamic_slices(x: Field, y: Field) {
+fn regression_4609_append_dynamic_slices(x: u32, y: u32) {
     let mut sl = [x, 1, 2, 3].as_slice();
     sl[x] = x + 10;
     let mut sl2 = [y, 5, 6].as_slice();
