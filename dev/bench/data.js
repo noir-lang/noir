@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1749199492920,
+  "lastUpdate": 1749214133653,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -18466,48 +18466,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "asterite@gmail.com",
-            "name": "Ary Borenszweig",
-            "username": "asterite"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "fa261df2a2935bba4b83843ea8851f92c6e99e38",
-          "message": "fix: nargo expand reexports correctly implemented (#8693)",
-          "timestamp": "2025-05-27T16:21:21Z",
-          "tree_id": "a9ade43f53351fb59195eef4a3670c10bd271be0",
-          "url": "https://github.com/noir-lang/noir/commit/fa261df2a2935bba4b83843ea8851f92c6e99e38"
-        },
-        "date": 1748364173446,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 253738,
-            "range": "± 347",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 223653,
-            "range": "± 8359",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 3563916,
-            "range": "± 7151",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "aakoshh@gmail.com",
             "name": "Akosh Farkash",
             "username": "aakoshh"
@@ -20559,6 +20517,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2815078,
             "range": "± 1896",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "47281315+guipublic@users.noreply.github.com",
+            "name": "guipublic",
+            "username": "guipublic"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "a03782e881d808b6f9ef9eaaa6e474959318832d",
+          "message": "fix: signed right shift overflows to 0 or -1 (#8805)",
+          "timestamp": "2025-06-06T12:27:58Z",
+          "tree_id": "63b5e923c74269a566c7ed06e02cf9ee4934475f",
+          "url": "https://github.com/noir-lang/noir/commit/a03782e881d808b6f9ef9eaaa6e474959318832d"
+        },
+        "date": 1749214122281,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 247676,
+            "range": "± 799",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 218140,
+            "range": "± 2440",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2776882,
+            "range": "± 3179",
             "unit": "ns/iter"
           }
         ]
