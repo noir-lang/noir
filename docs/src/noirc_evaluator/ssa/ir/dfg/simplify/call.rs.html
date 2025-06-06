@@ -780,7 +780,12 @@
 <a href="#779" id="779">779</a>
 <a href="#780" id="780">780</a>
 <a href="#781" id="781">781</a>
-<a href="#782" id="782">782</a></pre></div><pre class="rust"><code><span class="kw">use </span>fxhash::FxHashMap <span class="kw">as </span>HashMap;
+<a href="#782" id="782">782</a>
+<a href="#783" id="783">783</a>
+<a href="#784" id="784">784</a>
+<a href="#785" id="785">785</a>
+<a href="#786" id="786">786</a>
+<a href="#787" id="787">787</a></pre></div><pre class="rust"><code><span class="kw">use </span>fxhash::FxHashMap <span class="kw">as </span>HashMap;
 <span class="kw">use </span>noirc_errors::call_stack::CallStackId;
 <span class="kw">use </span>std::{collections::VecDeque, sync::Arc};
 
@@ -1301,12 +1306,17 @@
 
     <span class="kw">let </span><span class="kw-2">mut </span>value_merger = ValueMerger::new(dfg, block, <span class="kw-2">&amp;mut </span>slice_sizes, call_stack);
 
-    <span class="kw">let </span>new_slice = value_merger.merge_values(
+    <span class="kw">let </span><span class="prelude-val">Ok</span>(new_slice) = value_merger.merge_values(
         len_not_equals_capacity,
         len_equals_capacity,
         set_last_slice_value,
         new_slice,
-    );
+    ) <span class="kw">else </span>{
+        <span class="comment">// If we were to percolate up the error here, it'd get to insert_instruction and eventually
+        // all of ssa. Instead we just choose not to simplify the slice call since this should
+        // be a rare case.
+        </span><span class="kw">return </span>SimplifyResult::None;
+    };
 
     SimplifyResult::SimplifiedToMultiple(<span class="macro">vec!</span>[new_slice_length, new_slice])
 }

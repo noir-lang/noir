@@ -939,7 +939,7 @@
             <span class="kw">move </span>|ssa| ssa.inline_functions_with_no_predicates(options.inliner_aggressiveness),
             <span class="string">"Inlining"</span>,
         ),
-        SsaPass::new(Ssa::remove_if_else, <span class="string">"Remove IfElse"</span>),
+        SsaPass::new_try(Ssa::remove_if_else, <span class="string">"Remove IfElse"</span>),
         SsaPass::new(Ssa::purity_analysis, <span class="string">"Purity Analysis"</span>),
         SsaPass::new(Ssa::fold_constants, <span class="string">"Constant Folding"</span>),
         SsaPass::new(Ssa::flatten_basic_conditionals, <span class="string">"Simplify conditionals for unconstrained"</span>),

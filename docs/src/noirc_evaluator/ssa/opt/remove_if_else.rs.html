@@ -394,12 +394,11 @@
 <a href="#393" id="393">393</a>
 <a href="#394" id="394">394</a>
 <a href="#395" id="395">395</a>
-<a href="#396" id="396">396</a>
-<a href="#397" id="397">397</a>
-<a href="#398" id="398">398</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::collections::hash_map::Entry;
+<a href="#396" id="396">396</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::collections::hash_map::Entry;
 
 <span class="kw">use </span>fxhash::FxHashMap <span class="kw">as </span>HashMap;
 
+<span class="kw">use </span><span class="kw">crate</span>::errors::RtResult;
 <span class="kw">use </span><span class="kw">crate</span>::ssa::ir::function::RuntimeType;
 <span class="kw">use </span><span class="kw">crate</span>::ssa::ir::instruction::Hint;
 <span class="kw">use </span><span class="kw">crate</span>::ssa::ir::value::ValueId;
@@ -425,25 +424,26 @@
     /// the given array may alias another array (e.g. function parameters or
     /// a `load`ed array from a reference).
     </span><span class="attr">#[tracing::instrument(level = <span class="string">"trace"</span>, skip(<span class="self">self</span>))]
-    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>remove_if_else(<span class="kw-2">mut </span><span class="self">self</span>) -&gt; Ssa {
+    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>remove_if_else(<span class="kw-2">mut </span><span class="self">self</span>) -&gt; RtResult&lt;Ssa&gt; {
         <span class="kw">for </span>function <span class="kw">in </span><span class="self">self</span>.functions.values_mut() {
-            function.remove_if_else();
+            function.remove_if_else()<span class="question-mark">?</span>;
         }
-        <span class="self">self
-    </span>}
+        <span class="prelude-val">Ok</span>(<span class="self">self</span>)
+    }
 }
 
 <span class="kw">impl </span>Function {
-    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>remove_if_else(<span class="kw-2">&amp;mut </span><span class="self">self</span>) {
+    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>remove_if_else(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; RtResult&lt;()&gt; {
         <span class="comment">// This should match the check in flatten_cfg
         </span><span class="kw">if </span><span class="macro">matches!</span>(<span class="self">self</span>.runtime(), RuntimeType::Brillig(<span class="kw">_</span>)) {
             <span class="comment">// skip
         </span>} <span class="kw">else </span>{
-            Context::default().remove_if_else(<span class="self">self</span>);
+            Context::default().remove_if_else(<span class="self">self</span>)<span class="question-mark">?</span>;
         }
 
         <span class="attr">#[cfg(debug_assertions)]
         </span>remove_if_else_post_check(<span class="self">self</span>);
+        <span class="prelude-val">Ok</span>(())
     }
 }
 
@@ -453,13 +453,13 @@
 }
 
 <span class="kw">impl </span>Context {
-    <span class="kw">fn </span>remove_if_else(<span class="kw-2">&amp;mut </span><span class="self">self</span>, function: <span class="kw-2">&amp;mut </span>Function) {
+    <span class="kw">fn </span>remove_if_else(<span class="kw-2">&amp;mut </span><span class="self">self</span>, function: <span class="kw-2">&amp;mut </span>Function) -&gt; RtResult&lt;()&gt; {
         <span class="kw">let </span>block = function.entry_block();
 
         <span class="comment">// Make sure this optimization runs when there's only one block
         </span><span class="macro">assert_eq!</span>(function.dfg[block].successors().count(), <span class="number">0</span>);
 
-        function.simple_reachable_blocks_optimization(|context| {
+        function.simple_reachable_blocks_optimization_result(|context| {
             <span class="kw">let </span>instruction_id = context.instruction_id;
             <span class="kw">let </span>instruction = context.instruction();
 
@@ -482,18 +482,13 @@
                         else_condition,
                         then_value,
                         else_value,
-                    );
+                    )<span class="question-mark">?</span>;
 
                     <span class="kw">let </span>_typ = context.dfg.type_of_value(value);
                     <span class="kw">let </span>results = context.dfg.instruction_results(instruction_id);
                     <span class="kw">let </span>result = results[<span class="number">0</span>];
-                    <span class="comment">// let result = match typ {
-                    //     Type::Array(..) =&gt; results[0],
-                    //     Type::Slice(..) =&gt; results[1],
-                    //     other =&gt; unreachable!("IfElse instructions should only have arrays or slices at this point. Found {other:?}"),
-                    // };
 
-                    </span>context.remove_current_instruction();
+                    context.remove_current_instruction();
                     context.replace_value(result, value);
                 }
                 Instruction::Call { func, arguments } =&gt; {
@@ -527,7 +522,8 @@
                 }
                 <span class="kw">_ </span>=&gt; (),
             }
-        });
+            <span class="prelude-val">Ok</span>(())
+        })
     }
 
     <span class="kw">fn </span>get_or_find_capacity(<span class="kw-2">&amp;mut </span><span class="self">self</span>, dfg: <span class="kw-2">&amp;</span>DataFlowGraph, value: ValueId) -&gt; u32 {
@@ -688,7 +684,7 @@
         "</span>;
 
         <span class="kw">let </span><span class="kw-2">mut </span>ssa = Ssa::from_str(src).unwrap();
-        ssa = ssa.remove_if_else();
+        ssa = ssa.remove_if_else().unwrap();
 
         <span class="comment">// In case our if block is never activated, we need to fetch each value from the original array.
         // We then should create a new array where each value can be mapped to `(then_condition * then_value) + (!then_condition * else_value)`.
@@ -757,7 +753,7 @@
         "</span>;
 
         <span class="kw">let </span><span class="kw-2">mut </span>ssa = Ssa::from_str(src).unwrap();
-        ssa = ssa.remove_if_else();
+        ssa = ssa.remove_if_else().unwrap();
 
         <span class="comment">// We attempt to optimize array mergers to only handle where an array was modified,
         // rather than merging the entire array. As we only modify the `y` array at a single index,
