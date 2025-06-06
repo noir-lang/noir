@@ -1400,7 +1400,8 @@
 <a href="#1399" id="1399">1399</a>
 <a href="#1400" id="1400">1400</a>
 <a href="#1401" id="1401">1401</a>
-<a href="#1402" id="1402">1402</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::collections::{BTreeMap, BTreeSet};
+<a href="#1402" id="1402">1402</a>
+<a href="#1403" id="1403">1403</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::collections::{BTreeMap, BTreeSet};
 
 <span class="kw">use </span>fxhash::FxHashMap <span class="kw">as </span>HashMap;
 <span class="kw">use </span>iter_extended::{btree_map, try_vecmap, vecmap};
@@ -2115,8 +2116,9 @@
             | PathResolutionItem::PrimitiveType(<span class="kw">_</span>)
             | PathResolutionItem::Trait(<span class="kw">_</span>)
             | PathResolutionItem::ModuleFunction(<span class="kw">_</span>)
-            | PathResolutionItem::TypeAliasFunction(<span class="kw">_</span>, <span class="kw">_</span>, <span class="kw">_</span>)
-            | PathResolutionItem::TraitFunction(<span class="kw">_</span>, <span class="kw">_</span>, <span class="kw">_</span>)
+            | PathResolutionItem::TypeAliasFunction(..)
+            | PathResolutionItem::TraitFunction(..)
+            | PathResolutionItem::TypeTraitFunction(..)
             | PathResolutionItem::PrimitiveFunction(..) =&gt; {
                 <span class="comment">// This variable refers to an existing item
                 </span><span class="kw">if let </span><span class="prelude-val">Some</span>(name) = name {

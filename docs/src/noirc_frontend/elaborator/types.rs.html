@@ -2395,7 +2395,8 @@
 <a href="#2394" id="2394">2394</a>
 <a href="#2395" id="2395">2395</a>
 <a href="#2396" id="2396">2396</a>
-<a href="#2397" id="2397">2397</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::{borrow::Cow, rc::Rc};
+<a href="#2397" id="2397">2397</a>
+<a href="#2398" id="2398">2398</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::{borrow::Cow, rc::Rc};
 
 <span class="kw">use </span>im::HashSet;
 <span class="kw">use </span>iter_extended::vecmap;
@@ -3303,15 +3304,16 @@
         <span class="kw">let </span>trait_id = trait_method_id.trait_id;
         <span class="kw">let </span>trait_ = <span class="self">self</span>.interner.get_trait(trait_id);
         <span class="kw">let </span><span class="kw-2">mut </span>constraint = trait_.as_constraint(location);
-        constraint.typ = typ;
+        constraint.typ = typ.clone();
 
         <span class="kw">let </span>method = TraitMethod { method_id: trait_method_id, constraint, assumed: <span class="bool-val">false </span>};
         <span class="kw">let </span>turbofish = before_last_segment.turbofish();
-        <span class="kw">let </span>item = PathResolutionItem::TraitFunction(trait_id, turbofish, func_id);
+        <span class="kw">let </span>item = PathResolutionItem::TypeTraitFunction(typ, trait_id, turbofish, func_id);
         <span class="kw">let </span><span class="kw-2">mut </span>errors = path_resolution.errors;
         <span class="kw">if let </span><span class="prelude-val">Some</span>(error) = error {
             errors.push(error);
         }
+
         <span class="prelude-val">Some</span>(TraitPathResolution { method, item: <span class="prelude-val">Some</span>(item), errors })
     }
 
