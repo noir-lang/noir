@@ -8,7 +8,7 @@ use crate::{
         ERROR_IDENT, Expression, ExpressionKind, GenericTypeArgs, Ident, ItemVisibility, Path,
         PathSegment, Pattern, TypePath,
     },
-    elaborator::types::SELF_TYPE_NAME,
+    elaborator::types::{SELF_TYPE_NAME, TraitPathResolutionMethod},
     hir::{
         def_collector::dc_crate::CompilationError,
         resolution::{errors::ResolverError, import::PathResolutionError},
@@ -828,25 +828,8 @@ impl Elaborator<'_> {
                 );
                 (generics, None)
             }
-            PathResolutionItem::TypeTraitFunction(self_type, trait_id, generics, _func_id) => {
-                let generics = if let Some(generics) = generics {
-                    let trait_ = self.interner.get_trait(trait_id);
-                    let kinds = vecmap(&trait_.generics, |generic| generic.kind());
-                    let trait_generics = vecmap(&kinds, |kind| {
-                        self.interner.next_type_variable_with_kind(kind.clone())
-                    });
-
-                    self.resolve_trait_turbofish_generics(
-                        &trait_.name.to_string(),
-                        kinds,
-                        trait_generics,
-                        Some(generics.generics),
-                        generics.location,
-                    )
-                } else {
-                    Vec::new()
-                };
-                (generics, Some(self_type))
+            PathResolutionItem::TypeTraitFunction(self_type, _trait_id, _func_id) => {
+                (Vec::new(), Some(self_type))
             }
             PathResolutionItem::PrimitiveFunction(primitive_type, turbofish, _func_id) => {
                 let generics = match primitive_type {
@@ -944,14 +927,25 @@ impl Elaborator<'_> {
                 self.push_err(error);
             }
 
-            return (
-                HirIdent {
-                    location: path.location,
-                    id: self.interner.trait_method_id(trait_path_resolution.method.method_id),
-                    impl_kind: ImplKind::TraitMethod(trait_path_resolution.method),
-                },
-                trait_path_resolution.item,
-            );
+            return match trait_path_resolution.method {
+                TraitPathResolutionMethod::NotATraitMethod(func_id) => (
+                    HirIdent {
+                        location: path.location,
+                        id: self.interner.function_definition_id(func_id),
+                        impl_kind: ImplKind::NotATraitMethod,
+                    },
+                    trait_path_resolution.item,
+                ),
+
+                TraitPathResolutionMethod::TraitMethod(trait_method) => (
+                    HirIdent {
+                        location: path.location,
+                        id: self.interner.trait_method_id(trait_method.method_id),
+                        impl_kind: ImplKind::TraitMethod(trait_method),
+                    },
+                    trait_path_resolution.item,
+                ),
+            };
         }
 
         // If the Path is being used as an Expression, then it is referring to a global from a separate module

@@ -49,9 +49,14 @@ use super::{
 pub const SELF_TYPE_NAME: &str = "Self";
 
 pub(super) struct TraitPathResolution {
-    pub(super) method: TraitMethod,
+    pub(super) method: TraitPathResolutionMethod,
     pub(super) item: Option<PathResolutionItem>,
     pub(super) errors: Vec<PathResolutionError>,
+}
+
+pub(super) enum TraitPathResolutionMethod {
+    NotATraitMethod(FuncId),
+    TraitMethod(TraitMethod),
 }
 
 impl Elaborator<'_> {
@@ -803,11 +808,9 @@ impl Elaborator<'_> {
                 let the_trait = self.interner.get_trait(trait_id);
                 let method = the_trait.find_method(method.as_str())?;
                 let constraint = the_trait.as_constraint(path.location);
-                return Some(TraitPathResolution {
-                    method: TraitMethod { method_id: method, constraint, assumed: true },
-                    item: None,
-                    errors: Vec::new(),
-                });
+                let trait_method = TraitMethod { method_id: method, constraint, assumed: true };
+                let method = TraitPathResolutionMethod::TraitMethod(trait_method);
+                return Some(TraitPathResolution { method, item: None, errors: Vec::new() });
             }
         }
         None
@@ -824,11 +827,10 @@ impl Elaborator<'_> {
         let the_trait = self.interner.get_trait(meta.trait_id?);
         let method = the_trait.find_method(path.last_name())?;
         let constraint = the_trait.as_constraint(path.location);
-        Some(TraitPathResolution {
-            method: TraitMethod { method_id: method, constraint, assumed: false },
-            item: Some(path_resolution.item),
-            errors: path_resolution.errors,
-        })
+        let trait_method = TraitMethod { method_id: method, constraint, assumed: false };
+        let method = TraitPathResolutionMethod::TraitMethod(trait_method);
+        let item = Some(path_resolution.item);
+        Some(TraitPathResolution { method, item, errors: path_resolution.errors })
     }
 
     // This resolves a static trait method T::trait_method by iterating over the where clause
@@ -853,11 +855,9 @@ impl Elaborator<'_> {
 
                 let the_trait = self.interner.get_trait(constraint.trait_bound.trait_id);
                 if let Some(method) = the_trait.find_method(path.last_name()) {
-                    return Some(TraitPathResolution {
-                        method: TraitMethod { method_id: method, constraint, assumed: true },
-                        item: None,
-                        errors: Vec::new(),
-                    });
+                    let trait_method = TraitMethod { method_id: method, constraint, assumed: true };
+                    let method = TraitPathResolutionMethod::TraitMethod(trait_method);
+                    return Some(TraitPathResolution { method, item: None, errors: Vec::new() });
                 }
             }
         }
@@ -874,15 +874,29 @@ impl Elaborator<'_> {
         let location = path.location;
         let last_segment = path.pop();
         let before_last_segment = path.last_segment();
+        let mut turbofish = before_last_segment.turbofish();
 
         let path_resolution = self.use_path_as_type(path).ok()?;
+
         let PathResolutionItem::Type(type_id) = path_resolution.item else {
             return None;
         };
 
         let datatype = self.get_type(type_id);
         let generics = datatype.borrow().instantiate(self.interner);
+        let generics = if let Some(turbofish) = turbofish.take() {
+            self.resolve_struct_turbofish_generics(
+                &datatype.borrow(),
+                generics,
+                Some(turbofish.generics),
+                turbofish.location,
+            )
+        } else {
+            Vec::new()
+        };
+
         let typ = Type::DataType(datatype, generics);
+
         let method_name = last_segment.ident.as_str();
 
         // If we can find a method on the type, this is definitely not a trait method
@@ -891,6 +905,7 @@ impl Elaborator<'_> {
         }
 
         let trait_methods = self.interner.lookup_trait_methods(&typ, method_name, false);
+
         if trait_methods.is_empty() {
             return None;
         }
@@ -899,24 +914,36 @@ impl Elaborator<'_> {
             self.get_trait_method_in_scope(&trait_methods, method_name, last_segment.location);
         let hir_method_reference = hir_method_reference?;
         let func_id = hir_method_reference.func_id(self.interner)?;
-        let HirMethodReference::TraitMethodId(trait_method_id, _, _) = hir_method_reference else {
-            return None;
-        };
+        match hir_method_reference {
+            HirMethodReference::FuncId(func_id) => {
+                // It could happen that we find a single function (one in a trait impl)
+                let mut errors = path_resolution.errors;
+                if let Some(error) = error {
+                    errors.push(error);
+                }
 
-        let trait_id = trait_method_id.trait_id;
-        let trait_ = self.interner.get_trait(trait_id);
-        let mut constraint = trait_.as_constraint(location);
-        constraint.typ = typ.clone();
+                let method = TraitPathResolutionMethod::NotATraitMethod(func_id);
+                Some(TraitPathResolution { method, item: None, errors })
+            }
+            HirMethodReference::TraitMethodId(trait_method_id, _, _) => {
+                let trait_id = trait_method_id.trait_id;
+                let trait_ = self.interner.get_trait(trait_id);
+                let mut constraint = trait_.as_constraint(location);
+                constraint.typ = typ.clone();
 
-        let method = TraitMethod { method_id: trait_method_id, constraint, assumed: false };
-        let turbofish = before_last_segment.turbofish();
-        let item = PathResolutionItem::TypeTraitFunction(typ, trait_id, turbofish, func_id);
-        let mut errors = path_resolution.errors;
-        if let Some(error) = error {
-            errors.push(error);
+                let trait_method =
+                    TraitMethod { method_id: trait_method_id, constraint, assumed: false };
+                let item = PathResolutionItem::TypeTraitFunction(typ, trait_id, func_id);
+
+                let mut errors = path_resolution.errors;
+                if let Some(error) = error {
+                    errors.push(error);
+                }
+
+                let method = TraitPathResolutionMethod::TraitMethod(trait_method);
+                Some(TraitPathResolution { method, item: Some(item), errors })
+            }
         }
-
-        Some(TraitPathResolution { method, item: Some(item), errors })
     }
 
     // Try to resolve the given trait method path.
