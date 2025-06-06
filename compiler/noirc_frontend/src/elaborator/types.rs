@@ -877,25 +877,43 @@ impl Elaborator<'_> {
         let mut turbofish = before_last_segment.turbofish();
 
         let path_resolution = self.use_path_as_type(path).ok()?;
+        let typ = match path_resolution.item {
+            PathResolutionItem::Type(type_id) => {
+                let datatype = self.get_type(type_id);
+                let generics = datatype.borrow().instantiate(self.interner);
+                let generics = if let Some(turbofish) = turbofish.take() {
+                    self.resolve_struct_turbofish_generics(
+                        &datatype.borrow(),
+                        generics,
+                        Some(turbofish.generics),
+                        turbofish.location,
+                    )
+                } else {
+                    Vec::new()
+                };
 
-        let PathResolutionItem::Type(type_id) = path_resolution.item else {
-            return None;
+                Type::DataType(datatype, generics)
+            }
+            PathResolutionItem::TypeAlias(type_alias_id) => {
+                let type_alias = self.interner.get_type_alias(type_alias_id);
+                let type_alias = type_alias.borrow();
+                let alias_generics = vecmap(&type_alias.generics, |generic| {
+                    self.interner.next_type_variable_with_kind(generic.kind())
+                });
+                let generics = if let Some(turbofish) = turbofish {
+                    self.resolve_alias_turbofish_generics(
+                        &type_alias,
+                        alias_generics,
+                        Some(turbofish.generics),
+                        turbofish.location,
+                    )
+                } else {
+                    alias_generics
+                };
+                type_alias.get_type(&generics)
+            }
+            _ => return None,
         };
-
-        let datatype = self.get_type(type_id);
-        let generics = datatype.borrow().instantiate(self.interner);
-        let generics = if let Some(turbofish) = turbofish.take() {
-            self.resolve_struct_turbofish_generics(
-                &datatype.borrow(),
-                generics,
-                Some(turbofish.generics),
-                turbofish.location,
-            )
-        } else {
-            Vec::new()
-        };
-
-        let typ = Type::DataType(datatype, generics);
 
         let method_name = last_segment.ident.as_str();
 
