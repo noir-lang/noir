@@ -1,87 +1,8 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1749231377543,
+  "lastUpdate": 1749231384127,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
-      {
-        "commit": {
-          "author": {
-            "email": "asterite@gmail.com",
-            "name": "Ary Borenszweig",
-            "username": "asterite"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "984d170d0b390880155bcc3f85311a57048d0e3f",
-          "message": "fix: (SSA parser) translate blocks in logical order rather than syntax order (#8668)",
-          "timestamp": "2025-05-28T15:10:27Z",
-          "tree_id": "110abde8550a6806e5667feca14c1d9dd53a1c3f",
-          "url": "https://github.com/noir-lang/noir/commit/984d170d0b390880155bcc3f85311a57048d0e3f"
-        },
-        "date": 1748447021050,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 337.05,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 577.7,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 236.97,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 1470,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 1630,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-root-empty",
-            "value": 431.69,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-root-single-tx",
-            "value": 7240,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 7250,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 415.93,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-root",
-            "value": 470.22,
-            "unit": "MB"
-          },
-          {
-            "name": "semaphore_depth_10",
-            "value": 128.39,
-            "unit": "MB"
-          }
-        ]
-      },
       {
         "commit": {
           "author": {
@@ -3944,6 +3865,85 @@ window.BENCHMARK_DATA = {
           {
             "name": "rollup-root",
             "value": 381.64,
+            "unit": "MB"
+          },
+          {
+            "name": "semaphore_depth_10",
+            "value": 106.39,
+            "unit": "MB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "asterite@gmail.com",
+            "name": "Ary Borenszweig",
+            "username": "asterite"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "11d3d339a6a0e495dbcf023a0f881dcec2737bd4",
+          "message": "fix: bind self generic type in trait calls via a concrete type (#8825)",
+          "timestamp": "2025-06-06T16:42:02Z",
+          "tree_id": "cac03c3bc6906e84ec0b7a87c4b1425e61fb718f",
+          "url": "https://github.com/noir-lang/noir/commit/11d3d339a6a0e495dbcf023a0f881dcec2737bd4"
+        },
+        "date": 1749231372367,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 292.98,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 534.03,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 191.57,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 1380,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 1550,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root-empty",
+            "value": 343.09,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root-single-tx",
+            "value": 7830,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 7830,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 327.3,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-root",
+            "value": 381.66,
             "unit": "MB"
           },
           {
