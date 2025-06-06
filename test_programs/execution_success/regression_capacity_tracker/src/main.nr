@@ -11,9 +11,9 @@ fn main(expected: pub Field, first: Field, input: [Field; 20]) {
     // If this successfully compiles it means we have stored
     // the results of the slice intrinsics used above.
     if expected as u32 > 10 {
-        hasher_slice[expected - 10] = 100;
+        hasher_slice[(expected - 10) as u32] = 100;
     } else {
-        hasher_slice[expected] = 100;
+        hasher_slice[expected as u32] = 100;
     }
     assert(hasher_slice[0] == expected);
 }
