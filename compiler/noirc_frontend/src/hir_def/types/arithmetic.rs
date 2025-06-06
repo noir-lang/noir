@@ -30,6 +30,13 @@ impl Type {
         }
     }
 
+    pub(crate) fn canonicalize_with_simplifications(
+        &self,
+        run_simplifications: bool,
+    ) -> Type {
+        self.follow_bindings().canonicalize_helper(false, run_simplifications)
+    }
+
     /// Only simplify constants and drop/skip any CheckedCast's
     pub(crate) fn canonicalize_checked(&self) -> Type {
         self.follow_bindings().canonicalize_checked_helper()
@@ -48,7 +55,7 @@ impl Type {
         let found_checked_cast = true;
         let run_simplifications = true;
         // We expect `self` to have already called `follow_bindings`
-        self.canonicalize_helper_helper(found_checked_cast, run_simplifications)
+        self.canonicalize_helper(found_checked_cast, run_simplifications)
     }
 
     /// If `found_checked_cast`, then drop additional CheckedCast's
@@ -59,23 +66,7 @@ impl Type {
     ///
     /// Otherwise also attempt try_simplify_partial_constants, sort_commutative,
     /// and other simplifications
-    pub(crate) fn canonicalize_helper(
-        &self,
-        found_checked_cast: bool,
-        run_simplifications: bool,
-    ) -> Type {
-        self.follow_bindings().canonicalize_helper_helper(found_checked_cast, run_simplifications)
-    }
-
-    /// If `found_checked_cast`, then drop additional CheckedCast's
-    ///
-    /// If `run_simplifications` is false, then only:
-    /// - Attempt to evaluate each sub-expression to a constant
-    /// - Drop nested CheckedCast's
-    ///
-    /// Otherwise also attempt try_simplify_partial_constants, sort_commutative,
-    /// and other simplifications
-    fn canonicalize_helper_helper(
+    fn canonicalize_helper(
         &self,
         found_checked_cast: bool,
         run_simplifications: bool,

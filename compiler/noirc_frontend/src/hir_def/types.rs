@@ -1803,8 +1803,7 @@ impl Type {
             }
         }
 
-        let could_be_checked_cast = false;
-        match self.canonicalize_helper(could_be_checked_cast, run_simplifications) {
+        match self.canonicalize_with_simplifications( run_simplifications) {
             Type::Constant(x, constant_kind) => {
                 if kind.unifies(&constant_kind) {
                     kind.ensure_value_fits(x, location)
