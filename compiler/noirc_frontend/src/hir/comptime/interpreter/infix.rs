@@ -45,14 +45,14 @@ pub(super) fn evaluate_infix(
 
     /// Generate matches for arithmetic operations on `Field` and integers.
     macro_rules! match_arithmetic {
-        (($lhs_value:ident as $lhs:ident $op:literal $rhs_value:ident as $rhs:ident) { field: $field_expr:expr, int: $int_expr:expr, }) => {
+        (($lhs_value:ident as $lhs:ident $op:literal $rhs_value:ident as $rhs:ident) { field: $field_expr:expr, int: $int_expr:expr, signed_int: $signed_int_expr:expr, }) => {
             match_values! {
                 ($lhs_value as $lhs $op $rhs_value as $rhs) {
                     (Field, Field) to Field => Some($field_expr),
-                    (I8,  I8)      to I8    => $int_expr,
-                    (I16, I16)     to I16   => $int_expr,
-                    (I32, I32)     to I32   => $int_expr,
-                    (I64, I64)     to I64   => $int_expr,
+                    (I8,  I8)      to I8    => $signed_int_expr,
+                    (I16, I16)     to I16   => $signed_int_expr,
+                    (I32, I32)     to I32   => $signed_int_expr,
+                    (I64, I64)     to I64   => $signed_int_expr,
                     (U8,  U8)      to U8    => $int_expr,
                     (U16, U16)     to U16   => $int_expr,
                     (U32, U32)     to U32   => $int_expr,
@@ -148,24 +148,28 @@ pub(super) fn evaluate_infix(
             (lhs_value as lhs "+" rhs_value as rhs) {
                 field: lhs + rhs,
                 int: lhs.checked_add(rhs),
+                signed_int: Some(lhs.wrapping_add(rhs)),
             }
         },
         BinaryOpKind::Subtract => match_arithmetic! {
             (lhs_value as lhs "-" rhs_value as rhs) {
                 field: lhs - rhs,
                 int: lhs.checked_sub(rhs),
+                signed_int: Some(lhs.wrapping_sub(rhs)),
             }
         },
         BinaryOpKind::Multiply => match_arithmetic! {
             (lhs_value as lhs "*" rhs_value as rhs) {
                 field: lhs * rhs,
                 int: lhs.checked_mul(rhs),
+                signed_int: Some(lhs.wrapping_mul(rhs)),
             }
         },
         BinaryOpKind::Divide => match_arithmetic! {
             (lhs_value as lhs "/" rhs_value as rhs) {
                 field: lhs / rhs,
                 int: lhs.checked_div(rhs),
+                signed_int: lhs.checked_div(rhs),
             }
         },
         BinaryOpKind::Equal => match_cmp! {

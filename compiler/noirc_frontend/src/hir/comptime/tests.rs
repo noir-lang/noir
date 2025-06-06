@@ -314,3 +314,133 @@ fn generic_functions() {
     let result = interpret(program);
     assert_eq!(result, Value::U8(2));
 }
+
+#[test]
+fn add_unsigned() {
+    let src = "
+    comptime fn main() -> pub u32 {
+        2 + 100
+    }
+    ";
+    let result = interpret(src);
+    assert_eq!(result, Value::U32(102));
+}
+
+#[test]
+fn add_signed() {
+    let src = "
+    comptime fn main() -> pub i32 {
+        2 + 100
+    }
+    ";
+    let result = interpret(src);
+    assert_eq!(result, Value::I32(102));
+}
+
+#[test]
+fn add_overflow_unsigned() {
+    let src = "
+    comptime fn main() -> pub u8 {
+        200 + 100
+    }
+    ";
+    let result = interpret_expect_error(src);
+    let InterpreterError::MathError { operator, .. } = result else {
+        panic!("Expected MathError");
+    };
+    assert_eq!(operator, "+");
+}
+
+#[test]
+fn sub_unsigned() {
+    let src = "
+    comptime fn main() -> pub u32 {
+        10101 - 101
+    }
+    ";
+    let result = interpret(src);
+    assert_eq!(result, Value::U32(10000));
+}
+
+#[test]
+fn sub_signed() {
+    let src = "
+    comptime fn main() -> pub i32 {
+        10101 - 10102
+    }
+    ";
+    let result = interpret(src);
+    assert_eq!(result, Value::I32(-1));
+}
+
+#[test]
+fn sub_underflow_unsigned() {
+    let src = "
+    comptime fn main() -> pub u32 {
+        0 - 10
+    }
+    ";
+    let result = interpret_expect_error(src);
+    let InterpreterError::MathError { operator, .. } = result else {
+        panic!("Expected MathError");
+    };
+    assert_eq!(operator, "-");
+}
+
+#[test]
+fn sub_underflow_signed() {
+    let src = "
+    comptime fn main() -> pub i8 {
+        -120 - 10
+    }
+    ";
+    let result = interpret(src);
+    assert_eq!(result, Value::I8(126));
+}
+
+#[test]
+fn mul_unsigned() {
+    let src = "
+    comptime fn main() -> pub u64 {
+        2 * 100
+    }
+    ";
+    let result = interpret(src);
+    assert_eq!(result, Value::U64(200));
+}
+
+#[test]
+fn mul_signed() {
+    let src = "
+    comptime fn main() -> pub i64 {
+        2 * -100
+    }
+    ";
+    let result = interpret(src);
+    assert_eq!(result, Value::I64(-200));
+}
+
+#[test]
+fn mul_overflow_unsigned() {
+    let src = "
+    comptime fn main() -> pub u8 {
+        128 * 2
+    }
+    ";
+    let result = interpret_expect_error(src);
+    let InterpreterError::MathError { operator, .. } = result else {
+        panic!("Expected MathError");
+    };
+    assert_eq!(operator, "*");
+}
+
+#[test]
+fn mul_overflow_signed() {
+    let src = "
+    comptime fn main() -> pub i8 {
+        127 * 2
+    }
+    ";
+    let result = interpret(src);
+    assert_eq!(result, Value::I8(-2));
+}
