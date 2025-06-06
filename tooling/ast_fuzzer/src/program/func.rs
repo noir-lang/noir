@@ -751,7 +751,7 @@ impl<'a> FunctionContext<'a> {
             }
         }
 
-        if freq.enabled("constrain") {
+        if freq.enabled_when("constrain", !self.ctx.config.avoid_constrain) {
             if let Some(e) = self.gen_constrain(u)? {
                 return Ok(e);
             }

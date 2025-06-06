@@ -63,6 +63,8 @@ pub struct Config {
     pub avoid_loop_control: bool,
     /// Avoid using function pointers in parameters.
     pub avoid_lambdas: bool,
+    /// Avoid using constrain statements.
+    pub avoid_constrain: bool,
     /// Only use comptime friendly expressions.
     pub comptime_friendly: bool,
 }
@@ -124,6 +126,7 @@ impl Default for Config {
             avoid_negative_int_literals: false,
             avoid_loop_control: false,
             avoid_lambdas: false,
+            avoid_constrain: false,
             comptime_friendly: false,
         }
     }
