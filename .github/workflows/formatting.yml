@@ -37,7 +37,7 @@ jobs:
           save-if: ${{ github.event_name != 'merge_group' }}
 
       - name: Run `cargo clippy`
-        run: cargo clippy --all-targets --workspace --locked --release
+        run: ./scripts/clippy.sh
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
