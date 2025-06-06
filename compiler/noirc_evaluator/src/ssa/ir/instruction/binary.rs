@@ -130,21 +130,36 @@ pub(crate) fn eval_constant_binary_op(
 
             let lhs = try_convert_field_element_to_signed_integer(lhs, bit_size)?;
             let rhs = try_convert_field_element_to_signed_integer(rhs, bit_size)?;
-            // The divisor is being truncated into the type of the operand, which can potentially
-            // lead to the rhs being zero.
-            // If the rhs of a division is zero, attempting to evaluate the division will cause a compiler panic.
-            // Thus, we do not evaluate the division in this method, as we want to avoid triggering a panic,
-            // and the operation should be handled by ACIR generation.
-            if matches!(operator, BinaryOp::Div | BinaryOp::Mod) && rhs == 0 {
-                return None;
-            }
 
-            let result = function(lhs, rhs)?;
-            // Check for overflow
-            let two_pow_bit_size_minus_one = 1i128 << (bit_size - 1);
-            if result >= two_pow_bit_size_minus_one || result < -two_pow_bit_size_minus_one {
-                return None;
-            }
+            let result = function(lhs, rhs);
+            let result = match operator {
+                BinaryOp::Div | BinaryOp::Mod if rhs == 0 => {
+                    // The divisor is being truncated into the type of the operand, which can potentially
+                    // lead to the rhs being zero.
+                    // If the rhs of a division is zero, attempting to evaluate the division will cause a compiler panic.
+                    // Thus, we do not evaluate the division in this method, as we want to avoid triggering a panic,
+                    // and the operation should be handled by ACIR generation.
+                    return None;
+                }
+                BinaryOp::Shr => {
+                    if rhs >= bit_size as i128 {
+                        0
+                    } else {
+                        result?
+                    }
+                }
+
+                _ => {
+                    // Check for overflow
+                    let two_pow_bit_size_minus_one = 1i128 << (bit_size - 1);
+                    let result = result?;
+                    if result >= two_pow_bit_size_minus_one || result < -two_pow_bit_size_minus_one
+                    {
+                        return None;
+                    }
+                    result
+                }
+            };
             convert_signed_integer_to_field_element(result, bit_size)
         }
     };
