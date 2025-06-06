@@ -799,42 +799,20 @@ impl Elaborator<'_> {
         let location = path.location;
         let last_segment = path.pop();
         let before_last_segment = path.last_segment();
-        let mut turbofish = before_last_segment.turbofish();
+        let turbofish = before_last_segment.turbofish();
 
         let path_resolution = self.use_path_as_type(path).ok()?;
         let typ = match path_resolution.item {
             PathResolutionItem::Type(type_id) => {
+                let generics = self.resolve_struct_id_turbofish_generics(type_id, turbofish);
                 let datatype = self.get_type(type_id);
-                let generics = datatype.borrow().instantiate(self.interner);
-                let generics = if let Some(turbofish) = turbofish.take() {
-                    self.resolve_struct_turbofish_generics(
-                        &datatype.borrow(),
-                        generics,
-                        Some(turbofish.generics),
-                        turbofish.location,
-                    )
-                } else {
-                    Vec::new()
-                };
-
                 Type::DataType(datatype, generics)
             }
             PathResolutionItem::TypeAlias(type_alias_id) => {
+                let generics =
+                    self.resolve_type_alias_id_turbofish_generics(type_alias_id, turbofish);
                 let type_alias = self.interner.get_type_alias(type_alias_id);
                 let type_alias = type_alias.borrow();
-                let alias_generics = vecmap(&type_alias.generics, |generic| {
-                    self.interner.next_type_variable_with_kind(generic.kind())
-                });
-                let generics = if let Some(turbofish) = turbofish {
-                    self.resolve_alias_turbofish_generics(
-                        &type_alias,
-                        alias_generics,
-                        Some(turbofish.generics),
-                        turbofish.location,
-                    )
-                } else {
-                    alias_generics
-                };
                 type_alias.get_type(&generics)
             }
             PathResolutionItem::PrimitiveType(primitive_type) => {

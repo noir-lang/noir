@@ -8,7 +8,10 @@ use crate::{
         ERROR_IDENT, Expression, ExpressionKind, GenericTypeArgs, Ident, ItemVisibility, Path,
         PathSegment, Pattern, TypePath,
     },
-    elaborator::types::{SELF_TYPE_NAME, TraitPathResolutionMethod},
+    elaborator::{
+        Turbofish,
+        types::{SELF_TYPE_NAME, TraitPathResolutionMethod},
+    },
     hir::{
         def_collector::dc_crate::CompilationError,
         resolution::{errors::ResolverError, import::PathResolutionError},
@@ -20,6 +23,7 @@ use crate::{
     },
     node_interner::{
         DefinitionId, DefinitionInfo, DefinitionKind, ExprId, FuncId, GlobalId, TraitImplKind,
+        TypeAliasId, TypeId,
     },
     signed_field::SignedField,
 };
@@ -765,15 +769,7 @@ impl Elaborator<'_> {
     ) -> (Vec<Type>, Option<Type>) {
         match item {
             PathResolutionItem::Method(struct_id, Some(generics), _func_id) => {
-                let struct_type = self.interner.get_type(struct_id);
-                let struct_type = struct_type.borrow();
-                let struct_generics = struct_type.instantiate(self.interner);
-                let generics = self.resolve_struct_turbofish_generics(
-                    &struct_type,
-                    struct_generics,
-                    Some(generics.generics),
-                    generics.location,
-                );
+                let generics = self.resolve_struct_id_turbofish_generics(struct_id, Some(generics));
                 (generics, None)
             }
             PathResolutionItem::SelfMethod(_) => {
@@ -787,21 +783,8 @@ impl Elaborator<'_> {
             PathResolutionItem::TypeAliasFunction(type_alias_id, generics, _func_id) => {
                 let type_alias = self.interner.get_type_alias(type_alias_id);
                 let type_alias = type_alias.borrow();
-                let alias_generics = vecmap(&type_alias.generics, |generic| {
-                    self.interner.next_type_variable_with_kind(generic.kind())
-                });
-
-                // First solve the generics on the alias, if any
-                let generics = if let Some(generics) = generics {
-                    self.resolve_alias_turbofish_generics(
-                        &type_alias,
-                        alias_generics,
-                        Some(generics.generics),
-                        generics.location,
-                    )
-                } else {
-                    alias_generics
-                };
+                let generics =
+                    self.resolve_type_alias_id_turbofish_generics(type_alias_id, generics);
 
                 // Now instantiate the underlying struct or alias with those generics, the struct might
                 // have more generics than those in the alias, like in this example:
@@ -850,6 +833,49 @@ impl Elaborator<'_> {
             | PathResolutionItem::Trait(..)
             | PathResolutionItem::Global(..)
             | PathResolutionItem::ModuleFunction(..) => (Vec::new(), None),
+        }
+    }
+
+    pub(super) fn resolve_struct_id_turbofish_generics(
+        &mut self,
+        struct_id: TypeId,
+        mut turbofish: Option<Turbofish>,
+    ) -> Vec<Type> {
+        let struct_type = self.interner.get_type(struct_id);
+        let struct_type = struct_type.borrow();
+        let struct_generics = struct_type.instantiate(self.interner);
+        if let Some(turbofish) = turbofish.take() {
+            self.resolve_struct_turbofish_generics(
+                &struct_type,
+                struct_generics,
+                Some(turbofish.generics),
+                turbofish.location,
+            )
+        } else {
+            struct_generics
+        }
+    }
+
+    pub(super) fn resolve_type_alias_id_turbofish_generics(
+        &mut self,
+        type_alias_id: TypeAliasId,
+        generics: Option<Turbofish>,
+    ) -> Vec<Type> {
+        let type_alias = self.interner.get_type_alias(type_alias_id);
+        let type_alias = type_alias.borrow();
+        let alias_generics = vecmap(&type_alias.generics, |generic| {
+            self.interner.next_type_variable_with_kind(generic.kind())
+        });
+
+        if let Some(generics) = generics {
+            self.resolve_alias_turbofish_generics(
+                &type_alias,
+                alias_generics,
+                Some(generics.generics),
+                generics.location,
+            )
+        } else {
+            alias_generics
         }
     }
 
