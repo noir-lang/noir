@@ -85,6 +85,7 @@ impl Default for Config {
             ("for", 22),
             ("let", 25),
             ("call", 5),
+            ("constrain", 2),
         ]);
         let stmt_freqs_brillig = Freqs::new(&[
             ("drop", 0),
@@ -98,6 +99,7 @@ impl Default for Config {
             ("let", 20),
             ("call", 5),
             ("print", 15),
+            ("constrain", 2),
         ]);
         Self {
             max_globals: 3,
