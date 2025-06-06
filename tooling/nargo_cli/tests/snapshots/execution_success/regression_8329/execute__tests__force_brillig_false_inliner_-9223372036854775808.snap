@@ -98,10 +98,10 @@ expression: artifact
     "unconstrained func 1",
     "[Const { destination: Direct(10), bit_size: Integer(U32), value: 2 }, Const { destination: Direct(11), bit_size: Integer(U32), value: 0 }, CalldataCopy { destination_address: Direct(0), size_address: Direct(10), offset_address: Direct(11) }, BinaryFieldOp { destination: Direct(2), op: IntegerDiv, lhs: Direct(0), rhs: Direct(1) }, BinaryFieldOp { destination: Direct(1), op: Mul, lhs: Direct(2), rhs: Direct(1) }, BinaryFieldOp { destination: Direct(1), op: Sub, lhs: Direct(0), rhs: Direct(1) }, Mov { destination: Direct(0), source: Direct(2) }, Stop { return_data: HeapVector { pointer: Direct(11), size: Direct(10) } }]"
   ],
-  "debug_symbols": "nZLbaoQwEIbfZa5zkYPxsK9SikSNSyBEyWqhiO/eMWO2uxeF4s18mvH7iZNsMNhuvbcujNMDbh8bdNF57+6tn3qzuCng6rYzyK/tEq3FJXjpozWbaMMCt7B6z+DL+DV99JhNSFxMxC5nYMOAxMDReXs87ezX5n+rWp2urp+y/rfd6NMWnF/QhaizL9UVv3z61RVf8uL0JW+u+DJPT8r38X3im+ldfDtuULhRBkWqGiUGZapVqnWqTaqCEwRBEhShIFCCwAjchagIGIL/JJoEyQmCIAmKUBA0oSRUBEqRlKIwBc9ZCQKmlAhMKfdjNNGZztvzOo9r6F9u9/I9506+/3Ocejus0R6jST0c1g8=",
+  "debug_symbols": "nZLBboQgEIbfhTMHBgR1X6VpDCpuSAgaVps0xnfvyGi7e2iy8TKfMH4/CczKetcu98bHYXyw28fK2uRD8PcmjJ2d/Rhxd904O5fNnJzDLfbUR2uyycWZ3eISAmdfNiz5p8dkY+ZsE3YFZy72SAwcfHD718b/bPG/qtXh6upX1m/btTzsurxgA+hDBymu+OY8Hsyl8+vq8KVQF3wJ5elL+eJ/4sp2Pr28NlN4JGdFrholzkyuZa5VrnWuIAhAkARFKAiUABiBTwglAUMKRJ0hBQEIkqAIBUETDKEkUIqkFIUp+E4KCJhiEJhitv1qkrdtcMc0D0vsnoZ7/p7Ozjn+Uxo71y/J7VeTe3hZPw==",
   "file_map": {
     "50": {
-      "source": "fn main(x: u1, y: u1, z: u1) -> pub u1 {\n    let p = y - z;\n    if p as bool {\n        let a = x / z;\n        let b = a - z;\n        if b as bool {\n            let _ = a / b;\n        }\n    }\n\n    let u = x - z;\n    let v = y - u;\n    v\n}\n",
+      "source": "fn main(x: u1, y: u1, z: u1) -> pub u1 {\n    let p = y - z;\n    if p != 0 {\n        let a = x / z;\n        let b = a - z;\n        if b != 0 {\n            let _ = a / b;\n        }\n    }\n\n    let u = x - z;\n    let v = y - u;\n    v\n}\n",
       "path": ""
     }
   },

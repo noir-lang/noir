@@ -8,6 +8,7 @@ use crate::{
         ERROR_IDENT, Expression, ExpressionKind, GenericTypeArgs, Ident, ItemVisibility, Path,
         PathSegment, Pattern, TypePath,
     },
+    elaborator::types::SELF_TYPE_NAME,
     hir::{
         def_collector::dc_crate::CompilationError,
         resolution::{errors::ResolverError, import::PathResolutionError},
@@ -567,7 +568,6 @@ impl Elaborator<'_> {
 
     pub(super) fn elaborate_variable(&mut self, variable: Path) -> (ExprId, Type) {
         let variable = self.validate_path(variable);
-
         if let Some((expr_id, typ)) =
             self.elaborate_variable_as_self_method_or_associated_constant(&variable)
         {
@@ -580,7 +580,11 @@ impl Elaborator<'_> {
         let (expr, item) = self.resolve_variable(variable);
         let definition_id = expr.id;
 
-        let type_generics = item.map(|item| self.resolve_item_turbofish(item)).unwrap_or_default();
+        let (type_generics, self_generic) = if let Some(item) = item {
+            self.resolve_item_turbofish_and_self_type(item)
+        } else {
+            (Vec::new(), None)
+        };
 
         let definition = self.interner.try_definition(definition_id);
         let is_comptime_local = !self.in_comptime_context()
@@ -597,9 +601,21 @@ impl Elaborator<'_> {
             None
         };
 
-        // If this is a function call on a type that has generics, we need to bind those generic types.
-        if !type_generics.is_empty() {
-            if let Some(DefinitionKind::Function(func_id)) = &definition_kind {
+        if let Some(DefinitionKind::Function(func_id)) = &definition_kind {
+            // If there's a self type, bind it to the self type generic
+            if let Some(self_generic) = self_generic {
+                let func_generics = &self.interner.function_meta(func_id).all_generics;
+                let self_resolved_generic =
+                    func_generics.iter().find(|generic| generic.name.as_str() == SELF_TYPE_NAME);
+                if let Some(self_resolved_generic) = self_resolved_generic {
+                    let type_var = &self_resolved_generic.type_var;
+                    bindings
+                        .insert(type_var.id(), (type_var.clone(), type_var.kind(), self_generic));
+                }
+            }
+
+            // If this is a function call on a type that has generics, we need to bind those generic types.
+            if !type_generics.is_empty() {
                 // `all_generics` will always have the enclosing type generics first, so we need to bind those
                 let func_generics = &self.interner.function_meta(func_id).all_generics;
                 for (type_generic, func_generic) in type_generics.into_iter().zip(func_generics) {
@@ -678,19 +694,15 @@ impl Elaborator<'_> {
         };
 
         // Check the `Self::AssociatedConstant` case when inside a trait impl
-        let associated_types = self.interner.get_associated_types_for_impl(*trait_impl_id);
-        let associated_type = associated_types.iter().find(|typ| typ.name.as_str() == name);
-        if let Some(associated_type) = associated_type {
-            if let Kind::Numeric(numeric_type) = associated_type.typ.kind() {
-                let definition_id =
-                    self.interner.get_associated_constant_definition_id(*trait_impl_id, name);
-                let hir_ident = HirIdent::non_trait_method(definition_id, location);
-                let hir_expr = HirExpression::Ident(hir_ident, None);
-                let id = self.interner.push_expr(hir_expr);
-                self.interner.push_expr_location(id, location);
-                self.interner.push_expr_type(id, *numeric_type.clone());
-                return Some((id, *numeric_type.clone()));
-            }
+        if let Some((definition_id, numeric_type)) =
+            self.interner.get_trait_impl_associated_constant(*trait_impl_id, name).cloned()
+        {
+            let hir_ident = HirIdent::non_trait_method(definition_id, location);
+            let hir_expr = HirExpression::Ident(hir_ident, None);
+            let id = self.interner.push_expr(hir_expr);
+            self.interner.push_expr_location(id, location);
+            self.interner.push_expr_type(id, numeric_type.clone());
+            return Some((id, numeric_type));
         }
 
         // Check the `Self::method_name` case when `Self` is a primitive type
@@ -750,25 +762,30 @@ impl Elaborator<'_> {
     /// foo::Bar::<i32>::baz   
     /// ```
     /// Solve `<i32>` above
-    fn resolve_item_turbofish(&mut self, item: PathResolutionItem) -> Vec<Type> {
+    fn resolve_item_turbofish_and_self_type(
+        &mut self,
+        item: PathResolutionItem,
+    ) -> (Vec<Type>, Option<Type>) {
         match item {
             PathResolutionItem::Method(struct_id, Some(generics), _func_id) => {
                 let struct_type = self.interner.get_type(struct_id);
                 let struct_type = struct_type.borrow();
                 let struct_generics = struct_type.instantiate(self.interner);
-                self.resolve_struct_turbofish_generics(
+                let generics = self.resolve_struct_turbofish_generics(
                     &struct_type,
                     struct_generics,
                     Some(generics.generics),
                     generics.location,
-                )
+                );
+                (generics, None)
             }
             PathResolutionItem::SelfMethod(_) => {
-                if let Some(Type::DataType(_, generics)) = &self.self_type {
+                let generics = if let Some(Type::DataType(_, generics)) = &self.self_type {
                     generics.clone()
                 } else {
                     Vec::new()
-                }
+                };
+                (generics, None)
             }
             PathResolutionItem::TypeAliasFunction(type_alias_id, generics, _func_id) => {
                 let type_alias = self.interner.get_type_alias(type_alias_id);
@@ -793,7 +810,8 @@ impl Elaborator<'_> {
                 // have more generics than those in the alias, like in this example:
                 //
                 // type Alias<T> = Struct<T, i32>;
-                get_type_alias_generics(&type_alias, &generics)
+                let generics = get_type_alias_generics(&type_alias, &generics);
+                (generics, None)
             }
             PathResolutionItem::TraitFunction(trait_id, Some(generics), _func_id) => {
                 let trait_ = self.interner.get_trait(trait_id);
@@ -801,16 +819,37 @@ impl Elaborator<'_> {
                 let trait_generics =
                     vecmap(&kinds, |kind| self.interner.next_type_variable_with_kind(kind.clone()));
 
-                self.resolve_trait_turbofish_generics(
+                let generics = self.resolve_trait_turbofish_generics(
                     &trait_.name.to_string(),
                     kinds,
                     trait_generics,
                     Some(generics.generics),
                     generics.location,
-                )
+                );
+                (generics, None)
+            }
+            PathResolutionItem::TypeTraitFunction(self_type, trait_id, generics, _func_id) => {
+                let generics = if let Some(generics) = generics {
+                    let trait_ = self.interner.get_trait(trait_id);
+                    let kinds = vecmap(&trait_.generics, |generic| generic.kind());
+                    let trait_generics = vecmap(&kinds, |kind| {
+                        self.interner.next_type_variable_with_kind(kind.clone())
+                    });
+
+                    self.resolve_trait_turbofish_generics(
+                        &trait_.name.to_string(),
+                        kinds,
+                        trait_generics,
+                        Some(generics.generics),
+                        generics.location,
+                    )
+                } else {
+                    Vec::new()
+                };
+                (generics, Some(self_type))
             }
             PathResolutionItem::PrimitiveFunction(primitive_type, turbofish, _func_id) => {
-                match primitive_type {
+                let generics = match primitive_type {
                     PrimitiveType::Bool
                     | PrimitiveType::CtString
                     | PrimitiveType::Expr
@@ -884,7 +923,8 @@ impl Elaborator<'_> {
                             Vec::new()
                         }
                     }
-                }
+                };
+                (generics, None)
             }
             PathResolutionItem::Method(_, None, _)
             | PathResolutionItem::TraitFunction(_, None, _)
@@ -894,7 +934,7 @@ impl Elaborator<'_> {
             | PathResolutionItem::PrimitiveType(..)
             | PathResolutionItem::Trait(..)
             | PathResolutionItem::Global(..)
-            | PathResolutionItem::ModuleFunction(..) => Vec::new(),
+            | PathResolutionItem::ModuleFunction(..) => (Vec::new(), None),
         }
     }
 
