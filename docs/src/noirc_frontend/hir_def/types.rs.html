@@ -2943,7 +2943,12 @@
 <a href="#2942" id="2942">2942</a>
 <a href="#2943" id="2943">2943</a>
 <a href="#2944" id="2944">2944</a>
-<a href="#2945" id="2945">2945</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::{borrow::Cow, cell::RefCell, collections::BTreeSet, rc::Rc};
+<a href="#2945" id="2945">2945</a>
+<a href="#2946" id="2946">2946</a>
+<a href="#2947" id="2947">2947</a>
+<a href="#2948" id="2948">2948</a>
+<a href="#2949" id="2949">2949</a>
+<a href="#2950" id="2950">2950</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::{borrow::Cow, cell::RefCell, collections::BTreeSet, rc::Rc};
 
 <span class="kw">use </span>fxhash::FxHashMap <span class="kw">as </span>HashMap;
 
@@ -4460,6 +4465,11 @@
         rhs: Box&lt;Type&gt;,
         inversion: bool,
     ) -&gt; Type {
+        <span class="comment">// If this infix expression contains an error then it is eventually an error itself.
+        </span><span class="kw">if </span><span class="macro">matches!</span>(<span class="kw-2">*</span>lhs, Type::Error) || <span class="macro">matches!</span>(<span class="kw-2">*</span>rhs, Type::Error) {
+            <span class="kw">return </span>Type::Error;
+        }
+
         <span class="comment">// If an InfixExpr like this is tried to be created:
         //
         // a * (b / a)

@@ -30,7 +30,7 @@ to the reference is known.</p>
     result: <a class="type" href="../../../ir/value/type.ValueId.html" title="type noirc_evaluator::ssa::ir::value::ValueId">ValueId</a>,
 )</h4></section></summary><div class="docblock"><p>Remember that <code>result</code> is the result of dereferencing <code>address</code>. This is important to
 track aliasing when references are stored within other references.</p>
-</div></details><details class="toggle method-toggle" open><summary><section id="method.for_each_alias_of" class="method"><a class="src rightside" href="../../../../../src/noirc_evaluator/ssa/opt/mem2reg/block.rs.html#175-187">Source</a><h4 class="code-header">fn <a href="#method.for_each_alias_of" class="fn">for_each_alias_of</a>&lt;T&gt;(
+</div></details><details class="toggle method-toggle" open><summary><section id="method.for_each_alias_of" class="method"><a class="src rightside" href="../../../../../src/noirc_evaluator/ssa/opt/mem2reg/block.rs.html#175-187">Source</a><h4 class="code-header">pub(super) fn <a href="#method.for_each_alias_of" class="fn">for_each_alias_of</a>&lt;T&gt;(
     &amp;mut self,
     address: <a class="type" href="../../../ir/value/type.ValueId.html" title="type noirc_evaluator::ssa::ir::value::ValueId">ValueId</a>,
     f: impl <a class="trait" href="https://doc.rust-lang.org/1.85.0/core/ops/function/trait.FnMut.html" title="trait core::ops::function::FnMut">FnMut</a>(&amp;mut Self, <a class="type" href="../../../ir/value/type.ValueId.html" title="type noirc_evaluator::ssa::ir::value::ValueId">ValueId</a>) -&gt; T,

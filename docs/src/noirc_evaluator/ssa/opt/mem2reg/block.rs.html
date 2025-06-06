@@ -423,7 +423,7 @@
     }
 
     <span class="doccomment">/// Iterate through each known alias of the given address and apply the function `f` to each.
-    </span><span class="kw">fn </span>for_each_alias_of&lt;T&gt;(
+    </span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>for_each_alias_of&lt;T&gt;(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
         address: ValueId,
         <span class="kw-2">mut </span>f: <span class="kw">impl </span>FnMut(<span class="kw-2">&amp;mut </span><span class="self">Self</span>, ValueId) -&gt; T,
