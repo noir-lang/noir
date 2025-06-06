@@ -66,7 +66,7 @@ impl Type {
     fn canonicalize_helper(&self, found_checked_cast: bool, run_simplifications: bool) -> Type {
         match self {
             Type::InfixExpr(lhs, op, rhs, inversion) => {
-                let kind = lhs.infix_kind(&rhs);
+                let kind = lhs.infix_kind(rhs);
                 let dummy_location = Location::dummy();
                 // evaluate_to_field_element also calls canonicalize so if we just called
                 // `self.evaluate_to_field_element(..)` we'd get infinite recursion.
@@ -206,7 +206,7 @@ impl Type {
             Type::CheckedCast { from, to } => {
                 // Apply operation directly to `from` while attempting simplification to `to`.
                 let from = Type::infix_expr(from.clone(), op, Box::new(rhs.clone()));
-                let to = Self::try_simplify_non_constants_in_lhs(&to, op, rhs)?;
+                let to = Self::try_simplify_non_constants_in_lhs(to, op, rhs)?;
                 Some(Type::CheckedCast { from: Box::new(from), to: Box::new(to) })
             }
             Type::InfixExpr(l_lhs, l_op, l_rhs, _) => {
@@ -243,7 +243,7 @@ impl Type {
             Type::CheckedCast { from, to } => {
                 // Apply operation directly to `from` while attempting simplification to `to`.
                 let from = Type::infix_expr(Box::new(lhs.clone()), op, from.clone());
-                let to = Self::try_simplify_non_constants_in_rhs(lhs, op, &to)?;
+                let to = Self::try_simplify_non_constants_in_rhs(lhs, op, to)?;
                 Some(Type::CheckedCast { from: Box::new(from), to: Box::new(to) })
             }
             Type::InfixExpr(r_lhs, r_op, r_rhs, _) => {
