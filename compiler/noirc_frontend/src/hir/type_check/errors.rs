@@ -27,6 +27,8 @@ pub enum Source {
     Assignment,
     #[error("Return")]
     Return(FunctionReturnType, Location),
+    #[error("ArrayIndex")]
+    ArrayIndex,
 }
 
 #[derive(Error, Debug, Clone, PartialEq, Eq)]
@@ -583,6 +585,7 @@ impl<'a> From<&'a TypeCheckError> for Diagnostic {
 
                         return diagnostic
                     },
+                    Source::ArrayIndex => format!("Indexing arrays and slices must be done with `{expected}`, not `{actual}`"),
                 };
 
                 Diagnostic::simple_error(message, String::new(), *location)

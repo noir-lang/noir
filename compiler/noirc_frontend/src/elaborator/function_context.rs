@@ -2,11 +2,9 @@ use noirc_errors::Location;
 
 use crate::{
     Kind, Type,
-    ast::IntegerBitSize,
-    hir::{comptime::Value, resolution::errors::ResolverError, type_check::TypeCheckError},
+    hir::{comptime::Value, type_check::TypeCheckError},
     hir_def::traits::TraitConstraint,
     node_interner::{DefinitionKind, ExprId, GlobalValue, TypeId},
-    shared::Signedness,
 };
 use crate::{TypeVariableId, node_interner::DefinitionId};
 
@@ -31,21 +29,6 @@ pub(super) struct FunctionContext {
     /// constraints are verified but there's no call associated with them, like in the
     /// case of checking generic arguments)
     trait_constraints: Vec<(TraitConstraint, ExprId, bool /* select impl */)>,
-
-    /// List of expressions that are at an index position:
-    ///
-    /// ```noir
-    /// foo[index]
-    ///     ^^^^^
-    /// ```
-    ///
-    /// After each function we'll check that the type of those indexes
-    /// is u32 and, if not, produce a deprecation warning.
-    ///
-    /// NOTE: this list should be removed once the deprecation warning is turned
-    /// into an error, because doing that involves a completely different approach
-    /// (just unifying indexes with u32).
-    indexes_to_check: Vec<ExprId>,
 }
 
 /// A type variable that is required to be bound after type-checking a function.
@@ -98,10 +81,6 @@ impl Elaborator<'_> {
         self.get_function_context().trait_constraints.push((constraint, expr_id, select_impl));
     }
 
-    pub(super) fn push_index_to_check(&mut self, index: ExprId) {
-        self.get_function_context().indexes_to_check.push(index);
-    }
-
     fn get_function_context(&mut self) -> &mut FunctionContext {
         let context = self.function_context.last_mut();
         context.expect("The function_context stack should always be non-empty")
@@ -115,28 +94,9 @@ impl Elaborator<'_> {
     /// all still-unsolved trait constraints in this context.
     pub(super) fn check_and_pop_function_context(&mut self) {
         let context = self.function_context.pop().expect("Imbalanced function_context pushes");
-        self.check_indexes_to_check(context.indexes_to_check);
         self.check_defaultable_type_variables(context.defaultable_type_variables);
         self.check_trait_constraints(context.trait_constraints);
         self.check_required_type_variables(context.required_type_variables);
-    }
-
-    fn check_indexes_to_check(&mut self, indexes: Vec<ExprId>) {
-        let u32 = Type::Integer(Signedness::Unsigned, IntegerBitSize::ThirtyTwo);
-        for expr_id in indexes {
-            let typ = self.interner.id_type(expr_id).follow_bindings();
-
-            // If the type is still a type variable after follow_bindings it means it'll
-            // be turned into Field or, eventually, into u32, so this is fine.
-            if let Type::TypeVariable(..) = typ {
-                continue;
-            };
-
-            if typ != u32 {
-                let location = self.interner.expr_location(&expr_id);
-                self.push_err(ResolverError::NonU32Index { location });
-            }
-        }
     }
 
     fn check_defaultable_type_variables(&self, type_variables: Vec<Type>) {
