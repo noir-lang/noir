@@ -1,4 +1,4 @@
-define: &AZ_COMMIT ad837fe0687a4c9e58c43c7295ea31e39420060e
+define: &AZ_COMMIT e13571cce022a4d905123fbaf5e7e168a5ba7c70
 libraries:
   noir_check_shuffle:
     repo: noir-lang/noir_check_shuffle
@@ -59,7 +59,6 @@ libraries:
   sha512:
     repo: noir-lang/sha512
     timeout: 40
-    critical: true
   keccak256:
     repo: noir-lang/keccak256
     timeout: 3
