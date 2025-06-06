@@ -1091,9 +1091,6 @@ impl Interpreter<'_> {
                 }
             }
             BinaryOp::Shr => {
-                // let zero = || NumericValue::zero(lhs.get_type());
-                // let zero = || NumericValue::zero(lhs.get_type());
-
                 let fallback = || {
                     if lhs.get_type().is_unsigned() {
                         NumericValue::zero(lhs.get_type())

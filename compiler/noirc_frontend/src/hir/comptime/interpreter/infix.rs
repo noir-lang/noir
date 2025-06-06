@@ -259,7 +259,7 @@ mod test {
     }
 
     #[test]
-    fn shr_signed_overflow() {
+    fn shr_signed_overflow_negative_lhs() {
         let src = "
         comptime fn main() -> pub i64 {
             -64 >> 63
@@ -276,6 +276,25 @@ mod test {
         let result = interpret(src);
         // 255 % 64 == 63, so 64 >> 63 => -1
         assert_eq!(result, Value::I64(-1));
+    }
+
+    #[test]
+    fn shr_signed_overflow_positive_lhs() {
+        let src = "
+        comptime fn main() -> pub i64 {
+            64 >> 63
+        }
+        ";
+        let result = interpret(src);
+        assert_eq!(result, Value::I64(0));
+
+        let src = "
+        comptime fn main() -> pub i64 {
+            64 >> 255
+        }
+        ";
+        let result = interpret(src);
+        assert_eq!(result, Value::I64(0));
     }
 
     #[test]
