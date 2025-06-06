@@ -2698,7 +2698,22 @@
 <a href="#2697" id="2697">2697</a>
 <a href="#2698" id="2698">2698</a>
 <a href="#2699" id="2699">2699</a>
-<a href="#2700" id="2700">2700</a></pre></div><pre class="rust"><code><span class="doccomment">//! Coming after type checking, monomorphization is the last pass in Noir's frontend.
+<a href="#2700" id="2700">2700</a>
+<a href="#2701" id="2701">2701</a>
+<a href="#2702" id="2702">2702</a>
+<a href="#2703" id="2703">2703</a>
+<a href="#2704" id="2704">2704</a>
+<a href="#2705" id="2705">2705</a>
+<a href="#2706" id="2706">2706</a>
+<a href="#2707" id="2707">2707</a>
+<a href="#2708" id="2708">2708</a>
+<a href="#2709" id="2709">2709</a>
+<a href="#2710" id="2710">2710</a>
+<a href="#2711" id="2711">2711</a>
+<a href="#2712" id="2712">2712</a>
+<a href="#2713" id="2713">2713</a>
+<a href="#2714" id="2714">2714</a>
+<a href="#2715" id="2715">2715</a></pre></div><pre class="rust"><code><span class="doccomment">//! Coming after type checking, monomorphization is the last pass in Noir's frontend.
 //! It accepts the type checked HIR as input and produces a monomorphized AST as output.
 //! This file implements the pass itself, while the AST is defined in the ast module.
 //!
@@ -3309,9 +3324,12 @@
                 <span class="kw">let </span>frontend_type = <span class="self">self</span>.interner.id_type(expr);
                 <span class="kw">let </span>typ = <span class="self">Self</span>::convert_type(<span class="kw-2">&amp;</span>frontend_type, location)<span class="question-mark">?</span>;
 
-                <span class="kw">if </span><span class="self">Self</span>::contains_reference(<span class="kw-2">&amp;</span>frontend_type) {
+                <span class="kw">if </span>!<span class="self">self</span>.in_unconstrained_function &amp;&amp; <span class="self">Self</span>::contains_reference(<span class="kw-2">&amp;</span>frontend_type) {
                     <span class="kw">let </span>typ = frontend_type.to_string();
-                    <span class="kw">return </span><span class="prelude-val">Err</span>(MonomorphizationError::ReferenceReturnedFromIf { typ, location });
+                    <span class="kw">return </span><span class="prelude-val">Err</span>(MonomorphizationError::ReferenceReturnedFromIfOrMatch {
+                        typ,
+                        location,
+                    });
                 }
 
                 ast::Expression::If(ast::If { condition, consequence, alternative: else_, typ })
@@ -4671,6 +4689,13 @@
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
         assign: HirAssignStatement,
     ) -&gt; <span class="prelude-ty">Result</span>&lt;ast::Expression, MonomorphizationError&gt; {
+        <span class="kw">let </span>expression_type = <span class="self">self</span>.interner.id_type(assign.expression);
+        <span class="kw">let </span>location = <span class="self">self</span>.interner.expr_location(<span class="kw-2">&amp;</span>assign.expression);
+        <span class="kw">if </span>!<span class="self">self</span>.in_unconstrained_function &amp;&amp; <span class="self">Self</span>::contains_reference(<span class="kw-2">&amp;</span>expression_type) {
+            <span class="kw">let </span>typ = expression_type.to_string();
+            <span class="kw">return </span><span class="prelude-val">Err</span>(MonomorphizationError::AssignedToVarContainingReference { typ, location });
+        }
+
         <span class="kw">let </span>expression = Box::new(<span class="self">self</span>.expr(assign.expression)<span class="question-mark">?</span>);
         <span class="kw">let </span>lvalue = <span class="self">self</span>.lvalue(assign.lvalue)<span class="question-mark">?</span>;
         <span class="prelude-val">Ok</span>(ast::Expression::Assign(ast::Assign { expression, lvalue }))
@@ -4916,6 +4941,14 @@
         match_expr: HirMatch,
         expr_id: ExprId,
     ) -&gt; <span class="prelude-ty">Result</span>&lt;ast::Expression, MonomorphizationError&gt; {
+        <span class="kw">let </span>result_type = <span class="self">self</span>.interner.id_type(expr_id);
+        <span class="kw">let </span>location = <span class="self">self</span>.interner.expr_location(<span class="kw-2">&amp;</span>expr_id);
+
+        <span class="kw">if </span>!<span class="self">self</span>.in_unconstrained_function &amp;&amp; <span class="self">Self</span>::contains_reference(<span class="kw-2">&amp;</span>result_type) {
+            <span class="kw">let </span>typ = result_type.to_string();
+            <span class="kw">return </span><span class="prelude-val">Err</span>(MonomorphizationError::ReferenceReturnedFromIfOrMatch { typ, location });
+        }
+
         <span class="kw">match </span>match_expr {
             HirMatch::Success(id) =&gt; <span class="self">self</span>.expr(id),
             HirMatch::Failure { .. } =&gt; {
@@ -4929,15 +4962,13 @@
                 <span class="kw">let </span>msg_type = HirType::String(Box::new(length));
 
                 <span class="kw">let </span>msg = <span class="prelude-val">Some</span>(Box::new((msg_expr, msg_type)));
-                <span class="kw">let </span>location = <span class="self">self</span>.interner.expr_location(<span class="kw-2">&amp;</span>expr_id);
                 <span class="prelude-val">Ok</span>(ast::Expression::Constrain(false_, location, msg))
             }
             HirMatch::Guard { cond, body, otherwise } =&gt; {
                 <span class="kw">let </span>condition = Box::new(<span class="self">self</span>.expr(cond)<span class="question-mark">?</span>);
                 <span class="kw">let </span>consequence = Box::new(<span class="self">self</span>.expr(body)<span class="question-mark">?</span>);
                 <span class="kw">let </span>alternative = <span class="prelude-val">Some</span>(Box::new(<span class="self">self</span>.match_expr(<span class="kw-2">*</span>otherwise, expr_id)<span class="question-mark">?</span>));
-                <span class="kw">let </span>location = <span class="self">self</span>.interner.expr_location(<span class="kw-2">&amp;</span>expr_id);
-                <span class="kw">let </span>typ = <span class="self">Self</span>::convert_type(<span class="kw-2">&amp;</span><span class="self">self</span>.interner.id_type(expr_id), location)<span class="question-mark">?</span>;
+                <span class="kw">let </span>typ = <span class="self">Self</span>::convert_type(<span class="kw-2">&amp;</span>result_type, location)<span class="question-mark">?</span>;
                 <span class="prelude-val">Ok</span>(ast::Expression::If(ast::If { condition, consequence, alternative, typ }))
             }
             HirMatch::Switch(variable_to_match, cases, default) =&gt; {
@@ -4961,8 +4992,7 @@
                     <span class="prelude-val">None </span>=&gt; <span class="prelude-val">None</span>,
                 };
 
-                <span class="kw">let </span>location = <span class="self">self</span>.interner.expr_location(<span class="kw-2">&amp;</span>expr_id);
-                <span class="kw">let </span>typ = <span class="self">Self</span>::convert_type(<span class="kw-2">&amp;</span><span class="self">self</span>.interner.id_type(expr_id), location)<span class="question-mark">?</span>;
+                <span class="kw">let </span>typ = <span class="self">Self</span>::convert_type(<span class="kw-2">&amp;</span>result_type, location)<span class="question-mark">?</span>;
                 <span class="prelude-val">Ok</span>(ast::Expression::Match(ast::Match {
                     variable_to_match,
                     cases,

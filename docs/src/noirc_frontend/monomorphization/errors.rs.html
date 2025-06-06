@@ -155,7 +155,26 @@
 <a href="#154" id="154">154</a>
 <a href="#155" id="155">155</a>
 <a href="#156" id="156">156</a>
-<a href="#157" id="157">157</a></pre></div><pre class="rust"><code><span class="kw">use </span>noirc_errors::{CustomDiagnostic, Location};
+<a href="#157" id="157">157</a>
+<a href="#158" id="158">158</a>
+<a href="#159" id="159">159</a>
+<a href="#160" id="160">160</a>
+<a href="#161" id="161">161</a>
+<a href="#162" id="162">162</a>
+<a href="#163" id="163">163</a>
+<a href="#164" id="164">164</a>
+<a href="#165" id="165">165</a>
+<a href="#166" id="166">166</a>
+<a href="#167" id="167">167</a>
+<a href="#168" id="168">168</a>
+<a href="#169" id="169">169</a>
+<a href="#170" id="170">170</a>
+<a href="#171" id="171">171</a>
+<a href="#172" id="172">172</a>
+<a href="#173" id="173">173</a>
+<a href="#174" id="174">174</a>
+<a href="#175" id="175">175</a>
+<a href="#176" id="176">176</a></pre></div><pre class="rust"><code><span class="kw">use </span>noirc_errors::{CustomDiagnostic, Location};
 
 <span class="kw">use crate</span>::{
     Type,
@@ -214,7 +233,11 @@
         err: TypeCheckError,
         location: Location,
     },
-    ReferenceReturnedFromIf {
+    ReferenceReturnedFromIfOrMatch {
+        typ: String,
+        location: Location,
+    },
+    AssignedToVarContainingReference {
         typ: String,
         location: Location,
     },
@@ -233,7 +256,8 @@
             | MonomorphizationError::RecursiveType { location, .. }
             | MonomorphizationError::NoDefaultType { location, .. }
             | MonomorphizationError::NoDefaultTypeInItem { location, .. }
-            | MonomorphizationError::ReferenceReturnedFromIf { location, .. }
+            | MonomorphizationError::ReferenceReturnedFromIfOrMatch { location, .. }
+            | MonomorphizationError::AssignedToVarContainingReference { location, .. }
             | MonomorphizationError::CannotComputeAssociatedConstant { location, .. } =&gt; <span class="kw-2">*</span>location,
             MonomorphizationError::InterpreterError(error) =&gt; error.location(),
         }
@@ -297,12 +321,26 @@
                     <span class="string">"Could not determine the value of associated constant `{name}`, encountered error: `{err}`"
                 </span>)
             }
-            MonomorphizationError::ReferenceReturnedFromIf { typ, location } =&gt; {
-                <span class="kw">let </span>message = <span class="string">"Cannot return a reference type from an if expression"</span>.to_string();
+            MonomorphizationError::ReferenceReturnedFromIfOrMatch { typ, location } =&gt; {
+                <span class="kw">let </span>message =
+                    <span class="string">"Cannot return a reference type from an if or match expression"</span>.to_string();
                 <span class="kw">let </span>secondary = <span class="kw">if </span>typ.starts_with(<span class="string">"&amp;"</span>) {
                     <span class="macro">format!</span>(<span class="string">"`{typ}` returned here"</span>)
                 } <span class="kw">else </span>{
                     <span class="macro">format!</span>(<span class="string">"`{typ}`, which contains a reference type internally, returned here"</span>)
+                };
+                <span class="kw">return </span>CustomDiagnostic::simple_error(message, secondary, <span class="kw-2">*</span>location);
+            }
+            MonomorphizationError::AssignedToVarContainingReference { typ, location } =&gt; {
+                <span class="kw">let </span>message =
+                    <span class="string">"Cannot assign to a mutable variable which contains a reference internally"
+                        </span>.to_string();
+                <span class="kw">let </span>secondary = <span class="kw">if </span>typ.starts_with(<span class="string">"&amp;"</span>) {
+                    <span class="macro">format!</span>(<span class="string">"Assigned expression has the type `{typ}`"</span>)
+                } <span class="kw">else </span>{
+                    <span class="macro">format!</span>(
+                        <span class="string">"Assigned expression has the type `{typ}`, which contains a reference type internally"
+                    </span>)
                 };
                 <span class="kw">return </span>CustomDiagnostic::simple_error(message, secondary, <span class="kw-2">*</span>location);
             }
