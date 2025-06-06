@@ -115,7 +115,7 @@ fn fuzz_should_fail_with(a: [bool; 32]) {
 }
 ```
 
-The underlying fuzzing mechanism is described in the [Fuzzing](../tooling/fuzzing) documentation.
+The underlying fuzzing mechanism is described in the [Fuzzer](../tooling/fuzzer) documentation.
 
 There are some fuzzing-specific options that can be used with `nargo test`:
        --no-fuzz
