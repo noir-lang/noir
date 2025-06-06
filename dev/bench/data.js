@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1749243917352,
+  "lastUpdate": 1749243919313,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -3967,85 +3967,6 @@ window.BENCHMARK_DATA = {
             "name": "GitHub",
             "username": "web-flow"
           },
-          "distinct": false,
-          "id": "8665abe6694c8641fb0e999c9b5d420290f5bbec",
-          "message": "fix(fmt): correct indentation when formatting long struct patterns (#8711)",
-          "timestamp": "2025-05-29T14:51:07Z",
-          "tree_id": "872db9baa409764d0134f3336ea2d3b1a1b8e685",
-          "url": "https://github.com/noir-lang/noir/commit/8665abe6694c8641fb0e999c9b5d420290f5bbec"
-        },
-        "date": 1748532120720,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 2.43,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 7.056,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 1.072,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 16.32,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 15.22,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root-empty",
-            "value": 1.412,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root-single-tx",
-            "value": 122,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 132,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 1.16,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-root",
-            "value": 1.712,
-            "unit": "s"
-          },
-          {
-            "name": "semaphore-depth-10",
-            "value": 0.851,
-            "unit": "s"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
-            "email": "asterite@gmail.com",
-            "name": "Ary Borenszweig",
-            "username": "asterite"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
           "distinct": true,
           "id": "89783b6a962faad6838e249c933caa1f16a6cae3",
           "message": "fix: better way to do LSP file overrides (#8702)",
@@ -7901,6 +7822,85 @@ window.BENCHMARK_DATA = {
           {
             "name": "semaphore-depth-10",
             "value": 0.809,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "72797635+Savio-Sou@users.noreply.github.com",
+            "name": "Savio",
+            "username": "Savio-Sou"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "582123ddbad7cae84bc9a10de8ffc54e8fcde577",
+          "message": "chore(docs): Add experimental warning in Debugger docs (#8824)",
+          "timestamp": "2025-06-06T20:35:47Z",
+          "tree_id": "afcf51ae7c055f1bfda41cf0dca96a90fbb31258",
+          "url": "https://github.com/noir-lang/noir/commit/582123ddbad7cae84bc9a10de8ffc54e8fcde577"
+        },
+        "date": 1749243906586,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 2.486,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 7.416,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 1.068,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 15.64,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 13.04,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-empty",
+            "value": 1.262,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-single-tx",
+            "value": 121,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 132,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 1.108,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-root",
+            "value": 1.612,
+            "unit": "s"
+          },
+          {
+            "name": "semaphore-depth-10",
+            "value": 0.748,
             "unit": "s"
           }
         ]
