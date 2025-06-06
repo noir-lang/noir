@@ -1,4 +1,3 @@
-use regex::Regex;
 use std::collections::BTreeSet;
 
 mod arithmetic_parser;
@@ -9,8 +8,8 @@ mod mem_init_parser;
 mod mem_parser;
 mod utils;
 
-use crate::circuit::{Circuit, ExpressionWidth, Opcode, PublicInputs, opcodes};
-use crate::native_types::{Expression, Witness};
+use crate::circuit::{Circuit, ExpressionWidth, Opcode, PublicInputs};
+use crate::native_types::Witness;
 use acir_field::AcirField;
 use arithmetic_parser::ArithmeticParser;
 use black_box_parser::BlackBoxParser;
@@ -18,7 +17,6 @@ use brillig_call_parser::BrilligCallParser;
 use call_parser::CallParser;
 use mem_init_parser::MemInitParser;
 use mem_parser::MemParser;
-use utils::clean_string;
 use utils::parse_str_to_field;
 
 #[derive(Debug, Clone, PartialEq)]
@@ -151,11 +149,11 @@ impl AcirParser {
     }
 
     fn get_circuit_description(serialized_acir: &Vec<Instruction>) -> CircuitDescription {
-        /// the description part of the circuit starts with one of the following options
-        /// current witness index: _u32, the largest index of a witness  
-        /// private parameters indices: list of witness indices of private parameters
-        /// public parameters indices: list of witness indices of private public parameters
-        /// return value indices : the witness indices of the values returned by the function
+        // the description part of the circuit starts with one of the following options
+        // current witness index: _u32, the largest index of a witness
+        // private parameters indices: list of witness indices of private parameters
+        // public parameters indices: list of witness indices of private public parameters
+        // return value indices : the witness indices of the values returned by the function
         let mut current_witness_index: u32 = 0;
         let mut private_parameters: BTreeSet<Witness> = BTreeSet::new();
         let mut public_parameters: BTreeSet<Witness> = BTreeSet::new();
@@ -296,10 +294,16 @@ impl CircuitDescription {
 
 #[cfg(test)]
 mod test {
-    use std::fmt::Display;
+    use std::collections::BTreeSet;
 
-    use super::*;
-    use crate::acir_field::FieldElement;
+    use regex::Regex;
+
+    use crate::{
+        acir_field::FieldElement,
+        circuit::PublicInputs,
+        native_types::Witness,
+        parser::{AcirParser, Instruction, InstructionType, utils::clean_string},
+    };
 
     #[test]
     fn test_serialize_acir() {

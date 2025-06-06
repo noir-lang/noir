@@ -4,9 +4,8 @@ use super::Instruction;
 use crate::circuit::Opcode;
 use crate::circuit::brillig::{BrilligFunctionId, BrilligInputs, BrilligOutputs};
 use crate::native_types::{Expression, Witness};
-use crate::parser::utils::clean_string;
 use crate::parser::{InstructionType, parse_str_to_field};
-pub use acir_field::AcirField;
+use acir_field::AcirField;
 
 pub struct BrilligCallParser {}
 
@@ -254,9 +253,19 @@ impl BrilligCallParser {
     }
 }
 
+#[cfg(test)]
 mod test {
-    use super::*;
-    use acir_field::FieldElement;
+    use super::BrilligCallParser;
+    use crate::{
+        native_types::Witness,
+        parser::{
+            Instruction, InstructionType,
+            utils::{clean_string, parse_str_to_field},
+        },
+    };
+
+    use acir_field::{AcirField, FieldElement};
+    use regex::Regex;
 
     #[test]
     fn test_brillig_inputs_parser() {

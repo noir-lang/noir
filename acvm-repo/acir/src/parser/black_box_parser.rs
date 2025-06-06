@@ -19,29 +19,28 @@ impl BlackBoxParser {
     where
         F: AcirField,
     {
-        /// Format is like BLACKBOX::RANGE [(_4, 222)] []
-        /// the different types of black box functions are:
-        /// - AES128Encrypt
-        /// - AND
-        /// - XOR
-        /// - RANGE
-        /// - Blake2s
-        /// - Blake3
-        /// - EcdsaSecp256k1
-        /// - EcdsaSecp256r1
-        /// - MultiScalarMul
-        /// - EmbeddedCurveAdd
-        /// - Keccakf1600
-        /// - RecursiveAggregation
-        /// - BigIntAdd
-        /// - BigIntSub
-        /// - BigIntMul
-        /// - BigIntDiv
-        /// - BigIntFromLeBytes
-        /// - BigIntToLeBytes
-        /// - Poseidon2Permutation
-        /// - SHA256Compression  
-        ///
+        // Format is like BLACKBOX::RANGE [(_4, 222)] []
+        // the different types of black box functions are:
+        // - AES128Encrypt
+        // - AND
+        // - XOR
+        // - RANGE
+        // - Blake2s
+        // - Blake3
+        // - EcdsaSecp256k1
+        // - EcdsaSecp256r1
+        // - MultiScalarMul
+        // - EmbeddedCurveAdd
+        // - Keccakf1600
+        // - RecursiveAggregation
+        // - BigIntAdd
+        // - BigIntSub
+        // - BigIntMul
+        // - BigIntDiv
+        // - BigIntFromLeBytes
+        // - BigIntToLeBytes
+        // - Poseidon2Permutation
+        // - SHA256Compression
         if instruction.instruction_type != InstructionType::BlackBoxFuncCall {
             return Err(format!(
                 "Expected Expr instruction, got {:?}",
@@ -49,7 +48,7 @@ impl BlackBoxParser {
             ));
         }
         let expression_body = instruction.instruction_body;
-        let mut trimmed = "";
+        let trimmed;
         // get the black box function type
         let black_box_type = match expression_body {
             s if s.trim().starts_with("AES128Encrypt") => {
@@ -167,6 +166,7 @@ impl BlackBoxParser {
     }
 }
 
+#[cfg(test)]
 mod test {
     use super::*;
     use crate::acir_field::FieldElement;

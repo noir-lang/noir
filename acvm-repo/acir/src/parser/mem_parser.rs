@@ -2,11 +2,10 @@ use regex::Regex;
 
 use super::Instruction;
 use crate::circuit::Opcode;
-use crate::circuit::brillig::{BrilligFunctionId, BrilligInputs, BrilligOutputs};
-use crate::circuit::opcodes::{AcirFunctionId, BlockId, MemOp};
+use crate::circuit::opcodes::{BlockId, MemOp};
 use crate::native_types::{Expression, Witness};
 use crate::parser::{InstructionType, brillig_call_parser::BrilligCallParser, parse_str_to_field};
-pub use acir_field::AcirField;
+use acir_field::AcirField;
 
 pub(crate) struct MemParser {}
 
@@ -153,6 +152,7 @@ impl MemParser {
     }
 }
 
+#[cfg(test)]
 mod test {
     use super::*;
     use crate::acir_field::FieldElement;

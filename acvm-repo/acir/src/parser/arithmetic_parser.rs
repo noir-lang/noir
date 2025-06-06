@@ -2,7 +2,7 @@ use crate::circuit::Opcode;
 use crate::native_types::{Expression, Witness};
 use crate::parser::parse_str_to_field;
 use crate::parser::{Instruction, InstructionType};
-pub use acir_field::AcirField;
+use acir_field::AcirField;
 use regex::Regex;
 
 pub(crate) struct ArithmeticParser {}
@@ -75,9 +75,20 @@ impl ArithmeticParser {
     }
 }
 
+#[cfg(test)]
 mod test {
-    use super::*;
-    use crate::acir_field::FieldElement;
+    use acir_field::AcirField;
+    use regex::Regex;
+
+    use crate::{
+        acir_field::FieldElement,
+        circuit::Opcode,
+        native_types::{Expression, Witness},
+        parser::{Instruction, InstructionType},
+    };
+
+    use super::ArithmeticParser;
+
     #[test]
     fn test_parse_arithmetic_expression() {
         let arithmetic_expression: Instruction = Instruction {

@@ -31,9 +31,3 @@ pub(crate) fn clean_string(string: &str) -> String {
     }
     result_string
 }
-
-mod test {
-    use super::*;
-    use crate::acir_field::FieldElement;
-    // todo: write a fuzz test for this function
-}
