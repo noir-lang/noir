@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1749231943480,
+  "lastUpdate": 1749231979603,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -18466,48 +18466,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "aakoshh@gmail.com",
-            "name": "Akosh Farkash",
-            "username": "aakoshh"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "1139bbcfe5c782db3b61e93b9346608993048539",
-          "message": "feat(cli): Add `nargo interpret` command (#8700)",
-          "timestamp": "2025-05-28T22:09:46Z",
-          "tree_id": "53be0a2611f9e645351c47724a80959f7527870f",
-          "url": "https://github.com/noir-lang/noir/commit/1139bbcfe5c782db3b61e93b9346608993048539"
-        },
-        "date": 1748471440665,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 255058,
-            "range": "± 1023",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 224502,
-            "range": "± 6512",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 3565946,
-            "range": "± 29092",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "mvezenov@gmail.com",
             "name": "Maxim Vezenov",
             "username": "vezenovm"
@@ -20559,6 +20517,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2777474,
             "range": "± 3558",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "michaeljklein@users.noreply.github.com",
+            "name": "Michael J Klein",
+            "username": "michaeljklein"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "28a57a2ae2de8077e0ca6165fac01c7d72aefa7c",
+          "message": "chore(ci): `cargo clippy` CI script to save time (#8787)",
+          "timestamp": "2025-06-06T17:07:17Z",
+          "tree_id": "a493ce338ddd6a731ae3e60260cb9a2a45818ced",
+          "url": "https://github.com/noir-lang/noir/commit/28a57a2ae2de8077e0ca6165fac01c7d72aefa7c"
+        },
+        "date": 1749231968664,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 249205,
+            "range": "± 1062",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 218566,
+            "range": "± 3090",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2799294,
+            "range": "± 5327",
             "unit": "ns/iter"
           }
         ]
