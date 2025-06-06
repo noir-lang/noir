@@ -298,7 +298,9 @@ impl<'a> SignatureFinder<'a> {
                 text.push_str(self.interner.definition_name(hir_ident.id));
             }
             HirPattern::Mutable(pattern, _) => self.hir_pattern_to_argument(pattern, text),
-            HirPattern::Tuple(_, _) | HirPattern::Struct(_, _, _) => text.push('_'),
+            HirPattern::Tuple(..) | HirPattern::TupleWithDoubleDot(..) | HirPattern::Struct(..) => {
+                text.push('_');
+            }
         }
     }
 

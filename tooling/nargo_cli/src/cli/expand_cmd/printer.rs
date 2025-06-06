@@ -747,6 +747,20 @@ impl<'context, 'string> ItemPrinter<'context, 'string> {
                 }
                 self.push(')');
             }
+            HirPattern::TupleWithDoubleDot(tuple) => {
+                self.push('(');
+                for (index, pattern) in tuple.iter().enumerate() {
+                    if index != 0 {
+                        self.push_str(", ");
+                    }
+                    if let Some(pattern) = pattern {
+                        self.show_pattern(pattern);
+                    } else {
+                        self.push_str("..");
+                    }
+                }
+                self.push(')');
+            }
             HirPattern::Struct(typ, fields, _) => {
                 self.show_type_name_as_data_type(typ);
                 self.push_str(" { ");
@@ -1150,7 +1164,9 @@ impl<'context, 'string> ItemPrinter<'context, 'string> {
                 definition.name == "self"
             }
             HirPattern::Mutable(pattern, _) => self.pattern_is_self(pattern),
-            HirPattern::Tuple(..) | HirPattern::Struct(..) => false,
+            HirPattern::Tuple(..) | HirPattern::TupleWithDoubleDot(..) | HirPattern::Struct(..) => {
+                false
+            }
         }
     }
 

@@ -1,6 +1,6 @@
 use super::expr::HirIdent;
 use crate::Type;
-use crate::ast::Ident;
+use crate::ast::{Ident, TupleWithDoubleDot};
 use crate::node_interner::{ExprId, StmtId};
 use crate::token::SecondaryAttribute;
 use noirc_errors::{Location, Span};
@@ -83,40 +83,13 @@ pub enum HirPattern {
     Identifier(HirIdent),
     Mutable(Box<HirPattern>, Location),
     Tuple(Vec<HirPattern>, Location),
+    TupleWithDoubleDot(TupleWithDoubleDot<HirPattern>),
     Struct(Type, Vec<(Ident, HirPattern)>, Location),
 }
 
 impl HirPattern {
-    pub fn field_count(&self) -> usize {
-        match self {
-            HirPattern::Identifier(_) => 0,
-            HirPattern::Mutable(pattern, _) => pattern.field_count(),
-            HirPattern::Tuple(fields, _) => fields.len(),
-            HirPattern::Struct(_, fields, _) => fields.len(),
-        }
-    }
-
-    /// Iterate over the fields of this pattern.
-    /// Panics if the type is not a struct or tuple.
-    pub fn iter_fields<'a>(&'a self) -> Box<dyn Iterator<Item = (String, &'a HirPattern)> + 'a> {
-        match self {
-            HirPattern::Struct(_, fields, _) => {
-                Box::new(fields.iter().map(move |(name, pattern)| (name.to_string(), pattern)))
-            }
-            HirPattern::Tuple(fields, _) => {
-                Box::new(fields.iter().enumerate().map(|(i, field)| (i.to_string(), field)))
-            }
-            other => panic!("Tried to iterate over the fields of '{other:?}', which has none"),
-        }
-    }
-
     pub fn span(&self) -> Span {
-        match self {
-            HirPattern::Identifier(ident) => ident.location.span,
-            HirPattern::Mutable(_, location)
-            | HirPattern::Tuple(_, location)
-            | HirPattern::Struct(_, _, location) => location.span,
-        }
+        self.location().span
     }
 
     pub fn location(&self) -> Location {
@@ -125,6 +98,7 @@ impl HirPattern {
             HirPattern::Mutable(_, location)
             | HirPattern::Tuple(_, location)
             | HirPattern::Struct(_, _, location) => *location,
+            HirPattern::TupleWithDoubleDot(tuple) => tuple.location,
         }
     }
 }

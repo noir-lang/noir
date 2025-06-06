@@ -648,7 +648,7 @@ fn format_pattern(pattern: &HirPattern, interner: &NodeInterner, string: &mut St
             string.push_str("mut ");
             format_pattern(pattern, interner, string);
         }
-        HirPattern::Tuple(..) | HirPattern::Struct(..) => {
+        HirPattern::Tuple(..) | HirPattern::TupleWithDoubleDot(..) | HirPattern::Struct(..) => {
             string.push('_');
         }
     }
@@ -661,7 +661,9 @@ fn pattern_is_self(pattern: &HirPattern, interner: &NodeInterner) -> bool {
             definition.name == "self"
         }
         HirPattern::Mutable(pattern, _) => pattern_is_self(pattern, interner),
-        HirPattern::Tuple(..) | HirPattern::Struct(..) => false,
+        HirPattern::Tuple(..) | HirPattern::TupleWithDoubleDot(..) | HirPattern::Struct(..) => {
+            false
+        }
     }
 }
 

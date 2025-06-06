@@ -564,14 +564,23 @@ pub enum LValue {
     Interned(InternedExpressionKind, Location),
 }
 
-#[derive(Debug, PartialEq, Eq, Clone)]
+#[derive(Debug, PartialEq, Eq, Clone, Hash)]
 pub enum Pattern {
     Identifier(Ident),
     Mutable(Box<Pattern>, Location, /*is_synthesized*/ bool),
     Tuple(Vec<Pattern>, Location),
+    TupleWithDoubleDot(TupleWithDoubleDot<Pattern>),
     Struct(Path, Vec<(Ident, Pattern)>, Location),
     Parenthesized(Box<Pattern>, Location),
     Interned(InternedPattern, Location),
+}
+
+#[derive(Debug, PartialEq, Eq, Clone, Hash)]
+pub struct TupleWithDoubleDot<Pattern> {
+    pub before: Vec<Pattern>,
+    pub double_dot_location: Location,
+    pub after: Vec<Pattern>,
+    pub location: Location,
 }
 
 impl Pattern {
@@ -583,6 +592,7 @@ impl Pattern {
             | Pattern::Struct(_, _, location)
             | Pattern::Parenthesized(_, location)
             | Pattern::Interned(_, location) => *location,
+            Pattern::TupleWithDoubleDot(tuple) => tuple.location,
         }
     }
 
@@ -612,6 +622,7 @@ impl Pattern {
                 }
                 Some(Expression { kind: ExpressionKind::Tuple(expressions), location: *location })
             }
+            Pattern::TupleWithDoubleDot(..) => None,
             Pattern::Struct(path, patterns, location) => {
                 let mut fields = Vec::new();
                 for (field, pattern) in patterns {
@@ -629,6 +640,35 @@ impl Pattern {
             Pattern::Parenthesized(pattern, _) => pattern.try_as_expression(interner),
             Pattern::Interned(id, _) => interner.get_pattern(*id).try_as_expression(interner),
         }
+    }
+}
+
+impl<Pattern> TupleWithDoubleDot<Pattern> {
+    /// Returns the total number of patterns in this tuple (the ones in `before` and `after`)
+    pub fn patterns_len(&self) -> usize {
+        self.before.len() + self.after.len()
+    }
+
+    /// Splits a slice of elements into three parts:
+    /// - The elements before the double dot
+    /// - The elements at the double dot
+    /// - The elements after the double dot
+    pub fn split<'a, T>(&self, elements: &'a [T]) -> (&'a [T], &'a [T], &'a [T]) {
+        let left_index = self.before.len();
+        let right_index = elements.len().saturating_sub(self.after.len());
+        let elements_before = elements.get(0..left_index).unwrap_or(&[]);
+        let elements_at_double_dot = elements.get(left_index..right_index).unwrap_or(&[]);
+        let elements_after = elements.get(right_index..).unwrap_or(&[]);
+        (elements_before, elements_at_double_dot, elements_after)
+    }
+
+    /// Returns an iterator over the patterns, where patterns before and after the `..`
+    /// will be `Some`, and the single `..` pattern will be `None`.
+    pub fn iter(&self) -> impl Iterator<Item = Option<&Pattern>> {
+        let before = self.before.iter().map(Some);
+        let double_dot = std::iter::once(None);
+        let after = self.after.iter().map(Some);
+        before.chain(double_dot).chain(after)
     }
 }
 
@@ -977,12 +1017,18 @@ impl Display for Pattern {
             Pattern::Identifier(name) => name.fmt(f),
             Pattern::Mutable(name, _, _) => write!(f, "mut {name}"),
             Pattern::Tuple(fields, _) => {
-                let fields = vecmap(fields, ToString::to_string);
+                let fields = vecmap(fields, |field| field.to_string());
                 if fields.len() == 1 {
                     write!(f, "({},)", fields[0])
                 } else {
                     write!(f, "({})", fields.join(", "))
                 }
+            }
+            Pattern::TupleWithDoubleDot(tuple) => {
+                let fields = vecmap(tuple.iter(), |field| {
+                    field.map(ToString::to_string).unwrap_or_else(|| "..".to_string())
+                });
+                write!(f, "({})", fields.join(", "))
             }
             Pattern::Struct(typename, fields, _) => {
                 let fields = vecmap(fields, |(name, pattern)| format!("{name}: {pattern}"));

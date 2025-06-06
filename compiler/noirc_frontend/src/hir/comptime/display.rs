@@ -12,7 +12,8 @@ use crate::{
         ForBounds, ForLoopStatement, ForRange, GenericTypeArgs, IfExpression, IndexExpression,
         InfixExpression, LValue, Lambda, LetStatement, Literal, MatchExpression,
         MemberAccessExpression, MethodCallExpression, Pattern, PrefixExpression, Statement,
-        StatementKind, UnresolvedType, UnresolvedTypeData, UnsafeExpression, WhileStatement,
+        StatementKind, TupleWithDoubleDot, UnresolvedType, UnresolvedTypeData, UnsafeExpression,
+        WhileStatement,
     },
     hir_def::traits::TraitConstraint,
     node_interner::{InternedStatementKind, NodeInterner},
@@ -957,6 +958,12 @@ fn remove_interned_in_pattern(interner: &NodeInterner, pattern: Pattern) -> Patt
             vecmap(patterns, |pattern| remove_interned_in_pattern(interner, pattern)),
             location,
         ),
+        Pattern::TupleWithDoubleDot(tuple) => Pattern::TupleWithDoubleDot(TupleWithDoubleDot {
+            before: vecmap(tuple.before, |pattern| remove_interned_in_pattern(interner, pattern)),
+            double_dot_location: tuple.double_dot_location,
+            after: vecmap(tuple.after, |pattern| remove_interned_in_pattern(interner, pattern)),
+            location: tuple.location,
+        }),
         Pattern::Struct(path, patterns, location) => {
             let patterns = vecmap(patterns, |(name, pattern)| {
                 (name, remove_interned_in_pattern(interner, pattern))

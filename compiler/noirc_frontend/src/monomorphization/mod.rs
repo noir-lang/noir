@@ -8,7 +8,7 @@
 //!
 //! The entry point to this pass is the `monomorphize` function which, starting from a given
 //! function, will monomorphize the entire reachable program.
-use crate::ast::{FunctionKind, IntegerBitSize, ItemVisibility, UnaryOp};
+use crate::ast::{FunctionKind, IntegerBitSize, ItemVisibility, TupleWithDoubleDot, UnaryOp};
 use crate::hir::comptime::{InterpreterError, Value};
 use crate::hir::type_check::{NoMatchingImplFoundError, TypeCheckError};
 use crate::node_interner::{ExprId, GlobalValue, ImplSearchErrorKind};
@@ -444,40 +444,118 @@ impl<'interner> Monomorphizer<'interner> {
     ) -> Result<(), MonomorphizationError> {
         match param {
             HirPattern::Identifier(ident) => {
-                let new_id = self.next_local_id();
-                let definition = self.interner.definition(ident.id);
-                let name = definition.name.clone();
-                let typ = Self::convert_type(typ, ident.location)?;
-                new_params.push((new_id, definition.mutable, name, typ, *visibility));
-                self.define_local(ident.id, new_id);
+                self.identifier_parameter(typ, visibility, new_params, ident)?;
             }
             HirPattern::Mutable(pattern, _) => {
                 self.parameter(pattern, typ, visibility, new_params)?;
             }
             HirPattern::Tuple(fields, _) => {
-                let tuple_field_types = unwrap_tuple_type(typ);
-
-                for (field, typ) in fields.iter().zip(tuple_field_types) {
-                    self.parameter(field, &typ, visibility, new_params)?;
-                }
+                self.tuple_parameter(typ, visibility, new_params, fields)?;
+            }
+            HirPattern::TupleWithDoubleDot(tuple) => {
+                self.tuple_with_double_dot_parameter(typ, visibility, new_params, tuple)?;
             }
             HirPattern::Struct(_, fields, location) => {
-                let struct_field_types = unwrap_struct_type(typ, *location)?;
-                assert_eq!(struct_field_types.len(), fields.len());
-
-                let mut fields = btree_map(fields, |(name, field)| (name.to_string(), field));
-
-                // Iterate over `struct_field_types` since `unwrap_struct_type` will always
-                // return the fields in the order defined by the struct type.
-                for (field_name, field_type, _) in struct_field_types {
-                    let field = fields.remove(&field_name).unwrap_or_else(|| {
-                        unreachable!("Expected a field named '{field_name}' in the struct pattern")
-                    });
-
-                    self.parameter(field, &field_type, visibility, new_params)?;
-                }
+                self.struct_parameter(typ, visibility, new_params, fields, location)?;
             }
         }
+        Ok(())
+    }
+
+    fn struct_parameter(
+        &mut self,
+        typ: &Type,
+        visibility: &Visibility,
+        new_params: &mut Vec<(LocalId, bool, String, ast::Type, Visibility)>,
+        fields: &Vec<(crate::ast::Ident, HirPattern)>,
+        location: &Location,
+    ) -> Result<(), MonomorphizationError> {
+        let struct_field_types = unwrap_struct_type(typ, *location)?;
+        assert_eq!(struct_field_types.len(), fields.len());
+        let mut fields = btree_map(fields, |(name, field)| (name.to_string(), field));
+        for (field_name, field_type, _) in struct_field_types {
+            let field = fields.remove(&field_name).unwrap_or_else(|| {
+                unreachable!("Expected a field named '{field_name}' in the struct pattern")
+            });
+
+            self.parameter(field, &field_type, visibility, new_params)?;
+        }
+        Ok(())
+    }
+
+    fn tuple_parameter(
+        &mut self,
+        typ: &Type,
+        visibility: &Visibility,
+        new_params: &mut Vec<(LocalId, bool, String, ast::Type, Visibility)>,
+        fields: &[HirPattern],
+    ) -> Result<(), MonomorphizationError> {
+        let tuple_field_types = unwrap_tuple_type(typ);
+
+        for (field, typ) in fields.iter().zip(tuple_field_types) {
+            self.parameter(field, &typ, visibility, new_params)?;
+        }
+
+        Ok(())
+    }
+
+    fn tuple_with_double_dot_parameter(
+        &mut self,
+        typ: &Type,
+        visibility: &Visibility,
+        new_params: &mut Vec<(LocalId, bool, String, ast::Type, Visibility)>,
+        tuple: &TupleWithDoubleDot<HirPattern>,
+    ) -> Result<(), MonomorphizationError> {
+        let tuple_field_types = unwrap_tuple_type(typ);
+
+        let fields_before = &tuple.before;
+        let fields_after = &tuple.after;
+        let (tuple_field_types_before, tuple_field_types_at_double_dot, tuple_field_types_after) =
+            tuple.split(&tuple_field_types);
+
+        // Define parameters for what comes before `..`
+        for (field, typ) in fields_before.iter().zip(tuple_field_types_before) {
+            self.parameter(field, typ, visibility, new_params)?;
+        }
+        // Define ignored parameters for the `..`
+        for typ in tuple_field_types_at_double_dot {
+            self.ignored_parameter(typ, visibility, tuple.double_dot_location, new_params)?;
+        }
+        // Define parameters for what comes after `..`
+        for (field, typ) in fields_after.iter().zip(tuple_field_types_after) {
+            self.parameter(field, typ, visibility, new_params)?;
+        }
+
+        Ok(())
+    }
+
+    fn identifier_parameter(
+        &mut self,
+        typ: &Type,
+        visibility: &Visibility,
+        new_params: &mut Vec<(LocalId, bool, String, ast::Type, Visibility)>,
+        ident: &HirIdent,
+    ) -> Result<(), MonomorphizationError> {
+        let new_id = self.next_local_id();
+        let definition = self.interner.definition(ident.id);
+        let name = definition.name.clone();
+        let typ = Self::convert_type(typ, ident.location)?;
+        new_params.push((new_id, definition.mutable, name, typ, *visibility));
+        self.define_local(ident.id, new_id);
+        Ok(())
+    }
+
+    fn ignored_parameter(
+        &mut self,
+        typ: &Type,
+        visibility: &Visibility,
+        location: Location,
+        new_params: &mut Vec<(LocalId, bool, String, ast::Type, Visibility)>,
+    ) -> Result<(), MonomorphizationError> {
+        let new_id = self.next_local_id();
+        let name = "_".to_string();
+        let typ = Self::convert_type(typ, location)?;
+        new_params.push((new_id, false /* mutable */, name, typ, *visibility));
         Ok(())
     }
 
@@ -925,37 +1003,14 @@ impl<'interner> Monomorphizer<'interner> {
         typ: &HirType,
     ) -> Result<ast::Expression, MonomorphizationError> {
         match pattern {
-            HirPattern::Identifier(ident) => {
-                let new_id = self.next_local_id();
-                self.define_local(ident.id, new_id);
-                let definition = self.interner.definition(ident.id);
-
-                Ok(ast::Expression::Let(ast::Let {
-                    id: new_id,
-                    mutable: definition.mutable,
-                    name: definition.name.clone(),
-                    expression: Box::new(value),
-                }))
-            }
+            HirPattern::Identifier(ident) => self.unpack_identifier_pattern(value, ident),
             HirPattern::Mutable(pattern, _) => self.unpack_pattern(*pattern, value, typ),
-            HirPattern::Tuple(patterns, _) => {
-                let fields = unwrap_tuple_type(typ);
-                self.unpack_tuple_pattern(value, patterns.into_iter().zip(fields), typ)
+            HirPattern::Tuple(patterns, _) => self.unpack_tuple_pattern(value, typ, patterns),
+            HirPattern::TupleWithDoubleDot(tuple) => {
+                self.unpack_tuple_with_double_dot_pattern(value, typ, tuple)
             }
             HirPattern::Struct(_, patterns, location) => {
-                let fields = unwrap_struct_type(typ, location)?;
-                assert_eq!(patterns.len(), fields.len());
-
-                let mut patterns =
-                    btree_map(patterns, |(name, pattern)| (name.into_string(), pattern));
-
-                // We iterate through the type's fields to match the order defined in the struct type
-                let patterns_iter = fields.into_iter().map(|(field_name, field_type, _)| {
-                    let pattern = patterns.remove(&field_name).unwrap();
-                    (pattern, field_type)
-                });
-
-                self.unpack_tuple_pattern(value, patterns_iter, typ)
+                self.unpack_struct_pattern(value, typ, patterns, location)
             }
         }
     }
@@ -963,7 +1018,78 @@ impl<'interner> Monomorphizer<'interner> {
     fn unpack_tuple_pattern(
         &mut self,
         value: ast::Expression,
-        fields: impl Iterator<Item = (HirPattern, HirType)>,
+        typ: &Type,
+        patterns: Vec<HirPattern>,
+    ) -> Result<ast::Expression, MonomorphizationError> {
+        let fields = unwrap_tuple_type(typ);
+        self.unpack_multiple_patterns(value, patterns.into_iter().map(Some).zip(fields), typ)
+    }
+
+    fn unpack_tuple_with_double_dot_pattern(
+        &mut self,
+        value: ast::Expression,
+        typ: &Type,
+        tuple: TupleWithDoubleDot<HirPattern>,
+    ) -> Result<ast::Expression, MonomorphizationError> {
+        let fields = unwrap_tuple_type(typ);
+
+        // Here we replace the double dot pattern with `None` so the values are not extracted from the tuple
+        let patterns_before = &tuple.before;
+        let patterns_after = &tuple.after;
+        let filler_length = fields.len() - tuple.patterns_len();
+
+        let mut new_patterns = Vec::with_capacity(fields.len());
+        new_patterns.extend(patterns_before.iter().map(|pattern| Some(pattern.clone())));
+        for _ in 0..filler_length {
+            new_patterns.push(None);
+        }
+        new_patterns.extend(patterns_after.iter().map(|pattern| Some(pattern.clone())));
+
+        self.unpack_multiple_patterns(value, new_patterns.into_iter().zip(fields), typ)
+    }
+
+    fn unpack_struct_pattern(
+        &mut self,
+        value: ast::Expression,
+        typ: &Type,
+        patterns: Vec<(crate::ast::Ident, HirPattern)>,
+        location: Location,
+    ) -> Result<ast::Expression, MonomorphizationError> {
+        let fields = unwrap_struct_type(typ, location)?;
+        assert_eq!(patterns.len(), fields.len());
+
+        let mut patterns = btree_map(patterns, |(name, pattern)| (name.into_string(), pattern));
+
+        // We iterate through the type's fields to match the order defined in the struct type
+        let patterns_iter = fields.into_iter().map(|(field_name, field_type, _)| {
+            let pattern = patterns.remove(&field_name).unwrap();
+            (Some(pattern), field_type)
+        });
+
+        self.unpack_multiple_patterns(value, patterns_iter, typ)
+    }
+
+    fn unpack_identifier_pattern(
+        &mut self,
+        value: ast::Expression,
+        ident: HirIdent,
+    ) -> Result<ast::Expression, MonomorphizationError> {
+        let new_id = self.next_local_id();
+        self.define_local(ident.id, new_id);
+        let definition = self.interner.definition(ident.id);
+
+        Ok(ast::Expression::Let(ast::Let {
+            id: new_id,
+            mutable: definition.mutable,
+            name: definition.name.clone(),
+            expression: Box::new(value),
+        }))
+    }
+
+    fn unpack_multiple_patterns(
+        &mut self,
+        value: ast::Expression,
+        fields: impl Iterator<Item = (Option<HirPattern>, HirType)>,
         tuple_type: &Type,
     ) -> Result<ast::Expression, MonomorphizationError> {
         let fresh_id = self.next_local_id();
@@ -976,6 +1102,12 @@ impl<'interner> Monomorphizer<'interner> {
         })];
 
         for (i, (field_pattern, field_type)) in fields.into_iter().enumerate() {
+            // When field_pattern is None it means the value at that tuple position is ignored.
+            // This is used with `..` patterns inside tuples: everything matching the `..` will have None
+            let Some(field_pattern) = field_pattern else {
+                continue;
+            };
+
             let location = field_pattern.location();
             let mutable = false;
             let definition = Definition::Local(fresh_id);
