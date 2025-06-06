@@ -1194,7 +1194,21 @@ impl Elaborator<'_> {
         match to {
             Type::Integer(sign, bits) => Type::Integer(sign, bits),
             Type::FieldElement => Type::FieldElement,
-            Type::Bool => Type::Bool,
+            Type::Bool => {
+                let from_is_numeric = match from_follow_bindings {
+                    Type::Integer(..) | Type::FieldElement => true,
+                    Type::TypeVariable(ref var) => var.is_integer() || var.is_integer_or_field(),
+                    _ => false,
+                };
+                if from_is_numeric {
+                    self.push_err(TypeCheckError::CannotCastNumericToBool {
+                        typ: from_follow_bindings,
+                        location,
+                    });
+                }
+
+                Type::Bool
+            }
             Type::Error => Type::Error,
             _ => {
                 self.push_err(TypeCheckError::UnsupportedCast { location });
