@@ -1239,32 +1239,6 @@ fn calls_trait_method_using_struct_name_when_multiple_impls_exist() {
 
 #[named]
 #[test]
-fn calls_trait_method_using_struct_name_when_multiple_impls_exist_and_errors_turbofish() {
-    let src = r#"
-    trait From2<T> {
-        fn from2(input: T) -> Self;
-    }
-    struct U60Repr {}
-    impl From2<[Field; 3]> for U60Repr {
-        fn from2(_: [Field; 3]) -> Self {
-            U60Repr {}
-        }
-    }
-    impl From2<Field> for U60Repr {
-        fn from2(_: Field) -> Self {
-            U60Repr {}
-        }
-    }
-    fn main() {
-        let _ = U60Repr::<Field>::from2([1, 2, 3]);
-                                        ^^^^^^^^^ Expected type Field, found type [Field; 3]
-    }
-    "#;
-    check_errors!(src);
-}
-
-#[named]
-#[test]
 fn as_trait_path_in_expression() {
     let src = r#"
         fn main() {
@@ -1667,4 +1641,31 @@ fn serialize_test_with_a_previous_unrelated_definition() {
     }
     "#;
     check_monomorphization_error!(&src);
+}
+
+#[named]
+#[test]
+fn errors_on_incorrect_generics_in_type_trait_call() {
+    let src = r#"
+        trait From2<T> {
+        fn from2(input: T) -> Self;
+    }
+    struct U60Repr {}
+    impl From2<[Field; 3]> for U60Repr {
+        fn from2(_: [Field; 3]) -> Self {
+            U60Repr {}
+        }
+    }
+    impl From2<Field> for U60Repr {
+        fn from2(_: Field) -> Self {
+            U60Repr {}
+        }
+    }
+
+    fn main() {
+        let _ = U60Repr::<Field>::from2([1, 2, 3]);
+                       ^^^^^^^^^ struct U60Repr expects 0 generics but 1 was given
+    }
+    "#;
+    check_errors!(src);
 }
