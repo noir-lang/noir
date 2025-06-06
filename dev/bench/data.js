@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1749216487757,
+  "lastUpdate": 1749216492552,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -11362,75 +11362,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "asterite@gmail.com",
-            "name": "Ary Borenszweig",
-            "username": "asterite"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "fa261df2a2935bba4b83843ea8851f92c6e99e38",
-          "message": "fix: nargo expand reexports correctly implemented (#8693)",
-          "timestamp": "2025-05-27T16:21:21Z",
-          "tree_id": "a9ade43f53351fb59195eef4a3670c10bd271be0",
-          "url": "https://github.com/noir-lang/noir/commit/fa261df2a2935bba4b83843ea8851f92c6e99e38"
-        },
-        "date": 1748365039153,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 246.19,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 270.04,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 221.33,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 580.05,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 576.38,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 1460,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 401.73,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-root",
-            "value": 407.29,
-            "unit": "MB"
-          },
-          {
-            "name": "semaphore_depth_10",
-            "value": 92.96,
-            "unit": "MB"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "aakoshh@gmail.com",
             "name": "Akosh Farkash",
             "username": "aakoshh"
@@ -14805,6 +14736,75 @@ window.BENCHMARK_DATA = {
           {
             "name": "semaphore_depth_10",
             "value": 70.98,
+            "unit": "MB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "asterite@gmail.com",
+            "name": "Ary Borenszweig",
+            "username": "asterite"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "ad0284d64279dc2786a76b8c88e02235c4b7f348",
+          "message": "fix!: indexing arrays with non-u32 is now an error (#8804)\n\nCo-authored-by: Tom French <15848336+TomAFrench@users.noreply.github.com>",
+          "timestamp": "2025-06-06T12:50:45Z",
+          "tree_id": "ba8f131e6f1edd1bd11ddea2d4fc4fd8d85e775c",
+          "url": "https://github.com/noir-lang/noir/commit/ad0284d64279dc2786a76b8c88e02235c4b7f348"
+        },
+        "date": 1749216480940,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 202.1,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 225.82,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 177.36,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 489.98,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 423.33,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 1400,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 312.18,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-root",
+            "value": 317.87,
+            "unit": "MB"
+          },
+          {
+            "name": "semaphore_depth_10",
+            "value": 70.96,
             "unit": "MB"
           }
         ]
