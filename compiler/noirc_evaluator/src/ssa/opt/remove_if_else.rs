@@ -2,6 +2,7 @@ use std::collections::hash_map::Entry;
 
 use fxhash::FxHashMap as HashMap;
 
+use crate::errors::RtResult;
 use crate::ssa::ir::function::RuntimeType;
 use crate::ssa::ir::instruction::Hint;
 use crate::ssa::ir::value::ValueId;
@@ -27,25 +28,26 @@ impl Ssa {
     /// the given array may alias another array (e.g. function parameters or
     /// a `load`ed array from a reference).
     #[tracing::instrument(level = "trace", skip(self))]
-    pub(crate) fn remove_if_else(mut self) -> Ssa {
+    pub(crate) fn remove_if_else(mut self) -> RtResult<Ssa> {
         for function in self.functions.values_mut() {
-            function.remove_if_else();
+            function.remove_if_else()?;
         }
-        self
+        Ok(self)
     }
 }
 
 impl Function {
-    pub(crate) fn remove_if_else(&mut self) {
+    pub(crate) fn remove_if_else(&mut self) -> RtResult<()> {
         // This should match the check in flatten_cfg
         if matches!(self.runtime(), RuntimeType::Brillig(_)) {
             // skip
         } else {
-            Context::default().remove_if_else(self);
+            Context::default().remove_if_else(self)?;
         }
 
         #[cfg(debug_assertions)]
         remove_if_else_post_check(self);
+        Ok(())
     }
 }
 
@@ -55,13 +57,13 @@ struct Context {
 }
 
 impl Context {
-    fn remove_if_else(&mut self, function: &mut Function) {
+    fn remove_if_else(&mut self, function: &mut Function) -> RtResult<()> {
         let block = function.entry_block();
 
         // Make sure this optimization runs when there's only one block
         assert_eq!(function.dfg[block].successors().count(), 0);
 
-        function.simple_reachable_blocks_optimization(|context| {
+        function.simple_reachable_blocks_optimization_result(|context| {
             let instruction_id = context.instruction_id;
             let instruction = context.instruction();
 
@@ -84,16 +86,11 @@ impl Context {
                         else_condition,
                         then_value,
                         else_value,
-                    );
+                    )?;
 
                     let _typ = context.dfg.type_of_value(value);
                     let results = context.dfg.instruction_results(instruction_id);
                     let result = results[0];
-                    // let result = match typ {
-                    //     Type::Array(..) => results[0],
-                    //     Type::Slice(..) => results[1],
-                    //     other => unreachable!("IfElse instructions should only have arrays or slices at this point. Found {other:?}"),
-                    // };
 
                     context.remove_current_instruction();
                     context.replace_value(result, value);
@@ -129,7 +126,8 @@ impl Context {
                 }
                 _ => (),
             }
-        });
+            Ok(())
+        })
     }
 
     fn get_or_find_capacity(&mut self, dfg: &DataFlowGraph, value: ValueId) -> u32 {
@@ -290,7 +288,7 @@ mod tests {
         ";
 
         let mut ssa = Ssa::from_str(src).unwrap();
-        ssa = ssa.remove_if_else();
+        ssa = ssa.remove_if_else().unwrap();
 
         // In case our if block is never activated, we need to fetch each value from the original array.
         // We then should create a new array where each value can be mapped to `(then_condition * then_value) + (!then_condition * else_value)`.
@@ -359,7 +357,7 @@ mod tests {
         ";
 
         let mut ssa = Ssa::from_str(src).unwrap();
-        ssa = ssa.remove_if_else();
+        ssa = ssa.remove_if_else().unwrap();
 
         // We attempt to optimize array mergers to only handle where an array was modified,
         // rather than merging the entire array. As we only modify the `y` array at a single index,

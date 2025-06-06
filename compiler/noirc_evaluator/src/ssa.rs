@@ -178,7 +178,7 @@ pub fn primary_passes(options: &SsaEvaluatorOptions) -> Vec<SsaPass> {
             move |ssa| ssa.inline_functions_with_no_predicates(options.inliner_aggressiveness),
             "Inlining",
         ),
-        SsaPass::new(Ssa::remove_if_else, "Remove IfElse"),
+        SsaPass::new_try(Ssa::remove_if_else, "Remove IfElse"),
         SsaPass::new(Ssa::purity_analysis, "Purity Analysis"),
         SsaPass::new(Ssa::fold_constants, "Constant Folding"),
         SsaPass::new(Ssa::flatten_basic_conditionals, "Simplify conditionals for unconstrained"),
