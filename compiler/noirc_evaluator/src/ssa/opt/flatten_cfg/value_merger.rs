@@ -160,8 +160,7 @@ impl<'a> ValueMerger<'a> {
                 let mut get_element = |array, typevars| {
                     let offset = ArrayOffset::None;
                     let get = Instruction::ArrayGet { array, index, offset };
-                    self
-                        .dfg
+                    self.dfg
                         .insert_instruction_and_results(get, self.block, typevars, self.call_stack)
                         .first()
                 };
@@ -179,12 +178,8 @@ impl<'a> ValueMerger<'a> {
         }
 
         let instruction = Instruction::MakeArray { elements: merged, typ };
-        let result = self.dfg.insert_instruction_and_results(
-            instruction,
-            self.block,
-            None,
-            self.call_stack,
-        );
+        let result =
+            self.dfg.insert_instruction_and_results(instruction, self.block, None, self.call_stack);
         Ok(result.first())
     }
 

@@ -66,9 +66,13 @@ pub enum RuntimeError {
         "Could not resolve some references to the array. All references must be resolved at compile time"
     )]
     UnknownReference { call_stack: CallStack },
-    #[error("Cannot return references from an if or match expression, or assignment within these expressions")]
+    #[error(
+        "Cannot return references from an if or match expression, or assignment within these expressions"
+    )]
     ReturnedReferenceFromDynamicIf { call_stack: CallStack },
-    #[error("Cannot return a function from an if or match expression, or assignment within these expressions")]
+    #[error(
+        "Cannot return a function from an if or match expression, or assignment within these expressions"
+    )]
     ReturnedFunctionFromDynamicIf { call_stack: CallStack },
 }
 
@@ -180,8 +184,8 @@ impl RuntimeError {
             | RuntimeError::UnconstrainedSliceReturnToConstrained { call_stack }
             | RuntimeError::UnconstrainedOracleReturnToConstrained { call_stack }
             | RuntimeError::UnknownReference { call_stack } => call_stack,
-            | RuntimeError::ReturnedReferenceFromDynamicIf { call_stack } => call_stack,
-            | RuntimeError::ReturnedFunctionFromDynamicIf { call_stack } => call_stack,
+            RuntimeError::ReturnedReferenceFromDynamicIf { call_stack } => call_stack,
+            RuntimeError::ReturnedFunctionFromDynamicIf { call_stack } => call_stack,
         }
     }
 }

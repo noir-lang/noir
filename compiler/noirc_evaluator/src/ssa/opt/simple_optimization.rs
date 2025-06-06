@@ -1,10 +1,13 @@
-use crate::{errors::RtResult, ssa::ir::{
-    basic_block::BasicBlockId,
-    dfg::DataFlowGraph,
-    function::Function,
-    instruction::{Instruction, InstructionId},
-    value::{ValueId, ValueMapping},
-}};
+use crate::{
+    errors::RtResult,
+    ssa::ir::{
+        basic_block::BasicBlockId,
+        dfg::DataFlowGraph,
+        function::Function,
+        instruction::{Instruction, InstructionId},
+        value::{ValueId, ValueMapping},
+    },
+};
 
 impl Function {
     /// Performs a simple optimization according to the given callback.
@@ -27,7 +30,8 @@ impl Function {
         self.simple_reachable_blocks_optimization_result(move |context| {
             f(context);
             Ok(())
-        }).expect("`f` cannot error internally so this should be unreachable");
+        })
+        .expect("`f` cannot error internally so this should be unreachable");
     }
 
     /// Performs a simple optimization according to the given callback, returning early if
@@ -44,7 +48,10 @@ impl Function {
     ///
     /// `replace_value` can be used to replace a value with another one. This substitution will be
     /// performed in all subsequent instructions.
-    pub(crate) fn simple_reachable_blocks_optimization_result<F>(&mut self, mut f: F) -> RtResult<()>
+    pub(crate) fn simple_reachable_blocks_optimization_result<F>(
+        &mut self,
+        mut f: F,
+    ) -> RtResult<()>
     where
         F: FnMut(&mut SimpleOptimizationContext<'_, '_>) -> RtResult<()>,
     {
