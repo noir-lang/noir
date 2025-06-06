@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1749230147565,
+  "lastUpdate": 1749230982816,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -3958,85 +3958,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "aakoshh@gmail.com",
-            "name": "Akosh Farkash",
-            "username": "aakoshh"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "f8f230d229115fd8cf3278098929f4d89c1900b7",
-          "message": "chore(fuzz): Fuzz the SSA parser (#8647)",
-          "timestamp": "2025-05-28T16:22:22Z",
-          "tree_id": "dc2f8b351155173f3821cf2a3bd220f94e116b71",
-          "url": "https://github.com/noir-lang/noir/commit/f8f230d229115fd8cf3278098929f4d89c1900b7"
-        },
-        "date": 1748450860471,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 2.654,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 6.74,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 1.108,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 16.74,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 14.62,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root-empty",
-            "value": 1.36,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root-single-tx",
-            "value": 128,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 127,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 1.18,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-root",
-            "value": 1.66,
-            "unit": "s"
-          },
-          {
-            "name": "semaphore-depth-10",
-            "value": 0.832,
-            "unit": "s"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "asterite@gmail.com",
             "name": "Ary Borenszweig",
             "username": "asterite"
@@ -7901,6 +7822,85 @@ window.BENCHMARK_DATA = {
           {
             "name": "semaphore-depth-10",
             "value": 0.772,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "asterite@gmail.com",
+            "name": "Ary Borenszweig",
+            "username": "asterite"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "11d3d339a6a0e495dbcf023a0f881dcec2737bd4",
+          "message": "fix: bind self generic type in trait calls via a concrete type (#8825)",
+          "timestamp": "2025-06-06T16:42:02Z",
+          "tree_id": "cac03c3bc6906e84ec0b7a87c4b1425e61fb718f",
+          "url": "https://github.com/noir-lang/noir/commit/11d3d339a6a0e495dbcf023a0f881dcec2737bd4"
+        },
+        "date": 1749230971600,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 2.442,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 7.504,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 1.158,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 16.6,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 13.86,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-empty",
+            "value": 1.304,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-single-tx",
+            "value": 126,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 124,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 1.082,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-root",
+            "value": 1.546,
+            "unit": "s"
+          },
+          {
+            "name": "semaphore-depth-10",
+            "value": 0.781,
             "unit": "s"
           }
         ]
