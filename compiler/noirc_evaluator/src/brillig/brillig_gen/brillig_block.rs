@@ -1652,7 +1652,7 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
 
         self.brillig_context.codegen_branch(left_is_negative.address, |ctx, is_negative| {
             if is_negative {
-                // If right value is greater than the left bit size, return 0
+                // If right value is greater than the left bit size, return -1
                 let rhs_does_not_overflow = SingleAddrVariable::new(ctx.allocate_register(), 1);
                 let lhs_bit_size =
                     ctx.make_constant_instruction(left.bit_size.into(), right.bit_size);
@@ -1688,7 +1688,7 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
                         ctx.deallocate_single_addr(two_pow);
                         ctx.deallocate_single_addr(right_u32);
                     } else {
-                        ctx.const_instruction(result, 0_u128.into());
+                        ctx.const_instruction(result, ((1_u128 << left.bit_size) - 1).into());
                     }
                 });
 

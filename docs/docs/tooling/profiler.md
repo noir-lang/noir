@@ -2,7 +2,7 @@
 title: Profiler
 description: Learn about the Noir Profiler, how to generate execution flamegraphs, identify bottlenecks, and visualize optimizations.
 keywords: [profiling, profiler, flamegraph]
-sidebar_position: 3
+sidebar_position: 4
 ---
 
 The profiler is a sampling profiler designed to analyze and visualize Noir programs. It assists developers to identify bottlenecks by mapping execution data back to the original source code.

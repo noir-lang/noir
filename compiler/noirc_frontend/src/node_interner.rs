@@ -146,8 +146,7 @@ pub struct NodeInterner {
     /// created, when resolving the type signature of each method in the impl.
     trait_impl_associated_types: HashMap<TraitImplId, Vec<NamedType>>,
 
-    trait_impl_associated_constant_definition_ids:
-        HashMap<TraitImplId, HashMap<String, DefinitionId>>,
+    trait_impl_associated_constants: HashMap<TraitImplId, HashMap<String, (DefinitionId, Type)>>,
 
     /// Trait implementations on each type. This is expected to always have the same length as
     /// `self.trait_implementations`.
@@ -720,7 +719,7 @@ impl Default for NodeInterner {
             auto_import_names: HashMap::default(),
             comptime_scopes: vec![HashMap::default()],
             trait_impl_associated_types: HashMap::default(),
-            trait_impl_associated_constant_definition_ids: HashMap::default(),
+            trait_impl_associated_constants: HashMap::default(),
             doc_comments: HashMap::default(),
             reexports: HashMap::default(),
         }
@@ -2291,7 +2290,7 @@ impl NodeInterner {
     ) {
         // Wrap the named generics in type variables to be able to refer them as type variables
         for associated_type in &associated_types {
-            let Kind::Numeric(..) = associated_type.typ.kind() else {
+            let Kind::Numeric(numeric_type) = associated_type.typ.kind() else {
                 continue;
             };
 
@@ -2303,10 +2302,10 @@ impl NodeInterner {
                 DefinitionKind::AssociatedConstant(impl_id, name.clone()),
                 associated_type.name.location(),
             );
-            self.trait_impl_associated_constant_definition_ids
+            self.trait_impl_associated_constants
                 .entry(impl_id)
                 .or_default()
-                .insert(name, definition_id);
+                .insert(name, (definition_id, *numeric_type));
         }
 
         self.trait_impl_associated_types.insert(impl_id, associated_types);
@@ -2328,12 +2327,12 @@ impl NodeInterner {
     }
 
     /// Returns the definition id for the associated constant of the given type variable.
-    pub fn get_associated_constant_definition_id(
+    pub fn get_trait_impl_associated_constant(
         &self,
         impl_id: TraitImplId,
         name: &str,
-    ) -> DefinitionId {
-        self.trait_impl_associated_constant_definition_ids[&impl_id][name]
+    ) -> Option<&(DefinitionId, Type)> {
+        self.trait_impl_associated_constants.get(&impl_id).and_then(|map| map.get(name))
     }
 
     /// Return a set of TypeBindings to bind types from the parent trait to those from the trait impl.

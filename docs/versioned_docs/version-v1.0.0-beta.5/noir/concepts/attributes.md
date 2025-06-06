@@ -99,7 +99,7 @@ If the field name is not known to Noir, it will discard the function. Field name
 
 ### `fuzz`
 
-Marks the functions for fuzzing. See [Fuzzing](../../tooling/fuzzing.md) for more details.
+Marks the functions for fuzzing. See [Fuzzer](../../tooling/fuzzer.md) for more details.
 
 ### `oracle`
 

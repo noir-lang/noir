@@ -19,7 +19,7 @@ use crate::ssa::ir::instruction::TerminatorInstruction;
 
 use super::ir::{
     function::Function,
-    instruction::{Binary, BinaryOp, Instruction, InstructionId},
+    instruction::{Binary, BinaryOp, Instruction, InstructionId, Intrinsic},
     types::{NumericType, Type},
     value::{Value, ValueId},
 };
@@ -102,11 +102,11 @@ impl<'f> Validator<'f> {
                         assert_eq!(*max_bit_size, 2 * expected_bit_size);
                         assert_eq!(*value, cast);
                     }
+                    Some(PendingSignedOverflowOp::Mul { cast_result: None, .. }) => {
+                        panic!("Truncate not matched to signed overflow pattern");
+                    }
                     None => {
                         // Do nothing as there is no overflow op pending
-                    }
-                    _ => {
-                        panic!("Truncate not matched to signed overflow pattern");
                     }
                 }
             }
@@ -233,6 +233,31 @@ impl<'f> Validator<'f> {
                 let index_type = dfg.type_of_value(*index);
                 if !matches!(index_type, Type::Numeric(NumericType::Unsigned { bit_size: 32 })) {
                     panic!("ArrayGet/ArraySet index must be u32");
+                }
+            }
+            Instruction::Call { func, arguments } => {
+                if let Value::Intrinsic(intrinsic) = &dfg[*func] {
+                    match intrinsic {
+                        Intrinsic::ToRadix(_) => {
+                            assert_eq!(arguments.len(), 2);
+
+                            let value_typ = dfg.type_of_value(arguments[0]);
+                            assert!(matches!(value_typ, Type::Numeric(NumericType::NativeField)));
+
+                            let radix_typ = dfg.type_of_value(arguments[1]);
+                            assert!(matches!(
+                                radix_typ,
+                                Type::Numeric(NumericType::Unsigned { bit_size: 32 })
+                            ));
+                        }
+                        Intrinsic::ToBits(_) => {
+                            // Intrinsic::ToBits always has a set radix
+                            assert_eq!(arguments.len(), 1);
+                            let value_typ = dfg.type_of_value(arguments[0]);
+                            assert!(matches!(value_typ, Type::Numeric(NumericType::NativeField)));
+                        }
+                        _ => {}
+                    }
                 }
             }
             _ => (),
@@ -526,7 +551,7 @@ mod tests {
 
     #[test]
     #[should_panic(expected = "Signed binary operation does not follow overflow pattern")]
-    fn lone_signed_mul_acir() {
+    fn lone_signed_mul() {
         let src = r"
         acir(inline) pure fn main f0 {
           b0(v0: i16, v1: i16):
@@ -535,6 +560,33 @@ mod tests {
         }
         ";
 
+        let _ = Ssa::from_str(src);
+    }
+
+    #[test]
+    #[should_panic(expected = "Truncate not matched to signed overflow pattern")]
+    fn signed_mul_followed_by_truncate_but_no_cast() {
+        let src = r"
+        acir(inline) pure fn main f0 {
+          b0(v0: i16, v1: i16):
+            v2 = mul v0, v1
+            v3 = truncate v2 to 16 bits, max_bit_size: 33
+            return v3
+        }
+        ";
+
+        let _ = Ssa::from_str(src);
+    }
+
+    #[test]
+    fn lone_truncate() {
+        let src = r"
+        acir(inline) pure fn main f0 {
+          b0(v0: i16):
+            v1 = truncate v0 to 8 bits, max_bit_size: 8
+            return v1
+        }
+        ";
         let _ = Ssa::from_str(src);
     }
 
@@ -586,6 +638,70 @@ mod tests {
         acir(inline) fn main f0 {
           b0():
             v2 = shl u32 1, u16 1
+            return
+        }
+        ";
+        let _ = Ssa::from_str(src);
+    }
+
+    #[test]
+    #[should_panic(
+        expected = "assertion failed: matches!(value_typ, Type::Numeric(NumericType::NativeField))"
+    )]
+    fn to_le_radix_on_non_field_value() {
+        let src = "
+        brillig(inline) predicate_pure fn main f0 {
+          b0():
+            call f1(u1 1)
+            return
+        }
+        brillig(inline) fn foo f1 {
+          b0(v0: u1):
+            v2 = call to_le_radix(v0, u32 256) -> [u7; 1]
+            return
+        }
+        ";
+        let _ = Ssa::from_str(src);
+    }
+
+    #[test]
+    #[should_panic(
+        expected = "assertion failed: matches!(value_typ, Type::Numeric(NumericType::NativeField))"
+    )]
+    fn to_le_bits_on_non_field_value() {
+        let src = "
+        brillig(inline) predicate_pure fn main f0 {
+          b0():
+            call f1(u1 1)
+            return
+        }
+        brillig(inline) fn foo f1 {
+          b0(v0: u1):
+            v2 = call to_le_bits(v0) -> [u1; 32]
+            return
+        }
+        ";
+        let _ = Ssa::from_str(src);
+    }
+
+    #[test]
+    fn valid_to_le_radix() {
+        let src = "
+        brillig(inline) predicate_pure fn main f0 {
+          b0(v0: Field):
+            v1 = call to_le_bytes(v0, u32 256) -> [u8; 1]
+            return
+        }
+        ";
+        let _ = Ssa::from_str(src);
+    }
+
+    #[test]
+    fn valid_to_le_bits() {
+        let src = "
+        brillig(inline) predicate_pure fn main f0 {
+          b0(v0: Field):
+            v1 = call to_le_bits(v0) -> [u1; 32]
             return
         }
         ";

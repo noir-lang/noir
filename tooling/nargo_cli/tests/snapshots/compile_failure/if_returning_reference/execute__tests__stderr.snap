@@ -2,7 +2,7 @@
 source: tooling/nargo_cli/tests/execute.rs
 expression: stderr
 ---
-error: Cannot return a reference type from an if expression
+error: Cannot return a reference type from an if or match expression
   ┌─ src/main.nr:5:13
   │
 5 │     let s = if false { s1 } else { s2 };

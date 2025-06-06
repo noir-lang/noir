@@ -1,0 +1,7 @@
+[package]
+name = "cast_numeric_to_bool"
+type = "bin"
+authors = [""]
+compiler_version = ">=0.33.0"
+
+[dependencies]

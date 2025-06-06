@@ -1,9 +1,0 @@
----
-source: tooling/nargo_cli/tests/execute.rs
-expression: expanded_code
----
-fn main() {
-    let index: Field = 0;
-    let array: [Field; 3] = [1, 2, 3];
-    let _: Field = array[index];
-}

@@ -99,7 +99,7 @@ If the field name is not known to Noir, it will discard the function. Field name
 
 ### `fuzz`
 
-Marks the functions for fuzzing. See [Fuzzing](../../tooling/fuzzing.md) for more details.
+Marks the functions for fuzzing. See [Fuzzer](../../tooling/fuzzer.md) for more details.
 
 ### `oracle`
 
@@ -107,4 +107,4 @@ Mark a function as _oracle_; meaning it is an external unconstrained function, i
 
 ### `test`
 
-Marks the function as a unit test. See [Tests](../../tooling/testing.md) for more details.
+Marks the function as a unit test. See [Tests](../../tooling/tests.md) for more details.

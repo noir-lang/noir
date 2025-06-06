@@ -1,0 +1,5 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: stdout
+---
+[regression_8755] Circuit output: Field(4740911027145274801807009652820289697178104761561901561018492048924696890497)

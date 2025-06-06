@@ -2,13 +2,6 @@
 source: tooling/nargo_cli/tests/execute.rs
 expression: stderr
 ---
-warning: Indexing an array or slice with a type other than `u32` is deprecated and will soon be an error
-   ┌─ src/main.nr:18:26
-   │
-18 │             self.storage[self.len] = elem;
-   │                          --------
-   │
-
 error: Duplicate definitions of import with name BoundedVec found
   ┌─ std/aes128.nr:1:1
   │
@@ -28,4 +21,11 @@ error: Integers must have the same bit width LHS is 64, RHS is 32
    │                    -----------------
    │
 
-Aborting due to 2 previous errors
+error: Indexing arrays and slices must be done with `u32`, not `u64`
+   ┌─ src/main.nr:18:26
+   │
+18 │             self.storage[self.len] = elem;
+   │                          --------
+   │
+
+Aborting due to 3 previous errors
