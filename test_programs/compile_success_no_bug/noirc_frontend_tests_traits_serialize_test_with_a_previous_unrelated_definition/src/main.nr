@@ -1,5 +1,6 @@
 
-    // If you remove this Trait definition, the code compiles fine. That's the bug.
+    // There used to be a bug where this unrelated definition would cause compilation to fail
+    // with a "No impl found" error.
     pub trait Trait {}
 
     trait Serialize {
