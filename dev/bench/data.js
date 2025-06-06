@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1749214941772,
+  "lastUpdate": 1749215731223,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -18481,48 +18481,6 @@ window.BENCHMARK_DATA = {
             "username": "web-flow"
           },
           "distinct": true,
-          "id": "6af0859b9e2dbcbeee8fd160cde6139802dc4dec",
-          "message": "chore(fuzz): Capture comptime print output (#8635)\n\nCo-authored-by: Tom French <15848336+TomAFrench@users.noreply.github.com>",
-          "timestamp": "2025-05-27T16:25:10Z",
-          "tree_id": "50058d4276b84b04af3de11356240a163ab88574",
-          "url": "https://github.com/noir-lang/noir/commit/6af0859b9e2dbcbeee8fd160cde6139802dc4dec"
-        },
-        "date": 1748364359018,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 258302,
-            "range": "± 2084",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 228985,
-            "range": "± 7376",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 3569926,
-            "range": "± 25561",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
-            "email": "aakoshh@gmail.com",
-            "name": "Akosh Farkash",
-            "username": "aakoshh"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
           "id": "9e90bf45d4386bd7762a0d08b3c548d729a3a9b7",
           "message": "chore(docs): Add pointers to tests (#8695)",
           "timestamp": "2025-05-27T19:21:49Z",
@@ -20564,6 +20522,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2776882,
             "range": "± 3179",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "asterite@gmail.com",
+            "name": "Ary Borenszweig",
+            "username": "asterite"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "ad0284d64279dc2786a76b8c88e02235c4b7f348",
+          "message": "fix!: indexing arrays with non-u32 is now an error (#8804)\n\nCo-authored-by: Tom French <15848336+TomAFrench@users.noreply.github.com>",
+          "timestamp": "2025-06-06T12:50:45Z",
+          "tree_id": "ba8f131e6f1edd1bd11ddea2d4fc4fd8d85e775c",
+          "url": "https://github.com/noir-lang/noir/commit/ad0284d64279dc2786a76b8c88e02235c4b7f348"
+        },
+        "date": 1749215720177,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 247859,
+            "range": "± 2417",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 217875,
+            "range": "± 1013",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2778148,
+            "range": "± 2021",
             "unit": "ns/iter"
           }
         ]
