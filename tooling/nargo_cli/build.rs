@@ -192,7 +192,7 @@ const IGNORED_NARGO_EXPAND_COMPILE_SUCCESS_EMPTY_TESTS: [&str; 20] = [
 
 /// These tests are ignored because of existing bugs in `nargo expand`.
 /// As the bugs are fixed these tests should be removed from this list.
-const IGNORED_NARGO_EXPAND_COMPILE_SUCCESS_NO_BUG_TESTS: [&str; 17] = [
+const IGNORED_NARGO_EXPAND_COMPILE_SUCCESS_NO_BUG_TESTS: [&str; 18] = [
     "noirc_frontend_tests_arithmetic_generics_checked_casts_do_not_prevent_canonicalization",
     "noirc_frontend_tests_check_trait_as_type_as_fn_parameter",
     "noirc_frontend_tests_check_trait_as_type_as_two_fn_parameters",
@@ -205,6 +205,7 @@ const IGNORED_NARGO_EXPAND_COMPILE_SUCCESS_NO_BUG_TESTS: [&str; 17] = [
     "noirc_frontend_tests_traits_trait_alias_polymorphic_inheritance",
     "noirc_frontend_tests_traits_trait_alias_single_member",
     "noirc_frontend_tests_traits_trait_alias_two_members",
+    "noirc_frontend_tests_traits_trait_impl_with_where_clause_with_trait_with_associated_numeric",
     "noirc_frontend_tests_traits_trait_impl_with_where_clause_with_trait_with_associated_type",
     "noirc_frontend_tests_traits_accesses_associated_type_inside_trait_impl_using_self",
     "noirc_frontend_tests_traits_accesses_associated_type_inside_trait_using_self",
