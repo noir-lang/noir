@@ -567,7 +567,7 @@
 /// Useful for assigning ids before the storage is created or assigning ids
 /// for types that have no single owner.
 ///
-/// This type wraps an AtomicUsize so it can safely be used across threads.
+/// This type wraps an atomic number so it can safely be used across threads.
 </span><span class="attr">#[derive(Debug, Serialize, Deserialize)]
 </span><span class="kw">pub struct </span>AtomicCounter&lt;T&gt; {
     next: AtomicU32,
