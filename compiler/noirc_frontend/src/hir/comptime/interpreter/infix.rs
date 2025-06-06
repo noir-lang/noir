@@ -195,9 +195,24 @@ pub(super) fn evaluate_infix(
         BinaryOpKind::Xor => match_bitwise! {
             (lhs_value as lhs "^" rhs_value as rhs) => lhs ^ rhs
         },
-        BinaryOpKind::ShiftRight => match_bitshift! {
-            (lhs_value as lhs ">>" rhs_value as rhs) => Some(lhs.wrapping_shr(rhs.into()))
-        },
+        BinaryOpKind::ShiftRight => {
+            let is_negative = lhs_value.is_negative();
+            match_bitshift! {
+                (lhs_value as lhs ">>" rhs_value as rhs) => {
+                    Some(
+                        lhs.checked_shr(rhs.into())
+                            .unwrap_or(
+                                // fallback based on whether we have a negative value
+                                if is_negative {
+                                    // !0 = -1 for signed types
+                                    !0
+                                } else {
+                                    0
+                                })
+                    )
+                }
+            }
+        }
         BinaryOpKind::ShiftLeft => match_bitshift! {
             (lhs_value as lhs "<<" rhs_value as rhs) => lhs.checked_shl(rhs.into()).or(Some(0))
         },
@@ -239,7 +254,7 @@ mod test {
     }
 
     #[test]
-    fn shr_unsigned_overflow_shift() {
+    fn shr_unsigned_overflow() {
         let src = r#"
             comptime fn main() -> pub u64 {
                 64 >> 63
@@ -256,6 +271,14 @@ mod test {
         let result = interpret(src);
         // 255 % 64 == 63, so 64 >> 63 => 0
         assert_eq!(result, Value::U64(0));
+
+        let src = "
+            comptime fn main() -> pub u32 {
+                1360887544 >> 141
+            }
+        ";
+        let result = interpret(src);
+        assert_eq!(result, Value::U32(0));
     }
 
     #[test]
