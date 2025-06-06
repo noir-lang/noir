@@ -13,6 +13,7 @@
             U60Repr {}
         }
     }
+
     fn main() {
         let _ = U60Repr::<Field>::from2([1, 2, 3]);
     }
