@@ -524,7 +524,7 @@ impl<'f> PerFunctionContext<'f> {
                         self.instruction_input_references.insert(alias);
                     });
                 }
-                self.mark_all_unknown(&arguments, references);
+                self.mark_all_unknown(arguments, references);
             }
             Instruction::MakeArray { elements, typ } => {
                 // If `array` is an array constant that contains reference types, then insert each element
