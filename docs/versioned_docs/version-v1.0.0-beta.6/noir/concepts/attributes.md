@@ -107,4 +107,4 @@ Mark a function as _oracle_; meaning it is an external unconstrained function, i
 
 ### `test`
 
-Marks the function as a unit test. See [Tests](../../tooling/tests.md) for more details.
+Marks the function as a unit test. See [Tests](../../tooling/testing.md) for more details.
