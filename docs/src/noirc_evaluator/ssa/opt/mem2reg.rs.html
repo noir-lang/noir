@@ -1235,7 +1235,69 @@
 <a href="#1234" id="1234">1234</a>
 <a href="#1235" id="1235">1235</a>
 <a href="#1236" id="1236">1236</a>
-<a href="#1237" id="1237">1237</a></pre></div><pre class="rust"><code><span class="doccomment">//! The goal of the mem2reg SSA optimization pass is to replace any `Load` instructions to known
+<a href="#1237" id="1237">1237</a>
+<a href="#1238" id="1238">1238</a>
+<a href="#1239" id="1239">1239</a>
+<a href="#1240" id="1240">1240</a>
+<a href="#1241" id="1241">1241</a>
+<a href="#1242" id="1242">1242</a>
+<a href="#1243" id="1243">1243</a>
+<a href="#1244" id="1244">1244</a>
+<a href="#1245" id="1245">1245</a>
+<a href="#1246" id="1246">1246</a>
+<a href="#1247" id="1247">1247</a>
+<a href="#1248" id="1248">1248</a>
+<a href="#1249" id="1249">1249</a>
+<a href="#1250" id="1250">1250</a>
+<a href="#1251" id="1251">1251</a>
+<a href="#1252" id="1252">1252</a>
+<a href="#1253" id="1253">1253</a>
+<a href="#1254" id="1254">1254</a>
+<a href="#1255" id="1255">1255</a>
+<a href="#1256" id="1256">1256</a>
+<a href="#1257" id="1257">1257</a>
+<a href="#1258" id="1258">1258</a>
+<a href="#1259" id="1259">1259</a>
+<a href="#1260" id="1260">1260</a>
+<a href="#1261" id="1261">1261</a>
+<a href="#1262" id="1262">1262</a>
+<a href="#1263" id="1263">1263</a>
+<a href="#1264" id="1264">1264</a>
+<a href="#1265" id="1265">1265</a>
+<a href="#1266" id="1266">1266</a>
+<a href="#1267" id="1267">1267</a>
+<a href="#1268" id="1268">1268</a>
+<a href="#1269" id="1269">1269</a>
+<a href="#1270" id="1270">1270</a>
+<a href="#1271" id="1271">1271</a>
+<a href="#1272" id="1272">1272</a>
+<a href="#1273" id="1273">1273</a>
+<a href="#1274" id="1274">1274</a>
+<a href="#1275" id="1275">1275</a>
+<a href="#1276" id="1276">1276</a>
+<a href="#1277" id="1277">1277</a>
+<a href="#1278" id="1278">1278</a>
+<a href="#1279" id="1279">1279</a>
+<a href="#1280" id="1280">1280</a>
+<a href="#1281" id="1281">1281</a>
+<a href="#1282" id="1282">1282</a>
+<a href="#1283" id="1283">1283</a>
+<a href="#1284" id="1284">1284</a>
+<a href="#1285" id="1285">1285</a>
+<a href="#1286" id="1286">1286</a>
+<a href="#1287" id="1287">1287</a>
+<a href="#1288" id="1288">1288</a>
+<a href="#1289" id="1289">1289</a>
+<a href="#1290" id="1290">1290</a>
+<a href="#1291" id="1291">1291</a>
+<a href="#1292" id="1292">1292</a>
+<a href="#1293" id="1293">1293</a>
+<a href="#1294" id="1294">1294</a>
+<a href="#1295" id="1295">1295</a>
+<a href="#1296" id="1296">1296</a>
+<a href="#1297" id="1297">1297</a>
+<a href="#1298" id="1298">1298</a>
+<a href="#1299" id="1299">1299</a></pre></div><pre class="rust"><code><span class="doccomment">//! The goal of the mem2reg SSA optimization pass is to replace any `Load` instructions to known
 //! addresses with the value stored at that address, if it is also known. This pass will also remove
 //! any `Store` instructions within a block that are no longer needed because no more loads occur in
 //! between the Store in question and the next Store.
@@ -1374,9 +1436,9 @@
     /// If a value is not used in anymore loads we can remove the last store to that value.
     </span>last_loads: HashMap&lt;ValueId, (InstructionId, BasicBlockId)&gt;,
 
-    <span class="doccomment">/// Track whether a reference was passed into another entry point
+    <span class="doccomment">/// Track whether a reference was passed into another instruction (e.g. Call)
     /// This is needed to determine whether we can remove a store.
-    </span>calls_reference_input: HashSet&lt;ValueId&gt;,
+    </span>instruction_input_references: HashSet&lt;ValueId&gt;,
 
     <span class="doccomment">/// Track whether a reference has been aliased, and store the respective
     /// instruction that aliased that reference.
@@ -1396,8 +1458,8 @@
             blocks: BTreeMap::new(),
             instructions_to_remove: HashSet::default(),
             last_loads: HashMap::default(),
-            calls_reference_input: HashSet::default(),
             aliased_references: HashMap::default(),
+            instruction_input_references: HashSet::default(),
         }
     }
 
@@ -1476,26 +1538,27 @@
                     <span class="kw">return </span><span class="bool-val">true</span>;
                 }
 
-                <span class="kw">let </span>allocation_aliases_parameter =
-                    aliases.any(|alias| <span class="self">self</span>.calls_reference_input.contains(<span class="kw-2">&amp;</span>alias));
-                <span class="kw">if </span>allocation_aliases_parameter == <span class="prelude-val">Some</span>(<span class="bool-val">true</span>) {
+                <span class="kw">let </span>allocation_aliases_instr_input =
+                    aliases.any(|alias| <span class="self">self</span>.instruction_input_references.contains(<span class="kw-2">&amp;</span>alias));
+                <span class="kw">if </span>allocation_aliases_instr_input == <span class="prelude-val">Some</span>(<span class="bool-val">true</span>) {
                     <span class="kw">return </span><span class="bool-val">true</span>;
                 }
 
-                <span class="kw">let </span>allocation_aliases_parameter =
+                <span class="kw">let </span>allocation_aliases_terminator_args =
                     aliases.any(|alias| all_terminator_values.contains(<span class="kw-2">&amp;</span>alias));
-                <span class="kw">if </span>allocation_aliases_parameter == <span class="prelude-val">Some</span>(<span class="bool-val">true</span>) {
+                <span class="kw">if </span>allocation_aliases_terminator_args == <span class="prelude-val">Some</span>(<span class="bool-val">true</span>) {
                     <span class="kw">return </span><span class="bool-val">true</span>;
                 }
 
-                <span class="kw">let </span>allocation_aliases_parameter = aliases.any(|alias| {
+                <span class="kw">let </span>all_aliases_set_for_removal = aliases.any(|alias| {
                     <span class="kw">if let </span><span class="prelude-val">Some</span>(alias_instructions) = <span class="self">self</span>.aliased_references.get(<span class="kw-2">&amp;</span>alias) {
                         <span class="self">self</span>.instructions_to_remove.is_disjoint(alias_instructions)
                     } <span class="kw">else </span>{
                         <span class="bool-val">false
                     </span>}
                 });
-                <span class="kw">if </span>allocation_aliases_parameter == <span class="prelude-val">Some</span>(<span class="bool-val">true</span>) {
+
+                <span class="kw">if </span>all_aliases_set_for_removal == <span class="prelude-val">Some</span>(<span class="bool-val">true</span>) {
                     <span class="kw">return </span><span class="bool-val">true</span>;
                 }
             }
@@ -1621,7 +1684,6 @@
                 <span class="kw">if let </span><span class="prelude-val">Some</span>(aliases) = references.aliases.get(expression) {
                     <span class="kw">let </span>allocation_aliases_parameter =
                         aliases.any(|alias| reference_parameters.contains(<span class="kw-2">&amp;</span>alias));
-
                     <span class="comment">// If `allocation_aliases_parameter` is known to be false
                     </span><span class="kw">if </span>allocation_aliases_parameter == <span class="prelude-val">Some</span>(<span class="bool-val">false</span>) {
                         <span class="self">self</span>.instructions_to_remove.insert(<span class="kw-2">*</span>instruction);
@@ -1696,16 +1758,11 @@
                     <span class="self">self</span>.instructions_to_remove.insert(<span class="kw-2">*</span>last_store);
                 }
 
-                <span class="kw">if </span><span class="self">self</span>.inserter.function.dfg.value_is_reference(value) {
-                    <span class="kw">if let </span><span class="prelude-val">Some</span>(expression) = references.expressions.get(<span class="kw-2">&amp;</span>value) {
-                        <span class="kw">if let </span><span class="prelude-val">Some</span>(aliases) = references.aliases.get(expression) {
-                            aliases.for_each(|alias| {
-                                <span class="self">self</span>.aliased_references
-                                    .entry(alias)
-                                    .or_default()
-                                    .insert(instruction);
-                            });
-                        }
+                <span class="kw">if let </span><span class="prelude-val">Some</span>(expression) = references.expressions.get(<span class="kw-2">&amp;</span>value) {
+                    <span class="kw">if let </span><span class="prelude-val">Some</span>(aliases) = references.aliases.get(expression) {
+                        aliases.for_each(|alias| {
+                            <span class="self">self</span>.aliased_references.entry(alias).or_default().insert(instruction);
+                        });
                     }
                 }
 
@@ -1763,18 +1820,20 @@
                 }
             }
             Instruction::Call { arguments, .. } =&gt; {
+                <span class="comment">// We want to fetch all aliases of each argument to be marked unknown as an array
+                // containing references internally can potentially be aliased by those references.
+                </span><span class="kw">let </span><span class="kw-2">mut </span>all_aliases = Vec::new();
                 <span class="kw">for </span>arg <span class="kw">in </span>arguments {
-                    <span class="kw">if </span><span class="self">self</span>.inserter.function.dfg.value_is_reference(<span class="kw-2">*</span>arg) {
-                        <span class="kw">if let </span><span class="prelude-val">Some</span>(expression) = references.expressions.get(arg) {
-                            <span class="kw">if let </span><span class="prelude-val">Some</span>(aliases) = references.aliases.get(expression) {
-                                aliases.for_each(|alias| {
-                                    <span class="self">self</span>.calls_reference_input.insert(alias);
-                                });
-                            }
+                    <span class="kw">if let </span><span class="prelude-val">Some</span>(expression) = references.expressions.get(arg) {
+                        <span class="kw">if let </span><span class="prelude-val">Some</span>(aliases) = references.aliases.get(expression) {
+                            aliases.for_each(|alias| {
+                                <span class="self">self</span>.instruction_input_references.insert(alias);
+                                all_aliases.push(alias);
+                            });
                         }
                     }
                 }
-                <span class="self">self</span>.mark_all_unknown(arguments, references);
+                <span class="self">self</span>.mark_all_unknown(<span class="kw-2">&amp;</span>all_aliases, references);
             }
             Instruction::MakeArray { elements, typ } =&gt; {
                 <span class="comment">// If `array` is an array constant that contains reference types, then insert each element
@@ -1784,7 +1843,7 @@
 
                     <span class="kw">let </span>expr = Expression::ArrayElement(Box::new(Expression::Other(array)));
                     references.expressions.insert(array, expr.clone());
-                    <span class="kw">let </span>aliases = references.aliases.entry(expr).or_default();
+                    <span class="kw">let </span>aliases = references.aliases.entry(expr).or_insert(AliasSet::known_empty());
 
                     <span class="kw">for </span>element <span class="kw">in </span>elements {
                         aliases.insert(<span class="kw-2">*</span>element);
@@ -2470,6 +2529,71 @@
         <span class="kw">let </span>ssa = ssa.mem2reg();
         <span class="comment">// We expect the program to be unchanged
         </span>assert_normalized_ssa_equals(ssa, src);
+    }
+
+    <span class="attr">#[test]
+    </span><span class="kw">fn </span>keep_last_store_in_make_array_used_in_call_single_block() {
+        <span class="comment">// This checks that when an array containing references is used in a call
+        // that we do not remove the original stores to those internal references
+        </span><span class="kw">let </span>src = <span class="string">r"
+        brillig(inline) fn main f0 {
+          b0():
+            v0 = allocate -&gt; &amp;mut Field
+            store Field 1 at v0
+            v3 = make_array [u32 0, v0] : [(u32, &amp;mut Field); 1]
+            v5 = call f1(v3) -&gt; Field
+            v6 = load v0 -&gt; Field   // make sure this isn't optimized to Field 1
+            return v3
+        }
+        brillig(inline) fn foo f1 {
+          b0(v0: [(u32, &amp;mut Field); 1]):
+            v2 = array_get v0, index u32 1 -&gt; &amp;mut Field
+            v3 = load v2 -&gt; Field
+            store Field 77 at v2
+            return v3
+        }
+        "</span>;
+
+        <span class="kw">let </span>ssa = Ssa::from_str(src).unwrap();
+        <span class="kw">let </span>ssa = ssa.mem2reg();
+        assert_normalized_ssa_equals(ssa, src);
+    }
+
+    <span class="attr">#[test]
+    </span><span class="kw">fn </span>keep_last_store_used_in_make_array_used_as_reference() {
+        <span class="kw">let </span>src = <span class="string">r"
+        acir(inline) fn main f0 {
+          b0():
+            v2 = allocate -&gt; &amp;mut u1
+            store u1 0 at v2
+            v4 = make_array [v2] : [&amp;mut u1; 1]
+            v5 = allocate -&gt; &amp;mut [&amp;mut u1; 1]
+            store v4 at v5
+            jmp b1(u32 0)
+          b1(v0: u32):
+            v7 = eq v0, u32 0
+            jmpif v7 then: b2, else: b3
+          b2():
+            v14 = unchecked_add v0, u32 1
+            jmp b1(v14)
+          b3():
+            v8 = load v5 -&gt; [&amp;mut u1; 1]
+            v9 = array_get v8, index u32 0 -&gt; &amp;mut u1
+            v10 = load v9 -&gt; u1
+            jmpif v10 then: b4, else: b5
+          b4():
+            jmp b6(Field 0)
+          b5():
+            jmp b6(Field 1)
+          b6(v1: Field):
+            return v1
+        }
+        "</span>;
+
+        <span class="kw">let </span>ssa = Ssa::from_str(src).unwrap();
+        <span class="kw">let </span>ssa = ssa.mem2reg();
+
+        assert_normalized_ssa_equals(ssa, src);
     }
 }
 </code></pre></div></section></main></body></html>
