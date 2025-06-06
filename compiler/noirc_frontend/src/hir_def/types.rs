@@ -1515,6 +1515,11 @@ impl Type {
         rhs: Box<Type>,
         inversion: bool,
     ) -> Type {
+        // If this infix expression contains an error then it is eventually an error itself.
+        if matches!(*lhs, Type::Error) || matches!(*rhs, Type::Error) {
+            return Type::Error;
+        }
+
         // If an InfixExpr like this is tried to be created:
         //
         // a * (b / a)
