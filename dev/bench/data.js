@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1749231272739,
+  "lastUpdate": 1749231316506,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -18466,48 +18466,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "asterite@gmail.com",
-            "name": "Ary Borenszweig",
-            "username": "asterite"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "9b7320908e74377bfd55a8760f16974ef1d07c05",
-          "message": "chore: more 1-tuple printing fixes (#8699)",
-          "timestamp": "2025-05-28T16:58:36Z",
-          "tree_id": "e4f524f1aa9b8f230596c5991db637f599bb5cb4",
-          "url": "https://github.com/noir-lang/noir/commit/9b7320908e74377bfd55a8760f16974ef1d07c05"
-        },
-        "date": 1748452743859,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 254880,
-            "range": "± 1069",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 225003,
-            "range": "± 2014",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 3209194,
-            "range": "± 1633",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "aakoshh@gmail.com",
             "name": "Akosh Farkash",
             "username": "aakoshh"
@@ -20559,6 +20517,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2816285,
             "range": "± 2843",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "15848336+TomAFrench@users.noreply.github.com",
+            "name": "Tom French",
+            "username": "TomAFrench"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "57d7b12523d24e260b62e709dbf804b11860625a",
+          "message": "chore: only follow bindings on interface to `arithmetic` module (#8822)",
+          "timestamp": "2025-06-06T16:59:12Z",
+          "tree_id": "10ca1ff4ef9c5ff227e8d74edd964742e954de7c",
+          "url": "https://github.com/noir-lang/noir/commit/57d7b12523d24e260b62e709dbf804b11860625a"
+        },
+        "date": 1749231305578,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 249160,
+            "range": "± 672",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 218379,
+            "range": "± 4129",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2777474,
+            "range": "± 3558",
             "unit": "ns/iter"
           }
         ]
