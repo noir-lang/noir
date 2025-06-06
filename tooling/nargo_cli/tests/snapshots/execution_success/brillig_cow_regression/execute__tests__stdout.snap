@@ -2,4 +2,4 @@
 source: tooling/nargo_cli/tests/execute.rs
 expression: stdout
 ---
-
+[brillig_cow_regression] Circuit output: Vec([Field(325726846830326257119180493722970801006), Field(15429571951369340199663579799609180439)])
