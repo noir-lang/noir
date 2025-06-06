@@ -459,13 +459,9 @@ impl<'f> PerFunctionContext<'f> {
                     self.instructions_to_remove.insert(*last_store);
                 }
 
-                if let Some(expression) = references.expressions.get(&value) {
-                    if let Some(aliases) = references.aliases.get(expression) {
-                        aliases.for_each(|alias| {
-                            self.aliased_references.entry(alias).or_default().insert(instruction);
-                        });
-                    }
-                }
+                references.for_each_alias_of(value, |_, alias| {
+                    self.aliased_references.entry(alias).or_default().insert(instruction);
+                });
 
                 references.set_known_value(address, value);
                 // If we see a store to an address, the last load to that address needs to remain.
@@ -521,20 +517,14 @@ impl<'f> PerFunctionContext<'f> {
                 }
             }
             Instruction::Call { arguments, .. } => {
-                // We want to fetch all aliases of each argument to be marked unknown as an array
-                // containing references internally can potentially be aliased by those references.
-                let mut all_aliases = Vec::new();
+                // We need to appropriately mark each alias of a reference as being used as a call argument.
+                // This prevents us potentially removing a last store that is altered within another function.
                 for arg in arguments {
-                    if let Some(expression) = references.expressions.get(arg) {
-                        if let Some(aliases) = references.aliases.get(expression) {
-                            aliases.for_each(|alias| {
-                                self.instruction_input_references.insert(alias);
-                                all_aliases.push(alias);
-                            });
-                        }
-                    }
+                    references.for_each_alias_of(*arg, |_, alias| {
+                        self.instruction_input_references.insert(alias);
+                    });
                 }
-                self.mark_all_unknown(&all_aliases, references);
+                self.mark_all_unknown(arguments, references);
             }
             Instruction::MakeArray { elements, typ } => {
                 // If `array` is an array constant that contains reference types, then insert each element
@@ -575,7 +565,8 @@ impl<'f> PerFunctionContext<'f> {
 
     fn mark_all_unknown(&self, values: &[ValueId], references: &mut Block) {
         for value in values {
-            if self.inserter.function.dfg.value_is_reference(*value) {
+            let typ = self.inserter.function.dfg.type_of_value(*value);
+            if Self::contains_references(&typ) {
                 let value = *value;
                 references.set_unknown(value);
                 references.mark_value_used(value, self.inserter.function);
@@ -1294,6 +1285,52 @@ mod tests {
         let ssa = Ssa::from_str(src).unwrap();
         let ssa = ssa.mem2reg();
 
+        assert_normalized_ssa_equals(ssa, src);
+    }
+
+    #[test]
+    fn keep_last_store_used_in_make_array_returned_from_function() {
+        let src = "
+        brillig(inline) fn main f0 {
+          b0():
+            v0 = call f1() -> [&mut u1; 2]
+            return
+        }
+        brillig(inline) fn foo f1 {
+          b0():
+            v0 = allocate -> &mut u1
+            store u1 1 at v0
+            v2 = allocate -> &mut u1
+            store u1 0 at v2
+            v4 = make_array [v0, v2] : [&mut u1; 2]
+            return v4
+        }
+        ";
+
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.mem2reg();
+        assert_normalized_ssa_equals(ssa, src);
+    }
+
+    #[test]
+    fn keep_last_store_in_make_array_where_aliases_are_none() {
+        let src = "
+        brillig(inline) fn foo f1 {
+          b0(v0: &mut u1):
+            v1 = call f2() -> &mut u1
+            store u1 1 at v1
+            v3 = make_array [v1] : [&mut u1; 1]
+            return v3
+        }
+        brillig(inline) fn get_ref f2 {
+          b0():
+            v0 = allocate -> &mut u1
+            store u1 1 at v0
+            return v0
+        }
+        ";
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.mem2reg();
         assert_normalized_ssa_equals(ssa, src);
     }
 }
