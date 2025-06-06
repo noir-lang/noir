@@ -906,15 +906,16 @@ impl Elaborator<'_> {
         let trait_id = trait_method_id.trait_id;
         let trait_ = self.interner.get_trait(trait_id);
         let mut constraint = trait_.as_constraint(location);
-        constraint.typ = typ;
+        constraint.typ = typ.clone();
 
         let method = TraitMethod { method_id: trait_method_id, constraint, assumed: false };
         let turbofish = before_last_segment.turbofish();
-        let item = PathResolutionItem::TraitFunction(trait_id, turbofish, func_id);
+        let item = PathResolutionItem::TypeTraitFunction(typ, trait_id, turbofish, func_id);
         let mut errors = path_resolution.errors;
         if let Some(error) = error {
             errors.push(error);
         }
+
         Some(TraitPathResolution { method, item: Some(item), errors })
     }
 
