@@ -459,8 +459,7 @@ impl<'f> PerFunctionContext<'f> {
                     self.instructions_to_remove.insert(*last_store);
                 }
 
-                let aliases = references.get_aliases_for_value(value);
-                aliases.for_each(|alias| {
+                references.for_each_alias_of(value, |_, alias| {
                     self.aliased_references.entry(alias).or_default().insert(instruction);
                 });
 
@@ -518,7 +517,14 @@ impl<'f> PerFunctionContext<'f> {
                 }
             }
             Instruction::Call { arguments, .. } => {
-                self.mark_all_unknown(arguments, references);
+                // We need to appropriately mark each alias of a reference as being used as a call argument.
+                // This prevents us potentially removing a last store that is altered within another function.
+                for arg in arguments {
+                    references.for_each_alias_of(*arg, |_, alias| {
+                        self.instruction_input_references.insert(alias);
+                    });
+                }
+                self.mark_all_unknown(&arguments, references);
             }
             Instruction::MakeArray { elements, typ } => {
                 // If `array` is an array constant that contains reference types, then insert each element
