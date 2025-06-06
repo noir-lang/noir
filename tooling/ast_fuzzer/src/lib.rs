@@ -66,7 +66,7 @@ pub struct Config {
     /// Avoid assigning to references in if-then-else, which can cause compiler panics
     /// with `Cannot return references from an if expression`.
     /// We may have to completely disallow reassigning variables with references in them.
-    /// See https://github.com/noir-lang/noir/issues/8741
+    /// See #8741
     pub avoid_assign_ref_in_if: bool,
     /// Only use comptime friendly expressions.
     pub comptime_friendly: bool,
