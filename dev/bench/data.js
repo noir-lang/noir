@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1749308462448,
+  "lastUpdate": 1749330220066,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -18466,48 +18466,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "asterite@gmail.com",
-            "name": "Ary Borenszweig",
-            "username": "asterite"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "58ce59e78156655db2c901c739a2f41f7578792c",
-          "message": "fix: merge expr bindings with instantiations bindings during monomorphization (#8713)",
-          "timestamp": "2025-05-29T16:15:19Z",
-          "tree_id": "26f9416c540135ede3bc39584c825ea13d5862ca",
-          "url": "https://github.com/noir-lang/noir/commit/58ce59e78156655db2c901c739a2f41f7578792c"
-        },
-        "date": 1748536588035,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 254494,
-            "range": "± 671",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 223329,
-            "range": "± 2595",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 3562965,
-            "range": "± 10546",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "15848336+TomAFrench@users.noreply.github.com",
             "name": "Tom French",
             "username": "TomAFrench"
@@ -20559,6 +20517,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2780918,
             "range": "± 2293",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "mvezenov@gmail.com",
+            "name": "Maxim Vezenov",
+            "username": "vezenovm"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "522d4c185601ae2b9f5b677cb95df7a7644cfd26",
+          "message": "fix(interpreter): Return -1 for negative shr signed overflow or 0 for positive shr signed overflow (#8828)",
+          "timestamp": "2025-06-07T20:41:36Z",
+          "tree_id": "07343d422145cbcf3f36144be8550b30b06c0705",
+          "url": "https://github.com/noir-lang/noir/commit/522d4c185601ae2b9f5b677cb95df7a7644cfd26"
+        },
+        "date": 1749330208649,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 250464,
+            "range": "± 2245",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 221045,
+            "range": "± 3898",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2782466,
+            "range": "± 18104",
             "unit": "ns/iter"
           }
         ]
