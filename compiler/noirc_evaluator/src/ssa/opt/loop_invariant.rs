@@ -1027,7 +1027,7 @@ mod test {
           b2():
               return
           b3():
-              v6 = mul v0, v1
+              v6 = unchecked_mul v0, v1
               constrain v6 == i32 6
               v8 = unchecked_add v2, i32 1
               jmp b1(v8)
@@ -1053,7 +1053,7 @@ mod test {
         let expected = "
         brillig(inline) fn main f0 {
           b0(v0: i32, v1: i32):
-            v3 = mul v0, v1
+            v3 = unchecked_mul v0, v1
             constrain v3 == i32 6
             jmp b1(i32 0)
           b1(v2: i32):
@@ -1093,7 +1093,7 @@ mod test {
             v9 = unchecked_add v2, i32 1
             jmp b1(v9)
           b6():
-            v10 = mul v0, v1
+            v10 = unchecked_mul v0, v1
             constrain v10 == i32 6
             v12 = unchecked_add v3, i32 1
             jmp b4(v12)
@@ -1110,7 +1110,7 @@ mod test {
         let expected = "
         brillig(inline) fn main f0 {
           b0(v0: i32, v1: i32):
-            v4 = mul v0, v1
+            v4 = unchecked_mul v0, v1
             constrain v4 == i32 6
             jmp b1(i32 0)
           b1(v2: i32):
@@ -1159,8 +1159,8 @@ mod test {
           b2():
             return
           b3():
-            v6 = mul v0, v1
-            v7 = mul v6, v0
+            v6 = unchecked_mul v0, v1
+            v7 = unchecked_mul v6, v0
             v8 = eq v7, i32 12
             constrain v7 == i32 12
             v9 = unchecked_add v2, i32 1
@@ -1177,8 +1177,8 @@ mod test {
         let expected = "
         brillig(inline) fn main f0 {
           b0(v0: i32, v1: i32):
-            v3 = mul v0, v1
-            v4 = mul v3, v0
+            v3 = unchecked_mul v0, v1
+            v4 = unchecked_mul v3, v0
             v6 = eq v4, i32 12
             constrain v4 == i32 12
             jmp b1(i32 0)
@@ -1446,7 +1446,7 @@ mod test {
           b2():
               return
           b3():
-              v6 = mul v0, v1
+              v6 = unchecked_mul v0, v1
               constrain v6 == u32 6
               v8 = add v2, u32 1
               jmp b1(v8)
@@ -1459,7 +1459,7 @@ mod test {
         let expected = "
         brillig(inline) fn main f0 {
           b0(v0: u32, v1: u32):
-            v3 = mul v0, v1
+            v3 = unchecked_mul v0, v1
             constrain v3 == u32 6
             jmp b1(u32 0)
           b1(v2: u32):

@@ -9,8 +9,7 @@ use super::{
     basic_block::{BasicBlock, BasicBlockId},
     function::{FunctionId, RuntimeType},
     instruction::{
-        Binary, BinaryOp, Instruction, InstructionId, InstructionResultType, Intrinsic,
-        TerminatorInstruction,
+        Instruction, InstructionId, InstructionResultType, Intrinsic, TerminatorInstruction,
     },
     integer::IntegerConstant,
     map::DenseMap,
@@ -224,60 +223,9 @@ impl DataFlowGraph {
         instruction_data: Instruction,
         ctrl_typevars: Option<Vec<Type>>,
     ) -> InstructionId {
-        self.validate_instruction(&instruction_data);
-
         let id = self.instructions.insert(instruction_data);
         self.make_instruction_results(id, ctrl_typevars);
         id
-    }
-
-    fn validate_instruction(&self, instruction: &Instruction) {
-        match instruction {
-            Instruction::Binary(Binary { lhs, rhs, operator }) => {
-                let lhs_type = self.type_of_value(*lhs);
-                let rhs_type = self.type_of_value(*rhs);
-                match operator {
-                    BinaryOp::Lt => {
-                        if lhs_type != rhs_type {
-                            panic!(
-                                "Left-hand side and right-hand side of `lt` must have the same type"
-                            );
-                        }
-
-                        if matches!(lhs_type, Type::Numeric(NumericType::NativeField)) {
-                            panic!("Cannot use `lt` with field elements");
-                        }
-                    }
-                    BinaryOp::Shl => {
-                        if !matches!(rhs_type, Type::Numeric(NumericType::Unsigned { bit_size: 8 }))
-                        {
-                            panic!("Right-hand side of `shl` must be u8");
-                        }
-                    }
-                    BinaryOp::Shr => {
-                        if !matches!(rhs_type, Type::Numeric(NumericType::Unsigned { bit_size: 8 }))
-                        {
-                            panic!("Right-hand side of `shr` must be u8");
-                        }
-                    }
-                    _ => {
-                        if lhs_type != rhs_type {
-                            panic!(
-                                "Left-hand side and right-hand side of `{}` must have the same type",
-                                operator
-                            );
-                        }
-                    }
-                }
-            }
-            Instruction::ArrayGet { index, .. } | Instruction::ArraySet { index, .. } => {
-                let index_type = self.type_of_value(*index);
-                if !matches!(index_type, Type::Numeric(NumericType::Unsigned { bit_size: 32 })) {
-                    panic!("ArrayGet/ArraySet index must be u32");
-                }
-            }
-            _ => (),
-        }
     }
 
     /// Check if the function runtime would simply ignore this instruction.
@@ -953,10 +901,7 @@ impl std::ops::Index<usize> for InsertInstructionResult<'_> {
 #[cfg(test)]
 mod tests {
     use super::DataFlowGraph;
-    use crate::ssa::{
-        ir::{instruction::Instruction, types::Type},
-        ssa_gen::Ssa,
-    };
+    use crate::ssa::ir::{instruction::Instruction, types::Type};
 
     #[test]
     fn make_instruction() {
@@ -966,59 +911,5 @@ mod tests {
 
         let results = dfg.instruction_results(ins_id);
         assert_eq!(results.len(), 1);
-    }
-
-    #[test]
-    #[should_panic(expected = "Cannot use `lt` with field elements")]
-    fn disallows_comparing_fields_with_lt() {
-        let src = "
-        acir(inline) impure fn main f0 {
-          b0():
-            v2 = lt Field 1, Field 2
-            return
-        }
-        ";
-        let _ = Ssa::from_str(src);
-    }
-
-    #[test]
-    #[should_panic(
-        expected = "Left-hand side and right-hand side of `add` must have the same type"
-    )]
-    fn disallows_binary_add_with_different_types() {
-        let src = "
-        acir(inline) fn main f0 {
-          b0():
-            v2 = add Field 1, i32 2
-            return
-        }
-        ";
-        let _ = Ssa::from_str(src);
-    }
-
-    #[test]
-    #[should_panic(expected = "Right-hand side of `shr` must be u8")]
-    fn disallows_shr_with_non_u8() {
-        let src = "
-        acir(inline) fn main f0 {
-          b0():
-            v2 = shr u32 1, u16 1
-            return
-        }
-        ";
-        let _ = Ssa::from_str(src);
-    }
-
-    #[test]
-    #[should_panic(expected = "Right-hand side of `shl` must be u8")]
-    fn disallows_shl_with_non_u8() {
-        let src = "
-        acir(inline) fn main f0 {
-          b0():
-            v2 = shl u32 1, u16 1
-            return
-        }
-        ";
-        let _ = Ssa::from_str(src);
     }
 }
