@@ -660,7 +660,17 @@
 <a href="#659" id="659">659</a>
 <a href="#660" id="660">660</a>
 <a href="#661" id="661">661</a>
-<a href="#662" id="662">662</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::{borrow::Cow, rc::Rc, vec};
+<a href="#662" id="662">662</a>
+<a href="#663" id="663">663</a>
+<a href="#664" id="664">664</a>
+<a href="#665" id="665">665</a>
+<a href="#666" id="666">666</a>
+<a href="#667" id="667">667</a>
+<a href="#668" id="668">668</a>
+<a href="#669" id="669">669</a>
+<a href="#670" id="670">670</a>
+<a href="#671" id="671">671</a>
+<a href="#672" id="672">672</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::{borrow::Cow, rc::Rc, vec};
 
 <span class="kw">use </span>acvm::FieldElement;
 <span class="kw">use </span>im::Vector;
@@ -1288,6 +1298,16 @@
                 <span class="prelude-val">Err</span>(InterpreterError::CannotInlineMacro { value, typ, location })
             }
         }
+    }
+
+    <span class="kw">pub fn </span>is_negative(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; bool {
+        <span class="kw">match </span><span class="self">self </span>{
+            Value::I8(x) =&gt; <span class="kw-2">*</span>x &lt; <span class="number">0</span>,
+            Value::I16(x) =&gt; <span class="kw-2">*</span>x &lt; <span class="number">0</span>,
+            Value::I32(x) =&gt; <span class="kw-2">*</span>x &lt; <span class="number">0</span>,
+            Value::I64(x) =&gt; <span class="kw-2">*</span>x &lt; <span class="number">0</span>,
+            <span class="kw">_ </span>=&gt; <span class="bool-val">false</span>, <span class="comment">// Unsigned or Field types are never negative
+        </span>}
     }
 }
 

@@ -412,7 +412,25 @@
 <a href="#411" id="411">411</a>
 <a href="#412" id="412">412</a>
 <a href="#413" id="413">413</a>
-<a href="#414" id="414">414</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::sync::Arc;
+<a href="#414" id="414">414</a>
+<a href="#415" id="415">415</a>
+<a href="#416" id="416">416</a>
+<a href="#417" id="417">417</a>
+<a href="#418" id="418">418</a>
+<a href="#419" id="419">419</a>
+<a href="#420" id="420">420</a>
+<a href="#421" id="421">421</a>
+<a href="#422" id="422">422</a>
+<a href="#423" id="423">423</a>
+<a href="#424" id="424">424</a>
+<a href="#425" id="425">425</a>
+<a href="#426" id="426">426</a>
+<a href="#427" id="427">427</a>
+<a href="#428" id="428">428</a>
+<a href="#429" id="429">429</a>
+<a href="#430" id="430">430</a>
+<a href="#431" id="431">431</a>
+<a href="#432" id="432">432</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::sync::Arc;
 
 <span class="kw">use </span>acvm::{AcirField, FieldElement};
 <span class="kw">use </span>iter_extended::{try_vecmap, vecmap};
@@ -421,6 +439,7 @@
 <span class="kw">use </span><span class="kw">crate</span>::ssa::ir::{
     function::FunctionId,
     instruction::Intrinsic,
+    integer::IntegerConstant,
     types::{CompositeType, NumericType, Type},
     value::ValueId,
 };
@@ -670,6 +689,13 @@
         <span class="self">Self</span>::from_constant(FieldElement::zero(), typ).expect(<span class="string">"zero should fit in every type"</span>)
     }
 
+    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>neg_one(typ: NumericType) -&gt; <span class="self">Self </span>{
+        <span class="kw">let </span>neg_one = IntegerConstant::Signed { value: -<span class="number">1</span>, bit_size: typ.bit_size() };
+        <span class="kw">let </span>(neg_one_constant, typ) = neg_one.into_numeric_constant();
+        <span class="self">Self</span>::from_constant(neg_one_constant, typ)
+            .unwrap_or_else(|<span class="kw">_</span>| <span class="macro">panic!</span>(<span class="string">"Negative one cannot fit in {typ}"</span>))
+    }
+
     <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>as_field(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="prelude-ty">Option</span>&lt;FieldElement&gt; {
         <span class="kw">match </span><span class="self">self </span>{
             NumericValue::Field(value) =&gt; <span class="prelude-val">Some</span>(<span class="kw-2">*</span>value),
@@ -772,6 +798,16 @@
             NumericValue::I16(value) =&gt; FieldElement::from(<span class="kw-2">*</span>value <span class="kw">as </span>u16 <span class="kw">as </span>i128),
             NumericValue::I32(value) =&gt; FieldElement::from(<span class="kw-2">*</span>value <span class="kw">as </span>u32 <span class="kw">as </span>i128),
             NumericValue::I64(value) =&gt; FieldElement::from(<span class="kw-2">*</span>value <span class="kw">as </span>u64 <span class="kw">as </span>i128),
+        }
+    }
+
+    <span class="kw">pub fn </span>is_negative(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; bool {
+        <span class="kw">match </span><span class="self">self </span>{
+            NumericValue::I8(v) =&gt; <span class="kw-2">*</span>v &lt; <span class="number">0</span>,
+            NumericValue::I16(v) =&gt; <span class="kw-2">*</span>v &lt; <span class="number">0</span>,
+            NumericValue::I32(v) =&gt; <span class="kw-2">*</span>v &lt; <span class="number">0</span>,
+            NumericValue::I64(v) =&gt; <span class="kw-2">*</span>v &lt; <span class="number">0</span>,
+            <span class="kw">_ </span>=&gt; <span class="bool-val">false</span>,
         }
     }
 }

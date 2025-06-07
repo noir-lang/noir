@@ -1347,7 +1347,14 @@
 <a href="#1346" id="1346">1346</a>
 <a href="#1347" id="1347">1347</a>
 <a href="#1348" id="1348">1348</a>
-<a href="#1349" id="1349">1349</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::cmp::Ordering;
+<a href="#1349" id="1349">1349</a>
+<a href="#1350" id="1350">1350</a>
+<a href="#1351" id="1351">1351</a>
+<a href="#1352" id="1352">1352</a>
+<a href="#1353" id="1353">1353</a>
+<a href="#1354" id="1354">1354</a>
+<a href="#1355" id="1355">1355</a>
+<a href="#1356" id="1356">1356</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::cmp::Ordering;
 
 <span class="kw">use super</span>::{
     Ssa,
@@ -2486,7 +2493,14 @@
                 }
             }
             BinaryOp::Shr =&gt; {
-                <span class="kw">let </span>zero = || NumericValue::zero(lhs.get_type());
+                <span class="kw">let </span>fallback = || {
+                    <span class="kw">if </span>lhs.is_negative() {
+                        NumericValue::neg_one(lhs.get_type())
+                    } <span class="kw">else </span>{
+                        NumericValue::zero(lhs.get_type())
+                    }
+                };
+
                 <span class="kw">let </span><span class="prelude-val">Some</span>(rhs) = rhs.as_u8() <span class="kw">else </span>{
                     <span class="kw">let </span>rhs = rhs.to_string();
                     <span class="kw">return </span><span class="prelude-val">Err</span>(internal(InternalError::RhsOfBitShiftShouldBeU8 {
@@ -2506,15 +2520,15 @@
                         }));
                     }
                     U1(value) =&gt; U1(<span class="kw">if </span>rhs == <span class="number">0 </span>{ value } <span class="kw">else </span>{ <span class="bool-val">false </span>}),
-                    U8(value) =&gt; value.checked_shr(rhs).map(U8).unwrap_or_else(zero),
-                    U16(value) =&gt; value.checked_shr(rhs).map(U16).unwrap_or_else(zero),
-                    U32(value) =&gt; value.checked_shr(rhs).map(U32).unwrap_or_else(zero),
-                    U64(value) =&gt; value.checked_shr(rhs).map(U64).unwrap_or_else(zero),
-                    U128(value) =&gt; value.checked_shr(rhs).map(U128).unwrap_or_else(zero),
-                    I8(value) =&gt; value.checked_shr(rhs).map(I8).unwrap_or_else(zero),
-                    I16(value) =&gt; value.checked_shr(rhs).map(I16).unwrap_or_else(zero),
-                    I32(value) =&gt; value.checked_shr(rhs).map(I32).unwrap_or_else(zero),
-                    I64(value) =&gt; value.checked_shr(rhs).map(I64).unwrap_or_else(zero),
+                    U8(value) =&gt; value.checked_shr(rhs).map(U8).unwrap_or_else(fallback),
+                    U16(value) =&gt; value.checked_shr(rhs).map(U16).unwrap_or_else(fallback),
+                    U32(value) =&gt; value.checked_shr(rhs).map(U32).unwrap_or_else(fallback),
+                    U64(value) =&gt; value.checked_shr(rhs).map(U64).unwrap_or_else(fallback),
+                    U128(value) =&gt; value.checked_shr(rhs).map(U128).unwrap_or_else(fallback),
+                    I8(value) =&gt; value.checked_shr(rhs).map(I8).unwrap_or_else(fallback),
+                    I16(value) =&gt; value.checked_shr(rhs).map(I16).unwrap_or_else(fallback),
+                    I32(value) =&gt; value.checked_shr(rhs).map(I32).unwrap_or_else(fallback),
+                    I64(value) =&gt; value.checked_shr(rhs).map(I64).unwrap_or_else(fallback),
                 }
             }
         };
