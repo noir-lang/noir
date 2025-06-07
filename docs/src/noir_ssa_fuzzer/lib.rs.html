@@ -225,32 +225,27 @@
 <a href="#224" id="224">224</a>
 <a href="#225" id="225">225</a>
 <a href="#226" id="226">226</a>
-<a href="#227" id="227">227</a>
-<a href="#228" id="228">228</a>
-<a href="#229" id="229">229</a>
-<a href="#230" id="230">230</a>
-<a href="#231" id="231">231</a>
-<a href="#232" id="232">232</a></pre></div><pre class="rust"><code><span class="attr">#![forbid(unsafe_code)]
+<a href="#227" id="227">227</a></pre></div><pre class="rust"><code><span class="attr">#![forbid(unsafe_code)]
 #![warn(unreachable_pub)]
 #![warn(clippy::semicolon_if_nothing_returned)]
 #![cfg_attr(not(test), warn(unused_crate_dependencies, unused_extern_crates))]
 
 </span><span class="kw">pub mod </span>builder;
 <span class="kw">pub mod </span>compiler;
-<span class="kw">pub mod </span>config;
-<span class="kw">pub mod </span>helpers;
 <span class="kw">pub mod </span>runner;
 <span class="kw">pub mod </span>typed_value;
 
 <span class="attr">#[cfg(test)]
 </span><span class="kw">mod </span>tests {
     <span class="kw">use </span><span class="kw">crate</span>::builder::{FuzzerBuilder, InstructionWithTwoArgs};
-    <span class="kw">use </span><span class="kw">crate</span>::config;
     <span class="kw">use </span><span class="kw">crate</span>::runner::{CompareResults, run_and_compare};
     <span class="kw">use </span><span class="kw">crate</span>::typed_value::{TypedValue, ValueType};
     <span class="kw">use </span>acvm::FieldElement;
     <span class="kw">use </span>acvm::acir::native_types::{Witness, WitnessMap};
+    <span class="kw">use </span>noirc_driver::CompileOptions;
     <span class="kw">use </span>rand::RngCore;
+
+    <span class="kw">const </span>NUMBER_OF_VARIABLES_INITIAL: u32 = <span class="number">7</span>;
 
     <span class="kw">struct </span>TestHelper {
         acir_builder: FuzzerBuilder,
@@ -281,16 +276,16 @@
         }
 
         <span class="kw">fn </span>finalize_function(<span class="kw-2">&amp;mut </span><span class="self">self</span>, return_value: TypedValue) {
-            <span class="self">self</span>.acir_builder.finalize_function(return_value.clone());
-            <span class="self">self</span>.brillig_builder.finalize_function(return_value);
+            <span class="self">self</span>.acir_builder.finalize_function(<span class="kw-2">&amp;</span>return_value);
+            <span class="self">self</span>.brillig_builder.finalize_function(<span class="kw-2">&amp;</span>return_value);
         }
     }
 
     <span class="doccomment">/// Generates a random array with config::NUMBER_OF_VARIABLES_INITIAL elements
     </span><span class="kw">fn </span>generate_values() -&gt; Vec&lt;u64&gt; {
         <span class="kw">let </span><span class="kw-2">mut </span>rng = rand::thread_rng();
-        <span class="kw">let </span><span class="kw-2">mut </span>values = Vec::with_capacity(config::NUMBER_OF_VARIABLES_INITIAL <span class="kw">as </span>usize);
-        <span class="kw">for _ in </span><span class="number">0</span>..config::NUMBER_OF_VARIABLES_INITIAL {
+        <span class="kw">let </span><span class="kw-2">mut </span>values = Vec::with_capacity(NUMBER_OF_VARIABLES_INITIAL <span class="kw">as </span>usize);
+        <span class="kw">for _ in </span><span class="number">0</span>..NUMBER_OF_VARIABLES_INITIAL {
             values.push(rng.next_u64());
         }
         values
@@ -298,7 +293,7 @@
 
     <span class="kw">fn </span>get_witness_map(values: Vec&lt;u64&gt;) -&gt; WitnessMap&lt;FieldElement&gt; {
         <span class="kw">let </span><span class="kw-2">mut </span>witness_map = WitnessMap::new();
-        <span class="kw">for </span>i <span class="kw">in </span><span class="number">0</span>..config::NUMBER_OF_VARIABLES_INITIAL {
+        <span class="kw">for </span>i <span class="kw">in </span><span class="number">0</span>..NUMBER_OF_VARIABLES_INITIAL {
             <span class="kw">let </span>witness = Witness(i);
             <span class="kw">let </span>value = FieldElement::from(values[i <span class="kw">as </span>usize]);
             witness_map.insert(witness, value);
@@ -326,9 +321,10 @@
             test_helper.insert_instruction_double_arg(instruction, lhs, rhs);
         test_helper.finalize_function(acir_result);
         test_helper.finalize_function(brillig_result);
-        <span class="kw">let </span>acir_program = test_helper.acir_builder.compile().unwrap();
-        <span class="kw">let </span>brillig_program = test_helper.brillig_builder.compile().unwrap();
-        <span class="kw">let </span>result_witness = Witness(config::NUMBER_OF_VARIABLES_INITIAL);
+        <span class="kw">let </span>acir_program = test_helper.acir_builder.compile(CompileOptions::default()).unwrap();
+        <span class="kw">let </span>brillig_program =
+            test_helper.brillig_builder.compile(CompileOptions::default()).unwrap();
+        <span class="kw">let </span>result_witness = Witness(NUMBER_OF_VARIABLES_INITIAL);
         <span class="kw">let </span>compare_results = run_and_compare(
             <span class="kw-2">&amp;</span>acir_program.program,
             <span class="kw-2">&amp;</span>brillig_program.program,
@@ -342,31 +338,25 @@
             CompareResults::Disagree(acir_result, brillig_result) =&gt; {
                 <span class="macro">panic!</span>(
                     <span class="string">"ACIR and Brillig results disagree: ACIR: {}, Brillig: {}, values: {:?}"</span>,
-                    acir_result,
-                    brillig_result,
-                    values.clone()
+                    acir_result, brillig_result, <span class="kw-2">&amp;</span>values
                 );
             }
             CompareResults::BothFailed(acir_error, brillig_error) =&gt; {
                 <span class="macro">panic!</span>(
                     <span class="string">"Both ACIR and Brillig failed: ACIR: {}, Brillig: {}, values: {:?}"</span>,
-                    acir_error,
-                    brillig_error,
-                    values.clone()
+                    acir_error, brillig_error, <span class="kw-2">&amp;</span>values
                 );
             }
             CompareResults::AcirFailed(acir_error, brillig_result) =&gt; {
                 <span class="macro">panic!</span>(
                     <span class="string">"ACIR failed: ACIR: {}, Brillig: {}, values: {:?}"</span>,
-                    acir_error,
-                    brillig_result,
-                    values.clone()
+                    acir_error, brillig_result, <span class="kw-2">&amp;</span>values
                 );
             }
             CompareResults::BrilligFailed(brillig_error, acir_result) =&gt; {
                 <span class="macro">panic!</span>(
                     <span class="string">"Brillig failed: Brillig: {}, ACIR: {}, values: {:?}"</span>,
-                    brillig_error, acir_result, values
+                    brillig_error, acir_result, <span class="kw-2">&amp;</span>values
                 );
             }
         }

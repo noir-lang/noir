@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"mod":["builder","compiler","config","helpers","runner","typed_value"]};
+window.SIDEBAR_ITEMS = {"mod":["builder","compiler","runner","typed_value"]};

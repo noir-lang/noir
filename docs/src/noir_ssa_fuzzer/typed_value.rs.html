@@ -180,16 +180,12 @@
 <a href="#179" id="179">179</a>
 <a href="#180" id="180">180</a>
 <a href="#181" id="181">181</a>
-<a href="#182" id="182">182</a>
-<a href="#183" id="183">183</a>
-<a href="#184" id="184">184</a>
-<a href="#185" id="185">185</a>
-<a href="#186" id="186">186</a></pre></div><pre class="rust"><code><span class="kw">use </span>libfuzzer_sys::arbitrary;
+<a href="#182" id="182">182</a></pre></div><pre class="rust"><code><span class="kw">use </span>libfuzzer_sys::arbitrary;
 <span class="kw">use </span>libfuzzer_sys::arbitrary::Arbitrary;
 <span class="kw">use </span>noirc_evaluator::ssa::ir::types::{NumericType, Type};
 <span class="kw">use </span>noirc_evaluator::ssa::ir::{map::Id, value::Value};
 
-<span class="attr">#[derive(Arbitrary, Debug, Clone, PartialEq, Eq, Hash)]
+<span class="attr">#[derive(Arbitrary, Debug, Clone, PartialEq, Eq, Hash, Copy)]
 </span><span class="kw">pub enum </span>ValueType {
     Field,
     Boolean,
@@ -204,7 +200,7 @@
     I64,
 }
 
-<span class="attr">#[derive(Debug, Clone)]
+<span class="attr">#[derive(Debug, Clone, PartialEq)]
 </span><span class="kw">pub struct </span>TypedValue {
     <span class="kw">pub </span>value_id: Id&lt;Value&gt;,
     <span class="kw">pub </span>type_of_variable: Type,
@@ -299,24 +295,6 @@
     </span><span class="kw">pub fn </span>supports_unchecked(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; bool {
         <span class="bool-val">false
     </span>}
-
-    <span class="doccomment">/// Check if this type can be used in an operation with another type
-    </span><span class="kw">pub fn </span>compatible_with(<span class="kw-2">&amp;</span><span class="self">self</span>, other: <span class="kw-2">&amp;</span><span class="self">Self</span>, op: <span class="kw-2">&amp;</span>str) -&gt; bool {
-        <span class="kw">match </span>op {
-            <span class="string">"shift" </span>=&gt; <span class="self">self</span>.supports_shift() &amp;&amp; other.to_value_type() == ValueType::U8,
-            <span class="string">"bitwise" </span>=&gt; {
-                <span class="self">self</span>.supports_bitwise()
-                    &amp;&amp; other.supports_bitwise()
-                    &amp;&amp; <span class="self">self</span>.type_of_variable == other.type_of_variable
-            }
-            <span class="string">"uncheked" </span>=&gt; {
-                <span class="self">self</span>.supports_unchecked()
-                    &amp;&amp; other.supports_unchecked()
-                    &amp;&amp; <span class="self">self</span>.type_of_variable == other.type_of_variable
-            }
-            <span class="kw">_ </span>=&gt; <span class="self">self</span>.type_of_variable == other.type_of_variable,
-        }
-    }
 }
 
 <span class="kw">impl </span>ValueType {
@@ -334,6 +312,20 @@
             ValueType::I16 =&gt; Type::signed(<span class="number">16</span>),
             ValueType::I32 =&gt; Type::signed(<span class="number">32</span>),
             ValueType::I64 =&gt; Type::signed(<span class="number">64</span>),
+        }
+    }
+
+    <span class="doccomment">/// Helper to check if this type could be used for casts into it
+    /// Signed types are not supported right now
+    </span><span class="kw">pub fn </span>can_be_used_for_casts(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; bool {
+        <span class="kw">match </span><span class="self">self </span>{
+            <span class="comment">//https://github.com/noir-lang/noir/issues/8089
+            </span>ValueType::I8 | ValueType::I16 | ValueType::I32 | ValueType::I64 =&gt; <span class="bool-val">false</span>,
+            <span class="comment">//https://github.com/noir-lang/noir/issues/7555
+            </span>ValueType::U128 =&gt; <span class="bool-val">false</span>,
+            <span class="comment">//https://github.com/noir-lang/noir/issues/8157
+            </span>ValueType::Boolean =&gt; <span class="bool-val">false</span>,
+            <span class="kw">_ </span>=&gt; <span class="bool-val">true</span>,
         }
     }
 
