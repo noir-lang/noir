@@ -141,7 +141,7 @@ libraries:
     critical: false
   tdd:
     repo: teddav/tdd.nr
-    ref: 4bebfb361f2e5175d23376645310eecca96749a5
+    ref: c5c2d8ed9d9c7dc73346bb0bd7884f871bd16236
     timeout: 20
     critical: false
   zkpassport_rsa:
