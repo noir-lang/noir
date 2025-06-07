@@ -617,7 +617,6 @@ impl FuzzerContext {
             parent_blocks_history,
             SsaBlockOptions::from(self.context_options.clone()),
         );
-
         self.switch_to_block(first_block.block_id);
         first_block.context.finalize_block_with_jmp(
             &mut self.acir_builder,
