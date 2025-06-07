@@ -79,13 +79,13 @@ fn interpret_helper(src: &str) -> Result<Value, InterpreterError> {
     })
 }
 
-fn interpret(src: &str) -> Value {
+pub(super) fn interpret(src: &str) -> Value {
     interpret_helper(src).unwrap_or_else(|error| {
         panic!("Expected interpreter to exit successfully, but found {error:?}")
     })
 }
 
-fn interpret_expect_error(src: &str) -> InterpreterError {
+pub(super) fn interpret_expect_error(src: &str) -> InterpreterError {
     interpret_helper(src).expect_err("Expected interpreter to error")
 }
 
