@@ -87,6 +87,8 @@ impl CompareComptime {
         let comptime_print = String::from_utf8(output1).expect("should be valid utf8 string");
 
         let blackbox_solver = Bn254BlackBoxSolver(false);
+
+        // These comptime programs have no inputs.
         let initial_witness = self.abi.encode(&BTreeMap::new(), None).wrap_err("abi::encode")?;
 
         let do_exec = |program| {

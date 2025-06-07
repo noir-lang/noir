@@ -57,6 +57,19 @@ impl FunctionDeclaration {
 
         (param_types, return_type)
     }
+
+    /// Check if any of the parameters or return value contain a reference.
+    pub(super) fn has_refs(&self) -> bool {
+        self.takes_refs() || self.returns_refs()
+    }
+
+    pub(super) fn takes_refs(&self) -> bool {
+        self.params.iter().any(|(_, _, _, typ, _)| types::contains_reference(typ))
+    }
+
+    pub(super) fn returns_refs(&self) -> bool {
+        types::contains_reference(&self.return_type)
+    }
 }
 
 /// HIR representation of a function parameter.
@@ -85,22 +98,21 @@ pub(crate) fn hir_param(
 pub(super) fn can_call(
     caller_id: FuncId,
     caller_unconstrained: bool,
+    caller_returns_ref: bool,
     callee_id: FuncId,
     callee_unconstrained: bool,
+    callee_has_refs: bool,
 ) -> bool {
     // Nobody should call `main`.
     if callee_id == Program::main_id() {
         return false;
     }
 
-    // From an ACIR function we can call any Brillig function,
-    // but we avoid creating infinite recursive ACIR calls by
-    // only calling functions with lower IDs than ours,
-    // otherwise the inliner could get stuck.
-    if !caller_unconstrained && !callee_unconstrained {
-        // Higher calls lower, so we can use this rule to pick function parameters
-        // as we create the declarations: we can pass functions already declared.
-        return callee_id < caller_id;
+    // The compiler cannot handle returning references from `if-then-else`;
+    // since the `limit` module currently inserts an `if ctx_limit == 0`,
+    // returning a literal, it would violate this if the return has `&mut`.
+    if caller_returns_ref {
+        return false;
     }
 
     // From a Brillig function we restrict ourselves to only call
@@ -115,7 +127,18 @@ pub(super) fn can_call(
         return callee_unconstrained;
     }
 
-    true
+    // When calling ACIR from ACIR, we avoid creating infinite
+    // recursion by only calling functions with lower IDs,
+    // otherwise the inliner could get stuck.
+    if !callee_unconstrained {
+        // Higher calls lower, so we can use this rule to pick function parameters
+        // as we create the declarations: we can pass functions already declared.
+        return callee_id < caller_id;
+    }
+
+    // When calling Brillig from ACIR, we avoid calling functions that take or return
+    // references, which cannot be passed between the two.
+    !callee_has_refs
 }
 
 /// Control what kind of expressions we can generate, depending on the surrounding context.
@@ -163,6 +186,8 @@ pub(super) struct FunctionContext<'a> {
     /// Indicator of being in a loop (and hence able to generate
     /// break and continue statements)
     in_loop: bool,
+    /// Indicator of being in an if-then-else.
+    in_if: bool,
     /// All the functions callable from this one, with the types we can
     /// produce from their return value.
     call_targets: BTreeMap<CallableId, HashSet<Type>>,
@@ -193,7 +218,14 @@ impl<'a> FunctionContext<'a> {
 
         // Consider calling any allowed global function.
         for (callee_id, callee_decl) in &ctx.function_declarations {
-            if !can_call(id, decl.unconstrained, *callee_id, callee_decl.unconstrained) {
+            if !can_call(
+                id,
+                decl.unconstrained,
+                decl.returns_refs(),
+                *callee_id,
+                callee_decl.unconstrained,
+                callee_decl.has_refs(),
+            ) {
                 continue;
             }
             let produces = types::types_produced(&callee_decl.return_type);
@@ -202,7 +234,7 @@ impl<'a> FunctionContext<'a> {
 
         // Consider function pointers as callable; they are already filtered during construction.
         for (callee_id, _, _, typ, _) in &decl.params {
-            let Type::Function(_, return_type, _, _) = typ else {
+            let Type::Function(_, return_type, _, _) = types::unref(typ) else {
                 continue;
             };
             let produces = types::types_produced(return_type);
@@ -217,6 +249,7 @@ impl<'a> FunctionContext<'a> {
             globals,
             locals,
             in_loop: false,
+            in_if: false,
             call_targets,
             next_ident_id: 0,
             has_call: false,
@@ -292,10 +325,25 @@ impl<'a> FunctionContext<'a> {
         u: &mut Unstructured,
         typ: &Type,
     ) -> arbitrary::Result<Option<VariableId>> {
+        // Check if we have something that produces this exact type.
         if u.ratio(7, 10)? {
             if let Some(id) = self.locals.current().choose_producer(u, typ)? {
                 return Ok(Some(VariableId::Local(id)));
             }
+        }
+        // If we're looking for a mutable reference, we have to choose some
+        // mutable local variable and take a reference over it.
+        // We can't use a global for this, because they are immutable.
+        if let Type::Reference(typ, true) = typ {
+            // Find an underlying mutable variable we can take a reference over.
+            // We cannot have mutable references to array elements.
+            return self
+                .locals
+                .current()
+                .choose_producer_filtered(u, typ.as_ref(), |_, (mutable, _, prod)| {
+                    *mutable && (typ.as_ref() == prod || !types::is_array_or_slice(prod))
+                })
+                .map(|id| id.map(VariableId::Local));
         }
         self.globals.choose_producer(u, typ).map(|id| id.map(VariableId::Global))
     }
@@ -336,13 +384,27 @@ impl<'a> FunctionContext<'a> {
         // We could replace `brillig_func_2` with `brillig_func_2_proxy`, but we wouldn't replace `brillig_func_4` with `brillig_func_4_proxy`
         // because that is a parameter of another call. But we would have to deal with the return value.
         // For this reason we handle function parameters directly here.
-        if matches!(typ, Type::Function(_, _, _, _)) {
-            // Prefer functions in variables over globals.
-            return match self.gen_expr_from_vars(u, typ, max_depth)? {
-                Some(expr) => Ok(expr),
-                None => self.find_global_function_with_signature(u, typ),
-            };
-        }
+        if types::is_function(types::unref(typ)) {
+            if let Type::Reference(typ, _) = typ {
+                // We might have an `&mut &mut fn(...) -> ...`; we recursively peel
+                // off layers of references until we can generate an expression that
+                // returns an `fn`, and then take a reference over it to restore.
+                let expr = self.gen_expr(u, typ, max_depth, flags)?;
+                // If the expression is a read-only global ident, then assign a variable first.
+                let expr = if expr::is_immutable_ident(&expr) {
+                    self.indirect_ref_mut(expr, typ.as_ref().clone())
+                } else {
+                    expr::ref_mut(expr, typ.as_ref().clone())
+                };
+                return Ok(expr);
+            } else {
+                // Prefer functions in variables over globals.
+                return match self.gen_expr_from_vars(u, typ, max_depth)? {
+                    Some(expr) => Ok(expr),
+                    None => self.find_global_function_with_signature(u, typ),
+                };
+            }
+        };
 
         let mut freq = Freq::new(u, &self.ctx.config.expr_freqs)?;
 
@@ -354,7 +416,10 @@ impl<'a> FunctionContext<'a> {
             && max_depth == self.ctx.config.max_depth
             && self.budget > 0;
 
-        let allow_if_then = flags.allow_if_then && allow_nested && self.budget > 0;
+        let allow_if_then = flags.allow_if_then
+            && allow_nested
+            && self.budget > 0
+            && !types::contains_reference(typ);
 
         if freq.enabled_when("unary", allow_nested && types::can_unary_return(typ)) {
             if let Some(expr) = self.gen_unary(u, typ, max_depth)? {
@@ -477,12 +542,10 @@ impl<'a> FunctionContext<'a> {
                 src_as_tgt()
             }
             (Type::Reference(typ, _), _) if typ.as_ref() == tgt_type => {
-                let e = if bool::arbitrary(u)? {
-                    Expression::Clone(Box::new(src_expr))
-                } else {
-                    expr::deref(src_expr, tgt_type.clone())
-                };
-                Ok(Some(e))
+                Ok(Some(expr::deref(src_expr, tgt_type.clone())))
+            }
+            (_, Type::Reference(typ, true)) if typ.as_ref() == src_type => {
+                Ok(Some(expr::ref_mut(src_expr, typ.as_ref().clone())))
             }
             (Type::Array(len, item_typ), _) if *len > 0 => {
                 // Choose a random index.
@@ -758,14 +821,7 @@ impl<'a> FunctionContext<'a> {
         let max_depth = self.max_depth();
         let comptime_friendly = self.is_comptime_friendly();
         let typ = self.ctx.gen_type(u, max_depth, false, false, true, comptime_friendly)?;
-
-        // Temporarily set in_loop to false to disallow breaking/continuing out
-        // of the let blocks (which would lead to frontend errors when reversing
-        // the AST into Noir)
-        let was_in_loop = std::mem::replace(&mut self.in_loop, false);
         let expr = self.gen_expr(u, &typ, max_depth, Flags::TOP)?;
-        self.in_loop = was_in_loop;
-
         let mutable = bool::arbitrary(u)?;
         Ok(self.let_var(mutable, typ, expr, true))
     }
@@ -817,7 +873,14 @@ impl<'a> FunctionContext<'a> {
             .locals
             .current()
             .variables()
-            .filter_map(|(id, (mutable, _, _))| mutable.then_some(id))
+            .filter(|(_, (mutable, _, typ))| {
+                // Trying to re-assign a mutable reference in an if leads to panics or errors
+                *mutable
+                    && !(self.in_if
+                        && self.ctx.config.avoid_assign_ref_in_if
+                        && types::contains_reference(typ))
+            })
+            .map(|(id, _)| id)
             .collect::<Vec<_>>();
 
         if opts.is_empty() {
@@ -919,6 +982,8 @@ impl<'a> FunctionContext<'a> {
 
         let condition = self.gen_expr(u, &Type::Bool, max_depth, Flags::CONDITION)?;
 
+        let was_in_if = std::mem::replace(&mut self.in_if, true);
+
         let consequence = {
             if flags.allow_blocks {
                 self.gen_block(u, typ)?
@@ -938,6 +1003,8 @@ impl<'a> FunctionContext<'a> {
             };
             Some(expr)
         };
+
+        self.in_if = was_in_if;
 
         Ok(expr::if_then(condition, consequence, alternative, typ.clone()))
     }
@@ -1044,7 +1111,7 @@ impl<'a> FunctionContext<'a> {
         self.has_call = true;
 
         let callee_id = *u.choose_iter(opts)?;
-        let callee_ident = Expression::Ident(self.callable_ident(callee_id));
+        let callee_expr = self.callable_expr(callee_id);
         let (param_types, return_type) = self.callable_signature(callee_id);
 
         // Generate an expression for each argument.
@@ -1054,7 +1121,7 @@ impl<'a> FunctionContext<'a> {
         }
 
         let call_expr = Expression::Call(Call {
-            func: Box::new(callee_ident),
+            func: Box::new(callee_expr),
             arguments: args,
             return_type: return_type.clone(),
             location: Location::dummy(),
@@ -1226,7 +1293,6 @@ impl<'a> FunctionContext<'a> {
             );
         };
 
-        // TODO(#8484): Take the callee ID into account, so we don't create a problem inlining ACIR.
         let candidates = self
             .ctx
             .function_declarations
@@ -1252,11 +1318,29 @@ impl<'a> FunctionContext<'a> {
         Ok(Expression::Ident(callee_ident))
     }
 
-    /// Identifier for passing a reference a global function or local function pointer.
-    fn callable_ident(&mut self, callee_id: CallableId) -> Ident {
+    /// Expression to use in a `Call` for the function (pointer).
+    ///
+    /// If the ID is something like `f: &mut &mut fn(...) -> ...` then it will return `(*(*f))`.
+    fn callable_expr(&mut self, callee_id: CallableId) -> Expression {
         match callee_id {
-            CallableId::Global(id) => self.func_ident(id),
-            CallableId::Local(id) => self.local_ident(id),
+            CallableId::Global(id) => Expression::Ident(self.func_ident(id)),
+            CallableId::Local(id) => {
+                fn deref_function(typ: &Type, ident: Ident) -> Expression {
+                    match typ {
+                        Type::Function(_, _, _, _) => Expression::Ident(ident),
+                        Type::Reference(typ, _) => {
+                            let inner = deref_function(typ.as_ref(), ident);
+                            expr::deref(inner, typ.as_ref().clone())
+                        }
+                        other => {
+                            unreachable!("expected function or function reference; got {other}")
+                        }
+                    }
+                }
+                let ident = self.local_ident(id);
+                let typ = self.local_type(id);
+                deref_function(typ, ident)
+            }
         }
     }
 
@@ -1316,12 +1400,26 @@ impl<'a> FunctionContext<'a> {
             }
             CallableId::Local(id) => {
                 let (_, _, typ) = self.locals.current().get_variable(&id);
-                let Type::Function(param_types, return_type, _, _) = typ else {
+                let Type::Function(param_types, return_type, _, _) = types::unref(typ) else {
                     unreachable!("function pointers should have function type; got {typ}")
                 };
                 (param_types.clone(), return_type.as_ref().clone())
             }
         }
+    }
+
+    /// Create a block with a let binding, then return a mutable reference to it.
+    /// This is used as a workaround when we need a mutable reference over an immutable value.
+    fn indirect_ref_mut(&mut self, expr: Expression, typ: Type) -> Expression {
+        self.locals.enter();
+        let let_expr = self.let_var(true, typ.clone(), expr.clone(), true);
+        let Expression::Let(Let { id, .. }) = &let_expr else {
+            unreachable!("expected Let; got {let_expr}");
+        };
+        let let_ident = self.local_ident(*id);
+        let ref_expr = expr::ref_mut(Expression::Ident(let_ident), typ);
+        self.locals.exit();
+        Expression::Block(vec![let_expr, ref_expr])
     }
 }
 
@@ -1336,7 +1434,6 @@ fn test_loop() {
     fctx.budget = 2;
     let loop_code = format!("{}", fctx.gen_loop(&mut u).unwrap()).replace(" ", "");
 
-    println!("{loop_code}");
     assert!(
         loop_code.starts_with(
             &r#"{
@@ -1362,7 +1459,6 @@ fn test_while() {
     fctx.budget = 2;
     let while_code = format!("{}", fctx.gen_while(&mut u).unwrap()).replace(" ", "");
 
-    println!("{while_code}");
     assert!(
         while_code.starts_with(
             &r#"{
