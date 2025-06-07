@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1749308123479,
+  "lastUpdate": 1749308126272,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -3967,85 +3967,6 @@ window.BENCHMARK_DATA = {
             "name": "GitHub",
             "username": "web-flow"
           },
-          "distinct": true,
-          "id": "89783b6a962faad6838e249c933caa1f16a6cae3",
-          "message": "fix: better way to do LSP file overrides (#8702)",
-          "timestamp": "2025-05-29T15:08:50Z",
-          "tree_id": "798bce991c8eb22cff4e52507c53cfba5dfc0590",
-          "url": "https://github.com/noir-lang/noir/commit/89783b6a962faad6838e249c933caa1f16a6cae3"
-        },
-        "date": 1748533069786,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 2.472,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 6.796,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 1.112,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 16.26,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 13.66,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root-empty",
-            "value": 1.35,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root-single-tx",
-            "value": 122,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 129,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 1.176,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-root",
-            "value": 1.664,
-            "unit": "s"
-          },
-          {
-            "name": "semaphore-depth-10",
-            "value": 0.828,
-            "unit": "s"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
-            "email": "asterite@gmail.com",
-            "name": "Ary Borenszweig",
-            "username": "asterite"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
           "distinct": false,
           "id": "58ce59e78156655db2c901c739a2f41f7578792c",
           "message": "fix: merge expr bindings with instantiations bindings during monomorphization (#8713)",
@@ -7901,6 +7822,85 @@ window.BENCHMARK_DATA = {
           {
             "name": "semaphore-depth-10",
             "value": 0.748,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "84741533+defkit@users.noreply.github.com",
+            "name": "defkit",
+            "username": "defkit"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "446b25c2cc0d543e27911bb474bcbad55431b3b3",
+          "message": "feat(ssa_fuzzer): branching + constrains (#8599)\n\nCo-authored-by: defkit <84741533+jewelofchaos9@users.noreply.github.com>\nCo-authored-by: Tom French <15848336+TomAFrench@users.noreply.github.com>\nCo-authored-by: Michael Klein <lambdamichael@gmail.com>\nCo-authored-by: Akosh Farkash <aakoshh@gmail.com>",
+          "timestamp": "2025-06-07T14:28:17Z",
+          "tree_id": "ebbf98c9be976fb66b0228ed6b9a2548100a1ef9",
+          "url": "https://github.com/noir-lang/noir/commit/446b25c2cc0d543e27911bb474bcbad55431b3b3"
+        },
+        "date": 1749308112260,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 2.264,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 7.55,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 1.108,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 15.22,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 13.28,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-empty",
+            "value": 1.342,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-single-tx",
+            "value": 123,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 125,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 1.084,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-root",
+            "value": 1.528,
+            "unit": "s"
+          },
+          {
+            "name": "semaphore-depth-10",
+            "value": 0.763,
             "unit": "s"
           }
         ]
