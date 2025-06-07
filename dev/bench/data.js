@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1749330806111,
+  "lastUpdate": 1749336155722,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -18466,48 +18466,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "15848336+TomAFrench@users.noreply.github.com",
-            "name": "Tom French",
-            "username": "TomAFrench"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "d97eea314a13c407af79ef7815332c52eec4ab22",
-          "message": "chore: add pre- and post-check on `array_set` optimization pass (#8714)\n\nCo-authored-by: Ary Borenszweig <asterite@gmail.com>",
-          "timestamp": "2025-05-29T17:00:16Z",
-          "tree_id": "e968bd6dd54933fa1b17709d829d601f83152cbd",
-          "url": "https://github.com/noir-lang/noir/commit/d97eea314a13c407af79ef7815332c52eec4ab22"
-        },
-        "date": 1748539283561,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 260027,
-            "range": "± 551",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 227942,
-            "range": "± 1450",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 3567004,
-            "range": "± 3043",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "mvezenov@gmail.com",
             "name": "Maxim Vezenov",
             "username": "vezenovm"
@@ -20559,6 +20517,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2782466,
             "range": "± 18104",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "mvezenov@gmail.com",
+            "name": "Maxim Vezenov",
+            "username": "vezenovm"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "57ec192fdd2c21fa11d1b66a74f586ac43b936d0",
+          "message": "fix(comptime): Overflow on shl  (#8829)",
+          "timestamp": "2025-06-07T22:21:09Z",
+          "tree_id": "aa4d2abd305a3472afdbc040a7e8ca5b9e285565",
+          "url": "https://github.com/noir-lang/noir/commit/57ec192fdd2c21fa11d1b66a74f586ac43b936d0"
+        },
+        "date": 1749336144624,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 248231,
+            "range": "± 804",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 218375,
+            "range": "± 6009",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2799566,
+            "range": "± 1493",
             "unit": "ns/iter"
           }
         ]
