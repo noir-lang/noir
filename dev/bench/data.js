@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1749330760425,
+  "lastUpdate": 1749330804002,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -11362,75 +11362,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "asterite@gmail.com",
-            "name": "Ary Borenszweig",
-            "username": "asterite"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "89783b6a962faad6838e249c933caa1f16a6cae3",
-          "message": "fix: better way to do LSP file overrides (#8702)",
-          "timestamp": "2025-05-29T15:08:50Z",
-          "tree_id": "798bce991c8eb22cff4e52507c53cfba5dfc0590",
-          "url": "https://github.com/noir-lang/noir/commit/89783b6a962faad6838e249c933caa1f16a6cae3"
-        },
-        "date": 1748533479197,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 246.19,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 270.04,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 221.33,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 580.06,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 576.38,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 1460,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 401.73,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-root",
-            "value": 407.3,
-            "unit": "MB"
-          },
-          {
-            "name": "semaphore_depth_10",
-            "value": 92.96,
-            "unit": "MB"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "15848336+TomAFrench@users.noreply.github.com",
             "name": "Tom French",
             "username": "TomAFrench"
@@ -14760,6 +14691,75 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/noir-lang/noir/commit/446b25c2cc0d543e27911bb474bcbad55431b3b3"
         },
         "date": 1749308450797,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 202.1,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 225.82,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 177.36,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 489.98,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 423.33,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 1400,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 312.18,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-root",
+            "value": 317.87,
+            "unit": "MB"
+          },
+          {
+            "name": "semaphore_depth_10",
+            "value": 70.96,
+            "unit": "MB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "mvezenov@gmail.com",
+            "name": "Maxim Vezenov",
+            "username": "vezenovm"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "522d4c185601ae2b9f5b677cb95df7a7644cfd26",
+          "message": "fix(interpreter): Return -1 for negative shr signed overflow or 0 for positive shr signed overflow (#8828)",
+          "timestamp": "2025-06-07T20:41:36Z",
+          "tree_id": "07343d422145cbcf3f36144be8550b30b06c0705",
+          "url": "https://github.com/noir-lang/noir/commit/522d4c185601ae2b9f5b677cb95df7a7644cfd26"
+        },
+        "date": 1749330792789,
         "tool": "customSmallerIsBetter",
         "benches": [
           {
