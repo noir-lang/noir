@@ -160,6 +160,7 @@ impl Fuzzer {
             (Err(acir_error), Err(brillig_error)) => {
                 log::debug!("ACIR compilation error: {:?}", acir_error);
                 log::debug!("Brillig compilation error: {:?}", brillig_error);
+                panic!("ACIR and Brillig compilation failed");
                 return None;
             }
             (Ok(acir), Err(brillig_error)) => {

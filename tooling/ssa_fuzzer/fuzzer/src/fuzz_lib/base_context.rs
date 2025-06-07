@@ -218,16 +218,16 @@ impl FuzzerContext {
         // TODO: add support of nested jmp_if in cycles
         // TODO: refactor? How?
         if self.cycle_bodies_to_iters_ids.contains_key(&self.current_block.block_id) {
-            return;
-            let current_block = self.current_block.context.clone();
             let (block_iter_id, block_end_id, _) =
                 self.cycle_bodies_to_iters_ids[&self.current_block.block_id].clone();
+            let mut current_block = self.stored_blocks[&block_end_id].clone();
             // init then branch
             let block_then_id = self.acir_builder.insert_block();
             assert_eq!(block_then_id, self.brillig_builder.insert_block());
+
             self.switch_to_block(block_then_id);
             // context shared with predecessor
-            self.current_block.context.insert_instructions(
+            current_block.context.clone().insert_instructions(
                 &mut self.acir_builder,
                 &mut self.brillig_builder,
                 &block_then_instruction_block.instructions,
@@ -240,7 +240,7 @@ impl FuzzerContext {
             assert_eq!(block_else_id, self.brillig_builder.insert_block());
             self.switch_to_block(block_else_id);
             // context shared with predecessor
-            self.current_block.context.insert_instructions(
+            current_block.context.clone().insert_instructions(
                 &mut self.acir_builder,
                 &mut self.brillig_builder,
                 &block_else_instruction_block.instructions,
@@ -259,7 +259,8 @@ impl FuzzerContext {
             // remove children blocks not to merge them (they already jumped to iter block)
             self.current_block.context.children_blocks.pop();
             self.current_block.context.children_blocks.pop();
-            self.current_block = StoredBlock { context: current_block, block_id: block_end_id };
+            self.current_block =
+                StoredBlock { context: current_block.context, block_id: block_end_id };
             self.switch_to_block(self.current_block.block_id);
             return;
         }
@@ -425,10 +426,14 @@ impl FuzzerContext {
             if parent_iters_count > self.context_options.max_iterations_num {
                 return;
             }
+            if self.inserted_ssa_blocks_count + 4 > self.context_options.max_ssa_blocks_num {
+                return;
+            }
             self.inserted_instructions_count +=
                 block_body.instructions.len() * (end_iter - start_iter + 1);
             // we insert 4 blocks: body, if, iter, end
             self.inserted_ssa_blocks_count += 4;
+            self.parent_iters_count = parent_iters_count;
         }
 
         let block_body_id = self.acir_builder.insert_block();

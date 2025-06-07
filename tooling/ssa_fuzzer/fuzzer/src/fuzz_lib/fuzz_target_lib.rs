@@ -364,8 +364,6 @@ mod tests {
         let arg_2_field = Argument { index: 2, value_type: ValueType::Field };
         let arg_5_field = Argument { index: 5, value_type: ValueType::Field };
         let arg_6_field = Argument { index: 6, value_type: ValueType::Field };
-        let arg_7_field = Argument { index: 7, value_type: ValueType::Field };
-        let arg_8_field = Argument { index: 8, value_type: ValueType::Field };
         let add_to_memory_block =
             InstructionBlock { instructions: vec![Instruction::AddToMemory { lhs: arg_2_field }] };
         let typed_memory_0 = Argument { index: 0, value_type: ValueType::Field };
@@ -382,8 +380,8 @@ mod tests {
         let load_mul_set_block2 = InstructionBlock {
             instructions: vec![
                 Instruction::LoadFromMemory { memory_addr: typed_memory_0 },
-                Instruction::MulChecked { lhs: arg_7_field, rhs: arg_2_field },
-                Instruction::SetToMemory { memory_addr_index: 0, value: arg_8_field },
+                Instruction::MulChecked { lhs: arg_5_field, rhs: arg_2_field },
+                Instruction::SetToMemory { memory_addr_index: 0, value: arg_6_field },
             ],
         };
         let commands = vec![

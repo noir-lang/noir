@@ -14,6 +14,12 @@ libfuzzer_sys::fuzz_target!(|data: FuzzerData| {
             "FINAL" => {
                 compile_options.show_ssa_pass = vec!["Dead Instruction Elimination (3)".to_string()]
             }
+            "FIRST_AND_FINAL" => {
+                compile_options.show_ssa_pass = vec![
+                    "After Removing Unreachable Functions (1)".to_string(),
+                    "Dead Instruction Elimination (3)".to_string(),
+                ]
+            }
             _ => (),
         }
     }

@@ -122,14 +122,17 @@ pub struct FuzzerOptions {
 impl Default for FuzzerOptions {
     fn default() -> Self {
         let mut compile_options = CompileOptions::default();
-        compile_options.show_ssa = true;
-        compile_options.show_ssa_pass = vec!["After Dead Instruction Elimination (3)".to_string()];
+        //compile_options.show_ssa = true;
+        compile_options.show_ssa_pass = vec![
+            "After Dead Instruction Elimination (3)".to_string(),
+            "After Removing Unreachable Functions (1)".to_string(),
+        ];
         Self {
             constrain_idempotent_morphing_enabled: false,
             constant_execution_enabled: false,
             compile_options,
-            max_ssa_blocks_num: 30,
-            max_instructions_num: 500,
+            max_ssa_blocks_num: 100,
+            max_instructions_num: 1000,
             max_iterations_num: 1000,
             instruction_options: InstructionOptions::default(),
             fuzzer_command_options: FuzzerCommandOptions::default(),
