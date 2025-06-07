@@ -227,7 +227,6 @@ mod test {
     use crate::hir::comptime::InterpreterError;
     use crate::hir::comptime::tests::{interpret, interpret_expect_error};
 
-
     use super::{BinaryOpKind, HirBinaryOp, Location, Value};
 
     use super::evaluate_infix;
@@ -295,7 +294,7 @@ mod test {
         };
         assert_eq!(operator, "<<");
     }
-  
+
     fn shr_unsigned() {
         let src = r#"
             comptime fn main() -> pub u64 {
