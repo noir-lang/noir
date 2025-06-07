@@ -13,7 +13,11 @@ sidebar_position: 2
 
 # Debugger Known Limitations
 
-There are currently some limits to what the debugger can observe. 
+import Experimental from '@site/src/components/Notes/_experimental.mdx';
+
+<Experimental />
+
+There are currently some limits to what the debugger can observe.
 
 ## Mutable references
 
@@ -32,7 +36,7 @@ The update on `x` will not be observed by the debugger. That means, when running
 When inspecting variables, any variable of type `Function` or `MutableReference` will render its value as `<<function>>` or `<<mutable ref>>`.
 
 ## Debugger instrumentation affects resulting ACIR
-                      
+
 In order to make the state of local variables observable, the debugger compiles Noir circuits interleaving foreign calls that track any mutations to them. While this works (except in the cases described above) and doesn't introduce any behavior changes, it does as a side effect produce bigger bytecode. In particular, when running the command `opcodes` on the REPL debugger, you will notice Unconstrained VM blocks that look like this:
 
 ```
@@ -49,9 +53,9 @@ In order to make the state of local variables observable, the debugger compiles 
   5.7  |   Stop
   5.8  |   ForeignCall { function: "__debug_var_assign", destinations: [], inputs: [RegisterIndex(RegisterIndex(2)), RegisterIndex(RegisterIndex(3))] }
 ...
-```               
-                                    
-If you are interested in debugging/inspecting compiled ACIR without these synthetic changes, you can invoke the REPL debugger with the `--skip-instrumentation` flag or launch the VS Code debugger with the `skipConfiguration` property set to true in its launch configuration. You can find more details about those in the [Debugger REPL reference](debugger_repl.md) and the [VS Code Debugger reference](debugger_vscode.md).
+```
+
+If you are interested in debugging/inspecting compiled ACIR without these synthetic changes, you can invoke the REPL debugger with the `--skip-instrumentation` flag or launch the VS Code debugger with the `skipConfiguration` property set to true in its launch configuration. You can find more details about those in the [Debugger REPL reference](debugger_repl.mdx) and the [VS Code Debugger reference](debugger_vscode.mdx).
 
 :::note
 Skipping debugger instrumentation means you won't be able to inspect values of local variables.
