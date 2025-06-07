@@ -295,6 +295,7 @@ mod test {
         assert_eq!(operator, "<<");
     }
 
+    #[test]
     fn shr_unsigned() {
         let src = r#"
             comptime fn main() -> pub u64 {
