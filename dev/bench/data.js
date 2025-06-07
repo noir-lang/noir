@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1749308456809,
+  "lastUpdate": 1749308462448,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -11371,75 +11371,6 @@ window.BENCHMARK_DATA = {
             "name": "GitHub",
             "username": "web-flow"
           },
-          "distinct": false,
-          "id": "8665abe6694c8641fb0e999c9b5d420290f5bbec",
-          "message": "fix(fmt): correct indentation when formatting long struct patterns (#8711)",
-          "timestamp": "2025-05-29T14:51:07Z",
-          "tree_id": "872db9baa409764d0134f3336ea2d3b1a1b8e685",
-          "url": "https://github.com/noir-lang/noir/commit/8665abe6694c8641fb0e999c9b5d420290f5bbec"
-        },
-        "date": 1748532399056,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 246.19,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 270.04,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 221.34,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 580.06,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 576.38,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 1460,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 401.73,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-root",
-            "value": 407.3,
-            "unit": "MB"
-          },
-          {
-            "name": "semaphore_depth_10",
-            "value": 92.96,
-            "unit": "MB"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
-            "email": "asterite@gmail.com",
-            "name": "Ary Borenszweig",
-            "username": "asterite"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
           "distinct": true,
           "id": "89783b6a962faad6838e249c933caa1f16a6cae3",
           "message": "fix: better way to do LSP file overrides (#8702)",
@@ -14760,6 +14691,75 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/noir-lang/noir/commit/582123ddbad7cae84bc9a10de8ffc54e8fcde577"
         },
         "date": 1749244248146,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 202.1,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 225.82,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 177.36,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 489.98,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 423.33,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 1400,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 312.18,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-root",
+            "value": 317.87,
+            "unit": "MB"
+          },
+          {
+            "name": "semaphore_depth_10",
+            "value": 70.96,
+            "unit": "MB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "84741533+defkit@users.noreply.github.com",
+            "name": "defkit",
+            "username": "defkit"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "446b25c2cc0d543e27911bb474bcbad55431b3b3",
+          "message": "feat(ssa_fuzzer): branching + constrains (#8599)\n\nCo-authored-by: defkit <84741533+jewelofchaos9@users.noreply.github.com>\nCo-authored-by: Tom French <15848336+TomAFrench@users.noreply.github.com>\nCo-authored-by: Michael Klein <lambdamichael@gmail.com>\nCo-authored-by: Akosh Farkash <aakoshh@gmail.com>",
+          "timestamp": "2025-06-07T14:28:17Z",
+          "tree_id": "ebbf98c9be976fb66b0228ed6b9a2548100a1ef9",
+          "url": "https://github.com/noir-lang/noir/commit/446b25c2cc0d543e27911bb474bcbad55431b3b3"
+        },
+        "date": 1749308450797,
         "tool": "customSmallerIsBetter",
         "benches": [
           {
