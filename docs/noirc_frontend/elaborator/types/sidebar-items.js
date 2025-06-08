@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"constant":["SELF_TYPE_NAME"],"fn":["bind_generic","bind_named_generics","bind_ordered_generics"],"struct":["TraitPathResolution"]};
+window.SIDEBAR_ITEMS = {"constant":["SELF_TYPE_NAME"],"enum":["TraitPathResolutionMethod"],"fn":["bind_generic","bind_named_generics","bind_ordered_generics"],"struct":["TraitPathResolution"]};

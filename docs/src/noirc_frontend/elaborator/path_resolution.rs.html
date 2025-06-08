@@ -942,7 +942,7 @@
     <span class="doccomment">/// A function call on a type that resolves to a trait method, for example `SomeType::from(...)`
     /// or `SomeType::&lt;A, B&gt;::from(..).`. The main difference from `TraitFunction` is that this
     /// holds the self type, in this case `SomeType`.
-    </span>TypeTraitFunction(Type, TraitId, <span class="prelude-ty">Option</span>&lt;Turbofish&gt;, FuncId),
+    </span>TypeTraitFunction(Type, TraitId, FuncId),
     <span class="doccomment">/// A function call on a primitive type, for example `u64::from(...)` or `u64::&lt;A, B&gt;::from(..)`.
     </span>PrimitiveFunction(PrimitiveType, <span class="prelude-ty">Option</span>&lt;Turbofish&gt;, FuncId),
 }
@@ -955,7 +955,7 @@
             | PathResolutionItem::SelfMethod(func_id)
             | PathResolutionItem::TypeAliasFunction(<span class="kw">_</span>, <span class="kw">_</span>, func_id)
             | PathResolutionItem::TraitFunction(<span class="kw">_</span>, <span class="kw">_</span>, func_id)
-            | PathResolutionItem::TypeTraitFunction(<span class="kw">_</span>, <span class="kw">_</span>, <span class="kw">_</span>, func_id)
+            | PathResolutionItem::TypeTraitFunction(<span class="kw">_</span>, <span class="kw">_</span>, func_id)
             | PathResolutionItem::PrimitiveFunction(<span class="kw">_</span>, <span class="kw">_</span>, func_id) =&gt; <span class="prelude-val">Some</span>(<span class="kw-2">*</span>func_id),
             PathResolutionItem::Module(..)
             | PathResolutionItem::Type(..)
