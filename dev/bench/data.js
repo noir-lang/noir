@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1749383109888,
+  "lastUpdate": 1749383113799,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -3958,85 +3958,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "mvezenov@gmail.com",
-            "name": "Maxim Vezenov",
-            "username": "vezenovm"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "66f8c6ecf6cf9eae1246a243080358f644673582",
-          "message": "fix(ssa): Validate checked signed add/sub is followed by a truncate (#8706)",
-          "timestamp": "2025-05-29T17:31:56Z",
-          "tree_id": "d90e3fe6f27567642bf761a3a33b7bb4751bc07d",
-          "url": "https://github.com/noir-lang/noir/commit/66f8c6ecf6cf9eae1246a243080358f644673582"
-        },
-        "date": 1748541780599,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 2.468,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 6.826,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 1.158,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 17.06,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 13.98,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root-empty",
-            "value": 1.448,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root-single-tx",
-            "value": 121,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 125,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 1.266,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-root",
-            "value": 1.734,
-            "unit": "s"
-          },
-          {
-            "name": "semaphore-depth-10",
-            "value": 0.842,
-            "unit": "s"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "asterite@gmail.com",
             "name": "Ary Borenszweig",
             "username": "asterite"
@@ -7896,6 +7817,85 @@ window.BENCHMARK_DATA = {
           {
             "name": "rollup-root",
             "value": 1.558,
+            "unit": "s"
+          },
+          {
+            "name": "semaphore-depth-10",
+            "value": 0.749,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "asterite@gmail.com",
+            "name": "Ary Borenszweig",
+            "username": "asterite"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "95c9d28416e005ea675fb864a58f769d37e1a06c",
+          "message": "fix: bind self generic type in trait calls via a concrete type in more cases (#8827)",
+          "timestamp": "2025-06-08T11:17:59Z",
+          "tree_id": "3824f7b07f1427357b56a0c1e238c04cee39e1a2",
+          "url": "https://github.com/noir-lang/noir/commit/95c9d28416e005ea675fb864a58f769d37e1a06c"
+        },
+        "date": 1749383101673,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 2.302,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 8.088,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 1.094,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 15.14,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 13.44,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-empty",
+            "value": 1.342,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-single-tx",
+            "value": 118,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 123,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 1.102,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-root",
+            "value": 1.546,
             "unit": "s"
           },
           {
