@@ -610,6 +610,24 @@ impl Value {
         }
     }
 
+    pub(crate) fn to_signed_field_element(&self) -> Option<SignedField> {
+        let value = match self {
+            Value::Field(value) => *value,
+            Value::I8(value) => SignedField::from_signed(*value),
+            Value::I16(value) => SignedField::from_signed(*value),
+            Value::I32(value) => SignedField::from_signed(*value),
+            Value::I64(value) => SignedField::from_signed(*value),
+            Value::U1(value) => SignedField::positive(*value),
+            Value::U8(value) => SignedField::positive(*value as u128),
+            Value::U16(value) => SignedField::positive(*value as u128),
+            Value::U32(value) => SignedField::positive(*value),
+            Value::U64(value) => SignedField::positive(*value),
+            Value::U128(value) => SignedField::positive(*value),
+            _ => return None,
+        };
+        Some(value)
+    }
+
     pub(crate) fn into_top_level_items(
         self,
         location: Location,

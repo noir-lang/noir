@@ -182,32 +182,20 @@ where
     }
 }
 
+pub enum Ordering {
+    Less,
+    Equal,
+    Greater
+}
+
 impl Eq for Ordering {
     fn eq(self, other: Ordering) -> bool {
-        self.result == other.result
-    }
-}
-
-// Noir doesn't have enums yet so we emulate (Lt | Eq | Gt) with a struct
-// that has 3 public functions for constructing the struct.
-pub struct Ordering {
-    result: Field,
-}
-
-impl Ordering {
-    // Implementation note: 0, 1, and 2 for Lt, Eq, and Gt are built
-    // into the compiler, do not change these without also updating
-    // the compiler itself!
-    pub fn less() -> Ordering {
-        Ordering { result: 0 }
-    }
-
-    pub fn equal() -> Ordering {
-        Ordering { result: 1 }
-    }
-
-    pub fn greater() -> Ordering {
-        Ordering { result: 2 }
+        match (self, other) {
+            (Self::Less, Self::Less) => true,
+            (Self::Greater, Self::Greater) => true,
+            (Self::Equal, Self::Equal) => true,
+            _ => false,
+        }
     }
 }
 
@@ -223,12 +211,12 @@ comptime fn derive_ord(s: TypeDefinition) -> Quoted {
     let name = quote { $crate::cmp::Ord };
     let signature = quote { fn cmp(_self: Self, _other: Self) -> $crate::cmp::Ordering };
     let for_each_field = |name| quote {
-        if result == $crate::cmp::Ordering::equal() {
+        if result == $crate::cmp::Ordering::Equal {
             result = _self.$name.cmp(_other.$name);
         }
     };
     let body = |fields| quote {
-        let mut result = $crate::cmp::Ordering::equal();
+        let mut result = $crate::cmp::Ordering::Equal;
         $fields
         result
     };
@@ -241,22 +229,22 @@ comptime fn derive_ord(s: TypeDefinition) -> Quoted {
 impl Ord for u128 {
     fn cmp(self, other: u128) -> Ordering {
         if self < other {
-            Ordering::less()
+            Ordering::Less
         } else if self > other {
-            Ordering::greater()
+            Ordering::Greater
         } else {
-            Ordering::equal()
+            Ordering::Equal
         }
     }
 }
 impl Ord for u64 {
     fn cmp(self, other: u64) -> Ordering {
         if self < other {
-            Ordering::less()
+            Ordering::Less
         } else if self > other {
-            Ordering::greater()
+            Ordering::Greater
         } else {
-            Ordering::equal()
+            Ordering::Equal
         }
     }
 }
@@ -264,11 +252,11 @@ impl Ord for u64 {
 impl Ord for u32 {
     fn cmp(self, other: u32) -> Ordering {
         if self < other {
-            Ordering::less()
+            Ordering::Less
         } else if self > other {
-            Ordering::greater()
+            Ordering::Greater
         } else {
-            Ordering::equal()
+            Ordering::Equal
         }
     }
 }
@@ -276,11 +264,11 @@ impl Ord for u32 {
 impl Ord for u16 {
     fn cmp(self, other: u16) -> Ordering {
         if self < other {
-            Ordering::less()
+            Ordering::Less
         } else if self > other {
-            Ordering::greater()
+            Ordering::Greater
         } else {
-            Ordering::equal()
+            Ordering::Equal
         }
     }
 }
@@ -288,11 +276,11 @@ impl Ord for u16 {
 impl Ord for u8 {
     fn cmp(self, other: u8) -> Ordering {
         if self < other {
-            Ordering::less()
+            Ordering::Less
         } else if self > other {
-            Ordering::greater()
+            Ordering::Greater
         } else {
-            Ordering::equal()
+            Ordering::Equal
         }
     }
 }
@@ -300,11 +288,11 @@ impl Ord for u8 {
 impl Ord for i8 {
     fn cmp(self, other: i8) -> Ordering {
         if self < other {
-            Ordering::less()
+            Ordering::Less
         } else if self > other {
-            Ordering::greater()
+            Ordering::Greater
         } else {
-            Ordering::equal()
+            Ordering::Equal
         }
     }
 }
@@ -312,11 +300,11 @@ impl Ord for i8 {
 impl Ord for i16 {
     fn cmp(self, other: i16) -> Ordering {
         if self < other {
-            Ordering::less()
+            Ordering::Less
         } else if self > other {
-            Ordering::greater()
+            Ordering::Greater
         } else {
-            Ordering::equal()
+            Ordering::Equal
         }
     }
 }
@@ -324,11 +312,11 @@ impl Ord for i16 {
 impl Ord for i32 {
     fn cmp(self, other: i32) -> Ordering {
         if self < other {
-            Ordering::less()
+            Ordering::Less
         } else if self > other {
-            Ordering::greater()
+            Ordering::Greater
         } else {
-            Ordering::equal()
+            Ordering::Equal
         }
     }
 }
@@ -336,18 +324,18 @@ impl Ord for i32 {
 impl Ord for i64 {
     fn cmp(self, other: i64) -> Ordering {
         if self < other {
-            Ordering::less()
+            Ordering::Less
         } else if self > other {
-            Ordering::greater()
+            Ordering::Greater
         } else {
-            Ordering::equal()
+            Ordering::Equal
         }
     }
 }
 
 impl Ord for () {
     fn cmp(_self: Self, _other: ()) -> Ordering {
-        Ordering::equal()
+        Ordering::Equal
     }
 }
 
@@ -355,14 +343,14 @@ impl Ord for bool {
     fn cmp(self, other: bool) -> Ordering {
         if self {
             if other {
-                Ordering::equal()
+                Ordering::Equal
             } else {
-                Ordering::greater()
+                Ordering::Greater
             }
         } else if other {
-            Ordering::less()
+            Ordering::Less
         } else {
-            Ordering::equal()
+            Ordering::Equal
         }
     }
 }
@@ -374,9 +362,9 @@ where
     // The first non-equal element of both arrays determines
     // the ordering for the whole array.
     fn cmp(self, other: [T; N]) -> Ordering {
-        let mut result = Ordering::equal();
+        let mut result = Ordering::Equal;
         for i in 0..self.len() {
-            if result == Ordering::equal() {
+            if result == Ordering::Equal {
                 result = self[i].cmp(other[i]);
             }
         }
@@ -393,7 +381,7 @@ where
     fn cmp(self, other: [T]) -> Ordering {
         let mut result = self.len().cmp(other.len());
         for i in 0..self.len() {
-            if result == Ordering::equal() {
+            if result == Ordering::Equal {
                 result = self[i].cmp(other[i]);
             }
         }
@@ -409,7 +397,7 @@ where
     fn cmp(self, other: (A, B)) -> Ordering {
         let result = self.0.cmp(other.0);
 
-        if result != Ordering::equal() {
+        if result != Ordering::Equal {
             result
         } else {
             self.1.cmp(other.1)
@@ -426,11 +414,11 @@ where
     fn cmp(self, other: (A, B, C)) -> Ordering {
         let mut result = self.0.cmp(other.0);
 
-        if result == Ordering::equal() {
+        if result == Ordering::Equal {
             result = self.1.cmp(other.1);
         }
 
-        if result == Ordering::equal() {
+        if result == Ordering::Equal {
             result = self.2.cmp(other.2);
         }
 
@@ -448,15 +436,15 @@ where
     fn cmp(self, other: (A, B, C, D)) -> Ordering {
         let mut result = self.0.cmp(other.0);
 
-        if result == Ordering::equal() {
+        if result == Ordering::Equal {
             result = self.1.cmp(other.1);
         }
 
-        if result == Ordering::equal() {
+        if result == Ordering::Equal {
             result = self.2.cmp(other.2);
         }
 
-        if result == Ordering::equal() {
+        if result == Ordering::Equal {
             result = self.3.cmp(other.3);
         }
 
@@ -475,19 +463,19 @@ where
     fn cmp(self, other: (A, B, C, D, E)) -> Ordering {
         let mut result = self.0.cmp(other.0);
 
-        if result == Ordering::equal() {
+        if result == Ordering::Equal {
             result = self.1.cmp(other.1);
         }
 
-        if result == Ordering::equal() {
+        if result == Ordering::Equal {
             result = self.2.cmp(other.2);
         }
 
-        if result == Ordering::equal() {
+        if result == Ordering::Equal {
             result = self.3.cmp(other.3);
         }
 
-        if result == Ordering::equal() {
+        if result == Ordering::Equal {
             result = self.4.cmp(other.4);
         }
 
@@ -542,7 +530,7 @@ where
 }
 
 mod cmp_tests {
-    use crate::cmp::{max, min};
+    use crate::cmp::{max, min, Ordering};
 
     #[test]
     fn sanity_check_min() {
@@ -558,5 +546,18 @@ mod cmp_tests {
         assert_eq(max(0 as u64, 0 as u64), 0);
         assert_eq(max(1 as u64, 1 as u64), 1);
         assert_eq(max(255 as u8, 0 as u8), 255);
+    }
+
+    #[test]
+    fn ordering_eq() {
+        assert(Ordering::Equal == Ordering::Equal);
+        assert(Ordering::Less == Ordering::Less);
+        assert(Ordering::Greater == Ordering::Greater);
+        assert(Ordering::Equal != Ordering::Greater);
+        assert(Ordering::Equal != Ordering::Less);
+        assert(Ordering::Less != Ordering::Greater);
+        assert(Ordering::Less != Ordering::Equal);
+        assert(Ordering::Greater != Ordering::Equal);
+        assert(Ordering::Greater != Ordering::Less);
     }
 }

@@ -33,7 +33,7 @@ struct Slot<K, V> {
 
 impl<K, V> Default for Slot<K, V> {
     fn default() -> Self {
-        Slot { _key_value: Option::none(), _is_deleted: false }
+        Slot { _key_value: Option::None, _is_deleted: false }
     }
 }
 
@@ -55,11 +55,11 @@ impl<K, V> Slot<K, V> {
     }
 
     fn set(&mut self, key: K, value: V) {
-        self._key_value = Option::some((key, value));
+        self._key_value = Option::Some((key, value));
         self._is_deleted = false;
     }
 
-    // Shall not override `_key_value` with Option::none(),
+    // Shall not override `_key_value` with Option::None,
     // because we must be able to differentiate empty
     // and deleted slots for lookup.
     fn mark_deleted(&mut self) {
@@ -106,14 +106,14 @@ impl<K, V, B> UHashMap<K, V, B> {
 
     // Returns true if the map contains a value for the specified key.
     // docs:start:contains_key
-    pub fn contains_key(self, key: K) -> bool
+    pub unconstrained fn contains_key(self, key: K) -> bool
     where
         K: Hash + Eq,
         B: BuildHasher,
     {
         // docs:end:contains_key
         // Safety: unconstrained context
-        unsafe { self.get(key) }.is_some()
+        self.get(key).is_some()
     }
 
     // Returns true if the map contains no elements.
@@ -284,7 +284,7 @@ impl<K, V, B> UHashMap<K, V, B> {
         B: BuildHasher,
     {
         // docs:end:get
-        let mut result = Option::none();
+        let mut result = Option::None;
 
         let hash = self.hash(key);
 
@@ -296,7 +296,7 @@ impl<K, V, B> UHashMap<K, V, B> {
             if slot.is_valid() {
                 let (current_key, value) = slot.key_value_unchecked();
                 if current_key == key {
-                    result = Option::some(value);
+                    result = Option::Some(value);
                     break;
                 }
             }
@@ -401,45 +401,6 @@ impl<K, V, B> UHashMap<K, V, B> {
     // equal to prime numbers or powers of two.
     fn quadratic_probe(self: Self, hash: u32, attempt: u32) -> u32 {
         (hash + (attempt + attempt * attempt) / 2) % self._table.len()
-    }
-}
-
-// Equality class on UHashMap has to test that they have
-// equal sets of key-value entries,
-// thus one is a subset of the other and vice versa.
-// docs:start:eq
-impl<K, V, B> Eq for UHashMap<K, V, B>
-where
-    K: Eq + Hash,
-    V: Eq,
-    B: BuildHasher,
-{
-    fn eq(self, other: UHashMap<K, V, B>) -> bool {
-        // docs:end:eq
-        let mut equal = false;
-
-        if self.len() == other.len() {
-            equal = true;
-            for slot in self._table {
-                // Not marked as deleted and has key-value.
-                if equal & slot.is_valid() {
-                    let (key, value) = slot.key_value_unchecked();
-                    // Safety: unconstrained context
-                    let other_value = unsafe { other.get(key) };
-
-                    if other_value.is_none() {
-                        equal = false;
-                    } else {
-                        let other_value = other_value.unwrap_unchecked();
-                        if value != other_value {
-                            equal = false;
-                        }
-                    }
-                }
-            }
-        }
-
-        equal
     }
 }
 

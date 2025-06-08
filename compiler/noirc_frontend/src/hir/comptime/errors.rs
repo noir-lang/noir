@@ -58,6 +58,10 @@ pub enum InterpreterError {
         typ: Type,
         location: Location,
     },
+    NonBoolUsedInGuard {
+        typ: Type,
+        location: Location,
+    },
     FailingConstraint {
         message: Option<String>,
         location: Location,
@@ -286,6 +290,7 @@ impl InterpreterError {
             | InterpreterError::NonBoolUsedInIf { location, .. }
             | InterpreterError::NonBoolUsedInWhile { location, .. }
             | InterpreterError::NonBoolUsedInConstrain { location, .. }
+            | InterpreterError::NonBoolUsedInGuard { location, .. }
             | InterpreterError::FailingConstraint { location, .. }
             | InterpreterError::NonIntegerUsedInLoop { location, .. }
             | InterpreterError::NonPointerDereferenced { location, .. }
@@ -333,7 +338,6 @@ impl InterpreterError {
             | InterpreterError::CannotInterpretFormatStringWithErrors { location }
             | InterpreterError::GlobalsDependencyCycle { location }
             | InterpreterError::LoopHaltedForUiResponsiveness { location } => *location,
-
             InterpreterError::FailedToParseMacro { error, .. } => error.location(),
             InterpreterError::NoMatchingImplFound { error } => error.location,
             InterpreterError::Break | InterpreterError::Continue => {
@@ -413,6 +417,11 @@ impl<'a> From<&'a InterpreterError> for CustomDiagnostic {
             InterpreterError::NonBoolUsedInConstrain { typ, location } => {
                 let msg = format!("Expected a `bool` but found `{typ}`");
                 CustomDiagnostic::simple_error(msg, String::new(), *location)
+            }
+            InterpreterError::NonBoolUsedInGuard { typ, location } => {
+                let msg = format!("Expected a `bool` but found `{typ}`");
+                let secondary = String::from("Guard conditions must be a boolean value");
+                CustomDiagnostic::simple_error(msg, secondary, *location)
             }
             InterpreterError::FailingConstraint { message, location, call_stack } => {
                 let (primary, secondary) = match message {

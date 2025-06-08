@@ -13,6 +13,7 @@ use crate::elaborator::{ElaborateReason, Elaborator};
 use crate::graph::CrateId;
 use crate::hir::def_map::ModuleId;
 use crate::hir::type_check::TypeCheckError;
+use crate::hir_def::expr::{Constructor, HirMatch};
 use crate::monomorphization::{
     perform_impl_bindings, perform_instantiation_bindings, resolve_trait_method,
     undo_instantiation_bindings,
@@ -551,7 +552,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
             HirExpression::Constrain(constrain) => self.evaluate_constrain(constrain),
             HirExpression::Cast(cast) => self.evaluate_cast(&cast, id),
             HirExpression::If(if_) => self.evaluate_if(if_, id),
-            HirExpression::Match(match_) => todo!("Evaluate match in comptime code"),
+            HirExpression::Match(match_) => self.evaluate_match(&match_, id),
             HirExpression::Tuple(tuple) => self.evaluate_tuple(tuple),
             HirExpression::Lambda(lambda) => self.evaluate_lambda(lambda, id),
             HirExpression::Quote(tokens) => self.evaluate_quote(tokens, id),
@@ -1078,6 +1079,83 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
 
         self.pop_scope();
         result
+    }
+
+    fn evaluate_match(&mut self, match_: &HirMatch, id: ExprId) -> IResult<Value> {
+        match match_ {
+            HirMatch::Success(success_id) => self.evaluate(*success_id),
+            HirMatch::Failure { missing_case } => {
+                todo!("encountered match failure, missing_case is {}", missing_case)
+            }
+            HirMatch::Guard { cond, body, otherwise } => {
+                let condition = match self.evaluate(*cond)? {
+                    Value::Bool(value) => value,
+                    value => {
+                        let location = self.elaborator.interner.expr_location(&cond);
+                        let typ = value.get_type().into_owned();
+                        return Err(InterpreterError::NonBoolUsedInGuard { typ, location });
+                    }
+                };
+                if condition { self.evaluate(*body) } else { self.evaluate_match(otherwise, id) }
+            }
+            HirMatch::Switch(definition_id, cases, default) => {
+                let definition_location = self
+                    .elaborator
+                    .interner
+                    .reference_location(crate::node_interner::ReferenceId::Local(*definition_id));
+                let location = self.elaborator.interner.expr_location(&id);
+                let definition_to_match = self.lookup_id(*definition_id, definition_location)?;
+                for case in cases {
+                    let matched = match &case.constructor {
+                        Constructor::True => matches!(&definition_to_match, Value::Bool(true)),
+                        Constructor::False => matches!(&definition_to_match, Value::Bool(false)),
+                        Constructor::Unit => *definition_to_match.get_type() == Type::Unit,
+                        Constructor::Int(signed_field) => {
+                            definition_to_match.to_signed_field_element() == Some(*signed_field)
+                        }
+                        Constructor::Tuple(items) => {
+                            return Err(InterpreterError::Unimplemented {
+                                item: "match unimplemented for Tuple patterns".into(),
+                                location,
+                            });
+                        }
+                        Constructor::Variant(_, index) => match &definition_to_match {
+                            Value::Enum(variant_index, _, _) => variant_index == index,
+                            _ => false,
+                        },
+                        Constructor::Range(signed_field, signed_field1) => {
+                            return Err(InterpreterError::Unimplemented {
+                                item: "match unimplemented for Range patterns".into(),
+                                location,
+                            });
+                        }
+                    };
+                    if matched {
+                        self.push_scope();
+                        match (&case.constructor, &definition_to_match) {
+                            (Constructor::Variant(_, _), Value::Enum(_, values, _)) => {
+                                assert_eq!(values.len(), case.arguments.len());
+                                values.iter().zip(case.arguments.iter()).for_each(
+                                    |(value, def_id)| {
+                                        self.define(*def_id, value.clone());
+                                    },
+                                );
+                            }
+                            _ => {}
+                        }
+                        let result = self.evaluate_match(&case.body, id);
+                        self.pop_scope();
+                        return result;
+                    }
+                }
+                self.evaluate_match(
+                    default
+                        .as_ref()
+                        .expect("match cases were not exhaustive and default is missing"),
+                    id,
+                )
+            }
+        }
     }
 
     fn evaluate_tuple(&mut self, tuple: Vec<ExprId>) -> IResult<Value> {

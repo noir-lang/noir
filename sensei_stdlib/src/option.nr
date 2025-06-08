@@ -1,104 +1,103 @@
 use crate::cmp::{Eq, Ord, Ordering};
 use crate::default::Default;
 use crate::hash::{Hash, Hasher};
+use crate::panic::panic;
+use crate::hint::unchecked_unreachable;
 
-pub struct Option<T> {
-    _is_some: bool,
-    _value: T,
+pub enum Option<T> {
+    Some(T),
+    None,
 }
 
 impl<T> Option<T> {
-    /// Constructs a None value
-    pub fn none() -> Self {
-        Self { _is_some: false, _value: crate::mem::zeroed() }
-    }
-
-    /// Constructs a Some wrapper around the given value
-    pub fn some(_value: T) -> Self {
-        Self { _is_some: true, _value }
-    }
-
     /// True if this Option is None
     pub fn is_none(self) -> bool {
-        !self._is_some
+        match self {
+            Self::Some(_) => false,
+            Self::None => true,
+        }
     }
 
     /// True if this Option is Some
     pub fn is_some(self) -> bool {
-        self._is_some
+        match self {
+            Self::Some(_) => true,
+            Self::None => false,
+        }
     }
 
     /// Asserts `self.is_some()` and returns the wrapped value.
     pub fn unwrap(self) -> T {
-        assert(self._is_some);
-        self._value
+        match self {
+            Self::Some(a) => a,
+            Self::None => panic(f"unwrapping on a None value"),
+        }
     }
 
     /// Returns the inner value without asserting `self.is_some()`
     /// Note that if `self` is `None`, there is no guarantee what value will be returned,
     /// only that it will be of type `T`.
     pub fn unwrap_unchecked(self) -> T {
-        self._value
+        match self {
+            Self::Some(value) => value,
+            Self::None => unchecked_unreachable(),
+        }
     }
 
     /// Returns the wrapped value if `self.is_some()`. Otherwise, returns the given default value.
     pub fn unwrap_or(self, default: T) -> T {
-        if self._is_some {
-            self._value
-        } else {
-            default
+        match self {
+            Self::Some(value) => value,
+            Self::None => default,
         }
     }
 
     /// Returns the wrapped value if `self.is_some()`. Otherwise, calls the given function to return
     /// a default value.
     pub fn unwrap_or_else<Env>(self, default: fn[Env]() -> T) -> T {
-        if self._is_some {
-            self._value
-        } else {
-            default()
+        match self {
+            Self::Some(value) => value,
+            Self::None => default(),
         }
     }
 
     /// Asserts `self.is_some()` with a provided custom message and returns the contained `Some` value
     pub fn expect<let N: u32, MessageTypes>(self, message: fmtstr<N, MessageTypes>) -> T {
-        assert(self.is_some(), message);
-        self._value
+        match self {
+            Self::Some(value) => value,
+            Self::None => panic(message),
+        }
     }
 
     /// If self is `Some(x)`, this returns `Some(f(x))`. Otherwise, this returns `None`.
     pub fn map<U, Env>(self, f: fn[Env](T) -> U) -> Option<U> {
-        if self._is_some {
-            Option::some(f(self._value))
-        } else {
-            Option::none()
+        match self {
+            Self::Some(value) => Option::Some(f(value)),
+            Self::None => Self::None,
         }
     }
 
     /// If self is `Some(x)`, this returns `f(x)`. Otherwise, this returns the given default value.
     pub fn map_or<U, Env>(self, default: U, f: fn[Env](T) -> U) -> U {
-        if self._is_some {
-            f(self._value)
-        } else {
-            default
+        match self {
+            Self::Some(value) => f(value),
+            Self::None => default,
         }
     }
 
     /// If self is `Some(x)`, this returns `f(x)`. Otherwise, this returns `default()`.
     pub fn map_or_else<U, Env1, Env2>(self, default: fn[Env1]() -> U, f: fn[Env2](T) -> U) -> U {
-        if self._is_some {
-            f(self._value)
-        } else {
-            default()
+        match self {
+            Self::Some(value) => f(value),
+            Self::None => default(),
         }
     }
 
     /// Returns None if self is None. Otherwise, this returns `other`.
     pub fn and(self, other: Self) -> Self {
-        if self.is_none() {
-            Option::none()
-        } else {
-            other
+        match self {
+            Self::Some(_) => other,
+            Self::None => Self::None,
         }
     }
 
@@ -107,75 +106,68 @@ impl<T> Option<T> {
     ///
     /// In some languages this function is called `flat_map` or `bind`.
     pub fn and_then<U, Env>(self, f: fn[Env](T) -> Option<U>) -> Option<U> {
-        if self._is_some {
-            f(self._value)
-        } else {
-            Option::none()
+        match self {
+            Self::Some(value) => f(value),
+            Self::None => Self::None,
         }
     }
 
     /// If self is Some, return self. Otherwise, return `other`.
     pub fn or(self, other: Self) -> Self {
-        if self._is_some {
-            self
-        } else {
-            other
+        match self {
+            Self::Some(_) => self,
+            Self::None => other,
         }
     }
 
     /// If self is Some, return self. Otherwise, return `default()`.
     pub fn or_else<Env>(self, default: fn[Env]() -> Self) -> Self {
-        if self._is_some {
-            self
-        } else {
-            default()
+        match self {
+            Self::Some(_) => self,
+            Self::None => default(),
         }
     }
 
     // If only one of the two Options is Some, return that option.
     // Otherwise, if both options are Some or both are None, None is returned.
     pub fn xor(self, other: Self) -> Self {
-        if self._is_some {
-            if other._is_some {
-                Option::none()
-            } else {
-                self
-            }
-        } else if other._is_some {
-            other
-        } else {
-            Option::none()
+        match self {
+            Self::Some(_) => match other {
+                Self::Some(_) => Self::None,
+                Self::None => self,
+            },
+            Self::None => other,
         }
     }
 
     /// Returns `Some(x)` if self is `Some(x)` and `predicate(x)` is true.
     /// Otherwise, this returns `None`
     pub fn filter<Env>(self, predicate: fn[Env](T) -> bool) -> Self {
-        if self._is_some {
-            if predicate(self._value) {
+        match self {
+            Self::Some(value) => if predicate(value) {
                 self
             } else {
-                Option::none()
-            }
-        } else {
-            Option::none()
+                Self::None
+            },
+            Self::None => Self::None,
         }
     }
 
     /// Flattens an Option<Option<T>> into a Option<T>.
     /// This returns None if the outer Option is None. Otherwise, this returns the inner Option.
     pub fn flatten(option: Option<Option<T>>) -> Option<T> {
-        if option._is_some {
-            option._value
-        } else {
-            Option::none()
+         match option {
+            Self::Some(value) => value,
+            Self::None => Self::None,
         }
     }
+
 }
+
 
 impl<T> Default for Option<T> {
     fn default() -> Self {
-        Option::none()
+        Self::None
     }
 }
 
@@ -184,14 +176,12 @@ where
     T: Eq,
 {
     fn eq(self, other: Self) -> bool {
-        if self._is_some == other._is_some {
-            if self._is_some {
-                self._value == other._value
-            } else {
-                true
-            }
-        } else {
-            false
+         match self {
+            Self::Some(value) => match other {
+                Self::Some(other_value) => value == other_value,
+                Self::None => false,
+            },
+            Self::None => other.is_none(),
         }
     }
 }
@@ -204,10 +194,8 @@ where
     where
         H: Hasher,
     {
-        self._is_some.hash(state);
-        if self._is_some {
-            self._value.hash(state);
-        }
+        self.is_some().hash(state);
+        let _ = self.map(|value| value.hash(state));
     }
 }
 
@@ -217,16 +205,16 @@ where
     T: Ord,
 {
     fn cmp(self, other: Self) -> Ordering {
-        if self._is_some {
-            if other._is_some {
-                self._value.cmp(other._value)
+        match self {
+            Self::Some(value) => match other {
+                Self::Some(other_value) => value.cmp(other_value),
+                Self::None => Ordering::Greater,
+            },
+            Self::None => if other.is_some() {
+                Ordering::Less
             } else {
-                Ordering::greater()
-            }
-        } else if other._is_some {
-            Ordering::less()
-        } else {
-            Ordering::equal()
+                Ordering::Equal
+            },
         }
     }
 }

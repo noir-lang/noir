@@ -46,9 +46,7 @@ pub trait BuildHasher {
     fn build_hasher(self) -> H;
 }
 
-pub struct PlaceholderHasher {
-
-}
+pub struct PlaceholderHasher {}
 
 // TODO
 impl Hasher for PlaceholderHasher {
@@ -56,9 +54,7 @@ impl Hasher for PlaceholderHasher {
         0
     }
 
-    fn write(&mut self, _input: Field) {
-
-    }
+    fn write(&mut self, _input: Field) {}
 }
 
 impl Default for PlaceholderHasher {

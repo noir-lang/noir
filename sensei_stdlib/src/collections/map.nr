@@ -52,7 +52,7 @@ struct Slot<K, V> {
 
 impl<K, V> Default for Slot<K, V> {
     fn default() -> Self {
-        Slot { _key_value: Option::none(), _is_deleted: false }
+        Slot { _key_value: Option::None, _is_deleted: false }
     }
 }
 
@@ -74,11 +74,11 @@ impl<K, V> Slot<K, V> {
     }
 
     fn set(&mut self, key: K, value: V) {
-        self._key_value = Option::some((key, value));
+        self._key_value = Option::Some((key, value));
         self._is_deleted = false;
     }
 
-    // Shall not override `_key_value` with Option::none(),
+    // Shall not override `_key_value` with Option::None,
     // because we must be able to differentiate empty
     // and deleted slots for lookup.
     fn mark_deleted(&mut self) {
@@ -453,7 +453,7 @@ impl<K, V, let N: u32, B> HashMap<K, V, N, B> {
         N
     }
 
-    /// Retrieves a value from the hashmap, returning `Option::none()` if it was not found.
+    /// Retrieves a value from the hashmap, returning `Option::None` if it was not found.
     ///
     /// Example:
     ///
@@ -473,7 +473,7 @@ impl<K, V, let N: u32, B> HashMap<K, V, N, B> {
         B: BuildHasher,
     {
         // docs:end:get
-        let mut result = Option::none();
+        let mut result = Option::None;
 
         let hash = self.hash(key);
         let mut should_break = false;
@@ -487,7 +487,7 @@ impl<K, V, let N: u32, B> HashMap<K, V, N, B> {
                 if slot.is_valid() {
                     let (current_key, value) = slot.key_value_unchecked();
                     if current_key == key {
-                        result = Option::some(value);
+                        result = Option::Some(value);
                         should_break = true;
                     }
                 }
