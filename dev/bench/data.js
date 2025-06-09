@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1749485893392,
+  "lastUpdate": 1749497418946,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -18460,48 +18460,6 @@ window.BENCHMARK_DATA = {
             "name": "GitHub",
             "username": "web-flow"
           },
-          "distinct": false,
-          "id": "0c3a6830e16abde7839a0434bab65b2bbf291e6b",
-          "message": "fix!: require types for trait impl associated constants (#8734)",
-          "timestamp": "2025-05-30T19:59:23Z",
-          "tree_id": "31dd7ca6204016ed95eb0ddb73c03ce45fc3180b",
-          "url": "https://github.com/noir-lang/noir/commit/0c3a6830e16abde7839a0434bab65b2bbf291e6b"
-        },
-        "date": 1748636633437,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 256721,
-            "range": "± 1819",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 224225,
-            "range": "± 2352",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 3213796,
-            "range": "± 11961",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
-            "email": "asterite@gmail.com",
-            "name": "Ary Borenszweig",
-            "username": "asterite"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
           "distinct": true,
           "id": "cb4951d3249ab7f4f97dddc21595cfa933b08d72",
           "message": "fix(fmt): correctly format mixed secondary attributes and doc comments (#8735)",
@@ -20544,6 +20502,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2779597,
             "range": "± 2759",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "asterite@gmail.com",
+            "name": "Ary Borenszweig",
+            "username": "asterite"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "bc6b68b42857fc510d1de634d1d15bf17ddd90ec",
+          "message": "chore(SSA): validate that constrain values have the same type (#8850)",
+          "timestamp": "2025-06-09T19:08:25Z",
+          "tree_id": "7264e688f70c9c5162124942f298036671d654d9",
+          "url": "https://github.com/noir-lang/noir/commit/bc6b68b42857fc510d1de634d1d15bf17ddd90ec"
+        },
+        "date": 1749497408297,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 249483,
+            "range": "± 890",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 219203,
+            "range": "± 2853",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2811104,
+            "range": "± 9171",
             "unit": "ns/iter"
           }
         ]
