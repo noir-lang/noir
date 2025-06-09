@@ -14,6 +14,7 @@ use noir_ast_fuzzer::rewrite::change_all_functions_into_unconstrained;
 pub fn fuzz(u: &mut Unstructured) -> eyre::Result<()> {
     let config = Config {
         // We created enough bug tickets due to overflows
+        // TODO(#8817): Comptime code fails to compile if there is an overflow, which causes a panic.
         avoid_overflow: true,
         // also with negative values
         avoid_negative_int_literals: true,
@@ -23,6 +24,8 @@ pub fn fuzz(u: &mut Unstructured) -> eyre::Result<()> {
         avoid_large_int_literals: true,
         // Avoid break/continue
         avoid_loop_control: true,
+        // TODO(#8817): Comptime code fails to compile if there is an assertion failure, which causes a panic.
+        avoid_constrain: true,
         // Has to only use expressions valid in comptime
         comptime_friendly: true,
         // Force brillig
