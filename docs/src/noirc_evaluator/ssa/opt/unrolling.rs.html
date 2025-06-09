@@ -2655,7 +2655,7 @@
                 b5():
                     v4 = add v0, v2
                     v5 = lt u32 10, v4
-                    constrain v5 == u32 1
+                    constrain v5 == u1 1
                     v6 = add v2, u32 1
                     jmp b4(v6)
                 b6(): // end of inner loop
@@ -2676,24 +2676,24 @@
         <span class="macro">assert_ssa_snapshot!</span>(ssa, @<span class="string">r"
         acir(inline) fn main f0 {
           b0():
-            constrain u1 0 == u32 1
-            constrain u1 0 == u32 1
-            constrain u1 0 == u32 1
-            constrain u1 0 == u32 1
+            constrain u1 0 == u1 1
+            constrain u1 0 == u1 1
+            constrain u1 0 == u1 1
+            constrain u1 0 == u1 1
             jmp b2()
           b1():
             return u32 0
           b2():
-            constrain u1 0 == u32 1
-            constrain u1 0 == u32 1
-            constrain u1 0 == u32 1
-            constrain u1 0 == u32 1
+            constrain u1 0 == u1 1
+            constrain u1 0 == u1 1
+            constrain u1 0 == u1 1
+            constrain u1 0 == u1 1
             jmp b3()
           b3():
-            constrain u1 0 == u32 1
-            constrain u1 0 == u32 1
-            constrain u1 0 == u32 1
-            constrain u1 0 == u32 1
+            constrain u1 0 == u1 1
+            constrain u1 0 == u1 1
+            constrain u1 0 == u1 1
+            constrain u1 0 == u1 1
             jmp b4()
           b4():
             jmp b1()

@@ -676,7 +676,46 @@
 <a href="#675" id="675">675</a>
 <a href="#676" id="676">676</a>
 <a href="#677" id="677">677</a>
-<a href="#678" id="678">678</a></pre></div><pre class="rust"><code><span class="doccomment">//! Validator that checks whether a function is well formed.
+<a href="#678" id="678">678</a>
+<a href="#679" id="679">679</a>
+<a href="#680" id="680">680</a>
+<a href="#681" id="681">681</a>
+<a href="#682" id="682">682</a>
+<a href="#683" id="683">683</a>
+<a href="#684" id="684">684</a>
+<a href="#685" id="685">685</a>
+<a href="#686" id="686">686</a>
+<a href="#687" id="687">687</a>
+<a href="#688" id="688">688</a>
+<a href="#689" id="689">689</a>
+<a href="#690" id="690">690</a>
+<a href="#691" id="691">691</a>
+<a href="#692" id="692">692</a>
+<a href="#693" id="693">693</a>
+<a href="#694" id="694">694</a>
+<a href="#695" id="695">695</a>
+<a href="#696" id="696">696</a>
+<a href="#697" id="697">697</a>
+<a href="#698" id="698">698</a>
+<a href="#699" id="699">699</a>
+<a href="#700" id="700">700</a>
+<a href="#701" id="701">701</a>
+<a href="#702" id="702">702</a>
+<a href="#703" id="703">703</a>
+<a href="#704" id="704">704</a>
+<a href="#705" id="705">705</a>
+<a href="#706" id="706">706</a>
+<a href="#707" id="707">707</a>
+<a href="#708" id="708">708</a>
+<a href="#709" id="709">709</a>
+<a href="#710" id="710">710</a>
+<a href="#711" id="711">711</a>
+<a href="#712" id="712">712</a>
+<a href="#713" id="713">713</a>
+<a href="#714" id="714">714</a>
+<a href="#715" id="715">715</a>
+<a href="#716" id="716">716</a>
+<a href="#717" id="717">717</a></pre></div><pre class="rust"><code><span class="doccomment">//! Validator that checks whether a function is well formed.
 //!
 //! It validates:
 //!
@@ -905,6 +944,15 @@
                         }
                         <span class="kw">_ </span>=&gt; {}
                     }
+                }
+            }
+            Instruction::Constrain(lhs, rhs, <span class="kw">_</span>) | Instruction::ConstrainNotEqual(lhs, rhs, <span class="kw">_</span>) =&gt; {
+                <span class="kw">let </span>lhs_type = dfg.type_of_value(<span class="kw-2">*</span>lhs);
+                <span class="kw">let </span>rhs_type = dfg.type_of_value(<span class="kw-2">*</span>rhs);
+                <span class="kw">if </span>lhs_type != rhs_type {
+                    <span class="macro">panic!</span>(
+                        <span class="string">"Left-hand side and right-hand side of constrain must have the same type"
+                    </span>);
                 }
             }
             <span class="kw">_ </span>=&gt; (),
@@ -1348,6 +1396,36 @@
         brillig(inline) predicate_pure fn main f0 {
           b0(v0: Field):
             v1 = call to_le_bits(v0) -&gt; [u1; 32]
+            return
+        }
+        "</span>;
+        <span class="kw">let _ </span>= Ssa::from_str(src);
+    }
+
+    <span class="attr">#[should_panic(
+        expected = <span class="string">"Left-hand side and right-hand side of constrain must have the same type"
+    </span>)]
+    #[test]
+    </span><span class="kw">fn </span>constrain_with_different_types() {
+        <span class="kw">let </span>src = <span class="string">"
+        brillig(inline) predicate_pure fn main f0 {
+          b0(v0: u8, v1: i8):
+            constrain v0 == v1
+            return
+        }
+        "</span>;
+        <span class="kw">let _ </span>= Ssa::from_str(src);
+    }
+
+    <span class="attr">#[should_panic(
+        expected = <span class="string">"Left-hand side and right-hand side of constrain must have the same type"
+    </span>)]
+    #[test]
+    </span><span class="kw">fn </span>constrain_neq_with_different_types() {
+        <span class="kw">let </span>src = <span class="string">"
+        brillig(inline) predicate_pure fn main f0 {
+          b0(v0: u8, v1: i8):
+            constrain v0 != v1
             return
         }
         "</span>;
