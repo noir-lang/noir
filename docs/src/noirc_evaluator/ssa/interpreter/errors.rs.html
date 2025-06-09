@@ -159,10 +159,10 @@
     <span class="doccomment">/// These errors are all the result from malformed input SSA
     </span><span class="attr">#[error(<span class="string">"{0}"</span>)]
     </span>Internal(InternalError),
-    <span class="attr">#[error(<span class="string">"constrain {lhs_id} == {rhs_id} failed:\n    {lhs} != {rhs}"</span>)]
-    </span>ConstrainEqFailed { lhs: String, lhs_id: ValueId, rhs: String, rhs_id: ValueId },
-    <span class="attr">#[error(<span class="string">"constrain {lhs_id} != {rhs_id} failed:\n    {lhs} == {rhs}"</span>)]
-    </span>ConstrainNeFailed { lhs: String, lhs_id: ValueId, rhs: String, rhs_id: ValueId },
+    <span class="attr">#[error(<span class="string">"constrain {lhs_id} == {rhs_id}{msg} failed:\n    {lhs} != {rhs}"</span>)]
+    </span>ConstrainEqFailed { lhs: String, lhs_id: ValueId, rhs: String, rhs_id: ValueId, msg: String },
+    <span class="attr">#[error(<span class="string">"constrain {lhs_id} != {rhs_id}{msg} failed:\n    {lhs} == {rhs}"</span>)]
+    </span>ConstrainNeFailed { lhs: String, lhs_id: ValueId, rhs: String, rhs_id: ValueId, msg: String },
     <span class="attr">#[error(<span class="string">"static_assert `{condition}` failed: {message}"</span>)]
     </span>StaticAssertFailed { condition: ValueId, message: String },
     <span class="attr">#[error(

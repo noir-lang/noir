@@ -251,7 +251,7 @@
                     <span class="comment">// Both programs failed the same way.
                     </span><span class="prelude-val">Ok</span>(<span class="prelude-val">None</span>)
                 } <span class="kw">else </span>{
-                    <span class="macro">bail!</span>(<span class="string">"both programs failed: {e1} vs {e2}\n{e1:?}\n{e2:?}"</span>)
+                    <span class="macro">bail!</span>(<span class="string">"both programs failed:\n{e1}\n!=\n{e2}\n\n{e1:?}\n{e2:?}"</span>)
                 }
             }
             CompareResult::LeftFailed(e, <span class="kw">_</span>) =&gt; {

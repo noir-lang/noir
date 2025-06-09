@@ -126,7 +126,12 @@
 <a href="#125" id="125">125</a>
 <a href="#126" id="126">126</a>
 <a href="#127" id="127">127</a>
-<a href="#128" id="128">128</a></pre></div><pre class="rust"><code><span class="attr">#![forbid(unsafe_code)]
+<a href="#128" id="128">128</a>
+<a href="#129" id="129">129</a>
+<a href="#130" id="130">130</a>
+<a href="#131" id="131">131</a>
+<a href="#132" id="132">132</a>
+<a href="#133" id="133">133</a></pre></div><pre class="rust"><code><span class="attr">#![forbid(unsafe_code)]
 #![warn(unreachable_pub)]
 #![warn(clippy::semicolon_if_nothing_returned)]
 #![cfg_attr(not(test), warn(unused_crate_dependencies, unused_extern_crates))]
@@ -191,6 +196,8 @@
     </span><span class="kw">pub </span>avoid_loop_control: bool,
     <span class="doccomment">/// Avoid using function pointers in parameters.
     </span><span class="kw">pub </span>avoid_lambdas: bool,
+    <span class="doccomment">/// Avoid using constrain statements.
+    </span><span class="kw">pub </span>avoid_constrain: bool,
     <span class="doccomment">/// Only use comptime friendly expressions.
     </span><span class="kw">pub </span>comptime_friendly: bool,
 }
@@ -213,6 +220,7 @@
             (<span class="string">"for"</span>, <span class="number">22</span>),
             (<span class="string">"let"</span>, <span class="number">25</span>),
             (<span class="string">"call"</span>, <span class="number">5</span>),
+            (<span class="string">"constrain"</span>, <span class="number">5</span>),
         ]);
         <span class="kw">let </span>stmt_freqs_brillig = Freqs::new(<span class="kw-2">&amp;</span>[
             (<span class="string">"drop"</span>, <span class="number">0</span>),
@@ -226,6 +234,7 @@
             (<span class="string">"let"</span>, <span class="number">20</span>),
             (<span class="string">"call"</span>, <span class="number">5</span>),
             (<span class="string">"print"</span>, <span class="number">15</span>),
+            (<span class="string">"constrain"</span>, <span class="number">10</span>),
         ]);
         <span class="self">Self </span>{
             max_globals: <span class="number">3</span>,
@@ -250,6 +259,7 @@
             avoid_negative_int_literals: <span class="bool-val">false</span>,
             avoid_loop_control: <span class="bool-val">false</span>,
             avoid_lambdas: <span class="bool-val">false</span>,
+            avoid_constrain: <span class="bool-val">false</span>,
             comptime_friendly: <span class="bool-val">false</span>,
         }
     }

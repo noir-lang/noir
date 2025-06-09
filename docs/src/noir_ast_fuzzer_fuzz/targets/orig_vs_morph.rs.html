@@ -364,19 +364,21 @@
 <a href="#363" id="363">363</a>
 <a href="#364" id="364">364</a>
 <a href="#365" id="365">365</a>
-<a href="#366" id="366">366</a></pre></div><pre class="rust"><code><span class="doccomment">//! Perform random equivalence mutations on the AST and check that the
+<a href="#366" id="366">366</a>
+<a href="#367" id="367">367</a>
+<a href="#368" id="368">368</a></pre></div><pre class="rust"><code><span class="doccomment">//! Perform random equivalence mutations on the AST and check that the
 //! execution result does not change, a.k.a. metamorphic testing.
 
-</span><span class="kw">use </span>std::collections::{HashSet, VecDeque};
-
-<span class="kw">use crate</span>::{compare_results_compiled, create_ssa_or_die, default_ssa_options};
+</span><span class="kw">use crate</span>::{compare_results_compiled, create_ssa_or_die, default_ssa_options};
 <span class="kw">use </span>arbitrary::{Arbitrary, Unstructured};
 <span class="kw">use </span>color_eyre::eyre;
 <span class="kw">use </span>noir_ast_fuzzer::compare::{CompareMorph, CompareOptions};
+<span class="kw">use </span>noir_ast_fuzzer::visitor;
 <span class="kw">use </span>noir_ast_fuzzer::{Config, visitor::visit_expr_mut};
-<span class="kw">use </span>noir_ast_fuzzer::{expr, visitor};
 <span class="kw">use </span>noirc_frontend::ast::UnaryOp;
-<span class="kw">use </span>noirc_frontend::monomorphization::ast::{Expression, FuncId, Function, Program, Unary};
+<span class="kw">use </span>noirc_frontend::monomorphization::ast::{
+    Call, Definition, Expression, Function, Ident, Program, Unary,
+};
 
 <span class="kw">pub fn </span>fuzz(u: <span class="kw-2">&amp;mut </span>Unstructured) -&gt; eyre::Result&lt;()&gt; {
     <span class="kw">let </span>rules = rules::all();
@@ -408,9 +410,8 @@
     rules: <span class="kw-2">&amp;</span>[rules::Rule],
     max_rewrites: usize,
 ) {
-    <span class="kw">let </span>reachable = reachable_functions(program);
     <span class="kw">for </span>func <span class="kw">in </span>program.functions.iter_mut() {
-        <span class="kw">if </span>func.name.ends_with(<span class="string">"_proxy"</span>) || !reachable.contains(<span class="kw-2">&amp;</span>func.id) {
+        <span class="kw">if </span>func.name.ends_with(<span class="string">"_proxy"</span>) {
             <span class="kw">continue</span>;
         }
         rewrite_function(u, func, rules, max_rewrites);
@@ -458,10 +459,12 @@
             }
             <span class="kw">match </span>expr {
                 Expression::For(for_) =&gt; {
-                    <span class="kw">let </span>range_ctx = rules::Context { is_in_range: <span class="bool-val">true</span>, ..<span class="kw-2">*</span>ctx };
+                    <span class="comment">// Separate context for just the ranges.
+                    </span><span class="kw">let </span>range_ctx = rules::Context { is_in_range: <span class="bool-val">true</span>, ..<span class="kw-2">*</span>ctx };
                     <span class="self">self</span>.rewrite_expr(<span class="kw-2">&amp;</span>range_ctx, u, <span class="kw-2">&amp;mut </span>for_.start_range);
                     <span class="self">self</span>.rewrite_expr(<span class="kw-2">&amp;</span>range_ctx, u, <span class="kw-2">&amp;mut </span>for_.end_range);
-                    <span class="self">self</span>.rewrite_expr(ctx, u, <span class="kw-2">&amp;mut </span>for_.block);
+                    <span class="comment">// Original context for the body.
+                    </span><span class="self">self</span>.rewrite_expr(ctx, u, <span class="kw-2">&amp;mut </span>for_.block);
                     <span class="comment">// No need to visit children, we just visited them.
                     </span><span class="bool-val">false
                 </span>}
@@ -472,7 +475,15 @@
                     <span class="self">self</span>.rewrite_expr(<span class="kw-2">&amp;</span>ctx, u, <span class="kw-2">&amp;mut </span>unary.rhs);
                     <span class="bool-val">false
                 </span>}
-                <span class="kw">_ </span>=&gt; {
+                Expression::Call(call) <span class="kw">if </span>is_special_call(call) =&gt; {
+                    <span class="kw">let </span>ctx = rules::Context { is_in_special_call: <span class="bool-val">true</span>, ..<span class="kw-2">*</span>ctx };
+                    <span class="kw">for </span>arg <span class="kw">in </span>call.arguments.iter_mut() {
+                        <span class="self">self</span>.rewrite_expr(<span class="kw-2">&amp;</span>ctx, u, arg);
+                    }
+                    <span class="bool-val">false
+                </span>}
+                <span class="comment">// The rest can just have the rules applied on them, using the same context.
+                </span><span class="kw">_ </span>=&gt; {
                     <span class="kw">for </span>rule <span class="kw">in </span><span class="self">self</span>.rules {
                         <span class="kw">match </span><span class="self">self</span>.try_apply_rule(ctx, u, expr, rule) {
                             <span class="prelude-val">Ok</span>(<span class="bool-val">false</span>) =&gt; {
@@ -540,29 +551,15 @@
     count
 }
 
-<span class="doccomment">/// Collect the functions reachable from `main`.
-///
-/// We don't want to waste our time morphing functions that won't be called.
-///
-/// It would be nice if they were removed during AST generation, but if we
-/// remove an item from `Programs::functions`, the calls made to them would
-/// need to be updated according to their new position in the vector.
-</span><span class="kw">fn </span>reachable_functions(program: <span class="kw-2">&amp;</span>Program) -&gt; HashSet&lt;FuncId&gt; {
-    <span class="kw">let </span><span class="kw-2">mut </span>reachable = HashSet::new();
-    <span class="kw">let </span><span class="kw-2">mut </span>queue = VecDeque::new();
-
-    queue.push_back(Program::main_id());
-
-    <span class="kw">while let </span><span class="prelude-val">Some</span>(func_id) = queue.pop_front() {
-        <span class="kw">if </span>!reachable.insert(func_id) {
-            <span class="kw">continue</span>;
-        }
-        <span class="kw">let </span>func = <span class="kw-2">&amp;</span>program.functions[func_id.<span class="number">0 </span><span class="kw">as </span>usize];
-        <span class="kw">let </span>callees = expr::callees(<span class="kw-2">&amp;</span>func.body);
-        queue.extend(callees);
-    }
-
-    reachable
+<span class="doccomment">/// Check if we are calling an oracle or builtin function.
+</span><span class="kw">fn </span>is_special_call(call: <span class="kw-2">&amp;</span>Call) -&gt; bool {
+    <span class="macro">matches!</span>(
+        call.func.as_ref(),
+        Expression::Ident(Ident {
+            definition: Definition::Oracle(<span class="kw">_</span>) | Definition::Builtin(<span class="kw">_</span>) | Definition::LowLevel(<span class="kw">_</span>),
+            ..
+        })
+    )
 }
 
 <span class="doccomment">/// Metamorphic transformation rules.
@@ -578,10 +575,12 @@
     </span><span class="kw">pub struct </span>Context {
         <span class="doccomment">/// Is the function we're rewriting unconstrained?
         </span><span class="kw">pub </span>unconstrained: bool,
-        <span class="doccomment">/// Are we rewriting an expression which is a range of a `for` loop?
+        <span class="doccomment">/// Are we rewriting an expression which is a `start` or `end` of a `for` loop?
         </span><span class="kw">pub </span>is_in_range: bool,
         <span class="doccomment">/// Are we in an expression that we're just taking a mutable reference to?
         </span><span class="kw">pub </span>is_in_ref_mut: bool,
+        <span class="doccomment">/// Are we processing the arguments of an non-user function call, such as an oracle or built-in?
+        </span><span class="kw">pub </span>is_in_special_call: bool,
     }
 
     <span class="doccomment">/// Check if the rule can be applied on an expression.
@@ -665,6 +664,11 @@
     </span><span class="kw">fn </span>bool_rule_matches(ctx: <span class="kw-2">&amp;</span>Context, expr: <span class="kw-2">&amp;</span>Expression) -&gt; bool {
         <span class="comment">// If we rewrite `&amp;mut x` into `&amp;mut (x | x)` we will alter the semantics.
         </span><span class="kw">if </span>ctx.is_in_ref_mut {
+            <span class="kw">return </span><span class="bool-val">false</span>;
+        }
+        <span class="comment">// We don't want to mess with the arguments of a `println`, because the printer assumes they are bool literals.
+        // Similarly a `constrain` call is expected to have a single boolean expression.
+        </span><span class="kw">if </span>ctx.is_in_special_call {
             <span class="kw">return </span><span class="bool-val">false</span>;
         }
         <span class="comment">// We can apply boolean rule on anything that returns a bool,

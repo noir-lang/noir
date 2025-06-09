@@ -1376,7 +1376,35 @@
 <a href="#1375" id="1375">1375</a>
 <a href="#1376" id="1376">1376</a>
 <a href="#1377" id="1377">1377</a>
-<a href="#1378" id="1378">1378</a></pre></div><pre class="rust"><code><span class="kw">use </span>nargo::errors::Location;
+<a href="#1378" id="1378">1378</a>
+<a href="#1379" id="1379">1379</a>
+<a href="#1380" id="1380">1380</a>
+<a href="#1381" id="1381">1381</a>
+<a href="#1382" id="1382">1382</a>
+<a href="#1383" id="1383">1383</a>
+<a href="#1384" id="1384">1384</a>
+<a href="#1385" id="1385">1385</a>
+<a href="#1386" id="1386">1386</a>
+<a href="#1387" id="1387">1387</a>
+<a href="#1388" id="1388">1388</a>
+<a href="#1389" id="1389">1389</a>
+<a href="#1390" id="1390">1390</a>
+<a href="#1391" id="1391">1391</a>
+<a href="#1392" id="1392">1392</a>
+<a href="#1393" id="1393">1393</a>
+<a href="#1394" id="1394">1394</a>
+<a href="#1395" id="1395">1395</a>
+<a href="#1396" id="1396">1396</a>
+<a href="#1397" id="1397">1397</a>
+<a href="#1398" id="1398">1398</a>
+<a href="#1399" id="1399">1399</a>
+<a href="#1400" id="1400">1400</a>
+<a href="#1401" id="1401">1401</a>
+<a href="#1402" id="1402">1402</a>
+<a href="#1403" id="1403">1403</a>
+<a href="#1404" id="1404">1404</a>
+<a href="#1405" id="1405">1405</a>
+<a href="#1406" id="1406">1406</a></pre></div><pre class="rust"><code><span class="kw">use </span>nargo::errors::Location;
 <span class="kw">use </span>std::{
     collections::{BTreeMap, BTreeSet, HashSet},
     fmt::Debug,
@@ -1407,6 +1435,9 @@
     scope::{Scope, ScopeStack, Variable},
     types,
 };
+
+<span class="doccomment">/// Use random strings to identify constraints.
+</span><span class="kw">const </span>CONSTRAIN_MSG_TYPE: Type = Type::String(<span class="number">3</span>);
 
 <span class="doccomment">/// Something akin to a forward declaration of a function, capturing the details required to:
 /// 1. call the function from the other function bodies
@@ -2071,11 +2102,17 @@
             Freq::new(u, <span class="kw-2">&amp;</span><span class="self">self</span>.ctx.config.stmt_freqs_acir)<span class="question-mark">?
         </span>};
         <span class="comment">// TODO(#7926): Match
-        // TODO(#7932): Constrain
 
         // Start with `drop`, it doesn't need to be frequent even if others are disabled.
         </span><span class="kw">if </span>freq.enabled(<span class="string">"drop"</span>) {
             <span class="kw">if let </span><span class="prelude-val">Some</span>(e) = <span class="self">self</span>.gen_drop(u)<span class="question-mark">? </span>{
+                <span class="kw">return </span><span class="prelude-val">Ok</span>(e);
+            }
+        }
+
+        <span class="comment">// We don't want constraints to get too frequent, as it could dominate all outcome.
+        </span><span class="kw">if </span>freq.enabled_when(<span class="string">"constrain"</span>, !<span class="self">self</span>.ctx.config.avoid_constrain) {
+            <span class="kw">if let </span><span class="prelude-val">Some</span>(e) = <span class="self">self</span>.gen_constrain(u)<span class="question-mark">? </span>{
                 <span class="kw">return </span><span class="prelude-val">Ok</span>(e);
             }
         }
@@ -2282,6 +2319,25 @@
         });
 
         <span class="prelude-val">Ok</span>(<span class="prelude-val">Some</span>(call))
+    }
+
+    <span class="doccomment">/// Generate a `constrain` statement, if there is some local variable we can do it on.
+    ///
+    /// Arbitrary constraints are very likely to fail, so we don't want too many of them,
+    /// otherwise they might mask disagreements in return values.
+    </span><span class="kw">fn </span>gen_constrain(<span class="kw-2">&amp;mut </span><span class="self">self</span>, u: <span class="kw-2">&amp;mut </span>Unstructured) -&gt; arbitrary::Result&lt;<span class="prelude-ty">Option</span>&lt;Expression&gt;&gt; {
+        <span class="comment">// Generate a condition that evaluates to bool.
+        </span><span class="kw">let </span><span class="prelude-val">Some</span>(cond) = <span class="self">self</span>.gen_binary(u, <span class="kw-2">&amp;</span>Type::Bool, <span class="self">self</span>.max_depth())<span class="question-mark">? </span><span class="kw">else </span>{
+            <span class="kw">return </span><span class="prelude-val">Ok</span>(<span class="prelude-val">None</span>);
+        };
+        <span class="comment">// Generate a unique message for the assertion, so it's easy to find which one failed.
+        </span><span class="kw">let </span>msg = expr::gen_literal(u, <span class="kw-2">&amp;</span>CONSTRAIN_MSG_TYPE)<span class="question-mark">?</span>;
+        <span class="kw">let </span>cons = Expression::Constrain(
+            Box::new(cond),
+            Location::dummy(),
+            <span class="prelude-val">Some</span>(Box::new((msg, types::to_hir_type(<span class="kw-2">&amp;</span>CONSTRAIN_MSG_TYPE)))),
+        );
+        <span class="prelude-val">Ok</span>(<span class="prelude-val">Some</span>(cons))
     }
 
     <span class="doccomment">/// Generate an if-then-else statement or expression.
