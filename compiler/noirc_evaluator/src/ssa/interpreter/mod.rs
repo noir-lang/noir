@@ -877,6 +877,21 @@ impl<'ssa> Interpreter<'ssa> {
     }
 }
 
+/// Applies an infallible integer binary operation to two `NumericValue`s.
+///
+/// # Parameters
+/// - `$lhs`, `$rhs`: The left hand side and right hand side operands (must be the same variant).
+/// - `$binary`: The binary instruction, used for error handling if types mismatch.
+/// - `$f`: A function (e.g., `wrapping_add`) that applies the operation on the raw numeric types.
+///
+/// # Panics
+/// - If either operand is a [NumericValue::Field] or [NumericValue::U1] variant, this macro will panic with unreachable.
+///
+/// # Errors
+/// - If the operand types don't match, returns an [InternalError::MismatchedTypesInBinaryOperator].
+///
+/// # Returns
+/// A `NumericValue` containing the result of the operation, matching the original type.
 macro_rules! apply_int_binop {
     ($lhs:expr, $rhs:expr, $binary:expr, $f:expr) => {{
         use value::NumericValue::*;
@@ -908,6 +923,24 @@ macro_rules! apply_int_binop {
     }};
 }
 
+/// Applies a fallible integer binary operation (e.g., checked arithmetic) to two `NumericValue`s.
+///
+/// # Parameters
+/// - `$dfg`: The data flow graph, used for formatting diagnostic error messages.
+/// - `$lhs`, `$rhs`: The left-hand side and right-hand side operands (must be the same variant).
+/// - `$binary`: The binary instruction, used for diagnostics and overflow reporting.
+/// - `$f`: A fallible operation function that returns an `Option<_>` (e.g., `checked_add`).
+///
+/// # Panics
+/// - If either operand is a [NumericValue::Field]or [NumericValue::U1], this macro panics as those types are not supported.
+///
+/// # Errors
+/// - Returns [InterpreterError::Overflow] if the checked operation returns `None`.
+/// - Returns [InterpreterError::DivisionByZero] for `Div` and `Mod` on zero.
+/// - Returns [InternalError::MismatchedTypesInBinaryOperator] if the operand types don't match.
+///
+/// # Returns
+/// A `NumericValue` containing the result of the operation, or an `Err` with the appropriate error.
 macro_rules! apply_int_binop_opt {
     ($dfg:expr, $lhs:expr, $rhs:expr, $binary:expr, $f:expr) => {{
         use value::NumericValue::*;
@@ -1025,19 +1058,32 @@ impl Interpreter<'_> {
         let dfg = self.dfg();
         let result = match binary.operator {
             BinaryOp::Add { unchecked: false } => {
-                apply_int_binop_opt!(dfg, lhs, rhs, binary, num_traits::CheckedAdd::checked_add)
+                if lhs.get_type().is_unsigned() {
+                    apply_int_binop_opt!(dfg, lhs, rhs, binary, num_traits::CheckedAdd::checked_add)
+                } else {
+                    apply_int_binop!(lhs, rhs, binary, num_traits::WrappingAdd::wrapping_add)
+                }
             }
             BinaryOp::Add { unchecked: true } => {
                 apply_int_binop!(lhs, rhs, binary, num_traits::WrappingAdd::wrapping_add)
             }
             BinaryOp::Sub { unchecked: false } => {
-                apply_int_binop_opt!(dfg, lhs, rhs, binary, num_traits::CheckedSub::checked_sub)
+                if lhs.get_type().is_unsigned() {
+                    apply_int_binop_opt!(dfg, lhs, rhs, binary, num_traits::CheckedSub::checked_sub)
+                } else {
+                    apply_int_binop!(lhs, rhs, binary, num_traits::WrappingSub::wrapping_sub)
+                }
             }
             BinaryOp::Sub { unchecked: true } => {
                 apply_int_binop!(lhs, rhs, binary, num_traits::WrappingSub::wrapping_sub)
             }
             BinaryOp::Mul { unchecked: false } => {
-                apply_int_binop_opt!(dfg, lhs, rhs, binary, num_traits::CheckedMul::checked_mul)
+                // Only unsigned multiplication has side effects
+                if lhs.get_type().is_unsigned() {
+                    apply_int_binop_opt!(dfg, lhs, rhs, binary, num_traits::CheckedMul::checked_mul)
+                } else {
+                    apply_int_binop!(lhs, rhs, binary, num_traits::WrappingMul::wrapping_mul)
+                }
             }
             BinaryOp::Mul { unchecked: true } => {
                 apply_int_binop!(lhs, rhs, binary, num_traits::WrappingMul::wrapping_mul)
@@ -1091,7 +1137,14 @@ impl Interpreter<'_> {
                 }
             }
             BinaryOp::Shr => {
-                let zero = || NumericValue::zero(lhs.get_type());
+                let fallback = || {
+                    if lhs.is_negative() {
+                        NumericValue::neg_one(lhs.get_type())
+                    } else {
+                        NumericValue::zero(lhs.get_type())
+                    }
+                };
+
                 let Some(rhs) = rhs.as_u8() else {
                     let rhs = rhs.to_string();
                     return Err(internal(InternalError::RhsOfBitShiftShouldBeU8 {
@@ -1111,15 +1164,15 @@ impl Interpreter<'_> {
                         }));
                     }
                     U1(value) => U1(if rhs == 0 { value } else { false }),
-                    U8(value) => value.checked_shr(rhs).map(U8).unwrap_or_else(zero),
-                    U16(value) => value.checked_shr(rhs).map(U16).unwrap_or_else(zero),
-                    U32(value) => value.checked_shr(rhs).map(U32).unwrap_or_else(zero),
-                    U64(value) => value.checked_shr(rhs).map(U64).unwrap_or_else(zero),
-                    U128(value) => value.checked_shr(rhs).map(U128).unwrap_or_else(zero),
-                    I8(value) => value.checked_shr(rhs).map(I8).unwrap_or_else(zero),
-                    I16(value) => value.checked_shr(rhs).map(I16).unwrap_or_else(zero),
-                    I32(value) => value.checked_shr(rhs).map(I32).unwrap_or_else(zero),
-                    I64(value) => value.checked_shr(rhs).map(I64).unwrap_or_else(zero),
+                    U8(value) => value.checked_shr(rhs).map(U8).unwrap_or_else(fallback),
+                    U16(value) => value.checked_shr(rhs).map(U16).unwrap_or_else(fallback),
+                    U32(value) => value.checked_shr(rhs).map(U32).unwrap_or_else(fallback),
+                    U64(value) => value.checked_shr(rhs).map(U64).unwrap_or_else(fallback),
+                    U128(value) => value.checked_shr(rhs).map(U128).unwrap_or_else(fallback),
+                    I8(value) => value.checked_shr(rhs).map(I8).unwrap_or_else(fallback),
+                    I16(value) => value.checked_shr(rhs).map(I16).unwrap_or_else(fallback),
+                    I32(value) => value.checked_shr(rhs).map(I32).unwrap_or_else(fallback),
+                    I64(value) => value.checked_shr(rhs).map(I64).unwrap_or_else(fallback),
                 }
             }
         };
