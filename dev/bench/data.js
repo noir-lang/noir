@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1749497664569,
+  "lastUpdate": 1749497667417,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -7919,75 +7919,6 @@ window.BENCHMARK_DATA = {
             "name": "GitHub",
             "username": "web-flow"
           },
-          "distinct": false,
-          "id": "0c3a6830e16abde7839a0434bab65b2bbf291e6b",
-          "message": "fix!: require types for trait impl associated constants (#8734)",
-          "timestamp": "2025-05-30T19:59:23Z",
-          "tree_id": "31dd7ca6204016ed95eb0ddb73c03ce45fc3180b",
-          "url": "https://github.com/noir-lang/noir/commit/0c3a6830e16abde7839a0434bab65b2bbf291e6b"
-        },
-        "date": 1748637361384,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 0.028,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 0.164,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 0.011,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 0.317,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 0.197,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 10.9,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 0.004,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-root",
-            "value": 0.009,
-            "unit": "s"
-          },
-          {
-            "name": "semaphore-depth-10",
-            "value": 0.02,
-            "unit": "s"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
-            "email": "asterite@gmail.com",
-            "name": "Ary Borenszweig",
-            "username": "asterite"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
           "distinct": true,
           "id": "cb4951d3249ab7f4f97dddc21595cfa933b08d72",
           "message": "fix(fmt): correctly format mixed secondary attributes and doc comments (#8735)",
@@ -11348,6 +11279,75 @@ window.BENCHMARK_DATA = {
           {
             "name": "rollup-root",
             "value": 0.008,
+            "unit": "s"
+          },
+          {
+            "name": "semaphore-depth-10",
+            "value": 0.019,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "asterite@gmail.com",
+            "name": "Ary Borenszweig",
+            "username": "asterite"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "bc6b68b42857fc510d1de634d1d15bf17ddd90ec",
+          "message": "chore(SSA): validate that constrain values have the same type (#8850)",
+          "timestamp": "2025-06-09T19:08:25Z",
+          "tree_id": "7264e688f70c9c5162124942f298036671d654d9",
+          "url": "https://github.com/noir-lang/noir/commit/bc6b68b42857fc510d1de634d1d15bf17ddd90ec"
+        },
+        "date": 1749497654799,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 0.027,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 0.16,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 0.011,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 0.29,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 0.188,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 10.9,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 0.003,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-root",
+            "value": 0.009,
             "unit": "s"
           },
           {
