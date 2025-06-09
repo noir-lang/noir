@@ -1515,6 +1515,11 @@ impl Type {
         rhs: Box<Type>,
         inversion: bool,
     ) -> Type {
+        // If this infix expression contains an error then it is eventually an error itself.
+        if matches!(*lhs, Type::Error) || matches!(*rhs, Type::Error) {
+            return Type::Error;
+        }
+
         // If an InfixExpr like this is tried to be created:
         //
         // a * (b / a)
@@ -1803,8 +1808,7 @@ impl Type {
             }
         }
 
-        let could_be_checked_cast = false;
-        match self.canonicalize_helper(could_be_checked_cast, run_simplifications) {
+        match self.canonicalize_with_simplifications(run_simplifications) {
             Type::Constant(x, constant_kind) => {
                 if kind.unifies(&constant_kind) {
                     kind.ensure_value_fits(x, location)
