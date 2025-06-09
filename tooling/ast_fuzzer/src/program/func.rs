@@ -30,6 +30,9 @@ use super::{
     types,
 };
 
+/// Use random strings to identify constraints.
+const CONSTRAIN_MSG_TYPE: Type = Type::String(3);
+
 /// Something akin to a forward declaration of a function, capturing the details required to:
 /// 1. call the function from the other function bodies
 /// 2. generate the final HIR function signature
@@ -756,11 +759,17 @@ impl<'a> FunctionContext<'a> {
             Freq::new(u, &self.ctx.config.stmt_freqs_acir)?
         };
         // TODO(#7926): Match
-        // TODO(#7932): Constrain
 
         // Start with `drop`, it doesn't need to be frequent even if others are disabled.
         if freq.enabled("drop") {
             if let Some(e) = self.gen_drop(u)? {
+                return Ok(e);
+            }
+        }
+
+        // We don't want constraints to get too frequent, as it could dominate all outcome.
+        if freq.enabled_when("constrain", !self.ctx.config.avoid_constrain) {
+            if let Some(e) = self.gen_constrain(u)? {
                 return Ok(e);
             }
         }
@@ -967,6 +976,25 @@ impl<'a> FunctionContext<'a> {
         });
 
         Ok(Some(call))
+    }
+
+    /// Generate a `constrain` statement, if there is some local variable we can do it on.
+    ///
+    /// Arbitrary constraints are very likely to fail, so we don't want too many of them,
+    /// otherwise they might mask disagreements in return values.
+    fn gen_constrain(&mut self, u: &mut Unstructured) -> arbitrary::Result<Option<Expression>> {
+        // Generate a condition that evaluates to bool.
+        let Some(cond) = self.gen_binary(u, &Type::Bool, self.max_depth())? else {
+            return Ok(None);
+        };
+        // Generate a unique message for the assertion, so it's easy to find which one failed.
+        let msg = expr::gen_literal(u, &CONSTRAIN_MSG_TYPE)?;
+        let cons = Expression::Constrain(
+            Box::new(cond),
+            Location::dummy(),
+            Some(Box::new((msg, types::to_hir_type(&CONSTRAIN_MSG_TYPE)))),
+        );
+        Ok(Some(cons))
     }
 
     /// Generate an if-then-else statement or expression.

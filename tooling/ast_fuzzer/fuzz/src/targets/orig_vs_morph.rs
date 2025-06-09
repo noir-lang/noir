@@ -108,8 +108,8 @@ impl MorphContext<'_> {
                     self.rewrite_expr(&ctx, u, &mut unary.rhs);
                     false
                 }
-                Expression::Call(call) if is_oracle_call(call) => {
-                    let ctx = rules::Context { is_in_oracle_call: true, ..*ctx };
+                Expression::Call(call) if is_special_call(call) => {
+                    let ctx = rules::Context { is_in_special_call: true, ..*ctx };
                     for arg in call.arguments.iter_mut() {
                         self.rewrite_expr(&ctx, u, arg);
                     }
@@ -184,9 +184,15 @@ fn estimate_applicable_rules(
     count
 }
 
-/// Check if we are calling an oracle function.
-fn is_oracle_call(call: &Call) -> bool {
-    matches!(call.func.as_ref(), Expression::Ident(Ident { definition: Definition::Oracle(_), .. }))
+/// Check if we are calling an oracle or builtin function.
+fn is_special_call(call: &Call) -> bool {
+    matches!(
+        call.func.as_ref(),
+        Expression::Ident(Ident {
+            definition: Definition::Oracle(_) | Definition::Builtin(_) | Definition::LowLevel(_),
+            ..
+        })
+    )
 }
 
 /// Metamorphic transformation rules.
@@ -206,8 +212,8 @@ mod rules {
         pub is_in_range: bool,
         /// Are we in an expression that we're just taking a mutable reference to?
         pub is_in_ref_mut: bool,
-        /// Are we processing the arguments of an oracle call?
-        pub is_in_oracle_call: bool,
+        /// Are we processing the arguments of an non-user function call, such as an oracle or built-in?
+        pub is_in_special_call: bool,
     }
 
     /// Check if the rule can be applied on an expression.
@@ -294,7 +300,8 @@ mod rules {
             return false;
         }
         // We don't want to mess with the arguments of a `println`, because the printer assumes they are bool literals.
-        if ctx.is_in_oracle_call {
+        // Similarly a `constrain` call is expected to have a single boolean expression.
+        if ctx.is_in_special_call {
             return false;
         }
         // We can apply boolean rule on anything that returns a bool,

@@ -68,6 +68,8 @@ pub struct Config {
     /// We may have to completely disallow reassigning variables with references in them.
     /// See #8741
     pub avoid_assign_ref_in_if: bool,
+    /// Avoid using constrain statements.
+    pub avoid_constrain: bool,
     /// Only use comptime friendly expressions.
     pub comptime_friendly: bool,
 }
@@ -90,6 +92,7 @@ impl Default for Config {
             ("for", 22),
             ("let", 25),
             ("call", 5),
+            ("constrain", 5),
         ]);
         let stmt_freqs_brillig = Freqs::new(&[
             ("drop", 0),
@@ -103,6 +106,7 @@ impl Default for Config {
             ("let", 20),
             ("call", 5),
             ("print", 15),
+            ("constrain", 10),
         ]);
         Self {
             max_globals: 3,
@@ -128,6 +132,7 @@ impl Default for Config {
             avoid_loop_control: false,
             avoid_lambdas: false,
             avoid_assign_ref_in_if: true,
+            avoid_constrain: false,
             comptime_friendly: false,
         }
     }
