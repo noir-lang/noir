@@ -17,6 +17,7 @@ pub fn fuzz(u: &mut Unstructured) -> eyre::Result<()> {
     let config = Config {
         // Overflows are easy to trigger.
         avoid_overflow: u.arbitrary()?,
+        avoid_large_int_literals: true,
         ..Default::default()
     };
 
