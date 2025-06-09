@@ -79,7 +79,7 @@ fn main(x : [Field]) // can't compile, has variable size
 fn main(....// i think you got it by now
 ```
 
-Keep in mind [tests](../../tooling/testing.md) don't differentiate between `main` and any other function. The following snippet passes tests, but won't compile or prove:
+Keep in mind [tests](../../tooling/tests.md) don't differentiate between `main` and any other function. The following snippet passes tests, but won't compile or prove:
 
 ```rust
 fn main(x : [Field]) {
