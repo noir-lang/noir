@@ -564,7 +564,10 @@
 <a href="#563" id="563">563</a>
 <a href="#564" id="564">564</a>
 <a href="#565" id="565">565</a>
-<a href="#566" id="566">566</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::{
+<a href="#566" id="566">566</a>
+<a href="#567" id="567">567</a>
+<a href="#568" id="568">568</a>
+<a href="#569" id="569">569</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::{
     collections::{HashMap, HashSet, VecDeque},
     sync::Arc,
 };
@@ -657,6 +660,9 @@
         <span class="comment">// Map function names to their IDs so calls can be resolved
         </span><span class="kw">let </span><span class="kw-2">mut </span>function_id_counter = <span class="number">1</span>;
         <span class="kw">let </span><span class="kw-2">mut </span>functions = HashMap::new();
+
+        functions.insert(main_function.internal_name.clone(), main_id);
+
         <span class="kw">for </span>function <span class="kw">in </span><span class="kw-2">&amp;</span>parsed_ssa.functions {
             <span class="kw">let </span>function_id = FunctionId::new(function_id_counter);
             function_id_counter += <span class="number">1</span>;
