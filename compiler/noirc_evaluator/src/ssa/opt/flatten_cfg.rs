@@ -1697,6 +1697,7 @@ mod test {
             .flatten_cfg()
             .mem2reg()
             .remove_if_else()
+            .unwrap()
             .fold_constants()
             .dead_instruction_elimination();
 

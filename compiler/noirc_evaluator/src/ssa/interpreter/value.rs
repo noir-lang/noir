@@ -7,6 +7,7 @@ use noirc_frontend::Shared;
 use crate::ssa::ir::{
     function::FunctionId,
     instruction::Intrinsic,
+    integer::IntegerConstant,
     types::{CompositeType, NumericType, Type},
     value::ValueId,
 };
@@ -256,6 +257,13 @@ impl NumericValue {
         Self::from_constant(FieldElement::zero(), typ).expect("zero should fit in every type")
     }
 
+    pub(crate) fn neg_one(typ: NumericType) -> Self {
+        let neg_one = IntegerConstant::Signed { value: -1, bit_size: typ.bit_size() };
+        let (neg_one_constant, typ) = neg_one.into_numeric_constant();
+        Self::from_constant(neg_one_constant, typ)
+            .unwrap_or_else(|_| panic!("Negative one cannot fit in {typ}"))
+    }
+
     pub(crate) fn as_field(&self) -> Option<FieldElement> {
         match self {
             NumericValue::Field(value) => Some(*value),
@@ -358,6 +366,16 @@ impl NumericValue {
             NumericValue::I16(value) => FieldElement::from(*value as u16 as i128),
             NumericValue::I32(value) => FieldElement::from(*value as u32 as i128),
             NumericValue::I64(value) => FieldElement::from(*value as u64 as i128),
+        }
+    }
+
+    pub fn is_negative(&self) -> bool {
+        match self {
+            NumericValue::I8(v) => *v < 0,
+            NumericValue::I16(v) => *v < 0,
+            NumericValue::I32(v) => *v < 0,
+            NumericValue::I64(v) => *v < 0,
+            _ => false,
         }
     }
 }

@@ -25,6 +25,7 @@
         "bignum",
         "bincode",
         "bindgen",
+        "binop",
         "bitand",
         "bitmask",
         "bitshift",
