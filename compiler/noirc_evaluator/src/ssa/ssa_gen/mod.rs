@@ -676,8 +676,9 @@ impl FunctionContext<'_> {
 
         // Compile the loop body
         self.builder.switch_to_block(loop_body);
-        self.codegen_expression(block)?;
-        self.builder.terminate_with_jmp(loop_body, vec![]);
+        if self.codegen_expression(block)?.is_some() {
+            self.builder.terminate_with_jmp(loop_body, vec![]);
+        }
 
         // Finish by switching to the end of the loop
         self.builder.switch_to_block(loop_end);
@@ -718,8 +719,9 @@ impl FunctionContext<'_> {
 
         // Codegen the body
         self.builder.switch_to_block(while_body);
-        self.codegen_expression(&while_.body)?;
-        self.builder.terminate_with_jmp(while_entry, vec![]);
+        if self.codegen_expression(&while_.body)?.is_some() {
+            self.builder.terminate_with_jmp(while_entry, vec![]);
+        }
 
         // Finish by switching to the end of the while
         self.builder.switch_to_block(while_end);
