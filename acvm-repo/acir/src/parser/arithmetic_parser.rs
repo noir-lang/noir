@@ -22,7 +22,8 @@ impl ArithmeticParser {
         // which corresponds to expression 0 - w0 * w2 - w1 * w2 + w_3 = 0
         // the elements with 3 elements are mul_terms and the elements with 1 element are linear terms
         let mut mul_terms: Vec<(F, Witness, Witness)> = Vec::new();
-        let mut linear_terms: Vec<(F, Witness)> = Vec::new();
+        let mut linear_combinations: Vec<(F, Witness)> = Vec::new();
+        // Bug: function doesn't parse constants
         let q_c: F = F::zero();
         //first we split the instruction body to a vector of ExpressionTerm values
         let cleaned =
@@ -42,7 +43,6 @@ impl ArithmeticParser {
                 .unwrap()
                 .trim()
                 .split(",")
-                .into_iter()
                 .map(|a| a.trim())
                 .collect();
             match temp.len() {
@@ -58,7 +58,7 @@ impl ArithmeticParser {
                     // this is a linear_combination term of form (constant, witness)
                     let index = temp[1].strip_prefix("_").unwrap().parse::<u32>().unwrap();
                     let coeff: F = parse_str_to_field(temp[0]).unwrap();
-                    linear_terms.push((coeff, Witness(index)));
+                    linear_combinations.push((coeff, Witness(index)));
                 }
                 _ => {
                     return Err("the expression has incorrect terms".to_string());
@@ -67,11 +67,7 @@ impl ArithmeticParser {
         }
 
         let q_c = parse_str_to_field(constant).unwrap();
-        Ok(Opcode::AssertZero(Expression {
-            mul_terms: mul_terms,
-            linear_combinations: linear_terms,
-            q_c: q_c,
-        }))
+        Ok(Opcode::AssertZero(Expression { mul_terms, linear_combinations, q_c }))
     }
 }
 

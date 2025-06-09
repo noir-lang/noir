@@ -7,7 +7,7 @@ use crate::native_types::{Expression, Witness};
 use crate::parser::{InstructionType, parse_str_to_field};
 use acir_field::AcirField;
 
-pub struct BrilligCallParser {}
+pub(super) struct BrilligCallParser {}
 
 impl BrilligCallParser {
     fn deserialize_brillig_call<'a>(
@@ -49,6 +49,7 @@ impl BrilligCallParser {
 
         // now we have to split each of the inputs. let us start with the single inputs
         // we have to create an expression for each single input
+        let expressions_array_regex = Regex::new(r"Expression\s*\{[^}]*\}\s*(?:,\s*)?").unwrap();
         for input in inputs.clone() {
             if input.starts_with("Single") {
                 let trimmed_input =
@@ -59,10 +60,7 @@ impl BrilligCallParser {
             } else if input.starts_with("Array") {
                 let trimmed_input =
                     input.trim().strip_prefix("Array(").unwrap().strip_suffix(")").unwrap();
-                // now we split the array of expressions into individual expressions
-                let expressions_array_regex =
-                    Regex::new(r"Expression\s*\{[^}]*\}\s*(?:,\s*)?").unwrap();
-                // we iterate over each expression and parse it
+
                 let expressions = expressions_array_regex
                     .find_iter(trimmed_input)
                     .map(|m| m.as_str())
@@ -90,6 +88,7 @@ impl BrilligCallParser {
         )
         .unwrap();
         let captures = output_regex.captures_iter(call_string).collect::<Vec<_>>();
+        let witnesses_regex = Regex::new(r"Witness\((\d+)\)").unwrap();
         for capture in captures {
             let output_type = capture.get(1).unwrap().as_str();
             let content = capture.get(2).unwrap().as_str();
@@ -107,7 +106,6 @@ impl BrilligCallParser {
                 }
                 "Array" => {
                     let mut witness_array: Vec<Witness> = Vec::new();
-                    let witnesses_regex = Regex::new(r"Witness\((\d+)\)").unwrap();
                     let captures = witnesses_regex.captures_iter(content).collect::<Vec<_>>();
                     for capture in captures {
                         let witness = capture.get(1).unwrap().as_str();
@@ -168,14 +166,14 @@ impl BrilligCallParser {
             linear_combinations.push(new_linear_combination);
         }
         let q_c = parse_str_to_field::<F>(q_c_str).map_err(|e| e.to_string())?;
-        let expression =
-            Expression { mul_terms: mul_terms, linear_combinations: linear_combinations, q_c: q_c };
+        let expression = Expression { mul_terms, linear_combinations, q_c };
         Ok(expression)
     }
 
     pub(crate) fn parse_predicate<F: AcirField>(
         predicate_str: &str,
     ) -> Result<Expression<F>, String> {
+        println!("{predicate_str}");
         let cleaned = predicate_str
             .trim()
             .strip_prefix("PREDICATE = EXPR [")
@@ -197,7 +195,6 @@ impl BrilligCallParser {
                 .unwrap()
                 .trim()
                 .split(",")
-                .into_iter()
                 .map(|a| a.trim())
                 .collect();
             match temp.len() {
@@ -220,8 +217,7 @@ impl BrilligCallParser {
                 }
             }
         }
-        let expression =
-            Expression { mul_terms: mul_terms, linear_combinations: linear_terms, q_c: constant };
+        let expression = Expression { mul_terms, linear_combinations: linear_terms, q_c: constant };
         Ok(expression)
     }
 
@@ -248,7 +244,7 @@ impl BrilligCallParser {
             id: BrilligFunctionId(brillig_id),
             inputs: brillig_inputs,
             outputs: outputs.map_err(|e| e.to_string())?,
-            predicate: predicate,
+            predicate,
         })
     }
 }

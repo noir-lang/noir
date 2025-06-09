@@ -6,6 +6,7 @@ mod brillig_call_parser;
 mod call_parser;
 mod mem_init_parser;
 mod mem_parser;
+#[cfg(test)]
 mod utils;
 
 use crate::circuit::{Circuit, ExpressionWidth, Opcode, PublicInputs};
@@ -43,7 +44,7 @@ pub(crate) struct Instruction<'a> {
 pub(crate) struct AcirParser {}
 
 impl AcirParser {
-    pub fn deserialize_acir(input: &str) -> Vec<Instruction> {
+    pub(crate) fn deserialize_acir(input: &str) -> Vec<Instruction> {
         let mut instructions: Vec<Instruction> = Vec::new();
         for line in input.lines() {
             let line = line.trim();
@@ -183,25 +184,25 @@ impl AcirParser {
                     // the private parameter indices is a string of form [_0, _1, _2, ...]
                     // we need to split these by comma and cast each to a u32
                     let indices = parse_indices(instruction.instruction_body);
-                    private_parameters.extend(indices.into_iter().map(|i| Witness::from(i)));
+                    private_parameters.extend(indices.into_iter().map(Witness::from));
                 }
                 InstructionType::PublicParametersIndices => {
                     // same as above
                     let indices = parse_indices(instruction.instruction_body);
-                    public_parameters.extend(indices.into_iter().map(|i| Witness::from(i)));
+                    public_parameters.extend(indices.into_iter().map(Witness::from));
                 }
                 InstructionType::ReturnValueIndices => {
                     let indices = parse_indices(instruction.instruction_body);
-                    return_values.extend(indices.into_iter().map(|i| Witness::from(i)));
+                    return_values.extend(indices.into_iter().map(Witness::from));
                 }
                 _ => continue,
             }
         }
 
         CircuitDescription {
-            current_witness_index: current_witness_index,
+            current_witness_index,
             expression_width: ExpressionWidth::Unbounded,
-            private_parameters: private_parameters,
+            private_parameters,
             public_parameters: PublicInputs(public_parameters),
             return_values: PublicInputs(return_values),
         }
@@ -264,7 +265,7 @@ impl AcirParser {
             private_parameters: circuit_description.private_parameters,
             public_parameters: circuit_description.public_parameters,
             return_values: circuit_description.return_values,
-            opcodes: opcodes,
+            opcodes,
             assert_messages: vec![],
         };
         Ok(circuit)
@@ -278,18 +279,6 @@ struct CircuitDescription {
     pub private_parameters: BTreeSet<Witness>,
     pub public_parameters: PublicInputs,
     pub return_values: PublicInputs,
-}
-
-impl CircuitDescription {
-    fn new() -> Self {
-        CircuitDescription {
-            current_witness_index: 0,
-            expression_width: ExpressionWidth::Unbounded,
-            private_parameters: BTreeSet::new(),
-            public_parameters: PublicInputs(BTreeSet::new()),
-            return_values: PublicInputs(BTreeSet::new()),
-        }
-    }
 }
 
 #[cfg(test)]

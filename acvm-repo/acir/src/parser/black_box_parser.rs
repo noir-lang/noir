@@ -10,15 +10,12 @@ use crate::{
     native_types::Witness,
 };
 
-pub struct BlackBoxParser {}
+pub(super) struct BlackBoxParser {}
 
 impl BlackBoxParser {
-    pub fn parse_black_box_function_call<F: AcirField>(
+    pub(super) fn parse_black_box_function_call<F: AcirField>(
         instruction: Instruction,
-    ) -> Result<Opcode<F>, String>
-    where
-        F: AcirField,
-    {
+    ) -> Result<Opcode<F>, String> {
         // Format is like BLACKBOX::RANGE [(_4, 222)] []
         // the different types of black box functions are:
         // - AES128Encrypt
@@ -146,9 +143,9 @@ impl BlackBoxParser {
                     FunctionInput::witness(Witness(witness_index), bit_size);
                 let call = BlackBoxFuncCall::RANGE { input: function_input };
 
-                return Ok(Opcode::BlackBoxFuncCall(call));
+                Ok(Opcode::BlackBoxFuncCall(call))
             }
-            _ => return Err(format!("Unknown black box function type in: {}", expression_body)),
+            _ => Err(format!("Unknown black box function type in: {}", expression_body)),
         }
 
         //     }

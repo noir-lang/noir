@@ -7,7 +7,7 @@ use crate::native_types::Witness;
 use crate::parser::{InstructionType, brillig_call_parser::BrilligCallParser};
 use acir_field::AcirField;
 
-pub struct CallParser {}
+pub(super) struct CallParser {}
 
 impl CallParser {
     fn serialize_call<'a>(
@@ -72,7 +72,7 @@ impl CallParser {
             id: AcirFunctionId(call_id),
             inputs: call_inputs,
             outputs: call_outputs.map_err(|e| e.to_string())?,
-            predicate: predicate,
+            predicate,
         })
     }
 }
@@ -95,15 +95,5 @@ mod test {
         let inputs = "[Witness(0), Witness(1)]";
         let call_outputs = CallParser::parse_call_inputs_outputs(inputs).unwrap();
         println!("call_outputs: {:?}", call_outputs);
-    }
-
-    #[test]
-    fn test_brillig_call_parser() {
-        let call_string = "func 0: PREDICATE = [ (-1, _0, _2) (-1, _1, _2) (1, _3) 0 ] inputs: [(1, Witness(0)), (1, Witness(1))] outputs: [Witness(11), Witness(12), Witness(13), Witness(14)]";
-
-        let call_instruction =
-            Instruction { instruction_type: InstructionType::Call, instruction_body: call_string };
-        let call = CallParser::parse_call::<FieldElement>(&call_instruction).unwrap();
-        println!("call: {:?}", call);
     }
 }

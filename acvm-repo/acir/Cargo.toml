@@ -19,9 +19,6 @@ workspace = true
 acir_field.workspace = true
 brillig.workspace = true
 noir_protobuf.workspace = true
-regex = "1.5"
-num-bigint = "0.4"
-num-traits = "0.2"
 
 color-eyre.workspace = true
 serde.workspace = true
@@ -54,6 +51,7 @@ num-bigint.workspace = true
 regex.workspace = true
 rmpv.workspace = true
 insta.workspace = true
+num-traits.workspace = true
 
 acir = { path = ".", features = ["arb"] } # Self to turn on `arb`.
 

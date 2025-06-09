@@ -53,7 +53,6 @@ impl MemParser {
                 .unwrap()
                 .trim()
                 .split(",")
-                .into_iter()
                 .map(|a| a.trim())
                 .collect();
             match temp.len() {
@@ -78,7 +77,7 @@ impl MemParser {
             // now we create an expression for the read/write at
         }
         let index_expr: Expression<F> = Expression {
-            mul_terms: mul_terms,
+            mul_terms,
             linear_combinations: linear_terms,
             q_c: parse_str_to_field(constant).unwrap(),
         };
@@ -98,7 +97,6 @@ impl MemParser {
                 .unwrap()
                 .trim()
                 .split(",")
-                .into_iter()
                 .map(|a| a.trim())
                 .collect();
             match temp.len() {
@@ -142,13 +140,10 @@ impl MemParser {
             _ => return Err(format!("Invalid memory operation format: {}", op_type_str)),
         };
 
-        let predicate = if let Some(predicate_str) = predicate_str {
-            Some(BrilligCallParser::parse_predicate::<F>(predicate_str).unwrap())
-        } else {
-            None
-        };
+        let predicate = predicate_str
+            .map(|predicate_str| BrilligCallParser::parse_predicate::<F>(predicate_str).unwrap());
 
-        Ok(Opcode::MemoryOp { block_id: BlockId(block_id), op: mem_op, predicate: predicate })
+        Ok(Opcode::MemoryOp { block_id: BlockId(block_id), op: mem_op, predicate })
     }
 }
 
@@ -165,7 +160,23 @@ mod test {
             instruction_body: mem_op_str,
         };
         let mem_op_opcode = MemParser::parse_mem_op::<FieldElement>(&mem_op_instruction).unwrap();
-        println!("{:?}", mem_op_opcode);
+        let expected_opcode = Opcode::MemoryOp {
+            block_id: BlockId(2),
+            op: MemOp::write_to_mem_index(
+                Expression {
+                    mul_terms: Vec::new(),
+                    linear_combinations: vec![(FieldElement::one(), Witness(7))],
+                    q_c: FieldElement::zero(),
+                },
+                Expression {
+                    mul_terms: Vec::new(),
+                    linear_combinations: vec![(FieldElement::one(), Witness(17))],
+                    q_c: FieldElement::zero(),
+                },
+            ),
+            predicate: None,
+        };
+        assert_eq!(mem_op_opcode, expected_opcode);
     }
 
     #[test]
@@ -176,6 +187,18 @@ mod test {
             instruction_body: mem_op_str,
         };
         let mem_op_opcode = MemParser::parse_mem_op::<FieldElement>(&mem_op_instruction).unwrap();
-        println!("{:?}", mem_op_opcode);
+        let expected_opcode = Opcode::MemoryOp {
+            block_id: BlockId(2),
+            op: MemOp::read_at_mem_index(
+                Expression {
+                    mul_terms: Vec::new(),
+                    linear_combinations: vec![(FieldElement::one(), Witness(7))],
+                    q_c: FieldElement::zero(),
+                },
+                Witness(17),
+            ),
+            predicate: None,
+        };
+        assert_eq!(mem_op_opcode, expected_opcode);
     }
 }

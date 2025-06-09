@@ -5,7 +5,7 @@ use crate::circuit::opcodes::{BlockId, BlockType};
 use crate::native_types::Witness;
 use acir_field::AcirField;
 
-pub struct MemInitParser {}
+pub(super) struct MemInitParser {}
 
 impl MemInitParser {
     pub(crate) fn parse_mem_init<F: AcirField>(
@@ -35,8 +35,6 @@ impl MemInitParser {
             BlockType::Memory
         };
         let id = captures.get(3).unwrap().as_str().parse::<u32>().unwrap();
-        let len = captures.get(4).unwrap().as_str().parse::<u32>().unwrap();
-        let witnesses_string = captures.get(5).unwrap().as_str();
         let witnesses: Vec<Witness> = captures
             .get(5)
             .unwrap()
@@ -45,9 +43,7 @@ impl MemInitParser {
             .map(|s| Witness(s.trim().strip_prefix("_").unwrap().parse::<u32>().unwrap()))
             .collect();
 
-        // now we create an opcode with these
-        let opcode =
-            Opcode::MemoryInit { block_id: BlockId(id), init: witnesses, block_type: block_type };
+        let opcode = Opcode::MemoryInit { block_id: BlockId(id), init: witnesses, block_type };
         Ok(opcode)
     }
 }
@@ -60,7 +56,7 @@ mod test {
     #[test]
     fn test_parse_mem_init_call_data() {
         let instruction_body = "INIT CALLDATA 5 (id: 10, len: 10, witnesses: [_1, _2, _3])";
-        let opcode = MemInitParser::parse_mem_init::<FieldElement>(&instruction_body).unwrap();
+        let opcode = MemInitParser::parse_mem_init::<FieldElement>(instruction_body).unwrap();
         assert_eq!(
             opcode,
             Opcode::MemoryInit {
@@ -74,14 +70,14 @@ mod test {
     #[test]
     fn test_parse_mem_init_return_data() {
         let instruction_body = "INIT RETURNDATA (id: 10, len: 10, witnesses: [_1, _2, _3])";
-        let opcode = MemInitParser::parse_mem_init::<FieldElement>(&instruction_body).unwrap();
+        let opcode = MemInitParser::parse_mem_init::<FieldElement>(instruction_body).unwrap();
         println!("opcode: {:?}", opcode);
     }
 
     #[test]
     fn test_parse_mem_init() {
         let instruction_body = "INIT (id: 10, len: 10, witnesses: [_1, _2, _3])";
-        let opcode = MemInitParser::parse_mem_init::<FieldElement>(&instruction_body).unwrap();
+        let opcode = MemInitParser::parse_mem_init::<FieldElement>(instruction_body).unwrap();
         println!("opcode: {:?}", opcode);
     }
 }
