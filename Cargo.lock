@@ -3391,6 +3391,7 @@ dependencies = [
  "noirc_evaluator",
  "noirc_frontend",
  "proptest",
+ "rand 0.8.5",
  "regex",
  "serde_json",
  "similar-asserts",
