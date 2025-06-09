@@ -108,7 +108,7 @@ where
                     // Both programs failed the same way.
                     Ok(None)
                 } else {
-                    bail!("both programs failed: {e1} vs {e2}\n{e1:?}\n{e2:?}")
+                    bail!("both programs failed:\n{e1}\n!=\n{e2}\n\n{e1:?}\n{e2:?}")
                 }
             }
             CompareResult::LeftFailed(e, _) => {

@@ -183,9 +183,15 @@ impl AstPrinter {
                 )?;
                 self.print_expr(&let_expr.expression, f)
             }
-            Expression::Constrain(expr, ..) => {
-                write!(f, "constrain ")?;
-                self.print_expr(expr, f)
+            Expression::Constrain(expr, _, payload) => {
+                write!(f, "assert(")?;
+                self.print_expr(expr, f)?;
+                if let Some(payload) = payload {
+                    write!(f, ", ")?;
+                    self.print_expr(&payload.as_ref().0, f)?;
+                }
+                write!(f, ")")?;
+                Ok(())
             }
             Expression::Assign(assign) => {
                 self.print_lvalue(&assign.lvalue, f)?;
