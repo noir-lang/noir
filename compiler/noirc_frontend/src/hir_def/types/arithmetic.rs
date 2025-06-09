@@ -30,10 +30,20 @@ impl Type {
         }
     }
 
+    pub(crate) fn canonicalize_with_simplifications(&self, run_simplifications: bool) -> Type {
+        self.follow_bindings().canonicalize_helper(false, run_simplifications)
+    }
+
     /// Only simplify constants and drop/skip any CheckedCast's
     pub(crate) fn canonicalize_checked(&self) -> Type {
+        self.follow_bindings().canonicalize_checked_helper()
+    }
+
+    /// Only simplify constants and drop/skip any CheckedCast's
+    fn canonicalize_checked_helper(&self) -> Type {
         let found_checked_cast = true;
         let skip_simplifications = false;
+        // We expect `self` to have already called `follow_bindings`
         self.canonicalize_helper(found_checked_cast, skip_simplifications)
     }
 
@@ -41,25 +51,22 @@ impl Type {
     fn canonicalize_unchecked(&self) -> Type {
         let found_checked_cast = true;
         let run_simplifications = true;
+        // We expect `self` to have already called `follow_bindings`
         self.canonicalize_helper(found_checked_cast, run_simplifications)
     }
 
-    /// If found_checked_cast, then drop additional CheckedCast's
+    /// If `found_checked_cast`, then drop additional CheckedCast's
     ///
-    /// If run_simplifications is false, then only:
+    /// If `run_simplifications` is false, then only:
     /// - Attempt to evaluate each sub-expression to a constant
     /// - Drop nested CheckedCast's
     ///
     /// Otherwise also attempt try_simplify_partial_constants, sort_commutative,
     /// and other simplifications
-    pub(crate) fn canonicalize_helper(
-        &self,
-        found_checked_cast: bool,
-        run_simplifications: bool,
-    ) -> Type {
-        match self.follow_bindings() {
+    fn canonicalize_helper(&self, found_checked_cast: bool, run_simplifications: bool) -> Type {
+        match self {
             Type::InfixExpr(lhs, op, rhs, inversion) => {
-                let kind = lhs.infix_kind(&rhs);
+                let kind = lhs.infix_kind(rhs);
                 let dummy_location = Location::dummy();
                 // evaluate_to_field_element also calls canonicalize so if we just called
                 // `self.evaluate_to_field_element(..)` we'd get infinite recursion.
@@ -82,28 +89,28 @@ impl Type {
                 let rhs = rhs.canonicalize_helper(found_checked_cast, run_simplifications);
 
                 if !run_simplifications {
-                    return Type::InfixExpr(Box::new(lhs), op, Box::new(rhs), inversion);
+                    return Type::InfixExpr(Box::new(lhs), *op, Box::new(rhs), *inversion);
                 }
 
-                if let Some(result) = Self::try_simplify_non_constants_in_lhs(&lhs, op, &rhs) {
+                if let Some(result) = Self::try_simplify_non_constants_in_lhs(&lhs, *op, &rhs) {
                     return result.canonicalize_unchecked();
                 }
 
-                if let Some(result) = Self::try_simplify_non_constants_in_rhs(&lhs, op, &rhs) {
+                if let Some(result) = Self::try_simplify_non_constants_in_rhs(&lhs, *op, &rhs) {
                     return result.canonicalize_unchecked();
                 }
 
                 // Try to simplify partially constant expressions in the form `(N op1 C1) op2 C2`
                 // where C1 and C2 are constants that can be combined (e.g. N + 5 - 3 = N + 2)
-                if let Some(result) = Self::try_simplify_partial_constants(&lhs, op, &rhs) {
+                if let Some(result) = Self::try_simplify_partial_constants(&lhs, *op, &rhs) {
                     return result.canonicalize_unchecked();
                 }
 
                 if op.is_commutative() {
-                    return Self::sort_commutative(&lhs, op, &rhs);
+                    return Self::sort_commutative(&lhs, *op, &rhs);
                 }
 
-                Type::InfixExpr(Box::new(lhs), op, Box::new(rhs), inversion)
+                Type::InfixExpr(Box::new(lhs), *op, Box::new(rhs), *inversion)
             }
             Type::CheckedCast { from, to } => {
                 let inner_found_checked_cast = true;
@@ -117,7 +124,7 @@ impl Type {
 
                 Type::CheckedCast { from: Box::new(from), to: Box::new(to) }
             }
-            other => other,
+            other => other.clone(),
         }
     }
 
@@ -195,24 +202,24 @@ impl Type {
         op: BinaryTypeOperator,
         rhs: &Type,
     ) -> Option<Type> {
-        match lhs.follow_bindings() {
+        match lhs {
             Type::CheckedCast { from, to } => {
                 // Apply operation directly to `from` while attempting simplification to `to`.
-                let from = Type::infix_expr(from, op, Box::new(rhs.clone()));
-                let to = Self::try_simplify_non_constants_in_lhs(&to, op, rhs)?;
+                let from = Type::infix_expr(from.clone(), op, Box::new(rhs.clone()));
+                let to = Self::try_simplify_non_constants_in_lhs(to, op, rhs)?;
                 Some(Type::CheckedCast { from: Box::new(from), to: Box::new(to) })
             }
             Type::InfixExpr(l_lhs, l_op, l_rhs, _) => {
                 // Note that this is exact, syntactic equality, not unification.
                 // `rhs` is expected to already be in canonical form.
                 if l_op.approx_inverse() != Some(op)
-                    || l_op == BinaryTypeOperator::Division
+                    || *l_op == BinaryTypeOperator::Division
                     || l_rhs.canonicalize_unchecked() != *rhs
                 {
                     return None;
                 }
 
-                Some(*l_lhs)
+                Some(*l_lhs.clone())
             }
             _ => None,
         }
@@ -232,17 +239,17 @@ impl Type {
         op: BinaryTypeOperator,
         rhs: &Type,
     ) -> Option<Type> {
-        match rhs.follow_bindings() {
+        match rhs {
             Type::CheckedCast { from, to } => {
                 // Apply operation directly to `from` while attempting simplification to `to`.
-                let from = Type::infix_expr(Box::new(lhs.clone()), op, from);
-                let to = Self::try_simplify_non_constants_in_rhs(lhs, op, &to)?;
+                let from = Type::infix_expr(Box::new(lhs.clone()), op, from.clone());
+                let to = Self::try_simplify_non_constants_in_rhs(lhs, op, to)?;
                 Some(Type::CheckedCast { from: Box::new(from), to: Box::new(to) })
             }
             Type::InfixExpr(r_lhs, r_op, r_rhs, _) => {
                 // `N / (M * N)` should be simplified to `1 / M`, but we only handle
                 // simplifying to `M` in this function.
-                if op == BinaryTypeOperator::Division && r_op == BinaryTypeOperator::Multiplication
+                if op == BinaryTypeOperator::Division && *r_op == BinaryTypeOperator::Multiplication
                 {
                     return None;
                 }
@@ -253,7 +260,7 @@ impl Type {
                     return None;
                 }
 
-                Some(*r_lhs)
+                Some(*r_lhs.clone())
             }
             _ => None,
         }

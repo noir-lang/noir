@@ -1,9 +1,9 @@
-fn main(x: Field) {
+fn main(x: u32) {
     // The parameters to this function must come directly from witness values (inputs to main).
     regression_dynamic_slice_index(x - 1, x - 4);
 }
 
-fn regression_dynamic_slice_index(x: Field, y: Field) {
+fn regression_dynamic_slice_index(x: u32, y: u32) {
     let mut slice = &[];
     for i in 0..5 {
         slice = slice.push_back(i as Field);
@@ -25,7 +25,7 @@ fn regression_dynamic_slice_index(x: Field, y: Field) {
     dynamic_slice_merge_push_then_pop(slice, x, y);
 }
 
-fn dynamic_slice_index_set_if(mut slice: [Field], x: Field, y: Field) {
+fn dynamic_slice_index_set_if(mut slice: [Field], x: u32, y: u32) {
     assert(slice[x] == 4);
     assert(slice[y] == 1);
     slice[y] = 0;
@@ -42,7 +42,7 @@ fn dynamic_slice_index_set_if(mut slice: [Field], x: Field, y: Field) {
     assert(slice[4] == 2);
 }
 
-fn dynamic_slice_index_set_else(mut slice: [Field], x: Field, y: Field) {
+fn dynamic_slice_index_set_else(mut slice: [Field], x: u32, y: u32) {
     assert(slice[x] == 4);
     assert(slice[y] == 1);
     slice[y] = 0;
@@ -59,7 +59,7 @@ fn dynamic_slice_index_set_else(mut slice: [Field], x: Field, y: Field) {
 }
 // This tests the case of missing a store instruction in the else branch
 // of merging slices
-fn dynamic_slice_index_if(mut slice: [Field], x: Field) {
+fn dynamic_slice_index_if(mut slice: [Field], x: u32) {
     if x as u32 < 10 {
         assert(slice[x] == 4);
         slice[x] = slice[x] - 2;
@@ -69,7 +69,7 @@ fn dynamic_slice_index_if(mut slice: [Field], x: Field) {
     assert(slice[4] == 2);
 }
 
-fn dynamic_array_index_if(mut array: [Field; 5], x: Field) {
+fn dynamic_array_index_if(mut array: [Field; 5], x: u32) {
     if x as u32 < 10 {
         assert(array[x] == 4);
         array[x] = array[x] - 2;
@@ -80,7 +80,7 @@ fn dynamic_array_index_if(mut array: [Field; 5], x: Field) {
 }
 // This tests the case of missing a store instruction in the then branch
 // of merging slices
-fn dynamic_slice_index_else(mut slice: [Field], x: Field) {
+fn dynamic_slice_index_else(mut slice: [Field], x: u32) {
     if x as u32 > 10 {
         assert(slice[x] == 0);
     } else {
@@ -90,7 +90,7 @@ fn dynamic_slice_index_else(mut slice: [Field], x: Field) {
     assert(slice[4] == 2);
 }
 
-fn dynamic_slice_merge_if(mut slice: [Field], x: Field) {
+fn dynamic_slice_merge_if(mut slice: [Field], x: u32) {
     if x as u32 < 10 {
         assert(slice[x] == 4);
         slice[x] = slice[x] - 2;
@@ -145,7 +145,7 @@ fn dynamic_slice_merge_if(mut slice: [Field], x: Field) {
     assert(slice[slice.len() - 1] == 30);
 }
 
-fn dynamic_slice_merge_else(mut slice: [Field], x: Field) {
+fn dynamic_slice_merge_else(mut slice: [Field], x: u32) {
     if x as u32 > 10 {
         assert(slice[x] == 0);
         slice[x] = 2;
@@ -162,7 +162,7 @@ fn dynamic_slice_merge_else(mut slice: [Field], x: Field) {
     assert(slice[slice.len() - 1] == 20);
 }
 
-fn dynamic_slice_index_set_nested_if_else_else(mut slice: [Field], x: Field, y: Field) {
+fn dynamic_slice_index_set_nested_if_else_else(mut slice: [Field], x: u32, y: u32) {
     assert(slice[x] == 4);
     assert(slice[y] == 1);
     slice[y] = 0;
@@ -195,7 +195,7 @@ fn dynamic_slice_index_set_nested_if_else_else(mut slice: [Field], x: Field, y: 
     assert(slice[slice.len() - 1] == 20);
 }
 
-fn dynamic_slice_index_set_nested_if_else_if(mut slice: [Field], x: Field, y: Field) {
+fn dynamic_slice_index_set_nested_if_else_if(mut slice: [Field], x: u32, y: u32) {
     assert(slice[x] == 4);
     assert(slice[y] == 2);
     slice[y] = 0;
@@ -218,7 +218,7 @@ fn dynamic_slice_index_set_nested_if_else_if(mut slice: [Field], x: Field, y: Fi
     assert(slice[4] == 5);
 }
 
-fn dynamic_slice_merge_two_ifs(mut slice: [Field], x: Field) {
+fn dynamic_slice_merge_two_ifs(mut slice: [Field], x: u32) {
     if x as u32 > 10 {
         assert(slice[x] == 0);
         slice[x] = 2;
@@ -245,14 +245,14 @@ fn dynamic_slice_merge_two_ifs(mut slice: [Field], x: Field) {
     assert(slice[slice.len() - 1] == 20);
 }
 
-fn dynamic_slice_merge_mutate_between_ifs(mut slice: [Field], x: Field, y: Field) {
+fn dynamic_slice_merge_mutate_between_ifs(mut slice: [Field], x: u32, y: u32) {
     if x != y {
         slice[x] = 50;
-        slice = slice.push_back(y);
-        slice = slice.push_back(x);
+        slice = slice.push_back(y as Field);
+        slice = slice.push_back(x as Field);
     } else {
         slice[x] = slice[x] - 2;
-        slice = slice.push_back(x);
+        slice = slice.push_back(x as Field);
     }
 
     slice = slice.push_back(30);
@@ -277,19 +277,19 @@ fn dynamic_slice_merge_mutate_between_ifs(mut slice: [Field], x: Field, y: Field
     assert(slice[slice.len() - 1] == 60);
 }
 
-fn dynamic_slice_merge_push_then_pop(mut slice: [Field], x: Field, y: Field) {
+fn dynamic_slice_merge_push_then_pop(mut slice: [Field], x: u32, y: u32) {
     if x != y {
         slice[x] = 5;
-        slice = slice.push_back(y);
-        slice = slice.push_back(x);
+        slice = slice.push_back(y as Field);
+        slice = slice.push_back(x as Field);
         assert(slice.len() == 7);
 
         let (popped_slice, elem) = slice.pop_back();
         assert(slice.len() == 7);
-        assert(elem == x);
+        assert(elem == x as Field);
         slice = popped_slice;
     } else {
-        slice = slice.push_back(x);
+        slice = slice.push_back(x as Field);
     }
 
     slice = slice.push_back(30);
@@ -303,5 +303,5 @@ fn dynamic_slice_merge_push_then_pop(mut slice: [Field], x: Field, y: Field) {
     assert(elem == 30);
 
     let (_, elem) = slice.pop_back();
-    assert(elem == y);
+    assert(elem == y as Field);
 }
