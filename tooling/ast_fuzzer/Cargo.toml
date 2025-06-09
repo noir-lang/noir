@@ -20,7 +20,6 @@ color-eyre.workspace = true
 im.workspace = true
 proptest.workspace = true
 strum.workspace = true
-rand.workspace = true
 regex.workspace = true
 log.workspace = true
 
