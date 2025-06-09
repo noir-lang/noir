@@ -46,7 +46,7 @@ mod tests {
             f(u).unwrap();
             Ok(())
         })
-        .budget(Duration::from_secs(10))
+        .budget(Duration::from_secs(20))
         .size_min(1 << 12)
         .size_max(1 << 20);
 
