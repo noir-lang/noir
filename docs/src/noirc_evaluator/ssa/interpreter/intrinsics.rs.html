@@ -611,7 +611,9 @@
 <a href="#610" id="610">610</a>
 <a href="#611" id="611">611</a>
 <a href="#612" id="612">612</a>
-<a href="#613" id="613">613</a></pre></div><pre class="rust"><code><span class="kw">use </span>acvm::{AcirField, BlackBoxFunctionSolver, BlackBoxResolutionError, FieldElement};
+<a href="#613" id="613">613</a>
+<a href="#614" id="614">614</a>
+<a href="#615" id="615">615</a></pre></div><pre class="rust"><code><span class="kw">use </span>acvm::{AcirField, BlackBoxFunctionSolver, BlackBoxResolutionError, FieldElement};
 <span class="kw">use </span>bn254_blackbox_solver::derive_generators;
 <span class="kw">use </span>iter_extended::{try_vecmap, vecmap};
 <span class="kw">use </span>num_bigint::BigUint;
@@ -691,13 +693,15 @@
             Intrinsic::ToBits(endian) =&gt; {
                 check_argument_count(args, <span class="number">1</span>, intrinsic)<span class="question-mark">?</span>;
                 <span class="kw">let </span>field = <span class="self">self</span>.lookup_field(args[<span class="number">0</span>], <span class="string">"call to to_bits"</span>)<span class="question-mark">?</span>;
-                <span class="self">self</span>.to_radix(endian, args[<span class="number">0</span>], field, <span class="number">2</span>, results[<span class="number">0</span>])
+                <span class="kw">let </span>element_type = NumericType::bool();
+                <span class="self">self</span>.to_radix(endian, element_type, args[<span class="number">0</span>], field, <span class="number">2</span>, results[<span class="number">0</span>])
             }
             Intrinsic::ToRadix(endian) =&gt; {
                 check_argument_count(args, <span class="number">2</span>, intrinsic)<span class="question-mark">?</span>;
-                <span class="kw">let </span>field = <span class="self">self</span>.lookup_field(args[<span class="number">0</span>], <span class="string">"call to to_bits"</span>)<span class="question-mark">?</span>;
-                <span class="kw">let </span>radix = <span class="self">self</span>.lookup_u32(args[<span class="number">1</span>], <span class="string">"call to to_bits"</span>)<span class="question-mark">?</span>;
-                <span class="self">self</span>.to_radix(endian, args[<span class="number">0</span>], field, radix, results[<span class="number">0</span>])
+                <span class="kw">let </span>field = <span class="self">self</span>.lookup_field(args[<span class="number">0</span>], <span class="string">"call to to_radix"</span>)<span class="question-mark">?</span>;
+                <span class="kw">let </span>radix = <span class="self">self</span>.lookup_u32(args[<span class="number">1</span>], <span class="string">"call to to_radix"</span>)<span class="question-mark">?</span>;
+                <span class="kw">let </span>element_type = NumericType::Unsigned { bit_size: <span class="number">8 </span>};
+                <span class="self">self</span>.to_radix(endian, element_type, args[<span class="number">0</span>], field, radix, results[<span class="number">0</span>])
             }
             Intrinsic::BlackBox(black_box_func) =&gt; <span class="kw">match </span>black_box_func {
                 acvm::acir::BlackBoxFunc::AES128Encrypt =&gt; {
@@ -1038,6 +1042,7 @@
     <span class="kw">fn </span>to_radix(
         <span class="kw-2">&amp;</span><span class="self">self</span>,
         endian: Endian,
+        element_type: NumericType,
         field_id: ValueId,
         field: FieldElement,
         radix: u32,
@@ -1057,9 +1062,8 @@
             <span class="kw">return </span><span class="prelude-val">Err</span>(InterpreterError::ToRadixFailed { field_id, field, radix });
         };
 
-        <span class="kw">let </span>elements =
-            try_vecmap(limbs, |limb| Value::from_constant(limb, NumericType::unsigned(<span class="number">8</span>)))<span class="question-mark">?</span>;
-        <span class="prelude-val">Ok</span>(<span class="macro">vec!</span>[Value::array(elements, <span class="macro">vec!</span>[Type::unsigned(<span class="number">8</span>)])])
+        <span class="kw">let </span>elements = try_vecmap(limbs, |limb| Value::from_constant(limb, element_type))<span class="question-mark">?</span>;
+        <span class="prelude-val">Ok</span>(<span class="macro">vec!</span>[Value::array(elements, <span class="macro">vec!</span>[Type::Numeric(element_type)])])
     }
 
     <span class="doccomment">/// (length, slice, elem...) -&gt; (length, slice)
