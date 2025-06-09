@@ -229,6 +229,15 @@ impl<'f> Validator<'f> {
                     }
                 }
             }
+            Instruction::Constrain(lhs, rhs, _) | Instruction::ConstrainNotEqual(lhs, rhs, _) => {
+                let lhs_type = dfg.type_of_value(*lhs);
+                let rhs_type = dfg.type_of_value(*rhs);
+                if lhs_type != rhs_type {
+                    panic!(
+                        "Left-hand side and right-hand side of constrain must have the same type"
+                    );
+                }
+            }
             _ => (),
         }
     }
@@ -670,6 +679,36 @@ mod tests {
         brillig(inline) predicate_pure fn main f0 {
           b0(v0: Field):
             v1 = call to_le_bits(v0) -> [u1; 32]
+            return
+        }
+        ";
+        let _ = Ssa::from_str(src);
+    }
+
+    #[should_panic(
+        expected = "Left-hand side and right-hand side of constrain must have the same type"
+    )]
+    #[test]
+    fn constrain_with_different_types() {
+        let src = "
+        brillig(inline) predicate_pure fn main f0 {
+          b0(v0: u8, v1: i8):
+            constrain v0 == v1
+            return
+        }
+        ";
+        let _ = Ssa::from_str(src);
+    }
+
+    #[should_panic(
+        expected = "Left-hand side and right-hand side of constrain must have the same type"
+    )]
+    #[test]
+    fn constrain_neq_with_different_types() {
+        let src = "
+        brillig(inline) predicate_pure fn main f0 {
+          b0(v0: u8, v1: i8):
+            constrain v0 != v1
             return
         }
         ";
