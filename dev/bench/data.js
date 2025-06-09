@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1749482843882,
+  "lastUpdate": 1749482885768,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -18451,48 +18451,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "asterite@gmail.com",
-            "name": "Ary Borenszweig",
-            "username": "asterite"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "d6e4ce9cb2e74c4239843ff57c22b56fac4530fe",
-          "message": "fix: cast signed to u1 follow-up (#8730)",
-          "timestamp": "2025-05-30T18:30:18Z",
-          "tree_id": "01b2a3f7dbed49b2238996373b8199f8a74b98bd",
-          "url": "https://github.com/noir-lang/noir/commit/d6e4ce9cb2e74c4239843ff57c22b56fac4530fe"
-        },
-        "date": 1748631098576,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 256182,
-            "range": "± 756",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 226142,
-            "range": "± 2248",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 3212520,
-            "range": "± 4400",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "jfecher11@gmail.com",
             "name": "jfecher",
             "username": "jfecher"
@@ -20544,6 +20502,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2782608,
             "range": "± 5267",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "15848336+TomAFrench@users.noreply.github.com",
+            "name": "Tom French",
+            "username": "TomAFrench"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "8945a4c89f8748de5ce383efd2c023169cdf38e0",
+          "message": "chore: redo typo PR by osrm (#8840)\n\nCo-authored-by: Jake Fecher <jfecher11@gmail.com>",
+          "timestamp": "2025-06-09T15:02:21Z",
+          "tree_id": "a2d27d443434531fd1c5b720959f09d873f0c506",
+          "url": "https://github.com/noir-lang/noir/commit/8945a4c89f8748de5ce383efd2c023169cdf38e0"
+        },
+        "date": 1749482873851,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 246901,
+            "range": "± 928",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 218126,
+            "range": "± 7522",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2818543,
+            "range": "± 1855",
             "unit": "ns/iter"
           }
         ]
