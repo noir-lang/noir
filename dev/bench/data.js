@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1749504487217,
+  "lastUpdate": 1749507485630,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -18471,48 +18471,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "163862677+noirwhal@users.noreply.github.com",
-            "name": "noirwhal",
-            "username": "noirwhal"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "2e69fe88094e96cf62a28067240b775a4064cdc4",
-          "message": "chore: bump external pinned commits (#8747)\n\nCo-authored-by: noirwhal <tomfrench@aztecprotocol.com>\nCo-authored-by: Tom French <15848336+TomAFrench@users.noreply.github.com>",
-          "timestamp": "2025-06-02T09:48:13Z",
-          "tree_id": "5ff82eb0f05a74be73601a97b171bb235d5d7ffc",
-          "url": "https://github.com/noir-lang/noir/commit/2e69fe88094e96cf62a28067240b775a4064cdc4"
-        },
-        "date": 1748858917107,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 255144,
-            "range": "± 3281",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 222935,
-            "range": "± 1445",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 3563051,
-            "range": "± 17338",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "asterite@gmail.com",
             "name": "Ary Borenszweig",
             "username": "asterite"
@@ -20564,6 +20522,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2780475,
             "range": "± 6477",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "jc@joshcrites.com",
+            "name": "josh crites",
+            "username": "critesjosh"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "0a0e7084e28cf41141fd819dc3505339e472f093",
+          "message": "chore(docs): Update noirjs app page to use to beta.6 (#8853)",
+          "timestamp": "2025-06-09T21:55:41Z",
+          "tree_id": "7dc4c09ebe75cd42a56a86ad766fbc4c6fdad5fd",
+          "url": "https://github.com/noir-lang/noir/commit/0a0e7084e28cf41141fd819dc3505339e472f093"
+        },
+        "date": 1749507473972,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 248608,
+            "range": "± 273",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 219237,
+            "range": "± 2145",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2780538,
+            "range": "± 5045",
             "unit": "ns/iter"
           }
         ]
