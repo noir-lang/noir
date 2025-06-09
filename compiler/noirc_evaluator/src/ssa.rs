@@ -49,6 +49,7 @@ pub mod ir;
 pub(crate) mod opt;
 pub mod parser;
 pub mod ssa_gen;
+pub(crate) mod validation;
 
 #[derive(Debug, Clone)]
 pub enum SsaLogging {

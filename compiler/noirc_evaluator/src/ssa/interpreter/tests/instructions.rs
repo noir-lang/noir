@@ -214,7 +214,10 @@ fn mul_signed() {
         acir(inline) fn main f0 {
           b0():
             v0 = mul i64 2, i64 100
-            return v0
+            v1 = cast v0 as u128
+            v2 = truncate v1 to 64 bits, max_bit_size: 128
+            v3 = cast v2 as i64
+            return v3
         }
     ",
     );
@@ -237,11 +240,17 @@ fn mul_overflow_unsigned() {
 
 #[test]
 fn mul_overflow_signed() {
+    // We return v0 as we simply want the output from the mul operation in this test.
+    // However, the valid SSA signed overflow patterns requires that the appropriate
+    // casts and truncates follow a signed mul.
     let value = expect_value(
         "
         acir(inline) fn main f0 {
           b0():
             v0 = mul i8 127, i8 2
+            v1 = cast v0 as u16
+            v2 = truncate v1 to 8 bits, max_bit_size: 16
+            v3 = cast v2 as i8
             return v0
         }
     ",
