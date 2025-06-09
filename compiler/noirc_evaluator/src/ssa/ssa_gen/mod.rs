@@ -9,7 +9,7 @@ use noirc_frontend::token::FmtStrFragment;
 pub use program::Ssa;
 
 use context::{Loop, SharedContext};
-use iter_extended::{try_vecmap, vecmap};
+use iter_extended::vecmap;
 use noirc_errors::Location;
 use noirc_frontend::ast::UnaryOp;
 use noirc_frontend::hir_def::types::Type as HirType;
@@ -137,16 +137,20 @@ impl FunctionContext<'_> {
     /// Codegen a function's body and set its return value to that of its last parameter.
     /// For functions returning nothing, this will be an empty list.
     fn codegen_function_body(&mut self, body: &Expression) -> Result<(), RuntimeError> {
-        let return_value = self.codegen_expression(body)?;
+        let Some(return_value) = self.codegen_expression(body)? else {
+            return Ok(());
+        };
         let results = return_value.into_value_list(self);
 
         self.builder.terminate_with_return(results);
         Ok(())
     }
 
-    fn codegen_expression(&mut self, expr: &Expression) -> Result<Values, RuntimeError> {
+    /// Codegen an expression. Returns `None` if there's no produced value, which can happen
+    /// if a non-conditional `break` or `continue` were found.
+    fn codegen_expression(&mut self, expr: &Expression) -> Result<Option<Values>, RuntimeError> {
         match expr {
-            Expression::Ident(ident) => Ok(self.codegen_ident(ident)),
+            Expression::Ident(ident) => Ok(Some(self.codegen_ident(ident))),
             Expression::Literal(literal) => self.codegen_literal(literal),
             Expression::Block(block) => self.codegen_block(block),
             Expression::Unary(unary) => self.codegen_unary(unary),
@@ -169,8 +173,14 @@ impl FunctionContext<'_> {
             }
             Expression::Assign(assign) => self.codegen_assign(assign),
             Expression::Semi(semi) => self.codegen_semi(semi),
-            Expression::Break => Ok(self.codegen_break()),
-            Expression::Continue => Ok(self.codegen_continue()),
+            Expression::Break => {
+                self.codegen_break();
+                Ok(None)
+            }
+            Expression::Continue => {
+                self.codegen_continue();
+                Ok(None)
+            }
             Expression::Clone(expr) => self.codegen_clone(expr),
             Expression::Drop(expr) => self.codegen_drop(expr),
         }
@@ -178,8 +188,14 @@ impl FunctionContext<'_> {
 
     /// Codegen any non-tuple expression so that we can unwrap the Values
     /// tree to return a single value for use with most SSA instructions.
-    fn codegen_non_tuple_expression(&mut self, expr: &Expression) -> Result<ValueId, RuntimeError> {
-        Ok(self.codegen_expression(expr)?.into_leaf().eval(self))
+    fn codegen_non_tuple_expression(
+        &mut self,
+        expr: &Expression,
+    ) -> Result<Option<ValueId>, RuntimeError> {
+        let Some(result) = self.codegen_expression(expr)? else {
+            return Ok(None);
+        };
+        Ok(Some(result.into_leaf().eval(self)))
     }
 
     /// Codegen a reference to an ident.
@@ -208,24 +224,28 @@ impl FunctionContext<'_> {
         self.codegen_ident_reference(ident).map(|value| value.eval(self).into())
     }
 
-    fn codegen_literal(&mut self, literal: &ast::Literal) -> Result<Values, RuntimeError> {
+    fn codegen_literal(&mut self, literal: &ast::Literal) -> Result<Option<Values>, RuntimeError> {
         match literal {
             ast::Literal::Array(array) => {
-                let elements = self.codegen_array_elements(&array.contents)?;
+                let Some(elements) = self.codegen_array_elements(&array.contents)? else {
+                    return Ok(None);
+                };
 
                 let typ = Self::convert_type(&array.typ).flatten();
-                Ok(match array.typ {
+                Ok(Some(match array.typ {
                     ast::Type::Array(_, _) => {
                         self.codegen_array_checked(elements, typ[0].clone())?
                     }
                     _ => unreachable!("ICE: unexpected array literal type, got {}", array.typ),
-                })
+                }))
             }
             ast::Literal::Slice(array) => {
-                let elements = self.codegen_array_elements(&array.contents)?;
+                let Some(elements) = self.codegen_array_elements(&array.contents)? else {
+                    return Ok(None);
+                };
 
                 let typ = Self::convert_type(&array.typ).flatten();
-                Ok(match array.typ {
+                Ok(Some(match array.typ {
                     ast::Type::Slice(_) => {
                         let slice_length =
                             self.builder.length_constant(array.contents.len() as u128);
@@ -234,18 +254,18 @@ impl FunctionContext<'_> {
                         Tree::Branch(vec![slice_length.into(), slice_contents])
                     }
                     _ => unreachable!("ICE: unexpected slice literal type, got {}", array.typ),
-                })
+                }))
             }
             ast::Literal::Integer(value, typ, location) => {
                 self.builder.set_location(*location);
                 let typ = Self::convert_non_tuple_type(typ).unwrap_numeric();
-                self.checked_numeric_constant(*value, typ).map(Into::into)
+                self.checked_numeric_constant(*value, typ).map(Into::into).map(Some)
             }
             ast::Literal::Bool(value) => {
                 // Don't need to call checked_numeric_constant here since `value` can only be true or false
-                Ok(self.builder.numeric_constant(*value as u128, NumericType::bool()).into())
+                Ok(Some(self.builder.numeric_constant(*value as u128, NumericType::bool()).into()))
             }
-            ast::Literal::Str(string) => Ok(self.codegen_string(string)),
+            ast::Literal::Str(string) => Ok(Some(self.codegen_string(string))),
             ast::Literal::FmtStr(fragments, number_of_fields, fields) => {
                 let mut string = String::new();
                 for fragment in fragments {
@@ -267,19 +287,28 @@ impl FunctionContext<'_> {
                 // The message string, the number of fields to be formatted, and the fields themselves
                 let string = self.codegen_string(&string);
                 let field_count = self.builder.length_constant(*number_of_fields as u128);
-                let fields = self.codegen_expression(fields)?;
+                let Some(fields) = self.codegen_expression(fields)? else {
+                    return Ok(None);
+                };
 
-                Ok(Tree::Branch(vec![string, field_count.into(), fields]))
+                Ok(Some(Tree::Branch(vec![string, field_count.into(), fields])))
             }
-            ast::Literal::Unit => Ok(Self::unit_value()),
+            ast::Literal::Unit => Ok(Some(Self::unit_value())),
         }
     }
 
     fn codegen_array_elements(
         &mut self,
         elements: &[Expression],
-    ) -> Result<Vec<Values>, RuntimeError> {
-        try_vecmap(elements, |element| self.codegen_expression(element))
+    ) -> Result<Option<Vec<Values>>, RuntimeError> {
+        let mut values = Vec::with_capacity(elements.len());
+        for element in elements {
+            let Some(value) = self.codegen_expression(element)? else {
+                return Ok(None);
+            };
+            values.push(value);
+        }
+        Ok(Some(values))
     }
 
     fn codegen_string(&mut self, string: &str) -> Values {
@@ -332,41 +361,46 @@ impl FunctionContext<'_> {
         self.builder.insert_make_array(array, typ).into()
     }
 
-    fn codegen_block(&mut self, block: &[Expression]) -> Result<Values, RuntimeError> {
+    fn codegen_block(&mut self, block: &[Expression]) -> Result<Option<Values>, RuntimeError> {
         let mut result = Self::unit_value();
         for expr in block {
-            result = self.codegen_expression(expr)?;
-
-            // A break or continue might happen in a block, in which case we must
-            // not codegen any further expressions.
-            if self.builder.current_block_is_closed() {
-                break;
-            }
+            let Some(new_result) = self.codegen_expression(expr)? else {
+                return Ok(None);
+            };
+            result = new_result;
         }
-        Ok(result)
+        Ok(Some(result))
     }
 
-    fn codegen_unary(&mut self, unary: &ast::Unary) -> Result<Values, RuntimeError> {
+    fn codegen_unary(&mut self, unary: &ast::Unary) -> Result<Option<Values>, RuntimeError> {
         match unary.operator {
             UnaryOp::Not => {
-                let rhs = self.codegen_expression(&unary.rhs)?;
+                let Some(rhs) = self.codegen_expression(&unary.rhs)? else {
+                    return Ok(None);
+                };
                 let rhs = rhs.into_leaf().eval(self);
-                Ok(self.builder.insert_not(rhs).into())
+                Ok(Some(self.builder.insert_not(rhs).into()))
             }
             UnaryOp::Minus => {
-                let rhs = self.codegen_expression(&unary.rhs)?;
+                let Some(rhs) = self.codegen_expression(&unary.rhs)? else {
+                    return Ok(None);
+                };
                 let rhs = rhs.into_leaf().eval(self);
                 let typ = self.builder.type_of_value(rhs).unwrap_numeric();
                 let zero = self.builder.numeric_constant(0u128, typ);
-                Ok(self.insert_binary(
+                Ok(Some(self.insert_binary(
                     zero,
                     noirc_frontend::ast::BinaryOpKind::Subtract,
                     rhs,
                     unary.location,
-                ))
+                )))
             }
             UnaryOp::Reference { mutable: _ } => {
-                Ok(self.codegen_reference(&unary.rhs)?.map(|rhs| {
+                let Some(reference) = self.codegen_reference(&unary.rhs)? else {
+                    return Ok(None);
+                };
+
+                Ok(Some(reference.map(|rhs| {
                     match rhs {
                         value::Value::Normal(value) => {
                             let rhs_type = self.builder.current_function.dfg.type_of_value(value);
@@ -378,11 +412,13 @@ impl FunctionContext<'_> {
                         // a Value::Normal so it is no longer automatically dereferenced.
                         value::Value::Mutable(reference, _) => reference.into(),
                     }
-                }))
+                })))
             }
             UnaryOp::Dereference { .. } => {
-                let rhs = self.codegen_expression(&unary.rhs)?;
-                Ok(self.dereference(&rhs, &unary.result_type))
+                let Some(rhs) = self.codegen_expression(&unary.rhs)? else {
+                    return Ok(None);
+                };
+                Ok(Some(self.dereference(&rhs, &unary.result_type)))
             }
         }
     }
@@ -395,26 +431,41 @@ impl FunctionContext<'_> {
         })
     }
 
-    fn codegen_reference(&mut self, expr: &Expression) -> Result<Values, RuntimeError> {
+    fn codegen_reference(&mut self, expr: &Expression) -> Result<Option<Values>, RuntimeError> {
         match expr {
-            Expression::Ident(ident) => Ok(self.codegen_ident_reference(ident)),
+            Expression::Ident(ident) => Ok(Some(self.codegen_ident_reference(ident))),
             Expression::ExtractTupleField(tuple, index) => {
-                let tuple = self.codegen_reference(tuple)?;
-                Ok(Self::get_field(tuple, *index))
+                let Some(tuple) = self.codegen_reference(tuple)? else {
+                    return Ok(None);
+                };
+                Ok(Some(Self::get_field(tuple, *index)))
             }
             other => self.codegen_expression(other),
         }
     }
 
-    fn codegen_binary(&mut self, binary: &ast::Binary) -> Result<Values, RuntimeError> {
-        let lhs = self.codegen_non_tuple_expression(&binary.lhs)?;
-        let rhs = self.codegen_non_tuple_expression(&binary.rhs)?;
-        Ok(self.insert_binary(lhs, binary.operator, rhs, binary.location))
+    fn codegen_binary(&mut self, binary: &ast::Binary) -> Result<Option<Values>, RuntimeError> {
+        let Some(lhs) = self.codegen_non_tuple_expression(&binary.lhs)? else {
+            return Ok(None);
+        };
+
+        let Some(rhs) = self.codegen_non_tuple_expression(&binary.rhs)? else {
+            return Ok(None);
+        };
+
+        Ok(Some(self.insert_binary(lhs, binary.operator, rhs, binary.location)))
     }
 
-    fn codegen_index(&mut self, index: &ast::Index) -> Result<Values, RuntimeError> {
-        let array_or_slice = self.codegen_expression(&index.collection)?.into_value_list(self);
-        let index_value = self.codegen_non_tuple_expression(&index.index)?;
+    fn codegen_index(&mut self, index: &ast::Index) -> Result<Option<Values>, RuntimeError> {
+        let Some(array_or_slice) = self.codegen_expression(&index.collection)? else {
+            return Ok(None);
+        };
+        let array_or_slice = array_or_slice.into_value_list(self);
+
+        let Some(index_value) = self.codegen_non_tuple_expression(&index.index)? else {
+            return Ok(None);
+        };
+
         // Slices are represented as a tuple in the form: (length, slice contents).
         // Thus, slices require two value ids for their representation.
         let (array, slice_length) = if array_or_slice.len() > 1 {
@@ -423,13 +474,14 @@ impl FunctionContext<'_> {
             (array_or_slice[0], None)
         };
 
-        self.codegen_array_index(
+        let values = self.codegen_array_index(
             array,
             index_value,
             &index.element_type,
             index.location,
             slice_length,
-        )
+        )?;
+        Ok(Some(values))
     }
 
     /// This is broken off from codegen_index so that it can also be
@@ -508,11 +560,13 @@ impl FunctionContext<'_> {
         );
     }
 
-    fn codegen_cast(&mut self, cast: &ast::Cast) -> Result<Values, RuntimeError> {
-        let lhs = self.codegen_non_tuple_expression(&cast.lhs)?;
+    fn codegen_cast(&mut self, cast: &ast::Cast) -> Result<Option<Values>, RuntimeError> {
+        let Some(lhs) = self.codegen_non_tuple_expression(&cast.lhs)? else {
+            return Ok(None);
+        };
         let typ = Self::convert_non_tuple_type(&cast.r#type).unwrap_numeric();
 
-        Ok(self.insert_safe_cast(lhs, typ, cast.location).into())
+        Ok(Some(self.insert_safe_cast(lhs, typ, cast.location).into()))
     }
 
     /// Codegens a for loop, creating three new blocks in the process.
@@ -534,12 +588,16 @@ impl FunctionContext<'_> {
     /// loop_end():
     ///   ... This is the current insert point after codegen_for finishes ...
     /// ```
-    fn codegen_for(&mut self, for_expr: &ast::For) -> Result<Values, RuntimeError> {
+    fn codegen_for(&mut self, for_expr: &ast::For) -> Result<Option<Values>, RuntimeError> {
         self.builder.set_location(for_expr.start_range_location);
-        let start_index = self.codegen_non_tuple_expression(&for_expr.start_range)?;
+        let Some(start_index) = self.codegen_non_tuple_expression(&for_expr.start_range)? else {
+            return Ok(None);
+        };
 
         self.builder.set_location(for_expr.end_range_location);
-        let end_index = self.codegen_non_tuple_expression(&for_expr.end_range)?;
+        let Some(end_index) = self.codegen_non_tuple_expression(&for_expr.end_range)? else {
+            return Ok(None);
+        };
 
         let range_bound = |id| self.builder.current_function.dfg.get_integer_constant(id);
 
@@ -548,7 +606,7 @@ impl FunctionContext<'_> {
         {
             // If we can determine that the loop contains zero iterations then there's no need to codegen the loop.
             if start_constant >= end_constant {
-                return Ok(Self::unit_value());
+                return Ok(Some(Self::unit_value()));
             }
         }
 
@@ -583,18 +641,16 @@ impl FunctionContext<'_> {
         self.builder.switch_to_block(loop_body);
         self.define(for_expr.index_variable, loop_index.into());
 
-        self.codegen_expression(&for_expr.block)?;
-
-        if !self.builder.current_block_is_closed() {
-            // No need to jump if the current block is already closed
+        if self.codegen_expression(&for_expr.block)?.is_some() {
+            // Only jump if we were able to codegen the body
             let new_loop_index = self.make_offset(loop_index, 1);
             self.builder.terminate_with_jmp(loop_entry, vec![new_loop_index]);
-        }
+        };
 
         // Finish by switching back to the end of the loop
         self.builder.switch_to_block(loop_end);
         self.exit_loop();
-        Ok(Self::unit_value())
+        Ok(Some(Self::unit_value()))
     }
 
     /// Codegens a loop, creating two new blocks in the process.
@@ -610,7 +666,7 @@ impl FunctionContext<'_> {
     /// loop_end():
     ///   ... This is the current insert point after codegen_for finishes ...
     /// ```
-    fn codegen_loop(&mut self, block: &Expression) -> Result<Values, RuntimeError> {
+    fn codegen_loop(&mut self, block: &Expression) -> Result<Option<Values>, RuntimeError> {
         let loop_body = self.builder.insert_block();
         let loop_end = self.builder.insert_block();
 
@@ -626,7 +682,7 @@ impl FunctionContext<'_> {
         // Finish by switching to the end of the loop
         self.builder.switch_to_block(loop_end);
         self.exit_loop();
-        Ok(Self::unit_value())
+        Ok(Some(Self::unit_value()))
     }
 
     /// Codegens a while loop, creating three new blocks in the process.
@@ -645,7 +701,7 @@ impl FunctionContext<'_> {
     /// while_end():
     ///   ... This is the current insert point after codegen_while finishes ...
     /// ```
-    fn codegen_while(&mut self, while_: &While) -> Result<Values, RuntimeError> {
+    fn codegen_while(&mut self, while_: &While) -> Result<Option<Values>, RuntimeError> {
         let while_entry = self.builder.insert_block();
         let while_body = self.builder.insert_block();
         let while_end = self.builder.insert_block();
@@ -654,8 +710,9 @@ impl FunctionContext<'_> {
 
         // Codegen the entry (where the condition is)
         self.builder.switch_to_block(while_entry);
-        let condition = self.codegen_non_tuple_expression(&while_.condition)?;
-        self.builder.terminate_with_jmpif(condition, while_body, while_end);
+        if let Some(condition) = self.codegen_non_tuple_expression(&while_.condition)? {
+            self.builder.terminate_with_jmpif(condition, while_body, while_end);
+        };
 
         self.enter_loop(Loop { loop_entry: while_entry, loop_index: None, loop_end: while_end });
 
@@ -667,7 +724,7 @@ impl FunctionContext<'_> {
         // Finish by switching to the end of the while
         self.builder.switch_to_block(while_end);
         self.exit_loop();
-        Ok(Self::unit_value())
+        Ok(Some(Self::unit_value()))
     }
 
     /// Codegens an if expression, handling the case of what to do if there is no 'else'.
@@ -698,8 +755,11 @@ impl FunctionContext<'_> {
     /// end_if:  // No block parameter is needed. Without an else, the unit value is always returned.
     ///   ... This is the current insert point after codegen_if finishes ...
     /// ```
-    fn codegen_if(&mut self, if_expr: &ast::If) -> Result<Values, RuntimeError> {
-        let condition = self.codegen_non_tuple_expression(&if_expr.condition)?;
+    fn codegen_if(&mut self, if_expr: &ast::If) -> Result<Option<Values>, RuntimeError> {
+        let Some(condition) = self.codegen_non_tuple_expression(&if_expr.condition)? else {
+            return Ok(None);
+        };
+
         if let Some(result) = self.try_codegen_constant_if(condition, if_expr) {
             return result;
         }
@@ -716,13 +776,16 @@ impl FunctionContext<'_> {
 
         if let Some(alternative) = &if_expr.alternative {
             let end_block = self.builder.insert_block();
-            let then_values = then_value.into_value_list(self);
-            self.builder.terminate_with_jmp(end_block, then_values);
+            if let Some(then_value) = then_value {
+                let then_values = then_value.into_value_list(self);
+                self.builder.terminate_with_jmp(end_block, then_values);
+            }
 
             self.builder.switch_to_block(else_block);
-            let else_value = self.codegen_expression(alternative)?;
-            let else_values = else_value.into_value_list(self);
-            self.builder.terminate_with_jmp(end_block, else_values);
+            if let Some(else_value) = self.codegen_expression(alternative)? {
+                let else_values = else_value.into_value_list(self);
+                self.builder.terminate_with_jmp(end_block, else_values);
+            }
 
             // Create block arguments for the end block as needed to branch to
             // with our then and else value.
@@ -738,7 +801,7 @@ impl FunctionContext<'_> {
             self.builder.switch_to_block(else_block);
         }
 
-        Ok(result)
+        Ok(Some(result))
     }
 
     /// If the condition is known, skip codegen for the then/else branch and only compile the
@@ -747,20 +810,20 @@ impl FunctionContext<'_> {
         &mut self,
         condition: ValueId,
         if_expr: &ast::If,
-    ) -> Option<Result<Values, RuntimeError>> {
+    ) -> Option<Result<Option<Values>, RuntimeError>> {
         let condition = self.builder.current_function.dfg.get_numeric_constant(condition)?;
 
         Some(if condition.is_zero() {
             match if_expr.alternative.as_ref() {
                 Some(alternative) => self.codegen_expression(alternative),
-                None => Ok(Self::unit_value()),
+                None => Ok(Some(Self::unit_value())),
             }
         } else {
             self.codegen_expression(&if_expr.consequence)
         })
     }
 
-    fn codegen_match(&mut self, match_expr: &ast::Match) -> Result<Values, RuntimeError> {
+    fn codegen_match(&mut self, match_expr: &ast::Match) -> Result<Option<Values>, RuntimeError> {
         let variable = self.lookup(match_expr.variable_to_match);
 
         // Any matches with only a single case we don't need to check the tag at all.
@@ -805,13 +868,16 @@ impl FunctionContext<'_> {
 
             self.builder.switch_to_block(case_block);
             self.bind_case_arguments(variable.clone(), case);
-            let results = self.codegen_expression(&case.branch)?.into_value_list(self);
+            if let Some(results) = self.codegen_expression(&case.branch)? {
+                let results = results.into_value_list(self);
 
-            // Each branch will jump to a different end block for now. We have to merge them all
-            // later since SSA doesn't support more than two blocks jumping to the same end block.
-            let local_end_block = make_end_block(self);
-            self.builder.terminate_with_jmp(local_end_block.0, results);
-            blocks_to_merge.push(local_end_block);
+                // Each branch will jump to a different end block for now. We have to merge them all
+                // later since SSA doesn't support more than two blocks jumping to the same end block.
+                let local_end_block = make_end_block(self);
+                self.builder.terminate_with_jmp(local_end_block.0, results);
+
+                blocks_to_merge.push(local_end_block);
+            }
 
             self.builder.switch_to_block(else_block);
         }
@@ -820,15 +886,19 @@ impl FunctionContext<'_> {
         blocks_to_merge.push((last_local_end_block, last_results));
 
         if let Some(branch) = &match_expr.default_case {
-            let results = self.codegen_expression(branch)?.into_value_list(self);
-            self.builder.terminate_with_jmp(last_local_end_block, results);
+            if let Some(results) = self.codegen_expression(branch)? {
+                let results = results.into_value_list(self);
+                self.builder.terminate_with_jmp(last_local_end_block, results);
+            }
         } else {
             // If there is no default case, assume we saved the last case from the
             // last_case optimization above
             let case = match_expr.cases.last().unwrap();
             self.bind_case_arguments(variable, case);
-            let results = self.codegen_expression(&case.branch)?.into_value_list(self);
-            self.builder.terminate_with_jmp(last_local_end_block, results);
+            if let Some(results) = self.codegen_expression(&case.branch)? {
+                let results = results.into_value_list(self);
+                self.builder.terminate_with_jmp(last_local_end_block, results);
+            }
         }
 
         // Merge blocks as last-in first-out:
@@ -869,7 +939,7 @@ impl FunctionContext<'_> {
         }
 
         self.builder.switch_to_block(end_block);
-        Ok(end_results)
+        Ok(Some(end_results))
     }
 
     fn variant_index_value(
@@ -883,7 +953,11 @@ impl FunctionContext<'_> {
         }
     }
 
-    fn no_match(&mut self, variable: Values, case: &MatchCase) -> Result<Values, RuntimeError> {
+    fn no_match(
+        &mut self,
+        variable: Values,
+        case: &MatchCase,
+    ) -> Result<Option<Values>, RuntimeError> {
         if !case.arguments.is_empty() {
             self.bind_case_arguments(variable, case);
         }
@@ -961,27 +1035,42 @@ impl FunctionContext<'_> {
         }
     }
 
-    fn codegen_tuple(&mut self, tuple: &[Expression]) -> Result<Values, RuntimeError> {
-        Ok(Tree::Branch(try_vecmap(tuple, |expr| self.codegen_expression(expr))?))
+    fn codegen_tuple(&mut self, tuple: &[Expression]) -> Result<Option<Values>, RuntimeError> {
+        let mut values = Vec::with_capacity(tuple.len());
+        for expr in tuple {
+            let Some(value) = self.codegen_expression(expr)? else {
+                return Ok(None);
+            };
+            values.push(value);
+        }
+        Ok(Some(Tree::Branch(values)))
     }
 
     fn codegen_extract_tuple_field(
         &mut self,
         tuple: &Expression,
         field_index: usize,
-    ) -> Result<Values, RuntimeError> {
-        let tuple = self.codegen_expression(tuple)?;
-        Ok(Self::get_field(tuple, field_index))
+    ) -> Result<Option<Values>, RuntimeError> {
+        let Some(tuple) = self.codegen_expression(tuple)? else {
+            return Ok(None);
+        };
+        Ok(Some(Self::get_field(tuple, field_index)))
     }
 
     /// Generate SSA for a function call. Note that calls to built-in functions
     /// and intrinsics are also represented by the function call instruction.
-    fn codegen_call(&mut self, call: &ast::Call) -> Result<Values, RuntimeError> {
-        let function = self.codegen_non_tuple_expression(&call.func)?;
+    fn codegen_call(&mut self, call: &ast::Call) -> Result<Option<Values>, RuntimeError> {
+        let Some(function) = self.codegen_non_tuple_expression(&call.func)? else {
+            return Ok(None);
+        };
+
         let mut arguments = Vec::with_capacity(call.arguments.len());
 
         for argument in &call.arguments {
-            let mut values = self.codegen_expression(argument)?.into_value_list(self);
+            let Some(values) = self.codegen_expression(argument)? else {
+                return Ok(None);
+            };
+            let mut values = values.into_value_list(self);
             arguments.append(&mut values);
         }
 
@@ -989,7 +1078,7 @@ impl FunctionContext<'_> {
         // since it is done within the function to each parameter already.
 
         self.codegen_intrinsic_call_checks(function, &arguments, call.location);
-        Ok(self.insert_call(function, arguments, &call.return_type, call.location))
+        Ok(Some(self.insert_call(function, arguments, &call.return_type, call.location)))
     }
 
     fn codegen_intrinsic_call_checks(
@@ -1030,8 +1119,10 @@ impl FunctionContext<'_> {
     /// If the variable is immutable, no special handling is necessary and we can return the given
     /// ValueId directly. If it is mutable, we'll need to allocate space for the value and store
     /// the initial value before returning the allocate instruction.
-    fn codegen_let(&mut self, let_expr: &ast::Let) -> Result<Values, RuntimeError> {
-        let mut values = self.codegen_expression(&let_expr.expression)?;
+    fn codegen_let(&mut self, let_expr: &ast::Let) -> Result<Option<Values>, RuntimeError> {
+        let Some(mut values) = self.codegen_expression(&let_expr.expression)? else {
+            return Ok(None);
+        };
 
         values = values.map(|value| {
             let value = value.eval(self);
@@ -1044,7 +1135,7 @@ impl FunctionContext<'_> {
         });
 
         self.define(let_expr.id, values);
-        Ok(Self::unit_value())
+        Ok(Some(Self::unit_value()))
     }
 
     fn codegen_constrain(
@@ -1052,18 +1143,27 @@ impl FunctionContext<'_> {
         expr: &Expression,
         location: Location,
         assert_payload: &Option<Box<(Expression, HirType)>>,
-    ) -> Result<Values, RuntimeError> {
-        let expr = self.codegen_non_tuple_expression(expr)?;
+    ) -> Result<Option<Values>, RuntimeError> {
+        let Some(expr) = self.codegen_non_tuple_expression(expr)? else {
+            return Ok(None);
+        };
+
         let true_literal = self.builder.numeric_constant(true, NumericType::bool());
 
         // Set the location here for any errors that may occur when we codegen the assert message
         self.builder.set_location(location);
 
-        let assert_payload = self.codegen_constrain_error(assert_payload)?;
+        let Some(assert_payload) = self.codegen_constrain_error(assert_payload)? else {
+            return Ok(None);
+        };
+        let assert_payload = match assert_payload {
+            ConstrainErrorMessage::NoMessage => None,
+            ConstrainErrorMessage::Message(message) => Some(message),
+        };
 
         self.builder.insert_constrain(expr, true_literal, assert_payload);
 
-        Ok(Self::unit_value())
+        Ok(Some(Self::unit_value()))
     }
 
     // This method does not necessary codegen the full assert message expression, thus it does not
@@ -1073,16 +1173,23 @@ impl FunctionContext<'_> {
     fn codegen_constrain_error(
         &mut self,
         assert_message: &Option<Box<(Expression, HirType)>>,
-    ) -> Result<Option<ConstrainError>, RuntimeError> {
-        let Some(assert_message_payload) = assert_message else { return Ok(None) };
+    ) -> Result<Option<ConstrainErrorMessage>, RuntimeError> {
+        let Some(assert_message_payload) = assert_message else {
+            return Ok(Some(ConstrainErrorMessage::NoMessage));
+        };
         let (assert_message_expression, assert_message_typ) = assert_message_payload.as_ref();
 
         if let Expression::Literal(ast::Literal::Str(static_string)) = assert_message_expression {
-            Ok(Some(ConstrainError::StaticString(static_string.clone())))
+            Ok(Some(ConstrainErrorMessage::Message(ConstrainError::StaticString(
+                static_string.clone(),
+            ))))
         } else {
             let error_type = ErrorType::Dynamic(assert_message_typ.clone());
             let selector = error_type.selector();
-            let values = self.codegen_expression(assert_message_expression)?.into_value_list(self);
+            let Some(values) = self.codegen_expression(assert_message_expression)? else {
+                return Ok(None);
+            };
+            let values = values.into_value_list(self);
             let is_string_type = matches!(assert_message_typ, HirType::String(_));
             // Record custom types in the builder, outside of SSA instructions
             // This is made to avoid having Hir types in the SSA code.
@@ -1090,40 +1197,44 @@ impl FunctionContext<'_> {
                 self.builder.record_error_type(selector, assert_message_typ.clone());
             }
 
-            Ok(Some(ConstrainError::Dynamic(selector, is_string_type, values)))
+            Ok(Some(ConstrainErrorMessage::Message(ConstrainError::Dynamic(
+                selector,
+                is_string_type,
+                values,
+            ))))
         }
     }
 
-    fn codegen_assign(&mut self, assign: &ast::Assign) -> Result<Values, RuntimeError> {
+    fn codegen_assign(&mut self, assign: &ast::Assign) -> Result<Option<Values>, RuntimeError> {
         // Evaluate the rhs first - when we load the expression in the lvalue we want that
         // to reflect any mutations from evaluating the rhs.
-        let rhs = self.codegen_expression(&assign.expression)?;
+        let Some(rhs) = self.codegen_expression(&assign.expression)? else {
+            return Ok(None);
+        };
 
         // Can't assign to a variable if the expression had an unconditional break in it
-        if !self.builder.current_block_is_closed() {
-            let lhs = self.extract_current_value(&assign.lvalue)?;
+        let Some(lhs) = self.extract_current_value(&assign.lvalue)? else {
+            return Ok(None);
+        };
 
-            self.assign_new_value(lhs, rhs);
-        }
+        self.assign_new_value(lhs, rhs);
 
-        Ok(Self::unit_value())
+        Ok(Some(Self::unit_value()))
     }
 
-    fn codegen_semi(&mut self, expr: &Expression) -> Result<Values, RuntimeError> {
-        self.codegen_expression(expr)?;
-        Ok(Self::unit_value())
+    fn codegen_semi(&mut self, expr: &Expression) -> Result<Option<Values>, RuntimeError> {
+        let Some(_) = self.codegen_expression(expr)? else {
+            return Ok(None);
+        };
+        Ok(Some(Self::unit_value()))
     }
 
-    fn codegen_break(&mut self) -> Values {
+    fn codegen_break(&mut self) {
         let loop_end = self.current_loop().loop_end;
         self.builder.terminate_with_jmp(loop_end, Vec::new());
-
-        self.builder.close_block();
-
-        Self::unit_value()
     }
 
-    fn codegen_continue(&mut self) -> Values {
+    fn codegen_continue(&mut self) {
         let loop_ = self.current_loop();
 
         // Must remember to increment i before jumping
@@ -1133,31 +1244,36 @@ impl FunctionContext<'_> {
         } else {
             self.builder.terminate_with_jmp(loop_.loop_entry, vec![]);
         }
-
-        self.builder.close_block();
-
-        Self::unit_value()
     }
 
     /// Evaluate the given expression, increment the reference count of each array within,
     /// and return the evaluated expression.
-    fn codegen_clone(&mut self, expr: &Expression) -> Result<Values, RuntimeError> {
-        let values = self.codegen_expression(expr)?;
-        Ok(values.map(|value| {
+    fn codegen_clone(&mut self, expr: &Expression) -> Result<Option<Values>, RuntimeError> {
+        let Some(values) = self.codegen_expression(expr)? else {
+            return Ok(None);
+        };
+        Ok(Some(values.map(|value| {
             let value = value.eval(self);
             self.builder.increment_array_reference_count(value);
             Values::from(value)
-        }))
+        })))
     }
 
     /// Evaluate the given expression, decrement the reference count of each array within,
     /// and return unit.
-    fn codegen_drop(&mut self, expr: &Expression) -> Result<Values, RuntimeError> {
-        let values = self.codegen_expression(expr)?;
+    fn codegen_drop(&mut self, expr: &Expression) -> Result<Option<Values>, RuntimeError> {
+        let Some(values) = self.codegen_expression(expr)? else {
+            return Ok(None);
+        };
         values.for_each(|value| {
             let value = value.eval(self);
             self.builder.decrement_array_reference_count(value);
         });
-        Ok(Self::unit_value())
+        Ok(Some(Self::unit_value()))
     }
+}
+
+enum ConstrainErrorMessage {
+    NoMessage,
+    Message(ConstrainError),
 }

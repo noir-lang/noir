@@ -876,25 +876,34 @@ impl<'a> FunctionContext<'a> {
     pub(super) fn extract_current_value(
         &mut self,
         lvalue: &ast::LValue,
-    ) -> Result<LValue, RuntimeError> {
-        Ok(match lvalue {
+    ) -> Result<Option<LValue>, RuntimeError> {
+        Ok(Some(match lvalue {
             ast::LValue::Ident(ident) => {
                 let (reference, should_auto_deref) = self.ident_lvalue(ident);
                 if should_auto_deref { LValue::Dereference { reference } } else { LValue::Ident }
             }
             ast::LValue::Index { array, index, location, .. } => {
-                self.index_lvalue(array, index, location)?.2
+                let Some(result) = self.index_lvalue(array, index, location)? else {
+                    return Ok(None);
+                };
+                result.2
             }
             ast::LValue::MemberAccess { object, field_index } => {
-                let (old_object, object_lvalue) = self.extract_current_value_recursive(object)?;
+                let Some((old_object, object_lvalue)) =
+                    self.extract_current_value_recursive(object)?
+                else {
+                    return Ok(None);
+                };
                 let object_lvalue = Box::new(object_lvalue);
                 LValue::MemberAccess { old_object, object_lvalue, index: *field_index }
             }
             ast::LValue::Dereference { reference, .. } => {
-                let (reference, _) = self.extract_current_value_recursive(reference)?;
+                let Some((reference, _)) = self.extract_current_value_recursive(reference)? else {
+                    return Ok(None);
+                };
                 LValue::Dereference { reference }
             }
-        })
+        }))
     }
 
     fn dereference_lvalue(&mut self, values: &Values, element_type: &ast::Type) -> Values {
@@ -919,21 +928,24 @@ impl<'a> FunctionContext<'a> {
     /// structure of the lvalue expression for use by `assign_new_value`.
     /// The optional length is for indexing slices rather than arrays since slices
     /// are represented as a tuple in the form: (length, slice contents).
+    #[allow(clippy::type_complexity)]
     fn index_lvalue(
         &mut self,
         array: &ast::LValue,
         index: &ast::Expression,
         location: &Location,
-    ) -> Result<(ValueId, ValueId, LValue, Option<ValueId>), RuntimeError> {
-        let (old_array, array_lvalue) = self.extract_current_value_recursive(array)?;
-        let index = self.codegen_non_tuple_expression(index)?;
+    ) -> Result<Option<(ValueId, ValueId, LValue, Option<ValueId>)>, RuntimeError> {
+        let Some((old_array, array_lvalue)) = self.extract_current_value_recursive(array)? else {
+            return Ok(None);
+        };
+        let Some(index) = self.codegen_non_tuple_expression(index)? else { return Ok(None) };
         let array_lvalue = Box::new(array_lvalue);
         let array_values = old_array.clone().into_value_list(self);
 
         let location = *location;
         // A slice is represented as a tuple (length, slice contents).
         // We need to fetch the second value.
-        Ok(if array_values.len() > 1 {
+        Ok(Some(if array_values.len() > 1 {
             let slice_lvalue = LValue::SliceIndex {
                 old_slice: old_array,
                 index,
@@ -945,26 +957,29 @@ impl<'a> FunctionContext<'a> {
             let array_lvalue =
                 LValue::Index { old_array: array_values[0], index, array_lvalue, location };
             (array_values[0], index, array_lvalue, None)
-        })
+        }))
     }
 
     fn extract_current_value_recursive(
         &mut self,
         lvalue: &ast::LValue,
-    ) -> Result<(Values, LValue), RuntimeError> {
+    ) -> Result<Option<(Values, LValue)>, RuntimeError> {
         match lvalue {
             ast::LValue::Ident(ident) => {
                 let (variable, should_auto_deref) = self.ident_lvalue(ident);
                 if should_auto_deref {
                     let dereferenced = self.dereference_lvalue(&variable, &ident.typ);
-                    Ok((dereferenced, LValue::Dereference { reference: variable }))
+                    Ok(Some((dereferenced, LValue::Dereference { reference: variable })))
                 } else {
-                    Ok((variable.clone(), LValue::Ident))
+                    Ok(Some((variable.clone(), LValue::Ident)))
                 }
             }
             ast::LValue::Index { array, index, element_type, location } => {
-                let (old_array, index, index_lvalue, max_length) =
-                    self.index_lvalue(array, index, location)?;
+                let Some((old_array, index, index_lvalue, max_length)) =
+                    self.index_lvalue(array, index, location)?
+                else {
+                    return Ok(None);
+                };
                 let element = self.codegen_array_index(
                     old_array,
                     index,
@@ -972,18 +987,27 @@ impl<'a> FunctionContext<'a> {
                     *location,
                     max_length,
                 )?;
-                Ok((element, index_lvalue))
+                Ok(Some((element, index_lvalue)))
             }
             ast::LValue::MemberAccess { object, field_index: index } => {
-                let (old_object, object_lvalue) = self.extract_current_value_recursive(object)?;
+                let Some((old_object, object_lvalue)) =
+                    self.extract_current_value_recursive(object)?
+                else {
+                    return Ok(None);
+                };
                 let object_lvalue = Box::new(object_lvalue);
                 let element = Self::get_field_ref(&old_object, *index).clone();
-                Ok((element, LValue::MemberAccess { old_object, object_lvalue, index: *index }))
+                Ok(Some((
+                    element,
+                    LValue::MemberAccess { old_object, object_lvalue, index: *index },
+                )))
             }
             ast::LValue::Dereference { reference, element_type } => {
-                let (reference, _) = self.extract_current_value_recursive(reference)?;
+                let Some((reference, _)) = self.extract_current_value_recursive(reference)? else {
+                    return Ok(None);
+                };
                 let dereferenced = self.dereference_lvalue(&reference, element_type);
-                Ok((dereferenced, LValue::Dereference { reference }))
+                Ok(Some((dereferenced, LValue::Dereference { reference })))
             }
         }
     }
@@ -1175,7 +1199,7 @@ impl SharedContext {
         );
         let mut globals = BTreeMap::default();
         for (id, (_, _, global)) in program.globals.iter() {
-            let values = context.codegen_expression(global).unwrap();
+            let values = context.codegen_expression(global).unwrap().unwrap();
             globals.insert(*id, values);
         }
 
