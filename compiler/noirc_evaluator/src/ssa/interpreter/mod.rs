@@ -5,7 +5,9 @@ use super::{
     ir::{
         dfg::DataFlowGraph,
         function::{Function, FunctionId, RuntimeType},
-        instruction::{ArrayOffset, Binary, BinaryOp, Instruction, TerminatorInstruction},
+        instruction::{
+            ArrayOffset, Binary, BinaryOp, ConstrainError, Instruction, TerminatorInstruction,
+        },
         types::Type,
         value::ValueId,
     },
@@ -413,7 +415,18 @@ impl<'ssa> Interpreter<'ssa> {
                     let rhs = rhs.to_string();
                     let lhs_id = *lhs_id;
                     let rhs_id = *rhs_id;
-                    return Err(InterpreterError::ConstrainEqFailed { lhs, lhs_id, rhs, rhs_id });
+                    let msg = if let Some(ConstrainError::StaticString(msg)) = constrain_error {
+                        format!(", \"{msg}\"")
+                    } else {
+                        "".to_string()
+                    };
+                    return Err(InterpreterError::ConstrainEqFailed {
+                        lhs,
+                        lhs_id,
+                        rhs,
+                        rhs_id,
+                        msg,
+                    });
                 }
                 Ok(())
             }
@@ -425,7 +438,18 @@ impl<'ssa> Interpreter<'ssa> {
                     let rhs = rhs.to_string();
                     let lhs_id = *lhs_id;
                     let rhs_id = *rhs_id;
-                    return Err(InterpreterError::ConstrainNeFailed { lhs, lhs_id, rhs, rhs_id });
+                    let msg = if let Some(ConstrainError::StaticString(msg)) = constrain_error {
+                        format!(", \"{msg}\"")
+                    } else {
+                        "".to_string()
+                    };
+                    return Err(InterpreterError::ConstrainNeFailed {
+                        lhs,
+                        lhs_id,
+                        rhs,
+                        rhs_id,
+                        msg,
+                    });
                 }
                 Ok(())
             }
@@ -1137,7 +1161,14 @@ impl Interpreter<'_> {
                 }
             }
             BinaryOp::Shr => {
-                let zero = || NumericValue::zero(lhs.get_type());
+                let fallback = || {
+                    if lhs.is_negative() {
+                        NumericValue::neg_one(lhs.get_type())
+                    } else {
+                        NumericValue::zero(lhs.get_type())
+                    }
+                };
+
                 let Some(rhs) = rhs.as_u8() else {
                     let rhs = rhs.to_string();
                     return Err(internal(InternalError::RhsOfBitShiftShouldBeU8 {
@@ -1157,15 +1188,15 @@ impl Interpreter<'_> {
                         }));
                     }
                     U1(value) => U1(if rhs == 0 { value } else { false }),
-                    U8(value) => value.checked_shr(rhs).map(U8).unwrap_or_else(zero),
-                    U16(value) => value.checked_shr(rhs).map(U16).unwrap_or_else(zero),
-                    U32(value) => value.checked_shr(rhs).map(U32).unwrap_or_else(zero),
-                    U64(value) => value.checked_shr(rhs).map(U64).unwrap_or_else(zero),
-                    U128(value) => value.checked_shr(rhs).map(U128).unwrap_or_else(zero),
-                    I8(value) => value.checked_shr(rhs).map(I8).unwrap_or_else(zero),
-                    I16(value) => value.checked_shr(rhs).map(I16).unwrap_or_else(zero),
-                    I32(value) => value.checked_shr(rhs).map(I32).unwrap_or_else(zero),
-                    I64(value) => value.checked_shr(rhs).map(I64).unwrap_or_else(zero),
+                    U8(value) => value.checked_shr(rhs).map(U8).unwrap_or_else(fallback),
+                    U16(value) => value.checked_shr(rhs).map(U16).unwrap_or_else(fallback),
+                    U32(value) => value.checked_shr(rhs).map(U32).unwrap_or_else(fallback),
+                    U64(value) => value.checked_shr(rhs).map(U64).unwrap_or_else(fallback),
+                    U128(value) => value.checked_shr(rhs).map(U128).unwrap_or_else(fallback),
+                    I8(value) => value.checked_shr(rhs).map(I8).unwrap_or_else(fallback),
+                    I16(value) => value.checked_shr(rhs).map(I16).unwrap_or_else(fallback),
+                    I32(value) => value.checked_shr(rhs).map(I32).unwrap_or_else(fallback),
+                    I64(value) => value.checked_shr(rhs).map(I64).unwrap_or_else(fallback),
                 }
             }
         };

@@ -8,7 +8,7 @@
 //! ```shell
 //! cargo test -p noir_ast_fuzzer --test calibration -- --nocapture
 //! ```
-use std::collections::BTreeMap;
+use std::{collections::BTreeMap, ops::RangeInclusive};
 
 use arbtest::arbtest;
 use noir_ast_fuzzer::{Config, arb_program, visitor::visit_expr};
@@ -67,6 +67,13 @@ fn arb_program_freqs_in_expected_range() {
         keys.iter().map(|key| counts[&unconstrained][group][key] * 100 / total).sum::<usize>()
     };
 
+    let assert_both = |group: &str, key: &str, range: RangeInclusive<usize>| {
+        let a = freq_100(false, group, &[key]);
+        let b = freq_100(true, group, &[key]);
+        assert!(range.contains(&a), "ACIR {group}/{key} should be in {range:?}: {a}");
+        assert!(range.contains(&b), "Brillig {group}/{key} should be in {range:?}: {b}");
+    };
+
     // Assert relative frequencies
     let loops_a = freq_100(false, "stmt", &["for"]);
     let loops_b = freq_100(true, "stmt", &["for", "loop", "while"]);
@@ -76,6 +83,8 @@ fn arb_program_freqs_in_expected_range() {
     assert!(loop_range.contains(&loops_a), "ACIR loops should be ~10: {loops_a}");
     assert!(loop_range.contains(&loops_b), "Brillig loops should be ~10: {loops_b}");
     assert!(break_b >= loops_b, "Brillig should break out of loops: {break_b} >= {loops_b}");
+
+    assert_both("stmt", "constrain", 1..=3);
 }
 
 /// Classify the expression into "expr" or "stmt" for frequency settings.
