@@ -400,7 +400,53 @@
 <a href="#399" id="399">399</a>
 <a href="#400" id="400">400</a>
 <a href="#401" id="401">401</a>
-<a href="#402" id="402">402</a></pre></div><pre class="rust"><code><span class="kw">use </span><span class="kw">crate</span>::ast::BinaryOpKind;
+<a href="#402" id="402">402</a>
+<a href="#403" id="403">403</a>
+<a href="#404" id="404">404</a>
+<a href="#405" id="405">405</a>
+<a href="#406" id="406">406</a>
+<a href="#407" id="407">407</a>
+<a href="#408" id="408">408</a>
+<a href="#409" id="409">409</a>
+<a href="#410" id="410">410</a>
+<a href="#411" id="411">411</a>
+<a href="#412" id="412">412</a>
+<a href="#413" id="413">413</a>
+<a href="#414" id="414">414</a>
+<a href="#415" id="415">415</a>
+<a href="#416" id="416">416</a>
+<a href="#417" id="417">417</a>
+<a href="#418" id="418">418</a>
+<a href="#419" id="419">419</a>
+<a href="#420" id="420">420</a>
+<a href="#421" id="421">421</a>
+<a href="#422" id="422">422</a>
+<a href="#423" id="423">423</a>
+<a href="#424" id="424">424</a>
+<a href="#425" id="425">425</a>
+<a href="#426" id="426">426</a>
+<a href="#427" id="427">427</a>
+<a href="#428" id="428">428</a>
+<a href="#429" id="429">429</a>
+<a href="#430" id="430">430</a>
+<a href="#431" id="431">431</a>
+<a href="#432" id="432">432</a>
+<a href="#433" id="433">433</a>
+<a href="#434" id="434">434</a>
+<a href="#435" id="435">435</a>
+<a href="#436" id="436">436</a>
+<a href="#437" id="437">437</a>
+<a href="#438" id="438">438</a>
+<a href="#439" id="439">439</a>
+<a href="#440" id="440">440</a>
+<a href="#441" id="441">441</a>
+<a href="#442" id="442">442</a>
+<a href="#443" id="443">443</a>
+<a href="#444" id="444">444</a>
+<a href="#445" id="445">445</a>
+<a href="#446" id="446">446</a></pre></div><pre class="rust"><code><span class="kw">use </span>acvm::AcirField;
+
+<span class="kw">use </span><span class="kw">crate</span>::ast::BinaryOpKind;
 <span class="kw">use </span><span class="kw">crate</span>::hir::Location;
 <span class="kw">use </span><span class="kw">crate</span>::hir_def::expr::HirBinaryOp;
 
@@ -566,7 +612,11 @@
         },
         BinaryOpKind::Divide =&gt; <span class="macro">match_arithmetic!</span> {
             (lhs_value <span class="kw">as </span>lhs <span class="string">"/" </span>rhs_value <span class="kw">as </span>rhs) {
-                field: lhs / rhs,
+                field: <span class="kw">if </span>rhs.absolute_value().is_zero() {
+                    <span class="kw">return </span><span class="prelude-val">Err</span>(math_error(<span class="string">"/"</span>));
+                } <span class="kw">else </span>{
+                    lhs / rhs
+                },
                 int: lhs.checked_div(rhs),
             }
         },
@@ -800,6 +850,44 @@
         "#</span>;
         <span class="kw">let </span>result = interpret(src);
         <span class="macro">assert_eq!</span>(result, Value::I64(-<span class="number">32</span>));
+    }
+
+    <span class="attr">#[test]
+    </span><span class="kw">fn </span>div_zero_field() {
+        <span class="kw">let </span>src = <span class="string">r#"
+            comptime fn main() -&gt; pub Field {
+                32 / 0
+            }
+        "#</span>;
+        <span class="kw">let </span>result = interpret_expect_error(src);
+        <span class="macro">assert!</span>(<span class="macro">matches!</span>(result, InterpreterError::MathError { operator: <span class="string">"/"</span>, location: <span class="kw">_ </span>}));
+    }
+
+    <span class="attr">#[test]
+    </span><span class="kw">fn </span>div_zero_int() {
+        <span class="kw">let </span>src = <span class="string">r#"
+            comptime fn main() -&gt; pub i32 {
+                32 / 0
+            }
+        "#</span>;
+        <span class="kw">let </span>result = interpret_expect_error(src);
+        <span class="macro">assert!</span>(<span class="macro">matches!</span>(result, InterpreterError::MathError { operator: <span class="string">"/"</span>, location: <span class="kw">_ </span>}));
+    }
+
+    <span class="attr">#[test]
+    </span><span class="kw">fn </span>div() {
+        <span class="kw">let </span>src = <span class="string">r#"
+            comptime fn main() {
+                let x_field = 8;
+                let x_i32: i32 = -7;
+
+                // Field division is weird so I'm not testing with a remainder here
+                assert_eq(x_field / 2, 4);
+                assert_eq(x_i32 / 2, -3);
+            }
+        "#</span>;
+        <span class="kw">let </span>result = interpret(src);
+        <span class="macro">assert_eq!</span>(result, Value::Unit);
     }
 }
 </code></pre></div></section></main></body></html>
