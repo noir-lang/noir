@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1749485891363,
+  "lastUpdate": 1749485893392,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -11362,75 +11362,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "jfecher11@gmail.com",
-            "name": "jfecher",
-            "username": "jfecher"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "bfcff37f7337fb43968b5dee9982e799502016bd",
-          "message": "fix!: Prevent returning references from if expressions (#8731)",
-          "timestamp": "2025-05-30T19:43:13Z",
-          "tree_id": "53d8b4031ea121c0d1c9dbba3a3356cceede5e23",
-          "url": "https://github.com/noir-lang/noir/commit/bfcff37f7337fb43968b5dee9982e799502016bd"
-        },
-        "date": 1748636549313,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 201.52,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 225.36,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 176.66,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 501.76,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 498.08,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 1410,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 322.46,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-root",
-            "value": 328.15,
-            "unit": "MB"
-          },
-          {
-            "name": "semaphore_depth_10",
-            "value": 70.97,
-            "unit": "MB"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "asterite@gmail.com",
             "name": "Ary Borenszweig",
             "username": "asterite"
@@ -14760,6 +14691,75 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/noir-lang/noir/commit/8945a4c89f8748de5ce383efd2c023169cdf38e0"
         },
         "date": 1749483502891,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 202.09,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 225.81,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 177.35,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 489.89,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 423.19,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 1400,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 312.02,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-root",
+            "value": 317.7,
+            "unit": "MB"
+          },
+          {
+            "name": "semaphore_depth_10",
+            "value": 70.96,
+            "unit": "MB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "jfecher11@gmail.com",
+            "name": "jfecher",
+            "username": "jfecher"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "7083516c37c6cfa00a612dd9a9685ac8696de3c1",
+          "message": "fix: Comptime field division should error when the rhs is zero (#8845)",
+          "timestamp": "2025-06-09T15:42:33Z",
+          "tree_id": "bf15ce1dacf6a169f04540dc5a13a0cbbe783498",
+          "url": "https://github.com/noir-lang/noir/commit/7083516c37c6cfa00a612dd9a9685ac8696de3c1"
+        },
+        "date": 1749485881342,
         "tool": "customSmallerIsBetter",
         "benches": [
           {
