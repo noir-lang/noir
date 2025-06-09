@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1749507955608,
+  "lastUpdate": 1749508089394,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -11362,75 +11362,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "163862677+noirwhal@users.noreply.github.com",
-            "name": "noirwhal",
-            "username": "noirwhal"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "2e69fe88094e96cf62a28067240b775a4064cdc4",
-          "message": "chore: bump external pinned commits (#8747)\n\nCo-authored-by: noirwhal <tomfrench@aztecprotocol.com>\nCo-authored-by: Tom French <15848336+TomAFrench@users.noreply.github.com>",
-          "timestamp": "2025-06-02T09:48:13Z",
-          "tree_id": "5ff82eb0f05a74be73601a97b171bb235d5d7ffc",
-          "url": "https://github.com/noir-lang/noir/commit/2e69fe88094e96cf62a28067240b775a4064cdc4"
-        },
-        "date": 1748859799933,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 202.02,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 225.76,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 177.16,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 489.94,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 423.45,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 1400,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 312.01,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-root",
-            "value": 317.7,
-            "unit": "MB"
-          },
-          {
-            "name": "semaphore_depth_10",
-            "value": 70.97,
-            "unit": "MB"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "asterite@gmail.com",
             "name": "Ary Borenszweig",
             "username": "asterite"
@@ -14760,6 +14691,75 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/noir-lang/noir/commit/77a53e45c0c253d216e80cbfba3414bc90b60851"
         },
         "date": 1749504475225,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 202.09,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 225.81,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 177.35,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 489.89,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 423.19,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 1400,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 312.02,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-root",
+            "value": 317.7,
+            "unit": "MB"
+          },
+          {
+            "name": "semaphore_depth_10",
+            "value": 70.96,
+            "unit": "MB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "jc@joshcrites.com",
+            "name": "josh crites",
+            "username": "critesjosh"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "0a0e7084e28cf41141fd819dc3505339e472f093",
+          "message": "chore(docs): Update noirjs app page to use to beta.6 (#8853)",
+          "timestamp": "2025-06-09T21:55:41Z",
+          "tree_id": "7dc4c09ebe75cd42a56a86ad766fbc4c6fdad5fd",
+          "url": "https://github.com/noir-lang/noir/commit/0a0e7084e28cf41141fd819dc3505339e472f093"
+        },
+        "date": 1749508077932,
         "tool": "customSmallerIsBetter",
         "benches": [
           {
