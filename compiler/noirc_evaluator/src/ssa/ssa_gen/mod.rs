@@ -4,6 +4,7 @@ mod tests;
 mod value;
 
 use acvm::AcirField;
+use noirc_errors::call_stack::CallStack;
 use noirc_frontend::hir_def::expr::Constructor;
 use noirc_frontend::token::FmtStrFragment;
 pub use program::Ssa;
@@ -169,8 +170,8 @@ impl FunctionContext<'_> {
             }
             Expression::Assign(assign) => self.codegen_assign(assign),
             Expression::Semi(semi) => self.codegen_semi(semi),
-            Expression::Break => Ok(self.codegen_break()),
-            Expression::Continue => Ok(self.codegen_continue()),
+            Expression::Break => self.codegen_break(),
+            Expression::Continue => self.codegen_continue(),
             Expression::Clone(expr) => self.codegen_clone(expr),
             Expression::Drop(expr) => self.codegen_drop(expr),
         }
@@ -336,12 +337,6 @@ impl FunctionContext<'_> {
         let mut result = Self::unit_value();
         for expr in block {
             result = self.codegen_expression(expr)?;
-
-            // A break or continue might happen in a block, in which case we must
-            // not codegen any further expressions.
-            if self.builder.current_block_is_closed() {
-                break;
-            }
         }
         Ok(result)
     }
@@ -583,13 +578,11 @@ impl FunctionContext<'_> {
         self.builder.switch_to_block(loop_body);
         self.define(for_expr.index_variable, loop_index.into());
 
-        self.codegen_expression(&for_expr.block)?;
-
-        if !self.builder.current_block_is_closed() {
-            // No need to jump if the current block is already closed
-            let new_loop_index = self.make_offset(loop_index, 1);
-            self.builder.terminate_with_jmp(loop_entry, vec![new_loop_index]);
-        }
+        let result = self.codegen_expression(&for_expr.block);
+        self.codegen_unless_break_or_continue(result, |this, _| {
+            let new_loop_index = this.make_offset(loop_index, 1);
+            this.builder.terminate_with_jmp(loop_entry, vec![new_loop_index]);
+        })?;
 
         // Finish by switching back to the end of the loop
         self.builder.switch_to_block(loop_end);
@@ -620,8 +613,10 @@ impl FunctionContext<'_> {
 
         // Compile the loop body
         self.builder.switch_to_block(loop_body);
-        self.codegen_expression(block)?;
-        self.builder.terminate_with_jmp(loop_body, vec![]);
+        let result = self.codegen_expression(block);
+        self.codegen_unless_break_or_continue(result, |this, _| {
+            this.builder.terminate_with_jmp(loop_body, vec![]);
+        })?;
 
         // Finish by switching to the end of the loop
         self.builder.switch_to_block(loop_end);
@@ -661,8 +656,10 @@ impl FunctionContext<'_> {
 
         // Codegen the body
         self.builder.switch_to_block(while_body);
-        self.codegen_expression(&while_.body)?;
-        self.builder.terminate_with_jmp(while_entry, vec![]);
+        let result = self.codegen_expression(&while_.body);
+        self.codegen_unless_break_or_continue(result, |this, _| {
+            this.builder.terminate_with_jmp(while_entry, vec![]);
+        })?;
 
         // Finish by switching to the end of the while
         self.builder.switch_to_block(while_end);
@@ -710,19 +707,24 @@ impl FunctionContext<'_> {
         self.builder.terminate_with_jmpif(condition, then_block, else_block);
 
         self.builder.switch_to_block(then_block);
-        let then_value = self.codegen_expression(&if_expr.consequence)?;
+        let then_result = self.codegen_expression(&if_expr.consequence);
 
         let mut result = Self::unit_value();
 
         if let Some(alternative) = &if_expr.alternative {
             let end_block = self.builder.insert_block();
-            let then_values = then_value.into_value_list(self);
-            self.builder.terminate_with_jmp(end_block, then_values);
+
+            self.codegen_unless_break_or_continue(then_result, |this, then_value| {
+                let then_values = then_value.into_value_list(this);
+                this.builder.terminate_with_jmp(end_block, then_values);
+            })?;
 
             self.builder.switch_to_block(else_block);
-            let else_value = self.codegen_expression(alternative)?;
-            let else_values = else_value.into_value_list(self);
-            self.builder.terminate_with_jmp(end_block, else_values);
+            let else_result = self.codegen_expression(alternative);
+            self.codegen_unless_break_or_continue(else_result, |this, else_value| {
+                let else_values = else_value.into_value_list(this);
+                this.builder.terminate_with_jmp(end_block, else_values);
+            })?;
 
             // Create block arguments for the end block as needed to branch to
             // with our then and else value.
@@ -805,13 +807,16 @@ impl FunctionContext<'_> {
 
             self.builder.switch_to_block(case_block);
             self.bind_case_arguments(variable.clone(), case);
-            let results = self.codegen_expression(&case.branch)?.into_value_list(self);
+            let results = self.codegen_expression(&case.branch);
+            self.codegen_unless_break_or_continue(results, |this, results| {
+                let results = results.into_value_list(this);
 
-            // Each branch will jump to a different end block for now. We have to merge them all
-            // later since SSA doesn't support more than two blocks jumping to the same end block.
-            let local_end_block = make_end_block(self);
-            self.builder.terminate_with_jmp(local_end_block.0, results);
-            blocks_to_merge.push(local_end_block);
+                // Each branch will jump to a different end block for now. We have to merge them all
+                // later since SSA doesn't support more than two blocks jumping to the same end block.
+                let local_end_block = make_end_block(this);
+                this.builder.terminate_with_jmp(local_end_block.0, results);
+                blocks_to_merge.push(local_end_block);
+            })?;
 
             self.builder.switch_to_block(else_block);
         }
@@ -820,15 +825,21 @@ impl FunctionContext<'_> {
         blocks_to_merge.push((last_local_end_block, last_results));
 
         if let Some(branch) = &match_expr.default_case {
-            let results = self.codegen_expression(branch)?.into_value_list(self);
-            self.builder.terminate_with_jmp(last_local_end_block, results);
+            let results = self.codegen_expression(branch);
+            self.codegen_unless_break_or_continue(results, |this, results| {
+                let results = results.into_value_list(this);
+                this.builder.terminate_with_jmp(last_local_end_block, results);
+            })?;
         } else {
             // If there is no default case, assume we saved the last case from the
             // last_case optimization above
             let case = match_expr.cases.last().unwrap();
             self.bind_case_arguments(variable, case);
-            let results = self.codegen_expression(&case.branch)?.into_value_list(self);
-            self.builder.terminate_with_jmp(last_local_end_block, results);
+            let results = self.codegen_expression(&case.branch);
+            self.codegen_unless_break_or_continue(results, |this, results| {
+                let results = results.into_value_list(this);
+                this.builder.terminate_with_jmp(last_local_end_block, results);
+            })?;
         }
 
         // Merge blocks as last-in first-out:
@@ -1098,13 +1109,9 @@ impl FunctionContext<'_> {
         // Evaluate the rhs first - when we load the expression in the lvalue we want that
         // to reflect any mutations from evaluating the rhs.
         let rhs = self.codegen_expression(&assign.expression)?;
+        let lhs = self.extract_current_value(&assign.lvalue)?;
 
-        // Can't assign to a variable if the expression had an unconditional break in it
-        if !self.builder.current_block_is_closed() {
-            let lhs = self.extract_current_value(&assign.lvalue)?;
-
-            self.assign_new_value(lhs, rhs);
-        }
+        self.assign_new_value(lhs, rhs);
 
         Ok(Self::unit_value())
     }
@@ -1114,16 +1121,14 @@ impl FunctionContext<'_> {
         Ok(Self::unit_value())
     }
 
-    fn codegen_break(&mut self) -> Values {
+    fn codegen_break(&mut self) -> Result<Values, RuntimeError> {
         let loop_end = self.current_loop().loop_end;
         self.builder.terminate_with_jmp(loop_end, Vec::new());
 
-        self.builder.close_block();
-
-        Self::unit_value()
+        Err(RuntimeError::BreakOrContinue { call_stack: CallStack::default() })
     }
 
-    fn codegen_continue(&mut self) -> Values {
+    fn codegen_continue(&mut self) -> Result<Values, RuntimeError> {
         let loop_ = self.current_loop();
 
         // Must remember to increment i before jumping
@@ -1134,9 +1139,7 @@ impl FunctionContext<'_> {
             self.builder.terminate_with_jmp(loop_.loop_entry, vec![]);
         }
 
-        self.builder.close_block();
-
-        Self::unit_value()
+        Err(RuntimeError::BreakOrContinue { call_stack: CallStack::default() })
     }
 
     /// Evaluate the given expression, increment the reference count of each array within,
@@ -1159,5 +1162,21 @@ impl FunctionContext<'_> {
             self.builder.decrement_array_reference_count(value);
         });
         Ok(Self::unit_value())
+    }
+
+    #[must_use]
+    fn codegen_unless_break_or_continue<T, F>(
+        &mut self,
+        result: Result<T, RuntimeError>,
+        f: F,
+    ) -> Result<(), RuntimeError>
+    where
+        F: FnOnce(&mut Self, T),
+    {
+        match result {
+            Ok(value) => Ok(f(self, value)),
+            Err(RuntimeError::BreakOrContinue { .. }) => Ok(()),
+            Err(err) => Err(err),
+        }
     }
 }
