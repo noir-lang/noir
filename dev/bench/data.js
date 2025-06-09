@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1749483516078,
+  "lastUpdate": 1749485167697,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -18451,48 +18451,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "jfecher11@gmail.com",
-            "name": "jfecher",
-            "username": "jfecher"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "bfcff37f7337fb43968b5dee9982e799502016bd",
-          "message": "fix!: Prevent returning references from if expressions (#8731)",
-          "timestamp": "2025-05-30T19:43:13Z",
-          "tree_id": "53d8b4031ea121c0d1c9dbba3a3356cceede5e23",
-          "url": "https://github.com/noir-lang/noir/commit/bfcff37f7337fb43968b5dee9982e799502016bd"
-        },
-        "date": 1748635876510,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 254155,
-            "range": "± 1020",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 223460,
-            "range": "± 14351",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 3210052,
-            "range": "± 8493",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "asterite@gmail.com",
             "name": "Ary Borenszweig",
             "username": "asterite"
@@ -20544,6 +20502,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2818543,
             "range": "± 1855",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "jfecher11@gmail.com",
+            "name": "jfecher",
+            "username": "jfecher"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "7083516c37c6cfa00a612dd9a9685ac8696de3c1",
+          "message": "fix: Comptime field division should error when the rhs is zero (#8845)",
+          "timestamp": "2025-06-09T15:42:33Z",
+          "tree_id": "bf15ce1dacf6a169f04540dc5a13a0cbbe783498",
+          "url": "https://github.com/noir-lang/noir/commit/7083516c37c6cfa00a612dd9a9685ac8696de3c1"
+        },
+        "date": 1749485156022,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 253391,
+            "range": "± 553",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 224207,
+            "range": "± 2624",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2779597,
+            "range": "± 2759",
             "unit": "ns/iter"
           }
         ]
