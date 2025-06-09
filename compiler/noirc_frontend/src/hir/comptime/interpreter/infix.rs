@@ -1,3 +1,5 @@
+use acvm::AcirField;
+
 use crate::ast::BinaryOpKind;
 use crate::hir::Location;
 use crate::hir_def::expr::HirBinaryOp;
@@ -164,7 +166,11 @@ pub(super) fn evaluate_infix(
         },
         BinaryOpKind::Divide => match_arithmetic! {
             (lhs_value as lhs "/" rhs_value as rhs) {
-                field: lhs / rhs,
+                field: if rhs.absolute_value().is_zero() {
+                    return Err(math_error("/"));
+                } else {
+                    lhs / rhs
+                },
                 int: lhs.checked_div(rhs),
             }
         },
@@ -398,5 +404,43 @@ mod test {
         "#;
         let result = interpret(src);
         assert_eq!(result, Value::I64(-32));
+    }
+
+    #[test]
+    fn div_zero_field() {
+        let src = r#"
+            comptime fn main() -> pub Field {
+                32 / 0
+            }
+        "#;
+        let result = interpret_expect_error(src);
+        assert!(matches!(result, InterpreterError::MathError { operator: "/", location: _ }));
+    }
+
+    #[test]
+    fn div_zero_int() {
+        let src = r#"
+            comptime fn main() -> pub i32 {
+                32 / 0
+            }
+        "#;
+        let result = interpret_expect_error(src);
+        assert!(matches!(result, InterpreterError::MathError { operator: "/", location: _ }));
+    }
+
+    #[test]
+    fn div() {
+        let src = r#"
+            comptime fn main() {
+                let x_field = 8;
+                let x_i32: i32 = -7;
+
+                // Field division is weird so I'm not testing with a remainder here
+                assert_eq(x_field / 2, 4);
+                assert_eq(x_i32 / 2, -3);
+            }
+        "#;
+        let result = interpret(src);
+        assert_eq!(result, Value::Unit);
     }
 }
