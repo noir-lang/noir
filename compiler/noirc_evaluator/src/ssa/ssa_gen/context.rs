@@ -366,6 +366,13 @@ impl<'a> FunctionContext<'a> {
         operator: BinaryOpKind,
         location: Location,
     ) -> ValueId {
+        // If the rhs is zero there's never an overflow chance
+        let rhs_value = self.builder.current_function.dfg.get_numeric_constant(rhs);
+        let rhs_is_zero = rhs_value.is_some_and(|rhs| rhs.is_zero());
+        if rhs_is_zero {
+            return result;
+        }
+
         let result_type = self.builder.current_function.dfg.type_of_value(result).unwrap_numeric();
         match result_type {
             NumericType::Signed { bit_size } => {
