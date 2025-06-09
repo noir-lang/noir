@@ -75,7 +75,7 @@ pub enum RuntimeError {
     )]
     ReturnedFunctionFromDynamicIf { call_stack: CallStack },
     /// This case is not an error. It's used during codegen to prevent inserting instructions after
-    /// code for a break or continue is generated.
+    /// code when a break or continue is generated.
     #[error("Break or continue")]
     BreakOrContinue { call_stack: CallStack },
 }
