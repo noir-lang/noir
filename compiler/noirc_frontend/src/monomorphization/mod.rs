@@ -1289,8 +1289,14 @@ impl<'interner> Monomorphizer<'interner> {
             }
             HirType::Unit => ast::Type::Unit,
             HirType::Array(length, element) => {
+                if Self::contains_reference(&element) {
+                    let message = "Array types cannot contain reference types";
+                    return Err(MonomorphizationError::InternalError { location, message });
+                }
+
                 let element =
                     Box::new(Self::convert_type_helper(element.as_ref(), location, seen_types)?);
+
                 let length = match length.evaluate_to_u32(location) {
                     Ok(length) => length,
                     Err(err) => {
@@ -1437,6 +1443,11 @@ impl<'interner> Monomorphizer<'interner> {
 
             // Lower both mutable & immutable references to the same reference type
             HirType::Reference(element, mutable) => {
+                if Self::contains_reference(&element) {
+                    let message = "Reference types cannot contain other reference types";
+                    return Err(MonomorphizationError::InternalError { location, message });
+                }
+
                 let element = Self::convert_type_helper(element, location, seen_types)?;
                 ast::Type::Reference(Box::new(element), *mutable)
             }
