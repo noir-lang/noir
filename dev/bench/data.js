@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1749504484297,
+  "lastUpdate": 1749504487217,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -11362,75 +11362,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "asterite@gmail.com",
-            "name": "Ary Borenszweig",
-            "username": "asterite"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "cb4951d3249ab7f4f97dddc21595cfa933b08d72",
-          "message": "fix(fmt): correctly format mixed secondary attributes and doc comments (#8735)",
-          "timestamp": "2025-05-30T19:59:55Z",
-          "tree_id": "d38efc00d249bca2d02114a3a62c15f02f868b23",
-          "url": "https://github.com/noir-lang/noir/commit/cb4951d3249ab7f4f97dddc21595cfa933b08d72"
-        },
-        "date": 1748637672035,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 201.52,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 225.36,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 176.66,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 501.76,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 498.08,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 1410,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 322.46,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-root",
-            "value": 328.15,
-            "unit": "MB"
-          },
-          {
-            "name": "semaphore_depth_10",
-            "value": 70.97,
-            "unit": "MB"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "163862677+noirwhal@users.noreply.github.com",
             "name": "noirwhal",
             "username": "noirwhal"
@@ -14760,6 +14691,75 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/noir-lang/noir/commit/bc6b68b42857fc510d1de634d1d15bf17ddd90ec"
         },
         "date": 1749498039783,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 202.09,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 225.81,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 177.35,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 489.89,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 423.19,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 1400,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 312.02,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-root",
+            "value": 317.7,
+            "unit": "MB"
+          },
+          {
+            "name": "semaphore_depth_10",
+            "value": 70.96,
+            "unit": "MB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "asterite@gmail.com",
+            "name": "Ary Borenszweig",
+            "username": "asterite"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "77a53e45c0c253d216e80cbfba3414bc90b60851",
+          "message": "fix: support recursive call to main function in SSA parser (#8760)",
+          "timestamp": "2025-06-09T20:55:06Z",
+          "tree_id": "fff9493b3959cfb411444841dff1b72c9f571dd3",
+          "url": "https://github.com/noir-lang/noir/commit/77a53e45c0c253d216e80cbfba3414bc90b60851"
+        },
+        "date": 1749504475225,
         "tool": "customSmallerIsBetter",
         "benches": [
           {
