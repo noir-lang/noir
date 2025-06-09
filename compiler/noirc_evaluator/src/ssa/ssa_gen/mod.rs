@@ -1164,7 +1164,7 @@ impl FunctionContext<'_> {
         Ok(Self::unit_value())
     }
 
-    #[must_use]
+    #[must_use = "do not forget to add `?` at the end of this function call"]
     fn codegen_unless_break_or_continue<T, F>(
         &mut self,
         result: Result<T, RuntimeError>,
@@ -1174,7 +1174,10 @@ impl FunctionContext<'_> {
         F: FnOnce(&mut Self, T),
     {
         match result {
-            Ok(value) => Ok(f(self, value)),
+            Ok(value) => {
+                f(self, value);
+                Ok(())
+            }
             Err(RuntimeError::BreakOrContinue { .. }) => Ok(()),
             Err(err) => Err(err),
         }
