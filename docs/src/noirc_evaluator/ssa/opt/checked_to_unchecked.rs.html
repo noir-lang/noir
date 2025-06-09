@@ -358,7 +358,9 @@
 <a href="#357" id="357">357</a>
 <a href="#358" id="358">358</a>
 <a href="#359" id="359">359</a>
-<a href="#360" id="360">360</a></pre></div><pre class="rust"><code><span class="kw">use </span>acvm::AcirField <span class="kw">as _</span>;
+<a href="#360" id="360">360</a>
+<a href="#361" id="361">361</a>
+<a href="#362" id="362">362</a></pre></div><pre class="rust"><code><span class="kw">use </span>acvm::AcirField <span class="kw">as _</span>;
 <span class="kw">use </span>fxhash::FxHashMap <span class="kw">as </span>HashMap;
 
 <span class="kw">use </span><span class="kw">crate</span>::ssa::{
@@ -684,6 +686,8 @@
           b0(v0: u1, v1: i32):
             v2 = cast v0 as i32
             v3 = mul v2, v1
+            v4 = cast v3 as u64
+            v6 = truncate v4 to 32 bits, max_bit_size: 64
             return v2
         }
         "</span>;

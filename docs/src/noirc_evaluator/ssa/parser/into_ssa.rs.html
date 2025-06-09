@@ -564,11 +564,7 @@
 <a href="#563" id="563">563</a>
 <a href="#564" id="564">564</a>
 <a href="#565" id="565">565</a>
-<a href="#566" id="566">566</a>
-<a href="#567" id="567">567</a>
-<a href="#568" id="568">568</a>
-<a href="#569" id="569">569</a>
-<a href="#570" id="570">570</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::{
+<a href="#566" id="566">566</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::{
     collections::{HashMap, HashSet, VecDeque},
     sync::Arc,
 };
@@ -1126,10 +1122,6 @@
         // that the SSA we parsed was printed by the `SsaBuilder`, which normalizes
         // before each print.
         </span>ssa.normalize_ids();
-
-        <span class="kw">for </span>function <span class="kw">in </span>ssa.functions.values() {
-            function.assert_valid();
-        }
 
         ssa
     }

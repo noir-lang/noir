@@ -3062,9 +3062,9 @@
             v11 = array_get v0, index v10 -&gt; u64
             v12 = add v11, u64 1
             v13 = array_set v9, index v10, value v12
-            v15 = add v1, {idx_type} 1
+            v15 = unchecked_add v1, {idx_type} 1
             store v13 at v4
-            v16 = add v1, {idx_type} 1 // duplicate
+            v16 = unchecked_add v1, {idx_type} 1 // duplicate
             jmp b1(v16)
           b2():
             v8 = load v4 -&gt; [u64; 6]

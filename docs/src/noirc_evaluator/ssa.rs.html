@@ -759,7 +759,8 @@
 <a href="#758" id="758">758</a>
 <a href="#759" id="759">759</a>
 <a href="#760" id="760">760</a>
-<a href="#761" id="761">761</a></pre></div><pre class="rust"><code><span class="doccomment">//! SSA stands for Single Static Assignment
+<a href="#761" id="761">761</a>
+<a href="#762" id="762">762</a></pre></div><pre class="rust"><code><span class="doccomment">//! SSA stands for Single Static Assignment
 //! The IR presented in this module will already
 //! be in SSA form and will be used to apply
 //! conventional optimizations like Common Subexpression
@@ -810,6 +811,7 @@
 <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">mod </span>opt;
 <span class="kw">pub mod </span>parser;
 <span class="kw">pub mod </span>ssa_gen;
+<span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">mod </span>validation;
 
 <span class="attr">#[derive(Debug, Clone)]
 </span><span class="kw">pub enum </span>SsaLogging {
