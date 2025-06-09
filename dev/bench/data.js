@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1749498052320,
+  "lastUpdate": 1749503813127,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -18451,48 +18451,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "asterite@gmail.com",
-            "name": "Ary Borenszweig",
-            "username": "asterite"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "cb4951d3249ab7f4f97dddc21595cfa933b08d72",
-          "message": "fix(fmt): correctly format mixed secondary attributes and doc comments (#8735)",
-          "timestamp": "2025-05-30T19:59:55Z",
-          "tree_id": "d38efc00d249bca2d02114a3a62c15f02f868b23",
-          "url": "https://github.com/noir-lang/noir/commit/cb4951d3249ab7f4f97dddc21595cfa933b08d72"
-        },
-        "date": 1748636669936,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 255254,
-            "range": "± 985",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 224321,
-            "range": "± 1041",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 3211138,
-            "range": "± 3949",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "163862677+noirwhal@users.noreply.github.com",
             "name": "noirwhal",
             "username": "noirwhal"
@@ -20544,6 +20502,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2811104,
             "range": "± 9171",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "asterite@gmail.com",
+            "name": "Ary Borenszweig",
+            "username": "asterite"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "77a53e45c0c253d216e80cbfba3414bc90b60851",
+          "message": "fix: support recursive call to main function in SSA parser (#8760)",
+          "timestamp": "2025-06-09T20:55:06Z",
+          "tree_id": "fff9493b3959cfb411444841dff1b72c9f571dd3",
+          "url": "https://github.com/noir-lang/noir/commit/77a53e45c0c253d216e80cbfba3414bc90b60851"
+        },
+        "date": 1749503801657,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 247394,
+            "range": "± 392",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 218237,
+            "range": "± 6008",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2780475,
+            "range": "± 6477",
             "unit": "ns/iter"
           }
         ]
