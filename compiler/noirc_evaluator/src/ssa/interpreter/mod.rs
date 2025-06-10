@@ -376,9 +376,12 @@ impl<'ssa> Interpreter<'ssa> {
         try_vecmap(ids, |id| self.lookup(*id))
     }
 
-    fn side_effects_enabled(&self) -> bool {
+    fn side_effects_enabled(&self, instruction: &Instruction) -> bool {
         match self.current_function().runtime() {
-            RuntimeType::Acir(_) => self.side_effects_enabled,
+            RuntimeType::Acir(_) => {
+                self.side_effects_enabled
+                    || !instruction.requires_acir_gen_predicate(&self.current_function().dfg)
+            }
             RuntimeType::Brillig(_) => true,
         }
     }
@@ -389,9 +392,11 @@ impl<'ssa> Interpreter<'ssa> {
         instruction: &Instruction,
         results: &[ValueId],
     ) -> IResult<()> {
+        let side_effects_enabled = self.side_effects_enabled(instruction);
+
         match instruction {
             Instruction::Binary(binary) => {
-                let result = self.interpret_binary(binary)?;
+                let result = self.interpret_binary(binary, side_effects_enabled)?;
                 self.define(results[0], result);
                 Ok(())
             }
@@ -410,7 +415,7 @@ impl<'ssa> Interpreter<'ssa> {
             Instruction::Constrain(lhs_id, rhs_id, constrain_error) => {
                 let lhs = self.lookup(*lhs_id)?;
                 let rhs = self.lookup(*rhs_id)?;
-                if self.side_effects_enabled() && lhs != rhs {
+                if side_effects_enabled && lhs != rhs {
                     let lhs = lhs.to_string();
                     let rhs = rhs.to_string();
                     let lhs_id = *lhs_id;
@@ -433,7 +438,7 @@ impl<'ssa> Interpreter<'ssa> {
             Instruction::ConstrainNotEqual(lhs_id, rhs_id, constrain_error) => {
                 let lhs = self.lookup(*lhs_id)?;
                 let rhs = self.lookup(*rhs_id)?;
-                if self.side_effects_enabled() && lhs == rhs {
+                if side_effects_enabled && lhs == rhs {
                     let lhs = lhs.to_string();
                     let rhs = rhs.to_string();
                     let lhs_id = *lhs_id;
@@ -453,10 +458,16 @@ impl<'ssa> Interpreter<'ssa> {
                 }
                 Ok(())
             }
-            Instruction::RangeCheck { value, max_bit_size, assert_message } => {
-                self.interpret_range_check(*value, *max_bit_size, assert_message.as_ref())
+            Instruction::RangeCheck { value, max_bit_size, assert_message } => self
+                .interpret_range_check(
+                    *value,
+                    *max_bit_size,
+                    assert_message.as_ref(),
+                    side_effects_enabled,
+                ),
+            Instruction::Call { func, arguments } => {
+                self.interpret_call(*func, arguments, results, side_effects_enabled)
             }
-            Instruction::Call { func, arguments } => self.interpret_call(*func, arguments, results),
             Instruction::Allocate => {
                 self.interpret_allocate(results[0]);
                 Ok(())
@@ -468,11 +479,18 @@ impl<'ssa> Interpreter<'ssa> {
                 Ok(())
             }
             Instruction::ArrayGet { array, index, offset } => {
-                self.interpret_array_get(*array, *index, *offset, results[0])
+                self.interpret_array_get(*array, *index, *offset, results[0], side_effects_enabled)
             }
-            Instruction::ArraySet { array, index, value, mutable, offset } => {
-                self.interpret_array_set(*array, *index, *value, *mutable, *offset, results[0])
-            }
+            Instruction::ArraySet { array, index, value, mutable, offset } => self
+                .interpret_array_set(
+                    *array,
+                    *index,
+                    *value,
+                    *mutable,
+                    *offset,
+                    results[0],
+                    side_effects_enabled,
+                ),
             Instruction::IncrementRc { value } => self.interpret_inc_rc(*value),
             Instruction::DecrementRc { value } => self.interpret_dec_rc(*value),
             Instruction::IfElse { then_condition, then_value, else_condition, else_value } => self
@@ -556,8 +574,9 @@ impl<'ssa> Interpreter<'ssa> {
         value_id: ValueId,
         max_bit_size: u32,
         error_message: Option<&String>,
+        side_effects_enabled: bool,
     ) -> IResult<()> {
-        if !self.side_effects_enabled() {
+        if !side_effects_enabled {
             return Ok(());
         }
 
@@ -628,11 +647,12 @@ impl<'ssa> Interpreter<'ssa> {
         function_id: ValueId,
         argument_ids: &[ValueId],
         results: &[ValueId],
+        side_effects_enabled: bool,
     ) -> IResult<()> {
         let function = self.lookup(function_id)?;
         let mut arguments = try_vecmap(argument_ids, |argument| self.lookup(*argument))?;
 
-        let new_results = if self.side_effects_enabled() {
+        let new_results = if side_effects_enabled {
             match function {
                 Value::Function(id) => {
                     // If we're crossing a constrained -> unconstrained boundary we have to wipe
@@ -762,8 +782,9 @@ impl<'ssa> Interpreter<'ssa> {
         index: ValueId,
         offset: ArrayOffset,
         result: ValueId,
+        side_effects_enabled: bool,
     ) -> IResult<()> {
-        let element = if self.side_effects_enabled() {
+        let element = if side_effects_enabled {
             let array = self.lookup_array_or_slice(array, "array get")?;
             let index = self.lookup_u32(index, "array get index")?;
             let index = index - offset.to_u32();
@@ -776,6 +797,7 @@ impl<'ssa> Interpreter<'ssa> {
         Ok(())
     }
 
+    #[allow(clippy::too_many_arguments)]
     fn interpret_array_set(
         &mut self,
         array: ValueId,
@@ -784,10 +806,11 @@ impl<'ssa> Interpreter<'ssa> {
         mutable: bool,
         offset: ArrayOffset,
         result: ValueId,
+        side_effects_enabled: bool,
     ) -> IResult<()> {
         let array = self.lookup_array_or_slice(array, "array set")?;
 
-        let result_array = if self.side_effects_enabled() {
+        let result_array = if side_effects_enabled {
             let index = self.lookup_u32(index, "array set index")?;
             let index = index - offset.to_u32();
             let value = self.lookup(value)?;
@@ -1047,7 +1070,7 @@ macro_rules! apply_int_comparison_op {
 }
 
 impl Interpreter<'_> {
-    fn interpret_binary(&mut self, binary: &Binary) -> IResult<Value> {
+    fn interpret_binary(&mut self, binary: &Binary, side_effects_enabled: bool) -> IResult<Value> {
         let lhs_id = binary.lhs;
         let rhs_id = binary.rhs;
         let lhs = self.lookup_numeric(lhs_id, "binary op lhs")?;
@@ -1066,7 +1089,7 @@ impl Interpreter<'_> {
         }
 
         // Disable this instruction if it is side-effectful and side effects are disabled.
-        if !self.side_effects_enabled() && binary.requires_acir_gen_predicate(self.dfg()) {
+        if !side_effects_enabled {
             let zero = NumericValue::zero(lhs.get_type());
             return Ok(Value::Numeric(zero));
         }

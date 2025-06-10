@@ -6,7 +6,10 @@ use noirc_frontend::Shared;
 use crate::ssa::{
     interpreter::{
         InterpreterError, NumericValue, Value,
-        tests::{expect_value, expect_values, expect_values_with_args, from_constant},
+        tests::{
+            expect_value, expect_value_with_args, expect_values, expect_values_with_args,
+            from_constant,
+        },
         value::ReferenceValue,
     },
     ir::{
@@ -627,8 +630,8 @@ fn constrain() {
 }
 
 #[test]
-fn constrain_disabled_by_enable_side_effects() {
-    executes_with_no_errors(
+fn constrain_not_disabled_by_enable_side_effects() {
+    expect_error(
         "
         acir(inline) fn main f0 {
           b0():
@@ -697,8 +700,8 @@ fn range_check_fail() {
 }
 
 #[test]
-fn range_check_disabled_by_enable_side_effects() {
-    executes_with_no_errors(
+fn range_check_not_disabled_by_enable_side_effects() {
+    expect_error(
         "
         acir(inline) fn main f0 {
           b0():
@@ -846,7 +849,7 @@ fn array_get_with_offset() {
 }
 
 #[test]
-fn array_get_disabled_by_enable_side_effects() {
+fn array_get_not_disabled_by_enable_side_effects_if_index_is_known_to_be_safe() {
     let value = expect_value(
         r#"
         acir(inline) fn main f0 {
@@ -857,6 +860,23 @@ fn array_get_disabled_by_enable_side_effects() {
             return v1
         }
     "#,
+    );
+    assert_eq!(value, from_constant(2_u32.into(), NumericType::NativeField));
+}
+
+#[test]
+fn array_get_disabled_by_enable_side_effects_if_index_is_not_known_to_be_safe() {
+    let value = expect_value_with_args(
+        r#"
+        acir(inline) fn main f0 {
+          b0(v2: u32):
+            enable_side_effects u1 0
+            v0 = make_array [Field 1, Field 2] : [Field; 2]
+            v1 = array_get v0, index v2 -> Field
+            return v1
+        }
+    "#,
+        vec![Value::Numeric(NumericValue::U32(1))],
     );
     assert_eq!(value, from_constant(0_u32.into(), NumericType::NativeField));
 }
