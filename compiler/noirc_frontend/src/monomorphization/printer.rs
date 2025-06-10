@@ -29,6 +29,7 @@ pub struct AstPrinter {
     pub show_clone_and_drop: bool,
     pub show_print_as_std: bool,
     pub show_type_in_let: bool,
+    pub show_type_of_int_literal: bool,
 }
 
 impl Default for AstPrinter {
@@ -40,6 +41,7 @@ impl Default for AstPrinter {
             show_clone_and_drop: true,
             show_print_as_std: false,
             show_type_in_let: false,
+            show_type_of_int_literal: false,
         }
     }
 }
@@ -249,7 +251,13 @@ impl AstPrinter {
                 self.print_comma_separated(&array.contents, f)?;
                 write!(f, "]")
             }
-            super::ast::Literal::Integer(x, _, _) => x.fmt(f),
+            super::ast::Literal::Integer(x, typ, _) => {
+                if self.show_type_of_int_literal {
+                    write!(f, "{x} as {typ}")
+                } else {
+                    x.fmt(f)
+                }
+            }
             super::ast::Literal::Bool(x) => x.fmt(f),
             super::ast::Literal::Str(s) => {
                 if s.contains("\"") {
