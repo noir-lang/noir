@@ -1,87 +1,8 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1749561809439,
+  "lastUpdate": 1749561927675,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
-      {
-        "commit": {
-          "author": {
-            "email": "jfecher11@gmail.com",
-            "name": "jfecher",
-            "username": "jfecher"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "81d2ad6adc93b28df107330d536eacbf74562537",
-          "message": "fix: Add missing cases for finding function values in `find_functions_as_values` (#8738)\n\nCo-authored-by: Maxim Vezenov <mvezenov@gmail.com>",
-          "timestamp": "2025-06-03T10:15:55Z",
-          "tree_id": "2e4dc1218822c67573fc754260c615b4b4cb2d37",
-          "url": "https://github.com/noir-lang/noir/commit/81d2ad6adc93b28df107330d536eacbf74562537"
-        },
-        "date": 1748947938620,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 292.93,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 533.91,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 192.81,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 1380,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 1540,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-root-empty",
-            "value": 342.96,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-root-single-tx",
-            "value": 7150,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 7160,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 327.16,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-root",
-            "value": 381.45,
-            "unit": "MB"
-          },
-          {
-            "name": "semaphore_depth_10",
-            "value": 106.4,
-            "unit": "MB"
-          }
-        ]
-      },
       {
         "commit": {
           "author": {
@@ -3939,6 +3860,85 @@ window.BENCHMARK_DATA = {
           {
             "name": "rollup-merge",
             "value": 327.16,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-root",
+            "value": 381.44,
+            "unit": "MB"
+          },
+          {
+            "name": "semaphore_depth_10",
+            "value": 106.39,
+            "unit": "MB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "jc@joshcrites.com",
+            "name": "josh crites",
+            "username": "critesjosh"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "8a46cb653dfb658104f84df37da9a1bffa97d0ff",
+          "message": "chore(docs): Add links to awesome-noir in sidebar (#8854)",
+          "timestamp": "2025-06-10T12:52:05Z",
+          "tree_id": "353a21396c00699b9acaa454530d6699f637b68e",
+          "url": "https://github.com/noir-lang/noir/commit/8a46cb653dfb658104f84df37da9a1bffa97d0ff"
+        },
+        "date": 1749561916504,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 292.98,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 534.02,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 191.55,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 1380,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 1510,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root-empty",
+            "value": 339.38,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root-single-tx",
+            "value": 7830,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 7830,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 327.17,
             "unit": "MB"
           },
           {
