@@ -76,7 +76,7 @@
   ], "is_slice": true, "type_id": 4 } } },
   { "VariableName": "q" },
   { "Value": { "variable_id": 4, "value": { "kind": "Int", "i": 5, "type_id": 2 } } },
-  { "Event": { "kind": 0, "content": "5\n" } },
+  { "Event": { "kind": 0, "metadata": "", "content": "5\n" } },
   { "Step": { "path_id": 0, "line": 4 } },
   { "Value": { "variable_id": 3, "value": { "kind": "Sequence", "elements": [
     { "kind": "Int", "i": 5, "type_id": 2 },
@@ -103,7 +103,7 @@
     { "kind": "Int", "i": 1, "type_id": 2 }
   ], "is_slice": true, "type_id": 4 } } },
   { "Value": { "variable_id": 4, "value": { "kind": "Int", "i": 4, "type_id": 2 } } },
-  { "Event": { "kind": 0, "content": "4\n" } },
+  { "Event": { "kind": 0, "metadata": "", "content": "4\n" } },
   { "Step": { "path_id": 0, "line": 4 } },
   { "Value": { "variable_id": 3, "value": { "kind": "Sequence", "elements": [
     { "kind": "Int", "i": 5, "type_id": 2 },
@@ -130,7 +130,7 @@
     { "kind": "Int", "i": 1, "type_id": 2 }
   ], "is_slice": true, "type_id": 4 } } },
   { "Value": { "variable_id": 4, "value": { "kind": "Int", "i": 3, "type_id": 2 } } },
-  { "Event": { "kind": 0, "content": "3\n" } },
+  { "Event": { "kind": 0, "metadata": "", "content": "3\n" } },
   { "Step": { "path_id": 0, "line": 4 } },
   { "Value": { "variable_id": 3, "value": { "kind": "Sequence", "elements": [
     { "kind": "Int", "i": 5, "type_id": 2 },
@@ -157,7 +157,7 @@
     { "kind": "Int", "i": 1, "type_id": 2 }
   ], "is_slice": true, "type_id": 4 } } },
   { "Value": { "variable_id": 4, "value": { "kind": "Int", "i": 2, "type_id": 2 } } },
-  { "Event": { "kind": 0, "content": "2\n" } },
+  { "Event": { "kind": 0, "metadata": "", "content": "2\n" } },
   { "Step": { "path_id": 0, "line": 4 } },
   { "Value": { "variable_id": 3, "value": { "kind": "Sequence", "elements": [
     { "kind": "Int", "i": 5, "type_id": 2 },
@@ -184,7 +184,7 @@
     { "kind": "Int", "i": 1, "type_id": 2 }
   ], "is_slice": true, "type_id": 4 } } },
   { "Value": { "variable_id": 4, "value": { "kind": "Int", "i": 1, "type_id": 2 } } },
-  { "Event": { "kind": 0, "content": "1\n" } },
+  { "Event": { "kind": 0, "metadata": "", "content": "1\n" } },
   { "Step": { "path_id": 0, "line": 4 } },
   { "Value": { "variable_id": 3, "value": { "kind": "Sequence", "elements": [
     { "kind": "Int", "i": 5, "type_id": 2 },

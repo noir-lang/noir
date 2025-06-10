@@ -31,19 +31,19 @@
   { "Value": { "variable_id": 3, "value": { "kind": "Reference", "dereferenced": { "kind": "Struct", "field_values": [
     { "kind": "Int", "i": 32838, "type_id": 3 },
     { "kind": "Int", "i": 32839, "type_id": 3 }
-  ], "type_id": 2 }, "mutable": true, "type_id": 4 } } },
+  ], "type_id": 2 }, "address": 0, "mutable": true, "type_id": 4 } } },
   { "Step": { "path_id": 0, "line": 6 } },
   { "Call": { "function_id": 1, "args": [
     { "variable_id": 3, "value": { "kind": "Reference", "dereferenced": { "kind": "Struct", "field_values": [
       { "kind": "Int", "i": 32838, "type_id": 3 },
       { "kind": "Int", "i": 32839, "type_id": 3 }
-    ], "type_id": 2 }, "mutable": true, "type_id": 4 } }
+    ], "type_id": 2 }, "address": 0, "mutable": true, "type_id": 4 } }
   ] } },
   { "Step": { "path_id": 0, "line": 7 } },
   { "Value": { "variable_id": 3, "value": { "kind": "Reference", "dereferenced": { "kind": "Struct", "field_values": [
     { "kind": "Int", "i": 32838, "type_id": 3 },
     { "kind": "Int", "i": 32839, "type_id": 3 }
-  ], "type_id": 2 }, "mutable": true, "type_id": 4 } } },
+  ], "type_id": 2 }, "address": 0, "mutable": true, "type_id": 4 } } },
   { "Type": { "kind": 30, "lang_type": "()", "specific_info": { "kind": "None" } } },
   { "Return": { "return_value": { "kind": "None", "type_id": 5 } } },
   { "Step": { "path_id": 0, "line": 12 } },

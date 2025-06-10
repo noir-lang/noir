@@ -47,5 +47,5 @@
   { "Value": { "variable_id": 0, "value": { "kind": "Int", "i": 2, "type_id": 1 } } },
   { "Value": { "variable_id": 1, "value": { "kind": "Int", "i": 2, "type_id": 1 } } },
   { "Value": { "variable_id": 3, "value": { "kind": "Int", "i": 8, "type_id": 1 } } },
-  { "Event": { "kind": 9, "content": "Failed to solve program: 'Failed to solve brillig function'" } }
+  { "Event": { "kind": 11, "metadata": "", "content": "Failed to solve program: 'Failed to solve brillig function'" } }
 ]
