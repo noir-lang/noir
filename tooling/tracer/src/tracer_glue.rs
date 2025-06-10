@@ -204,7 +204,7 @@ fn register_value(
         PrintableType::Reference { typ, mutable } => {
             let type_id = tracer.ensure_type_id(runtime_tracing::TypeKind::Ref, "&");
             let v = register_value(tracer, value, typ);
-            ValueRecord::Reference { dereferenced: Box::new(v), mutable: *mutable, type_id }
+            ValueRecord::Reference { dereferenced: Box::new(v), address: 0, mutable: *mutable, type_id }
         }
         PrintableType::Function { arguments: _, return_type: _, env: _, unconstrained } => {
             let type_name = if *unconstrained { "unconstrained fn" } else { "fn" };
