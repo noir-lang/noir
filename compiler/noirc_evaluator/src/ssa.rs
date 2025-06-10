@@ -49,12 +49,13 @@ pub mod ir;
 pub(crate) mod opt;
 pub mod parser;
 pub mod ssa_gen;
+pub(crate) mod validation;
 
 #[derive(Debug, Clone)]
 pub enum SsaLogging {
     None,
     All,
-    Contains(String),
+    Contains(Vec<String>),
 }
 
 #[derive(Debug, Clone)]
@@ -178,7 +179,7 @@ pub fn primary_passes(options: &SsaEvaluatorOptions) -> Vec<SsaPass> {
             move |ssa| ssa.inline_functions_with_no_predicates(options.inliner_aggressiveness),
             "Inlining",
         ),
-        SsaPass::new(Ssa::remove_if_else, "Remove IfElse"),
+        SsaPass::new_try(Ssa::remove_if_else, "Remove IfElse"),
         SsaPass::new(Ssa::purity_analysis, "Purity Analysis"),
         SsaPass::new(Ssa::fold_constants, "Constant Folding"),
         SsaPass::new(Ssa::flatten_basic_conditionals, "Simplify conditionals for unconstrained"),
@@ -701,8 +702,9 @@ impl SsaBuilder {
         F: FnOnce(Ssa) -> Result<Ssa, RuntimeError>,
     {
         // Count the number of times we have seen this message.
-        let cnt = self.passed.entry(msg.to_string()).and_modify(|cnt| *cnt += 1).or_insert(1);
-        let msg = format!("{msg} ({cnt})");
+        let cnt = *self.passed.entry(msg.to_string()).and_modify(|cnt| *cnt += 1).or_insert(1);
+        let step = self.passed.values().sum::<usize>();
+        let msg = format!("{msg} ({cnt}) (step {step})");
 
         // See if we should skip this pass, including the count, so we can skip the n-th occurrence of a step.
         let skip = self.skip_passes.iter().any(|s| msg.contains(s));
@@ -724,12 +726,12 @@ impl SsaBuilder {
         let print_ssa_pass = match &self.ssa_logging {
             SsaLogging::None => false,
             SsaLogging::All => true,
-            SsaLogging::Contains(string) => {
+            SsaLogging::Contains(strings) => strings.iter().any(|string| {
                 let string = string.to_lowercase();
                 let string = string.strip_prefix("after ").unwrap_or(&string);
                 let string = string.strip_suffix(':').unwrap_or(string);
                 msg.to_lowercase().contains(string)
-            }
+            }),
         };
 
         if print_ssa_pass {

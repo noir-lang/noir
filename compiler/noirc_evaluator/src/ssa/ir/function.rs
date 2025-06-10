@@ -1,6 +1,7 @@
 use std::collections::BTreeSet;
 use std::sync::Arc;
 
+use acvm::FieldElement;
 use iter_extended::vecmap;
 use noirc_frontend::monomorphization::ast::InlineType;
 use serde::{Deserialize, Serialize};
@@ -9,8 +10,8 @@ use super::basic_block::BasicBlockId;
 use super::dfg::{DataFlowGraph, GlobalsGraph};
 use super::instruction::TerminatorInstruction;
 use super::map::Id;
-use super::types::Type;
-use super::value::ValueId;
+use super::types::{NumericType, Type};
+use super::value::{Value, ValueId};
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug, Hash, Serialize, Deserialize, PartialOrd, Ord)]
 pub enum RuntimeType {
@@ -217,6 +218,19 @@ impl Function {
             })
             .sum()
     }
+
+    /// Iterate over the numeric constants in the function.
+    pub fn constants(&self) -> impl Iterator<Item = (&FieldElement, &NumericType)> {
+        let local = self.dfg.values_iter();
+        let global = self.dfg.globals.values_iter();
+        local.chain(global).filter_map(|(_, value)| {
+            if let Value::NumericConstant { constant, typ } = value {
+                Some((constant, typ))
+            } else {
+                None
+            }
+        })
+    }
 }
 
 impl Clone for Function {
@@ -232,6 +246,12 @@ impl std::fmt::Display for RuntimeType {
             RuntimeType::Brillig(inline_type) => write!(f, "brillig({inline_type})"),
         }
     }
+}
+
+/// Iterate over every Value in this DFG in no particular order, including unused Values,
+/// for testing purposes.
+pub fn function_values_iter(func: &Function) -> impl DoubleEndedIterator<Item = (ValueId, &Value)> {
+    func.dfg.values_iter()
 }
 
 /// FunctionId is a reference for a function
@@ -250,6 +270,6 @@ pub(crate) struct Signature {
 fn sign_smoke() {
     let mut signature = Signature::default();
 
-    signature.params.push(Type::Numeric(super::types::NumericType::NativeField));
-    signature.returns.push(Type::Numeric(super::types::NumericType::Unsigned { bit_size: 32 }));
+    signature.params.push(Type::Numeric(NumericType::NativeField));
+    signature.returns.push(Type::Numeric(NumericType::Unsigned { bit_size: 32 }));
 }

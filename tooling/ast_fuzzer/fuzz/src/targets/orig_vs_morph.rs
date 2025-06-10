@@ -1,22 +1,22 @@
 //! Perform random equivalence mutations on the AST and check that the
 //! execution result does not change, a.k.a. metamorphic testing.
 
-use std::collections::{HashSet, VecDeque};
-
 use crate::{compare_results_compiled, create_ssa_or_die, default_ssa_options};
 use arbitrary::{Arbitrary, Unstructured};
 use color_eyre::eyre;
 use noir_ast_fuzzer::compare::{CompareMorph, CompareOptions};
+use noir_ast_fuzzer::visitor;
 use noir_ast_fuzzer::{Config, visitor::visit_expr_mut};
-use noir_ast_fuzzer::{expr, visitor};
 use noirc_frontend::ast::UnaryOp;
-use noirc_frontend::monomorphization::ast::{Expression, FuncId, Function, Program, Unary};
+use noirc_frontend::monomorphization::ast::{
+    Call, Definition, Expression, Function, Ident, Program, Unary,
+};
 
 pub fn fuzz(u: &mut Unstructured) -> eyre::Result<()> {
     let rules = rules::all();
     let max_rewrites = 10;
     let config = Config {
-        avoid_negative_int_literals: true,
+        avoid_overflow: u.arbitrary()?,
         avoid_large_int_literals: true,
         ..Default::default()
     };
@@ -42,9 +42,8 @@ fn rewrite_program(
     rules: &[rules::Rule],
     max_rewrites: usize,
 ) {
-    let reachable = reachable_functions(program);
     for func in program.functions.iter_mut() {
-        if func.name.ends_with("_proxy") || !reachable.contains(&func.id) {
+        if func.name.ends_with("_proxy") {
             continue;
         }
         rewrite_function(u, func, rules, max_rewrites);
@@ -92,9 +91,11 @@ impl MorphContext<'_> {
             }
             match expr {
                 Expression::For(for_) => {
+                    // Separate context for just the ranges.
                     let range_ctx = rules::Context { is_in_range: true, ..*ctx };
                     self.rewrite_expr(&range_ctx, u, &mut for_.start_range);
                     self.rewrite_expr(&range_ctx, u, &mut for_.end_range);
+                    // Original context for the body.
                     self.rewrite_expr(ctx, u, &mut for_.block);
                     // No need to visit children, we just visited them.
                     false
@@ -106,6 +107,14 @@ impl MorphContext<'_> {
                     self.rewrite_expr(&ctx, u, &mut unary.rhs);
                     false
                 }
+                Expression::Call(call) if is_special_call(call) => {
+                    let ctx = rules::Context { is_in_special_call: true, ..*ctx };
+                    for arg in call.arguments.iter_mut() {
+                        self.rewrite_expr(&ctx, u, arg);
+                    }
+                    false
+                }
+                // The rest can just have the rules applied on them, using the same context.
                 _ => {
                     for rule in self.rules {
                         match self.try_apply_rule(ctx, u, expr, rule) {
@@ -174,29 +183,15 @@ fn estimate_applicable_rules(
     count
 }
 
-/// Collect the functions reachable from `main`.
-///
-/// We don't want to waste our time morphing functions that won't be called.
-///
-/// It would be nice if they were removed during AST generation, but if we
-/// remove an item from `Programs::functions`, the calls made to them would
-/// need to be updated according to their new position in the vector.
-fn reachable_functions(program: &Program) -> HashSet<FuncId> {
-    let mut reachable = HashSet::new();
-    let mut queue = VecDeque::new();
-
-    queue.push_back(Program::main_id());
-
-    while let Some(func_id) = queue.pop_front() {
-        if !reachable.insert(func_id) {
-            continue;
-        }
-        let func = &program.functions[func_id.0 as usize];
-        let callees = expr::callees(&func.body);
-        queue.extend(callees);
-    }
-
-    reachable
+/// Check if we are calling an oracle or builtin function.
+fn is_special_call(call: &Call) -> bool {
+    matches!(
+        call.func.as_ref(),
+        Expression::Ident(Ident {
+            definition: Definition::Oracle(_) | Definition::Builtin(_) | Definition::LowLevel(_),
+            ..
+        })
+    )
 }
 
 /// Metamorphic transformation rules.
@@ -212,10 +207,12 @@ mod rules {
     pub struct Context {
         /// Is the function we're rewriting unconstrained?
         pub unconstrained: bool,
-        /// Are we rewriting an expression which is a range of a `for` loop?
+        /// Are we rewriting an expression which is a `start` or `end` of a `for` loop?
         pub is_in_range: bool,
         /// Are we in an expression that we're just taking a mutable reference to?
         pub is_in_ref_mut: bool,
+        /// Are we processing the arguments of an non-user function call, such as an oracle or built-in?
+        pub is_in_special_call: bool,
     }
 
     /// Check if the rule can be applied on an expression.
@@ -274,14 +271,14 @@ mod rules {
                     return false;
                 }
                 // We can apply this rule on anything that returns a number.
-                if let Some(typ) = expr::return_type(expr) {
-                    matches!(typ, Type::Field | Type::Integer(_, _))
+                if let Some(typ) = expr.return_type() {
+                    matches!(typ.as_ref(), Type::Field | Type::Integer(_, _))
                 } else {
                     false
                 }
             },
             |u, expr| {
-                let typ = expr::return_type(expr).cloned().expect("only called on matching type");
+                let typ = expr.return_type().expect("only called on matching type").into_owned();
 
                 let op =
                     if bool::arbitrary(u)? { BinaryOpKind::Add } else { BinaryOpKind::Subtract };
@@ -301,10 +298,15 @@ mod rules {
         if ctx.is_in_ref_mut {
             return false;
         }
+        // We don't want to mess with the arguments of a `println`, because the printer assumes they are bool literals.
+        // Similarly a `constrain` call is expected to have a single boolean expression.
+        if ctx.is_in_special_call {
+            return false;
+        }
         // We can apply boolean rule on anything that returns a bool,
         // unless the expression can have a side effect, which we don't want to duplicate.
-        if let Some(typ) = expr::return_type(expr) {
-            matches!(typ, Type::Bool)
+        if let Some(typ) = expr.return_type() {
+            matches!(typ.as_ref(), Type::Bool)
                 && !expr::exists(expr, |expr| {
                     matches!(
                         expr,

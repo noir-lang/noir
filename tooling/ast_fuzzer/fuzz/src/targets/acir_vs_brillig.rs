@@ -10,11 +10,9 @@ use noir_ast_fuzzer::rewrite::change_all_functions_into_unconstrained;
 
 pub fn fuzz(u: &mut Unstructured) -> eyre::Result<()> {
     let config = Config {
-        // We created enough bug tickets due to overflows
-        avoid_overflow: true,
-        // also with negative values
-        avoid_negative_int_literals: true,
-        // and it gets old to have to edit u128 to fit into u32 for the frontend to parse
+        // Overflows can be triggered easily, so in half the cases we avoid them,
+        // to make sure they don't mask other errors.
+        avoid_overflow: u.arbitrary()?,
         avoid_large_int_literals: true,
         ..Default::default()
     };
@@ -46,6 +44,7 @@ pub fn fuzz(u: &mut Unstructured) -> eyre::Result<()> {
 
 #[cfg(test)]
 mod tests {
+
     /// ```ignore
     /// NOIR_ARBTEST_SEED=0x6819c61400001000 \
     /// NOIR_AST_FUZZER_SHOW_AST=1 \

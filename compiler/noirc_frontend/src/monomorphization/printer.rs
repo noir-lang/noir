@@ -27,6 +27,8 @@ pub struct AstPrinter {
     pub show_id: bool,
     pub show_clone_and_drop: bool,
     pub show_print_as_std: bool,
+    pub show_type_in_let: bool,
+    pub show_type_of_int_literal: bool,
 }
 
 impl Default for AstPrinter {
@@ -37,6 +39,8 @@ impl Default for AstPrinter {
             show_id: true,
             show_clone_and_drop: true,
             show_print_as_std: false,
+            show_type_in_let: false,
+            show_type_of_int_literal: false,
         }
     }
 }
@@ -161,17 +165,35 @@ impl AstPrinter {
             }
             Expression::Call(call) => self.print_call(call, f),
             Expression::Let(let_expr) => {
+                let typ = if self.show_type_in_let
+                    && let_expr.expression.needs_type_inference_from_literal()
+                {
+                    &let_expr
+                        .expression
+                        .return_type()
+                        .map(|typ| format!(": {typ}"))
+                        .unwrap_or_default()
+                } else {
+                    ""
+                };
                 write!(
                     f,
-                    "let {}{} = ",
+                    "let {}{}{} = ",
                     if let_expr.mutable { "mut " } else { "" },
                     self.fmt_local(&let_expr.name, let_expr.id),
+                    typ
                 )?;
                 self.print_expr(&let_expr.expression, f)
             }
-            Expression::Constrain(expr, ..) => {
-                write!(f, "constrain ")?;
-                self.print_expr(expr, f)
+            Expression::Constrain(expr, _, payload) => {
+                write!(f, "assert(")?;
+                self.print_expr(expr, f)?;
+                if let Some(payload) = payload {
+                    write!(f, ", ")?;
+                    self.print_expr(&payload.as_ref().0, f)?;
+                }
+                write!(f, ")")?;
+                Ok(())
             }
             Expression::Assign(assign) => {
                 self.print_lvalue(&assign.lvalue, f)?;
@@ -225,7 +247,13 @@ impl AstPrinter {
                 self.print_comma_separated(&array.contents, f)?;
                 write!(f, "]")
             }
-            super::ast::Literal::Integer(x, _, _) => x.fmt(f),
+            super::ast::Literal::Integer(x, typ, _) => {
+                if self.show_type_of_int_literal {
+                    write!(f, "{x} as {typ}")
+                } else {
+                    x.fmt(f)
+                }
+            }
             super::ast::Literal::Bool(x) => x.fmt(f),
             super::ast::Literal::Str(s) => {
                 if s.contains("\"") {

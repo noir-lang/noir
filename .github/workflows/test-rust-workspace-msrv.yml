@@ -49,7 +49,7 @@ jobs:
       - name: Install nextest
         uses: taiki-e/install-action@v2
         with:
-          tool: nextest@0.9.67
+          tool: nextest@0.9.88
 
       - name: Build and archive tests
         run: cargo nextest archive --workspace --archive-file nextest-archive.tar.zst
@@ -82,7 +82,7 @@ jobs:
       - name: Install nextest
         uses: taiki-e/install-action@v2
         with:
-          tool: nextest@0.9.67
+          tool: nextest@0.9.88
 
       - name: Download archive
         uses: actions/download-artifact@v4
@@ -93,7 +93,7 @@ jobs:
           RUST_MIN_STACK=8388608 \
           cargo nextest run --archive-file nextest-archive.tar.zst \
             --partition count:${{ matrix.partition }}/4 \
-            --no-fail-fast
+            --profile ci
 
   # This is a job which depends on all test jobs and reports the overall status.
   # This allows us to add/remove test jobs without having to update the required workflows.

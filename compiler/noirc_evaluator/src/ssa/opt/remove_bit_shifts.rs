@@ -170,6 +170,8 @@ impl Context<'_, '_, '_> {
         let rhs_is_less_than_bit_size = self.insert_binary(rhs, BinaryOp::Lt, bit_size_value);
         let rhs_is_less_than_bit_size_with_rhs_typ =
             self.insert_cast(rhs_is_less_than_bit_size, rhs_typ);
+        let rhs_is_less_than_bit_size_with_lhs_typ =
+            self.insert_cast(rhs_is_less_than_bit_size, lhs_typ);
         // Nullify rhs in case of overflow, to ensure that pow returns a value compatible with lhs
         let rhs = self.insert_binary(
             rhs_is_less_than_bit_size_with_rhs_typ,
@@ -178,49 +180,75 @@ impl Context<'_, '_, '_> {
         );
         let pow = self.pow(base, rhs);
         let pow = self.insert_cast(pow, lhs_typ);
-        let result = if lhs_typ.is_unsigned() {
-            // unsigned right bit shift is just a normal division
-            self.insert_binary(lhs, BinaryOp::Div, pow)
-        } else {
-            // Get the sign of the operand; positive signed operand will just do a division as well
-            let zero = self.numeric_constant(FieldElement::zero(), NumericType::signed(bit_size));
-            let lhs_sign = self.insert_binary(lhs, BinaryOp::Lt, zero);
-            let lhs_sign_as_field = self.insert_cast(lhs_sign, NumericType::NativeField);
-            let lhs_as_field = self.insert_cast(lhs, NumericType::NativeField);
-            // For negative numbers, convert to 1-complement using wrapping addition of a + 1
-            // Unchecked add as these are fields
-            let one_complement = self.insert_binary(
-                lhs_sign_as_field,
-                BinaryOp::Add { unchecked: true },
-                lhs_as_field,
-            );
-            let one_complement = self.insert_truncate(one_complement, bit_size, bit_size + 1);
-            let one_complement = self.insert_cast(one_complement, NumericType::signed(bit_size));
-            // Performs the division on the 1-complement (or the operand if positive)
-            let shifted_complement = self.insert_binary(one_complement, BinaryOp::Div, pow);
-            // Convert back to 2-complement representation if operand is negative
-            let lhs_sign_as_int = self.insert_cast(lhs_sign, lhs_typ);
 
-            // The requirements for this to underflow are all of these:
-            // - lhs < 0
-            // - ones_complement(lhs) / (2^rhs) == 0
-            // As the upper bit is set for the ones complement of negative numbers we'd need 2^rhs
-            // to be larger than the lhs bitsize for this to overflow.
-            let shifted = self.insert_binary(
-                shifted_complement,
-                BinaryOp::Sub { unchecked: true },
-                lhs_sign_as_int,
+        if lhs_typ.is_unsigned() {
+            // unsigned right bit shift is just a normal division
+            let result = self.insert_binary(lhs, BinaryOp::Div, pow);
+            // In  case of overflow, pow is 1, because rhs was nullified, so we return explicitly 0.
+            return self.insert_binary(
+                rhs_is_less_than_bit_size_with_lhs_typ,
+                BinaryOp::Mul { unchecked: true },
+                result,
             );
-            self.insert_truncate(shifted, bit_size, bit_size + 1)
-        };
-        // Returns 0 in case of overflow
-        let rhs_is_less_than_bit_size_with_lhs_typ =
-            self.insert_cast(rhs_is_less_than_bit_size, lhs_typ);
-        self.insert_binary(
+        }
+        // Get the sign of the operand; positive signed operand will just do a division as well
+        let zero = self.numeric_constant(FieldElement::zero(), NumericType::signed(bit_size));
+        let lhs_sign = self.insert_binary(lhs, BinaryOp::Lt, zero);
+        let lhs_sign_as_field = self.insert_cast(lhs_sign, NumericType::NativeField);
+        let lhs_as_field = self.insert_cast(lhs, NumericType::NativeField);
+        // For negative numbers, convert to 1-complement using wrapping addition of a + 1
+        // Unchecked add as these are fields
+        let one_complement =
+            self.insert_binary(lhs_sign_as_field, BinaryOp::Add { unchecked: true }, lhs_as_field);
+        let one_complement = self.insert_truncate(one_complement, bit_size, bit_size + 1);
+        let one_complement = self.insert_cast(one_complement, NumericType::signed(bit_size));
+        // Performs the division on the 1-complement (or the operand if positive)
+        let shifted_complement = self.insert_binary(one_complement, BinaryOp::Div, pow);
+        // Convert back to 2-complement representation if operand is negative
+        let lhs_sign_as_int = self.insert_cast(lhs_sign, lhs_typ);
+
+        // The requirements for this to underflow are all of these:
+        // - lhs < 0
+        // - ones_complement(lhs) / (2^rhs) == 0
+        // As the upper bit is set for the ones complement of negative numbers we'd need 2^rhs
+        // to be larger than the lhs bitsize for this to overflow.
+        let shifted = self.insert_binary(
+            shifted_complement,
+            BinaryOp::Sub { unchecked: true },
+            lhs_sign_as_int,
+        );
+        let result = self.insert_truncate(shifted, bit_size, bit_size + 1);
+
+        // Returns 0 or -1 in case of overflow:
+        // In  case of overflow, and because rhs was nullified, we need to
+        // return the correct value, which is 0 or -1 depending on the sign of lhs
+
+        // Computes -1, or 0 if lhs is positive: is the expected result if there is an overflow
+        let minus_one = self.numeric_constant(
+            NumericType::Unsigned { bit_size }.max_value().expect("Invalid bit size"),
+            lhs_typ,
+        );
+        let minus_one_or_zero =
+            self.insert_binary(minus_one, BinaryOp::Mul { unchecked: true }, lhs_sign_as_int);
+        // -1, or 0 if lhs is positive or if there is no overflow
+        let one = self.numeric_constant(FieldElement::one(), lhs_typ);
+        let no_overflow = self.insert_binary(
+            one,
+            BinaryOp::Sub { unchecked: true },
+            rhs_is_less_than_bit_size_with_lhs_typ,
+        );
+        let minus_one_or_zero =
+            self.insert_binary(minus_one_or_zero, BinaryOp::Mul { unchecked: true }, no_overflow);
+
+        // predicated result: 0 if overflow, else: result
+        let result = self.insert_binary(
             rhs_is_less_than_bit_size_with_lhs_typ,
             BinaryOp::Mul { unchecked: true },
             result,
-        )
+        );
+
+        // result + minus_one_or_zero gives the expected result in all cases
+        self.insert_binary(result, BinaryOp::Add { unchecked: true }, minus_one_or_zero)
     }
 
     /// Computes lhs^rhs via square&multiply, using the bits decomposition of rhs
@@ -247,7 +275,10 @@ impl Context<'_, '_, '_> {
             let mut r = one;
             // All operations are unchecked as we're acting on Field types (which are always unchecked)
             for i in 1..bit_size + 1 {
-                let idx = self.field_constant(FieldElement::from((bit_size - i) as i128));
+                let idx = self.numeric_constant(
+                    FieldElement::from((bit_size - i) as i128),
+                    NumericType::length_type(),
+                );
                 let b = self.insert_array_get(rhs_bits, idx, Type::bool());
                 let not_b = self.insert_not(b);
                 let b = self.insert_cast(b, NumericType::NativeField);
@@ -428,13 +459,13 @@ mod tests {
             v4 = cast v3 as u32
             v5 = cast v1 as Field
             v7 = call to_le_bits(v5) -> [u1; 8]
-            v9 = array_get v7, index Field 7 -> u1
+            v9 = array_get v7, index u32 7 -> u1
             v10 = not v9
             v11 = cast v9 as Field
             v12 = cast v10 as Field
             v14 = mul Field 2, v11
             v15 = add v12, v14
-            v17 = array_get v7, index Field 6 -> u1
+            v17 = array_get v7, index u32 6 -> u1
             v18 = not v17
             v19 = cast v17 as Field
             v20 = cast v18 as Field
@@ -443,7 +474,7 @@ mod tests {
             v23 = mul v21, Field 2
             v24 = mul v23, v19
             v25 = add v22, v24
-            v27 = array_get v7, index Field 5 -> u1
+            v27 = array_get v7, index u32 5 -> u1
             v28 = not v27
             v29 = cast v27 as Field
             v30 = cast v28 as Field
@@ -452,7 +483,7 @@ mod tests {
             v33 = mul v31, Field 2
             v34 = mul v33, v29
             v35 = add v32, v34
-            v37 = array_get v7, index Field 4 -> u1
+            v37 = array_get v7, index u32 4 -> u1
             v38 = not v37
             v39 = cast v37 as Field
             v40 = cast v38 as Field
@@ -461,7 +492,7 @@ mod tests {
             v43 = mul v41, Field 2
             v44 = mul v43, v39
             v45 = add v42, v44
-            v47 = array_get v7, index Field 3 -> u1
+            v47 = array_get v7, index u32 3 -> u1
             v48 = not v47
             v49 = cast v47 as Field
             v50 = cast v48 as Field
@@ -470,42 +501,42 @@ mod tests {
             v53 = mul v51, Field 2
             v54 = mul v53, v49
             v55 = add v52, v54
-            v56 = array_get v7, index Field 2 -> u1
-            v57 = not v56
-            v58 = cast v56 as Field
+            v57 = array_get v7, index u32 2 -> u1
+            v58 = not v57
             v59 = cast v57 as Field
-            v60 = mul v55, v55
-            v61 = mul v60, v59
-            v62 = mul v60, Field 2
-            v63 = mul v62, v58
-            v64 = add v61, v63
-            v66 = array_get v7, index Field 1 -> u1
-            v67 = not v66
-            v68 = cast v66 as Field
+            v60 = cast v58 as Field
+            v61 = mul v55, v55
+            v62 = mul v61, v60
+            v63 = mul v61, Field 2
+            v64 = mul v63, v59
+            v65 = add v62, v64
+            v67 = array_get v7, index u32 1 -> u1
+            v68 = not v67
             v69 = cast v67 as Field
-            v70 = mul v64, v64
-            v71 = mul v70, v69
-            v72 = mul v70, Field 2
-            v73 = mul v72, v68
-            v74 = add v71, v73
-            v76 = array_get v7, index Field 0 -> u1
-            v77 = not v76
-            v78 = cast v76 as Field
+            v70 = cast v68 as Field
+            v71 = mul v65, v65
+            v72 = mul v71, v70
+            v73 = mul v71, Field 2
+            v74 = mul v73, v69
+            v75 = add v72, v74
+            v77 = array_get v7, index u32 0 -> u1
+            v78 = not v77
             v79 = cast v77 as Field
-            v80 = mul v74, v74
-            v81 = mul v80, v79
-            v82 = mul v80, Field 2
-            v83 = mul v82, v78
-            v84 = add v81, v83
-            v85 = cast v84 as u32
-            v86 = unchecked_mul v4, v85
-            v87 = cast v0 as Field
-            v88 = cast v86 as Field
-            v89 = mul v87, v88
-            v90 = truncate v89 to 32 bits, max_bit_size: 254
-            v91 = cast v90 as u32
-            v92 = truncate v91 to 32 bits, max_bit_size: 33
-            return v91
+            v80 = cast v78 as Field
+            v81 = mul v75, v75
+            v82 = mul v81, v80
+            v83 = mul v81, Field 2
+            v84 = mul v83, v79
+            v85 = add v82, v84
+            v86 = cast v85 as u32
+            v87 = unchecked_mul v4, v86
+            v88 = cast v0 as Field
+            v89 = cast v87 as Field
+            v90 = mul v88, v89
+            v91 = truncate v90 to 32 bits, max_bit_size: 254
+            v92 = cast v91 as u32
+            v93 = truncate v92 to 32 bits, max_bit_size: 33
+            return v92
         }
         ");
     }

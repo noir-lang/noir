@@ -15,7 +15,10 @@ use noirc_frontend::{
         stmt::{HirLetStatement, HirPattern},
         traits::{ResolvedTraitBound, TraitConstraint},
     },
-    modules::{module_def_id_is_visible, module_def_id_to_reference_id, relative_module_full_path},
+    modules::{
+        get_parent_module, module_def_id_is_visible, module_def_id_to_reference_id,
+        relative_module_full_path,
+    },
     node_interner::{FuncId, GlobalId, GlobalValue, NodeInterner, ReferenceId, TypeAliasId},
     shared::Visibility,
     token::{FunctionAttributeKind, LocatedToken, SecondaryAttribute, SecondaryAttributeKind},
@@ -432,11 +435,11 @@ impl<'context, 'string> ItemPrinter<'context, 'string> {
 
             self.write_indent();
 
-            if let Type::Constant(_, Kind::Numeric(numeric_type)) = &named_type.typ {
+            if let Kind::Numeric(numeric_type) = named_type.typ.kind() {
                 self.push_str("let ");
                 self.push_str(&named_type.name.to_string());
                 self.push_str(": ");
-                self.show_type(numeric_type);
+                self.show_type(&numeric_type);
                 self.push_str(" = ");
             } else {
                 self.push_str("type ");
@@ -945,8 +948,8 @@ impl<'context, 'string> ItemPrinter<'context, 'string> {
             self.show_item_visibility(import.visibility);
             self.push_str("use ");
             let use_import = false;
-            let name =
-                self.show_reference_to_module_def_id(import.id, import.visibility, use_import);
+            let visibility = self.module_def_id_visibility(import.id);
+            let name = self.show_reference_to_module_def_id(import.id, visibility, use_import);
 
             if name != import.name.as_str() {
                 self.push_str(" as ");
@@ -1037,6 +1040,15 @@ impl<'context, 'string> ItemPrinter<'context, 'string> {
         }
 
         let current_module_parent_id = self.module_id.parent(self.def_maps);
+
+        // Check if module_def_id is the current module's parent
+        if let ModuleDefId::ModuleId(module_id) = module_def_id {
+            if current_module_parent_id == Some(module_id) {
+                self.push_str("super");
+                return "super".to_string();
+            }
+        }
+
         let mut reexport = None;
 
         let is_visible = module_def_id_is_visible(
@@ -1050,6 +1062,26 @@ impl<'context, 'string> ItemPrinter<'context, 'string> {
         );
         if !is_visible {
             reexport = self.interner.get_reexports(module_def_id).first();
+
+            // If we can't find a reexport for the main item, check if the parent module
+            // has a reexport, then use the item through that reexported module
+            if reexport.is_none() {
+                if let Some(module_def_id_parent_module) =
+                    get_parent_module(self.interner, module_def_id)
+                {
+                    let module_def_id_parent = ModuleDefId::ModuleId(module_def_id_parent_module);
+                    let visibility = self.module_def_id_visibility(module_def_id_parent);
+                    self.show_reference_to_module_def_id(
+                        module_def_id_parent,
+                        visibility,
+                        use_import,
+                    );
+                    self.push_str("::");
+                    let name = self.module_def_id_name(module_def_id);
+                    self.push_str(&name);
+                    return name;
+                }
+            }
         }
 
         if let Some(reexport) = reexport {
@@ -1127,7 +1159,8 @@ impl<'context, 'string> ItemPrinter<'context, 'string> {
             ModuleDefId::ModuleId(module_id) => {
                 let attributes = self.interner.try_module_attributes(&module_id);
                 let name = attributes.map(|attributes| &attributes.name);
-                name.cloned().expect("All modules should have a name")
+                // A module might not have a name if it's the root module of a crate
+                name.cloned().unwrap_or_else(|| "crate".to_string())
             }
             ModuleDefId::FunctionId(func_id) => self.interner.function_name(&func_id).to_string(),
             ModuleDefId::TypeId(type_id) => {
@@ -1147,6 +1180,34 @@ impl<'context, 'string> ItemPrinter<'context, 'string> {
             ModuleDefId::GlobalId(global_id) => {
                 let global_info = self.interner.get_global(global_id);
                 global_info.ident.to_string()
+            }
+        }
+    }
+
+    fn module_def_id_visibility(&self, module_def_id: ModuleDefId) -> ItemVisibility {
+        match module_def_id {
+            ModuleDefId::ModuleId(module_id) => {
+                let attributes = self.interner.try_module_attributes(&module_id);
+                attributes.map_or(ItemVisibility::Private, |a| a.visibility)
+            }
+            ModuleDefId::FunctionId(func_id) => {
+                self.interner.function_modifiers(&func_id).visibility
+            }
+            ModuleDefId::TypeId(type_id) => {
+                let data_type = self.interner.get_type(type_id);
+                data_type.borrow().visibility
+            }
+            ModuleDefId::TypeAliasId(type_alias_id) => {
+                let type_alias = self.interner.get_type_alias(type_alias_id);
+                type_alias.borrow().visibility
+            }
+            ModuleDefId::TraitId(trait_id) => {
+                let trait_ = self.interner.get_trait(trait_id);
+                trait_.visibility
+            }
+            ModuleDefId::GlobalId(global_id) => {
+                let global_info = self.interner.get_global(global_id);
+                global_info.visibility
             }
         }
     }

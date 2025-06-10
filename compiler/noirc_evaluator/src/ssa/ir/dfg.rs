@@ -9,8 +9,7 @@ use super::{
     basic_block::{BasicBlock, BasicBlockId},
     function::{FunctionId, RuntimeType},
     instruction::{
-        Binary, BinaryOp, Instruction, InstructionId, InstructionResultType, Intrinsic,
-        TerminatorInstruction,
+        Instruction, InstructionId, InstructionResultType, Intrinsic, TerminatorInstruction,
     },
     integer::IntegerConstant,
     map::DenseMap,
@@ -224,21 +223,9 @@ impl DataFlowGraph {
         instruction_data: Instruction,
         ctrl_typevars: Option<Vec<Type>>,
     ) -> InstructionId {
-        self.validate_instruction(&instruction_data);
-
         let id = self.instructions.insert(instruction_data);
         self.make_instruction_results(id, ctrl_typevars);
         id
-    }
-
-    fn validate_instruction(&self, instruction: &Instruction) {
-        if let Instruction::Binary(Binary { lhs, rhs: _, operator: BinaryOp::Lt }) = instruction {
-            // Assume rhs_type is the same as lhs_type
-            let lhs_type = self.type_of_value(*lhs);
-            if matches!(lhs_type, Type::Numeric(NumericType::NativeField)) {
-                panic!("Cannot use `lt` with field elements");
-            }
-        }
     }
 
     /// Check if the function runtime would simply ignore this instruction.
@@ -914,10 +901,7 @@ impl std::ops::Index<usize> for InsertInstructionResult<'_> {
 #[cfg(test)]
 mod tests {
     use super::DataFlowGraph;
-    use crate::ssa::{
-        ir::{instruction::Instruction, types::Type},
-        ssa_gen::Ssa,
-    };
+    use crate::ssa::ir::{instruction::Instruction, types::Type};
 
     #[test]
     fn make_instruction() {
@@ -927,18 +911,5 @@ mod tests {
 
         let results = dfg.instruction_results(ins_id);
         assert_eq!(results.len(), 1);
-    }
-
-    #[test]
-    #[should_panic(expected = "Cannot use `lt` with field elements")]
-    fn disallows_comparing_fields_with_lt() {
-        let src = "
-        acir(inline) impure fn main f0 {
-          b0():
-            v2 = lt Field 1, Field 2
-            return
-        }
-        ";
-        let _ = Ssa::from_str(src);
     }
 }

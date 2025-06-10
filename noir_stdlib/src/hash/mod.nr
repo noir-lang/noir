@@ -30,11 +30,23 @@ pub fn blake2s<let N: u32>(input: [u8; N]) -> [u8; 32]
 // docs:end:blake2s
 {}
 
-#[foreign(blake3)]
 // docs:start:blake3
 pub fn blake3<let N: u32>(input: [u8; N]) -> [u8; 32]
 // docs:end:blake3
-{}
+{
+    if crate::runtime::is_unconstrained() {
+        // Temporary measure while Barretenberg is main proving system.
+        // Please open an issue if you're working on another proving system and running into problems due to this.
+        crate::static_assert(
+            N <= 1024,
+            "Barretenberg cannot prove blake3 hashes with inputs larger than 1024 bytes",
+        );
+    }
+    __blake3(input)
+}
+
+#[foreign(blake3)]
+fn __blake3<let N: u32>(input: [u8; N]) -> [u8; 32] {}
 
 // docs:start:pedersen_commitment
 pub fn pedersen_commitment<let N: u32>(input: [Field; N]) -> EmbeddedCurvePoint {
@@ -171,10 +183,12 @@ pub trait BuildHasher {
 
 pub struct BuildHasherDefault<H>;
 
-impl<H> BuildHasher<H = H> for BuildHasherDefault<H>
+impl<H> BuildHasher for BuildHasherDefault<H>
 where
     H: Hasher + Default,
 {
+    type H = H;
+
     fn build_hasher(_self: Self) -> H {
         H::default()
     }

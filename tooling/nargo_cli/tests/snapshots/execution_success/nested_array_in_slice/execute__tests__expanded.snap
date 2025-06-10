@@ -12,7 +12,7 @@ struct Foo {
     bar: Bar,
 }
 
-fn main(y: Field) {
+fn main(y: u32) {
     let foo_one: Foo = Foo { a: 1, b: [2, 3, 20], bar: Bar { inner: [100, 101, 102] } };
     let foo_two: Foo = Foo { a: 4, b: [5, 6, 21], bar: Bar { inner: [103, 104, 105] } };
     let foo_three: Foo = Foo { a: 7, b: [8, 9, 22], bar: Bar { inner: [106, 107, 108] } };
@@ -32,25 +32,25 @@ fn main(y: Field) {
     assert(x[y].bar.inner == [109, 110, 111]);
     if y != 2 {
         {
-            let i_3775: Field = y - 2;
-            x[i_3775].a = 50;
+            let i_3779: u32 = y - 2;
+            x[i_3779].a = 50;
         }
     } else {
         {
-            let i_3776: Field = y - 2;
-            x[i_3776].a = 100;
+            let i_3780: u32 = y - 2;
+            x[i_3780].a = 100;
         }
     };
     assert(x[y - 2].a == 50);
     if y == 2 {
         {
-            let i_3777: Field = y - 1;
-            x[i_3777].b = [50, 51, 52];
+            let i_3781: u32 = y - 1;
+            x[i_3781].b = [50, 51, 52];
         }
     } else {
         {
-            let i_3778: Field = y - 1;
-            x[i_3778].b = [100, 101, 102];
+            let i_3782: u32 = y - 1;
+            x[i_3782].b = [100, 101, 102];
         }
     };
     assert(x[2].b == [100, 101, 102]);

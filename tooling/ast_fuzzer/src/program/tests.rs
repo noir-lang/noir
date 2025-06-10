@@ -91,7 +91,6 @@ fn test_modulo_of_negative_literals_in_range() {
         v3 = lt v0, i64 18446744073709551615
         jmpif v3 then: b2, else: b3
       b2():
-        v5 = unchecked_add v0, i64 1
         jmp b3()
       b3():
         return
@@ -203,7 +202,7 @@ fn test_recursion_limit_rewrite() {
 
     insta::assert_snapshot!(code, @r"
     fn main() -> () {
-        let mut ctx_limit = 25;
+        let mut ctx_limit: u32 = 25;
         foo((&mut ctx_limit))
     }
     fn foo(ctx_limit: &mut u32) -> () {

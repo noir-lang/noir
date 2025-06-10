@@ -202,15 +202,12 @@ pub fn compile_from_artifacts(
 
 pub fn evaluator_options(options: &CompileOptions) -> SsaEvaluatorOptions {
     SsaEvaluatorOptions {
-        ssa_logging: match &options.show_ssa_pass {
-            Some(string) => SsaLogging::Contains(string.clone()),
-            None => {
-                if options.show_ssa {
-                    SsaLogging::All
-                } else {
-                    SsaLogging::None
-                }
-            }
+        ssa_logging: if !options.show_ssa_pass.is_empty() {
+            SsaLogging::Contains(options.show_ssa_pass.clone())
+        } else if options.show_ssa {
+            SsaLogging::All
+        } else {
+            SsaLogging::None
         },
         print_codegen_timings: options.benchmark_codegen,
         expression_width: ExpressionWidth::default(),

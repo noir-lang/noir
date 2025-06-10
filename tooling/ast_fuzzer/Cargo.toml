@@ -39,3 +39,4 @@ noir_greybox_fuzzer.workspace = true
 arbtest.workspace = true
 insta.workspace = true
 similar-asserts.workspace = true
+serde_json.workspace = true

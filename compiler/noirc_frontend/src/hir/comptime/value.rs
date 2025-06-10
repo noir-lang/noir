@@ -627,6 +627,16 @@ impl Value {
             }
         }
     }
+
+    pub fn is_negative(&self) -> bool {
+        match self {
+            Value::I8(x) => *x < 0,
+            Value::I16(x) => *x < 0,
+            Value::I32(x) => *x < 0,
+            Value::I64(x) => *x < 0,
+            _ => false, // Unsigned or Field types are never negative
+        }
+    }
 }
 
 /// Unwraps an Rc value without cloning the inner value if the reference count is 1. Clones otherwise.

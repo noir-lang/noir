@@ -52,6 +52,19 @@ pub enum MonomorphizationError {
         typ: Type,
         location: Location,
     },
+    CannotComputeAssociatedConstant {
+        name: String,
+        err: TypeCheckError,
+        location: Location,
+    },
+    ReferenceReturnedFromIfOrMatch {
+        typ: String,
+        location: Location,
+    },
+    AssignedToVarContainingReference {
+        typ: String,
+        location: Location,
+    },
 }
 
 impl MonomorphizationError {
@@ -66,7 +79,10 @@ impl MonomorphizationError {
             | MonomorphizationError::CheckedCastFailed { location, .. }
             | MonomorphizationError::RecursiveType { location, .. }
             | MonomorphizationError::NoDefaultType { location, .. }
-            | MonomorphizationError::NoDefaultTypeInItem { location, .. } => *location,
+            | MonomorphizationError::NoDefaultTypeInItem { location, .. }
+            | MonomorphizationError::ReferenceReturnedFromIfOrMatch { location, .. }
+            | MonomorphizationError::AssignedToVarContainingReference { location, .. }
+            | MonomorphizationError::CannotComputeAssociatedConstant { location, .. } => *location,
             MonomorphizationError::InterpreterError(error) => error.location(),
         }
     }
@@ -122,6 +138,34 @@ impl From<MonomorphizationError> for CustomDiagnostic {
             MonomorphizationError::RecursiveType { typ, location } => {
                 let message = format!("Type `{typ}` is recursive");
                 let secondary = "All types in Noir must have a known size at compile-time".into();
+                return CustomDiagnostic::simple_error(message, secondary, *location);
+            }
+            MonomorphizationError::CannotComputeAssociatedConstant { name, err, .. } => {
+                format!(
+                    "Could not determine the value of associated constant `{name}`, encountered error: `{err}`"
+                )
+            }
+            MonomorphizationError::ReferenceReturnedFromIfOrMatch { typ, location } => {
+                let message =
+                    "Cannot return a reference type from an if or match expression".to_string();
+                let secondary = if typ.starts_with("&") {
+                    format!("`{typ}` returned here")
+                } else {
+                    format!("`{typ}`, which contains a reference type internally, returned here")
+                };
+                return CustomDiagnostic::simple_error(message, secondary, *location);
+            }
+            MonomorphizationError::AssignedToVarContainingReference { typ, location } => {
+                let message =
+                    "Cannot assign to a mutable variable which contains a reference internally"
+                        .to_string();
+                let secondary = if typ.starts_with("&") {
+                    format!("Assigned expression has the type `{typ}`")
+                } else {
+                    format!(
+                        "Assigned expression has the type `{typ}`, which contains a reference type internally"
+                    )
+                };
                 return CustomDiagnostic::simple_error(message, secondary, *location);
             }
         };
