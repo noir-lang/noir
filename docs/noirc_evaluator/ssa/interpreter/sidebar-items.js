@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"fn":["internal","truncate_unsigned"],"macro":["apply_int_binop","apply_int_binop_opt","apply_int_comparison_op"],"mod":["errors","intrinsics","value"],"struct":["CallContext","Interpreter"],"type":["IResult","IResults"]};
+window.SIDEBAR_ITEMS = {"fn":["internal","truncate_unsigned"],"macro":["apply_int_binop","apply_int_binop_opt","apply_int_comparison_op"],"mod":["errors","intrinsics","value"],"struct":["CallContext","Interpreter","InterpreterOptions"],"type":["IResult","IResults"]};
