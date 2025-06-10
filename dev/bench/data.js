@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1749584878296,
+  "lastUpdate": 1749586986552,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -18441,48 +18441,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "15848336+TomAFrench@users.noreply.github.com",
-            "name": "Tom French",
-            "username": "TomAFrench"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "66a69fafe88832ceca1a02ca7e1caeca3fb6aea3",
-          "message": "chore: mark sha512 as non-critical (#8776)",
-          "timestamp": "2025-06-03T14:49:36Z",
-          "tree_id": "5ba0da0ed9d289c1cb3539a9d6191cabfb829152",
-          "url": "https://github.com/noir-lang/noir/commit/66a69fafe88832ceca1a02ca7e1caeca3fb6aea3"
-        },
-        "date": 1748963463775,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 260112,
-            "range": "± 1475",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 233525,
-            "range": "± 3048",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 3572826,
-            "range": "± 3006",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "aakoshh@gmail.com",
             "name": "Akosh Farkash",
             "username": "aakoshh"
@@ -20534,6 +20492,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2798097,
             "range": "± 1792",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "asterite@gmail.com",
+            "name": "Ary Borenszweig",
+            "username": "asterite"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "fa9f7373814e626ba6c9dcb416821cf9290c3ae9",
+          "message": "fix: (SSA interpreter) check requires_acir_gen_predicate for enable_side_effects (#8869)",
+          "timestamp": "2025-06-10T19:59:30Z",
+          "tree_id": "777bf0b0168f9296582b6787cb15606bbf0f4bfc",
+          "url": "https://github.com/noir-lang/noir/commit/fa9f7373814e626ba6c9dcb416821cf9290c3ae9"
+        },
+        "date": 1749586974845,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 247975,
+            "range": "± 2309",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 221097,
+            "range": "± 1652",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2786523,
+            "range": "± 3096",
             "unit": "ns/iter"
           }
         ]
