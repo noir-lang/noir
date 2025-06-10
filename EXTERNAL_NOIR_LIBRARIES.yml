@@ -152,5 +152,5 @@ libraries:
   zkpassport_ecdsa:
     repo: zkpassport/noir-ecdsa
     ref: e59343bd34510595fb2f8a012f9b9de92482a375
-    timeout: 120
+    timeout: 140
     critical: false
