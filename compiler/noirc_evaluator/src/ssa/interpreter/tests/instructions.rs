@@ -643,34 +643,33 @@ fn constrain_not_disabled_by_enable_side_effects() {
     );
 }
 
-// SSA Parser does not yet parse ConstrainNotEqual
-// #[test]
-// fn constrain_not_equal() {
-//     executes_with_no_errors(
-//         "
-//         acir(inline) fn main f0 {
-//           b0():
-//             v0 = eq u8 3, u8 4
-//             constrain v0 != u1 1
-//             return
-//         }
-//     ",
-//     );
-// }
-//
-// #[test]
-// fn constrain_not_equal_disabled_by_enable_side_effects() {
-//     executes_with_no_errors(
-//         "
-//         acir(inline) fn main f0 {
-//           b0():
-//             enable_side_effects u1 0
-//             constrain u1 1 != u1 1
-//             return
-//         }
-//     ",
-//     );
-// }
+#[test]
+fn constrain_not_equal() {
+    executes_with_no_errors(
+        "
+        acir(inline) fn main f0 {
+          b0():
+            v0 = eq u8 3, u8 4
+            constrain v0 != u1 1
+            return
+        }
+    ",
+    );
+}
+
+#[test]
+fn constrain_not_equal_not_disabled_by_enable_side_effects() {
+    expect_error(
+        "
+        acir(inline) fn main f0 {
+          b0():
+            enable_side_effects u1 0
+            constrain u1 1 != u1 1
+            return
+        }
+    ",
+    );
+}
 
 #[test]
 fn range_check() {
