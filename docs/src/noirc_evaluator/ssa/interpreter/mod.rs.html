@@ -1402,7 +1402,38 @@
 <a href="#1401" id="1401">1401</a>
 <a href="#1402" id="1402">1402</a>
 <a href="#1403" id="1403">1403</a>
-<a href="#1404" id="1404">1404</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::cmp::Ordering;
+<a href="#1404" id="1404">1404</a>
+<a href="#1405" id="1405">1405</a>
+<a href="#1406" id="1406">1406</a>
+<a href="#1407" id="1407">1407</a>
+<a href="#1408" id="1408">1408</a>
+<a href="#1409" id="1409">1409</a>
+<a href="#1410" id="1410">1410</a>
+<a href="#1411" id="1411">1411</a>
+<a href="#1412" id="1412">1412</a>
+<a href="#1413" id="1413">1413</a>
+<a href="#1414" id="1414">1414</a>
+<a href="#1415" id="1415">1415</a>
+<a href="#1416" id="1416">1416</a>
+<a href="#1417" id="1417">1417</a>
+<a href="#1418" id="1418">1418</a>
+<a href="#1419" id="1419">1419</a>
+<a href="#1420" id="1420">1420</a>
+<a href="#1421" id="1421">1421</a>
+<a href="#1422" id="1422">1422</a>
+<a href="#1423" id="1423">1423</a>
+<a href="#1424" id="1424">1424</a>
+<a href="#1425" id="1425">1425</a>
+<a href="#1426" id="1426">1426</a>
+<a href="#1427" id="1427">1427</a>
+<a href="#1428" id="1428">1428</a>
+<a href="#1429" id="1429">1429</a>
+<a href="#1430" id="1430">1430</a>
+<a href="#1431" id="1431">1431</a>
+<a href="#1432" id="1432">1432</a>
+<a href="#1433" id="1433">1433</a>
+<a href="#1434" id="1434">1434</a>
+<a href="#1435" id="1435">1435</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::cmp::Ordering;
 
 <span class="kw">use super</span>::{
     Ssa,
@@ -1519,12 +1550,15 @@
         <span class="kw-2">&amp;</span><span class="self">self</span>.call_stack.first().expect(<span class="string">"call_stack should always be non-empty"</span>).scope
     }
 
-    <span class="kw">fn </span>current_function(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="kw-2">&amp;</span><span class="lifetime">'ssa </span>Function {
+    <span class="kw">fn </span>try_current_function(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="prelude-ty">Option</span>&lt;<span class="kw-2">&amp;</span><span class="lifetime">'ssa </span>Function&gt; {
         <span class="kw">let </span>current_function_id = <span class="self">self</span>.call_context().called_function;
-        <span class="kw">let </span>current_function_id = current_function_id.expect(
+        current_function_id.map(|current_function_id| <span class="kw-2">&amp;</span><span class="self">self</span>.ssa.functions[<span class="kw-2">&amp;</span>current_function_id])
+    }
+
+    <span class="kw">fn </span>current_function(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="kw-2">&amp;</span><span class="lifetime">'ssa </span>Function {
+        <span class="self">self</span>.try_current_function().expect(
             <span class="string">"Tried calling `Interpreter::current_function` while evaluating global instructions"</span>,
-        );
-        <span class="kw-2">&amp;</span><span class="self">self</span>.ssa.functions[<span class="kw-2">&amp;</span>current_function_id]
+        )
     }
 
     <span class="kw">fn </span>dfg(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="kw-2">&amp;</span><span class="lifetime">'ssa </span>DataFlowGraph {
@@ -1804,9 +1838,17 @@
         try_vecmap(ids, |id| <span class="self">self</span>.lookup(<span class="kw-2">*</span>id))
     }
 
-    <span class="kw">fn </span>side_effects_enabled(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; bool {
-        <span class="kw">match </span><span class="self">self</span>.current_function().runtime() {
-            RuntimeType::Acir(<span class="kw">_</span>) =&gt; <span class="self">self</span>.side_effects_enabled,
+    <span class="kw">fn </span>side_effects_enabled(<span class="kw-2">&amp;</span><span class="self">self</span>, instruction: <span class="kw-2">&amp;</span>Instruction) -&gt; bool {
+        <span class="kw">let </span><span class="prelude-val">Some</span>(current_function) = <span class="self">self</span>.try_current_function() <span class="kw">else </span>{
+            <span class="comment">// If there's no current function it means we are evaluating global instructions
+            </span><span class="kw">return </span><span class="bool-val">true</span>;
+        };
+
+        <span class="kw">match </span>current_function.runtime() {
+            RuntimeType::Acir(<span class="kw">_</span>) =&gt; {
+                <span class="self">self</span>.side_effects_enabled
+                    || !instruction.requires_acir_gen_predicate(<span class="kw-2">&amp;</span>current_function.dfg)
+            }
             RuntimeType::Brillig(<span class="kw">_</span>) =&gt; <span class="bool-val">true</span>,
         }
     }
@@ -1817,9 +1859,11 @@
         instruction: <span class="kw-2">&amp;</span>Instruction,
         results: <span class="kw-2">&amp;</span>[ValueId],
     ) -&gt; IResult&lt;()&gt; {
+        <span class="kw">let </span>side_effects_enabled = <span class="self">self</span>.side_effects_enabled(instruction);
+
         <span class="kw">match </span>instruction {
             Instruction::Binary(binary) =&gt; {
-                <span class="kw">let </span>result = <span class="self">self</span>.interpret_binary(binary)<span class="question-mark">?</span>;
+                <span class="kw">let </span>result = <span class="self">self</span>.interpret_binary(binary, side_effects_enabled)<span class="question-mark">?</span>;
                 <span class="self">self</span>.define(results[<span class="number">0</span>], result);
                 <span class="prelude-val">Ok</span>(())
             }
@@ -1838,7 +1882,7 @@
             Instruction::Constrain(lhs_id, rhs_id, constrain_error) =&gt; {
                 <span class="kw">let </span>lhs = <span class="self">self</span>.lookup(<span class="kw-2">*</span>lhs_id)<span class="question-mark">?</span>;
                 <span class="kw">let </span>rhs = <span class="self">self</span>.lookup(<span class="kw-2">*</span>rhs_id)<span class="question-mark">?</span>;
-                <span class="kw">if </span><span class="self">self</span>.side_effects_enabled() &amp;&amp; lhs != rhs {
+                <span class="kw">if </span>side_effects_enabled &amp;&amp; lhs != rhs {
                     <span class="kw">let </span>lhs = lhs.to_string();
                     <span class="kw">let </span>rhs = rhs.to_string();
                     <span class="kw">let </span>lhs_id = <span class="kw-2">*</span>lhs_id;
@@ -1861,7 +1905,7 @@
             Instruction::ConstrainNotEqual(lhs_id, rhs_id, constrain_error) =&gt; {
                 <span class="kw">let </span>lhs = <span class="self">self</span>.lookup(<span class="kw-2">*</span>lhs_id)<span class="question-mark">?</span>;
                 <span class="kw">let </span>rhs = <span class="self">self</span>.lookup(<span class="kw-2">*</span>rhs_id)<span class="question-mark">?</span>;
-                <span class="kw">if </span><span class="self">self</span>.side_effects_enabled() &amp;&amp; lhs == rhs {
+                <span class="kw">if </span>side_effects_enabled &amp;&amp; lhs == rhs {
                     <span class="kw">let </span>lhs = lhs.to_string();
                     <span class="kw">let </span>rhs = rhs.to_string();
                     <span class="kw">let </span>lhs_id = <span class="kw-2">*</span>lhs_id;
@@ -1881,10 +1925,16 @@
                 }
                 <span class="prelude-val">Ok</span>(())
             }
-            Instruction::RangeCheck { value, max_bit_size, assert_message } =&gt; {
-                <span class="self">self</span>.interpret_range_check(<span class="kw-2">*</span>value, <span class="kw-2">*</span>max_bit_size, assert_message.as_ref())
+            Instruction::RangeCheck { value, max_bit_size, assert_message } =&gt; <span class="self">self
+                </span>.interpret_range_check(
+                    <span class="kw-2">*</span>value,
+                    <span class="kw-2">*</span>max_bit_size,
+                    assert_message.as_ref(),
+                    side_effects_enabled,
+                ),
+            Instruction::Call { func, arguments } =&gt; {
+                <span class="self">self</span>.interpret_call(<span class="kw-2">*</span>func, arguments, results, side_effects_enabled)
             }
-            Instruction::Call { func, arguments } =&gt; <span class="self">self</span>.interpret_call(<span class="kw-2">*</span>func, arguments, results),
             Instruction::Allocate =&gt; {
                 <span class="self">self</span>.interpret_allocate(results[<span class="number">0</span>]);
                 <span class="prelude-val">Ok</span>(())
@@ -1896,11 +1946,18 @@
                 <span class="prelude-val">Ok</span>(())
             }
             Instruction::ArrayGet { array, index, offset } =&gt; {
-                <span class="self">self</span>.interpret_array_get(<span class="kw-2">*</span>array, <span class="kw-2">*</span>index, <span class="kw-2">*</span>offset, results[<span class="number">0</span>])
+                <span class="self">self</span>.interpret_array_get(<span class="kw-2">*</span>array, <span class="kw-2">*</span>index, <span class="kw-2">*</span>offset, results[<span class="number">0</span>], side_effects_enabled)
             }
-            Instruction::ArraySet { array, index, value, mutable, offset } =&gt; {
-                <span class="self">self</span>.interpret_array_set(<span class="kw-2">*</span>array, <span class="kw-2">*</span>index, <span class="kw-2">*</span>value, <span class="kw-2">*</span>mutable, <span class="kw-2">*</span>offset, results[<span class="number">0</span>])
-            }
+            Instruction::ArraySet { array, index, value, mutable, offset } =&gt; <span class="self">self
+                </span>.interpret_array_set(
+                    <span class="kw-2">*</span>array,
+                    <span class="kw-2">*</span>index,
+                    <span class="kw-2">*</span>value,
+                    <span class="kw-2">*</span>mutable,
+                    <span class="kw-2">*</span>offset,
+                    results[<span class="number">0</span>],
+                    side_effects_enabled,
+                ),
             Instruction::IncrementRc { value } =&gt; <span class="self">self</span>.interpret_inc_rc(<span class="kw-2">*</span>value),
             Instruction::DecrementRc { value } =&gt; <span class="self">self</span>.interpret_dec_rc(<span class="kw-2">*</span>value),
             Instruction::IfElse { then_condition, then_value, else_condition, else_value } =&gt; <span class="self">self
@@ -1984,8 +2041,9 @@
         value_id: ValueId,
         max_bit_size: u32,
         error_message: <span class="prelude-ty">Option</span>&lt;<span class="kw-2">&amp;</span>String&gt;,
+        side_effects_enabled: bool,
     ) -&gt; IResult&lt;()&gt; {
-        <span class="kw">if </span>!<span class="self">self</span>.side_effects_enabled() {
+        <span class="kw">if </span>!side_effects_enabled {
             <span class="kw">return </span><span class="prelude-val">Ok</span>(());
         }
 
@@ -2056,11 +2114,12 @@
         function_id: ValueId,
         argument_ids: <span class="kw-2">&amp;</span>[ValueId],
         results: <span class="kw-2">&amp;</span>[ValueId],
+        side_effects_enabled: bool,
     ) -&gt; IResult&lt;()&gt; {
         <span class="kw">let </span>function = <span class="self">self</span>.lookup(function_id)<span class="question-mark">?</span>;
         <span class="kw">let </span><span class="kw-2">mut </span>arguments = try_vecmap(argument_ids, |argument| <span class="self">self</span>.lookup(<span class="kw-2">*</span>argument))<span class="question-mark">?</span>;
 
-        <span class="kw">let </span>new_results = <span class="kw">if </span><span class="self">self</span>.side_effects_enabled() {
+        <span class="kw">let </span>new_results = <span class="kw">if </span>side_effects_enabled {
             <span class="kw">match </span>function {
                 Value::Function(id) =&gt; {
                     <span class="comment">// If we're crossing a constrained -&gt; unconstrained boundary we have to wipe
@@ -2190,8 +2249,9 @@
         index: ValueId,
         offset: ArrayOffset,
         result: ValueId,
+        side_effects_enabled: bool,
     ) -&gt; IResult&lt;()&gt; {
-        <span class="kw">let </span>element = <span class="kw">if </span><span class="self">self</span>.side_effects_enabled() {
+        <span class="kw">let </span>element = <span class="kw">if </span>side_effects_enabled {
             <span class="kw">let </span>array = <span class="self">self</span>.lookup_array_or_slice(array, <span class="string">"array get"</span>)<span class="question-mark">?</span>;
             <span class="kw">let </span>index = <span class="self">self</span>.lookup_u32(index, <span class="string">"array get index"</span>)<span class="question-mark">?</span>;
             <span class="kw">let </span>index = index - offset.to_u32();
@@ -2204,7 +2264,8 @@
         <span class="prelude-val">Ok</span>(())
     }
 
-    <span class="kw">fn </span>interpret_array_set(
+    <span class="attr">#[allow(clippy::too_many_arguments)]
+    </span><span class="kw">fn </span>interpret_array_set(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
         array: ValueId,
         index: ValueId,
@@ -2212,10 +2273,11 @@
         mutable: bool,
         offset: ArrayOffset,
         result: ValueId,
+        side_effects_enabled: bool,
     ) -&gt; IResult&lt;()&gt; {
         <span class="kw">let </span>array = <span class="self">self</span>.lookup_array_or_slice(array, <span class="string">"array set"</span>)<span class="question-mark">?</span>;
 
-        <span class="kw">let </span>result_array = <span class="kw">if </span><span class="self">self</span>.side_effects_enabled() {
+        <span class="kw">let </span>result_array = <span class="kw">if </span>side_effects_enabled {
             <span class="kw">let </span>index = <span class="self">self</span>.lookup_u32(index, <span class="string">"array set index"</span>)<span class="question-mark">?</span>;
             <span class="kw">let </span>index = index - offset.to_u32();
             <span class="kw">let </span>value = <span class="self">self</span>.lookup(value)<span class="question-mark">?</span>;
@@ -2475,7 +2537,7 @@
 }
 
 <span class="kw">impl </span>Interpreter&lt;<span class="lifetime">'_</span>&gt; {
-    <span class="kw">fn </span>interpret_binary(<span class="kw-2">&amp;mut </span><span class="self">self</span>, binary: <span class="kw-2">&amp;</span>Binary) -&gt; IResult&lt;Value&gt; {
+    <span class="kw">fn </span>interpret_binary(<span class="kw-2">&amp;mut </span><span class="self">self</span>, binary: <span class="kw-2">&amp;</span>Binary, side_effects_enabled: bool) -&gt; IResult&lt;Value&gt; {
         <span class="kw">let </span>lhs_id = binary.lhs;
         <span class="kw">let </span>rhs_id = binary.rhs;
         <span class="kw">let </span>lhs = <span class="self">self</span>.lookup_numeric(lhs_id, <span class="string">"binary op lhs"</span>)<span class="question-mark">?</span>;
@@ -2494,7 +2556,7 @@
         }
 
         <span class="comment">// Disable this instruction if it is side-effectful and side effects are disabled.
-        </span><span class="kw">if </span>!<span class="self">self</span>.side_effects_enabled() &amp;&amp; binary.requires_acir_gen_predicate(<span class="self">self</span>.dfg()) {
+        </span><span class="kw">if </span>!side_effects_enabled {
             <span class="kw">let </span>zero = NumericValue::zero(lhs.get_type());
             <span class="kw">return </span><span class="prelude-val">Ok</span>(Value::Numeric(zero));
         }
