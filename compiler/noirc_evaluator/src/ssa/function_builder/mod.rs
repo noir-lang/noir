@@ -28,7 +28,6 @@ use super::{
     },
     opt::pure::FunctionPurities,
     ssa_gen::Ssa,
-    validation::validate_function,
 };
 
 /// The per-function context for each ssa function being generated.

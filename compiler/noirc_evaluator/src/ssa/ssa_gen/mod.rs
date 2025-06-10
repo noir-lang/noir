@@ -29,7 +29,6 @@ use self::{
 
 use super::ir::basic_block::BasicBlockId;
 use super::ir::dfg::GlobalsGraph;
-use super::ir::function::{self, Function};
 use super::ir::instruction::{ArrayOffset, ErrorType};
 use super::ir::types::NumericType;
 use super::validation::validate_function;
@@ -134,7 +133,7 @@ pub fn generate_ssa(program: Program) -> Result<Ssa, RuntimeError> {
 
     let ssa = function_context.builder.finish();
     validate_ssa(&ssa);
-    
+
     Ok(ssa)
 }
 

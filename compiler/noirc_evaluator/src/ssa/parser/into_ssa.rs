@@ -15,7 +15,8 @@ use crate::ssa::{
         instruction::{ConstrainError, Instruction},
         value::ValueId,
     },
-    opt::pure::FunctionPurities, ssa_gen::validate_ssa,
+    opt::pure::FunctionPurities,
+    ssa_gen::validate_ssa,
 };
 
 use super::{

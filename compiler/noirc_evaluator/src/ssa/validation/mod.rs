@@ -165,7 +165,7 @@ impl<'f> Validator<'f> {
             }
             _ => return,
         };
-        
+
         if !matches!(dfg.type_of_value(cast_input), Type::Numeric(NumericType::NativeField)) {
             return;
         }
