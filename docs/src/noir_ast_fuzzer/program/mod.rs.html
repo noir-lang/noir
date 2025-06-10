@@ -564,7 +564,15 @@
 <a href="#563" id="563">563</a>
 <a href="#564" id="564">564</a>
 <a href="#565" id="565">565</a>
-<a href="#566" id="566">566</a></pre></div><pre class="rust"><code><span class="doccomment">//! Module responsible for generating arbitrary [Program] ASTs.
+<a href="#566" id="566">566</a>
+<a href="#567" id="567">567</a>
+<a href="#568" id="568">568</a>
+<a href="#569" id="569">569</a>
+<a href="#570" id="570">570</a>
+<a href="#571" id="571">571</a>
+<a href="#572" id="572">572</a>
+<a href="#573" id="573">573</a>
+<a href="#574" id="574">574</a></pre></div><pre class="rust"><code><span class="doccomment">//! Module responsible for generating arbitrary [Program] ASTs.
 </span><span class="kw">use </span>std::collections::{BTreeMap, BTreeSet}; <span class="comment">// Using BTree for deterministic enumeration, for repeatability.
 
 </span><span class="kw">use </span>func::{FunctionContext, FunctionDeclaration, can_call};
@@ -1097,6 +1105,10 @@
         printer.show_clone_and_drop = <span class="bool-val">false</span>;
         printer.show_print_as_std = <span class="bool-val">true</span>;
         printer.show_type_in_let = <span class="bool-val">true</span>;
+        <span class="comment">// Most of the time it doesn't affect testing, except the comptime tests where
+        // we parse back the code. For that we use `DisplayAstAsNoirComptime`.
+        // It is quite noisy, so keep it off by default.
+        </span>printer.show_type_of_int_literal = <span class="bool-val">false</span>;
         printer.print_program(<span class="self">self</span>.<span class="number">0</span>, f)
     }
 }
@@ -1117,6 +1129,10 @@
         <span class="comment">// Declare the type in `let` so that when we parse snippets we can match the types which
         // the AST had, otherwise a literal which was a `u32` in the AST might be inferred as `Field`.
         </span>printer.show_type_in_let = <span class="bool-val">true</span>;
+        <span class="comment">// Also annotate literals with their type, so we don't have subtle differences in expressions,
+        // for example `for i in (5 / 10) as u32 .. 2` is `0..2` or `1..2` depending on whether 5 and 10
+        // were some number in the AST or `Field` when parsed by the test.
+        </span>printer.show_type_of_int_literal = <span class="bool-val">true</span>;
         <span class="kw">for </span>function <span class="kw">in </span><span class="kw-2">&amp;</span><span class="self">self</span>.<span class="number">0</span>.functions {
             <span class="kw">if </span>function.id == Program::main_id() {
                 <span class="kw">let </span><span class="kw-2">mut </span>function = function.clone();

@@ -55,9 +55,7 @@
 <a href="#54" id="54">54</a>
 <a href="#55" id="55">55</a>
 <a href="#56" id="56">56</a>
-<a href="#57" id="57">57</a>
-<a href="#58" id="58">58</a>
-<a href="#59" id="59">59</a></pre></div><pre class="rust"><code><span class="doccomment">//! Compare the execution of random ASTs between the normal execution
+<a href="#57" id="57">57</a></pre></div><pre class="rust"><code><span class="doccomment">//! Compare the execution of random ASTs between the normal execution
 //! vs when everything is forced to be Brillig.
 </span><span class="kw">use crate</span>::{compare_results_compiled, create_ssa_or_die, default_ssa_options};
 <span class="kw">use </span>arbitrary::Arbitrary;
@@ -69,12 +67,10 @@
 
 <span class="kw">pub fn </span>fuzz(u: <span class="kw-2">&amp;mut </span>Unstructured) -&gt; eyre::Result&lt;()&gt; {
     <span class="kw">let </span>config = Config {
-        <span class="comment">// We created enough bug tickets due to overflows
-        </span>avoid_overflow: <span class="bool-val">true</span>,
-        <span class="comment">// also with negative values
-        </span>avoid_negative_int_literals: <span class="bool-val">true</span>,
-        <span class="comment">// and it gets old to have to edit u128 to fit into u32 for the frontend to parse
-        </span>avoid_large_int_literals: <span class="bool-val">true</span>,
+        <span class="comment">// Overflows can be triggered easily, so in half the cases we avoid them,
+        // to make sure they don't mask other errors.
+        </span>avoid_overflow: u.arbitrary()<span class="question-mark">?</span>,
+        avoid_large_int_literals: <span class="bool-val">true</span>,
         ..Default::default()
     };
 

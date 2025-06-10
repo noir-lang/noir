@@ -72,12 +72,7 @@
 <a href="#71" id="71">71</a>
 <a href="#72" id="72">72</a>
 <a href="#73" id="73">73</a>
-<a href="#74" id="74">74</a>
-<a href="#75" id="75">75</a>
-<a href="#76" id="76">76</a>
-<a href="#77" id="77">77</a>
-<a href="#78" id="78">78</a>
-<a href="#79" id="79">79</a></pre></div><pre class="rust"><code><span class="doccomment">//! Compare the execution of random ASTs between the initial SSA
+<a href="#74" id="74">74</a></pre></div><pre class="rust"><code><span class="doccomment">//! Compare the execution of random ASTs between the initial SSA
 //! (or as close as we can stay to the initial state)
 //! and the fully optimized version.
 </span><span class="kw">use crate</span>::{
@@ -94,11 +89,9 @@
 <span class="kw">pub fn </span>fuzz(u: <span class="kw-2">&amp;mut </span>Unstructured) -&gt; eyre::Result&lt;()&gt; {
     <span class="kw">let </span>passes = minimal_passes();
     <span class="kw">let </span>config = Config {
-        <span class="comment">// Try to avoid using overflowing operations; see below for the reason.
-        </span>avoid_overflow: <span class="bool-val">true</span>,
-        <span class="comment">// Avoid stuff that would be difficult to copy as Noir; we want to verify these failures with nargo.
-        </span>avoid_large_int_literals: <span class="bool-val">true</span>,
-        avoid_negative_int_literals: <span class="bool-val">true</span>,
+        <span class="comment">// Overflows are easy to trigger.
+        </span>avoid_overflow: u.arbitrary()<span class="question-mark">?</span>,
+        avoid_large_int_literals: <span class="bool-val">true</span>,
         ..Default::default()
     };
 
@@ -128,10 +121,7 @@
 
     <span class="kw">let </span>result = inputs.exec()<span class="question-mark">?</span>;
 
-    <span class="comment">// Unfortunately the minimal pipeline can fail on assertions of instructions that get eliminated from the final pipeline,
-    // so if the minimal version fails and the final succeeds, it is most likely because of some overflow in a variable that
-    // was ultimately unused. Therefore we only compare results if both succeeded, or if only the final failed.
-    </span><span class="kw">if </span><span class="macro">matches!</span>(result, CompareResult::BothFailed(<span class="kw">_</span>, <span class="kw">_</span>) | CompareResult::LeftFailed(<span class="kw">_</span>, <span class="kw">_</span>)) {
+    <span class="kw">if </span><span class="macro">matches!</span>(result, CompareResult::BothFailed(<span class="kw">_</span>, <span class="kw">_</span>)) {
         <span class="prelude-val">Ok</span>(())
     } <span class="kw">else </span>{
         compare_results_compiled(<span class="kw-2">&amp;</span>inputs, <span class="kw-2">&amp;</span>result)

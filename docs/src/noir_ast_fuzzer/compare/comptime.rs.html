@@ -215,7 +215,39 @@
 <a href="#214" id="214">214</a>
 <a href="#215" id="215">215</a>
 <a href="#216" id="216">216</a>
-<a href="#217" id="217">217</a></pre></div><pre class="rust"><code><span class="doccomment">//! Compare an arbitrary AST executed as Noir with the comptime
+<a href="#217" id="217">217</a>
+<a href="#218" id="218">218</a>
+<a href="#219" id="219">219</a>
+<a href="#220" id="220">220</a>
+<a href="#221" id="221">221</a>
+<a href="#222" id="222">222</a>
+<a href="#223" id="223">223</a>
+<a href="#224" id="224">224</a>
+<a href="#225" id="225">225</a>
+<a href="#226" id="226">226</a>
+<a href="#227" id="227">227</a>
+<a href="#228" id="228">228</a>
+<a href="#229" id="229">229</a>
+<a href="#230" id="230">230</a>
+<a href="#231" id="231">231</a>
+<a href="#232" id="232">232</a>
+<a href="#233" id="233">233</a>
+<a href="#234" id="234">234</a>
+<a href="#235" id="235">235</a>
+<a href="#236" id="236">236</a>
+<a href="#237" id="237">237</a>
+<a href="#238" id="238">238</a>
+<a href="#239" id="239">239</a>
+<a href="#240" id="240">240</a>
+<a href="#241" id="241">241</a>
+<a href="#242" id="242">242</a>
+<a href="#243" id="243">243</a>
+<a href="#244" id="244">244</a>
+<a href="#245" id="245">245</a>
+<a href="#246" id="246">246</a>
+<a href="#247" id="247">247</a>
+<a href="#248" id="248">248</a>
+<a href="#249" id="249">249</a></pre></div><pre class="rust"><code><span class="doccomment">//! Compare an arbitrary AST executed as Noir with the comptime
 //! interpreter vs compiled into bytecode and ran through a VM.
 </span><span class="kw">use </span>std::path::Path;
 <span class="kw">use </span>std::rc::Rc;
@@ -224,6 +256,8 @@
 <span class="kw">use </span>arbitrary::Unstructured;
 <span class="kw">use </span>bn254_blackbox_solver::Bn254BlackBoxSolver;
 <span class="kw">use </span>color_eyre::eyre::{<span class="self">self</span>, WrapErr};
+<span class="kw">use </span>nargo::NargoError;
+<span class="kw">use </span>nargo::errors::ExecutionError;
 <span class="kw">use </span>nargo::{foreign_calls::DefaultForeignCallBuilder, parse_all};
 <span class="kw">use </span>noirc_abi::Abi;
 <span class="kw">use </span>noirc_driver::{
@@ -292,21 +326,11 @@
 <span class="kw">impl </span>CompareComptime {
     <span class="doccomment">/// Execute the Noir code and the SSA, then compare the results.
     </span><span class="kw">pub fn </span>exec(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; eyre::Result&lt;CompareCompiledResult&gt; {
-        <span class="macro">log::debug!</span>(<span class="string">"comptime src:\n{}"</span>, <span class="self">self</span>.source);
-        <span class="kw">let </span>(program1, output1) = <span class="kw">match </span>prepare_and_compile_snippet(
-            <span class="self">self</span>.source.clone(),
-            <span class="self">self</span>.force_brillig,
-            Vec::new(),
-        ) {
-            <span class="prelude-val">Ok</span>(((program, output), <span class="kw">_</span>)) =&gt; (program, output),
-            <span class="prelude-val">Err</span>(e) =&gt; <span class="macro">panic!</span>(<span class="string">"failed to compile program:\n{}\n{e:?}"</span>, <span class="self">self</span>.source),
-        };
-        <span class="kw">let </span>comptime_print = String::from_utf8(output1).expect(<span class="string">"should be valid utf8 string"</span>);
-
         <span class="kw">let </span>blackbox_solver = Bn254BlackBoxSolver(<span class="bool-val">false</span>);
         <span class="kw">let </span>initial_witness = <span class="self">self</span>.abi.encode(<span class="kw-2">&amp;</span>BTreeMap::new(), <span class="prelude-val">None</span>).wrap_err(<span class="string">"abi::encode"</span>)<span class="question-mark">?</span>;
 
-        <span class="kw">let </span>do_exec = |program| {
+        <span class="comment">// Execute a compiled Program.
+        </span><span class="kw">let </span>do_exec = |program| {
             <span class="kw">let </span><span class="kw-2">mut </span>print = Vec::new();
 
             <span class="kw">let </span><span class="kw-2">mut </span>foreign_call_executor = DefaultForeignCallBuilder::default()
@@ -325,8 +349,48 @@
             (res, print)
         };
 
-        <span class="kw">let </span>(res1, print1) = do_exec(<span class="kw-2">&amp;</span>program1.program);
-        <span class="kw">let </span>(res2, print2) = do_exec(<span class="kw-2">&amp;</span><span class="self">self</span>.ssa.artifact.program);
+        <span class="comment">// Execute the 2nd (Brillig) program.
+        </span><span class="kw">let </span>(res2, print2) = do_exec(<span class="kw-2">&amp;</span><span class="self">self</span>.ssa.artifact.program);
+
+        <span class="comment">// Try to compile the 1st (comptime) version from string.
+        </span><span class="macro">log::debug!</span>(<span class="string">"comptime src:\n{}"</span>, <span class="self">self</span>.source);
+        <span class="kw">let </span>(program1, output1) = <span class="kw">match </span>prepare_and_compile_snippet(
+            <span class="self">self</span>.source.clone(),
+            <span class="self">self</span>.force_brillig,
+            Vec::new(),
+        ) {
+            <span class="prelude-val">Ok</span>(((program, output), <span class="kw">_</span>)) =&gt; (program, output),
+            <span class="prelude-val">Err</span>(e) =&gt; {
+                <span class="comment">// If the comptime code failed to compile, it could be because it executed the code
+                // and encountered an overflow, which would be a runtime error in Brillig.
+                </span><span class="kw">let </span>is_assertion = e.iter().any(|e| {
+                    e.secondaries.iter().any(|s| s.message == <span class="string">"Assertion failed"</span>)
+                        || e.message.contains(<span class="string">"overflow"</span>)
+                        || e.message.contains(<span class="string">"divide by zero"</span>)
+                });
+                <span class="kw">if </span>is_assertion {
+                    <span class="kw">let </span>msg = <span class="macro">format!</span>(<span class="string">"{e:?}"</span>);
+                    <span class="kw">let </span>err = ExecutionError::AssertionFailed(
+                        acvm::pwg::ResolvedAssertionPayload::String(msg),
+                        <span class="macro">vec!</span>[],
+                        <span class="prelude-val">None</span>,
+                    );
+                    <span class="kw">let </span>res1 = <span class="prelude-val">Err</span>(NargoError::ExecutionError(err));
+                    <span class="kw">return </span>CompareCompiledResult::new(
+                        <span class="kw-2">&amp;</span><span class="self">self</span>.abi,
+                        (res1, <span class="string">""</span>.to_string()),
+                        (res2, print2),
+                    );
+                } <span class="kw">else </span>{
+                    <span class="macro">panic!</span>(<span class="string">"failed to compile program:\n{e:?}\n{}"</span>, <span class="self">self</span>.source);
+                }
+            }
+        };
+        <span class="comment">// Capture any println that happened during the compilation, which in these tests should be the whole program.
+        </span><span class="kw">let </span>comptime_print = String::from_utf8(output1).expect(<span class="string">"should be valid utf8 string"</span>);
+
+        <span class="comment">// Execute the 1st (comptime) program.
+        </span><span class="kw">let </span>(res1, print1) = do_exec(<span class="kw-2">&amp;</span>program1.program);
 
         CompareCompiledResult::new(<span class="kw-2">&amp;</span><span class="self">self</span>.abi, (res1, comptime_print + <span class="kw-2">&amp;</span>print1), (res2, print2))
     }

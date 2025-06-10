@@ -384,7 +384,7 @@
     <span class="kw">let </span>rules = rules::all();
     <span class="kw">let </span>max_rewrites = <span class="number">10</span>;
     <span class="kw">let </span>config = Config {
-        avoid_negative_int_literals: <span class="bool-val">true</span>,
+        avoid_overflow: u.arbitrary()<span class="question-mark">?</span>,
         avoid_large_int_literals: <span class="bool-val">true</span>,
         ..Default::default()
     };

@@ -555,7 +555,15 @@
 <a href="#554" id="554">554</a>
 <a href="#555" id="555">555</a>
 <a href="#556" id="556">556</a>
-<a href="#557" id="557">557</a></pre></div><pre class="rust"><code><span class="doccomment">//! This module implements printing of the monomorphized AST, for debugging purposes.
+<a href="#557" id="557">557</a>
+<a href="#558" id="558">558</a>
+<a href="#559" id="559">559</a>
+<a href="#560" id="560">560</a>
+<a href="#561" id="561">561</a>
+<a href="#562" id="562">562</a>
+<a href="#563" id="563">563</a>
+<a href="#564" id="564">564</a>
+<a href="#565" id="565">565</a></pre></div><pre class="rust"><code><span class="doccomment">//! This module implements printing of the monomorphized AST, for debugging purposes.
 
 </span><span class="kw">use crate</span>::{
     ast::UnaryOp,
@@ -585,6 +593,7 @@
     <span class="kw">pub </span>show_clone_and_drop: bool,
     <span class="kw">pub </span>show_print_as_std: bool,
     <span class="kw">pub </span>show_type_in_let: bool,
+    <span class="kw">pub </span>show_type_of_int_literal: bool,
 }
 
 <span class="kw">impl </span>Default <span class="kw">for </span>AstPrinter {
@@ -596,6 +605,7 @@
             show_clone_and_drop: <span class="bool-val">true</span>,
             show_print_as_std: <span class="bool-val">false</span>,
             show_type_in_let: <span class="bool-val">false</span>,
+            show_type_of_int_literal: <span class="bool-val">false</span>,
         }
     }
 }
@@ -802,7 +812,13 @@
                 <span class="self">self</span>.print_comma_separated(<span class="kw-2">&amp;</span>array.contents, f)<span class="question-mark">?</span>;
                 <span class="macro">write!</span>(f, <span class="string">"]"</span>)
             }
-            <span class="kw">super</span>::ast::Literal::Integer(x, <span class="kw">_</span>, <span class="kw">_</span>) =&gt; x.fmt(f),
+            <span class="kw">super</span>::ast::Literal::Integer(x, typ, <span class="kw">_</span>) =&gt; {
+                <span class="kw">if </span><span class="self">self</span>.show_type_of_int_literal {
+                    <span class="macro">write!</span>(f, <span class="string">"{x} as {typ}"</span>)
+                } <span class="kw">else </span>{
+                    x.fmt(f)
+                }
+            }
             <span class="kw">super</span>::ast::Literal::Bool(x) =&gt; x.fmt(f),
             <span class="kw">super</span>::ast::Literal::Str(s) =&gt; {
                 <span class="kw">if </span>s.contains(<span class="string">"\""</span>) {

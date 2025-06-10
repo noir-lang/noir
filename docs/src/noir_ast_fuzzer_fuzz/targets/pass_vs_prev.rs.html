@@ -91,7 +91,7 @@
 <span class="kw">use </span>noirc_evaluator::ssa::{SsaPass, primary_passes, ssa_gen};
 
 <span class="kw">pub fn </span>fuzz(u: <span class="kw-2">&amp;mut </span>Unstructured) -&gt; eyre::Result&lt;()&gt; {
-    <span class="kw">let </span>config = Config::default();
+    <span class="kw">let </span>config = Config { avoid_overflow: u.arbitrary()<span class="question-mark">?</span>, ..Config::default() };
 
     <span class="kw">let </span>inputs = CompareInterpreted::arb(u, config, |u, program| {
         <span class="kw">let </span>options = CompareOptions::arbitrary(u)<span class="question-mark">?</span>;

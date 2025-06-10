@@ -59,12 +59,7 @@
 <a href="#58" id="58">58</a>
 <a href="#59" id="59">59</a>
 <a href="#60" id="60">60</a>
-<a href="#61" id="61">61</a>
-<a href="#62" id="62">62</a>
-<a href="#63" id="63">63</a>
-<a href="#64" id="64">64</a>
-<a href="#65" id="65">65</a>
-<a href="#66" id="66">66</a></pre></div><pre class="rust"><code><span class="doccomment">//! Compare the execution of random ASTs between the comptime execution
+<a href="#61" id="61">61</a></pre></div><pre class="rust"><code><span class="doccomment">//! Compare the execution of random ASTs between the comptime execution
 //! (after converting the AST to Noir and running it through the comptime
 //! interpreter) vs when everything is forced to be Brillig.
 //! We choose Brillig here because it mostly matches comptime feature set
@@ -79,24 +74,19 @@
 
 <span class="kw">pub fn </span>fuzz(u: <span class="kw-2">&amp;mut </span>Unstructured) -&gt; eyre::Result&lt;()&gt; {
     <span class="kw">let </span>config = Config {
-        <span class="comment">// We created enough bug tickets due to overflows
-        // TODO(#8817): Comptime code fails to compile if there is an overflow, which causes a panic.
-        </span>avoid_overflow: <span class="bool-val">true</span>,
-        <span class="comment">// also with negative values
-        </span>avoid_negative_int_literals: <span class="bool-val">true</span>,
-        <span class="comment">// also divisions
-        </span>avoid_err_by_zero: <span class="bool-val">true</span>,
-        <span class="comment">// and it gets old to have to edit u128 to fit into u32 for the frontend to parse
+        <span class="comment">// It's easy to overflow.
+        </span>avoid_overflow: u.arbitrary()<span class="question-mark">?</span>,
+        <span class="comment">// Avoid using large integers in for loops that the frontend would reject.
         </span>avoid_large_int_literals: <span class="bool-val">true</span>,
+        <span class="comment">// Also avoid negative integers, because the frontend rejects them for loops.
+        </span>avoid_negative_int_literals: <span class="bool-val">true</span>,
         <span class="comment">// Avoid break/continue
         </span>avoid_loop_control: <span class="bool-val">true</span>,
-        <span class="comment">// TODO(#8817): Comptime code fails to compile if there is an assertion failure, which causes a panic.
-        </span>avoid_constrain: <span class="bool-val">true</span>,
         <span class="comment">// Has to only use expressions valid in comptime
         </span>comptime_friendly: <span class="bool-val">true</span>,
-        <span class="comment">// Force brillig
+        <span class="comment">// Force brillig, to generate loops that the interpreter can do but ACIR cannot.
         </span>force_brillig: <span class="bool-val">true</span>,
-        <span class="comment">// Use lower limits because of the interpreter.
+        <span class="comment">// Use lower limits because of the interpreter, to avoid stack overflow
         </span>max_loop_size: <span class="number">5</span>,
         max_recursive_calls: <span class="number">5</span>,
         ..Default::default()
