@@ -286,8 +286,8 @@ impl NumericValue {
     }
 
     pub fn from_constant(constant: FieldElement, typ: NumericType) -> IResult<NumericValue> {
-        use super::InterpreterError::{ConstantDoesNotFitInType, Internal};
         use super::InternalError::UnsupportedNumericType;
+        use super::InterpreterError::{ConstantDoesNotFitInType, Internal};
 
         let does_not_fit = ConstantDoesNotFitInType { constant, typ };
 
