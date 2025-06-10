@@ -7,6 +7,8 @@ use std::{cell::RefCell, collections::BTreeMap};
 use arbitrary::Unstructured;
 use bn254_blackbox_solver::Bn254BlackBoxSolver;
 use color_eyre::eyre::{self, WrapErr};
+use nargo::NargoError;
+use nargo::errors::ExecutionError;
 use nargo::{foreign_calls::DefaultForeignCallBuilder, parse_all};
 use noirc_abi::Abi;
 use noirc_driver::{
@@ -75,20 +77,10 @@ pub struct CompareComptime {
 impl CompareComptime {
     /// Execute the Noir code and the SSA, then compare the results.
     pub fn exec(&self) -> eyre::Result<CompareCompiledResult> {
-        log::debug!("comptime src:\n{}", self.source);
-        let (program1, output1) = match prepare_and_compile_snippet(
-            self.source.clone(),
-            self.force_brillig,
-            Vec::new(),
-        ) {
-            Ok(((program, output), _)) => (program, output),
-            Err(e) => panic!("failed to compile program:\n{}\n{e:?}", self.source),
-        };
-        let comptime_print = String::from_utf8(output1).expect("should be valid utf8 string");
-
         let blackbox_solver = Bn254BlackBoxSolver(false);
         let initial_witness = self.abi.encode(&BTreeMap::new(), None).wrap_err("abi::encode")?;
 
+        // Execute a compiled Program.
         let do_exec = |program| {
             let mut print = Vec::new();
 
@@ -108,8 +100,48 @@ impl CompareComptime {
             (res, print)
         };
 
-        let (res1, print1) = do_exec(&program1.program);
+        // Execute the 2nd (Brillig) program.
         let (res2, print2) = do_exec(&self.ssa.artifact.program);
+
+        // Try to compile the 1st (comptime) version from string.
+        log::debug!("comptime src:\n{}", self.source);
+        let (program1, output1) = match prepare_and_compile_snippet(
+            self.source.clone(),
+            self.force_brillig,
+            Vec::new(),
+        ) {
+            Ok(((program, output), _)) => (program, output),
+            Err(e) => {
+                // If the comptime code failed to compile, it could be because it executed the code
+                // and encountered an overflow, which would be a runtime error in Brillig.
+                let is_assertion = e.iter().any(|e| {
+                    e.secondaries.iter().any(|s| s.message == "Assertion failed")
+                        || e.message.contains("overflow")
+                        || e.message.contains("divide by zero")
+                });
+                if is_assertion {
+                    let msg = format!("{e:?}");
+                    let err = ExecutionError::AssertionFailed(
+                        acvm::pwg::ResolvedAssertionPayload::String(msg),
+                        vec![],
+                        None,
+                    );
+                    let res1 = Err(NargoError::ExecutionError(err));
+                    return CompareCompiledResult::new(
+                        &self.abi,
+                        (res1, "".to_string()),
+                        (res2, print2),
+                    );
+                } else {
+                    panic!("failed to compile program:\n{e:?}\n{}", self.source);
+                }
+            }
+        };
+        // Capture any println that happened during the compilation, which in these tests should be the whole program.
+        let comptime_print = String::from_utf8(output1).expect("should be valid utf8 string");
+
+        // Execute the 1st (comptime) program.
+        let (res1, print1) = do_exec(&program1.program);
 
         CompareCompiledResult::new(&self.abi, (res1, comptime_print + &print1), (res2, print2))
     }

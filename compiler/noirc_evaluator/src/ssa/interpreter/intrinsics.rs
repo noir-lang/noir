@@ -78,13 +78,15 @@ impl Interpreter<'_> {
             Intrinsic::ToBits(endian) => {
                 check_argument_count(args, 1, intrinsic)?;
                 let field = self.lookup_field(args[0], "call to to_bits")?;
-                self.to_radix(endian, args[0], field, 2, results[0])
+                let element_type = NumericType::bool();
+                self.to_radix(endian, element_type, args[0], field, 2, results[0])
             }
             Intrinsic::ToRadix(endian) => {
                 check_argument_count(args, 2, intrinsic)?;
-                let field = self.lookup_field(args[0], "call to to_bits")?;
-                let radix = self.lookup_u32(args[1], "call to to_bits")?;
-                self.to_radix(endian, args[0], field, radix, results[0])
+                let field = self.lookup_field(args[0], "call to to_radix")?;
+                let radix = self.lookup_u32(args[1], "call to to_radix")?;
+                let element_type = NumericType::Unsigned { bit_size: 8 };
+                self.to_radix(endian, element_type, args[0], field, radix, results[0])
             }
             Intrinsic::BlackBox(black_box_func) => match black_box_func {
                 acvm::acir::BlackBoxFunc::AES128Encrypt => {
@@ -425,6 +427,7 @@ impl Interpreter<'_> {
     fn to_radix(
         &self,
         endian: Endian,
+        element_type: NumericType,
         field_id: ValueId,
         field: FieldElement,
         radix: u32,
@@ -444,9 +447,8 @@ impl Interpreter<'_> {
             return Err(InterpreterError::ToRadixFailed { field_id, field, radix });
         };
 
-        let elements =
-            try_vecmap(limbs, |limb| Value::from_constant(limb, NumericType::unsigned(8)))?;
-        Ok(vec![Value::array(elements, vec![Type::unsigned(8)])])
+        let elements = try_vecmap(limbs, |limb| Value::from_constant(limb, element_type))?;
+        Ok(vec![Value::array(elements, vec![Type::Numeric(element_type)])])
     }
 
     /// (length, slice, elem...) -> (length, slice)

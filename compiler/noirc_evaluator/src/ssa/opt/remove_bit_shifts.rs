@@ -230,7 +230,7 @@ impl Context<'_, '_, '_> {
         );
         let minus_one_or_zero =
             self.insert_binary(minus_one, BinaryOp::Mul { unchecked: true }, lhs_sign_as_int);
-        // -1, or 0 if lhs is positve or if there is no overflow
+        // -1, or 0 if lhs is positive or if there is no overflow
         let one = self.numeric_constant(FieldElement::one(), lhs_typ);
         let no_overflow = self.insert_binary(
             one,
