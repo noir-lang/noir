@@ -84,6 +84,7 @@ mod tests {
         let config = proptest::test_runner::Config {
             cases: 1000,
             failure_persistence: None,
+            max_shrink_iters: 0,
             ..Default::default()
         };
         let rng = proptest::test_runner::TestRng::deterministic_rng(config.rng_algorithm);
