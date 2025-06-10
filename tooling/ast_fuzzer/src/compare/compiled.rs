@@ -199,7 +199,9 @@ impl CompareMorph {
         let (program2, options) = f(u, program1.clone())?;
         let abi = program_abi(&program1);
 
+        println!("compiling the original");
         let ssa1 = g(program1.clone(), &options);
+        println!("compiling the morph");
         let ssa2 = g(program2.clone(), &options);
 
         let input_program = &ssa1.program;

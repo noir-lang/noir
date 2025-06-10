@@ -1,5 +1,5 @@
-//! Perform random equivalence mutations on the AST and check that the
-//! execution result does not change, a.k.a. metamorphic testing.
+//! Perform random metamorphic mutations on the AST and check that the
+//! execution result does not change.
 
 use crate::{compare_results_compiled, create_ssa_or_die, default_ssa_options};
 use arbitrary::{Arbitrary, Unstructured};
@@ -56,7 +56,7 @@ fn rewrite_function(
     rules: &[rules::Rule],
     max_rewrites: usize,
 ) {
-    // We can call `rewrite::next_local_and_ident_id`) and pass the results to the rewrite rules,
+    // We can call `rewrite::next_local_and_ident_id` and pass the results to the rewrite rules,
     // if they want to add new variables with new local IDs.
     let ctx = rules::Context { unconstrained: func.unconstrained, ..Default::default() };
 
@@ -200,7 +200,7 @@ mod rules {
     use noir_ast_fuzzer::expr;
     use noirc_frontend::{
         ast::BinaryOpKind,
-        monomorphization::ast::{Expression, Type},
+        monomorphization::ast::{Binary, Expression, Type},
     };
 
     #[derive(Clone, Debug, Default)]
@@ -251,7 +251,13 @@ mod rules {
 
     /// Construct all rules that we can apply on a program.
     pub fn all() -> Vec<Rule> {
-        vec![num_plus_minus_zero(), bool_or_self(), bool_xor_self(), bool_xor_rand()]
+        vec![
+            num_plus_minus_zero(),
+            bool_or_self(),
+            bool_xor_self(),
+            bool_xor_rand(),
+            commutative_arithmetic(),
+        ]
     }
 
     /// Transform any numeric value `x` into `x +/- 0`.
@@ -292,6 +298,18 @@ mod rules {
         )
     }
 
+    /// Check if an expression can have a side effect, in which case duplicating or reordering it could
+    /// change the behavior of the program.
+    fn has_side_effect(expr: &Expression) -> bool {
+        expr::exists(expr, |expr| {
+            matches!(
+                expr,
+                Expression::Call(_) // Functions can have side effects, maybe mutating some reference, printing
+                | Expression::Assign(_) // Assignment to a mutable variable could double up effects
+            )
+        })
+    }
+
     /// Common match condition for boolean rules.
     fn bool_rule_matches(ctx: &Context, expr: &Expression) -> bool {
         // If we rewrite `&mut x` into `&mut (x | x)` we will alter the semantics.
@@ -307,13 +325,12 @@ mod rules {
         // unless the expression can have a side effect, which we don't want to duplicate.
         if let Some(typ) = expr.return_type() {
             matches!(typ.as_ref(), Type::Bool)
+                && !has_side_effect(expr)
                 && !expr::exists(expr, |expr| {
                     matches!(
                         expr,
-                        Expression::Call(_) // Functions can have side effects, maybe mutating some reference
-                            | Expression::Assign(_) // Assignment to a mutable variable could double up effects
-                            | Expression::Let(_) // Creating a variable needs a new ID
-                            | Expression::Block(_) // Applying logical operations on blocks would look odd
+                        Expression::Let(_) // Creating a variable needs a new ID
+                    | Expression::Block(_) // Applying logical operations on blocks would look odd
                     )
                 })
         } else {
@@ -351,6 +368,32 @@ mod rules {
             });
             Ok(())
         })
+    }
+
+    /// Transform commutative arithmetic operations:
+    /// * `a + b` into `b + a`
+    /// * `a * b` into `b * a`
+    pub fn commutative_arithmetic() -> Rule {
+        Rule::new(
+            |_ctx, expr| {
+                matches!(
+                    expr,
+                    Expression::Binary(Binary {
+                        operator: BinaryOpKind::Add | BinaryOpKind::Multiply,
+                        ..
+                    })
+                ) && !has_side_effect(expr)
+            },
+            |_u, expr| {
+                let Expression::Binary(binary) = expr else {
+                    unreachable!("the rule only matches Binary expressions");
+                };
+
+                std::mem::swap(&mut binary.lhs, &mut binary.rhs);
+
+                Ok(())
+            },
+        )
     }
 }
 
