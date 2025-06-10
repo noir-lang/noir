@@ -257,6 +257,7 @@ mod rules {
             bool_xor_self(),
             bool_xor_rand(),
             commutative_arithmetic(),
+            inevitable(),
         ]
     }
 
@@ -296,46 +297,6 @@ mod rules {
                 Ok(())
             },
         )
-    }
-
-    /// Check if an expression can have a side effect, in which case duplicating or reordering it could
-    /// change the behavior of the program.
-    fn has_side_effect(expr: &Expression) -> bool {
-        expr::exists(expr, |expr| {
-            matches!(
-                expr,
-                Expression::Call(_) // Functions can have side effects, maybe mutating some reference, printing
-                | Expression::Assign(_) // Assignment to a mutable variable could double up effects
-            )
-        })
-    }
-
-    /// Common match condition for boolean rules.
-    fn bool_rule_matches(ctx: &Context, expr: &Expression) -> bool {
-        // If we rewrite `&mut x` into `&mut (x | x)` we will alter the semantics.
-        if ctx.is_in_ref_mut {
-            return false;
-        }
-        // We don't want to mess with the arguments of a `println`, because the printer assumes they are bool literals.
-        // Similarly a `constrain` call is expected to have a single boolean expression.
-        if ctx.is_in_special_call {
-            return false;
-        }
-        // We can apply boolean rule on anything that returns a bool,
-        // unless the expression can have a side effect, which we don't want to duplicate.
-        if let Some(typ) = expr.return_type() {
-            matches!(typ.as_ref(), Type::Bool)
-                && !has_side_effect(expr)
-                && !expr::exists(expr, |expr| {
-                    matches!(
-                        expr,
-                        Expression::Let(_) // Creating a variable needs a new ID
-                    | Expression::Block(_) // Applying logical operations on blocks would look odd
-                    )
-                })
-        } else {
-            false
-        }
     }
 
     /// Transform boolean value `x` into `x | x`.
@@ -394,6 +355,61 @@ mod rules {
                 Ok(())
             },
         )
+    }
+
+    /// Transform an expression into an if-then-else with the expression
+    /// repeated in the _then_ and _else_ branch:
+    /// * `x` into `if c { x } else { x }`
+    pub fn inevitable() -> Rule {
+        Rule::new(
+            |ctx, _expr| !ctx.is_in_special_call && !ctx.is_in_ref_mut,
+            |u, expr| {
+                let typ = expr.return_type().map(|typ| typ.into_owned()).unwrap_or(Type::Unit);
+                // *expr = expr::if_else(gen_condition(u)?, expr.clone(), expr.clone(), typ);
+
+                Ok(())
+            },
+        )
+    }
+
+    /// Check if an expression can have a side effect, in which case duplicating or reordering it could
+    /// change the behavior of the program.
+    fn has_side_effect(expr: &Expression) -> bool {
+        expr::exists(expr, |expr| {
+            matches!(
+                expr,
+                Expression::Call(_) // Functions can have side effects, maybe mutating some reference, printing
+                | Expression::Assign(_) // Assignment to a mutable variable could double up effects
+            )
+        })
+    }
+
+    /// Common match condition for boolean rules.
+    fn bool_rule_matches(ctx: &Context, expr: &Expression) -> bool {
+        // If we rewrite `&mut x` into `&mut (x | x)` we will alter the semantics.
+        if ctx.is_in_ref_mut {
+            return false;
+        }
+        // We don't want to mess with the arguments of a `println`, because the printer assumes they are bool literals.
+        // Similarly a `constrain` call is expected to have a single boolean expression.
+        if ctx.is_in_special_call {
+            return false;
+        }
+        // We can apply boolean rule on anything that returns a bool,
+        // unless the expression can have a side effect, which we don't want to duplicate.
+        if let Some(typ) = expr.return_type() {
+            matches!(typ.as_ref(), Type::Bool)
+                && !has_side_effect(expr)
+                && !expr::exists(expr, |expr| {
+                    matches!(
+                        expr,
+                        Expression::Let(_) // Creating a variable needs a new ID
+                    | Expression::Block(_) // Applying logical operations on blocks would look odd
+                    )
+                })
+        } else {
+            false
+        }
     }
 }
 
