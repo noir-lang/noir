@@ -922,6 +922,16 @@ impl TypeVariable {
         }
     }
 
+    /// Check that if bound, it's an unsigned integer
+    pub fn is_unsigned(&self) -> bool {
+        match &*self.borrow() {
+            TypeBinding::Bound(binding) => {
+                matches!(binding.follow_bindings(), Type::Integer(Signedness::Unsigned, _))
+            }
+            _ => false,
+        }
+    }
+
     /// If value_level, only check for Type::FieldElement,
     /// else only check for a type-level FieldElement
     fn is_field_element(&self, value_level: bool) -> bool {
@@ -1172,11 +1182,19 @@ impl Type {
     }
 
     pub fn is_signed(&self) -> bool {
-        matches!(self.follow_bindings(), Type::Integer(Signedness::Signed, _))
+        match self.follow_bindings_shallow().as_ref() {
+            Type::Integer(Signedness::Signed, _) => true,
+            Type::TypeVariable(var) => var.is_signed(),
+            _ => false,
+        }
     }
 
     pub fn is_unsigned(&self) -> bool {
-        matches!(self.follow_bindings(), Type::Integer(Signedness::Unsigned, _))
+        match self.follow_bindings_shallow().as_ref() {
+            Type::Integer(Signedness::Unsigned, _) => true,
+            Type::TypeVariable(var) => var.is_unsigned(),
+            _ => false,
+        }
     }
 
     /// While Kind::is_numeric refers to numeric _types_,

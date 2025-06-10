@@ -1194,12 +1194,7 @@ impl Elaborator<'_> {
         match to {
             Type::Integer(sign, bits) => Type::Integer(sign, bits),
             Type::FieldElement => {
-                let is_signed = match from_follow_bindings {
-                    Type::Integer(Signedness::Signed, _) => true,
-                    Type::TypeVariable(ref var) => var.is_signed(),
-                    _ => false,
-                };
-                if is_signed {
+                if from_follow_bindings.is_signed() {
                     self.push_err(TypeCheckError::UnsupportedFieldCast { location });
                 }
 
