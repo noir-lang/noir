@@ -4,6 +4,7 @@
 
 // See Cargo.toml for explanation.
 use getrandom as _;
+use getrandomv3 as _;
 use rust_embed as _;
 
 use gloo_utils::format::JsValueSerdeExt;

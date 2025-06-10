@@ -272,6 +272,18 @@ fn test_call_intrinsic() {
 }
 
 #[test]
+fn test_recursive_call_to_main_function() {
+    let src = "
+        acir(inline) fn main f0 {
+          b0(v0: Field):
+            call f0(v0)
+            return
+        }
+        ";
+    assert_ssa_roundtrip(src);
+}
+
+#[test]
 fn test_cast() {
     let src = "
         acir(inline) fn main f0 {
