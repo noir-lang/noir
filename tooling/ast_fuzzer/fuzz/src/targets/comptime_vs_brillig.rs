@@ -13,24 +13,19 @@ use noir_ast_fuzzer::rewrite::change_all_functions_into_unconstrained;
 
 pub fn fuzz(u: &mut Unstructured) -> eyre::Result<()> {
     let config = Config {
-        // We created enough bug tickets due to overflows
-        // TODO(#8817): Comptime code fails to compile if there is an overflow, which causes a panic.
-        avoid_overflow: true,
-        // also with negative values
-        avoid_negative_int_literals: true,
-        // also divisions
-        avoid_err_by_zero: true,
-        // and it gets old to have to edit u128 to fit into u32 for the frontend to parse
+        // It's easy to overflow.
+        avoid_overflow: u.arbitrary()?,
+        // Avoid using large integers in for loops that the frontend would reject.
         avoid_large_int_literals: true,
+        // Also avoid negative integers, because the frontend rejects them for loops.
+        avoid_negative_int_literals: true,
         // Avoid break/continue
         avoid_loop_control: true,
-        // TODO(#8817): Comptime code fails to compile if there is an assertion failure, which causes a panic.
-        avoid_constrain: true,
         // Has to only use expressions valid in comptime
         comptime_friendly: true,
-        // Force brillig
+        // Force brillig, to generate loops that the interpreter can do but ACIR cannot.
         force_brillig: true,
-        // Use lower limits because of the interpreter.
+        // Use lower limits because of the interpreter, to avoid stack overflow
         max_loop_size: 5,
         max_recursive_calls: 5,
         ..Default::default()
