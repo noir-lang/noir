@@ -91,6 +91,9 @@ impl Translator {
         // Map function names to their IDs so calls can be resolved
         let mut function_id_counter = 1;
         let mut functions = HashMap::new();
+
+        functions.insert(main_function.internal_name.clone(), main_id);
+
         for function in &parsed_ssa.functions {
             let function_id = FunctionId::new(function_id_counter);
             function_id_counter += 1;
@@ -556,10 +559,6 @@ impl Translator {
         // that the SSA we parsed was printed by the `SsaBuilder`, which normalizes
         // before each print.
         ssa.normalize_ids();
-
-        for function in ssa.functions.values() {
-            function.assert_valid();
-        }
 
         ssa
     }

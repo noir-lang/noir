@@ -34,4 +34,7 @@ gh pr create --base master --head $NEW_BRANCH --title "chore: redo typo PR by $A
 echo "Closing original PR #$ORIGINAL_PR_NUMBER"
 gh pr close $ORIGINAL_PR_NUMBER
 
+# Step 7: Delete the temporary branch
+git branch -D typo-pr-branch
+
 echo "Script completed."

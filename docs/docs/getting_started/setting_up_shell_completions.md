@@ -20,7 +20,7 @@ If you have `oh-my-zsh` installed, you might already have a directory of automat
 If not, first create it:
 
 ```bash
-mkdir -p ~/.oh-my-zsh/completions`
+mkdir -p ~/.oh-my-zsh/completions
 ```
 
 Then copy the completion script to that directory:

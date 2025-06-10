@@ -80,6 +80,13 @@ impl Comparable for NargoError<FieldElement> {
         };
 
         match (ee1, ee2) {
+            (
+                AssertionFailed(ResolvedAssertionPayload::String(c), _, _),
+                AssertionFailed(_, _, _),
+            ) if c.contains("CustomDiagnostic") => {
+                // Looks like the workaround we have for comptime failures originating from overflows and similar assertion failures.
+                true
+            }
             (AssertionFailed(p1, _, _), AssertionFailed(p2, _, _)) => p1 == p2,
             (SolvingError(s1, _), SolvingError(s2, _)) => format!("{s1}") == format!("{s2}"),
             (SolvingError(s, _), AssertionFailed(p, _, _))
