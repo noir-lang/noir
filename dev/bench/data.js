@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1749589091598,
+  "lastUpdate": 1749589114361,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -7910,75 +7910,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "aakoshh@gmail.com",
-            "name": "Akosh Farkash",
-            "username": "aakoshh"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "a61aaedcf7e4e455dd7d4f6099bb6dbe02040569",
-          "message": "fix: Create SSA interpreter arguments from scratch for each invocation (#8762)",
-          "timestamp": "2025-06-03T14:54:27Z",
-          "tree_id": "28dbaa030935fd6cc9ccdc2cf52fa1e4d917d388",
-          "url": "https://github.com/noir-lang/noir/commit/a61aaedcf7e4e455dd7d4f6099bb6dbe02040569"
-        },
-        "date": 1748964492630,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 0.028,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 0.167,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 0.011,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 0.303,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 0.194,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 11.4,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 0.004,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-root",
-            "value": 0.009,
-            "unit": "s"
-          },
-          {
-            "name": "semaphore-depth-10",
-            "value": 0.02,
-            "unit": "s"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "mvezenov@gmail.com",
             "name": "Maxim Vezenov",
             "username": "vezenovm"
@@ -11338,6 +11269,75 @@ window.BENCHMARK_DATA = {
           {
             "name": "rollup-block-root",
             "value": 10.3,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 0.003,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-root",
+            "value": 0.009,
+            "unit": "s"
+          },
+          {
+            "name": "semaphore-depth-10",
+            "value": 0.019,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "aakoshh@gmail.com",
+            "name": "Akosh Farkash",
+            "username": "aakoshh"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "9580a12c1184435af460a768d40a09f0f4b9df63",
+          "message": "chore(fuzz): Run fuzzing deterministically on CI (#8868)",
+          "timestamp": "2025-06-10T20:07:15Z",
+          "tree_id": "f50abbb6cce985b4fd7d2171658421b0114483fd",
+          "url": "https://github.com/noir-lang/noir/commit/9580a12c1184435af460a768d40a09f0f4b9df63"
+        },
+        "date": 1749589101247,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 0.027,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 0.155,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 0.011,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 0.287,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 0.184,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 10.2,
             "unit": "s"
           },
           {
