@@ -29,6 +29,7 @@ use super::{
     },
     opt::pure::FunctionPurities,
     ssa_gen::Ssa,
+    validation::validate_function,
 };
 
 /// The per-function context for each ssa function being generated.
@@ -548,7 +549,7 @@ impl FunctionBuilder {
 
     fn validate_ssa(functions: &[Function]) {
         for function in functions {
-            function.assert_valid();
+            validate_function(function);
         }
     }
 }
