@@ -38,13 +38,17 @@ mod tests {
     /// NOIR_AST_FUZZER_SHOW_AST=1 \
     /// cargo test -p noir_ast_fuzzer_fuzz acir_vs_brillig
     /// ```
-    pub fn fuzz_with_arbtest(f: impl Fn(&mut Unstructured) -> eyre::Result<()>) {
+    ///
+    /// The `cases` determine how many tests to run on CI. By setting it we can
+    /// avoid flakiness seeping in due to slow CI not getting to some cases that
+    /// a faster machine fails on, due to hitting the overall timeout earlier.
+    pub fn fuzz_with_arbtest(f: impl Fn(&mut Unstructured) -> eyre::Result<()>, cases: u32) {
         let _ = env_logger::try_init();
 
         if let Some(seed) = seed_from_env() {
             run_reproduce(f, seed);
         } else if is_running_in_ci() {
-            run_deterministic(f);
+            run_deterministic(f, cases);
         } else {
             run_nondeterministic(f);
         }
@@ -77,12 +81,12 @@ mod tests {
     /// Run multiple tests with a deterministic RNG.
     ///
     /// This is the behavior on CI.
-    fn run_deterministic(f: impl Fn(&mut Unstructured) -> eyre::Result<()>) {
+    fn run_deterministic(f: impl Fn(&mut Unstructured) -> eyre::Result<()>, cases: u32) {
         // Comptime tests run slower than others.
         let start = Instant::now();
 
         let config = proptest::test_runner::Config {
-            cases: 1000,
+            cases,
             failure_persistence: None,
             max_shrink_iters: 0,
             ..Default::default()
