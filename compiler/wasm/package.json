@@ -30,7 +30,7 @@
   },
   "scripts": {
     "install:wasm_pack": "./scripts/install_wasm-pack.sh",
-    "build": "yarn install:wasm_pack && WASM_OPT=$(./scripts/command-check.sh wasm-opt) webpack",
+    "build": "yarn install:wasm_pack && RUSTFLAGS='--cfg getrandom_backend=\"wasm_js\"' WASM_OPT=$(./scripts/command-check.sh wasm-opt) webpack",
     "test": "yarn test:build_fixtures && yarn test:node && yarn test:browser",
     "test:build_fixtures": "./scripts/build-fixtures.sh",
     "test:browser": "web-test-runner",
