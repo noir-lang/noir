@@ -141,7 +141,7 @@ pub(crate) fn simplify(
             try_optimize_array_set_from_previous_get(dfg, *array_id, *index_id, *value)
         }
         Instruction::Truncate { value, bit_size, max_bit_size } => {
-            if bit_size == max_bit_size {
+            if bit_size >= max_bit_size {
                 return SimplifiedTo(*value);
             }
             if let Some((numeric_constant, typ)) = dfg.get_numeric_constant_with_type(*value) {
