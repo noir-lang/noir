@@ -79,10 +79,10 @@
 <a href="#78" id="78">78</a>
 <a href="#79" id="79">79</a>
 <a href="#80" id="80">80</a></pre></div><pre class="rust"><code><span class="kw">use </span>proptest::{
+    prelude::Rng,
     strategy::{NewTree, Strategy},
     test_runner::TestRunner,
 };
-<span class="kw">use </span>rand::Rng;
 
 <span class="kw">type </span>BinarySearch = proptest::num::i128::BinarySearch;
 
@@ -113,9 +113,9 @@
     </span><span class="kw">fn </span>generate_edge_tree(<span class="kw-2">&amp;</span><span class="self">self</span>, runner: <span class="kw-2">&amp;mut </span>TestRunner) -&gt; NewTree&lt;<span class="self">Self</span>&gt; {
         <span class="kw">let </span>rng = runner.rng();
 
-        <span class="kw">let </span>offset = rng.gen_range(<span class="number">0</span>..<span class="number">4</span>);
+        <span class="kw">let </span>offset = rng.random_range(<span class="number">0</span>..<span class="number">4</span>);
         <span class="comment">// Choose if we want values around min, -0, +0, or max
-        </span><span class="kw">let </span>kind = rng.gen_range(<span class="number">0</span>..<span class="number">4</span>);
+        </span><span class="kw">let </span>kind = rng.random_range(<span class="number">0</span>..<span class="number">4</span>);
         <span class="kw">let </span>start = <span class="kw">match </span>kind {
             <span class="number">0 </span>=&gt; <span class="self">self</span>.type_min() + offset,
             <span class="number">1 </span>=&gt; -offset - <span class="number">1i128</span>,
@@ -129,7 +129,7 @@
 
     <span class="kw">fn </span>generate_random_tree(<span class="kw-2">&amp;</span><span class="self">self</span>, runner: <span class="kw-2">&amp;mut </span>TestRunner) -&gt; NewTree&lt;<span class="self">Self</span>&gt; {
         <span class="kw">let </span>rng = runner.rng();
-        <span class="kw">let </span>start: i128 = rng.gen_range(<span class="self">self</span>.type_min()..=<span class="self">self</span>.type_max());
+        <span class="kw">let </span>start: i128 = rng.random_range(<span class="self">self</span>.type_min()..=<span class="self">self</span>.type_max());
         <span class="prelude-val">Ok</span>(BinarySearch::new(start))
     }
 
@@ -150,7 +150,7 @@
 
     <span class="kw">fn </span>new_tree(<span class="kw-2">&amp;</span><span class="self">self</span>, runner: <span class="kw-2">&amp;mut </span>TestRunner) -&gt; NewTree&lt;<span class="self">Self</span>&gt; {
         <span class="kw">let </span>total_weight = <span class="self">self</span>.random_weight + <span class="self">self</span>.edge_weight;
-        <span class="kw">let </span>bias = runner.rng().gen_range(<span class="number">0</span>..total_weight);
+        <span class="kw">let </span>bias = runner.rng().random_range(<span class="number">0</span>..total_weight);
         <span class="comment">// randomly select one of 2 strategies
         </span><span class="kw">match </span>bias {
             x <span class="kw">if </span>x &lt; <span class="self">self</span>.edge_weight =&gt; <span class="self">self</span>.generate_edge_tree(runner),

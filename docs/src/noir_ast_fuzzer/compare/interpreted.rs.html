@@ -337,10 +337,7 @@
 <a href="#336" id="336">336</a>
 <a href="#337" id="337">337</a>
 <a href="#338" id="338">338</a>
-<a href="#339" id="339">339</a>
-<a href="#340" id="340">340</a>
-<a href="#341" id="341">341</a>
-<a href="#342" id="342">342</a></pre></div><pre class="rust"><code><span class="doccomment">//! Compare an arbitrary AST compiled into SSA and executed with the
+<a href="#339" id="339">339</a></pre></div><pre class="rust"><code><span class="doccomment">//! Compare an arbitrary AST compiled into SSA and executed with the
 //! SSA interpreter at some stage of the SSA pipeline.
 
 </span><span class="kw">use </span>std::sync::{Arc, OnceLock};
@@ -578,15 +575,12 @@
             AbiType::Tuple { fields } =&gt; {
                 <span class="macro">assert_eq!</span>(fields.len(), input_values.len(), <span class="string">"tuple size != input length"</span>);
 
-                <span class="kw">let </span>elements = vecmap(fields.iter().zip(input_values), |(typ, input)| {
-                    input_value_to_ssa(typ, input)
-                })
-                .into_iter()
-                .flatten()
-                .collect();
-
                 <span class="comment">// Tuples are not wrapped into arrays, they are returned as a vector.
-                </span>elements
+                </span>fields
+                    .iter()
+                    .zip(input_values)
+                    .flat_map(|(typ, input)| input_value_to_ssa(typ, input))
+                    .collect()
             }
             other =&gt; {
                 <span class="macro">panic!</span>(<span class="string">"unexpected ABI type for vector input: {other:?}"</span>)

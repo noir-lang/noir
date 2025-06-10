@@ -83,7 +83,8 @@
 <a href="#82" id="82">82</a>
 <a href="#83" id="83">83</a>
 <a href="#84" id="84">84</a>
-<a href="#85" id="85">85</a></pre></div><pre class="rust"><code><span class="kw">use </span><span class="kw">crate</span>::ssa::{
+<a href="#85" id="85">85</a>
+<a href="#86" id="86">86</a></pre></div><pre class="rust"><code><span class="kw">use </span><span class="kw">crate</span>::ssa::{
     ir::{
         function::Function,
         instruction::{Instruction, Intrinsic},
@@ -101,7 +102,8 @@
     /// necessary when the value of the array is unknown.
     ///
     /// Note that this pass must be placed before loop unrolling to be useful.
-    </span><span class="attr">#[tracing::instrument(level = <span class="string">"trace"</span>, skip(<span class="self">self</span>))]
+    </span><span class="attr">#[expect(clippy::wrong_self_convention)]
+    #[tracing::instrument(level = <span class="string">"trace"</span>, skip(<span class="self">self</span>))]
     </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>as_slice_optimization(<span class="kw-2">mut </span><span class="self">self</span>) -&gt; <span class="self">Self </span>{
         <span class="kw">for </span>func <span class="kw">in </span><span class="self">self</span>.functions.values_mut() {
             func.as_slice_optimization();

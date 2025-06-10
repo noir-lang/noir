@@ -691,7 +691,7 @@
         <span class="prelude-val">Some</span>(<span class="kw-2">ref </span>dir) =&gt; PathBuf::from(dir),
         <span class="prelude-val">None </span>=&gt; {
             <span class="kw">let </span>corpus_dir = tempfile::tempdir().expect(<span class="string">"Couldn't create temporary directory"</span>);
-            <span class="kw">let </span>corpus_dir = corpus_dir.into_path();
+            <span class="kw">let </span>corpus_dir = corpus_dir.keep();
             temporary_dirs_to_delete.push(corpus_dir.clone());
             corpus_dir
         }

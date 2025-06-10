@@ -131,12 +131,16 @@
 <a href="#130" id="130">130</a>
 <a href="#131" id="131">131</a>
 <a href="#132" id="132">132</a>
-<a href="#133" id="133">133</a></pre></div><pre class="rust"><code><span class="attr">#![forbid(unsafe_code)]
+<a href="#133" id="133">133</a>
+<a href="#134" id="134">134</a>
+<a href="#135" id="135">135</a></pre></div><pre class="rust"><code><span class="attr">#![forbid(unsafe_code)]
 #![warn(unreachable_pub)]
 #![warn(clippy::semicolon_if_nothing_returned)]
 #![cfg_attr(not(test), warn(unused_crate_dependencies, unused_extern_crates))]
 
-</span><span class="kw">mod </span>abi;
+</span><span class="kw">use </span>rand <span class="kw">as _</span>;
+
+<span class="kw">mod </span>abi;
 <span class="kw">pub mod </span>compare;
 <span class="kw">mod </span>input;
 <span class="kw">mod </span>program;
