@@ -320,6 +320,19 @@ impl Context {
     }
 
     fn handle_call(&mut self, call: &mut crate::monomorphization::ast::Call) {
+        // Hack: We don't have references yet but pretend the array length builtin
+        // accepts arrays as a reference to avoid unnecessary clones.
+        if let crate::monomorphization::ast::Expression::Ident(variable) = call.func.as_ref() {
+            if let crate::monomorphization::ast::Definition::Builtin(name) = &variable.definition {
+                if name == "array_len" {
+                    for arg in &mut call.arguments {
+                        self.handle_reference_expression(arg);
+                    }
+                    return;
+                }
+            }
+        }
+
         self.handle_expression(&mut call.func);
         for arg in &mut call.arguments {
             self.handle_expression(arg);

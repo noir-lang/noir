@@ -1,6 +1,5 @@
 //! This module contains the last use analysis pass which is run on each function before
-//! the ownership pass when the experimental ownership scheme is enabled. This pass does
-//! not run without this experimental flag - and if it did its results would go unused.
+//! the ownership pass.
 //!
 //! The purpose of this pass is to find which instance of a variable is the variable's
 //! last use. Note that a variable may have multiple last uses. This can happen if the
@@ -123,8 +122,31 @@ struct LastUseContext {
     ///   }
     ///   ```
     ///   `x` above has two last uses, one in each if branch.
-    last_uses: HashMap<LocalId, (/*loop index*/ usize, Branches)>,
+    last_uses: HashMap<LocalId, (LoopIndex, Branches)>,
+
+    /// The most recent use of a variable. Unlike `last_uses`, this includes uses in loops.
+    /// Normally we always need to clone in loops, but when a variable is immediately assigned
+    /// to we can move into the expression since the assignment will still give the variable
+    /// back a value afterward, e.g:
+    ///
+    /// ```noir
+    /// let mut foo = bar();
+    /// for i in 0 .. 10 {
+    ///     foo = baz(foo); // we can move into baz here, foo will have a value after
+    /// }
+    /// ```
+    most_recent_uses: HashMap<LocalId, (LoopIndex, Branches)>,
+
+    /// When an assignment comes we want to cut the last_uses of the variable being assigned to
+    /// so that the last use before the assignment - if there is one, can be moved since we're
+    /// reassigning the value anyway.
+    ///
+    /// E.g. `foo = bar(foo)` should be able to move `foo` into `bar` even if it is used afterward
+    /// since the result of `bar(foo)` will be assigned to `foo` afterward anyway.
+    last_assignment_uses: Vec<(LocalId, LoopIndex, Branches)>,
 }
+
+type LoopIndex = usize;
 
 impl Context {
     /// Traverse the given function and return the last use(s) of each local variable.
@@ -132,8 +154,12 @@ impl Context {
     pub(super) fn find_last_uses_of_variables(
         function: &Function,
     ) -> HashMap<LocalId, Vec<IdentId>> {
-        let mut context =
-            LastUseContext { current_loop_and_branch: Vec::new(), last_uses: HashMap::default() };
+        let mut context = LastUseContext {
+            current_loop_and_branch: Vec::new(),
+            last_uses: HashMap::default(),
+            most_recent_uses: HashMap::default(),
+            last_assignment_uses: Vec::new(),
+        };
         context.push_loop_scope();
         for (parameter, ..) in &function.parameters {
             context.declare_variable(*parameter);
@@ -177,6 +203,7 @@ impl LastUseContext {
     fn declare_variable(&mut self, id: LocalId) {
         let loop_index = self.loop_index();
         self.last_uses.insert(id, (loop_index, Branches::None));
+        self.most_recent_uses.insert(id, (loop_index, Branches::None));
     }
 
     /// Remember a new use of the given variable, possibly overwriting or
@@ -198,6 +225,14 @@ impl LastUseContext {
             } else {
                 *uses = Branches::None;
             }
+        }
+
+        // Always remember the most recent use of a variable
+        if let Some((variable_loop_index, uses)) = self.most_recent_uses.get_mut(&id) {
+            if *variable_loop_index != loop_index {
+                *uses = Branches::None;
+            }
+            Self::remember_use_of_variable_rec(uses, path, variable);
         }
     }
 
@@ -239,10 +274,16 @@ impl LastUseContext {
     }
 
     fn get_variables_to_move(self) -> HashMap<LocalId, Vec<IdentId>> {
-        self.last_uses
+        let mut last_uses: HashMap<LocalId, Vec<IdentId>> = self
+            .last_uses
             .into_iter()
             .map(|(definition, (_, last_uses))| (definition, last_uses.flatten_uses()))
-            .collect()
+            .collect();
+
+        for (local, _, assignment_uses) in self.last_assignment_uses {
+            last_uses.entry(local).or_default().extend(assignment_uses.flatten_uses());
+        }
+        last_uses
     }
 
     fn track_variables_in_expression(&mut self, expr: &Expression) {
@@ -400,6 +441,29 @@ impl LastUseContext {
     fn track_variables_in_assign(&mut self, assign: &ast::Assign) {
         self.track_variables_in_lvalue(&assign.lvalue);
         self.track_variables_in_expression(&assign.expression);
+
+        // Try to make the last use of a variable in the current loop index a move
+        if let Some(id) = Self::try_get_lvalue_local_id(&assign.lvalue) {
+            if let Some((variable_loop_index, uses)) = self.most_recent_uses.get_mut(&id) {
+                // TODO: I think we need a dominates analysis here
+                self.last_assignment_uses.push((id, *variable_loop_index, uses.clone()));
+            }
+        }
+    }
+
+    fn try_get_lvalue_local_id(lvalue: &ast::LValue) -> Option<LocalId> {
+        // Handling cases other than the full value being assigned is more complex
+        // so we only handle the case where we assign the entire value so that we don't
+        // accidentally move too much. E.g. if we only assign `foo.bar = baz(foo)` we
+        // don't want to move all of `foo` in that case. So we only handle identifiers
+        // for the lvalue.
+        match lvalue {
+            ast::LValue::Ident(ident) => match &ident.definition {
+                ast::Definition::Local(local_id) => Some(*local_id),
+                _ => None,
+            },
+            _ => None,
+        }
     }
 
     /// A variable in an lvalue position is never moved (otherwise you wouldn't
