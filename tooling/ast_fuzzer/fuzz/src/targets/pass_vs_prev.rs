@@ -71,7 +71,6 @@ mod tests {
     /// ```
     #[test]
     fn fuzz_with_arbtest() {
-        // TODO: Allow more cases when the 3180th case is fixed.
-        crate::targets::tests::fuzz_with_arbtest(super::fuzz, 3179);
+        crate::targets::tests::fuzz_with_arbtest(super::fuzz, 4000);
     }
 }
