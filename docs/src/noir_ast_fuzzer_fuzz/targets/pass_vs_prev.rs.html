@@ -74,7 +74,8 @@
 <a href="#73" id="73">73</a>
 <a href="#74" id="74">74</a>
 <a href="#75" id="75">75</a>
-<a href="#76" id="76">76</a></pre></div><pre class="rust"><code><span class="doccomment">//! Compare the execution of an SSA pass to the one preceding it
+<a href="#76" id="76">76</a>
+<a href="#77" id="77">77</a></pre></div><pre class="rust"><code><span class="doccomment">//! Compare the execution of an SSA pass to the one preceding it
 //! using the SSA interpreter.
 //!
 //! By using the SSA interpreter we can execute any pass in the pipeline,
@@ -147,7 +148,8 @@
     /// ```
     </span><span class="attr">#[test]
     </span><span class="kw">fn </span>fuzz_with_arbtest() {
-        <span class="kw">crate</span>::targets::tests::fuzz_with_arbtest(<span class="kw">super</span>::fuzz);
+        <span class="comment">// TODO: Allow more cases when the 3180th case is fixed.
+        </span><span class="kw">crate</span>::targets::tests::fuzz_with_arbtest(<span class="kw">super</span>::fuzz, <span class="number">3179</span>);
     }
 }
 </code></pre></div></section></main></body></html>

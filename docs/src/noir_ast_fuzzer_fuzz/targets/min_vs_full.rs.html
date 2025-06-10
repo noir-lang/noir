@@ -66,13 +66,7 @@
 <a href="#65" id="65">65</a>
 <a href="#66" id="66">66</a>
 <a href="#67" id="67">67</a>
-<a href="#68" id="68">68</a>
-<a href="#69" id="69">69</a>
-<a href="#70" id="70">70</a>
-<a href="#71" id="71">71</a>
-<a href="#72" id="72">72</a>
-<a href="#73" id="73">73</a>
-<a href="#74" id="74">74</a></pre></div><pre class="rust"><code><span class="doccomment">//! Compare the execution of random ASTs between the initial SSA
+<a href="#68" id="68">68</a></pre></div><pre class="rust"><code><span class="doccomment">//! Compare the execution of random ASTs between the initial SSA
 //! (or as close as we can stay to the initial state)
 //! and the fully optimized version.
 </span><span class="kw">use crate</span>::{
@@ -130,8 +124,6 @@
 
 <span class="attr">#[cfg(test)]
 </span><span class="kw">mod </span>tests {
-    <span class="kw">use </span><span class="kw">crate</span>::targets::tests::is_running_in_ci;
-
     <span class="doccomment">/// ```ignore
     /// NOIR_ARBTEST_SEED=0x6819c61400001000 \
     /// NOIR_AST_FUZZER_SHOW_AST=1 \
@@ -139,11 +131,7 @@
     /// ```
     </span><span class="attr">#[test]
     </span><span class="kw">fn </span>fuzz_with_arbtest() {
-        <span class="kw">if </span>is_running_in_ci() {
-            <span class="comment">// TODO: Investigate second program constraint failures.
-            </span><span class="kw">return</span>;
-        }
-        <span class="kw">crate</span>::targets::tests::fuzz_with_arbtest(<span class="kw">super</span>::fuzz);
+        <span class="kw">crate</span>::targets::tests::fuzz_with_arbtest(<span class="kw">super</span>::fuzz, <span class="number">2000</span>);
     }
 }
 </code></pre></div></section></main></body></html>
