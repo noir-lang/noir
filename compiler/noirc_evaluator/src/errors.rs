@@ -74,6 +74,10 @@ pub enum RuntimeError {
         "Cannot return a function from an if or match expression, or assignment within these expressions"
     )]
     ReturnedFunctionFromDynamicIf { call_stack: CallStack },
+    /// This case is not an error. It's used during codegen to prevent inserting instructions after
+    /// code when a break or continue is generated.
+    #[error("Break or continue")]
+    BreakOrContinue { call_stack: CallStack },
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Hash)]
@@ -186,6 +190,7 @@ impl RuntimeError {
             | RuntimeError::UnknownReference { call_stack } => call_stack,
             RuntimeError::ReturnedReferenceFromDynamicIf { call_stack } => call_stack,
             RuntimeError::ReturnedFunctionFromDynamicIf { call_stack } => call_stack,
+            RuntimeError::BreakOrContinue { call_stack } => call_stack,
         }
     }
 }
