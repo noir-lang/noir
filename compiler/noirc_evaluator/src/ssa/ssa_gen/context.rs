@@ -571,7 +571,7 @@ impl<'a> FunctionContext<'a> {
 
         let mut result = self.builder.set_location(location).insert_binary(lhs, op, rhs);
 
-        // Check for integer overflow
+        // Check for integer overflow, but only if the result wasn't simplified to a constant
         if matches!(
             operator,
             BinaryOpKind::Add
@@ -579,7 +579,9 @@ impl<'a> FunctionContext<'a> {
                 | BinaryOpKind::Multiply
                 | BinaryOpKind::ShiftLeft
         ) {
-            result = self.check_overflow(result, lhs, rhs, operator, location);
+            if !self.builder.current_function.dfg.is_constant(result) {
+                result = self.check_overflow(result, lhs, rhs, operator, location);
+            }
         }
 
         if operator_requires_not(operator) {
