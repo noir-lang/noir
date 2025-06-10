@@ -94,12 +94,15 @@ impl<'ssa> Interpreter<'ssa> {
         &self.call_stack.first().expect("call_stack should always be non-empty").scope
     }
 
-    fn current_function(&self) -> &'ssa Function {
+    fn try_current_function(&self) -> Option<&'ssa Function> {
         let current_function_id = self.call_context().called_function;
-        let current_function_id = current_function_id.expect(
+        current_function_id.map(|current_function_id| &self.ssa.functions[&current_function_id])
+    }
+
+    fn current_function(&self) -> &'ssa Function {
+        self.try_current_function().expect(
             "Tried calling `Interpreter::current_function` while evaluating global instructions",
-        );
-        &self.ssa.functions[&current_function_id]
+        )
     }
 
     fn dfg(&self) -> &'ssa DataFlowGraph {
@@ -377,10 +380,15 @@ impl<'ssa> Interpreter<'ssa> {
     }
 
     fn side_effects_enabled(&self, instruction: &Instruction) -> bool {
-        match self.current_function().runtime() {
+        let Some(current_function) = self.try_current_function() else {
+            // If there's no current function it means we are evaluating global instructions
+            return true;
+        };
+
+        match current_function.runtime() {
             RuntimeType::Acir(_) => {
                 self.side_effects_enabled
-                    || !instruction.requires_acir_gen_predicate(&self.current_function().dfg)
+                    || !instruction.requires_acir_gen_predicate(&current_function.dfg)
             }
             RuntimeType::Brillig(_) => true,
         }
