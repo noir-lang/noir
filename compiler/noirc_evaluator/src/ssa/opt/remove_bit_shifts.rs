@@ -82,9 +82,6 @@ impl Function {
 
         #[cfg(debug_assertions)]
         remove_bit_shifts_post_check(self);
-
-        // println!("{}", self);
-        // validate_function(self);
     }
 }
 
