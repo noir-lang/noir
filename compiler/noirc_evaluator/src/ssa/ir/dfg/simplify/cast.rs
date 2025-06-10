@@ -64,7 +64,6 @@ pub(super) fn simplify_cast(
                 // Field/Unsigned -> signed
                 // We could only simplify to signed when we are below the maximum integer of the destination type.
                 // However, we expect that overflow constraints have been generated appropriately that enforce correctness.
-                // We only simplify to signed when we are below the maximum integer of the destination type.
                 let integer_constant = IntegerConstant::from_numeric_constant(constant, dst_typ);
                 if integer_constant.is_some() {
                     SimplifiedTo(dfg.make_constant(constant, dst_typ))
