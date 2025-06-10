@@ -4,6 +4,7 @@ use num_bigint::BigUint;
 use crate::ssa::ir::{
     dfg::{DataFlowGraph, simplify::SimplifyResult},
     instruction::Instruction,
+    integer::IntegerConstant,
     types::{NumericType, Type},
     value::{Value, ValueId},
 };
@@ -54,13 +55,13 @@ pub(super) fn simplify_cast(
                 NumericType::NativeField
                 | NumericType::Unsigned { .. }
                 | NumericType::Signed { .. },
-                NumericType::Signed { bit_size },
+                NumericType::Signed { .. },
             ) => {
                 // Field/Unsigned -> signed
-                // We only simplify to signed when we are below the maximum signed integer of the destination type.
-                let integer_modulus = BigUint::from(2u128).pow(bit_size - 1);
-                let constant_uint: BigUint = BigUint::from_bytes_be(&constant.to_be_bytes());
-                if constant_uint < integer_modulus {
+                // We could only simplify to signed when we are below the maximum integer of the destination type.
+                // However, we expect that overflow constraints have been generated appropriately that enforce correctness.
+                let integer_constant = IntegerConstant::from_numeric_constant(constant, dst_typ);
+                if integer_constant.is_some() {
                     SimplifiedTo(dfg.make_constant(constant, dst_typ))
                 } else {
                     None
@@ -71,5 +72,58 @@ pub(super) fn simplify_cast(
         SimplifiedTo(value)
     } else {
         None
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::{assert_ssa_snapshot, ssa::ssa_gen::Ssa};
+
+    #[test]
+    fn unsigned_u8_to_i8_safe() {
+        let src = "
+        brillig(inline) predicate_pure fn main f0 {
+          b0():
+            v2 = cast u8 135 as i8
+            v3 = truncate v2 to 8 bits, max_bit_size: 9
+            v4 = cast v3 as u8
+            v6 = lt v4, u8 128
+            constrain v6 == u1 0
+            return v3
+        }
+        ";
+        let ssa = Ssa::from_str_simplifying(src).unwrap();
+
+        assert_ssa_snapshot!(ssa, @r"
+        brillig(inline) predicate_pure fn main f0 {
+          b0():
+            return i8 135
+        }
+        ");
+    }
+
+    #[test]
+    fn unsigned_u8_to_i8_out_of_bounds() {
+        let src = "
+        brillig(inline) predicate_pure fn main f0 {
+          b0():
+            v2 = cast u8 300 as i8
+            v3 = truncate v2 to 8 bits, max_bit_size: 9
+            v4 = cast v3 as u8
+            v6 = lt v4, u8 128
+            constrain v6 == u1 0
+            return v3
+        }
+        ";
+        let ssa = Ssa::from_str_simplifying(src).unwrap();
+
+        // The overflow check would fail here.
+        assert_ssa_snapshot!(ssa, @r"
+        brillig(inline) predicate_pure fn main f0 {
+          b0():
+            constrain u1 1 == u1 0
+            return i8 44
+        }
+        ");
     }
 }
