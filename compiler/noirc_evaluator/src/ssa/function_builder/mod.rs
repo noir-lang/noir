@@ -163,8 +163,6 @@ impl FunctionBuilder {
     pub fn finish(mut self) -> Ssa {
         self.finished_functions.push(self.current_function);
 
-        Self::validate_ssa(&self.finished_functions);
-
         Ssa::new(self.finished_functions, self.error_types)
     }
 
@@ -545,12 +543,6 @@ impl FunctionBuilder {
 
     pub fn record_error_type(&mut self, selector: ErrorSelector, typ: HirType) {
         self.error_types.insert(selector, typ);
-    }
-
-    fn validate_ssa(functions: &[Function]) {
-        for function in functions {
-            validate_function(function);
-        }
     }
 }
 

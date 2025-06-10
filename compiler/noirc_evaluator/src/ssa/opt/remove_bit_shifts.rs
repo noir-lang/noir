@@ -133,7 +133,6 @@ impl Context<'_, '_, '_> {
             let overflow = self.insert_binary(rhs, BinaryOp::Lt, bit_size_var);
             let predicate = self.insert_cast(overflow, typ);
             let pow = self.pow(base, rhs);
-            let pow = self.insert_truncate(pow, typ.bit_size(), FieldElement::max_num_bits());
             let pow = self.insert_cast(pow, typ);
 
             // Unchecked mul because `predicate` will be 1 or 0
@@ -183,13 +182,12 @@ impl Context<'_, '_, '_> {
             rhs,
         );
         let pow = self.pow(base, rhs);
-        let pow = self.insert_truncate(pow, lhs_typ.bit_size(), FieldElement::max_num_bits());
         let pow = self.insert_cast(pow, lhs_typ);
 
         if lhs_typ.is_unsigned() {
             // unsigned right bit shift is just a normal division
             let result = self.insert_binary(lhs, BinaryOp::Div, pow);
-            // In  case of overflow, pow is 1, because rhs was nullified, so we return explicitly 0.
+            // In case of overflow, pow is 1, because rhs was nullified, so we return explicitly 0.
             return self.insert_binary(
                 rhs_is_less_than_bit_size_with_lhs_typ,
                 BinaryOp::Mul { unchecked: true },
@@ -210,7 +208,6 @@ impl Context<'_, '_, '_> {
         // Performs the division on the 1-complement (or the operand if positive)
         let shifted_complement = self.insert_binary(one_complement, BinaryOp::Div, pow);
         // Convert back to 2-complement representation if operand is negative
-        let lhs_sign = self.insert_truncate(lhs_sign, lhs_typ.bit_size(), lhs_typ.bit_size() + 1);
         let lhs_sign_as_int = self.insert_cast(lhs_sign, lhs_typ);
 
         // The requirements for this to underflow are all of these:

@@ -15,7 +15,7 @@ use crate::ssa::{
         instruction::{ConstrainError, Instruction},
         value::ValueId,
     },
-    opt::pure::FunctionPurities,
+    opt::pure::FunctionPurities, ssa_gen::validate_ssa,
 };
 
 use super::{
@@ -556,6 +556,8 @@ impl Translator {
         // that the SSA we parsed was printed by the `SsaBuilder`, which normalizes
         // before each print.
         ssa.normalize_ids();
+
+        validate_ssa(&ssa);
 
         ssa
     }

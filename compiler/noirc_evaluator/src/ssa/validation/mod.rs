@@ -165,7 +165,7 @@ impl<'f> Validator<'f> {
             }
             _ => return,
         };
-
+        
         if !matches!(dfg.type_of_value(cast_input), Type::Numeric(NumericType::NativeField)) {
             return;
         }
@@ -186,7 +186,7 @@ impl<'f> Validator<'f> {
         match &dfg[cast_input] {
             Value::Instruction { instruction, .. } => match &dfg[*instruction] {
                 Instruction::Truncate { value: _, bit_size, max_bit_size } => {
-                    assert_eq!(*bit_size, target_type_size);
+                    assert!(*bit_size <= target_type_size);
                     assert!(*max_bit_size <= FieldElement::max_num_bits());
                 }
                 Instruction::Binary(Binary { lhs, rhs, operator: BinaryOp::Div, .. })

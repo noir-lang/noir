@@ -28,8 +28,10 @@ use self::{
 
 use super::ir::basic_block::BasicBlockId;
 use super::ir::dfg::GlobalsGraph;
+use super::ir::function::{self, Function};
 use super::ir::instruction::{ArrayOffset, ErrorType};
 use super::ir::types::NumericType;
+use super::validation::validate_function;
 use super::{
     function_builder::data_bus::DataBus,
     ir::{
@@ -130,7 +132,15 @@ pub fn generate_ssa(program: Program) -> Result<Ssa, RuntimeError> {
     }
 
     let ssa = function_context.builder.finish();
+    validate_ssa(&ssa);
+    
     Ok(ssa)
+}
+
+pub(crate) fn validate_ssa(ssa: &Ssa) {
+    for function in ssa.functions.values() {
+        validate_function(function);
+    }
 }
 
 impl FunctionContext<'_> {
