@@ -476,6 +476,9 @@ impl<'f> PerFunctionContext<'f> {
             }
             Instruction::ArrayGet { array, .. } => {
                 let result = self.inserter.function.dfg.instruction_results(instruction)[0];
+                references.for_each_alias_of(*array, |_, alias| {
+                    self.instruction_input_references.insert(alias);
+                });
                 references.mark_value_used(*array, self.inserter.function);
 
                 if self.inserter.function.dfg.value_is_reference(result) {
@@ -1329,6 +1332,32 @@ mod tests {
             return v0
         }
         ";
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.mem2reg();
+        assert_normalized_ssa_equals(ssa, src);
+    }
+
+    #[test]
+    fn keep_last_store_in_make_array_where_used_in_array_get() {
+        let src = "
+        brillig(inline) fn main f0 {
+          b0():
+            v1 = allocate -> &mut u1
+            store u1 0 at v1
+            v3 = make_array [v1] : [&mut u1]
+            jmpif u1 1 then: b1, else: b2
+          b1():
+            jmp b3(u32 0)
+          b2():
+            jmp b3(u32 0)
+          b3(v0: u32):
+            constrain v0 == u32 0
+            v6 = array_get v3, index v0 -> &mut u1
+            v7 = load v6 -> u1
+            return v7
+        }
+        ";
+
         let ssa = Ssa::from_str(src).unwrap();
         let ssa = ssa.mem2reg();
         assert_normalized_ssa_equals(ssa, src);

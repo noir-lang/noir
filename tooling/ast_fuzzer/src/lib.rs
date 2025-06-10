@@ -3,6 +3,8 @@
 #![warn(clippy::semicolon_if_nothing_returned)]
 #![cfg_attr(not(test), warn(unused_crate_dependencies, unused_extern_crates))]
 
+use rand as _;
+
 mod abi;
 pub mod compare;
 mod input;
