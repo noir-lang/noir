@@ -11,7 +11,7 @@ use crate::ssa::{
         types::{NumericType, Type},
         value::ValueId,
     },
-    ssa_gen::Ssa,
+    ssa_gen::Ssa
 };
 
 use super::simple_optimization::SimpleOptimizationContext;
@@ -82,6 +82,9 @@ impl Function {
 
         #[cfg(debug_assertions)]
         remove_bit_shifts_post_check(self);
+
+        // println!("{}", self);
+        // validate_function(self);
     }
 }
 
@@ -130,6 +133,7 @@ impl Context<'_, '_, '_> {
             let overflow = self.insert_binary(rhs, BinaryOp::Lt, bit_size_var);
             let predicate = self.insert_cast(overflow, typ);
             let pow = self.pow(base, rhs);
+            let pow = self.insert_truncate(pow, typ.bit_size(), FieldElement::max_num_bits());
             let pow = self.insert_cast(pow, typ);
 
             // Unchecked mul because `predicate` will be 1 or 0
@@ -179,6 +183,7 @@ impl Context<'_, '_, '_> {
             rhs,
         );
         let pow = self.pow(base, rhs);
+        let pow = self.insert_truncate(pow, lhs_typ.bit_size(), FieldElement::max_num_bits());
         let pow = self.insert_cast(pow, lhs_typ);
 
         if lhs_typ.is_unsigned() {
@@ -205,6 +210,7 @@ impl Context<'_, '_, '_> {
         // Performs the division on the 1-complement (or the operand if positive)
         let shifted_complement = self.insert_binary(one_complement, BinaryOp::Div, pow);
         // Convert back to 2-complement representation if operand is negative
+        let lhs_sign = self.insert_truncate(lhs_sign, lhs_typ.bit_size(), lhs_typ.bit_size() + 1);
         let lhs_sign_as_int = self.insert_cast(lhs_sign, lhs_typ);
 
         // The requirements for this to underflow are all of these:
@@ -262,38 +268,41 @@ impl Context<'_, '_, '_> {
     /// }
     fn pow(&mut self, lhs: ValueId, rhs: ValueId) -> ValueId {
         let typ = self.context.dfg.type_of_value(rhs);
-        if let Type::Numeric(NumericType::Unsigned { bit_size }) = typ {
-            let to_bits = self.context.dfg.import_intrinsic(Intrinsic::ToBits(Endian::Little));
-            let result_types = vec![Type::Array(Arc::new(vec![Type::bool()]), bit_size)];
-
-            // A call to ToBits can only be done with a field argument (rhs is always u8 here)
-            let rhs_as_field = self.insert_cast(rhs, NumericType::NativeField);
-            let rhs_bits = self.insert_call(to_bits, vec![rhs_as_field], result_types);
-
-            let rhs_bits = rhs_bits[0];
-            let one = self.field_constant(FieldElement::one());
-            let mut r = one;
-            // All operations are unchecked as we're acting on Field types (which are always unchecked)
-            for i in 1..bit_size + 1 {
-                let idx = self.numeric_constant(
-                    FieldElement::from((bit_size - i) as i128),
-                    NumericType::length_type(),
-                );
-                let b = self.insert_array_get(rhs_bits, idx, Type::bool());
-                let not_b = self.insert_not(b);
-                let b = self.insert_cast(b, NumericType::NativeField);
-                let not_b = self.insert_cast(not_b, NumericType::NativeField);
-
-                let r_squared = self.insert_binary(r, BinaryOp::Mul { unchecked: true }, r);
-                let r1 = self.insert_binary(r_squared, BinaryOp::Mul { unchecked: true }, not_b);
-                let a = self.insert_binary(r_squared, BinaryOp::Mul { unchecked: true }, lhs);
-                let r2 = self.insert_binary(a, BinaryOp::Mul { unchecked: true }, b);
-                r = self.insert_binary(r1, BinaryOp::Add { unchecked: true }, r2);
-            }
-            r
-        } else {
+        let Type::Numeric(NumericType::Unsigned { bit_size }) = typ else {
             unreachable!("Value must be unsigned in power operation");
+        };
+
+        let to_bits = self.context.dfg.import_intrinsic(Intrinsic::ToBits(Endian::Little));
+        let result_types = vec![Type::Array(Arc::new(vec![Type::bool()]), bit_size)];
+
+        // A call to ToBits can only be done with a field argument (rhs is always u8 here)
+        let rhs_as_field = self.insert_cast(rhs, NumericType::NativeField);
+        let rhs_bits = self.insert_call(to_bits, vec![rhs_as_field], result_types);
+
+        let rhs_bits = rhs_bits[0];
+        let one = self.field_constant(FieldElement::one());
+        let mut r = one;
+        // All operations are unchecked as we're acting on Field types (which are always unchecked)
+        for i in 1..bit_size + 1 {
+            let idx = self.numeric_constant(
+                FieldElement::from((bit_size - i) as i128),
+                NumericType::length_type(),
+            );
+            let b = self.insert_array_get(rhs_bits, idx, Type::bool());
+            let not_b = self.insert_not(b);
+            let b = self.insert_cast(b, NumericType::NativeField);
+            let not_b = self.insert_cast(not_b, NumericType::NativeField);
+
+            let r_squared = self.insert_binary(r, BinaryOp::Mul { unchecked: true }, r);
+            let r1 = self.insert_binary(r_squared, BinaryOp::Mul { unchecked: true }, not_b);
+            let a = self.insert_binary(r_squared, BinaryOp::Mul { unchecked: true }, lhs);
+            let r2 = self.insert_binary(a, BinaryOp::Mul { unchecked: true }, b);
+            r = self.insert_binary(r1, BinaryOp::Add { unchecked: true }, r2);
         }
+    
+        assert!(matches!(self.context.dfg.type_of_value(r).unwrap_numeric(), NumericType::NativeField), "ICE: pow is expected to always return a NativeField");
+
+        r
     }
 
     pub(crate) fn field_constant(&mut self, constant: FieldElement) -> ValueId {
