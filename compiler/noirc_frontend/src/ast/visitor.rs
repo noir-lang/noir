@@ -26,9 +26,9 @@ use crate::{
 
 use super::{
     ForBounds, FunctionReturnType, GenericTypeArgs, ItemVisibility, MatchExpression,
-    NoirEnumeration, Pattern, TraitBound, TraitImplItemKind, TypePath, UnresolvedGeneric,
-    UnresolvedGenerics, UnresolvedTraitConstraint, UnresolvedType, UnresolvedTypeData,
-    UnresolvedTypeExpression, UnsafeExpression,
+    NoirEnumeration, Pattern, TraitBound, TraitImplItemKind, TupleWithDoubleDot, TypePath,
+    UnresolvedGeneric, UnresolvedGenerics, UnresolvedTraitConstraint, UnresolvedType,
+    UnresolvedTypeData, UnresolvedTypeExpression, UnsafeExpression,
 };
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
@@ -493,6 +493,14 @@ pub trait Visitor {
     }
 
     fn visit_tuple_pattern(&mut self, _: &[Pattern], _: Span) -> bool {
+        true
+    }
+
+    fn visit_tuple_with_double_dot_pattern(
+        &mut self,
+        _: &TupleWithDoubleDot<Pattern>,
+        _: Span,
+    ) -> bool {
         true
     }
 
@@ -1584,6 +1592,16 @@ impl Pattern {
             Pattern::Tuple(patterns, location) => {
                 if visitor.visit_tuple_pattern(patterns, location.span) {
                     for pattern in patterns {
+                        pattern.accept(visitor);
+                    }
+                }
+            }
+            Pattern::TupleWithDoubleDot(tuple) => {
+                if visitor.visit_tuple_with_double_dot_pattern(tuple, tuple.location.span) {
+                    for pattern in &tuple.before {
+                        pattern.accept(visitor);
+                    }
+                    for pattern in &tuple.after {
                         pattern.accept(visitor);
                     }
                 }

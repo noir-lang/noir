@@ -437,6 +437,20 @@ fn gather_hir_pattern_tokens(
             }
             tokens.push(Token::RightParen);
         }
+        HirPattern::TupleWithDoubleDot(tuple) => {
+            tokens.push(Token::LeftParen);
+            for (index, pattern) in tuple.iter().enumerate() {
+                if index != 0 {
+                    tokens.push(Token::Comma);
+                }
+                if let Some(pattern) = pattern {
+                    gather_hir_pattern_tokens(interner, pattern, tokens);
+                } else {
+                    tokens.push(Token::DoubleDot);
+                }
+            }
+            tokens.push(Token::RightParen);
+        }
         HirPattern::Struct(typ, fields, _) => {
             let Type::DataType(struct_type, _) = typ.follow_bindings() else {
                 panic!("Expected type to be a struct");

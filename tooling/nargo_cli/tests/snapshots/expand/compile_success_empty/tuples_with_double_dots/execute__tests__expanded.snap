@@ -1,0 +1,62 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: expanded_code
+---
+struct Foo {}
+
+impl Eq for Foo {
+    fn eq(_self: Self, _other: Self) -> bool {
+        true
+    }
+}
+
+fn main() {
+    let (a, b, .., x, y, z): (Field, bool, Foo, [Field; 1], [bool; 1], [str<5>; 1]) =
+        (1, true, Foo {}, [10], [true], ["hello"]);
+    assert(a == 1);
+    assert(b == true);
+    assert(x == [10]);
+    assert(y == [true]);
+    assert(z == ["hello"]);
+    ();
+    foo((1, 2, 3, 4, "hello", [true]));
+    ();
+    let (.., a, b): (Field, bool, Foo, str<5>) = (1, true, Foo {}, "hello");
+    assert(a == Foo {});
+    assert(b == "hello");
+    ();
+    bar((1, true, Foo {}, "hello"));
+    ();
+    let (a, b, ..): (Field, bool, Foo, str<5>) = (1, true, Foo {}, "hello");
+    assert(a == 1);
+    assert(b == true);
+    ();
+    baz((1, true, Foo {}, "hello"));
+    ();
+    let (x, y, ..): (Field, bool) = (1, true);
+    assert(x == 1);
+    assert(y == true);
+    ();
+    let (.., x, y): (Field, bool) = (1, true);
+    assert(x == 1);
+    assert(y == true);
+    ();
+    let (..): (Field, Field, Field) = (1, 2, 3);
+    ()
+}
+
+fn foo((x, .., y, z): (i32, Field, i64, u8, str<5>, [bool; 1])) {
+    assert(x == 1);
+    assert(y == "hello");
+    assert(z == [true]);
+}
+
+fn bar((.., a, b): (i32, bool, Foo, str<5>)) {
+    assert(a == Foo {});
+    assert(b == "hello");
+}
+
+fn baz((a, b, ..): (i32, bool, Foo, str<5>)) {
+    assert(a == 1);
+    assert(b == true);
+}

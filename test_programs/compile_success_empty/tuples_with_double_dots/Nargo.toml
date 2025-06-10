@@ -1,0 +1,6 @@
+[package]
+name = "tuples_with_double_dots"
+type = "bin"
+authors = [""]
+
+[dependencies]

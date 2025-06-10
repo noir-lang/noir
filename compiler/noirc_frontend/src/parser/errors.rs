@@ -109,6 +109,8 @@ pub enum ParserErrorReason {
     LogicalAnd,
     #[error("Trait bounds are not allowed here")]
     TraitBoundsNotAllowedHere,
+    #[error("`..` can only be used once per tuple pattern")]
+    DoubleDotCanOnlyBeUsedOncePerTuplePattern,
     #[error("Missing type for associated constant")]
     MissingTypeForAssociatedConstant,
 }

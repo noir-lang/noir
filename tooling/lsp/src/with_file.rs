@@ -12,7 +12,7 @@ use noirc_frontend::{
         MethodCallExpression, ModuleDeclaration, NoirEnumeration, NoirFunction, NoirStruct,
         NoirTrait, NoirTraitImpl, NoirTypeAlias, Param, Path, PathSegment, Pattern,
         PrefixExpression, Statement, StatementKind, StructField, TraitBound, TraitImplItem,
-        TraitImplItemKind, TraitItem, TypeImpl, TypePath, UnresolvedGeneric,
+        TraitImplItemKind, TraitItem, TupleWithDoubleDot, TypeImpl, TypePath, UnresolvedGeneric,
         UnresolvedTraitConstraint, UnresolvedType, UnresolvedTypeData, UnresolvedTypeExpression,
         UnsafeExpression, UseTree, UseTreeKind, WhileStatement,
     },
@@ -117,7 +117,19 @@ fn pattern_with_file(pattern: Pattern, file: FileId) -> Pattern {
             synthesized,
         ),
         Pattern::Tuple(patterns, location) => {
-            Pattern::Tuple(patterns_with_file(patterns, file), location_with_file(location, file))
+            let patterns = patterns_with_file(patterns, file);
+            Pattern::Tuple(patterns, location_with_file(location, file))
+        }
+        Pattern::TupleWithDoubleDot(tuple) => {
+            let before = patterns_with_file(tuple.before, file);
+            let after = patterns_with_file(tuple.after, file);
+            let tuple = TupleWithDoubleDot {
+                before,
+                double_dot_location: tuple.double_dot_location,
+                after,
+                location: tuple.location,
+            };
+            Pattern::TupleWithDoubleDot(tuple)
         }
         Pattern::Struct(path, items, location) => Pattern::Struct(
             path_with_file(path, file),

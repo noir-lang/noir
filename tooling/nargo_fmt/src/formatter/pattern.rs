@@ -70,6 +70,32 @@ impl ChunkFormatter<'_, '_> {
                     formatter.write_right_paren();
                 }));
             }
+            Pattern::TupleWithDoubleDot(tuple) => {
+                group.text(self.chunk(|formatter| {
+                    formatter.write_left_paren();
+
+                    for (index, pattern) in tuple.iter().enumerate() {
+                        if index > 0 {
+                            formatter.write_comma();
+                            formatter.write_space();
+                        }
+                        if let Some(pattern) = pattern {
+                            let group = formatter.format_pattern(pattern.clone());
+                            formatter.format_chunk_group(group);
+                        } else {
+                            formatter.write_token(Token::DoubleDot);
+                        }
+                    }
+
+                    // Check for trailing comma
+                    formatter.skip_comments_and_whitespace();
+                    if formatter.is_at(Token::Comma) {
+                        formatter.bump();
+                    }
+
+                    formatter.write_right_paren();
+                }));
+            }
             Pattern::Struct(path, fields, _span) => {
                 let mut inner_group = ChunkGroup::new();
 
