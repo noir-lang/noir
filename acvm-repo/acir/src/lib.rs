@@ -12,6 +12,8 @@
 #[doc = include_str!("../README.md")]
 pub mod circuit;
 pub mod native_types;
+#[cfg(test)]
+mod parser;
 mod proto;
 mod serialization;
 

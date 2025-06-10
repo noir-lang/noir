@@ -51,6 +51,7 @@ num-bigint.workspace = true
 regex.workspace = true
 rmpv.workspace = true
 insta.workspace = true
+num-traits.workspace = true
 
 acir = { path = ".", features = ["arb"] } # Self to turn on `arb`.
 
@@ -67,3 +68,5 @@ bench = false
 [[bench]]
 name = "serialization"
 harness = false
+
+
