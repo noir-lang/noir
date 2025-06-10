@@ -11,7 +11,7 @@ use crate::ssa::{
         types::{NumericType, Type},
         value::ValueId,
     },
-    ssa_gen::Ssa
+    ssa_gen::Ssa,
 };
 
 use super::simple_optimization::SimpleOptimizationContext;
@@ -299,8 +299,11 @@ impl Context<'_, '_, '_> {
             let r2 = self.insert_binary(a, BinaryOp::Mul { unchecked: true }, b);
             r = self.insert_binary(r1, BinaryOp::Add { unchecked: true }, r2);
         }
-    
-        assert!(matches!(self.context.dfg.type_of_value(r).unwrap_numeric(), NumericType::NativeField), "ICE: pow is expected to always return a NativeField");
+
+        assert!(
+            matches!(self.context.dfg.type_of_value(r).unwrap_numeric(), NumericType::NativeField),
+            "ICE: pow is expected to always return a NativeField"
+        );
 
         r
     }
@@ -461,6 +464,7 @@ mod tests {
         ";
         let ssa = Ssa::from_str(src).unwrap();
         let ssa = ssa.remove_bit_shifts();
+
         assert_ssa_snapshot!(ssa, @r"
         acir(inline) fn main f0 {
           b0(v0: u32, v1: u8):
@@ -537,15 +541,16 @@ mod tests {
             v83 = mul v81, Field 2
             v84 = mul v83, v79
             v85 = add v82, v84
-            v86 = cast v85 as u32
-            v87 = unchecked_mul v4, v86
-            v88 = cast v0 as Field
-            v89 = cast v87 as Field
-            v90 = mul v88, v89
-            v91 = truncate v90 to 32 bits, max_bit_size: 254
-            v92 = cast v91 as u32
-            v93 = truncate v92 to 32 bits, max_bit_size: 33
-            return v92
+            v86 = truncate v85 to 32 bits, max_bit_size: 254
+            v87 = cast v86 as u32
+            v88 = unchecked_mul v4, v87
+            v89 = cast v0 as Field
+            v90 = cast v88 as Field
+            v91 = mul v89, v90
+            v92 = truncate v91 to 32 bits, max_bit_size: 254
+            v93 = cast v92 as u32
+            v94 = truncate v93 to 32 bits, max_bit_size: 33
+            return v93
         }
         ");
     }

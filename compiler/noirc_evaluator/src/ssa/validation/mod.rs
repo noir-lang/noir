@@ -33,10 +33,10 @@ struct Validator<'f> {
     signed_binary_op: Option<PendingSignedOverflowOp>,
 
     // State for valid Field to integer casts
-    // Range checks are laid down in isolation and can make for safe casts 
+    // Range checks are laid down in isolation and can make for safe casts
     // If they occurred before the value being cast to a smaller type
     // Stores: A set of (value being range constrained, the value's max bit size)
-    range_checks: HashMap<ValueId, u32>
+    range_checks: HashMap<ValueId, u32>,
 }
 
 #[derive(Debug)]
@@ -47,7 +47,7 @@ enum PendingSignedOverflowOp {
 
 impl<'f> Validator<'f> {
     fn new(function: &'f Function) -> Self {
-        Self { function, signed_binary_op: None, range_checks: HashMap::default(), }
+        Self { function, signed_binary_op: None, range_checks: HashMap::default() }
     }
 
     /// Validates that any checked signed add/sub/mul are followed by the appropriate instructions.
@@ -150,24 +150,22 @@ impl<'f> Validator<'f> {
     /// 1. A truncate instruction that ensures the cast is valid
     /// 2. A constant value known to be in-range
     /// 3. A division or other operation whose result is known to fit within the target bit size
-    /// 
-    /// Our initial SSA gen only generates preceding truncates for safe casts. 
+    ///
+    /// Our initial SSA gen only generates preceding truncates for safe casts.
     /// The cases accepted here are extended past what we perform during our initial SSA gen
     /// to mirror the instruction simplifier and other logic that could be accepted as a safe cast.
     fn validate_field_to_integer_cast_invariant(&mut self, instruction_id: InstructionId) {
         let dfg = &self.function.dfg;
 
         let (cast_input, typ) = match &dfg[instruction_id] {
-            Instruction::Cast(cast_input, typ) => {
-                (*cast_input, *typ)
-            }
+            Instruction::Cast(cast_input, typ) => (*cast_input, *typ),
             Instruction::RangeCheck { value, max_bit_size, .. } => {
                 self.range_checks.insert(*value, *max_bit_size);
-                return
+                return;
             }
             _ => return,
         };
-        
+
         if !matches!(dfg.type_of_value(cast_input), Type::Numeric(NumericType::NativeField)) {
             return;
         }
@@ -191,7 +189,9 @@ impl<'f> Validator<'f> {
                     assert_eq!(*bit_size, target_type_size);
                     assert!(*max_bit_size <= FieldElement::max_num_bits());
                 }
-                Instruction::Binary(Binary { lhs, rhs, operator: BinaryOp::Div, .. }) if dfg.is_constant(*rhs) => {
+                Instruction::Binary(Binary { lhs, rhs, operator: BinaryOp::Div, .. })
+                    if dfg.is_constant(*rhs) =>
+                {
                     let numerator_bits = dfg.type_of_value(*lhs).bit_size();
                     let divisor = dfg.get_numeric_constant(*rhs).unwrap();
                     let divisor_bits = divisor.num_bits();
@@ -206,7 +206,7 @@ impl<'f> Validator<'f> {
                     dbg!(&dfg[*instruction]);
                     panic!("Invalid cast from Field, must be truncated or provably safe");
                 }
-            }
+            },
             Value::NumericConstant { constant, .. } => {
                 let max_val_bits = constant.num_bits();
                 assert!(
@@ -215,7 +215,9 @@ impl<'f> Validator<'f> {
                 );
             }
             _ => {
-                panic!("Invalid cast from Field, not preceded by valid truncation or known safe value");
+                panic!(
+                    "Invalid cast from Field, not preceded by valid truncation or known safe value"
+                );
             }
         }
     }

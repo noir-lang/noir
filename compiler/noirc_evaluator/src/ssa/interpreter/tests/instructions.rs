@@ -1102,10 +1102,12 @@ fn test_range_and_xor_bb() {
 
   acir(inline) fn test_and_xor f2 {
     b0(v0: Field, v1: Field):
-    v2 = cast v0 as u8
-    v4 = cast v1 as u8
-    v8 = and v2, v4
-    v9 = xor v2, v4
+    v2 = truncate v0 to 8 bits, max_bit_size: 254
+    v3 = cast v2 as u8
+    v4 = truncate v1 to 8 bits, max_bit_size: 254
+    v5 = cast v4 as u8
+    v8 = and v3, v5
+    v9 = xor v3, v5
     return v9
 }
 
